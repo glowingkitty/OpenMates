@@ -1457,7 +1457,7 @@ export async function sendNewMessageImpl(
 		focus_phase_state?: Record<string, unknown>;
 		active_focus_id?: string | null; // Plaintext focus mode ID for AI processing (decrypted from E2E encrypted field)
 		project_focus_candidates?: Array<{ project_id: string; name: string; summary: string }>;
-		custom_rule_documents?: Array<Record<string, unknown>>;
+		custom_memory_documents?: Array<Record<string, unknown>>;
 		project_focus_catalog?: Array<Record<string, unknown>>;
 		project_focus_documents?: Array<Record<string, unknown>>;
 		project_context_documents?: Array<Record<string, unknown>>;
@@ -1500,6 +1500,15 @@ export async function sendNewMessageImpl(
 		encrypted_chat_key: encryptedChatKey, // Include the key for device sync broadcast
 		is_incognito: isIncognitoChat // Flag for backend to skip persistence
 	};
+
+	if (!isIncognitoChat) {
+		try {
+			const { personalDocumentMemoryEntries } = await import('./ruleDocumentService');
+			if ((await personalDocumentMemoryEntries()).length && !appSettingsMemoriesMetadataKeys.includes('openmates-memories')) {
+				appSettingsMemoriesMetadataKeys.push('openmates-memories');
+			}
+		} catch { /* Unavailable private documents grant no access. */ }
+	}
 
 	// Include app settings/memories metadata (keys only, no content)
 	// Server preprocessor uses this to know what data exists and decide what to request
@@ -1547,7 +1556,7 @@ export async function sendNewMessageImpl(
 			collectRelatedTaskSnapshots(chat?.team_id, message.chat_id),
 			collectAcceptedPlanContext({ chatId: message.chat_id, teamId: chat?.team_id }),
 		]);
-		const fields = ['custom_rule_documents', 'project_focus_catalog', 'project_focus_documents',
+		const fields = ['custom_memory_documents', 'project_focus_catalog', 'project_focus_documents',
 			'project_context_documents', 'related_task_candidates'] as const;
 		for (let index = 0; index < fields.length; index++) {
 			const result = collected[index];

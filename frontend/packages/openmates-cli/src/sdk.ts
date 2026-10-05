@@ -3337,6 +3337,20 @@ export class OpenMatesMemories {
     this.client = client;
   }
 
+  /** Reviewed, read-only app guidance; independent of private encrypted entries. */
+  async published(options: { appId?: string } = {}): Promise<{ memories: Array<Record<string, unknown>> }> {
+    if (options.appId) {
+      const app = await this.client.getPublic<{ memories?: Array<Record<string, unknown>> }>(
+        `/v1/apps/${encodeURIComponent(options.appId)}/metadata?include_unavailable=true`,
+      );
+      return { memories: app.memories ?? [] };
+    }
+    const metadata = await this.client.getPublic<{ apps: Record<string, { memories?: Array<Record<string, unknown>> }> }>(
+      '/v1/apps/metadata?include_unavailable=true',
+    );
+    return { memories: Object.values(metadata.apps).flatMap(app => app.memories ?? []) };
+  }
+
   async list(options: RequestOptions = {}): Promise<Record<string, unknown>> {
     const data = await this.client.get<{ memories?: Array<Record<string, unknown>> }>(withQuery("/v1/sdk/memories", options.query));
     const memories = await Promise.all((data.memories ?? []).map(async (memory) => {

@@ -1,3 +1,4 @@
+import { parseMemoriesLoadedEvent, type MemoriesLoadedEvent } from '../../ui/src/utils/loadedMemoryReceipt.js';
 /** Actual applied-context delivery receipts. Plaintext is transient until chat-key encryption. */
 import { encryptWithAesGcmCombined } from "./crypto.js";
 import type { OpenMatesWsClient } from "./ws.js";
@@ -6,6 +7,7 @@ export const DIRECTION_CORRECTION_NOTICE = "Chat is drifting too far away from t
 export interface AppliedRule { id: string; title: string; source: string; revision: string; body: string; project_id?: string | null; app_id?: string | null }
 interface EventBase { event_id: string; created_at: number; chat_id?: string }
 export type ChatContextEvent = EventBase & (
+  | MemoriesLoadedEvent
   | { type: "rules_loaded"; count: number; set_key: string; rules: AppliedRule[] }
   | { type: "chat_direction_correction"; notice: string; instruction: string; delivery_id: string; provenance?: Record<string, unknown> }
   | { type: "project_authoring_recommendation"; recommendation_id: string; project_id: string; kind: "focus" | "workflow";
@@ -18,6 +20,7 @@ export function parseChatContextEvent(value: unknown, chatId?: string): ChatCont
   const event = value as Record<string, unknown>;
   if (!text(event.event_id, 128) || !Number.isSafeInteger(event.created_at) || Number(event.created_at) < 0
       || (chatId && event.chat_id !== undefined && event.chat_id !== chatId)) return null;
+  if (event.type === "memories_loaded") return parseMemoriesLoadedEvent(event) as ChatContextEvent | null;
   if (event.type === "rules_loaded") {
     if (!text(event.set_key, 128) || !Array.isArray(event.rules) || !event.rules.length || event.rules.length > 24
         || event.count !== event.rules.length) return null;
@@ -46,13 +49,13 @@ export function parseChatContextContent(content: string): ChatContextEvent | nul
 }
 
 export function chatContextSummary(event: ChatContextEvent): string {
-  if (event.type === "rules_loaded") return `Loaded ${event.count} rules`;
+  if (event.type === "memories_loaded" || event.type === "rules_loaded") return `Loaded ${event.count} memories`;
   if (event.type === "chat_direction_correction") return DIRECTION_CORRECTION_NOTICE;
   return `${event.action === "create" ? "Create" : "Update"} Project ${event.kind === "focus" ? "Focus" : "Workflow"}${event.title ? `: ${event.title}` : ""}`;
 }
 
 export function chatContextDetails(event: ChatContextEvent): string[] {
-  if (event.type === "rules_loaded") return event.rules.flatMap(rule => [
+  if (event.type === "memories_loaded" || event.type === "rules_loaded") return (event.type === "memories_loaded" ? event.memories : event.rules).flatMap(rule => [
     rule.title, `${rule.source}${rule.project_id ? ` · Project ${rule.project_id}` : rule.app_id ? ` · ${rule.app_id}` : ""} · revision ${rule.revision}`, "", ...rule.body.split("\n"), "",
   ]);
   if (event.type === "chat_direction_correction") return [event.notice, "", ...event.instruction.split("\n")];
@@ -71,7 +74,7 @@ export function registerChatContextEvents(options: {
   const persist = (event: ChatContextEvent) => {
     if (seen.has(event.event_id)) return;
     seen.add(event.event_id);
-    if (event.type === "rules_loaded") {
+    if (event.type === "memories_loaded" || event.type === "rules_loaded") {
       if (event.set_key === previousRulesSetKey) return;
       previousRulesSetKey = event.set_key;
     }

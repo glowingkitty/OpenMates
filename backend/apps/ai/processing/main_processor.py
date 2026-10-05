@@ -214,8 +214,6 @@ async def _load_main_agentic_context(
     initial: bool, explicit_dependency_task_ids: frozenset[str] = frozenset(),
 ) -> tuple[str, list]:
     """Load bounded fresh references after authority; references grant no tools."""
-    if not agentic_context.first_party(request):
-        return "", []
     async def rules():
         selected = getattr(preprocessing, "relevant_rules", None)
         if initial and selected is not None:
@@ -236,6 +234,8 @@ async def _load_main_agentic_context(
             vault_key_id=vault_key_id, effective_instructions=effective_instructions,
         )
     async def related():
+        if not agentic_context.first_party(request):
+            return []
         chats = await fetch_related_chat_summaries(request, task_id, cache, directus)
         tasks = await fetch_related_task_candidates(
             request, directus, client_summaries=getattr(request, "related_task_candidates", []),
@@ -249,6 +249,7 @@ async def _load_main_agentic_context(
             model_id=decision_model, secrets_manager=secrets_manager,
         )
         return [item.as_context() for item in selected]
+    initial_binding = await agentic_context.fresh_project(request, directus, cache)
     outcomes = await asyncio.gather(
         rules(), workflows(), related(), agentic_context.selected_project_documents(
             request=request, directus=directus, cache=cache, model_id=decision_model,
@@ -256,6 +257,46 @@ async def _load_main_agentic_context(
         ), return_exceptions=True,
     )
     guides, graphs, references, documents = [value if isinstance(value, list) else [] for value in outcomes]
+    # Selected Project facts and reusable guidance share Memory transparency.
+    # The resolver above checked current activation, ownership and source revision.
+    from backend.shared.python_utils.memory_loader import MemoryDefinition
+    import hashlib
+    current_binding = await agentic_context.fresh_project(request, directus, cache)
+    if (current_binding or {}).get("activation_id") != (initial_binding or {}).get("activation_id"):
+        documents = []
+        guides = [guide for guide in guides if guide.source == "app"]
+    # Both legacy Markdown selection and generic Project reference selection can
+    # discover the same source. Give it one identity and apply it only once.
+    guides = [guide.model_copy(update={"id": f"project:{guide.project_id}:{guide.id}"})
+              if guide.source == "project" and not guide.id.startswith(f"project:{guide.project_id}:")
+              else guide for guide in guides]
+    applied_ids = {guide.id for guide in guides}
+    memory_documents = []
+    for document in documents:
+        if current_binding and document.get("kind") in {"memory", "fact"}:
+            try:
+                body = document["document"]
+                if not isinstance(body, str) or not body.strip() or len(body) > 20_000:
+                    continue
+                memory = MemoryDefinition(
+                    id=f"project:{current_binding['project_id']}:{document['item_id']}",
+                    title=document["title"][:180],
+                    description=(document.get("description") or document["title"])[:1_200],
+                    when_to_use="Relevant context for the active Project.", body=body,
+                    revision=hashlib.sha256(body.encode("utf-8")).hexdigest(),
+                    source="project", project_id=current_binding["project_id"],
+                )
+            except (KeyError, ValueError, TypeError):
+                # Optional malformed context must not interrupt inference or expose its content.
+                continue
+            if memory.id in applied_ids or len(guides) + len(memory_documents) >= 24:
+                continue
+            from backend.shared.python_utils.memory_loader import memories_prompt
+            if len(memories_prompt([*guides, *memory_documents, memory])) <= 32_000:
+                memory_documents.append(memory)
+                applied_ids.add(memory.id)
+    guides = [*guides, *memory_documents]
+    documents = [row for row in documents if row.get("kind") not in {"memory", "fact"}]
     # Keep complete graphs/documents, never truncated executable definitions.
     bounded_graphs = []
     graph_chars = 0

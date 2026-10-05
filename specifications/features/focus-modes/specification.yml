@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.focus-modes
-version: 2
+version: 3
 status: draft
 title: Focus Modes — Shared Operation and Display
 summary: Shared lifecycle, full system instruction application, system history, controls, restoration and historical
@@ -157,7 +157,7 @@ assertions:
 - id: focus-modes.context-reselection
   type: behavior
   must: After any authoritative Focus activation or active-phase change, reselect relevant permitted app skills,
-    saved Workflows, Rule guides and available context before main processing continues. Use the effective
+    saved Workflows, Memories and available context before main processing continues. Use the effective
     instructions and current phase. Rejected, stale or revoked activation cannot trigger Project-private loading;
     unchanged-phase tool results do not add a phase-transition reselection. Selection never runs a Workflow
     or grants access.

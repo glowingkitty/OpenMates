@@ -1,5 +1,7 @@
 # Focus Modes — SKILL.md Architecture
 
+Focus modes define how to work; [Memories](./memories.md) supply facts, preferences and reusable guidance. Phases are optional, including for imported Project instructions. Specifications continue to define required outcomes.
+
 Status: **In progress — prototype stage.** The new format is live for one
 focus mode (`jobs/career_insights`) behind a parity validator. All other
 focus modes continue to load from `app.yml` + frontend i18n YAML files.

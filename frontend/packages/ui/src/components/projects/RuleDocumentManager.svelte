@@ -43,7 +43,7 @@
 
   function displayError(value: unknown): string {
     return value instanceof Error && value.message === 'rule_project_activation_required'
-      ? $text('rules.activation_required') : $text('rules.save_failed');
+      ? $text('memories.activation_required') : $text('memories.save_failed');
   }
 
   async function load(currentSource: 'personal' | 'project', selectedProjectId: string | null) {
@@ -77,7 +77,7 @@
     if (saving) return;
     let document: string;
     try { document = serializeRuleDocument(draft); }
-    catch { error = $text('rules.invalid_document'); return; }
+    catch { error = $text('memories.invalid_document'); return; }
     saving = true;
     error = '';
     const currentSource = source;
@@ -89,25 +89,25 @@
       documents = await service.list(currentSource, selectedProjectId);
       if (token !== generation) return;
       reset();
-      notice = $text('rules.saved');
+      notice = $text('memories.saved');
     } catch (value) { if (token === generation) error = displayError(value); }
     finally { saving = false; }
   }
 </script>
 
-<section class="rule-manager" data-testid="rule-document-manager" aria-label={$text('rules.manage')}>
+<section class="rule-manager" data-testid="rule-document-manager" aria-label={$text('memories.manage')}>
   <div class="heading">
-    <h2>{$text('rules.manage')}</h2>
+    <h2>{$text('memories.manage')}</h2>
     <button type="button" onclick={onClose} disabled={saving} data-testid="rule-manager-close">{$text('common.close')}</button>
   </div>
-  <p>{$text('rules.guide_description')}</p>
-  <div class="scope" role="group" aria-label={$text('rules.scope')}>
-    <button type="button" aria-pressed={source === 'personal'} disabled={saving} onclick={() => source = 'personal'} data-testid="rule-scope-personal">{$text('rules.source_personal')}</button>
+  <p>{$text('memories.guide_description')}</p>
+  <div class="scope" role="group" aria-label={$text('memories.scope')}>
+    <button type="button" aria-pressed={source === 'personal'} disabled={saving} onclick={() => source = 'personal'} data-testid="rule-scope-personal">{$text('memories.source_personal')}</button>
     {#if projectId}
-      <button type="button" aria-pressed={source === 'project'} disabled={saving} onclick={() => source = 'project'} data-testid="rule-scope-project">{$text('rules.source_project')}</button>
+      <button type="button" aria-pressed={source === 'project'} disabled={saving} onclick={() => source = 'project'} data-testid="rule-scope-project">{$text('memories.source_project')}</button>
     {/if}
   </div>
-  {#if source === 'project'}<p class="privacy">{$text('rules.project_storage')}</p>{/if}
+  {#if source === 'project'}<p class="privacy">{$text('memories.project_storage')}</p>{/if}
   {#if loading}<p role="status">{$text('common.loading')}</p>
   {:else}
     {#if documents.length}
@@ -116,15 +116,15 @@
           <li><button type="button" onclick={() => edit(document)} disabled={saving} data-testid="rule-document-edit">{parseRuleDocument(document.document).title}</button></li>
         {/each}
       </ul>
-    {:else}<p>{$text('rules.empty')}</p>{/if}
+    {:else}<p>{$text('memories.empty')}</p>{/if}
     <form onsubmit={save} data-testid="rule-document-form">
-      <label>{$text('rules.title')}<input required maxlength="180" bind:value={draft.title} disabled={saving} data-testid="rule-title" /></label>
-      <label>{$text('rules.description')}<textarea required maxlength="1200" rows="2" bind:value={draft.description} disabled={saving} data-testid="rule-description"></textarea></label>
-      <label>{$text('rules.when_to_use')}<textarea required maxlength="1200" rows="2" bind:value={draft.when_to_use} disabled={saving} data-testid="rule-when-to-use"></textarea></label>
-      <label>{$text('rules.practices')}<textarea required maxlength="20000" rows="7" bind:value={draft.body} disabled={saving} data-testid="rule-body"></textarea></label>
+      <label>{$text('memories.title')}<input required maxlength="180" bind:value={draft.title} disabled={saving} data-testid="rule-title" /></label>
+      <label>{$text('memories.description')}<textarea required maxlength="1200" rows="2" bind:value={draft.description} disabled={saving} data-testid="rule-description"></textarea></label>
+      <label>{$text('memories.when_to_use')}<textarea required maxlength="1200" rows="2" bind:value={draft.when_to_use} disabled={saving} data-testid="rule-when-to-use"></textarea></label>
+      <label>{$text('memories.practices')}<textarea required maxlength="20000" rows="7" bind:value={draft.body} disabled={saving} data-testid="rule-body"></textarea></label>
       <div class="actions">
         <button type="submit" disabled={saving} data-testid="rule-save">{saving ? $text('common.loading') : $text('common.save')}</button>
-        {#if selected}<button type="button" onclick={reset} disabled={saving} data-testid="rule-new">{$text('rules.new')}</button>{/if}
+        {#if selected}<button type="button" onclick={reset} disabled={saving} data-testid="rule-new">{$text('memories.new')}</button>{/if}
       </div>
     </form>
   {/if}

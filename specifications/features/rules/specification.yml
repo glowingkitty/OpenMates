@@ -1,9 +1,9 @@
 schema_version: 1
 id: feature.rules
 version: 1
-status: draft
+status: superseded
 title: Rules — Reusable Best Practices
-summary: Selectable coherent best-practice guides with encrypted personal/Project ownership, Focus-aware relevance
+summary: Superseded by feature.app-memories@2. Legacy selectable coherent best-practice guides with encrypted personal/Project ownership, Focus-aware relevance
   and quiet inspectable application.
 scope:
   includes:

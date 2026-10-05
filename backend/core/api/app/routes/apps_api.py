@@ -19,6 +19,8 @@ from datetime import datetime, timedelta, timezone
 
 from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, Request, Response, Depends, Body, FastAPI, Cookie
+from backend.shared.python_utils.memory_loader import load_app_memories
+
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.services.limiter import limiter
@@ -235,7 +237,7 @@ class AppMetadata(BaseModel):
     skills: List[SkillMetadata]
     focus_modes: List[FocusModeMetadata] = []
     settings_and_memories: List[SettingsAndMemoryMetadata] = []
-
+    memories: List[Dict[str, Any]] = Field(default_factory=list)
 
 class AppsListResponse(BaseModel):
     """Response model for apps list"""
@@ -1892,14 +1894,15 @@ async def list_apps(
                     ))
             
             # Include app if it has at least one skill, focus mode, or settings_and_memories
-            if skills or focus_modes or settings_and_memories:
+            if skills or focus_modes or settings_and_memories or load_app_memories([app_id]):
                 apps.append(AppMetadata(
                     id=app_id,
                     name=app_name,
                     description=app_description,
                     skills=skills,
                     focus_modes=focus_modes,
-                    settings_and_memories=settings_and_memories
+                    settings_and_memories=settings_and_memories,
+                    memories=[memory.model_dump() for memory in load_app_memories([app_id])],
                 ))
         
         return AppsListResponse(apps=apps)
@@ -2808,7 +2811,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         description=resolved_description,
                         skills=skills,
                         focus_modes=focus_modes,
-                        settings_and_memories=settings_and_memories
+                        settings_and_memories=settings_and_memories,
+                    memories=[memory.model_dump() for memory in load_app_memories([app_id])],
                     )
                     
                 except Exception as e:

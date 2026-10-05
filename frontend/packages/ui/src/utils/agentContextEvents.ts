@@ -1,3 +1,4 @@
+import { parseMemoriesLoadedEvent, type MemoriesLoadedEvent } from './loadedMemoryReceipt';
 /** Pure parsing of persisted context notices; reading history never performs work. */
 export interface AppliedRuleDetail {
   id: string;
@@ -45,7 +46,7 @@ export interface ProjectAuthoringSingleEvent extends ProjectAuthoringRecommendat
   type: 'project_authoring_recommendation';
 }
 
-export type AgentContextEvent = RulesLoadedEvent | DirectionCorrectionEvent | ProjectAuthoringEvent | ProjectAuthoringSingleEvent;
+export type AgentContextEvent = MemoriesLoadedEvent | RulesLoadedEvent | DirectionCorrectionEvent | ProjectAuthoringEvent | ProjectAuthoringSingleEvent;
 
 export interface ProjectAuthoringJobDisplay {
   job_id: string;
@@ -70,6 +71,7 @@ export function parseAgentContextEvent(content: unknown): AgentContextEvent | nu
   if (value.type === 'project_authoring_recommendation') {
     return validRecommendation(value) ? value as unknown as ProjectAuthoringSingleEvent : null;
   }
+  if (value.type === 'memories_loaded') return parseMemoriesLoadedEvent(value);
   if (value.type === 'rules_loaded') {
     if (!Array.isArray(value.rules) || !value.rules.length || value.rules.length > 24
       || value.count !== value.rules.length || typeof value.set_key !== 'string') return null;

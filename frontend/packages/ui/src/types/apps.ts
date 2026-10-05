@@ -12,7 +12,14 @@
  * - Schema source: `backend/shared/python_schemas/app_metadata_schemas.py`
  * - Discovery: `backend/core/api/main.py:discover_apps()`
  */
+export interface PublishedAppMemory {
+  id: string; title: string; description: string; when_to_use: string; body: string;
+  revision: string; source: 'app'; app_id: string; project_id?: null;
+}
+
 export interface AppMetadata {
+  /** Read-only app-provided Memories, selected automatically when relevant. */
+  memories?: PublishedAppMemory[];
   id: string;
   name?: string; // Optional: use name_translation_key for i18n
   name_translation_key?: string; // Translation key for app name (e.g., "app_translations.web")

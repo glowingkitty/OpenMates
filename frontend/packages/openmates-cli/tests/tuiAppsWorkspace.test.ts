@@ -10,7 +10,7 @@ import { test } from "node:test";
 import { lineText } from "../src/tuiText.js";
 import type { OpenMatesClient } from "../src/client.js";
 import {
-  buildTuiAppsRunConfirmation, buildTuiAppsSkillForm, executeTuiAppsSkill,
+  renderTuiApp, buildTuiAppsRunConfirmation, buildTuiAppsSkillForm, executeTuiAppsSkill,
   loadTuiApps, loadTuiAppsResult, loadTuiAppsResults, loadTuiAppsSkill,
   prepareTuiAppsSkillRun, renderTuiAppIdentity, renderTuiAppTabs, renderTuiAppsHome,
   renderTuiAppsResult, renderTuiAppsSkillIdentity, renderTuiAppsSkillTabs, visibleTuiApps,
@@ -147,4 +147,18 @@ test("saved result keeps child embed actions visible when parent response is lon
   }, 80).join("\n");
   assert.match(rendered, /First website[\s\S]*\/embed 22222222-2222-4222-8222-222222222222/);
   assert.match(rendered, /Response/);
+});
+
+// contract-test: supporting surface=cli assertions=app-memories.catalog.declared-types-only,app-memories.transparency.loaded-set
+test('published Memories are read-only catalog guidance, separate from private category definitions', async () => {
+  const apps = await loadTuiApps({getAppsWorkspaceCatalog: async () => ({apps: {code: {
+    id: 'code', name: 'Code', settings_and_memories: [{id: 'preferred_tech', name: 'Preferred technologies'}],
+    memories: [{id: 'app:code:svelte', title: 'Svelte best practices', description: 'Reactive components.', body: 'Keep user intent clear.'}],
+  }}})} as unknown as OpenMatesClient);
+  assert.equal(apps[0].settingsMemories.length, 2);
+  const screen = renderTuiApp(apps[0], {width: 80, tab: 'settings_memories', selectedId: 'app:code:svelte'}).join('\n');
+  assert.match(screen, /Svelte best practices/);
+  assert.match(screen, /App-provided · Read-only/);
+  assert.match(screen, /Keep user intent clear/);
+  assert.match(screen, /Preferred technologies/);
 });

@@ -307,6 +307,14 @@ async function populateCategoryEntries(
         }
       }
 
+      if (category.appId === 'openmates' && category.itemType === 'memories') {
+        const { personalDocumentMemoryEntries } = await import('./ruleDocumentService');
+        for (const memory of await personalDocumentMemoryEntries()) {
+          if (!entries.some(entry => entry.id === memory.id)) entries.push({ id: memory.id, title: memory.item_value.title, selected: true });
+        }
+        category.entryCount = entries.length;
+      }
+
       category.entries = entries;
       console.debug(
         `[ChatSyncService:AppSettings] Populated ${entries.length} entries for category ${category.key} (${category.displayName})`,
@@ -397,6 +405,11 @@ export async function handleRequestAppSettingsMemoriesImpl(
 
     // Get entry counts from IndexedDB to show in the dialog
     const entryCounts = await chatDB.getAppSettingsMemoriesEntryCounts();
+    if (requested_keys.includes('openmates-memories')) {
+      const { personalDocumentMemoryEntries } = await import('./ruleDocumentService');
+      const count = (await personalDocumentMemoryEntries()).length;
+      entryCounts.set('openmates-memories', (entryCounts.get('openmates-memories') ?? 0) + count);
+    }
 
     // Build categories from requested keys
     const categories: AppSettingsMemoriesCategory[] = [];
@@ -725,6 +738,15 @@ export async function handlePermissionDialogConfirm(
       // Check if specific entries were selected for this category
       // null means "all entries" (no entry-level filtering)
       const selectedEntryIds = selectedEntryIdsByCategory?.get(key) ?? null;
+
+      if (appId === 'openmates' && itemType === 'memories') {
+        const { personalDocumentMemoryEntries } = await import('./ruleDocumentService');
+        for (const entry of await personalDocumentMemoryEntries()) {
+          if (selectedEntryIds === null || selectedEntryIds.includes(entry.id)) {
+            appSettingsMemories.push({ app_id: appId, item_key: itemType, content: entry.item_value });
+          }
+        }
+      }
 
       // Get entries for this category
       const entries = await chatDB.getAppSettingsMemoriesEntriesByAppAndType(

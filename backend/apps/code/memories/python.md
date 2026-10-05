@@ -1,5 +1,5 @@
 ---
-title: Python coding rules
+title: Python best practices
 description: Clear Python interfaces, resource ownership, failure handling and asynchronous work.
 when_to_use: Writing or reviewing Python functions, services, scripts or asynchronous code.
 ---

@@ -1,5 +1,5 @@
 ---
-title: JavaScript coding rules
+title: JavaScript best practices
 description: Predictable JavaScript values, modules, promises and browser work.
 when_to_use: Writing or changing JavaScript or JavaScript runtime logic inside framework files.
 ---

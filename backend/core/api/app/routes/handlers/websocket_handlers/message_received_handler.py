@@ -2281,7 +2281,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             if isinstance(project_candidates_from_client, list) else [],
             active_project_focus=active_project_focus,
             accepted_plan_context=bounded_accepted_plan_snapshot(payload.get("accepted_plan_context")) if not is_incognito else None,
-            custom_rule_documents=(payload.get("custom_rule_documents") or [])[:24] if isinstance(payload.get("custom_rule_documents"), list) and not is_incognito else [],
+            custom_rule_documents=(payload.get("custom_memory_documents", payload.get("custom_rule_documents")) or [])[:24] if isinstance(payload.get("custom_memory_documents", payload.get("custom_rule_documents")), list) and not is_incognito else [],
             project_focus_catalog=(payload.get("project_focus_catalog") or [])[:20] if isinstance(payload.get("project_focus_catalog"), list) and not is_incognito else [],
             project_focus_documents=(payload.get("project_focus_documents") or [])[:8] if isinstance(payload.get("project_focus_documents"), list) and not is_incognito else [],
             project_context_documents=(payload.get("project_context_documents") or [])[:20] if isinstance(payload.get("project_context_documents"), list) and not is_incognito else [],

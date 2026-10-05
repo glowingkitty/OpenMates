@@ -1,5 +1,5 @@
 ---
-title: TypeScript coding rules
+title: TypeScript best practices
 description: Accurate static contracts and safe handling of unknown runtime values.
 when_to_use: Writing TypeScript types, APIs, component props or logic at typed boundaries.
 ---

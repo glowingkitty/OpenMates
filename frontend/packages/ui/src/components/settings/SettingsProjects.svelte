@@ -216,7 +216,7 @@
 
             <SettingsSectionHeading title="Connected sources" icon="project" />
             <SettingsButton variant="secondary" dataTestid="project-settings-rules" onClick={() => { rulesExpanded = !rulesExpanded; }}>
-                {$text('projects.manage_rules')}
+                {$text('memories.manage')}
             </SettingsButton>
             {#if rulesExpanded}<RuleDocumentManager projectId={selectedProjectId} onClose={() => { rulesExpanded = false; }} />{/if}
             {#if sources.length === 0}
@@ -244,7 +244,7 @@
         {:else}
             <SettingsSectionHeading title={$text('settings.projects')} icon="project" />
             <SettingsButton variant="secondary" dataTestid="personal-settings-rules" onClick={() => { rulesExpanded = !rulesExpanded; }}>
-                {$text('projects.manage_rules')}
+                {$text('memories.manage')}
             </SettingsButton>
             {#if rulesExpanded}<RuleDocumentManager projectId={null} onClose={() => { rulesExpanded = false; }} />{/if}
             {#if sortedProjects.length === 0}

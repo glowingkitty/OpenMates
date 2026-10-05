@@ -2,6 +2,7 @@
 import { get } from 'svelte/store';
 import { getApiEndpoint } from '../config/api';
 import { authStore } from '../stores/authStore';
+import { publishPersonalDocumentMemories } from '../stores/personalDocumentMemories';
 import { userProfile, updateProfile } from '../stores/userProfile';
 import { activeChatStore } from '../stores/activeChatStore';
 import { decryptWithMasterKey, encryptWithMasterKey } from './encryption/MetadataEncryptor';
@@ -18,13 +19,15 @@ import {
 import { projectFileMutationDigest, type ProjectFileMutation } from '../utils/projectFileMutationProtocol';
 import type { ProjectFileJob } from './projectFileJobExecutor';
 import {
-  buildWholeDocumentPatch, parseRuleDocument, validateRuleCatalog, type CustomRuleDocument,
+  buildWholeDocumentPatch, parseRuleDocument, serializeRuleDocument, validateRuleCatalog, type CustomRuleDocument,
 } from '../utils/ruleDocuments';
 import { broadcastProjectFilesChanged } from './projectBrowserEvents';
 import { projectRecordRevision } from '../utils/projectContextRevision';
 
-const PERSONAL_SETTINGS_KEY = 'rule_documents';
-export const PROJECT_RULE_DIRECTORY = '.openmates/rules';
+const PERSONAL_SETTINGS_KEY = 'memory_documents';
+const LEGACY_PERSONAL_SETTINGS_KEY = 'rule_documents';
+export const PROJECT_RULE_DIRECTORY = '.openmates/memories';
+const LEGACY_PROJECT_RULE_DIRECTORY = '.openmates/rules';
 const projectItemRevision = (item: ProjectItemViewModel) => projectRecordRevision(item.encrypted as unknown as Record<string, unknown>);
 
 export interface EditableRuleDocument extends CustomRuleDocument {
@@ -57,9 +60,16 @@ async function accountSettings(): Promise<{ owner: string; ciphertext: string | 
 }
 
 function personalDocuments(settings: Record<string, unknown>): CustomRuleDocument[] {
-  const documents = settings[PERSONAL_SETTINGS_KEY];
-  if (documents === undefined) return [];
-  if (!Array.isArray(documents)) throw new Error('invalid_rule_document');
+  const legacy = settings[LEGACY_PERSONAL_SETTINGS_KEY] ?? [];
+  const canonical = settings[PERSONAL_SETTINGS_KEY] ?? [];
+  if (!Array.isArray(legacy) || !Array.isArray(canonical)) throw new Error('invalid_rule_document');
+  // New writes supersede their legacy identity; preserve encrypted legacy data.
+  const byId = new Map<string, unknown>();
+  for (const entry of [...legacy, ...canonical]) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.id !== 'string') throw new Error('invalid_rule_document');
+    byId.set(entry.id, entry);
+  }
+  const documents = [...byId.values()];
   const result = documents.map((value: unknown) => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid_rule_document');
     const rule = value as Record<string, unknown>;
@@ -84,6 +94,11 @@ export async function savePersonalRuleDocument(input: { id?: string; document: s
   if (index < 0) documents.push(rule); else documents[index] = rule;
   validateRuleCatalog(documents);
   snapshot.settings[PERSONAL_SETTINGS_KEY] = documents.map(({ id, document }) => ({ id, document }));
+  await persistPersonalSettings(snapshot);
+  return rule;
+}
+
+async function persistPersonalSettings(snapshot: Awaited<ReturnType<typeof accountSettings>>) {
   const encrypted = await encryptWithMasterKey(JSON.stringify(snapshot.settings));
   if (!encrypted) throw new Error('rule_settings_unavailable');
   if (requireOwner() !== snapshot.owner || (get(userProfile).encrypted_settings ?? null) !== snapshot.ciphertext) {
@@ -96,7 +111,23 @@ export async function savePersonalRuleDocument(input: { id?: string; document: s
   if (!response.ok) throw new Error('rule_save_failed');
   if (requireOwner() !== snapshot.owner) throw new Error('rule_auth_required');
   updateProfile({ encrypted_settings: encrypted });
-  return rule;
+}
+
+export async function savePersonalDocumentMemoryEntry(entryId: string, value: { title: string; document: string }) {
+  const original = (await listPersonalRuleDocuments()).find(document => `account-memory-${document.id.replace(/^personal:/, '')}` === entryId);
+  if (!original) throw new Error('rule_not_found');
+  return savePersonalRuleDocument({id: original.id, document: serializeRuleDocument({...parseRuleDocument(value.document), title: value.title})});
+}
+
+export async function deletePersonalDocumentMemoryEntry(entryId: string) {
+  const snapshot = await accountSettings();
+  const document = personalDocuments(snapshot.settings).find(item => `account-memory-${item.id.replace(/^personal:/, '')}` === entryId);
+  if (!document) throw new Error('rule_not_found');
+  for (const key of [PERSONAL_SETTINGS_KEY, LEGACY_PERSONAL_SETTINGS_KEY]) {
+    const values = snapshot.settings[key];
+    if (Array.isArray(values)) snapshot.settings[key] = values.filter(value => value.id !== document.id);
+  }
+  await persistPersonalSettings(snapshot);
 }
 
 function job(chatId: string, projectId: string, operation: ProjectFileJob['operation'], path: string, operationId: string = crypto.randomUUID()): ProjectFileJob {
@@ -107,7 +138,7 @@ function job(chatId: string, projectId: string, operation: ProjectFileJob['opera
   };
 }
 
-async function activeProjectAdapter(chatId: string, projectId: string): Promise<HostedProjectFileAdapter & { itemIdsByPath: Map<string, string>; writeMode: string | null }> {
+async function activeProjectAdapter(chatId: string, projectId: string): Promise<HostedProjectFileAdapter & { itemIdsByPath: Map<string, string>; itemsByPath: Map<string, ProjectItemViewModel>; writeMode: string | null }> {
   const owner = requireOwner();
   const focus = await getActiveProjectFocus(chatId);
   if (focus?.project_id !== projectId) throw new Error('rule_project_activation_required');
@@ -143,6 +174,7 @@ async function activeProjectAdapter(chatId: string, projectId: string): Promise<
     privatePaths: privatePaths as string[] | undefined,
     writeMode: settings.writeMode ?? null,
     itemIdsByPath: new Map(contents.items.map((item) => [String(item.metadata.path ?? item.metadata.display_path ?? item.metadata.file_path ?? item.metadata.filename ?? item.displayName), item.project_item_id])),
+    itemsByPath: new Map(contents.items.map((item) => [String(item.metadata.path ?? item.metadata.display_path ?? item.metadata.file_path ?? item.metadata.filename ?? item.displayName), item])),
     encrypt: encryptWithEmbedKey, wrap: wrapEmbedKeyWithChatKey,
     encodeContent: async (content) => JSON.stringify(content),
     listFiles: async () => contents.items.filter((item) => item.target_id && ['embed', 'upload'].includes(item.item_type))
@@ -162,11 +194,12 @@ async function activeProjectAdapter(chatId: string, projectId: string): Promise<
 
 export async function listProjectRuleDocuments(input: { chatId: string; projectId: string }): Promise<EditableRuleDocument[]> {
   const adapter = await activeProjectAdapter(input.chatId, input.projectId);
-  const listing = await executeHostedProjectFileJob(adapter, job(input.chatId, input.projectId, 'list', PROJECT_RULE_DIRECTORY));
-  const entries = listing.entries as Array<{ path: string }>;
+  const listings = await Promise.all([PROJECT_RULE_DIRECTORY, LEGACY_PROJECT_RULE_DIRECTORY].map(directory =>
+    executeHostedProjectFileJob(adapter, job(input.chatId, input.projectId, 'list', directory))));
+  const entries = listings.flatMap(listing => listing.entries as Array<{ path: string }>);
   const rules: EditableRuleDocument[] = [];
   for (const entry of entries.slice(0, 24)) {
-    if (!/^\.openmates\/rules\/[a-zA-Z0-9_-]+\.md$/.test(entry.path)) continue;
+    if (!/^\.openmates\/(?:memories|rules)\/[a-zA-Z0-9_-]+\.md$/.test(entry.path)) continue;
     const result = await executeHostedProjectFileJob(adapter, job(input.chatId, input.projectId, 'read_text', entry.path));
     if (typeof result.content !== 'string') throw new Error('invalid_rule_document');
     parseRuleDocument(result.content);
@@ -174,10 +207,17 @@ export async function listProjectRuleDocuments(input: { chatId: string; projectI
       id: adapter.itemIdsByPath.get(entry.path) ?? '',
       source: 'project', project_id: input.projectId, document: result.content,
       path: entry.path, expectedBase: String(result.expected_base),
+      item_revision: await projectItemRevision(adapter.itemsByPath.get(entry.path)!),
     });
   }
-  validateRuleCatalog(rules);
-  return rules;
+  const current = await getProjectContents(await getProject(input.projectId, {teamId: adapter.teamId}), {teamId: adapter.teamId});
+  const retained = [];
+  for (const memory of rules) {
+    const item = current.items.find(item => item.project_item_id === memory.id);
+    if (item && await projectItemRevision(item) === memory.item_revision) retained.push(memory);
+  }
+  validateRuleCatalog(retained);
+  return retained;
 }
 
 export async function readActiveProjectMarkdownDocuments(input: {
@@ -206,7 +246,7 @@ export async function saveProjectRuleDocument(input: { chatId: string; projectId
   await saveProjectMarkdownDocument({
     chatId: input.chatId, projectId: input.projectId, document: input.document,
     path: input.existing?.path ?? `${PROJECT_RULE_DIRECTORY}/${crypto.randomUUID()}.md`,
-    metadata: { rule_document: true }, existingDocument: input.existing?.document,
+    metadata: { memory_document: true, title: parseRuleDocument(input.document).title, description: parseRuleDocument(input.document).description }, existingDocument: input.existing?.document,
     expectedBase: input.existing?.expectedBase, saveApproved: true,
   });
 }
@@ -288,7 +328,8 @@ export async function saveProjectMarkdownDocument(input: {
 export async function collectCustomRuleDocuments(input: { chatId: string; projectId?: string | null }): Promise<CustomRuleDocument[]> {
   if (!get(authStore).isAuthenticated || !get(userProfile).user_id) return [];
   const owner = requireOwner();
-  const personal = await listPersonalRuleDocuments();
+  // Personal Memories are advertised only as metadata and supplied after consent.
+  const personal: CustomRuleDocument[] = [];
   const focus = await getActiveProjectFocus(input.chatId);
   if (!get(authStore).isAuthenticated || get(userProfile).user_id !== owner) return [];
   if (!focus || input.projectId && focus.project_id !== input.projectId) return personal;
@@ -298,12 +339,27 @@ export async function collectCustomRuleDocuments(input: { chatId: string; projec
   const documents = fresh?.project_id === focus.project_id && fresh?.team_id === focus.team_id ? [...personal, ...project] : personal;
   const bounded: CustomRuleDocument[] = [];
   let chars = 0;
-  for (const { id, source, project_id, document } of documents) {
+  for (const { id, source, project_id, document, item_revision } of documents) {
     if (bounded.length >= 24 || chars + document.length > 64_000) continue;
-    bounded.push({ id, source, ...(project_id ? { project_id } : {}), document });
+    bounded.push({ id, source, ...(project_id ? { project_id } : {}), document, item_revision });
     chars += document.length;
   }
   return validateRuleCatalog(bounded);
 }
 
 export function activeRuleChatId(): string | null { return activeChatStore.get(); }
+
+/** Legacy account documents share the declared private OpenMates memory category. */
+export async function personalDocumentMemoryEntries() {
+  const owner = requireOwner(), revision = get(userProfile).encrypted_settings ?? null;
+  const documents = await listPersonalRuleDocuments();
+  if (requireOwner() !== owner || (get(userProfile).encrypted_settings ?? null) !== revision) throw new Error('rule_settings_changed');
+  const entries = documents.map(document => {
+    const fields = parseRuleDocument(document.document);
+    return { id: `account-memory-${document.id.replace(/^personal:/, '')}`, app_id: 'openmates', item_key: fields.title,
+      item_value: { title: fields.title, document: document.document } as Record<string, unknown>, settings_group: 'memories',
+      created_at: 0, updated_at: 0, item_version: 1 };
+  });
+  publishPersonalDocumentMemories(owner, revision, entries);
+  return entries;
+}

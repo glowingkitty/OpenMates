@@ -1168,21 +1168,28 @@ def test_diff_prompt_skips_when_no_prior_embed_reference_exists() -> None:
     assert asyncio.run(_has_diffable_embeds_for_prompt(request)) is False
 
 
-async def test_rules_receipt_describes_only_guides_in_actual_dispatched_prompt(monkeypatch) -> None:
-    from backend.shared.python_utils.rule_loader import RuleDefinition
+# contract-test: supporting surface=rest_api assertions=app-memories.transparency.loaded-set,app-memories.privacy.client-encrypted
+@pytest.mark.parametrize("source", ["app", "project"])
+async def test_memory_receipt_describes_only_guides_in_actual_dispatched_prompt(monkeypatch, source) -> None:
+    from backend.shared.python_utils.memory_loader import MemoryDefinition, memories_prompt
     from unittest.mock import AsyncMock
-    guide = RuleDefinition(id="personal:guide", title="API practice", description="Review API changes",
-        when_to_use="Changing an API", body="Synthetic private guide sentinel", revision="a" * 64, source="personal")
-    section = "--- Practice guides ---\n" + guide.body
+    binding = {"app_id": "code"} if source == "app" else {"project_id": "project-1"}
+    guide = MemoryDefinition(id="app:code:guide" if source == "app" else "project:project-1:guide",
+        title="API practice", description="Review API changes", when_to_use="Changing an API",
+        body="Synthetic selected guide sentinel", revision="a" * 64, source=source, **binding)
+    section = memories_prompt([guide])
     loader = AsyncMock(return_value=(section, [guide]))
     monkeypatch.setattr(main_processor, "_load_main_agentic_context", loader)
     output, calls = await _run_mocked_protocol_guard_main_processor(monkeypatch,
-        streams=[["A clear answer."]])
+        streams=[["A clear answer."]],
+        request_overrides={"current_project": {"project_id": "project-1", "team_id": None}} if source == "project" else {})
     assert len(calls) == 1 and section in calls[0]["system_prompt"]
     receipts = [chunk["receipt"] for chunk in output if isinstance(chunk, dict) and chunk.get("__chat_context_applied__")]
-    assert len(receipts) == 1 and receipts[0]["type"] == "rules_loaded"
-    assert receipts[0]["rules"][0]["revision"] == guide.revision
-    assert receipts[0]["rules"][0]["body"] == guide.body
+    assert len(receipts) == 1 and receipts[0]["type"] == "memories_loaded"
+    assert receipts[0]["count"] == 1
+    assert receipts[0]["memories"][0]["source"] == source
+    assert receipts[0]["memories"][0]["revision"] == guide.revision
+    assert receipts[0]["memories"][0]["body"] == guide.body
     debug = [chunk for chunk in output if isinstance(chunk, dict) and chunk.get("__debug_metadata__")]
     assert all(guide.body not in str(chunk) for chunk in debug)
     assert loader.await_count == 1

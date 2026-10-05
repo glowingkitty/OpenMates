@@ -5,8 +5,8 @@ import { parseDocument, isAlias, visit } from "yaml";
 import { projectFocusDocumentFromMetadata, type ProjectFocusDocument } from "../../projectFocusDocument.js";
 import { createHash } from "node:crypto";
 
-export interface CustomRuleDocument { id: string; source: "personal" | "project"; project_id?: string; document: string }
-export interface ProjectContextDocument { item_id: string; kind: "spec" | "fact" | "folder"; title: string; description: string; document: string; revision: string }
+export interface CustomRuleDocument { id: string; source: "personal" | "project"; project_id?: string; document: string; item_revision?: string }
+export interface ProjectContextDocument { item_id: string; kind: "spec" | "memory" | "fact" | "folder"; title: string; description: string; document: string; revision: string }
 export interface ProjectFocusCatalogEntry { id: string; title: string; summary: string; revision: string }
 export interface ProjectFocusDocumentInput { item_id: string; document: string; revision: string }
 export interface RelatedTaskCandidate { task_id: string; title: string; summary: string; project_id: string | null; status: string; changed_at: number; revision: string; explicit_dependency: boolean }
@@ -17,6 +17,8 @@ export interface CliJevContext {
   /** Fresh server-approved current Plan, derived from existing chat/Task linkage. */
   accepted_plan_context?: AcceptedPlanContext | null;
   project_focus_candidates?: Array<{ project_id: string; name: string; summary: string; auto_selection: boolean }>;
+  custom_memory_documents?: CustomRuleDocument[];
+  /** Legacy input alias, never a personal consent bypass. */
   custom_rule_documents?: CustomRuleDocument[];
   project_focus_catalog?: ProjectFocusCatalogEntry[];
   project_focus_documents?: ProjectFocusDocumentInput[];
@@ -62,16 +64,16 @@ export async function loadActiveCliProjectContext(client: OpenMatesClient, chatI
   const result: CliJevContext & { projectId: string; focusCatalogComplete: boolean } = { projectId: active.project_id, focusCatalogComplete: true,
     custom_rule_documents: [], project_focus_catalog: [], project_focus_documents: [], project_context_documents: [] };
   const revision = (item: Record<string, unknown>) => createHash("sha256").update(["updated_at", "encrypted_metadata", "encrypted_note", "target_id_hash", "deleted_target_state"].map(field => item[field] ? String(item[field]) : "").join("\0")).digest("hex");
-  const candidates: Array<{ kind: "focus" | "rule" | "spec" | "fact" | "folder"; id: string; title: string; description: string; when_to_use: string; revision: string }> = [];
+  const candidates: Array<{ kind: "focus" | "memory" | "rule" | "spec" | "fact" | "folder"; id: string; title: string; description: string; when_to_use: string; revision: string }> = [];
   const targets = new Map<string, { item: typeof detail.items[number]; metadata: Record<string, unknown> }>();
   for (const item of detail.items) {
     if (!["embed", "upload"].includes(item.item_type) || !item.encrypted_metadata || item.deleted_target_state) continue;
     const metadataText = await decryptWithAesGcmCombined(item.encrypted_metadata, key);
     const metadata = metadataText ? JSON.parse(metadataText) as Record<string, unknown> : {};
     const path = typeof (metadata.path ?? metadata.display_path) === "string" ? String(metadata.path ?? metadata.display_path) : "";
-    const match = /^\.openmates\/(rules|focuses|specs|facts)\/[^\0]+(?:\.md|\/SKILL\.md)$/.exec(path);
+    const match = /^\.openmates\/(memories|rules|focuses|specs|facts)\/[^\0]+(?:\.md|\/SKILL\.md)$/.exec(path);
     if (!match || path.split("/").some(part => part === ".." || part === "." || !part)) continue;
-    const kind = ({ rules: "rule", focuses: "focus", specs: "spec", facts: "fact" } as const)[match[1] as "rules" | "focuses" | "specs" | "facts"];
+    const kind = ({ memories: "memory", rules: "rule", focuses: "focus", specs: "spec", facts: "memory" } as const)[match[1] as "memories" | "rules" | "focuses" | "specs" | "facts"];
     const title = metadata.focus_title ?? metadata.title ?? metadata.name;
     const description = metadata.focus_description ?? metadata.summary ?? metadata.description;
     const currentRevision = revision(item);
@@ -117,7 +119,7 @@ export async function loadActiveCliProjectContext(client: OpenMatesClient, chatI
     if (typeof document !== "string" || document.length > (candidate.kind === "focus" ? 60_000 : 24_000) || totalChars + document.length > 64_000) continue;
     totalChars += document.length;
     if (candidate.kind === "focus") result.project_focus_documents!.push({ item_id: candidate.id, document, revision: candidate.revision });
-    else if (candidate.kind === "rule") result.custom_rule_documents!.push({ id: candidate.id, source: "project", project_id: active.project_id, document });
+    else if (candidate.kind === "rule") result.custom_rule_documents!.push({ id: candidate.id, source: "project", project_id: active.project_id, document, item_revision: candidate.revision });
     else result.project_context_documents!.push({ item_id: candidate.id, kind: candidate.kind, title: candidate.title, description: candidate.description, document, revision: candidate.revision });
   }
   const [fresh, latest] = await Promise.all([client.getActiveProjectFocus(chatId), client.getProject(active.project_id, options)]);
@@ -228,11 +230,9 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
   let active: Awaited<ReturnType<typeof loadActiveCliProjectContext>> = {};
   let tasks: RelatedTaskCandidate[] = [];
   let ownedTaskRecords: UserTaskRecord[] = [];
-  let personalRules: CustomRuleDocument[] = [];
   await Promise.all([
     discoverCliProjectCandidates(client, options).then(value => { candidates = value; }).catch(() => {}),
     loadActiveCliProjectContext(client, chatId, text).then(value => { active = value; }).catch(() => {}),
-    client.getCustomRuleDocuments().then(value => { personalRules = value; }).catch(() => {}),
     (async () => {
       const records = await client.listUserTasks({ ...options, limit: 500 });
       ownedTaskRecords = records;
@@ -248,9 +248,9 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
   }
   const customDocuments: CustomRuleDocument[] = [];
   let documentChars = 0; const documentIds = new Set<string>();
-  for (const rule of [...personalRules, ...(loaded.custom_rule_documents ?? []), ...(supplied.custom_rule_documents ?? [])]) {
+  for (const rule of [...(loaded.custom_rule_documents ?? []), ...(supplied.custom_memory_documents ?? supplied.custom_rule_documents ?? [])]) {
     const identity = `${rule.source}:${rule.project_id ?? ""}:${rule.id}`;
-    if (rule.source === "project" && rule.project_id !== current?.project_id || typeof rule.document !== "string"
+    if (rule.source !== "project" || rule.project_id !== current?.project_id || typeof rule.document !== "string"
         || rule.document.length > 24_000 || documentChars + rule.document.length > 64_000 || documentIds.has(identity) || customDocuments.length >= 24) continue;
     documentChars += rule.document.length; documentIds.add(identity); customDocuments.push(rule);
   }
@@ -258,7 +258,7 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
     accepted_plan_context: acceptedPlan,
     project_focus_candidates: (supplied.project_focus_candidates ?? candidates).slice(0, 40),
     related_task_candidates: (supplied.related_task_candidates ?? tasks).slice(0, 24),
-    custom_rule_documents: customDocuments,
+    custom_memory_documents: customDocuments,
     project_focus_catalog: current ? (supplied.project_focus_catalog ?? loaded.project_focus_catalog ?? []).slice(0, 20) : [],
     project_focus_documents: current ? (supplied.project_focus_documents ?? loaded.project_focus_documents ?? []).slice(0, 20) : [],
     project_context_documents: current ? (supplied.project_context_documents ?? loaded.project_context_documents ?? []).slice(0, 20) : [],

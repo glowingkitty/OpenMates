@@ -24,7 +24,7 @@ def sanitize_request_data_for_logging(request_data: Dict[str, Any]) -> Dict[str,
         A sanitized dictionary suitable for logging
     """
     sanitized = request_data.copy()
-    for field in ("accepted_plan_context", "custom_rule_documents", "project_focus_catalog", "project_focus_documents",
+    for field in ("accepted_plan_context", "custom_rule_documents", "custom_memory_documents", "project_focus_catalog", "project_focus_documents",
                   "project_context_documents", "related_task_candidates", "agentic_context_ref"):
         if field in sanitized:
             sanitized[field] = "[Transient context redacted]"

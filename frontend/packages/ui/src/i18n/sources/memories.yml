@@ -1,0 +1,243 @@
+manage:
+  context: Memory management or source-scoped loaded context
+  en: Memories
+  de: Erinnerungen
+  verified_by_human: []
+guide_description:
+  context: Memory management or source-scoped loaded context
+  en: Save facts, preferences or reusable guidance as a Memory. Focus modes guide your current work; Specifications
+    define required outcomes.
+  de: Speichere Fakten, Vorlieben oder wiederverwendbare Hinweise als Erinnerung. Fokus-Modi begleiten deine aktuelle
+    Arbeit; Spezifikationen definieren verbindliche Ergebnisse.
+  verified_by_human: []
+scope:
+  context: Memory management or source-scoped loaded context
+  en: Memory source
+  de: Quelle der Erinnerung
+  verified_by_human: []
+source_app:
+  context: Memory management or source-scoped loaded context
+  en: App-provided
+  de: Von der App bereitgestellt
+  verified_by_human: []
+sources_help:
+  context: Explains Public and Private memory cards without conflating visibility with personal consent or active Project access
+  en: Public memories are provided by apps and load automatically when relevant. Private memories are encrypted. Personal memories are shared with your approval or an explicit mention; Project memories load with active Project access.
+  de: Öffentliche Erinnerungen werden von Apps bereitgestellt und bei Bedarf automatisch geladen. Private Erinnerungen sind verschlüsselt. Persönliche Erinnerungen teilst du mit deiner Zustimmung oder durch eine ausdrückliche Erwähnung; Projekt-Erinnerungen werden mit aktivem Projektzugriff geladen.
+  verified_by_human: []
+visibility_public:
+  context: Small visibility label on a published app Memory card
+  en: Public
+  de: Öffentlich
+  verified_by_human: []
+visibility_private:
+  context: Small visibility label on an encrypted user-created Memory card
+  en: Private
+  de: Privat
+  verified_by_human: []
+source_personal:
+  context: Memory management or source-scoped loaded context
+  en: Personal
+  de: Persönlich
+  verified_by_human: []
+source_project:
+  context: Memory management or source-scoped loaded context
+  en: Project
+  de: Projekt
+  verified_by_human: []
+loaded:
+  context: Memory management or source-scoped loaded context
+  en: Loaded {count} memories.
+  de: '{count} Erinnerungen geladen.'
+  verified_by_human: []
+revision:
+  context: Exact source revision label in expanded Memory inspection
+  en: Revision
+  de: Revision
+  verified_by_human: []
+project_storage:
+  context: Memory management or source-scoped loaded context
+  en: Project Memories are encrypted Markdown files and load when relevant while this chat has active Project access.
+  de: Projekt-Erinnerungen sind verschlüsselte Markdown-Dateien und werden bei Bedarf mit aktivem Projektzugriff
+    geladen.
+  verified_by_human: []
+activation_required:
+  context: Memory management or source-scoped loaded context
+  en: Activate this Project in a chat before creating or editing its Memories.
+  de: Aktiviere dieses Projekt in einem Chat, bevor du seine Erinnerungen erstellst oder bearbeitest.
+  verified_by_human: []
+title:
+  context: Memory guide title field label
+  en: Title
+  de: Titel
+  verified_by_human: []
+description:
+  context: Memory guide discovery description field label
+  en: Description
+  de: Beschreibung
+  verified_by_human: []
+when_to_use:
+  context: Memory guide applicability field label
+  en: When to use
+  de: Wann anwenden
+  verified_by_human: []
+practices:
+  context: Memory management or source-scoped loaded context
+  en: Memory (Markdown)
+  de: Erinnerung (Markdown)
+  verified_by_human: []
+empty:
+  context: Memory management or source-scoped loaded context
+  en: No Memories saved here yet.
+  de: Hier sind noch keine Erinnerungen gespeichert.
+  verified_by_human: []
+new:
+  context: Memory management or source-scoped loaded context
+  en: New Memory
+  de: Neue Erinnerung
+  verified_by_human: []
+saved:
+  context: Confirmation after encrypted Memory persistence succeeded
+  en: Memory saved.
+  de: Erinnerung gespeichert.
+  verified_by_human: []
+invalid_document:
+  context: Explain required bounded Memory metadata and Markdown body
+  en: Add a title, description, applicability and practices within the field limits.
+  de: Ergänze Titel, Beschreibung, Anwendungsbereich und Vorgehensweisen innerhalb der Feldgrenzen.
+  verified_by_human: []
+save_failed:
+  context: Private Memory load or save failure without exposing content
+  en: Could not load or save the Memories. Please try again.
+  de: Die Erinnerungen konnten nicht geladen oder gespeichert werden. Bitte versuche es erneut.
+  verified_by_human: []
+authoring_suggestions:
+  context: Heading for explicit click-triggered Project authoring proposals
+  en: Suggested Project improvements
+  de: Vorgeschlagene Projektverbesserungen
+  verified_by_human: []
+create_focus:
+  context: Start background Focus creation only after clicking this button
+  en: Create Focus
+  de: Fokus erstellen
+  verified_by_human: []
+update_focus:
+  context: Start background Focus update only after clicking this button
+  en: Update Focus
+  de: Fokus aktualisieren
+  verified_by_human: []
+create_workflow:
+  context: Start background Workflow creation only after clicking this button
+  en: Create Workflow
+  de: Workflow erstellen
+  verified_by_human: []
+update_workflow:
+  context: Start background Workflow update only after clicking this button
+  en: Update Workflow
+  de: Workflow aktualisieren
+  verified_by_human: []
+authoring_started:
+  context: Button acknowledgement after the background job was accepted
+  en: Started
+  de: Gestartet
+  verified_by_human: []
+authoring_failed:
+  context: Background authoring start failed; no model output claimed
+  en: Could not start this update. Please try again.
+  de: Diese Aktualisierung konnte nicht gestartet werden. Bitte versuche es erneut.
+  verified_by_human: []
+expanded:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Expanded
+  de: Erweitert
+  verified_by_human: []
+collapsed:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Collapsed
+  de: Eingeklappt
+  verified_by_human: []
+authoring_save_failed:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Could not save this draft. Please try again.
+  de: Dieser Entwurf konnte nicht gespeichert werden. Bitte versuche es erneut.
+  verified_by_human: []
+review_draft:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Review draft
+  de: Entwurf prüfen
+  verified_by_human: []
+save_draft:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Save draft
+  de: Entwurf speichern
+  verified_by_human: []
+job_running:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Working on this improvement…
+  de: Diese Verbesserung wird erstellt…
+  verified_by_human: []
+job_queued:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Waiting to start.
+  de: Wartet auf den Start.
+  verified_by_human: []
+job_needs_input:
+  context: Project authoring status or accessible Memory disclosure text
+  en: More information is needed.
+  de: Weitere Informationen werden benötigt.
+  verified_by_human: []
+job_needs_save:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Draft ready for review and saving.
+  de: Entwurf bereit zum Prüfen und Speichern.
+  verified_by_human: []
+job_needs_binding_save:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Save the remaining Project file connection.
+  de: Speichere die ausstehende Projekt-Dateiverknüpfung.
+  verified_by_human: []
+job_pending_file:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Waiting for the connected file.
+  de: Wartet auf die verknüpfte Datei.
+  verified_by_human: []
+job_partial:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Some changes completed. The remaining changes need attention.
+  de: Einige Änderungen wurden abgeschlossen. Die übrigen Änderungen müssen geprüft werden.
+  verified_by_human: []
+job_conflict:
+  context: Project authoring status or accessible Memory disclosure text
+  en: The source changed. Review the conflict before continuing.
+  de: Die Quelle wurde geändert. Prüfe den Konflikt, bevor du fortfährst.
+  verified_by_human: []
+job_ready:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Project improvement saved.
+  de: Projektverbesserung gespeichert.
+  verified_by_human: []
+job_failed:
+  context: Project authoring status or accessible Memory disclosure text
+  en: This improvement could not be completed.
+  de: Diese Verbesserung konnte nicht abgeschlossen werden.
+  verified_by_human: []
+job_saved:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Saved.
+  de: Gespeichert.
+  verified_by_human: []
+job_cancelled:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Cancelled.
+  de: Abgebrochen.
+  verified_by_human: []
+job_waiting:
+  context: Project authoring status or accessible Memory disclosure text
+  en: Waiting for a job update.
+  de: Wartet auf eine Aktualisierung.
+  verified_by_human: []
+app_loading:
+  context: Public memory detail explains automatic loading and ownership
+  en: Public · Provided by the app · Read-only · Loads automatically when relevant
+  de: Öffentlich · Von der App bereitgestellt · Schreibgeschützt · Wird bei Bedarf automatisch geladen
+  verified_by_human: []

@@ -12,7 +12,7 @@ from typing import Any
 from backend.apps.ai.processing.agentic_context import first_party, fresh_project
 from backend.apps.ai.processing.rule_context import (
     MAX_APPLIED_RULE_CHARS, MAX_DISCOVERY_CHARS, MAX_RULE_CANDIDATES,
-    eligible_rule_catalog, parse_custom_rule_documents,
+    authorized_project_memory_documents, eligible_rule_catalog, parse_custom_rule_documents,
 )
 from backend.shared.python_utils.rule_loader import rules_prompt
 
@@ -20,7 +20,9 @@ from backend.shared.python_utils.rule_loader import rules_prompt
 async def _rules(request: Any, directus: Any, cache: Any, eligible_app_ids: list[str]) -> list:
     project = await fresh_project(request, directus, cache)
     project_id = project.get("project_id") if project else None
-    private = parse_custom_rule_documents(getattr(request, "custom_rule_documents", []),
+    supplied = await authorized_project_memory_documents(getattr(request, "custom_rule_documents", []),
+        project=project, user_id=getattr(request, "user_id", None), directus=directus)
+    private = parse_custom_rule_documents(supplied,
         authenticated_first_party=first_party(request), active_project_id=project_id)
     return eligible_rule_catalog(eligible_app_ids=eligible_app_ids, custom_rules=private,
         authenticated_first_party=first_party(request), active_project_id=project_id)

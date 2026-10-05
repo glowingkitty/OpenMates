@@ -47,6 +47,21 @@ async function withServer(
 }
 
 describe("OpenMates SDK", () => {
+  // contract-test: supporting surface=sdks.npm assertions=app-memories.catalog.declared-types-only,app-memories.surface.semantic-parity
+  it("discovers public app Memories without sending private credentials", async () => {
+    const memory = {id: 'app:code:svelte', source: 'app', app_id: 'code', revision: 'a'.repeat(64), body: 'Exact published guidance'};
+    await withServer((request, response) => {
+      assert.equal(request.headers.authorization, undefined);
+      assert.match(String(request.url), /^\/v1\/apps\/(?:code\/)?metadata\?include_unavailable=true$/);
+      response.writeHead(200, {'content-type': 'application/json'});
+      response.end(JSON.stringify(request.url?.includes('/code/') ? {memories: [memory]} : {apps: {code: {memories: [memory]}, other: {}}}));
+    }, async apiUrl => {
+      const client = new OpenMates({apiKey: 'sk-api-private-never-send', apiUrl, deviceId: 'memory-test'});
+      assert.deepEqual(await client.memories.published(), {memories: [memory]});
+      assert.deepEqual(await client.memories.published({appId: 'code'}), {memories: [memory]});
+    });
+  });
+
   // contract-test: direct surface=sdks.npm assertions=wikipedia-mentions.surfaces.semantic-parity,wikipedia-mentions.references.maximum-three
   it("preserves Wikipedia query, language, and title metadata", async () => {
     const requests: string[] = [];

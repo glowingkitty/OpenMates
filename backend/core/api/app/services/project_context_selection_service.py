@@ -17,7 +17,7 @@ from backend.shared.providers.typesafe.models import NoulAnswer
 
 class ProjectContextCandidate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    kind: Literal["focus", "rule", "spec", "fact", "folder"]
+    kind: Literal["focus", "memory", "rule", "spec", "fact", "folder"]
     id: UUID
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(default="", max_length=640)

@@ -4,27 +4,27 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 // playwright-account: not_required reason=isolated_component_preview
 const PREVIEW = '/dev/preview/AgentContextMessage?chrome=0&theme=light&background=%23dbeafe';
 
-// contract-test: supporting surface=gui.web assertions=rules.transparency.applied-set,rules.definition.guide-format
+// contract-test: supporting surface=gui.web assertions=app-memories.transparency.loaded-set,app-memories.definition.context-documents
 test('counts whole guides and expands exact bodies with keyboard on mobile', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${PREVIEW}&width=350`);
   await waitForComponentPreview(page);
   const card = page.getByTestId('agent-context-message');
-  const details = page.getByTestId('loaded-rules-details');
-  await expect(details.locator('summary')).toHaveText('Loaded 2 rules.');
-  await expect(page.getByTestId('applied-rule-body').first()).toBeHidden();
+  const details = page.getByTestId('loaded-memories-details');
+  await expect(details.locator('summary')).toHaveText('Loaded 2 memories.');
+  await expect(page.getByTestId('applied-memory-body').first()).toBeHidden();
   await details.locator('summary').focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByTestId('applied-rule-guide')).toHaveCount(2);
-  await expect(page.getByTestId('applied-rule-body').first()).toHaveText('- Preserve task cancellation.\n- Release resources with context managers.');
+  await expect(page.getByTestId('applied-memory')).toHaveCount(2);
+  await expect(page.getByTestId('applied-memory-body').first()).toHaveText('- Preserve task cancellation.\n- Release resources with context managers.');
   await expect(page.getByTestId('applied-rule-revision').first()).toContainText('b'.repeat(64));
-  await expect(card).toContainText('App guide');
-  await expect(card).toContainText('Project guides');
+  await expect(card).toContainText('App-provided');
+  await expect(card).toContainText('Project');
   await expect(card).not.toContainText('[T:');
   expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await testInfo.attach('loaded-rule-guides-mobile', { body: await card.screenshot(), contentType: 'image/png' });
   await details.locator('summary').click();
-  await expect(page.getByTestId('applied-rule-body').first()).toBeHidden();
+  await expect(page.getByTestId('applied-memory-body').first()).toBeHidden();
 });
 
 // contract-test: supporting surface=gui.web assertions=chats.direction.reviewed-correction
@@ -97,4 +97,14 @@ test('shows the exact clarification question without starting more work', async 
   await expect(page.getByTestId('project-authoring-question')).toHaveText('Which repository should this Focus cover?');
   await expect(page.getByTestId('project-authoring-save')).toHaveCount(0);
   await expect(page.locator('html')).not.toHaveAttribute('data-authoring-calls');
+});
+
+// contract-test: supporting surface=gui.web assertions=app-memories.compatibility.legacy-documents
+test('renders historical Rule receipts as Memories without rewriting their contents', async ({ page }) => {
+  await page.goto(`${PREVIEW}&variant=legacy&width=350`);
+  await waitForComponentPreview(page);
+  const details = page.getByTestId('loaded-rules-details');
+  await expect(details.locator('summary')).toHaveText('Loaded 2 memories.');
+  await details.locator('summary').click();
+  await expect(page.getByTestId('applied-rule-body').first()).toHaveText('- Preserve task cancellation.\n- Release resources with context managers.');
 });

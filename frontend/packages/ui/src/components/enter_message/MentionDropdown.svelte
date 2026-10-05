@@ -23,6 +23,9 @@
         type WikipediaMentionResult,
     } from './services/mentionSearchService';
     import type { SkillMentionResult, FocusModeMentionResult, ModelAliasMentionResult } from './services/mentionSearchService';
+    import { personalDocumentMemories, loadPersonalDocumentMemories } from '../../stores/personalDocumentMemories';
+    import { userProfile } from '../../stores/userProfile';
+    import { authStore } from '../../stores/authState';
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
     import { panelState } from '../../stores/panelStateStore';
 
@@ -40,6 +43,12 @@
         onselect?: (result: AnyMentionResult) => void;
         /** Callback when dropdown is closed */
         onclose?: () => void;
+        /** Catalog adapter; the default uses the current owner's live discovery. */
+        source?: {
+            search: typeof searchMentions;
+            projects: typeof searchProjectMentions;
+            entries: typeof getSettingsMemoryEntryResults;
+        };
     }
 
     let {
@@ -49,6 +58,7 @@
         positionDirection = 'above',
         onselect,
         onclose,
+        source = { search: searchMentions, projects: searchProjectMentions, entries: getSettingsMemoryEntryResults },
     }: Props = $props();
 
     // --- State ---
@@ -86,8 +96,16 @@
         return merged;
     }
 
+    $effect(() => {
+        const owner = $userProfile.user_id;
+        if (show && owner && $authStore.isAuthenticated) {
+            void loadPersonalDocumentMemories().catch(() => {});
+        }
+    });
+
     // Update results when query changes (no second arg = use search limit so settings/memories can appear)
     $effect(() => {
+        void $personalDocumentMemories;
         const sequence = ++searchSequence;
         if (!show) {
             results = [];
@@ -126,14 +144,14 @@
         wikipediaError = false;
         wikipediaSearched = false;
         wikipediaDisambiguation = false;
-        const baseResults = searchMentions(currentQuery);
+        const baseResults = source.search(currentQuery);
         results = baseResults;
         selectedIndex = 0; // Reset selection when results change
         // Collapse all expanded categories when query changes
         expandedCategories = new Set();
         categoryEntries = new Map();
 
-        void searchProjectMentions(currentQuery).then((projectResults) => {
+        void source.projects(currentQuery).then((projectResults) => {
             if (sequence !== searchSequence) return;
             results = mergeMentionResults(baseResults, projectResults);
             selectedIndex = 0;
@@ -276,7 +294,7 @@
             newExpanded.add(result.id);
             // Load entries if not cached
             if (!categoryEntries.has(result.id)) {
-                const { entries, totalCount } = getSettingsMemoryEntryResults(
+            const { entries, totalCount } = source.entries(
                     result.appId,
                     result.memoryCategoryId,
                     // Load enough entries for "show more" - get all of them but only show 5 initially
@@ -731,6 +749,7 @@
 
     .mention-result {
         display: flex;
+        box-sizing: border-box;
         align-items: center;
         gap: var(--spacing-6);
         width: 100%;

@@ -11,7 +11,7 @@ import json
 import re
 from typing import Any
 
-_TYPES = frozenset({"rules_loaded", "chat_direction_correction",
+_TYPES = frozenset({"rules_loaded", "memories_loaded", "chat_direction_correction",
                     "project_authoring_recommendation", "project_authoring_recommendations"})
 _TYPE_HINT = re.compile(r'"type"\s*:\s*"(' + "|".join(sorted(_TYPES)) + r')"')
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,199}$")
@@ -27,20 +27,21 @@ def _projection(data: dict, kind: str) -> dict:
     for field in ("event_id", "chat_id", "turn_id", "delivery_id", "recommendation_id"):
         if (value := _id(data.get(field))) is not None:
             result[field] = value
-    if kind == "rules_loaded":
+    if kind in {"rules_loaded", "memories_loaded"}:
         key = data.get("set_key")
         if isinstance(key, str) and _DIGEST.fullmatch(key):
             result["set_key"] = key
-        rules = data.get("rules")
-        result["rules"] = []
+        field = "memories" if kind == "memories_loaded" else "rules"
+        rules = data.get(field)
+        result[field] = []
         if isinstance(rules, list):
             for rule in rules[:24]:
                 if not isinstance(rule, dict):
                     continue
                 identifier, revision = _id(rule.get("id")), rule.get("revision")
                 if identifier and isinstance(revision, str) and _DIGEST.fullmatch(revision):
-                    result["rules"].append({"id": identifier, "revision": revision})
-        result["count"] = len(result["rules"])
+                    result[field].append({"id": identifier, "revision": revision})
+        result["count"] = len(result[field])
     return result
 
 

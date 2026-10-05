@@ -26,6 +26,7 @@
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
     import SettingsItem from '../SettingsItem.svelte';
+    import PublishedMemoryDetail from './PublishedMemoryDetail.svelte';
     import { SettingsSectionHeading } from './elements';
     import type { AppMetadata, MemoryFieldMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
@@ -53,6 +54,20 @@
 
     let { appId, categoryId }: Props = $props();
 
+    import { userProfile } from '../../stores/userProfile';
+    let personalMemories = $state<Awaited<ReturnType<typeof import('../../services/ruleDocumentService').personalDocumentMemoryEntries>>>([]);
+    $effect(() => {
+        const owner = $userProfile.user_id;
+        const revision = $userProfile.encrypted_settings;
+        let cancelled = false;
+        personalMemories = [];
+        if (isAuthenticated && appId === 'openmates' && categoryId === 'memories') {
+            void import('../../services/ruleDocumentService').then(module => module.personalDocumentMemoryEntries())
+                .then(entries => { if (!cancelled && owner === $userProfile.user_id && revision === $userProfile.encrypted_settings) personalMemories = entries; }).catch(() => {});
+        }
+        return () => { cancelled = true; };
+    });
+
     // Get store state reactively (Svelte 5)
     let storeState = $state(appSkillsStore.getState());
 
@@ -61,6 +76,8 @@
     let category = $derived<MemoryFieldMetadata | undefined>(
         app?.settings_and_memories.find(c => c.id === categoryId)
     );
+
+    let publishedMemory = $derived(app?.memories?.find(memory => categoryId === `published_${memory.id.split(':').at(-1)}`));
 
     // Local loading state - tracks if we're currently loading entries for this component
     // This is separate from the global store loading state to avoid conflicts
@@ -327,7 +344,7 @@
         }
         
         // Add relative time
-        parts.push(formatRelativeTime(updatedAt));
+        if (updatedAt > 0) parts.push(formatRelativeTime(updatedAt));
         
         return parts.join(' • ');
     }
@@ -398,6 +415,8 @@
             }
         }
         
+        if (appId === 'openmates' && categoryId === 'memories') entries.push(...personalMemories.filter(memory => !entries.some(entry => entry.id === memory.id)));
+
         // Sort by updated_at descending (newest first)
         return entries.sort((a, b) => b.updated_at - a.updated_at);
     });
@@ -405,7 +424,9 @@
 </script>
 
 <div class="app-settings-memories-category" data-testid="app-settings-memories-category" data-app-id={appId} data-category-id={categoryId}>
-    {#if !app || !category}
+    {#if publishedMemory}
+        <PublishedMemoryDetail memory={publishedMemory} />
+    {:else if !app || !category}
         <div class="error">
             <p>{$text('settings.app_store.category_not_found')}</p>
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>

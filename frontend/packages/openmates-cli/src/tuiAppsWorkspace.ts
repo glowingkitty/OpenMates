@@ -32,7 +32,7 @@ export type TuiApp = {
   id: string; name: string; description: string; category: string;
   skills: TuiAppSkill[];
   focusModes: Array<{ id: string; name: string; description: string }>;
-  settingsMemories: Array<{ id: string; name: string; description: string }>;
+  settingsMemories: Array<{ id: string; name: string; description: string; body?: string }>;
 };
 export type TuiAppsTab = "skills" | "focus_modes" | "settings_memories" | "embeds" | "workflows";
 export type TuiAppsSkillTab = "overview" | "embeds" | "workflows";
@@ -72,7 +72,11 @@ function parseApp(value: Record<string, unknown>, idHint = ""): TuiApp | null {
         providers: rows(skill.providers).map((provider) => string(provider.name, string(provider.provider))).filter(Boolean) }];
     }),
     focusModes: rows(value.focus_modes).map((entry) => ({ id: string(entry.id), name: string(entry.name), description: string(entry.description) })),
-    settingsMemories: rows(value.settings_and_memories).map((entry) => ({ id: string(entry.id), name: string(entry.name), description: string(entry.description) })),
+    settingsMemories: [
+      ...rows(value.settings_and_memories).map((entry) => ({ id: string(entry.id), name: string(entry.name), description: string(entry.description) })),
+      ...rows(value.memories).map((entry) => ({ id: string(entry.id), name: string(entry.title),
+        description: `App-provided · Read-only · Loads automatically when relevant. ${string(entry.description)}`, body: string(entry.body) })),
+    ],
   };
 }
 
@@ -160,7 +164,7 @@ export function renderTuiAppIdentity(app: TuiApp, width: number): string[] {
 
 export function renderTuiAppTabs(tab: TuiAppsTab, width: number): string[] {
   const tabs: TuiAppsTab[] = ["skills", "focus_modes", "settings_memories", "embeds", "workflows"];
-  const labels: Record<TuiAppsTab, string> = { skills: "Skills", focus_modes: "Focus modes", settings_memories: "Settings & memories", embeds: "Embeds", workflows: "Workflows" };
+  const labels: Record<TuiAppsTab, string> = { skills: "Skills", focus_modes: "Focus modes", settings_memories: "Memories", embeds: "Embeds", workflows: "Workflows" };
   return outlinedTabs(tabs, labels, tab, width);
 }
 
@@ -179,9 +183,10 @@ export function renderTuiApp(app: TuiApp, options: { width: number; tab: TuiApps
     if (!items.length) lines.push("Nothing in this section.");
     for (const item of items) {
       lines.push(truncateCells(`${item.id === options.selectedId ? ">" : " "} ${item.name}`, width));
-      if (item.description) lines.push(truncateCells(`  ${oneLine(item.description)}`, width));
+      if (item.description) lines.push(...textLines(`  ${oneLine(item.description)}`, width));
+      if ('body' in item && item.body && item.id === options.selectedId) lines.push(...textLines(item.body, width));
     }
-    lines.push("", "Manage these settings in the web app.");
+    lines.push("", "Manage private Memories in the web app.");
   } else if (options.tab === "embeds") lines.push("Saved results load from the encrypted Apps history. Use Enter to inspect a result.");
   else lines.push("Saved workflows for this app load from Workflows. Open a workflow there to inspect it.");
   return lines;

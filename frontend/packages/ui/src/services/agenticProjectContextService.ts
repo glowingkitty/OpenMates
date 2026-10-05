@@ -147,7 +147,7 @@ export async function collectPrivateFocusForRequest(input: {
 
 export interface ProjectReferenceDocument {
   item_id: string;
-  kind: 'spec' | 'fact' | 'folder';
+  kind: 'spec' | 'memory' | 'fact' | 'folder';
   title: string;
   description: string;
   document: string;
@@ -162,9 +162,9 @@ export async function collectProjectReferenceDocuments(input: {
   const catalog: Array<{ kind: ProjectReferenceDocument['kind']; id: string; title: string; description: string; revision: string; path?: string; document?: string }> = [];
   for (const item of workspace.contents.items) {
     const path = item.metadata.path ?? item.metadata.display_path;
-    if (typeof path !== 'string' || !/^\.openmates\/(specs|facts)\/[^\0]+\.md$/.test(path)
+    if (typeof path !== 'string' || !/^\.openmates\/(specs|memories|facts)\/[^\0]+\.md$/.test(path)
       || path.split('/').some((part) => !part || part === '..' || part === '.')) continue;
-    catalog.push({ kind: path.startsWith('.openmates/specs/') ? 'spec' : 'fact', id: item.project_item_id,
+    catalog.push({ kind: path.startsWith('.openmates/specs/') ? 'spec' : 'memory', id: item.project_item_id,
       title: String(item.metadata.title ?? item.displayName ?? path).slice(0, 200),
       description: String(item.metadata.description ?? item.metadata.summary ?? '').slice(0, 640),
       revision: await projectItemRevision(item), path });

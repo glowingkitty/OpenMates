@@ -16,7 +16,7 @@ when_to_use: Writing Svelte components.
 """
 
 
-# contract-test: supporting surface=rest_api assertions=rules.definition.guide-format,rules.precedence.obligations
+# contract-test: supporting surface=rest_api assertions=app-memories.definition.context-documents,app-memories.precedence.obligations
 def test_guide_has_one_identity_and_revision_changes_with_content():
     first = parse_rule_md(GUIDE, rule_id="rule-1", source="personal")
     second = parse_rule_md(GUIDE + "- Test visible behavior.\n", rule_id="rule-1", source="personal")
@@ -35,13 +35,13 @@ def test_guide_has_one_identity_and_revision_changes_with_content():
     GUIDE.replace("description: Reliable component state and effects.", "description: &ref Reliable\nwhen_to_use: *ref"),
     GUIDE + "x" * 24_000, GUIDE.split("---\n", 2)[0] + "---\ntitle: A\ndescription: B\nwhen_to_use: C\n---\n",
 ])
-# contract-test: supporting surface=rest_api assertions=rules.definition.guide-format
+# contract-test: supporting surface=rest_api assertions=app-memories.definition.context-documents
 def test_invalid_or_ambiguous_rule_is_rejected(document):
     with pytest.raises(ValueError):
         parse_rule_md(document, rule_id="rule-1", source="personal")
 
 
-# contract-test: supporting surface=rest_api assertions=rules.ownership.encrypted-custom
+# contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped
 def test_project_binding_is_required_and_app_paths_cannot_escape(tmp_path):
     with pytest.raises(ValueError):
         parse_rule_md(GUIDE, rule_id="rule-1", source="project")
@@ -51,11 +51,11 @@ def test_project_binding_is_required_and_app_paths_cannot_escape(tmp_path):
     assert guide.project_id == "project-a"
 
 
-# contract-test: supporting surface=rest_api assertions=rules.definition.guide-format
+# contract-test: supporting surface=rest_api assertions=app-memories.definition.context-documents
 def test_shipped_guides_have_expected_whole_topic_granularity():
     guides = load_app_rules(["code", "design"])
     assert len(guides) == 6
-    assert {rule.title for rule in guides} >= {"Svelte coding rules", "Python coding rules", "Mobile first design", "Accessibility best practices"}
+    assert {rule.title for rule in guides} >= {"Svelte best practices", "Python best practices", "Mobile first design", "Accessibility best practices"}
     assert all(rule.body.count("- ") >= 5 for rule in guides)
     assert all(rule.source == "app" for rule in guides)
 
@@ -64,14 +64,14 @@ def test_shipped_guides_have_expected_whole_topic_granularity():
     "unknown: field", "description: [not, text]", "<<: {description: merged}",
     "description: *missing", "description: [unterminated",
 ])
-# contract-test: supporting surface=rest_api assertions=rules.definition.guide-format
+# contract-test: supporting surface=rest_api assertions=app-memories.definition.context-documents
 def test_malformed_or_unsupported_frontmatter_rejected(change):
     document = GUIDE.replace("description: Reliable component state and effects.", change)
     with pytest.raises(ValueError):
         parse_rule_md(document, rule_id="r", source="personal")
 
 
-# contract-test: supporting surface=rest_api assertions=rules.ownership.encrypted-custom,rules.transparency.applied-set
+# contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped,app-memories.transparency.loaded-set
 def test_model_rejects_forged_source_binding_and_snapshot_mutation():
     rule = parse_rule_md(GUIDE, rule_id="r", source="personal")
     with pytest.raises(ValueError):
@@ -80,7 +80,7 @@ def test_model_rejects_forged_source_binding_and_snapshot_mutation():
         rule.body = "different injected text"
 
 
-# contract-test: supporting surface=rest_api assertions=rules.ownership.encrypted-custom
+# contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped
 def test_app_rule_symlink_cannot_escape_catalog(tmp_path):
     catalog = tmp_path / "apps"
     directory = catalog / "code" / "rules"
@@ -92,7 +92,7 @@ def test_app_rule_symlink_cannot_escape_catalog(tmp_path):
         load_app_rules(["code"], apps_root=catalog)
 
 
-# contract-test: supporting surface=rest_api assertions=rules.selection.focus-aware
+# contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped
 def test_app_symlink_cannot_load_an_ineligible_app_rule(tmp_path):
     code = tmp_path / "code" / "rules"
     design = tmp_path / "design" / "rules"

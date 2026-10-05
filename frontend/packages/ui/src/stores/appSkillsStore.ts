@@ -296,7 +296,7 @@ class AppSkillsStore {
                     const hasNoSkills = (appMetadata.skills?.length ?? 0) === 0;
                     const hasNonSkillComponents =
                         (appMetadata.focus_modes?.length ?? 0) > 0 ||
-                        (appMetadata.settings_and_memories?.length ?? 0) > 0;
+                        ((appMetadata.settings_and_memories?.length ?? 0) + (appMetadata.memories?.length ?? 0)) > 0;
 
                     if (hasNoSkills || hasNonSkillComponents) {
                         userFilteredApps[appId] = {

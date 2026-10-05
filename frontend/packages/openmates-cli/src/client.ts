@@ -1925,6 +1925,8 @@ export interface MemoryTypeDef {
  * Auto-generated fields (added_date etc.) are excluded from user-visible fields.
  */
 export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
+  "openmates/memories": {appId: "openmates", itemType: "memories", entryType: "list", required: ["title", "document"],
+    properties: {title: {type: "string"}, document: {type: "string"}}},
   "books/favorite_books": {
     appId: "books",
     itemType: "favorite_books",
@@ -10985,12 +10987,14 @@ export class OpenMatesClient {
   async getCustomRuleDocuments(): Promise<NonNullable<CliJevContext["custom_rule_documents"]>> {
     const user = await this.whoAmI();
     const settings = await this.decryptSettingsRecord(user.encrypted_settings);
-    if (!Array.isArray(settings.rule_documents)) return [];
+    const legacy = Array.isArray(settings.rule_documents) ? settings.rule_documents : [];
+    const canonical = Array.isArray(settings.memory_documents) ? settings.memory_documents : [];
+    const byId = new Map([...legacy, ...canonical].filter(value => value && typeof value.id === "string").map(value => [value.id, value]));
     let chars = 0;
     const documents: NonNullable<CliJevContext["custom_rule_documents"]> = [];
-    for (const value of settings.rule_documents.slice(0, 24)) {
+    for (const value of [...byId.values()].slice(0, 24)) {
       if (!value || typeof value !== "object" || (value.source !== undefined && value.source !== "personal")
-          || typeof value.id !== "string" || !value.id || value.id.length > 128 || typeof value.document !== "string" || value.document.length > 24_000) continue;
+          || typeof value.id !== "string" || !value.id || value.id.length > 240 || typeof value.document !== "string" || value.document.length > 24_000) continue;
       if (chars + value.document.length > 64_000) continue;
       chars += value.document.length;
       documents.push({ id: value.id, source: "personal", document: value.document });
@@ -11015,7 +11019,7 @@ export class OpenMatesClient {
   }
 
   async selectProjectContext(projectId: string, input: { chat_id: string; text: string;
-    candidates: Array<{ kind: "focus" | "rule" | "spec" | "fact" | "folder"; id: string; title: string; description: string; when_to_use: string; revision: string }>;
+    candidates: Array<{ kind: "focus" | "memory" | "rule" | "spec" | "fact" | "folder"; id: string; title: string; description: string; when_to_use: string; revision: string }>;
   }, options: TeamContextOptions = {}): Promise<Array<{ id: string; kind: string; revision: string }>> {
     this.requireSession();
     const response = await this.http.post<{ selected?: Array<{ id: string; kind: string; revision: string }> }>(
@@ -13123,6 +13127,16 @@ export class OpenMatesClient {
         data: parsed,
       });
     }
+    if (!teamId) {
+      let accountDocuments: Awaited<ReturnType<OpenMatesClient['getCustomRuleDocuments']>> = [];
+      try { accountDocuments = await this.getCustomRuleDocuments(); }
+      catch { /* Unavailable account settings must not hide valid encrypted row Memories. */ }
+      for (const memory of accountDocuments) {
+        const title = /^title:\s*(.+)$/m.exec(memory.document)?.[1]?.replace(/^['"]|['"]$/g, '') ?? 'Memory';
+        results.push({ id: `account-memory-${memory.id.replace(/^personal:/, '')}`, app_id: 'openmates', item_type: 'memories',
+          item_key_hash: '', data: { title, document: memory.document }, created_at: 0, updated_at: 0, item_version: 1 });
+      }
+    }
     return results;
   }
 
@@ -13166,6 +13180,13 @@ export class OpenMatesClient {
     teamId?: string | null;
     personal?: boolean;
   }): Promise<{ success: boolean; id: string }> {
+    if (params.entryId.startsWith('account-memory-')) {
+      if (params.appId !== 'openmates' || params.itemType !== 'memories' || this.resolveTeamContext(params)) {
+        throw new Error('Account Memories belong to the personal OpenMates category.');
+      }
+      await this.mutateAccountMemory(params.entryId, params.itemValue);
+      return { success: true, id: params.entryId };
+    }
     return this.upsertMemory({
       appId: params.appId,
       itemType: params.itemType,
@@ -13182,6 +13203,11 @@ export class OpenMatesClient {
    * WebSocket. The server deletes from Directus and broadcasts to all devices.
    */
   async deleteMemory(entryId: string, options: TeamContextOptions = {}): Promise<{ success: boolean }> {
+    if (entryId.startsWith('account-memory-')) {
+      if (this.resolveTeamContext(options)) throw new Error('Account Memories belong to the personal OpenMates category.');
+      await this.mutateAccountMemory(entryId);
+      return { success: true };
+    }
     const { ws } = await this.openWsClient();
 
     try {
@@ -13204,6 +13230,37 @@ export class OpenMatesClient {
   // -------------------------------------------------------------------------
   // Private helpers
   // -------------------------------------------------------------------------
+
+  /** Edit legacy account guides in their encrypted owner store, never as public app data. */
+  private async mutateAccountMemory(entryId: string, value?: Record<string, unknown>): Promise<void> {
+    const sessionId = this.requireSession().sessionId;
+    const user = await this.whoAmI();
+    const settings = await this.decryptSettingsRecord(user.encrypted_settings);
+    const legacy = Array.isArray(settings.rule_documents) ? settings.rule_documents : [];
+    const canonical = Array.isArray(settings.memory_documents) ? settings.memory_documents : [];
+    const documents = new Map([...legacy, ...canonical].filter(document => document && typeof document.id === 'string')
+      .map(document => [document.id, document]));
+    const original = [...documents.values()].find(document => `account-memory-${document.id.replace(/^personal:/, '')}` === entryId);
+    if (!original || typeof original.document !== 'string') throw new Error('Account Memory is unavailable.');
+    if (value) {
+      if (typeof value.title !== 'string' || typeof value.document !== 'string') throw new Error('Memory title and document are required.');
+      const { parseRuleDocument, serializeRuleDocument } = await import('../../ui/src/utils/ruleDocuments.js');
+      const document = serializeRuleDocument({ ...parseRuleDocument(value.document), title: value.title });
+      documents.set(original.id, { id: original.id, document });
+      settings.memory_documents = [...documents.values()].map(({id, document}) => ({id, document}));
+    } else {
+      for (const name of ['rule_documents', 'memory_documents']) {
+        if (Array.isArray(settings[name])) settings[name] = settings[name].filter(document => document.id !== original.id);
+      }
+    }
+    const ciphertext = await encryptWithAesGcmCombined(JSON.stringify(settings), this.getMasterKeyBytes());
+    const current = await this.whoAmI();
+    if (this.requireSession().sessionId !== sessionId || current.encrypted_settings !== user.encrypted_settings
+        || (current.id ?? current.user_id) !== (user.id ?? user.user_id)) {
+      throw new Error('Account settings changed. Reload before editing the Memory.');
+    }
+    await this.settingsPost('/v1/settings/encrypted-account', { encrypted_settings: ciphertext });
+  }
 
   /**
    * Validate memory item_value against the registered schema and

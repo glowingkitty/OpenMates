@@ -86,3 +86,40 @@ async def test_goal_change_or_wrong_chat_cannot_deliver_correction():
         request=request, task_id='task', authority=DirectionAuthority('owner', 'other', 'turn', 'goal'),
         cache=None, instruction='private', fingerprint='assessment', append=lambda value: pytest.fail('delivered stale'))
     assert not receipt.accepted
+
+# contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped,app-memories.transparency.loaded-set
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", ["valid", "revoked", "invalid", "duplicate", "full"])
+async def test_project_memories_use_exact_bodies_only_with_current_activation(monkeypatch, case):
+    request = SimpleNamespace(user_id="owner", chat_id="chat", is_external=False, is_incognito=False,
+                              current_project={"project_id":"project"}, current_user_content="Build the API", related_task_candidates=[])
+    binding = {"project_id":"project", "activation_id":"activation"}
+    monkeypatch.setattr(main.agentic_context, "fresh_project", AsyncMock(side_effect=[binding, None if case == "revoked" else binding]))
+    from backend.shared.python_utils.memory_loader import MemoryDefinition
+    selected = [MemoryDefinition(id="memory", title="API address", description="Staging address", when_to_use="API work",
+        body="The staging API uses port 8001.", revision="a" * 64, source="project", project_id="project")] if case == "duplicate" else []
+    if case == "full":
+        selected = [MemoryDefinition(id=f"app:code:memory-{i}", title="Existing guidance", description="Practice", when_to_use="API work",
+            body="Existing guidance", revision="a" * 64, source="app", app_id="code") for i in range(24)]
+    monkeypatch.setattr(main.agentic_context, "select_rule_guides", AsyncMock(return_value=selected))
+    monkeypatch.setattr(main.agentic_context, "select_existing_workflows", AsyncMock(return_value=[]))
+    document = {"kind":"memory", "item_id":"memory", "title":"API address", "document":"The staging API uses port 8001."}
+    if case == "invalid":
+        document["title"] = None
+    monkeypatch.setattr(main.agentic_context, "selected_project_documents", AsyncMock(return_value=[document]))
+    monkeypatch.setattr(main, "fetch_related_chat_summaries", AsyncMock(return_value=[]))
+    monkeypatch.setattr(main, "fetch_related_task_candidates", AsyncMock(return_value=[]))
+    monkeypatch.setattr(main, "select_related_work", AsyncMock(return_value=[]))
+    section, memories = await main._load_main_agentic_context(request=request, task_id="task",
+        preprocessing=SimpleNamespace(relevant_rules=[]), directus=object(), cache=object(), secrets_manager=None,
+        eligible_app_ids=[], vault_key_id="key", decision_model="jev", effective_instructions="Work on the API", active_phase="", initial=False)
+    if case in {"valid", "duplicate"}:
+        assert len(memories) == 1 and memories[0].source == "project"
+        assert memories[0].id == "project:project:memory"
+        assert memories[0].body == document["document"]
+        assert section.count(document["document"]) == 1
+    elif case == "full":
+        assert len(memories) == 24 and all(memory.source == "app" for memory in memories)
+        assert document["document"] not in section
+    else:
+        assert memories == [] and document["document"] not in section

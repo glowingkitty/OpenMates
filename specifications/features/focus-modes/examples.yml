@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.focus-modes@2
+specification: feature.focus-modes@3
 project_write_gate:
 - id: model-cannot-mint-write-access
   given: The preprocessor recommends Work on OpenMates but its activation has not been accepted in this chat.
@@ -178,7 +178,7 @@ context_reselection:
   given: Trip planning activates in one chat; a Project Add new app skill Focus changes from research to implementation
     in another.
   when: Each authoritative transition prepares its continuation.
-  then: Eligible skills, saved Workflows and context are refreshed using the effective Focus/phase. A tool
+  then: Eligible skills, saved Workflows and relevant Memories are refreshed using the effective Focus/phase. A tool
     result that leaves the phase unchanged adds no phase-triggered refresh.
 recommendation_catalog:
 - id: inactive-focus-candidate

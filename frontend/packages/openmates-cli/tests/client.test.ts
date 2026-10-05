@@ -1666,7 +1666,7 @@ describe("memory type registry", () => {
 
       assert.equal(memories.length, 1);
       assert.equal(memories[0]?.data.title, "Private preference");
-      assert.deepEqual(requestPaths, ["GET /v1/sdk/memories"]);
+      assert.deepEqual(requestPaths, ["GET /v1/sdk/memories", "POST /v1/auth/session"]);
       assert.equal(requestPaths.some((path) => path.includes("export-account-data")), false);
     } finally {
       server.closeAllConnections();

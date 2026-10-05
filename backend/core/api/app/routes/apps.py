@@ -480,6 +480,7 @@ class AppMetadataItem(BaseModel):
     skills: List[SkillMetadataItem]
     focus_modes: List[FocusModeMetadataItem] = Field(default_factory=list)
     settings_and_memories: List[MemoryMetadataItem] = Field(default_factory=list)
+    memories: List[Dict[str, Any]] = Field(default_factory=list, description="Read-only public app-provided Memory documents.")
     content_types: List[ContentMetadataItem] = Field(default_factory=list)
 
 
@@ -790,7 +791,9 @@ def build_app_metadata_item(
         for skill in skills
         for provider in skill.provider_details
     }
+    from backend.shared.python_utils.memory_loader import load_app_memories
     return AppMetadataItem(
+        memories=[memory.model_dump() for memory in load_app_memories([app_id])],
         id=app_id,
         name=resolved_name,
         description=resolved_description,
@@ -954,7 +957,7 @@ async def get_apps_metadata(
         item.skills = [skill for skill in item.skills if skill.id in available_skill_ids]
 
         # Only include app if it has at least one valid component (skill, focus mode, or memory field)
-        if item.skills or item.focus_modes or item.settings_and_memories or item.content_types:
+        if item.skills or item.focus_modes or item.settings_and_memories or item.memories or item.content_types:
             apps_metadata[app_id] = item
         else:
             logger.debug(f"Skipping app '{app_id}' - no available components after provider and permission checks")

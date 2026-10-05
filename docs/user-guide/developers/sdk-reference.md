@@ -205,6 +205,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.memories.create()` | `om.memories.create()` | `input` | `input` | `object` |
 | `om.memories.delete()` | `om.memories.delete()` | `id, confirmed` | `id, confirmed` | `object` |
 | `om.memories.list()` | `om.memories.list()` | `input` | `input` | `object` |
+| `om.memories.published()` | `om.memories.published()` | `app_id` | `app_id` | `object` |
 | `om.memories.types()` | `om.memories.types()` | `input` | `input` | `object` |
 | `om.memories.update()` | `om.memories.update()` | `id, input` | `id, input` | `object` |
 

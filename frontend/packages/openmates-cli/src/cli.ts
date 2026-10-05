@@ -12912,6 +12912,7 @@ interface AppMetadata {
   description?: string;
   skills?: SkillMetadata[];
   focus_modes?: Array<{ id: string; name: string; description?: string }>;
+  memories?: Array<{id: string; title: string; description: string; body: string; source: 'app'; app_id: string}>;
   settings_and_memories?: Array<{
     id: string;
     name: string;
@@ -13007,6 +13008,13 @@ async function printAppInfo(
         );
       }
     }
+    console.log();
+  }
+
+  if (data.memories?.length) {
+    console.log('Memories · App-provided · Read-only · Loaded automatically when relevant');
+    for (const memory of data.memories) console.log(`  ${memory.title} (${memory.id})
+    ${memory.description}`);
     console.log();
   }
 

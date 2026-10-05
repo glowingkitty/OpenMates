@@ -6020,6 +6020,68 @@
         "text": "Tambahkan kredit segera untuk mencegah penghapusan. Ini adalah kesempatan terakhir Anda."
       }
     },
+    "storage_billing_notice_1": {
+      "subject": {
+        "text": "Storage payment notice 1: action needed"
+      },
+      "header": {
+        "text": "Storage payment could not be collected"
+      },
+      "body": {
+        "text": "We could not collect the weekly storage charge of {credits_needed} credits. The outstanding balance is {outstanding_credits} credits. Storage measured for this charge: {storage_gb} GiB. The unpaid charge concerns storage above your free allowance. If it remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
+      },
+      "action": {
+        "text": "Add credits or export affected files before the stated date. Files another authorized owner or Team still retains are outside this notice."
+      }
+    },
+    "storage_billing_notice_2": {
+      "subject": {
+        "text": "Storage payment notice 2: balance still due"
+      },
+      "header": {
+        "text": "Second storage payment notice"
+      },
+      "body": {
+        "text": "The weekly storage charge of {credits_needed} credits remains unpaid. Your outstanding balance is now {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. If the balance remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
+      },
+      "action": {
+        "text": "Please add credits or export affected files before that date. This notice does not cover files retained by another authorized owner or Team."
+      }
+    },
+    "storage_billing_notice_3": {
+      "subject": {
+        "text": "Storage payment notice 3: deletion deadline approaching"
+      },
+      "header": {
+        "text": "Third storage payment notice"
+      },
+      "body": {
+        "text": "The weekly storage charge of {credits_needed} credits remains unpaid. Your outstanding balance is {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. A fourth and final notice will follow if payment is still missing. Affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
+      },
+      "action": {
+        "text": "Add credits or export affected files while there is still time. Files retained by another authorized owner or Team are outside this notice."
+      }
+    },
+    "storage_billing_notice_4": {
+      "subject": {
+        "text": "Final storage payment warning: deadline {deadline_date}"
+      },
+      "header": {
+        "text": "Final storage payment warning"
+      },
+      "body": {
+        "text": "This is the fourth delivered notice about your unpaid storage charge. The weekly charge was {credits_needed} credits; your total outstanding balance is {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. If it remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check. They have not been deleted by this notice."
+      },
+      "action": {
+        "text": "Add enough credits or export affected files before the earliest removal date shown here. Files retained by another authorized owner or Team are outside this notice."
+      }
+    },
+    "storage_billing_notice_top_up": {
+      "text": "Add credits"
+    },
+    "storage_billing_notice_export": {
+      "text": "Export my files"
+    },
     "storage_files_deleted": {
       "subject": {
         "text": "File Anda telah dihapus"
@@ -6094,85 +6156,23 @@
     "bank_transfer_reminder_footer": {
       "text": "Ada pertanyaan? Balas email ini atau kunjungi halaman dukungan kami."
     },
-    "storage_billing_notice_1": {
-      "subject": {
-        "text": "Storage payment notice 1: action needed"
-      },
-      "header": {
-        "text": "Storage payment could not be collected"
-      },
-      "body": {
-        "text": "We could not collect the weekly storage charge of {credits_needed} credits. The outstanding balance is {outstanding_credits} credits. Storage measured for this charge: {storage_gb} GiB. The unpaid charge concerns storage above your free allowance. If it remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
-      },
-      "action": {
-        "text": "Add credits or export affected files before the stated date. Files another authorized owner or Team still retains are outside this notice."
-      }
-    },
-    "storage_billing_notice_2": {
-      "subject": {
-        "text": "Storage payment notice 2: balance still due"
-      },
-      "header": {
-        "text": "Second storage payment notice"
-      },
-      "body": {
-        "text": "The weekly storage charge of {credits_needed} credits remains unpaid. Your outstanding balance is now {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. If the balance remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
-      },
-      "action": {
-        "text": "Please add credits or export affected files before that date. This notice does not cover files retained by another authorized owner or Team."
-      }
-    },
-    "storage_billing_notice_3": {
-      "subject": {
-        "text": "Storage payment notice 3: deletion deadline approaching"
-      },
-      "header": {
-        "text": "Third storage payment notice"
-      },
-      "body": {
-        "text": "The weekly storage charge of {credits_needed} credits remains unpaid. Your outstanding balance is {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. A fourth and final notice will follow if payment is still missing. Affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
-      },
-      "action": {
-        "text": "Add credits or export affected files while there is still time. Files retained by another authorized owner or Team are outside this notice."
-      }
-    },
-    "storage_billing_notice_4": {
-      "subject": {
-        "text": "Final storage payment warning: deadline {deadline_date}"
-      },
-      "header": {
-        "text": "Final storage payment warning"
-      },
-      "body": {
-        "text": "This is the fourth delivered notice about your unpaid storage charge. The weekly charge was {credits_needed} credits; your total outstanding balance is {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. If it remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check. They have not been deleted by this notice."
-      },
-      "action": {
-        "text": "Add enough credits or export affected files before the earliest removal date shown here. Files retained by another authorized owner or Team are outside this notice."
-      }
+    "storage_billing_notice_date_policy": {
+      "text": "This is the earliest removal date, not a scheduled deletion. Later notices may move it later. We will not remove affected storage before the latest date we notified."
     },
     "storage_billing_notice_affected": {
       "text": "Only the following fixed list of personal storage is covered by this notice. Removal is oldest first and stops once storage is within the free allowance. Protected or changed units are retained; if safe removal cannot reach the allowance, deletion is paused."
     },
-    "storage_billing_notice_date_policy": {
-      "text": "This is the earliest removal date, not a scheduled deletion. Later notices may move it later. We will not remove affected storage before the latest date we notified."
-    },
-    "storage_billing_notice_export": {
-      "text": "Export my files"
-    },
-    "storage_billing_notice_top_up": {
-      "text": "Add credits"
-    },
-    "storage_billing_notice_unit_artifact_history": {
-      "text": "Older artifact history"
-    },
-    "storage_billing_notice_unit_cold_chat": {
-      "text": "Archived chat"
+    "storage_billing_notice_units_link": {
+      "text": "Review affected storage"
     },
     "storage_billing_notice_unit_upload": {
       "text": "Uploaded file"
     },
-    "storage_billing_notice_units_link": {
-      "text": "Review affected storage"
+    "storage_billing_notice_unit_cold_chat": {
+      "text": "Archived chat"
+    },
+    "storage_billing_notice_unit_artifact_history": {
+      "text": "Older artifact history"
     },
     "storage_billing_notice_waiver": {
       "text": "After verified removal brings usage within the free allowance, the warned unpaid storage charges are written off without taking credits. Paid charges and later charges outside this notice are preserved."
@@ -13150,6 +13150,7 @@
       "text": "Sophia"
     }
   },
+  "memories": {},
   "metadata": {
     "default": {
       "title": {
@@ -19815,8 +19816,8 @@
       "storage_delete_error": {
         "text": "Gagal menghapus file. Silakan coba lagi."
       },
-      "storage_category_artifact_history": {
-        "text": "Artifact history"
+      "storage_category_saved_chats": {
+        "text": "Saved chat history"
       },
       "storage_category_large_messages": {
         "text": "Large chat messages"
@@ -19824,11 +19825,11 @@
       "storage_category_older_chats": {
         "text": "Older chat archives"
       },
+      "storage_category_artifact_history": {
+        "text": "Artifact history"
+      },
       "storage_category_pending_outputs": {
         "text": "Outputs waiting to sync"
-      },
-      "storage_category_saved_chats": {
-        "text": "Saved chat history"
       }
     }
   },

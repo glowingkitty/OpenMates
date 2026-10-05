@@ -13,6 +13,7 @@ import { getProviderIconUrl } from "../../../data/providerIcons";
 import { aiModelSelectionValue } from "../../../utils/aiModelSelection";
 import { appSkillsStore } from "../../../stores/appSkillsStore";
 import { get } from "svelte/store";
+import { currentPersonalDocumentMemories } from '../../../stores/personalDocumentMemories';
 import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
 import { isProviderHealthy } from "../../../stores/appHealthStore";
 import { text } from "../../../i18n/translations";
@@ -853,6 +854,10 @@ function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
     const key = `${entry.app_id}:${entry.item_type}`;
     entryCountMap.set(key, (entryCountMap.get(key) || 0) + 1);
   });
+  for (const entry of currentPersonalDocumentMemories()) {
+    const key = `${entry.app_id}:${entry.settings_group}`;
+    entryCountMap.set(key, (entryCountMap.get(key) ?? 0) + 1);
+  }
 
   for (const [appId, app] of Object.entries(apps)) {
     const appIcon = app.icon_image || "default-app.svg";
@@ -947,7 +952,7 @@ export function getSettingsMemoryEntryResults(
   }
 
   // Get decrypted entries for this app + category
-  const allDecryptedEntries = Array.from(storeState.decryptedEntries.values());
+  const allDecryptedEntries = [...storeState.decryptedEntries.values(), ...currentPersonalDocumentMemories()];
   const categoryEntries = allDecryptedEntries
     .filter(
       (entry) =>

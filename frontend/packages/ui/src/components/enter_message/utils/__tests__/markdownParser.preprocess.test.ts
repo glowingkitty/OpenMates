@@ -23,6 +23,9 @@ vi.mock("../../../../data/providersMetadata", () => ({ providersMetadata: {} }))
 vi.mock("../../../../stores/appSettingsMemoriesStore", () => ({
   appSettingsMemoriesStore: { subscribe: () => () => {} },
 }));
+vi.mock("../../../../stores/personalDocumentMemories", () => ({
+  currentPersonalDocumentMemories: () => [],
+}));
 vi.mock("../../../../stores/appSkillsStore", () => ({
   appSkillsStore: {
     subscribe: () => () => {},

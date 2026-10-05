@@ -781,6 +781,14 @@
         }
       }
     },
+    "openmates": {
+      "memories": {
+        "text": "Erinnerungen",
+        "description": {
+          "text": "Deine Fakten, Vorlieben und wiederverwendbaren Hinweise. Werden nur nach Zustimmung oder ausdrücklicher Erwähnung geteilt."
+        }
+      }
+    },
     "plants": {
       "my_plants": {
         "text": "Meine Pflanzen",
@@ -6645,6 +6653,68 @@
         "text": "Füge sofort Guthaben hinzu, um die Löschung zu verhindern. Dies ist deine letzte Chance."
       }
     },
+    "storage_billing_notice_1": {
+      "subject": {
+        "text": "Speicherzahlung, Hinweis 1: Bitte handeln"
+      },
+      "header": {
+        "text": "Speicherzahlung konnte nicht abgebucht werden"
+      },
+      "body": {
+        "text": "Wir konnten die wöchentliche Speichergebühr von {credits_needed} Credits nicht abbuchen. Der offene Betrag beträgt {outstanding_credits} Credits. Für diese Gebühr erfasster Speicher: {storage_gb} GiB. Die unbezahlte Gebühr betrifft Speicher oberhalb deines kostenlosen Kontingents. Bleibt sie offen, können betroffene kostenpflichtige Dateien frühestens am {deadline_date} UTC nach einer abschließenden Zahlungsprüfung entfernt werden."
+      },
+      "action": {
+        "text": "Lade vor dem genannten Datum Credits auf oder exportiere betroffene Dateien. Dateien, die einem anderen berechtigten Eigentümer oder Team weiter zustehen, sind von diesem Hinweis nicht betroffen."
+      }
+    },
+    "storage_billing_notice_2": {
+      "subject": {
+        "text": "Speicherzahlung, Hinweis 2: Betrag weiterhin offen"
+      },
+      "header": {
+        "text": "Zweiter Hinweis zur Speicherzahlung"
+      },
+      "body": {
+        "text": "Die wöchentliche Speichergebühr von {credits_needed} Credits ist weiterhin offen. Dein offener Betrag beträgt jetzt {outstanding_credits} Credits. Für die erste unbezahlte Gebühr erfasster Speicher: {storage_gb} GiB. Bleibt der Betrag offen, können betroffene kostenpflichtige Dateien frühestens am {deadline_date} UTC nach einer abschließenden Zahlungsprüfung entfernt werden."
+      },
+      "action": {
+        "text": "Bitte lade vor diesem Datum Credits auf oder exportiere betroffene Dateien. Dieser Hinweis betrifft keine Dateien, die einem anderen berechtigten Eigentümer oder Team weiter zustehen."
+      }
+    },
+    "storage_billing_notice_3": {
+      "subject": {
+        "text": "Speicherzahlung, Hinweis 3: Löschfrist rückt näher"
+      },
+      "header": {
+        "text": "Dritter Hinweis zur Speicherzahlung"
+      },
+      "body": {
+        "text": "Die wöchentliche Speichergebühr von {credits_needed} Credits ist weiterhin offen. Dein offener Betrag beträgt {outstanding_credits} Credits. Für die erste unbezahlte Gebühr erfasster Speicher: {storage_gb} GiB. Falls die Zahlung weiter ausbleibt, folgt ein vierter und letzter Hinweis. Betroffene kostenpflichtige Dateien können frühestens am {deadline_date} UTC nach einer abschließenden Zahlungsprüfung entfernt werden."
+      },
+      "action": {
+        "text": "Lade rechtzeitig Credits auf oder exportiere betroffene Dateien. Dateien, die einem anderen berechtigten Eigentümer oder Team weiter zustehen, sind von diesem Hinweis nicht betroffen."
+      }
+    },
+    "storage_billing_notice_4": {
+      "subject": {
+        "text": "Letzter Hinweis zur Speicherzahlung: Frist {deadline_date}"
+      },
+      "header": {
+        "text": "Letzter Hinweis zur Speicherzahlung"
+      },
+      "body": {
+        "text": "Dies ist der vierte zugestellte Hinweis zu deiner unbezahlten Speichergebühr. Die wöchentliche Gebühr betrug {credits_needed} Credits; insgesamt sind {outstanding_credits} Credits offen. Für die erste unbezahlte Gebühr erfasster Speicher: {storage_gb} GiB. Bleibt der Betrag offen, können betroffene kostenpflichtige Dateien frühestens am {deadline_date} UTC nach einer abschließenden Zahlungsprüfung entfernt werden. Durch diesen Hinweis wurden sie noch nicht gelöscht."
+      },
+      "action": {
+        "text": "Lade vor dem hier genannten frühestmöglichen Löschdatum genügend Credits auf oder exportiere betroffene Dateien. Dateien, die einem anderen berechtigten Eigentümer oder Team weiter zustehen, sind von diesem Hinweis nicht betroffen."
+      }
+    },
+    "storage_billing_notice_top_up": {
+      "text": "Credits aufladen"
+    },
+    "storage_billing_notice_export": {
+      "text": "Meine Dateien exportieren"
+    },
     "storage_files_deleted": {
       "subject": {
         "text": "Deine Dateien wurden gelöscht"
@@ -6808,85 +6878,23 @@
         "text": "Nachrichtenvorschau"
       }
     },
-    "storage_billing_notice_1": {
-      "subject": {
-        "text": "Speicherzahlung, Hinweis 1: Bitte handeln"
-      },
-      "header": {
-        "text": "Speicherzahlung konnte nicht abgebucht werden"
-      },
-      "body": {
-        "text": "Wir konnten die wöchentliche Speichergebühr von {credits_needed} Credits nicht abbuchen. Der offene Betrag beträgt {outstanding_credits} Credits. Für diese Gebühr erfasster Speicher: {storage_gb} GiB. Die unbezahlte Gebühr betrifft Speicher oberhalb deines kostenlosen Kontingents. Bleibt sie offen, können betroffene kostenpflichtige Dateien frühestens am {deadline_date} UTC nach einer abschließenden Zahlungsprüfung entfernt werden."
-      },
-      "action": {
-        "text": "Lade vor dem genannten Datum Credits auf oder exportiere betroffene Dateien. Dateien, die einem anderen berechtigten Eigentümer oder Team weiter zustehen, sind von diesem Hinweis nicht betroffen."
-      }
-    },
-    "storage_billing_notice_2": {
-      "subject": {
-        "text": "Speicherzahlung, Hinweis 2: Betrag weiterhin offen"
-      },
-      "header": {
-        "text": "Zweiter Hinweis zur Speicherzahlung"
-      },
-      "body": {
-        "text": "Die wöchentliche Speichergebühr von {credits_needed} Credits ist weiterhin offen. Dein offener Betrag beträgt jetzt {outstanding_credits} Credits. Für die erste unbezahlte Gebühr erfasster Speicher: {storage_gb} GiB. Bleibt der Betrag offen, können betroffene kostenpflichtige Dateien frühestens am {deadline_date} UTC nach einer abschließenden Zahlungsprüfung entfernt werden."
-      },
-      "action": {
-        "text": "Bitte lade vor diesem Datum Credits auf oder exportiere betroffene Dateien. Dieser Hinweis betrifft keine Dateien, die einem anderen berechtigten Eigentümer oder Team weiter zustehen."
-      }
-    },
-    "storage_billing_notice_3": {
-      "subject": {
-        "text": "Speicherzahlung, Hinweis 3: Löschfrist rückt näher"
-      },
-      "header": {
-        "text": "Dritter Hinweis zur Speicherzahlung"
-      },
-      "body": {
-        "text": "Die wöchentliche Speichergebühr von {credits_needed} Credits ist weiterhin offen. Dein offener Betrag beträgt {outstanding_credits} Credits. Für die erste unbezahlte Gebühr erfasster Speicher: {storage_gb} GiB. Falls die Zahlung weiter ausbleibt, folgt ein vierter und letzter Hinweis. Betroffene kostenpflichtige Dateien können frühestens am {deadline_date} UTC nach einer abschließenden Zahlungsprüfung entfernt werden."
-      },
-      "action": {
-        "text": "Lade rechtzeitig Credits auf oder exportiere betroffene Dateien. Dateien, die einem anderen berechtigten Eigentümer oder Team weiter zustehen, sind von diesem Hinweis nicht betroffen."
-      }
-    },
-    "storage_billing_notice_4": {
-      "subject": {
-        "text": "Letzter Hinweis zur Speicherzahlung: Frist {deadline_date}"
-      },
-      "header": {
-        "text": "Letzter Hinweis zur Speicherzahlung"
-      },
-      "body": {
-        "text": "Dies ist der vierte zugestellte Hinweis zu deiner unbezahlten Speichergebühr. Die wöchentliche Gebühr betrug {credits_needed} Credits; insgesamt sind {outstanding_credits} Credits offen. Für die erste unbezahlte Gebühr erfasster Speicher: {storage_gb} GiB. Bleibt der Betrag offen, können betroffene kostenpflichtige Dateien frühestens am {deadline_date} UTC nach einer abschließenden Zahlungsprüfung entfernt werden. Durch diesen Hinweis wurden sie noch nicht gelöscht."
-      },
-      "action": {
-        "text": "Lade vor dem hier genannten frühestmöglichen Löschdatum genügend Credits auf oder exportiere betroffene Dateien. Dateien, die einem anderen berechtigten Eigentümer oder Team weiter zustehen, sind von diesem Hinweis nicht betroffen."
-      }
+    "storage_billing_notice_date_policy": {
+      "text": "Dies ist der frühestmögliche Löschtermin, keine fest geplante Löschung. Spätere Hinweise können ihn nach hinten verschieben. Betroffener Speicher wird nicht vor dem zuletzt mitgeteilten Datum entfernt."
     },
     "storage_billing_notice_affected": {
       "text": "Only the following fixed list of personal storage is covered by this notice. Removal is oldest first and stops once storage is within the free allowance. Protected or changed units are retained; if safe removal cannot reach the allowance, deletion is paused."
     },
-    "storage_billing_notice_date_policy": {
-      "text": "Dies ist der frühestmögliche Löschtermin, keine fest geplante Löschung. Spätere Hinweise können ihn nach hinten verschieben. Betroffener Speicher wird nicht vor dem zuletzt mitgeteilten Datum entfernt."
-    },
-    "storage_billing_notice_export": {
-      "text": "Meine Dateien exportieren"
-    },
-    "storage_billing_notice_top_up": {
-      "text": "Credits aufladen"
-    },
-    "storage_billing_notice_unit_artifact_history": {
-      "text": "Older artifact history"
-    },
-    "storage_billing_notice_unit_cold_chat": {
-      "text": "Archived chat"
+    "storage_billing_notice_units_link": {
+      "text": "Review affected storage"
     },
     "storage_billing_notice_unit_upload": {
       "text": "Uploaded file"
     },
-    "storage_billing_notice_units_link": {
-      "text": "Review affected storage"
+    "storage_billing_notice_unit_cold_chat": {
+      "text": "Archived chat"
+    },
+    "storage_billing_notice_unit_artifact_history": {
+      "text": "Older artifact history"
     },
     "storage_billing_notice_waiver": {
       "text": "After verified removal brings usage within the free allowance, the warned unpaid storage charges are written off without taking credits. Paid charges and later charges outside this notice are preserved."
@@ -14149,6 +14157,152 @@
       "text": "Sophia"
     }
   },
+  "memories": {
+    "manage": {
+      "text": "Erinnerungen"
+    },
+    "guide_description": {
+      "text": "Speichere Fakten, Vorlieben oder wiederverwendbare Hinweise als Erinnerung. Fokus-Modi begleiten deine aktuelle Arbeit; Spezifikationen definieren verbindliche Ergebnisse."
+    },
+    "scope": {
+      "text": "Quelle der Erinnerung"
+    },
+    "source_app": {
+      "text": "Von der App bereitgestellt"
+    },
+    "sources_help": {
+      "text": "Öffentliche Erinnerungen werden von Apps bereitgestellt und bei Bedarf automatisch geladen. Private Erinnerungen sind verschlüsselt. Persönliche Erinnerungen teilst du mit deiner Zustimmung oder durch eine ausdrückliche Erwähnung; Projekt-Erinnerungen werden mit aktivem Projektzugriff geladen."
+    },
+    "visibility_public": {
+      "text": "Öffentlich"
+    },
+    "visibility_private": {
+      "text": "Privat"
+    },
+    "source_personal": {
+      "text": "Persönlich"
+    },
+    "source_project": {
+      "text": "Projekt"
+    },
+    "loaded": {
+      "text": "{count} Erinnerungen geladen."
+    },
+    "revision": {
+      "text": "Revision"
+    },
+    "project_storage": {
+      "text": "Projekt-Erinnerungen sind verschlüsselte Markdown-Dateien und werden bei Bedarf mit aktivem Projektzugriff geladen."
+    },
+    "activation_required": {
+      "text": "Aktiviere dieses Projekt in einem Chat, bevor du seine Erinnerungen erstellst oder bearbeitest."
+    },
+    "title": {
+      "text": "Titel"
+    },
+    "description": {
+      "text": "Beschreibung"
+    },
+    "when_to_use": {
+      "text": "Wann anwenden"
+    },
+    "practices": {
+      "text": "Erinnerung (Markdown)"
+    },
+    "empty": {
+      "text": "Hier sind noch keine Erinnerungen gespeichert."
+    },
+    "new": {
+      "text": "Neue Erinnerung"
+    },
+    "saved": {
+      "text": "Erinnerung gespeichert."
+    },
+    "invalid_document": {
+      "text": "Ergänze Titel, Beschreibung, Anwendungsbereich und Vorgehensweisen innerhalb der Feldgrenzen."
+    },
+    "save_failed": {
+      "text": "Die Erinnerungen konnten nicht geladen oder gespeichert werden. Bitte versuche es erneut."
+    },
+    "authoring_suggestions": {
+      "text": "Vorgeschlagene Projektverbesserungen"
+    },
+    "create_focus": {
+      "text": "Fokus erstellen"
+    },
+    "update_focus": {
+      "text": "Fokus aktualisieren"
+    },
+    "create_workflow": {
+      "text": "Workflow erstellen"
+    },
+    "update_workflow": {
+      "text": "Workflow aktualisieren"
+    },
+    "authoring_started": {
+      "text": "Gestartet"
+    },
+    "authoring_failed": {
+      "text": "Diese Aktualisierung konnte nicht gestartet werden. Bitte versuche es erneut."
+    },
+    "expanded": {
+      "text": "Erweitert"
+    },
+    "collapsed": {
+      "text": "Eingeklappt"
+    },
+    "authoring_save_failed": {
+      "text": "Dieser Entwurf konnte nicht gespeichert werden. Bitte versuche es erneut."
+    },
+    "review_draft": {
+      "text": "Entwurf prüfen"
+    },
+    "save_draft": {
+      "text": "Entwurf speichern"
+    },
+    "job_running": {
+      "text": "Diese Verbesserung wird erstellt…"
+    },
+    "job_queued": {
+      "text": "Wartet auf den Start."
+    },
+    "job_needs_input": {
+      "text": "Weitere Informationen werden benötigt."
+    },
+    "job_needs_save": {
+      "text": "Entwurf bereit zum Prüfen und Speichern."
+    },
+    "job_needs_binding_save": {
+      "text": "Speichere die ausstehende Projekt-Dateiverknüpfung."
+    },
+    "job_pending_file": {
+      "text": "Wartet auf die verknüpfte Datei."
+    },
+    "job_partial": {
+      "text": "Einige Änderungen wurden abgeschlossen. Die übrigen Änderungen müssen geprüft werden."
+    },
+    "job_conflict": {
+      "text": "Die Quelle wurde geändert. Prüfe den Konflikt, bevor du fortfährst."
+    },
+    "job_ready": {
+      "text": "Projektverbesserung gespeichert."
+    },
+    "job_failed": {
+      "text": "Diese Verbesserung konnte nicht abgeschlossen werden."
+    },
+    "job_saved": {
+      "text": "Gespeichert."
+    },
+    "job_cancelled": {
+      "text": "Abgebrochen."
+    },
+    "job_waiting": {
+      "text": "Wartet auf eine Aktualisierung."
+    },
+    "app_loading": {
+      "text": "Öffentlich · Von der App bereitgestellt · Schreibgeschützt · Wird bei Bedarf automatisch geladen"
+    }
+  },
   "metadata": {
     "default": {
       "title": {
@@ -21381,8 +21535,8 @@
       "storage_delete_error": {
         "text": "Fehler beim Löschen der Dateien. Bitte versuche es erneut."
       },
-      "storage_category_artifact_history": {
-        "text": "Artefaktversionen"
+      "storage_category_saved_chats": {
+        "text": "Gespeicherter Chatverlauf"
       },
       "storage_category_large_messages": {
         "text": "Große Chatnachrichten"
@@ -21390,35 +21544,26 @@
       "storage_category_older_chats": {
         "text": "Ältere Chatarchive"
       },
+      "storage_category_artifact_history": {
+        "text": "Artefaktversionen"
+      },
       "storage_category_pending_outputs": {
         "text": "Ergebnisse, die auf Synchronisierung warten"
       },
-      "storage_category_saved_chats": {
-        "text": "Gespeicherter Chatverlauf"
-      },
-      "storage_logical_breakdown": {
-        "text": "Chat- und Artefaktspeicher"
+      "storage_retry": {
+        "text": "Erneut versuchen"
       },
       "storage_measured_at": {
         "text": "Gemessen am"
       },
-      "storage_notice_deadline": {
-        "text": "Frist für die Entfernung"
+      "storage_pricing_policy": {
+        "text": "Persönlicher Speicher umfasst 1 GiB kostenlos. Jedes angefangene GiB darüber kostet 3 Credits pro Woche; die Abrechnung erfolgt sonntags um 03:00 UTC. Uploads, gespeicherte Chatverläufe, große Nachrichten, ältere Chatarchive, auf Synchronisierung wartende Ergebnisse und Artefaktversionen zählen zum Speicher. Die Abrechnung von Team-Speicher ist nicht aktiviert."
       },
-      "storage_notice_empty": {
-        "text": "Kein aktiver Hinweis zur Speicherzahlung."
-      },
-      "storage_notice_error": {
-        "text": "Die betroffenen Speichereinheiten konnten nicht geladen werden. Bitte versuche es erneut."
+      "storage_logical_breakdown": {
+        "text": "Chat- und Artefaktspeicher"
       },
       "storage_notice_heading": {
         "text": "Hinweis zur Speicherzahlung"
-      },
-      "storage_notice_load_more": {
-        "text": "Weitere betroffene Einheiten anzeigen"
-      },
-      "storage_notice_manual_review": {
-        "text": "Ein Teil des Speichers muss manuell geprüft werden und wird nicht automatisch entfernt."
       },
       "storage_notice_policy": {
         "text": "Diese feste Liste zeigt die persönlichen Speichereinheiten, auf die sich der Hinweis bezieht. Nach vier zugestellten wöchentlichen Warn-E-Mails und Ablauf der Frist werden nur so viele geeignete Einheiten aus dieser Liste entfernt, dass die Nutzung unter 1 GiB sinkt. Die zugehörigen Gebühren werden bei Ablauf erlassen; sie werden weder als bezahlt markiert noch vom Guthaben abgezogen."
@@ -21426,23 +21571,20 @@
       "storage_notices_delivered": {
         "text": "Zugestellte Warn-E-Mails"
       },
-      "storage_pricing_policy": {
-        "text": "Persönlicher Speicher umfasst 1 GiB kostenlos. Jedes angefangene GiB darüber kostet 3 Credits pro Woche; die Abrechnung erfolgt sonntags um 03:00 UTC. Uploads, gespeicherte Chatverläufe, große Nachrichten, ältere Chatarchive, auf Synchronisierung wartende Ergebnisse und Artefaktversionen zählen zum Speicher. Die Abrechnung von Team-Speicher ist nicht aktiviert."
+      "storage_notice_deadline": {
+        "text": "Frist für die Entfernung"
       },
-      "storage_resource_id": {
-        "text": "Ressourcen-ID"
+      "storage_notice_manual_review": {
+        "text": "Ein Teil des Speichers muss manuell geprüft werden und wird nicht automatisch entfernt."
       },
-      "storage_retry": {
-        "text": "Erneut versuchen"
-      },
-      "storage_unit_artifact_history": {
-        "text": "Artefaktversionen"
-      },
-      "storage_unit_cold_chat": {
-        "text": "Älteres Chatarchiv"
+      "storage_unit_type": {
+        "text": "Typ"
       },
       "storage_unit_id": {
         "text": "ID der Speichereinheit"
+      },
+      "storage_resource_id": {
+        "text": "Ressourcen-ID"
       },
       "storage_unit_oldest": {
         "text": "Ältester Eintrag"
@@ -21450,11 +21592,23 @@
       "storage_unit_size": {
         "text": "Größe"
       },
-      "storage_unit_type": {
-        "text": "Typ"
-      },
       "storage_unit_upload": {
         "text": "Upload"
+      },
+      "storage_unit_cold_chat": {
+        "text": "Älteres Chatarchiv"
+      },
+      "storage_unit_artifact_history": {
+        "text": "Artefaktversionen"
+      },
+      "storage_notice_load_more": {
+        "text": "Weitere betroffene Einheiten anzeigen"
+      },
+      "storage_notice_empty": {
+        "text": "Kein aktiver Hinweis zur Speicherzahlung."
+      },
+      "storage_notice_error": {
+        "text": "Die betroffenen Speichereinheiten konnten nicht geladen werden. Bitte versuche es erneut."
       }
     },
     "watch_whisper": {

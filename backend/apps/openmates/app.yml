@@ -128,7 +128,24 @@ focuses:
       confirmations needed. Do not execute the plan until the user approves it or
       explicitly asks to continue.
 
-settings_and_memories: []
+settings_and_memories:
+  - id: memories
+    name_translation_key: openmates.memories
+    description_translation_key: openmates.memories.description
+    icon_image: heart.svg
+    type: list
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: A short title for this Memory
+          is_title: true
+        document:
+          type: string
+          description: Facts, preferences or reusable guidance in Markdown
+          multiline: true
+      required: [title, document]
 
 marketing_discovery:
   skills:

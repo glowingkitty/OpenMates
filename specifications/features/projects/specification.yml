@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.projects
-version: 2
+version: 3
 status: draft
 title: Projects
 summary: >
@@ -276,6 +276,15 @@ assertions:
       client encryption.
     depends_on:
     - examples.focus_auto_selection
+  - id: projects.memories.active-access
+    type: privacy
+    must: Project Memories provide relevant facts, preferences and reusable guidance automatically only within current
+      authoritative active Project Focus/access. Deactivation prevents future inclusion, while already included conversation
+      content keeps existing chat-history behavior. Personal memories about a Project retain personal consent. New
+      Project Memory documents use .openmates/memories; compatible legacy rules and facts documents remain readable
+      without duplication.
+    depends_on:
+    - examples.project_memories
 
 applies_to:
   rest_api:
@@ -348,3 +357,4 @@ examples:
   - project_uploads
   - project_surface_parity
   - focus_auto_selection
+  - project_memories

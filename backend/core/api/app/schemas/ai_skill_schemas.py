@@ -3,7 +3,7 @@
 # that might be shared between the core API and the AI app services.
 
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, field_validator, field_serializer
+from pydantic import AliasChoices, BaseModel, Field, field_validator, field_serializer
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 
 class AskSkillRequest(BaseModel):
@@ -42,7 +42,7 @@ class AskSkillRequest(BaseModel):
     agentic_context_turn_id: Optional[str] = Field(default=None, description="Server-only original user turn binding of the opaque handoff.")
     agentic_context_request_id: Optional[str] = Field(default=None, description="Server handoff binding.")
     accepted_plan_context: Optional[Dict[str, Any]] = Field(default=None, repr=False, description="Bounded client-decrypted accepted existing Plan snapshot; fresh server approval/version/linkage required.")
-    custom_rule_documents: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=24, description="Transient client-decrypted private Rule Markdown; fresh first-party and Project authority required before selection.")
+    custom_rule_documents: List[Dict[str, Any]] = Field(validation_alias=AliasChoices("custom_memory_documents", "custom_rule_documents"), default_factory=list, repr=False, max_length=24, description="Transient client-decrypted Project Memory Markdown (legacy Rule alias accepted); fresh first-party and Project authority required before selection.")
     project_focus_catalog: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=20, description="Private Project Focus metadata only; full definitions are loaded separately after selection.")
     project_focus_documents: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=8, description="Selected client-decrypted Project Focus documents with fresh item revisions; never Project consent.")
     project_context_documents: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=20, description="Transient authorized Project Specification, fact and folder context; data never grants access.")

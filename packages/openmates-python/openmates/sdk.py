@@ -5930,10 +5930,18 @@ class OpenMatesApiKeys:
 
 
 class OpenMatesMemories:
-    """Encrypted memories SDK namespace."""
+    """Public app guidance discovery and encrypted private memory entries."""
 
     def __init__(self, client: OpenMates):
         self._client = client
+
+    def published(self, *, app_id: str | None = None) -> dict[str, Any]:
+        """Reviewed read-only app guidance, separate from private encrypted entries."""
+        if app_id:
+            app = self._client._get_public(f"/v1/apps/{quote(app_id, safe='')}/metadata?include_unavailable=true")
+            return {"memories": app.get("memories", [])}
+        metadata = self._client._get_public("/v1/apps/metadata?include_unavailable=true")
+        return {"memories": [memory for app in metadata.get("apps", {}).values() for memory in app.get("memories", [])]}
 
     def list(self, **query: Any) -> dict[str, Any]:
         data = self._client._get(_with_query("/v1/sdk/memories", **query))

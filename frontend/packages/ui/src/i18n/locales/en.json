@@ -797,6 +797,14 @@
         }
       }
     },
+    "openmates": {
+      "memories": {
+        "text": "Memories",
+        "description": {
+          "text": "Your facts, preferences and reusable guidance. Shared with a mate only after permission or an explicit mention."
+        }
+      }
+    },
     "plants": {
       "my_plants": {
         "text": "My Plants",
@@ -6685,6 +6693,68 @@
         "text": "Add credits immediately to prevent deletion. This is your last chance."
       }
     },
+    "storage_billing_notice_1": {
+      "subject": {
+        "text": "Storage payment notice 1: action needed"
+      },
+      "header": {
+        "text": "Storage payment could not be collected"
+      },
+      "body": {
+        "text": "We could not collect the weekly storage charge of {credits_needed} credits. The outstanding balance is {outstanding_credits} credits. Storage measured for this charge: {storage_gb} GiB. The unpaid charge concerns storage above your free allowance. If it remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
+      },
+      "action": {
+        "text": "Add credits or export affected files before the stated date. Files another authorized owner or Team still retains are outside this notice."
+      }
+    },
+    "storage_billing_notice_2": {
+      "subject": {
+        "text": "Storage payment notice 2: balance still due"
+      },
+      "header": {
+        "text": "Second storage payment notice"
+      },
+      "body": {
+        "text": "The weekly storage charge of {credits_needed} credits remains unpaid. Your outstanding balance is now {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. If the balance remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
+      },
+      "action": {
+        "text": "Please add credits or export affected files before that date. This notice does not cover files retained by another authorized owner or Team."
+      }
+    },
+    "storage_billing_notice_3": {
+      "subject": {
+        "text": "Storage payment notice 3: deletion deadline approaching"
+      },
+      "header": {
+        "text": "Third storage payment notice"
+      },
+      "body": {
+        "text": "The weekly storage charge of {credits_needed} credits remains unpaid. Your outstanding balance is {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. A fourth and final notice will follow if payment is still missing. Affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
+      },
+      "action": {
+        "text": "Add credits or export affected files while there is still time. Files retained by another authorized owner or Team are outside this notice."
+      }
+    },
+    "storage_billing_notice_4": {
+      "subject": {
+        "text": "Final storage payment warning: deadline {deadline_date}"
+      },
+      "header": {
+        "text": "Final storage payment warning"
+      },
+      "body": {
+        "text": "This is the fourth delivered notice about your unpaid storage charge. The weekly charge was {credits_needed} credits; your total outstanding balance is {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. If it remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check. They have not been deleted by this notice."
+      },
+      "action": {
+        "text": "Add enough credits or export affected files before the earliest removal date shown here. Files retained by another authorized owner or Team are outside this notice."
+      }
+    },
+    "storage_billing_notice_top_up": {
+      "text": "Add credits"
+    },
+    "storage_billing_notice_export": {
+      "text": "Export my files"
+    },
     "storage_files_deleted": {
       "subject": {
         "text": "Your files have been deleted"
@@ -6848,85 +6918,23 @@
         "text": "Message preview"
       }
     },
-    "storage_billing_notice_1": {
-      "subject": {
-        "text": "Storage payment notice 1: action needed"
-      },
-      "header": {
-        "text": "Storage payment could not be collected"
-      },
-      "body": {
-        "text": "We could not collect the weekly storage charge of {credits_needed} credits. The outstanding balance is {outstanding_credits} credits. Storage measured for this charge: {storage_gb} GiB. The unpaid charge concerns storage above your free allowance. If it remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
-      },
-      "action": {
-        "text": "Add credits or export affected files before the stated date. Files another authorized owner or Team still retains are outside this notice."
-      }
-    },
-    "storage_billing_notice_2": {
-      "subject": {
-        "text": "Storage payment notice 2: balance still due"
-      },
-      "header": {
-        "text": "Second storage payment notice"
-      },
-      "body": {
-        "text": "The weekly storage charge of {credits_needed} credits remains unpaid. Your outstanding balance is now {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. If the balance remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
-      },
-      "action": {
-        "text": "Please add credits or export affected files before that date. This notice does not cover files retained by another authorized owner or Team."
-      }
-    },
-    "storage_billing_notice_3": {
-      "subject": {
-        "text": "Storage payment notice 3: deletion deadline approaching"
-      },
-      "header": {
-        "text": "Third storage payment notice"
-      },
-      "body": {
-        "text": "The weekly storage charge of {credits_needed} credits remains unpaid. Your outstanding balance is {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. A fourth and final notice will follow if payment is still missing. Affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
-      },
-      "action": {
-        "text": "Add credits or export affected files while there is still time. Files retained by another authorized owner or Team are outside this notice."
-      }
-    },
-    "storage_billing_notice_4": {
-      "subject": {
-        "text": "Final storage payment warning: deadline {deadline_date}"
-      },
-      "header": {
-        "text": "Final storage payment warning"
-      },
-      "body": {
-        "text": "This is the fourth delivered notice about your unpaid storage charge. The weekly charge was {credits_needed} credits; your total outstanding balance is {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. If it remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check. They have not been deleted by this notice."
-      },
-      "action": {
-        "text": "Add enough credits or export affected files before the earliest removal date shown here. Files retained by another authorized owner or Team are outside this notice."
-      }
+    "storage_billing_notice_date_policy": {
+      "text": "This is the earliest removal date, not a scheduled deletion. Later notices may move it later. We will not remove affected storage before the latest date we notified."
     },
     "storage_billing_notice_affected": {
       "text": "Only the following fixed list of personal storage is covered by this notice. Removal is oldest first and stops once storage is within the free allowance. Protected or changed units are retained; if safe removal cannot reach the allowance, deletion is paused."
     },
-    "storage_billing_notice_date_policy": {
-      "text": "This is the earliest removal date, not a scheduled deletion. Later notices may move it later. We will not remove affected storage before the latest date we notified."
-    },
-    "storage_billing_notice_export": {
-      "text": "Export my files"
-    },
-    "storage_billing_notice_top_up": {
-      "text": "Add credits"
-    },
-    "storage_billing_notice_unit_artifact_history": {
-      "text": "Older artifact history"
-    },
-    "storage_billing_notice_unit_cold_chat": {
-      "text": "Archived chat"
+    "storage_billing_notice_units_link": {
+      "text": "Review affected storage"
     },
     "storage_billing_notice_unit_upload": {
       "text": "Uploaded file"
     },
-    "storage_billing_notice_units_link": {
-      "text": "Review affected storage"
+    "storage_billing_notice_unit_cold_chat": {
+      "text": "Archived chat"
+    },
+    "storage_billing_notice_unit_artifact_history": {
+      "text": "Older artifact history"
     },
     "storage_billing_notice_waiver": {
       "text": "After verified removal brings usage within the free allowance, the warned unpaid storage charges are written off without taking credits. Paid charges and later charges outside this notice are preserved."
@@ -14429,6 +14437,152 @@
         "text": "- helps with writing, debugging, and reviewing code across all programming languages\n- designs software architecture and applies development best practices\n- always searches for the latest documentation before answering API or framework questions\n- generates unit tests before writing implementation code\n- suggests better libraries, frameworks, or patterns when they exist\n- adds ADR (Architecture Decision Record) sections to code examples with alternatives considered\n- flags security vulnerabilities and inefficient approaches before implementing them\n- includes file paths in code blocks for easy integration"
       },
       "text": "Sophia"
+    }
+  },
+  "memories": {
+    "manage": {
+      "text": "Memories"
+    },
+    "guide_description": {
+      "text": "Save facts, preferences or reusable guidance as a Memory. Focus modes guide your current work; Specifications define required outcomes."
+    },
+    "scope": {
+      "text": "Memory source"
+    },
+    "source_app": {
+      "text": "App-provided"
+    },
+    "sources_help": {
+      "text": "Public memories are provided by apps and load automatically when relevant. Private memories are encrypted. Personal memories are shared with your approval or an explicit mention; Project memories load with active Project access."
+    },
+    "visibility_public": {
+      "text": "Public"
+    },
+    "visibility_private": {
+      "text": "Private"
+    },
+    "source_personal": {
+      "text": "Personal"
+    },
+    "source_project": {
+      "text": "Project"
+    },
+    "loaded": {
+      "text": "Loaded {count} memories."
+    },
+    "revision": {
+      "text": "Revision"
+    },
+    "project_storage": {
+      "text": "Project Memories are encrypted Markdown files and load when relevant while this chat has active Project access."
+    },
+    "activation_required": {
+      "text": "Activate this Project in a chat before creating or editing its Memories."
+    },
+    "title": {
+      "text": "Title"
+    },
+    "description": {
+      "text": "Description"
+    },
+    "when_to_use": {
+      "text": "When to use"
+    },
+    "practices": {
+      "text": "Memory (Markdown)"
+    },
+    "empty": {
+      "text": "No Memories saved here yet."
+    },
+    "new": {
+      "text": "New Memory"
+    },
+    "saved": {
+      "text": "Memory saved."
+    },
+    "invalid_document": {
+      "text": "Add a title, description, applicability and practices within the field limits."
+    },
+    "save_failed": {
+      "text": "Could not load or save the Memories. Please try again."
+    },
+    "authoring_suggestions": {
+      "text": "Suggested Project improvements"
+    },
+    "create_focus": {
+      "text": "Create Focus"
+    },
+    "update_focus": {
+      "text": "Update Focus"
+    },
+    "create_workflow": {
+      "text": "Create Workflow"
+    },
+    "update_workflow": {
+      "text": "Update Workflow"
+    },
+    "authoring_started": {
+      "text": "Started"
+    },
+    "authoring_failed": {
+      "text": "Could not start this update. Please try again."
+    },
+    "expanded": {
+      "text": "Expanded"
+    },
+    "collapsed": {
+      "text": "Collapsed"
+    },
+    "authoring_save_failed": {
+      "text": "Could not save this draft. Please try again."
+    },
+    "review_draft": {
+      "text": "Review draft"
+    },
+    "save_draft": {
+      "text": "Save draft"
+    },
+    "job_running": {
+      "text": "Working on this improvement…"
+    },
+    "job_queued": {
+      "text": "Waiting to start."
+    },
+    "job_needs_input": {
+      "text": "More information is needed."
+    },
+    "job_needs_save": {
+      "text": "Draft ready for review and saving."
+    },
+    "job_needs_binding_save": {
+      "text": "Save the remaining Project file connection."
+    },
+    "job_pending_file": {
+      "text": "Waiting for the connected file."
+    },
+    "job_partial": {
+      "text": "Some changes completed. The remaining changes need attention."
+    },
+    "job_conflict": {
+      "text": "The source changed. Review the conflict before continuing."
+    },
+    "job_ready": {
+      "text": "Project improvement saved."
+    },
+    "job_failed": {
+      "text": "This improvement could not be completed."
+    },
+    "job_saved": {
+      "text": "Saved."
+    },
+    "job_cancelled": {
+      "text": "Cancelled."
+    },
+    "job_waiting": {
+      "text": "Waiting for a job update."
+    },
+    "app_loading": {
+      "text": "Public · Provided by the app · Read-only · Loads automatically when relevant"
     }
   },
   "metadata": {
@@ -22188,8 +22342,8 @@
       "storage_delete_error": {
         "text": "Failed to delete files. Please try again."
       },
-      "storage_category_artifact_history": {
-        "text": "Artifact history"
+      "storage_category_saved_chats": {
+        "text": "Saved chat history"
       },
       "storage_category_large_messages": {
         "text": "Large chat messages"
@@ -22197,35 +22351,26 @@
       "storage_category_older_chats": {
         "text": "Older chat archives"
       },
+      "storage_category_artifact_history": {
+        "text": "Artifact history"
+      },
       "storage_category_pending_outputs": {
         "text": "Outputs waiting to sync"
       },
-      "storage_category_saved_chats": {
-        "text": "Saved chat history"
-      },
-      "storage_logical_breakdown": {
-        "text": "Chat and artifact storage"
+      "storage_retry": {
+        "text": "Retry"
       },
       "storage_measured_at": {
         "text": "Measured at"
       },
-      "storage_notice_deadline": {
-        "text": "Removal deadline"
+      "storage_pricing_policy": {
+        "text": "Personal storage includes 1 GiB free. Each started GiB above that costs 3 credits per week, billed on Sundays at 03:00 UTC. Uploads, saved chat history, large messages, older chat archives, outputs waiting to sync, and artifact history count toward storage. Team storage billing is not enabled."
       },
-      "storage_notice_empty": {
-        "text": "No active storage payment notice."
-      },
-      "storage_notice_error": {
-        "text": "Could not load the affected storage units. Please try again."
+      "storage_logical_breakdown": {
+        "text": "Chat and artifact storage"
       },
       "storage_notice_heading": {
         "text": "Storage payment notice"
-      },
-      "storage_notice_load_more": {
-        "text": "Show more affected units"
-      },
-      "storage_notice_manual_review": {
-        "text": "Some storage needs manual review. It will not be removed automatically."
       },
       "storage_notice_policy": {
         "text": "This fixed list identifies the personal storage units covered by your notice. After four weekly warning emails are delivered and the deadline passes, only enough eligible units from this list are removed to bring usage below 1 GiB. Charges covered by this notice are waived on expiry; they are not marked paid or deducted from your balance."
@@ -22233,23 +22378,20 @@
       "storage_notices_delivered": {
         "text": "Warning emails delivered"
       },
-      "storage_pricing_policy": {
-        "text": "Personal storage includes 1 GiB free. Each started GiB above that costs 3 credits per week, billed on Sundays at 03:00 UTC. Uploads, saved chat history, large messages, older chat archives, outputs waiting to sync, and artifact history count toward storage. Team storage billing is not enabled."
+      "storage_notice_deadline": {
+        "text": "Removal deadline"
       },
-      "storage_resource_id": {
-        "text": "Resource ID"
+      "storage_notice_manual_review": {
+        "text": "Some storage needs manual review. It will not be removed automatically."
       },
-      "storage_retry": {
-        "text": "Retry"
-      },
-      "storage_unit_artifact_history": {
-        "text": "Artifact history"
-      },
-      "storage_unit_cold_chat": {
-        "text": "Older chat archive"
+      "storage_unit_type": {
+        "text": "Type"
       },
       "storage_unit_id": {
         "text": "Storage unit ID"
+      },
+      "storage_resource_id": {
+        "text": "Resource ID"
       },
       "storage_unit_oldest": {
         "text": "Oldest item"
@@ -22257,11 +22399,23 @@
       "storage_unit_size": {
         "text": "Size"
       },
-      "storage_unit_type": {
-        "text": "Type"
-      },
       "storage_unit_upload": {
         "text": "Upload"
+      },
+      "storage_unit_cold_chat": {
+        "text": "Older chat archive"
+      },
+      "storage_unit_artifact_history": {
+        "text": "Artifact history"
+      },
+      "storage_notice_load_more": {
+        "text": "Show more affected units"
+      },
+      "storage_notice_empty": {
+        "text": "No active storage payment notice."
+      },
+      "storage_notice_error": {
+        "text": "Could not load the affected storage units. Please try again."
       }
     },
     "watch_whisper": {

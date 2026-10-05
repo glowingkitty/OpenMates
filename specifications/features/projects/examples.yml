@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.projects@2
+specification: feature.projects@3
 
 project_focus_routing:
   - id: explicit-mention
@@ -433,3 +433,13 @@ focus_auto_selection:
   when: A later CLI/chat request discusses SocialHub without mentioning it, then Alice explicitly selects @SocialHub.
   then: No automatic proposal is made while disabled. The setting is visible in CLI settings and the explicit
     mention activates its permitted Project Focus.
+
+project_memories:
+- id: active-project-memory
+  given: Acme has an encrypted Memory saying its audience mostly uses phones.
+  when: An authorized user activates Work on Acme and asks for a homepage.
+  then: Relevant Project Memory loads without a personal-memory request; deactivating Acme prevents future inclusion.
+- id: personal-memory-about-project
+  given: The user saved a private personal memory about Acme outside Project files.
+  when: The user works on Acme.
+  then: Project access does not approve that personal memory; its existing request or explicit mention is required.

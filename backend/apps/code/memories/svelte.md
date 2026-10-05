@@ -1,5 +1,5 @@
 ---
-title: Svelte coding rules
+title: Svelte best practices
 description: Reliable Svelte components, reactive state, effects and UI semantics.
 when_to_use: Writing or changing Svelte components or reactive modules. Apply runes guidance only where the project uses Svelte 5 runes.
 ---

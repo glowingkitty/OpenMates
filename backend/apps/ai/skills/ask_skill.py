@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional, Union
 from fastapi import HTTPException
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field, field_validator, field_serializer
+from pydantic import AliasChoices, BaseModel, Field, field_validator, field_serializer
 import time
 import uuid
 import hashlib
@@ -99,7 +99,7 @@ class AskSkillRequest(BaseModel):
     current_project: Optional[Dict[str, Any]] = Field(default=None, description="Server-derived current Project routing metadata for this chat.")
     project_focus_candidates: List[Dict[str, Any]] = Field(default_factory=list, max_length=40, description="Client-decrypted Project names for routing only; server ownership checks precede selection. No file contents or instructions.")
     accepted_plan_context: Optional[Dict[str, Any]] = Field(default=None, repr=False, exclude=True, description="Bounded client-decrypted accepted existing Plan snapshot; fresh server approval/version/linkage required.")
-    custom_rule_documents: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=24, description="Transient client-decrypted private Rule Markdown; fresh first-party and Project authority required before selection.")
+    custom_rule_documents: List[Dict[str, Any]] = Field(validation_alias=AliasChoices("custom_memory_documents", "custom_rule_documents"), default_factory=list, exclude=True, repr=False, max_length=24, description="Transient client-decrypted Project Memory Markdown (legacy Rule alias accepted); fresh first-party and Project authority required before selection.")
     project_focus_catalog: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=20, description="Private Project Focus metadata only; full definitions are loaded separately after selection.")
     project_focus_documents: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=8, description="Selected client-decrypted Project Focus documents with fresh item revisions; never Project consent.")
     project_context_documents: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=20, description="Transient authorized Project Specification, fact and folder context; data never grants access.")

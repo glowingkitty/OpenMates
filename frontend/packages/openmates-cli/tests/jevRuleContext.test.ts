@@ -10,7 +10,7 @@ import type { OpenMatesWsClient } from '../src/ws.ts';
 const key = new Uint8Array(32).fill(7);
 const document = '---\ntitle: Private Python practices\ndescription: Reliable services.\nwhen_to_use: Writing Python.\n---\n- Release resources.\n- Preserve cancellation.\n';
 
-// contract-test: supporting surface=cli assertions=rules.ownership.encrypted-custom,rules.selection.focus-aware
+// contract-test: supporting surface=cli assertions=app-memories.privacy.client-encrypted,app-memories.selection.source-scoped
 it('does not decrypt Project definitions before activation and drops revoked results', async () => {
   let active: { project_id: string; focus_id: string; team_id: null } | null = null;
   let projectReads = 0;
@@ -36,11 +36,12 @@ it('does not decrypt Project definitions before activation and drops revoked res
   assert.equal(bodyReads, 1);
 });
 
-// contract-test: supporting surface=cli assertions=rules.transparency.applied-set,rules.definition.guide-format
-it('counts a multi-practice Rule once and persists the exact applied receipt as ciphertext once', async () => {
+// contract-test: supporting surface=cli assertions=app-memories.transparency.loaded-set,app-memories.compatibility.legacy-documents
+for (const type of ['rules_loaded', 'memories_loaded'] as const) {
+it(`counts a whole Memory once and encrypts its ${type} receipt once`, async () => {
   const body = '- Release resources.\n- Preserve cancellation.';
   const event = { event_id: 'rule-event-1', created_at: 1, chat_id: 'chat-id',
-    type: 'rules_loaded', count: 1, set_key: 'a'.repeat(64), rules: [
+    type, count: 1, set_key: 'a'.repeat(64), [type === 'memories_loaded' ? 'memories' : 'rules']: [
       { id: 'private-rule-id', title: 'Private Python practices', source: 'project', project_id: 'project-id', revision: 'b'.repeat(64), body },
     ] };
   const parsed = parseChatContextEvent(event, 'chat-id');
@@ -64,3 +65,4 @@ it('counts a multi-practice Rule once and persists the exact applied receipt as 
   assert.deepEqual(JSON.parse(plaintext!), event);
   listener.stop();
 });
+}

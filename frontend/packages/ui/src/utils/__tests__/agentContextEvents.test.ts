@@ -28,3 +28,15 @@ describe('persisted agent context notices', () => {
     expect(parseAgentContextEvent({ ...recommendation, action: 'inspect' })).toBeNull();
   });
 });
+
+// contract-test: supporting surface=gui.web assertions=app-memories.transparency.loaded-set,app-memories.selection.source-scoped
+it('accepts applied app/Project Memories without consent semantics and rejects forged source or count', () => {
+  const memory = {id: 'app:design:mobile-first', title: 'Mobile first design', source: 'app', app_id: 'design', revision: 'b'.repeat(64), body: 'Keep primary actions visible.'};
+  const event = {type: 'memories_loaded', count: 1, set_key: 'a'.repeat(64), memories: [memory]};
+  expect(parseAgentContextEvent(JSON.stringify(event))).toEqual(event);
+  expect(parseAgentContextEvent({...event, count: 2})).toBeNull();
+  expect(parseAgentContextEvent({...event, memories: [{...memory, source: 'personal'}]})).toBeNull();
+  expect(parseAgentContextEvent({...event, memories: [{...memory, project_id: 'private'}]})).toBeNull();
+  expect(parseAgentContextEvent({...event, memories: [{...memory, app_id: 'code'}]})).toBeNull();
+  expect(parseAgentContextEvent({...event, memories: [{...memory, body: 'x'.repeat(20_001)}]})).toBeNull();
+});

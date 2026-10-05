@@ -27,7 +27,7 @@ vi.mock('../projectService', () => ({
 
 import { authStore } from '../../stores/authStore';
 import { userProfile } from '../../stores/userProfile';
-import { collectCustomRuleDocuments, savePersonalRuleDocument, saveProjectMarkdownDocument, readActiveProjectMarkdownDocuments } from '../ruleDocumentService';
+import { collectCustomRuleDocuments, personalDocumentMemoryEntries, listPersonalRuleDocuments, savePersonalRuleDocument, saveProjectMarkdownDocument, readActiveProjectMarkdownDocuments } from '../ruleDocumentService';
 
 const guide = '---\ntitle: Private Python practices\ndescription: Private reusable service practices.\nwhen_to_use: Writing Python services.\n---\n- Preserve cancellation.\n- Release resources.\n';
 const personal = { id: 'personal:r1', document: guide };
@@ -53,9 +53,9 @@ describe('encrypted private Rule transport', () => {
     mocks.readHead.mockResolvedValue({ content: { code: guide }, revision: 1, embedKey: new Uint8Array(32), hasInitialHistory: true });
   });
 
-  // contract-test: supporting surface=gui.web assertions=rules.ownership.encrypted-custom,rules.selection.focus-aware
+  // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped,app-memories.selection.source-scoped
   it('never reads Project catalog or bodies before authoritative activation', async () => {
-    expect(await collectCustomRuleDocuments({ chatId: 'chat-1', projectId: 'p1' })).toEqual([{ ...personal, source: 'personal' }]);
+    expect(await collectCustomRuleDocuments({ chatId: 'chat-1', projectId: 'p1' })).toEqual([]);
     expect(mocks.getProject).not.toHaveBeenCalled();
     expect(mocks.contents).not.toHaveBeenCalled();
     expect(mocks.readHead).not.toHaveBeenCalled();
@@ -63,31 +63,32 @@ describe('encrypted private Rule transport', () => {
     expect(await collectCustomRuleDocuments({ chatId: 'chat-1' })).toEqual([]);
   });
 
-  // contract-test: supporting surface=gui.web assertions=rules.ownership.encrypted-custom
+  // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped
   it('drops Project documents revoked while the encrypted file is being read', async () => {
     mocks.activeFocus.mockResolvedValue(focus);
     mocks.readHead.mockImplementation(async () => {
       mocks.activeFocus.mockResolvedValue(null);
       return { content: { code: guide }, revision: 1, embedKey: new Uint8Array(32), hasInitialHistory: true };
     });
-    expect(await collectCustomRuleDocuments({ chatId: 'chat-1', projectId: 'p1' })).toEqual([{ ...personal, source: 'personal' }]);
+    expect(await collectCustomRuleDocuments({ chatId: 'chat-1', projectId: 'p1' })).toEqual([]);
   });
 
-  // contract-test: supporting surface=gui.web assertions=rules.ownership.encrypted-custom,rules.definition.guide-format
+  // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped,app-memories.definition.context-documents
   it('preserves existing encrypted account namespaces and sends only ciphertext', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ success: true }));
     const saved = await savePersonalRuleDocument({ id: personal.id, document: guide + '- Verify errors.\n' });
     expect(saved.id).toBe(personal.id);
     const plaintext = JSON.parse(mocks.encrypt.mock.calls[0][0]);
     expect(plaintext.topic_preferences).toEqual({ version: 1 });
-    expect(plaintext.rule_documents[0].document).toContain('Verify errors.');
+    expect(plaintext.memory_documents[0].document).toContain('Verify errors.');
+    expect(plaintext.rule_documents[0].document).toBe(guide);
     const body = String(fetchMock.mock.calls[0][1]?.body);
     expect(body).toBe(JSON.stringify({ encrypted_settings: 'new-opaque-ciphertext' }));
     expect(body).not.toContain('Private Python');
     expect(fetchMock.mock.calls[0][0]).toBe('https://api.test/v1/settings/encrypted-account');
   });
 
-  // contract-test: supporting surface=gui.web assertions=rules.ownership.encrypted-custom
+  // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped
   it('fences an account change while encrypting so no previous-owner settings are sent', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch');
     mocks.encrypt.mockImplementation(async () => {
@@ -98,7 +99,7 @@ describe('encrypted private Rule transport', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  // contract-test: supporting surface=gui.web assertions=rules.ownership.encrypted-custom
+  // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped
   it('drops personal payloads if the owner changes during the activation check', async () => {
     mocks.activeFocus.mockImplementation(async () => {
       userProfile.update((value) => ({ ...value, user_id: 'different-owner' }));
@@ -107,7 +108,7 @@ describe('encrypted private Rule transport', () => {
     expect(await collectCustomRuleDocuments({ chatId: 'chat-1' })).toEqual([]);
   });
 
-  // contract-test: supporting surface=gui.web assertions=rules.ownership.encrypted-custom,projects.focus.default-owned
+  // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped,projects.focus.default-owned
   it('requires approval of the actual draft before an always-ask Project write', async () => {
     mocks.activeFocus.mockResolvedValue(focus);
     mocks.settings.mockResolvedValue({ settings: { writeMode: 'always_ask' } });
@@ -117,7 +118,7 @@ describe('encrypted private Rule transport', () => {
     expect(mocks.readHead).not.toHaveBeenCalled();
   });
 
-  // contract-test: supporting surface=gui.web assertions=rules.ownership.encrypted-custom
+  // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped
   it('rejects a changed embed revision before proposing the Markdown write', async () => {
     mocks.activeFocus.mockResolvedValue(focus);
     await expect(saveProjectMarkdownDocument({ chatId: 'chat-1', projectId: 'p1', path: '.openmates/rules/r1.md',
@@ -125,7 +126,7 @@ describe('encrypted private Rule transport', () => {
     expect(mocks.approve).not.toHaveBeenCalled();
   });
 
-  // contract-test: supporting surface=gui.web assertions=rules.ownership.encrypted-custom
+  // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped
   it('checks the existing private path policy before decrypting selected Markdown bodies', async () => {
     mocks.activeFocus.mockResolvedValue(focus);
     mocks.settings.mockResolvedValue({ settings: { file_access: { private_paths: ['.openmates/rules/r1.md'] } } });
@@ -134,7 +135,7 @@ describe('encrypted private Rule transport', () => {
     expect(mocks.readHead).not.toHaveBeenCalled();
   });
 
-  // contract-test: supporting surface=gui.web assertions=rules.ownership.encrypted-custom
+  // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped
   it('fails closed when encrypted file access settings cannot be decoded', async () => {
     mocks.activeFocus.mockResolvedValue(focus);
     mocks.settings.mockResolvedValue({ settings: {}, encrypted: { encrypted_settings: 'broken-ciphertext' } });
@@ -143,4 +144,18 @@ describe('encrypted private Rule transport', () => {
       requests: [{ itemId: 'project-rule-id', path: '.openmates/rules/r1.md' }] })).rejects.toThrow('rule_project_unavailable');
     expect(mocks.readHead).not.toHaveBeenCalled();
   });
+});
+
+// contract-test: supporting surface=gui.web assertions=app-memories.compatibility.legacy-documents,app-memories.conversation.explicit-approval
+it('merges legacy account Memories once and exposes entries only to the private permission path', async () => {
+  const updated = guide + '- Updated practice.\n';
+  mocks.decrypt.mockResolvedValue(JSON.stringify({rule_documents: [personal], memory_documents: [{...personal, document: updated}]}));
+  expect((await listPersonalRuleDocuments()).map(memory => memory.document)).toEqual([updated]);
+  const entries = await personalDocumentMemoryEntries();
+  expect(entries).toHaveLength(1);
+  expect(entries[0].app_id).toBe('openmates');
+  expect(entries[0].settings_group).toBe('memories');
+  expect(entries[0].item_value.document).toBe(updated);
+  mocks.activeFocus.mockResolvedValue(null);
+  expect(await collectCustomRuleDocuments({chatId: 'chat-1'})).toEqual([]);
 });

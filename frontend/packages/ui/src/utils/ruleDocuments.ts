@@ -17,6 +17,8 @@ export interface CustomRuleDocument {
   source: 'personal' | 'project';
   project_id?: string;
   document: string;
+  /** Current encrypted Project item receipt; required for automatic context loading. */
+  item_revision?: string;
 }
 
 export function parseRuleDocument(document: string): RuleDocumentFields {

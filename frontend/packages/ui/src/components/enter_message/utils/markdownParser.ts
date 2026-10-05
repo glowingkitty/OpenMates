@@ -5,6 +5,7 @@ import MarkdownIt from "markdown-it";
 import { get } from "svelte/store";
 import { modelsMetadata } from "../../../data/modelsMetadata";
 import { matesMetadata } from "../../../data/matesMetadata";
+import { currentPersonalDocumentMemories } from '../../../stores/personalDocumentMemories';
 import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
 import { appSkillsStore } from "../../../stores/appSkillsStore";
 import { deriveEmbedDisplayTextFromRef } from "../../../utils/embedDisplayText";
@@ -589,7 +590,7 @@ function resolveEntryTitle(
 ): string | null {
   try {
     const state = get(appSettingsMemoriesStore);
-    const entry = state.decryptedEntries.get(entryId);
+    const entry = state.decryptedEntries.get(entryId) ?? currentPersonalDocumentMemories().find(entry => entry.id === entryId);
     if (
       !entry ||
       entry.app_id !== appId ||

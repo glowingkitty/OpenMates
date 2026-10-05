@@ -15,8 +15,8 @@
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
-    import SettingsItem from '../SettingsItem.svelte';
-    import { SettingsSectionHeading } from './elements';
+    import SettingsItem from './elements/SettingsItem.svelte';
+    import { SettingsSectionHeading, SettingsPageContainer } from './elements';
     import AppStoreCard from './AppStoreCard.svelte';
     import type { AppMetadata, MemoryFieldMetadata } from '../../types/apps';
     import { text } from '@repo/ui';
@@ -26,6 +26,20 @@
 
     // Authenticated users see encrypted entries; guests see read-only examples.
     let isAuthenticated = $derived($authStore.isAuthenticated);
+
+    import { userProfile } from '../../stores/userProfile';
+    let personalMemories = $state<Awaited<ReturnType<typeof import('../../services/ruleDocumentService').personalDocumentMemoryEntries>>>([]);
+    $effect(() => {
+        const owner = $userProfile.user_id;
+        const revision = $userProfile.encrypted_settings;
+        let cancelled = false;
+        personalMemories = [];
+        if (isAuthenticated) {
+            void import('../../services/ruleDocumentService').then(module => module.personalDocumentMemoryEntries())
+                .then(entries => { if (!cancelled && owner === $userProfile.user_id && revision === $userProfile.encrypted_settings) personalMemories = entries; }).catch(() => {});
+        }
+        return () => { cancelled = true; };
+    });
 
     // Store state
     let storeState = $state(appSkillsStore.getState());
@@ -40,6 +54,7 @@
     interface HubEntry {
         app: AppMetadata;
         category: MemoryFieldMetadata;
+        published?: import('../../types/apps').PublishedAppMemory;
         entryCount: number;
         lastUpdated: number; // Unix seconds for sorting
     }
@@ -51,6 +66,10 @@
 
         for (const appId of Object.keys(apps)) {
             const app = apps[appId];
+            for (const memory of app.memories ?? []) {
+                result.push({ app, published: memory, category: { id: `published_${memory.id.split(':').at(-1)}`,
+                    name_translation_key: '', description_translation_key: '', type: 'published' }, entryCount: 1, lastUpdated: 0 });
+            }
             if (!app.settings_and_memories || app.settings_and_memories.length === 0) continue;
 
             if (!isAuthenticated) {
@@ -70,8 +89,8 @@
                 continue;
             }
 
-            const appEntriesMap = entriesByApp.get(appId);
-            if (!appEntriesMap) continue;
+            const appEntriesMap = {...(entriesByApp.get(appId) ?? {})};
+            if (appId === 'openmates' && personalMemories.length) appEntriesMap.memories = [...(appEntriesMap.memories ?? []), ...personalMemories];
 
             for (const category of app.settings_and_memories) {
                 const categoryEntries = appEntriesMap[category.id];
@@ -184,8 +203,9 @@
     }
 </script>
 
+<SettingsPageContainer maxWidth="wide">
 <div class="settings-memories-hub">
-    <p class="encryption-notice">{$text('settings.app_settings_memories.encryption_notice')}</p>
+    <p class="encryption-notice">{$text('memories.sources_help')}</p>
 
     {#if isLoading}
         <div class="loading-state">
@@ -214,11 +234,13 @@
                         {#each section.categories as entry (entry.category.id)}
                             {@const categoryName = entry.category.name_translation_key
                                 ? $text(entry.category.name_translation_key)
-                                : entry.category.id}
+                                : entry.published?.title ?? entry.category.id}
                             {@const categoryApp: AppMetadata = {
                                 id: entry.app.id,
                                 name_translation_key: entry.category.name_translation_key,
+                                name: entry.published?.title,
                                 description_translation_key: entry.category.description_translation_key,
+                                description: entry.published?.description,
                                 icon_image: entry.category.icon_image || entry.app.icon_image,
                                 icon_colorgradient: entry.app.icon_colorgradient,
                                 providers: [],
@@ -229,6 +251,8 @@
                             <AppStoreCard
                                 app={categoryApp}
                                 cardIconType="memory"
+                                memoryVisibility={entry.published ? 'public' : 'private'}
+                                testId={entry.published ? `published-memory-${entry.app.id}-${entry.category.id}` : `private-memory-${entry.app.id}-${entry.category.id}`}
                                 onSelect={() => openCategory(entry.app, entry.category.id, categoryName)}
                             />
                         {/each}
@@ -248,10 +272,14 @@
         />
     </div>
 </div>
+</SettingsPageContainer>
 
 <style>
     .settings-memories-hub {
         padding: 14px;
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
         max-width: 1400px;
         margin: 0 auto;
     }
@@ -303,12 +331,12 @@
     .app-section.section-gap {
         margin-top: 1.5rem;
         padding-top: 0.5rem;
-        border-top: 1px solid var(--color-grey-15, var(--color-grey-20));
+        border-top: 1px solid var(--color-grey-20);
     }
 
     .discover-link-section {
         margin-top: 1.5rem;
         padding-top: 0.5rem;
-        border-top: 1px solid var(--color-grey-15, var(--color-grey-20));
+        border-top: 1px solid var(--color-grey-20);
     }
 </style>

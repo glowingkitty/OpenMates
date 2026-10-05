@@ -42,16 +42,17 @@
 </script>
 
 <div class="context-message" data-testid="agent-context-message" data-context-type={event.type}>
-  {#if event.type === 'rules_loaded'}
-    <details data-testid="loaded-rules-details">
-      <summary>{$text('rules.loaded', { values: { count: event.rules.length } })}</summary>
+  {#if event.type === 'rules_loaded' || event.type === 'memories_loaded'}
+    {@const memories = event.type === 'memories_loaded' ? event.memories : event.rules}
+    <details data-testid={event.type === 'memories_loaded' ? 'loaded-memories-details' : 'loaded-rules-details'}>
+      <summary>{$text('memories.loaded', { values: { count: memories.length } })}</summary>
       <div class="rule-guides">
-        {#each event.rules as rule (rule.id)}
-          <section data-testid="applied-rule-guide">
+        {#each memories as rule (rule.id)}
+          <section data-testid={event.type === 'memories_loaded' ? 'applied-memory' : 'applied-rule-guide'}>
             <h3>{rule.title}</h3>
-            <p class="provenance">{$text(`rules.source_${rule.source}`)}{rule.app_id ? ` · ${rule.app_id}` : ''}{rule.project_id ? ` · ${rule.project_id}` : ''}</p>
+            <p class="provenance">{$text(`memories.source_${rule.source}`)}{rule.app_id ? ` · ${rule.app_id}` : ''}{rule.project_id ? ` · ${rule.project_id}` : ''}</p>
             <p class="revision" data-testid="applied-rule-revision">{$text('rules.revision')} {rule.revision}</p>
-            <pre data-testid="applied-rule-body">{rule.body}</pre>
+            <pre data-testid={event.type === 'memories_loaded' ? 'applied-memory-body' : 'applied-rule-body'}>{rule.body}</pre>
           </section>
         {/each}
       </div>

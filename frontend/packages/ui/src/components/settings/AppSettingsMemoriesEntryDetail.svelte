@@ -67,6 +67,19 @@
     let appEntries = $derived<Readable<Record<string, unknown>>>(appSettingsMemoriesForApp(appId));
     let groupedEntries = $derived($appEntries);
 
+    import { userProfile } from '../../stores/userProfile';
+    let personalMemories = $state<Awaited<ReturnType<typeof import('../../services/ruleDocumentService').personalDocumentMemoryEntries>>>([]);
+    $effect(() => {
+        const owner = $userProfile.user_id;
+        const revision = $userProfile.encrypted_settings;
+        let cancelled = false;
+        personalMemories = [];
+        if (isAuthenticated && appId === 'openmates' && categoryId === 'memories') {
+            void import('../../services/ruleDocumentService').then(module => module.personalDocumentMemoryEntries())
+                .then(entries => { if (!cancelled && owner === $userProfile.user_id && revision === $userProfile.encrypted_settings) personalMemories = entries; }).catch(() => {});
+        }
+        return () => { cancelled = true; };
+    });
     // Find the specific entry from the store
     let entry = $derived.by(() => {
         for (const [, entries] of Object.entries(groupedEntries)) {
@@ -83,7 +96,7 @@
                 };
             }
         }
-        return undefined;
+        return personalMemories.find(memory => memory.id === entryId);
     });
 
     // For example entries: resolve translated text from category metadata (legacy title-only)
@@ -490,7 +503,11 @@
                 settingsGroup = String(formState.settingsGroup || entry.settings_group).trim();
             }
 
-            await appSettingsMemoriesStore.updateEntry(entryId, appId, {
+            if (personalMemories.some(memory => memory.id === entryId)) {
+                const { savePersonalDocumentMemoryEntry, personalDocumentMemoryEntries } = await import('../../services/ruleDocumentService');
+                await savePersonalDocumentMemoryEntry(entryId, entryValue as {title: string; document: string});
+                personalMemories = await personalDocumentMemoryEntries();
+            } else await appSettingsMemoriesStore.updateEntry(entryId, appId, {
                 item_key: itemKey,
                 item_value: entryValue,
                 settings_group: settingsGroup
@@ -516,7 +533,10 @@
 
         isDeleting = true;
         try {
-            await appSettingsMemoriesStore.deleteEntry(entryId, appId);
+            if (personalMemories.some(memory => memory.id === entryId)) {
+                const { deletePersonalDocumentMemoryEntry } = await import('../../services/ruleDocumentService');
+                await deletePersonalDocumentMemoryEntry(entryId);
+            } else await appSettingsMemoriesStore.deleteEntry(entryId, appId);
             // Navigate back to category page after deletion
             goBack();
         } catch (error) {
@@ -615,8 +635,8 @@
                 
                 <!-- Metadata — small, subtle timestamps -->
                 <div class="metadata-section">
-                    <span class="metadata-text">Last updated: {formatDate(entry.updated_at)}</span>
-                    <span class="metadata-text">Created: {formatDate(entry.created_at)}</span>
+                    {#if entry.updated_at > 0}<span class="metadata-text">Last updated: {formatDate(entry.updated_at)}</span>{/if}
+                    {#if entry.created_at > 0}<span class="metadata-text">Created: {formatDate(entry.created_at)}</span>{/if}
                 </div>
             </div>
             
@@ -932,7 +952,7 @@
     input:disabled,
     textarea:disabled,
     select:disabled {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         cursor: not-allowed;
         opacity: 0.6;
     }

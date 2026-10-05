@@ -123,6 +123,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `memories` | `om.memories.create()` | `om.memories.create()` | direct | direct |
 | `memories` | `om.memories.delete()` | `om.memories.delete()` | direct | direct |
 | `memories` | `om.memories.list()` | `om.memories.list()` | direct | direct |
+| `memories` | `om.memories.published()` | `om.memories.published()` | direct | direct |
 | `memories` | `om.memories.types()` | `om.memories.types()` | direct | direct |
 | `memories` | `om.memories.update()` | `om.memories.update()` | direct | direct |
 | `new_chat_suggestions` | `om.newChatSuggestions.list()` | `om.new_chat_suggestions.list()` | direct | direct |
