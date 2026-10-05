@@ -14,7 +14,7 @@ import time
 import uuid
 from typing import Any
 from backend.shared.python_utils.storage_archive_rollout_config import (
-    archive_feature_enabled, archive_advancement_allowed, trusted_isolated_storage_profile,
+    archive_feature_enabled, archive_advancement_allowed, archive_billing_hold_reason, trusted_isolated_storage_profile,
 )
 
 from backend.core.api.app.services.bounded_archive_io import (
@@ -76,6 +76,9 @@ class ChatMessageArchiveService:
         self.s3 = s3_service
 
     async def transaction(self, operation: str, data: dict[str, Any]) -> dict[str, Any]:
+        if operation in {"claim_segment", "prepare_page", "publish_page", "verify_segment",
+                         "activate_segment", "prune_page", "finish_pruning"} and archive_billing_hold_reason():
+            raise ArchiveIntegrityError("ARCHIVE_BILLING_DISABLED")
         token = os.environ.get("INTERNAL_API_SHARED_TOKEN")
         if not token:
             raise RuntimeError("INTERNAL_API_SHARED_TOKEN_REQUIRED")
@@ -239,6 +242,8 @@ class ChatMessageArchiveService:
         A durable claimed segment records its starting cursor, so retrying after
         a worker restart cannot rewrite previous checkpoints or skip a prefix.
         """
+        if archive_billing_hold_reason():
+            raise ArchiveIntegrityError("ARCHIVE_BILLING_DISABLED")
         now = int(time.time() if now_timestamp is None else now_timestamp)
         claim = await self.transaction("claim_segment", {
             "chat_id": chat_id, "checkpoint_id": checkpoint_id,
@@ -336,6 +341,8 @@ class ChatMessageArchiveService:
             raise ArchiveIntegrityError("ISOLATED_ARCHIVE_ADVANCEMENT_DEFERRED")
 
     async def _copy_page(self, segment: dict[str, Any], number: int, rows: list[dict[str, Any]], now: int) -> None:
+        if archive_billing_hold_reason():
+            raise ArchiveIntegrityError("ARCHIVE_BILLING_DISABLED")
         digest = hashlib.sha256(encode_record(rows)).hexdigest()
         page_id = str(uuid.uuid5(uuid.UUID(segment["id"]), f"page:{number}:{digest}"))
         key_prefix = f"message-pages/{segment['chat_hash']}/{segment['id']}/{page_id}"

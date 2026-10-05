@@ -19,6 +19,7 @@ from typing import Any, AsyncIterator
 
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.shared.python_utils.object_storage_regions import resolve_regional_bucket_name
+from backend.shared.python_utils.storage_archive_rollout_config import archive_billing_hold_reason
 
 
 COLD_ARCHIVE_BUCKET_KEY = "cold_archives"
@@ -175,6 +176,8 @@ async def dispatch_due_cold_chat_archives(
     now_timestamp: int | None = None,
 ) -> int:
     """Dispatch a bounded batch of inactive root chats for guarded archival."""
+    if archive_billing_hold_reason():
+        return 0
     now = int(now_timestamp or time.time())
     cutoff = now - DEFAULT_COLD_INACTIVITY_DAYS * 86_400
     rows = await directus_service.get_items(
@@ -234,6 +237,8 @@ class ColdArchiveService:
         has_processing_task: bool = False,
         processing_task_checker: Any | None = None,
     ) -> dict[str, Any]:
+        if archive_billing_hold_reason():
+            raise ColdArchiveConflictError("ARCHIVE_BILLING_DISABLED")
         # Whole-graph archival removes current embed heads and child metadata.
         # Keep the legacy reader/promoter for existing archives, but do not
         # create or resume destructive graph migration under the indexed-page

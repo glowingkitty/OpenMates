@@ -26,6 +26,22 @@ evidence pause advancement and retry automatically. Existing archived reads rema
 available when further pruning pauses. Explicit archive feature settings of `0`
 remain emergency opt-outs.
 
+On the official cloud, new archive copies and pruning remain held while
+`STORAGE_LOGICAL_S3_BILLING_ENABLED` is anything other than exactly `1`.
+This includes an unset flag. The coordinator reports `storage_billing_disabled`
+and retries; authorized reads, recovery and exports of existing archives remain
+available. Self-host installations retain their independent archive behavior.
+The hold does not set billing flags or waive any release, client, replica,
+acknowledgement, generation or 24-hour source-retention fence.
+
+For the first production rollout, reconcile the usage meter, user notices and
+legal terms before persisting the approved logical billing flags in the existing
+installation with `openmates server env set` using its registered `--path`.
+Then run the standard `openmates server update` for that path. Once the new
+containers have the approved flag and all existing eligibility evidence, the
+coordinator advances qualified migration automatically. Do not enable the
+flag solely to clear a migration pause.
+
 Copying and verification preserve PostgreSQL source data. Supported message pages
 and historical embed versions activate only with current release and client
 evidence. The initial real cohort retains its source for 24 hours before eligible

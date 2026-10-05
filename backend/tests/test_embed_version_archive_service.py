@@ -369,6 +369,9 @@ async def test_checksum_valid_but_malformed_archive_cannot_be_returned(payload):
 @pytest.mark.parametrize("operation", ["read", "prune"])
 async def test_version_transition_rechecks_shared_runtime_fences(monkeypatch, operation):
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-token")
+    for flag in ("EMBED_VERSION_ARCHIVE_COPY_ENABLED", "EMBED_VERSION_ARCHIVE_READ_ENABLED",
+                 "EMBED_VERSION_ARCHIVE_PRUNE_ENABLED"):
+        monkeypatch.setenv(flag, "1")
     row = {"id": "row-1", "embed_id": "embed-1", "version_number": 1,
            "encrypted_snapshot": "opaque-snapshot", "encrypted_patch": None,
            "archive_state": None, "snapshot_digest": None}
@@ -389,3 +392,36 @@ async def test_version_transition_rechecks_shared_runtime_fences(monkeypatch, op
                          embed_id="embed-1", hashed_user_id="owner-hash", version_number=1)
     assert row["encrypted_snapshot"] == "opaque-snapshot"
     assert row["archive_state"] == ("copied" if operation == "read" else "reader_active")
+
+
+# contract-test: supporting surface=rest_api assertions=billing.storage.logical-usage,storage.versions.metadata-and-payload
+@pytest.mark.asyncio
+async def test_official_billing_hold_blocks_new_version_copy_but_retains_archive_reads(monkeypatch):
+    from copy import deepcopy
+    from unittest.mock import AsyncMock
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-token")
+    monkeypatch.setenv("OPENMATES_DEPLOYMENT_MODE", "self_host")
+    monkeypatch.delenv("STORAGE_LOGICAL_S3_BILLING_ENABLED", raising=False)
+    row = {"id": "row-1", "embed_id": "embed-1", "version_number": 1,
+           "encrypted_snapshot": "opaque-snapshot", "encrypted_patch": None,
+           "archive_state": None, "snapshot_digest": None}
+    storage, directus = FakeStorage(), FakeDirectus(row)
+    await copy_and_index_version(directus_service=directus, s3_service=storage,
+        embed_id="embed-1", hashed_user_id="owner-hash", version_number=1, current_version=65)
+    previous = deepcopy(row)
+    prior_objects = dict(storage.objects)
+    rpc = AsyncMock(side_effect=AssertionError("No archive writes during hold"))
+    monkeypatch.setattr(directus, "_make_api_request", rpc)
+    monkeypatch.setenv("OPENMATES_DEPLOYMENT_MODE", "official_cloud")
+    with pytest.raises(RuntimeError, match="ARCHIVE_BILLING_DISABLED"):
+        await copy_verified_version(s3_service=storage, row=row)
+    with pytest.raises(RuntimeError, match="ARCHIVE_BILLING_DISABLED"):
+        await copy_and_index_version(directus_service=directus, s3_service=storage,
+            embed_id="embed-1", hashed_user_id="owner-hash", version_number=1, current_version=65)
+    from backend.core.api.app.services.embed_version_archive_service import _version_transition
+    for operation in ("archive-activate", "archive-prune"):
+        with pytest.raises(RuntimeError, match="ARCHIVE_BILLING_DISABLED"):
+            await _version_transition(directus_service=directus, operation=operation, row=row)
+    rpc.assert_not_awaited()
+    assert row == previous and storage.objects == prior_objects
+    assert (await read_archived_version(s3_service=storage, row=row))["encrypted_snapshot"] == "opaque-snapshot"

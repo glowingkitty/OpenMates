@@ -158,3 +158,21 @@ def test_team_failure_receipt_preserves_stage_without_private_exception_data(mon
     assert private not in json.dumps(receipt)
     assert "PrivateNamedException" not in json.dumps(receipt)
     assert events == ([] if failure_at == "service_initialization" else ["directus_closed", "secrets_closed"])
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_official_billing_probe_restores_isolated_deployment_and_billing_configuration(monkeypatch, fail):
+    import os
+    from scripts.storage_archive_integration import _official_billing_hold
+    monkeypatch.setenv("OPENMATES_DEPLOYMENT_MODE", "self_host")
+    monkeypatch.setenv("STORAGE_LOGICAL_S3_BILLING_ENABLED", "1")
+    try:
+        with _official_billing_hold():
+            assert os.environ["OPENMATES_DEPLOYMENT_MODE"] == "official_cloud"
+            assert "STORAGE_LOGICAL_S3_BILLING_ENABLED" not in os.environ
+            if fail:
+                raise RuntimeError("synthetic fixture failure")
+    except RuntimeError:
+        assert fail
+    assert os.environ["OPENMATES_DEPLOYMENT_MODE"] == "self_host"
+    assert os.environ["STORAGE_LOGICAL_S3_BILLING_ENABLED"] == "1"

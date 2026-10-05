@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -31,6 +32,55 @@ def require_isolated_storage() -> None:
         raise RuntimeError("Archive integration probe refuses production")
     if not os.getenv("INTERNAL_API_SHARED_TOKEN"):
         raise RuntimeError("Archive integration probe requires internal transaction authority")
+
+
+@contextmanager
+def _official_billing_hold():
+    """Exercise the production admission condition only inside this CI probe."""
+    keys = ("OPENMATES_DEPLOYMENT_MODE", "STORAGE_LOGICAL_S3_BILLING_ENABLED")
+    previous = {key: os.environ.get(key) for key in keys}
+    os.environ["OPENMATES_DEPLOYMENT_MODE"] = "official_cloud"
+    os.environ.pop("STORAGE_LOGICAL_S3_BILLING_ENABLED", None)
+    try:
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
+async def _probe_official_billing_copy_hold(archive, *, chat_id: str, checkpoint_id: str,
+                                          end: tuple[int, str], source_row_ids: list[str], now: int) -> None:
+    """Observe real PG originals and disposable S3 after rejected migration."""
+    from backend.core.api.app.services.s3.config import get_bucket_name
+    from backend.shared.python_utils.object_storage_regions import resolve_regional_bucket_name
+    with _official_billing_hold():
+        await _expect_error(lambda: archive.copy_segment(
+            chat_id=chat_id, checkpoint_id=checkpoint_id, end=end, now_timestamp=now,
+        ), "ARCHIVE_BILLING_DISABLED")
+        await _expect_error(lambda: archive.transaction("claim_segment", {
+            "chat_id": chat_id, "checkpoint_id": checkpoint_id,
+            "end_timestamp": end[0], "end_message_id": end[1], "now": now,
+        }), "ARCHIVE_BILLING_DISABLED")
+    segments = await archive.directus.get_items("chat_message_archive_segments", params={
+        "filter": {"chat_id": {"_eq": chat_id}}, "fields": "id", "limit": 1,
+    }, admin_required=True, no_cache=True, raise_on_error=True)
+    source = await archive.directus.get_items("messages", params={
+        "filter": {"chat_id": {"_eq": chat_id}}, "fields": "id", "limit": len(source_row_ids) + 1,
+    }, admin_required=True, no_cache=True, raise_on_error=True)
+    if segments or {row["id"] for row in source} != set(source_row_ids):
+        raise RuntimeError("Official billing hold altered synthetic PG originals or claims")
+    prefix = "message-pages/" + hashlib.sha256(chat_id.encode()).hexdigest() + "/"
+    bucket = get_bucket_name("chatfiles", archive.s3.environment)
+    if not archive.s3.region_clients:
+        raise RuntimeError("Official billing hold S3 proof has no configured region")
+    for region, client in archive.s3.region_clients.items():
+        result = await asyncio.to_thread(client.list_objects_v2,
+            Bucket=resolve_regional_bucket_name(bucket, region), Prefix=prefix, MaxKeys=1)
+        if not isinstance(result, dict) or result.get("Contents") or result.get("IsTruncated"):
+            raise RuntimeError("Official billing hold produced a synthetic S3 copy")
 
 
 async def _write(directus, collection: str, payload: dict) -> dict:
@@ -1538,6 +1588,8 @@ async def probe() -> dict:
             await _write(directus, "chat_message_archive_rollout", {"id": rollout_id, **rollout_fields})
 
         end = now - 81, message_ids[-1]
+        await _probe_official_billing_copy_hold(archive, chat_id=chat_id,
+            checkpoint_id=checkpoint_id, end=end, source_row_ids=source_row_ids, now=now)
         claim = await archive.transaction("claim_segment", {
             "chat_id": chat_id, "checkpoint_id": checkpoint_id,
             "end_timestamp": end[0], "end_message_id": end[1], "now": now,
@@ -1584,6 +1636,15 @@ async def probe() -> dict:
         page_id = page["archive_page_ids"][0]
         prune_data = {"segment_id": active["id"], "expected_version": active["version"],
                       "page_id": page_id, "now": activation_now}
+        with _official_billing_hold():
+            await _expect_error(lambda: archive.transaction("prune_page", prune_data), "ARCHIVE_BILLING_DISABLED")
+            await _expect_error(lambda: archive.transaction("activate_segment", {
+                "segment_id": verified["id"], "expected_version": verified["version"], "now": activation_now,
+            }), "ARCHIVE_BILLING_DISABLED")
+            retained = await archive.read_before(chat_id=chat_id, before=None, limit=20)
+            if ([row["client_message_id"] for row in retained["messages"]] != message_ids
+                    or [row["encrypted_content"] for row in retained["messages"]] != synthetic_ciphertexts):
+                raise RuntimeError("Official billing hold hid existing authorized S3 history")
         await _expect_error(lambda: archive.transaction("prune_page", prune_data), "archive_rollback_buffer_active")
 
         recovery_id = str(uuid.uuid4())
@@ -1702,6 +1763,7 @@ async def probe() -> dict:
         return {"passed": True, "fixture_ciphertext_digest": hashlib.sha256(
             "".join(synthetic_ciphertexts).encode()).hexdigest(),
             "source_messages": 20, "verified_pages": 1, "pruned_messages": 20,
+            "official_billing_copy_prune_hold_existing_reads_available": True,
             "initial_cohort_buffer_seconds": 86400, "concurrent_prune_idempotent": True,
             "pending_recovery_fence": True, "source_mutation_fence": True,
             "late_arrival_retained": True, "reader_verified_before_activation": True,

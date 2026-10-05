@@ -27,6 +27,19 @@ def archive_feature_enabled(name: str, environ: dict[str, str] | None = None) ->
     return env.get(name, "1") == "1"
 
 
+def archive_billing_hold_reason(environ: dict[str, str] | None = None) -> str | None:
+    """Hold new official-cloud migration until approved logical billing is active.
+
+    This never changes financial flags or the availability of existing archives.
+    Self-host billing configuration remains independent of migration.
+    """
+    env = os.environ if environ is None else environ
+    if (env.get("OPENMATES_DEPLOYMENT_MODE") == "official_cloud"
+            and env.get("STORAGE_LOGICAL_S3_BILLING_ENABLED") != "1"):
+        return "storage_billing_disabled"
+    return None
+
+
 async def cached_release_certificate(environ: dict[str, str]) -> dict[str, Any] | None:
     from scripts.storage_rollout import fetch_release_certificate, source_commit
     source = source_commit(environ)
@@ -90,6 +103,8 @@ async def isolated_archive_advancement_allowed(directus_service: Any, *, phase: 
                                               require_pruning_enabled: bool = True) -> bool:
     from scripts.storage_rollout import COLLECTIONS, REVIEW_RE, read_rollout, source_commit
     from backend.core.api.app.services.storage_archive_client_compatibility import runtime_compatibility_status
+    if archive_billing_hold_reason(environ):
+        return False
     source = source_commit(environ)
     compatibility = await runtime_compatibility_status(directus_service, source_commit=source)
     if not (compatibility.get("enforced") is True
@@ -128,7 +143,7 @@ async def archive_advancement_allowed(
                      "CHAT_MESSAGE_ARCHIVE_READS_ENABLED", "EMBED_VERSION_ARCHIVE_READ_ENABLED"]
     if phase == "prune":
         feature_names += ["CHAT_MESSAGE_ARCHIVE_PRUNE_ENABLED", "EMBED_VERSION_ARCHIVE_PRUNE_ENABLED"]
-    if any(not archive_feature_enabled(name, env) for name in feature_names):
+    if archive_billing_hold_reason(env) or any(not archive_feature_enabled(name, env) for name in feature_names):
         rows = {name: await read_rollout(directus_service, name) for name in COLLECTIONS}
         await suspend_pruning(directus_service, rows)
         return False

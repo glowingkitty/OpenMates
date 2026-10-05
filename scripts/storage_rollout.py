@@ -176,6 +176,9 @@ async def auto_advance(
         await suspend_pruning(directus, current)
         return {"status": status, "reason": reason, "retry_seconds": 60}
 
+    from backend.shared.python_utils.storage_archive_rollout_config import archive_billing_hold_reason
+    if reason := archive_billing_hold_reason(environ):
+        return await pause(reason)
     if any(row and row.get("failure_code") for row in current.values()):
         return await pause("existing_failure_code")
     from backend.shared.python_utils.storage_archive_rollout_config import archive_feature_enabled
@@ -206,7 +209,7 @@ async def auto_advance(
     )
     if not readers_match:
         await suspend_pruning(directus, current)
-        await operate(directus, operation="prepare-read", receipt=receipt)
+        await operate(directus, operation="prepare-read", receipt=receipt, environ=environ)
     # Stage the signed admission requirement after proving every installed
     # API guard. Heartbeats can then retire old idle sessions. Actual unit
     # activation/pruning still requires zero incompatible sessions in its
@@ -227,7 +230,7 @@ async def auto_advance(
         for row in current.values()
     ):
         return {"status": "prune_enabled", "source_commit": receipt["source_commit"]}
-    await operate(directus, operation="configure-prune", receipt={**receipt, "operation": "configure-prune"})
+    await operate(directus, operation="configure-prune", receipt={**receipt, "operation": "configure-prune"}, environ=environ)
     return {"status": "prune_enabled", "source_commit": receipt["source_commit"]}
 
 
@@ -236,9 +239,16 @@ async def automatic_tick(directus: Any, *, environ: dict[str, str] | None = None
     """Bounded unattended entry point shared by updater and periodic sweeps."""
     env = dict(os.environ) if environ is None else environ
     from backend.shared.python_utils.storage_archive_rollout_config import (
-        archive_feature_enabled, trusted_isolated_storage_profile,
+        archive_feature_enabled, archive_billing_hold_reason, trusted_isolated_storage_profile,
         isolated_archive_advancement_allowed,
     )
+    if reason := archive_billing_hold_reason(env):
+        rows = {name: await read_rollout(directus, name) for name in COLLECTIONS}
+        await suspend_pruning(directus, rows)
+        result = {"status": "paused", "reason": reason, "retry_seconds": 60}
+        if cache_service is not None:
+            await cache_service.set(AUTOMATIC_STATUS_KEY, result, ttl=172800)
+        return result
     if trusted_isolated_storage_profile(env):
         rows = {name: await read_rollout(directus, name) for name in COLLECTIONS}
         enabled = all(archive_feature_enabled(flag, env) for flag in (
@@ -470,6 +480,9 @@ async def status(directus: Any, *, cache_service: Any | None = None) -> dict[str
                 automatic["reason"] = cached["reason"]
             if type(cached.get("retry_seconds")) is int and 0 < cached["retry_seconds"] <= 86400:
                 automatic["retry_seconds"] = cached["retry_seconds"]
+    from backend.shared.python_utils.storage_archive_rollout_config import archive_billing_hold_reason
+    if reason := archive_billing_hold_reason():
+        automatic = {"status": "paused", "reason": reason, "retry_seconds": 60}
     return {"automatic": automatic,
             "legacy_full_graph": {"status": "paused", "reason": "metadata_retention_policy_pending"},
             "rollout": states, "message_segments": message_counts,
@@ -479,7 +492,11 @@ async def status(directus: Any, *, cache_service: Any | None = None) -> dict[str
 async def operate(
     directus: Any, *, operation: str, receipt: dict[str, Any],
     selector: dict[str, Any] | None = None, s3_service: Any | None = None,
+    environ: dict[str, str] | None = None,
 ) -> dict[str, Any]:
+    from backend.shared.python_utils.storage_archive_rollout_config import archive_billing_hold_reason
+    if operation in {"prepare-read", "configure-prune"} and archive_billing_hold_reason(environ):
+        raise RuntimeError("ARCHIVE_BILLING_DISABLED")
     current = {collection: await read_rollout(directus, collection) for collection in COLLECTIONS}
     if operation == "prepare-read":
         if any(row and row.get("pruning_enabled") for row in current.values()):

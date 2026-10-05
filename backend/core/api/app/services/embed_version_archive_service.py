@@ -15,7 +15,7 @@ import time
 from typing import Any
 
 from backend.core.api.app.services.s3.config import get_bucket_name
-from backend.shared.python_utils.storage_archive_rollout_config import archive_feature_enabled, archive_advancement_allowed
+from backend.shared.python_utils.storage_archive_rollout_config import archive_feature_enabled, archive_advancement_allowed, archive_billing_hold_reason
 
 BUCKET_KEY = "chatfiles"
 MAX_ENVELOPE_BYTES = 8 * 1024 * 1024
@@ -44,6 +44,8 @@ def encode_ciphertext_row(row: dict[str, Any]) -> tuple[bytes, str]:
 
 async def copy_verified_version(*, s3_service: Any, row: dict[str, Any]) -> dict[str, Any]:
     """Write an immutable object to every configured region and verify SHA-256."""
+    if archive_billing_hold_reason():
+        raise RuntimeError("ARCHIVE_BILLING_DISABLED")
     data, checksum = encode_ciphertext_row(row)
     key = archive_key(str(row["embed_id"]), int(row["version_number"]), checksum)
     regions = tuple(s3_service.region_clients)
@@ -127,6 +129,8 @@ async def _read_version_for_transition(
 async def _version_transition(
     *, directus_service: Any, operation: str, row: dict[str, Any],
 ) -> dict[str, Any]:
+    if archive_billing_hold_reason():
+        raise RuntimeError("ARCHIVE_BILLING_DISABLED")
     token = os.getenv("INTERNAL_API_SHARED_TOKEN")
     if not token:
         raise RuntimeError("Archive transition transaction is unavailable")
@@ -319,6 +323,8 @@ async def copy_and_index_version(
         return {key: before.get(key) for key in (
             "archive_state", "archive_object_key", "archive_checksum",
         )}
+    if archive_billing_hold_reason():
+        raise RuntimeError("ARCHIVE_BILLING_DISABLED")
     current_data, current_checksum = encode_ciphertext_row(before)
     del current_data
     intended_key = archive_key(embed_id, version_number, current_checksum)

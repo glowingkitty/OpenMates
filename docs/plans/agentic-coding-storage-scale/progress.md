@@ -1193,3 +1193,49 @@ All 16 effective container environments verify archive copy/read/prune off and
 personal logical-storage billing/expiry on. Production remains unchanged; no
 certificate or real-user pruning is issued. Team payer/expiry choices, supported
 native proof and required full capacity admission remain open.
+
+
+## Official-cloud billing admission and replay readback repair
+
+The diagnostic replay on exact source/harness `071a70d` prepared successfully
+(run `37358091378`) but consumer `37358679220` failed before the capacity driver
+started. The browser displayed a synthetic assistant response; its test readback
+probe omitted the `agentic-storage-v2` capability header required by the activated
+CI archive guard. The previous run did not retain that request's HTTP status, so
+HTTP 426 is source-inferred and no canonical save failure or artifact callback
+root cause is established. Verified cleanup left zero containers, zero volumes
+and no private account files. Bounded receipts are retained in session 2f80's
+`p7-071a70db/manifest.json`; there are no workload or callback-count measurements.
+
+The replay probe now declares the same capability as the calibration and target
+probes. It retains the encrypted canonical assistant, fresh reload and 30-second
+checks, with failure diagnostics restricted to HTTP status, array shape and
+capped row counts. ESLint, Specification metadata and the existing four HTTP
+compatibility cases passed. This repair does not weaken a server admission gate.
+
+The rollout audit found that server updates preserve existing `.env` and expanded
+logical billing defaults off. New official-cloud archive copy and pruning now
+require `STORAGE_LOGICAL_S3_BILLING_ENABLED=1`, including direct message/version
+writer and transition paths; the coordinator reports `storage_billing_disabled`.
+Existing cold reads, recovery and exports remain available, and self-host billing
+configuration stays independent. Source, signed eligibility, client, durable ACK,
+generation, replication and 24-hour initial source-copy gates are preserved.
+The guard does not enable financial flags or decide Team rates. First production
+rollout still requires reconciled metering and the approved notice/legal/settlement
+checks, then persisted billing flags before the normal server update. Subsequent
+eligible archive work advances automatically.
+
+The coupling passed Ruff/compilation for ten Python files, twelve focused hold
+cases and 83 broader checks; one checkout-path-dependent case was excluded from
+the partial overlay run and remains covered by full-source verification. The
+existing isolated PostgreSQL/S3 probe now checks that rejected copies leave
+originals and no S3 object, and that held pruning keeps stored history readable.
+That real probe awaits the combined-source CI result. The exact 42-test backend gate also passed with all six archive flags initially disabled after making the existing fence tests declare their prerequisites explicitly; no rollout gate or assertion was removed.
+
+After the daemon interruption, the canonical dev API is healthy and inspected
+core/AI/task/scheduler services retain all six archive flags at zero and both
+personal billing flags at one. No production mutation, new real inference,
+certificate issuance or real-user pruning was performed. The earlier two real
+CLI/web canaries remain the only inference runs (58 credits total). Team payer
+and warning/expiry choices and supported native proof remain open. The next run
+uses the existing two-user replay, not a new harness or a capacity claim.

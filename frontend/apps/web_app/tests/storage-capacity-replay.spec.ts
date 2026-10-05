@@ -26,16 +26,27 @@ test('signed capacity replay completes a real encrypted chat turn', async ({ pag
 	const chatId = new URL(page.url()).hash.match(/chat-id=([0-9a-f-]{36})/i)?.[1];
 	expect(chatId, 'Synthetic turn must have a canonical chat ID').toBeTruthy();
 	const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
+	let readbackShape = { http_status: 0, messages_array: false, row_count: 0, assistant_count: 0, encrypted_assistant_count: 0 };
 	await expect.poll(async () => {
 		const response = await page.request.get(
-			`${apiUrl}/v1/chats/${encodeURIComponent(chatId!)}/messages/window?limit=20&respect_compression_boundary=false`
+			`${apiUrl}/v1/chats/${encodeURIComponent(chatId!)}/messages/window?limit=20&respect_compression_boundary=false`,
+			{ headers: { "X-OpenMates-Client-Capabilities": "agentic-storage-v2" } }
 		);
+		readbackShape = { http_status: response.status(), messages_array: false, row_count: 0, assistant_count: 0, encrypted_assistant_count: 0 };
 		if (!response.ok()) return false;
 		const window = await response.json();
-		return window.messages?.some((message: any) =>
-			message.role === 'assistant' && typeof message.encrypted_content === 'string' && message.encrypted_content.length > 0
-		) === true;
-	}, { timeout: 30_000, message: 'Synthetic assistant must be saved as encrypted canonical server content' }).toBe(true);
+		const messages = Array.isArray(window.messages) ? window.messages : [];
+		const assistants = messages.filter((message: any) => message?.role === 'assistant');
+		const encryptedAssistants = assistants.filter((message: any) =>
+			typeof message.encrypted_content === 'string' && message.encrypted_content.length > 0
+		);
+		readbackShape = { http_status: response.status(), messages_array: Array.isArray(window.messages),
+			row_count: Math.min(messages.length, 20), assistant_count: Math.min(assistants.length, 20),
+			encrypted_assistant_count: Math.min(encryptedAssistants.length, 20) };
+		return encryptedAssistants.length > 0;
+	}, { timeout: 30_000, message: 'Synthetic assistant must be saved as encrypted canonical server content' }).toBe(true).catch(() => {
+		throw new Error(`Synthetic canonical readback failed: ${JSON.stringify(readbackShape)}`);
+	});
 	await page.reload();
 	await expect(page.getByTestId('message-assistant').filter({ hasText: 'Synthetic storage response' })).toBeVisible();
 	await deleteActiveChat(page, log, screenshot, 'storage-capacity');

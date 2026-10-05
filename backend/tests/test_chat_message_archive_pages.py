@@ -344,6 +344,7 @@ async def test_sparse_overlapping_archive_pages_never_skip_messages_at_a_cursor(
 @pytest.mark.asyncio
 async def test_prune_stops_before_source_delete_when_current_release_or_runtime_gate_fails(monkeypatch):
     from unittest.mock import AsyncMock
+    monkeypatch.setenv("CHAT_MESSAGE_ARCHIVE_PRUNE_ENABLED", "1")
     service, segment = await lifecycle_fixture()
     segment.update(state="reader_active", source_copy_until=0)
     service.directus.gate.update(pruning_enabled=True, validation_receipt="reviewed-capacity")
@@ -369,3 +370,47 @@ async def test_isolated_capacity_environment_flags_cannot_bypass_verified_runtim
     with pytest.raises(ArchiveIntegrityError, match="ISOLATED_CAPACITY_PROFILE_REQUIRED"):
         await service.activate_isolated_capacity_segment({"state": "verified"})
     service.transaction.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=billing.storage.logical-usage,storage.cold.atomic-eligible-graphs
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["claim_segment", "prepare_page", "publish_page", "verify_segment",
+                                      "activate_segment", "prune_page", "finish_pruning"])
+async def test_official_billing_hold_blocks_direct_transaction_before_any_write(monkeypatch, operation):
+    from unittest.mock import AsyncMock
+    from types import SimpleNamespace
+    monkeypatch.setenv("OPENMATES_DEPLOYMENT_MODE", "official_cloud")
+    monkeypatch.delenv("STORAGE_LOGICAL_S3_BILLING_ENABLED", raising=False)
+    directus = SimpleNamespace(_make_api_request=AsyncMock())
+    store = ObjectStore()
+    service = ChatMessageArchiveService(directus_service=directus, s3_service=store)
+    with pytest.raises(ArchiveIntegrityError, match="ARCHIVE_BILLING_DISABLED"):
+        await service.transaction(operation, {})
+    directus._make_api_request.assert_not_awaited()
+    assert store.data == {}
+
+
+# contract-test: supporting surface=rest_api assertions=billing.storage.logical-usage,storage.cold.independent-message-pages
+@pytest.mark.asyncio
+async def test_official_billing_hold_blocks_new_copy_but_existing_page_stays_readable(monkeypatch):
+    from unittest.mock import AsyncMock
+    monkeypatch.setenv("OPENMATES_DEPLOYMENT_MODE", "self_host")
+    monkeypatch.delenv("STORAGE_LOGICAL_S3_BILLING_ENABLED", raising=False)
+    store = ObjectStore()
+    service = PageService(store)
+    segment = {"id": str(uuid.uuid4()), "chat_hash": "chat-hash", "chat_id": "chat", "version": 1,
+               "hashed_user_id": "owner"}
+    rows = [record(1)]
+    await service._copy_page(segment, 1, rows, 100)
+    page = service.pages[0]
+    previous = dict(store.data)
+    transaction = AsyncMock(side_effect=AssertionError("No new durable intent"))
+    monkeypatch.setattr(service, "transaction", transaction)
+    monkeypatch.setenv("OPENMATES_DEPLOYMENT_MODE", "official_cloud")
+    for action in (lambda: service.copy_segment(chat_id="chat"),
+                   lambda: service._copy_page(segment, 2, [record(2)], 101)):
+        with pytest.raises(ArchiveIntegrityError, match="ARCHIVE_BILLING_DISABLED"):
+            await action()
+    transaction.assert_not_awaited()
+    assert store.data == previous
+    assert await service.read_page(page) == rows

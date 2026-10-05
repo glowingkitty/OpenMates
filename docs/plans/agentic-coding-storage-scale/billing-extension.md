@@ -188,6 +188,12 @@ charges, email sends or deletions; no real-user manual expiry was run. The
 configured support sender is active, confirmed by read-only provider lookup.
 Actual notification delivery uses the existing provider; no real test email was
 sent. Production is unchanged and its billing defaults remain off.
+Official-cloud archive copy and pruning now require the logical S3 billing flag
+to be exactly `1`; otherwise they report `storage_billing_disabled` while
+retained archive reads remain available. The first production rollout must
+reconcile the meter, customer notices and legal terms, persist approved billing
+flags through the registered installation, and then use the standard server
+update. No financial default or Team price is changed by the migration guard.
 
 Operational receipts are retained under session 2f80's ignored
 `logs/storage-integration-2f80/billing-expiry-release/`, including

@@ -547,3 +547,61 @@ async def test_valid_installed_guard_stages_reader_admission_before_retiring_leg
         assert (await auto_advance(untouched, certificate=certificate, environ=env,
                                   compatibility_status=unverified, trusted_public_key=public))["status"] == "pending"
         assert untouched.writes == []
+
+
+@pytest.mark.parametrize("mode,flag,held", [
+    ("official_cloud", None, True), ("official_cloud", "0", True),
+    ("official_cloud", "true", True), ("official_cloud", "1", False),
+    ("self_host", None, False), ("self_host", "0", False), (None, None, False),
+])
+def test_official_migration_requires_exact_billing_opt_in_without_changing_selfhost(mode, flag, held):
+    from backend.shared.python_utils.storage_archive_rollout_config import archive_billing_hold_reason
+    env = {}
+    if mode is not None:
+        env["OPENMATES_DEPLOYMENT_MODE"] = mode
+    if flag is not None:
+        env["STORAGE_LOGICAL_S3_BILLING_ENABLED"] = flag
+    before = dict(env)
+    assert archive_billing_hold_reason(env) == ("storage_billing_disabled" if held else None)
+    assert env == before
+
+
+@pytest.mark.asyncio
+async def test_official_billing_hold_overrides_certificate_and_keeps_retained_readers(monkeypatch):
+    from unittest.mock import AsyncMock
+    from backend.shared.python_utils import storage_archive_rollout_config as config
+    certificate, env = signed_certificate(prune_ready=True)
+    runtime = {"enforced": True, "minimum_capability": "agentic-storage-v2",
+               "incompatible_sessions": 0, "source_commit": SOURCE}
+    official = {**env, "OPENMATES_DEPLOYMENT_MODE": "official_cloud",
+                "STORAGE_LOGICAL_S3_BILLING_ENABLED": "1"}
+    directus = FakeDirectus()
+    assert (await auto_advance(directus, certificate=certificate, environ=official,
+                              compatibility_status=runtime,
+                              trusted_public_key=env["STORAGE_ROLLOUT_RELEASE_PUBLIC_KEY"]))["status"] == "prune_enabled"
+    for flag in (None, "0"):
+        blocked = dict(official)
+        if flag is None:
+            blocked.pop("STORAGE_LOGICAL_S3_BILLING_ENABLED")
+        else:
+            blocked["STORAGE_LOGICAL_S3_BILLING_ENABLED"] = flag
+        assert await auto_advance(directus, certificate=certificate, environ=blocked,
+                                  compatibility_status=runtime,
+                                  trusted_public_key=env["STORAGE_ROLLOUT_RELEASE_PUBLIC_KEY"]) == {
+            "status": "paused", "reason": "storage_billing_disabled", "retry_seconds": 60}
+        assert all(row["read_enabled"] and not row["pruning_enabled"] for row in directus.rows.values())
+        for phase in ("read", "prune"):
+            assert not await config.archive_advancement_allowed(directus, phase=phase, environ=blocked)
+        with pytest.raises(RuntimeError, match="ARCHIVE_BILLING_DISABLED"):
+            await operate(directus, operation="configure-prune", receipt=receipt("configure-prune"), environ=blocked)
+        fetch = AsyncMock(side_effect=AssertionError("Billing hold must precede release fetch"))
+        monkeypatch.setattr(config, "cached_release_certificate", fetch)
+        assert (await automatic_tick(directus, environ=blocked))["reason"] == "storage_billing_disabled"
+        fetch.assert_not_awaited()
+    for key, value in blocked.items():
+        monkeypatch.setenv(key, value)
+    cache = SimpleNamespace(get=AsyncMock(return_value={"status": "prune_enabled"}))
+    assert (await status(directus, cache_service=cache))["automatic"]["reason"] == "storage_billing_disabled"
+    # Opt-in does not waive source-bound release eligibility.
+    assert (await auto_advance(directus, certificate=None, environ=official,
+                              compatibility_status=runtime))["reason"] == "release_certificate_unavailable"
