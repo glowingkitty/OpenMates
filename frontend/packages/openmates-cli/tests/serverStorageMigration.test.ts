@@ -89,3 +89,49 @@ test("installing monitoring refreshes an existing timer and replaces in-flight C
   assert.ok(commands.includes(`systemctl --no-block try-restart ${serviceName}`));
   assert.ok(commands.indexOf("systemctl daemon-reload") < commands.indexOf(`systemctl restart ${timerName}`));
 });
+
+
+test("first source start builds exact clean provenance before creating containers and fails closed otherwise", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { runInNewContext } = await import("node:vm");
+  const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf8");
+  const helperStart = source.indexOf("function sourceBuildCommitSha(");
+  const helperEnd = source.indexOf("\nasync function serverStart", helperStart);
+  const helper = source.slice(helperStart, helperEnd)
+    .replace("installPath: string", "installPath").replace("): string", ")");
+  const start = source.indexOf("async function serverStart(");
+  const end = source.indexOf("\nasync function", start + 10);
+  const handler = source.slice(start, end)
+    .replace("flags: Record<string, string | boolean>", "flags").replace("): Promise<void>", ")");
+  for (const scenario of [
+    { mode: "source", dirty: false, revision: "A".repeat(40), expected: "a".repeat(40) },
+    { mode: "source", dirty: true, revision: "a".repeat(40), expected: "" },
+    { mode: "source", dirty: false, revision: "unknown", expected: "" },
+    { mode: "source", dirty: false, unavailable: true, revision: "a".repeat(40), expected: "" },
+    { mode: "image", dirty: false, revision: "a".repeat(40), expected: null },
+  ]) {
+    const calls = [];
+    const api = runInNewContext(`${helper}\n({ start: ${handler} })`, {
+      requireDocker: () => {}, resolveServerPath: () => "/registered/install",
+      ensureGitWorkDirEnv: () => {}, ensureRuntimeMetricsDirectory: () => {}, warnIfMissingLlmCredentials: () => {},
+      loadConfigForInstallPath: () => ({ defaultServices: ["api", "core-worker"] }),
+      getServerRole: () => "core", getInstallMode: () => scenario.mode, getInstallDeploymentMode: () => "self_host",
+      lifecycleServiceSelection: () => ({ requested: true, services: ["api", "core-worker"] }),
+      composeArgs: () => ["compose", "-f", "fixture.yml"], shouldPullImages: () => true,
+      exec: command => {
+        if (scenario.unavailable) throw new Error("Git unavailable");
+        return command.includes("status") ? (scenario.dirty ? " M backend/code.py" : "") : scenario.revision;
+      },
+      runInteractive: async (executable, args, cwd) => { calls.push({ executable, args: Array.from(args), cwd }); return 0; },
+      console: { error: () => {} }, printJson: () => {}, process: { exit: () => { throw new Error("Unexpected exit"); } },
+    });
+    await api.start({ json: true });
+    const operation = calls.map(call => call.args[3]);
+    assert.deepEqual(operation, scenario.mode === "source" ? ["build", "up"] : ["pull", "up"]);
+    if (scenario.mode === "source") {
+      assert.deepEqual(calls[0].args, ["compose", "-f", "fixture.yml", "build", "--build-arg",
+        `BUILD_COMMIT_SHA=${scenario.expected}`, "api", "core-worker"]);
+    }
+    assert.ok(calls.every(call => call.cwd === "/registered/install"));
+  }
+});

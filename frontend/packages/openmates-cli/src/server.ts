@@ -2202,6 +2202,17 @@ async function serverStatus(flags: Record<string, string | boolean>): Promise<vo
   if (migration.version_rows) console.log(`Version rows: ${JSON.stringify(migration.version_rows)}`);
 }
 
+function sourceBuildCommitSha(installPath: string): string {
+  try {
+    if (exec("git status --porcelain", installPath).trim()) return "";
+    const revision = exec("git rev-parse HEAD", installPath).trim();
+    return /^[a-f0-9]{40}$/i.test(revision) ? revision.toLowerCase() : "";
+  } catch {
+    // Starting custom/dirty code stays supported, without release attestation.
+    return "";
+  }
+}
+
 async function serverStart(flags: Record<string, string | boolean>): Promise<void> {
   requireDocker();
   const installPath = resolveServerPath(flags);
@@ -2238,6 +2249,14 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
   let code = 0;
   if (installMode === "image" && shouldPullImages()) {
     code = await runInteractive("docker", pullArgs, installPath);
+    if (code !== 0) process.exit(code);
+  }
+  if (installMode === "source") {
+    const buildArgs = [...composeArgs(installPath, withOverrides, installMode, role),
+      "build", "--build-arg", `BUILD_COMMIT_SHA=${sourceBuildCommitSha(installPath)}`];
+    if (selection.requested) buildArgs.push(...selection.services);
+    console.error("Building source containers...");
+    code = await runInteractive("docker", buildArgs, installPath);
     if (code !== 0) process.exit(code);
   }
   code = await runInteractive("docker", args, installPath);

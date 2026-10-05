@@ -937,3 +937,21 @@ CLI npm publication for product source `8d50ac6` succeeded in run `37319010149`.
 Production rollout must use the updated CLI release with the matching official
 images or clean source build; direct git/Compose commands alone do not install
 the host monitoring service.
+
+
+## Fresh self-host source-install provenance
+
+The supported CLI source-start path now builds selected services with the exact
+clean Git revision before creating containers. Dirty checkouts, unavailable Git
+and invalid revisions pass an empty build revision and cannot claim release
+eligibility. Official image pull/start behavior is preserved. Six focused CLI
+checks passed, including actual source-start execution against controlled command
+fixtures for clean, dirty, invalid, unavailable and image cases. Its exact-source
+isolated CLI check is pending publication; no real server was started by these
+fixtures. Standard new CLI installations install host monitoring, and existing
+registered updates upgrade/restart it; plain Git/Compose still requires the
+documented equivalent inventory service.
+
+Sizing calibration `012a5314` is queued on exact source/harness `3539f6d`; it
+is separate sizing evidence and cannot certify a later protected source for the
+full 500-execution target. Production and real-user pruning remain unchanged.

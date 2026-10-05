@@ -4,7 +4,10 @@ The supported unattended update path is `openmates server update` for registered
 core installations using official images or source builds. The updater installs
 the runtime monitoring service, refreshes the actual serving API inventory after
 health checks, and runs the migration coordinator. Monitoring renews that inventory
-every minute; each inventory expires after three minutes.
+every minute; each inventory expires after three minutes. Fresh source-based
+CLI starts build containers with the exact clean checkout revision before starting
+them. Dirty or unknown source builds remain usable but receive no release
+attestation, so migration advancement safely pauses.
 
 The coordinator fetches the signed eligibility certificate for the exact installed
 source. Public verification keys ship in the runtime. No installation needs its
