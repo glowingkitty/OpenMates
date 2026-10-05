@@ -432,6 +432,8 @@ async def handle_postprocessing(
             "show a short illustrative example. Treat any unanswered exercise in the latest response as pending: "
             "never name its correct option, result, equivalent fraction/decimal, or give its working in a chip. "
             "Prefer a small hint, a learner attempt, reasoning or retrieval practice before advancing. "
+            "While a new exercise is pending, use process-level support without any answer-bearing facts. "
+            "Do not propose calculating an equivalent of its answer, including number words such as thirteen twentieths. "
             "Do not force app usage when that would spoil the exercise. "
             f"Active learning focus and phase: {json.dumps(learning_focus_context or {}, ensure_ascii=True)}"
         )

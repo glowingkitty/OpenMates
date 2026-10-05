@@ -22,7 +22,7 @@ def response(choices):
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=focus-modes.learning.progress-and-suggestions
 async def test_fraction_spoiler_removed_but_hint_retained(monkeypatch):
-    decide = AsyncMock(return_value=response(["unsafe", "safe", "unsure"]))
+    decide = AsyncMock(return_value=response(["safe"]))
     monkeypatch.setattr(guard, "evaluate_jev_decisions", decide)
     got = await guard.filter_learning_followups(
         [
@@ -45,13 +45,36 @@ async def test_fraction_spoiler_removed_but_hint_retained(monkeypatch):
 
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=focus-modes.learning.progress-and-suggestions
+async def test_new_question_number_words_withheld_even_if_classifier_would_approve(
+    monkeypatch,
+):
+    decide = AsyncMock(return_value=response(["safe"]))
+    monkeypatch.setattr(guard, "evaluate_jev_decisions", decide)
+    got = await guard.filter_learning_followups(
+        [
+            "Calculate the decimal value of thirteen twentieths using division",
+            "Give me a small hint",
+        ],
+        assistant_response="Your previous 7/10 is correct. Now try 1/4 + 2/5. What do you think?",
+        user_message="I solved the previous problem.",
+        message_history=[],
+        teaching_context={},
+        secrets_manager=None,
+        model_id="test",
+    )
+    assert got == ["Give me a small hint"]
+    assert decide.call_args.kwargs["state"]["suggestions"] == ["Give me a small hint"]
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=focus-modes.learning.progress-and-suggestions
 async def test_unavailable_decision_does_not_publish_unverified_chips(monkeypatch):
     monkeypatch.setattr(
         guard, "evaluate_jev_decisions", AsyncMock(side_effect=RuntimeError("offline"))
     )
     assert (
         await guard.filter_learning_followups(
-            ["Convert 7/10 to a decimal"],
+            ["Give me a small hint"],
             assistant_response="Try 1/5 + 1/2.",
             user_message="Practice",
             message_history=[],
