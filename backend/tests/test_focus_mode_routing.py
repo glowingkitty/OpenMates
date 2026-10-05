@@ -235,38 +235,26 @@ def test_missing_active_focus_instruction_does_not_silently_answer_unfocused():
 
 # contract-test: supporting surface=rest_api assertions=focus-modes.history-events
 def test_focus_continuations_preserve_system_transition_history():
-    """Exercise both production cache reconstruction loops with prior transitions."""
-    import ast
+    """The shared production rebuilder retains prior system transitions."""
     import asyncio
     import json
-    from datetime import datetime, timezone
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
-
-    paths = (
-        "backend/apps/ai/tasks/focus_mode_auto_confirm_task.py",
-        "backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py",
-    )
+    from backend.shared.python_utils.focus_continuation_history import rebuild_focus_continuation_history
     events = [
-        {"role": "system", "encrypted_content": "Activated Career insights focus mode."},
-        {"role": "system", "encrypted_content": "Stopped Career insights focus mode."},
-        {"role": "user", "encrypted_content": "Help me compare these options."},
+        {"id": "transition-1", "role": "system", "encrypted_content": "Activated Career insights focus mode."},
+        {"id": "transition-2", "role": "system", "encrypted_content": "Stopped Career insights focus mode."},
+        {"id": "source", "role": "user", "encrypted_content": "Help me compare these options."},
     ]
-    for path in paths:
-        tree = ast.parse(Path(path).read_text())
-        loop = next(n for n in ast.walk(tree) if isinstance(n, ast.For)
-                    and isinstance(n.target, ast.Name) and n.target.id == "msg_str")
-        function = ast.AsyncFunctionDef(
-            name="reconstruct", args=ast.arguments(posonlyargs=[], args=[],
-            kwonlyargs=[], kw_defaults=[], defaults=[]), body=[loop], decorator_list=[])
-        module = ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[]))
-        history = []
-        scope = dict(json=json, datetime=datetime, timezone=timezone,
-                     message_history=history, removed_focus_activation_count=0,
-                     cached_messages_str_list=[json.dumps(event) for event in reversed(events)],
-                     encryption_service=SimpleNamespace(decrypt_with_user_key=AsyncMock(side_effect=lambda content, key: content)),
-                     user_vault_key_id="test-key", _is_focus_activation_message=lambda content: False)
-        exec(compile(module, path, "exec"), scope)
-        asyncio.run(scope["reconstruct"]())
-        assert [message["role"] for message in history] == ["system", "system", "user"], path
-        assert [message["content"] for message in history] == [event["encrypted_content"] for event in events], path
+    cache = SimpleNamespace(
+        get=AsyncMock(return_value="source"),
+        get_ai_messages_history=AsyncMock(return_value=[json.dumps(event) for event in reversed(events)]),
+    )
+    history = asyncio.run(rebuild_focus_continuation_history(
+        cache_service=cache,
+        encryption_service=SimpleNamespace(decrypt_with_user_key=AsyncMock(side_effect=lambda content, key: content)),
+        pending_context={"user_id": "owner", "chat_id": "chat", "message_id": "source"},
+        user_vault_key_id="test-key",
+    ))
+    assert [message["role"] for message in history] == ["system", "system", "user"]
+    assert [message["content"] for message in history] == [event["encrypted_content"] for event in events]

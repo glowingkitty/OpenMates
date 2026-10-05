@@ -595,6 +595,27 @@ async def listen_for_cache_events(app: FastAPI):
                             await manager.broadcast_to_user(
                                 message={"type": event_type, "payload": payload}, user_id=user_id,
                             )
+                    elif event_type == "focus_mode_continuation_failed":
+                        # The worker already fenced this exact source turn against the
+                        # latest accepted user message. Forward only fixed error fields.
+                        if (isinstance(payload, dict)
+                                and isinstance(payload.get("chat_id"), str)
+                                and isinstance(payload.get("user_message_id"), str)):
+                            from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+                            latest = await cache_service.get(
+                                async_skill_latest_user_turn_key(user_id, payload["chat_id"])
+                            )
+                            if latest == payload["user_message_id"]:
+                                for device_id in manager.get_connections_for_user(user_id):
+                                    await manager.send_personal_message(
+                                        message={"type": "error", "payload": {
+                                            "code": "focus_mode_continuation_failed",
+                                            "message": "Focus continuation could not complete. Please try again.",
+                                            "chat_id": payload["chat_id"],
+                                            "user_message_id": payload["user_message_id"],
+                                        }},
+                                        user_id=user_id, device_fingerprint_hash=device_id,
+                                    )
                     elif event_type in ("focus_mode_activated", "focus_mode_pending"):
                         # Focus mode was auto-confirmed after countdown. Push the activation
                         # event to all connected devices so the client can update its local
