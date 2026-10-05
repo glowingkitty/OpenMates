@@ -946,9 +946,11 @@ clean Git revision before creating containers. Dirty checkouts, unavailable Git
 and invalid revisions pass an empty build revision and cannot claim release
 eligibility. Official image pull/start behavior is preserved. Six focused CLI
 checks passed, including actual source-start execution against controlled command
-fixtures for clean, dirty, invalid, unavailable and image cases. Its exact-source
-isolated CLI check is pending publication; no real server was started by these
-fixtures. Standard new CLI installations install host monitoring, and existing
+fixtures for clean, dirty, invalid, unavailable and image cases. Exact-source
+isolated CLI run `37330852686` passed all six cases on source/harness
+`94440c1cb432cee48cb0604cbd15b0e42ae2d105`, with zero failed, skipped or pending
+cases. Its retained report and selected-run log are verified; no real server
+was started by these fixtures. Standard new CLI installations install host monitoring, and existing
 registered updates upgrade/restart it; plain Git/Compose still requires the
 documented equivalent inventory service.
 

@@ -11,7 +11,11 @@ Compose queue/concurrency argument loss; its coordinated restart and actual
 process-argument checks passed. The supported automatic update path and direct
 Compose monitoring requirement are documented in
 [automatic-migration.md](../../architecture/storage/automatic-migration.md).
-Personal storage billing is active on dev. The two real CLI/web chat canaries
+Release `3539f6d` verifies the authenticated disposable Vault namespace and
+fresh local VAPID keys without external inference credentials. Release `94440c1`
+fixes clean source-build provenance for fresh CLI self-host installations; its
+isolated CLI run `37330852686` passed all six migration/install cases on exact
+source/harness `94440c1`. Personal storage billing is active on dev. The two real CLI/web chat canaries
 already completed; do not repeat them for capacity verification.
 
 The publication gate passed 352 backend cases. Exact-source isolated browser
