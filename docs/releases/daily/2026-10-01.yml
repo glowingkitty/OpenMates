@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-10-01'
-generated_at: '2026-10-02T00:20:24+00:00'
+generated_at: '2026-10-05T00:47:25+00:00'
 range:
   since: '2026-10-01T00:00:00+00:00'
   until: '2026-10-02T00:00:00+00:00'
@@ -5120,212 +5120,165 @@ sources:
     - specifications/generated/assertion-index.yml
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates introduced domain search capabilities via Gandi and improved assistant reliability, while continuing
-    extensive internal development on Workflows, the Apps workspace, and Apple platform parity.
+  overview: OpenMates expanded its Hosting capabilities with Gandi domain search integration and addressed several critical
+    UI and synchronization bugs. Significant progress was made on the Workflows and native Apple platforms, though these remain
+    in an unreleased state. Maintenance work focused on dependency security and production resilience for storage and CLI
+    deployments.
   released_changes:
-  - text: Added Gandi domain search to Hosting APIs and ensured hosting tools are correctly handled by Google providers.
+  - text: Added Gandi domain search to Hosting APIs, allowing users to check domain availability.
     evidence:
       commits:
       - 76b0f34b3
-      - 8c38e97a8
     release_status: released_main
-  - text: Restored stability to the Apps layout, ensuring correct login return paths and credentialed skill requests.
+  - text: Stabilized provider probes and storage writes for the AI and Books applications.
     evidence:
       commits:
-      - 6ff3a951f
-      - 57b5776cd
+      - 480a7698b
     release_status: released_main
-  - text: Restored automatic assistant speech playback and ensured anonymous results are preserved when answer budgets are
-      exhausted.
-    evidence:
-      commits:
-      - cf7c426b3
-      - 69f0ae2fa
-    release_status: released_main
-  - text: Fixed mobile header visibility for signed-out users and preserved location searches when opening maps.
-    evidence:
-      commits:
-      - dacd8ad51
-      - 51945cc96
-    release_status: released_main
-  - text: Normalized workflow export filenames for better file management.
+  - text: Normalized the naming convention for exported workflow files.
     evidence:
       commits:
       - 31e9da938
     release_status: released_main
   bug_fixes:
-  - text: Stabilized production infrastructure by improving archive task reliability, preserving leaderboard rankings during
-      outages, and implementing IPv4 health probes for satellite updates.
+  - text: Fixed an issue where mobile header controls were hidden for signed-out users.
     evidence:
       commits:
-      - 654048f47
-      - bcd46f2c1
-      - b4fa7361f
-      - 82f4486a6
-      - 42669f74e
+      - dacd8ad51
     release_status: released_main
-  - text: Improved cross-client synchronization by ensuring draft-only shells are correctly cleared and persisted across web
-      sessions.
+  - text: Restored automatic assistant speech playback functionality.
     evidence:
       commits:
-      - cd70270b6
+      - cf7c426b3
+    release_status: released_main
+  - text: Ensured location search terms are preserved when opening the map view.
+    evidence:
+      commits:
+      - 51945cc96
+    release_status: released_main
+  - text: Improved reliability for anonymous users by preserving results when answer budgets are exhausted.
+    evidence:
+      commits:
+      - 69f0ae2fa
+    release_status: released_main
+  - text: Repaired synchronization of draft messages across different web clients and removed stale draft shells.
+    evidence:
+      commits:
       - df03ac082
+      - cd70270b6
     release_status: released_main
-  - text: Addressed security vulnerabilities by patching JavaScript and Rust dependencies and updating PyJWT to version 2.15.1.
+  - text: Patched security vulnerabilities in several JavaScript and Rust dependencies.
     evidence:
       commits:
       - b4b3ac9ae
-      - 33030e4fe
     release_status: released_main
-  - text: Resolved issues blocking CLI release publishing by isolating test sessions and correcting SDK workflow contracts.
+  - text: Resolved issues blocking the publishing of new CLI releases.
     evidence:
       commits:
-      - c3127d67e
       - 6dbf206d5
+      - c3127d67e
     release_status: released_main
-  - text: Refined UI details by preserving legacy task links during status updates and ensuring the Safari tint strip does
-      not obscure header tabs.
+  - text: Adjusted the Safari browser interface to prevent the tint strip from overlapping header tabs.
     evidence:
       commits:
-      - c53ae1773
       - f9df5ad10
     release_status: released_main
   unreleased_progress:
-  - text: Advanced the Workflows platform with website change monitoring, voice authoring, and improved AI authoring safety
-      and metering.
+  - text: Advanced the Workflows platform with website change monitoring, AI-assisted authoring repairs, and usage metering.
     evidence:
       commits:
       - dcd4511ae
-      - 15b507d39
-      - 127f161f5
       - ff5b90e00
-      - 0ab157463
-      - 542b48986
-      - a454ddc89
-      - 4f468a34d
-      - 4bebbffd6
       - 7c7e9e1b2
-      - 6838e7a0e
+      - 127f161f5
+      - 15b507d39
     release_status: released_main
-  - text: Developed the Apps workspace, featuring direct skill forms for audio, image, and video generation.
-    evidence:
-      commits:
-      - 137ac3c12
-    release_status: released_main
-  - text: Continued UI parity and session recovery work for iOS, macOS, and Apple Watch platforms.
+  - text: Continued development of native iOS, macOS, and Apple Watch apps, including session recovery and removal of legacy
+      payment systems.
     evidence:
       commits:
       - 5a82de326
       - 77cb81e05
     release_status: released_main
-  - text: Improved the Tasks workspace with persistent drag-and-drop support and split-view details.
+  - text: Developed a new Apps workspace featuring direct skill forms for media and code generation.
+    evidence:
+      commits:
+      - 137ac3c12
+    release_status: released_main
+  - text: Refined the Tasks workspace with persistent drag-and-drop support and improved detail views.
     evidence:
       commits:
       - 61bde4b89
     release_status: released_main
   internal_progress:
-  - text: Enhanced storage reliability by implementing SigV4 signing for S3 uploads and stabilizing multi-region failover
-      probes.
-    evidence:
-      commits:
-      - 143fcbbad
-      - 480a7698b
-    release_status: released_main
-  - text: Optimized development environments with serialized worktree expiry and automated archiving of inactive worktrees.
+  - text: Implemented automated archiving and cleanup for inactive development worktrees.
     evidence:
       commits:
       - fd8fbe1f8
       - ac12dcd41
     release_status: released_main
-  - text: Expanded CI coverage to include image and music components, Apple platform parity checks, and notification email
-      link verification.
+  - text: Expanded CI test coverage for image, music, and hosting components.
     evidence:
       commits:
       - 6d8790244
       - 23364f5eb
-      - 141f051e8
-      - ae98e2482
-      - 0d0145402
-      - 917620e92
       - f4a2c4ffa
-      - 9576ec8a7
-      - 93a3c160b
     release_status: released_main
-  - text: Documented production release resilience plans and verified AI workflow authoring repair strategies.
+  - text: Updated PyJWT to version 2.15.1 to address upstream security patches.
     evidence:
       commits:
-      - 3c8cce3e5
-      - d3f1d9b21
-      - afc642c99
-      - 98f07fcf5
+      - 33030e4fe
     release_status: released_main
   newsletter_recommendation:
     include:
-    - text: Gandi domain search integration for Hosting.
+    - text: OpenMates now supports domain name searching via Gandi integration in the Hosting app.
       evidence:
         commits:
         - 76b0f34b3
-        - 8c38e97a8
-      reason: Introduces a concrete new capability for users to search for domains within the Hosting app.
-    - text: Automatic assistant speech playback.
+      reason: Introduces a concrete new capability for the released Hosting app.
+    - text: Automatic assistant speech playback has been restored for a smoother voice experience.
       evidence:
         commits:
         - cf7c426b3
-      reason: Restores a key user experience feature for assistant interaction.
-    - text: Preservation of anonymous results during budget exhaustion.
+      reason: Restores a key user-facing AI interaction feature.
+    - text: Security updates were applied to core JavaScript and Rust dependencies to ensure platform safety.
       evidence:
         commits:
-        - 69f0ae2fa
-      reason: Improves the experience for guest users by preventing data loss when limits are reached.
-    - text: Mobile header and map search visibility fixes.
-      evidence:
-        commits:
-        - dacd8ad51
-        - 51945cc96
-      reason: Fixes visible UI regressions in mobile and map navigation.
+        - b4b3ac9ae
+      reason: Communicates proactive security maintenance.
     exclude:
-    - text: Workflow authoring and monitoring features.
+    - text: Hosting workflows and domain search embeds.
       evidence:
         commits:
         - ff5b90e00
-        - 0ab157463
-        - 542b48986
-        - a454ddc89
-        - 4f468a34d
-        - 4bebbffd6
-        - 7c7e9e1b2
-        - 6838e7a0e
-        - 15b507d39
-        - dcd4511ae
-        - 127f161f5
-      reason: The Workflows platform is currently disabled and remains in internal development.
-    - text: Apps Workspace and direct skill forms.
+      reason: Relates to the Workflows platform which is currently disabled.
+    - text: Apps workspace and direct skill forms.
       evidence:
         commits:
         - 137ac3c12
-      reason: The Apps workspace depends on the currently disabled Workflows platform.
-    - text: Apple platform parity and session recovery.
+      reason: Relates to the Workflows platform which is currently disabled.
+    - text: Native Apple app session recovery and parity updates.
       evidence:
         commits:
         - 5a82de326
         - 77cb81e05
-      reason: iOS, macOS, and Apple Watch platforms are currently disabled.
-    - text: Task board drag-and-drop improvements.
+      reason: Native Apple platforms (iOS, macOS, Watch) are currently unreleased.
+    - text: Tasks workspace drag-and-drop improvements.
       evidence:
         commits:
         - 61bde4b89
-      reason: The Tasks platform is currently disabled.
-    rationale: The newsletter highlights new domain search capabilities and critical reliability fixes for the assistant and
-      anonymous users, while excluding features tied to disabled platforms like Workflows, Tasks, and Apple native apps.
+      reason: The Tasks app is currently disabled.
+    rationale: The newsletter focuses on the new Gandi domain search capability and critical fixes for speech and security,
+      while excluding features tied to disabled platforms like Workflows, Tasks, and native Apple apps.
   social_video_recommendations:
-  - idea: Demonstrate searching for and finding available domains directly within the OpenMates Hosting app.
-    priority: Medium
-    reason: Concrete new product feature with a clear UI story.
+  - idea: Demonstrate finding a new project domain using the Gandi search skill.
+    priority: high
+    reason: Concrete new utility that is easy to visualize in a short clip.
     evidence:
       commits:
       - 76b0f34b3
   quality_notes:
-  - Extensive work on production infrastructure resilience and security patching was completed.
-  - Workflow development is heavily focused on AI authoring safety and billing accuracy.
-  - Apple platform parity work continues across iOS, macOS, and Apple Watch despite being unreleased.
+  - Multiple fixes targeted the stability of the CLI publishing pipeline.
+  - Security audits resulted in several dependency updates across the frontend and backend.
+  - Workflows and native Apple platforms received heavy development but remain gated behind feature flags.
   validation_warnings: []

@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-10-03'
-generated_at: '2026-10-04T00:20:22+00:00'
+generated_at: '2026-10-05T00:50:09+00:00'
 range:
   since: '2026-10-03T00:00:00+00:00'
   until: '2026-10-04T00:00:00+00:00'
@@ -2312,79 +2312,85 @@ sources:
     - skill:ai:ask
     - skill:workflows:run
 llm_summary:
-  overview: OpenMates focused on enhancing the CLI experience with offline privacy features and terminal UI refinements. Significant
-    progress was also made on the workflow engine to support composable checks and chat-owned runs, alongside internal preparations
-    for storage scaling and privacy model evaluations.
+  overview: OpenMates focused on privacy-centric CLI enhancements, workflow composition, and backend storage scalability.
+    Significant progress was made on offline PII anonymization for the CLI and refining the terminal-based chat experience,
+    alongside extensive infrastructure testing for storage capacity.
   released_changes: []
-  bug_fixes:
-  - text: The terminal chat sidebar was aligned with web navigation patterns, and content centering was improved by removing
-      the outer frame.
-    evidence:
-      commits:
-      - 4f85491b7
-      - 862105eae
-    release_status: dev_only
-  - text: A synchronization issue between targeted drafts and chat census freshness was resolved.
-    evidence:
-      commits:
-      - ba497d718
-    release_status: dev_only
-  - text: The Health app's discovery features were recovered, and a bug preventing picker submission was fixed.
-    evidence:
-      commits:
-      - 296e7e142
-    release_status: dev_only
-  - text: CLI anonymization now preserves prepared PII placeholders.
-    evidence:
-      commits:
-      - 79df9340f
-    release_status: dev_only
+  bug_fixes: []
   unreleased_progress:
-  - text: OpenMates added optional offline personal data anonymization to the CLI, supported by a new privacy worker and scanning
-      logic.
+  - text: OpenMates added optional offline personal data anonymization to the CLI, including fixes for preserving PII placeholders
+      during redaction.
     evidence:
       commits:
       - 2cba8048c
+      - 79df9340f
     release_status: dev_only
-  - text: The workflow engine now supports composable checks and chat-owned runs, enabling more complex automation patterns.
+  - text: Development continued on composable workflow checks and the ability for chats to own specific workflow runs.
     evidence:
       commits:
       - 4f550c256
     release_status: dev_only
-  - text: Project folders gained the ability to render linked chat previews.
+  - text: The terminal interface received several updates, including centered content, a chat sidebar aligned with web navigation,
+      and support for rendering linked chats within Project folders.
     evidence:
       commits:
       - fee044d21
+      - 4f85491b7
+      - 862105eae
+      - ba497d718
     release_status: dev_only
-  - text: Performance improvements were made to app output safety using a Jev-first approach.
+  - text: The Health app discovery process was refined to prevent incorrect picker submissions.
+    evidence:
+      commits:
+      - 296e7e142
+    release_status: dev_only
+  - text: A new 'Jev-first' safety protocol was implemented to improve the security and performance of application output
+      sanitization.
     evidence:
       commits:
       - dae1539e2
+      - 9be86a2a9
     release_status: dev_only
   internal_progress:
-  - text: Extensive documentation and testing were added for the agentic coding storage scaling plan, including Apple-specific
-      handoff and recovery diagnostics.
+  - text: The project advanced planning for backend storage scalability and Apple-specific storage compatibility handoffs.
     evidence:
       commits:
       - 7bd08f0ce
       - 8a0ec1968
       - f39ccd116
+      - 09f2f948b
+      - 73565e35e
       - 20cb6a714
+    release_status: dev_only
+  - text: CI infrastructure was updated to isolate storage capacity profiling and recovery diagnostics.
+    evidence:
+      commits:
+      - d0dee04a6
+      - b5c7c0dec
+      - '573626658'
+      - f1ace349b
+      - 827d2708a
+      - '424024242'
+      - 5a8873c71
       - c8e961da9
-    release_status: dev_only
-  - text: Privacy evaluations were conducted for GLiNER gating on CPU and offline filter feasibility on ARM servers.
-    evidence:
-      commits:
-      - cea0e6637
-      - c59073af5
-      - 45a2997a6
-    release_status: dev_only
-  - text: CI workflows were refined to isolate recovery cutover dependencies and build the CLI before unit checks.
-    evidence:
-      commits:
+      - 3053414ea
+      - 6f87b4739
+      - 73d7d19f6
+      - 029888a31
       - 4f2710cee
       - 8f25249ce
-      - '573626658'
+      - a797822c8
+    release_status: dev_only
+  - text: Extensive evaluations were conducted regarding offline PII model performance on ARM architecture and GLiNER-based
+      privacy gating.
+    evidence:
+      commits:
+      - 2e8d3cde0
+      - 43a040cae
+      - 6db3cd2e3
+      - cea0e6637
+      - 45a2997a6
+      - c59073af5
     release_status: dev_only
   newsletter_recommendation:
     include: []
@@ -2393,28 +2399,34 @@ llm_summary:
       evidence:
         commits:
         - 2cba8048c
-      reason: Feature is currently dev_only and related to the disabled platform:projects feature.
+      reason: Feature is unreleased and associated with the disabled platform:projects feature.
     - text: Composable workflow checks and chat-owned runs.
       evidence:
         commits:
         - 4f550c256
-      reason: Feature is currently dev_only and related to the disabled platform:workflows feature.
-    rationale: No items are currently released to the main branch or marked ready for public communication. All user-facing
-      features are currently in development or gated by disabled feature flags.
+      reason: Feature is unreleased and associated with the disabled platform:workflows feature.
+    - text: Linked chat rendering in Project folders.
+      evidence:
+        commits:
+        - fee044d21
+      reason: Feature is unreleased and associated with the disabled platform:projects feature.
+    rationale: No items are eligible for the newsletter as all changes are currently in the development branch and associated
+      with disabled or unreleased features.
   social_video_recommendations:
-  - idea: Show the new offline CLI privacy scanning in action.
-    priority: medium
-    reason: Demonstrates the project's commitment to privacy and local-first developer tools.
+  - idea: Demonstrate the new optional offline personal data anonymization in the CLI to highlight privacy-first local processing.
+    priority: High
+    reason: Provides a concrete product story regarding user privacy and local-first data handling.
     evidence:
       commits:
       - 2cba8048c
-  - idea: Demonstrate the composable workflow builder and chat-owned runs.
-    priority: high
-    reason: Shows significant progress in automation capabilities.
+  - idea: Showcase the refined Terminal UI, including centered content and the aligned chat sidebar.
+    priority: Medium
+    reason: Visual improvements to the TUI provide good demo material for developer-centric audiences.
     evidence:
       commits:
-      - 4f550c256
+      - 862105eae
+      - 4f85491b7
   quality_notes:
-  - Heavy emphasis on storage reliability and recovery testing for upcoming scaling.
-  - Focus on offline privacy and local execution for CLI tools.
+  - All user-facing features are currently restricted to development environments.
+  - Privacy evaluations for offline models show a focus on maintaining low latency for coding tasks.
   validation_warnings: []

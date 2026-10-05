@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-10-02'
-generated_at: '2026-10-03T00:20:24+00:00'
+generated_at: '2026-10-05T00:49:48+00:00'
 range:
   since: '2026-10-02T00:00:00+00:00'
   until: '2026-10-03T00:00:00+00:00'
@@ -4500,158 +4500,133 @@ sources:
     - specifications/generated/assertion-index.yml
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on deep architectural alignment across platforms, specifically bringing the Terminal CLI workspace
-    closer to the web experience and advancing feature parity for Apple platforms. Significant work was also completed on
-    the Projects and Apps ecosystems, including PII protection during remote execution and performance optimizations for result
-    rendering.
+  overview: OpenMates focused on cross-platform parity and privacy-preserving project execution. Key updates include aligning
+    the terminal interface with the web app, enhancing native Apple platform features like the Local Model Lab, and refining
+    the handling of PII within project-based chats. Work also progressed on offline notification systems and workflow run
+    digests.
   released_changes: []
-  bug_fixes: []
-  unreleased_progress:
-  - text: The Terminal CLI was updated to align its workspaces with the web app, including centered carousels and improved
-      navigation reliability.
+  bug_fixes:
+  - text: The terminal interface now features centered chat and app carousels, along with more reliable navigation and scrolling.
     evidence:
       commits:
-      - b0083825e
-      - 42c4839a4
       - 8b09d4ab7
+      - 42c4839a4
     release_status: dev_only
-  - text: OpenMates added nested sidebar navigation for chats and implemented automated title generation based on project
-      activity.
-    evidence:
-      commits:
-      - 449ea5f81
-      - 530130dd6
-      - b73ba44c4
-    release_status: dev_only
-  - text: Work continued on Apple platform parity, introducing session recovery, Watch workspace editing, and an optional
-      local model lab.
-    evidence:
-      commits:
-      - 8783d8902
-      - 281d1f38c
-      - 3230e1f67
-      - 6cac06785
-    release_status: dev_only
-  - text: Project security was enhanced by binding remote writes to authenticated session devices and preserving PII through
-      client-owned file execution.
+  - text: Project-related chat stability was improved by preserving file PII during client-owned execution and ensuring focus
+      routing remains consistent across chat initialization and message sending.
     evidence:
       commits:
       - c50516eb3
-      - 9a203f628
-      - 275fd07c7
-      - 3ddb9701b
-    release_status: dev_only
-  - text: The project refined Project focus routing, ensuring mentions and focus states are preserved through chat initialization
-      and message sending.
-    evidence:
-      commits:
       - 3eac87a73
       - 0b8c46f8d
-      - db358e8a7
-      - 6bae1c73d
-      - b80e3abca
-      - 214314c57
+      - 45e7256e6
       - a819f64c3
       - 03b0974f0
-      - 45e7256e6
     release_status: dev_only
-  - text: Apps workspace performance was improved to show results before background saves, alongside UI fixes for icon rendering
-      and query persistence.
+  - text: Apple platform updates resolved issues with session recovery, Watch workspace editing, and login error clearing.
     evidence:
       commits:
-      - 5752e1e6a
-      - dddd86030
-      - 651f8b2fa
-      - 2a0b45afb
+      - 8783d8902
+      - 0206b916a
+    release_status: dev_only
+  - text: Web UI refinements restored mobile login button text and adjusted guest header layouts to prevent control overlap.
+    evidence:
+      commits:
+      - 11d0b5fb4
+      - 32d41c981
       - 6c1e74443
     release_status: dev_only
-  - text: Notification systems were expanded to include offline chat alerts and workflow run digests, supported by a new website-change
-      workflow template.
+  unreleased_progress:
+  - text: The terminal interface (CLI) now supports nested chat sidebar navigation and running chat visibility, bringing it
+      closer to parity with the web application.
+    evidence:
+      commits:
+      - 449ea5f81
+      - b0083825e
+    release_status: dev_only
+  - text: New workflow capabilities include a website-change template and a digest system to notify offline users of chat
+      activity and workflow runs.
     evidence:
       commits:
       - ae48ac9fd
       - 5e1b804cf
-      - b4f508f85
-      - '342570522'
     release_status: dev_only
-  - text: Hosting features were updated with a new domain search example, SDK graph read support, and refined embed layouts.
+  - text: Native Apple platform development introduced an optional local model lab and isolated the Mac Rust runtime to improve
+      stability.
+    evidence:
+      commits:
+      - 281d1f38c
+      - 3230e1f67
+      - 6cac06785
+    release_status: dev_only
+  - text: Hosting and Apps workspaces were enhanced with domain search examples, improved result latency, and refined library
+      visibility.
     evidence:
       commits:
       - 1599854bf
-      - d102587c7
-      - 282b05e39
-      - 75824bac3
-      - 16f1e37de
-    release_status: dev_only
-  - text: General platform stability was addressed through repairs to session health checks, login error handling, and mobile
-      header layout adjustments.
-    evidence:
-      commits:
-      - 13bc1feeb
-      - 0206b916a
-      - 32d41c981
-      - 11d0b5fb4
+      - 5752e1e6a
+      - 651f8b2fa
     release_status: dev_only
   internal_progress:
-  - text: CI coverage was registered for composable workflows.
-    evidence:
-      commits:
-      - af84c98ed
-    release_status: dev_only
-  - text: The project conducted and subsequently removed benchmarking experiments comparing Fastino decision models with Jev.
-    evidence:
-      commits:
-      - 17077a562
-      - e5601f2b7
-    release_status: dev_only
-  - text: Internal documentation was updated to record Apple release delivery procedures, log forwarding behavior after session
-      expiry, and remote Project chat validation results.
+  - text: Documentation was updated to record validated Apple release procedures, notification rollout verification, and remote
+      Project chat validation.
     evidence:
       commits:
       - 7e7bc5ff8
-      - 2fb92f079
+      - '342570522'
+      - b4f508f85
       - c92dbaf87
+      - 2fb92f079
+    release_status: dev_only
+  - text: Testing infrastructure now includes coverage for composable workflows and benchmarks for decision models.
+    evidence:
+      commits:
+      - af84c98ed
+      - 16f1e37de
+      - 17077a562
     release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: Nested chat sidebar navigation and project activity APIs.
+    - text: Terminal Workspace Parity and Navigation
       evidence:
         commits:
         - 449ea5f81
-        - 530130dd6
-      reason: Relates to the Projects platform which is currently disabled.
-    - text: Offline chat notifications and workflow run digests.
+        - b0083825e
+      reason: The terminal/CLI workspace updates are currently in development and not yet available on the main branch.
+    - text: Apple Local Model Lab and Native Parity
+      evidence:
+        commits:
+        - 281d1f38c
+        - 3230e1f67
+      reason: Apple-specific features including the Local Model Lab and Mac runtime isolation are gated behind disabled platform
+        flags.
+    - text: Workflow Run Digests and Templates
       evidence:
         commits:
         - ae48ac9fd
-      reason: Relates to multiple disabled platforms including Workflows, Teams, and iOS.
-    - text: Apple platform feature parity and local model lab.
-      evidence:
-        commits:
-        - 8783d8902
-        - 281d1f38c
-      reason: Relates to disabled Apple platforms (iOS, macOS, Watch).
-    rationale: All user-facing changes from this period are marked as dev_only or relate to features currently disabled in
-      the configuration (Projects, Workflows, Teams, and Apple platforms). No items are marked as ready for public communication.
+        - 5e1b804cf
+      reason: Workflow digests and new templates are part of the unreleased workflows platform.
+    rationale: No items from this period have been merged into the main branch or marked as ready for public communication.
+      All major features are currently associated with disabled platform or app flags.
   social_video_recommendations:
-  - idea: A side-by-side comparison of the Web App and the Terminal CLI showing the new workspace alignment.
+  - idea: A demonstration of the OpenMates CLI/TUI showing the new centered carousels and workspace navigation that matches
+      the web experience.
     priority: medium
-    reason: The visual parity between the TUI and the web app is a strong product story for developers.
+    reason: The terminal interface has reached a level of visual and functional maturity that provides a strong product story
+      for developers.
     evidence:
       commits:
       - b0083825e
-      - 42c4839a4
       - 8b09d4ab7
-  - idea: A 'sneak peek' at the upcoming nested sidebar navigation and automated chat title generation.
+  - idea: A preview of the 'Local Model Lab' on macOS, highlighting the ability to run privacy-focused models locally.
     priority: low
-    reason: While the feature is currently disabled, the navigation improvements are highly visual and demonstrate product
-      polish.
+    reason: While visually interesting, this feature is currently disabled by default and intended for developer preview.
     evidence:
       commits:
-      - 449ea5f81
-      - 530130dd6
+      - 281d1f38c
   quality_notes:
-  - Extensive testing was performed on session recovery and chat metadata persistence across web and native platforms.
-  - PII protection mechanisms were refined to ensure client-owned execution for Project files.
+  - Significant effort was directed toward ensuring feature parity between the web app and the terminal (CLI) interface.
+  - Privacy remains a priority with updates specifically targeting the protection of PII during project file execution.
+  - Apple platform stability was addressed through improved session recovery and runtime isolation.
   validation_warnings: []
