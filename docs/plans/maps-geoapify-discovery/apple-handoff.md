@@ -1,7 +1,7 @@
 # Apple maps discovery handoff
 
 Task: **TASK-4743**. Specification: `feature.app-skill.maps-search@1`.
-Status: source audit complete; final web baseline and native implementation/verification pending.
+Status: CLI and web implementation/verification complete on dev; native implementation/verification pending.
 
 The user approved Geoapify discovery and requested CLI, web, then Apple parity.
 They explicitly permitted instructions for the AI agent working on the Mac.
@@ -11,9 +11,17 @@ session `e390` and must not be borrowed for Mac edits.
 
 ## Web baseline
 
-The final deployed web commit and screenshots will be recorded in
-[verification.md](verification.md). Complete the native comparison against that
-commit. The approved behavior and public fixture data are already available in:
+The final deployed product baseline is
+**`5df32f6c00975317099d4058c5646bcd4a4afd0d`**. Vercel and the coordinated
+API/worker reload completed successfully. [Verification and screenshots](verification.md)
+record passing live CLI/AI requests, backend/API/SDK checks, ten component cases,
+three full-chat cases, and manual review of eight deployed desktop/phone PNGs.
+Complete the native comparison against this commit. The full-chat
+[CI artifacts](https://github.com/glowingkitty/OpenMates/actions/runs/37260202596/artifacts/11324791565)
+contain the regular and discovery fullscreen screenshots as named Playwright
+attachments. The current deployed preview routes are linked in verification.md;
+their eight PNGs are retained in the Linux session's visual-smoke receipt.
+The approved behavior and public fixture data are available in:
 
 - `specifications/features/app-skills/maps-search/specification.yml`
 - `backend/apps/ai/testing/fixtures/maps_discovery_web.json`

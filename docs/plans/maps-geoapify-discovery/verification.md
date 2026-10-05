@@ -16,6 +16,8 @@ The first natural-language worker request timed out at the original five-second 
 
 The repeated incognito CLI prompt, **“Find 5 ruins within 10 km of Berlin, Germany, and show them on a map.”**, completed with a `maps.search` parent and five place references. Incognito avoided persistent chat state. The empty disposable QA Project was deleted after verification.
 
+After the final deployment and coordinated API/worker reload, the same coordinate discovery returned five cached Geoapify places with `success=true` and the existing 40-credit Maps charge. A CLI request with latitude `91` was rejected with the expected coordinate-range validation error.
+
 ## Backend checks
 
 - Focused provider, discovery and existing enrichment checks passed locally (42 checks before the timeout correction).
@@ -74,8 +76,31 @@ place with its existing rating; discovery showed two places and markers, source
 attribution, `539 m` distance and no fabricated rating. Fullscreen screenshots
 were visually reviewed. Runtime/private-account cleanup was verified. The
 [artifacts](https://github.com/glowingkitty/OpenMates/actions/runs/37260202596/artifacts/11324791565)
-include screenshots as named Playwright report attachments. Deployed-web visual
-inspection remains pending.
+include screenshots as named Playwright report attachments.
+
+## Final dev deployment and visual review
+
+The product changes were published as `5df32f6c00975317099d4058c5646bcd4a4afd0d`.
+The deployment gates passed Specification validation, embed registration, lint,
+translations and six related backend suites. Vercel reported the exact commit
+successful. Coordinated reload `docker-fee632df` restored a consistent source
+generation across the API and Python workers; all services reported healthy.
+
+Eight deployed Playwright screenshots were inspected at 1440×1000 and 390×844:
+
+- [Geoapify fullscreen](https://app.dev.openmates.org/dev/preview/embeds/maps/MapsSearchEmbedFullscreen?chrome=0&variant=discovery): two readable cards and markers, source/distance, no fabricated ratings.
+- [Regular Google fullscreen](https://app.dev.openmates.org/dev/preview/embeds/maps/MapsSearchEmbedFullscreen?chrome=0): existing ratings, cards and markers preserved.
+- [Discovery parent preview](https://app.dev.openmates.org/dev/preview/embeds/maps/MapsSearchEmbedPreview?chrome=0&variant=discovery): correct provider and two-place count before child hydration.
+- [Discovery place preview](https://app.dev.openmates.org/dev/preview/embeds/maps/MapLocationEmbedPreview?chrome=0&variant=discovery): readable source/distance and no rating.
+
+No UI defect or accepted UI difference was found. The fullscreen capture helper
+marked its raw reports failed solely for canceled OpenStreetMap tile requests
+during initialization. Both final maps rendered completely, with no missing
+tiles, page/console/HTTP errors, broken images or document overflow. The preview
+captures passed their automated checks. The raw reports remain unchanged; the
+separate manual screenshot-review receipt is
+`test-results/visual-smoke/maps-e390-deployed-review.json` in session `e390`,
+linking all eight PNGs and the discovery, regular and preview capture reports.
 
 ## Provider cost boundary
 
@@ -91,6 +116,6 @@ coverage. The local contract scan was blocked by a missing web YAML dependency;
 it provides no native runtime proof.
 
 [Mac agent instructions](apple-handoff.md) identify the affected Swift files,
-ordered child-hydration patterns, public fixtures and focused iPhone/iPad/macOS
-verification. The final web baseline will be added after its checks and deploy.
-Native changes and runtime parity remain pending on the Mac.
+ordered child-hydration patterns, public fixtures, final deployed web baseline
+and focused iPhone/iPad/macOS verification. Native changes and runtime parity
+remain pending on the Mac; TASK-4743 stays in progress for that work.
