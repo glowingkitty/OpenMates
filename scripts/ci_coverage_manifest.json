@@ -354,7 +354,8 @@
         "components/maps-discovery.spec.ts",
         "components/agent-context-message.spec.ts",
         "components/project-focus-specialist.spec.ts",
-        "components/rule-document-manager.spec.ts"
+        "components/rule-document-manager.spec.ts",
+        "components/wiki-learning.spec.ts"
       ]
     },
     "synthetic_artifact": {
@@ -399,7 +400,8 @@
         "stop-new-chat-draft.spec.ts",
         "tasks-chat-settings-parity.spec.ts",
         "unified-detail-metadata-sync.spec.ts",
-        "maps-discovery-chat.spec.ts"
+        "maps-discovery-chat.spec.ts",
+        "wiki-learning-flow.spec.ts"
       ]
     },
     "ai_fixture_pending": {
