@@ -522,7 +522,6 @@
     let mentionQuery = $state('');
 
     let mentionDropdownY = $state(0);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let isScrollable = $state(false);
     let showMenu = $state(false);
     let menuOpenedAt = $state(0);
@@ -6576,13 +6575,14 @@
             </div>
         {/if}
 
-        <!-- Fullscreen expand/collapse button: visible when focused, has content, or an overlay is open.
+        <!-- Fullscreen expand button: visible once the draft overflows its scrollable area.
+             Keep the collapse button available throughout fullscreen mode.
              Shows icon_fullscreen to expand, icon_minimize to collapse.
              On wide screens (≥1024px), expand breaks the field into the embed panel area.
              On narrow screens, expand grows the field height to 65dvh.
              Hidden when overlays are open — each overlay renders its own maximize button
              in the top-right corner so the button stays visible above the overlay content. -->
-        {#if !startNewChatOnClick && (isFullscreen || hasSendableDraft || isMessageFieldFocused) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
+        {#if !startNewChatOnClick && (isFullscreen || isScrollable) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
             <button
                 data-testid="message-expand-button"
                 class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"

@@ -126,7 +126,7 @@ test.describe('MessageInput component preview', () => {
 		{ viewportWidth: 1280, fieldWidth: 680 }
 	]) {
 		// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,message-input.layout.responsive-parity
-		test(`minimizes a text draft and restores it beside the expand control at ${viewportWidth}px`, async ({ page }) => {
+		test(`minimizes a draft and offers expansion only when it scrolls at ${viewportWidth}px`, async ({ page }) => {
 			await page.setViewportSize({ width: viewportWidth, height: 844 });
 			const params = new URLSearchParams({
 				theme: 'dark', background: '#dbeafe', width: String(fieldWidth), chrome: '0', variant: 'inlineCompact'
@@ -164,11 +164,14 @@ test.describe('MessageInput component preview', () => {
 			await expect.poll(() => field.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(180);
 			const actions = page.getByTestId('action-buttons');
 			await expect(actions).toBeVisible();
+			const expand = page.getByTestId('message-expand-button');
+			const scrollable = field.locator('.scrollable-content');
+			await expect.poll(() => scrollable.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true);
+			await expect(expand).toHaveCount(0);
 			const focusedBounds = await editor.evaluate((element) => {
 				const fieldElement = element.closest('[data-testid="message-field"]')!;
 				const field = fieldElement.getBoundingClientRect();
 				const actions = fieldElement.querySelector('[data-testid="action-buttons"]')!.getBoundingClientRect();
-				const expand = fieldElement.querySelector('[data-testid="message-expand-button"]')!.getBoundingClientRect();
 				const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
 				const textRects: DOMRect[] = [];
 				while (walker.nextNode()) {
@@ -176,25 +179,62 @@ test.describe('MessageInput component preview', () => {
 					range.selectNodeContents(walker.currentNode);
 					textRects.push(...Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0));
 				}
-				const overlapsExpand = textRects.some((rect) => rect.left < expand.right && rect.right > expand.left
-					&& rect.top < expand.bottom && rect.bottom > expand.top);
 				return { textRects: textRects.length, textTop: Math.min(...textRects.map((rect) => rect.top)),
 					textBottom: Math.max(...textRects.map((rect) => rect.bottom)),
 					textLeft: Math.min(...textRects.map((rect) => rect.left)),
 					textRight: Math.max(...textRects.map((rect) => rect.right)),
 					fieldTop: field.top, fieldLeft: field.left, fieldRight: field.right,
-					expandLeft: expand.left, expandBottom: expand.bottom,
-					actionsTop: actions.top, overlapsExpand };
+					actionsTop: actions.top };
 			});
 			expect(focusedBounds.textRects).toBeGreaterThan(0);
 			expect(focusedBounds.textTop).toBeGreaterThanOrEqual(focusedBounds.fieldTop);
 			expect(focusedBounds.textLeft).toBeGreaterThanOrEqual(focusedBounds.fieldLeft);
 			expect(focusedBounds.textRight).toBeLessThanOrEqual(focusedBounds.fieldRight);
 			expect(focusedBounds.textBottom).toBeLessThanOrEqual(focusedBounds.actionsTop);
-			expect(focusedBounds.overlapsExpand).toBe(false);
-			expect(focusedBounds.textRight).toBeLessThanOrEqual(focusedBounds.expandLeft - 8);
-			expect(focusedBounds.textTop).toBeLessThan(focusedBounds.expandBottom);
 			await page.screenshot({ path: test.info().outputPath(`message-input-focused-draft-${viewportWidth}.png`) });
+
+			const longDraft = Array.from({ length: 24 }, (_, index) => `Draft line ${index + 1}: details for upcoming events in Berlin.`).join('\n');
+			await editor.fill(longDraft);
+			await expect.poll(() => scrollable.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+			await expect(expand).toBeVisible();
+			// Bring the first visible lines beside the control into view before checking the gutter.
+			await editor.press('ControlOrMeta+Home');
+			const overflowBounds = await editor.evaluate((element) => {
+				const fieldElement = element.closest('[data-testid="message-field"]')!;
+				const expand = fieldElement.querySelector('[data-testid="message-expand-button"]')!.getBoundingClientRect();
+				const scrollable = fieldElement.querySelector('.scrollable-content')!.getBoundingClientRect();
+				const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+				const textRects: DOMRect[] = [];
+				while (walker.nextNode()) {
+					const range = document.createRange();
+					range.selectNodeContents(walker.currentNode);
+					textRects.push(...Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0
+						&& rect.top < scrollable.bottom && rect.bottom > scrollable.top));
+				}
+				return { visibleLines: textRects.length, textRight: Math.max(...textRects.map((rect) => rect.right)),
+					textTop: Math.min(...textRects.map((rect) => rect.top)), expandLeft: expand.left, expandBottom: expand.bottom,
+					overlapsExpand: textRects.some((rect) => rect.left < expand.right && rect.right > expand.left
+						&& rect.top < expand.bottom && rect.bottom > expand.top) };
+			});
+			expect(overflowBounds.visibleLines).toBeGreaterThan(0);
+			expect(overflowBounds.overlapsExpand).toBe(false);
+			expect(overflowBounds.textRight).toBeLessThanOrEqual(overflowBounds.expandLeft - 8);
+			expect(overflowBounds.textTop).toBeLessThan(overflowBounds.expandBottom);
+			await page.screenshot({ path: test.info().outputPath(`message-input-overflow-draft-${viewportWidth}.png`) });
+			await editor.fill(draft);
+			await expect(expand).toHaveCount(0);
+			await editor.fill(longDraft);
+			await expect(expand).toBeVisible();
+			await expand.click();
+			await expect(field).toHaveClass(/fullscreen-expanded/);
+			await editor.fill(draft);
+			await expect.poll(() => scrollable.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true);
+			await expect(expand).toBeVisible();
+			await expect(expand).toHaveClass(/icon_minimize/);
+			await expand.click();
+			await expect(field).not.toHaveClass(/fullscreen-expanded/);
+			await expect(expand).toHaveCount(0);
+			await expect(editor).toHaveText(draft);
 		});
 	}
 

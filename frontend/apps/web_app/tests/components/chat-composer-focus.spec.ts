@@ -43,6 +43,7 @@ test.describe('Chat composer focus and draft preservation', () => {
       const [sendBox, micBox] = await Promise.all([page.getByTestId('composer-send-button').boundingBox(), page.getByTestId('record-audio-button').boundingBox()]);
       return micBox!.x - (sendBox!.x + sendBox!.width);
     }).toBeGreaterThan(0);
+    await editor.fill('Unsent multiline draft\nsecond line\n' + Array.from({ length: 20 }, (_, index) => `More draft details ${index + 1}`).join('\n'));
     await page.getByTestId('message-expand-button').click();
     await page.getByTestId('composer-send-button').click();
     await expect.poll(() => page.evaluate(() => (window as typeof window & { fixtureSendAttempts: number }).fixtureSendAttempts)).toBe(1);
@@ -73,15 +74,16 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(field).toHaveAttribute('data-focused', 'true');
     const expand = page.getByTestId('message-expand-button');
     const microphone = page.getByTestId('record-audio-button');
-    await expect(expand).toBeVisible();
+    await expect(expand).toHaveCount(0);
     await expect(microphone).toBeVisible();
-    const [fieldBox, expandBox, micBox] = await Promise.all([field.boundingBox(), expand.boundingBox(), microphone.boundingBox()]);
-    expect(expandBox!.x).toBeGreaterThan(fieldBox!.x + fieldBox!.width / 2);
-    expect(expandBox!.y).toBeLessThan(micBox!.y);
     await editor.press('ControlOrMeta+End');
     await page.keyboard.type(' autosave change');
     await page.evaluate(() => window.dispatchEvent(new Event('fixtureAddAttachments')));
     await expect(page.getByTestId('embed-full-width-wrapper')).toHaveCount(2);
+    await expect(expand).toBeVisible();
+    const [fieldBox, expandBox, micBox] = await Promise.all([field.boundingBox(), expand.boundingBox(), microphone.boundingBox()]);
+    expect(expandBox!.x).toBeGreaterThan(fieldBox!.x + fieldBox!.width / 2);
+    expect(expandBox!.y).toBeLessThan(micBox!.y);
     // Autosave happens at 1200ms; assert the actual stored draft before replaying an older snapshot.
     await expect.poll(() => page.evaluate(() => (sessionStorage.getItem('draft_synthetic-composer-focus') ?? '').includes('autosave change'))).toBe(true);
     await page.evaluate(() => window.dispatchEvent(new Event('fixtureRestoreDraft')));

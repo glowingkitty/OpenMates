@@ -3928,23 +3928,23 @@ assertions:
       surface: gui.apple
     - &id485
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 65
+      line: 66
       name: keeps pending image/audio embeds through autosave, a stale restore and
         dismissal
       surface: gui.web
     - &id486
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 105
+      line: 107
       name: clears a restored legacy whitespace draft without refilling the field
       surface: gui.web
     - &id487
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 115
+      line: 117
       name: empty-text cleanup preserves a draft containing a math expression
       surface: gui.web
     - &id488
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 128
+      line: 130
       name: empty-draft cleanup on a chat switch preserves the previous chat draft
       surface: gui.web
     - &id489
@@ -4334,7 +4334,7 @@ assertions:
       surface: gui.web
     - &id595
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 65
+      line: 66
       name: keeps pending image/audio embeds through autosave, a stale restore and
         dismissal
       surface: gui.web
@@ -5153,12 +5153,12 @@ assertions:
       surface: gui.web
     - &id653
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 105
+      line: 107
       name: clears a restored legacy whitespace draft without refilling the field
       surface: gui.web
     - &id654
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 128
+      line: 130
       name: empty-draft cleanup on a chat switch preserves the previous chat draft
       surface: gui.web
     - &id655
@@ -5572,7 +5572,7 @@ assertions:
       surface: gui.apple
     - &id692
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 145
+      line: 147
       name: hides the draft-only banner even when a draft title contains attachment
         JSON
       surface: gui.web
@@ -5698,7 +5698,7 @@ assertions:
       surface: gui.web
     - &id706
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 145
+      line: 147
       name: hides the draft-only banner even when a draft title contains attachment
         JSON
       surface: gui.web
@@ -16166,7 +16166,7 @@ assertions:
     direct_tests:
     - &id2026
       path: frontend/apps/web_app/tests/component-message-input.spec.ts
-      line: 202
+      line: 242
       name: moves from minimized to expanded interactive states
       surface: gui.web
     - &id2027
@@ -16346,7 +16346,7 @@ assertions:
     direct_tests:
     - &id2045
       path: frontend/apps/web_app/tests/component-message-input.spec.ts
-      line: 202
+      line: 242
       name: moves from minimized to expanded interactive states
       surface: gui.web
     - &id2046
@@ -32467,7 +32467,7 @@ assertions:
       surface: gui.web
     - &id3925
       path: frontend/apps/web_app/tests/component-message-input.spec.ts
-      line: 202
+      line: 242
       name: moves from minimized to expanded interactive states
       surface: gui.web
     - &id3926
@@ -61563,11 +61563,11 @@ assertions:
     - &id7676
       path: frontend/apps/web_app/tests/component-message-input.spec.ts
       line: 129
-      name: minimizes a text draft and restores it beside the expand control at ${viewportWidth}px
+      name: minimizes a draft and offers expansion only when it scrolls at ${viewportWidth}px
       surface: gui.web
     - &id7677
       path: frontend/apps/web_app/tests/component-message-input.spec.ts
-      line: 202
+      line: 242
       name: moves from minimized to expanded interactive states
       surface: gui.web
     - &id7678
@@ -61578,13 +61578,13 @@ assertions:
       surface: gui.web
     - &id7679
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 65
+      line: 66
       name: keeps pending image/audio embeds through autosave, a stale restore and
         dismissal
       surface: gui.web
     - &id7680
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 173
+      line: 175
       name: deep-link prefill hides the empty-chat workspace and outside/Cancel restores
         it at ${width}px
       surface: gui.web
@@ -64036,7 +64036,7 @@ assertions:
       surface: gui.web
     - &id8000
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 158
+      line: 160
       name: shows the first message while the generated chat title is pending
       surface: gui.web
     - &id8001
@@ -64456,22 +64456,22 @@ assertions:
     - &id8078
       path: frontend/apps/web_app/tests/component-message-input.spec.ts
       line: 129
-      name: minimizes a text draft and restores it beside the expand control at ${viewportWidth}px
+      name: minimizes a draft and offers expansion only when it scrolls at ${viewportWidth}px
       surface: gui.web
     - &id8079
       path: frontend/apps/web_app/tests/component-message-input.spec.ts
-      line: 202
+      line: 242
       name: moves from minimized to expanded interactive states
       surface: gui.web
     - &id8080
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 65
+      line: 66
       name: keeps pending image/audio embeds through autosave, a stale restore and
         dismissal
       surface: gui.web
     - &id8081
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 173
+      line: 175
       name: deep-link prefill hides the empty-chat workspace and outside/Cancel restores
         it at ${width}px
       surface: gui.web
