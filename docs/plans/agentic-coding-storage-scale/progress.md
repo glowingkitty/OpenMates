@@ -957,3 +957,18 @@ documented equivalent inventory service.
 Sizing calibration `012a5314` is queued on exact source/harness `3539f6d`; it
 is separate sizing evidence and cannot certify a later protected source for the
 full 500-execution target. Production and real-user pruning remain unchanged.
+
+
+## Official image-publication audit contract
+
+CLI publication `37330781930` succeeded for source `94440c1` on the npm alpha
+channel, including the fresh source-install fix. Official image publication
+`37330781963` stopped before building images because the domain-policy audit
+expected the old Celery Dockerfile layout. The actual complete backend tree,
+including encrypted policy files, is present. The verifier now recognizes the
+actual backend-qualified COPY declaration and rejects comments, RUN strings and
+unrelated similarly named source trees. Two focused checks passed, including
+the actual policy/image audit and rejection of a removed worker policy tree.
+The exact publication audit command also passed. No security check was skipped
+and no image contents or dev runtime changed for this verifier repair. The next
+official image-publication result remains pending.
