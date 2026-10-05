@@ -1,7 +1,7 @@
 # Weekly storage billing extension
 
 Task: TASK-9893. Added at the user's request on 2026-10-03. This extension is
-being implemented alongside the approved storage architecture; it does not
+implemented alongside the approved storage architecture; it does not
 change the approval fingerprint for `architecture.storage-lifecycle@2`.
 
 ## Accepted requirements
@@ -83,8 +83,8 @@ dunning runs when paid service billing is disabled for the deployment edition.
 The expiry operation must remain scoped to notified chargeable data and use the
 existing reference-safe deletion path. It must not delete another owner's data,
 another Team's data, required shared content, free account metadata, or an active
-writer's sole copy. The exact archive-unit selection and invoice closure behavior
-must be recorded before this action can be enabled; adding archive bytes to the
+writer's sole copy. The approved archive-unit selection and invoice closure behavior
+are recorded below; adding archive bytes to the
 old upload-only “delete all files” loop is not an acceptable implementation.
 
 ## Public disclosures
@@ -141,7 +141,8 @@ waives an invoice. A new debt episode requires its own notices.
 
 ## Implementation and verification
 
-The candidate contains authoritative bounded metering, immutable Sunday invoices,
+Development release `7a6034a17b37c3866037f5fb16b85d50326df144` contains
+authoritative bounded metering, immutable Sunday invoices,
 full-charge ledger checks, legacy charge-overlap fences, exact provider delivery
 receipts and retry holds, the fixed affected-unit API/web/email list, atomic safe
 expiry and audited invoice closure. Production defaults remain conservative.
@@ -153,11 +154,46 @@ bounded lock wait, to fence writers that do not yet share a resource-level
 protocol. Replacing these coarse locks with comprehensive resource-level fences
 is a scaling follow-up; correctness is preserved while that work remains open.
 
-Isolated tests use small encrypted S3 objects and explicitly SIMULATED declared
-logical usage to cross allowance boundaries. They exercise actual PostgreSQL
-transactions and regional object deletion without real inference, real emails,
-large uploads or real user data. The source-bound CI and deployment receipts
-will be recorded here after completion; prepared fixtures are not passing proof.
+The final isolated source `47dbe933681ada991f4c06199206c03a2a918868`
+passed both [logical billing/expiry](https://github.com/glowingkitty/OpenMates/actions/runs/37253722468)
+and [legacy compatibility](https://github.com/glowingkitty/OpenMates/actions/runs/37253838672)
+profiles, each with one expected case and zero skipped, failed or flaky cases.
+The tests exercise actual disposable PostgreSQL and S3-compatible SeaweedFS,
+authenticated browser settings, exact provider-delivery fixtures, logical
+removal, tombstones, invoice closure and verified cleanup. The expiry objects
+are two 112-byte AES-GCM ciphertexts with explicitly SIMULATED declared usage;
+there are no large uploads, real emails, inference requests or real user data.
+A disposable single-region fixture does not prove actual Hetzner failover.
+
+The publication source reconciles current dev changes without altering the
+accepted billing SQL/metering/expiry implementation. Corrected warning links
+were checked by 45 real-template/context tests. The relevant publication Python
+gate passed 137 cases. One unrelated workflow-digest retry test fails equally on
+unchanged dev because its fixed epoch has aged out; its repeated execution was
+excluded with a recorded reason, without modifying the test. Specification,
+lint, translation generation and all locale validation gates passed.
+
+The matching web deployment, additive schema operation `docker-4777bd38` and
+coherent 17-service backend restart `docker-40849e0b` succeeded. A complete
+read-only scan checked 44 owners in 17.588 seconds; all 44 legacy and logical
+quotes were complete, with zero held quotes or lookup errors.
+
+Coordinated activation `docker-323e9d0d` enabled
+`STORAGE_LOGICAL_S3_BILLING_ENABLED=1` and `STORAGE_UNPAID_EXPIRY_ENABLED=1`
+on the development API, core worker, task worker and scheduler. Warning links
+use `WEBAPP_URL=https://app.dev.openmates.org`. Final readback verifies all four
+targets running and all 11 billing/metering indexes present, valid and ready.
+All six archive copy/read/prune flags remain off. Readiness checks made zero
+charges, email sends or deletions; no real-user manual expiry was run. The
+configured support sender is active, confirmed by read-only provider lookup.
+Actual notification delivery uses the existing provider; no real test email was
+sent. Production is unchanged and its billing defaults remain off.
+
+Operational receipts are retained under session 2f80's ignored
+`logs/storage-integration-2f80/billing-expiry-release/`, including
+`accepted-verification.json`, `product-publication.json`,
+`warning-link-readiness.json`, `dev-usage-readiness.json`,
+`dev-flags-activation.json` and `dev-runtime-readiness.json`.
 
 Team payer and allowance policy remains unanswered, so Team usage is unrated and
 Team billing/expiry is disabled. Archive/pruning and the larger capacity benchmark

@@ -1,6 +1,6 @@
 # Storage implementation progress
 
-Snapshot: 2026-10-04. OpenMates Tasks owns work status and dependencies.
+Snapshot: 2026-10-05. OpenMates Tasks owns work status and dependencies.
 
 ## Current release status
 
@@ -12,17 +12,17 @@ Snapshot: 2026-10-04. OpenMates Tasks owns work status and dependencies.
 - The coordinated schema operation succeeded in 361.35 seconds. Coordinated
   restart `docker-867b0631` then succeeded in 295.41 seconds with all 17 services
   running and healthy. Independent catalog readback found 17/17 recovery indexes
-  present, unique where required, valid and ready. All seven archive and
-  expanded-billing switches are off across all 17 services.
+  present, unique where required, valid and ready. Archive copy/read/prune
+  remains disabled; the personal billing rollout is recorded below.
 - Matching Vercel web deployment `2w3u56hwciegHBEV9p8N4CjtvCut` succeeded.
   Production is unchanged.
 - The exact backend gate passed 1,408 tests across the inferred 120 files.
   Focused recovery CI `33e0f616` passed both selected cases, with one synthetic
   fixture setup retry. This is scoped release evidence, not a full-scale proof.
 - Full P-7 is deferred and remains the first-real-prune gate. Native typed
-  readers/writers and cross-client concurrency remain unverified. Expanded
-  billing's reference-safe expiry and Team policy remain incomplete and off.
-  Archive copy/read/prune remains off.
+  readers/writers and cross-client concurrency remain unverified. Team payer
+  policy remains unanswered and Team billing/expiry remains off. All six
+  archive copy/read/prune flags remain off.
 - The user is the only Apple tester and waived development legacy compatibility.
   This clears the dev legacy-client hold for the published core. Native ordinary
   canonical writers must still implement capability-bound strict digest/source,
@@ -40,12 +40,39 @@ Snapshot: 2026-10-04. OpenMates Tasks owns work status and dependencies.
   while preserving the missing-version 404 fix. All 21 route tests passed locally
   and in isolated CI run `37239918530` at exact source `899f9575676d02282df460e77f0294aef5d145ba`.
   Coordinated restart `docker-0557ff83` completed with all API/worker services healthy.
-- Billing integration now has prepared guards against overlapping legacy weekly
-  charges and missing/conflicting archive ownership. The disposable SQL fixture
-  covers personal/Team page and segment ownership errors; execution is pending.
-  The user confirmed expiring only enough complete safe personal units to reduce
-  the excess, and mandatory email notifications. The revised billing contract
-  awaits the explicit invoice-closure decision; Team billing remains gated.
+- Personal billing release `7a6034a17b37c3866037f5fb16b85d50326df144`
+  is published on dev. It adds authoritative logical usage, fixed weekly
+  invoices, confirmed-delivery warnings, protected expiry of only enough warned
+  units, and write-off of only the warned unpaid episode after verified removal
+  restores the free allowance. Matching settings, emails, privacy and terms are
+  published. The user approved `feature.billing@6` and its invoice-closure policy.
+- Both isolated billing profiles passed on source
+  `47dbe933681ada991f4c06199206c03a2a918868`, with zero retries or flaky cases:
+  [logical usage and expiry](https://github.com/glowingkitty/OpenMates/actions/runs/37253722468)
+  and [legacy billing compatibility](https://github.com/glowingkitty/OpenMates/actions/runs/37253838672).
+  They use actual disposable PostgreSQL and S3-compatible SeaweedFS, two 112-byte
+  AES-GCM objects and explicitly simulated declared usage. They send no real
+  inference or email requests and touch no real user data. Actual Hetzner
+  multi-region failover is not established by these tests.
+- Reconciliation with current dev preserved other chats' settings and translation
+  changes. Billing SQL/metering/expiry behavior matches the accepted CI source.
+  The corrected real warning templates and contexts passed 45 local tests. The
+  publication Python gate passed 137 cases; the unrelated workflow-digest retry
+  case also fails on unchanged dev because its fixed timestamp has aged out.
+  Its repeated execution was excluded with a recorded reason, without changing
+  that test. Specification, lint, translation and locale gates passed.
+- Matching billing web deployment succeeded. Additive schema setup
+  `docker-4777bd38` and coherent 17-service restart `docker-40849e0b` succeeded.
+  The complete read-only scan checked 44 owners in 17.588 seconds: 44 complete
+  legacy quotes, 44 complete logical quotes, zero held quotes or lookup errors.
+- Coordinated development activation `docker-323e9d0d` enabled personal logical
+  S3 billing and protected unpaid expiry on the API and all three billing worker
+  targets. Warning links use `https://app.dev.openmates.org`. Final readback
+  confirms the targets are running, all 11 billing/metering indexes are present,
+  valid and ready, and all six archive copy/read/prune flags remain off. The
+  readiness checks made zero charges, email sends or deletions. Read-only provider
+  lookup confirmed the configured support sender is active; delivery behavior is
+  tested with provider fixtures, not real emails. Production is unchanged.
 - Exactly two real user turns completed, once each and without inference retry:
   CLI used 25 credits and web used 33, 58 total. CLI SQL and a fresh process
   verify exactly one user/assistant pair, the exact saved `add_one` code embed,
@@ -63,6 +90,19 @@ Snapshot: 2026-10-04. OpenMates Tasks owns work status and dependencies.
   The initial live-browser ACK capture timeout remains recorded; stronger
   canonical and fresh-device recovery evidence passed. Across both canaries there
   were exactly two sends, two charges (25 + 33 = 58 credits) and no retries.
+
+## Implemented foundation and remaining gates
+
+| Area | Implemented on dev | Remaining work |
+| --- | --- | --- |
+| Redis | Three recent main chats; separate bounded active children, embeds and pending writes | Target-load measurements |
+| PostgreSQL/S3 | Bounded queries, indexed pages, encrypted payloads, copy/verify/fences, initial 24-hour buffer | Native readers, full P-7 and first real-data archive/prune rollout |
+| Unattended output | Durable sealed messages, child results, embeds/diffs and checkpoints; failed saves pause work; two live canaries passed | Native writers/readers and cross-client concurrency |
+| Artifact versions | Paginated metadata, S3 history, client snapshots and bounded patches | Complete processing benchmark and account-wide growth of current-head SQL payloads |
+| Directus | High-write policies and checkpoint/archive/recovery policies active; intentional product history preserved | Historical audit cleanup and any narrower routine user-state writer change require their own scope |
+| Personal billing | Metering, fixed invoices, four delivered warnings, protected expiry, warned-only write-off and matching notices active on dev | Production rollout is separate; coarse expiry locks need a future scaling review |
+| Team billing | Protected and unrated | User payer/allowance decision |
+| Legal | Matching storage, encryption, deletion, costs and conditional rollout copy published | Production release remains separate |
 
 ## Earlier release and verification history
 
@@ -82,18 +122,6 @@ under operation `docker-0f33873f`. Independent SQL readback confirms all five
 policies. It ran no schema/data migrations or historical audit cleanup.
 The main storage/API implementation is still in private candidates. No real-user
 migration, pruning, new S3 charge or protected unpaid-data expiration is active.
-
-## Prepared code
-
-| Area | Implementation | Remaining verification or work |
-| --- | --- | --- |
-| Redis | Three recent main chats; separate bounded active children, embeds and pending writes | Target-load measurements |
-| PostgreSQL/S3 | Bounded queries, indexed pages, large payloads, copy/verify/fences, initial 24-hour buffer | Reader compatibility and real-data rollout |
-| Unattended output | Durable sealed messages, child results, embeds/diffs and checkpoints; pause on failed save | Updated restart/browser checks and native clients |
-| Artifact versions | Paginated graph metadata, S3 payloads, periodic snapshots and bounded patches | Processing pilot rerun after the exact-content fixture fix; account-wide growth of current-head SQL payloads |
-| Directus | Five-collection policy published and active; isolated actual Directus comparison passed, preserving intentional history | New checkpoint/archive/recovery policies await main release; any routine user-state writer change needs a separate focused proof |
-| Billing | Logical S3 metering, frozen weekly settlement, retries and delivered-warning clocks | Exact billing review, Team payer, integrated proof and protected expiration implementation |
-| Legal | Storage, encryption, deletion and cost copy corrected; retention-law claims corrected | Coordinated publication with matching behavior |
 
 ## Retrieved evidence
 
@@ -719,3 +747,23 @@ and auditable warned-only invoice waiver. The isolated fixture uses two 112-byte
 objects with explicit simulated logical sizes; no GiB upload or inference is
 required. Focused checks and source-bound PostgreSQL/S3 CI precede dev publication.
 Team policy, real-data archive/pruning and the full capacity target remain gated.
+
+
+## Personal billing release completed on dev (2026-10-05)
+
+Release `7a6034a` and matching web deployment are public. Additive schema setup,
+coherent backend restart, complete 44-owner read-only metering scan and coordinated
+billing activation all succeeded. Final readiness verifies both personal billing
+flags on the API/core/task/scheduler targets, all 11 valid-ready indexes, and all
+six archive flags off. No real-user manual settlement/deletion job was run.
+
+Both final isolated profiles passed cleanly at source `47dbe933`; tiny encrypted
+objects carry simulated logical sizes. Warning context/template checks passed
+45/45. The publication gate passed 137 relevant Python cases with the recorded
+unchanged-dev workflow-digest timestamp exception. This release adds no real
+inference to the two previously completed CLI/web canaries (58 credits total).
+
+TASK-9893's approved personal billing scope is complete. Team payer policy,
+native storage/writer work, full P-7 capacity evidence, current-head payload growth
+and the first real archive/prune activation remain separate open work. The
+architecture is not yet claimed proven for 1000 heavy daily users.

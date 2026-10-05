@@ -312,6 +312,10 @@ implementation_phases:
       - Focused units and isolated actual PostgreSQL/S3 tests with tiny encrypted objects and explicitly simulated declared size; zero real inference, email sends or user data.
       - Scoped dev publication, additive schema/index readiness and coordinated worker activation.
       - Record source-bound receipts and remaining rollout limits in billing-extension.md and progress.md.
+      - Accepted isolated source 47dbe933681ada991f4c06199206c03a2a918868 passed logical run 37253722468 and legacy run 37253838672 with zero retries, failed or flaky cases; tests use two 112-byte encrypted objects and simulated declared usage.
+      - Published dev release 7a6034a17b37c3866037f5fb16b85d50326df144 preserves tested billing semantics and current dev changes; 45 warning context/template checks passed, with the pre-existing unrelated digest retry gate exception recorded.
+      - Development setup docker-4777bd38 and coherent restart docker-40849e0b succeeded; read-only metering checked all 44 owners with complete quotes and zero held owners or errors.
+      - Coordinated personal billing activation docker-323e9d0d succeeded; final readback confirms both flags on all four targets and 11 valid-ready indexes, with all six archive flags off and production unchanged.
 
 required_implementation_checks:
   synthetic_capacity:

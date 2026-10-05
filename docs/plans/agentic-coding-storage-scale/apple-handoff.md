@@ -331,9 +331,11 @@ authorized deletion; matching privacy copy must change with that API behavior.
 
 ## Additional sender and storage-billing requirements
 
-These corrections are in the reviewed Linux candidate and still require its
-source-bound CI and coordinated backend/web release. Pull the implementation
-commit when it is announced; the Mac chat keeps ownership of native changes.
+The sender corrections are public in the active storage foundation. Weekly
+storage settings, fixed affected-unit notices and invoice closure are public in
+development release `7a6034a17b37c3866037f5fb16b85d50326df144`. Sync current
+`origin/dev` through the existing Mac session `6dc7`; keep native changes in that
+bound workspace. The Mac chat owns native implementation and verification.
 
 ### Saved message references and uncertain ACKs
 
@@ -350,7 +352,7 @@ commit when it is announced; the Mac chat keeps ownership of native changes.
   ACK cannot generate another turn ID or another ciphertext under the committed
   message ID. Bind the journal to account, chat, message, key and final content.
 - For AI turns, a generic legacy `chat_message_confirmed` status may precede turn
-  acceptance. The web candidate clears its exact preflight journal only for the
+  acceptance. The released web implementation clears its exact preflight journal only for the
   matching chat/message and committed `new_messages_v == expected_messages_v + 1`.
   Native must likewise distinguish a canonical accepted receipt from an earlier
   metadata status, and preserve pending data when the proof is absent. Keep the
@@ -369,7 +371,7 @@ read-only native storage surfaces against the matching backend release. Expanded
 archive charging and automatic expiry retain their server activation gates.
 
 `GET /v1/settings/storage` keeps `total_bytes`, `free_bytes`, weekly price, and
-legacy uploaded-file breakdown. The candidate additionally returns:
+legacy uploaded-file breakdown. The released API additionally returns:
 
 | Field | Native handling |
 | --- | --- |
@@ -393,12 +395,15 @@ uploaded/generated files; archive pages are not additional uploaded files.
 Example native fixture: 256 MiB uploaded files plus logical categories of 128,
 64, 32, 16 and 8 MiB gives 504 MiB total. Also test an older API response with no
 new fields. Personal pricing stays 1 GiB free and 3 credits per started excess
-GiB per week. New logical-S3 charging defaults off in the backend; Team payer and
-allowance remain pending approval, so native must not invent a Team storage bill.
+GiB per week. Personal logical-S3 charging and protected expiry are active on
+development after complete 44-owner usage and index/runtime readiness checks.
+Their defaults remain off for production. Team payer and allowance remain pending approval, so native
+must not invent a Team storage bill.
 
-The four-warning notices and final-payment/reference-safe expiry workflow must
-be released with matching policy and backend behavior. Do not add native
-expiration actions or assume the inactive archive-billing rollout is enabled.
+Billing, confirmed email delivery, final-payment/reference checks, expiry and
+warned-only invoice write-off are server-owned. Native displays the authoritative
+quote and notices; it must not implement charging, warning counters or deletion
+actions. Archive copy/read/prune has separate gates and remains off.
 
 
 ### Fixed affected-unit notice
