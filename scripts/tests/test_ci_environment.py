@@ -552,3 +552,48 @@ def test_capacity_fixture_binds_application_before_real_celery_request_access(mo
     receipt = json.loads(capsys.readouterr().out)
     assert receipt == {"status": "ready", "source_commit": "a" * 40, "collections_count": 1}
     assert events == ["bind_application", "request_access", "write_synthetic_rollout", "cleanup"]
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_startup_evidence_survives_failure_without_private_output(tmp_path, monkeypatch, fails):
+    import json
+    from scripts import ci_environment as environment
+    monkeypatch.setattr(environment, "SOURCE", str(tmp_path))
+    monkeypatch.setattr(environment, "select_runtime_profile", lambda: True)
+    def start():
+        if fails:
+            raise RuntimeError("private startup failure detail")
+    monkeypatch.setattr(environment, "start_stack", start)
+    monkeypatch.setattr(environment, "startup_service_timings", lambda began: [{"service": "cms-setup", "execution_seconds": 12}])
+    if fails:
+        with pytest.raises(RuntimeError, match="private startup failure"):
+            environment.start_with_evidence()
+    else:
+        environment.start_with_evidence()
+    raw = (tmp_path / "test-results/ci-startup-phases.json").read_text()
+    report = json.loads(raw)
+    assert report["outcome"] == ("failed" if fails else "ready")
+    assert report["schema_mode"] == "prepared"
+    assert report["services"][0]["service"] == "cms-setup"
+    assert "private startup failure" not in raw
+
+
+def test_startup_service_timings_retain_gates_without_health_logs(tmp_path, monkeypatch):
+    import json
+    from datetime import datetime, timezone
+    from types import SimpleNamespace
+    from scripts import ci_environment as environment
+    profile = tmp_path / "compose.json"
+    profile.write_text(json.dumps({"services": {"cms-setup": {}}}))
+    monkeypatch.setattr(environment, "COMPOSE_PATH", profile)
+    monkeypatch.setattr(environment, "compose", lambda *args, **kwargs: SimpleNamespace(stdout="a" * 64))
+    def inspect(command, **kwargs):
+        assert ".Config.Env" not in command[3]
+        assert ".Health.Log" not in command[3]
+        return json.dumps({"service": "cms-setup", "started": "2026-10-05T10:00:10Z", "finished": "2026-10-05T10:00:32Z", "status": "exited", "exit_code": 0, "health": None})
+    monkeypatch.setattr(environment.subprocess, "check_output", inspect)
+    begin = datetime(2026, 10, 5, 10, tzinfo=timezone.utc).timestamp()
+    result = environment.startup_service_timings(begin)[0]
+    assert result["execution_seconds"] == 22
+    assert result["started_after_stack_seconds"] == 10
+    assert result["finished_after_stack_seconds"] == 32

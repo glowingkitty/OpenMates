@@ -399,6 +399,7 @@ def test_verify_image_uses_two_fresh_consumers_and_cleans_each(tmp_path, monkeyp
 
     monkeypatch.setattr(bundle, "PRIVATE", tmp_path)
     monkeypatch.setattr(bundle, "require_runner", lambda: None)
+    monkeypatch.setattr(bundle, "verify_carrier_metadata", lambda image: None)
     monkeypatch.setattr(bundle, "run", lambda *args, **kwargs: Result())
     monkeypatch.setattr(
         bundle, "carrier_payload", lambda image: (manifest, dump)
@@ -444,6 +445,7 @@ def test_verify_image_writes_private_diagnostic_before_rejecting_restore(
         stdout = source.encode()
 
     monkeypatch.setattr(bundle, "require_runner", lambda: None)
+    monkeypatch.setattr(bundle, "verify_carrier_metadata", lambda image: None)
     monkeypatch.setattr(bundle, "run", lambda *args, **kwargs: Result())
     monkeypatch.setattr(
         bundle, "carrier_payload", lambda image: (manifest, reference)
@@ -482,6 +484,7 @@ def test_verify_image_rejects_manifest_normalized_fingerprint_mismatch(monkeypat
         stdout = source.encode()
 
     monkeypatch.setattr(bundle, "require_runner", lambda: None)
+    monkeypatch.setattr(bundle, "verify_carrier_metadata", lambda image: None)
     monkeypatch.setattr(bundle, "run", lambda *args, **kwargs: Result())
     monkeypatch.setattr(bundle, "carrier_payload", lambda image: (manifest, dump))
     with pytest.raises(RuntimeError, match="manifest normalized fingerprint mismatch"):
@@ -531,6 +534,7 @@ def test_producer_roundtrip_fails_closed_and_cleans_only_its_created_database(mo
 
 def test_generation_requires_roundtrip_before_writing_carrier(monkeypatch, tmp_path):
     monkeypatch.setattr(bundle, "require_runner", lambda: None)
+    monkeypatch.setattr(bundle, "verify_carrier_metadata", lambda image: None)
     monkeypatch.setattr(bundle, "run", lambda *args: subprocess.CompletedProcess(args, 0, b"a" * 40, b""))
     monkeypatch.setattr(bundle, "write_profile", lambda profile: None)
     monkeypatch.setattr(bundle, "database_dump", lambda: b"source schema")
@@ -554,3 +558,11 @@ def test_generation_requires_roundtrip_before_writing_carrier(monkeypatch, tmp_p
     bundle.generate(output)
     assert gzip.decompress(output.read_bytes()) == b"stable schema"
     assert json.loads(bundle.MANIFEST.read_text())["normalized_dump_sha256"] == bundle.normalized_dump_sha256(b"stable schema")
+
+
+def test_carrier_metadata_rejects_old_format_before_restore(monkeypatch):
+    class Result:
+        stdout = b"openmates-postgres-plain-gzip-v2"
+    monkeypatch.setattr(bundle, "run", lambda *args, **kwargs: Result())
+    with pytest.raises(RuntimeError, match="label .* mismatch"):
+        bundle.verify_carrier_metadata("schema:test")

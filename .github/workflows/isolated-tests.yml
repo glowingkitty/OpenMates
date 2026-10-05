@@ -263,10 +263,10 @@ jobs:
               --manifest "${{ steps.artifacts.outputs.manifest }}"; then
               python3 ../tooling/scripts/ci_artifacts.py runtime-fallback \
                 --reason runtime_manifest_rejected
-              python3 ../tooling/scripts/ci_runtime_images.py restore "${upload_args[@]}"
+              python3 ../tooling/scripts/ci_runtime_images.py restore --allow-legacy-discovery "${upload_args[@]}"
             fi
           else
-            python3 ../tooling/scripts/ci_runtime_images.py restore "${upload_args[@]}"
+            python3 ../tooling/scripts/ci_runtime_images.py restore --allow-legacy-discovery "${upload_args[@]}"
           fi
       - name: Calculate runtime compatibility keys
         id: runtime_keys
@@ -275,6 +275,7 @@ jobs:
           for kind in api cms setup schema upload; do
             echo "$kind=$(python3 ../tooling/scripts/ci_runtime_images.py key --kind "$kind")" >> "$GITHUB_OUTPUT"
           done
+          python3 ../tooling/scripts/ci_runtime_images.py schema-contract >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
         if: >-
           (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
@@ -353,8 +354,8 @@ jobs:
           cache-to: ${{ inputs.candidate_patch_sha256 == '' && 'type=gha,scope=ci-schema-carrier,mode=max' || '' }}
           labels: |
             org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.schema }}
-            org.openmates.ci.schema-bundle-format=openmates-postgres-plain-gzip-v2
-            org.openmates.ci.schema-restore-semantics=fresh-volume-directus-credential-rotation-v2
+            org.openmates.ci.schema-bundle-format=${{ steps.runtime_keys.outputs.schema_format }}
+            org.openmates.ci.schema-restore-semantics=${{ steps.runtime_keys.outputs.schema_restore }}
       - name: Verify cold prepared schema in two fresh consumers
         id: schema-verify
         if: inputs.mode == 'prepare' && steps.images.outputs.schema != 'true'
@@ -453,6 +454,7 @@ jobs:
           retention-days: 7
           path: |
             subject/test-results/ci-environment.json
+            subject/test-results/ci-startup-phases.json
             subject/test-results/ci-artifacts.json
             subject/test-results/ci-runtime-images.json
             subject/test-results/ci-results.json

@@ -748,9 +748,22 @@ def verify_manifest(manifest: dict) -> None:
             raise RuntimeError(f"Schema carrier has invalid {field}")
 
 
+def verify_carrier_metadata(image: str) -> None:
+    """Reject producer label drift before starting either restore consumer."""
+    for label, expected in (
+        ("org.openmates.ci.schema-bundle-format", SCHEMA_BUNDLE_FORMAT),
+        ("org.openmates.ci.schema-restore-semantics", SCHEMA_RESTORE_SEMANTICS),
+    ):
+        actual = run("docker", "image", "inspect", image, "--format",
+                     '{{ index .Config.Labels "' + label + '" }}').stdout.decode().strip()
+        if actual != expected:
+            raise RuntimeError(f"Schema carrier label {label} mismatch")
+
+
 def verify_image(image: str) -> dict:
     """Restore-test a carrier twice without sharing volumes or credentials."""
     require_runner()
+    verify_carrier_metadata(image)
     source = run("git", "rev-parse", "HEAD").stdout.decode().strip()
     manifest, reference_dump = carrier_payload(image)
     verify_manifest(manifest)

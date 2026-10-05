@@ -59,6 +59,21 @@ def write_plan(tmp_path: Path, body: dict) -> Path:
     return path
 
 
+def test_concise_schema_v2_keeps_tasks_as_external_authority(tmp_path):
+    validator = load_plan_validator()
+    body = {"id": "workflow-speed", "title": "Approved workflow speed scope",
+            "status": "implementing", "goal": "Implement approved R1 R2 R4",
+            "schema_version": 2, "profile": "concise",
+            "task": "external-task-id", "scope": ["Approved infrastructure work"]}
+    assert validator.validate_plan(write_plan(tmp_path, body)) == body
+    body["schema_version"] = 999
+    with pytest.raises(validator.PlanError, match="schema_version"):
+        validator.validate_plan(write_plan(tmp_path, body))
+    body.update(schema_version=2, profile="strict")
+    with pytest.raises(validator.PlanError, match="scenarios"):
+        validator.validate_plan(write_plan(tmp_path, body))
+
+
 def test_goal_only_plan_is_valid(tmp_path: Path) -> None:
     validator = load_plan_validator()
     plan = write_plan(

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Reuse compatible published CI runtimes without trusting mutable image tags.
 
-The dev tag is only a discovery pointer.  Every pulled image must carry the
+Content-keyed tags are discovery pointers. Every pulled image must carry the
 expected input hash; the local job then records the immutable repository digest
 and tags that exact image for the disposable compose stack.  A miss returns to
 the workflow's source build path.
@@ -271,43 +271,38 @@ def restore_manifest_entry(root: Path, entry: dict, manifest_path: Path) -> dict
     }
 
 
-def restore(root: Path, kind: str, registry: str) -> dict:
+def restore(root: Path, kind: str, registry: str, *, allow_legacy: bool = False) -> dict:
     repository, local = IMAGES[kind]
-    remote = f"{registry.rstrip('/')}/{repository}:dev"
     expected = runtime_key(root, kind)
-    pulled = docker("pull", remote, check=False)
-    if pulled.returncode:
-        return {"kind": kind, "reused": False, "reason": "published image unavailable"}
-    actual = image_label(remote, LABEL)
-    if actual != expected:
-        return {
-            "kind": kind,
-            "reused": False,
-            "reason": "runtime compatibility key mismatch",
-            "expected_key": expected,
-            "published_key": actual,
-        }
-    metadata = {}
-    if kind == "schema":
-        metadata = schema_metadata(remote)
+    base = f"{registry.rstrip('/')}/{repository}"
+    pointers = [(f"{base}:runtime-{expected}", "content-key-discovery")]
+    if allow_legacy:
+        pointers.append((f"{base}:dev", "legacy-discovery-pointer"))
+    misses = []
+    for remote, source in pointers:
+        pulled = docker("pull", remote, check=False)
+        if pulled.returncode:
+            misses.append({"source": source, "reason": "published image unavailable"})
+            continue
+        # Resolve first, then validate/tag the immutable identity. Never tag the
+        # discovery pointer after inspection: another publisher may move it.
+        immutable = next((item for item in image_repo_digests(remote)
+                          if item.startswith(base + "@sha256:")
+                          and re.fullmatch(r"[^\s@]+@sha256:[0-9a-f]{64}", item)), "")
+        if not immutable:
+            misses.append({"source": source, "reason": "published image lacks immutable digest"})
+            continue
         try:
-            validate_schema_metadata(metadata)
+            metadata = verify_loaded_image(root, kind, immutable, expected)
         except RuntimeError as exc:
-            return {"kind": kind, "reused": False, "reason": str(exc)}
-    docker("tag", remote, local)
-    repo_digests = image_repo_digests(remote)
-    immutable = next((item for item in repo_digests if "@sha256:" in item), "")
-    if not immutable:
-        raise RuntimeError(f"Published {kind} image lacks an immutable repository digest")
-    return {
-        "kind": kind,
-        "reused": True,
-        "runtime_key": expected,
-        "repository_digest": immutable,
-        "local_tag": local,
-        "source": "mutable-discovery-pointer",
-        **metadata,
-    }
+            misses.append({"source": source, "reason": str(exc)})
+            continue
+        docker("tag", immutable, local)
+        return {"kind": kind, "reused": True, "runtime_key": expected,
+                "repository_digest": immutable, "local_tag": local,
+                "source": source, "discovery_misses": misses, **metadata}
+    return {"kind": kind, "reused": False, "expected_key": expected,
+            "reason": misses[-1]["reason"], "discovery_misses": misses}
 
 
 def load_manifest(path: Path) -> dict:
@@ -334,10 +329,13 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     key = sub.add_parser("key")
     key.add_argument("--kind", choices=sorted(RUNTIME_INPUTS), required=True)
+    sub.add_parser("schema-contract", help="Emit the executed schema metadata contract")
     restore_parser = sub.add_parser("restore")
     restore_parser.add_argument("--registry", default="ghcr.io/glowingkitty")
     restore_parser.add_argument("--include-upload", action="store_true")
     restore_parser.add_argument("--manifest", type=Path)
+    restore_parser.add_argument("--allow-legacy-discovery", action="store_true",
+                                help="One-release transition: verify the old dev pointer after a keyed miss")
     args = parser.parse_args()
     root = Path(
         os.environ.get(
@@ -346,6 +344,10 @@ def main() -> int:
     ).resolve()
     if args.command == "key":
         print(runtime_key(root, args.kind))
+        return 0
+    if args.command == "schema-contract":
+        print(f"schema_format={SCHEMA_BUNDLE_FORMAT}")
+        print(f"schema_restore={SCHEMA_RESTORE_SEMANTICS}")
         return 0
     kinds = ["api", "cms", "setup", "schema"] + (["upload"] if args.include_upload else [])
     if args.manifest:
@@ -363,7 +365,8 @@ def main() -> int:
             restore_manifest_entry(root, entries[kind], manifest_path) for kind in kinds
         ]
     else:
-        results = [restore(root, kind, args.registry) for kind in kinds]
+        results = [restore(root, kind, args.registry, allow_legacy=args.allow_legacy_discovery)
+                   for kind in kinds]
     write_outputs(results)
     evidence = root / "test-results/ci-runtime-images.json"
     evidence.parent.mkdir(parents=True, exist_ok=True)

@@ -765,8 +765,12 @@ def validate_plan(path: Path) -> dict[str, Any]:
         errors.append(f"status must be one of {', '.join(sorted(VALID_STATUSES))}")
     _capture(errors, _require_string, data, "goal")
 
-    strict = data.get("profile") == "strict" or "schema_version" in data
+    strict = data.get("profile") == "strict" or (
+        "schema_version" in data and data.get("profile") != "concise"
+    )
     if not strict:
+        if "schema_version" in data:
+            _capture(errors, _schema_version, data)
         _capture(errors, _validate_assumptions, data, schema_version=1)
         if errors:
             raise PlanError(errors)

@@ -9,6 +9,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import datetime
 import hashlib
 import math
 import secrets
@@ -1096,6 +1097,64 @@ def select_runtime_profile() -> bool:
     return True
 
 
+def startup_service_timings(started_at: float) -> list[dict]:
+    """Collect bounded state metadata, excluding environment and health output."""
+    containers = compose("ps", "-aq", capture=True, timeout=20).stdout.split()
+    if not containers:
+        return []
+    if len(containers) > 256 or any(not re.fullmatch(r"[0-9a-f]{12,64}", item)
+                                    for item in containers):
+        raise RuntimeError("Unexpected isolated container inventory")
+    template = ('{"service":{{json (index .Config.Labels "com.docker.compose.service")}},'
+                '"started":{{json .State.StartedAt}},"finished":{{json .State.FinishedAt}},'
+                '"status":{{json .State.Status}},"exit_code":{{json .State.ExitCode}},'
+                '"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}null{{end}}}')
+    output = subprocess.check_output(["docker", "inspect", "--format", template,
+                                      *containers], text=True, timeout=20)
+    allowed = set(json.loads(COMPOSE_PATH.read_text())["services"])
+    result = []
+    for line in output.splitlines():
+        state = json.loads(line)
+        if state["service"] not in allowed:
+            raise RuntimeError("Unexpected service in isolated container inventory")
+        item = {key: state[key] for key in ("service", "status", "exit_code", "health")}
+        timestamps = {}
+        for field in ("started", "finished"):
+            value = datetime.fromisoformat(state[field].replace("Z", "+00:00")).timestamp()
+            if value >= started_at:
+                timestamps[field] = value
+                item[field + "_after_stack_seconds"] = round(value - started_at, 3)
+        if "started" in timestamps and "finished" in timestamps:
+            item["execution_seconds"] = round(timestamps["finished"] - timestamps["started"], 3)
+        result.append(item)
+    return sorted(result, key=lambda item: item["service"])
+
+
+def start_with_evidence():
+    """Retain useful phase timings even when a disposable bootstrap fails."""
+    begin = time.time()
+    selected = select_runtime_profile()
+    selected_at = time.time()
+    report = {"format_version": 1, "schema_mode": "prepared" if selected else "cold",
+              "profile_selection_seconds": round(selected_at - begin, 3),
+              "run_id": os.environ.get("GITHUB_RUN_ID"),
+              "harness_commit": os.environ.get("CI_HARNESS_COMMIT"), "outcome": "failed"}
+    try:
+        result = start_stack()
+        report["outcome"] = "ready"
+        return result
+    finally:
+        report["compose_wait_seconds"] = round(time.time() - selected_at, 3)
+        try:
+            report["services"] = startup_service_timings(selected_at)
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
+            # Timing collection must never replace the actual startup result.
+            report["timing_collection_error"] = type(exc).__name__
+        destination = Path(SOURCE) / "test-results/ci-startup-phases.json"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(json.dumps(report, indent=2))
+
+
 def main():
     require_runner()
     action = sys.argv[1]
@@ -1200,8 +1259,7 @@ def main():
         )
     elif action == "start":
         # Compose's wait limit may not bound one-shot dependency startup.
-        select_runtime_profile()
-        start_stack()
+        start_with_evidence()
     elif action == "verify":
         import socket
         import urllib.request

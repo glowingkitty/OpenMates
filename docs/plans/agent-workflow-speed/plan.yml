@@ -1,0 +1,26 @@
+schema_version: 2
+profile: concise
+id: agent-workflow-speed
+title: Implement approved workflow speed improvements R1 R2 R4
+status: implementing
+goal: Reduce approved CI bootstrap, storage admission, and hosted-job capacity bottlenecks.
+approval: User approved R1, R2 and R4 on 2026-10-05; confirmed GitHub Free with 20 hosted jobs.
+task: e3ac5482-44c2-42ed-909e-e97afc7476be
+scope:
+  - R1: Restore compatible schema runtimes using content keys, repair producer metadata, and measure bootstrap phases.
+  - R2: Budget managed resources and reclaim only proven disposable payloads under existing ownership and retention rules.
+  - R4: Admit work within the confirmed owner-wide 20 hosted-job limit, with separate dedicated-runner capacity and a work-conserving quick-job reserve.
+out_of_scope:
+  - R3 communication redesign and automatic remote workers.
+  - Production changes, weakening isolation or disk guards, and deletion of uncertain source or recovery data.
+verification:
+  - Focused tooling unit tests cover immutable runtime discovery, schema invalidation and corruption, safe resource retention, concurrent admission, external job occupancy, runner classes and dispatch recovery.
+  - Validate schema producer labels against the executed format and restore contract; retain two-fresh-consumer credential rotation and equivalence checks.
+  - Review a dry-run resource manifest before enabling newly introduced cleanup.
+  - Deploy through the session coordinator, then use isolated CI for a cold and two warm executions of one passing browser spec and a bounded admission burst.
+  - Compare bootstrap timings and reuse evidence; reassess if warm backend startup does not improve.
+rollout:
+  - Publish only the scoped diff using session 0e70.
+  - Preserve the durable CI queue and safely restart only its current reconciler.
+  - Discover content-keyed schema images first; retain verified legacy discovery only for the transition release.
+  - Record measured outcomes and any remaining work in the linked Tasks.

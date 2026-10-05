@@ -169,6 +169,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:${{ needs.prepare.outputs.image_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:${{ needs.prepare.outputs.ref_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:sha-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:runtime-${{ steps.runtime-key.outputs.key }}
           build-args: |
             BUILD_COMMIT_SHA=${{ github.sha }}
             BUILD_COMMIT_MESSAGE=${{ github.event.head_commit.message || github.event_name }}
@@ -289,6 +290,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ needs.prepare.outputs.image_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ needs.prepare.outputs.ref_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:sha-${{ github.sha }}
+            ${{ matrix.runtime_kind != '' && format('{0}/{1}/{2}:runtime-{3}', env.REGISTRY, env.IMAGE_NAMESPACE, matrix.image, steps.runtime-key.outputs.key) || '' }}
           build-args: |
             BUILD_COMMIT_SHA=${{ github.sha }}
             BUILD_COMMIT_MESSAGE=${{ github.event.head_commit.message || github.event_name }}
@@ -346,7 +348,9 @@ jobs:
 
       - name: Calculate schema compatibility key
         id: runtime-key
-        run: echo "key=$(python3 scripts/ci_runtime_images.py key --kind schema)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "key=$(python3 scripts/ci_runtime_images.py key --kind schema)" >> "$GITHUB_OUTPUT"
+          python3 scripts/ci_runtime_images.py schema-contract >> "$GITHUB_OUTPUT"
 
       - name: Build candidate CI schema image locally
         uses: docker/build-push-action@v6
@@ -361,6 +365,8 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ needs.prepare.outputs.image_tag }}
             org.openmates.ci.runtime-key=${{ steps.runtime-key.outputs.key }}
+            org.openmates.ci.schema-bundle-format=${{ steps.runtime-key.outputs.schema_format }}
+            org.openmates.ci.schema-restore-semantics=${{ steps.runtime-key.outputs.schema_restore }}
 
       - name: Verify candidate schema in two fresh consumers
         run: python3 scripts/ci_schema_bundle.py verify-image openmates-ci-database:local
@@ -369,8 +375,9 @@ jobs:
         env:
           IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
           REF_TAG: ${{ needs.prepare.outputs.ref_tag }}
+          RUNTIME_KEY: ${{ steps.runtime-key.outputs.key }}
         run: |
-          for tag in "$IMAGE_TAG" "$REF_TAG" "sha-${GITHUB_SHA}"; do
+          for tag in "$IMAGE_TAG" "$REF_TAG" "sha-${GITHUB_SHA}" "runtime-${RUNTIME_KEY}"; do
             remote="${REGISTRY}/${IMAGE_NAMESPACE}/openmates-ci-schema:${tag}"
             docker tag openmates-ci-database:local "$remote"
             docker push "$remote"
