@@ -16,13 +16,15 @@ phases:
 - id: understand
   title: Choose an assessment
   instructions: Use the topic, difficulty and desired length already supplied. Ask one short question
-    if essential context is missing. A brief quiz can begin immediately; no five-round intake.
+    if essential context is missing. If the learner has supplied the scope and asks to start now, begin
+    the first assessment question immediately; do not ask for another readiness confirmation. No five-round intake.
   requirements:
   - id: assessment_scope
     text: The topic and practical assessment scope are established or the user asks to proceed on assumptions.
 - id: assess
   title: Try the questions
-  instructions: Ask one question at a time and wait for the actual learner answer. Do not show the correct
+  instructions: Ask the first question immediately when the learner already asked to start. Do not ask
+    for readiness again. Ask one question at a time and wait for the actual learner answer. Do not show the correct
     option, answer key or calculation in chips, titles or option identifiers. Adapt difficulty based on
     reasoning, not agreement. Keep asking until the requested short assessment is complete or the learner
     explicitly stops.

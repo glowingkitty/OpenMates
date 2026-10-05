@@ -36,7 +36,7 @@ phases:
   instructions: Give a small task related to the current concept. Wait for the learner attempt. If wrong,
     identify the misconception and offer one small hint at a time. Keep remediation within this phase.
     Do not convert every fraction or complete all working for them. Do not put the correct result in follow-up
-    questions, option IDs or titles.
+    questions, option IDs, titles or input placeholders. Use neutral input placeholders.
   requirements:
   - id: practice_attempt
     text: The learner has attempted the current guided task and described reasoning, with any misconception
@@ -70,11 +70,11 @@ phases:
 
 ## Process
 
-- asks what topic you want to learn
-- determines your current knowledge level and learning goals
-- breaks down the topic into manageable subtopics
-- creates a personalized learning schedule with spaced repetition
-- integrates with Reminder app to send periodic review notifications
+- uses your topic, prior knowledge and goal to start a small lesson
+- explains one concept, then asks for your reasoning
+- guides practice with small hints and checks a fresh attempt
+- records skipped checks as unassessed
+- suggests spaced retrieval and offers reminders only with consent
 
 ## How to use
 
