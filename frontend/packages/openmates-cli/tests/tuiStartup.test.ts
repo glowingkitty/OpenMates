@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createTuiStartup, type TuiStartupServices } from "../src/tuiStartup.ts";
 import { createInitialTuiState, renderTuiFrame } from "../src/tuiRenderer.ts";
-import { checkTuiUpdate, deferTuiUpdate, buildSelfUpdatePlan } from "../src/selfUpdate.ts";
+import { checkTuiUpdate, deferTuiUpdate, buildSelfUpdatePlan, installTuiUpdate, checkSelfUpdateStatus, runSelfUpdate } from "../src/selfUpdate.ts";
 import { cells, stripAnsi } from "../src/tuiText.ts";
 
 const offer = () => ({ plan: buildSelfUpdatePlan({ channel: "dev" }), latestVersion: "99.0.0-alpha.1" });
@@ -128,5 +128,40 @@ test("update skip persists for exactly 24 hours and a failed check keeps startup
     if (prior.directory === undefined) delete process.env.OPENMATES_UPDATE_DIR; else process.env.OPENMATES_UPDATE_DIR = prior.directory;
     if (prior.latest === undefined) delete process.env.OPENMATES_CLI_LATEST_VERSION; else process.env.OPENMATES_CLI_LATEST_VERSION = prior.latest;
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+test("npm checks and both update paths refresh metadata for a newly published version", { skip: process.platform === "win32" }, async () => {
+  // This POSIX executable simulates the stale npm metadata observed on the dev host.
+  const directory = mkdtempSync(join(tmpdir(), "tui-fresh-npm-"));
+  const keys = ["PATH", "OPENMATES_UPDATE_DIR", "OPENMATES_CLI_LATEST_VERSION", "npm_config_user_agent", "npm_config_prefer_online", "OPENMATES_TEST_UPDATE_LOG"];
+  const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  const marker = join(directory, "installs.txt");
+  try {
+    writeFileSync(join(directory, "npm"), "#!" + process.execPath + "\n" + [
+      'const fs=require("node:fs");',
+      'const args=process.argv.slice(2);',
+      'if(args[0]==="view"){if(!args.includes("--prefer-online"))process.exit(31);console.log("99.0.0");}',
+      'else if(args[0]==="install"){if(process.env.npm_config_prefer_online!=="true"){console.error("ETARGET: cached metadata lacks the new version");process.exit(32);}fs.appendFileSync(process.env.OPENMATES_TEST_UPDATE_LOG,"installed\\n");}',
+      'else process.exit(33);',
+    ].join("\n"), {mode: 0o755});
+    process.env.PATH = directory + ":" + previous.PATH;
+    process.env.OPENMATES_UPDATE_DIR = directory;
+    process.env.OPENMATES_TEST_UPDATE_LOG = marker;
+    process.env.npm_config_user_agent = "npm/test";
+    process.env.npm_config_prefer_online = "false";
+    delete process.env.OPENMATES_CLI_LATEST_VERSION;
+    const offer = await checkTuiUpdate();
+    assert.equal(offer?.latestVersion, "99.0.0");
+    assert.ok(offer);
+    await installTuiUpdate(offer);
+    const plan = buildSelfUpdatePlan({channel: "dev", version: "99.0.0", "package-manager": "npm"});
+    assert.equal(checkSelfUpdateStatus(buildSelfUpdatePlan({channel: "dev", "package-manager": "npm"})).latestVersion, "99.0.0");
+    runSelfUpdate(plan);
+    assert.equal(readFileSync(marker, "utf8"), "installed\ninstalled\n");
+  } finally {
+    for (const key of keys) if (previous[key] === undefined) delete process.env[key]; else process.env[key] = previous[key];
+    rmSync(directory, {recursive: true, force: true});
   }
 });

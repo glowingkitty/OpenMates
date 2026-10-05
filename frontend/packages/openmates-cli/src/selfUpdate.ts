@@ -62,7 +62,7 @@ export async function checkTuiUpdate(now = Date.now()): Promise<TuiUpdateOffer |
     } catch { /* Missing or invalid reminder means the update can be offered. */ }
     const plan = buildSelfUpdatePlan({});
     const forced = process.env.OPENMATES_CLI_LATEST_VERSION?.trim();
-    const latestVersion = forced || (await executeFile(commandName("npm"), ["view", `${PACKAGE_NAME}@${plan.target}`, "version"], {
+    const latestVersion = forced || (await executeFile(commandName("npm"), ["view", `${PACKAGE_NAME}@${plan.target}`, "version", "--prefer-online"], {
       encoding: "utf8", timeout: 10_000,
     })).stdout.trim().split("\n").at(-1)?.trim();
     if (!latestVersion || compareVersions(latestVersion, plan.currentVersion) <= 0) return null;
@@ -75,7 +75,8 @@ export async function installTuiUpdate(offer: TuiUpdateOffer): Promise<void> {
   const plan = offer.plan;
   if (plan.dryRun) return;
   try {
-    await executeFile(plan.command, plan.args, { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
+    await executeFile(plan.command, plan.args, { encoding: "utf8", maxBuffer: 4 * 1024 * 1024,
+      env: { ...process.env, npm_config_prefer_online: "true" } });
   } catch {
     throw new Error(`Update failed. Retry or skip for now; you can also run openmates update --verbose.`);
   }
@@ -199,6 +200,7 @@ export function runSelfUpdate(plan: SelfUpdatePlan, options: { verbose?: boolean
   const result = spawnSync(plan.command, plan.args, {
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, npm_config_prefer_online: "true" },
   });
   if (options.verbose && result.stdout) process.stderr.write(result.stdout);
   if (options.verbose && result.stderr) process.stderr.write(result.stderr);
@@ -226,7 +228,7 @@ function resolveTargetVersion(target: string): { version: string | null; error: 
   if (/^\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9._-]+)?$/.test(target)) {
     return { version: target, error: null };
   }
-  const result = spawnSync(commandName("npm"), ["view", `${PACKAGE_NAME}@${target}`, "version"], {
+  const result = spawnSync(commandName("npm"), ["view", `${PACKAGE_NAME}@${target}`, "version", "--prefer-online"], {
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "pipe"],
     timeout: 30_000,
