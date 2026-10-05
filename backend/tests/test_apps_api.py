@@ -338,7 +338,8 @@ async def test_skill_provider_pricing_uses_provider_ref_display_name(monkeypatch
     class FakeConfigManager:
         def get_provider_config(self, provider_id: str):
             assert provider_id == "google"
-            return {"name": "Google Vertex AI", "description": "Google provider metadata"}
+            return {"name": "Google Vertex AI", "description": "Google provider metadata",
+                    "pricing": {"tokens": {"input": {"per_credit_unit": 200}}}}
 
     async def fake_fetch_provider_pricing(provider_id: str):
         assert provider_id == "google"
@@ -359,6 +360,34 @@ async def test_skill_provider_pricing_uses_provider_ref_display_name(monkeypatch
 
     assert providers[0].provider == "google"
     assert providers[0].name == "Google"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_id", ["openmates", "google"])
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.alerts.actionable-low-noise,app-skills.surface.semantic-parity
+async def test_catalog_skips_absent_provider_level_pricing(monkeypatch, provider_id) -> None:
+    class FakeConfigManager:
+        def get_provider_config(self, requested_id: str):
+            assert requested_id == provider_id
+            return {"name": provider_id.title(), "description": "Provider metadata",
+                    "models": [{"id": "model", "pricing": {"tokens": {"input": 1}}}]}
+
+    async def unexpected_fetch(_provider_id: str):
+        raise AssertionError("Absent provider pricing must not trigger an internal HTTP request")
+
+    monkeypatch.setattr(apps_api, "fetch_provider_pricing", unexpected_fetch)
+    providers = await apps_api.get_skill_providers_with_pricing(
+        AppSkillDefinition(
+            id="search", name_translation_key="test", description_translation_key="test",
+            providers=[ProviderRef(name=provider_id)],
+        ),
+        "tasks", FakeConfigManager(),
+    )
+    assert len(providers) == 1
+    assert providers[0].provider == provider_id
+    assert providers[0].name == provider_id.title()
+    assert providers[0].description == "Provider metadata"
+    assert providers[0].pricing == {}
 
 
 @pytest.mark.asyncio

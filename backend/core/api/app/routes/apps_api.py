@@ -901,8 +901,12 @@ async def get_skill_providers_with_pricing(
             else:
                 logger.debug(f"Provider config not found for '{provider_id}', using fallback name '{provider_name}'")
             
-            # Fetch pricing for this provider
-            provider_pricing = await fetch_provider_pricing(provider_id)
+            # A loaded config without provider-level pricing is authoritative:
+            # platform services and model-priced providers legitimately omit it.
+            # Avoid an internal 404 for every catalog request in that case.
+            provider_pricing = None
+            if provider_config is None or provider_config.get("pricing"):
+                provider_pricing = await fetch_provider_pricing(provider_id)
             
             if provider_pricing:
                 providers_list.append(ProviderPricing(

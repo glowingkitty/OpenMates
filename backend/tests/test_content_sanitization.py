@@ -220,7 +220,7 @@ def test_redaction_preserves_content_structure_and_blocking(monkeypatch, case):
     if case == "toon":
         expected = {"results": [dict(row, extra_snippets=PROMPT_INJECTION_PLACEHOLDER)
                                 for row in payload["results"]]}
-        assert toon.decode(result, toon.DecodeOptions(indent=2, strict=True)) == expected
+        assert toon.decode(result, indent_size=2, strict=True) == expected
     assert result == chunk.replace(detected, PROMPT_INJECTION_PLACEHOLDER)
 
 

@@ -12,7 +12,7 @@ import yaml
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
-from toon_format import encode, decode, DecodeOptions
+from toon_format import encode, decode
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.brave.brave_search import search_news
@@ -640,10 +640,10 @@ class SearchSkill(BaseSkill):
                         sanitized_data = None
                         try:
                             try:
-                                sanitized_data = decode(sanitized_toon, DecodeOptions(indent=2, strict=True))
+                                sanitized_data = decode(sanitized_toon, indent_size=2, strict=True)
                             except (ValueError, Exception) as decode_error:
                                 logger.warning(f"[{task_id}] Strict TOON decode failed: {decode_error}. Attempting lenient decode...")
-                                sanitized_data = decode(sanitized_toon, DecodeOptions(indent=2, strict=False))
+                                sanitized_data = decode(sanitized_toon, indent_size=2, strict=False)
                                 logger.info(f"[{task_id}] Lenient TOON decode succeeded.")
                             
                             if not isinstance(sanitized_data, dict) or "results" not in sanitized_data:
