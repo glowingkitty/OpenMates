@@ -3996,6 +3996,9 @@ async def handle_main_processing(
             and (not active_project_focus or project_candidates[focus]["project_id"] != active_project_focus["project_id"])
         )
     ]
+    # An accepted specialist already supplies its instructions. Reoffering it
+    # would restart the countdown on every continuation of the same user turn.
+    relevant_focus_modes = [focus for focus in relevant_focus_modes if focus != request_data.active_focus_id]
     if has_active_focus_mode:
         relevant_focus_modes = [focus for focus in relevant_focus_modes if focus in project_candidates or focus in private_candidates]
     # Whether the user explicitly specified this focus mode via @focus:app:id mention

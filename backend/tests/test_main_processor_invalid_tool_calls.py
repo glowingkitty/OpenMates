@@ -16,6 +16,7 @@ import sys
 import types
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -270,6 +271,9 @@ async def _run_mocked_protocol_guard_main_processor(
     truncate_history=None,
     generated_tools=None,
     ai_model_topics=None,
+    request_overrides=None,
+    preprocessing_overrides=None,
+    cache_service=None,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -303,6 +307,8 @@ async def _run_mocked_protocol_guard_main_processor(
                 if isinstance(chunk, dict) and "fake_google_tool_call" in chunk:
                     tool_call = main_processor.ParsedGoogleToolCall()
                     tool_call.function_name = chunk["fake_google_tool_call"]
+                    tool_call.function_arguments_raw = json.dumps(chunk.get("arguments", {}))
+                    tool_call.tool_call_id = chunk.get("tool_call_id", "fake-tool-call")
                     yield tool_call
                     continue
                 yield chunk
@@ -390,6 +396,7 @@ async def _run_mocked_protocol_guard_main_processor(
         embed_file_path_index=None,
     )
     request_data.resolved_recovery_inference_task_id = lambda: None
+    request_data.__dict__.update(request_overrides or {})
     request_data.model_dump = lambda **_kwargs: request_data.__dict__.copy()
     preprocessing_results = SimpleNamespace(
         load_app_settings_and_memories=[],
@@ -410,6 +417,7 @@ async def _run_mocked_protocol_guard_main_processor(
         user_requested_skills_only=False,
         user_requested_focus_only=False,
     )
+    preprocessing_results.__dict__.update(preprocessing_overrides or {})
 
     output = [
         chunk
@@ -423,10 +431,143 @@ async def _run_mocked_protocol_guard_main_processor(
             None,
             [],
             discovered_apps_metadata={},
+            cache_service=cache_service,
             user_overrides=SimpleNamespace(skills=None, wikipedia_references=[]),
         )
     ]
     return output, calls
+
+
+@pytest.fixture
+def private_focus_activation_context(monkeypatch):
+    """Mock authority/provider boundaries, retaining real phase parsing and prompts."""
+    from backend.apps.ai.processing import focus_phases
+    from backend.core.api.app.services.embed_service import EmbedService
+    from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+
+    active_id = "project-focus:project-1:old-specialist"
+    other_id = "project-focus:project-1:other-specialist"
+    instruction = """---
+phases_version: 1
+phases:
+  - id: intake
+    title: Intake
+    instructions: Earlier phase instruction sentinel.
+    requirements:
+      - id: intake_done
+        text: Goal established.
+  - id: current
+    title: Current phase
+    instructions: Current phase instruction sentinel.
+    requirements:
+      - id: confirmed
+        type: user_confirmation
+        text: User confirms the proposed direction.
+---
+## System prompt
+Full accepted specialist instruction sentinel.
+"""
+    definition = focus_phases.parse_project_phase_focus(instruction, active_id)
+    state = focus_phases.restore_state(definition, focus_id=active_id, chat_id="chat-1")
+    state.phase_id = "current"
+    private_document = AsyncMock(return_value={"instruction": instruction, "item_revision": "revision-1"})
+    monkeypatch.setattr(main_processor.agentic_context, "private_focus_document", private_document)
+    monkeypatch.setattr(main_processor.agentic_context, "private_focus_candidates", AsyncMock(return_value=[
+        {"id": active_id, "title": "Old specialist", "summary": "Existing saved specialist"},
+        {"id": other_id, "title": "Other specialist", "summary": "A valid switch candidate"},
+    ]))
+    monkeypatch.setattr(main_processor.agentic_context, "fresh_project", AsyncMock(return_value=None))
+    monkeypatch.setattr(ProjectWriteAuthorizationService, "get_active_focus", AsyncMock(return_value=None))
+    monkeypatch.setattr(main_processor, "_load_main_agentic_context", AsyncMock(return_value=("", [])))
+    # Decision inference is external; retaining the saved current phase is the
+    # deterministic behavior under test, rather than making a paid Jev call.
+    monkeypatch.setattr(focus_phases.FocusPhaseRuntime, "evaluate", AsyncMock(return_value=False))
+    invalidate = AsyncMock()
+    monkeypatch.setattr(focus_phases, "invalidate_phase_runtime", invalidate)
+    embed = AsyncMock(return_value={"embed_id": "unexpected-activation", "embed_reference": "unexpected-embed"})
+    monkeypatch.setattr(EmbedService, "create_focus_mode_activation_embed", embed)
+    countdown = Mock()
+    monkeypatch.setattr(celery_app, "send_task", countdown)
+
+    class Cache:
+        get_pending_app_settings_memories_request = AsyncMock(return_value=None)
+        store_pending_focus_activation = AsyncMock(return_value=True)
+
+        @property
+        def client(self):
+            async def no_redis():
+                return None
+            return no_redis()
+
+    return SimpleNamespace(active_id=active_id, other_id=other_id, state=state,
+        private_document=private_document, cache=Cache(), embed=embed,
+        countdown=countdown, invalidate=invalidate)
+
+
+def _private_focus_request_overrides(context, *, active=True):
+    return {
+        "active_focus_id": context.active_id if active else None,
+        "is_focus_mode_continuation": active,
+        "focus_phase_state": {context.active_id: context.state.model_dump()} if active else {},
+    }
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction,focus-modes.project-specialist-composition
+@pytest.mark.parametrize("active", [True, False])
+async def test_private_focus_activation_offer_excludes_only_accepted_specialist(
+    monkeypatch, private_focus_activation_context, active
+) -> None:
+    context = private_focus_activation_context
+    answer = "The accepted specialist continues with the current phase."
+    output, calls = await _run_mocked_protocol_guard_main_processor(monkeypatch, [[answer]],
+        request_overrides=_private_focus_request_overrides(context, active=active),
+        preprocessing_overrides={"relevant_focus_modes": [context.active_id, context.other_id]},
+        cache_service=context.cache)
+    activation = next(tool["function"] for tool in calls[0]["tools"]
+        if tool["function"]["name"] == "activate_focus_mode")
+    for description in (activation["description"], activation["parameters"]["properties"]["focus_id"]["description"]):
+        assert context.other_id in description
+        assert (context.active_id in description) is (not active)
+    if active:
+        assert "Full accepted specialist instruction sentinel." in calls[0]["system_prompt"]
+        assert "Current phase: current: Current phase" in calls[0]["system_prompt"]
+        assert "Current phase instruction sentinel." in calls[0]["system_prompt"]
+        assert "[user_confirmation] User confirms the proposed direction." in calls[0]["system_prompt"]
+        assert "Earlier phase instruction sentinel." not in calls[0]["system_prompt"]
+        assert any(call.kwargs.get("require_accepted", True) for call in context.private_document.await_args_list)
+        phases = [chunk["states"] for chunk in output if isinstance(chunk, dict) and chunk.get("__focus_phases_updated__")]
+        assert phases
+        assert all(states[context.active_id]["phase_id"] == "current" for states in phases)
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+    context.embed.assert_not_awaited()
+    context.cache.store_pending_focus_activation.assert_not_awaited()
+    context.countdown.assert_not_called()
+    context.invalidate.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-specialist-composition,focus-modes.full-instruction
+@pytest.mark.parametrize("target", ["same-active", "malformed"])
+async def test_private_focus_repeated_or_malformed_activation_cannot_restart_countdown(
+    monkeypatch, private_focus_activation_context, target
+) -> None:
+    context = private_focus_activation_context
+    focus_id = context.active_id if target == "same-active" else "project-focus:malformed"
+    answer = "Continuing the already accepted specialist without another activation."
+    output, calls = await _run_mocked_protocol_guard_main_processor(monkeypatch,
+        [[{"fake_google_tool_call": "activate_focus_mode", "arguments": {"focus_id": focus_id}}], [answer]],
+        request_overrides=_private_focus_request_overrides(context),
+        preprocessing_overrides={"relevant_focus_modes": [context.active_id, context.other_id]},
+        cache_service=context.cache)
+    assert len(calls) == 2
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+    assert "Full accepted specialist instruction sentinel." in calls[1]["system_prompt"]
+    assert "Current phase: current: Current phase" in calls[1]["system_prompt"]
+    assert not any(isinstance(chunk, dict) and chunk.get("__awaiting_focus_mode_confirmation__") for chunk in output)
+    context.embed.assert_not_awaited()
+    context.cache.store_pending_focus_activation.assert_not_awaited()
+    context.countdown.assert_not_called()
+    context.invalidate.assert_not_awaited()
 
 
 async def test_model_topic_adds_catalogue_context_to_main_prompt(monkeypatch) -> None:
