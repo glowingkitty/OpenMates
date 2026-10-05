@@ -2,6 +2,8 @@
 """The storage billing probe stays inside one signed disposable CI identity."""
 
 import importlib.util
+import base64
+import hashlib
 import json
 import stat
 import sys
@@ -82,9 +84,15 @@ def test_billing_probe_uses_private_selector_and_only_public_totals(tmp_path, mo
     monkeypatch.setattr(runner, "require_runner", lambda: None)
     monkeypatch.setattr(runner, "cms_admin_token", lambda _: "private-admin-token")
     user_id = "4da92a23-c566-4f02-a4a6-d36aeb8a88e2"
-    monkeypatch.setattr(runner, "request", lambda url, token=None: {
-        "data": [{"id": user_id, "email": "ci-one@example.com"}]
-    })
+    hashed_email = base64.b64encode(hashlib.sha256(b"ci-one@example.com").digest()).decode()
+    def users(url, token=None):
+        import urllib.parse
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+        assert query["filter[hashed_email][_eq]"] == [hashed_email]
+        assert "filter[email][_eq]" not in query
+        return {"data": [{"id": user_id, "email": hashed_email + "@example.com",
+                          "hashed_email": hashed_email}]}
+    monkeypatch.setattr(runner, "request", users)
     calls = []
 
     def fake_compose(*args, **_kwargs):
@@ -148,8 +156,8 @@ def test_billing_probe_uses_private_selector_and_only_public_totals(tmp_path, mo
         assert not list(private.glob("pg-proof-*.json"))
         return
     assert "node" in calls[0] and "prepare" in calls[1] and "cleanup" in calls[2]
-    assert calls[0][-1] == user_id
-    assert calls[0][-3] == "node" and calls[0][-4] == "cms"
+    assert calls[0][-2:] == (user_id, hashed_email)
+    assert calls[0][-4] == "node" and calls[0][-5] == "cms"
     assert set(calls[0][index + 1] for index, arg in enumerate(calls[0]) if arg == "-e") == {
         "OPENMATES_CI_ISOLATED=1", "OPENMATES_STORAGE_CAPACITY_FIXTURES=true",
         "S3_ENDPOINT_URL=http://storage.ci.test:9000", "SERVER_ENVIRONMENT=development",
@@ -185,14 +193,17 @@ def test_pg_probe_requires_complete_receipt_and_sanitizes_private_logs(tmp_path,
         return SimpleNamespace(stdout=json.dumps(proof))
 
     monkeypatch.setattr(runner, "compose", compose)
-    with pytest.raises(RuntimeError, match="PG proof failed"):
-        runner.run_storage_billing_pg_probe(env, user_id, receipt)
+    with pytest.raises(RuntimeError, match="PG proof failed") as failure_message:
+        runner.run_storage_billing_pg_probe(env, user_id, receipt,
+            hashed_email=base64.b64encode(hashlib.sha256(b"ci-one@example.com").digest()).decode())
     logged = receipt.read_text()
     assert user_id not in logged and "secret-token" not in logged
     assert stat.S_IMODE(receipt.stat().st_mode) == 0o600
     assert json.loads(logged)["passed"] is False
     if failure == "process":
         assert json.loads(logged)["error"] == "stale_credit_balance"
+        assert str(failure_message.value).endswith(":stale_credit_balance")
+    assert user_id not in str(failure_message.value) and "secret-token" not in str(failure_message.value)
 
 
 def test_billing_probe_fails_before_user_lookup_if_profile_is_not_exact(tmp_path, monkeypatch):

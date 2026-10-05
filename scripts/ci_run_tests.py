@@ -628,7 +628,7 @@ STORAGE_BILLING_PG_PROOF_FLAGS = frozenset({
 })
 
 
-def run_storage_billing_pg_probe(api_env: dict, user_id: str, log_path: Path) -> None:
+def run_storage_billing_pg_probe(api_env: dict, user_id: str, log_path: Path, *, hashed_email: str) -> None:
     """Run the real rollback SQL proof before preparing the owner's S3 fixture."""
     guards = {
         "OPENMATES_CI_ISOLATED": "1", "OPENMATES_STORAGE_CAPACITY_FIXTURES": "true",
@@ -638,6 +638,7 @@ def run_storage_billing_pg_probe(api_env: dict, user_id: str, log_path: Path) ->
     if (any(api_env.get(key) != value for key, value in guards.items())
             or api_env.get("STORAGE_LOGICAL_S3_BILLING_ENABLED") != "1"
             or not re.fullmatch(r"[0-9a-f]{40}", source)
+            or not re.fullmatch(r"[A-Za-z0-9+/]{43}=", hashed_email)
             or str(uuid.UUID(user_id, version=4)) != user_id):
         raise RuntimeError("Storage billing PG proof requires the isolated logical profile")
     command = ["exec", "-T"]
@@ -645,7 +646,7 @@ def run_storage_billing_pg_probe(api_env: dict, user_id: str, log_path: Path) ->
         command.extend(("-e", f"{key}={value}"))
     command.extend(("cms", "node",
         "/directus/extensions/sub-chat-orchestration-transaction/test/storage-billing-postgres-probe.mjs",
-        user_id))
+        user_id, hashed_email))
     record = {"source_commit": source, "passed": False}
     try:
         completed = compose(*command, capture=True, timeout=300)
@@ -671,7 +672,7 @@ def run_storage_billing_pg_probe(api_env: dict, user_id: str, log_path: Path) ->
         json.dump(record, output, sort_keys=True)
         output.write("\n")
     if record["passed"] is not True:
-        raise RuntimeError("Isolated storage billing PG proof failed") from None
+        raise RuntimeError("Isolated storage billing PG proof failed:" + record["error"]) from None
 
 
 def prepare_storage_billing_fixture(account: dict, profile_name: str) -> tuple[dict[str, str], tuple[Path, Path]]:
@@ -694,9 +695,12 @@ def prepare_storage_billing_fixture(account: dict, profile_name: str) -> tuple[d
     if not re.fullmatch(r"[0-9a-f]{40}", source):
         raise RuntimeError("Storage billing fixture lacks an exact source commit")
     token = cms_admin_token(profile)
-    query = urllib.parse.urlencode({"filter[email][_eq]": email, "fields": "id,email", "limit": "2"})
+    hashed_email = base64.b64encode(hashlib.sha256(email.strip().lower().encode()).digest()).decode()
+    query = urllib.parse.urlencode({"filter[hashed_email][_eq]": hashed_email,
+                                   "fields": "id,email,hashed_email", "limit": "2"})
     users = request("http://localhost:8055/users?" + query, token=token).get("data", [])
-    if len(users) != 1 or users[0].get("email") != email:
+    if (len(users) != 1 or users[0].get("hashed_email") != hashed_email
+            or users[0].get("email") != hashed_email[:64] + "@example.com"):
         raise RuntimeError("Disposable storage billing identity was not found uniquely")
     user_id = users[0].get("id")
     try:
@@ -709,7 +713,8 @@ def prepare_storage_billing_fixture(account: dict, profile_name: str) -> tuple[d
         raise RuntimeError("Isolated billing fixture mount is unavailable")
     fixture_id = str(uuid.uuid4())
     if profile_name == "logical":
-        run_storage_billing_pg_probe(api_env, user_id, private / f"pg-proof-{fixture_id}.json")
+        run_storage_billing_pg_probe(api_env, user_id, private / f"pg-proof-{fixture_id}.json",
+                                    hashed_email=hashed_email)
     selector_path = private / f"selector-{fixture_id}.json"
     receipt_path = private / f"receipt-{fixture_id}.json"
     selector = {"schema": "storage-billing-selector-v1", "source_commit": source,
