@@ -1120,3 +1120,34 @@ Team payer and notice/expiry choices remain unresolved, so Team rating, settleme
 and expiry remain off. Supported native-reader evidence and the required capacity
 proof still precede first real-data pruning, followed by the initial 24-hour source
 buffer. The dev API activation follows successful real Team verification.
+
+
+## Team execution succeeded; result-reader integration corrected
+
+Published `2432ffe` declares the missing Team grant collection, redacts account
+keys, rejects authority imports before writes and corrects automatic migration
+setup documentation. Both backend module gates, lint and Specification checks
+passed. Official image build `37350338801` completed successfully.
+
+Team and P-7 consumers share the actual successful preparation `37350556290`,
+including two fresh schema consumers, exact source/harness `2432ffe`, web and CLI
+bytes and no upload capability. Team run `37351907220` completed green, but its
+first result retrieval correctly rejected missing browser evidence: the new
+API-only selector was absent from the existing frontend-free result-validator
+branch. It has no accepted receipt yet. A bounded diagnostic read of the actual
+artifact, using the existing size/extraction/disk limits and source/run/harness
+checks, confirms all nine actors, identical readonly backend mounts, internal
+provider network, absent live credentials, disposable Vault/S3 proof and no
+frontend. That diagnostic is explicitly not acceptance evidence.
+
+The reader correction admits only the exact standalone Team selector with those
+strict source, actor, network, credential and storage checks. Existing hosted
+runner, report identity, spec inventory and independent verified cleanup gates
+remain enforced. Forty focused checks, including poisoned evidence fields and
+cleanup rejection, passed with Ruff and metadata checks. The existing green Team
+run will be retrieved through the corrected normal coordinator; no product rerun
+is needed for this local reader correction. P-7 continues on its existing pinned
+source; no final-source equivalence or 500-execution capacity is claimed.
+
+Team payer/notice/expiry decisions, native-reader eligibility and full capacity
+proof remain open. Production and real-user archive pruning remain unchanged.

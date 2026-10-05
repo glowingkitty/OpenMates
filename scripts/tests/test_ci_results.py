@@ -234,3 +234,132 @@ def test_green_e2e_requires_run_bound_cleanup(tmp_path, fault, mode):
         assert retained["report"]["results"] == ["original assertion"]
     else:
         assert ci_results.attach_cleanup(result, job, tmp_path)["cleanup_verified"] is True
+
+
+def _team_node_environment():
+    source, harness = "a" * 40, "b" * 40
+    services = {name: {"running": True} for name in (
+        "api", "core-worker", "cms", "cms-database", "cache", "vault",
+        "ai-worker", "runner-gateway", "object-storage",
+    )}
+    for name in ("api", "core-worker", "ai-worker"):
+        services[name]["backend_source"] = "/home/runner/work/OpenMates/OpenMates/subject/backend"
+    return {
+        "source_commit": source, "harness_commit": harness, "run_id": "7",
+        "shared_dev_dns": "rejected", "shared_dev_https": "rejected", "runner_environment": "github-hosted",
+        "services": services, "provider_egress": "rejected-internal-network",
+        "storage_capacity": {"provider_credentials": "absent", "provider_network": "internal",
+                             "fixture_mode": "replay-only", "worker_slots": 2, "worker_replicas": 1},
+        "storage_isolation_proof": {"source_bound": True, "read_only_bind": True,
+                                    "vault_provider_namespace": "disposable_only"},
+        "object_storage": {"endpoint": "http://storage.ci.test:9000", "provider": "SeaweedFS",
+                           "protocol_probe": "authenticated-roundtrip-cors-presigned-and-private-access-passed"},
+    }
+
+
+@pytest.mark.parametrize("fault", [
+    "", "source", "harness", "run", "frontend", "dns", "https", "runner", "missing_actor", "extra_actor",
+    "stopped", "malformed_service", "missing_mount", "different_mount", "relative_mount", "provider_egress",
+    "provider_credentials", "provider_network", "fixture_mode", "slots_zero", "slots_excess", "slots_bool",
+    "replicas", "isolation_source", "isolation_readonly", "isolation_namespace", "storage_endpoint",
+    "storage_provider", "storage_protocol", "missing_proof",
+])
+def test_team_node_result_requires_strict_disposable_storage_runtime(fault):
+    import json
+
+    environment = _team_node_environment()
+    job = {"source": "a" * 40, "mode": "e2e", "run_id": 7,
+           "specs": json.dumps(["storage-team-portability.spec.ts"])}
+    if fault in {"source", "harness"}:
+        environment[f"{fault}_commit"] = "c" * 40
+    elif fault == "run":
+        environment["run_id"] = "8"
+    elif fault == "frontend":
+        environment["frontend"] = {"source_commit": job["source"]}
+    elif fault in {"dns", "https"}:
+        environment[f"shared_dev_{fault}"] = "unverified"
+    elif fault == "runner":
+        environment["runner_environment"] = "self-hosted"
+    elif fault == "missing_actor":
+        del environment["services"]["object-storage"]
+    elif fault == "extra_actor":
+        environment["services"]["uploads"] = {"running": True}
+    elif fault == "stopped":
+        environment["services"]["runner-gateway"]["running"] = False
+    elif fault == "malformed_service":
+        environment["services"]["api"] = []
+    elif fault == "missing_mount":
+        del environment["services"]["core-worker"]["backend_source"]
+    elif fault == "different_mount":
+        environment["services"]["ai-worker"]["backend_source"] = "/other/subject/backend"
+    elif fault == "relative_mount":
+        for actor in ("api", "core-worker", "ai-worker"):
+            environment["services"][actor]["backend_source"] = "subject/backend"
+    elif fault == "provider_egress":
+        environment["provider_egress"] = "unverified"
+    elif fault in {"provider_credentials", "provider_network", "fixture_mode"}:
+        environment["storage_capacity"][fault] = "unverified"
+    elif fault.startswith("slots_"):
+        environment["storage_capacity"]["worker_slots"] = {"slots_zero": 0, "slots_excess": 5, "slots_bool": True}[fault]
+    elif fault == "replicas":
+        environment["storage_capacity"]["worker_replicas"] = 2
+    elif fault.startswith("isolation_"):
+        field = {"isolation_source": "source_bound", "isolation_readonly": "read_only_bind",
+                 "isolation_namespace": "vault_provider_namespace"}[fault]
+        environment["storage_isolation_proof"][field] = False
+    elif fault.startswith("storage_"):
+        field = {"storage_endpoint": "endpoint", "storage_provider": "provider", "storage_protocol": "protocol_probe"}[fault]
+        environment["object_storage"][field] = "unverified"
+    elif fault == "missing_proof":
+        del environment["storage_isolation_proof"]
+    assert ci_results.green_e2e_source_and_egress_verified(
+        environment, job, expected_harness_commit="b" * 40,
+    ) is (fault == "")
+    if not fault:
+        # Another API/browser selector does not inherit this frontend-free rule.
+        job["specs"] = json.dumps(["storage-message-embed-bundle.spec.ts"])
+        assert ci_results.green_e2e_source_and_egress_verified(environment, job) is False
+
+
+@pytest.mark.parametrize("cleanup_present", [False, True])
+def test_team_node_fetch_preserves_cleanup_gate_after_strict_runtime_validation(tmp_path, monkeypatch, cleanup_present):
+    import json
+
+    environment = _team_node_environment()
+    source, harness = environment["source_commit"], environment["harness_commit"]
+    report = {"source_commit": source, "run_id": "7", "success": True, "harness_commit": harness,
+              "results": [{"exit_code": 0, "spec": "storage-team-portability.spec.ts"}]}
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("ci-results.json", json.dumps(report))
+        bundle.writestr("ci-environment.json", json.dumps(environment))
+        if cleanup_present:
+            bundle.writestr("ci-cleanup.json", json.dumps({
+                "run_id": "7", "harness_commit": harness, "containers_remaining": 0,
+                "volumes_remaining": 0, "private_account_files_removed": True,
+            }))
+    monkeypatch.setattr(ci_results, "download", lambda command, root, output: output.write(archive.getvalue()))
+    monkeypatch.setattr(ci_results, "RESERVE", 0)
+    monkeypatch.setattr(ci_results, "attach_visual_evidence", lambda result, directory: result)
+
+    class Remote:
+        repo = "example/repo"
+
+        def request(self, endpoint):
+            if "/artifacts?" in endpoint:
+                return {"artifacts": [{"name": "isolated-test-results", "expired": False, "id": 8,
+                                       "size_in_bytes": len(archive.getvalue())}]}
+            if "/jobs?" in endpoint:
+                return {"jobs": [{"id": 9, "labels": ["ubuntu-latest"], "runner_name": "GitHub Actions 9"}]}
+            return {"head_sha": harness}
+
+    job = {"id": "team", "source": source, "mode": "e2e", "run_id": 7, "state": "success",
+           "url": "https://example.test/7", "specs": json.dumps(["storage-team-portability.spec.ts"])}
+    if cleanup_present:
+        result = ci_results.fetch(Remote(), job, tmp_path)
+        assert result["cleanup_verified"] is True
+        assert result["source_commit"] == source and result["harness_commit"] == harness
+    else:
+        with pytest.raises(RuntimeError, match="run-bound account/container/volume cleanup"):
+            ci_results.fetch(Remote(), job, tmp_path)
+        assert not (tmp_path / "test-results/ci-runs/team/receipt.json").exists()

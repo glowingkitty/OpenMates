@@ -26,8 +26,10 @@ MAX_EXPANDED = 512 * 1024**2
 DOWNLOAD_SECONDS = 60
 
 
-def green_e2e_source_and_egress_verified(environment: dict, job: dict) -> bool:
-    """Require the exact source runtime for browser or API-only accountability E2E."""
+def green_e2e_source_and_egress_verified(
+    environment: dict, job: dict, *, expected_harness_commit: str | None = None,
+) -> bool:
+    """Require the exact source runtime for browser or supported API-only E2E."""
     if (environment.get("source_commit") != job["source"]
             or environment.get("shared_dev_https") != "rejected"
             or (job.get("mode") != "component" and not environment.get("services"))):
@@ -47,6 +49,44 @@ def green_e2e_source_and_egress_verified(environment: dict, job: dict) -> bool:
             if not isinstance(source, str) or Path(source).parts[-2:] != ("subject", "backend"):
                 return False
         return True
+    if job.get("mode") == "e2e" and selected == ["storage-team-portability.spec.ts"]:
+        services = environment["services"]
+        expected = {"api", "core-worker", "cms", "cms-database", "cache", "vault",
+                    "ai-worker", "runner-gateway", "object-storage"}
+        harness = expected_harness_commit or job.get("preparation_harness_commit")
+        if (environment.get("frontend") is not None
+                or environment.get("shared_dev_dns") != "rejected"
+                or environment.get("runner_environment") != "github-hosted"
+                or job.get("run_id") is None or environment.get("run_id") is None
+                or str(environment["run_id"]) != str(job["run_id"])
+                or not harness or environment.get("harness_commit") != harness
+                or not isinstance(services, dict) or set(services) != expected
+                or any(not isinstance(service, dict) or service.get("running") is not True
+                       for service in services.values())):
+            return False
+        mounts = [services[name].get("backend_source") for name in ("api", "core-worker", "ai-worker")]
+        if (any(not isinstance(source, str) or not Path(source).is_absolute()
+                or Path(source).parts[-2:] != ("subject", "backend") for source in mounts)
+                or len(set(mounts)) != 1):
+            return False
+        capacity = environment.get("storage_capacity")
+        isolation = environment.get("storage_isolation_proof")
+        storage = environment.get("object_storage")
+        if not all(isinstance(proof, dict) for proof in (capacity, isolation, storage)):
+            return False
+        slots = capacity.get("worker_slots")
+        return (environment.get("provider_egress") == "rejected-internal-network"
+                and capacity.get("provider_credentials") == "absent"
+                and capacity.get("provider_network") == "internal"
+                and capacity.get("fixture_mode") == "replay-only"
+                and type(slots) is int and 1 <= slots <= 4
+                and type(capacity.get("worker_replicas")) is int and capacity["worker_replicas"] == 1
+                and isolation.get("source_bound") is True
+                and isolation.get("read_only_bind") is True
+                and isolation.get("vault_provider_namespace") == "disposable_only"
+                and storage.get("endpoint") == "http://storage.ci.test:9000"
+                and storage.get("provider") == "SeaweedFS"
+                and storage.get("protocol_probe") == "authenticated-roundtrip-cors-presigned-and-private-access-passed")
     return (environment.get("frontend", {}).get("source_commit") == job["source"]
             and (job.get("mode") == "component" or bool(environment["services"])))
 
@@ -278,7 +318,9 @@ def fetch(github, job: dict, root: Path) -> dict:
                 "CI harness or requested proof profile identity mismatch"
             )
         if job["state"] == "success" and job.get("mode") in ("component", "e2e", "visual-smoke"):
-            if not green_e2e_source_and_egress_verified(environment_data, job):
+            if not green_e2e_source_and_egress_verified(
+                    environment_data, job, expected_harness_commit=expected_harness_commit,
+            ):
                 raise RuntimeError(
                     "Green E2E lacks runner-local source and egress evidence"
                 )
