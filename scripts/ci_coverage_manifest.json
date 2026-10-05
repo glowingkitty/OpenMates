@@ -344,7 +344,8 @@
         "components/workflow-choice-loop.spec.ts",
         "components/workflow-chat-embed.spec.ts",
         "components/chat-project-navigation.spec.ts",
-        "components/project-chat-previews.spec.ts"
+        "components/project-chat-previews.spec.ts",
+        "components/settings-storage-overview.spec.ts"
       ]
     },
     "synthetic_artifact": {
@@ -539,6 +540,14 @@
       "enabling_work": "Core API and Celery health checks only; no signup, external provider, billing operation or real AI inference.",
       "specs": [
         "development-service-health.spec.ts"
+      ]
+    },
+    "storage_billing_metering": {
+      "execution": "e2e",
+      "enabling_work": "Use separate isolated disposable accounts and exact private metering fixtures to verify legacy and logical S3 storage quotes without provider calls. The logical profile additionally runs real SQL expiry and regional S3 purge for a separate owner, using sub-KiB encrypted objects with explicitly SIMULATED legacy logical sizes, four canned delivered receipts, a frozen oldest-unit list, warned-only debt waiver, surviving object checks, and an unchanged credit ledger.",
+      "specs": [
+        "billing-storage-legacy.spec.ts",
+        "billing-storage-logical.spec.ts"
       ]
     }
   },

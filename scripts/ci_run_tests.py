@@ -53,6 +53,10 @@ CAPACITY_WORKLOAD_SPECS = frozenset({
     "storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts",
 })
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
+BILLING_STORAGE_PROFILES = {
+    "billing-storage-legacy.spec.ts": "legacy",
+    "billing-storage-logical.spec.ts": "logical",
+}
 
 VITEST_TARGET_ROOTS = {
     "ui": ("frontend", "packages", "ui", "src"),
@@ -616,6 +620,174 @@ def provision_account(slot: int, *, identity_index: int, cli_slot: int | None = 
     return mapped
 
 
+STORAGE_BILLING_PG_PROOF_FLAGS = frozenset({
+    "passed", "frozen_snapshot", "exact_ledger_replay", "partial_invoice_unpaid",
+    "four_delivered_warning_gates", "manual_hold", "deleted_owner_closed", "rollback_verified",
+    "immutable_selected_units", "actual_expiry_transaction", "exact_warned_waiver",
+    "regional_purge_outbox", "expiry_audit_replay",
+})
+
+
+def run_storage_billing_pg_probe(api_env: dict, user_id: str, log_path: Path) -> None:
+    """Run the real rollback SQL proof before preparing the owner's S3 fixture."""
+    guards = {
+        "OPENMATES_CI_ISOLATED": "1", "OPENMATES_STORAGE_CAPACITY_FIXTURES": "true",
+        "S3_ENDPOINT_URL": "http://storage.ci.test:9000", "SERVER_ENVIRONMENT": "development",
+    }
+    source = api_env.get("BUILD_COMMIT_SHA", "")
+    if (any(api_env.get(key) != value for key, value in guards.items())
+            or api_env.get("STORAGE_LOGICAL_S3_BILLING_ENABLED") != "1"
+            or not re.fullmatch(r"[0-9a-f]{40}", source)
+            or str(uuid.UUID(user_id, version=4)) != user_id):
+        raise RuntimeError("Storage billing PG proof requires the isolated logical profile")
+    command = ["exec", "-T"]
+    for key, value in {**guards, "BUILD_COMMIT_SHA": source}.items():
+        command.extend(("-e", f"{key}={value}"))
+    command.extend(("cms", "node",
+        "/directus/extensions/sub-chat-orchestration-transaction/test/storage-billing-postgres-probe.mjs",
+        user_id))
+    record = {"source_commit": source, "passed": False}
+    try:
+        completed = compose(*command, capture=True, timeout=300)
+        if not isinstance(completed.stdout, str) or len(completed.stdout.encode()) > 4096:
+            raise ValueError("unbounded receipt")
+        proof = json.loads(completed.stdout)
+        if (not isinstance(proof, dict) or set(proof) != STORAGE_BILLING_PG_PROOF_FLAGS
+                or any(value is not True for value in proof.values())):
+            raise ValueError("incomplete receipt")
+        record["proof"] = proof
+        record["passed"] = True
+    except subprocess.CalledProcessError as exc:
+        # The Node probe emits an error code. Never persist raw SQL, environment,
+        # object keys, user UUIDs or arbitrary subprocess output in its receipt.
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        codes = re.findall(r"(?m)^storage_billing_pg_probe_failed:([a-z][a-z0-9_]{0,100})$", stderr[-4096:])
+        record["error"] = codes[-1] if codes else "probe_process_failed"
+    except (ValueError, TypeError, subprocess.TimeoutExpired):
+        record["error"] = "probe_receipt_invalid_or_timeout"
+    descriptor = os.open(log_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+        os.fchmod(output.fileno(), 0o600)
+        json.dump(record, output, sort_keys=True)
+        output.write("\n")
+    if record["passed"] is not True:
+        raise RuntimeError("Isolated storage billing PG proof failed") from None
+
+
+def prepare_storage_billing_fixture(account: dict, profile_name: str) -> tuple[dict[str, str], tuple[Path, Path]]:
+    """Prepare one real encrypted-storage fixture for a disposable CI identity."""
+    require_runner()
+    if profile_name not in ("legacy", "logical"):
+        raise RuntimeError("Unknown exact storage billing profile")
+    profile = json.loads(COMPOSE_PATH.read_text())
+    api_env = profile["services"]["api"]["environment"]
+    if (api_env.get("OPENMATES_CI_ISOLATED") != "1"
+            or api_env.get("OPENMATES_STORAGE_CAPACITY_FIXTURES") != "true"
+            or api_env.get("S3_ENDPOINT_URL") != "http://storage.ci.test:9000"
+            or api_env.get("SERVER_ENVIRONMENT") != "development"
+            or api_env.get("STORAGE_LOGICAL_S3_BILLING_ENABLED") != ("1" if profile_name == "logical" else "0")):
+        raise RuntimeError("Storage billing fixture requires the exact isolated profile")
+    email = account.get("OPENMATES_TEST_ACCOUNT_EMAIL", "")
+    if not isinstance(email, str) or not email.startswith("ci-") or not email.endswith("@example.com"):
+        raise RuntimeError("Storage billing fixture requires a disposable CI identity")
+    source = api_env.get("BUILD_COMMIT_SHA", "")
+    if not re.fullmatch(r"[0-9a-f]{40}", source):
+        raise RuntimeError("Storage billing fixture lacks an exact source commit")
+    token = cms_admin_token(profile)
+    query = urllib.parse.urlencode({"filter[email][_eq]": email, "fields": "id,email", "limit": "2"})
+    users = request("http://localhost:8055/users?" + query, token=token).get("data", [])
+    if len(users) != 1 or users[0].get("email") != email:
+        raise RuntimeError("Disposable storage billing identity was not found uniquely")
+    user_id = users[0].get("id")
+    try:
+        if str(uuid.UUID(user_id, version=4)) != user_id:
+            raise ValueError("noncanonical UUID")
+    except (ValueError, AttributeError, TypeError) as exc:
+        raise RuntimeError("Disposable storage billing identity has no canonical UUID") from exc
+    private = COMPOSE_PATH.parent / "storage-billing"
+    if not private.is_dir() or private.is_symlink():
+        raise RuntimeError("Isolated billing fixture mount is unavailable")
+    fixture_id = str(uuid.uuid4())
+    if profile_name == "logical":
+        run_storage_billing_pg_probe(api_env, user_id, private / f"pg-proof-{fixture_id}.json")
+    selector_path = private / f"selector-{fixture_id}.json"
+    receipt_path = private / f"receipt-{fixture_id}.json"
+    selector = {"schema": "storage-billing-selector-v1", "source_commit": source,
+                "user_id": user_id, "fixture_prefix": "ci-storage-billing/" + fixture_id}
+    payload = json.dumps(selector, separators=(",", ":")).encode()
+    if len(payload) > 4096:
+        raise RuntimeError("Storage billing selector exceeds its private bound")
+    descriptor = os.open(selector_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "wb") as output:
+        os.fchmod(output.fileno(), 0o600)
+        output.write(payload)
+    command = ("exec", "-T", "api", "python", "/app/scripts/storage_billing_integration.py",
+               "prepare", "--selector-file", "/app/ci-storage-billing/" + selector_path.name,
+               "--receipt-file", "/app/ci-storage-billing/" + receipt_path.name)
+    try:
+        completed = compose(*command, capture=True, timeout=300)
+    except subprocess.CalledProcessError as exc:
+        (private / f"probe-{fixture_id}.stderr.log").write_text((exc.stderr or "")[-200_000:])
+        raise RuntimeError("Isolated storage billing fixture preparation failed") from None
+    try:
+        summary = json.loads(completed.stdout.splitlines()[-1])
+        legacy = summary["legacy_upload_bytes"]
+        page = summary["page_bytes"]
+        total = summary["full_total_bytes"]
+        expiry = summary.get("expiry")
+        if (summary.get("prepared") is not True or summary.get("team_unrated") is not True
+                or summary.get("dedup") is not True or summary.get("conflict_failed_closed") is not True
+                or any(type(value) is not int or value <= 0 for value in (legacy, page, total))
+                or total != legacy + page or not receipt_path.is_file()):
+            raise ValueError("incomplete")
+        if profile_name == "logical" and (
+                not isinstance(expiry, dict) or any(expiry.get(key) is not True for key in (
+                    "verified", "real_regional_purge", "ledger_unchanged", "warned_only_waived"))
+                or type(expiry.get("physical_object_bytes")) is not int
+                or not 0 < expiry["physical_object_bytes"] < 1024):
+            raise ValueError("incomplete expiry")
+        if profile_name == "legacy" and expiry is not None:
+            raise ValueError("expiry outside logical profile")
+    except (IndexError, KeyError, ValueError, TypeError, json.JSONDecodeError):
+        if receipt_path.is_file():
+            try:
+                cleanup_storage_billing_fixture((selector_path, receipt_path))
+            except (OSError, RuntimeError, subprocess.SubprocessError, ValueError):
+                pass  # The isolated stack teardown remains the final fixture boundary.
+        raise RuntimeError("Isolated storage billing fixture omitted a complete bounded receipt") from None
+    env = {
+        "E2E_STORAGE_BILLING_EXPECTED_LEGACY_BYTES": str(legacy),
+        "E2E_STORAGE_BILLING_EXPECTED_PAGE_BYTES": str(page),
+        "E2E_STORAGE_BILLING_EXPECTED_TOTAL_BYTES": str(total),
+        "E2E_STORAGE_BILLING_TEAM_UNRATED": "1",
+        "E2E_STORAGE_BILLING_CONFLICT_REJECTED": "1",
+        "E2E_STORAGE_BILLING_LEGACY_PROFILE": "1" if profile_name == "legacy" else "0",
+        "E2E_STORAGE_BILLING_LOGICAL_PROFILE": "1" if profile_name == "logical" else "0",
+        "E2E_STORAGE_BILLING_EXPIRY_VERIFIED": "1" if profile_name == "logical" else "0",
+    }
+    return env, (selector_path, receipt_path)
+
+
+def cleanup_storage_billing_fixture(paths: tuple[Path, Path]) -> None:
+    """Clean only the exact isolated fixture named by its private selector."""
+    selector_path, receipt_path = paths
+    private = COMPOSE_PATH.parent / "storage-billing"
+    if (selector_path.parent != private or receipt_path.parent != private
+            or not selector_path.is_file() or not receipt_path.is_file()):
+        raise RuntimeError("Isolated storage billing cleanup lacks its private receipt")
+    command = ("exec", "-T", "api", "python", "/app/scripts/storage_billing_integration.py",
+               "cleanup", "--selector-file", "/app/ci-storage-billing/" + selector_path.name,
+               "--receipt-file", "/app/ci-storage-billing/" + receipt_path.name)
+    try:
+        completed = compose(*command, capture=True, timeout=300)
+        summary = json.loads(completed.stdout.splitlines()[-1])
+        if summary.get("cleaned") is not True:
+            raise RuntimeError("Isolated storage billing fixture cleanup was incomplete")
+    except subprocess.CalledProcessError as exc:
+        (private / "cleanup.stderr.log").write_text((exc.stderr or "")[-200_000:])
+        raise RuntimeError("Isolated storage billing fixture cleanup failed") from None
+
+
 def wait_web(child):
     for _ in range(60):
         if child.poll() is not None:
@@ -862,6 +1034,7 @@ def run_e2e(
                 raise ValueError("Component mode requires the isolated component marker")
     if results is None:
         results = []
+    billing_fixtures: list[tuple[Path, Path]] = []
     with (RESULTS / "ci-web.log").open("w") as log:
         app_server = None
         if component:
@@ -941,6 +1114,12 @@ def run_e2e(
                             capacity_epoch_receipt = activate_isolated_recovery_epoch()
                         recovery_epoch_receipt = capacity_epoch_receipt
                     env.update(primary)
+                    if name in BILLING_STORAGE_PROFILES:
+                        billing_env, billing_paths = prepare_storage_billing_fixture(
+                            primary, BILLING_STORAGE_PROFILES[name]
+                        )
+                        billing_fixtures.append(billing_paths)
+                        env.update(billing_env)
                     if local_signup_assertion:
                         # The backend and browser share only this runner-generated
                         # assertion secret; no live or SDK key is needed here.
@@ -1069,6 +1248,12 @@ def run_e2e(
                         results.append({"suite": "storage-capacity", "exit_code": 1,
                                         "failure": f"{type(exc).__name__}: {exc}"})
         finally:
+            for paths in reversed(billing_fixtures):
+                try:
+                    cleanup_storage_billing_fixture(paths)
+                except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
+                    results.append({"suite": "storage-billing-fixture-cleanup", "exit_code": 1,
+                                    "failure": type(exc).__name__})
             for process in (child, app_server):
                 if process is not None:
                     process.terminate()

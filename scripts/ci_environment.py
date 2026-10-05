@@ -29,6 +29,10 @@ STORAGE_CAPACITY_SPECS = frozenset({
     "storage-detached-producer.spec.ts",
 })
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
+BILLING_STORAGE_PROFILES = {
+    "billing-storage-legacy.spec.ts": "legacy",
+    "billing-storage-logical.spec.ts": "logical",
+}
 CAPACITY_WORKLOAD_SPECS = frozenset({
     "storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts",
 })
@@ -146,8 +150,12 @@ def compose_profile(
     detached_docs: bool = False,
     storage_accountability: bool = False,
     capacity_concurrency: int = 2,
+    billing_profile: str | None = None,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
+    if billing_profile not in (None, "legacy", "logical"):
+        raise ValueError("Unknown isolated storage billing profile")
+    storage_capacity = storage_capacity or billing_profile is not None
     ai_fixtures = ai_fixtures or public_provider or storage_capacity
     object_storage = object_storage or uploads or storage_capacity
     if storage_accountability and (ai_fixtures or object_storage or uploads or public_provider or workflows):
@@ -260,6 +268,14 @@ def compose_profile(
         },
     }
     worker = deepcopy(api)
+    if billing_profile is not None:
+        api["environment"] = {
+            **api["environment"],
+            "STORAGE_LOGICAL_S3_BILLING_ENABLED": "1" if billing_profile == "logical" else "0",
+        }
+        api["volumes"].append(
+            f"{SOURCE}/test-results/ci-private/storage-billing:/app/ci-storage-billing"
+        )
     worker.pop("build")
     worker.pop("ports")
     worker.pop("healthcheck")
@@ -694,13 +710,18 @@ def main():
         manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
         fixture_specs = {spec for group in ("ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider") for spec in manifest["groups"].get(group, {}).get("specs", [])}
         selected = json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
+        billing_selected = [BILLING_STORAGE_PROFILES[spec] for spec in selected
+                            if spec in BILLING_STORAGE_PROFILES]
+        if len(billing_selected) > 1 or (billing_selected and len(selected) != 1):
+            raise RuntimeError("Storage billing profiles require separate exact-selector batches")
+        billing_profile = billing_selected[0] if billing_selected else None
         if not (Path(SOURCE) / "backend/config/backend_config.dev.yml").is_file():
             raise RuntimeError("Candidate lacks committed development feature configuration")
         offline_preview = os.environ.get("CI_TEST_MODE") == "visual-smoke"
         if offline_preview:
             from ci_visual_smoke import validate_targets
             validate_targets(selected)
-        storage_capacity = bool(STORAGE_CAPACITY_SPECS.intersection(selected))
+        storage_capacity = bool(STORAGE_CAPACITY_SPECS.intersection(selected)) or billing_profile is not None
         storage_accountability = ACCOUNTABILITY_SPEC in selected
         if storage_accountability and selected != [ACCOUNTABILITY_SPEC]:
             raise RuntimeError("Storage accountability requires its exact standalone selector")
@@ -728,7 +749,7 @@ def main():
             for relative in ("backend/core/api/app/services/s3/service.py", "backend/upload/services/s3_upload.py"):
                 if "S3_ENDPOINT_URL" not in (Path(SOURCE) / relative).read_text():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=min(4, int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if capacity_target else "2"))))
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=min(4, int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if capacity_target else "2"))), billing_profile=billing_profile)
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
@@ -745,6 +766,12 @@ def main():
             if private.is_symlink():
                 raise RuntimeError("Accountability fixture directory must not be a symlink")
             private.chmod(0o700)
+        if billing_profile is not None:
+            billing_private = COMPOSE_PATH.parent / "storage-billing"
+            billing_private.mkdir(parents=True, exist_ok=True, mode=0o700)
+            if billing_private.is_symlink():
+                raise RuntimeError("Storage billing private mount cannot be a symlink")
+            billing_private.chmod(0o700)
         COMPOSE_PATH.write_text(json.dumps(data))
         COMPOSE_PATH.chmod(0o600)
         evidence = {
