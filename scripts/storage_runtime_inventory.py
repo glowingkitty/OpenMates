@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from contextlib import redirect_stderr, redirect_stdout
 import json
 import os
 from pathlib import Path
@@ -275,7 +276,13 @@ def main() -> None:
             raw = sys.stdin.buffer.read(65537)
             if len(raw) > 65536:
                 raise ValueError("api_deployment_inventory_exceeds_bound")
-            output = asyncio.run(publish_inventory(json.loads(raw)))
+            cohort = json.loads(raw)
+            # Backend imports and initialization can install stdout loggers.
+            # This subprocess owns one JSON wire response; discard service
+            # output without retaining private bytes or accepting log fragments.
+            with open(os.devnull, "w", encoding="utf-8") as service_output:
+                with redirect_stdout(service_output), redirect_stderr(service_output):
+                    output = asyncio.run(publish_inventory(cohort))
     except Exception as exc:
         output = failure_status(exc, stage="publish" if args.operation == "publish" else "inspect")
     print(json.dumps(output, sort_keys=True))

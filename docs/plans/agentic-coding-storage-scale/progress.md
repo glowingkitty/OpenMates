@@ -1005,3 +1005,36 @@ Official image run `37333952572` passed the repaired policy audit and is buildin
 the release; its schema image passed independent fresh-consumer verification.
 Completed image jobs do not establish that all required images or release
 eligibility are available. The final complete-image result remains pending.
+
+
+## Instrumented inventory publisher repair
+
++Preparation `37337645394` succeeded on exact source/harness `c239876`. Its
++consumer `37339557130` stopped before workload execution: actual API inspection
++and source-cohort validation passed, but the publisher returned exit zero with
++output that failed strict JSON parsing. The retained sanitized startup artifact
++identifies `inventory_refresh` / `publish` / `runtime_inventory_json_invalid`
++and `JSONDecodeError` for one API container. The unretained service bytes cannot
++establish which output caused that failure. Cleanup verified zero containers,
++zero volumes and removal of private account state. No measurements exist.
++
++The focused repair contains backend bootstrap/service/cleanup output and emits
++one safe JSON result after restoring its output streams. It neither parses log
++fragments nor changes source, complete inventory, nonce, expiry, Redis or provider
++guards. Eleven focused collector checks and lint passed, including actual main
++success and failure with noisy initialization and cleanup. Positive runtime
++admission remains pending one changed-source startup/calibration run.
++
++All eleven official images passed publication `37338545678` for public
++`51dfcd58`; CLI alpha publication `37338545610` also succeeded. Earlier full
++image publication `37333952572` succeeded on `f4480746`. Complete image builds
++do not supply the still-pending reviewed capacity/native proof registry or an
++eligible migration certificate. Production and real-user pruning are unchanged.
++
++The Team helper confirmed quote/export/import implementation and focused
++pytest evidence. One real-path coverage gap remains: the new Team manifest/part
++queries and metadata import writes have not yet been verified through actual
++PostgreSQL/Directus and S3. One existing disposable Team probe is being extended,
++using tiny ciphertext with zero inference or delivered email. Team payer and
++notice/expiry decisions still precede charging and deletion activation.
++

@@ -126,3 +126,52 @@ def test_subprocess_diagnostics_expose_bounded_exit_code_without_command_or_logs
         "error_class": "CalledProcessError", "exit_code": 7, "container_count": 1}
     unknown = collector.failure_status(ValueError("private-token"), stage="invented-private-stage", container_count=999999)
     assert unknown == {"status": "paused", "reason": "runtime_inventory_unverified", "stage": "inspect", "error_class": "ValueError"}
+
+
+@pytest.mark.parametrize("bootstrap_failure", [False, True])
+def test_actual_publish_main_emits_one_safe_json_despite_noisy_service_bootstrap(monkeypatch, capsys, bootstrap_failure):
+    import io
+    import logging
+    import sys
+    from scripts import storage_runtime_inventory as collector
+    private = "private-service-output-must-not-be-retained"
+    async def initialize():
+        print(private)
+        print(private, file=sys.stderr)
+        logger = logging.Logger("isolated-collector-fixture")
+        logger.addHandler(logging.StreamHandler(sys.stdout))
+        logger.warning(private)
+        if bootstrap_failure:
+            raise RuntimeError(private)
+    async def cleanup():
+        print(private)
+        print(private, file=sys.stderr)
+    task = SimpleNamespace(initialize_core_services=AsyncMock(side_effect=initialize),
+        cleanup_services=AsyncMock(side_effect=cleanup), directus_service=object())
+    def bootstrap_task():
+        print(private)
+        return task
+    redis = SimpleNamespace(get=AsyncMock(return_value=None), set=AsyncMock())
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.base_task", SimpleNamespace(BaseServiceTask=bootstrap_task))
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.storage_archive_client_compatibility", SimpleNamespace(_redis=AsyncMock(return_value=redis)))
+    monkeypatch.setenv("BUILD_COMMIT_SHA", SOURCE)
+    row = {"schema": collector.INSPECTION_SCHEMA, "source_commit": SOURCE, "instance_ids": ["container-a:1"]}
+    monkeypatch.setattr(sys, "stdin", SimpleNamespace(buffer=io.BytesIO(json.dumps([row]).encode())))
+    monkeypatch.setattr(sys, "argv", ["storage_runtime_inventory.py", "publish"])
+    collector.main()
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert len(captured.out.splitlines()) == 1
+    result = json.loads(captured.out)
+    assert private not in captured.out
+    if bootstrap_failure:
+        assert result == {"status": "paused", "reason": "runtime_inventory_bootstrap_failed",
+                          "stage": "bootstrap", "error_class": "RuntimeError"}
+        redis.set.assert_not_awaited()
+    else:
+        assert result == {"status": "published", "source_commit": SOURCE, "api_processes": 1, "expires_in_seconds": 180}
+        inventory = json.loads(redis.set.call_args.args[1])
+        assert inventory["source_commit"] == SOURCE and inventory["instance_ids"] == row["instance_ids"]
+        assert str(uuid.UUID(inventory["inventory_id"], version=4)) == inventory["inventory_id"]
+        assert inventory["expires_at"] - inventory["observed_at"] == 180
+    task.cleanup_services.assert_awaited_once()
