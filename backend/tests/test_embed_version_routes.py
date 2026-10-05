@@ -601,7 +601,16 @@ async def test_embed_key_continuation_rechecks_chat_membership_and_exact_embed_s
         async def get_sync_embed_key_by_id(self, chat_hash, owner_hash, hashes, key_id):
             return {"id": key_id, "encrypted_embed_key": "oversized"} if key_id == "key-big" else None
 
-    directus = SimpleNamespace(chat=Chat(), embed=Embed())
+    async def get_items(collection, params, **kwargs):
+        if collection == "embeds":
+            return [{"embed_id": "embed-1", "hashed_embed_id": hashlib.sha256(b"embed-1").hexdigest(),
+                     "hashed_chat_id": hashlib.sha256(b"chat-1").hexdigest(), "hashed_user_id": OWNER_HASH}]
+        assert collection == "embed_keys"
+        return [{"hashed_embed_id": hashlib.sha256(b"embed-1").hexdigest(),
+                 "hashed_chat_id": hashlib.sha256(b"chat-1").hexdigest(),
+                 "hashed_user_id": OWNER_HASH, "key_type": "chat"}]
+
+    directus = SimpleNamespace(chat=Chat(), embed=Embed(), get_items=get_items)
     user = SimpleNamespace(id=OWNER_ID)
     page = await get_chat_embed_key_window(
         chat_id="chat-1", request=SimpleNamespace(), embed_ids="embed-1", after_key_id="key-1",
@@ -1022,3 +1031,61 @@ async def test_cross_chat_key_continuation_uses_same_reference_scope():
             current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
         )
     assert absent.value.status_code == 404
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized
+@pytest.mark.asyncio
+@pytest.mark.parametrize("team", [False, True])
+async def test_child_embed_reads_and_key_pages_use_the_verified_parent_wrapper(team):
+    directus = ReferenceDirectus()
+    parent_id = "foreign-1" if team else "owned-1"
+    parent = directus.heads[parent_id]
+    directus.heads["child-1"] = {**parent, "embed_id": "child-1",
+        "hashed_embed_id": hashlib.sha256(b"child-1").hexdigest(), "parent_embed_id": parent_id}
+    options = {"chat_id": TEAM_CHAT if team else PERSONAL_CHAT,
+               "team_id": "team-1" if team else None,
+               "request": SimpleNamespace(), "current_user": SimpleNamespace(id=OWNER_ID),
+               "directus_service": directus}
+    response = await get_chat_embed_by_id(embed_id="child-1", **options)
+    assert response["embed"]["embed_id"] == "child-1"
+    assert response["embed_keys"][0]["hashed_embed_id"] == hashlib.sha256(parent_id.encode()).hexdigest()
+    if team:
+        assert all(key["key_type"] == "chat" for key in response["embed_keys"])
+    probe = await reference_probe(payload={"embed_ids": ["child-1"]}, **options)
+    assert probe["results"] == [{"embed_id": "child-1", "state": "ready"}]
+    keys = await get_chat_embed_key_window(embed_ids="child-1", **options)
+    assert keys["embed_keys"] == response["embed_keys"]
+    if team:
+        directus.team_role = None
+        with pytest.raises(HTTPException) as denied:
+            await get_chat_embed_by_id(embed_id="child-1", **options)
+        assert denied.value.status_code == 404
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["foreign-owner", "other-chat", "missing-parent", "unready-parent", "missing-wrapper", "cycle", "malformed-parent"])
+async def test_child_embed_parent_link_cannot_bypass_authorization(failure):
+    directus = ReferenceDirectus()
+    parent = directus.heads["owned-1"]
+    child = {**parent, "embed_id": "child-1", "hashed_embed_id": hashlib.sha256(b"child-1").hexdigest(),
+             "parent_embed_id": "owned-1"}
+    directus.heads["child-1"] = child
+    if failure == "foreign-owner":
+        parent["hashed_user_id"] = "foreign-owner"
+    elif failure == "other-chat":
+        parent["hashed_chat_id"] = "another-chat"
+    elif failure == "missing-parent":
+        child["parent_embed_id"] = "absent"
+    elif failure == "unready-parent":
+        parent["status"] = "processing"
+    elif failure == "missing-wrapper":
+        directus.keys.clear()
+    elif failure == "cycle":
+        parent["parent_embed_id"] = "child-1"
+    elif failure == "malformed-parent":
+        child["parent_embed_id"] = ["owned-1"]
+    with pytest.raises(HTTPException) as denied:
+        await get_chat_embed_by_id(chat_id=PERSONAL_CHAT, embed_id="child-1", request=SimpleNamespace(),
+            current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus)
+    assert denied.value.status_code == 404

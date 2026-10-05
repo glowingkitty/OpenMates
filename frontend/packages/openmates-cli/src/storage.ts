@@ -514,6 +514,8 @@ export interface CachedNewChatSuggestion {
 }
 
 export interface SyncCache {
+  /** Unacknowledged recovery records; retry soon without discarding verified chat history. */
+  pendingRecoveryOutputs?: number;
   /** Timestamp of last successful sync */
   syncedAt: number;
   /** Local freshness of individually saved/refreshed drafts, including known deletions. */
@@ -642,7 +644,7 @@ export function clearSyncCache(teamId?: string | null): void {
 export function isSyncCacheFresh(maxAgeMs = 300_000, teamId?: string | null): boolean {
   const cache = loadSyncCache(teamId);
   if (!cache) return false;
-  return Date.now() - cache.syncedAt < maxAgeMs;
+  return Date.now() - cache.syncedAt < (cache.pendingRecoveryOutputs ? Math.min(maxAgeMs, 60_000) : maxAgeMs);
 }
 
 export function loadTrustedAccountId(): string | null {

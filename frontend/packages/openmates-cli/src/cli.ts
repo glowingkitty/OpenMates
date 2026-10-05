@@ -330,6 +330,13 @@ async function main(): Promise<void> {
     const result = await runTui(client);
     if (result.action === "signup") {
       await handleSignup(client, parsed.flags);
+    } else if (result.action === "restart") {
+      const { spawn } = await import("node:child_process");
+      process.exitCode = await new Promise<number>((resolve, reject) => {
+        const child = spawn(process.execPath, [...process.execArgv, ...process.argv.slice(1)], { stdio: "inherit" });
+        child.once("error", reject);
+        child.once("exit", (code) => resolve(code ?? 1));
+      });
     }
     return;
   }

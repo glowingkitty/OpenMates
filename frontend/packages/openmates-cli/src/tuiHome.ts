@@ -20,7 +20,7 @@ export function homeChatItems(state: TuiState): ChatListItem[] {
 export function workspaceInspirations(state: TuiState): DailyInspiration[] {
   const available = state.inspirations.filter((i) => (i.surface ?? "chats") === state.workspace);
   if (available.length || state.workspace === "chats") return available;
-  return getWorkspaceInspirations(state.workspace).map((i) => ({...i, id:i.inspiration_id, assistant_response:i.assistant_response ?? "", follow_up_suggestions:i.follow_up_suggestions ?? []}));
+  return getWorkspaceInspirations(state.workspace).map((i) => ({...i, id:i.inspiration_id, title:i.title ?? "", assistant_response:i.assistant_response ?? "", follow_up_suggestions:i.follow_up_suggestions ?? []}));
 }
 export function currentInspiration(state: TuiState): DailyInspiration | undefined {
   const list = workspaceInspirations(state);
@@ -38,7 +38,11 @@ export async function loadHomeData(state: TuiState, client: OpenMatesClient, ren
     }render();}
   }).catch(()=>{if(current())state.homeError="Daily inspiration is temporarily unavailable.";}));
   if(signedIn && typeof client.whoAmI === "function") work.push(client.whoAmI().then((user)=>{if(current()){state.username=typeof user.username==="string" ? terminalText(user.username):null;render();}}).catch(()=>{}));
-  if(signedIn && typeof client.listChats === "function") work.push(client.listChats(Number.MAX_SAFE_INTEGER,1).then((page)=>{if(current()){updateTuiChatSidebar(state,()=>{state.recentChats=page.chats;});render();}}).catch(()=>{if(current())state.homeError="Saved chats could not be loaded. Use /refresh to retry.";}));
+  if(signedIn && typeof client.listChats === "function") work.push(client.listChats(Number.MAX_SAFE_INTEGER,1).then((page)=>{if(current()){
+    updateTuiChatSidebar(state,()=>{state.recentChats=page.chats;});
+    if(page.pendingRecoveryOutputs)state.status="Some saved AI outputs are pending recovery. Use /refresh to retry.";
+    render();
+  }}).catch(()=>{if(current())state.homeError="Saved chats could not be loaded. Use /refresh to retry.";}));
   if(signedIn) work.push(refreshTuiChatSidebar(state,client,render,true).catch(()=>{if(current())state.homeError="Chat projects could not be loaded. Use /refresh to retry.";}));
   await Promise.all(work);
   if(current()){state.homeLoading=false;render();}
@@ -65,7 +69,7 @@ export function renderHomeChatCards(state:TuiState,width:number,height:number):T
   const activeCount = runningTuiChatGroups(state).length;
   if (activeCount) result.push(centered(`${activeCount} ${activeCount === 1 ? 'chat' : 'chats'} active…  /active`, width), '');
   if(!chats.length){
-    result.push(centered(state.homeLoading ? "Loading your recent chats…" : "Start a chat below. Your recent chats will appear here.",width),"");
+    result.push(centered(state.homeLoading ? "Loading your recent chats…" : state.homeError || "Start a chat below. Your recent chats will appear here.",width),"");
     return result;
   }
   result.push(centered(state.signedIn ? "Continue where you left off" : "Explore example chats",width),"");

@@ -7,11 +7,12 @@
  * Tests: frontend/packages/openmates-cli/tests/cli.test.ts
  */
 
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFile } from "node:child_process";
 import { readFileSync, mkdirSync, writeFileSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, basename, join } from "node:path";
+import { dirname, basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 export type SelfUpdatePlan = {
   packageManager: SupportedPackageManager;
@@ -37,7 +38,52 @@ type SupportedPackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
 const PACKAGE_NAME = "openmates";
 // Installation-wide preference: auth profiles must share the same update channel.
-function channelFile(): string { return join(homedir(), ".openmates", "updates.json"); }
+function updateDirectory(): string { return resolve(process.env.OPENMATES_UPDATE_DIR?.trim() || join(homedir(), ".openmates")); }
+function channelFile(): string { return join(updateDirectory(), "updates.json"); }
+const executeFile = promisify(execFile);
+const UPDATE_REMINDER_DELAY_MS = 24 * 60 * 60 * 1000;
+export type TuiUpdateOffer = { plan: SelfUpdatePlan; latestVersion: string };
+
+/** A skipped notification is deferred across TUI restarts and auth profiles. */
+export function deferTuiUpdate(now = Date.now()): void {
+  const path = join(updateDirectory(), "tui-update-reminder.json");
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  const temporary = `${path}.${process.pid}.tmp`;
+  writeFileSync(temporary, JSON.stringify({ nextPromptAt: now + UPDATE_REMINDER_DELAY_MS }) + "\n", { mode: 0o600 });
+  renameSync(temporary, path);
+}
+
+/** Keep npm lookup off the terminal event loop; unavailable checks never block entry. */
+export async function checkTuiUpdate(now = Date.now()): Promise<TuiUpdateOffer | null> {
+  try {
+    try {
+      const reminder = JSON.parse(readFileSync(join(updateDirectory(), "tui-update-reminder.json"), "utf8"));
+      if (Number.isFinite(reminder.nextPromptAt) && reminder.nextPromptAt > now) return null;
+    } catch { /* Missing or invalid reminder means the update can be offered. */ }
+    const plan = buildSelfUpdatePlan({});
+    const forced = process.env.OPENMATES_CLI_LATEST_VERSION?.trim();
+    const latestVersion = forced || (await executeFile(commandName("npm"), ["view", `${PACKAGE_NAME}@${plan.target}`, "version"], {
+      encoding: "utf8", timeout: 10_000,
+    })).stdout.trim().split("\n").at(-1)?.trim();
+    if (!latestVersion || compareVersions(latestVersion, plan.currentVersion) <= 0) return null;
+    return { plan: pinSelfUpdatePlan(plan, latestVersion), latestVersion };
+  } catch { return null; }
+}
+
+/** Install only after the terminal user chooses Update, with the checked version pinned. */
+export async function installTuiUpdate(offer: TuiUpdateOffer): Promise<void> {
+  const plan = offer.plan;
+  if (plan.dryRun) return;
+  try {
+    await executeFile(plan.command, plan.args, { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
+  } catch {
+    throw new Error(`Update failed. Retry or skip for now; you can also run openmates update --verbose.`);
+  }
+  if (installedNpmPrefix() && getCliPackageVersion() !== plan.target) {
+    throw new Error("The installed version could not be verified. Retry or run openmates update --verbose.");
+  }
+  persistSelfUpdateChannel(plan);
+}
 function parseChannel(value: unknown): "dev" | "stable" {
   if (value === "dev") return "dev";
   if (value === "stable" || value === "main") return "stable";

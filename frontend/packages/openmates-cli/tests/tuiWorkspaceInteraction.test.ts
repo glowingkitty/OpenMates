@@ -3,7 +3,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { DecryptedUserTask } from "../src/tasksCli.js";
-import { runTui } from "../src/tui.js";
+import { runTui as runProductTui } from "../src/tui.js";
+import { noStartupPrompts } from "./tuiTestServices.js";
+const runTui = (client: Parameters<typeof runProductTui>[0], terminal: Parameters<typeof runProductTui>[1]) =>
+  runProductTui(client, terminal, noStartupPrompts);
 import { createInitialTuiState } from "../src/tuiRenderer.js";
 import { handleWorkspaceKey, handleWorkspaceCommand, type WorkspaceContext } from "../src/tuiWorkspaceController.js";
 

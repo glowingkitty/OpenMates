@@ -1,5 +1,6 @@
 import { claimPrivacyOffer } from "./privacyModel.js";
 import { runPrivacyCommand } from "./privacyCommands.js";
+import { createTuiStartup, type TuiStartupServices } from "./tuiStartup.js";
 /*
  * OpenMates CLI interactive terminal chat UI.
  *
@@ -37,7 +38,7 @@ import { refreshTuiChatSidebar } from './tuiChatSidebar.js';
 import { parseChatContextContent } from "./chatContextEvents.js";
 
 export type CliDefaultMode = "tui" | "quickstart";
-export type TuiResult = { action: "exit" | "signup" };
+export type TuiResult = { action: "exit" | "signup" | "restart" };
 
 export function defaultModeForStreams(input: NodeJS.ReadStream, output: NodeJS.WriteStream): CliDefaultMode {
   return input.isTTY === true && output.isTTY === true ? "tui" : "quickstart";
@@ -50,6 +51,7 @@ export function printProgrammaticQuickstart(): void {
 export async function runTui(
   client: OpenMatesClient,
   terminal = new TuiTerminal(),
+  startupServices?: TuiStartupServices,
 ): Promise<TuiResult> {
   const state = createInitialTuiState();
   client.beginInteractiveViewerSession();
@@ -63,7 +65,7 @@ export async function runTui(
   let activityTimer: ReturnType<typeof setTimeout> | undefined;
   let refreshingActivity = false;
   const refreshActivity = async () => {
-    if (closed || refreshingActivity || !state.signedIn) return;
+    if (closed || state.startup || refreshingActivity || !state.signedIn) return;
     refreshingActivity = true;
     try { await refreshTuiChatSidebar(state, client, render); }
     finally { refreshingActivity = false; }
@@ -98,27 +100,33 @@ export async function runTui(
     resolveResult?.(result);
   };
 
+  const result = new Promise<TuiResult>((resolve) => { resolveResult = resolve; });
+  const startup = createTuiStartup({ state, render, closed: () => closed, services: startupServices,
+    updated: () => finish({ action: "restart" }),
+    ready: () => {
+      void loadHomeData(state, client, render);
+      void refreshActivity();
+      if (state.signedIn && typeof client.observeChatActivity === 'function') {
+        void client.observeChatActivity(() => {
+          clearTimeout(activityTimer); activityTimer = setTimeout(() => { void refreshActivity(); }, 300);
+        }).then(stop => { if (closed) stop(); else stopActivity = stop; }).catch(() => { /* Polling still repairs activity state. */ });
+      }
+    },
+  });
   terminal.enter();
   terminal.onResize(render);
   terminal.onKey((chunk, key) => {
-    void handleKey({ chunk, key, state, client, terminal, render, finish }).catch((error) => {
+    if (key.ctrl && key.name === "c") { finish({ action: "exit" }); return; }
+    void (async () => {
+      if (await startup.handleKey(chunk, key)) return;
+      await handleKey({ chunk, key, state, client, terminal, render, finish });
+    })().catch((error) => {
       state.status = error instanceof Error ? error.message : String(error);
       render();
     });
   });
-  render();
-  if (state.signedIn) void claimPrivacyOffer().then((show) => { if (!closed) { state.privacyOffer = show; render(); } }).catch(() => {});
-  void loadHomeData(state,client,render);
-  void refreshActivity();
-  if (state.signedIn && typeof client.observeChatActivity === 'function') {
-    void client.observeChatActivity(() => {
-      clearTimeout(activityTimer); activityTimer = setTimeout(() => { void refreshActivity(); }, 300);
-    }).then(stop => { if (closed) stop(); else stopActivity = stop; }).catch(() => { /* Polling still repairs activity state. */ });
-  }
-
-  return new Promise<TuiResult>((resolve) => {
-    resolveResult = resolve;
-  });
+  void startup.start();
+  return result;
 }
 
 async function handleKey(params: {

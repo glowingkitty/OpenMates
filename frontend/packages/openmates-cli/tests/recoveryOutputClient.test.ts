@@ -17,6 +17,7 @@ import type { AvailableRecoveryOutputFrame } from "../src/ws.ts";
 type ReplayOutputPages = (
   ws: unknown, ownerId: string, pages: AvailableRecoveryOutputFrame[][],
   cache: unknown, teamId: string | null,
+  onPending?: () => void,
 ) => Promise<number>;
 type ReplayAvailableOutputs = (
   ws: unknown, ownerId: string, outputs: AvailableRecoveryOutputFrame[],
@@ -35,6 +36,63 @@ const outputVector = JSON.parse(readFileSync(
 ));
 
 describe("CLI typed recovery replay", () => {
+  // contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+  it("loads and caches verified chat history when canonical recovery reread is unavailable", async () => {
+    const previous = process.env.OPENMATES_STATE_DIR;
+    const directory = mkdtempSync(join(tmpdir(), "tui-pending-recovery-"));
+    process.env.OPENMATES_STATE_DIR = directory;
+    try {
+      const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
+      client.resolveTeamContext = () => null;
+      client.getMasterKeyBytes = () => new Uint8Array(32);
+      client.getChatWrappingKey = async () => new Uint8Array(32);
+      client.hasSession = () => true;
+      client.decryptChatListItem = async (chat: {details: {id: string}}) => ({ id: chat.details.id, title: "Saved conversation" });
+      const calls: string[] = [];
+      client.openWsClient = async () => ({ ownerId: "owner", ws: {
+        collectMessages: async () => [{ type: "phase_2_last_20_chats_ready", payload: {
+          chats: [{chat_details: {id: "chat-1"}}], total_chat_count: 1,
+        } }, {type: "phased_sync_complete", payload: {}}],
+        send: () => {}, drainPassiveTaskUpdateJobs: () => [],
+        waitForRecoveryOutputDiscovery: async () => {},
+        drainAvailableRecoveryOutputPages: () => [[{record_id: "pending-embed"}]],
+        close: () => { calls.push("close"); },
+      } });
+      client.persistPendingAIResponsesFromSync = async () => {};
+      client.persistPendingWorkflowChatDeliveries = async () => 0;
+      client.persistPendingTaskUpdateJobs = async () => new Set();
+      client.replayAvailableRecoveryOutputs = async () => { calls.push("recovery"); throw new Error("Canonical recovery embed reread failed before acknowledgement."); };
+      const page = await (client as unknown as OpenMatesClient).listChats();
+      assert.equal(page.chats[0].id, "chat-1");
+      assert.equal(page.pendingRecoveryOutputs, 1);
+      assert.deepEqual(calls, ["recovery", "close"]);
+      const cached = JSON.parse(readFileSync(join(directory, "sync_cache.json"), "utf8"));
+      assert.equal(cached.pendingRecoveryOutputs, 1);
+      assert.equal(cached.chats[0].details.id, "chat-1");
+    } finally {
+      if (previous === undefined) delete process.env.OPENMATES_STATE_DIR; else process.env.OPENMATES_STATE_DIR = previous;
+      rmSync(directory, {recursive: true, force: true});
+    }
+  });
+  // contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+  it("keeps failed browsing recovery pending while later verified records remain recoverable", async () => {
+    const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
+    const calls: string[] = [];
+    client.replayAvailableRecoveryOutputs = async (_ws: unknown, _owner: unknown, outputs: AvailableRecoveryOutputFrame[]) => {
+      calls.push(outputs[0].record_id);
+      if (outputs[0].record_id === "broken") throw new Error("Canonical recovery embed reread failed before acknowledgement.");
+      return 1;
+    };
+    const output = (recordId: string): AvailableRecoveryOutputFrame => ({ record_id: recordId,
+      root_chat_id: "root", target_chat_id: "child", turn_id: "turn", subject_id: recordId,
+      output_kind: "embed", output_version: 1, chat_key_version: 1 });
+    let pending = 0;
+    const replay = client.replayRecoveryOutputPages as ReplayOutputPages;
+    assert.equal(await replay.call(client, {}, "owner", [[output("broken"), output("good")]], {}, null,
+      () => { pending += 1; }), 1);
+    assert.equal(pending, 1); assert.deepEqual(calls, ["broken", "good"]);
+    await assert.rejects(replay.call(client, {}, "owner", [[output("broken")]], {}, null), /reread failed/);
+  });
   // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.message.identity-idempotent
   it("waits for each discovered page to settle before replaying the next one", async () => {
     const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;

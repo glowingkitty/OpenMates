@@ -18,6 +18,14 @@ npm install -g openmates
 
 Requires Node.js 20 or newer.
 
+Opening `openmates` in a terminal first offers optional enhanced offline personal
+data detection on supported devices, once per installation. Any available CLI
+update appears next as a fullscreen choice. Choose Update to install and reopen,
+or Skip for now to enter the workspace and defer the reminder for 24 hours.
+Once these choices are handled, later starts go directly to your chat workspace
+unless an update reminder is due. Existing detection stays available if you
+decline the offline model; `/privacy install` enables it later.
+
 Install the latest dev prerelease:
 
 ```bash

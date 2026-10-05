@@ -2344,6 +2344,7 @@ export interface SkillParam {
 }
 
 export interface ChatListPage {
+  pendingRecoveryOutputs?: number;
   chats: ChatListItem[];
   total: number;
   page: number;
@@ -5311,6 +5312,7 @@ export class OpenMatesClient {
     if (!this.hasSession() || teamId !== this.resolveTeamContext(options) || !masterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Chat workspace changed');
     return {
       chats: output,
+      pendingRecoveryOutputs: cache.pendingRecoveryOutputs ?? 0,
       total,
       page,
       limit,
@@ -7471,10 +7473,20 @@ export class OpenMatesClient {
     pages: AvailableRecoveryOutputFrame[][],
     cache: SyncCache,
     teamId: string | null,
+    onPending?: () => void,
   ): Promise<number> {
     let acknowledged = 0;
     for (const page of pages) {
-      acknowledged += await this.replayAvailableRecoveryOutputs(ws, ownerId, page, cache, teamId);
+      if (!onPending) {
+        acknowledged += await this.replayAvailableRecoveryOutputs(ws, ownerId, page, cache, teamId);
+        continue;
+      }
+      // Browsing accepts only verified canonical history. A broken recovery
+      // record stays pending on the server and cannot hide unrelated chats.
+      for (const output of page) {
+        try { acknowledged += await this.replayAvailableRecoveryOutputs(ws, ownerId, [output], cache, teamId); }
+        catch { onPending(); }
+      }
     }
     return acknowledged;
   }
@@ -14564,6 +14576,7 @@ export class OpenMatesClient {
     let persistedTaskJobIds = new Set<string>();
     let persistedWorkflowDeliveryCount = 0;
     let recoveredOutputCount = 0;
+    let pendingRecoveryOutputs = 0;
     try {
       await this.persistPendingAIResponsesFromSync(ws, chats, pendingAIResponses, teamId);
       // Reconnect discovery runs concurrently with phased sync. Wait for its
@@ -14576,7 +14589,8 @@ export class OpenMatesClient {
           syncedAt: Date.now(), totalChatCount, loadedChatCount: chats.length,
           chats, embeds, embedKeys, chatKeyWrappers,
         };
-        recoveredOutputCount = await this.replayRecoveryOutputPages(ws, ownerId, pages, currentCache, teamId);
+        recoveredOutputCount = await this.replayRecoveryOutputPages(ws, ownerId, pages, currentCache, teamId,
+          () => { pendingRecoveryOutputs += 1; });
       }
       // Normal user-key chat encryption is an owner-device operation. Do not mix
       // personal workflow delivery keys into an active team's cache/key context.
@@ -14605,6 +14619,7 @@ export class OpenMatesClient {
 
     const cache: SyncCache = {
       syncedAt: Date.now(),
+      pendingRecoveryOutputs,
       totalChatCount,
       loadedChatCount: chats.length,
       chats,

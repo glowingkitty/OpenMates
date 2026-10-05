@@ -149,13 +149,14 @@ async def _reference_target_scope(
 async def _reference_availability(
     embed_ids: list[str], chat_hash: str, actor_hash: str, is_team: bool,
     directus_service: DirectusService, *, team_target_live: bool = True,
+    key_subject_hashes: dict[str, str] | None = None,
 ) -> list[dict[str, str]]:
     """Read bounded metadata only; mask foreign heads unless a Team chat key grants access."""
     embed_filter = {"embed_id": {"_in": embed_ids}}
     try:
         heads = await directus_service.get_items(
             "embeds", params={"filter": embed_filter,
-                              "fields": "embed_id,hashed_embed_id,hashed_user_id,hashed_chat_id,status",
+                              "fields": "embed_id,hashed_embed_id,hashed_user_id,hashed_chat_id,status,parent_embed_id",
                               "limit": _REFERENCE_PROBE_LIMIT + 1},
             no_cache=True, admin_required=True, raise_on_error=True,
         )
@@ -175,8 +176,45 @@ async def _reference_availability(
     if len(by_id) != len(heads):
         raise HTTPException(status_code=503, detail="Reference lookup unavailable")
     ready_ids = {row.get("embed_id") for row in ready_heads if isinstance(row, dict)}
-    hashes = [row.get("hashed_embed_id") or _hash_value(embed_id)
-              for embed_id, row in by_id.items() if embed_id in ready_ids]
+    # Child embeds inherit their parent's key. Verify the relationship using
+    # bounded canonical metadata before looking up any parent wrappers.
+    parent_ids = list({row["parent_embed_id"] for row in heads
+                       if isinstance(row.get("parent_embed_id"), str)
+                       and 0 < len(row["parent_embed_id"]) <= 128})
+    parents: dict[str, dict[str, Any]] = {}
+    if parent_ids:
+        try:
+            parent_rows = await directus_service.get_items(
+                "embeds", params={"filter": {"embed_id": {"_in": parent_ids},
+                    "encrypted_content": {"_nempty": True},
+                    "encrypted_type": {"_nempty": True}, "status": {"_eq": "finished"}},
+                    "fields": "embed_id,hashed_embed_id,hashed_user_id,hashed_chat_id,parent_embed_id",
+                    "limit": _REFERENCE_PROBE_LIMIT + 1},
+                no_cache=True, admin_required=True, raise_on_error=True,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Reference parent lookup unavailable") from exc
+        if not isinstance(parent_rows, list) or len(parent_rows) > _REFERENCE_PROBE_LIMIT:
+            raise HTTPException(status_code=503, detail="Reference parent lookup unavailable")
+        parents = {row.get("embed_id"): row for row in parent_rows if isinstance(row, dict)}
+        if len(parents) != len(parent_rows):
+            raise HTTPException(status_code=503, detail="Reference parent lookup unavailable")
+    subjects: dict[str, str] = {}
+    for embed_id, head in by_id.items():
+        if embed_id not in ready_ids:
+            continue
+        subject = head
+        if head.get("parent_embed_id"):
+            parent_id = head["parent_embed_id"]
+            parent = parents.get(parent_id) if isinstance(parent_id, str) else None
+            if (not parent or parent.get("parent_embed_id") or parent.get("embed_id") == embed_id
+                    or not head.get("hashed_chat_id") or not head.get("hashed_user_id")
+                    or parent.get("hashed_chat_id") != head["hashed_chat_id"]
+                    or parent.get("hashed_user_id") != head["hashed_user_id"]):
+                continue
+            subject = parent
+        subjects[embed_id] = _hash_value(subject["embed_id"])
+    hashes = list(set(subjects.values()))
     keys: list[dict[str, Any]] = []
     if hashes:
         chat_key = {"key_type": {"_eq": "chat"}, "hashed_chat_id": {"_eq": chat_hash}}
@@ -203,11 +241,13 @@ async def _reference_availability(
     for embed_id in embed_ids:
         head = by_id.get(embed_id)
         own_head = bool(head and head.get("hashed_user_id") == actor_hash)
-        embed_hash = (head.get("hashed_embed_id") or _hash_value(embed_id)) if head else None
+        embed_hash = subjects.get(embed_id)
         can_read = bool(head and embed_id in ready_ids and embed_hash in key_hashes
                         and (not is_team or team_target_live))
         state = "ready" if can_read and (is_team or own_head) else "unusable" if own_head else "missing"
         result.append({"embed_id": embed_id, "state": state})
+        if state == "ready" and key_subject_hashes is not None:
+            key_subject_hashes[embed_id] = embed_hash
     return result
 
 
@@ -307,17 +347,33 @@ async def get_chat_embed_key_window(
         hashes = await directus_service.embed.validate_embed_ids_in_chat(hashed_chat_id, selected)
     except ValueError:
         hashes = []
-    if not hashes:
+    if hashes:
+        # In-chat pages already validate heads; expand only verified parent key
+        # subjects for children, using the same authorization as exact reads.
+        key_subject_hashes: dict[str, str] = {}
+        states = []
+        for offset in range(0, len(selected), _REFERENCE_PROBE_LIMIT):
+            states.extend(await _reference_availability(
+                selected[offset:offset + _REFERENCE_PROBE_LIMIT], hashed_chat_id,
+                _hash_value(current_user.id), bool(team_id), directus_service,
+                key_subject_hashes=key_subject_hashes,
+            ))
+        if any(item["state"] != "ready" for item in states):
+            raise HTTPException(status_code=404, detail="Embed page not found")
+        hashes = list(set(key_subject_hashes.values()))
+    else:
         scope_hash, actor_hash, is_team, target_live = await _reference_target_scope(
             chat_id, team_id, current_user, directus_service, write_required=False,
         )
+        key_subject_hashes = {}
         states = await _reference_availability(
             selected, scope_hash, actor_hash, is_team, directus_service,
             team_target_live=target_live,
+            key_subject_hashes=key_subject_hashes,
         )
         if any(item["state"] != "ready" for item in states):
             raise HTTPException(status_code=404, detail="Embed page not found")
-        hashes = [_hash_value(value) for value in selected]
+        hashes = list(set(key_subject_hashes.values()))
     if not hashes:
         raise HTTPException(status_code=404, detail="Embed page not found")
     if key_id:
@@ -346,13 +402,19 @@ async def get_chat_embed_by_id(
     current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
 ):
-    """Load ciphertext only after current chat and readable-wrapper checks."""
+    """First-party ciphertext read: current owner/Team scope and readable wrapper required.
+
+    The existing 120/minute limit applies; no paid operation or public allowlist
+    expansion. Children use only a verified same-owner, same-source-chat parent.
+    """
     hashed_chat_id, actor_hash, is_team, target_live = await _reference_target_scope(
         chat_id, team_id, current_user, directus_service, write_required=False,
     )
+    key_subject_hashes: dict[str, str] = {}
     states = await _reference_availability(
         [embed_id], hashed_chat_id, actor_hash, is_team, directus_service,
         team_target_live=target_live,
+        key_subject_hashes=key_subject_hashes,
     )
     if states[0]["state"] != "ready":
         raise HTTPException(status_code=404, detail="Embed not found")
@@ -360,7 +422,7 @@ async def get_chat_embed_by_id(
     if not embed or (not is_team and embed.get("hashed_user_id") != actor_hash):
         raise HTTPException(status_code=404, detail="Embed not found")
     key_page = await directus_service.embed.get_sync_embed_key_window_for_page(
-        hashed_chat_id, actor_hash, [_hash_value(embed_id)],
+        hashed_chat_id, actor_hash, [key_subject_hashes.get(embed_id, _hash_value(embed_id))],
         include_master_keys=not is_team,
     )
     if not key_page["embed_keys"] and not key_page["oversized_key_id"]:

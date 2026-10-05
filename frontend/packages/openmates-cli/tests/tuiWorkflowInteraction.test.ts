@@ -10,7 +10,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { WorkflowGraph } from "../src/client.js";
 
-import { runTui } from "../src/tui.ts";
+import { runTui as runProductTui } from "../src/tui.ts";
+import { noStartupPrompts } from "./tuiTestServices.js";
+const runTui = (client: Parameters<typeof runProductTui>[0], terminal: Parameters<typeof runProductTui>[1]) =>
+  runProductTui(client, terminal, noStartupPrompts);
 
 function workflowSummary() {
   return {

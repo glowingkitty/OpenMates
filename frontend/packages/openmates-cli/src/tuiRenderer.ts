@@ -19,7 +19,8 @@ import { renderProjectList, renderProjectDetail, renderProjectIdentity, renderPr
 import { renderTaskBoard, renderTaskDetails, filterTasks, type TaskContext } from "./tuiTasksWorkspace.js";
 import { renderWorkflowWorkspace, renderWorkflowPreviewCard, renderWorkflowIdentity } from "./tuiWorkflowWorkspace.js";
 import { renderWorkspaceFrame, workspaceGeometry } from "./tuiLayout.js";
-import { cells, wrapCells, truncateCells, type TuiColorMode, type TuiLine } from "./tuiText.js";
+import { cells, wrapCells, truncateCells, padCells, foreground, type TuiColorMode, type TuiLine } from "./tuiText.js";
+import type { TuiStartupScreen } from "./tuiStartup.js";
 import { centeredCarouselText } from "./tuiCarousel.js";
 import { homeHeader, renderHomeChatCards } from "./tuiHome.js";
 import { homeTuiApps, renderTuiAppsHome, renderTuiApp, renderTuiAppIdentity, renderTuiAppTabs, renderTuiAppsSkill, renderTuiAppsSkillIdentity, renderTuiAppsSkillTabs, renderTuiAppsResults, renderTuiAppsResult, renderTuiAppsWorkflows,
@@ -72,6 +73,7 @@ export type TuiState = {
   signedIn: boolean;
   privacyOffer: boolean;
   privacyInstalling: boolean;
+  startup: TuiStartupScreen | null;
   form: TuiForm | null;
   paletteOpen: boolean;
   paletteQuery: string;
@@ -162,7 +164,7 @@ export function createInitialTuiState(): TuiState {
     apps:[],activeApp:null,activeAppSkill:null,appTab:"skills",appSkillTab:"overview",appResults:{items:[],hasMore:false,offset:0},
     appWorkflows:{items:[],hasMore:false,offset:0},activeAppResult:null,appPreparedRun:null,
     workspace: "chats", sidebarOpen: false, sidebarIndex: 0, navigationIndex: 0,
-    focus: "content", signedIn: false, privacyOffer: false, privacyInstalling: false, form: null, paletteOpen: false,
+    focus: "content", signedIn: false, privacyOffer: false, privacyInstalling: false, startup: null, form: null, paletteOpen: false,
     paletteQuery: "", paletteIndex: 0, filter: "", taskStatusFilter: "",
     taskContext: null, recentChats: [], runningChatIds: [], activityChats: [], sidebarLinkedChats: [], activityFrame: 0,
     chatSidebarProjects: [], chatSidebarLoadVersion: 0, chatActivityLoadVersion: 0, chatSidebarLocation: null, chatSidebarAncestors: false, chatProjectOperation: null, chatProjectBusy: false,
@@ -250,12 +252,44 @@ export function rankExamples(
 }
 
 export function renderTuiFrame(state: TuiState, width: number, height: number, options: { colorMode?: TuiColorMode; ascii?: boolean } = {}): string {
+  if (state.startup || state.privacyOffer) return renderStartupFrame(state, width, height, options.colorMode ?? "none");
   const bodyWidth = workspaceGeometry(state, width).contentWidth;
   const stickyRows=state.screen==="project"&&state.activeProject?renderProjectIdentity(state.activeProject,{width:bodyWidth}).length+renderProjectTabs(state.projectTab,bodyWidth).length:
     state.screen==="app"&&state.activeApp?renderTuiAppIdentity(state.activeApp,bodyWidth).length+renderTuiAppTabs(state.appTab,bodyWidth).length:
     state.screen==="app-skill"&&state.activeAppSkill?renderTuiAppsSkillIdentity(state.activeAppSkill,bodyWidth).length+renderTuiAppsSkillTabs(state.appSkillTab,bodyWidth).length:
     state.screen==="workflow"&&state.activeWorkflow?renderWorkflowIdentity(state.activeWorkflow,{width:bodyWidth,run:state.workflowTab==="runs"?state.workflowRuns[state.selectedWorkflowRunIndex]:undefined}).length+(bodyWidth<36?7:4):0;
   return renderWorkspaceFrame(state, width, height, renderBody(state, bodyWidth,height), { ...options,stickyRows, headerRows: state.screen === "chat" || state.screen === "example" ? renderChatHeader(state, bodyWidth).length : undefined });
+}
+
+function renderStartupFrame(state: TuiState, width: number, height: number, colorMode: TuiColorMode): string {
+  width = Math.max(1, Math.floor(width)); height = Math.max(1, Math.floor(height));
+  const screen = state.startup ?? { kind: "privacy", selected: 1, busy: false, status: null, update: null };
+  const privacy = screen.kind === "privacy", checking = screen.kind === "checking";
+  const title = checking ? "Starting OpenMates…" : privacy ? ENHANCED_ANONYMIZATION_LABEL : "Software update available";
+  const paragraphs = checking ? ["Checking startup preferences and software updates…"] : privacy ? [
+    "Use enhanced offline personal data detection?",
+    "Detect names and addresses locally, alongside existing detection. Your text stays on this device.",
+    "Download: about 1.6 GB. RAM when active: about 2 GB.",
+    "Choosing No keeps existing detection. You can enable it later with /privacy install.",
+  ] : [
+    `OpenMates ${screen.update?.latestVersion ?? ""} is available (installed: ${screen.update?.plan.currentVersion ?? ""}).`,
+    "Update now to install the new version and reopen OpenMates.",
+    "Skip for now to continue. We will ask again when you open the TUI after 24 hours.",
+  ];
+  const contentWidth = Math.max(1, Math.min(72, width - 4));
+  const center = (text: string) => padCells(" ".repeat(Math.max(0, Math.floor((width - cells(text)) / 2))) + text, width);
+  const body = [title, "", ...paragraphs.flatMap(text => [...wrapCells(text, contentWidth), ""])].map(center);
+  const buttons = checking ? [] : [
+    `${screen.selected === 0 ? "> " : "  "}${privacy ? "[F6 / Y] Download and enable" : "[F6 / Y] Update now"}`,
+    `${screen.selected === 1 ? "> " : "  "}${privacy ? "[F7 / N] No, continue" : "[F7 / N] Skip for now"}`,
+    ...(privacy ? ["Later: /privacy install or /privacy later"] : []),
+  ];
+  const footer = [...(screen.status ? wrapCells(screen.status, contentWidth) : []), ...buttons,
+    checking ? "Ctrl+C exit" : screen.busy ? "Please wait…  Ctrl+C exit" : "Tab / arrows choose   Enter confirm   Ctrl+C exit"].map(center);
+  const bodyRoom = Math.max(0, height - footer.length - 2);
+  const lines = [foreground(padCells("OpenMates", width), "#5a85eb", colorMode, true), " ".repeat(width), ...body.slice(0, bodyRoom)];
+  while (lines.length < height - footer.length) lines.push(" ".repeat(width));
+  return [...lines.slice(0, Math.max(0, height - footer.length)), ...footer.slice(-height)].join("\n");
 }
 
 function coloredHero(lines:string[],rows:number,gradient=PRIMARY_GRADIENT):TuiLine[]{return lines.map((text,index)=>index<rows?{text,background:gradient.start}:text);}
@@ -270,12 +304,7 @@ function homeCards(lines:string[],width:number,gradients:Array<{start:string;end
   });
 }
 function renderBody(state: TuiState, width: number,height:number): TuiLine[] {
-  const offer = state.privacyOffer ? [ENHANCED_ANONYMIZATION_LABEL,
-    "Detect names and addresses locally, alongside existing detection.",
-    "Download: about 1.6 GB · RAM when active: about 2 GB.",
-    "[F6: Download and enable] [F7: Maybe later]",
-    "Or /privacy install · /privacy later", ""] : [];
-  return [...offer.flatMap((line) => wrap(line, width)), ...renderScreenBody(state, width, height)];
+  return renderScreenBody(state, width, height);
 }
 function renderScreenBody(state: TuiState, width: number,height:number): TuiLine[] {
   switch (state.screen) {
@@ -301,7 +330,7 @@ function renderScreenBody(state: TuiState, width: number,height:number): TuiLine
       const header=renderTuiAppIdentity(app,width),gradient=APP_GRADIENTS[app.id]??PRIMARY_GRADIENT;
       if(state.appTab==="embeds"||state.appTab==="workflows")return [...coloredHero(header,header.length,gradient),...renderTuiAppTabs(state.appTab,width),
         ...state.appTab==="embeds"?renderTuiAppsResults(state.appResults,{width,selectedId:state.appResults.items[state.selectedIndex]?.embedId}):renderTuiAppsWorkflows(state.appWorkflows,{width,selectedId:state.appWorkflows.items[state.selectedIndex]?.id})];
-      return coloredHero(renderTuiApp(app,{width,tab:state.appTab,selectedId:state.activeApp.skills[state.selectedIndex]?.id}),header.length,gradient);
+      return coloredHero(renderTuiApp(app,{width,tab:state.appTab,selectedId:app.skills[state.selectedIndex]?.id}),header.length,gradient);
     }
     case "app-skill": {
       const skill=state.activeAppSkill;if(!skill)return ["Loading skill…"];
