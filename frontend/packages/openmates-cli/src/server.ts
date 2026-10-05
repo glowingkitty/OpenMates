@@ -68,7 +68,7 @@ import {
   type StorageMigrationOutcome, type StorageMigrationProgress,
 } from "./serverStorageMigration.js";
 import { publishServerBackupArchive } from "./serverBackupArchive.js";
-import { applyCaddyPathUpdate, caddyHostOperation, officialUploadOrigins, readCaddyUpdateState, renderOfficialUploadCaddyTemplate, resolveCaddyProfile, validateOfficialUploadCaddy, verifyCaddyCoreRoutes, verifyCaddyUploadRoutes, type CaddyUpdateResult } from "./serverCaddyUpdate.js";
+import { applyCaddyPathUpdate, caddyHostOperation, caddyUpdateRetryCommand, detectCaddyConfigPath, officialUploadOrigins, readCaddyUpdateState, renderOfficialUploadCaddyTemplate, resolveCaddyProfile, validateOfficialUploadCaddy, verifyCaddyCoreRoutes, verifyCaddyUploadRoutes, type CaddyUpdateResult } from "./serverCaddyUpdate.js";
 import {
   CMS_CACHE_INSPECT_FORMAT,
   applyRuntimeCheckResults,
@@ -3016,7 +3016,9 @@ async function autoInstallRuntimeMonitoringServices(installPath: string, role: S
 
 export function caddyUpdatePlan(installPath: string, role: ServerRole, config: ServerConfig | null, flags: Record<string, string | boolean>) {
   if (flags["caddy-config"] === true) throw new Error("Provide --caddy-config <file>.");
-  const configPath = resolve(typeof flags["caddy-config"] === "string" ? flags["caddy-config"] : "/etc/caddy/Caddyfile");
+  const explicit = typeof flags["caddy-config"] === "string" ? flags["caddy-config"] : undefined;
+  const configPath = detectCaddyConfigPath(explicit) ?? "/etc/caddy/Caddyfile";
+  if (explicit && !existsSync(configPath)) throw new Error("caddy_explicit_config_missing");
   const required = role === "core" && getInstallDeploymentMode(installPath, config) === "official_cloud";
   if (!existsSync(configPath) && required) throw new Error("Managed cloud Caddyfile is missing; update cannot proceed.");
   const prior = role === "upload" ? readCaddyUpdateState(join(installPath, ".openmates", "caddy", `${role}.json`), configPath, null) : undefined;
@@ -3101,7 +3103,55 @@ async function runCaddyUpdateStep(input: Parameters<typeof updateServerCaddy>[0]
   } catch (error) {
     const reason = error instanceof Error && /^caddy_[a-z_:-]+$/.test(error.message) ? error.message : "caddy_update_failed";
     writeUpdateStatus(input.installPath, input.role, { status: "degraded", step: "caddy-update", caddy: { status: "failed", sanitizedReason: reason } });
-    throw new Error(`Caddy update failed (${reason}); update is degraded. Updated containers remain running.`);
+    const command = caddyRetryForInstall(input.installPath, input.role, input.flags, reason);
+    throw new Error(`Caddy update failed (${reason}); update is degraded. Updated containers remain running.\nAfter resolving the reported problem, run:\n${command}`);
+  }
+}
+
+function caddyRetryForInstall(installPath: string, role: ServerRole, flags: Record<string, string | boolean>, reason?: string): string {
+  const explicit = typeof flags["caddy-config"] === "string" ? flags["caddy-config"] : undefined;
+  let configPath = explicit ?? "/path/to/active/Caddyfile";
+  try { configPath = detectCaddyConfigPath(explicit) ?? "/etc/caddy/Caddyfile"; } catch { /* Require the active path when detection is unavailable. */ }
+  return caddyUpdateRetryCommand({ installPath, role, configPath,
+    profile: flags["caddy-profile"] === "official-upload" || reason === "caddy_profile_required_official_upload" ? "official-upload" : undefined });
+}
+
+async function updateCaddyOnly(installPath: string, role: ServerRole, config: ServerConfig | null, flags: Record<string, string | boolean>): Promise<CaddyUpdateResult> {
+  const release = acquireServerUpdateLock(installPath);
+  let result: CaddyUpdateResult | undefined;
+  try {
+    await withEngineeringRuntimeOperation(installPath, "caddy-update", ["caddy"], async () => {
+      result = await updateServerCaddy({ installPath, role, config, flags, mode: getInstallMode(installPath, config), withOverrides: flags["with-overrides"] === true || config?.composeProfile === "full" });
+    });
+    return result!;
+  } finally { release(); }
+}
+
+export async function updateCaddyAfterCliUpgrade(flags: Record<string, string | boolean>): Promise<CaddyUpdateResult | { status: "pending" | "planned"; retryCommand: string; reason?: string } | undefined> {
+  let installPath: string;
+  try { installPath = resolveServerPath(flags); } catch (error) {
+    if (flags.path !== undefined) throw error;
+    return undefined;
+  }
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+  let configPath: string | undefined;
+  try { configPath = detectCaddyConfigPath(typeof flags["caddy-config"] === "string" ? flags["caddy-config"] : undefined); }
+  catch { return { status: "pending", reason: "caddy_running_config_requires_explicit_path", retryCommand: caddyUpdateRetryCommand({ installPath, role, configPath: "/path/to/active/Caddyfile" }) }; }
+  if (!configPath) return undefined;
+  const retryCommand = caddyUpdateRetryCommand({ installPath, role, configPath,
+    profile: flags["caddy-profile"] === "official-upload" ? "official-upload" : undefined });
+  // An unregistered checkout is not permission to mutate its host during a
+  // package upgrade. Its exact follow-up still uses the installed server release.
+  if (flags["dry-run"] === true || (!config && typeof flags.path !== "string")) {
+    return { status: flags["dry-run"] === true ? "planned" : "pending", retryCommand };
+  }
+  try {
+    return await updateCaddyOnly(installPath, role, config, { ...flags, "caddy-config": configPath });
+  } catch (error) {
+    const reason = error instanceof Error && /^caddy_[a-z_:-]+$/.test(error.message) ? error.message : "caddy_update_failed";
+    return { status: "pending", retryCommand: reason === "caddy_profile_required_official_upload"
+      ? caddyUpdateRetryCommand({ installPath, role, configPath, profile: "official-upload" }) : retryCommand, reason };
   }
 }
 
@@ -4538,9 +4588,32 @@ async function serverPreflight(flags: Record<string, string | boolean>): Promise
 }
 
 async function serverCaddy(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  if (rest[0] === "update") {
+    if (flags["caddy-config"] === true) throw new Error("Provide --caddy-config <file>.");
+    const installPath = resolveServerPath(flags);
+    const config = loadConfigForInstallPath(installPath);
+    const role = getServerRole(flags, config);
+    try {
+      const plan = caddyUpdatePlan(installPath, role, config, flags);
+      const retryCommand = caddyUpdateRetryCommand({ installPath, role, configPath: plan.configPath, profile: plan.profile });
+      if (flags["dry-run"] === true) {
+        if (flags.json === true) printJson({ command: "caddy update", ...plan, role, path: installPath, mode: getInstallMode(installPath, config), retryCommand });
+        else console.log(`Caddy release update: ${plan.status}\nRun: ${retryCommand}`);
+        return;
+      }
+      const result = plan.status === "not_installed" ? { status: "not_installed" } : await updateCaddyOnly(installPath, role, config, { ...flags, "caddy-config": plan.configPath });
+      if (flags.json === true) printJson({ command: "caddy update", role, ...result });
+      else console.log(`Caddy: ${result.status}`);
+    } catch (error) {
+      const reason = error instanceof Error && /^caddy_[a-z_:-]+$/.test(error.message) ? error.message : "caddy_update_failed";
+      const retryCommand = caddyRetryForInstall(installPath, role, flags, reason);
+      throw new Error(`Caddy update failed (${reason}).\nAfter resolving the reported problem, run:\n${retryCommand}`);
+    }
+    return;
+  }
   const action = (rest[0] ?? "status") as CaddyAction;
   if (!["check", "status", "diff", "apply"].includes(action)) {
-    throw new Error("Usage: openmates server caddy check|status|diff|apply [--role core|upload|preview]");
+    throw new Error("Usage: openmates server caddy check|status|diff|apply|update [--role core|upload|preview]");
   }
   const config = loadServerConfig();
   const role = getServerRole(flags, config);
@@ -4845,6 +4918,8 @@ Command Options:
 
   caddy:
     openmates server caddy check|status|diff|apply [--role core|upload|preview] [--config /etc/caddy/Caddyfile]
+    openmates server caddy update [--path <installation>] [--role core|upload|preview] [--caddy-config <file>] [--dry-run]
+      Merge the installed server release's configuration, preserve host edits, validate and reload.
 
   reset:
     --delete-user-data-only   Only delete database and cache (preserve config)

@@ -107,7 +107,7 @@ import { adoptUploadEmbedId, transcribeUploadedAudio, uploadFile, type UploadFil
 import { createEmbedRef, createEmbedReferenceBlock, toonEncodeContent } from "./embedCreator.js";
 import { prepareUrlEmbeds } from "./urlEmbed.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
-import { handleServer, printServerHelp } from "./server.js";
+import { handleServer, printServerHelp, updateCaddyAfterCliUpgrade } from "./server.js";
 import {
   buildCodeRunRequestsFromFlags,
   buildCodeRunStreamUrl,
@@ -522,7 +522,7 @@ async function main(): Promise<void> {
   }
 
   if (command === "update" || command === "upgrade") {
-    handleSelfUpdate(command, parsed.flags);
+    await handleSelfUpdate(command, parsed.flags);
     return;
   }
 
@@ -783,7 +783,15 @@ function handleSupport(flags: Record<string, string | boolean>): void {
   console.log(renderSupportInfo());
 }
 
-function handleSelfUpdate(command: string, flags: Record<string, string | boolean>): void {
+async function handleSelfUpdate(command: string, flags: Record<string, string | boolean>): Promise<void> {
+  if (flags["caddy-config"] === true) throw new Error("Provide --caddy-config <file>.");
+  const reportCaddy = async () => {
+    const caddy = await updateCaddyAfterCliUpgrade(flags);
+    if (caddy) {
+      console.log(`Caddy: ${caddy.status}`);
+      if ("retryCommand" in caddy) console.log(`Run: ${caddy.retryCommand}`);
+    }
+  };
   let plan = buildSelfUpdatePlan(flags);
   const status = checkSelfUpdateStatus(plan);
   if (status.checkError) throw new Error(`Update check failed: ${status.checkError}`);
@@ -794,6 +802,7 @@ function handleSelfUpdate(command: string, flags: Record<string, string | boolea
   if (flags.json === true) {
     if (!plan.dryRun && shouldInstall) runSelfUpdate(plan, { verbose: flags.verbose === true });
     persistSelfUpdateChannel(plan);
+    const caddy = await updateCaddyAfterCliUpgrade(flags);
     printJson({
       command,
       channel: plan.channel,
@@ -806,6 +815,7 @@ function handleSelfUpdate(command: string, flags: Record<string, string | boolea
       package: plan.packageSpec,
       run: [plan.command, ...plan.args],
       dry_run: plan.dryRun,
+      ...(caddy ? { caddy } : {}),
     });
     return;
   }
@@ -823,22 +833,26 @@ function handleSelfUpdate(command: string, flags: Record<string, string | boolea
   if (plan.dryRun) {
     if (status.updateAvailable === false) {
       console.log("OpenMates CLI is already up to date.");
+      await reportCaddy();
       return;
     }
     console.log(`Would run: ${[plan.command, ...plan.args].join(" ")}`);
+    await reportCaddy();
     return;
   }
   if (status.updateAvailable === false) {
     persistSelfUpdateChannel(plan);
     console.log("OpenMates CLI is already up to date.");
+    await reportCaddy();
     return;
   }
   console.log(`Updating OpenMates CLI with ${plan.packageManager}...`);
   runSelfUpdate(plan, { verbose: flags.verbose === true });
   persistSelfUpdateChannel(plan);
   console.log(`Installed OpenMates CLI ${status.latestVersion ?? plan.target}.`);
+  await reportCaddy();
   console.log("");
-  console.log("OpenMates is up to date.");
+  console.log("OpenMates CLI is up to date.");
 }
 
 function handleCliVersion(flags: Record<string, string | boolean>): void {
@@ -14386,6 +14400,10 @@ Options:
   --channel <dev|stable|main>    Save release channel (dev uses npm alpha; stable/main uses latest)
   --allow-downgrade             Explicitly allow installing an older version
   --verbose                     Stream package-manager output during installation
+  --path <installation>         Also update this server's Caddy configuration from its installed release
+  --role <core|upload|preview>   Server role for the Caddy update (default: saved role or core)
+  --caddy-config <file>          Active host Caddyfile; otherwise detect the running service
+  --caddy-profile <name>         Use official-upload for the shared production/development upload host
   --json                        Output the update plan/result as JSON`);
 }
 

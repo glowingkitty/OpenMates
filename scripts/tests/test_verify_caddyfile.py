@@ -237,15 +237,24 @@ def test_dev_apps_workspace_credentialed_cors_precedes_public_api() -> None:
     pytest.fail("Could not find credentialed and public Apps routes in adapted dev Caddyfile")
 
 
-def test_dev_embed_reference_availability_uses_credentialed_cors() -> None:
+@pytest.mark.parametrize("caddyfile", ALL_CADDYFILES)
+def test_embed_reference_availability_uses_credentialed_cors(caddyfile: Path, tmp_path: Path) -> None:
     """Audio send's reference probe must reach FastAPI for OPTIONS and POST."""
     caddy = shutil.which("caddy")
     if caddy is None:
         pytest.skip("caddy is not installed")
     env = os.environ.copy()
     env.setdefault("GANDI_BEARER_TOKEN", "openmates-caddyfile-syntax-check-token")
+    source = caddyfile
+    if caddyfile.name == "Caddyfile.example":
+        source = tmp_path / "Caddyfile"
+        content = caddyfile.read_text()
+        values = {"YOUR_EMAIL@example.com": "admin@example.test", "API_DOMAIN": "api.example.test", "FRONTEND_DOMAIN": "app.example.test", "UPLOAD_DOMAIN": "upload.example.test", "SERVICE_DOMAIN": "service.example.test", "API_UPSTREAM": "localhost:8000", "WEBAPP_UPSTREAM": "localhost:5173", "UPLOADS_UPSTREAM": "localhost:8001", "LOCAL_UPLOADS_UPSTREAM": "localhost:8002", "SERVICE_UPSTREAM": "localhost:8003"}
+        for name, value in values.items():
+            content = content.replace(f"<{name}>", value)
+        source.write_text(content)
     result = subprocess.run(
-        [caddy, "adapt", "--config", str(CADDYFILES[0]), "--adapter", "caddyfile"],
+        [caddy, "adapt", "--config", str(source), "--adapter", "caddyfile"],
         cwd=REPO_ROOT, env=env, text=True, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, check=False,
     )
@@ -275,7 +284,7 @@ def test_dev_embed_reference_availability_uses_credentialed_cors() -> None:
             assert "reverse_proxy" in _nested_handlers(route)
             assert "headers" not in _nested_handlers(route)
         return
-    pytest.fail("Could not find credentialed and public embed routes in adapted dev Caddyfile")
+    pytest.fail(f"Could not find credentialed and public embed routes in {caddyfile}")
 
 
 @pytest.mark.parametrize("caddyfile", CADDYFILES)

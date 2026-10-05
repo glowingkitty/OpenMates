@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { accessSync, constants, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, isAbsolute, resolve } from "node:path";
 
 type Paths = Record<string, string[]>;
 type Matcher = { line: number; paths: string[]; prefix: string; suffix: string };
@@ -12,6 +12,41 @@ export type OfficialUploadOrigins = { prod: string; dev: string };
 export type CaddyUpdateState = { version: 1; configPath: string; site: string | null; revision: string; paths: Paths; template: string; profile?: CaddyProfile };
 export type CaddyUpdateResult = { status: "updated" | "unchanged" | "not_installed"; revision?: string; backupPath?: string };
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
+
+export function caddyConfigFromArgs(args: string[], cwd?: string): string | undefined {
+  const index = args.indexOf("--config");
+  const value = index >= 0 ? args[index + 1] : args.find(arg => arg.startsWith("--config="))?.slice(9);
+  if (!value || value.startsWith("--")) return undefined;
+  if (!isAbsolute(value) && !cwd) throw new Error("caddy_relative_config_requires_explicit_path");
+  return resolve(cwd ?? "/", value);
+}
+
+/** Prefer the running service's actual file over an unused default Caddyfile. */
+export function detectCaddyConfigPath(explicit?: string): string | undefined {
+  if (explicit) return resolve(explicit);
+  let pid: string | undefined;
+  try {
+    pid = execFileSync("systemctl", ["show", "caddy", "--property=MainPID", "--value"], {
+      encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 5_000,
+    }).trim();
+  } catch { /* Non-systemd hosts can still use the default file. */ }
+  if (pid && /^[1-9]\d*$/.test(pid)) {
+    try {
+      const args = readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0").filter(Boolean);
+      const config = caddyConfigFromArgs(args);
+      if (config) return config;
+    } catch { throw new Error("caddy_running_config_requires_explicit_path"); }
+    throw new Error("caddy_running_config_requires_explicit_path");
+  }
+  return existsSync("/etc/caddy/Caddyfile") ? "/etc/caddy/Caddyfile" : undefined;
+}
+
+/** Authenticate sudo without changing the user's installation/config context. */
+export function caddyUpdateRetryCommand(input: { installPath: string; role: string; configPath: string; profile?: CaddyProfile }): string {
+  const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+  return `sudo -v && openmates server caddy update --path ${quote(input.installPath)} --role ${quote(input.role)} --caddy-config ${quote(input.configPath)}`
+    + (input.profile === "official-upload" ? " --caddy-profile official-upload" : "");
+}
 
 export function resolveCaddyProfile(role: string, explicit: string | boolean | undefined, previous?: CaddyProfile): CaddyProfile {
   if (explicit === undefined) return previous ?? "self-host";
@@ -242,7 +277,17 @@ const HOST_TRANSACTION = String.raw`
 const fs = require('node:fs'), cp = require('node:child_process'), crypto = require('node:crypto'), path = require('node:path');
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 const digest = text => crypto.createHash('sha256').update(text).digest('hex');
-function run(command, args) { cp.execFileSync(command, args, {stdio: ['ignore','pipe','pipe'], timeout: 20000}); }
+function run(command, args) {
+  const options = {stdio: ['ignore','pipe','pipe'], timeout: 20000};
+  try { cp.execFileSync(command, args, options); }
+  catch (error) {
+    // A user-owned Caddyfile can still belong to a root-managed service.
+    // Honor a cached sudo session for reload without elevating file access.
+    if (command !== 'systemctl') throw error;
+    try { cp.execFileSync('sudo', ['-n', command, ...args], options); }
+    catch { throw error; }
+  }
+}
 function replace(content, metadata) {
   const temp = input.configPath + '.openmates-' + crypto.randomUUID();
   let fd;
@@ -302,7 +347,7 @@ try {
 
 export function caddyHostOperation(input: Record<string, unknown> & { configPath: string }): { content?: string; backupPath?: string } {
   let privileged = false;
-  try { accessSync(dirname(input.configPath), constants.W_OK); } catch { privileged = true; }
+  try { accessSync(input.action === "read" ? input.configPath : dirname(input.configPath), input.action === "read" ? constants.R_OK : constants.W_OK); } catch { privileged = true; }
   const args = ["-e", HOST_TRANSACTION];
   try {
     return JSON.parse(execFileSync(privileged ? "sudo" : process.execPath,
@@ -348,6 +393,11 @@ export async function verifyCaddyCoreRoutes(apiUrl: string, origin: string): Pro
   const request = (path: string, init: RequestInit = {}) => fetch(`${apiUrl.replace(/\/$/, "")}${path}`, {
     ...init, redirect: "error", signal: AbortSignal.timeout(5_000),
   });
+  const embedPreflight = await request("/v1/embeds/chats/00000000-0000-4000-8000-000000000000/references/availability", { method: "OPTIONS", headers: {
+    Origin: origin, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type",
+  } });
+  if (!embedPreflight.ok || embedPreflight.headers.get("access-control-allow-origin") !== origin ||
+    embedPreflight.headers.get("access-control-allow-credentials") !== "true") throw new Error("caddy_embed_reference_cors_failed");
   const availability = await request("/v1/features/availability");
   if (!availability.ok) throw new Error("caddy_availability_route_failed");
   const features = await availability.json() as { disabled?: string[] };

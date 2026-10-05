@@ -287,8 +287,9 @@ When a required check fails, the CLI:
 
 ### Caddy during updates
 
-`server update` also updates `/etc/caddy/Caddyfile` when it is installed. Use
-`--caddy-config <file>` for another host configuration path. Hosts without Caddy
+`server update` also updates the running Caddy service's configuration, falling
+back to `/etc/caddy/Caddyfile`. Use `--caddy-config <file>` for another host
+configuration path. Hosts without Caddy
 continue to use their existing direct API deployment.
 
 The first update adopts the existing named path matchers while preserving other
@@ -301,8 +302,23 @@ Caddy validation runs before replacement. Changes receive a restricted backup,
 preserve file ownership and permissions, and use an atomic replacement followed
 by a graceful reload. Failed reloads or public route checks restore and reload
 the previous file. Such failures leave the update degraded and containers
-running. Caddy administration needs root or passwordless sudo; three-way merging
-uses the host's `diff3` utility. The dry-run output includes the Caddy plan.
+running. Caddy administration needs root, passwordless sudo, or an authenticated
+sudo session; three-way merging uses the host's `diff3` utility. The dry-run
+output includes the Caddy plan. If authentication or another check prevents the
+update, the CLI prints a Caddy-only retry command:
+
+```bash
+sudo -v && openmates server caddy update --path /opt/openmates --role core
+```
+
+`openmates upgrade` updates the CLI package and then updates Caddy for a saved
+server installation (or an explicit `--path`). Caddy templates still come from
+the installed server's exact release, rather than the new CLI version. An
+unregistered checkout prints the follow-up command without changing the host.
+The JSON result includes Caddy's outcome and a retry command when needed.
+`server caddy update` can complete this step without updating containers or
+replacing custom host settings. Use `server caddy apply` only when intentionally
+replacing the host configuration with a packaged template.
 
 
 ## Runtime Verification and Monitoring
