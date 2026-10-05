@@ -1,6 +1,9 @@
 # Additional archive reader requirement (2026-10-05)
 
-After pulling the latest `dev`, complete archive-aware readers before advertising
+Pull `dev` including `8d50ac6555faff1f44a447c8b3600fa1e95080d8` or newer into
+the existing Mac workspace using its session workflow. On a clean canonical
+checkout already on `dev`, use `git pull --ff-only origin dev`. Complete
+archive-aware readers before advertising
 `agentic-storage-v2` in the WebSocket `client_capabilities` list and in the HTTP
 `X-OpenMates-Client-Capabilities` header. The capability means the full native
 reader can page mixed PostgreSQL/S3 chat history, fetch exact oversized messages,
@@ -14,8 +17,11 @@ complete saved result. Exact Project version reads and checkpoint writes carry
 association from an unrelated currently open Project. Preserve the existing
 canonical writer and typed-output recovery requirements below.
 
-Return the native source commit, supported platforms, focused reader/writer
-results and bounded evidence for release review. Native compatibility remains a
+Return the published native source commit, supported iOS/macOS/Watch platforms,
+focused reader/writer results and bounded evidence for release review. Include
+HTTP and WebSocket reconnect capability tests, bounded cold scrollback and
+exact-version Personal/Team/Project authorization and decryption. The release
+issuer consumes reviewed native evidence; a claimed capability alone is not proof. Native compatibility remains a
 required migration gate. There is no request to run large real inference tests.
 
 # Immediate Mac action for the active development storage API

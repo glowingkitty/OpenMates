@@ -838,3 +838,51 @@ architecture is not yet claimed proven for 1000 heavy daily users.
   host updater renews complete process inventory automatically after updates.
 - This checkpoint authorizes no real-data pruning: release eligibility is absent,
   native and full P-7 evidence remain open, and production has not been changed.
+
+
+## Published automatic migration and focused client evidence — 2026-10-05
+
+- Dev `8d50ac6555faff1f44a447c8b3600fa1e95080d8` publishes the integrated
+  automatic migration, archive transport, exact Project-aware reconstruction,
+  bounded Team/personal exports and measured unrated Team storage quotes. All
+  352 backend publication cases passed.
+- Isolated browser run `37319285267` passed all three bounded history cases,
+  including a shared Team Project and original-version reconstruction. Focused
+  backend run `37319297030` passed its 12 selected files. CLI run `37319290856`
+  passed all seven selected encrypted-version/server-migration checks; the
+  unrelated Project API mock in that run lacked the new fetch export.
+- Test-only dev `34beeb72d2bb88cbef5a7322cb0614630336894e` adds that export
+  while preserving all Project assertions. Its focused run `37321647498`
+  passed 9/9 with zero failed or pending cases; its retained receipt matches
+  source and harness `34beeb72`.
+- Capacity calibration `c443b957` never started. Preparation run `37319190281`
+  rejected a PostgreSQL index predicate whose equivalent AND nesting changed
+  on SQL restore. The disposable schema producer round-trip repair has 27
+  focused checks and preserves exact comparison and independent fresh
+  consumers. No capacity measurement or target-load pass is claimed.
+- The registered CLI update path installs and renews full serving-process
+  inventory and periodically retries trusted release eligibility. An absent
+  release certificate or native/capacity evidence holds advancement; complete
+  compatibility and all per-unit checks remain mandatory before pruning. The
+  first real cohort retains PostgreSQL source payloads for at least 24 hours.
+- Production is unchanged. Team wallet/expiry policy and native evidence remain
+  pending. Current heads remain PostgreSQL-resident under approved D-9; the
+  optional warm-head byte refinement has not been approved.
+
+- Operational repair `58885a96991799cd8f528f77c0fcb454f3421726` packages
+  migration modules in every legacy Celery build and stabilizes only disposable
+  test-schema generation. Four projected-image checks and 27 schema checks passed.
+  Coordinated rebuild `docker-677cdc07` completed for all 16 affected services;
+  the API is healthy and the core worker/scheduler no longer restart.
+- Repaired-source calibration `609e81d5` is queued on exact source/harness
+  `58885a9`; preparation run `37323757755` is in progress. This is sizing work,
+  with zero real inference and no target-scale result yet.
+- Actual dev startup inspection also found Compose stripping scalar command
+  continuations and omitting intended worker queue/concurrency/limit flags. The
+  command-vector repair preserves those configured values and all non-command
+  service settings; 15 actual Compose-resolution and executable shell cases
+  passed. Runtime admission is verified after its coordinated restart.
+- Task-owned generated source backups were deduplicated without omitting file
+  bodies or metadata. Coordinated cleanup removed only unreferenced images from
+  this Task and unused build cache; user data, volumes and referenced images
+  remain intact. The standard CI disk reserve is preserved.

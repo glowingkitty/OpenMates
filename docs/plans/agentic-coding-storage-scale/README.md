@@ -1,5 +1,32 @@
 # Bounded storage for agentic coding scale
 
+## Current status — 2026-10-05
+
+Automatic migration and complete bounded archive readers/exports are published
+in dev `8d50ac6555faff1f44a447c8b3600fa1e95080d8`; `34beeb72` adds only the
+Project test mock correction (focused CI: 9/9). Operational fix `58885a9`
+packages all migration workers and repairs disposable schema preparation; its
+coordinated 16-service development rebuild completed. The supported automatic update path and direct
+Compose monitoring requirement are documented in
+[automatic-migration.md](../../architecture/storage/automatic-migration.md).
+Personal storage billing is active on dev. The two real CLI/web chat canaries
+already completed; do not repeat them for capacity verification.
+
+The publication gate passed 352 backend cases. Exact-source isolated browser
+history passed three cases, CLI checks passed seven cases, and the focused
+12-file backend selection passed. The heavy-user calibration has not produced
+measurements: schema preparation failed before any workload started. Its narrow
+disposable producer repair preserves the exact restored-schema check.
+
+Remaining: successful calibration and dedicated-host target measurement, native
+reader/writer evidence, signed release eligibility and the first safely gated
+archive activation. Team storage quotes and exports are implemented; Team
+charging/expiry await payer and notice-policy decisions. Current artifact heads
+remain in PostgreSQL under approved D-9. No production mutation or real-user
+pruning is claimed. Historical checkpoints below retain their original scope;
+[progress.md](progress.md) records subsequent changes.
+
+
 This approved plan keeps the current PostgreSQL, Directus, Redis/Dragonfly, and regional S3 foundation while making every high-volume path bounded. Both rounds of five design questions are answered. The user approved the reviewed Plan and authorized implementation on 2026-10-03; the session records Specification approval at fingerprint `4787bd3c975408e61542722b51c6980243f87377e00619f7573770a86f705e19`. Implementation is underway, with status and dependencies in the linked OpenMates Tasks.
 
 > “what i care about is having a proper reliable efficient and scalable solution that is still reasonable to implement in terms of effort and minimal migration risk.”
