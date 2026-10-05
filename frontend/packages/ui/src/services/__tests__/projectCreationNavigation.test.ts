@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   addExistingTargetToProject: vi.fn(),
   getProject: vi.fn(),
   createUserPlan: vi.fn(),
+  listProjects: vi.fn(async () => []),
   listProjectSources: vi.fn(async () => []),
   getProjectContents: vi.fn(async () => ({ items: [], folders: [] })),
   updateProjectItemMetadata: vi.fn(),
@@ -13,12 +14,14 @@ const mocks = vi.hoisted(() => ({
   getProjectSettings: vi.fn(),
   approveProjectWrite: vi.fn(),
   activeChatGet: vi.fn(() => null),
+  persistWorkflowRemoteFile: vi.fn(),
   pendingMentionValue: null as unknown,
 }));
 
 vi.mock("../projectService", () => ({
   addExistingTargetToProject: mocks.addExistingTargetToProject,
   getProject: mocks.getProject,
+  listProjects: mocks.listProjects,
   listProjectSources: mocks.listProjectSources,
   getProjectContents: mocks.getProjectContents,
   updateProjectItemMetadata: mocks.updateProjectItemMetadata,
@@ -28,6 +31,7 @@ vi.mock("../projectService", () => ({
   approveProjectWrite: mocks.approveProjectWrite,
 }));
 vi.mock('../../stores/workflowWorkspaceStore', () => ({ workflowApiRequest: mocks.workflowApiRequest }));
+vi.mock('../../../../workflowRemoteFile', () => ({ persistWorkflowRemoteFile: mocks.persistWorkflowRemoteFile }));
 vi.mock('../../stores/userProfile', async () => ({ userProfile: (await import('svelte/store')).writable({ user_id: 'owner' }) }));
 vi.mock('../../stores/projectFileApprovalStore', () => ({ requestProjectWriteApproval: vi.fn(async () => false), recordProjectFileChange: vi.fn() }));
 vi.mock('../../i18n/translations', async () => ({ text: (await import('svelte/store')).writable((key: string) => key) }));
@@ -70,6 +74,7 @@ import {
   prepareProjectWorkflowNavigation,
   projectWorkflowAssociationWarning,
   saveWorkflowToProjectTarget,
+  syncBoundWorkflowRemoteFiles,
   WorkflowRemoteFilePendingError,
 } from "../projectCreationNavigation";
 
@@ -77,6 +82,80 @@ describe("project creation navigation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.pendingMentionValue = null;
+    mocks.activeChatGet.mockImplementation(() => null);
+    mocks.listProjects.mockResolvedValue([]);
+    mocks.listProjectSources.mockResolvedValue([]);
+    mocks.getProjectContents.mockResolvedValue({ items: [], folders: [] });
+    window.history.replaceState({}, '', '/');
+  });
+
+  function boundWorkflow(bindingProjectId = 'project-1') {
+    const project = { project_id: 'project-1', projectKey: new Uint8Array(32) };
+    const binding = { project_id: bindingProjectId, source_id: 'remote-1', folder_path: 'src', file_path: 'src/portable_remote.workflow.yml' };
+    const workflow = { id: 'workflow-3', current_version_id: 'v1' };
+    mocks.listProjects.mockResolvedValue([project] as never);
+    mocks.listProjectSources.mockResolvedValue([{ source_id: 'remote-1', status: 'connected' }] as never);
+    mocks.getProjectContents.mockResolvedValue({ folders: [], items: [{ project_item_id: 'item-1',
+      item_type: 'workflow', target_id: workflow.id, metadata: { remote_workflow_file: binding } }] } as never);
+    mocks.persistWorkflowRemoteFile.mockResolvedValue({ status: 'saved', binding });
+    return { project, binding, workflow };
+  }
+
+  // contract-test: supporting surface=gui.web assertions=workflows.portability.remote-project-save,projects.files.chat-focus-required
+  it('uses the explicit current Workflows chat only with matching Project Focus', async () => {
+    const { workflow } = boundWorkflow();
+    window.location.hash = '#chat-id=fixture-chat&workflow-id=workflow-3&workflow-tab=details';
+    mocks.getActiveProjectFocus.mockResolvedValue({ project_id: 'project-1' });
+
+    await syncBoundWorkflowRemoteFiles(workflow as never);
+
+    expect(mocks.getActiveProjectFocus).toHaveBeenCalledExactlyOnceWith('fixture-chat');
+    expect(mocks.persistWorkflowRemoteFile).toHaveBeenCalledOnce();
+    expect(mocks.updateProjectItemMetadata).toHaveBeenCalledWith(expect.anything(), 'item-1',
+      expect.objectContaining({ remote_file_status: 'saved' }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=workflows.portability.remote-project-save,projects.files.chat-focus-required
+  it.each([
+    '#workflow-id=workflow-3',
+    '#projects&workflow-id=workflow-3&chat-id=fixture-chat',
+    '#workflow-id=other-workflow&chat-id=fixture-chat',
+  ])('does not borrow an absent or other-workspace chat from %s', async hash => {
+    const { workflow } = boundWorkflow();
+    window.location.hash = hash;
+
+    await expect(syncBoundWorkflowRemoteFiles(workflow as never)).rejects.toBeInstanceOf(WorkflowRemoteFilePendingError);
+
+    expect(mocks.getActiveProjectFocus).not.toHaveBeenCalled();
+    expect(mocks.persistWorkflowRemoteFile).not.toHaveBeenCalled();
+    expect(mocks.updateProjectItemMetadata).toHaveBeenCalledWith(expect.anything(), 'item-1',
+      expect.objectContaining({ remote_file_error: 'project_focus_required' }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=workflows.portability.remote-project-save,projects.files.chat-focus-required
+  it('rejects a bound file from another Project even when the route chat has this Project Focus', async () => {
+    const { workflow } = boundWorkflow('other-project');
+    window.location.hash = '#workflow-id=workflow-3&chat-id=fixture-chat';
+    mocks.getActiveProjectFocus.mockResolvedValue({ project_id: 'project-1' });
+
+    await expect(syncBoundWorkflowRemoteFiles(workflow as never)).rejects.toBeInstanceOf(WorkflowRemoteFilePendingError);
+
+    expect(mocks.persistWorkflowRemoteFile).not.toHaveBeenCalled();
+    expect(mocks.updateProjectItemMetadata).toHaveBeenCalledWith(expect.anything(), 'item-1',
+      expect.objectContaining({ remote_file_error: 'project_focus_required' }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=workflows.portability.remote-project-save,projects.files.chat-focus-required
+  it('prefers the active chat and rejects its wrong Project Focus without using the route chat', async () => {
+    const { workflow } = boundWorkflow();
+    window.location.hash = '#workflow-id=workflow-3&chat-id=fixture-chat';
+    mocks.activeChatGet.mockReturnValue('active-chat');
+    mocks.getActiveProjectFocus.mockResolvedValue({ project_id: 'other-project' });
+
+    await expect(syncBoundWorkflowRemoteFiles(workflow as never)).rejects.toBeInstanceOf(WorkflowRemoteFilePendingError);
+
+    expect(mocks.getActiveProjectFocus).toHaveBeenCalledExactlyOnceWith('active-chat');
+    expect(mocks.persistWorkflowRemoteFile).not.toHaveBeenCalled();
   });
 
   // contract-test: supporting surface=gui.web assertions=projects.files.chat-focus-required

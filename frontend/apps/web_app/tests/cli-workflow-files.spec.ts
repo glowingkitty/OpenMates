@@ -58,12 +58,35 @@ test.describe('Workflow YAML files through CLI and REST', () => {
       const original = await readFile();
       expect(parse(original).format).toBe('openmates-workflow');
       expect(original).not.toContain(workflowId!);
+      const bindingEvent = waitForFixtureEvent(bridge, 'workflow_remote_diagnostic', 10_000);
+      bridge.kill('SIGQUIT');
+      expect(await bindingEvent).toMatchObject({
+        remote_file_status: 'saved', remote_file_error: null,
+        source_online: true, project_binding_match: true,
+      });
       await page.goto(`/#chat-id=${encodeURIComponent(fixture.chat_id)}&workflow-id=${encodeURIComponent(workflowId!)}&workflow-tab=details`, { waitUntil: 'domcontentloaded' });
-      const node = page.locator('.workflow-node[data-node-id="message"]').first();
+      const node = page.locator('[data-testid="workflow-node-card"][data-node-id="message"]');
       await node.getByTestId('workflow-node-summary').click();
       await node.getByTestId('workflow-message-template').fill('Updated remote message');
       await node.getByTestId('workflow-node-save').click();
-      await expect.poll(async () => parse(await readFile()).workflow.graph.nodes[0].config.message).toBe('Updated remote message');
+      try {
+        await expect.poll(async () => parse(await readFile()).workflow.graph.nodes[0].config.message).toBe('Updated remote message');
+      } catch (error) {
+        try {
+          const pending = waitForFixtureEvent(bridge, 'workflow_remote_diagnostic', 10_000);
+          bridge.kill('SIGQUIT');
+          const diagnostic = await pending;
+          console.log('[CLI_WORKFLOW_REMOTE_DIAGNOSTIC] ' + JSON.stringify({
+            remote_file_status: diagnostic.remote_file_status,
+            remote_file_error: diagnostic.remote_file_error,
+            source_online: diagnostic.source_online,
+            project_binding_match: diagnostic.project_binding_match,
+          }));
+        } catch {
+          console.log('[CLI_WORKFLOW_REMOTE_DIAGNOSTIC] unavailable');
+        }
+        throw error;
+      }
       const external = waitForFixtureEvent(bridge, 'workflow_external_edit');
       bridge.kill('SIGWINCH');
       await external;

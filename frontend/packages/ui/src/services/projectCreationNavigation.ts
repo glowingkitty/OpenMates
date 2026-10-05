@@ -20,6 +20,7 @@ import { userProfile } from '../stores/userProfile';
 import { workflowApiRequest, type WorkflowDetail } from '../stores/workflowWorkspaceStore';
 import { persistWorkflowRemoteFile, type WorkflowRemoteFileBinding } from '../../../workflowRemoteFile';
 import { projectFileMutationDigest } from '../utils/projectFileMutationProtocol';
+import { getHashParam } from '../utils/settingsHashUtils';
 import { requestProjectWriteApproval, recordProjectFileChange } from '../stores/projectFileApprovalStore';
 import { text } from '../i18n/translations';
 import { chatSyncService } from "./chatSyncService";
@@ -167,11 +168,23 @@ export class WorkflowRemoteFilePendingError extends Error {
   }
 }
 
+function workflowRouteChatId(workflowId: string): string | null {
+  if (typeof window === 'undefined') return null;
+  const { pathname, hash } = window.location;
+  if (pathname !== '/' && pathname !== '/workflows' && pathname !== '/workflows/') return null;
+  const marker = hash.replace(/^#\/?/, '').split('&', 1)[0];
+  if (['projects', 'plans', 'tasks', 'apps'].includes(marker) || marker.startsWith('apps/')) return null;
+  if (getHashParam(hash, 'workflow-id') !== workflowId
+    || ['project-id', 'plan-id', 'task-id'].some(key => getHashParam(hash, key))) return null;
+  return getHashParam(hash, 'chat-id') || null;
+}
+
 async function saveRemote(project: ProjectViewModel, workflow: WorkflowDetail, binding: WorkflowRemoteFileBinding, teamId?: string | null) {
   const context = { teamId: teamId ?? null };
   const source = (await listProjectSources(project, context)).find(item => item.source_id === binding.source_id);
   if (source?.status === 'offline') return { status: 'pending' as const, binding, error: 'source_offline' };
-  const chatId = activeChatStore.get();
+  if (binding.project_id !== project.project_id) return { status: 'pending' as const, binding, error: 'project_focus_required' };
+  const chatId = activeChatStore.get() || workflowRouteChatId(workflow.id);
   const focus = chatId ? await getActiveProjectFocus(chatId) : null;
   if (!source || !chatId || focus?.project_id !== project.project_id) return { status: 'pending' as const, binding, error: 'project_focus_required' };
   return persistWorkflowRemoteFile({ workflow, binding, expectedVersionId: workflow.current_version_id,

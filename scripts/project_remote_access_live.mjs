@@ -881,7 +881,7 @@ async function runServeFixture(client, fixture) {
     '// Bounded remote text fixture\n'.repeat(1_500)
       + 'export const completeRemoteFile = "Remote fullscreen end marker";\n');
   writeFileSync(join(rootPath, ".env"), "REMOTE_ACCESS_SECRET=not-for-server\n");
-  if (mode === "serve" || mode === "serve-team") {
+  if (mode === "serve" || mode === "serve-team" || mode === "serve-workflow") {
     mkdirSync(join(rootPath, "docs"));
     writeFileSync(join(rootPath, "docs", "readme-image.png"), largeValidPngFixture());
     writeFileSync(join(rootPath, "README.md"), "# Connected project\n\n![Connected diagram](docs/readme-image.png)\n\n[External docs](https://openmates.org)\n");
@@ -981,6 +981,32 @@ async function runServeFixture(client, fixture) {
         const content = readFileSync(join(rootPath, path), "utf8") + "\n# External edit requires explicit reconciliation\n";
         writeFileSync(join(rootPath, path), content);
         process.stdout.write(`${JSON.stringify({ event: "workflow_external_edit", path })}\n`);
+      });
+      if (mode === "serve-workflow") process.on("SIGQUIT", () => {
+        void (async () => {
+          const context = { personal: true };
+          const [items, sources] = await Promise.all([
+            client.listProjectItems(fixture.projectId, context),
+            client.listProjectSources(fixture.projectId, context),
+          ]);
+          const item = items.items.find(candidate => candidate.item_type === "workflow");
+          const plaintext = item?.encrypted_metadata
+            ? await decryptWithAesGcmCombined(item.encrypted_metadata, fixture.projectKey) : null;
+          const metadata = plaintext ? JSON.parse(plaintext) : {};
+          const binding = metadata.remote_workflow_file ?? {};
+          const enumValue = value => typeof value === "string" && /^[a-z][a-z0-9_]{0,63}$/.test(value) ? value : null;
+          process.stdout.write(`${JSON.stringify({
+            event: "workflow_remote_diagnostic",
+            remote_file_status: enumValue(metadata.remote_file_status),
+            remote_file_error: enumValue(metadata.remote_file_error),
+            source_online: sources.some(source => source.source_id === fixture.sourceId && source.status === "connected"),
+            project_binding_match: binding.project_id === fixture.projectId && binding.source_id === fixture.sourceId
+              && binding.folder_path === "src" && binding.file_path === "src/portable_remote.workflow.yml",
+          })}\n`);
+        })().catch(() => process.stdout.write(`${JSON.stringify({
+          event: "workflow_remote_diagnostic", remote_file_status: null, remote_file_error: "diagnostic_failed",
+          source_online: false, project_binding_match: false,
+        })}\n`));
       });
       process.once("SIGUSR1", () => {
         void stopForegroundCli(child).then(() => {
