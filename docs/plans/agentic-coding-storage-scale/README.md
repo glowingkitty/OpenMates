@@ -6,7 +6,9 @@ Automatic migration and complete bounded archive readers/exports are published
 in dev `8d50ac6555faff1f44a447c8b3600fa1e95080d8`; `34beeb72` adds only the
 Project test mock correction (focused CI: 9/9). Operational fix `58885a9`
 packages all migration workers and repairs disposable schema preparation; its
-coordinated 16-service development rebuild completed. The supported automatic update path and direct
+coordinated 16-service development rebuild completed. Release `3bdf7a4` fixes
+Compose queue/concurrency argument loss; its coordinated restart and actual
+process-argument checks passed. The supported automatic update path and direct
 Compose monitoring requirement are documented in
 [automatic-migration.md](../../architecture/storage/automatic-migration.md).
 Personal storage billing is active on dev. The two real CLI/web chat canaries
@@ -15,8 +17,12 @@ already completed; do not repeat them for capacity verification.
 The publication gate passed 352 backend cases. Exact-source isolated browser
 history passed three cases, CLI checks passed seven cases, and the focused
 12-file backend selection passed. The heavy-user calibration has not produced
-measurements: schema preparation failed before any workload started. Its narrow
-disposable producer repair preserves the exact restored-schema check.
+measurements: the first schema preparation failed before any workload started.
+The repaired exact schema preparation passed; calibration on source/harness
+`58885a9` then failed at isolated backend startup before workload execution.
+The disposable fixture and exact namespace proof now account for locally
+generated VAPID signing keys, without adding external provider credentials.
+The repaired calibration is the next verification step; measurements remain absent.
 
 Remaining: successful calibration and dedicated-host target measurement, native
 reader/writer evidence, signed release eligibility and the first safely gated

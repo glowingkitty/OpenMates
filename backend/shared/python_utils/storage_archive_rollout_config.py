@@ -74,7 +74,8 @@ def trusted_isolated_storage_profile(environ: dict[str, str]) -> bool:
             and proof["expires_at"] - proof["observed_at"] <= 90000
             and proof.get("provider_network") == "internal"
             and proof.get("provider_credentials") == "absent"
-            and proof.get("vault_provider_keys") == ["core_server", "hetzner"]
+            and proof.get("vault_provider_keys") == ["core_server", "hetzner", "vapid"]
+            and proof.get("vapid_credentials") == "generated_disposable_fixture"
             and proof.get("source_mount") == "read_only_exact_candidate"
             and proof.get("shared_dev_dns") == "rejected"
             and proof.get("shared_dev_https") == "rejected"

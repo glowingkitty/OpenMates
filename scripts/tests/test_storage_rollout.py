@@ -447,7 +447,8 @@ def test_isolated_eligibility_requires_host_verified_readonly_source_bound_netwo
     proof = {"schema": "agentic-storage-ci-isolation-v1", "source_commit": SOURCE, "harness_commit": "b" * 40,
              "run_id": "123", "environment": "github-isolated", "observed_at": int(time.time()) - 1,
              "expires_at": int(time.time()) + 1000, "provider_network": "internal", "provider_credentials": "absent",
-             "vault_provider_keys": ["core_server", "hetzner"], "source_mount": "read_only_exact_candidate",
+             "vault_provider_keys": ["core_server", "hetzner", "vapid"],
+             "vapid_credentials": "generated_disposable_fixture", "source_mount": "read_only_exact_candidate",
              "shared_dev_dns": "rejected", "shared_dev_https": "rejected", "object_storage": "authenticated_disposable_roundtrip"}
     proof_path.write_text(json.dumps(proof))
     proof_path.chmod(0o444)
@@ -457,7 +458,11 @@ def test_isolated_eligibility_requires_host_verified_readonly_source_bound_netwo
     assert config.trusted_isolated_storage_profile(env)
     assert not config.trusted_isolated_storage_profile({**env, "BUILD_COMMIT_SHA": "c" * 40})
     assert not config.trusted_isolated_storage_profile({**env, "SERVER_ENVIRONMENT": "production"})
-    for name, value in (("provider_credentials", "present"), ("provider_network", "external"), ("vault_provider_keys", ["openai"]), ("source_mount", "writable")):
+    for name, value in (("provider_credentials", "present"), ("provider_network", "external"), ("vault_provider_keys", ["openai"]),
+                        ("vault_provider_keys", ["core_server", "hetzner"]),
+                        ("vault_provider_keys", ["core_server", "hetzner", "openai", "vapid"]),
+                        ("vapid_credentials", None), ("vapid_credentials", "imported"),
+                        ("source_mount", "writable")):
         proof_path.chmod(0o644)
         proof_path.write_text(json.dumps({**proof, name: value}))
         proof_path.chmod(0o444)

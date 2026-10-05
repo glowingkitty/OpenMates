@@ -321,6 +321,20 @@ implementation_phases:
       - Development setup docker-4777bd38 and coherent restart docker-40849e0b succeeded; read-only metering checked all 44 owners with complete quotes and zero held owners or errors.
       - Coordinated personal billing activation docker-323e9d0d succeeded; final readback confirms both flags on all four targets and 11 valid-ready indexes, with all six archive flags off and production unchanged.
 
+  - id: P-9
+    name: Team storage ownership and settlement completion
+    task: TASK-9893
+    dependency: P-8 personal settlement invariants and an explicit Team payer decision before rating or charging.
+    changes:
+      - Preserve measured complete owner/admin Team quotes, bounded Team cold exports and personal-scope exclusion already published in 8d50ac6.
+      - After the payer decision, implement owner-scoped Team invoices and authoritative credit settlement with distinct personal and Team accounting; never infer permission from imported credit or membership rows.
+      - Resolve warning recipients and Team-specific unpaid expiry before enabling Team dunning or deletion; personal expiry continues to protect Team data.
+      - Preserve encryption, current membership and role checks, unique logical-object metering, reference protection and idempotent invoice/credit transitions.
+    exit_evidence:
+      - Focused role, complete-meter, forged-import, scope and export checks already passed in the combined backend release.
+      - Required settlement verification will use isolated PostgreSQL/S3 with tiny ciphertext and simulated declared sizes, zero real inference or delivered test email.
+      - Team charging and expiry remain off until the accepted policy and its exact-source tests pass.
+
 required_implementation_checks:
   synthetic_capacity:
     - The architecture workload represents 1000 heavy daily users, 500 simultaneous main/subchat executions, and the agreed per-user-day output volumes; report actual measured throughput and headroom rather than assuming the target was met.
@@ -399,6 +413,24 @@ open_questions:
     question: Given few current users, should the initial rollout keep verified PostgreSQL rollback copies for 24 hours after enabling S3 reads, or permit pruning as soon as all required verification gates pass?
     recommendation: Enable the new reader after targeted correctness, authorization, replication, client-read, and rollback checks; retain PostgreSQL rollback copies for 24 hours before verified pruning. Sparse traffic makes a fixed seven-day wait weak evidence. The buffer affects redundant source-copy removal only.
     invariants: Every migrated unit still requires verified durable ciphertext, compatible authorized/decrypting readers, canonical persistence acknowledgements, current generation/write fences, and a tested rollback before pruning; elapsed time alone never suffices. Explicit deletion bypasses migration retention. This rollout-only window neither slows steady-state archival nor changes superseded-generation or pending-recovery retention.
+
+  - id: Q-6
+    topic: Team storage payer
+    status: pending
+    asked_at: "2026-10-05"
+    question: Should weekly Team storage charges use a separate Team credit wallet or the owner's personal balance?
+    recommendation: A separate Team wallet with its own 1 GiB free allowance and the existing 3 credits per started excess GiB per week, keeping Team costs and unpaid invoices distinct.
+    activation: No rated Team quote, settlement or expiry until the user answers and the corresponding policy is implemented and verified.
+  - id: Q-7
+    topic: Team unpaid-storage notices and expiry
+    status: pending
+    question: Who receives Team warnings and may specifically warned Team units expire after four delivered weekly warnings?
+    unresolved_details: Resolve after the payer choice; personal expiry continues to protect Team data and no Team deletion policy is inferred from the personal policy.
+  - id: Q-8
+    topic: Optional inactive current-head byte refinement
+    status: pending
+    question: Should inactive current artifact heads move to S3 under a bounded warm-byte policy while PostgreSQL retains metadata and references?
+    current_approved_behavior: D-9 keeps current artifact heads in PostgreSQL. This optional refinement is not a completion gate for the approved implementation and requires an explicit decision before head eviction.
 
 documentation_maintenance:
   after_each_answer:

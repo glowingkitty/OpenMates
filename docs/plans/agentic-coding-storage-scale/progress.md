@@ -886,3 +886,54 @@ architecture is not yet claimed proven for 1000 heavy daily users.
   bodies or metadata. Coordinated cleanup removed only unreferenced images from
   this Task and unused build cache; user data, volumes and referenced images
   remain intact. The standard CI disk reserve is preserved.
+
+
+## Dev deployment and actual admission verified
+
+Command-vector release `3bdf7a4d1a83d8ef87e8f78e502da24753850a04` is public.
+Coordinated restart `docker-d3726518` completed for all 16 affected services.
+Read-only inspection of actual Celery process argv confirms configured queues,
+concurrency, child-task/memory limits and prefetch are now present. All six
+archive flags remain explicitly off on API/core/task/scheduler/AI targets; the
+two active personal billing flags remain on. This verifies the scoped dev
+deployment and preserves the existing migration hold.
+
+These dev images were built without `BUILD_COMMIT_SHA`, so their source
+provenance is unavailable and migration remains fail-closed. This does not
+certify that dev cohort for archival. The supported registered CLI and official
+image update paths supply source provenance and install complete host monitoring;
+raw Compose updates need the documented monitoring/provenance setup. No release
+eligibility certificate or real-user prune has been issued.
+
+Repaired schema preparation `37323757755` passed and its retrieved receipt
+confirms source/harness `58885a9`, exact tree `46bb33c5`, and required web/CLI
+capabilities. Calibration `37325705842` failed at isolated backend startup after 481 seconds;
+selected checks were skipped and no measurements exist. Disposable cleanup
+verified zero containers/volumes and removed private account state. The helper
+is investigating retained startup diagnostics before any retry. Results remain
+labeled separately from the eventual
+matching-source 500-execution/1000-user-day target. No new inference ran.
+
+Team quote/export implementation is public; choosing a Team wallet versus the
+owner personal wallet still precedes rated quotes and settlement. Team notice
+recipients and any Team-specific unpaid expiry must also be resolved before
+activation. Personal expiry continues to protect Team data. The Apple chat
+should consume the published archive handoff before declaring native capability.
+
+The startup failure occurred in the isolated Vault provider-namespace proof,
+not container health. Its discarded one-shot output cannot establish the exact
+old HTTP/import cause. The focused repair uses the authenticated disposable
+initializer, verifies root scope, and emits only bounded whitelisted
+stage/status/count diagnostics. Source inspection found normal API startup creates
+local VAPID signing keys. The fixture now explicitly creates a fresh disposable
+EC key pair and the proof/validator require the exact `core_server`/`hetzner`/
+`vapid` namespace plus generated-fixture provenance. Missing VAPID, imported
+provenance or any additional inference-provider entry rejects the profile.
+Fourteen positive/negative/privacy probe checks and 23 focused rollout tests
+passed; no production Vault policy was changed and no calibration pass is claimed
+before the repaired run.
+
+CLI npm publication for product source `8d50ac6` succeeded in run `37319010149`.
+Production rollout must use the updated CLI release with the matching official
+images or clean source build; direct git/Compose commands alone do not install
+the host monitoring service.

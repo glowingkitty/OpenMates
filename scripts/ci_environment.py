@@ -84,6 +84,16 @@ if os.environ.get('CI_STORAGE_ACCESS_KEY'):
     data={'s3_access_key':os.environ['CI_STORAGE_ACCESS_KEY'],'s3_secret_key':os.environ['CI_STORAGE_SECRET_KEY'],'s3_region_name':'nbg1'}
     response=requests.post(url+'kv/data/providers/hetzner',headers=headers,json={'data':data},timeout=15)
     response.raise_for_status()
+    # Normal API startup needs VAPID signing keys. Generate them within this
+    # disposable Vault bootstrap; these are local keys, not inference secrets.
+    import base64
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+    vapid=ec.generate_private_key(ec.SECP256R1())
+    data={'public_key':base64.urlsafe_b64encode(vapid.public_key().public_bytes(Encoding.X962,PublicFormat.UncompressedPoint)).decode().rstrip('='),
+          'private_key':base64.urlsafe_b64encode(vapid.private_numbers().private_value.to_bytes(32,'big')).decode().rstrip('=')}
+    response=requests.post(url+'kv/data/providers/vapid',headers=headers,json={'data':data},timeout=15)
+    response.raise_for_status()
 class Client:
     async def vault_request(self, method, path, data):
         response=requests.request(method, url+path, headers=headers, json=data, timeout=15)
@@ -110,6 +120,65 @@ if os.environ.get('CI_UPLOADS') == '1':
             await renew_api_token(client, 'http://vault:8200', setup_vault.API_TOKEN_FILE)
     asyncio.run(upload_token())
 """
+
+
+ISOLATED_VAULT_PROVIDER_CHECK = """import json, os, sys
+stage='import'; status=None; missing=None; unexpected=None
+try:
+    import requests
+    headers={'X-Vault-Token':os.environ['VAULT_TOKEN']}
+    stage='auth'
+    response=requests.get('http://vault:8200/v1/auth/token/lookup-self',headers=headers,timeout=10)
+    status=response.status_code
+    response.raise_for_status()
+    assert 'root' in response.json().get('data',{}).get('policies',[]), 'Disposable initializer root scope required'
+    stage='list'
+    response=requests.request('LIST','http://vault:8200/v1/kv/metadata/providers',headers=headers,timeout=10)
+    status=response.status_code
+    response.raise_for_status()
+    stage='namespace'
+    keys=response.json().get('data',{}).get('keys',[])
+    assert isinstance(keys,list) and all(isinstance(key,str) for key in keys), 'Invalid provider namespace'
+    expected=['core_server','hetzner','vapid']
+    missing=len(set(expected)-set(keys)); unexpected=sum(key not in expected for key in keys)
+    assert sorted(keys) == expected, 'Unexpected provider key namespace in isolated Vault'
+except Exception as error:
+    # No exception message, request headers, response body or secret values.
+    print(json.dumps({'stage':stage,'error_class':type(error).__name__,'http_status':status,
+                      'missing_count':missing,'unexpected_count':unexpected}))
+    sys.exit(1)
+"""
+
+
+def verify_isolated_vault_provider_namespace() -> None:
+    """Inspect only the authenticated disposable initializer's provider names."""
+    try:
+        compose("run", "--rm", "--no-deps", "vault-init", "python", "-c",
+                ISOLATED_VAULT_PROVIDER_CHECK)
+    except subprocess.CalledProcessError as error:
+        summary = f"exit={error.returncode}"
+        output = error.stdout or b""
+        if isinstance(output, bytes):
+            output = output.decode("utf-8", "replace")
+        if len(output) <= 2048:
+            try:
+                details = json.loads(output.strip())
+            except (ValueError, TypeError):
+                details = None
+            if isinstance(details, dict):
+                stage = details.get("stage")
+                if isinstance(stage, str) and stage in {"import", "auth", "list", "namespace"}:
+                    summary += f"; stage={stage}"
+                error_class = details.get("error_class")
+                if isinstance(error_class, str) and error_class in {"AssertionError", "HTTPError", "ConnectionError", "Timeout", "ConnectTimeout",
+                                   "ReadTimeout", "SSLError", "JSONDecodeError", "ModuleNotFoundError", "ImportError",
+                                   "KeyError", "ValueError", "TypeError", "AttributeError"}:
+                    summary += f"; class={error_class}"
+                for field in ("http_status", "missing_count", "unexpected_count"):
+                    value = details.get(field)
+                    if type(value) is int and 0 <= value <= 1000:
+                        summary += f"; {field}={value}"
+        raise RuntimeError("Isolated storage Vault provider namespace is unverified (" + summary + ")") from None
 
 
 STORAGE_VERIFY = """import os, pathlib, requests, boto3
@@ -1174,29 +1243,17 @@ def main():
         if evidence.get("storage_capacity"):
             # Reuse the verified network/source/runtime checks above. Vault
             # inspection returns only the provider key names, never values.
-            vault_check = """import os, requests
-response=requests.request('LIST','http://vault:8200/v1/kv/metadata/providers',headers={'X-Vault-Token':os.environ['VAULT_DEV_ROOT_TOKEN_ID']},timeout=10)
-response.raise_for_status()
-assert sorted(response.json().get('data',{}).get('keys',[])) == ['core_server','hetzner'], 'Unexpected provider key namespace in isolated Vault'
-"""
-            # The Vault image's busybox wget lacks portable LIST support. Use
-            # the API image's requests client through a fresh one-shot runner
-            # carrying only the generated CI root token from private profile.
-            vault_keys = subprocess.run(
-                ["docker", "run", "--rm", "--network", "openmates-ci_default", "-e", "VAULT_DEV_ROOT_TOKEN_ID",
-                 "openmates-ci-api:local", "python", "-c", vault_check],
-                env={**os.environ, "VAULT_DEV_ROOT_TOKEN_ID": profile["services"]["vault"]["environment"]["VAULT_DEV_ROOT_TOKEN_ID"]},
-                capture_output=True, text=True, timeout=30,
-            )
-            if vault_keys.returncode:
-                raise RuntimeError("Isolated storage Vault provider namespace is unverified")
+            # Reuse the disposable initializer's already authenticated root
+            # scope. No production/API policy is broadened for this inspection.
+            verify_isolated_vault_provider_namespace()
             proof = {
                 "schema": "agentic-storage-ci-isolation-v1", "source_commit": evidence["source_commit"],
                 "harness_commit": evidence["harness_commit"], "run_id": str(evidence["run_id"]),
                 "environment": "github-isolated", "observed_at": int(time.time()),
                 "expires_at": int(time.time()) + 90000,
                 "provider_network": "internal", "provider_credentials": "absent",
-                "vault_provider_keys": ["core_server", "hetzner"],
+                "vault_provider_keys": ["core_server", "hetzner", "vapid"],
+                "vapid_credentials": "generated_disposable_fixture",
                 "source_mount": "read_only_exact_candidate", "shared_dev_dns": "rejected",
                 "shared_dev_https": "rejected", "object_storage": "authenticated_disposable_roundtrip",
             }
