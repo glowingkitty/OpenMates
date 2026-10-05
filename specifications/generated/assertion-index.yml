@@ -11347,7 +11347,7 @@ assertions:
       surface: gui.web
     - &id1438
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 247
+      line: 250
       name: does not cache an unauthorized or invalid Project file key
       surface: gui.web
     supporting_tests:
@@ -68799,7 +68799,7 @@ assertions:
     direct_tests:
     - &id8599
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 263
+      line: 266
       name: keeps remote mutations and ignored-read grants inside the encrypted transport
       surface: gui.web
     supporting_tests:
@@ -69355,7 +69355,7 @@ assertions:
       surface: gui.web
     - &id8684
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 227
+      line: 230
       name: decrypts a hosted Project file head only in the browser
       surface: gui.web
     supporting_tests:
@@ -69754,34 +69754,34 @@ assertions:
       surface: gui.web
     - &id8737
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 57
+      line: 60
       name: initializes legacy Project settings with the apply-and-show default and
         encrypted focus
       surface: gui.web
     - &id8738
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 88
+      line: 91
       name: binds Team routing, v2 identity, and conservative read limits before a
         cancellable poll
       surface: gui.web
     - &id8739
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 145
+      line: 148
       name: does not expose raw backend response bodies
       surface: gui.web
     - &id8741
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 227
+      line: 230
       name: decrypts a hosted Project file head only in the browser
       surface: gui.web
     - &id8742
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 247
+      line: 250
       name: does not cache an unauthorized or invalid Project file key
       surface: gui.web
     - &id8743
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 263
+      line: 266
       name: keeps remote mutations and ignored-read grants inside the encrypted transport
       surface: gui.web
     supporting_tests:
@@ -69955,7 +69955,7 @@ assertions:
       surface: gui.web
     - &id8740
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 181
+      line: 184
       name: removes the abort listener after a completed poll delay
       surface: gui.web
     tests:
@@ -70652,7 +70652,7 @@ assertions:
       surface: gui.web
     - &id8817
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 57
+      line: 60
       name: initializes legacy Project settings with the apply-and-show default and
         encrypted focus
       surface: gui.web
@@ -70781,12 +70781,12 @@ assertions:
       surface: gui.web
     - &id8839
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 201
+      line: 204
       name: exposes focus, write approval, and receipt APIs with explicit Team context
       surface: gui.web
     - &id8840
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 263
+      line: 266
       name: keeps remote mutations and ignored-read grants inside the encrypted transport
       surface: gui.web
     supporting_tests:
@@ -71044,7 +71044,7 @@ assertions:
       surface: rest_api
     - &id8863
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 57
+      line: 60
       name: initializes legacy Project settings with the apply-and-show default and
         encrypted focus
       surface: gui.web
@@ -71527,7 +71527,7 @@ assertions:
       surface: gui.web
     - &id8928
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 201
+      line: 204
       name: exposes focus, write approval, and receipt APIs with explicit Team context
       surface: gui.web
     supporting_tests:
@@ -71750,24 +71750,24 @@ assertions:
       surface: gui.web
     - &id9006
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 88
+      line: 91
       name: binds Team routing, v2 identity, and conservative read limits before a
         cancellable poll
       surface: gui.web
     - &id9007
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 145
+      line: 148
       name: does not expose raw backend response bodies
       surface: gui.web
     - &id9008
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 164
+      line: 167
       name: identifies only the missing requester device binding as requiring a fresh
         login
       surface: gui.web
     - &id9010
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 201
+      line: 204
       name: exposes focus, write approval, and receipt APIs with explicit Team context
       surface: gui.web
     - &id9011
@@ -72107,7 +72107,7 @@ assertions:
       surface: gui.web
     - &id9009
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 181
+      line: 184
       name: removes the abort listener after a completed poll delay
       surface: gui.web
     tests:
@@ -72476,7 +72476,7 @@ assertions:
       surface: gui.web
     - &id9038
       path: frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
-      line: 88
+      line: 91
       name: binds Team routing, v2 identity, and conservative read limits before a
         cancellable poll
       surface: gui.web

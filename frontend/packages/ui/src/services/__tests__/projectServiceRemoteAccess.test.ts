@@ -3,7 +3,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
 
-vi.mock("../../config/api", () => ({ getApiEndpoint: (path: string) => `https://api.test${path}` }));
+vi.mock("../../config/api", () => ({
+  getApiEndpoint: (path: string) => `https://api.test${path}`,
+  storageArchiveFetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args),
+}));
 
 vi.mock("../embedStore", () => ({ embedStore: { setEmbedKeyInCache: vi.fn() } }));
 
