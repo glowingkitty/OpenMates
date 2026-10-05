@@ -26,6 +26,35 @@ DOCUMENT = {"name": "Daily review", "description": "Review this Project's work",
             "instructions": "Review pending work. Ask for priorities.", "phases": []}
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-authoring-persistence,focus-modes.phases
+def test_authored_focus_phase_schema_matches_runtime_and_unphased_markdown_omits_phase_metadata():
+    from backend.apps.ai.processing.focus_phases import parse_project_phase_focus
+    from backend.shared.python_utils.focus_mode_skill_loader import _split_frontmatter_and_body
+    unphased = ProjectFocusDocument.model_validate(DOCUMENT)
+    metadata, _ = _split_frontmatter_and_body(unphased.markdown(), "Project focus")
+    assert "phases" not in metadata and "phases_version" not in metadata
+    assert parse_project_phase_focus(unphased.markdown(), "project-focus:test:item") is None
+
+    phased = ProjectFocusDocument.model_validate({**DOCUMENT, "phases_version": 1, "phases": [{
+        "id": "verify", "title": "Verify", "instructions": "Check the source revision.",
+        "requirements": [{"id": "source_checked", "type": "semantic",
+                          "text": "The source revision was checked."}],
+    }]})
+    parsed = parse_project_phase_focus(phased.markdown(), "project-focus:test:item")
+    assert parsed.phases[0].title == "Verify"
+    assert parsed.phases[0].requirements[0].id == "source_checked"
+    schema = FocusAuthorResult.model_json_schema()
+    assert "ProjectFocusPhase" not in schema.get("$defs", {})
+    assert "title" in schema["$defs"]["FocusPhaseDefinition"]["properties"]
+    with pytest.raises(ValueError):
+        ProjectFocusDocument.model_validate({**DOCUMENT, "phases": [{
+            "id": "verify", "name": "Old phase", "instructions": "Check.",
+        }]})
+    with pytest.raises(ValueError):
+        ProjectFocusDocument.model_validate({**DOCUMENT, "phases_version": True,
+                                             "phases": [phase.model_dump() for phase in phased.phases]})
+
+
 class Cache:
     def __init__(self):
         self.values = {}

@@ -305,7 +305,9 @@ class ProjectWriteAuthorizationService:
         import re
         import yaml
         from backend.shared.python_utils.focus_mode_skill_loader import UniqueFocusYamlLoader
-        from backend.core.api.app.services.project_authoring_service import ProjectFocusDocument
+        from backend.core.api.app.services.project_authoring_service import (
+            LegacyProjectFocusDocument, ProjectFocusDocument,
+        )
         match = re.fullmatch(r"---\r?\n(.*?)\r?\n---(?:\r?\n|$)(.*)", instruction.lstrip("\ufeff"), re.S)
         try:
             if not match:
@@ -317,7 +319,11 @@ class ProjectWriteAuthorizationService:
                 if "when_to_use" in metadata:
                     raise ValueError("Ambiguous Focus selection metadata")
                 metadata["when_to_use"] = metadata.pop("preprocessor_hint")
-            ProjectFocusDocument.model_validate({**metadata, "instructions": match[2].strip()})
+            document = {**metadata, "instructions": match[2].strip()}
+            if "phases_version" not in metadata and metadata.get("phases"):
+                LegacyProjectFocusDocument.model_validate(document)
+            else:
+                ProjectFocusDocument.model_validate(document)
         except (ValueError, yaml.YAMLError, RecursionError):
             raise ProjectWriteAuthorizationError("INVALID_PROJECT_FOCUS_INSTRUCTION", status_code=422) from None
         return {"focus_id": focus_id, "project_id": project_id, "item_id": item_id,

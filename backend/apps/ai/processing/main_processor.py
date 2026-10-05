@@ -3816,6 +3816,9 @@ async def handle_main_processing(
                                     break
                         break
         except Exception as e:
+            if request_data.active_focus_id.startswith("project-focus:"):
+                logger.error("%s Private Project Focus instruction unavailable (%s)", log_prefix, type(e).__name__)
+                raise ValueError("PRIVATE_PROJECT_FOCUS_INSTRUCTION_INVALID") from None
             logger.error(f"{log_prefix} Error processing active_focus_id '{request_data.active_focus_id}': {e}", exc_info=True)
             raise
         if not active_focus_prompt_text:
@@ -4744,12 +4747,27 @@ async def handle_main_processing(
         return changed
 
     def phase_state_marker():
-        if active_project_focus:
-            project_state = (request_data.focus_phase_state or {}).get(active_project_focus["focus_id"])
-            if project_state:
-                for event in project_state.get("transitions", []):
+        # Redis/control state stays opaque. Enrich only this owner-scoped UI
+        # projection from the currently authorized in-memory definition.
+        from copy import deepcopy
+        from backend.apps.ai.processing.focus_phases import private_project_phase
+        states = deepcopy(request_data.focus_phase_state or {})
+        runtimes = {runtime.state.focus_id: runtime for runtime in focus_phase_runtimes}
+        for focus_id, state in states.items():
+            if not isinstance(state, dict):
+                continue
+            runtime = runtimes.get(focus_id)
+            if private_project_phase(focus_id):
+                titles = {phase.id: phase.title for phase in (runtime.focus.phases or [])} if runtime else {}
+                state["transitions"] = [
+                    {**event, "phase_title": titles[event["phase_id"]]}
+                    for event in state.get("transitions", [])
+                    if isinstance(event, dict) and event.get("phase_id") in titles
+                ]
+            if active_project_focus and focus_id == active_project_focus["focus_id"]:
+                for event in state.get("transitions", []):
                     event["project_id"] = active_project_focus["project_id"]
-        return {"__focus_phases_updated__": True, "states": request_data.focus_phase_state or {}}
+        return {"__focus_phases_updated__": True, "states": states}
 
     if focus_phase_runtimes:
         if not getattr(request_data, "is_focus_mode_continuation", False):

@@ -16,7 +16,8 @@ from typing import Any, Literal
 
 import httpx
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from backend.shared.python_schemas.app_metadata_schemas import FocusPhaseDefinition
 
 from backend.core.api.app.services.notification_event_service import NotificationEvent, NotificationEventService
 from backend.core.api.app.services.project_recommendation_service import (
@@ -35,7 +36,8 @@ FOCUS_AUTHOR_INSTRUCTIONS = (
     "Use the authorized conversation as evidence for reusable guidance; do not copy its transcript, secrets or incidental personal data. "
     "Create a non-overlapping specialist Focus or improve only the given existing Focus. "
     "Preserve compatible phase identifiers and unrelated instructions when editing. "
-    "Include a concise name, description, when_to_use, full instructions and ordered phases. "
+    "Include a concise name, description, when_to_use and full instructions. Add ordered phases only when useful; "
+    "phased documents must use phases_version 1 and each phase needs id, title, instructions and semantic requirements. "
     "Instructions may guide later conversation but grant no file, account, execution or tool authority. "
     "If essential requirements are unclear return needs_input with a concise question and document null."
 )
@@ -49,10 +51,28 @@ WORKFLOW_AUTHOR_INSTRUCTIONS = (
 
 
 class ProjectFocusPhase(BaseModel):
+    """Only for validation of already saved, unversioned Focus documents."""
     model_config = ConfigDict(extra="forbid")
     id: str = Field(min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_-]+$")
     name: str = Field(min_length=1, max_length=120)
     instructions: str = Field(min_length=1, max_length=16_000)
+
+
+class LegacyProjectFocusDocument(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=2_000)
+    when_to_use: str = Field(min_length=1, max_length=2_000)
+    instructions: str = Field(min_length=1, max_length=64_000)
+    phases: list[ProjectFocusPhase] = Field(min_length=1, max_length=16)
+
+    @model_validator(mode="after")
+    def validate_legacy_document(self) -> LegacyProjectFocusDocument:
+        if any(not value.strip() for value in (self.name, self.description, self.when_to_use, self.instructions)):
+            raise ValueError("Focus content must not be blank")
+        if len({phase.id for phase in self.phases}) != len(self.phases):
+            raise ValueError("Focus phase ids must be unique")
+        return self
 
 
 class ProjectFocusDocument(BaseModel):
@@ -61,7 +81,15 @@ class ProjectFocusDocument(BaseModel):
     description: str = Field(min_length=1, max_length=2_000)
     when_to_use: str = Field(min_length=1, max_length=2_000)
     instructions: str = Field(min_length=1, max_length=64_000)
-    phases: list[ProjectFocusPhase] = Field(default_factory=list, max_length=16)
+    phases_version: Literal[1] | None = None
+    phases: list[FocusPhaseDefinition] = Field(default_factory=list, max_length=16)
+
+    @field_validator("phases_version", mode="before")
+    @classmethod
+    def reject_boolean_phase_version(cls, value):
+        if isinstance(value, bool):
+            raise ValueError("phases_version must be the integer 1")
+        return value
 
     @model_validator(mode="after")
     def validate_document(self) -> ProjectFocusDocument:
@@ -69,10 +97,15 @@ class ProjectFocusDocument(BaseModel):
             raise ValueError("Focus content must not be blank")
         if len({phase.id for phase in self.phases}) != len(self.phases):
             raise ValueError("Focus phase ids must be unique")
+        if bool(self.phases) != (self.phases_version == 1):
+            raise ValueError("Focus phases require phases_version 1")
         return self
 
     def markdown(self) -> str:
-        metadata = self.model_dump(exclude={"instructions"})
+        metadata = self.model_dump(exclude={"instructions", "phases_version", "phases"})
+        if self.phases:
+            metadata["phases_version"] = 1
+            metadata["phases"] = [phase.model_dump() for phase in self.phases]
         metadata["preprocessor_hint"] = metadata.pop("when_to_use")
         return "---\n" + yaml.safe_dump(metadata, sort_keys=False, allow_unicode=True) + "---\n\n" + self.instructions + "\n"
 
@@ -131,7 +164,10 @@ class ProjectFocusAuthor:
             "output_tokens": usage.get("candidatesTokenCount", 0) + usage.get("thoughtsTokenCount", 0)})
         parts = value.get("candidates", [{}])[0].get("content", {}).get("parts", [])
         result = "".join(part.get("text", "") for part in parts if not part.get("thought"))
-        return FocusAuthorResult.model_validate_json(result)
+        try:
+            return FocusAuthorResult.model_validate_json(result)
+        except ValidationError:
+            raise ProjectWriteAuthorizationError("PROJECT_FOCUS_AUTHORING_INVALID_DOCUMENT", status_code=422) from None
 
 
 def validate_history(history: list[dict[str, str]]) -> list[dict[str, str]]:

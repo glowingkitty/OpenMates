@@ -48,6 +48,26 @@ class FocusPhaseState(BaseModel):
     transitions: list[dict[str, Any]] = Field(default_factory=list, max_length=32)
 
 
+_PRIVATE_TRANSITION_FIELDS = frozenset({
+    "type", "event_id", "chat_id", "focus_id", "run_id", "version", "created_at",
+    "previous_phase_id", "phase_id", "direction",
+})
+
+
+def private_project_phase(focus_id: str) -> bool:
+    return focus_id.startswith("project-")
+
+
+def _opaque_private_transitions(state: FocusPhaseState) -> FocusPhaseState:
+    if not private_project_phase(state.focus_id):
+        return state
+    state.transitions = [
+        {key: value for key, value in event.items() if key in _PRIVATE_TRANSITION_FIELDS}
+        for event in state.transitions
+    ]
+    return state
+
+
 def definition_revision(focus: AppFocusDefinition) -> str:
     value = {"global": focus.system_prompt, "phases_version": focus.phases_version,
              "phases": [phase.model_dump() for phase in focus.phases or []]}
@@ -63,7 +83,7 @@ def restore_state(focus: AppFocusDefinition, *, focus_id: str, chat_id: str,
             if (state.chat_id == chat_id and state.focus_id == focus_id
                     and state.revision == revision
                     and state.phase_id in {p.id for p in focus.phases or []}):
-                return state
+                return _opaque_private_transitions(state)
         except ValueError:
             pass
     if not focus.phases:
@@ -208,13 +228,16 @@ async def evaluate_boundary(focus: AppFocusDefinition, state: FocusPhaseState, *
         result.complete = False
         result.entered_after_message_id = turn_id
         result.rewind_turn = turn_id if target_index < index else None
-        result.transitions = [*state.transitions, {
+        event = {
             "type": "focus_phase_changed", "event_id": str(uuid.uuid4()),
             "chat_id": state.chat_id, "focus_id": state.focus_id,
             "run_id": state.run_id, "version": result.version, "created_at": int(time.time()),
             "previous_phase_id": state.phase_id, "phase_id": target.id,
-            "phase_title": target.title, "direction": "backward" if target_index < index else "forward",
-        }][-32:]
+            "direction": "backward" if target_index < index else "forward",
+        }
+        if not private_project_phase(state.focus_id):
+            event["phase_title"] = target.title
+        result.transitions = [*state.transitions, event][-32:]
         return result
     except Exception:
         logger.warning("Focus phase decision unavailable or uncertain; retaining phase", exc_info=False)
@@ -223,12 +246,13 @@ async def evaluate_boundary(focus: AppFocusDefinition, state: FocusPhaseState, *
 
 class FocusPhaseRuntime:
     def __init__(self, focus, state, *, redis=None, owner_id=""):
-        self.focus, self.state, self.redis = focus, state, redis
+        self.focus, self.state, self.redis = focus, _opaque_private_transitions(state.model_copy(deep=True)), redis
         # No private instructions or names in Redis keys.
         self.key = "focus_phase:" + hashlib.sha256(f"{owner_id}:{state.chat_id}:{state.focus_id}".encode()).hexdigest()
         self.raw = ""
 
     async def load(self):
+        self.state = _opaque_private_transitions(self.state)
         if self.redis:
             raw = await self.redis.get(self.key)
             if raw:
@@ -243,6 +267,7 @@ class FocusPhaseRuntime:
         return self.state
 
     async def evaluate(self, **kwargs):
+        self.state = _opaque_private_transitions(self.state)
         proposed = await evaluate_boundary(self.focus, self.state, **kwargs)
         if proposed == self.state:
             # Remember even an unmet/uncertain boundary, without reporting a phase
@@ -267,13 +292,46 @@ def parse_project_phase_focus(instruction: str, focus_id: str) -> AppFocusDefini
     if not instruction.startswith("---\n"):
         return None
     from backend.shared.python_utils.focus_mode_skill_loader import _split_frontmatter_and_body, _parse_body_sections
-    frontmatter, body = _split_frontmatter_and_body(instruction, "Project focus")
-    if "phases" not in frontmatter:
-        return None
-    global_instruction = _parse_body_sections(body).get("system_prompt", body).strip()
-    return AppFocusDefinition(id=focus_id, name_translation_key=focus_id,
-        description_translation_key=focus_id, system_prompt=global_instruction,
-        phases_version=frontmatter.get("phases_version"), phases=frontmatter["phases"])
+    try:
+        frontmatter, body = _split_frontmatter_and_body(instruction, "Project focus")
+        if "phases" not in frontmatter and "phases_version" not in frontmatter:
+            return None
+        global_instruction = _parse_body_sections(body).get("system_prompt", body).strip()
+        if "phases_version" in frontmatter:
+            phases_version = frontmatter["phases_version"]
+            phases = frontmatter.get("phases")
+        else:
+            if not frontmatter["phases"]:
+                return None
+            from backend.core.api.app.services.project_authoring_service import LegacyProjectFocusDocument
+            legacy_metadata = dict(frontmatter)
+            if "preprocessor_hint" in legacy_metadata:
+                legacy_metadata["when_to_use"] = legacy_metadata.pop("preprocessor_hint")
+            legacy = LegacyProjectFocusDocument.model_validate({
+                **legacy_metadata, "instructions": global_instruction,
+            })
+            valid_id = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
+            phases = []
+            used_ids: set[str] = set()
+            for phase in legacy.phases:
+                phase_id = (phase.id if valid_id.fullmatch(phase.id)
+                            else "legacy_" + hashlib.sha256(phase.id.encode()).hexdigest()[:24])
+                if phase_id in used_ids:
+                    raise ValueError("Duplicate legacy Focus phase ID")
+                used_ids.add(phase_id)
+                phases.append({
+                    "id": phase_id, "title": phase.name, "instructions": phase.instructions,
+                    "requirements": [{
+                        "id": "instructions_complete", "type": "semantic",
+                        "text": "The existing instructions of this phase have been completed.",
+                    }],
+                })
+            phases_version = 1
+        return AppFocusDefinition(id=focus_id, name_translation_key=focus_id,
+            description_translation_key=focus_id, system_prompt=global_instruction,
+            phases_version=phases_version, phases=phases)
+    except Exception:
+        raise ValueError("INVALID_PROJECT_FOCUS_PHASES") from None
 
 
 async def invalidate_phase_runtime(redis, *, owner_id: str, chat_id: str, focus_id: str):

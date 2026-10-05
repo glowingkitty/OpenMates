@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+import traceback
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -179,6 +180,53 @@ async def test_private_specialist_requires_live_project_and_current_item_revisio
         await service.validate_specialist_context(**arguments)
     await service.accept_specialist_focus(user_id="user", chat_id="chat", focus_id=arguments["focus_id"])
     assert (await service.validate_specialist_context(**arguments))["instruction"] == arguments["instruction"]
+    legacy_phased = ("---\nname: Debugging\ndescription: Diagnose code failures\n"
+                     "preprocessor_hint: Debugging software\nphases:\n"
+                     "  - id: inspect\n    name: Inspect\n    instructions: Read the source.\n"
+                     "---\nCurrent specialist instructions")
+    assert (await service.validate_specialist_context(**{
+        **arguments, "instruction": legacy_phased,
+    }))["instruction"] == legacy_phased
+    versioned_phased = ("---\nname: Debugging\ndescription: Diagnose code failures\n"
+                        "preprocessor_hint: Debugging software\nphases_version: 1\nphases:\n"
+                        "  - id: inspect\n    title: Inspect\n    instructions: Read the source.\n"
+                        "    requirements:\n      - id: inspected\n        text: The source was read.\n"
+                        "---\nCurrent specialist instructions")
+    assert (await service.validate_specialist_context(**{
+        **arguments, "instruction": versioned_phased,
+    }))["instruction"] == versioned_phased
+    from backend.apps.ai.processing.focus_phases import parse_project_phase_focus, phase_prompt, restore_state
+    from backend.core.api.app.services.project_authoring_service import ProjectFocusDocument
+    authored = ProjectFocusDocument.model_validate({
+        "name": "Debugging", "description": "Diagnose code failures", "when_to_use": "Debugging software",
+        "instructions": "Global guidance.", "phases_version": 1,
+        "phases": [
+            {"id": "inspect", "title": "Inspect", "instructions": "Check the current source.",
+             "requirements": [{"id": "inspected", "text": "Current source was checked."}]},
+            {"id": "report", "title": "Report", "instructions": "PRIVATE-FUTURE-INSTRUCTION",
+             "requirements": [{"id": "reported", "text": "Findings were reported."}]},
+        ],
+    })
+    markdown = authored.markdown()
+    authorized = await service.validate_specialist_context(**{**arguments, "instruction": markdown})
+    parsed = parse_project_phase_focus(authorized["instruction"], arguments["focus_id"])
+    active = phase_prompt(parsed, restore_state(parsed, focus_id=arguments["focus_id"], chat_id="chat"))
+    assert "Global guidance." in active and "Check the current source." in active
+    assert "Report" in active and "PRIVATE-FUTURE-INSTRUCTION" not in active
+    unphased_markdown = ProjectFocusDocument.model_validate({
+        "name": "Debugging", "description": "Diagnose code failures", "when_to_use": "Debugging software",
+        "instructions": "Plain global guidance.",
+    }).markdown()
+    unphased = await service.validate_specialist_context(**{**arguments, "instruction": unphased_markdown})
+    assert parse_project_phase_focus(unphased["instruction"], arguments["focus_id"]) is None
+    malformed_versioned = versioned_phased.replace("    title: Inspect\n", "    name: PRIVATE-SENTINEL\n")
+    with pytest.raises(ProjectWriteAuthorizationError, match="INVALID_PROJECT_FOCUS_INSTRUCTION") as error:
+        await service.validate_specialist_context(**{**arguments, "instruction": malformed_versioned})
+    assert "PRIVATE-SENTINEL" not in "".join(traceback.format_exception(error.value))
+    with pytest.raises(ProjectWriteAuthorizationError, match="INVALID_PROJECT_FOCUS_INSTRUCTION"):
+        await service.validate_specialist_context(**{
+            **arguments, "instruction": versioned_phased.replace("phases_version: 1", "phases_version: true"),
+        })
     for malformed in ("An ordinary note", "---\nname: Missing metadata\n---\nBody",
                       "---\nname: One\nname: Two\ndescription: Diagnose\nwhen_to_use: Debug\n---\nBody"):
         with pytest.raises(ProjectWriteAuthorizationError, match="INVALID_PROJECT_FOCUS_INSTRUCTION"):

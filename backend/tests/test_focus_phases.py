@@ -2,8 +2,14 @@
 """Phase gates test user-visible behavior without real provider or storage side effects."""
 
 import asyncio
+import ast
+import hashlib
 import json
+import logging
+import traceback
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from pydantic import ValidationError
@@ -159,6 +165,7 @@ def test_user_skip_can_advance_with_one_response_without_question_count():
     result = evaluate(state())
     assert result.phase_id == "confirm" and result.version == 1
     assert result.transitions[0]["type"] == "focus_phase_changed"
+    assert result.transitions[0]["phase_title"] == "Confirm profile"
     assert (
         "instructions" not in result.transitions[0]
         and "requirements" not in result.transitions[0]
@@ -274,6 +281,135 @@ def test_project_text_uses_same_schema_and_global_instruction():
         f.phases[0].title == "Understand" and f.system_prompt == "Project global rules."
     )
     assert parse_project_phase_focus("Legacy plain text", "project-focus") is None
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.phases,focus-modes.full-instruction
+def test_legacy_authored_phases_preserve_only_active_instructions_and_revision_binding():
+    source = ("---\nname: Debugging\ndescription: Diagnose failures\n"
+              "preprocessor_hint: Debugging software\nphases:\n"
+              "  - id: InspectV1\n    name: Inspect\n    instructions: Read current source.\n"
+              "  - id: verify\n    name: Verify\n    instructions: PRIVATE-FUTURE-INSTRUCTION\n"
+              "---\nGlobal private guidance.")
+    focus_id = "project-focus:project:item"
+    parsed = parse_project_phase_focus(source, focus_id)
+    assert parsed.phases[0].id.startswith("legacy_")
+    assert parsed.phases[1].id == "verify"
+    assert parsed.phases[0].requirements[0].type == "semantic"
+    assert parsed.phases[0].requirements[0].text == "The existing instructions of this phase have been completed."
+    state = restore_state(parsed, focus_id=focus_id, chat_id="chat")
+    prompt = phase_prompt(parsed, state)
+    assert "Global private guidance." in prompt and "Read current source." in prompt
+    assert "Verify" in prompt and "PRIVATE-FUTURE-INSTRUCTION" not in prompt
+    changed = parse_project_phase_focus(source.replace("Read current source.", "Read updated source."), focus_id)
+    assert restore_state(changed, focus_id=focus_id, chat_id="chat", saved=state.model_dump()).run_id != state.run_id
+    colliding_id = "legacy_" + hashlib.sha256(b"InspectV1").hexdigest()[:24]
+    with pytest.raises(ValueError, match="INVALID_PROJECT_FOCUS_PHASES"):
+        parse_project_phase_focus(source.replace("id: verify", f"id: {colliding_id}"), focus_id)
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.phases
+def test_malformed_versioned_private_focus_fails_with_fixed_safe_error():
+    source = ("---\nphases_version: 1\nphases:\n  - id: inspect\n    name: PRIVATE-SENTINEL\n"
+              "    instructions: Inspect.\n---\nGlobal guidance.")
+    with pytest.raises(ValueError, match="^INVALID_PROJECT_FOCUS_PHASES$") as error:
+        parse_project_phase_focus(source, "project-focus:project:item")
+    assert "PRIVATE-SENTINEL" not in "".join(traceback.format_exception(error.value))
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction,focus-modes.phases
+def test_private_active_focus_main_path_does_not_log_or_raise_validation_input(caplog):
+    from backend.apps.ai.processing import main_processor
+    source = Path(main_processor.__file__).read_text()
+    tree = ast.parse(source)
+    processor = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef)
+                     and node.name == "handle_main_processing")
+    active_focus = next(node for node in ast.walk(processor) if isinstance(node, ast.If)
+                        and ast.get_source_segment(source, node.test) == "request_data.active_focus_id"
+                        and "Private Project Focus instruction unavailable" in
+                        (ast.get_source_segment(source, node) or ""))
+    wrapper = ast.parse("async def exercise():\n    pass\n")
+    wrapper.body[0].body = [active_focus]
+    private_document = ("---\nphases_version: 1\nphases:\n  - id: inspect\n"
+                        "    name: PRIVATE-SENTINEL\n    instructions: Inspect.\n---\nGlobal guidance.")
+    scope = dict(
+        request_data=SimpleNamespace(active_focus_id="project-focus:project:item"),
+        agentic_context=SimpleNamespace(private_focus_document=AsyncMock(return_value={
+            "instruction": private_document,
+        })),
+        directus_service=None, cache_service=None,
+        parse_project_phase_focus=parse_project_phase_focus,
+        logger=logging.getLogger("private-focus-test"), log_prefix="private-focus-test",
+        discovered_apps_metadata={}, translation_service=None,
+    )
+    exec(compile(ast.fix_missing_locations(wrapper), str(main_processor.__file__), "exec"), scope)
+    with caplog.at_level(logging.ERROR), pytest.raises(ValueError, match="PRIVATE_PROJECT_FOCUS_INSTRUCTION_INVALID") as error:
+        asyncio.run(scope["exercise"]())
+    assert "PRIVATE-SENTINEL" not in caplog.text
+    assert "PRIVATE-SENTINEL" not in "".join(traceback.format_exception(error.value))
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.phases,focus-modes.full-instruction
+def test_private_phase_state_stays_opaque_while_owner_event_gets_authorized_title():
+    from backend.apps.ai.processing import main_processor
+
+    class Redis:
+        value = None
+
+        async def get(self, key):
+            return self.value
+
+        async def eval(self, script, count, key, old, new):
+            if (self.value or "") != old:
+                return 0
+            self.value = new
+            return 1
+
+    async def run():
+        definition = focus()
+        definition.phases[1].title = "PRIVATE-TITLE-SENTINEL"
+        definition.phases[1].instructions = "PRIVATE-INSTRUCTION-SENTINEL"
+        focus_id = "project-focus:project:item"
+        redis = Redis()
+        runtime = FocusPhaseRuntime(definition, restore_state(definition, focus_id=focus_id, chat_id="chat"),
+                                    redis=redis, owner_id="owner")
+        await runtime.load()
+        assert await runtime.evaluate(
+            boundary="user", boundary_id="boundary", turn_id="turn", latest_user="Proceed",
+            messages=[{"role": "user", "content": "Proceed"}], secrets_manager=None,
+            evaluator=evaluator(),
+        )
+        assert "PRIVATE-TITLE-SENTINEL" not in redis.value
+        assert "PRIVATE-INSTRUCTION-SENTINEL" not in redis.value
+        assert "phase_title" not in runtime.state.transitions[-1]
+
+        source = Path(main_processor.__file__).read_text()
+        tree = ast.parse(source)
+        processor = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef)
+                         and node.name == "handle_main_processing")
+        marker = next(node for node in ast.walk(processor) if isinstance(node, ast.FunctionDef)
+                      and node.name == "phase_state_marker")
+        scope = dict(
+            request_data=SimpleNamespace(focus_phase_state={focus_id: runtime.state.model_dump()}),
+            focus_phase_runtimes=[runtime],
+            active_project_focus={"focus_id": focus_id, "project_id": "project"},
+        )
+        exec(compile(ast.fix_missing_locations(ast.Module(body=[marker], type_ignores=[])),
+                     str(main_processor.__file__), "exec"), scope)
+        ui_state = scope["phase_state_marker"]()["states"][focus_id]
+        assert ui_state["transitions"][-1]["phase_title"] == "PRIVATE-TITLE-SENTINEL"
+        assert ui_state["transitions"][-1]["project_id"] == "project"
+        assert "phase_title" not in scope["request_data"].focus_phase_state[focus_id]["transitions"][-1]
+        restored = restore_state(definition, focus_id=focus_id, chat_id="chat", saved=ui_state)
+        assert restored.run_id == runtime.state.run_id
+        assert "phase_title" not in restored.transitions[-1]
+        direct_runtime = FocusPhaseRuntime(
+            definition, runtime.state.model_copy(deep=True), redis=Redis(), owner_id="owner",
+        )
+        direct_runtime.state.transitions[-1]["phase_title"] = "PRIVATE-TITLE-SENTINEL"
+        await direct_runtime.load()
+        assert "PRIVATE-TITLE-SENTINEL" not in direct_runtime.raw
+
+    asyncio.run(run())
 
 
 @pytest.mark.parametrize(
