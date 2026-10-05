@@ -400,8 +400,7 @@
         "stop-new-chat-draft.spec.ts",
         "tasks-chat-settings-parity.spec.ts",
         "unified-detail-metadata-sync.spec.ts",
-        "maps-discovery-chat.spec.ts",
-        "wiki-learning-flow.spec.ts"
+        "maps-discovery-chat.spec.ts"
       ]
     },
     "ai_fixture_pending": {
@@ -478,7 +477,8 @@
         "storage-capacity-target.spec.ts",
         "storage-recovery-replay.spec.ts",
         "storage-recovery-canonical-receipts.spec.ts",
-        "storage-detached-producer.spec.ts"
+        "storage-detached-producer.spec.ts",
+        "wiki-learning-flow.spec.ts"
       ]
     },
     "storage_accountability_integration": {

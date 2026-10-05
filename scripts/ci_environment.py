@@ -27,6 +27,7 @@ STORAGE_CAPACITY_SPECS = frozenset({
     "storage-recovery-replay.spec.ts",
     "storage-recovery-canonical-receipts.spec.ts",
     "storage-detached-producer.spec.ts",
+    "wiki-learning-flow.spec.ts",
 })
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 BILLING_STORAGE_PROFILES = {

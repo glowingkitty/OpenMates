@@ -48,6 +48,7 @@ CAPACITY_EPOCH_SPECS = frozenset({
     "storage-recovery-replay.spec.ts",
     "storage-recovery-canonical-receipts.spec.ts",
     "storage-detached-producer.spec.ts",
+    "wiki-learning-flow.spec.ts",
 })
 CAPACITY_WORKLOAD_SPECS = frozenset({
     "storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts",
