@@ -125,6 +125,40 @@ class FocusAuthorResult(BaseModel):
         return self
 
 
+def focus_author_provider_schema() -> dict[str, Any]:
+    """Project the strict local model into Gemini's supported JSON schema subset.
+
+    Gemini's responseJsonSchema supports the keys listed at
+    https://ai.google.dev/api/generate-content; Pydantic also emits constraints
+    such as ``const``, ``pattern`` and ``minLength``. Keep those constraints in
+    FocusAuthorResult validation after generation, not in the provider request.
+    """
+    scalar_keys = {
+        "$id", "$ref", "$anchor", "type", "format", "title", "description",
+        "enum", "minItems", "maxItems", "minimum", "maximum", "required",
+        "propertyOrdering",
+    }
+
+    def project(schema: dict[str, Any]) -> dict[str, Any]:
+        result = {key: value for key, value in schema.items() if key in scalar_keys}
+        if "const" in schema:
+            result["enum"] = [schema["const"]]
+        for key in ("$defs", "properties"):
+            if key in schema:
+                result[key] = {name: project(value) for name, value in schema[key].items()}
+        for key in ("anyOf", "oneOf", "prefixItems"):
+            if key in schema:
+                result[key] = [project(value) for value in schema[key]]
+        if "items" in schema:
+            result["items"] = project(schema["items"])
+        if "additionalProperties" in schema:
+            value = schema["additionalProperties"]
+            result["additionalProperties"] = project(value) if isinstance(value, dict) else value
+        return result
+
+    return project(FocusAuthorResult.model_json_schema())
+
+
 class ProjectFocusAuthor:
     """A bounded, metered Focus document author; no tools or chat creation."""
     def __init__(self, secrets_manager: Any, directus_service: Any = None) -> None:
@@ -148,7 +182,7 @@ class ProjectFocusAuthor:
             raise ProjectWriteAuthorizationError("PROJECT_AUTHORING_PROVIDER_UNAVAILABLE", status_code=503)
         body = {"systemInstruction": {"parts": [{"text": FOCUS_AUTHOR_INSTRUCTIONS}]},
             "contents": [{"role": "user", "parts": [{"text": json.dumps({"history": history, "target": target})}]}],
-            "generationConfig": {"responseMimeType": "application/json", "responseJsonSchema": FocusAuthorResult.model_json_schema(),
+            "generationConfig": {"responseMimeType": "application/json", "responseJsonSchema": focus_author_provider_schema(),
                                  "maxOutputTokens": 8192, "temperature": 1.0}}
         async with httpx.AsyncClient(timeout=120) as client:
             response = await client.post(
