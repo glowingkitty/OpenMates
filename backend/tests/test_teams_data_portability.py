@@ -48,6 +48,13 @@ async def _seed_export_data() -> tuple[FakeDirectus, TeamDataPortabilityService]
         "hashed_team_id": hash_id("team-2"),
         "encrypted_refresh_token_bundle": "cipher-other-secret",
     })
+    for team_id, row_id in (("team-1", "team-grant"), ("team-2", "other-team-grant")):
+        directus.rows["team_connected_account_grants"].append({
+            "id": row_id, "hashed_team_id": hash_id(team_id), "hashed_user_id": hash_id("alice"),
+            "connected_account_id_hash": hash_id("account-1"), "role_snapshot": "owner",
+            "encrypted_account_secret_key": "cipher-grant-secret", "allowed_actions_hash": hash_id("read"),
+            "status": "active", "created_at": 100,
+        })
     return directus, TeamDataPortabilityService(directus)
 
 
@@ -64,10 +71,15 @@ async def test_owner_export_includes_only_selected_team_rows_and_redacts_secrets
     assert [row["id"] for row in memories] == ["team-memory"]
     assert [row["id"] for row in accounts] == ["team-account"]
     assert accounts[0]["encrypted_refresh_token_bundle"] == "<redacted>"
+    grants = artifact["collections"]["team_connected_account_grants"]
+    assert [row["id"] for row in grants] == ["team-grant"]
+    assert grants[0]["encrypted_account_secret_key"] == "<redacted>"
     serialized = repr(artifact)
     assert "personal-memory" not in serialized
     assert "other-team-account" not in serialized
     assert "cipher-secret-token" not in serialized
+    assert "cipher-grant-secret" not in serialized
+    assert "other-team-grant" not in serialized
     assert directus.rows["team_data_exports"][0]["export_id"] == "export-1"
 
 
@@ -97,7 +109,7 @@ async def test_import_requires_destination_rewrap_and_writes_team_rows_only() ->
     artifact = {
         **export["artifact"], "rewrapped_with_destination_team_key": True,
         "collections": {key: export["artifact"]["collections"][key] for key in (
-            "user_app_settings_and_memories", "connected_accounts", "team_connected_account_grants",
+            "user_app_settings_and_memories", "connected_accounts",
         )},
     }
     result = await service.import_team_data("team-2", "alice", artifact, imported_at=300)
@@ -110,9 +122,9 @@ async def test_import_requires_destination_rewrap_and_writes_team_rows_only() ->
 
 
 @pytest.mark.anyio
-# contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.chat-billing.team-credit-boundary
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.chat-billing.team-credit-boundary,teams.connected-accounts.team-owned-isolation
 @pytest.mark.parametrize("actor_role", ["owner", "admin"])
-@pytest.mark.parametrize("collection", ["team_memberships", "team_invites", "team_credit_accounts", "team_credit_events", "team_usage_events"])
+@pytest.mark.parametrize("collection", ["team_memberships", "team_invites", "team_credit_accounts", "team_credit_events", "team_usage_events", "team_connected_account_grants"])
 async def test_import_rejects_authority_records_before_any_metadata_or_ledger_write(actor_role, collection) -> None:
     directus, service = await _seed_export_data()
     actor = "alice"
@@ -126,6 +138,8 @@ async def test_import_rejects_authority_records_before_any_metadata_or_ledger_wr
         "hashed_team_id": hash_id("team-1"), "hashed_user_id": hash_id("new-owner"),
         "role": "owner", "status": "active", "balance_credits": 1000000,
         "event_type": "purchase", "amount": 1000000, "credit_amount": -1000000,
+        "connected_account_id_hash": hash_id("account-1"), "role_snapshot": "owner",
+        "encrypted_account_secret_key": "forged-key", "allowed_actions_hash": hash_id("all-actions"),
     }
     artifact = {
         "schema": "openmates.team_export.v1", "rewrapped_with_destination_team_key": True,

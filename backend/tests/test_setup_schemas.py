@@ -1076,3 +1076,28 @@ def test_storage_query_index_only_rejects_other_mode_and_missing_migration(monke
         setup.run_cli(["--storage-query-indexes-only", "--accountability-only"])
     with pytest.raises(RuntimeError, match="Required storage query migration is missing"):
         setup.run_cli(["--storage-query-indexes-only"])
+
+
+def test_team_grants_schema_loads_through_standard_collection_setup(monkeypatch) -> None:
+    """The strict Team exporter must query a declared, Team-scoped collection."""
+    setup = load_setup_schemas_module()
+    schemas = Path(__file__).resolve().parents[1] / "core/directus/schemas"
+    declarations = {}
+
+    def record_collection(token, collection, config):
+        assert token == "disposable-unit-token"
+        declarations[collection] = config
+        return True, True
+
+    monkeypatch.setattr(setup, "create_collection_from_config", record_collection)
+    assert setup.create_collection("disposable-unit-token", schemas / "teams.yml") == (True, True)
+    grant = declarations["team_connected_account_grants"]
+    assert grant["type"] == "collection"
+    assert set(grant["fields"]) == {
+        "id", "connected_account_id_hash", "hashed_team_id", "hashed_user_id", "role_snapshot",
+        "encrypted_account_secret_key", "allowed_actions_hash", "status", "created_at", "revoked_at",
+    }
+    assert grant["fields"]["hashed_team_id"]["type"] == "string"
+    assert grant["fields"]["encrypted_account_secret_key"]["type"] == "text"
+    assert grant["fields"]["revoked_at"]["nullable"] is True
+    assert "team_id_hash" not in grant["fields"]

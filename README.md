@@ -92,7 +92,9 @@ The [SDK guide](https://openmates.org/docs/user-guide/developers/sdk) covers Jav
 
 ## Self-host OpenMates
 
-The published CLI installs and manages the Docker Compose stack. A default installation needs Linux, Docker with Compose support, Node.js/npm, at least 4 GB RAM, and at least 20 GB of free disk space. 8 GB or more RAM is recommended.
+The published CLI installs and manages the Docker Compose stack. A default installation needs Linux with systemd, Docker with Compose support, Node.js/npm, at least 4 GB RAM, and at least 20 GB of free disk space. 8 GB or more RAM is recommended.
+
+Run this fresh-install sequence in a root shell (for example, enter one with `sudo -i`). Node.js/npm and the globally installed CLI must be available in that shell; a user-only Node installation is insufficient. Install and update automatically provision the systemd monitor and require host administrator privileges.
 
 ```bash
 npm install -g openmates
@@ -100,6 +102,8 @@ openmates server install --path "$HOME/openmates"
 openmates server start --path "$HOME/openmates"
 openmates server status --path "$HOME/openmates"
 ```
+
+The monitor refreshes the complete API process inventory every minute; its lease expires after 180 seconds. Migration waits for exact-source release eligibility and pauses safely if inventory renewal fails.
 
 Open `http://localhost:5173` after startup. A server can start without provider keys, but AI chat and model-backed features remain unavailable until an LLM provider or local OpenAI-compatible model is configured.
 

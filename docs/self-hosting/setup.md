@@ -48,7 +48,7 @@ OpenMates can start without AI provider keys. The app and backend will run, but 
 
 ## Requirements
 
-- Linux server or workstation. Ubuntu/Debian is recommended.
+- Linux server or workstation with systemd and host administrator access. Ubuntu/Debian is recommended.
 - Docker with Docker Compose support.
 - Node.js/npm for the `openmates` CLI.
 - 4 GB RAM minimum. 8 GB or more is recommended.
@@ -86,6 +86,8 @@ These limits apply only to user Tasks; Workflow runs use separate execution and
 are not counted. Invalid or negative values fail visibly during Task admission.
 
 ## Quick Start
+
+Run this fresh-install sequence in a root shell, for example after `sudo -i`. Node.js/npm and the global `openmates` executable must be available in that shell; a Node installation belonging only to another user is insufficient. The installer writes and enables systemd monitoring units automatically, so Docker access alone is insufficient. The paths below use that administrator account's home directory.
 
 Install the CLI:
 
@@ -205,11 +207,15 @@ Use `openmates server ai models list|test|remove` to manage saved local models. 
 
 Backups contain secrets. Store them on encrypted disks or move them to a secure backup location.
 
-Install or repair the five-minute runtime monitor and independent stale watchdog with host privileges:
+Install and update automatically install or refresh the one-minute runtime monitor and independent stale watchdog. Run updates with host administrator privileges, retaining the existing installation path and registered CLI state (`OPENMATES_STATE_DIR` when configured). No separate monitoring command is required after a successful standard install or update.
+
+To repair the monitor, run this from the same administrator shell with Node.js and `openmates` available:
 
 ```bash
-sudo "$(command -v openmates)" server monitoring install-service --role core --path ~/openmates
+openmates server monitoring install-service --role core --path ~/openmates
 ```
+
+Each monitor run renews the complete source-bound API inventory, whose lease expires after 180 seconds. A failed monitor installation makes the install or update report failure/degraded state. Failed renewal pauses archive advancement when the lease expires; it does not delete source data. Missing signed release eligibility also pauses advancement and retries automatically.
 
 Every update runs the same provider-free runtime verifier before reporting success. A failed required check leaves updated containers running, records degraded state, and offers a restore command only when a verified backup exists. Self-hosted servers omit billing checks entirely.
 

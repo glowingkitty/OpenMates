@@ -104,3 +104,57 @@ def test_team_portability_selector_runs_only_its_probe_and_closes_resources(monk
         result = asyncio.run(integration.probe_team_portability())
         assert result == {"passed": True, "team_portability_cleanup_verified": True, "source_commit": "a" * 40}
     assert events == ["profile_guard", "team_probe", "directus_closed", "secrets_closed"]
+
+
+@pytest.mark.parametrize("failure_at,error_class", [
+    ("service_initialization", "AttributeError"),
+    ("export", "RuntimeError"),
+    ("fixture_cleanup", "ExceptionGroup"),
+    ("directus_close", "ConnectionError"),
+    ("secrets_close", "OtherError"),
+])
+def test_team_failure_receipt_preserves_stage_without_private_exception_data(monkeypatch, failure_at, error_class):
+    import json
+    from builtins import ExceptionGroup
+    from scripts import storage_archive_integration as integration
+
+    private = "private-token-ciphertext-object-key"
+    events = []
+
+    class PrivateNamedException(Exception):
+        pass
+
+    class Directus:
+        async def close(self):
+            events.append("directus_closed")
+            if failure_at == "directus_close":
+                raise ConnectionError(private)
+
+    class Secrets:
+        async def aclose(self):
+            events.append("secrets_closed")
+            if failure_at == "secrets_close":
+                raise PrivateNamedException(private)
+
+    async def load():
+        if failure_at == "service_initialization":
+            raise AttributeError(private)
+        return Secrets(), Directus(), object()
+
+    async def team_probe(*args):
+        integration._TEAM_PORTABILITY_STAGE.set(failure_at)
+        if failure_at == "export":
+            raise RuntimeError(private)
+        if failure_at == "fixture_cleanup":
+            raise ExceptionGroup(private, [RuntimeError(private), ValueError(private)])
+        return {"passed": True}
+
+    monkeypatch.setenv("BUILD_COMMIT_SHA", "a" * 40)
+    monkeypatch.setattr(integration, "require_isolated_storage", lambda: None)
+    monkeypatch.setattr(integration, "_load_archive_services", load)
+    monkeypatch.setattr(integration, "_probe_team_portability", team_probe)
+    receipt = asyncio.run(integration._team_portability_cli_result())
+    assert receipt == {"passed": False, "stage": failure_at, "reason": "probe_exception", "error_class": error_class}
+    assert private not in json.dumps(receipt)
+    assert "PrivateNamedException" not in json.dumps(receipt)
+    assert events == ([] if failure_at == "service_initialization" else ["directus_closed", "secrets_closed"])

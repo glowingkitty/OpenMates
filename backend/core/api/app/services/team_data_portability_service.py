@@ -31,18 +31,19 @@ TEAM_SCOPED_COLLECTIONS = (
 )
 
 # Exporting authority records for inspection does not authorize restoring them.
-# Membership/invite APIs enforce role invariants; billing transactions alone may
-# write spendable balances and their financial or usage ledgers.
+# Team access operations enforce membership/invite/grant role and capability
+# invariants; billing transactions alone may write balances and their ledgers.
 TEAM_AUTHORITY_COLLECTIONS = frozenset({
     "team_memberships", "team_invites", "team_credit_accounts",
-    "team_credit_events", "team_usage_events",
+    "team_credit_events", "team_usage_events", "team_connected_account_grants",
 })
 TEAM_IMPORTABLE_COLLECTIONS = frozenset({
-    "user_app_settings_and_memories", "connected_accounts", "team_connected_account_grants",
+    "user_app_settings_and_memories", "connected_accounts",
 })
 
 SECRET_FIELDS = {
     "encrypted_team_key",
+    "encrypted_account_secret_key",
     "encrypted_refresh_token_bundle",
     "encrypted_server_access_ref",
     "one_time_token_hash",
@@ -171,7 +172,7 @@ class TeamDataPortabilityService:
             if collection in TEAM_AUTHORITY_COLLECTIONS and rows:
                 raise TeamDataPortabilityError(
                     f"Server-controlled Team records cannot be imported ({collection}); "
-                    "use Team membership/invite or billing operations; no rows were imported"
+                    "use authorized Team access or billing operations; no rows were imported"
                 )
             if collection != "teams" and collection not in TEAM_IMPORTABLE_COLLECTIONS and rows:
                 raise TeamDataPortabilityError(

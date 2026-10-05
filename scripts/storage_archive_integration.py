@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
@@ -812,12 +813,34 @@ async def _probe_team_archive(directus, archive, now: int) -> dict:
     return await _probe_team_portability(directus, archive.s3, now)
 
 
+# Fixed codes only; never serialize exception messages, fixture IDs or routing.
+_TEAM_PORTABILITY_STAGE = ContextVar("team_portability_stage", default="probe_bootstrap")
+_TEAM_PORTABILITY_ERROR_CLASSES = frozenset({
+    "RuntimeError", "AssertionError", "KeyError", "ValueError", "TypeError", "AttributeError",
+    "ImportError", "ModuleNotFoundError", "TimeoutError", "ConnectionError", "OSError",
+    "ClientError", "TeamPermissionError", "TeamDataPortabilityError", "ExceptionGroup",
+})
+
+
+async def _team_portability_cli_result() -> dict:
+    """Return a public-safe failure instead of an unbounded Python traceback."""
+    try:
+        return await probe_team_portability()
+    except Exception as error:
+        error_class = type(error).__name__
+        return {"passed": False, "stage": _TEAM_PORTABILITY_STAGE.get(),
+                "reason": "probe_exception",
+                "error_class": error_class if error_class in _TEAM_PORTABILITY_ERROR_CLASSES else "OtherError"}
+
+
 async def _probe_team_portability(directus, s3, now: int) -> dict:
     """One tiny Team export/import flow against disposable Directus/PG/S3."""
+    _TEAM_PORTABILITY_STAGE.set("isolation_proof")
     require_isolated_storage()
     from backend.shared.python_utils.storage_archive_rollout_config import trusted_isolated_storage_profile
     if not trusted_isolated_storage_profile(dict(os.environ)):
         raise RuntimeError("Team portability requires verified source/network/credential isolation proof")
+    _TEAM_PORTABILITY_STAGE.set("fixture_imports")
     import gzip
     import sys
     from builtins import ExceptionGroup
@@ -851,8 +874,10 @@ async def _probe_team_portability(directus, s3, now: int) -> dict:
 
     async def destination_state():
         return {collection: await rows(collection, {"hashed_team_id": {"_eq": scopes[1]}})
-                for collection in ("user_app_settings_and_memories", "team_memberships", "team_credit_accounts")}
+                for collection in ("user_app_settings_and_memories", "team_memberships", "team_credit_accounts",
+                                   "team_connected_account_grants")}
 
+    _TEAM_PORTABILITY_STAGE.set("fixture_metadata")
     service = TeamDataPortabilityService(directus, s3_service=s3)
     try:
         for team_id, team_hash in zip((source, destination), scopes):
@@ -875,7 +900,16 @@ async def _probe_team_portability(directus, s3, now: int) -> dict:
                 "app_id": "code", "item_type": "ci_portability", "item_key": item_key,
                 "encrypted_item_json": source_cipher, "created_at": now, "updated_at": now,
             })
+        for team_hash in (scopes[0], scopes[2]):
+            await _write(directus, "team_connected_account_grants", {
+                "hashed_team_id": team_hash, "hashed_user_id": owner_hash,
+                "connected_account_id_hash": hash_id("disposable-account"), "role_snapshot": "owner",
+                "encrypted_account_secret_key": source_cipher, "allowed_actions_hash": hash_id("read"),
+                "status": "active", "created_at": now,
+            })
+        _TEAM_PORTABILITY_STAGE.set("fixture_object")
         verified = await put_verified_bytes(s3, object_key, raw, content_type="application/gzip")
+        _TEAM_PORTABILITY_STAGE.set("fixture_archive")
         for archive_id, team_hash in zip(archive_ids, (scopes[0], scopes[2], None)):
             await _write(directus, "cold_archive_manifests", {
                 "archive_id": archive_id, "resource_type": "chat", "resource_id": str(uuid.uuid4()),
@@ -890,17 +924,23 @@ async def _probe_team_portability(directus, s3, now: int) -> dict:
             "size_bytes": len(raw), "regional_states": {region: "verified" for region in verified["verified_regions"]},
             "created_at": now,
         })
+        _TEAM_PORTABILITY_STAGE.set("export")
         artifact = (await service.export_team_data(source, owner))["artifact"]
         if ([item["archive_id"] for item in artifact["collections"]["cold_archives"]] != [archive_ids[0]]
                 or base64.b64decode(artifact["collections"]["cold_archives"][0]["parts"][0]["ciphertext"]) != raw
                 or any(row.get("hashed_team_id") != scopes[0]
                        for row in artifact["collections"]["user_app_settings_and_memories"])):
             raise RuntimeError("Team export changed ciphertext or mixed Personal/other-Team scope")
+        grants = artifact["collections"]["team_connected_account_grants"]
+        if (len(grants) != 1 or grants[0].get("hashed_team_id") != scopes[0]
+                or grants[0].get("encrypted_account_secret_key") != "<redacted>"):
+            raise RuntimeError("Team export omitted/mixed grant metadata or exposed its account key")
         serialized = json.dumps(artifact)
         if object_key in serialized or any(value in serialized for value in archive_ids[1:]):
             raise RuntimeError("Team export exposed storage routing or unrelated archives")
         if len(artifact["collections"]["user_app_settings_and_memories"]) != 1:
             raise RuntimeError("Team export omitted its synthetic memory")
+        _TEAM_PORTABILITY_STAGE.set("viewer_authorization")
         try:
             await service.export_team_data(source, viewer)
         except TeamPermissionError:
@@ -918,10 +958,12 @@ async def _probe_team_portability(directus, s3, now: int) -> dict:
                   "encrypted_item_json": destination_cipher, "created_at": now}
         selected = {"schema": "openmates.team_export.v1", "rewrapped_with_destination_team_key": True,
                     "collections": {"user_app_settings_and_memories": [memory]}}
+        _TEAM_PORTABILITY_STAGE.set("import_preflight")
         before = await destination_state()
         for collection, detail in (("cold_archives", "restore is unsupported"),
                                    ("team_memberships", "Server-controlled Team records"),
-                                   ("team_credit_accounts", "Server-controlled Team records")):
+                                   ("team_credit_accounts", "Server-controlled Team records"),
+                                   ("team_connected_account_grants", "Server-controlled Team records")):
             rejected = {**selected, "collections": {**selected["collections"], collection: [{"id": str(uuid.uuid4())}]}}
             try:
                 await service.import_team_data(destination, owner, rejected)
@@ -932,6 +974,7 @@ async def _probe_team_portability(directus, s3, now: int) -> dict:
                 raise RuntimeError("Team import accepted unsupported or authoritative rows")
             if await destination_state() != before:
                 raise RuntimeError("Rejected Team import changed persisted destination state")
+        _TEAM_PORTABILITY_STAGE.set("metadata_import")
         imported = await service.import_team_data(destination, owner, selected)
         persisted = await rows("user_app_settings_and_memories", {"hashed_team_id": {"_eq": scopes[1]}})
         if (imported.get("imported_rows") != 1 or len(persisted) != 1
@@ -940,6 +983,7 @@ async def _probe_team_portability(directus, s3, now: int) -> dict:
         decoded = base64.b64decode(persisted[0]["encrypted_item_json"])
         if AESGCM(destination_key).decrypt(decoded[:12], decoded[12:], None) != plaintext:
             raise RuntimeError("Imported Team memory lost destination-key readability")
+        _TEAM_PORTABILITY_STAGE.set("revoked_authorization")
         memberships = await rows("team_memberships", {"hashed_team_id": {"_eq": scopes[0]}, "hashed_user_id": {"_eq": owner_hash}})
         await _patch(directus, "team_memberships", memberships[0]["id"], {"status": "removed", "removed_at": now})
         try:
@@ -950,9 +994,12 @@ async def _probe_team_portability(directus, s3, now: int) -> dict:
             raise RuntimeError("Revoked membership exported Team ciphertext")
     finally:
         original_error = sys.exception()
+        original_stage = _TEAM_PORTABILITY_STAGE.get()
+        _TEAM_PORTABILITY_STAGE.set("fixture_cleanup")
         # Remove only fixture scopes/keys created here; continue cleanup after a failure.
         queries = [(collection, {"hashed_team_id": {"_in": scopes}}) for collection in (
-            "team_data_exports", "user_app_settings_and_memories", "team_memberships", "team_credit_accounts", "teams")]
+            "team_data_exports", "user_app_settings_and_memories", "team_memberships", "team_credit_accounts",
+            "team_connected_account_grants", "teams")]
         queries += [("user_app_settings_and_memories", {"item_key": {"_eq": item_key}}),
                     ("cold_archive_parts", {"archive_id": {"_in": archive_ids}}),
                     ("cold_archive_manifests", {"archive_id": {"_in": archive_ids}}),
@@ -984,6 +1031,7 @@ async def _probe_team_portability(directus, s3, now: int) -> dict:
             if original_error is not None:
                 raise ExceptionGroup("Team portability and cleanup failed", [original_error, cleanup_error])
             raise cleanup_error
+        _TEAM_PORTABILITY_STAGE.set(original_stage)
     return {"passed": True, "team_export_original_ciphertext": True, "team_scope_and_revocation": True,
             "team_import_preflight_no_writes": True, "team_selected_import_persisted": True,
             "team_portability_cleanup_verified": True}
@@ -991,16 +1039,25 @@ async def _probe_team_portability(directus, s3, now: int) -> dict:
 
 async def probe_team_portability() -> dict:
     """Select only this tiny existing Team probe, without capacity traffic."""
+    _TEAM_PORTABILITY_STAGE.set("profile_guard")
     require_isolated_storage()
+    _TEAM_PORTABILITY_STAGE.set("service_initialization")
     secrets_manager, directus, s3 = await _load_archive_services()
     try:
+        _TEAM_PORTABILITY_STAGE.set("probe_bootstrap")
         result = await _probe_team_portability(directus, s3, int(time.time()))
         return {**result, "source_commit": os.environ["BUILD_COMMIT_SHA"]}
     finally:
+        original_stage = _TEAM_PORTABILITY_STAGE.get()
+        _TEAM_PORTABILITY_STAGE.set("directus_close")
         try:
             await directus.close()
+            _TEAM_PORTABILITY_STAGE.set(original_stage)
         finally:
+            close_stage = _TEAM_PORTABILITY_STAGE.get()
+            _TEAM_PORTABILITY_STAGE.set("secrets_close")
             await secrets_manager.aclose()
+            _TEAM_PORTABILITY_STAGE.set(close_stage)
 
 
 async def _probe_project_attach_deletion_fence(directus, archive, *,
@@ -1665,6 +1722,9 @@ async def probe() -> dict:
 
 
 if __name__ == "__main__":
-    selected = (probe_team_portability if os.getenv("OPENMATES_CI_TEAM_PORTABILITY_PROBE") == "1"
-                else probe_legacy_claims if os.getenv("OPENMATES_CI_LEGACY_CLAIM_PROBE") == "1" else probe)
+    if os.getenv("OPENMATES_CI_TEAM_PORTABILITY_PROBE") == "1":
+        result = asyncio.run(_team_portability_cli_result())
+        print(json.dumps(result, sort_keys=True))
+        raise SystemExit(0 if result.get("passed") is True else 1)
+    selected = probe_legacy_claims if os.getenv("OPENMATES_CI_LEGACY_CLAIM_PROBE") == "1" else probe
     print(json.dumps(asyncio.run(selected()), sort_keys=True))
