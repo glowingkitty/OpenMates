@@ -65,6 +65,10 @@ on:
       proof_video_profile:
         type: string
         default: ''
+      capacity_configuration:
+        description: Source-bound calibration and rate settings supplied by the coordinator
+        type: string
+        default: ''
 permissions:
   actions: read
   contents: read
@@ -72,8 +76,8 @@ permissions:
 jobs:
   test:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: ${{ inputs.mode == 'selfhost' && 90 || 60 }}
+    runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || fromJSON('["ubuntu-latest"]') }}
+    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 90 || 60 }}
     defaults:
       run:
         working-directory: subject
@@ -198,6 +202,11 @@ jobs:
       - name: Install workspace dependencies
         if: inputs.mode != 'pytest'
         run: pnpm install --frozen-lockfile
+      - name: Stage exact capacity calibration and rate settings
+        if: inputs.capacity_configuration != '' || contains(inputs.specs_json, 'storage-capacity-target.spec.ts')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 ../tooling/scripts/ci_capacity_config.py
       - name: Prepare isolated stack
         id: profile
         if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
@@ -468,6 +477,9 @@ jobs:
           retention-days: 7
           path: |
             subject/test-results/ci-capacity-private/capacity-failure-rows.jsonl
+            subject/test-results/ci-capacity-calibration-private/receipt.json
+            subject/test-results/ci-storage-capacity.json
+            subject/test-results/ci-environment.json
             subject/test-results/ci-accountability-private/receipt.retained.json
             subject/test-results/ci-accountability-private/prove.stderr.retained.log
             subject/test-results/ci-accountability-private/cleanup.stderr.retained.log

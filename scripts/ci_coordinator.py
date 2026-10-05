@@ -134,6 +134,8 @@ class GitHub:
                     "mode": job["mode"],
                     "dispatch_token": job["token"],
                     "proof_video_profile": job.get("proof_profile", ""),
+                    **({"capacity_configuration": job["capacity_configuration"]}
+                       if job.get("capacity_configuration") else {}),
                     **({
                         "preparation_key": job["preparation_key"],
                         "harness_commit": job["preparation_harness_commit"],
@@ -202,6 +204,7 @@ class Queue:
                 "phase": "TEXT NOT NULL DEFAULT ''",
                 "phase_updated": "REAL NOT NULL DEFAULT 0",
                 "ready_at": "REAL",
+                "capacity_configuration": "TEXT NOT NULL DEFAULT ''",
             }
             for name, definition in candidate_columns.items():
                 if name not in columns:
@@ -227,6 +230,7 @@ class Queue:
         proof_profile="",
         candidate: dict | None = None,
         preparation: dict | None = None,
+        capacity_configuration: dict | None = None,
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
@@ -312,6 +316,18 @@ class Queue:
         encoded = json.dumps(specs, separators=(",", ":"))
         stable_candidate = {key: value for key, value in candidate_values.items() if key not in ("candidate_patch_url", "candidate_expires")}
         identity = [owner, source, specs, mode, nonce, stable_candidate]
+        if specs == ["storage-capacity-target.spec.ts"] and not capacity_configuration:
+            raise ValueError("Target capacity requires source-bound calibration configuration")
+        if capacity_configuration:
+            try:
+                from scripts.ci_capacity_config import validate_configuration, TARGET_SPEC
+            except ModuleNotFoundError:
+                from ci_capacity_config import validate_configuration, TARGET_SPEC
+            if mode != "e2e" or len(specs) != 1 or specs[0] not in {
+                    TARGET_SPEC, "storage-capacity-calibration.spec.ts", "storage-capacity-replay.spec.ts"}:
+                raise ValueError("Capacity configuration requires dedicated capacity E2E")
+            validate_configuration(capacity_configuration, source=source, target=specs == [TARGET_SPEC])
+            identity.append(capacity_configuration)
         preparation = preparation or {}
         if preparation:
             if (
@@ -363,6 +379,9 @@ class Queue:
                 )
             if candidate:
                 db.execute("UPDATE jobs SET candidate_patch_url=?,candidate_expires=? WHERE id=? AND state='queued'", (candidate_values["candidate_patch_url"], candidate_values["candidate_expires"], key))
+            if capacity_configuration:
+                db.execute("UPDATE jobs SET capacity_configuration=? WHERE id=? AND state='queued'",
+                           (json.dumps(capacity_configuration, separators=(",", ":")), key))
             return dict(db.execute("SELECT * FROM jobs WHERE id=?", (key,)).fetchone())
 
     def supersede_pending(self, job: dict) -> int:
@@ -656,6 +675,7 @@ def enqueue_submission(
     source_root: Path | None = None,
     supersede: bool = True,
     prepared_builds: bool = False,
+    capacity_configuration: dict | None = None,
 ) -> list[dict]:
     """Split E2Es and optionally attach exact private shared preparation."""
     if prepared_builds and (source_root is None or mode not in ("e2e", "visual-smoke")):
@@ -702,6 +722,7 @@ def enqueue_submission(
             proof_profile,
             candidate,
             preparation,
+            capacity_configuration,
         )
         for batch in batches
     ]
@@ -771,6 +792,10 @@ def main():
     submit.add_argument("--preview-url", action="append", default=[])
     submit.add_argument("--mode", choices=["component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"], default="e2e")
     submit.add_argument("--attempt", default="")
+    submit.add_argument("--capacity-calibration-job", default="")
+    submit.add_argument("--capacity-profile", choices=["accelerated", "burst", "sustained"])
+    submit.add_argument("--capacity-duration-seconds", type=int, default=900)
+    submit.add_argument("--capacity-timeout-seconds", type=int, default=24 * 3600)
     submit.add_argument(
         "--prepared-builds",
         action=argparse.BooleanOptionalAction,
@@ -837,6 +862,19 @@ def main():
         except ModuleNotFoundError:
             from ci_candidate import load as load_candidate
         candidate = load_candidate(root, args.source, require_fresh=True)
+        capacity_configuration = None
+        if args.capacity_profile or args.capacity_calibration_job or args.spec == ["storage-capacity-target.spec.ts"]:
+            try:
+                from scripts.ci_capacity_config import configuration_for_submission
+            except ModuleNotFoundError:
+                from ci_capacity_config import configuration_for_submission
+            capacity_configuration = configuration_for_submission(
+                queue, source=args.source, specs=args.spec, mode=args.mode,
+                calibration_job=args.capacity_calibration_job,
+                profile=args.capacity_profile or "accelerated",
+                duration_seconds=args.capacity_duration_seconds,
+                timeout_seconds=args.capacity_timeout_seconds,
+            )
         receipts = enqueue_submission(
             queue,
             args.session,
@@ -849,6 +887,7 @@ def main():
             source_root=root,
             supersede=not args.keep_queued_generations,
             prepared_builds=args.prepared_builds,
+            capacity_configuration=capacity_configuration,
         )
         print_receipt(receipts[0] if len(receipts) == 1 else receipts, as_json=args.json)
     elif args.action == "prioritize":

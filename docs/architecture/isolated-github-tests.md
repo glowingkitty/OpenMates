@@ -165,16 +165,39 @@ accepted only with disposable client account states, a private internal network
 and absent provider credentials, real client cryptography, exact operation and
 version-content ledger, all worker receipts, and uncached archive-page timings
 through decryption and page readiness. The accelerated volume profile and
-24-hour paced sustained profile have separate result reports. The focused
+paced representative profile have separate result reports. The focused
 backend test target `backend/tests/test_storage_capacity_replay.py` verifies
 the zero-call boundary and fixture behavior; the full load requires a dedicated
 isolated-stack job and cannot be credited by unit tests or seeded rows.
 Select `storage-capacity-replay.spec.ts` as a dedicated E2E batch; the
 coordinator includes the CLI build for E2E mode and `ci_run_tests.py` runs a
 two-user, 30-round pilot with 20 KiB messages after the browser case; the
-larger pilot messages force a real compression checkpoint. Select
-`storage-capacity-target.spec.ts` in a separate E2E batch for the default
-1000-user, 500-slot accelerated workload. Set
+larger pilot messages force a real compression checkpoint. The separate
+`storage-capacity-calibration.spec.ts` runs eight users through 30 rounds with
+four live prefork slots. Its passing private receipt binds the exact source,
+harness, CI run, operation report and environment report, aggregate container
+cgroup memory peaks, driver process RSS, measured disk growth and throughput.
+The default GitHub-hosted 60-minute workflow can run these pilots; it cannot
+admit the full target.
+
+`storage-capacity-target.spec.ts` requires a dedicated isolated self-hosted
+runner with that same-source calibration staged privately. Admission projects
+125 four-slot AI-worker containers and 500 client workers with memory headroom,
+checks available host/cgroup memory and Docker/source disk, and requires a job
+timeout covering the measured workload allowance. Startup then verifies all
+500 live prefork processes. The target is 1000 users, 500 simultaneously active
+server executions, 500000 rounds, 200000 new embeds and 1000000 versions.
+The accelerated target workload and paced representative traffic require separate reports;
+a passing pilot or configured worker count does not satisfy either target.
+Submit the target through `ci_coordinator.py submit` with
+`--capacity-calibration-job <successful-calibration-request-id>` and the measured
+`--capacity-timeout-seconds`; the workflow uses only the dedicated
+`openmates-capacity` runner label and fetches that exact CI run's bounded private
+calibration artifact. Selecting this spec provisions no runner. A pilot submitted
+with `--capacity-profile sustained --capacity-duration-seconds 900` measures a
+declared 15-minute representative traffic window; its volume remains labeled a
+pilot. A literal 24-hour run is available when explicitly selected, and is not
+a completion requirement for the separate accelerated target. Set
 `CI_STORAGE_CAPACITY_PILOT_ROUNDS=2` for a short smoke that does not exercise
 compression, child dispatch or archive page reads.
 The runner builds private CLI crypto helpers and requires real signed replay,

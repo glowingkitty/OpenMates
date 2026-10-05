@@ -397,3 +397,341 @@ def test_empty_vitest_selection_preserves_existing_full_suite(tmp_path, monkeypa
     receipt = json.loads((runner.RESULTS / "ci-results.json").read_text())
     assert receipt["success"] is True
     assert all("selection_mode" not in result for result in receipt["results"])
+
+# contract-test: infrastructure
+
+def test_full_target_has_exact_500_slots_without_provider_authority() -> None:
+    profile = compose_profile("a" * 40, storage_capacity=True, capacity_concurrency=500,
+                              capacity_target=True, account_emails=[])
+    services = profile["services"]
+    workers = [name for name in services if name == "ai-worker" or name.startswith("ai-worker-")]
+    assert len(workers) == 125
+    assert all("--concurrency=4" in services[name]["command"] for name in workers)
+    assert all(services[name]["mem_limit"] == 1536 * 1024**2 for name in workers)
+    assert all("OPENAI_API_KEY" not in services[name]["environment"] for name in workers)
+    assert profile["networks"]["default"]["internal"] is True
+
+
+# contract-test: infrastructure
+
+def test_target_admission_checks_real_slot_memory_disk_and_timeout() -> None:
+    from scripts.ci_environment import admit_target_capacity
+
+    calibration = {"schema": 2, "source_commit": "a" * 40, "pilot_passed": True,
+                   "observed_worker_slots": 4, "observed_worker_task_receipts": 32,
+                   "worker_container_peak_metric": "cgroup_v2_memory_peak",
+                   "worker_container_peak_bytes": 256 * 1024**2,
+                   "driver_peak_metric": "process_rss_peak",
+                   "driver_idle_peak_bytes": 64 * 1024**2,
+                   "driver_sample_peak_bytes": 96 * 1024**2,
+                   "driver_sample_threads": 4,
+                   "fixed_stack_peak_metric": "sum_cgroup_memory_peak",
+                   "fixed_stack_peak_bytes": 2 * 1024**3,
+                   "disk_bytes_per_operation": 1024,
+                   "measured_operations_per_second": 1000}
+    options = dict(source_commit="a" * 40, runner_environment="self-hosted",
+                   profile="accelerated", available_memory_bytes=256 * 1024**3,
+                   available_disk_bytes=40 * 1024**3, job_timeout_seconds=10000)
+    result = admit_target_capacity(calibration, **options)
+    assert result["worker_slots"] == 500
+    assert result["worker_replicas"] == 125
+    assert result["memory_required_bytes"] < 125 * 1536 * 1024**2
+    assert result["worker_container_peak_bytes"] == 256 * 1024**2
+    with pytest.raises(RuntimeError, match="container ceiling"):
+        admit_target_capacity(calibration | {"worker_container_peak_bytes": 1200 * 1024**2}, **options)
+    with pytest.raises(RuntimeError, match="sampling provenance"):
+        admit_target_capacity(calibration | {"observed_worker_slots": 2}, **options)
+    with pytest.raises(RuntimeError, match="driver sample"):
+        admit_target_capacity(calibration | {"driver_sample_peak_bytes": 64 * 1024**2}, **options)
+    for changed, message in (({"runner_environment": "github-hosted"}, "dedicated"),
+                             ({"available_memory_bytes": 1}, "memory"),
+                             ({"available_disk_bytes": 1}, "disk"),
+                             ({"job_timeout_seconds": 3600}, "timeout")):
+        with pytest.raises(RuntimeError, match=message):
+            admit_target_capacity(calibration, **(options | changed))
+    with pytest.raises(RuntimeError, match="same-source"):
+        admit_target_capacity(calibration | {"source_commit": "b" * 40}, **options)
+    # A representative paced run uses its declared window; it has no invented
+    # requirement to occupy a runner for a full calendar day.
+    paced = admit_target_capacity(calibration, **(options | {"profile": "sustained"}))
+    assert paced["job_timeout_required_seconds"] == result["job_timeout_required_seconds"]
+
+
+# contract-test: infrastructure
+
+def test_target_profile_does_not_accept_four_slot_substitution() -> None:
+    with pytest.raises(ValueError, match="exactly 500"):
+        compose_profile("a" * 40, storage_capacity=True, capacity_concurrency=4,
+                        capacity_target=True)
+
+
+# contract-test: infrastructure
+
+def test_full_target_runner_requires_measured_500_slots(monkeypatch) -> None:
+    import sys
+    from scripts import ci_environment
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts.ci_run_tests import verify_capacity_admission
+
+    valid = {"target_capacity_admission": {"worker_slots": 500},
+             "storage_capacity": {"worker_slots": 500, "worker_replicas": 125,
+                                  "observed_worker_processes": 500}}
+    verify_capacity_admission(True, valid)
+    verify_capacity_admission(False, {})
+    for changed in ({"worker_slots": 4}, {"worker_replicas": 1},
+                    {"observed_worker_processes": 4}):
+        with pytest.raises(RuntimeError, match="500-slot"):
+            verify_capacity_admission(True, valid | {"storage_capacity": valid["storage_capacity"] | changed})
+
+
+# contract-test: infrastructure
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf"),
+                                  [], {}, "1", True, 0])
+def test_target_calibration_rejects_nonfinite_or_malformed_measurements(bad) -> None:
+    from scripts.ci_environment import admit_target_capacity
+
+    calibration = {"schema": 2, "source_commit": "a" * 40, "pilot_passed": True,
+                   "observed_worker_slots": 4, "observed_worker_task_receipts": 32,
+                   "worker_container_peak_metric": "cgroup_v2_memory_peak",
+                   "worker_container_peak_bytes": bad,
+                   "driver_peak_metric": "process_rss_peak",
+                   "driver_idle_peak_bytes": 64 * 1024**2,
+                   "driver_sample_peak_bytes": 96 * 1024**2,
+                   "driver_sample_threads": 4,
+                   "fixed_stack_peak_metric": "sum_cgroup_memory_peak",
+                   "fixed_stack_peak_bytes": 2 * 1024**3,
+                   "disk_bytes_per_operation": 1024,
+                   "measured_operations_per_second": 1000}
+    with pytest.raises(RuntimeError, match="finite measured"):
+        admit_target_capacity(calibration, source_commit="a" * 40,
+                              runner_environment="self-hosted", profile="accelerated",
+                              available_memory_bytes=256 * 1024**3,
+                              available_disk_bytes=40 * 1024**3,
+                              job_timeout_seconds=10000)
+
+
+# contract-test: infrastructure
+
+def test_target_calibration_rejects_non_object() -> None:
+    from scripts.ci_environment import admit_target_capacity
+
+    with pytest.raises(RuntimeError, match="JSON object"):
+        admit_target_capacity([], source_commit="a" * 40,
+                              runner_environment="self-hosted", profile="accelerated",
+                              available_memory_bytes=256 * 1024**3,
+                              available_disk_bytes=40 * 1024**3,
+                              job_timeout_seconds=10000)
+    with pytest.raises(RuntimeError, match="same-source"):
+        admit_target_capacity({"schema": True, "source_commit": "a" * 40,
+                               "pilot_passed": True}, source_commit="a" * 40,
+                              runner_environment="self-hosted", profile="accelerated",
+                              available_memory_bytes=256 * 1024**3,
+                              available_disk_bytes=40 * 1024**3,
+                              job_timeout_seconds=10000)
+
+
+# contract-test: infrastructure
+
+def test_calibration_producer_accepts_only_verified_aggregate_measurements(monkeypatch, tmp_path) -> None:
+    runner = _load_bound_runner(monkeypatch)
+    environment = {"source_commit": "a" * 40, "harness_commit": "b" * 40,
+                   "run_id": "123", "storage_capacity": {
+                       "worker_slots": 4, "worker_replicas": 1,
+                       "observed_worker_processes": 4,
+                       "provider_credentials": "absent", "provider_network": "internal"},
+                   "services": {"ai-worker": {"container": "worker"},
+                                "api": {"container": "api"}}}
+    report = {"passed": True, "validation_level": "pilot",
+              "counts": {"round": 240, "embed": 32, "version": 32},
+              "server_task_peak_concurrency": 4, "task_receipt_count": 272,
+              "provider": {"real_provider_calls": 0, "blocked_provider_calls": 0,
+                           "cache_misses": 0, "cache_hits": 272},
+              "measured_duration_seconds": 120,
+              "hardware": {"worker_threads": 4, "driver_peak_metric": "process_rss_peak",
+                           "driver_idle_peak_bytes": 64 * 1024**2,
+                           "driver_sample_peak_bytes": 96 * 1024**2}}
+    before = {"metric": "cgroup_v2_memory_peak",
+              "peaks": {"ai-worker": 100 * 1024**2, "api": 60 * 1024**2},
+              "source_free": 10**10, "docker_free": 10**10}
+    after = {"metric": "cgroup_v2_memory_peak",
+             "peaks": {"ai-worker": 256 * 1024**2, "api": 80 * 1024**2},
+             "source_free": 10**10 - 4096, "docker_free": 10**10 - 8192}
+    receipt = runner._capacity_calibration_payload(
+        environment, report, before, after, succeeded=True,
+    )
+    assert receipt["worker_container_peak_bytes"] == 256 * 1024**2
+    assert receipt["fixed_stack_peak_bytes"] == 80 * 1024**2
+    assert receipt["disk_bytes_per_operation"] == 8192 / 304
+    assert receipt["driver_sample_threads"] == 4
+    assert receipt["observed_docker_disk_delta_bytes"] == 8192
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    report_path = tmp_path / "ci-storage-capacity.json"
+    report_path.write_text(json.dumps(report))
+    (tmp_path / "ci-environment.json").write_text(json.dumps(environment))
+    runner._write_capacity_calibration_receipt(
+        environment, report, report_path, before, after, succeeded=True,
+    )
+    receipt_path = tmp_path / "ci-capacity-calibration-private/receipt.json"
+    assert receipt_path.stat().st_mode & 0o777 == 0o600
+    assert json.loads(receipt_path.read_text())["pilot_report_sha256"] == __import__("hashlib").sha256(
+        report_path.read_bytes()
+    ).hexdigest()
+    with pytest.raises(FileExistsError):
+        runner._write_capacity_calibration_receipt(
+            environment, report, report_path, before, after, succeeded=True,
+        )
+    for changed in (
+        {"passed": False}, {"server_task_peak_concurrency": 3},
+        {"provider": report["provider"] | {"real_provider_calls": 1}},
+        {"counts": report["counts"] | {"round": 239}},
+    ):
+        with pytest.raises(RuntimeError, match="pilot did not pass"):
+            runner._capacity_calibration_payload(
+                environment, report | changed, before, after, succeeded=True,
+            )
+    with pytest.raises(RuntimeError, match="measurements changed"):
+        runner._capacity_calibration_payload(
+            environment, report, before, after | {"metric": "cgroup_v1_max_usage"},
+            succeeded=True,
+        )
+    with pytest.raises(RuntimeError, match="disk growth"):
+        runner._capacity_calibration_payload(
+            environment, report, before,
+            after | {"source_free": 10**10, "docker_free": 10**10}, succeeded=True,
+        )
+
+
+# contract-test: infrastructure
+
+def test_calibration_snapshot_uses_cgroup_aggregate_and_real_four_slot_evidence(monkeypatch, tmp_path) -> None:
+    runner = _load_bound_runner(monkeypatch)
+    evidence = {"storage_capacity": {"worker_slots": 4, "worker_replicas": 1,
+                                      "observed_worker_processes": 4},
+                "services": {"ai-worker": {"container": "worker"},
+                             "api": {"container": "api"}}}
+    monkeypatch.setattr(runner, "_container_cgroup_peak",
+                        lambda container: ("cgroup_v2_memory_peak",
+                                           256 * 1024**2 if container == "worker" else 64 * 1024**2))
+    monkeypatch.setattr(runner.subprocess, "check_output", lambda *args, **kwargs: str(tmp_path))
+    monkeypatch.setattr(runner.shutil, "disk_usage", lambda path: SimpleNamespace(free=10**10))
+    result = runner._capacity_calibration_snapshot(evidence)
+    assert result["peaks"] == {"ai-worker": 256 * 1024**2, "api": 64 * 1024**2}
+    assert result["metric"] == "cgroup_v2_memory_peak"
+    with pytest.raises(RuntimeError, match="four live"):
+        runner._capacity_calibration_snapshot(
+            evidence | {"storage_capacity": evidence["storage_capacity"] |
+                        {"observed_worker_processes": 2}}
+        )
+
+
+# contract-test: infrastructure
+
+def test_calibration_cgroup_peak_fails_closed_when_unavailable(monkeypatch) -> None:
+    runner = _load_bound_runner(monkeypatch)
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if command[-1] == "/sys/fs/cgroup/memory.peak":
+            return SimpleNamespace(returncode=0, stdout="268435456\n")
+        return SimpleNamespace(returncode=1, stdout="")
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    assert runner._container_cgroup_peak("worker") == (
+        "cgroup_v2_memory_peak", 256 * 1024**2,
+    )
+    assert calls[0][:3] == ["docker", "exec", "worker"]
+    monkeypatch.setattr(runner.subprocess, "run",
+                        lambda *args, **kwargs: SimpleNamespace(returncode=1, stdout=""))
+    with pytest.raises(RuntimeError, match="cgroup peak"):
+        runner._container_cgroup_peak("worker")
+
+
+# contract-test: infrastructure
+
+def test_target_admission_binds_private_pilot_report_and_source(monkeypatch, tmp_path) -> None:
+    import hashlib
+    from scripts import ci_environment as env
+
+    private = tmp_path / "test-results/ci-private"
+    private.mkdir(parents=True)
+    source, harness, run = "a" * 40, "b" * 40, "123"
+    pilot = {"passed": True, "validation_level": "pilot",
+             "counts": {"round": 240, "embed": 32, "version": 32},
+             "server_task_peak_concurrency": 4, "task_receipt_count": 272,
+             "provider": {"real_provider_calls": 0, "blocked_provider_calls": 0,
+                          "cache_misses": 0, "cache_hits": 272},
+             "hardware": {"worker_threads": 4, "driver_peak_metric": "process_rss_peak",
+                          "driver_idle_peak_bytes": 64 * 1024**2,
+                          "driver_sample_peak_bytes": 96 * 1024**2}}
+    pilot_env = {"source_commit": source, "harness_commit": harness, "run_id": run,
+                 "storage_capacity": {"provider_credentials": "absent",
+                                      "provider_network": "internal",
+                                      "observed_worker_processes": 4,
+                                      "worker_replicas": 1}}
+    pilot_raw, env_raw = json.dumps(pilot).encode(), json.dumps(pilot_env).encode()
+    calibration = {"schema": 2, "source_commit": source,
+                   "harness_commit": harness, "run_id": run, "pilot_passed": True,
+                   "pilot_report_sha256": hashlib.sha256(pilot_raw).hexdigest(),
+                   "ci_environment_sha256": hashlib.sha256(env_raw).hexdigest(),
+                   "observed_worker_slots": 4, "observed_worker_task_receipts": 272,
+                   "worker_container_peak_metric": "cgroup_v2_memory_peak",
+                   "worker_container_peak_bytes": 256 * 1024**2,
+                   "driver_peak_metric": "process_rss_peak",
+                   "driver_idle_peak_bytes": 64 * 1024**2,
+                   "driver_sample_peak_bytes": 96 * 1024**2,
+                   "driver_sample_threads": 4,
+                   "fixed_stack_peak_metric": "sum_cgroup_memory_peak",
+                   "fixed_stack_peak_bytes": 2 * 1024**3,
+                   "disk_bytes_per_operation": 1024,
+                   "measured_operations_per_second": 1000}
+    paths = [private / "capacity-target-calibration.json",
+             private / "capacity-target-pilot-report.json",
+             private / "capacity-target-ci-environment.json"]
+    for path, content in zip(paths, (json.dumps(calibration).encode(), pilot_raw, env_raw)):
+        path.write_bytes(content)
+        path.chmod(0o600)
+    monkeypatch.setattr(env, "SOURCE", str(tmp_path))
+    monkeypatch.setattr(env, "_available_target_memory_bytes", lambda: 256 * 1024**3)
+    monkeypatch.setattr(env.shutil, "disk_usage", lambda path: SimpleNamespace(free=40 * 1024**3))
+    monkeypatch.setattr(env.subprocess, "check_output", lambda *args, **kwargs: str(tmp_path))
+    monkeypatch.setenv("CI_STORAGE_CAPACITY_CALIBRATION_RUN_ID", run)
+    monkeypatch.setenv("CI_HARNESS_COMMIT", harness)
+    monkeypatch.setenv("CI_STORAGE_CAPACITY_JOB_TIMEOUT_SECONDS", "10000")
+    monkeypatch.setenv("RUNNER_ENVIRONMENT", "self-hosted")
+    assert env.require_target_admission(source)["worker_slots"] == 500
+    paths[1].write_bytes(pilot_raw + b" ")
+    with pytest.raises(RuntimeError, match="digest differs"):
+        env.require_target_admission(source)
+
+
+# contract-test: infrastructure
+
+def test_target_cgroup_read_failure_cannot_fall_back_to_host_memory(monkeypatch) -> None:
+    from pathlib import Path
+    from scripts.ci_environment import _available_target_memory_bytes
+
+    def fake_read(path):
+        if str(path) == "/proc/meminfo":
+            return "MemAvailable: 1048576 kB\n"
+        raise OSError("synthetic unreadable cgroup")
+
+    monkeypatch.setattr(Path, "read_text", fake_read)
+    monkeypatch.setattr(Path, "exists", lambda path: str(path) == "/sys/fs/cgroup/memory.max")
+    with pytest.raises(RuntimeError, match="cgroup"):
+        _available_target_memory_bytes()
+
+
+# contract-test: infrastructure
+
+def test_target_available_memory_respects_restrictive_v2_cgroup(monkeypatch) -> None:
+    from pathlib import Path
+    from scripts.ci_environment import _available_target_memory_bytes
+
+    values = {"/proc/meminfo": "MemAvailable: 2097152 kB\n",
+              "/sys/fs/cgroup/memory.max": str(1024**3),
+              "/sys/fs/cgroup/memory.current": str(512 * 1024**2)}
+    monkeypatch.setattr(Path, "read_text", lambda path: values[str(path)])
+    monkeypatch.setattr(Path, "exists", lambda path: str(path) == "/sys/fs/cgroup/memory.max")
+    assert _available_target_memory_bytes() == 512 * 1024**2

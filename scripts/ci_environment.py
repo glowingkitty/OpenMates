@@ -9,6 +9,8 @@ See docs/plans/isolated-github-tests/plan.yml.
 from __future__ import annotations
 
 from copy import deepcopy
+import hashlib
+import math
 import secrets
 import shutil
 import json
@@ -20,8 +22,13 @@ import sys
 import time
 
 MIB = 1024**2
+GIB = 1024**3
+TARGET_SLOTS = 500
+TARGET_SLOTS_PER_WORKER = 4
+TARGET_OPERATIONS = 1_700_000
 STORAGE_CAPACITY_SPECS = frozenset({
     "storage-capacity-replay.spec.ts",
+    "storage-capacity-calibration.spec.ts",
     "storage-message-embed-bundle.spec.ts",
     "storage-capacity-target.spec.ts",
     "storage-recovery-replay.spec.ts",
@@ -35,7 +42,8 @@ BILLING_STORAGE_PROFILES = {
     "billing-storage-logical.spec.ts": "logical",
 }
 CAPACITY_WORKLOAD_SPECS = frozenset({
-    "storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts",
+    "storage-capacity-replay.spec.ts", "storage-capacity-calibration.spec.ts",
+    "storage-capacity-target.spec.ts",
 })
 SOURCE = os.environ.get(
     "OPENMATES_CI_SOURCE_ROOT", str(Path(__file__).resolve().parent.parent)
@@ -135,6 +143,191 @@ app.start(['beat','--loglevel=warning','--schedule=/tmp/ci-workflows-schedule','
 """
 
 
+def admit_target_capacity(
+    calibration: dict, *, source_commit: str, runner_environment: str,
+    profile: str, available_memory_bytes: int, available_disk_bytes: int,
+    job_timeout_seconds: int,
+) -> dict:
+    """Calculate a target gate from same-source, measured aggregate peaks.
+
+    A trusted CI producer must supply this schema; hand-authored values are not
+    an admission receipt. The final acceptance still needs 500 overlapping
+    server task intervals on the isolated host.
+    """
+    if runner_environment != "self-hosted":
+        raise RuntimeError("Full capacity target requires a dedicated self-hosted runner")
+    if not isinstance(calibration, dict):
+        raise RuntimeError("Full capacity calibration must be a JSON object")
+    if (type(calibration.get("schema")) is not int or calibration["schema"] != 2
+            or calibration.get("source_commit") != source_commit
+            or calibration.get("pilot_passed") is not True):
+        raise RuntimeError("Full capacity target needs passing same-source measured calibration v2")
+    if (calibration.get("worker_container_peak_metric") not in
+            {"cgroup_v2_memory_peak", "cgroup_v1_max_usage"}
+            or calibration.get("driver_peak_metric") != "process_rss_peak"
+            or calibration.get("fixed_stack_peak_metric") != "sum_cgroup_memory_peak"
+            or type(calibration.get("observed_worker_slots")) is not int
+            or calibration["observed_worker_slots"] != TARGET_SLOTS_PER_WORKER
+            or type(calibration.get("observed_worker_task_receipts")) is not int
+            or calibration["observed_worker_task_receipts"] < 16
+            or type(calibration.get("driver_sample_threads")) is not int
+            or calibration["driver_sample_threads"] < 2):
+        raise RuntimeError("Full capacity calibration lacks four-slot cgroup and driver sampling provenance")
+    fields = ("worker_container_peak_bytes", "driver_idle_peak_bytes",
+              "driver_sample_peak_bytes", "fixed_stack_peak_bytes",
+              "disk_bytes_per_operation", "measured_operations_per_second")
+    if any(type(calibration.get(field)) not in (int, float)
+           or not 0 < calibration[field] <= 2**63 - 1
+           or not math.isfinite(calibration[field]) for field in fields):
+        raise RuntimeError("Full capacity calibration lacks finite measured resource values")
+    if calibration["driver_sample_peak_bytes"] <= calibration["driver_idle_peak_bytes"]:
+        raise RuntimeError("Full capacity driver sample must exceed its measured idle baseline")
+    if any(type(value) is not int or value <= 0 for value in
+           (available_memory_bytes, available_disk_bytes, job_timeout_seconds)):
+        raise RuntimeError("Full capacity target resource measurements must be positive integers")
+    worker_limit = 1536 * MIB  # A ceiling for each replica, not a RAM reservation.
+    replicas = TARGET_SLOTS // TARGET_SLOTS_PER_WORKER
+    worker_peak = calibration["worker_container_peak_bytes"]
+    headroom = 1.5
+    if worker_peak * headroom > worker_limit:
+        raise RuntimeError("Measured four-slot worker cannot fit its container ceiling with headroom")
+    driver_increment_per_thread = ((calibration["driver_sample_peak_bytes"] -
+                                    calibration["driver_idle_peak_bytes"]) /
+                                   calibration["driver_sample_threads"])
+    projected_driver_peak = calibration["driver_idle_peak_bytes"] + TARGET_SLOTS * driver_increment_per_thread
+    memory_required = math.ceil(headroom * (
+        replicas * worker_peak + projected_driver_peak + calibration["fixed_stack_peak_bytes"]
+    ))
+    disk_required = math.ceil(max(20 * GIB, 2 * TARGET_OPERATIONS * calibration["disk_bytes_per_operation"]))
+    # Pilot rate is only a planning bound; actual target throughput is measured.
+    time_required = max(7200, math.ceil(2 * TARGET_OPERATIONS /
+        calibration["measured_operations_per_second"]))
+    if profile not in {"accelerated", "burst", "sustained"}:
+        raise RuntimeError("Unsupported target rate profile")
+    if available_memory_bytes < memory_required:
+        raise RuntimeError("Full capacity target has insufficient measured available memory")
+    if available_disk_bytes < disk_required:
+        raise RuntimeError("Full capacity target has insufficient measured free disk")
+    if job_timeout_seconds < time_required:
+        raise RuntimeError("Full capacity target job timeout is shorter than measured workload allowance")
+    return {"worker_slots": TARGET_SLOTS, "worker_replicas": replicas,
+            "memory_required_bytes": memory_required, "disk_required_bytes": disk_required,
+            "job_timeout_required_seconds": time_required, "profile": profile,
+            "source_commit": source_commit, "worker_container_peak_bytes": worker_peak,
+            "worker_container_peak_metric": calibration["worker_container_peak_metric"]}
+
+
+def _available_target_memory_bytes() -> int:
+    try:
+        available = next(
+            int(line.split()[1]) * 1024 for line in Path("/proc/meminfo").read_text().splitlines()
+            if line.startswith("MemAvailable:")
+        )
+    except (OSError, ValueError, StopIteration) as exc:
+        raise RuntimeError("Cannot measure available host memory for target admission") from exc
+    cgroup = Path("/sys/fs/cgroup")
+    v2_limit = cgroup / "memory.max"
+    v1_limit = cgroup / "memory/memory.limit_in_bytes"
+    try:
+        if v2_limit.exists():
+            limit_text = v2_limit.read_text().strip()
+            if limit_text != "max":
+                remaining = int(limit_text) - int((cgroup / "memory.current").read_text().strip())
+                available = min(available, max(0, remaining))
+        elif v1_limit.exists():
+            limit = int(v1_limit.read_text().strip())
+            if limit < 2**60:  # v1's enormous sentinel denotes no memory limit.
+                remaining = limit - int((cgroup / "memory/memory.usage_in_bytes").read_text().strip())
+                available = min(available, max(0, remaining))
+        else:
+            raise RuntimeError("Cannot identify memory cgroup for target admission")
+    except (OSError, ValueError) as exc:
+        raise RuntimeError("Cannot measure memory cgroup for target admission") from exc
+    return available
+
+
+def require_target_admission(source_commit: str) -> dict:
+    # A dedicated workflow stages the prior isolated calibration job's three
+    # exact artifacts privately. The normal 60-minute runner cannot opt in.
+    private = Path(SOURCE) / "test-results/ci-private"
+    names = ("capacity-target-calibration.json", "capacity-target-pilot-report.json",
+             "capacity-target-ci-environment.json")
+    raw = {}
+    try:
+        for name in names:
+            path = private / name
+            if (path.is_symlink() or not path.is_file()
+                    or path.stat().st_mode & 0o077 or path.stat().st_size > 1_000_000):
+                raise RuntimeError("Full capacity target needs three private calibration artifacts")
+            raw[name] = path.read_bytes()
+        calibration, pilot, pilot_environment = (
+            json.loads(raw[name]) for name in names
+        )
+        timeout = int(os.environ["CI_STORAGE_CAPACITY_JOB_TIMEOUT_SECONDS"])
+    except (OSError, ValueError, KeyError, UnicodeError, TypeError) as exc:
+        raise RuntimeError("Full capacity target lacks measured calibration or declared dedicated timeout") from exc
+    if any(not isinstance(value, dict) for value in (calibration, pilot, pilot_environment)):
+        raise RuntimeError("Full capacity target calibration artifacts must be JSON objects")
+    run_id = os.environ.get("CI_STORAGE_CAPACITY_CALIBRATION_RUN_ID", "")
+    harness = os.environ.get("CI_HARNESS_COMMIT", "")
+    if (not run_id.isdecimal() or int(run_id) <= 0
+            or not re.fullmatch(r"[a-f0-9]{40}", harness)
+            or any(entry.get("source_commit") != source_commit for entry in
+                   (calibration, pilot_environment))
+            or any(entry.get("harness_commit") != harness for entry in
+                   (calibration, pilot_environment))
+            or any(str(entry.get("run_id")) != run_id for entry in
+                   (calibration, pilot_environment))
+            or calibration.get("pilot_report_sha256") !=
+            hashlib.sha256(raw[names[1]]).hexdigest()
+            or calibration.get("ci_environment_sha256") !=
+            hashlib.sha256(raw[names[2]]).hexdigest()):
+        raise RuntimeError("Full capacity calibration source, harness, run or report digest differs")
+    capacity = pilot_environment.get("storage_capacity") or {}
+    counts = pilot.get("counts") or {}
+    provider = pilot.get("provider") or {}
+    hardware = pilot.get("hardware") or {}
+    if (not all(isinstance(value, dict) for value in (capacity, counts, provider, hardware))
+            or pilot.get("passed") is not True
+            or pilot.get("validation_level") != "pilot"
+            or counts != {"round": 240, "embed": 32, "version": 32}
+            or type(pilot.get("server_task_peak_concurrency")) is not int
+            or pilot["server_task_peak_concurrency"] < 4
+            or type(pilot.get("task_receipt_count")) is not int
+            or pilot["task_receipt_count"] < 16
+            or capacity.get("provider_credentials") != "absent"
+            or capacity.get("provider_network") != "internal"
+            or capacity.get("observed_worker_processes") != 4
+            or capacity.get("worker_replicas") != 1
+            or any(provider.get(name) != 0 for name in (
+                "real_provider_calls", "blocked_provider_calls", "cache_misses"))
+            or type(provider.get("cache_hits")) is not int
+            or provider["cache_hits"] <= 0
+            or hardware.get("worker_threads") != 4
+            or hardware.get("driver_idle_peak_bytes") != calibration.get("driver_idle_peak_bytes")
+            or hardware.get("driver_sample_peak_bytes") != calibration.get("driver_sample_peak_bytes")
+            or hardware.get("driver_peak_metric") != calibration.get("driver_peak_metric")
+            or pilot.get("task_receipt_count") != calibration.get("observed_worker_task_receipts")):
+        raise RuntimeError("Full capacity target lacks a verified zero-provider four-slot calibration pilot")
+    try:
+        docker_root = subprocess.check_output(
+            ["docker", "info", "--format", "{{.DockerRootDir}}"], text=True, timeout=10,
+        ).strip()
+        if not docker_root or not Path(docker_root).is_dir():
+            raise RuntimeError("Cannot measure Docker volume disk for target admission")
+        available_disk = min(shutil.disk_usage(SOURCE).free, shutil.disk_usage(docker_root).free)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError("Cannot measure Docker volume disk for target admission") from exc
+    return admit_target_capacity(
+        calibration, source_commit=source_commit,
+        runner_environment=os.environ.get("RUNNER_ENVIRONMENT", ""),
+        profile=os.environ.get("CI_STORAGE_CAPACITY_PROFILE", "accelerated"),
+        available_memory_bytes=_available_target_memory_bytes(),
+        available_disk_bytes=available_disk,
+        job_timeout_seconds=timeout,
+    )
+
+
 def compose_profile(
     source_hash: str,
     *,
@@ -151,6 +344,7 @@ def compose_profile(
     detached_docs: bool = False,
     storage_accountability: bool = False,
     capacity_concurrency: int = 2,
+    capacity_target: bool = False,
     billing_profile: str | None = None,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
@@ -169,6 +363,8 @@ def compose_profile(
         raise ValueError("Detached Docs worker requires isolated storage capacity profile")
     if storage_capacity and not 1 <= capacity_concurrency <= 500:
         raise ValueError("Capacity worker concurrency must be 1..500")
+    if capacity_target and (not storage_capacity or capacity_concurrency != TARGET_SLOTS):
+        raise ValueError("Target profile requires exactly 500 isolated worker slots")
     isolate_backend = ai_fixtures or object_storage or offline_preview or mail_capture or storage_accountability
     if workflows and isolate_backend:
         raise ValueError("Credential-free weather workflows require a separate batch from offline replay/storage")
@@ -499,8 +695,11 @@ def compose_profile(
         ai_worker["mem_limit"] = 1536 * MIB
         services["ai-worker"] = ai_worker
         if storage_capacity:
-            ai_worker["command"] = [part.replace("--concurrency=1", f"--concurrency={capacity_concurrency}")
+            ai_worker["command"] = [part.replace("--concurrency=1", f"--concurrency={TARGET_SLOTS_PER_WORKER if capacity_target else capacity_concurrency}")
                                     for part in ai_worker["command"]]
+            if capacity_target:
+                for index in range(1, TARGET_SLOTS // TARGET_SLOTS_PER_WORKER):
+                    services[f"ai-worker-{index:03d}"] = deepcopy(ai_worker)
     if detached_docs:
         # The signed recovery scenario dispatches the actual local DOCX worker.
         # It generates no paid provider output and uses the isolated Vault/S3.
@@ -601,11 +800,16 @@ COMPOSE_PATH = Path(SOURCE) / "test-results/ci-private/compose.json"
 
 
 def require_runner():
+    dedicated_capacity = (
+        os.environ.get("RUNNER_ENVIRONMENT") == "self-hosted"
+        and os.environ.get("OPENMATES_CI_CAPACITY_DEDICATED") == "1"
+        and json.loads(os.environ.get("CI_SPECS_JSON", "[]")) == ["storage-capacity-target.spec.ts"]
+    )
     if (
         os.environ.get("GITHUB_ACTIONS") != "true"
-        or os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted"
+        or (os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted" and not dedicated_capacity)
     ):
-        raise RuntimeError("Isolated test stacks run only on GitHub-hosted runners")
+        raise RuntimeError("Isolated stacks require GitHub-hosted or dedicated capacity runners")
 
 
 def compose(*args, capture=False, timeout=90):
@@ -727,10 +931,23 @@ def main():
         if storage_accountability and selected != [ACCOUNTABILITY_SPEC]:
             raise RuntimeError("Storage accountability requires its exact standalone selector")
         capacity_target = "storage-capacity-target.spec.ts" in selected
+        capacity_calibration = "storage-capacity-calibration.spec.ts" in selected
+        if capacity_calibration and selected != ["storage-capacity-calibration.spec.ts"]:
+            raise RuntimeError("Capacity calibration requires its exact standalone selector")
         if capacity_target and "storage-capacity-replay.spec.ts" in selected:
             raise RuntimeError("Capacity pilot and target require separate isolated batches")
+        target_admission = require_target_admission(source) if capacity_target else None
+        requested_capacity_slots = int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if capacity_target else "4" if capacity_calibration else "2"))
+        if capacity_calibration and requested_capacity_slots != 4:
+            raise RuntimeError("Capacity calibration requires exactly four worker slots")
+        if capacity_target and requested_capacity_slots != TARGET_SLOTS:
+            raise RuntimeError("Full capacity target must request exactly 500 worker slots")
+        if not capacity_target and storage_capacity and not 1 <= requested_capacity_slots <= 4:
+            raise RuntimeError("Pilot/recovery capacity profile supports only 1..4 worker slots")
         capacity_workload = bool(CAPACITY_WORKLOAD_SPECS.intersection(selected))
-        capacity_users = int(os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if capacity_target else "2")) if capacity_workload else 0
+        capacity_users = int(os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if capacity_target else "8" if capacity_calibration else "2")) if capacity_workload else 0
+        if capacity_calibration and capacity_users != 8:
+            raise RuntimeError("Capacity calibration requires exactly eight disposable users")
         if capacity_workload and not 1 <= capacity_users <= 1000:
             raise RuntimeError("Capacity user count must be 1..1000")
         account_count = 0 if storage_accountability else 2 * len(selected) + capacity_users
@@ -750,7 +967,7 @@ def main():
             for relative in ("backend/core/api/app/services/s3/service.py", "backend/upload/services/s3_upload.py"):
                 if "S3_ENDPOINT_URL" not in (Path(SOURCE) / relative).read_text():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=min(4, int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if capacity_target else "2"))), billing_profile=billing_profile)
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=capacity_target, billing_profile=billing_profile)
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
@@ -777,6 +994,7 @@ def main():
         COMPOSE_PATH.chmod(0o600)
         evidence = {
             "source_commit": source,
+            "target_capacity_admission": target_admission,
             "run_id": os.environ["GITHUB_RUN_ID"],
             "environment": "github-isolated",
             "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
@@ -841,6 +1059,7 @@ def main():
             evidence["email_capture"] = {"provider": "mailpit", "api": "runner-local", "external_delivery": False}
         if "ai-worker" in profile["services"]:
             required.extend(["ai-worker", "runner-gateway"])
+            required.extend(sorted(name for name in profile["services"] if name.startswith("ai-worker-")))
             network = json.loads(subprocess.check_output(["docker", "network", "inspect", "openmates-ci_default"], text=True))[0]
             if network.get("Internal") is not True:
                 raise RuntimeError("Fixture AI profile must reject external network access")
@@ -852,14 +1071,26 @@ def main():
                     raise RuntimeError("Capacity profile contains provider credentials")
             if evidence.get("provider_egress") != "rejected-internal-network":
                 raise RuntimeError("Capacity profile has no independent provider network block")
-            evidence["storage_capacity"] = {"provider_credentials": "absent", "provider_network": "internal", "fixture_mode": "replay-only"}
+            worker_names = [name for name in profile["services"] if name == "ai-worker" or name.startswith("ai-worker-")]
+            worker_slots = sum(int(next(part.split("=", 1)[1] for part in profile["services"][name]["command"]
+                                        if part.startswith("--concurrency="))) for name in worker_names)
+            admission = evidence.get("target_capacity_admission")
+            if admission and (worker_slots != TARGET_SLOTS or len(worker_names) != TARGET_SLOTS // TARGET_SLOTS_PER_WORKER):
+                raise RuntimeError("Full capacity target configured worker slots differ from admission")
+            evidence["storage_capacity"] = {"provider_credentials": "absent", "provider_network": "internal",
+                                            "fixture_mode": "replay-only", "worker_slots": worker_slots,
+                                            "worker_replicas": len(worker_names)}
+        calibration_active = json.loads(os.environ.get("CI_SPECS_JSON", "[]")) == [
+            "storage-capacity-calibration.spec.ts"
+        ]
+        observed_worker_slots = 0
         for service in required:
             container = compose("ps", "-q", service, capture=True).stdout.strip()
             if not container:
                 raise RuntimeError("Required private service is missing: " + service)
             raw = subprocess.check_output(["docker", "inspect", container], text=True)
             info = json.loads(raw)[0]
-            if evidence.get("storage_capacity") and service in {"api", "core-worker", "ai-worker"}:
+            if evidence.get("storage_capacity") and (service in {"api", "core-worker"} or service.startswith("ai-worker")):
                 runtime_names = {entry.split("=", 1)[0] for entry in info["Config"].get("Env", [])}
                 forbidden = {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "TOGETHER_API_KEY"}
                 if runtime_names.intersection(forbidden):
@@ -876,7 +1107,20 @@ def main():
             }
             if not info["State"]["Running"]:
                 raise RuntimeError("Private service exited: " + service)
-            if service in ("api", "core-worker", "ai-worker", "uploads", "workflow-scheduler"):
+            if (evidence.get("target_capacity_admission") or calibration_active) and (
+                    service == "ai-worker" or service.startswith("ai-worker-")):
+                configured = profile["services"][service]["command"]
+                if "--concurrency=4" not in configured or "--concurrency=4" not in info["Config"].get("Cmd", []):
+                    raise RuntimeError("Target worker command differs from admitted four-slot profile")
+                children = subprocess.check_output(
+                    ["docker", "exec", container, "python", "-c",
+                     "from pathlib import Path; print(len(Path('/proc/1/task/1/children').read_text().split()))"],
+                    text=True, timeout=10,
+                ).strip()
+                if not children.isdecimal() or int(children) < TARGET_SLOTS_PER_WORKER:
+                    raise RuntimeError("Target worker has fewer live prefork processes than admitted")
+                observed_worker_slots += TARGET_SLOTS_PER_WORKER
+            if (service in ("api", "core-worker", "uploads", "workflow-scheduler") or service.startswith("ai-worker")):
                 mounts = [
                     mount
                     for mount in info["Mounts"]
@@ -892,6 +1136,11 @@ def main():
                         "Backend must mount the exact candidate source read-only"
                     )
                 identities[service]["backend_source"] = mounts[0]["Source"]
+        if evidence.get("target_capacity_admission") or calibration_active:
+            expected_slots = 4 if calibration_active else TARGET_SLOTS
+            if observed_worker_slots != expected_slots:
+                raise RuntimeError("Capacity profile lacks its expected live prefork worker slots")
+            evidence["storage_capacity"]["observed_worker_processes"] = observed_worker_slots
         if profile["services"].get("runner-gateway", {}).get("environment", {}).get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1":
             compose("exec", "-T", "api", "python", "-c", "import socket; s=socket.create_connection(('runner-gateway',3128),timeout=5); s.sendall(b'CONNECT api.openai.com:443 HTTP/1.1\\r\\n\\r\\n'); assert b'403 Forbidden' in s.recv(256); s.close()", capture=True, timeout=10)
             evidence["public_provider_proxy"] = {"allowed_https_hosts": ["webench.ti.com"], "paid_provider_authority": "rejected before upstream connection", "direct_backend_egress": "internal Docker network", "tls": "end-to-end, no interception"}

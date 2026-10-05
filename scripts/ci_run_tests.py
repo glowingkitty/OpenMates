@@ -17,6 +17,7 @@ import hashlib
 import os
 from pathlib import Path
 import secrets
+import shutil
 import socket
 import struct
 import subprocess
@@ -43,6 +44,7 @@ FIXTURE_CREDITS = 1000
 _last_signup_started = None
 CAPACITY_EPOCH_SPECS = frozenset({
     "storage-capacity-replay.spec.ts",
+    "storage-capacity-calibration.spec.ts",
     "storage-message-embed-bundle.spec.ts",
     "storage-capacity-target.spec.ts",
     "storage-recovery-replay.spec.ts",
@@ -51,7 +53,8 @@ CAPACITY_EPOCH_SPECS = frozenset({
     "wiki-learning-flow.spec.ts",
 })
 CAPACITY_WORKLOAD_SPECS = frozenset({
-    "storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts",
+    "storage-capacity-replay.spec.ts", "storage-capacity-calibration.spec.ts",
+    "storage-capacity-target.spec.ts",
 })
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 MARKER_CHAT_EPOCH_SPECS = frozenset({
@@ -1367,7 +1370,8 @@ def run_e2e(
                 if name in CAPACITY_WORKLOAD_SPECS and spec_result["exit_code"] == 0:
                     try:
                         results.append(run_storage_capacity(identity_start=2 * len(specs),
-                                                            full=name == "storage-capacity-target.spec.ts"))
+                                                            full=name == "storage-capacity-target.spec.ts",
+                                                            calibration=name == "storage-capacity-calibration.spec.ts"))
                     except Exception as exc:
                         results.append({"suite": "storage-capacity", "exit_code": 1,
                                         "failure": f"{type(exc).__name__}: {exc}"})
@@ -1580,7 +1584,19 @@ def retain_capacity_failure_rows(results_path: Path, private: Path) -> int:
     return len(rows)
 
 
-def run_storage_capacity(*, identity_start: int, full: bool) -> dict:
+def verify_capacity_admission(full: bool, environment: dict) -> None:
+    """Reject a target job before account provisioning unless 500 slots are real."""
+    if not full:
+        return
+    capacity = environment.get("storage_capacity") or {}
+    admission = environment.get("target_capacity_admission") or {}
+    if (admission.get("worker_slots") != 500 or capacity.get("worker_slots") != 500
+            or capacity.get("worker_replicas") != 125
+            or capacity.get("observed_worker_processes") != 500):
+        raise RuntimeError("Full capacity target lacks measured 500-slot isolated admission")
+
+
+def run_storage_capacity(*, identity_start: int, full: bool, calibration: bool = False) -> dict:
     """Run a small pilot or explicit full target on the disposable isolated stack."""
     private = RESULTS / "ci-private"
     version_adapter = ROOT / "scripts/storage_capacity_version_adapter.mjs"
@@ -1626,10 +1642,13 @@ def run_storage_capacity(*, identity_start: int, full: bool) -> dict:
     capacity = environment.get("storage_capacity") or {}
     if capacity.get("provider_network") != "internal" or capacity.get("provider_credentials") != "absent":
         raise RuntimeError("Capacity run lacks independent zero-inference network proof")
-    users = int(os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if full else "2"))
-    concurrency = int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if full else "2"))
+    users = int(os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if full else "8" if calibration else "2"))
+    concurrency = int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if full else "4" if calibration else "2"))
+    if calibration and (full or users != 8 or concurrency != 4):
+        raise RuntimeError("Capacity calibration requires exact eight-user, four-slot pilot")
     if full and (users != 1000 or concurrency != 500):
         raise RuntimeError("Full capacity mode requires 1000 users and 500 worker slots")
+    verify_capacity_admission(full, environment)
     profile = os.environ.get("CI_STORAGE_CAPACITY_PROFILE", "accelerated")
     if profile not in {"accelerated", "burst", "sustained"}:
         raise RuntimeError("Unsupported capacity rate profile")
@@ -1641,13 +1660,21 @@ def run_storage_capacity(*, identity_start: int, full: bool) -> dict:
     states_path.write_text(json.dumps(states), encoding="utf-8")
     states_path.chmod(0o600)
     metrics_before = _capacity_runtime_metrics()
+    calibration_before = _capacity_calibration_snapshot(environment) if calibration else None
     plan_path = private / "capacity-plan.json"
     results_path = private / "capacity-results.jsonl"
     report_path = RESULTS / "ci-storage-capacity.json"
     plan_cmd = [sys.executable, "scripts/storage_capacity.py", "plan", "--plan", str(plan_path),
                 "--users", str(users), "--concurrency", str(concurrency), "--profile", profile]
+    if profile == "sustained":
+        duration = int(os.environ.get("CI_STORAGE_CAPACITY_DURATION_SECONDS", "900"))
+        if not 1 <= duration <= 86400:
+            raise RuntimeError("Capacity paced duration must be 1..86400 seconds")
+        plan_cmd.extend(["--duration-seconds", str(duration)])
     if not full:
         pilot_rounds = int(os.environ.get("CI_STORAGE_CAPACITY_PILOT_ROUNDS", "30"))
+        if calibration and pilot_rounds != 30:
+            raise RuntimeError("Capacity calibration requires 30 replay rounds per user")
         if not 2 <= pilot_rounds <= 100:
             raise RuntimeError("Capacity pilot rounds must be 2..100")
         pilot_artifacts = min(pilot_rounds, 4)
@@ -1669,6 +1696,7 @@ def run_storage_capacity(*, identity_start: int, full: bool) -> dict:
     (private / "capacity-run.stderr.log").write_text(result.stderr[-200_000:], encoding="utf-8")
     private_failure_rows = retain_capacity_failure_rows(results_path, private)
     metrics_after = _capacity_runtime_metrics()
+    calibration_after = _capacity_calibration_snapshot(environment) if calibration else None
     try:
         report = json.loads(result.stdout.splitlines()[-1])
     except (IndexError, json.JSONDecodeError):
@@ -1680,8 +1708,149 @@ def run_storage_capacity(*, identity_start: int, full: bool) -> dict:
         report["target_achieved"] = False
         report.setdefault("failures", []).append("raw object-store operation counters unavailable")
     report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    if calibration:
+        _write_capacity_calibration_receipt(
+            environment, report, report_path, calibration_before, calibration_after,
+            succeeded=result.returncode == 0,
+        )
     return {"suite": "storage-capacity-target" if full else "storage-capacity-pilot",
             "exit_code": 0 if result.returncode == 0 and report.get("passed") else 1, "report": report}
+
+
+def _container_cgroup_peak(container: str) -> tuple[str, int]:
+    """Read aggregate container memory; prefork RSS would count shared pages."""
+    for metric, path in (
+        ("cgroup_v2_memory_peak", "/sys/fs/cgroup/memory.peak"),
+        ("cgroup_v1_max_usage", "/sys/fs/cgroup/memory/memory.max_usage_in_bytes"),
+    ):
+        result = subprocess.run(
+            ["docker", "exec", container, "cat", path],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode:
+            continue
+        value = result.stdout.strip()
+        if value.isdecimal() and 0 < int(value) < 2**63:
+            return metric, int(value)
+    raise RuntimeError("Capacity calibration cannot measure container cgroup peak")
+
+
+def _capacity_calibration_snapshot(environment: dict) -> dict:
+    capacity = environment.get("storage_capacity") or {}
+    services = environment.get("services") or {}
+    if (capacity.get("worker_slots") != 4 or capacity.get("worker_replicas") != 1
+            or capacity.get("observed_worker_processes") != 4
+            or "ai-worker" not in services):
+        raise RuntimeError("Capacity calibration requires four live isolated prefork slots")
+    peaks = {}
+    metric = None
+    for name, identity in services.items():
+        container = identity.get("container") if isinstance(identity, dict) else None
+        if not container or name in {"cms-setup", "vault-init", "fixture-init"}:
+            continue
+        current_metric, peak = _container_cgroup_peak(container)
+        if metric is not None and current_metric != metric:
+            raise RuntimeError("Capacity calibration mixes memory cgroup versions")
+        metric = current_metric
+        peaks[name] = peak
+    if not peaks or "ai-worker" not in peaks:
+        raise RuntimeError("Capacity calibration lacks isolated container peaks")
+    docker_root = subprocess.check_output(
+        ["docker", "info", "--format", "{{.DockerRootDir}}"], text=True, timeout=10,
+    ).strip()
+    if not docker_root or not Path(docker_root).is_dir():
+        raise RuntimeError("Capacity calibration cannot measure Docker disk")
+    return {
+        "metric": metric, "peaks": peaks,
+        "source_free": shutil.disk_usage(ROOT).free,
+        "docker_free": shutil.disk_usage(docker_root).free,
+    }
+
+
+def _capacity_calibration_payload(environment: dict, report: dict, before: dict,
+                                  after: dict, *, succeeded: bool) -> dict:
+    """Construct a private receipt only from a verified isolated workload."""
+    counts = report.get("counts") or {}
+    provider = report.get("provider") or {}
+    hardware = report.get("hardware") or {}
+    capacity = environment.get("storage_capacity") or {}
+    if (not all(isinstance(value, dict) for value in (counts, provider, hardware, capacity))
+            or not re.fullmatch(r"[a-f0-9]{40}", str(environment.get("source_commit", "")))
+            or not re.fullmatch(r"[a-f0-9]{40}", str(environment.get("harness_commit", "")))
+            or not str(environment.get("run_id", "")).isdecimal()
+            or capacity.get("provider_credentials") != "absent"
+            or capacity.get("provider_network") != "internal"
+            or capacity.get("worker_slots") != 4
+            or capacity.get("worker_replicas") != 1
+            or capacity.get("observed_worker_processes") != 4):
+        raise RuntimeError("Capacity calibration lacks isolated source and zero-provider identity")
+    if (not succeeded or report.get("passed") is not True
+            or report.get("validation_level") != "pilot"
+            or counts != {"round": 240, "embed": 32, "version": 32}
+            or type(report.get("server_task_peak_concurrency")) is not int
+            or report["server_task_peak_concurrency"] < 4
+            or type(report.get("task_receipt_count")) is not int
+            or report["task_receipt_count"] < 16
+            or any(provider.get(key) != 0 for key in (
+                "real_provider_calls", "blocked_provider_calls", "cache_misses"))
+            or type(provider.get("cache_hits")) is not int
+            or provider["cache_hits"] <= 0
+            or hardware.get("worker_threads") != 4
+            or hardware.get("driver_peak_metric") != "process_rss_peak"):
+        raise RuntimeError("Capacity calibration pilot did not pass exact zero-provider four-slot proof")
+    if (before["metric"] != after["metric"]
+            or set(before["peaks"]) != set(after["peaks"])
+            or not all(after["peaks"][name] >= before["peaks"][name] for name in before["peaks"])):
+        raise RuntimeError("Capacity calibration container measurements changed identity")
+    idle, sample = hardware.get("driver_idle_peak_bytes"), hardware.get("driver_sample_peak_bytes")
+    if any(type(value) is not int or value <= 0 for value in (idle, sample)) or sample <= idle:
+        raise RuntimeError("Capacity calibration lacks sampled capacity-driver RSS")
+    operations = sum(counts.values())
+    elapsed = report.get("measured_duration_seconds")
+    disk_delta = max(before["source_free"] - after["source_free"],
+                     before["docker_free"] - after["docker_free"])
+    if (type(elapsed) not in (int, float) or not 0 < elapsed < 2**31
+            or operations <= 0 or disk_delta <= 0):
+        raise RuntimeError("Capacity calibration lacks positive measured duration or disk growth")
+    fixed = sum(value for name, value in after["peaks"].items() if name != "ai-worker")
+    if fixed <= 0:
+        raise RuntimeError("Capacity calibration lacks fixed-stack cgroup peaks")
+    return {
+        "schema": 2, "source_commit": environment["source_commit"],
+        "harness_commit": environment["harness_commit"], "run_id": environment["run_id"],
+        "pilot_passed": True,
+        "worker_container_peak_metric": after["metric"],
+        "worker_container_peak_bytes": after["peaks"]["ai-worker"],
+        "observed_worker_slots": 4,
+        "observed_worker_task_receipts": report["task_receipt_count"],
+        "driver_peak_metric": "process_rss_peak",
+        "driver_idle_peak_bytes": idle, "driver_sample_peak_bytes": sample,
+        "driver_sample_threads": 4,
+        "fixed_stack_peak_metric": "sum_cgroup_memory_peak",
+        "fixed_stack_peak_bytes": fixed,
+        "observed_source_disk_delta_bytes": before["source_free"] - after["source_free"],
+        "observed_docker_disk_delta_bytes": before["docker_free"] - after["docker_free"],
+        "observed_operations": operations,
+        "disk_bytes_per_operation": disk_delta / operations,
+        "measured_operations_per_second": operations / elapsed,
+    }
+
+
+def _write_capacity_calibration_receipt(environment: dict, report: dict, report_path: Path,
+                                        before: dict, after: dict, *, succeeded: bool) -> None:
+    receipt = _capacity_calibration_payload(
+        environment, report, before, after, succeeded=succeeded,
+    )
+    receipt["pilot_report_sha256"] = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    receipt["ci_environment_sha256"] = hashlib.sha256(
+        (RESULTS / "ci-environment.json").read_bytes()
+    ).hexdigest()
+    target = RESULTS / "ci-capacity-calibration-private" / "receipt.json"
+    target.parent.mkdir(mode=0o700, exist_ok=False)
+    descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+        json.dump(receipt, handle, sort_keys=True)
+        handle.write("\n")
 
 
 def _capacity_runtime_metrics() -> dict:

@@ -202,13 +202,22 @@ def fetch(github, job: dict, root: Path) -> dict:
     runner_jobs = github.request(
         f"repos/{github.repo}/actions/runs/{job['run_id']}/jobs?per_page=100"
     )["jobs"]
-    if not runner_jobs or any(
-        "ubuntu-latest" not in entry.get("labels", [])
-        or not entry.get("runner_name", "").startswith("GitHub Actions")
-        for entry in runner_jobs
-    ):
+    dedicated_capacity = bool(job.get("capacity_configuration") and
+                              json.loads(job.get("specs", "[]")) == ["storage-capacity-target.spec.ts"])
+    if dedicated_capacity:
+        try:
+            from scripts.ci_capacity_config import validate_configuration
+        except ModuleNotFoundError:
+            from ci_capacity_config import validate_configuration
+        validate_configuration(json.loads(job["capacity_configuration"]), source=job["source"], target=True)
+    def admitted_runner(entry):
+        labels = set(entry.get("labels", []))
+        if dedicated_capacity:
+            return {"self-hosted", "Linux", "X64", "openmates-capacity"}.issubset(labels)
+        return "ubuntu-latest" in labels and entry.get("runner_name", "").startswith("GitHub Actions")
+    if not runner_jobs or any(not admitted_runner(entry) for entry in runner_jobs):
         raise RuntimeError(
-            "Test evidence did not execute exclusively on GitHub-hosted runners"
+            "Test evidence did not execute exclusively on admitted isolated runners"
         )
     artifacts = github.request(
         f"repos/{github.repo}/actions/runs/{job['run_id']}/artifacts?per_page=100"

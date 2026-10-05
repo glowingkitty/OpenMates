@@ -259,9 +259,8 @@ def verify(plan: dict[str, Any], results_path: Path, receipts_dir: Path) -> dict
     if elapsed_seconds is None or hardware is None:
         failures.append("duration or reference hardware evidence missing")
     if (plan["profile"] == "sustained" and elapsed_seconds is not None
-            and plan.get("validation_level") != "pilot"
             and not 0.95 * plan["duration_seconds"] <= elapsed_seconds <= 1.05 * plan["duration_seconds"]):
-        failures.append("sustained user-day duration was outside declared daily window")
+        failures.append("paced traffic duration was outside declared window")
     cold_p95 = _p95(uncached_ms)
     requires_cold_page = plan.get("validation_level") != "pilot" or plan["rounds_per_user"] >= 30
     if (requires_cold_page and not uncached_ms) or (cold_p95 is not None and cold_p95 > 1000):
@@ -290,6 +289,11 @@ def verify(plan: dict[str, Any], results_path: Path, receipts_dir: Path) -> dict
         } and plan["peak_concurrency"] >= 500,
         "target_achieved": False,
         "duration_seconds": plan["duration_seconds"],
+        "traffic_evidence": ("paced representative" if plan["profile"] == "sustained"
+                             and plan.get("validation_level") == "pilot"
+                             else "paced target volume" if plan["profile"] == "sustained"
+                             else "accelerated target volume" if plan.get("validation_level") != "pilot"
+                             else "accelerated pilot"),
         "measured_duration_seconds": elapsed_seconds,
         "rounds_per_second": counts["round"] / elapsed_seconds if elapsed_seconds else None,
         "versions_per_second": counts["version"] / elapsed_seconds if elapsed_seconds else None,

@@ -475,6 +475,7 @@
       "enabling_work": "Run the dedicated signed synthetic full pipeline on isolated internal-network API, AI, PostgreSQL, and S3 with fresh allowlisted users. The pilot and target run actual client encryption, compression, Project versions, and archived page reads; provider credentials and fallback are forbidden.",
       "specs": [
         "storage-capacity-replay.spec.ts",
+        "storage-capacity-calibration.spec.ts",
         "storage-message-embed-bundle.spec.ts",
         "storage-capacity-target.spec.ts",
         "storage-recovery-replay.spec.ts",

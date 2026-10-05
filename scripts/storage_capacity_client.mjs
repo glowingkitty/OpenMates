@@ -201,6 +201,12 @@ if (!isMainThread) {
 } else {
   let nextUser = 0;
   const workerCount = Math.min(plan.users, plan.peak_concurrency);
+  // RSS is process-wide for Node Worker threads; never sum thread RSS values.
+  const driverIdleRssBytes = process.memoryUsage().rss;
+  let driverPeakRssBytes = driverIdleRssBytes;
+  const sampleDriverRss = () => { driverPeakRssBytes = Math.max(driverPeakRssBytes, process.memoryUsage().rss); };
+  const driverSampler = setInterval(sampleDriverRss, 200);
+  driverSampler.unref();
   async function runWorker() {
     while (nextUser < plan.users && !failed) {
       const user = nextUser++;
@@ -231,10 +237,14 @@ if (!isMainThread) {
     }
   }
   await Promise.all(Array.from({ length: workerCount }, runWorker));
+  sampleDriverRss();
+  clearInterval(driverSampler);
   await emit({ kind: 'meta', max_concurrency: maxActive, duration_ms: performance.now() - start,
     profile: plan.profile,
     hardware: { logical_cpu_count: cpus().length, memory_bytes: totalmem(),
-      network: 'runner loopback to isolated internal Docker network', worker_threads: workerCount } });
+      network: 'runner loopback to isolated internal Docker network', worker_threads: workerCount,
+      driver_idle_peak_bytes: driverIdleRssBytes, driver_sample_peak_bytes: driverPeakRssBytes,
+      driver_peak_metric: 'process_rss_peak' } });
   await writeChain;
   output.end();
   await once(output, 'finish');

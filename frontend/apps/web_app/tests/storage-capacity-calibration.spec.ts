@@ -7,13 +7,13 @@ const { createSignupLogger, createStepScreenshotter, getTestAccount, installE2ES
 const { loginToTestAccount, startNewChat, sendMessage, waitForAssistantMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 
 // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,storage.validation.synthetic-capacity
-test('target capacity profile starts with a real encrypted chat turn', async ({ page }: { page: any }) => {
-	if (process.env.E2E_STORAGE_CAPACITY_TARGET !== '1') throw new Error('Isolated target capacity profile is required.');
+test('signed capacity calibration completes a real encrypted chat turn', async ({ page }: { page: any }) => {
+	if (process.env.E2E_STORAGE_CAPACITY !== '1') throw new Error('Isolated capacity replay profile is required.');
 	if (!getTestAccount().email) throw new Error('Disposable isolated test account is required.');
 	test.setTimeout(180_000);
-	const log = createSignupLogger('storage-capacity-target');
+	const log = createSignupLogger('storage-capacity-calibration');
 	const screenshot = createStepScreenshotter(log);
-	await installE2EServerContentOverrideGate(page, 'storage-capacity-target');
+	await installE2EServerContentOverrideGate(page, 'storage-capacity-calibration');
 	await loginToTestAccount(page, log, screenshot);
 	await startNewChat(page, log);
 	await sendMessage(
