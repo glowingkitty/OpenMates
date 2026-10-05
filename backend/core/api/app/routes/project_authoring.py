@@ -8,10 +8,14 @@ no endpoint grants Workflow execution or creates a regular chat.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Awaitable, Callable
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.responses import Response
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
@@ -19,7 +23,8 @@ from backend.core.api.app.routes.workflows import get_workflow_input_service, ge
 from backend.core.api.app.services.feature_availability_guards import ensure_projects_enabled
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.project_authoring_service import (
-    ProjectAuthoringService, ProjectFocusAuthor, ProjectFocusDocument, validate_history,
+    LegacyProjectFocusDocument, ProjectAuthoringService, ProjectFocusAuthor, ProjectFocusDocument,
+    normalize_saved_project_focus_document, validate_history,
 )
 from backend.core.api.app.services.project_recommendation_service import (
     ProjectAuthoringAccess, ProjectCatalogEntry, ProjectRecommendationService,
@@ -29,8 +34,23 @@ from backend.core.api.app.services.workflow_authoring_billing import MeteredJevC
 from backend.core.api.app.services.workflow_remote_file_service import WorkflowRemoteFileBinding, WorkflowRemoteFileService
 from backend.shared.providers.typesafe.client import JevDecisionClient
 
+class _PrivateAuthoringRoute(APIRoute):
+    def get_route_handler(self) -> Callable[[Request], Awaitable[Response]]:
+        handler = super().get_route_handler()
+
+        async def private_handler(request: Request) -> Response:
+            try:
+                return await handler(request)
+            except RequestValidationError:
+                # FastAPI's union errors include complete private phase/history
+                # input. Replace them before shared logging or response encoding.
+                raise HTTPException(status_code=422, detail="PROJECT_AUTHORING_INVALID_REQUEST") from None
+
+        return private_handler
+
+
 router = APIRouter(prefix="/v1/projects/{project_id}/authoring", tags=["Project authoring"],
-                   dependencies=[Depends(ensure_projects_enabled)])
+                   route_class=_PrivateAuthoringRoute, dependencies=[Depends(ensure_projects_enabled)])
 
 
 class _PrivateRequest(BaseModel):
@@ -53,7 +73,7 @@ class RecommendRequest(_PrivateRequest):
 class InspectRequest(_PrivateRequest):
     assessment_id: str = Field(min_length=36, max_length=36)
     history: list[HistoryMessage] = Field(min_length=1, max_length=60)
-    document: ProjectFocusDocument
+    document: ProjectFocusDocument | LegacyProjectFocusDocument
 
 
 class RemoteBindingRequest(_PrivateRequest):
@@ -70,7 +90,7 @@ class StartRequest(_PrivateRequest):
     recommendation_id: str = Field(min_length=36, max_length=36)
     expected_revision: str | None = Field(default=None, max_length=128)
     history: list[HistoryMessage] = Field(min_length=1, max_length=60)
-    target: ProjectFocusDocument | None = None
+    target: ProjectFocusDocument | LegacyProjectFocusDocument | None = None
     remote_binding: RemoteBindingRequest | None = None
     timezone: str | None = Field(default=None, max_length=80)
 
@@ -147,7 +167,8 @@ async def inspect(request: Request, project_id: str, body: InspectRequest,
                   service: ProjectRecommendationService = Depends(get_recommendations)) -> dict[str, Any]:
     try:
         proposal = await service.inspect_focus(user_id=current_user.id, project_id=project_id,
-            assessment_id=body.assessment_id, history=_history(body.history), document=body.document.model_dump())
+            assessment_id=body.assessment_id, history=_history(body.history),
+            document=normalize_saved_project_focus_document(body.document).model_dump())
         return {"recommendation": proposal}
     except Exception as exc:
         _denial(exc)

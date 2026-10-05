@@ -303,30 +303,15 @@ def parse_project_phase_focus(instruction: str, focus_id: str) -> AppFocusDefini
         else:
             if not frontmatter["phases"]:
                 return None
-            from backend.core.api.app.services.project_authoring_service import LegacyProjectFocusDocument
+            from backend.core.api.app.services.project_authoring_service import normalize_saved_project_focus_document
             legacy_metadata = dict(frontmatter)
             if "preprocessor_hint" in legacy_metadata:
                 legacy_metadata["when_to_use"] = legacy_metadata.pop("preprocessor_hint")
-            legacy = LegacyProjectFocusDocument.model_validate({
+            legacy = normalize_saved_project_focus_document({
                 **legacy_metadata, "instructions": global_instruction,
             })
-            valid_id = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
-            phases = []
-            used_ids: set[str] = set()
-            for phase in legacy.phases:
-                phase_id = (phase.id if valid_id.fullmatch(phase.id)
-                            else "legacy_" + hashlib.sha256(phase.id.encode()).hexdigest()[:24])
-                if phase_id in used_ids:
-                    raise ValueError("Duplicate legacy Focus phase ID")
-                used_ids.add(phase_id)
-                phases.append({
-                    "id": phase_id, "title": phase.name, "instructions": phase.instructions,
-                    "requirements": [{
-                        "id": "instructions_complete", "type": "semantic",
-                        "text": "The existing instructions of this phase have been completed.",
-                    }],
-                })
-            phases_version = 1
+            phases = [phase.model_dump() for phase in legacy.phases]
+            phases_version = legacy.phases_version
         return AppFocusDefinition(id=focus_id, name_translation_key=focus_id,
             description_translation_key=focus_id, system_prompt=global_instruction,
             phases_version=phases_version, phases=phases)

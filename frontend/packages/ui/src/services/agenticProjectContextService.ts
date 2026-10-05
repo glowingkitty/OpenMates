@@ -1,6 +1,8 @@
 /** Fresh active-Project catalogs; private bodies are resolved only for selected IDs. */
 import { get } from 'svelte/store';
 import { parseDocument, isAlias, visit } from 'yaml';
+import { projectFocusDocumentFromMetadata, type ProjectFocusDocument } from '../../../projectFocusDocument';
+export type { ProjectFocusDocument } from '../../../projectFocusDocument';
 import { authStore } from '../stores/authStore';
 import { userProfile } from '../stores/userProfile';
 import { projectRecordRevision } from '../utils/projectContextRevision';
@@ -21,13 +23,6 @@ export interface ProjectFocusCatalogEntry {
   display_path: string;
 }
 
-export interface ProjectFocusDocument {
-  name: string;
-  description: string;
-  when_to_use: string;
-  instructions: string;
-  phases: Array<{ id: string; name: string; instructions: string }>;
-}
 
 export async function projectItemRevision(item: ProjectItemViewModel): Promise<string> {
   return projectRecordRevision(item.encrypted as unknown as Record<string, unknown>);
@@ -82,30 +77,12 @@ export function parseProjectFocusDocument(markdown: string): ProjectFocusDocumen
   if (markdown.length > 96_000) throw new Error('focus_document_limit');
   const match = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/);
   if (!match) throw new Error('invalid_focus_document');
-  const parsed = parseDocument(match[1], { uniqueKeys: true, schema: 'core' });
-  if (parsed.errors.length) throw new Error('invalid_focus_document');
-  visit(parsed, (_key, node) => { if (isAlias(node)) throw new Error('invalid_focus_document'); });
-  const metadata: unknown = parsed.toJS({ maxAliasCount: 0 });
-  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) throw new Error('invalid_focus_document');
-  const header = metadata as Record<string, unknown>;
-  const applicability = header.preprocessor_hint ?? header['preprocessor-hint'] ?? header.when_to_use;
-  if (typeof header.name !== 'string' || !header.name.trim() || header.name.length > 200
-    || typeof header.description !== 'string' || !header.description.trim() || header.description.length > 2_000
-    || typeof applicability !== 'string' || !applicability.trim() || applicability.length > 2_000 || !match[2].trim()) throw new Error('invalid_focus_document');
-  const phases = header.phases ?? [];
-  if (!Array.isArray(phases) || phases.length > 16) throw new Error('invalid_focus_document');
-  const identifiers = new Set<string>();
-  const normalized = phases.map((phase: unknown) => {
-    if (!phase || typeof phase !== 'object' || Array.isArray(phase)) throw new Error('invalid_focus_document');
-    const value = phase as Record<string, unknown>;
-    if (typeof value.id !== 'string' || !value.id || identifiers.has(value.id)
-      || typeof value.name !== 'string' || !value.name
-      || typeof value.instructions !== 'string' || !value.instructions) throw new Error('invalid_focus_document');
-    identifiers.add(value.id);
-    return { id: value.id, name: value.name, instructions: value.instructions };
-  });
-  return { name: header.name, description: header.description, when_to_use: applicability,
-    instructions: match[2].trim(), phases: normalized };
+  try {
+    const parsed = parseDocument(match[1], { uniqueKeys: true, schema: 'core' });
+    if (parsed.errors.length) throw new Error('invalid_focus_document');
+    visit(parsed, (_key, node) => { if (isAlias(node)) throw new Error('invalid_focus_document'); });
+    return projectFocusDocumentFromMetadata(parsed.toJS({ maxAliasCount: 0 }), match[2]);
+  } catch { throw new Error('invalid_focus_document'); }
 }
 
 export async function loadSelectedProjectFocusDocuments(

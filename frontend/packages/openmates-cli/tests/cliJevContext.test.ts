@@ -1,10 +1,11 @@
+import { stringify as stringifyYaml } from "yaml";
 /** Metadata discovery and selected-only private Project context. */
 // contract-test-file: supporting surface=cli assertions=focus-modes.project-recommendation-full-assessment,focus-modes.project-specialist-composition,chats.direction.context-assessment
 import { it } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadActiveCliProjectContext, discoverCliProjectCandidates, collectRelatedCliTaskContext, prepareCliJevContext } from '../src/cliJevContext.ts';
+import { loadActiveCliProjectContext, discoverCliProjectCandidates, collectRelatedCliTaskContext, prepareCliJevContext, parseFocusAuthoringDocument } from '../src/cliJevContext.ts';
 import type { UserTaskRecord } from '../src/client.ts';
-import { projectItemRevision, assessCliProjectAuthoring } from '../src/cliProjectAuthoring.ts';
+import { projectItemRevision, assessCliProjectAuthoring, startCliProjectAuthoring } from '../src/cliProjectAuthoring.ts';
 import { encryptWithAesGcmCombined } from '../src/crypto.ts';
 const key = new Uint8Array(32).fill(8);
 
@@ -124,4 +125,62 @@ it('uses the server recommendation timestamp so identical issued proposals persi
   assert.equal(first[0].event_id, "12345678-1234-4234-8234-123456789abc");
   assert.equal(first[0].created_at, 1200); assert.deepEqual(first, legacy);
   assert.equal(f.reads.length, 0, 'Recommendation assessment never reads unselected Focus bodies or starts an author job');
+});
+
+const phaseMetadata = { name: 'Debugging', description: 'Synthetic source checks', when_to_use: 'Synthetic incidents' };
+const canonicalPhases = [{ id: 'inspect', title: 'Inspect', instructions: 'Compare source before logs.', requirements: [
+  { id: 'matched', text: 'Source matches.', type: 'semantic' },
+  { id: 'approved', text: 'The user confirms the comparison.', type: 'user_confirmation' },
+] }, { id: 'diagnose', title: 'Diagnose', instructions: 'Read bounded logs.', requirements: [{ id: 'diagnosed', text: 'Evidence explains the failure.' }] }];
+const legacyPhases = [{ id: 'Inspect_OLD', name: 'Inspect', instructions: 'Preserve this existing guidance.' }];
+const phaseMarkdown = (fields: Record<string, unknown>) => `---\n${stringifyYaml({ ...phaseMetadata, ...fields })}---\nKeep global guidance in every phase.`;
+
+// contract-test: supporting surface=cli assertions=focus-modes.phases,focus-modes.project-authoring-persistence
+it('preserves canonical phase version and every ordered gate while transporting legacy phases without conversion', () => {
+  const canonical = parseFocusAuthoringDocument(phaseMarkdown({ phases_version: 1, phases: canonicalPhases }));
+  assert.deepEqual(canonical, { ...phaseMetadata, instructions: 'Keep global guidance in every phase.', phases_version: 1, phases: canonicalPhases });
+  const legacy = parseFocusAuthoringDocument(phaseMarkdown({ phases: legacyPhases }));
+  assert.deepEqual(legacy.phases, legacyPhases);
+  assert.equal(Object.hasOwn(legacy, 'phases_version'), false);
+  assert.equal(Object.hasOwn(legacy.phases[0], 'requirements'), false);
+  assert.deepEqual(parseFocusAuthoringDocument(phaseMarkdown({})).phases, []);
+});
+
+// contract-test: supporting surface=cli assertions=focus-modes.phases,focus-modes.project-authoring-persistence
+it('rejects malformed versioned phases without legacy fallback or private YAML errors', () => {
+  const invalid = [
+    ...[true, false, 2, null].map(phases_version => ({ phases_version, phases: canonicalPhases })),
+    { phases_version: 1, phases: [] }, { phases_version: 1, phases: legacyPhases },
+    { phases: canonicalPhases }, { phases_version: 1, phases: [canonicalPhases[0], canonicalPhases[0]] },
+    { phases_version: 1, phases: [{ ...canonicalPhases[0], requirements: [] }] },
+    { phases_version: 1, phases: [{ ...canonicalPhases[0], requirements: [canonicalPhases[0].requirements[0], canonicalPhases[0].requirements[0]] }] },
+    { phases_version: 1, phases: [{ ...canonicalPhases[0], requirements: [{ id: 'gate', text: 'PRIVATE-PHASE-SENTINEL', type: 'permission' }] }] },
+  ];
+  for (const metadata of invalid) assert.throws(() => parseFocusAuthoringDocument(phaseMarkdown(metadata)), { message: 'invalid_focus_document' });
+  const valid = phaseMarkdown({ phases_version: 1, phases: canonicalPhases });
+  for (const malformed of [valid.replace('name: Debugging', 'name: First\nname: PRIVATE-PHASE-SENTINEL'),
+    valid.replace('description: Synthetic source checks', 'description: &private PRIVATE-PHASE-SENTINEL\nunknown: *private')]) {
+    assert.throws(() => parseFocusAuthoringDocument(malformed), { message: 'invalid_focus_document' });
+  }
+});
+
+// contract-test: supporting surface=cli assertions=focus-modes.project-recommendation-full-assessment,focus-modes.project-authoring-click,focus-modes.phases
+it('transmits complete canonical and genuine legacy definitions through selected inspection and click-triggered Update', async () => {
+  for (const fields of [{ phases_version: 1, phases: canonicalPhases }, { phases: legacyPhases }]) {
+    const f = await contextFixture(); f.setSelection([]);
+    const markdown = phaseMarkdown(fields), expected = parseFocusAuthoringDocument(markdown);
+    let inspected: unknown, target: unknown;
+    const proposal = { recommendation_id: '12345678-1234-4234-8234-123456789abc', chat_id: 'chat', project_id: 'project', kind: 'focus',
+      action: 'inspect', target_id: 'selected', expected_revision: projectItemRevision(f.items[0]), created_at: 1200, expires_at: 9999999999 };
+    const client = { ...f.client, async listWorkflows() { return []; },
+      async readEncryptedProjectFile(_project: string, embed: string) { f.reads.push(embed); return { content: { code: markdown }, revision: 1 }; },
+      async requestProjectAuthoringRecommendations() { return [proposal]; },
+      async inspectProjectFocusRecommendation(_project: string, body: Record<string, unknown>) { inspected = body.document; return { ...proposal, action: 'update' }; },
+      async startProjectAuthoringJob(_project: string, body: Record<string, unknown>) { target = body.target; return { job_id: 'background', status: 'authoring' }; } };
+    const history = [{ role: 'user' as const, content: 'Update saved guidance.' }];
+    const receipts = await assessCliProjectAuthoring(client as never, { chat_id: 'chat', project_id: 'project', user_message_id: 'turn' }, history);
+    assert.deepEqual(inspected, expected); assert.equal(target, undefined, 'Inspection does not start paid authoring');
+    await startCliProjectAuthoring(client as never, receipts[0], history);
+    assert.deepEqual(target, expected); assert.deepEqual(f.reads, ['selected-embed', 'selected-embed']);
+  }
 });

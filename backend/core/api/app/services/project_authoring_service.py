@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 import time
 import uuid
 from dataclasses import asdict, is_dataclass
@@ -16,7 +17,7 @@ from typing import Any, Literal
 
 import httpx
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 from backend.shared.python_schemas.app_metadata_schemas import FocusPhaseDefinition
 
 from backend.core.api.app.services.notification_event_service import NotificationEvent, NotificationEventService
@@ -123,6 +124,43 @@ class FocusAuthorResult(BaseModel):
         if self.status == "needs_input" and (self.document is not None or not self.question or not self.question.strip()):
             raise ValueError("Focus clarification requires a question without a document")
         return self
+
+
+def normalize_saved_project_focus_document(
+    value: ProjectFocusDocument | LegacyProjectFocusDocument | dict[str, Any],
+) -> ProjectFocusDocument:
+    """Preserve canonical requirements; normalize only explicit saved legacy phases.
+
+    Inspection, Update and runtime loading share the same stable phase IDs and
+    existing-instruction completion condition. Generated documents never pass
+    through this compatibility reader.
+    """
+    try:
+        if isinstance(value, ProjectFocusDocument):
+            return value
+        if not isinstance(value, LegacyProjectFocusDocument):
+            try:
+                return ProjectFocusDocument.model_validate(value)
+            except ValidationError:
+                if not isinstance(value, dict) or "phases_version" in value:
+                    raise
+                value = LegacyProjectFocusDocument.model_validate(value)
+        valid_id = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
+        phases: list[dict[str, Any]] = []
+        used_ids: set[str] = set()
+        for phase in value.phases:
+            phase_id = (phase.id if valid_id.fullmatch(phase.id)
+                        else "legacy_" + hashlib.sha256(phase.id.encode()).hexdigest()[:24])
+            if phase_id in used_ids:
+                raise ValueError("Duplicate legacy Focus phase ID")
+            used_ids.add(phase_id)
+            phases.append({"id": phase_id, "title": phase.name, "instructions": phase.instructions,
+                           "requirements": [{"id": "instructions_complete", "type": "semantic",
+                                             "text": "The existing instructions of this phase have been completed."}]})
+        return ProjectFocusDocument.model_validate({**value.model_dump(exclude={"phases"}),
+                                                    "phases_version": 1, "phases": phases})
+    except (ValueError, TypeError, RecursionError):
+        raise ProjectWriteAuthorizationError("PROJECT_FOCUS_AUTHORING_INVALID_DOCUMENT", status_code=422) from None
 
 
 def focus_author_provider_schema() -> dict[str, Any]:
@@ -270,7 +308,7 @@ class ProjectAuthoringService:
             if revision != expected_revision:
                 raise ProjectWriteAuthorizationError("PROJECT_AUTHORING_REVISION_CONFLICT", status_code=409)
             if pending["kind"] == "focus":
-                target = ProjectFocusDocument.model_validate(target).model_dump()
+                target = normalize_saved_project_focus_document(target).model_dump()
                 embeds = await self.access.directus.embed.get_embeds_by_hashed_embed_ids([owned["target_id_hash"]])
                 if len(embeds) != 1 or not isinstance(embeds[0].get("version_number"), int):
                     raise ProjectWriteAuthorizationError("PROJECT_AUTHORING_RESULT_UNAVAILABLE", status_code=409)

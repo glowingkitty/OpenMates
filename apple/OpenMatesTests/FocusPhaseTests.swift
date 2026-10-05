@@ -281,4 +281,78 @@ final class FocusPhaseTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=focus-modes.phases,focus-modes.project-authoring-persistence,focus-modes.project-authoring-click
+    @MainActor
+    func testAuthoringTransportsCompleteCanonicalGatesAndRawLegacyPhases() throws {
+        let canonical = """
+        ---
+        name: Debugging
+        description: Synthetic source checks
+        when_to_use: Synthetic incidents
+        phases_version: 1
+        phases:
+          - id: inspect
+            title: Inspect
+            instructions: Compare source.
+            requirements:
+              - id: matched
+                text: Source matches.
+                type: semantic
+              - id: approved
+                text: The user confirms.
+                type: user_confirmation
+          - id: diagnose
+            title: Diagnose
+            instructions: Read bounded logs.
+            requirements:
+              - id: diagnosed
+                text: Evidence explains the failure.
+        ---
+        Keep global guidance.
+        """
+        let parsed = try NativeProjectAuthoringClient.parseFocusDocument(canonical)
+        XCTAssertEqual(parsed["phases_version"] as? Int, 1)
+        let phases = try XCTUnwrap(parsed["phases"] as? [[String: Any]])
+        XCTAssertEqual(phases.compactMap { $0["id"] as? String }, ["inspect", "diagnose"])
+        let requirements = try XCTUnwrap(phases[0]["requirements"] as? [[String: Any]])
+        XCTAssertEqual(requirements.compactMap { $0["id"] as? String }, ["matched", "approved"])
+        XCTAssertEqual(requirements.compactMap { $0["type"] as? String }, ["semantic", "user_confirmation"])
+        XCTAssertEqual(phases[0]["title"] as? String, "Inspect")
+        XCTAssertNil(phases[0]["name"])
+        let implicitSemantic = try XCTUnwrap((phases[1]["requirements"] as? [[String: Any]])?.first)
+        XCTAssertNil(implicitSemantic["type"], "Omitted semantic defaults are preserved for the server")
+
+        let transmitted = try JSONSerialization.jsonObject(with: JSONSerialization.data(withJSONObject: parsed)) as? [String: Any]
+        XCTAssertTrue(NSDictionary(dictionary: parsed).isEqual(to: try XCTUnwrap(transmitted)))
+        let legacy = "---\nname: Debugging\ndescription: Synthetic checks\nwhen_to_use: Synthetic incidents\nphases:\n  - id: Inspect_OLD\n    name: Inspect\n    instructions: Preserve this existing guidance.\n---\nKeep global guidance."
+        let old = try NativeProjectAuthoringClient.parseFocusDocument(legacy)
+        XCTAssertNil(old["phases_version"])
+        let oldPhase = try XCTUnwrap((old["phases"] as? [[String: Any]])?.first)
+        XCTAssertEqual(oldPhase["id"] as? String, "Inspect_OLD")
+        XCTAssertEqual(oldPhase["name"] as? String, "Inspect")
+        XCTAssertEqual(oldPhase["instructions"] as? String, "Preserve this existing guidance.")
+        XCTAssertNil(oldPhase["requirements"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=focus-modes.phases,focus-modes.project-authoring-persistence
+    @MainActor
+    func testMalformedVersionedFocusCannotFallBackToLegacyOrExposePrivateYaml() throws {
+        let legacy = "---\nname: Debugging\ndescription: Synthetic checks\nwhen_to_use: Synthetic incidents\nphases:\n  - id: inspect\n    name: Inspect\n    instructions: PRIVATE-PHASE-SENTINEL\n---\nGlobal guidance."
+        for version in ["1", "true", "false", "2", "null"] {
+            XCTAssertThrowsError(try NativeProjectAuthoringClient.parseFocusDocument(legacy.replacingOccurrences(of: "phases:", with: "phases_version: " + version + "\nphases:"))) { error in
+                XCTAssertFalse(String(describing: error).contains("PRIVATE-PHASE-SENTINEL"))
+            }
+        }
+        let empty = "---\nname: Debugging\ndescription: Synthetic checks\nwhen_to_use: Synthetic incidents\nphases_version: 1\nphases: []\n---\nGlobal guidance."
+        XCTAssertThrowsError(try NativeProjectAuthoringClient.parseFocusDocument(empty))
+        let canonical = "---\nname: Debugging\ndescription: Synthetic checks\nwhen_to_use: Synthetic incidents\nphases_version: 1\nphases:\n  - id: inspect\n    title: Inspect\n    instructions: Compare source.\n    requirements:\n      - id: matched\n        text: Source matches.\n---\nGlobal guidance."
+        XCTAssertThrowsError(try NativeProjectAuthoringClient.parseFocusDocument(canonical.replacingOccurrences(of: "        text: Source matches.", with: "        text: PRIVATE-PHASE-SENTINEL\n        type: permission")))
+        XCTAssertThrowsError(try NativeProjectAuthoringClient.parseFocusDocument(canonical.replacingOccurrences(of: "      - id: matched\n        text: Source matches.", with: "      - id: matched\n        text: Source matches.\n      - id: matched\n        text: PRIVATE-PHASE-SENTINEL")))
+        XCTAssertThrowsError(try NativeProjectAuthoringClient.parseFocusDocument(canonical.replacingOccurrences(of: "phases_version: 1\n", with: "")))
+        for version in ["true", "false", "2", "null", "1.0"] {
+            XCTAssertThrowsError(try NativeProjectAuthoringClient.parseFocusDocument(canonical.replacingOccurrences(of: "phases_version: 1", with: "phases_version: " + version)))
+        }
+
+    }
+
 }

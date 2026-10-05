@@ -1,3 +1,6 @@
+// Specification: specifications/features/focus-modes/specification.yml
+// Assertions: focus-modes.phases, focus-modes.project-authoring-click, focus-modes.project-authoring-persistence
+// Shared transport: frontend/packages/projectFocusDocument.ts
 // Specification: specifications/features/chat-navigation/specification.yml
 // Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize
 // Specification: specifications/features/apple-offline-workspaces/specification.yml
@@ -622,32 +625,78 @@ final class NativeProjectAuthoringClient: ObservableObject {
         return ProjectHostedFileExecutor.sha256(text)
     }
 
+    /// Preserve canonical versioned gates and genuine unversioned legacy phases.
+    /// Legacy normalization belongs to the shared server contract.
     static func parseFocusDocument(_ markdown: String) throws -> [String: Any] {
-        guard markdown.count <= 96_000, markdown.hasPrefix("---\n"),
-              let end = markdown.range(of: "\n---", range: markdown.index(markdown.startIndex, offsetBy: 4)..<markdown.endIndex) else {
-            throw ProjectsWorkspaceError.invalidResponse
-        }
-        let header = String(markdown[markdown.index(markdown.startIndex, offsetBy: 4)..<end.lowerBound])
-        let metadata = try guideMetadata(header)
-        let remainder = markdown[end.upperBound...]
-        guard remainder.isEmpty || remainder.hasPrefix("\n") else { throw ProjectsWorkspaceError.invalidResponse }
-        let instruction = remainder.trimmingCharacters(in: .whitespacesAndNewlines)
-        let applicability = metadata["preprocessor_hint"] ?? metadata["preprocessor-hint"] ?? metadata["when_to_use"]
-        guard let name = metadata["name"] as? String, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 200,
-              let description = metadata["description"] as? String, !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, description.count <= 2000,
-              let when = applicability as? String, !when.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, when.count <= 2000,
-              !instruction.isEmpty, instruction.count <= 64_000 else { throw ProjectsWorkspaceError.invalidResponse }
-        let phases = metadata["phases"] as? [[String: Any]] ?? []
-        guard (metadata["phases"] == nil || metadata["phases"] is [[String: Any]]), phases.count <= 16 else { throw ProjectsWorkspaceError.invalidResponse }
-        var ids = Set<String>()
-        for phase in phases {
-            guard let id = phase["id"] as? String, ids.insert(id).inserted,
-                  id.range(of: "^[a-zA-Z0-9_-]{1,80}$", options: .regularExpression) != nil,
-                  let title = phase["name"] as? String, !title.isEmpty, title.count <= 120,
-                  let text = phase["instructions"] as? String, !text.isEmpty, text.count <= 16_000 else { throw ProjectsWorkspaceError.invalidResponse }
-        }
-        return ["name": name, "description": description, "when_to_use": when,
-                "instructions": instruction, "phases": phases]
+        do {
+            let markdown = markdown.replacingOccurrences(of: "\r\n", with: "\n")
+            guard markdown.count <= 96_000, markdown.hasPrefix("---\n"),
+                  let end = markdown.range(of: "\n---", range: markdown.index(markdown.startIndex, offsetBy: 4)..<markdown.endIndex) else {
+                throw ProjectsWorkspaceError.invalidResponse
+            }
+            let header = String(markdown[markdown.index(markdown.startIndex, offsetBy: 4)..<end.lowerBound])
+            let metadata = try guideMetadata(header)
+            let remainder = markdown[end.upperBound...]
+            guard remainder.isEmpty || remainder.hasPrefix("\n") else { throw ProjectsWorkspaceError.invalidResponse }
+            func fields(_ value: [String: Any], _ allowed: Set<String>) throws {
+                guard Set(value.keys).isSubset(of: allowed) else { throw ProjectsWorkspaceError.invalidResponse }
+            }
+            func text(_ value: Any?, limit: Int) throws -> String {
+                guard let string = value as? String, !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                      string.count <= limit else { throw ProjectsWorkspaceError.invalidResponse }
+                return string
+            }
+            func identifier(_ value: Any?, canonical: Bool) throws -> String {
+                let string = try text(value, limit: canonical ? 64 : 80)
+                let pattern = canonical ? "^[a-z][a-z0-9_-]{0,63}$" : "^[a-zA-Z0-9_-]{1,80}$"
+                guard string.range(of: pattern, options: .regularExpression) != nil else { throw ProjectsWorkspaceError.invalidResponse }
+                return string
+            }
+            try fields(metadata, ["name", "title", "description", "when_to_use", "preprocessor_hint", "preprocessor-hint", "phases_version", "phases"])
+            let names = [metadata["name"], metadata["title"]].compactMap { $0 }
+            let hints = [metadata["when_to_use"], metadata["preprocessor_hint"], metadata["preprocessor-hint"]].compactMap { $0 }
+            guard names.count == 1, hints.count == 1 else { throw ProjectsWorkspaceError.invalidResponse }
+            let instruction = remainder.trimmingCharacters(in: .whitespacesAndNewlines)
+            var result: [String: Any] = ["name": try text(names[0], limit: 200),
+                "description": try text(metadata["description"], limit: 2000),
+                "when_to_use": try text(hints[0], limit: 2000), "instructions": try text(instruction, limit: 64_000)]
+            let phases = metadata["phases"] as? [[String: Any]] ?? []
+            guard (metadata["phases"] == nil || metadata["phases"] is [[String: Any]]), phases.count <= 16 else {
+                throw ProjectsWorkspaceError.invalidResponse
+            }
+            let canonical = metadata.keys.contains("phases_version")
+            if canonical {
+                guard let rawVersion = metadata["phases_version"], type(of: rawVersion) == Int.self,
+                      let version = rawVersion as? Int, version == 1, !phases.isEmpty else { throw ProjectsWorkspaceError.invalidResponse }
+                result["phases_version"] = 1
+            }
+            var ids = Set<String>()
+            for phase in phases {
+                try fields(phase, canonical ? ["id", "title", "instructions", "requirements"] : ["id", "name", "instructions"])
+                let id = try identifier(phase["id"], canonical: canonical)
+                guard ids.insert(id).inserted else { throw ProjectsWorkspaceError.invalidResponse }
+                _ = try text(phase[canonical ? "title" : "name"], limit: canonical ? 200 : 120)
+                _ = try text(phase["instructions"], limit: 16_000)
+                if canonical {
+                    guard let requirements = phase["requirements"] as? [[String: Any]], !requirements.isEmpty,
+                          requirements.count <= 24 else { throw ProjectsWorkspaceError.invalidResponse }
+                    var gateIDs = Set<String>()
+                    for requirement in requirements {
+                        try fields(requirement, ["id", "text", "type"])
+                        let gateID = try identifier(requirement["id"], canonical: true)
+                        guard gateIDs.insert(gateID).inserted else { throw ProjectsWorkspaceError.invalidResponse }
+                        _ = try text(requirement["text"], limit: 4000)
+                        if let kind = requirement["type"] {
+                            guard let kind = kind as? String, ["semantic", "user_confirmation"].contains(kind) else {
+                                throw ProjectsWorkspaceError.invalidResponse
+                            }
+                        }
+                    }
+                }
+            }
+            result["phases"] = phases
+            return result
+        } catch { throw ProjectsWorkspaceError.invalidResponse }
     }
 
     private static func escaped(_ value: String) -> String {

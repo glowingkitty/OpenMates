@@ -1,7 +1,8 @@
 /** Bounded first-party context snapshots; discovery metadata never grants Project file access. */
 import type { OpenMatesClient, TeamContextOptions, UserPlanRecord, UserTaskRecord } from "./client.js";
 import { decryptWithAesGcmCombined } from "./crypto.js";
-import { parse as parseYaml } from "yaml";
+import { parseDocument, isAlias, visit } from "yaml";
+import { projectFocusDocumentFromMetadata, type ProjectFocusDocument } from "../../projectFocusDocument.js";
 import { createHash } from "node:crypto";
 
 export interface CustomRuleDocument { id: string; source: "personal" | "project"; project_id?: string; document: string }
@@ -22,24 +23,18 @@ export interface CliJevContext {
   project_context_documents?: ProjectContextDocument[];
   related_task_candidates?: RelatedTaskCandidate[];
 }
-export interface FocusAuthoringDocument {
-  name: string; description: string; when_to_use: string; instructions: string;
-  phases: Array<{ id: string; name: string; instructions: string }>;
-}
+export type FocusAuthoringDocument = ProjectFocusDocument;
 
 export function parseFocusAuthoringDocument(document: string): FocusAuthoringDocument {
-  if (document.length > 96_000) throw new Error("Project Focus definition exceeds the limit.");
-  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/.exec(document);
-  if (!match) throw new Error("Project Focus is missing its Markdown definition.");
-  const header = parseYaml(match[1], { schema: "core", uniqueKeys: true, maxAliasCount: 0 }) as Record<string, unknown>;
-  const name = header.name ?? header.title;
-  const when = header.when_to_use ?? header.preprocessor_hint ?? header["preprocessor-hint"];
-  if (typeof name !== "string" || typeof header.description !== "string" || typeof when !== "string") throw new Error("Project Focus metadata is incomplete.");
-  const phases = Array.isArray(header.phases) ? header.phases.map((value: Record<string, unknown>) => {
-    if (typeof value.id !== "string" || typeof (value.name ?? value.title) !== "string" || typeof value.instructions !== "string") throw new Error("Project Focus phase metadata is incomplete.");
-    return { id: value.id, name: String(value.name ?? value.title), instructions: value.instructions };
-  }) : [];
-  return { name, description: header.description, when_to_use: when, instructions: match[2].trim(), phases };
+  if (document.length > 96_000) throw new Error("invalid_focus_document");
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/.exec(document);
+  if (!match) throw new Error("invalid_focus_document");
+  try {
+    const parsed = parseDocument(match[1], { schema: "core", uniqueKeys: true });
+    if (parsed.errors.length) throw new Error("invalid_focus_document");
+    visit(parsed, (_key, node) => { if (isAlias(node)) throw new Error("invalid_focus_document"); });
+    return projectFocusDocumentFromMetadata(parsed.toJS({ maxAliasCount: 0 }), match[2]);
+  } catch { throw new Error("invalid_focus_document"); }
 }
 
 export async function discoverCliProjectCandidates(client: OpenMatesClient, options: TeamContextOptions): Promise<NonNullable<CliJevContext["project_focus_candidates"]>> {

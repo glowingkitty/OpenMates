@@ -143,4 +143,34 @@ describe('Project authoring client', () => {
     expect(fetchMock.mock.calls.some(call => call[0].endsWith('/workflow-saved'))).toBe(true);
     expect(mocks.save).not.toHaveBeenCalled();
   });
+  // contract-test: supporting surface=gui.web assertions=focus-modes.phases,focus-modes.project-recommendation-full-assessment,focus-modes.project-authoring-click
+  it('sends intact canonical and raw legacy phases to selected inspection and explicit Update only', async () => {
+    const canonical = { ...document, phases_version: 1, phases: [{ id: 'inspect', title: 'Inspect', instructions: 'Compare source.', requirements: [
+      { id: 'matched', text: 'Source matches.', type: 'semantic' }, { id: 'approved', text: 'The user confirms.', type: 'user_confirmation' },
+    ] }] };
+    const legacy = { ...document, phases: [{ id: 'Inspect_OLD', name: 'Inspect', instructions: 'Keep existing guidance.' }] };
+    for (const target of [canonical, legacy]) {
+      mocks.selected.mockResolvedValue([{ id: 'selected', revision: 'base', document: target }]);
+      mocks.catalog.mockResolvedValue([{ kind: 'focus', id: 'selected', title: 'Debugging', summary: 'Source checks', revision: 'base' }]);
+      const inspection = { ...recommendation, action: 'inspect', target_id: 'selected', expected_revision: 'base' };
+      const update = { ...inspection, action: 'update' as const };
+      const fetchMock = vi.fn(async (url: string, _options?: RequestInit) => {
+        if (url.endsWith('/v1/workflows')) return Response.json({ workflows: [] });
+        if (url.endsWith('/recommend')) return Response.json({ recommendations: [inspection] });
+        if (url.endsWith('/inspect')) return Response.json({ recommendation: update });
+        if (url.includes('/jobs')) return Response.json({ job: { ...initialJob, ...update, status: 'ready', draft: undefined } });
+        throw new Error('unexpected request');
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      await assessProjectAuthoring({ chat_id: 'chat', project_id: 'project', user_message_id: 'turn', assistant_message_id: 'assistant' });
+      const inspectionCall = fetchMock.mock.calls.find(call => call[0].endsWith('/inspect'));
+      expect(JSON.parse(String(inspectionCall?.[1]?.body)).document).toEqual(target);
+      expect(fetchMock.mock.calls.some(call => call[0].includes('/jobs'))).toBe(false);
+      await startProjectAuthoring(update);
+      await flush();
+      const startCall = fetchMock.mock.calls.find(call => call[0].endsWith('/jobs'));
+      expect(JSON.parse(String(startCall?.[1]?.body)).target).toEqual(target);
+    }
+  });
+
 });

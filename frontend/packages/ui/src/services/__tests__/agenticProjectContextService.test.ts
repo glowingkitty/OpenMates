@@ -1,3 +1,4 @@
+import { stringify as stringifyYaml } from 'yaml';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { webcrypto } from 'node:crypto';
 
@@ -105,4 +106,42 @@ describe('Project focus catalog boundaries', () => {
     expect(() => parseProjectFocusDocument(markdown.replace('description: Investigate service failures.', 'description: &x Investigate\nunknown: *x'))).toThrow();
     expect(() => parseProjectFocusDocument(markdown.replace('name: Project debugging', 'name: ""'))).toThrow();
   });
+
+const phaseMetadata = { name: 'Debugging', description: 'Synthetic source checks', when_to_use: 'Synthetic incidents' };
+const canonicalPhases = [{ id: 'inspect', title: 'Inspect', instructions: 'Compare source.', requirements: [
+  { id: 'matched', text: 'Source matches.', type: 'semantic' },
+  { id: 'approved', text: 'The user confirms.', type: 'user_confirmation' },
+] }, { id: 'diagnose', title: 'Diagnose', instructions: 'Read bounded logs.', requirements: [{ id: 'diagnosed', text: 'Evidence explains the failure.' }] }];
+const canonicalMarkdown = (fields: Record<string, unknown>) => `---\n${stringifyYaml({ ...phaseMetadata, ...fields })}---\nKeep global guidance.`;
+
+// contract-test: supporting surface=gui.web assertions=focus-modes.phases,focus-modes.project-authoring-persistence
+it('preserves complete versioned phase definitions and ordered requirements in the selected private document', async () => {
+  const source = canonicalMarkdown({ phases_version: 1, phases: canonicalPhases });
+  expect(parseProjectFocusDocument(source)).toEqual({ ...phaseMetadata, phases_version: 1, phases: canonicalPhases, instructions: 'Keep global guidance.' });
+  mocks.focus.mockResolvedValue({ project_id: 'project-1', team_id: null });
+  mocks.project.mockResolvedValue({ project_id: 'project-1' });
+  mocks.contents.mockResolvedValue({ items: [item], folders: [] });
+  mocks.head.mockResolvedValue([{ item_id: item.project_item_id, path: item.metadata.display_path, document: source, file_revision: 1 }]);
+  const selected = await loadSelectedProjectFocusDocuments('chat-1', 'project-1', [item.project_item_id]);
+  expect(selected[0].document.phases).toEqual(canonicalPhases);
+  expect(selected[0].document.phases_version).toBe(1);
+});
+
+// contract-test: supporting surface=gui.web assertions=focus-modes.phases,focus-modes.project-authoring-persistence
+it('rejects unsupported or incomplete canonical phases instead of silently converting them to legacy', () => {
+  const invalid = [
+    ...[true, false, 2, null].map(phases_version => ({ phases_version, phases: canonicalPhases })),
+    { phases_version: 1, phases: [] }, { phases: canonicalPhases },
+    { phases_version: 1, phases: [{ id: 'legacy', name: 'Legacy', instructions: 'PRIVATE-PHASE-SENTINEL' }] },
+    { phases_version: 1, phases: [canonicalPhases[0], canonicalPhases[0]] },
+    { phases_version: 1, phases: [{ ...canonicalPhases[0], requirements: [] }] },
+    { phases_version: 1, phases: [{ ...canonicalPhases[0], requirements: [canonicalPhases[0].requirements[0], canonicalPhases[0].requirements[0]] }] },
+    { phases_version: 1, phases: [{ ...canonicalPhases[0], requirements: [{ id: 'gate', text: 'PRIVATE-PHASE-SENTINEL', type: 'permission' }] }] },
+  ];
+  for (const metadata of invalid) expect(() => parseProjectFocusDocument(canonicalMarkdown(metadata))).toThrow('invalid_focus_document');
+  const legacy = parseProjectFocusDocument(markdown);
+  expect(Object.hasOwn(legacy, 'phases_version')).toBe(false);
+  expect(legacy.phases).toEqual([{ id: 'investigate', name: 'Investigate', instructions: 'Find the root cause.' }]);
+});
+
 });

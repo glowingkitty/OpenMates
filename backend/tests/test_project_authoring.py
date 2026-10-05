@@ -24,6 +24,58 @@ from backend.shared.providers.typesafe.models import DecisionResponse
 HISTORY = [{"role": "user", "content": "Sensitive conversation example: improve reusable daily review."}]
 DOCUMENT = {"name": "Daily review", "description": "Review this Project's work", "when_to_use": "During daily review",
             "instructions": "Review pending work. Ask for priorities.", "phases": []}
+CANONICAL_PHASE_DOCUMENT = {**DOCUMENT, "phases_version": 1, "phases": [{
+    "id": "inspect", "title": "Inspect", "instructions": "Compare source.", "requirements": [
+        {"id": "matched", "type": "semantic", "text": "Source matches."},
+        {"id": "approved", "type": "user_confirmation", "text": "User confirms."},
+    ],
+}]}
+LEGACY_PHASE_DOCUMENT = {**DOCUMENT, "phases": [{
+    "id": "Inspect_OLD", "name": "Inspect", "instructions": "Preserve this guidance.",
+}]}
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-authoring-persistence,focus-modes.phases
+def test_saved_focus_normalization_keeps_canonical_requirements_and_legacy_runtime_identity():
+    from backend.core.api.app.services.project_authoring_service import normalize_saved_project_focus_document
+    from backend.apps.ai.processing.focus_phases import parse_project_phase_focus
+    import yaml
+    assert normalize_saved_project_focus_document(CANONICAL_PHASE_DOCUMENT).model_dump() == CANONICAL_PHASE_DOCUMENT
+    legacy = normalize_saved_project_focus_document(LEGACY_PHASE_DOCUMENT)
+    assert legacy.instructions == LEGACY_PHASE_DOCUMENT["instructions"]
+    assert legacy.phases[0].id == "legacy_" + hashlib.sha256(b"Inspect_OLD").hexdigest()[:24]
+    assert legacy.phases[0].instructions == "Preserve this guidance."
+    assert [rule.type for rule in legacy.phases[0].requirements] == ["semantic"]
+    raw = "---\n" + yaml.safe_dump({key: value for key, value in LEGACY_PHASE_DOCUMENT.items() if key != "instructions"}) + "---\n" + DOCUMENT["instructions"]
+    parsed = parse_project_phase_focus(raw, "project-focus:test:item")
+    assert [phase.model_dump() for phase in parsed.phases] == [phase.model_dump() for phase in legacy.phases]
+
+
+@pytest.mark.parametrize("changes", [
+    {"phases_version": True}, {"phases_version": 2}, {"phases_version": None},
+    {"phases_version": 1, "phases": []},
+    {"phases_version": 1, "phases": LEGACY_PHASE_DOCUMENT["phases"]},
+    {"phases_version": 1, "phases": [{**CANONICAL_PHASE_DOCUMENT["phases"][0], "requirements": []}]},
+    {"phases_version": 1, "phases": [{**CANONICAL_PHASE_DOCUMENT["phases"][0], "title": "", "instructions": "PRIVATE SENTINEL"}]},
+])
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-authoring-persistence,focus-modes.phases
+def test_saved_focus_invalid_canonical_cannot_fallback_to_legacy_or_expose_input(changes):
+    import traceback
+    from backend.core.api.app.services.project_authoring_service import normalize_saved_project_focus_document
+    with pytest.raises(ProjectWriteAuthorizationError) as error:
+        normalize_saved_project_focus_document({**CANONICAL_PHASE_DOCUMENT, **changes})
+    assert error.value.code == "PROJECT_FOCUS_AUTHORING_INVALID_DOCUMENT"
+    assert "PRIVATE SENTINEL" not in "".join(traceback.format_exception(error.value))
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-authoring-persistence,focus-modes.phases
+def test_saved_legacy_focus_normalizer_rejects_colliding_mapped_phase_ids():
+    from backend.core.api.app.services.project_authoring_service import normalize_saved_project_focus_document
+    hashed = "legacy_" + hashlib.sha256(b"Inspect_OLD").hexdigest()[:24]
+    with pytest.raises(ProjectWriteAuthorizationError):
+        normalize_saved_project_focus_document({**LEGACY_PHASE_DOCUMENT, "phases": [
+            *LEGACY_PHASE_DOCUMENT["phases"], {"id": hashed, "name": "Next", "instructions": "Next guidance."},
+        ]})
 
 
 # contract-test: supporting surface=rest_api assertions=focus-modes.project-authoring-persistence,focus-modes.phases
@@ -412,6 +464,74 @@ async def test_cross_owner_revocation_and_revisions_reject_click():
     with pytest.raises(ProjectWriteAuthorizationError, match="PROJECT_NOT_FOUND"):
         await service.start(user_id="owner", project_id="project", recommendation_id=token["recommendation_id"], expected_revision="revision-1", history=HISTORY, target=DOCUMENT)
     service.focus_author.author.assert_not_called()
+
+
+@pytest.mark.parametrize("document", [CANONICAL_PHASE_DOCUMENT, LEGACY_PHASE_DOCUMENT])
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-authoring-click,focus-modes.project-authoring-persistence,focus-modes.phases
+async def test_authoring_update_passes_intact_normalized_saved_phase_target_only_after_authorization(document):
+    from backend.core.api.app.services.project_authoring_service import normalize_saved_project_focus_document
+    cache, access = Cache(), Access()
+    recommendations = ProjectRecommendationService(access=access, cache=cache, jev=None)
+    token = await recommendations._issue("owner", "chat", "project", None, "focus", "update", "focus-1", "revision-1")
+    author = SimpleNamespace(author=AsyncMock(return_value=FocusAuthorResult(
+        status="authored", document=ProjectFocusDocument.model_validate(CANONICAL_PHASE_DOCUMENT))))
+    service = ProjectAuthoringService(access=access, cache=cache, workflow_input=None, focus_author=author)
+    job = await service.start(user_id="owner", project_id="project", recommendation_id=token["recommendation_id"],
+                              expected_revision="revision-1", history=HISTORY, target=document)
+    await asyncio.gather(*service._tasks)
+    assert access.loaded == [("focus", "focus-1")]
+    assert author.author.call_args.kwargs["target"] == normalize_saved_project_focus_document(document).model_dump()
+    assert DOCUMENT["instructions"] not in json.dumps(cache.values[service.key("owner", job["job_id"])])
+    assert "Sensitive conversation" not in json.dumps(cache.values)
+
+
+@pytest.mark.parametrize("document", [CANONICAL_PHASE_DOCUMENT, LEGACY_PHASE_DOCUMENT, DOCUMENT])
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-recommendation-full-assessment,focus-modes.project-authoring-click,focus-modes.phases
+def test_first_party_inspect_and_start_routes_preserve_canonical_or_explicit_legacy_phases(document):
+    import uuid
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from backend.tests.runtime_import_stubs import install_code_route_import_stubs
+    from backend.core.api.app.services.project_authoring_service import normalize_saved_project_focus_document
+    install_code_route_import_stubs()
+    from backend.core.api.app.routes import project_authoring as routes
+    from backend.core.api.app.models.user import User
+    from backend.core.api.app.services.limiter import limiter
+    inspect = AsyncMock(return_value=None)
+    start = AsyncMock(return_value={"status": "running", "job_id": "job"})
+    app = FastAPI()
+    app.state.limiter = limiter
+    app.include_router(routes.router)
+    app.dependency_overrides[routes.get_current_user_or_api_key] = lambda: User(id="owner", username="owner", vault_key_id="vault")
+    app.dependency_overrides[routes.ensure_projects_enabled] = lambda: None
+    app.dependency_overrides[routes.get_recommendations] = lambda: SimpleNamespace(inspect_focus=inspect)
+    app.dependency_overrides[routes.get_authoring] = lambda: SimpleNamespace(start=start)
+    client = TestClient(app)
+    token = str(uuid.uuid4())
+    assert client.post("/v1/projects/project/authoring/inspect", json={
+        "assessment_id": token, "history": HISTORY, "document": document,
+    }).status_code == 200
+    normalized = normalize_saved_project_focus_document(document).model_dump()
+    assert inspect.call_args.kwargs["document"] == normalized
+    assert client.post("/v1/projects/project/authoring/jobs", json={
+        "recommendation_id": token, "expected_revision": "revision-1", "history": HISTORY, "target": document,
+    }).status_code == 202
+    assert normalize_saved_project_focus_document(start.call_args.kwargs["target"]).model_dump() == normalized
+    for bad in (True, 2):
+        invalid = {**CANONICAL_PHASE_DOCUMENT, "phases_version": bad, "instructions": "PRIVATE PHASE SENTINEL"}
+        inspection = client.post("/v1/projects/project/authoring/inspect", json={
+            "assessment_id": token, "history": HISTORY, "document": invalid,
+        })
+        assert inspection.status_code == 422
+        assert inspection.json() == {"detail": "PROJECT_AUTHORING_INVALID_REQUEST"}
+        assert "PRIVATE PHASE SENTINEL" not in inspection.text
+        job = client.post("/v1/projects/project/authoring/jobs", json={
+            "recommendation_id": token, "history": HISTORY, "target": invalid,
+        })
+        assert job.status_code == 422 and job.json() == {"detail": "PROJECT_AUTHORING_INVALID_REQUEST"}
+        assert "PRIVATE PHASE SENTINEL" not in job.text
+    assert inspect.await_count == 1 and start.await_count == 1
 
 
 # contract-test: direct surface=rest_api assertions=workflows.project.update-authoring,notifications.project-authoring.result-route
