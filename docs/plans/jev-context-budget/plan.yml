@@ -1,7 +1,7 @@
 schema_version: 2
 id: jev-context-budget
 title: Bound Jev context and batch independent decisions
-status: implementing
+status: verified
 goal: Implement and test splitting larger Jev requests into requests below the 32,000-token
   context limit with a safety margin and TikToken estimates.
 scope:
@@ -90,7 +90,7 @@ tests:
     expected: pass
     evidence:
       status: passed
-      timestamp: '2026-10-05T12:58:00Z'
+      timestamp: '2026-10-05T13:06:17Z'
       command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest -q
         backend/tests/test_jev_context_budget.py backend/tests/test_typesafe_decisions.py
         backend/tests/test_preprocessor_jev.py backend/tests/test_search_relevance.py
@@ -123,7 +123,7 @@ tests:
     expected: pass
     evidence:
       status: passed
-      timestamp: '2026-10-05T13:02:00Z'
+      timestamp: '2026-10-05T13:01:31.856141Z'
       command: python3 scripts/ci_coordinator.py submit --session 1d5b
         --source 710b602a4947d12e4505177e08f4183210cedc39 --mode pytest --no-prepared-builds
         --spec backend/tests/test_app_skill_rest_context.py (and the twelve focused
@@ -158,17 +158,18 @@ tests:
     expected: pass
     evidence:
       status: passed
-      timestamp: '2026-10-05T12:56:00Z'
+      timestamp: '2026-10-05T13:08:16.138353Z'
       reason: Real inference is required to compare proxy estimates with native
-        reported input usage. Synthetic input ran in an isolated candidate process
-        without modifying the shared runtime; deployed verification remains pending.
-      command: docker exec -i api python - < /tmp/openmates/jev-context-budget/context-30k-probe.py
-      run_id: context-30k-probe
-      subject_commit: 710b602a4947d12e4505177e08f4183210cedc39
-      environment: dev api container, isolated candidate process
+        reported input usage. Synthetic input ran in an isolated process importing
+        the deployed modules after the coordinated runtime refresh, without
+        overriding their source. Their hashes match the verified implementation.
+      command: docker exec -i api python - < /tmp/openmates/jev-context-budget/deployed-30k-probe.py
+      run_id: deployed-30k-probe
+      subject_commit: ffe04427c7d2e2939e8de0e09759496fd68290ef
+      environment: dev api container, deployed modules
       batches: 2
       coverage: 8
-      latency_ms: 1274.2
+      latency_ms: 1065.2
       estimated_input_tokens:
       - 29192
       - 29192
@@ -198,6 +199,8 @@ decisions:
   decided_at: '2026-10-05'
 implementation_state:
   subject_commit: 710b602a4947d12e4505177e08f4183210cedc39
+  deployed_commit: ffe04427c7d2e2939e8de0e09759496fd68290ef
+  runtime_operation: docker-23c0546d
 approvals:
   plan:
     status: approved
@@ -216,8 +219,8 @@ approvals:
 tasks:
 - id: TASK-4878
   title: Prevent Jev context overflow with bounded decision batching
-  status: in_progress
-  phase: running_checks
+  status: done
+  phase: complete
   covers:
     scenarios:
     - S-1
@@ -249,15 +252,16 @@ attempts:
   task_id: TASK-4878
   approach: Shared proxy budget and complete independent partitioning with existing
     fallback policies.
-  outcome: planned
+  outcome: succeeded
   recorded_at: '2026-10-05'
 handoff:
   current_task_id: TASK-4878
-  next_action: Finish isolated REST CI and assess existing safety-quality evidence
-    before scoped publication.
-  command: python3 scripts/sessions.py ci-source --session 1d5b
-  expected_outcome: Reviewable implementation with truthful verification evidence.
-  last_verified_commit: workspace-1d5b
+  next_action: Scoped context-budget implementation and verification are complete.
+    Broader unchanged Web Search quality and latency gates remain unproven as
+    documented in evidence.md; this Plan does not claim their conformance.
+  command: python3 scripts/plan_verify.py docs/plans/jev-context-budget/plan.yml --phase complete
+  expected_outcome: Passing scoped acceptance criteria with broader limitations preserved.
+  last_verified_commit: ffe04427c7d2e2939e8de0e09759496fd68290ef
   blocker: null
 review_artifacts:
   architecture.app-skill-execution:
