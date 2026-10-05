@@ -110,7 +110,8 @@
         "components/sheet-fullscreen.spec.ts",
         "notification-email-preferences.spec.ts",
         "notification-email-links.spec.ts",
-        "chat-sidebar-projects.spec.ts"
+        "chat-sidebar-projects.spec.ts",
+        "maps-discovery-sdk.spec.ts"
       ]
     },
     "external_integration": {
@@ -347,7 +348,8 @@
         "components/workflow-chat-embed.spec.ts",
         "components/chat-project-navigation.spec.ts",
         "components/project-chat-previews.spec.ts",
-        "components/settings-storage-overview.spec.ts"
+        "components/settings-storage-overview.spec.ts",
+        "components/maps-discovery.spec.ts"
       ]
     },
     "synthetic_artifact": {
@@ -391,7 +393,8 @@
         "source-quote-verification.spec.ts",
         "stop-new-chat-draft.spec.ts",
         "tasks-chat-settings-parity.spec.ts",
-        "unified-detail-metadata-sync.spec.ts"
+        "unified-detail-metadata-sync.spec.ts",
+        "maps-discovery-chat.spec.ts"
       ]
     },
     "ai_fixture_pending": {
