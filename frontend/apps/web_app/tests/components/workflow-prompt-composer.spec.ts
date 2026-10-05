@@ -18,10 +18,24 @@ const preview = (width: number, variant?: string, theme = 'light') =>
     ...(variant ? { variant } : {}),
   })}`;
 
-const focusPreview = (variant: string) =>
+const focusPreview = (variant: string, width = 900, theme = 'light') =>
   `/dev/preview/workspace/WorkspaceComposerFocusFixture?${new URLSearchParams({
-    theme: 'light', background: '#dbeafe', width: '900', chrome: '0', variant,
+    theme, background: theme === 'dark' ? '#171717' : '#dbeafe', width: String(width), chrome: '0', variant,
   })}`;
+
+async function expectFullWidthCancel(page: Page, formTestId: string, inputTestId: string) {
+  const form = page.getByTestId(formTestId);
+  const cancel = page.getByTestId(`${inputTestId}-cancel`);
+  await expect(cancel).toBeVisible();
+  const [formBox, cancelBox] = await Promise.all([form.boundingBox(), cancel.boundingBox()]);
+  if (!formBox || !cancelBox) throw new Error('Composer and Cancel must be measurable.');
+  expect(Math.abs(cancelBox.x - formBox.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(cancelBox.width - formBox.width)).toBeLessThanOrEqual(1);
+  expect(cancelBox.y).toBeGreaterThanOrEqual(formBox.y + formBox.height);
+  expect(Number.parseFloat(await cancel.evaluate((element) => getComputedStyle(element).borderTopWidth))).toBeGreaterThan(0);
+  expect(Number.parseFloat(await cancel.evaluate((element) => getComputedStyle(element).borderTopLeftRadius))).toBeGreaterThanOrEqual(20);
+  return cancel;
+}
 
 test.describe('Workflow prompt composer', () => {
   for (const [width, theme] of [[320, 'light'], [390, 'dark'], [1024, 'light']] as const) {
@@ -266,7 +280,15 @@ test.describe('Workflow prompt composer', () => {
       await input.focus();
       const background = variant === 'editor' ? page.getByTestId('fixture-editor-graph') : page.locator('.workspace-scroll-layer');
       await expect(page.getByTestId(backdropId)).toBeVisible();
+      await expect.poll(() => page.getByTestId(backdropId).evaluate((element: HTMLElement) => {
+        const box = element.getBoundingClientRect();
+        const parent = element.parentElement!.getBoundingClientRect();
+        return Math.max(Math.abs(box.width - parent.width), Math.abs(box.height - parent.height));
+      })).toBeLessThanOrEqual(1);
       await expect(background).toHaveAttribute('inert', '');
+      await expect(background).toHaveCSS('opacity', '0');
+      await expect(background).toHaveCSS('visibility', 'hidden');
+      const cancel = await expectFullWidthCancel(page, `${surface}-input-composer`, `${surface}-input-textarea`);
       await input.fill('First\nSecond\nThird\nFourth\nFifth');
       await expect.poll(() => input.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(70);
       const regularHeight = await input.evaluate((element) => element.getBoundingClientRect().height);
@@ -276,6 +298,10 @@ test.describe('Workflow prompt composer', () => {
       await page.getByTestId(backdropId).click({ position: { x: 8, y: 8 } });
       await expect(page.getByTestId(backdropId)).toHaveCount(0);
       await expect(background).not.toHaveAttribute('inert', '');
+      await expect(background).toHaveCSS('opacity', '1');
+      await expect(background).toHaveCSS('visibility', 'visible');
+      await expect(cancel).toHaveCSS('visibility', 'hidden');
+      await expect.poll(() => cancel.evaluate((element) => element.getBoundingClientRect().height)).toBe(0);
       await expect(input).toHaveValue('First\nSecond\nThird\nFourth\nFifth');
       await expect(input).not.toBeFocused();
       await page.getByTestId('fixture-card').click();
@@ -297,9 +323,11 @@ test.describe('Workflow prompt composer', () => {
       if (!field || !cancel) throw new Error('Cancel and message field must be measurable.');
       return cancel.getBoundingClientRect().top - field.getBoundingClientRect().bottom;
     })).toBeGreaterThanOrEqual(0);
+    const cancel = await expectFullWidthCancel(page, 'workflows-input-composer', 'workflows-input-textarea');
     await page.getByTestId('workflows-input-textarea-cancel').click();
     await expect(page.getByTestId('workflows-composer-backdrop')).toHaveCount(0);
     await expect(input).toHaveValue('Keep\nthis draft');
+    await expect.poll(() => cancel.evaluate((element) => element.getBoundingClientRect().height)).toBe(0);
   });
 
   // contract-test: supporting surface=gui.web assertions=workspace-shell.start.chat-visual-parity
@@ -323,9 +351,15 @@ test.describe('Workflow prompt composer', () => {
     const background = page.getByTestId('project-task-background');
     await expect(background).toHaveAttribute('inert', '');
     await expect(background).toHaveClass(/dimmed/);
+    await expect(background).toHaveCSS('opacity', '0');
+    await expect(background).toHaveCSS('visibility', 'hidden');
+    const cancel = await expectFullWidthCancel(page, 'project-task-workspace-composer', 'project-task-workspace-input');
     await expect(page.getByTestId('project-task-composer-backdrop')).toBeVisible();
     await page.getByTestId('project-task-composer-backdrop').click({ position: { x: 8, y: 8 } });
     await expect(background).not.toHaveAttribute('inert', '');
+    await expect(background).toHaveCSS('opacity', '1');
+    await expect(background).toHaveCSS('visibility', 'visible');
+    await expect.poll(() => cancel.evaluate((element) => element.getBoundingClientRect().height)).toBe(0);
     await expect(input).toHaveValue('Keep\na project draft');
     await expect(input).not.toBeFocused();
   });

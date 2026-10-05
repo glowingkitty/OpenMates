@@ -555,15 +555,19 @@
     overflow: hidden;
     container-type: inline-size;
     container-name: chat-side;
-    transition: opacity .18s ease;
+    visibility: visible;
+    transition: opacity var(--duration-normal) var(--easing-default), visibility 0s;
   }
 
   .workspace-home-shell.composer-focused .workspace-scroll-layer {
-    opacity: .36;
+    opacity: 0;
+    visibility: hidden;
+    transition-delay: 0s, var(--duration-normal);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .workspace-scroll-layer { transition: none; }
+    .workspace-scroll-layer,
+    .workspace-home-shell.composer-focused .workspace-scroll-layer { transition: none; }
   }
 
   .workspace-composer-backdrop {
@@ -571,8 +575,26 @@
     inset: 0;
     z-index: 3;
     border: 0;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    filter: none;
+    scale: none;
+    transform: none;
+    transition: none;
     background: transparent;
     cursor: default;
+  }
+
+  .workspace-composer-backdrop:hover, .workspace-composer-backdrop:active {
+    background: transparent;
+    scale: none;
+    transform: none;
+    filter: none;
   }
 
   .workspace-home-shell.composer-focused .workspace-composer-slot { z-index: 4; }

@@ -3849,6 +3849,9 @@
 
 	.main-content {
 		container: main-content / inline-size;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
 		/* Change from fixed to absolute positioning when in scrollable mode */
 		position: fixed;
 		/* Logical property: offset from the sidebar on the inline-start side.
@@ -3863,6 +3866,10 @@
 		/* Commit desktop geometry once; only the narrow-screen translation animates. */
 		transition:
 			transform 0.12s ease-out;
+	}
+
+	.main-content > :global(header.webapp) {
+		flex: none;
 	}
 
 	.main-content:has(:global(.fullscreen-embed-container.overlay-mode)) {
@@ -3904,13 +3911,13 @@
 	.chat-container {
 		display: flex;
 		flex-direction: row;
+		flex: 1 1 auto;
+		min-height: 0;
 		container-name: chat-settings-layout;
 		container-type: inline-size;
 		box-sizing: border-box;
-		/* Fallback for browsers that don't support dvh */
-		height: calc(100vh - 55px - var(--dev-console-height, 0px));
-		/* Modern browsers will use this */
-		height: calc(100dvh - 55px - var(--dev-console-height, 0px));
+		/* The console is absolutely positioned below the chat row. */
+		margin-bottom: var(--dev-console-height, 0px);
 		gap: 0px;
 		padding: 10px;
 		padding-bottom: 20px;
@@ -3941,13 +3948,6 @@
 		}
 	}
 
-	@media (max-width: 1099px) and (orientation: portrait) {
-		.chat-container {
-			height: calc(100vh - 66px - var(--dev-console-height, 0px));
-			height: calc(100dvh - 66px - var(--dev-console-height, 0px));
-		}
-	}
-
 	.settings-wrapper {
 		display: flex;
 		align-items: flex-start;
@@ -3959,8 +3959,6 @@
 		.chat-container {
 			padding-inline-end: 10px;
 			padding-bottom: 10px;
-			height: calc(100vh - 66px - var(--dev-console-height, 0px));
-			height: calc(100dvh - 66px - var(--dev-console-height, 0px));
 		}
 		.sidebar {
 			width: 100%;

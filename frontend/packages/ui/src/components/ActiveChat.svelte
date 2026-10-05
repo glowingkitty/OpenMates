@@ -13592,6 +13592,7 @@
                 <div
                     class="chat-side"
                     class:composer-background-faded={messageInputFocused}
+                    class:composer-welcome-hidden={messageInputFocused && (showWelcome || isActiveDraftOnlyChat)}
                     inert={messageInputFocused}
                     class:welcome-chat-side={showWelcome}
                     data-testid="chat-side"
@@ -14671,6 +14672,10 @@
                               recently-focused grace lets suggestion clicks land without keeping the
                               rail visible on the inactive welcome screen. -->
                          {#if (showWelcome || isActiveDraftOnlyChat) && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
+                            <div class="suggestions-wrapper composer-suggestions"
+                                class:composer-welcome-hidden={messageInputFocused}
+                                inert={messageInputFocused}
+                                data-testid="chat-welcome-suggestions">
                                 <NewChatSuggestions
                                    messageInputContent={activeSuggestionSearchText}
                                    selectedInterestTagIds={selectedGuestInterestTagIds}
@@ -14679,6 +14684,7 @@
                                    onFileSelect={handleFileSuggestionClick}
                                    onEmbedSelect={handleEmbedSuggestionClick}
                                />
+                            </div>
                          {/if}
 
 
@@ -14750,7 +14756,7 @@
                                     </button>
                                 </div>
                             {:else}
-                            <div class="message-input-action-row" class:has-new-chat-button={showNewChatButtonBesideInput}>
+                            <div class="message-input-action-row" class:has-new-chat-button={showNewChatButtonBesideInput} class:composer-focused={messageInputFocused}>
                                 {#if showNewChatButtonBesideInput}
                                     <div
                                         class="new-chat-button-wrapper new-chat-cta-wrapper input-new-chat-wrapper"
@@ -16728,15 +16734,35 @@
         max-width: 500px;
     }
 
-    .composer-background-faded { opacity: 0.15; pointer-events: none; }
-    .chat-side { transition: opacity 200ms ease; }
+    .chat-side, .composer-suggestions {
+        visibility: visible;
+        transition: opacity var(--duration-normal) var(--easing-default), visibility 0s;
+    }
+    .chat-side.composer-background-faded {
+        opacity: 0.15;
+        pointer-events: none;
+    }
+    .chat-side.composer-welcome-hidden, .composer-suggestions.composer-welcome-hidden {
+        opacity: 0;
+        visibility: hidden;
+        transition-delay: 0s, var(--duration-normal);
+    }
     .composer-focus-backdrop {
         position: absolute; inset: 0; border: 0; padding: 0;
+        width: 100%; height: 100%; min-width: 0; margin: 0;
+        border-radius: 0; box-shadow: none; filter: none;
+        scale: none; transform: none; transition: none;
         background: transparent; cursor: default; z-index: var(--z-index-raised-4);
     }
-    @media (prefers-reduced-motion: reduce) {
-        .chat-side { transition: none; }
+    .composer-focus-backdrop:hover, .composer-focus-backdrop:active {
+        background: transparent; scale: none; transform: none; filter: none;
     }
+    @media (prefers-reduced-motion: reduce) {
+        .chat-side, .chat-side.composer-welcome-hidden,
+        .composer-suggestions, .composer-suggestions.composer-welcome-hidden { transition: none; }
+    }
+
+    .composer-suggestions { width: 100%; }
 
     .message-input-container {
         position: relative;
@@ -16768,6 +16794,10 @@
 
     .active-chat-container.narrow .message-input-action-row {
         gap: var(--spacing-2);
+    }
+
+    .active-chat-container .message-input-action-row.composer-focused {
+        gap: 0;
     }
 
     .chat-wrapper:not(.fullscreen) .message-input-wrapper { /* Changed from .message-input-container */
@@ -17320,6 +17350,8 @@
        Normal flow so it sits after ChatSearchSuggestions + MessageInput. */
     .input-dismiss-button {
         display: block;
+        width: 100%;
+        box-sizing: border-box;
         margin: var(--spacing-3) auto 0;
         padding: var(--spacing-3) var(--spacing-8);
         background-color: var(--color-grey-10);

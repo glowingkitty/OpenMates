@@ -326,30 +326,55 @@
 
   .workspace-prompt-cancel {
     display: block;
-    width: max-content;
+    width: 100%;
+    box-sizing: border-box;
+    height: auto;
+    min-height: 0;
     max-height: 0;
-    margin: 0 0 0 48px;
-    border: 0;
-    padding: 0 8px;
+    margin: 0;
+    border: 0 solid var(--color-grey-30);
+    border-radius: var(--radius-full);
+    padding: 0 var(--spacing-8);
     overflow: hidden;
-    background: transparent;
+    background: var(--color-grey-10);
     color: var(--color-font-secondary);
-    font: inherit;
+    font-family: inherit;
+    font-size: var(--font-size-small);
+    font-weight: 500;
+    white-space: nowrap;
+    text-align: center;
+    box-shadow: none;
+    filter: none;
     cursor: pointer;
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
     transition: max-height .18s ease, margin-top .18s ease, padding .18s ease, opacity .18s ease;
   }
 
   .workspace-prompt-cancel.visible {
     max-height: 44px;
-    margin-top: 8px;
-    padding: 8px;
+    margin-top: var(--spacing-3);
+    padding: var(--spacing-3) var(--spacing-8);
+    border-width: 1px;
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
   }
 
-  .workspace-prompt-cancel:hover { color: var(--color-font-primary); }
+  .workspace-prompt-cancel:hover {
+    background: var(--color-grey-20);
+    color: var(--color-font-primary);
+    transform: none;
+    scale: none;
+  }
+  .workspace-prompt-cancel:active {
+    background: var(--color-grey-30);
+    color: var(--color-font-primary);
+    transform: none;
+    scale: none;
+    filter: none;
+  }
 
   .workspace-prompt-composer.collapsible.focused .workspace-prompt-file:hover,
   .workspace-prompt-composer.collapsible.focused .workspace-prompt-mic:hover {

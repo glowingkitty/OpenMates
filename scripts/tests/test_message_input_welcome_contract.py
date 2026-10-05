@@ -26,22 +26,29 @@ def test_focused_workspace_fades_and_disables_controls_for_all_users() -> None:
     workspace = re.search(r'<div\s+class="chat-side"\s+(.*?)\n\s*>', source, re.S)
     assert workspace, "ActiveChat must keep a shared workspace container"
     assert "class:composer-background-faded={messageInputFocused}" in workspace.group(1)
+    assert "class:composer-welcome-hidden={messageInputFocused && (showWelcome || isActiveDraftOnlyChat)}" in workspace.group(1)
     assert "inert={messageInputFocused}" in workspace.group(1), (
         "Focus must disable the entire workspace for guests and authenticated users"
     )
     assert "const hideWelcomeForKeyboard = false;" in source, (
-        "Focus must preserve the welcome layout instead of hiding its content"
+        "Focus must preserve welcome layout measurements while hiding its content"
     )
     faded_rule = re.search(r"\.composer-background-faded\s*\{([^}]*)\}", source, re.S)
     assert faded_rule, "Focused workspace must define a fading rule"
     declarations = re.sub(r"\s+", "", faded_rule.group(1))
     opacity = re.search(r"opacity:([0-9.]+);", declarations)
-    assert opacity and 0 < float(opacity.group(1)) < 1, (
-        "Surrounding workspace must stay visible while faded"
+    assert opacity and float(opacity.group(1)) == 0.15, (
+        "An established chat transcript must retain its reduced-opacity fade"
     )
     assert "pointer-events:none;" in declarations
     assert "display:none;" not in declarations
     assert "visibility:hidden;" not in declarations
+    welcome_rule = re.search(r"\.composer-welcome-hidden\s*\{([^}]*)\}", source, re.S)
+    assert welcome_rule, "Empty-chat workspace must have a separate complete fade"
+    welcome = re.sub(r"\s+", "", welcome_rule.group(1))
+    assert "opacity:0;" in welcome
+    assert "visibility:hidden;" in welcome
+    assert "display:none;" not in welcome
 
 
 # contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated,landing-onboarding.uses-real-chat-shell

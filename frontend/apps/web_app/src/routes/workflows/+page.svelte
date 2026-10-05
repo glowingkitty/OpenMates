@@ -1715,10 +1715,14 @@
 <NotificationStack />
 
 <style>
-	.workflow-management .management-grid { transition: opacity .18s ease; }
-	.workflow-management .management-grid.composer-background-dimmed { opacity: .36; }
-	@media (prefers-reduced-motion: reduce) { .workflow-management .management-grid { transition: none; } }
-	.workflow-editor-backdrop { position: absolute; inset: 0; z-index: 2; width: 100%; border: 0; background: transparent; cursor: default; }
+	.workflow-management .management-grid { visibility: visible; transition: opacity var(--duration-normal) var(--easing-default), visibility 0s; }
+	.workflow-management .management-grid.composer-background-dimmed { opacity: 0; visibility: hidden; transition-delay: 0s, var(--duration-normal); }
+	@media (prefers-reduced-motion: reduce) {
+		.workflow-management .management-grid,
+		.workflow-management .management-grid.composer-background-dimmed { transition: none; }
+	}
+	.workflow-editor-backdrop { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; filter: none; scale: none; transform: none; transition: none; background: transparent; cursor: default; }
+  .workflow-editor-backdrop:hover, .workflow-editor-backdrop:active { background: transparent; scale: none; transform: none; filter: none; }
 	.workflow-ai-composer{position:relative;z-index:var(--z-index-raised-2);flex:none;box-sizing:border-box;width:100%;margin:-36px 0 0;padding:36px 1rem max(12px,env(safe-area-inset-bottom));background:linear-gradient(to bottom,transparent,var(--color-grey-10) 36px);pointer-events:none}
 	.workflow-management:has(.workflow-editor-backdrop) .workflow-ai-composer { z-index: 3; }
 	.workflow-ai-composer :global(.workspace-prompt-composer),.workflow-ai-pending{pointer-events:auto}
@@ -1745,6 +1749,9 @@
 
 	.main-content {
 		container: main-content / inline-size;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
 		position: fixed;
 		inset-inline-start: var(--sidebar-margin, 10px);
 		inset-inline-end: 0;
@@ -1756,11 +1763,14 @@
 
 	.workflows-container {
 		display: flex;
-		height: calc(100vh - 82px);
-		height: calc(100dvh - 82px);
+		flex: 1 1 auto;
+		min-height: 0;
+		height: auto;
+		box-sizing: border-box;
 		gap: 0;
 		padding: 10px 20px 10px 10px;
 	}
+	.main-content > :global(header.webapp) { flex: none; }
 
 	.workflow-sidebar-shell {
 		width: 0;
@@ -2056,8 +2066,6 @@
 		}
 
 		.workflows-container {
-			height: calc(100vh - 66px);
-			height: calc(100dvh - 66px);
 			padding: 8px 10px;
 			box-sizing: border-box;
 		}

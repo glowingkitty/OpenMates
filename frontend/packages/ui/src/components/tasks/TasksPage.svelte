@@ -1270,9 +1270,13 @@
     overflow: visible;
   }
 
-  .compact-task-background { transition: opacity .18s ease; }
-  .compact-task-background.dimmed { opacity: .36; }
-  .compact-task-backdrop { position: absolute; inset: 0; z-index: 3; width: 100%; border: 0; background: transparent; cursor: default; }
+  .compact-task-background { visibility: visible; transition: opacity var(--duration-normal) var(--easing-default), visibility 0s; }
+  .compact-task-background.dimmed { opacity: 0; visibility: hidden; transition-delay: 0s, var(--duration-normal); }
+  @media (prefers-reduced-motion: reduce) {
+    .compact-task-background, .compact-task-background.dimmed { transition: none; }
+  }
+  .compact-task-backdrop { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; filter: none; scale: none; transform: none; transition: none; background: transparent; cursor: default; }
+  .compact-task-backdrop:hover, .compact-task-backdrop:active { background: transparent; scale: none; transform: none; filter: none; }
 
   @media (prefers-reduced-motion: reduce) {
     .compact-task-background { transition: none; }

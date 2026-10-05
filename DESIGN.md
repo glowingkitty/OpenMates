@@ -336,6 +336,20 @@ Create a new settings element only when the pattern appears in at least three se
 
 Chat should remain familiar and readable.
 
+Composer focus follows the same layout across chat, task creation, workflow
+creation, and workflow editing. Empty-chat welcome content and non-chat workspace
+content fade completely out while keeping their layout measurements; disable
+their controls immediately with `inert`. An established chat transcript remains
+visible at reduced opacity (`0.15`) while its composer is focused. Dismissal
+restores the previous layout and preserves unsent content.
+
+Cancel sits below the message field as a full-width pill: grey-10 surface,
+grey-30 border, full radius, and spacing-3 separation. It takes no space while
+the composer is collapsed. Mobile workspace panels fill the remaining height
+below the actual header; their bottom gutter must not exceed their side gutters.
+Use `ActiveChat.svelte`, `WorkspacePromptComposer.svelte`, and
+`WorkspaceHomeShell.svelte` for these patterns.
+
 | Element | Rule |
 |---|---|
 | Assistant bubble | `--color-grey-0`, radius `13px`, 12px padding, speech-bubble tail on inline-start. |

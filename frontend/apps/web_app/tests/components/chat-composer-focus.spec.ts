@@ -2,8 +2,8 @@
 import { test, expect } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 
-function preview(component: string, width = 680, variant?: string) {
-  return `/dev/preview/${component}?${new URLSearchParams({ theme: 'light', background: '#dbeafe', width: String(width), chrome: '0', ...(variant ? { variant } : {}) })}`;
+function preview(component: string, width = 680, variant?: string, theme = 'light') {
+  return `/dev/preview/${component}?${new URLSearchParams({ theme, background: theme === 'dark' ? '#171717' : '#dbeafe', width: String(width), chrome: '0', ...(variant ? { variant } : {}) })}`;
 }
 
 test.describe('Chat composer focus and draft preservation', () => {
@@ -154,10 +154,11 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(page.getByTestId('chat-header-title')).toContainText('Writing preferences');
   });
 
+  for (const width of [390, 1280]) {
   // contract-test: direct surface=gui.web assertions=message-input.actions.visibility,message-input.layout.responsive-parity
-  test('deep-link prefill focuses chat and outside/Cancel restores the surrounding workspace', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto(preview('ActiveChat', 1100));
+  test(`deep-link prefill hides the empty-chat workspace and outside/Cancel restores it at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    await page.goto(preview('ActiveChat', Math.min(width, 1100), undefined, width === 390 ? 'dark' : 'light'));
     await waitForComponentPreview(page);
     const side = page.getByTestId('chat-side');
     const field = page.getByTestId('message-field');
@@ -165,16 +166,39 @@ test.describe('Chat composer focus and draft preservation', () => {
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('docsMessagePrefill', { detail: { text: 'Unsent deep link\nKeep this second line', autoSend: false } })));
     await expect(field).toHaveAttribute('data-focused', 'true');
     await expect(side).toHaveAttribute('inert', '');
-    await expect(side).toHaveCSS('opacity', '0.15');
+    await expect(side).toHaveCSS('opacity', '0');
+    await expect(side).toHaveCSS('visibility', 'hidden');
+    await expect(side).not.toBeVisible();
+    await expect(page.getByTestId('chat-welcome-suggestions')).toHaveCSS('opacity', '0');
+    await expect(page.getByTestId('chat-welcome-suggestions')).toHaveAttribute('inert', '');
+    await expect(page.getByTestId('new-chat-suggestion-card').first()).toBeHidden();
+    await expect(field).toBeVisible();
     await expect(page.getByTestId('input-dismiss-button')).toHaveText('Cancel');
-    await page.getByTestId('chat-composer-focus-backdrop').click({ position: { x: 5, y: 5 } });
+    const cancel = page.getByTestId('input-dismiss-button');
+    await expect(cancel).toHaveCSS('border-top-width', '1px');
+    await expect.poll(() => page.evaluate(() => {
+      const field = document.querySelector('[data-testid="message-field"]')!.getBoundingClientRect();
+      const cancel = document.querySelector('[data-testid="input-dismiss-button"]')!.getBoundingClientRect();
+      return Math.max(Math.abs(cancel.width - field.width), Math.abs(cancel.x - field.x));
+    })).toBeLessThanOrEqual(1);
+    const backdrop = page.getByTestId('chat-composer-focus-backdrop');
+    await expect.poll(() => backdrop.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const parent = element.parentElement!.getBoundingClientRect();
+      return Math.max(Math.abs(box.width - parent.width), Math.abs(box.height - parent.height));
+    })).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: test.info().outputPath(`chat-welcome-focused-${width}.png`) });
+    await backdrop.click({ position: { x: 40, y: 40 } });
     await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(side).not.toHaveAttribute('inert', '');
     await expect(side).toHaveCSS('opacity', '1');
+    await expect(side).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath(`chat-welcome-restored-${width}.png`) });
     await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toContainText('Keep this second line');
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('docsMessagePrefill', { detail: { text: 'Unsent deep link\nKeep this second line', autoSend: false } })));
     await page.getByTestId('input-dismiss-button').click();
     await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(page.getByTestId('message-editor').locator('.ProseMirror')).not.toBeFocused();
   });
+  }
 });

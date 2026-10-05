@@ -52,9 +52,13 @@
 <style>
   .fixture { height: min(720px, 100dvh); min-height: 500px; width: min(900px, 100%); position: relative; }
   .editor-surface { position: relative; height: 100%; background: var(--color-grey-20); }
-  .editor-graph { height: 100%; padding: 60px; transition: opacity .18s ease; }
-  .editor-graph.dimmed { opacity: .36; }
-  .editor-backdrop { position: absolute; inset: 0; z-index: 2; width: 100%; border: 0; background: transparent; }
+  .editor-graph { height: 100%; padding: 60px; visibility: visible; transition: opacity .18s ease, visibility 0s; }
+  .editor-graph.dimmed { opacity: 0; visibility: hidden; transition-delay: 0s, .18s; }
+  @media (prefers-reduced-motion: reduce) {
+    .editor-graph, .editor-graph.dimmed { transition: none; }
+  }
+  .editor-backdrop { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; filter: none; scale: none; transform: none; transition: none; background: transparent; cursor: default; }
+  .editor-backdrop:hover, .editor-backdrop:active { background: transparent; scale: none; transform: none; filter: none; }
   .editor-composer { position: absolute; inset: auto 16px 16px; z-index: 3; }
   output { position: absolute; top: -1000px; }
   .fixture-settle { position: absolute; top: 8px; right: 8px; z-index: 10; }

@@ -42,6 +42,7 @@
         "cli-workflow-files.spec.ts",
         "cli-workflows-natural-language-guards.spec.ts",
         "code-notebook-flow.spec.ts",
+        "composer-workspace-layout.spec.ts",
         "connected-account-calendar-settings.spec.ts",
         "content-embed-settings.spec.ts",
         "debug-logging-settings.spec.ts",
