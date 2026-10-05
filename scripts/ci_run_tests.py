@@ -53,6 +53,7 @@ CAPACITY_WORKLOAD_SPECS = frozenset({
     "storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts",
 })
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
+MAPS_DISCOVERY_CHAT_SPEC = "maps-discovery-chat.spec.ts"
 BILLING_STORAGE_PROFILES = {
     "billing-storage-legacy.spec.ts": "legacy",
     "billing-storage-logical.spec.ts": "logical",
@@ -433,6 +434,111 @@ asyncio.run(main())
         raise RuntimeError("Disposable recovery epoch activation omitted its receipt") from exc
     if receipt != {"protocol_epoch": 1, "sends_paused": False, "legacy_in_flight": 0}:
         raise RuntimeError("Disposable recovery epoch activation was incomplete")
+    return receipt
+
+
+def activate_isolated_maps_chat_epoch(spec_name: str) -> dict:
+    """Open v1 for the exact disposable maps chat browser fixture."""
+    require_runner()
+    if spec_name != MAPS_DISCOVERY_CHAT_SPEC:
+        raise RuntimeError("Maps recovery epoch requires the exact browser spec")
+    profile = json.loads(COMPOSE_PATH.read_text())
+    services = profile.get("services", {})
+    api_env = services.get("api", {}).get("environment", {})
+    worker_env = services.get("ai-worker", {}).get("environment", {})
+    expected = {
+        "CI": "true", "OPENMATES_CI_ISOLATED": "1",
+        "OPENMATES_CI_AI_FIXTURES": "1", "MOCK_EXTERNAL_APIS": "true",
+        "SERVER_ENVIRONMENT": "development", "CMS_URL": "http://cms:8055",
+        "VAULT_URL": "http://vault:8200",
+    }
+    if (any(api_env.get(key) != value for key, value in expected.items())
+            or profile.get("networks", {}).get("default", {}).get("internal") is not True
+            or worker_env.get("CELERY_QUEUES") != "app_ai"
+            or "object-storage" in services
+            or api_env.get("OPENMATES_STORAGE_CAPACITY_FIXTURES") is not None
+            or api_env.get("S3_ENDPOINT_URL") is not None
+            or services.get("runner-gateway", {}).get("environment", {}).get(
+                "OPENMATES_CI_PUBLIC_PROVIDER_PROXY") is not None
+            or any("HTTPS_PROXY" in service.get("environment", {})
+                   for service in services.values() if isinstance(service, dict))):
+        raise RuntimeError("Maps recovery epoch requires the isolated marker-only AI profile")
+    program = """
+import asyncio
+import json
+import os
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus import DirectusService
+
+async def main():
+    if (os.getenv('CI') != 'true' or os.getenv('OPENMATES_CI_ISOLATED') != '1'
+            or os.getenv('OPENMATES_CI_AI_FIXTURES') != '1'
+            or os.getenv('OPENMATES_CI_MAPS_CHAT_EPOCH_FIXTURE') != '1'
+            or os.getenv('MOCK_EXTERNAL_APIS') != 'true'
+            or os.getenv('SERVER_ENVIRONMENT') != 'development'
+            or os.getenv('S3_ENDPOINT_URL') is not None
+            or os.getenv('HTTPS_PROXY') is not None):
+        raise RuntimeError('Maps recovery activation requires the isolated AI fixture')
+    cache = CacheService()
+    directus = DirectusService(cache_service=cache)
+    try:
+        service = ChatRecoveryService(directus)
+        state = await service.execute('get_cutover_state', {'protocol_version': 1})
+        if (type(state.get('protocol_epoch')) is not int or state['protocol_epoch'] != 0
+                or type(state.get('legacy_in_flight')) is not int or state['legacy_in_flight'] != 0
+                or state.get('sends_paused') is not False):
+            raise RuntimeError('Maps recovery state is not fresh idle epoch zero')
+        paused = False
+        try:
+            pause = await service.execute('set_sends_paused',
+                                          {'protocol_version': 1, 'sends_paused': True})
+            paused = True
+            if (pause.get('protocol_epoch') != 0 or pause.get('sends_paused') is not True
+                    or pause.get('legacy_in_flight') != 0):
+                raise RuntimeError('Maps recovery pause was not acknowledged')
+            # The transaction rejects active legacy tasks, admissions, claims,
+            # and pending output producers under the protocol-state lock.
+            activated = await service.execute('activate_protocol_epoch',
+                                              {'protocol_version': 1, 'target_epoch': 1})
+            if (activated.get('protocol_epoch') != 1 or activated.get('activated') is not True
+                    or activated.get('sends_paused') is not True
+                    or activated.get('legacy_in_flight') != 0):
+                raise RuntimeError('Maps recovery epoch one was not activated')
+        finally:
+            if paused:
+                resumed = await service.execute('set_sends_paused',
+                                                {'protocol_version': 1, 'sends_paused': False})
+                if (resumed.get('protocol_epoch') != 1 or resumed.get('sends_paused') is not False
+                        or resumed.get('legacy_in_flight') != 0):
+                    raise RuntimeError('Maps recovery sends were not safely resumed')
+        controller = ChatRecoveryCutoverController(cache, directus)
+        final = await controller.get_state(authoritative=True)
+        cached = await controller.get_state()
+        if any(state != {'protocol_epoch': 1, 'sends_paused': False, 'legacy_in_flight': 0}
+               for state in (final, cached)):
+            raise RuntimeError('Maps recovery epoch one is not open for sends')
+    finally:
+        await directus.close()
+        await cache.close()
+    print(json.dumps({'protocol_epoch': 1, 'sends_paused': False, 'legacy_in_flight': 0}))
+
+asyncio.run(main())
+"""
+    try:
+        result = compose(
+            "exec", "-T", "-e", "OPENMATES_CI_MAPS_CHAT_EPOCH_FIXTURE=1",
+            "api", "python", "-c", program, capture=True, timeout=60,
+        )
+    except subprocess.CalledProcessError:
+        raise RuntimeError("Disposable maps recovery epoch activation failed") from None
+    try:
+        receipt = json.loads(result.stdout.splitlines()[-1])
+    except (IndexError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Disposable maps recovery epoch omitted its receipt") from exc
+    if receipt != {"protocol_epoch": 1, "sends_paused": False, "legacy_in_flight": 0}:
+        raise RuntimeError("Disposable maps recovery epoch activation was incomplete")
     return receipt
 
 
@@ -1121,6 +1227,8 @@ def run_e2e(
                             run_isolated_legacy_claim_probe()
                             capacity_epoch_receipt = activate_isolated_recovery_epoch()
                         recovery_epoch_receipt = capacity_epoch_receipt
+                    if name == MAPS_DISCOVERY_CHAT_SPEC:
+                        recovery_epoch_receipt = activate_isolated_maps_chat_epoch(name)
                     env.update(primary)
                     if name in BILLING_STORAGE_PROFILES:
                         billing_env, billing_paths = prepare_storage_billing_fixture(
