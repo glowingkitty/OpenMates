@@ -1,13 +1,14 @@
 schema_version: 2
 id: learning-improvements
 title: Article learning actions and phased tutoring
-goal: Implement and test and deploy the approved learning improvements to OpenMates CLI, then web app, then Apple
-  app.
+goal: Implement and test and deploy the approved learning improvements to OpenMates CLI, then web app, then
+  Apple app.
 authorization:
   source: User confirmation in codex:01a10908-1dde-7ee2-a3b4-d6ca117ba2f1
-  text: Yes great - go ahead and implement and test and deploy. To OpenMates cli, then web app, then apple app.
-  approved_design: The immediately preceding wiki cache, Study learning_goals, follow-up spoiler prevention and
-    phased Study tutoring proposal. Existing explicit approval is reused; no new product scope is introduced.
+  text: Yes great - go ahead and implement and test and deploy. To OpenMates cli, then web app, then apple
+    app.
+  approved_design: The immediately preceding wiki cache, Study learning_goals, follow-up spoiler prevention
+    and phased Study tutoring proposal. Existing explicit approval is reused; no new product scope is introduced.
 approved_by_user: true
 approvals:
   specification:
@@ -26,9 +27,10 @@ scope:
   - Public-only GPT-OSS 120B learning bundles, 24-hour Redis cache with miss coalescing and bounded authenticated
     generation.
   - Existing CLI chat validation and npm/pip Wikipedia learning API access, optional Study goal difficulty.
-  - Web fullscreen related links, preserve-draft send to originating chat and encrypted deduplicated Study save.
+  - Web fullscreen related links, preserve-draft send to originating chat and encrypted deduplicated Study
+    save.
   - Strengthened learning follow-ups and phased Learn topic/Test knowledge with learner evidence.
-  - "Apple handoff prompt for the user\u2019s Mac agent, based on the deployed dev commit."
+  - Apple handoff prompt for the user’s Mac agent, based on the deployed dev commit.
   - User-approved wiki search and wiki show commands; show mirrors fullscreen article content, related articles
     and questions.
   out:
@@ -56,7 +58,8 @@ decisions:
   decided_at: '2026-10-04'
 - id: D-3
   status: active
-  decision: Provide wiki search and wiki show; no learning subcommand. Validate tutoring via existing chat conversations.
+  decision: Provide wiki search and wiki show; no learning subcommand. Validate tutoring via existing chat
+    conversations.
   reason: User explicitly approved article search and reading commands and clarified that learning is a confusing
     subcommand name.
   decided_at: '2026-10-04'
@@ -67,7 +70,8 @@ decisions:
   decided_at: '2026-10-04'
 - id: D-5
   status: active
-  decision: Include search, summary, public suggestions and the complete article view in both TypeScript and Python SDKs.
+  decision: Include search, summary, public suggestions and the complete article view in both TypeScript and
+    Python SDKs.
   reason: User explicitly requested SDK parity with CLI and web.
   decided_at: '2026-10-04'
 verification:
@@ -75,8 +79,9 @@ verification:
 - Relevant REST/CLI/npm/pip/browser E2E coverage through isolated GitHub CI; real inference on dev only.
 - Real multi-message CLI learning chat and same-article cache reuse.
 - Web preview and laptop/mobile rendering/action verification.
-- Apple handoff tied to the final deployed dev commit; native compile and interaction checks assigned to the Mac agent.
-status: implementing
+- Apple handoff tied to the final deployed dev commit; native compile and interaction checks assigned to the
+  Mac agent.
+status: verified
 scenarios:
 - id: S-1
   title: Learn from an article in the current lesson
@@ -85,7 +90,8 @@ scenarios:
   when:
   - They save the topic or send a public learning question.
   then:
-  - One encrypted interest is saved or one message sends in the original chat, preserving drafts and teaching state.
+  - One encrypted interest is saved or one message sends in the original chat, preserving drafts and teaching
+    state.
 - id: S-2
   title: Tutor with evidence and no answer leaks
   given:
@@ -97,9 +103,10 @@ scenarios:
 acceptance_criteria:
 - id: AC-1
   scenario: S-1
-  text: CLI/SDK public article bundles use canonical identity, validated output, bounded generation and shared cache.
+  text: CLI/SDK public article bundles use canonical identity, validated output, bounded generation and shared
+    cache.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: cli
   verification_ids:
@@ -108,7 +115,7 @@ acceptance_criteria:
   scenario: S-2
   text: Study phases and learning follow-ups preserve learner effort and unanswered exercise answers.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: related_backend
   verification_ids:
@@ -117,7 +124,7 @@ acceptance_criteria:
   scenario: S-1
   text: Web related articles, current-chat sends and encrypted interest saves work at laptop/mobile sizes.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: playwright
   verification_ids:
@@ -127,7 +134,7 @@ acceptance_criteria:
   text: Provide a self-contained Apple handoff prompt with exact deployed source, rendered web behavior, remaining
     changes and required Mac checks.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: manual
   verification_ids:
@@ -138,7 +145,8 @@ tests:
   covers:
   - AC-1
   assertions:
-  - CLI/SDK public article bundles use canonical identity, validated output, bounded generation and shared cache.
+  - CLI/SDK public article bundles use canonical identity, validated output, bounded generation and shared
+    cache.
   red_phase:
     required: false
     expected: Existing evaluation evidence suffices.
@@ -148,7 +156,11 @@ tests:
     required: true
     expected: Required scoped checks pass with actual receipts.
     evidence:
-      status: pending
+      status: passed
+      timestamp: '2026-10-05T03:00:26.383103+00:00'
+      subject_commit: d370ce57e6f426178af15d9915178f43d0c28cb7
+      reason: Isolated API/auth and memory checks passed; published CLI alpha.15 and both SDK article methods
+        matched real dev bundles across two disposable accounts. See evidence.md and retained real API receipts.
 - id: T-LEARN-2
   type: manual
   covers:
@@ -164,7 +176,13 @@ tests:
     required: true
     expected: Required scoped checks pass with actual receipts.
     evidence:
-      status: pending
+      status: passed
+      timestamp: '2026-10-05T03:22:00+00:00'
+      actor: Codex
+      subject_commit: bd5ae06c236c4aefabcf2a67767dc063401e2c0a
+      reason: 45 focused tests and real Jev probes pass. After upstream preprocessing repair, the published
+        CLI passed two tutoring turns and immediate first-turn quiz start. Reviewed bodies withheld the unattempted
+        answer and used neutral placeholders. Disposable state cleanup verified complete.
 - id: T-LEARN-3
   type: manual
   covers:
@@ -180,14 +198,21 @@ tests:
     required: true
     expected: Required scoped checks pass with actual receipts.
     evidence:
-      status: pending
+      status: passed
+      timestamp: '2026-10-05T06:52:51.759639+00:00'
+      actor: Codex
+      subject_commit: 911e2f0176a589a7e82894a0edb2ae33939e9a0f
+      reason: Five wiki and eight composer component checks pass. Full encrypted chat-flow run 37272242810
+        passes all three cases without retries or skips, including Study dedup/edit, same-chat send, draft
+        reload, new-chat send and rejection. Deployed guest laptop/mobile screenshots reviewed; authenticated
+        interaction proof is isolated CI. See evidence.md.
 - id: T-LEARN-4
   type: manual
   covers:
   - AC-4
   assertions:
-  - Provide a self-contained Apple handoff prompt with exact deployed source, rendered web behavior, remaining changes
-    and required Mac checks.
+  - Provide a self-contained Apple handoff prompt with exact deployed source, rendered web behavior, remaining
+    changes and required Mac checks.
   red_phase:
     required: false
     expected: Existing evaluation evidence suffices.
@@ -197,12 +222,18 @@ tests:
     required: true
     expected: Required scoped checks pass with actual receipts.
     evidence:
-      status: pending
+      status: passed
+      timestamp: '2026-10-05T06:52:51.759639+00:00'
+      actor: Codex
+      subject_commit: 911e2f0176a589a7e82894a0edb2ae33939e9a0f
+      reason: Reviewed self-contained apple-handoff.md names exact deployed product commit, web source and
+        evidence, remaining native wire-model/UI/chat/memory/phase work and required Mac build/Simulator checks.
+        No native build or TestFlight delivery claimed.
 tasks:
 - id: TASK-2518
   title: Article learning actions across clients
-  status: pending
-  phase: working_tasks
+  status: done
+  phase: complete
   covers:
     scenarios:
     - S-1
@@ -213,7 +244,7 @@ tasks:
   expected_files:
   - backend
   - frontend
-  - apple
+  - docs/plans/learning-improvements/apple-handoff.md
   verification_ids:
   - T-LEARN-1
   - T-LEARN-3
@@ -226,12 +257,12 @@ tasks:
     files:
     - backend
     - frontend
-    - apple
+    - docs/plans/learning-improvements
     shared_files: []
 - id: TASK-430
   title: Learning suggestions and phased Study tutoring
-  status: pending
-  phase: working_tasks
+  status: done
+  phase: complete
   covers:
     scenarios:
     - S-2
@@ -250,20 +281,25 @@ tasks:
     files:
     - backend
     - frontend
-    - apple
     shared_files: []
 implementation_state:
-  subject_commit: 8addcd723385c67660d77623f167f8d7408dd85d
+  subject_commit: 911e2f0176a589a7e82894a0edb2ae33939e9a0f
 attempts:
 - id: ATT-1
   task_id: TASK-2518
   outcome: planned
   approach: Implement the user-approved design in CLI, web and Apple order.
   recorded_at: '2026-10-04'
+- id: ATT-2
+  task_id: TASK-2518
+  outcome: succeeded
+  approach: Publish CLI/SDK and phased tutor; verify encrypted wiki web actions, deploy exact reviewed source
+    and prepare Mac handoff.
+  recorded_at: '2026-10-05T06:52:51.759639+00:00'
 handoff:
   current_task_id: TASK-2518
-  next_action: Implement backend and CLI article learning bundles.
+  next_action: Forward apple-handoff.md to the user’s Mac agent for remaining native implementation and verification.
   command: Use the assigned agent-0c78 workspace.
-  expected_outcome: Tested CLI/SDK behavior before web implementation.
-  last_verified_commit: 8addcd723385c67660d77623f167f8d7408dd85d
+  expected_outcome: Apple parity implemented and tested in the Mac agent’s assigned session.
+  last_verified_commit: 911e2f0176a589a7e82894a0edb2ae33939e9a0f
   blocker: null

@@ -87,7 +87,7 @@ Key extensions:
 **Sending:**
 - `handleSend()` in [sendHandlers.ts](../../frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts) serializes the TipTap document back to canonical markdown via `tipTapToCanonicalMarkdown()` from [serializers.ts](../../frontend/packages/ui/src/message_parsing/serializers.ts).
 - Embed nodes are serialized to their fenced code block format (JSON references for server embeds, raw code for preview embeds).
-- Draft state is flushed and cleared after successful send.
+- Ordinary sends flush and clear the draft after successful submission. Wiki learning questions use a separate editor and the normal encrypted send path with `preserveDraft`; top-level boolean `preserve_draft: true` also retains the server draft. Rejected questions retain the article and composer for retry.
 
 ### Layout Behavior
 
@@ -103,6 +103,8 @@ The `@` character triggers [MentionDropdown.svelte](../../frontend/packages/ui/s
 ### Drafts
 
 Draft persistence is managed by `draftService` (imported from `../../services/draftService`). Drafts are saved automatically on changes and restored when returning to a chat. The service handles encryption and IndexedDB storage.
+
+Opening a saved Study goal flushes the composer before entering the Apps workspace. Leaving Chat invalidates the route's loaded-chat marker because ActiveChat is unmounted; its replacement loads the encrypted draft again. A fresh empty editor is not treated as a newer local edit merely because the saved draft state survived the unmount. Explicit unsaved or in-progress edit flags still protect local edits.
 
 ### PII Detection
 
