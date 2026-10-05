@@ -1,0 +1,4373 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-04'
+generated_at: '2026-10-05T00:20:26+00:00'
+range:
+  since: '2026-10-04T00:00:00+00:00'
+  until: '2026-10-05T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 33
+  section_counts:
+    features: 5
+    bug_fixes: 10
+    improvements: 2
+    docs: 7
+    tests: 9
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 13
+  dev_only_items: 33
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add bounded Geoapify map discovery'
+    section: features
+    commits:
+    - c39192d29
+    authored_at: '2026-10-04T23:50:33+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/maps/app.yml
+    - backend/apps/maps/skills/discovery.py
+    - backend/apps/maps/skills/search_skill.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/providers/geoapify.yml
+    - backend/shared/providers/geoapify/budget.py
+    - backend/shared/providers/geoapify/places.py
+    - backend/tests/test_geoapify_places_provider.py
+    - backend/tests/test_maps_geoapify_discovery.py
+    - docs/plans/maps-geoapify-discovery/plan.yml
+    - docs/user-guide/apps/maps.md
+    - frontend/apps/web_app/tests/components/maps-discovery.spec.ts
+    - frontend/apps/web_app/tests/skill-maps-search.spec.ts
+    - specifications/features/app-skills/maps-search/examples.yml
+    - specifications/features/app-skills/maps-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: skill:maps:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:maps, embed:maps:search, skill:maps:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: bound agentic storage and durable recovery'
+    section: features
+    commits:
+    - 1e7b84c33
+    authored_at: '2026-10-04T19:49:45+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/celery_helpers.py
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/apps/ai/testing/capacity_fixtures.py
+    - backend/apps/audio/tasks/common.py
+    - backend/apps/audio/tasks/generate_task.py
+    - backend/apps/audio/tasks/speak_task.py
+    - backend/apps/base_app.py
+    - backend/apps/docs/tasks/generate_task.py
+    - backend/apps/images/tasks/generate_task.py
+    - backend/apps/images/tasks/vectorize_task.py
+    - backend/apps/models3d/tasks/generate_task.py
+    - backend/apps/music/tasks/generate_task.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/videos/skills/create_skill.py
+    - backend/apps/videos/tasks/generate_task.py
+    - backend/apps/videos/tasks/render_remotion_task.py
+    - backend/core/api/Dockerfile
+    - backend/core/api/app/routes/account_exports.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/connection_manager.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/notebook_run_output_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/request_embed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_keys_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_message_hydration.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_sidecar_hydration.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/sync_api.py
+    - backend/core/api/app/routes/teams.py
+    - backend/core/api/app/routes/video_remotion.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/account_content_deletion_service.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/core/api/app/services/bounded_archive_io.py
+    - backend/core/api/app/services/bounded_message_window.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/core/api/app/services/chat_archive_mutation_service.py
+    - backend/core/api/app/services/chat_checkpoint_pagination.py
+    - backend/core/api/app/services/chat_deletion_fence.py
+    - backend/core/api/app/services/chat_message_archive_service.py
+    - backend/core/api/app/services/chat_recovery_cutover.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/services/chat_storage_policy.py
+    - backend/core/api/app/services/directus/chat_key_wrapper_methods.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/core/api/app/services/embed_diff_service.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/services/embed_version_archive_service.py
+    - backend/core/api/app/services/embed_version_transaction_service.py
+    - backend/core/api/app/services/s3/config.py
+    - backend/core/api/app/services/scoped_directus_pagination.py
+    - backend/core/api/app/services/shared_auxiliary_window.py
+    - backend/core/api/app/services/shared_plan_task_window.py
+    - backend/core/api/app/services/storage_reference_service.py
+    - backend/core/api/app/services/team_data_portability_service.py
+    - backend/core/api/app/services/team_workspace_service.py
+    - backend/core/api/app/tasks/base_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/embed_version_archive_tasks.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/storage_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/extensions/chat-archive-transaction/package.json
+    - backend/core/directus/extensions/chat-archive-transaction/src/index.js
+    - backend/core/directus/extensions/chat-archive-transaction/src/locator-window.js
+    - backend/core/directus/extensions/chat-archive-transaction/src/mutations.js
+    - backend/core/directus/extensions/chat-archive-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-archive-transaction/src/warm-policy.js
+    - backend/core/directus/extensions/chat-archive-transaction/test/locator-window.test.js
+    - backend/core/directus/extensions/chat-archive-transaction/test/mutations.test.js
+    - backend/core/directus/extensions/chat-archive-transaction/test/operations.test.js
+    - backend/core/directus/extensions/chat-archive-transaction/test/warm-policy.test.js
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/extensions/embed-version-transaction/src/index.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - backend/core/directus/schemas/chat_compression_checkpoints.yml
+    - backend/core/directus/schemas/chat_message_archives.yml
+    - backend/core/directus/schemas/chat_recovery_account_fences.yml
+    - backend/core/directus/schemas/chat_recovery_authorized_direct_skills.yml
+    - backend/core/directus/schemas/chat_recovery_authorized_rerenders.yml
+    - backend/core/directus/schemas/chat_recovery_chat_deletion_fences.yml
+    - backend/core/directus/schemas/chat_recovery_legacy_batch_claims.yml
+    - backend/core/directus/schemas/chat_recovery_legacy_output_producers.yml
+    - backend/core/directus/schemas/chat_recovery_output_producer_children.yml
+    - backend/core/directus/schemas/chat_recovery_output_producers.yml
+    - backend/core/directus/schemas/chat_recovery_outputs.yml
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/schemas/embed_diffs.yml
+    - backend/core/directus/schemas/messages.yml
+    - backend/core/directus/setup/accountability_policy.py
+    - backend/core/directus/setup/migrate_chat_message_archive_indexes.sql
+    - backend/core/directus/setup/migrate_chat_recovery_outputs_indexes.sql
+    - backend/core/directus/setup/migrate_chat_recovery_unique_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.yml
+    - backend/shared/python_utils/chat_completion_recovery.py
+    - backend/shared/python_utils/chat_completion_recovery_job.py
+    - backend/shared/python_utils/chat_recovery_context.py
+    - backend/shared/python_utils/embed_producer_dispatch.py
+    - backend/shared/python_utils/embed_producer_worker.py
+    - backend/shared/python_utils/volatile_embed_authority.py
+    - backend/shared/testing/api_response_cache.py
+    - backend/shared/testing/caching_http_transport.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_account_deletion_storage_lifecycle.py
+    - backend/tests/test_account_export_streaming_storage.py
+    - backend/tests/test_account_personal_content_deletion.py
+    - backend/tests/test_ai_working_cache_budget.py
+    - backend/tests/test_app_skill_rest_context.py
+    - backend/tests/test_bounded_message_window.py
+    - backend/tests/test_capacity_version_privacy_fixture.py
+    - backend/tests/test_chat_archive_mutation_service.py
+    - backend/tests/test_chat_checkpoint_pagination.py
+    - backend/tests/test_chat_completion_recovery_jobs.py
+    - backend/tests/test_chat_completion_recovery_retention.py
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - backend/tests/test_chat_compressor.py
+    - backend/tests/test_chat_content_batch_handler.py
+    - backend/tests/test_chat_deletion_fence_callers.py
+    - backend/tests/test_chat_failure_notifications.py
+    - backend/tests/test_chat_message_archive_pages.py
+    - backend/tests/test_chat_methods_bounded_query_release.py
+    - backend/tests/test_chat_recovery_account_fence.py
+    - backend/tests/test_chat_recovery_directus_deployment.py
+    - backend/tests/test_chat_recovery_large_output_intent.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_chat_recovery_service.py
+    - backend/tests/test_chat_recovery_telemetry.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    - backend/tests/test_chat_storage_policy.py
+    - backend/tests/test_cold_chat_archive_service.py
+    - backend/tests/test_complete_scoped_records.py
+    - backend/tests/test_cross_client_draft_sync.py
+    - backend/tests/test_delete_chat_handler.py
+    - backend/tests/test_detached_docs_retry_boundary.py
+    - backend/tests/test_detached_embed_producer.py
+    - backend/tests/test_direct_intent_completion_reconcile.py
+    - backend/tests/test_embed_diff_periodic_snapshot.py
+    - backend/tests/test_embed_methods.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_embed_version_archive_service.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_legacy_queued_handoff.py
+    - backend/tests/test_mermaid_embed_streaming.py
+    - backend/tests/test_message_received_embed_bundle.py
+    - backend/tests/test_mindmap_embed_streaming.py
+    - backend/tests/test_native_chats_api.py
+    - backend/tests/test_pending_embed_cache.py
+    - backend/tests/test_persistence_tasks.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_projects.py
+    - backend/tests/test_request_embed_authorization.py
+    - backend/tests/test_sdk_chat_fork_rewind.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - backend/tests/test_setup_schemas.py
+    - backend/tests/test_share_chat_window_loading.py
+    - backend/tests/test_shared_auxiliary_window.py
+    - backend/tests/test_shared_plan_task_window.py
+    - backend/tests/test_standalone_embed_generator.py
+    - backend/tests/test_storage_archive_pg_races.py
+    - backend/tests/test_storage_capacity_replay.py
+    - backend/tests/test_storage_recovery_fixture.py
+    - backend/tests/test_storage_reference_reconciliation.py
+    - backend/tests/test_storage_reference_service.py
+    - backend/tests/test_store_embed_authorization.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    - backend/tests/test_store_embed_keys_authorization.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - backend/tests/test_sync_api.py
+    - backend/tests/test_sync_message_hydration.py
+    - backend/tests/test_sync_sidecar_and_wrapper_windows.py
+    - backend/tests/test_teams_chat_ai.py
+    - backend/tests/test_teams_move_authorization.py
+    - backend/tests/test_volatile_ai_live_session.py
+    - docs/architecture/isolated-github-tests.md
+    - docs/architecture/live-mock-testing.md
+    - docs/plans/agentic-coding-storage-scale/artifact-head-followup.md
+    - docs/plans/agentic-coding-storage-scale/legal-storage-review.md
+    - docs/plans/agentic-coding-storage-scale/plan.yml
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/tests/cli-embed-diff-versions.spec.ts
+    - frontend/apps/web_app/tests/components/embed-version-timeline.spec.ts
+    - frontend/apps/web_app/tests/components/read-only-message-parsed-doc.spec.ts
+    - frontend/apps/web_app/tests/components/shared-auxiliary-load-button.spec.ts
+    - frontend/apps/web_app/tests/legal-history-retention.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-bounded-history.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/storage-capacity-replay.spec.ts
+    - frontend/apps/web_app/tests/storage-capacity-target.spec.ts
+    - frontend/apps/web_app/tests/storage-detached-producer.spec.ts
+    - frontend/apps/web_app/tests/storage-message-embed-bundle.spec.ts
+    - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
+    - frontend/apps/web_app/tests/storage-recovery-fixtures.ts
+    - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
+    - frontend/packages/openmates-cli/src/capacityReplayMarker.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/src/embedCreator.ts
+    - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/capacityReplayMarker.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/e2e-provisioning.test.ts
+    - frontend/packages/openmates-cli/tests/embedCreatorDurability.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputCrypto.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputWs.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.preview.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/SharedAuxiliaryLoadButton.preview.ts
+    - frontend/packages/ui/src/components/SharedAuxiliaryLoadButton.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.preview.ts
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/config/__tests__/apiProjectFileCapability.test.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/historicalDirectusPrivacyCopy.test.ts
+    - frontend/packages/ui/src/legal/__tests__/recoveryPrivacyCopy.test.ts
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedDiffStore.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedSendersReceipts.test.ts
+    - frontend/packages/ui/src/services/__tests__/pendingEmbedQueue.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryCanonicalReuse.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryEmbedReceiptErrors.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryEmbedSource.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/__tests__/sharedPlanTaskPage.test.ts
+    - frontend/packages/ui/src/services/__tests__/sharedSubChatPage.test.ts
+    - frontend/packages/ui/src/services/canonicalEmbedWriteCoordinator.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/inferredChatDeletion.test.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageEmbedBundleJournal.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/db/pendingEmbedQueue.ts
+    - frontend/packages/ui/src/services/embedDiffStore.ts
+    - frontend/packages/ui/src/services/embedResolver.ts
+    - frontend/packages/ui/src/services/embedSenders.ts
+    - frontend/packages/ui/src/services/hostedProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/recoveryEmbedSource.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/sendersEmbeds.ts
+    - frontend/packages/ui/src/services/sharedChatDetailsService.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/chatCompletionRecovery.test.ts
+    - frontend/packages/ui/src/utils/chatCompletionRecovery.ts
+    - scripts/storage_archive_integration.py
+    - scripts/storage_capacity.py
+    - scripts/storage_capacity_client.mjs
+    - scripts/storage_capacity_page_adapter.mjs
+    - scripts/storage_capacity_version_adapter.mjs
+    - scripts/storage_rollout.py
+    - scripts/tests/test_storage_archive_integration.py
+    - scripts/tests/test_storage_capacity.py
+    - scripts/tests/test_storage_capacity_version_diagnostics.py
+    - scripts/tests/test_storage_rollout.py
+    - shared/docs/privacy_policy.yml
+    - shared/docs/privacy_promises.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:docs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/docs/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:docs:doc
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:docs
+      source: backend/apps/docs/app.yml
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:videos:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:videos:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:audio, app:docs, app:images, app:models3d, app:music, app:social_media,
+      app:videos, embed:code:code, embed:docs:doc, embed:mail:email, embed:mail:search, embed:videos:create, platform:projects,
+      platform:teams, skill:ai:ask, skill:videos:create'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add phased focus modes with encrypted progress and client parity'
+    section: features
+    commits:
+    - a314f9054
+    authored_at: '2026-10-04T11:52:34+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/FocusPhaseModels.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusPhaseNoticeView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/FocusModePhasesNativeView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProjectsView.swift
+    - apple/OpenMatesTests/FocusPhaseTests.swift
+    - backend/apps/ai/processing/focus_phases.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/jobs/focus_modes/career-insights/SKILL.md
+    - backend/core/api/app/routes/apps.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_deactivate_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/skill_registry.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/schemas/chats.yml
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/shared/python_utils/chat_ciphertext_fingerprint.py
+    - backend/shared/python_utils/focus_mode_skill_loader.py
+    - backend/tests/test_focus_mode_routing.py
+    - backend/tests/test_focus_phases.py
+    - docs/architecture/apps/focus-mode-phases-proposal.md
+    - docs/plans/focus-mode-phases/plan.yml
+    - frontend/apps/web_app/tests/components/focus-phases.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/focus-phases.test.ts
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/FocusPhaseNotice.svelte
+    - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+    - frontend/packages/ui/src/components/settings/FocusModePhases.preview.ts
+    - frontend/packages/ui/src/components/settings/FocusModePhases.svelte
+    - frontend/packages/ui/src/components/settings/SettingsProjects.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/focus_phases.yml
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersFocusPhases.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/types/apps.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/types/focusPhases.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/focus-modes/examples.yml
+    - specifications/features/focus-modes/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:jobs, platform:ios, platform:macos, platform:projects, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: reconcile Directus tracking with scoped setup'
+    section: features
+    commits:
+    - 046e28be5
+    authored_at: '2026-10-04T01:29:52+00:00'
+    changed_paths:
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: disable redundant Directus audit writes for high-write storage'
+    section: features
+    commits:
+    - a46e480f7
+    authored_at: '2026-10-04T01:16:32+00:00'
+    changed_paths:
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/schemas/embed_diffs.yml
+    - backend/core/directus/schemas/embeds.yml
+    - backend/core/directus/schemas/messages.yml
+    - backend/core/directus/schemas/test_results.yml
+    - backend/core/directus/setup/accountability_policy.py
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/scripts/inventory_directus_storage.py
+    - backend/scripts/storage_accountability_integration.py
+    - backend/tests/test_directus_storage_inventory.py
+    - backend/tests/test_setup_schemas.py
+    - backend/tests/test_storage_accountability_integration.py
+    - frontend/apps/web_app/tests/storage-accountability-integration.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: preserve composer focus and draft attachments'
+    section: bug_fixes
+    commits:
+    - 000860505
+    authored_at: '2026-10-04T23:48:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/apps/web_app/tests/cli-pair-login.spec.ts
+    - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-prompt-composer.spec.ts
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    - frontend/apps/web_app/tests/draft-embed-preview.spec.ts
+    - frontend/apps/web_app/tests/location-security-flow.spec.ts
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.preview.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInputFocusFixture.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInputFocusFixture.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceComposerFocusFixture.preview.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceComposerFocusFixture.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+    - frontend/packages/ui/src/services/drafts/__tests__/draftCore.test.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftWebsocket.test.ts
+    - frontend/packages/ui/src/services/drafts/draftContent.ts
+    - frontend/packages/ui/src/services/drafts/draftCore.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/drafts/draftWebsocket.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_message_input_welcome_contract.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore bounded saved-reference API after recovery repair'
+    section: bug_fixes
+    commits:
+    - 8addcd723
+    authored_at: '2026-10-04T22:25:10+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/tests/test_embed_version_routes.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve missing artifact version recovery'
+    section: bug_fixes
+    commits:
+    - 9f42f3f23
+    authored_at: '2026-10-04T20:40:52+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/tests/test_embed_version_routes.py
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve focus phase evidence after research'
+    section: bug_fixes
+    commits:
+    - 3d43c3d53
+    authored_at: '2026-10-04T14:52:03+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/focus_phase_history.py
+    - backend/apps/ai/processing/focus_phases.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_focus_phase_history.py
+    - backend/tests/test_focus_phases.py
+    - docs/architecture/apps/focus-mode-phases-proposal.md
+    - docs/plans/focus-mode-phases/plan.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore phased focus across synced chat turns'
+    section: bug_fixes
+    commits:
+    - 6039c6fa5
+    authored_at: '2026-10-04T14:23:39+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_metadata_permissions.py
+    - backend/tests/test_native_chats_api.py
+    - docs/architecture/apps/focus-mode-phases-proposal.md
+    - docs/plans/focus-mode-phases/plan.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/focus-phases.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: respect explicit focus before automatic planning'
+    section: bug_fixes
+    commits:
+    - 2eac4d5e5
+    authored_at: '2026-10-04T13:54:16+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_plan_focus_routing.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: publish Apple offline, speech and parity improvements'
+    section: bug_fixes
+    commits:
+    - e97f14609
+    authored_at: '2026-10-04T14:51:01+02:00'
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - DESIGN.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS_Unit_Tests.xcscheme
+    - apple/OpenMates/Resources/LocalModels/PocketTTS-NOTICE.txt
+    - apple/OpenMates/Resources/LocalModels/catalog.json
+    - apple/OpenMates/Resources/OpenMatesMacOS.entitlements
+    - apple/OpenMates/Resources/OpenMatesMacOSPersonalTeam.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatRecoveryV2Envelope.swift
+    - apple/OpenMates/Sources/Core/Crypto/KeychainHelper.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/LegacyProcessingActivityRetirement.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/LocalModelLiveActivityCoordinator.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/OpenMatesLiveActivityAttributes.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/UpcomingMemoryActivityNavigation.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/UpcomingMemoryLiveActivityBridge.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/UpcomingMemoryLiveActivityCoordinator.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalModelBackgroundTransfers.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalModelLabController.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalModelStore.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalPrivacyFilterRuntime.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalSpeechRuntimes.swift
+    - apple/OpenMates/Sources/Core/LocalModels/PocketTTSLabController.swift
+    - apple/OpenMates/Sources/Core/LocalModels/PocketTTSRuntime.swift
+    - apple/OpenMates/Sources/Core/LocalModels/ProductionPIIRuntime.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/ChatMessageWindowClient.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/NativeWorkspaceOfflineCache.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMates/Sources/Core/Services/ChatCompletionRecoveryCoordinator.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/DraftSyncCoordinator.swift
+    - apple/OpenMates/Sources/Core/Services/NativeChatActivityStore.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchChatShareService.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchWhisperLabAssets.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchWhisperLabController.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchWhisperTinyRuntime.swift
+    - apple/OpenMates/Sources/Core/Widgets/ActiveChatsCoordinator.swift
+    - apple/OpenMates/Sources/Core/Widgets/ActiveChatsWidgetBridge.swift
+    - apple/OpenMates/Sources/Core/Widgets/ActiveChatsWidgetNavigationPolicy.swift
+    - apple/OpenMates/Sources/Core/Widgets/TasksWidgetBridge.swift
+    - apple/OpenMates/Sources/Core/Widgets/WorkflowWidgetRunService.swift
+    - apple/OpenMates/Sources/Core/Widgets/WorkflowsWidgetBridge.swift
+    - apple/OpenMates/Sources/DevPreview/DevActiveChatsWidgetFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevChatContinuationLayoutFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevComposerPIIPreview.swift
+    - apple/OpenMates/Sources/DevPreview/DevDailyInspirationFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedMemoryActionFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedShareSettingsFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevFullscreenActionFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevHistoryWelcomeFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevHostingEmbedFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevPCBSchematicActionsFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/DevPreview/DevResponsiveEmbedFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevSidebarComponentFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevURLMessageEmbedFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevUpcomingMemoryLiveActivityFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevWikiFullscreenFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevWorkflowsWidgetFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevWorkspaceSwitcherFixture.swift
+    - apple/OpenMates/Sources/Features/Apps/AppsGuestResults.swift
+    - apple/OpenMates/Sources/Features/Apps/AppsWorkspaceModels.swift
+    - apple/OpenMates/Sources/Features/Apps/AppsWorkspacePreviewFixture.swift
+    - apple/OpenMates/Sources/Features/Apps/AppsWorkspaceService.swift
+    - apple/OpenMates/Sources/Features/Apps/AppsWorkspaceStore.swift
+    - apple/OpenMates/Sources/Features/Apps/AppsWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Input/ComposerSearchSuggestions.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AppleSharePanel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageHighlightsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageTextSelection.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Actions/NativeEmbedMemoryAction.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedCalendarFile.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/NativeDesignIconActions.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/NativeDocumentDOCX.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/NativeEmbedActions.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/NativeEmbedDownload.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/NativePCBSchematicActions.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/HostingEmbedModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/HostingEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/HostingEmbedStrings.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebReadEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebsiteEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiArticleModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContextMenuView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedResponsiveGeometry.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectChatCard.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectReadmeView.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectRemoteFileFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectRemoteSourceClient.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsSidebarView.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceModels.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspacePreviewFixture.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceService.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceStore.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/Settings/Memories/SettingsMemoryService.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/PocketTTSLabView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsLocalModelsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Features/Tasks/TaskBoardInteractionSupport.swift
+    - apple/OpenMates/Sources/Features/Tasks/TaskDetailView.swift
+    - apple/OpenMates/Sources/Features/Tasks/TaskModels.swift
+    - apple/OpenMates/Sources/Features/Tasks/TasksWorkspaceStore.swift
+    - apple/OpenMates/Sources/Features/Tasks/TasksWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/Tasks/UserPlansService.swift
+    - apple/OpenMates/Sources/Features/Tasks/UserTasksService.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowDetailHeader.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowGraphView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowHomeView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowRunTimelineView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowStepTestService.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowValueView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatProjectNavigator.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatSidebarContent.swift
+    - apple/OpenMates/Sources/Shared/Components/OMSettingsElements.swift
+    - apple/OpenMates/Sources/Shared/Components/ReadOnlySelectableText.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Components/WorkspaceContinuationLayout.swift
+    - apple/OpenMates/Sources/Shared/Components/WorkspacePromptComposerView.swift
+    - apple/OpenMates/Sources/Shared/Components/WorkspaceSwitcher.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerRendererRegistry.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechAppRuntime.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentViewProvider.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDraftRepository.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerPIIDecorations.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerPIIDetectionCoordinator.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerSpeechControl.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerTextAttachment.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeAssistantSpeech.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerEditorView.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+    - apple/OpenMates/Sources/Shared/Extensions/WidgetActiveChatsData.swift
+    - apple/OpenMates/Sources/Shared/Extensions/WidgetActiveChatsView.swift
+    - apple/OpenMates/Sources/Shared/Extensions/WidgetTasksData.swift
+    - apple/OpenMates/Sources/Shared/Extensions/WidgetWorkflowsData.swift
+    - apple/OpenMates/Sources/Shared/Extensions/WidgetWorkflowsView.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesShared/URLMessageEmbedPreparation.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/ActiveChatsPolicyTests.swift
+    - apple/OpenMatesTests/ActiveChatsWidgetTests.swift
+    - apple/OpenMatesTests/AppDeepLinkRoutingTests.swift
+    - apple/OpenMatesTests/AppleComposerRendererRegistryTests.swift
+    - apple/OpenMatesTests/AppsWorkspaceParityTests.swift
+    - apple/OpenMatesTests/AssistantSpeechPlaybackParityTests.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    - apple/OpenMatesTests/ChatMessageWindowTests.swift
+    - apple/OpenMatesTests/ChatRecoveryV2EnvelopeTests.swift
+    - apple/OpenMatesTests/ChatSearchEngineTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+    - apple/OpenMatesTests/ComposerPIIDetectionCoordinatorTests.swift
+    - apple/OpenMatesTests/ComposerSearchSuggestionTests.swift
+    - apple/OpenMatesTests/DevPreviewLaunchConfigurationTests.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesTests/EmbedResponsiveGeometryTests.swift
+    - apple/OpenMatesTests/EmbedShareSettingsParityTests.swift
+    - apple/OpenMatesTests/EmbedWireFormatTests.swift
+    - apple/OpenMatesTests/HostingEmbedModelTests.swift
+    - apple/OpenMatesTests/KeychainSharingTests.swift
+    - apple/OpenMatesTests/LiveActivityPolicyTests.swift
+    - apple/OpenMatesTests/LocalModelLabControllerTests.swift
+    - apple/OpenMatesTests/LocalModelStoreTests.swift
+    - apple/OpenMatesTests/MessageTextSelectionTests.swift
+    - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    - apple/OpenMatesTests/NativeComposerMentionPIITests.swift
+    - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
+    - apple/OpenMatesTests/NativeEmbedActionTests.swift
+    - apple/OpenMatesTests/NativeEmbedMemoryActionTests.swift
+    - apple/OpenMatesTests/NativePCBSchematicActionTests.swift
+    - apple/OpenMatesTests/PocketTTSLabTests.swift
+    - apple/OpenMatesTests/ProjectReadmeTests.swift
+    - apple/OpenMatesTests/ProjectsWorkspaceTests.swift
+    - apple/OpenMatesTests/PushCompletionNoticePolicyTests.swift
+    - apple/OpenMatesTests/ReadOnlyEmbedTextSelectionTests.swift
+    - apple/OpenMatesTests/S3MediaBoundsTests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesTests/StreamingClientFanoutTests.swift
+    - apple/OpenMatesTests/TasksWidgetTests.swift
+    - apple/OpenMatesTests/TasksWorkspaceTests.swift
+    - apple/OpenMatesTests/URLMessageEmbedPreparationTests.swift
+    - apple/OpenMatesTests/UpcomingMemoryActivityNavigationTests.swift
+    - apple/OpenMatesTests/UpcomingMemoryLiveActivityBridgeTests.swift
+    - apple/OpenMatesTests/WatchAuthStoreTests.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchChatShareServiceTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    - apple/OpenMatesTests/WatchHubDataServiceTests.swift
+    - apple/OpenMatesTests/WatchWhisperLabTests.swift
+    - apple/OpenMatesTests/WatchWorkflowDetailTests.swift
+    - apple/OpenMatesTests/WebSocketReconnectTests.swift
+    - apple/OpenMatesTests/WikiArticleModelTests.swift
+    - apple/OpenMatesTests/WorkflowStepTestServiceTests.swift
+    - apple/OpenMatesTests/WorkflowWidgetTests.swift
+    - apple/OpenMatesTests/WorkflowsParityTests.swift
+    - apple/OpenMatesTests/WorkspaceContinuationLayoutTests.swift
+    - apple/OpenMatesTests/WorkspaceSwitcherLayoutTests.swift
+    - apple/OpenMatesUITests/ActiveChatsWidgetUITests.swift
+    - apple/OpenMatesUITests/AppsWorkspaceParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    - apple/OpenMatesUITests/ComposerPIIDetectionUITests.swift
+    - apple/OpenMatesUITests/DailyInspirationLayoutUITests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - apple/OpenMatesUITests/EmbedResponsiveGeometryUITests.swift
+    - apple/OpenMatesUITests/EmbedShareSettingsParityUITests.swift
+    - apple/OpenMatesUITests/HistoryWelcomeComponentUITests.swift
+    - apple/OpenMatesUITests/HostingEmbedParityUITests.swift
+    - apple/OpenMatesUITests/LocalModelLabUITests.swift
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - apple/OpenMatesUITests/MessageSelectionParityUITests.swift
+    - apple/OpenMatesUITests/NativeComposerInlineEmbedUITests.swift
+    - apple/OpenMatesUITests/NativeEmbedActionUITests.swift
+    - apple/OpenMatesUITests/NativeEmbedMemoryActionUITests.swift
+    - apple/OpenMatesUITests/PCBSchematicActionsUITests.swift
+    - apple/OpenMatesUITests/ProjectREADMEUITests.swift
+    - apple/OpenMatesUITests/ProjectsFilesParityUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - apple/OpenMatesUITests/SettingsPrivacyParityUITests.swift
+    - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    - apple/OpenMatesUITests/TasksWorkspaceInteractionUITests.swift
+    - apple/OpenMatesUITests/URLMessageEmbedUITests.swift
+    - apple/OpenMatesUITests/UpcomingMemoryLiveActivityUITests.swift
+    - apple/OpenMatesUITests/WikiFullscreenParityUITests.swift
+    - apple/OpenMatesUITests/WorkflowsParityUITests.swift
+    - apple/OpenMatesUITests/WorkflowsWidgetUITests.swift
+    - apple/OpenMatesUITests/WorkspaceContinuationLayoutUITests.swift
+    - apple/OpenMatesUITests/WorkspaceSwitcherUITests.swift
+    - apple/OpenMatesWatch/Resources/watch-whisper-tiny.json
+    - apple/OpenMatesWatch/Sources/OpenMatesWatchApp.swift
+    - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+    - apple/OpenMatesWatch/Sources/WatchChatShareView.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchEmbedViews.swift
+    - apple/OpenMatesWatch/Sources/WatchHubDataService.swift
+    - apple/OpenMatesWatch/Sources/WatchHubView.swift
+    - apple/OpenMatesWatch/Sources/WatchPushNotificationManager.swift
+    - apple/OpenMatesWatch/Sources/WatchRootView.swift
+    - apple/OpenMatesWatch/Sources/WatchWhisperLabView.swift
+    - apple/OpenMatesWatch/Sources/WatchWorkflowDetailService.swift
+    - apple/OpenMatesWatch/Sources/WatchWorkflowViews.swift
+    - apple/OpenMatesWatchUITests/WatchChatLayoutUITests.swift
+    - apple/OpenMatesWatchUITests/WatchChatShareUITests.swift
+    - apple/OpenMatesWatchUITests/WatchWhisperLabUITests.swift
+    - apple/OpenMatesWatchUITests/WatchWorkflowDetailUITests.swift
+    - apple/OpenMatesWidget/ActiveChatsWidget.swift
+    - apple/OpenMatesWidget/Info.plist
+    - apple/OpenMatesWidget/Localizable.xcstrings
+    - apple/OpenMatesWidget/MacInfo.plist
+    - apple/OpenMatesWidget/MacWidget.entitlements
+    - apple/OpenMatesWidget/OpenMatesLiveActivity.swift
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - apple/OpenMatesWidget/TasksWidget.swift
+    - apple/OpenMatesWidget/TasksWidgetStrings.swift
+    - apple/OpenMatesWidget/WorkflowsWidget.swift
+    - apple/OpenMatesWidget/WorkflowsWidgetStrings.swift
+    - apple/PocketTTSBridge/Cargo.lock
+    - apple/PocketTTSBridge/Cargo.toml
+    - apple/PocketTTSBridge/LICENSE-Pocket-TTS.txt
+    - apple/PocketTTSBridge/README.md
+    - apple/PocketTTSBridge/build-apple.sh
+    - apple/PocketTTSBridge/examples/lab_smoke.rs
+    - apple/PocketTTSBridge/include/PocketTTSBridge.h
+    - apple/PocketTTSBridge/include/module.modulemap
+    - apple/PocketTTSBridge/ios-device.cmake
+    - apple/PocketTTSBridge/ios-simulator.cmake
+    - apple/PocketTTSBridge/local-runtime-symbols.txt
+    - apple/PocketTTSBridge/prepare.py
+    - apple/PocketTTSBridge/run-smoke.sh
+    - apple/PocketTTSBridge/src/lib.rs
+    - apple/PocketTTSBridge/test_build_apple.py
+    - apple/PocketTTSBridge/test_prepare.py
+    - apple/PocketTTSBridge/verify-assets.py
+    - apple/project.yml
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/push_subscription_targets.py
+    - backend/tests/test_native_chats_api.py
+    - backend/tests/test_watch_chat_metadata_payload.py
+    - backend/tests/test_watch_push_notifications.py
+    - backend/tests/test_workspace_inventory_paging.py
+    - docs/architecture/apple/storage-compatibility-2026-10-03.md
+    - docs/plans/apple-local-model-lab/plan.yml
+    - docs/plans/apple-offline-speech-stability/plan.yml
+    - docs/plans/apple-offline-speech-stability/research.md
+    - docs/plans/apple-offline-speech-stability/watch-whisper-research.md
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/packages/ui/src/i18n/sources/apple.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/apps_workspace.yml
+    - frontend/packages/ui/src/i18n/sources/chat/send_storage_errors.yml
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/live_activities.yml
+    - frontend/packages/ui/src/i18n/sources/projects.yml
+    - frontend/packages/ui/src/i18n/sources/settings/local_models.yml
+    - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/watch_whisper.yml
+    - frontend/packages/ui/src/i18n/sources/tasks.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - scripts/apple_testflight_release.py
+    - scripts/apple_ui_contracts.py
+    - scripts/tests/test_apple_testflight_release.py
+    - scripts/tests/test_apple_ui_contracts.py
+    - shared/composer/fixtures/apple-composer-renderer-v1.json
+    - specifications/features/app-skills/hosting-search-domains/examples.yml
+    - specifications/features/app-skills/hosting-search-domains/specification.yml
+    - specifications/features/apple-live-activities/examples.yml
+    - specifications/features/apple-live-activities/specification.yml
+    - specifications/features/apple-local-model-lab/examples.yml
+    - specifications/features/apple-local-model-lab/specification.yml
+    - specifications/features/apple-offline-workspaces/examples.yml
+    - specifications/features/apple-offline-workspaces/specification.yml
+    - specifications/features/apple-recent-offline-chats/examples.yml
+    - specifications/features/apple-recent-offline-chats/specification.yml
+    - specifications/features/apple-task-board-interactions/examples.yml
+    - specifications/features/apple-task-board-interactions/specification.yml
+    - specifications/features/apple-tasks-widget/examples.yml
+    - specifications/features/apple-tasks-widget/specification.yml
+    - specifications/features/apple-watch/examples.yml
+    - specifications/features/apple-watch/specification.yml
+    - specifications/features/apple-workflow-widget/examples.yml
+    - specifications/features/apple-workflow-widget/specification.yml
+    - specifications/features/apps-workspace/examples.yml
+    - specifications/features/apps-workspace/specification.yml
+    - specifications/features/pii-protection/examples.yml
+    - specifications/features/pii-protection/specification.yml
+    - specifications/features/projects/examples.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos, platform:plans, platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve phase tool permissions and recovery prompts'
+    section: bug_fixes
+    commits:
+    - 1aedbfdb4
+    authored_at: '2026-10-04T12:16:24+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_focus_phases.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bind query index migration into dev setup'
+    section: bug_fixes
+    commits:
+    - d84085c99
+    authored_at: '2026-10-04T09:02:51+00:00'
+    changed_paths:
+    - backend/core/docker-compose.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: disclose historical database retention accurately'
+    section: bug_fixes
+    commits:
+    - 88ab79eed
+    authored_at: '2026-10-04T08:55:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/legal-history-retention.spec.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/historicalDirectusPrivacyCopy.test.ts
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - shared/docs/privacy_policy.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: count chat messages without transferring every row'
+    section: improvements
+    commits:
+    - e1aa61e79
+    authored_at: '2026-10-04T12:45:51+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_methods_bounded_query_release.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: add bounded storage query indexes with isolated setup'
+    section: improvements
+    commits:
+    - ecb865c34
+    authored_at: '2026-10-04T08:58:23+00:00'
+    changed_paths:
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/setup/migrate_storage_query_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: record final storage canary evidence'
+    section: docs
+    commits:
+    - 1fa202c3e
+    authored_at: '2026-10-04T21:09:47+00:00'
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record real phased focus inference evidence'
+    section: docs
+    commits:
+    - 61cb0eeac
+    authored_at: '2026-10-04T15:09:48+00:00'
+    changed_paths:
+    - docs/architecture/apps/focus-mode-phases-proposal.md
+    - docs/architecture/apps/focus-modes.md
+    - docs/plans/focus-mode-phases/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: narrow storage cutover gates and Apple writer handoff'
+    section: docs
+    commits:
+    - 1ac0afc0d
+    authored_at: '2026-10-04T13:54:51+00:00'
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record live database improvements and remaining storage gates'
+    section: docs
+    commits:
+    - 1a7126560
+    authored_at: '2026-10-04T13:03:23+00:00'
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: document phased focus behavior and verification gaps'
+    section: docs
+    commits:
+    - 34396204a
+    authored_at: '2026-10-04T12:25:48+00:00'
+    changed_paths:
+    - docs/architecture/apps/focus-mode-phases-proposal.md
+    - docs/architecture/apps/focus-modes-implementation.md
+    - docs/plans/focus-mode-phases/plan.yml
+    - docs/user-guide/apps/focus-modes.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: specify native storage receipt and recovery contracts'
+    section: docs
+    commits:
+    - e2cd90a65
+    authored_at: '2026-10-04T07:53:09+00:00'
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Directus verification ownership failure'
+    section: docs
+    commits:
+    - fe209c1be
+    authored_at: '2026-10-04T00:12:18+00:00'
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: isolate canonical recovery receipt verification'
+    section: tests
+    commits:
+    - 4559bc930
+    authored_at: '2026-10-04T15:32:31+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify phased focus details and record remaining usage checks'
+    section: tests
+    commits:
+    - 2505cd4fd
+    authored_at: '2026-10-04T12:03:15+00:00'
+    changed_paths:
+    - docs/plans/focus-mode-phases/plan.yml
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: classify public privacy retention browser coverage'
+    section: tests
+    commits:
+    - be5d1baa1
+    authored_at: '2026-10-04T08:34:53+00:00'
+    changed_paths:
+    - scripts/ci_coverage.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: validate complete legacy storage probe receipts'
+    section: tests
+    commits:
+    - 4c0cf8b1b
+    authored_at: '2026-10-04T07:21:37+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify legacy SQL claims before recovery cutover'
+    section: tests
+    commits:
+    - 0bea8aff6
+    authored_at: '2026-10-04T05:47:46+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: run detached docs through isolated broker workers'
+    section: tests
+    commits:
+    - 03ca9f0b6
+    authored_at: '2026-10-04T05:11:41+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_detached_docs_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: classify parsed-message component verification'
+    section: tests
+    commits:
+    - eb45da19d
+    authored_at: '2026-10-04T03:45:52+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_ci_coverage.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: validate isolated Directus API-only evidence'
+    section: tests
+    commits:
+    - c5ed2afda
+    authored_at: '2026-10-04T00:59:36+00:00'
+    changed_paths:
+    - scripts/ci_results.py
+    - scripts/tests/test_ci_results.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: preserve private storage diagnostics through cleanup'
+    section: tests
+    commits:
+    - 83ca7be3a
+    authored_at: '2026-10-04T00:28:16+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_accountability_profile.py
+    - scripts/tests/test_ci_storage_private_retention.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'feat: add bounded Geoapify map discovery'
+    commits:
+    - c39192d29
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: skill:maps:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+  - title: 'fix: preserve composer focus and draft attachments'
+    commits:
+    - 000860505
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: restore bounded saved-reference API after recovery repair'
+    commits:
+    - 8addcd723
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record final storage canary evidence'
+    commits:
+    - 1fa202c3e
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve missing artifact version recovery'
+    commits:
+    - 9f42f3f23
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: bound agentic storage and durable recovery'
+    commits:
+    - 1e7b84c33
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:docs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/docs/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:docs:doc
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:docs
+      source: backend/apps/docs/app.yml
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:videos:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:videos:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - title: 'test: isolate canonical recovery receipt verification'
+    commits:
+    - 4559bc930
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record real phased focus inference evidence'
+    commits:
+    - 61cb0eeac
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve focus phase evidence after research'
+    commits:
+    - 3d43c3d53
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: restore phased focus across synced chat turns'
+    commits:
+    - 6039c6fa5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: narrow storage cutover gates and Apple writer handoff'
+    commits:
+    - 1ac0afc0d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: respect explicit focus before automatic planning'
+    commits:
+    - 2eac4d5e5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: record live database improvements and remaining storage gates'
+    commits:
+    - 1a7126560
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: publish Apple offline, speech and parity improvements'
+    commits:
+    - e97f14609
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'perf: count chat messages without transferring every row'
+    commits:
+    - e1aa61e79
+    section: improvements
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: document phased focus behavior and verification gaps'
+    commits:
+    - 34396204a
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve phase tool permissions and recovery prompts'
+    commits:
+    - 1aedbfdb4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: verify phased focus details and record remaining usage checks'
+    commits:
+    - 2505cd4fd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add phased focus modes with encrypted progress and client parity'
+    commits:
+    - a314f9054
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'fix: bind query index migration into dev setup'
+    commits:
+    - d84085c99
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: add bounded storage query indexes with isolated setup'
+    commits:
+    - ecb865c34
+    section: improvements
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: disclose historical database retention accurately'
+    commits:
+    - 88ab79eed
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: classify public privacy retention browser coverage'
+    commits:
+    - be5d1baa1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: specify native storage receipt and recovery contracts'
+    commits:
+    - e2cd90a65
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: validate complete legacy storage probe receipts'
+    commits:
+    - 4c0cf8b1b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: verify legacy SQL claims before recovery cutover'
+    commits:
+    - 0bea8aff6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: run detached docs through isolated broker workers'
+    commits:
+    - 03ca9f0b6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: classify parsed-message component verification'
+    commits:
+    - eb45da19d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: reconcile Directus tracking with scoped setup'
+    commits:
+    - 046e28be5
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: disable redundant Directus audit writes for high-write storage'
+    commits:
+    - a46e480f7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: validate isolated Directus API-only evidence'
+    commits:
+    - c5ed2afda
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: preserve private storage diagnostics through cleanup'
+    commits:
+    - 83ca7be3a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record Directus verification ownership failure'
+    commits:
+    - fe209c1be
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add bounded Geoapify map discovery'
+    commits:
+    - c39192d29
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: skill:maps:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+  - title: 'fix: restore phased focus across synced chat turns'
+    commits:
+    - 6039c6fa5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: publish Apple offline, speech and parity improvements'
+    commits:
+    - e97f14609
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: add phased focus modes with encrypted progress and client parity'
+    commits:
+    - a314f9054
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat: add bounded Geoapify map discovery'
+    commits:
+    - c39192d29
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: skill:maps:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve composer focus and draft attachments'
+    commits:
+    - 000860505
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: restore bounded saved-reference API after recovery repair'
+    commits:
+    - 8addcd723
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve missing artifact version recovery'
+    commits:
+    - 9f42f3f23
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: bound agentic storage and durable recovery'
+    commits:
+    - 1e7b84c33
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:docs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/docs/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:docs:doc
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:docs
+      source: backend/apps/docs/app.yml
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:videos:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:videos:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve focus phase evidence after research'
+    commits:
+    - 3d43c3d53
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore phased focus across synced chat turns'
+    commits:
+    - 6039c6fa5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: respect explicit focus before automatic planning'
+    commits:
+    - 2eac4d5e5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: publish Apple offline, speech and parity improvements'
+    commits:
+    - e97f14609
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve phase tool permissions and recovery prompts'
+    commits:
+    - 1aedbfdb4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: add phased focus modes with encrypted progress and client parity'
+    commits:
+    - a314f9054
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: disclose historical database retention accurately'
+    commits:
+    - 88ab79eed
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: disable redundant Directus audit writes for high-write storage'
+    commits:
+    - a46e480f7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: c39192d29976c0eb2486b48acca1c65d5736a6d1
+    short_sha: c39192d29
+    authored_at: '2026-10-04T23:50:33+00:00'
+    subject: 'feat: add bounded Geoapify map discovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/maps/app.yml
+    - backend/apps/maps/skills/discovery.py
+    - backend/apps/maps/skills/search_skill.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/providers/geoapify.yml
+    - backend/shared/providers/geoapify/budget.py
+    - backend/shared/providers/geoapify/places.py
+    - backend/tests/test_geoapify_places_provider.py
+    - backend/tests/test_maps_geoapify_discovery.py
+    - docs/plans/maps-geoapify-discovery/plan.yml
+    - docs/user-guide/apps/maps.md
+    - frontend/apps/web_app/tests/components/maps-discovery.spec.ts
+    - frontend/apps/web_app/tests/skill-maps-search.spec.ts
+    - specifications/features/app-skills/maps-search/examples.yml
+    - specifications/features/app-skills/maps-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:maps
+    - embed:maps:search
+    - skill:maps:search
+  - sha: 0008605051b1a02888aa6fd7e49729b750684602
+    short_sha: 000860505
+    authored_at: '2026-10-04T23:48:00+00:00'
+    subject: 'fix: preserve composer focus and draft attachments'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/apps/web_app/tests/cli-pair-login.spec.ts
+    - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-prompt-composer.spec.ts
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    - frontend/apps/web_app/tests/draft-embed-preview.spec.ts
+    - frontend/apps/web_app/tests/location-security-flow.spec.ts
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.preview.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInputFocusFixture.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInputFocusFixture.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceComposerFocusFixture.preview.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceComposerFocusFixture.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+    - frontend/packages/ui/src/services/drafts/__tests__/draftCore.test.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftWebsocket.test.ts
+    - frontend/packages/ui/src/services/drafts/draftContent.ts
+    - frontend/packages/ui/src/services/drafts/draftCore.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/drafts/draftWebsocket.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_message_input_welcome_contract.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:tasks
+    - platform:workflows
+  - sha: 8addcd723385c67660d77623f167f8d7408dd85d
+    short_sha: 8addcd723
+    authored_at: '2026-10-04T22:25:10+00:00'
+    subject: 'fix: restore bounded saved-reference API after recovery repair'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/tests/test_embed_version_routes.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 1fa202c3e502657bd85cac9f845492981dae919d
+    short_sha: 1fa202c3e
+    authored_at: '2026-10-04T21:09:47+00:00'
+    subject: 'docs: record final storage canary evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    related_feature_ids: []
+  - sha: 9f42f3f23c5550c1166d0fdab792c3b113c0c82d
+    short_sha: 9f42f3f23
+    authored_at: '2026-10-04T20:40:52+00:00'
+    subject: 'fix: preserve missing artifact version recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/tests/test_embed_version_routes.py
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 1e7b84c33ea33734ec53c85deda27b90aad3124d
+    short_sha: 1e7b84c33
+    authored_at: '2026-10-04T19:49:45+00:00'
+    subject: 'feat: bound agentic storage and durable recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/celery_helpers.py
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/apps/ai/testing/capacity_fixtures.py
+    - backend/apps/audio/tasks/common.py
+    - backend/apps/audio/tasks/generate_task.py
+    - backend/apps/audio/tasks/speak_task.py
+    - backend/apps/base_app.py
+    - backend/apps/docs/tasks/generate_task.py
+    - backend/apps/images/tasks/generate_task.py
+    - backend/apps/images/tasks/vectorize_task.py
+    - backend/apps/models3d/tasks/generate_task.py
+    - backend/apps/music/tasks/generate_task.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/videos/skills/create_skill.py
+    - backend/apps/videos/tasks/generate_task.py
+    - backend/apps/videos/tasks/render_remotion_task.py
+    - backend/core/api/Dockerfile
+    - backend/core/api/app/routes/account_exports.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/connection_manager.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/notebook_run_output_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/request_embed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_keys_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_message_hydration.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_sidecar_hydration.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/sync_api.py
+    - backend/core/api/app/routes/teams.py
+    - backend/core/api/app/routes/video_remotion.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/account_content_deletion_service.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/core/api/app/services/bounded_archive_io.py
+    - backend/core/api/app/services/bounded_message_window.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/core/api/app/services/chat_archive_mutation_service.py
+    - backend/core/api/app/services/chat_checkpoint_pagination.py
+    - backend/core/api/app/services/chat_deletion_fence.py
+    - backend/core/api/app/services/chat_message_archive_service.py
+    - backend/core/api/app/services/chat_recovery_cutover.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/services/chat_storage_policy.py
+    - backend/core/api/app/services/directus/chat_key_wrapper_methods.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/core/api/app/services/embed_diff_service.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/services/embed_version_archive_service.py
+    - backend/core/api/app/services/embed_version_transaction_service.py
+    - backend/core/api/app/services/s3/config.py
+    - backend/core/api/app/services/scoped_directus_pagination.py
+    - backend/core/api/app/services/shared_auxiliary_window.py
+    - backend/core/api/app/services/shared_plan_task_window.py
+    - backend/core/api/app/services/storage_reference_service.py
+    - backend/core/api/app/services/team_data_portability_service.py
+    - backend/core/api/app/services/team_workspace_service.py
+    - backend/core/api/app/tasks/base_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/embed_version_archive_tasks.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/storage_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/extensions/chat-archive-transaction/package.json
+    - backend/core/directus/extensions/chat-archive-transaction/src/index.js
+    - backend/core/directus/extensions/chat-archive-transaction/src/locator-window.js
+    - backend/core/directus/extensions/chat-archive-transaction/src/mutations.js
+    - backend/core/directus/extensions/chat-archive-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-archive-transaction/src/warm-policy.js
+    - backend/core/directus/extensions/chat-archive-transaction/test/locator-window.test.js
+    - backend/core/directus/extensions/chat-archive-transaction/test/mutations.test.js
+    - backend/core/directus/extensions/chat-archive-transaction/test/operations.test.js
+    - backend/core/directus/extensions/chat-archive-transaction/test/warm-policy.test.js
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/extensions/embed-version-transaction/src/index.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - backend/core/directus/schemas/chat_compression_checkpoints.yml
+    - backend/core/directus/schemas/chat_message_archives.yml
+    - backend/core/directus/schemas/chat_recovery_account_fences.yml
+    - backend/core/directus/schemas/chat_recovery_authorized_direct_skills.yml
+    - backend/core/directus/schemas/chat_recovery_authorized_rerenders.yml
+    - backend/core/directus/schemas/chat_recovery_chat_deletion_fences.yml
+    - backend/core/directus/schemas/chat_recovery_legacy_batch_claims.yml
+    - backend/core/directus/schemas/chat_recovery_legacy_output_producers.yml
+    - backend/core/directus/schemas/chat_recovery_output_producer_children.yml
+    - backend/core/directus/schemas/chat_recovery_output_producers.yml
+    - backend/core/directus/schemas/chat_recovery_outputs.yml
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/schemas/embed_diffs.yml
+    - backend/core/directus/schemas/messages.yml
+    - backend/core/directus/setup/accountability_policy.py
+    - backend/core/directus/setup/migrate_chat_message_archive_indexes.sql
+    - backend/core/directus/setup/migrate_chat_recovery_outputs_indexes.sql
+    - backend/core/directus/setup/migrate_chat_recovery_unique_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.yml
+    - backend/shared/python_utils/chat_completion_recovery.py
+    - backend/shared/python_utils/chat_completion_recovery_job.py
+    - backend/shared/python_utils/chat_recovery_context.py
+    - backend/shared/python_utils/embed_producer_dispatch.py
+    - backend/shared/python_utils/embed_producer_worker.py
+    - backend/shared/python_utils/volatile_embed_authority.py
+    - backend/shared/testing/api_response_cache.py
+    - backend/shared/testing/caching_http_transport.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_account_deletion_storage_lifecycle.py
+    - backend/tests/test_account_export_streaming_storage.py
+    - backend/tests/test_account_personal_content_deletion.py
+    - backend/tests/test_ai_working_cache_budget.py
+    - backend/tests/test_app_skill_rest_context.py
+    - backend/tests/test_bounded_message_window.py
+    - backend/tests/test_capacity_version_privacy_fixture.py
+    - backend/tests/test_chat_archive_mutation_service.py
+    - backend/tests/test_chat_checkpoint_pagination.py
+    - backend/tests/test_chat_completion_recovery_jobs.py
+    - backend/tests/test_chat_completion_recovery_retention.py
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - backend/tests/test_chat_compressor.py
+    - backend/tests/test_chat_content_batch_handler.py
+    - backend/tests/test_chat_deletion_fence_callers.py
+    - backend/tests/test_chat_failure_notifications.py
+    - backend/tests/test_chat_message_archive_pages.py
+    - backend/tests/test_chat_methods_bounded_query_release.py
+    - backend/tests/test_chat_recovery_account_fence.py
+    - backend/tests/test_chat_recovery_directus_deployment.py
+    - backend/tests/test_chat_recovery_large_output_intent.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_chat_recovery_service.py
+    - backend/tests/test_chat_recovery_telemetry.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    - backend/tests/test_chat_storage_policy.py
+    - backend/tests/test_cold_chat_archive_service.py
+    - backend/tests/test_complete_scoped_records.py
+    - backend/tests/test_cross_client_draft_sync.py
+    - backend/tests/test_delete_chat_handler.py
+    - backend/tests/test_detached_docs_retry_boundary.py
+    - backend/tests/test_detached_embed_producer.py
+    - backend/tests/test_direct_intent_completion_reconcile.py
+    - backend/tests/test_embed_diff_periodic_snapshot.py
+    - backend/tests/test_embed_methods.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_embed_version_archive_service.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_legacy_queued_handoff.py
+    - backend/tests/test_mermaid_embed_streaming.py
+    - backend/tests/test_message_received_embed_bundle.py
+    - backend/tests/test_mindmap_embed_streaming.py
+    - backend/tests/test_native_chats_api.py
+    - backend/tests/test_pending_embed_cache.py
+    - backend/tests/test_persistence_tasks.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_projects.py
+    - backend/tests/test_request_embed_authorization.py
+    - backend/tests/test_sdk_chat_fork_rewind.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - backend/tests/test_setup_schemas.py
+    - backend/tests/test_share_chat_window_loading.py
+    - backend/tests/test_shared_auxiliary_window.py
+    - backend/tests/test_shared_plan_task_window.py
+    - backend/tests/test_standalone_embed_generator.py
+    - backend/tests/test_storage_archive_pg_races.py
+    - backend/tests/test_storage_capacity_replay.py
+    - backend/tests/test_storage_recovery_fixture.py
+    - backend/tests/test_storage_reference_reconciliation.py
+    - backend/tests/test_storage_reference_service.py
+    - backend/tests/test_store_embed_authorization.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    - backend/tests/test_store_embed_keys_authorization.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - backend/tests/test_sync_api.py
+    - backend/tests/test_sync_message_hydration.py
+    - backend/tests/test_sync_sidecar_and_wrapper_windows.py
+    - backend/tests/test_teams_chat_ai.py
+    - backend/tests/test_teams_move_authorization.py
+    - backend/tests/test_volatile_ai_live_session.py
+    - docs/architecture/isolated-github-tests.md
+    - docs/architecture/live-mock-testing.md
+    - docs/plans/agentic-coding-storage-scale/artifact-head-followup.md
+    - docs/plans/agentic-coding-storage-scale/legal-storage-review.md
+    - docs/plans/agentic-coding-storage-scale/plan.yml
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/tests/cli-embed-diff-versions.spec.ts
+    - frontend/apps/web_app/tests/components/embed-version-timeline.spec.ts
+    - frontend/apps/web_app/tests/components/read-only-message-parsed-doc.spec.ts
+    - frontend/apps/web_app/tests/components/shared-auxiliary-load-button.spec.ts
+    - frontend/apps/web_app/tests/legal-history-retention.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-bounded-history.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/storage-capacity-replay.spec.ts
+    - frontend/apps/web_app/tests/storage-capacity-target.spec.ts
+    - frontend/apps/web_app/tests/storage-detached-producer.spec.ts
+    - frontend/apps/web_app/tests/storage-message-embed-bundle.spec.ts
+    - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
+    - frontend/apps/web_app/tests/storage-recovery-fixtures.ts
+    - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
+    - frontend/packages/openmates-cli/src/capacityReplayMarker.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/src/embedCreator.ts
+    - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/capacityReplayMarker.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/e2e-provisioning.test.ts
+    - frontend/packages/openmates-cli/tests/embedCreatorDurability.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputCrypto.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputWs.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.preview.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/SharedAuxiliaryLoadButton.preview.ts
+    - frontend/packages/ui/src/components/SharedAuxiliaryLoadButton.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.preview.ts
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/config/__tests__/apiProjectFileCapability.test.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/historicalDirectusPrivacyCopy.test.ts
+    - frontend/packages/ui/src/legal/__tests__/recoveryPrivacyCopy.test.ts
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedDiffStore.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedSendersReceipts.test.ts
+    - frontend/packages/ui/src/services/__tests__/pendingEmbedQueue.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryCanonicalReuse.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryEmbedReceiptErrors.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryEmbedSource.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/__tests__/sharedPlanTaskPage.test.ts
+    - frontend/packages/ui/src/services/__tests__/sharedSubChatPage.test.ts
+    - frontend/packages/ui/src/services/canonicalEmbedWriteCoordinator.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/inferredChatDeletion.test.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageEmbedBundleJournal.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/db/pendingEmbedQueue.ts
+    - frontend/packages/ui/src/services/embedDiffStore.ts
+    - frontend/packages/ui/src/services/embedResolver.ts
+    - frontend/packages/ui/src/services/embedSenders.ts
+    - frontend/packages/ui/src/services/hostedProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/recoveryEmbedSource.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/sendersEmbeds.ts
+    - frontend/packages/ui/src/services/sharedChatDetailsService.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/chatCompletionRecovery.test.ts
+    - frontend/packages/ui/src/utils/chatCompletionRecovery.ts
+    - scripts/storage_archive_integration.py
+    - scripts/storage_capacity.py
+    - scripts/storage_capacity_client.mjs
+    - scripts/storage_capacity_page_adapter.mjs
+    - scripts/storage_capacity_version_adapter.mjs
+    - scripts/storage_rollout.py
+    - scripts/tests/test_storage_archive_integration.py
+    - scripts/tests/test_storage_capacity.py
+    - scripts/tests/test_storage_capacity_version_diagnostics.py
+    - scripts/tests/test_storage_rollout.py
+    - shared/docs/privacy_policy.yml
+    - shared/docs/privacy_promises.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - app:ai
+    - app:audio
+    - app:docs
+    - app:images
+    - app:models3d
+    - app:music
+    - app:social_media
+    - app:videos
+    - embed:code:code
+    - embed:docs:doc
+    - embed:mail:email
+    - embed:mail:search
+    - embed:videos:create
+    - platform:projects
+    - platform:teams
+    - skill:ai:ask
+    - skill:videos:create
+  - sha: 4559bc930f56d587bcdda85eca45cb98840f5e81
+    short_sha: 4559bc930
+    authored_at: '2026-10-04T15:32:31+00:00'
+    subject: 'test: isolate canonical recovery receipt verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 61cb0eeac1f546048bef0f2b835cb08dcee21467
+    short_sha: 61cb0eeac
+    authored_at: '2026-10-04T15:09:48+00:00'
+    subject: 'docs: record real phased focus inference evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/apps/focus-mode-phases-proposal.md
+    - docs/architecture/apps/focus-modes.md
+    - docs/plans/focus-mode-phases/plan.yml
+    related_feature_ids: []
+  - sha: 3d43c3d53c3600752a13e555391a141672f42979
+    short_sha: 3d43c3d53
+    authored_at: '2026-10-04T14:52:03+00:00'
+    subject: 'fix: preserve focus phase evidence after research'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/focus_phase_history.py
+    - backend/apps/ai/processing/focus_phases.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_focus_phase_history.py
+    - backend/tests/test_focus_phases.py
+    - docs/architecture/apps/focus-mode-phases-proposal.md
+    - docs/plans/focus-mode-phases/plan.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 6039c6fa5618c55e0a17441b83aa97395fc7c439
+    short_sha: 6039c6fa5
+    authored_at: '2026-10-04T14:23:39+00:00'
+    subject: 'fix: restore phased focus across synced chat turns'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_metadata_permissions.py
+    - backend/tests/test_native_chats_api.py
+    - docs/architecture/apps/focus-mode-phases-proposal.md
+    - docs/plans/focus-mode-phases/plan.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/focus-phases.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 1ac0afc0d30e566d57b2303ef7ade3b839a12e2c
+    short_sha: 1ac0afc0d
+    authored_at: '2026-10-04T13:54:51+00:00'
+    subject: 'docs: narrow storage cutover gates and Apple writer handoff'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    related_feature_ids: []
+  - sha: 2eac4d5e532b618bc726062924b729b75bdf4c09
+    short_sha: 2eac4d5e5
+    authored_at: '2026-10-04T13:54:16+00:00'
+    subject: 'fix: respect explicit focus before automatic planning'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_plan_focus_routing.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 1a712656054cbe76691beb55e92120808e85a5ce
+    short_sha: 1a7126560
+    authored_at: '2026-10-04T13:03:23+00:00'
+    subject: 'docs: record live database improvements and remaining storage gates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    related_feature_ids: []
+  - sha: e97f14609f2291af8f8f727dd5ad7492e5541ba5
+    short_sha: e97f14609
+    authored_at: '2026-10-04T14:51:01+02:00'
+    subject: 'fix: publish Apple offline, speech and parity improvements'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - DESIGN.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS_Unit_Tests.xcscheme
+    - apple/OpenMates/Resources/LocalModels/PocketTTS-NOTICE.txt
+    - apple/OpenMates/Resources/LocalModels/catalog.json
+    - apple/OpenMates/Resources/OpenMatesMacOS.entitlements
+    - apple/OpenMates/Resources/OpenMatesMacOSPersonalTeam.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatRecoveryV2Envelope.swift
+    - apple/OpenMates/Sources/Core/Crypto/KeychainHelper.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/LegacyProcessingActivityRetirement.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/LocalModelLiveActivityCoordinator.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/OpenMatesLiveActivityAttributes.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/UpcomingMemoryActivityNavigation.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/UpcomingMemoryLiveActivityBridge.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/UpcomingMemoryLiveActivityCoordinator.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalModelBackgroundTransfers.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalModelLabController.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalModelStore.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalPrivacyFilterRuntime.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalSpeechRuntimes.swift
+    - apple/OpenMates/Sources/Core/LocalModels/PocketTTSLabController.swift
+    - apple/OpenMates/Sources/Core/LocalModels/PocketTTSRuntime.swift
+    - apple/OpenMates/Sources/Core/LocalModels/ProductionPIIRuntime.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/ChatMessageWindowClient.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/NativeWorkspaceOfflineCache.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMates/Sources/Core/Services/ChatCompletionRecoveryCoordinator.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/DraftSyncCoordinator.swift
+    - apple/OpenMates/Sources/Core/Services/NativeChatActivityStore.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchChatShareService.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchWhisperLabAssets.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchWhisperLabController.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchWhisperTinyRuntime.swift
+    - apple/OpenMates/Sources/Core/Widgets/ActiveChatsCoordinator.swift
+    - apple/OpenMates/Sources/Core/Widgets/ActiveChatsWidgetBridge.swift
+    - apple/OpenMates/Sources/Core/Widgets/ActiveChatsWidgetNavigationPolicy.swift
+    - apple/OpenMates/Sources/Core/Widgets/TasksWidgetBridge.swift
+    - apple/OpenMates/Sources/Core/Widgets/WorkflowWidgetRunService.swift
+    - apple/OpenMates/Sources/Core/Widgets/WorkflowsWidgetBridge.swift
+    - apple/OpenMates/Sources/DevPreview/DevActiveChatsWidgetFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevChatContinuationLayoutFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevComposerPIIPreview.swift
+    - apple/OpenMates/Sources/DevPreview/DevDailyInspirationFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedMemoryActionFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedShareSettingsFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevFullscreenActionFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevHistoryWelcomeFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevHostingEmbedFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevPCBSchematicActionsFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/DevPreview/DevResponsiveEmbedFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevSidebarComponentFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevURLMessageEmbedFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevUpcomingMemoryLiveActivityFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevWikiFullscreenFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevWorkflowsWidgetFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevWorkspaceSwitcherFixture.swift
+    - apple/OpenMates/Sources/Features/Apps/AppsGuestResults.swift
+    - apple/OpenMates/Sources/Features/Apps/AppsWorkspaceModels.swift
+    - apple/OpenMates/Sources/Features/Apps/AppsWorkspacePreviewFixture.swift
+    - apple/OpenMates/Sources/Features/Apps/AppsWorkspaceService.swift
+    - apple/OpenMates/Sources/Features/Apps/AppsWorkspaceStore.swift
+    - apple/OpenMates/Sources/Features/Apps/AppsWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Input/ComposerSearchSuggestions.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AppleSharePanel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageHighlightsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageTextSelection.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Actions/NativeEmbedMemoryAction.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedCalendarFile.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/NativeDesignIconActions.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/NativeDocumentDOCX.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/NativeEmbedActions.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/NativeEmbedDownload.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/NativePCBSchematicActions.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/HostingEmbedModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/HostingEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/HostingEmbedStrings.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebReadEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebsiteEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiArticleModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContextMenuView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedResponsiveGeometry.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectChatCard.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectReadmeView.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectRemoteFileFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectRemoteSourceClient.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsSidebarView.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceModels.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspacePreviewFixture.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceService.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceStore.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/Settings/Memories/SettingsMemoryService.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/PocketTTSLabView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsLocalModelsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Features/Tasks/TaskBoardInteractionSupport.swift
+    - apple/OpenMates/Sources/Features/Tasks/TaskDetailView.swift
+    - apple/OpenMates/Sources/Features/Tasks/TaskModels.swift
+    - apple/OpenMates/Sources/Features/Tasks/TasksWorkspaceStore.swift
+    - apple/OpenMates/Sources/Features/Tasks/TasksWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/Tasks/UserPlansService.swift
+    - apple/OpenMates/Sources/Features/Tasks/UserTasksService.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowDetailHeader.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowGraphView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowHomeView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowRunTimelineView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowStepTestService.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowValueView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatProjectNavigator.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatSidebarContent.swift
+    - apple/OpenMates/Sources/Shared/Components/OMSettingsElements.swift
+    - apple/OpenMates/Sources/Shared/Components/ReadOnlySelectableText.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Components/WorkspaceContinuationLayout.swift
+    - apple/OpenMates/Sources/Shared/Components/WorkspacePromptComposerView.swift
+    - apple/OpenMates/Sources/Shared/Components/WorkspaceSwitcher.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerRendererRegistry.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechAppRuntime.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentViewProvider.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDraftRepository.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerPIIDecorations.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerPIIDetectionCoordinator.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerSpeechControl.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerTextAttachment.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeAssistantSpeech.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerEditorView.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+    - apple/OpenMates/Sources/Shared/Extensions/WidgetActiveChatsData.swift
+    - apple/OpenMates/Sources/Shared/Extensions/WidgetActiveChatsView.swift
+    - apple/OpenMates/Sources/Shared/Extensions/WidgetTasksData.swift
+    - apple/OpenMates/Sources/Shared/Extensions/WidgetWorkflowsData.swift
+    - apple/OpenMates/Sources/Shared/Extensions/WidgetWorkflowsView.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesShared/URLMessageEmbedPreparation.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/ActiveChatsPolicyTests.swift
+    - apple/OpenMatesTests/ActiveChatsWidgetTests.swift
+    - apple/OpenMatesTests/AppDeepLinkRoutingTests.swift
+    - apple/OpenMatesTests/AppleComposerRendererRegistryTests.swift
+    - apple/OpenMatesTests/AppsWorkspaceParityTests.swift
+    - apple/OpenMatesTests/AssistantSpeechPlaybackParityTests.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    - apple/OpenMatesTests/ChatMessageWindowTests.swift
+    - apple/OpenMatesTests/ChatRecoveryV2EnvelopeTests.swift
+    - apple/OpenMatesTests/ChatSearchEngineTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+    - apple/OpenMatesTests/ComposerPIIDetectionCoordinatorTests.swift
+    - apple/OpenMatesTests/ComposerSearchSuggestionTests.swift
+    - apple/OpenMatesTests/DevPreviewLaunchConfigurationTests.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesTests/EmbedResponsiveGeometryTests.swift
+    - apple/OpenMatesTests/EmbedShareSettingsParityTests.swift
+    - apple/OpenMatesTests/EmbedWireFormatTests.swift
+    - apple/OpenMatesTests/HostingEmbedModelTests.swift
+    - apple/OpenMatesTests/KeychainSharingTests.swift
+    - apple/OpenMatesTests/LiveActivityPolicyTests.swift
+    - apple/OpenMatesTests/LocalModelLabControllerTests.swift
+    - apple/OpenMatesTests/LocalModelStoreTests.swift
+    - apple/OpenMatesTests/MessageTextSelectionTests.swift
+    - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    - apple/OpenMatesTests/NativeComposerMentionPIITests.swift
+    - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
+    - apple/OpenMatesTests/NativeEmbedActionTests.swift
+    - apple/OpenMatesTests/NativeEmbedMemoryActionTests.swift
+    - apple/OpenMatesTests/NativePCBSchematicActionTests.swift
+    - apple/OpenMatesTests/PocketTTSLabTests.swift
+    - apple/OpenMatesTests/ProjectReadmeTests.swift
+    - apple/OpenMatesTests/ProjectsWorkspaceTests.swift
+    - apple/OpenMatesTests/PushCompletionNoticePolicyTests.swift
+    - apple/OpenMatesTests/ReadOnlyEmbedTextSelectionTests.swift
+    - apple/OpenMatesTests/S3MediaBoundsTests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesTests/StreamingClientFanoutTests.swift
+    - apple/OpenMatesTests/TasksWidgetTests.swift
+    - apple/OpenMatesTests/TasksWorkspaceTests.swift
+    - apple/OpenMatesTests/URLMessageEmbedPreparationTests.swift
+    - apple/OpenMatesTests/UpcomingMemoryActivityNavigationTests.swift
+    - apple/OpenMatesTests/UpcomingMemoryLiveActivityBridgeTests.swift
+    - apple/OpenMatesTests/WatchAuthStoreTests.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchChatShareServiceTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    - apple/OpenMatesTests/WatchHubDataServiceTests.swift
+    - apple/OpenMatesTests/WatchWhisperLabTests.swift
+    - apple/OpenMatesTests/WatchWorkflowDetailTests.swift
+    - apple/OpenMatesTests/WebSocketReconnectTests.swift
+    - apple/OpenMatesTests/WikiArticleModelTests.swift
+    - apple/OpenMatesTests/WorkflowStepTestServiceTests.swift
+    - apple/OpenMatesTests/WorkflowWidgetTests.swift
+    - apple/OpenMatesTests/WorkflowsParityTests.swift
+    - apple/OpenMatesTests/WorkspaceContinuationLayoutTests.swift
+    - apple/OpenMatesTests/WorkspaceSwitcherLayoutTests.swift
+    - apple/OpenMatesUITests/ActiveChatsWidgetUITests.swift
+    - apple/OpenMatesUITests/AppsWorkspaceParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    - apple/OpenMatesUITests/ComposerPIIDetectionUITests.swift
+    - apple/OpenMatesUITests/DailyInspirationLayoutUITests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - apple/OpenMatesUITests/EmbedResponsiveGeometryUITests.swift
+    - apple/OpenMatesUITests/EmbedShareSettingsParityUITests.swift
+    - apple/OpenMatesUITests/HistoryWelcomeComponentUITests.swift
+    - apple/OpenMatesUITests/HostingEmbedParityUITests.swift
+    - apple/OpenMatesUITests/LocalModelLabUITests.swift
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - apple/OpenMatesUITests/MessageSelectionParityUITests.swift
+    - apple/OpenMatesUITests/NativeComposerInlineEmbedUITests.swift
+    - apple/OpenMatesUITests/NativeEmbedActionUITests.swift
+    - apple/OpenMatesUITests/NativeEmbedMemoryActionUITests.swift
+    - apple/OpenMatesUITests/PCBSchematicActionsUITests.swift
+    - apple/OpenMatesUITests/ProjectREADMEUITests.swift
+    - apple/OpenMatesUITests/ProjectsFilesParityUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - apple/OpenMatesUITests/SettingsPrivacyParityUITests.swift
+    - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    - apple/OpenMatesUITests/TasksWorkspaceInteractionUITests.swift
+    - apple/OpenMatesUITests/URLMessageEmbedUITests.swift
+    - apple/OpenMatesUITests/UpcomingMemoryLiveActivityUITests.swift
+    - apple/OpenMatesUITests/WikiFullscreenParityUITests.swift
+    - apple/OpenMatesUITests/WorkflowsParityUITests.swift
+    - apple/OpenMatesUITests/WorkflowsWidgetUITests.swift
+    - apple/OpenMatesUITests/WorkspaceContinuationLayoutUITests.swift
+    - apple/OpenMatesUITests/WorkspaceSwitcherUITests.swift
+    - apple/OpenMatesWatch/Resources/watch-whisper-tiny.json
+    - apple/OpenMatesWatch/Sources/OpenMatesWatchApp.swift
+    - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+    - apple/OpenMatesWatch/Sources/WatchChatShareView.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchEmbedViews.swift
+    - apple/OpenMatesWatch/Sources/WatchHubDataService.swift
+    - apple/OpenMatesWatch/Sources/WatchHubView.swift
+    - apple/OpenMatesWatch/Sources/WatchPushNotificationManager.swift
+    - apple/OpenMatesWatch/Sources/WatchRootView.swift
+    - apple/OpenMatesWatch/Sources/WatchWhisperLabView.swift
+    - apple/OpenMatesWatch/Sources/WatchWorkflowDetailService.swift
+    - apple/OpenMatesWatch/Sources/WatchWorkflowViews.swift
+    - apple/OpenMatesWatchUITests/WatchChatLayoutUITests.swift
+    - apple/OpenMatesWatchUITests/WatchChatShareUITests.swift
+    - apple/OpenMatesWatchUITests/WatchWhisperLabUITests.swift
+    - apple/OpenMatesWatchUITests/WatchWorkflowDetailUITests.swift
+    - apple/OpenMatesWidget/ActiveChatsWidget.swift
+    - apple/OpenMatesWidget/Info.plist
+    - apple/OpenMatesWidget/Localizable.xcstrings
+    - apple/OpenMatesWidget/MacInfo.plist
+    - apple/OpenMatesWidget/MacWidget.entitlements
+    - apple/OpenMatesWidget/OpenMatesLiveActivity.swift
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - apple/OpenMatesWidget/TasksWidget.swift
+    - apple/OpenMatesWidget/TasksWidgetStrings.swift
+    - apple/OpenMatesWidget/WorkflowsWidget.swift
+    - apple/OpenMatesWidget/WorkflowsWidgetStrings.swift
+    - apple/PocketTTSBridge/Cargo.lock
+    - apple/PocketTTSBridge/Cargo.toml
+    - apple/PocketTTSBridge/LICENSE-Pocket-TTS.txt
+    - apple/PocketTTSBridge/README.md
+    - apple/PocketTTSBridge/build-apple.sh
+    - apple/PocketTTSBridge/examples/lab_smoke.rs
+    - apple/PocketTTSBridge/include/PocketTTSBridge.h
+    - apple/PocketTTSBridge/include/module.modulemap
+    - apple/PocketTTSBridge/ios-device.cmake
+    - apple/PocketTTSBridge/ios-simulator.cmake
+    - apple/PocketTTSBridge/local-runtime-symbols.txt
+    - apple/PocketTTSBridge/prepare.py
+    - apple/PocketTTSBridge/run-smoke.sh
+    - apple/PocketTTSBridge/src/lib.rs
+    - apple/PocketTTSBridge/test_build_apple.py
+    - apple/PocketTTSBridge/test_prepare.py
+    - apple/PocketTTSBridge/verify-assets.py
+    - apple/project.yml
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/push_subscription_targets.py
+    - backend/tests/test_native_chats_api.py
+    - backend/tests/test_watch_chat_metadata_payload.py
+    - backend/tests/test_watch_push_notifications.py
+    - backend/tests/test_workspace_inventory_paging.py
+    - docs/architecture/apple/storage-compatibility-2026-10-03.md
+    - docs/plans/apple-local-model-lab/plan.yml
+    - docs/plans/apple-offline-speech-stability/plan.yml
+    - docs/plans/apple-offline-speech-stability/research.md
+    - docs/plans/apple-offline-speech-stability/watch-whisper-research.md
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/packages/ui/src/i18n/sources/apple.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/apps_workspace.yml
+    - frontend/packages/ui/src/i18n/sources/chat/send_storage_errors.yml
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/live_activities.yml
+    - frontend/packages/ui/src/i18n/sources/projects.yml
+    - frontend/packages/ui/src/i18n/sources/settings/local_models.yml
+    - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/watch_whisper.yml
+    - frontend/packages/ui/src/i18n/sources/tasks.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - scripts/apple_testflight_release.py
+    - scripts/apple_ui_contracts.py
+    - scripts/tests/test_apple_testflight_release.py
+    - scripts/tests/test_apple_ui_contracts.py
+    - shared/composer/fixtures/apple-composer-renderer-v1.json
+    - specifications/features/app-skills/hosting-search-domains/examples.yml
+    - specifications/features/app-skills/hosting-search-domains/specification.yml
+    - specifications/features/apple-live-activities/examples.yml
+    - specifications/features/apple-live-activities/specification.yml
+    - specifications/features/apple-local-model-lab/examples.yml
+    - specifications/features/apple-local-model-lab/specification.yml
+    - specifications/features/apple-offline-workspaces/examples.yml
+    - specifications/features/apple-offline-workspaces/specification.yml
+    - specifications/features/apple-recent-offline-chats/examples.yml
+    - specifications/features/apple-recent-offline-chats/specification.yml
+    - specifications/features/apple-task-board-interactions/examples.yml
+    - specifications/features/apple-task-board-interactions/specification.yml
+    - specifications/features/apple-tasks-widget/examples.yml
+    - specifications/features/apple-tasks-widget/specification.yml
+    - specifications/features/apple-watch/examples.yml
+    - specifications/features/apple-watch/specification.yml
+    - specifications/features/apple-workflow-widget/examples.yml
+    - specifications/features/apple-workflow-widget/specification.yml
+    - specifications/features/apps-workspace/examples.yml
+    - specifications/features/apps-workspace/specification.yml
+    - specifications/features/pii-protection/examples.yml
+    - specifications/features/pii-protection/specification.yml
+    - specifications/features/projects/examples.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+    - platform:plans
+    - platform:tasks
+  - sha: e1aa61e796d878bad05a42b954d3a3e8d99b3287
+    short_sha: e1aa61e79
+    authored_at: '2026-10-04T12:45:51+00:00'
+    subject: 'perf: count chat messages without transferring every row'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_methods_bounded_query_release.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids: []
+  - sha: 34396204a859ddb20d147a5b06f9752bb424eb41
+    short_sha: 34396204a
+    authored_at: '2026-10-04T12:25:48+00:00'
+    subject: 'docs: document phased focus behavior and verification gaps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/apps/focus-mode-phases-proposal.md
+    - docs/architecture/apps/focus-modes-implementation.md
+    - docs/plans/focus-mode-phases/plan.yml
+    - docs/user-guide/apps/focus-modes.md
+    related_feature_ids: []
+  - sha: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+    short_sha: 1aedbfdb4
+    authored_at: '2026-10-04T12:16:24+00:00'
+    subject: 'fix: preserve phase tool permissions and recovery prompts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_focus_phases.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 2505cd4fd164bede3d23dcd440ef83bdc92cb2c3
+    short_sha: 2505cd4fd
+    authored_at: '2026-10-04T12:03:15+00:00'
+    subject: 'test: verify phased focus details and record remaining usage checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/focus-mode-phases/plan.yml
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    related_feature_ids: []
+  - sha: a314f90545a32e0b7c9372c3dfece1c4d2ae98cc
+    short_sha: a314f9054
+    authored_at: '2026-10-04T11:52:34+00:00'
+    subject: 'feat: add phased focus modes with encrypted progress and client parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/FocusPhaseModels.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusPhaseNoticeView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/FocusModePhasesNativeView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProjectsView.swift
+    - apple/OpenMatesTests/FocusPhaseTests.swift
+    - backend/apps/ai/processing/focus_phases.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/jobs/focus_modes/career-insights/SKILL.md
+    - backend/core/api/app/routes/apps.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_deactivate_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/skill_registry.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/schemas/chats.yml
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/shared/python_utils/chat_ciphertext_fingerprint.py
+    - backend/shared/python_utils/focus_mode_skill_loader.py
+    - backend/tests/test_focus_mode_routing.py
+    - backend/tests/test_focus_phases.py
+    - docs/architecture/apps/focus-mode-phases-proposal.md
+    - docs/plans/focus-mode-phases/plan.yml
+    - frontend/apps/web_app/tests/components/focus-phases.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/focus-phases.test.ts
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/FocusPhaseNotice.svelte
+    - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+    - frontend/packages/ui/src/components/settings/FocusModePhases.preview.ts
+    - frontend/packages/ui/src/components/settings/FocusModePhases.svelte
+    - frontend/packages/ui/src/components/settings/SettingsProjects.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/focus_phases.yml
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersFocusPhases.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/types/apps.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/types/focusPhases.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/focus-modes/examples.yml
+    - specifications/features/focus-modes/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:jobs
+    - platform:ios
+    - platform:macos
+    - platform:projects
+    - skill:ai:ask
+  - sha: d84085c99f5ea469dcf32e8e6da0233d22fe9c41
+    short_sha: d84085c99
+    authored_at: '2026-10-04T09:02:51+00:00'
+    subject: 'fix: bind query index migration into dev setup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.yml
+    related_feature_ids: []
+  - sha: ecb865c34d3748017eae435f657931254a908595
+    short_sha: ecb865c34
+    authored_at: '2026-10-04T08:58:23+00:00'
+    subject: 'perf: add bounded storage query indexes with isolated setup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/setup/migrate_storage_query_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    related_feature_ids: []
+  - sha: 88ab79eed0ccae09110480aa024b60a54204d136
+    short_sha: 88ab79eed
+    authored_at: '2026-10-04T08:55:06+00:00'
+    subject: 'fix: disclose historical database retention accurately'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/legal-history-retention.spec.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/historicalDirectusPrivacyCopy.test.ts
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - shared/docs/privacy_policy.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: be5d1baa1dd5442a91de6526fdc66ca4db415603
+    short_sha: be5d1baa1
+    authored_at: '2026-10-04T08:34:53+00:00'
+    subject: 'test: classify public privacy retention browser coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage.py
+    related_feature_ids: []
+  - sha: e2cd90a659ee01d3c02969fc9b0b9d7964e6aba7
+    short_sha: e2cd90a65
+    authored_at: '2026-10-04T07:53:09+00:00'
+    subject: 'docs: specify native storage receipt and recovery contracts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    related_feature_ids: []
+  - sha: 4c0cf8b1b5e28bae3e5121a22f6179131a2ae1c8
+    short_sha: 4c0cf8b1b
+    authored_at: '2026-10-04T07:21:37+00:00'
+    subject: 'test: validate complete legacy storage probe receipts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    related_feature_ids: []
+  - sha: 0bea8aff6165199791a9532f6ec65d1bd6fd9f32
+    short_sha: 0bea8aff6
+    authored_at: '2026-10-04T05:47:46+00:00'
+    subject: 'test: verify legacy SQL claims before recovery cutover'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    related_feature_ids: []
+  - sha: 03ca9f0b62c8d66d9047cdfe4cd6bd2cdc40cb83
+    short_sha: 03ca9f0b6
+    authored_at: '2026-10-04T05:11:41+00:00'
+    subject: 'test: run detached docs through isolated broker workers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_detached_docs_profile.py
+    related_feature_ids: []
+  - sha: eb45da19d31a7bfea048bb29775588f0910f1cf0
+    short_sha: eb45da19d
+    authored_at: '2026-10-04T03:45:52+00:00'
+    subject: 'test: classify parsed-message component verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_ci_coverage.py
+    related_feature_ids: []
+  - sha: 046e28be58d3ba80d7dfc5912ee33321362e4bd6
+    short_sha: 046e28be5
+    authored_at: '2026-10-04T01:29:52+00:00'
+    subject: 'feat: reconcile Directus tracking with scoped setup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    related_feature_ids: []
+  - sha: a46e480f7acbb4ac2c571c74fb586295fb974db6
+    short_sha: a46e480f7
+    authored_at: '2026-10-04T01:16:32+00:00'
+    subject: 'feat: disable redundant Directus audit writes for high-write storage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/schemas/embed_diffs.yml
+    - backend/core/directus/schemas/embeds.yml
+    - backend/core/directus/schemas/messages.yml
+    - backend/core/directus/schemas/test_results.yml
+    - backend/core/directus/setup/accountability_policy.py
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/scripts/inventory_directus_storage.py
+    - backend/scripts/storage_accountability_integration.py
+    - backend/tests/test_directus_storage_inventory.py
+    - backend/tests/test_setup_schemas.py
+    - backend/tests/test_storage_accountability_integration.py
+    - frontend/apps/web_app/tests/storage-accountability-integration.spec.ts
+    related_feature_ids: []
+  - sha: c5ed2afda576b1267237e64e8b07d75fa3759cb0
+    short_sha: c5ed2afda
+    authored_at: '2026-10-04T00:59:36+00:00'
+    subject: 'test: validate isolated Directus API-only evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_results.py
+    - scripts/tests/test_ci_results.py
+    related_feature_ids: []
+  - sha: 83ca7be3a0724d361a6b5e218db73eac1c7bea73
+    short_sha: 83ca7be3a
+    authored_at: '2026-10-04T00:28:16+00:00'
+    subject: 'test: preserve private storage diagnostics through cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_accountability_profile.py
+    - scripts/tests/test_ci_storage_private_retention.py
+    related_feature_ids: []
+  - sha: fe209c1be1eea845ad953483eb5c6d279165c393
+    short_sha: fe209c1be
+    authored_at: '2026-10-04T00:12:18+00:00'
+    subject: 'docs: record Directus verification ownership failure'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on enhancing storage durability and cross-platform parity, with significant progress on agentic
+    recovery mechanisms and phased focus modes. While these updates remain in development, they lay the groundwork for more
+    resilient AI interactions and improved native experiences on Apple platforms.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: OpenMates added bounded Geoapify map discovery to the Maps application.
+    evidence:
+      commits:
+      - c39192d29
+    release_status: dev_only
+  - text: The project implemented agentic storage and durable recovery mechanisms, including fixes for artifact version recovery
+      and saved-reference APIs.
+    evidence:
+      commits:
+      - 1e7b84c33
+      - 9f42f3f23
+      - 8addcd723
+    release_status: dev_only
+  - text: Phased focus modes were introduced with encrypted progress tracking, alongside fixes for evidence preservation and
+      state restoration across synced turns.
+    evidence:
+      commits:
+      - a314f9054
+      - 3d43c3d53
+      - 6039c6fa5
+      - 2eac4d5e5
+      - 1aedbfdb4
+    release_status: dev_only
+  - text: Significant updates were made to Apple platform support, including offline speech stability and widget improvements
+      for iOS, macOS, and Apple Watch.
+    evidence:
+      commits:
+      - e97f14609
+    release_status: dev_only
+  - text: The composer now better preserves focus and draft attachments during navigation and cross-client syncing.
+    evidence:
+      commits:
+      - 000860505
+    release_status: dev_only
+  - text: Privacy documentation and in-app disclosures were updated to accurately reflect historical database retention policies.
+    evidence:
+      commits:
+      - 88ab79eed
+    release_status: dev_only
+  - text: Redundant audit writes were disabled for high-write storage scenarios to optimize system performance.
+    evidence:
+      commits:
+      - a46e480f7
+    release_status: dev_only
+  internal_progress:
+  - text: Directus tracking was reconciled with scoped setup scripts and new query index migrations to improve database management.
+    evidence:
+      commits:
+      - 046e28be5
+      - d84085c99
+      - ecb865c34
+    release_status: dev_only
+  - text: Chat message counting was optimized to avoid transferring full rows, improving performance for large conversation
+      histories.
+    evidence:
+      commits:
+      - e1aa61e79
+    release_status: dev_only
+  - text: Testing infrastructure was expanded with isolated recovery receipt verification, improved CI coverage classification,
+      and private storage diagnostics.
+    evidence:
+      commits:
+      - 4559bc930
+      - be5d1baa1
+      - 4c0cf8b1b
+      - 0bea8aff6
+      - 03ca9f0b6
+      - eb45da19d
+      - c5ed2afda
+      - 83ca7be3a
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Bounded Geoapify map discovery
+      evidence:
+        commits:
+        - c39192d29
+      reason: Feature is currently in development and not yet released to the main branch.
+    - text: Phased focus modes with encrypted progress
+      evidence:
+        commits:
+        - a314f9054
+      reason: Feature is currently in development and not yet released to the main branch.
+    - text: Apple platform parity and offline speech improvements
+      evidence:
+        commits:
+        - e97f14609
+      reason: Apple platform support is currently disabled and in development.
+    rationale: No items from this update period are released to the main branch or marked as ready for public communication.
+  social_video_recommendations:
+  - idea: A demonstration of the new bounded map discovery feature using Geoapify.
+    priority: High
+    reason: This is a concrete user-facing feature with clear visual utility.
+    evidence:
+      commits:
+      - c39192d29
+  - idea: A technical deep-dive or short clip showing how OpenMates recovers AI tasks after an interruption.
+    priority: Medium
+    reason: Highlights the reliability and durability of the agentic storage system.
+    evidence:
+      commits:
+      - 1e7b84c33
+  quality_notes:
+  - Heavy emphasis on storage durability and recovery mechanisms to prevent data loss during complex AI tasks.
+  - Significant work on cross-platform parity, particularly for iOS, macOS, and Apple Watch.
+  validation_warnings: []
