@@ -115,6 +115,7 @@ describe("CLI draft reconciliation", () => {
             },
           }));
           socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         } else if (frame.type === "get_draft_versions") {
           socket.send(JSON.stringify({
             type: "draft_versions_response",
@@ -238,6 +239,7 @@ describe("CLI draft reconciliation", () => {
             },
           }));
           socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
           return;
         }
         if (frame.type === "get_draft_versions") {
@@ -340,6 +342,7 @@ describe("CLI draft reconciliation", () => {
             },
           }));
           socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
           return;
         }
         if (frame.type === "get_draft_versions") {
@@ -452,6 +455,7 @@ describe("CLI draft reconciliation", () => {
             },
           }));
           socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
           return;
         }
         if (frame.type === "get_draft_versions") {
@@ -570,6 +574,7 @@ describe("CLI draft reconciliation", () => {
             },
           }));
           socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
           return;
         }
         if (frame.type === "get_draft_versions") {
@@ -688,6 +693,7 @@ describe("CLI draft reconciliation", () => {
             },
           }));
           socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
           return;
         }
         if (frame.type === "get_draft_versions") {

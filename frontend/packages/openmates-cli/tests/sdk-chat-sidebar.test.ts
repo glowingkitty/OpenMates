@@ -118,6 +118,7 @@ test('saving a draft before the first list still syncs the complete chat census'
         collectMessages: async () => [{ type: 'phase_2_last_20_chats_ready', payload: {
           chats: [{ chat_details: serverChat }], total_chat_count: 2,
         } }], drainPassiveTaskUpdateJobs: () => [],
+        waitForRecoveryOutputDiscovery: async () => {}, drainAvailableRecoveryOutputPages: () => [],
       } }; },
       persistPendingAIResponsesFromSync: async () => {},
       persistPendingTaskUpdateJobs: async () => new Set(),

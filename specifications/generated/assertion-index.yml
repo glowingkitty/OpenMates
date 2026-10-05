@@ -41675,17 +41675,17 @@ assertions:
       surface: cli
     - &id5078
       path: frontend/packages/openmates-cli/tests/draft-sync.test.ts
-      line: 182
+      line: 183
       name: clears cached drafts when REST returns null
       surface: cli
     - &id5079
       path: frontend/packages/openmates-cli/tests/draft-sync.test.ts
-      line: 284
+      line: 286
       name: does not resurrect stale cached drafts when REST returns null
       surface: cli
     - &id5080
       path: frontend/packages/openmates-cli/tests/draft-sync.test.ts
-      line: 633
+      line: 638
       name: clears stale cached drafts when REST refresh fails and versions report
         deletion
       surface: cli
@@ -41702,7 +41702,7 @@ assertions:
       surface: cli
     - &id5083
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 171
+      line: 172
       name: clearing a new draft remembers its deletion without marking the chat census
         fresh
       surface: cli
@@ -42219,12 +42219,12 @@ assertions:
       surface: gui.web
     - &id5163
       path: frontend/packages/openmates-cli/tests/draft-sync.test.ts
-      line: 397
+      line: 400
       name: uses targeted sync when REST refresh fails before a response
       surface: cli
     - &id5164
       path: frontend/packages/openmates-cli/tests/draft-sync.test.ts
-      line: 510
+      line: 514
       name: uses targeted sync when REST refresh stalls
       surface: cli
     - &id5165
@@ -42239,12 +42239,12 @@ assertions:
       surface: cli
     - &id5167
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 140
+      line: 141
       name: editing a draft does not extend the freshness of an existing chat census
       surface: cli
     - &id5168
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 171
+      line: 172
       name: clearing a new draft remembers its deletion without marking the chat census
         fresh
       surface: cli
