@@ -62,3 +62,67 @@ async def test_fresh_same_cohort_renews_nonce_and_changed_cohort_rotates(monkeyp
     await publish_inventory([{**row, "instance_ids": ["container-b:1"]}])
     assert json.loads(redis.set.call_args.args[1])["inventory_id"] != nonce
     assert task.cleanup_services.await_count == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failing_stage", ["bootstrap", "publish"])
+async def test_publisher_failures_keep_source_fences_and_emit_only_typed_diagnostics(monkeypatch, failing_stage):
+    import sys
+    from scripts import storage_runtime_inventory as collector
+    private = "private-token-and-user-content"
+    initialize = AsyncMock(side_effect=RuntimeError(private)) if failing_stage == "bootstrap" else AsyncMock()
+    redis = SimpleNamespace(get=AsyncMock(side_effect=ConnectionError(private)), set=AsyncMock())
+    task = SimpleNamespace(initialize_core_services=initialize, cleanup_services=AsyncMock(), directus_service=object())
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.base_task", SimpleNamespace(BaseServiceTask=lambda: task))
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.storage_archive_client_compatibility", SimpleNamespace(_redis=AsyncMock(return_value=redis)))
+    monkeypatch.setenv("BUILD_COMMIT_SHA", SOURCE)
+    row = {"schema": collector.INSPECTION_SCHEMA, "source_commit": SOURCE, "instance_ids": ["container-a:1"]}
+    with pytest.raises(collector.InventoryFailure) as failure:
+        await collector.publish_inventory([row])
+    assert failure.value.diagnostic == {"status": "paused", "reason": f"runtime_inventory_{failing_stage}_failed",
+        "stage": failing_stage, "error_class": "RuntimeError" if failing_stage == "bootstrap" else "ConnectionError"}
+    assert private not in json.dumps(failure.value.diagnostic)
+    redis.set.assert_not_awaited()
+    task.cleanup_services.assert_awaited_once()
+
+
+@pytest.mark.parametrize("failure_stage", ["inspect", "publish"])
+def test_host_refresh_propagates_safe_remote_failure_stage_and_discards_private_fields(monkeypatch, failure_stage):
+    from scripts import storage_runtime_inventory as collector
+    inspected = {"schema": collector.INSPECTION_SCHEMA, "source_commit": SOURCE, "instance_ids": ["container-a:1"]}
+    paused = {"status": "paused", "reason": "runtime_inventory_bootstrap_failed", "stage": "bootstrap",
+              "error_class": "ModuleNotFoundError", "stderr": "private-secret", "api_processes": 999999, "exit_code": -999999}
+    replies = [SimpleNamespace(stdout="a" * 64)]
+    replies.append(SimpleNamespace(stdout=json.dumps(paused if failure_stage == "inspect" else inspected)))
+    if failure_stage == "publish":
+        replies.append(SimpleNamespace(stdout=json.dumps(paused)))
+    monkeypatch.setattr(collector.subprocess, "run", lambda *args, **kwargs: replies.pop(0))
+    with pytest.raises(collector.InventoryFailure) as failure:
+        collector.refresh_host_inventory(["compose", "-f", "isolated.yml"])
+    assert failure.value.diagnostic == {"status": "paused", "reason": "runtime_inventory_bootstrap_failed",
+        "stage": "bootstrap", "error_class": "ModuleNotFoundError", "container_count": 1}
+    assert "private" not in json.dumps(failure.value.diagnostic)
+    assert replies == []
+
+
+def test_publisher_json_contamination_is_a_typed_closed_gate_without_raw_log_output(monkeypatch):
+    from scripts import storage_runtime_inventory as collector
+    inspected = {"schema": collector.INSPECTION_SCHEMA, "source_commit": SOURCE, "instance_ids": ["container-a:1"]}
+    replies = [SimpleNamespace(stdout="a" * 64), SimpleNamespace(stdout=json.dumps(inspected)),
+               SimpleNamespace(stdout='private service startup log\n{"status":"published"}')]
+    monkeypatch.setattr(collector.subprocess, "run", lambda *args, **kwargs: replies.pop(0))
+    with pytest.raises(collector.InventoryFailure) as failure:
+        collector.refresh_host_inventory(["compose", "-f", "isolated.yml"])
+    assert failure.value.diagnostic == {"status": "paused", "reason": "runtime_inventory_json_invalid",
+        "stage": "publish", "error_class": "JSONDecodeError", "container_count": 1}
+    assert "private" not in json.dumps(failure.value.diagnostic)
+
+
+def test_subprocess_diagnostics_expose_bounded_exit_code_without_command_or_logs():
+    from scripts import storage_runtime_inventory as collector
+    exception = collector.subprocess.CalledProcessError(7, ["private-command"], output="private-output", stderr="private-stderr")
+    assert collector.failure_status(exception, stage="compose", container_count=1) == {
+        "status": "paused", "reason": "runtime_inventory_subprocess_failed", "stage": "compose",
+        "error_class": "CalledProcessError", "exit_code": 7, "container_count": 1}
+    unknown = collector.failure_status(ValueError("private-token"), stage="invented-private-stage", container_count=999999)
+    assert unknown == {"status": "paused", "reason": "runtime_inventory_unverified", "stage": "inspect", "error_class": "ValueError"}

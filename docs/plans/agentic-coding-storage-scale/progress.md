@@ -972,3 +972,36 @@ the actual policy/image audit and rejection of a removed worker policy tree.
 The exact publication audit command also passed. No security check was skipped
 and no image contents or dev runtime changed for this verifier repair. The next
 official image-publication result remains pending.
+
+
+## Actual inventory admission remains unverified
+
+Preparation `37330338224` passed. Its sizing consumer `37332433657` failed
+on exact source/harness `3539f6d` during isolated backend startup. The corrected
+authenticated three-key Vault namespace proof passed, all services were healthy,
+and the next actual serving-process inventory refresh failed before workload
+execution. No throughput, memory or latency measurements exist. Cleanup
+verified zero containers/volumes and removed private account state.
+
+The original collector output was discarded before its renewal log began, so
+retained artifacts cannot identify the failed inspection/cohort/bootstrap/publish
+transition. Source/profile inspection confirms the expected Compose project,
+source revision, script mount and single-serving-process layout; it does not
+prove a collector defect. The next changed-source run retains only typed
+allowlisted stages, reasons, error classes, counts and status. Admission still
+requires the exact source, complete real process inventory and short expiry.
+The fixture setup returns a typed exact-source/count result; a safe startup
+artifact is retained for failed and successful stages. Nine focused collector
+checks and 26 startup/namespace checks passed. No guard, source fence, heartbeat
+check or provider restriction was relaxed, and no retry policy was added.
+
+One instrumented existing calibration is authorized: startup failure stops
+processing; fully admitted startup may continue with the small eight-user sizing
+pilot. This is not the 500-execution/1000-heavy-user-day proof. Team payer and
+notice/expiry decisions, native evidence and dedicated target measurement remain
+open. Production and real-data pruning are unchanged.
+
+Official image run `37333952572` passed the repaired policy audit and is building
+the release; its schema image passed independent fresh-consumer verification.
+Completed image jobs do not establish that all required images or release
+eligibility are available. The final complete-image result remains pending.

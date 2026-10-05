@@ -181,6 +181,123 @@ def verify_isolated_vault_provider_namespace() -> None:
         raise RuntimeError("Isolated storage Vault provider namespace is unverified (" + summary + ")") from None
 
 
+CAPACITY_STARTUP_REASONS = frozenset({
+    "runtime_inventory_unverified", "runtime_inventory_bootstrap_failed",
+    "runtime_inventory_publish_failed", "runtime_inventory_json_invalid",
+    "runtime_inventory_subprocess_failed", "api_container_inventory_unavailable",
+    "api_container_identity_invalid", "api_process_inventory_unavailable",
+    "api_worker_count_unverified", "unexpected_api_worker_process",
+    "api_worker_inventory_incomplete", "api_process_inventory_ambiguous",
+    "api_source_provenance_unavailable", "api_instance_identity_invalid",
+    "api_deployment_inventory_incomplete", "api_deployment_source_mismatch",
+    "api_deployment_inspection_invalid", "api_deployment_inventory_ambiguous",
+    "api_deployment_publisher_source_mismatch", "api_process_inventory_exceeds_bound",
+    "api_deployment_publish_unverified", "api_deployment_inventory_exceeds_bound",
+})
+
+
+def record_capacity_startup(diagnostic_path, facts):
+    if diagnostic_path is None:
+        return
+    path = Path(diagnostic_path)
+    previous = json.loads(path.read_text()) if path.exists() else {"schema": "agentic-storage-capacity-startup-v1", "checks": []}
+    previous["checks"].append(facts)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(previous, sort_keys=True) + "\n")
+    path.chmod(0o600)
+
+
+def run_capacity_startup_guard(stage, runner, *, expected_status, source_commit, diagnostic_path=None):
+    """Require a typed success; expose only bounded, allowlisted failure facts."""
+    if stage not in {"inventory_refresh", "fixture_setup"}:
+        raise ValueError("Unknown capacity startup guard")
+    try:
+        result = runner()
+    except subprocess.CalledProcessError as error:
+        result = error
+    except subprocess.TimeoutExpired:
+        record_capacity_startup(diagnostic_path, {"stage": stage, "admitted": False, "error_class": "TimeoutExpired"})
+        raise RuntimeError(f"Isolated capacity startup is unverified (stage={stage}; timeout)") from None
+    raw = result.stdout or ""
+    details = None
+    if isinstance(raw, str) and len(raw) <= 65536:
+        try:
+            details = json.loads(raw)
+        except (TypeError, ValueError):
+            pass
+    valid = (isinstance(details, dict) and result.returncode == 0
+             and details.get("status") == expected_status
+             and details.get("source_commit") == source_commit)
+    if stage == "inventory_refresh":
+        valid = (valid and type(details.get("api_processes")) is int
+                 and 1 <= details["api_processes"] <= 128
+                 and details.get("expires_in_seconds") == 180)
+    elif valid:
+        valid = type(details.get("collections_count")) is int and 1 <= details["collections_count"] <= 128
+    facts = {"stage": stage, "admitted": bool(valid), "exit_code": result.returncode, "expected_source": source_commit}
+    summary = f"stage={stage}; exit={result.returncode}"
+    if isinstance(details, dict):
+        status = details.get("status")
+        if isinstance(status, str) and status in {"published", "ready", "paused", "failed"}:
+            summary += f"; status={status}"
+            facts["status"] = status
+        reason = details.get("reason")
+        if isinstance(reason, str) and reason in CAPACITY_STARTUP_REASONS:
+            summary += f"; reason={reason}"
+            facts["reason"] = reason
+        failure_stage = details.get("stage")
+        if isinstance(failure_stage, str) and failure_stage in {"compose", "inspect", "cohort", "publish", "bootstrap", "rollout"}:
+            summary += f"; failed_stage={failure_stage}"
+            facts["failed_stage"] = failure_stage
+        error_class = details.get("error_class")
+        if isinstance(error_class, str) and error_class in {"ValueError", "TypeError", "KeyError", "AttributeError", "ImportError", "ModuleNotFoundError",
+                           "RuntimeError", "CalledProcessError", "TimeoutExpired", "JSONDecodeError", "ConnectionError"}:
+            summary += f"; class={error_class}"
+            facts["error_class"] = error_class
+        for field in ("container_count", "api_processes", "exit_code", "collections_count", "expires_in_seconds"):
+            value = details.get(field)
+            if type(value) is int and 0 <= value <= (180 if field == "expires_in_seconds" else 128):
+                summary += f"; {field}={value}"
+                facts["remote_" + field if field == "exit_code" else field] = value
+        source = details.get("source_commit")
+        if isinstance(source, str) and re.fullmatch(r"[a-f0-9]{40}", source):
+            summary += f"; source={source}"
+            facts["source_commit"] = source
+    record_capacity_startup(diagnostic_path, facts)
+    if valid:
+        return details
+    raise RuntimeError("Isolated capacity startup is unverified (" + summary + ")") from None
+
+
+CAPACITY_FIXTURE_SETUP = """import asyncio, contextlib, json, os, sys
+stage='bootstrap'
+async def run():
+    global stage
+    from backend.core.api.app.tasks.base_task import BaseServiceTask
+    from scripts.storage_rollout import COLLECTIONS, write_rollout
+    task=BaseServiceTask()
+    try:
+        await task.initialize_core_services()
+        source=os.environ['BUILD_COMMIT_SHA']
+        receipt='ci-storage-capacity:'+source
+        stage='rollout'
+        for name in COLLECTIONS:
+            await write_rollout(task.directus_service,name,{'read_enabled':True,'pruning_enabled':True,'initial_cohort':False,'compatibility_verified':True,'reader_receipt':receipt,'validation_receipt':receipt,'failure_code':None})
+        return {'status':'ready','source_commit':source,'collections_count':len(COLLECTIONS)}
+    finally:
+        await task.cleanup_services()
+try:
+    with contextlib.redirect_stdout(sys.stderr):
+        result=asyncio.run(run())
+except Exception as error:
+    error_class=type(error).__name__
+    allowed={'ValueError','TypeError','KeyError','AttributeError','ImportError','ModuleNotFoundError','RuntimeError','ConnectionError'}
+    print(json.dumps({'status':'failed','stage':stage,'error_class':error_class if error_class in allowed else 'OtherError'}))
+    raise SystemExit(1)
+print(json.dumps(result,sort_keys=True))
+"""
+
+
 STORAGE_VERIFY = """import os, pathlib, requests, boto3
 from botocore.config import Config
 token=pathlib.Path('/vault-data/api.token').read_text().strip()
@@ -1262,11 +1379,14 @@ def main():
             temporary_proof.write_text(json.dumps(proof, sort_keys=True), encoding="utf-8")
             temporary_proof.chmod(0o444)
             temporary_proof.replace(proof_path)
-            inventory_refresh = subprocess.run([sys.executable, str(Path(SOURCE) / "scripts/storage_runtime_inventory.py"),
-                                                "refresh", "--compose-file", str(COMPOSE_PATH)],
-                                               capture_output=True, text=True, timeout=90)
-            if inventory_refresh.returncode or json.loads(inventory_refresh.stdout).get("status") != "published":
-                raise RuntimeError("Isolated API process inventory is unverified")
+            run_capacity_startup_guard(
+                "inventory_refresh",
+                lambda: subprocess.run([sys.executable, str(Path(SOURCE) / "scripts/storage_runtime_inventory.py"),
+                                        "refresh", "--compose-file", str(COMPOSE_PATH)],
+                                       capture_output=True, text=True, timeout=90),
+                expected_status="published", source_commit=evidence["source_commit"],
+                diagnostic_path=Path(SOURCE) / "test-results/ci-capacity-startup.json",
+            )
             # CI does not install host systemd services. Its disposable runner
             # refreshes the same actual-process inventory throughout the job.
             inventory_log = COMPOSE_PATH.parent / "storage-inventory.log"
@@ -1279,21 +1399,13 @@ def main():
             inventory_pid.chmod(0o600)
             # Fixture gates are source-bound and remain usable only while the
             # independent isolation proof and real API runtime guard are live.
-            fixture_setup = """import asyncio, os
-from backend.core.api.app.tasks.base_task import BaseServiceTask
-from scripts.storage_rollout import COLLECTIONS, write_rollout
-async def run():
-    task=BaseServiceTask()
-    try:
-        await task.initialize_core_services()
-        receipt='ci-storage-capacity:'+os.environ['BUILD_COMMIT_SHA']
-        for name in COLLECTIONS:
-            await write_rollout(task.directus_service,name,{'read_enabled':True,'pruning_enabled':True,'initial_cohort':False,'compatibility_verified':True,'reader_receipt':receipt,'validation_receipt':receipt,'failure_code':None})
-    finally:
-        await task.cleanup_services()
-asyncio.run(run())
-"""
-            compose("exec", "-T", "api", "python", "-c", fixture_setup, capture=True, timeout=60)
+            run_capacity_startup_guard(
+                "fixture_setup",
+                lambda: compose("exec", "-T", "api", "python", "-c", CAPACITY_FIXTURE_SETUP,
+                                capture=True, timeout=60),
+                expected_status="ready", source_commit=evidence["source_commit"],
+                diagnostic_path=Path(SOURCE) / "test-results/ci-capacity-startup.json",
+            )
             evidence["storage_isolation_proof"] = {"source_bound": True, "read_only_bind": True, "vault_provider_namespace": "disposable_only"}
         evidence_path.write_text(json.dumps(evidence, indent=2))
     elif action == "stop":

@@ -457,6 +457,7 @@ jobs:
             subject/test-results/ci-runtime-images.json
             subject/test-results/ci-results.json
             subject/test-results/ci-storage-archive-probe.json
+            subject/test-results/ci-capacity-startup.json
             subject/test-results/ci-stack.log
             subject/test-results/ci-stack-spec-*.log
             subject/test-results/ci-codex.json
