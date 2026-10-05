@@ -8,7 +8,12 @@
 import { test, expect } from './helpers/cookie-audit';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
+const { withMockMarker } = require('./signup-flow-helpers');
 const { randomUUID } = require('node:crypto');
+
+// Keep the real Send button and recording shortcuts while routing the resulting
+// inference through a committed fixture in the isolated CI stack.
+const AUDIO_SEND_PROMPT = withMockMarker('Please respond to this voice note.', 'test_hello');
 
 async function mockRecordingUpload(page: import('@playwright/test').Page): Promise<void> {
 	await page.route('**/v1/upload/file', async (route) => {
@@ -96,6 +101,7 @@ async function openAuthenticatedRecording(page: import('@playwright/test').Page)
 	await editor.click();
 	await page.keyboard.type(' ');
 	await page.keyboard.press('Backspace');
+	await page.keyboard.type(AUDIO_SEND_PROMPT);
 	await page.getByTestId('message-field').last().getByTestId('record-audio-button')
 		.dispatchEvent('mousedown', { button: 0 });
 	const overlay = page.getByTestId('record-overlay');
@@ -174,6 +180,7 @@ test('sending as correction finishes publishes the stored audio embed before the
 	await editor.click();
 	await page.keyboard.type(' ');
 	await page.keyboard.press('Backspace');
+	await page.keyboard.type(AUDIO_SEND_PROMPT);
 
 	const micButton = page.getByTestId('message-field').last().getByTestId('record-audio-button');
 	await expect(micButton).toBeVisible({ timeout: 20000 });
@@ -193,21 +200,102 @@ test('sending as correction finishes publishes the stored audio embed before the
 
 	// Reproduce NWWRB: correction finishes immediately before Send. The node must
 	// remain blocking until its EmbedStore entry and contentRef are both ready.
+	const sendErrors: string[] = [];
+	const availabilityTraffic: string[] = [];
+	page.on('console', (message) => {
+		if (message.type() === 'error' && /\[ChatSyncService:Senders\]|\[handleSend\]|\[executeDeferredSend\]/.test(message.text())) {
+			sendErrors.push(message.text().slice(0, 500));
+		}
+	});
+	page.on('request', (request) => {
+		if (new URL(request.url()).pathname.includes('/references/availability')) {
+			availabilityTraffic.push(`${request.method()} requested`);
+		}
+	});
+	page.on('requestfailed', (request) => {
+		if (new URL(request.url()).pathname.includes('/references/availability')) {
+			availabilityTraffic.push(`${request.method()} failed: ${request.failure()?.errorText}`);
+		}
+	});
 	releaseCorrection();
 	await expect(composerRecording.getByTestId('recording-auto-correction')).not.toBeVisible({
 		timeout: 20000,
 	});
+	const availabilityResponse = page.waitForResponse((response) =>
+		response.request().method() === 'POST' &&
+		/^\/v1\/embeds\/chats\/[^/]+\/references\/availability$/.test(new URL(response.url()).pathname),
+		{ timeout: 30000 },
+	);
 	await page.locator('[data-action="send-message"]').click();
+	const availability = await availabilityResponse.catch((error: Error) => {
+		throw new Error(`${error.message}; availability traffic: ${availabilityTraffic.join(', ') || 'none'}; send errors: ${sendErrors.join(' | ') || 'none'}`);
+	});
+	expect(availability.status()).toBe(200);
+	expect(availability.headers()['access-control-allow-origin']).toBe(new URL(page.url()).origin);
+	expect(availability.headers()['access-control-allow-credentials']).toBe('true');
 	const pendingMessage = page.locator('[data-message-id]').last();
 	await expect(pendingMessage).toBeVisible({ timeout: 10000 });
 	const pendingMessageId = await pendingMessage.getAttribute('data-message-id');
 	expect(pendingMessageId).toBeTruthy();
 
 	const finalizedMessage = page.locator(`[data-message-id="${pendingMessageId}"]`);
+	await expect(finalizedMessage).toHaveAttribute('data-status', 'synced', { timeout: 60000 });
 	await expect(finalizedMessage.getByTestId('recording-preview')).toBeVisible({ timeout: 60000 });
 	await expect(finalizedMessage.getByTestId('recording-preview-waveform')).toBeVisible();
 	await expect(finalizedMessage.getByText('No transcript available')).not.toBeVisible();
 	await expect(page.getByText(/Something went wrong while processing the embeds/i)).not.toBeVisible();
+});
+
+// contract-test: direct surface=gui.web assertions=message-input.embeds.gated-send,chats.local-state.precedence
+test('an unavailable reference probe leaves one failed voice message for retry', async ({ page }) => {
+	test.setTimeout(180000);
+	await openAuthenticatedRecording(page);
+	await page.getByTestId('record-overlay').getByTestId('record-finish-button').click();
+	await expect(page.getByTestId('record-overlay')).not.toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('recording-preview')).toContainText('Send this completed recording directly.', {
+		timeout: 20000,
+	});
+	let availabilityRequests = 0;
+	let availabilityChatId: string | undefined;
+	await page.route('**/v1/embeds/chats/*/references/availability*', (route) => {
+		expect(route.request().method()).toBe('POST');
+		availabilityChatId = new URL(route.request().url()).pathname.split('/')[4];
+		availabilityRequests += 1;
+		return route.abort('failed');
+	});
+	await page.locator('[data-action="send-message"]').click();
+	await expect.poll(() => availabilityRequests).toBe(1);
+	expect(availabilityChatId).toBeTruthy();
+	// A synchronous send rejection keeps the editable recording in the composer.
+	// Verify its optimistic row directly in encrypted local storage instead of
+	// requiring a chat-history preview that this path does not render.
+	await expect.poll(() => page.evaluate(async (chatId) => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+		});
+		try {
+			const rows = await new Promise<Array<Record<string, unknown>>>((resolve, reject) => {
+				const request = db.transaction('messages', 'readonly').objectStore('messages').getAll();
+				request.onsuccess = () => resolve(request.result as Array<Record<string, unknown>>);
+				request.onerror = () => reject(request.error);
+			});
+			return rows.filter((row) => row.chat_id === chatId && row.role === 'user').map((row) => ({
+				status: row.status,
+				hasEncryptedContent: typeof row.encrypted_content === 'string' && row.encrypted_content.length > 0,
+				hasPlaintextContent: Boolean(row.content),
+			}));
+		} finally {
+			db.close();
+		}
+	}, availabilityChatId), { timeout: 30000 }).toEqual([{
+		status: 'failed',
+		hasEncryptedContent: true,
+		hasPlaintextContent: false,
+	}]);
+	await expect(page.getByTestId('message-editor').getByTestId('recording-preview')).toBeVisible();
+	expect(availabilityRequests).toBe(1);
 });
 
 for (const shortcut of [
@@ -240,6 +328,7 @@ for (const shortcut of [
 			.filter({ has: page.getByTestId('recording-preview') })
 			.last();
 		await expect(sentMessage).toBeVisible({ timeout: 60000 });
+		await expect(sentMessage).toHaveAttribute('data-status', 'synced', { timeout: 60000 });
 		await expect(sentMessage.getByTestId('recording-preview')).toContainText(
 			'Send this completed recording directly.',
 			{ timeout: 60000 },

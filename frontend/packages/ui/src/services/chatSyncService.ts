@@ -212,10 +212,20 @@ export class ChatSynchronizationService extends EventTarget {
         this.activeSubChatIds.delete(id);
       }
       subChatActivityIds.set(new Set(this.activeSubChatIds));
+      const endedTasks: Array<{ chatId: string; taskId: string; userMessageId?: string }> = [];
       for (const [id, task] of this.activeAITasks) if (active.get(id) !== task.taskId) {
         this.activeAITasks.delete(id); aiTypingStore.clearTypingForChat(id);
+        endedTasks.push({ chatId: id, taskId: task.taskId, userMessageId: task.userMessageId || undefined });
       }
       for (const [id, taskId] of active) if (!this.activeAITasks.has(id)) this.activeAITasks.set(id, { taskId, userMessageId: '' });
+      for (const task of endedTasks) {
+        // The activity endpoint is authoritative after a tab resumes. A background
+        // completion may have no WebSocket terminal frame for this device.
+        // Install any replacement first so terminal listeners still see it running.
+        this.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: {
+          ...task, status: 'completed',
+        } }));
+      }
       this.activityRequestedIds.clear();
       await this.reloadActivityChats?.();
     } catch (error) { console.warn('[ChatSyncService] Activity snapshot failed:', error); }

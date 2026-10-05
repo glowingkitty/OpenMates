@@ -2011,6 +2011,9 @@ export async function sendNewMessageImpl(
 					"[ChatSyncService:Senders] Error preparing encrypted embeds:",
 					encryptError
 				);
+				// The optimistic row already exists. A failed availability check or
+				// encryption step must leave it retryable, with its ciphertext intact.
+				await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
 				encryptSpan.end();
 				throw encryptError;
 			}

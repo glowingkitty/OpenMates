@@ -70,6 +70,42 @@ describe("recovery job request correlation", () => {
     vi.restoreAllMocks();
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+  it("notifies the exact task when a resumed recovery claim is already terminal", async () => {
+    const handlers = new Map();
+    mocks.webSocketService.on.mockImplementation((type, handler) => handlers.set(type, handler));
+    mocks.webSocketService.off.mockImplementation((type) => handlers.delete(type));
+    mocks.webSocketService.sendMessage.mockImplementation(async (type, payload) => {
+      if (type !== "recovery_job_claim") return;
+      queueMicrotask(() => handlers.get("recovery_job_claimed")?.({
+        request_id: payload.request_id, job_id: "job-terminal", state: "TERMINAL",
+        chat_id: "chat-terminal", turn_id: "user-terminal",
+        assistant_message_id: "assistant-terminal", chat_key_version: 1,
+      }));
+    });
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "chat-terminal", user_id: "owner" });
+    const activeAITasks = new Map([["chat-terminal", {
+      taskId: "assistant-terminal", userMessageId: "user-terminal",
+    }]]);
+    const service = {
+      dispatchEvent: vi.fn(), activeAITasks,
+      hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn().mockResolvedValue(undefined),
+    };
+    await handleRecoveryJobsAvailableImpl(service, { jobs: [{
+      job_id: "job-terminal", chat_id: "chat-terminal", turn_id: "user-terminal",
+      assistant_message_id: "assistant-terminal", chat_key_version: 1,
+    }] });
+    expect(service.requestChatContentBatch_FOR_HANDLERS_ONLY).toHaveBeenCalledWith(["chat-terminal"]);
+    expect(activeAITasks.has("chat-terminal")).toBe(false);
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: "aiTaskEnded", detail: {
+        chatId: "chat-terminal", taskId: "assistant-terminal",
+        userMessageId: "user-terminal", status: "completed",
+      },
+    }));
+  });
+
   // contract-test: direct surface=gui.web assertions=chats.completion.lease-fenced,chats.message.identity-idempotent
   it("ignores delayed claim and persist frames from an earlier attempt", async () => {
     const handlers = new Map();

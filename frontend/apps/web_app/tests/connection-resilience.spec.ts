@@ -22,6 +22,47 @@ const { test, expect } = require('./helpers/cookie-audit');
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
 
+type AiProtocolEvent = {
+	type: string;
+	code?: string;
+	message?: string;
+	chatId?: string;
+};
+
+function observeAiProtocol(page: any): AiProtocolEvent[] {
+	const events: AiProtocolEvent[] = [];
+	page.on('websocket', (websocket: any) => {
+		websocket.on('framereceived', (frame: any) => {
+			try {
+				const received = JSON.parse(String(frame.payload));
+				if (received.type !== 'error' && received.type !== 'ai_task_initiated') return;
+				events.push({
+					type: received.type,
+					code: typeof received.payload?.code === 'string' ? received.payload.code : undefined,
+					message: typeof received.payload?.message === 'string' ? received.payload.message.slice(0, 180) : undefined,
+					chatId: typeof received.payload?.chat_id === 'string' ? received.payload.chat_id : undefined
+				});
+			} catch {
+				// Ignore non-JSON WebSocket frames.
+			}
+		});
+	});
+	return events;
+}
+
+async function waitForAssistantOrAiProtocolError(page: any, events: AiProtocolEvent[], chatId: string, timeout = 30000): Promise<void> {
+	let outcome = 'pending';
+	await expect.poll(async () => {
+		// This listener starts just before the only send in each test.
+		const failure = events.find((event) => event.type === 'error' && (!event.chatId || event.chatId === chatId));
+		outcome = failure
+			? `server error ${failure.code ?? 'unknown'}: ${failure.message ?? 'no message'}`
+			: (await page.getByTestId('message-assistant').count()) > 0 ? 'assistant' : 'pending';
+		return outcome;
+	}, { timeout }).not.toBe('pending');
+	expect(outcome).toBe('assistant');
+}
+
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 	networkActivities.length = 0;
@@ -198,7 +239,7 @@ async function sendMessageUntilChatIdAssigned(
 	page: any,
 	message: string,
 	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void,
-	protocolEvents: Array<{ direction: 'sent' | 'received'; type: string }> = []
+	protocolEvents: Array<{ direction: 'sent' | 'received'; type: string; code?: string; message?: string; chatId?: string }> = []
 ): Promise<string> {
 	const eventStartIndex = protocolEvents.length;
 	await sendMessage(page, message, logCheckpoint);
@@ -216,12 +257,27 @@ async function sendMessageUntilChatIdAssigned(
 		.toBe(true);
 	const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
 	expect(chatId).toBeTruthy();
+	let sendOutcome = 'pending';
+	await expect.poll(() => {
+		const eventsForTurn = protocolEvents.slice(eventStartIndex);
+		const failure = eventsForTurn.find((event) =>
+			event.direction === 'received' && event.type === 'error' && (!event.chatId || event.chatId === chatId)
+		);
+		sendOutcome = failure
+			? `server error ${failure.code ?? 'unknown'}: ${failure.message ?? 'no message'}`
+			: eventsForTurn.some((event) => event.direction === 'received' && event.type === 'ai_task_initiated')
+			? 'ai_task_initiated'
+			: 'pending';
+		return sendOutcome;
+	}, { timeout: 30000 }).not.toBe('pending');
+	expect(sendOutcome).toBe('ai_task_initiated');
 	return chatId;
 }
 
 // ---------------------------------------------------------------------------
 // Test 1: Connection drop during AI streaming -> recovery
 // ---------------------------------------------------------------------------
+// contract-test: supporting surface=gui.web assertions=chats.completion.recovery-takeover,chats.streaming.progressive-presentation
 test('recovers AI response after connection drop during streaming', async ({ page, context }: { page: any; context: any }) => {
 	page.on('console', (msg: any) => {
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`);
@@ -236,24 +292,31 @@ test('recovers AI response after connection drop during streaming', async ({ pag
 	test.slow();
 	test.setTimeout(180000);
 
+	const aiProtocolEvents = observeAiProtocol(page);
 	const { logCheckpoint, takeStepScreenshot } = await loginAndNavigateToChat(page, test, 'CONN_DROP');
+	aiProtocolEvents.length = 0;
 
-	// Send a message to trigger AI streaming
-	await sendMessageAndGetChatId(page, 'Tell me a long story about a dragon and a knight', logCheckpoint);
-	await takeStepScreenshot(page, 'message-sent');
+	// This committed fixture holds the first chunk for seven seconds before
+	// publishing the final one, giving the browser a real in-progress turn to drop.
+	const chatId = await sendMessageAndGetChatId(
+		page,
+		withMockMarker('Plan a Kyoto and Osaka weekend quick tip.', 'chat_flow_quick_tip'),
+		logCheckpoint
+	);
 
-	// Wait briefly for streaming to start
+	// Confirm partial server output before disconnecting, not merely a bubble.
+	await waitForAssistantOrAiProtocolError(page, aiProtocolEvents, chatId);
 	await waitForAssistantMessage(page, { which: 'first', logCheckpoint });
 	const assistantMessage = page.getByTestId('message-assistant');
-	logCheckpoint('Assistant message placeholder appeared, streaming likely started.');
+	await expect(assistantMessage.first()).toContainText('Kyoto and Osaka quick tip test');
+	await expect(assistantMessage.first()).not.toContainText('A weekend trip plan should balance meals, transit, and rest.');
+	logCheckpoint('Assistant first chunk visible and final chunk still pending.');
 
-	// Wait a moment for some tokens to arrive
-	await page.waitForTimeout(3000);
-	await takeStepScreenshot(page, 'streaming-in-progress');
-
-	// Drop the connection
+	// Disconnect while the deterministic response is still processing.
+	await expect(page.getByTestId('stop-processing-button')).toBeVisible();
 	logCheckpoint('Dropping connection (going offline)...');
 	await context.setOffline(true);
+	await takeStepScreenshot(page, 'streaming-in-progress');
 	await page.waitForTimeout(5000);
 	await takeStepScreenshot(page, 'offline');
 
@@ -263,7 +326,9 @@ test('recovers AI response after connection drop during streaming', async ({ pag
 
 	// Wait for reconnect and sync - the AI response should eventually arrive
 	logCheckpoint('Waiting for AI response to arrive after reconnect...');
-	await expect(assistantMessage.last()).toContainText(/(\w+\s*){5,}/, { timeout: 60000 });
+	await expect(assistantMessage.last()).toContainText('A weekend trip plan should balance meals, transit, and rest.', { timeout: 60000 });
+	await expect(page.getByTestId('typing-indicator')).toHaveCount(0, { timeout: 10000 });
+	await expect(page.getByTestId('stop-processing-button')).toHaveCount(0, { timeout: 10000 });
 	await takeStepScreenshot(page, 'response-recovered');
 	logCheckpoint('AI response recovered after connection drop.');
 
@@ -274,6 +339,7 @@ test('recovers AI response after connection drop during streaming', async ({ pag
 // ---------------------------------------------------------------------------
 // Test 2: Page reload after sending message -> AI response delivered on return
 // ---------------------------------------------------------------------------
+// contract-test: supporting surface=gui.web assertions=chats.completion.pending-delivery,chats.message.identity-idempotent
 test('delivers AI response after page reload during processing', async ({ page }: { page: any }) => {
 	page.on('console', (msg: any) => {
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`);
@@ -288,7 +354,9 @@ test('delivers AI response after page reload during processing', async ({ page }
 	test.slow();
 	test.setTimeout(180000);
 
+	const aiProtocolEvents = observeAiProtocol(page);
 	const { logCheckpoint, takeStepScreenshot } = await loginAndNavigateToChat(page, test, 'RELOAD');
+	aiProtocolEvents.length = 0;
 
 	// Send a message
 	const chatId = await sendMessageAndGetChatId(
@@ -322,6 +390,7 @@ test('delivers AI response after page reload during processing', async ({ page }
 	}
 
 	// The assistant response should arrive
+	await waitForAssistantOrAiProtocolError(page, aiProtocolEvents, chatId, 120000);
 	await waitForAssistantMessage(page, {
 		which: 'last',
 		contains: 'Berlin',
@@ -342,6 +411,7 @@ test('delivers AI response after page reload during processing', async ({ page }
 // ---------------------------------------------------------------------------
 // Test 3: IndexedDB v19 migration creates pending_embed_operations store
 // ---------------------------------------------------------------------------
+// contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
 test('IndexedDB has pending_embed_operations store after login', async ({ page }: { page: any }) => {
 	page.on('console', (msg: any) => {
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`);
@@ -381,6 +451,7 @@ test('IndexedDB has pending_embed_operations store after login', async ({ page }
 // ---------------------------------------------------------------------------
 // Test 4: Orphaned streaming messages are not finalized locally on reconnect
 // ---------------------------------------------------------------------------
+// contract-test: supporting surface=gui.web assertions=chats.local-state.precedence,chats.completion.pending-delivery
 test('orphaned streaming messages remain pending for authoritative sync on reconnect', async ({ page, context }: { page: any; context: any }) => {
 	page.on('console', (msg: any) => {
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`);
@@ -395,12 +466,15 @@ test('orphaned streaming messages remain pending for authoritative sync on recon
 	test.slow();
 	test.setTimeout(180000);
 
+	const aiProtocolEvents = observeAiProtocol(page);
 	const { logCheckpoint, takeStepScreenshot } = await loginAndNavigateToChat(page, test, 'ORPHAN_CLEANUP');
+	aiProtocolEvents.length = 0;
 
 	// Send a message to get a chat established
-	const chatId = await sendMessageAndGetChatId(page, 'Hello there!', logCheckpoint);
+	const chatId = await sendMessageAndGetChatId(page, withMockMarker('Hello there!', 'test_hello'), logCheckpoint);
 
 	// Wait for response
+	await waitForAssistantOrAiProtocolError(page, aiProtocolEvents, chatId);
 	await waitForAssistantMessage(page, {
 		which: 'last',
 		contains: /\w+/,
@@ -493,6 +567,7 @@ test('orphaned streaming messages remain pending for authoritative sync on recon
 // ---------------------------------------------------------------------------
 // Test 5: Pending embed operations queue flushed on reconnect
 // ---------------------------------------------------------------------------
+// contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send,chats.message.identity-idempotent
 test('pending embed operations are flushed from IndexedDB on reconnect', async ({ page, context }: { page: any; context: any }) => {
 	page.on('console', (msg: any) => {
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`);
@@ -631,6 +706,7 @@ test('pending embed operations are flushed from IndexedDB on reconnect', async (
 // ---------------------------------------------------------------------------
 // Test 6: An independent browser context recovers and durably retains one response
 // ---------------------------------------------------------------------------
+// contract-test: direct surface=gui.web assertions=chats.completion.recovery-takeover,chats.message.identity-idempotent
 test('secondary client recovers exactly one saved assistant message after origin disconnect and cold boot', async ({
 	browser
 }: {
@@ -650,6 +726,8 @@ test('secondary client recovers exactly one saved assistant message after origin
 		direction: 'sent' | 'received';
 		type: string;
 		state?: string;
+		code?: string;
+		message?: string;
 		jobId?: string;
 		requestId?: string;
 		chatId?: string;
@@ -672,6 +750,9 @@ test('secondary client recovers exactly one saved assistant message after origin
 						direction,
 						type: message.type,
 						state: typeof message.payload?.state === 'string' ? message.payload.state : undefined,
+						code: message.type === 'error' && typeof message.payload?.code === 'string' ? message.payload.code : undefined,
+						message: message.type === 'error' && typeof message.payload?.message === 'string'
+							? message.payload.message.slice(0, 180) : undefined,
 						jobId: typeof message.payload?.job_id === 'string' ? message.payload.job_id : undefined,
 						requestId: typeof message.payload?.request_id === 'string' ? message.payload.request_id : undefined,
 						chatId: typeof message.payload?.chat_id === 'string' ? message.payload.chat_id : undefined,

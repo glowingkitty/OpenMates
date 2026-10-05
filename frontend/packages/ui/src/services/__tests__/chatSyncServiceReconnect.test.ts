@@ -174,7 +174,7 @@ vi.mock("../chatSyncServiceHandlersAppSettings", () => ({}));
 vi.mock("../chatSyncServiceHandlersConnectedAccounts", () => ({}));
 vi.mock("../chatSyncServiceHandlersWebhooks", () => ({}));
 
-import { chatSyncService } from "../chatSyncService";
+import { ChatSynchronizationService, chatSyncService } from "../chatSyncService";
 
 describe('Sidebar metadata hydration', () => {
   beforeEach(() => {
@@ -211,6 +211,66 @@ describe('Sidebar metadata hydration', () => {
       await expect(chatSyncService.hydrateSidebarChats(['old-chat'])).rejects.toThrow('Sidebar workspace changed');
       expect(listener).not.toHaveBeenCalled();
     } finally { chatSyncService.removeEventListener('chatUpdated', listener); }
+  });
+});
+
+describe('authoritative chat activity on resume', () => {
+  beforeEach(() => {
+    mocks.workspaceIdentity = 'account-a';
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: true }); return () => undefined; });
+    mocks.chatDB.addChat.mockReset();
+    mocks.chatDB.getChat.mockImplementation(async (chatId) => ({ chat_id: chatId, user_id: 'account-a' }));
+  });
+  afterEach(() => {
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: false }); return () => undefined; });
+    vi.unstubAllGlobals();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+  it('ends only the exact locally tracked task absent from the server activity snapshot', async () => {
+    const service = new ChatSynchronizationService();
+    // Constructor activity subscriptions mount in a microtask. Let that
+    // initialization finish before capturing a resume snapshot revision.
+    await Promise.resolve();
+    service.activeAITasks.set('finished-chat', { taskId: 'assistant-1', userMessageId: 'user-1' });
+    service.activeAITasks.set('running-chat', { taskId: 'assistant-2', userMessageId: 'user-2' });
+    const now = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now + 4_000);
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({
+      active_tasks: [{ chat_id: 'running-chat', task_id: 'assistant-2' }], chats: [],
+    }) })));
+    const listener = vi.fn(); service.addEventListener('aiTaskEnded', listener);
+    try {
+      await service.refreshChatActivity();
+      expect(fetch).toHaveBeenCalled();
+      expect(service.activeAITasks.has('finished-chat')).toBe(false);
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener.mock.calls[0][0].detail).toEqual({
+        chatId: 'finished-chat', taskId: 'assistant-1', userMessageId: 'user-1', status: 'completed',
+      });
+      expect(service.activeAITasks.get('running-chat')).toEqual({ taskId: 'assistant-2', userMessageId: 'user-2' });
+      expect(service.activeAITasks.has('finished-chat')).toBe(false);
+    } finally { service.removeEventListener('aiTaskEnded', listener); clock.mockRestore(); }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+  it('makes a replacement task cancellable before notifying listeners that the older task ended', async () => {
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    service.activeAITasks.set('same-chat', { taskId: 'older-assistant', userMessageId: 'older-user' });
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({
+      active_tasks: [{ chat_id: 'same-chat', task_id: 'newer-assistant' }], chats: [],
+    }) })));
+    const listener = vi.fn((event: Event) => {
+      expect((event as CustomEvent).detail.taskId).toBe('older-assistant');
+      expect(service.getActiveAITaskIdForChat('same-chat')).toBe('newer-assistant');
+    });
+    service.addEventListener('aiTaskEnded', listener);
+    try {
+      await service.refreshChatActivity();
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(service.getActiveAITaskIdForChat('same-chat')).toBe('newer-assistant');
+    } finally { service.removeEventListener('aiTaskEnded', listener); }
   });
 });
 

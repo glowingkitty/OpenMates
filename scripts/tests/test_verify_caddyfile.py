@@ -237,6 +237,47 @@ def test_dev_apps_workspace_credentialed_cors_precedes_public_api() -> None:
     pytest.fail("Could not find credentialed and public Apps routes in adapted dev Caddyfile")
 
 
+def test_dev_embed_reference_availability_uses_credentialed_cors() -> None:
+    """Audio send's reference probe must reach FastAPI for OPTIONS and POST."""
+    caddy = shutil.which("caddy")
+    if caddy is None:
+        pytest.skip("caddy is not installed")
+    env = os.environ.copy()
+    env.setdefault("GANDI_BEARER_TOKEN", "openmates-caddyfile-syntax-check-token")
+    result = subprocess.run(
+        [caddy, "adapt", "--config", str(CADDYFILES[0]), "--adapter", "caddyfile"],
+        cwd=REPO_ROOT, env=env, text=True, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, check=False,
+    )
+    if "module not registered: dns.providers.gandi" in result.stderr:
+        pytest.skip("installed caddy lacks the Gandi DNS module")
+    assert result.returncode == 0, result.stderr
+
+    probe_path = "/v1/embeds/chats/*/references/availability"
+    for routes in _route_lists(json.loads(result.stdout)):
+        public_routes = {
+            "OPTIONS" if route.get("match", [{}])[0].get("method") == ["OPTIONS"] else "actual": index
+            for index, route in enumerate(routes)
+            if "/v1/embeds/*" in _matched_paths(route)
+            and "headers" in _nested_handlers(route)
+        }
+        if set(public_routes) != {"OPTIONS", "actual"}:
+            continue
+        for method, public_index in public_routes.items():
+            matches = [
+                (index, route) for index, route in enumerate(routes)
+                if probe_path in _matched_paths(route)
+                and (route.get("match", [{}])[0].get("method") == ["OPTIONS"]) == (method == "OPTIONS")
+            ]
+            assert len(matches) == 1, method
+            index, route = matches[0]
+            assert index < public_index, method
+            assert "reverse_proxy" in _nested_handlers(route)
+            assert "headers" not in _nested_handlers(route)
+        return
+    pytest.fail("Could not find credentialed and public embed routes in adapted dev Caddyfile")
+
+
 @pytest.mark.parametrize("caddyfile", CADDYFILES)
 def test_hosted_project_file_routes_retain_credentialed_cors(caddyfile: Path) -> None:
     """Project ciphertext reads must never fall into public wildcard CORS."""

@@ -164,6 +164,26 @@ describe("pending encrypted message retry journals", () => {
       [FIELD]: "sealed bundle", [TURN_FIELD]: "sealed turn", [TURN_MARKER]: 1,
     });
   });
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,message-input.embeds.gated-send
+  it("keeps a failed embed send encrypted and retryable after the availability probe fails", async () => {
+    const { db, rows } = makeTransactions();
+    rows.set("failed-voice", {
+      ...message("failed-voice", "sending"), content: undefined,
+      encrypted_content: "sealed voice reference ciphertext",
+      encrypted_sender_name: "sealed sender",
+      [FIELD]: "sealed voice bundle", [TURN_FIELD]: "sealed turn", [TURN_MARKER]: 1,
+    });
+
+    await updateMessageStatus(db, "failed-voice", "failed");
+
+    expect(rows.get("failed-voice")).toMatchObject({
+      message_id: "failed-voice", status: "failed",
+      encrypted_content: "sealed voice reference ciphertext",
+      encrypted_sender_name: "sealed sender",
+      [FIELD]: "sealed voice bundle", [TURN_FIELD]: "sealed turn", [TURN_MARKER]: 1,
+    });
+    expect(rows.get("failed-voice")?.content).toBeUndefined();
+  });
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("survives same-ID single and batch sync writes, then cannot resurrect after ACK", async () => {
     const { db, rows } = makeTransactions();

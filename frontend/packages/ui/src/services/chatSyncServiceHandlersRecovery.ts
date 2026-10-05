@@ -719,6 +719,15 @@ export async function handleRecoveryJobsAvailableImpl(
           serviceInstance.activeAITasks?.delete(job.chat_id);
         }
         aiTypingStore.clearTyping(job.chat_id, job.assistant_message_id);
+        serviceInstance.dispatchEvent(new CustomEvent("aiTaskEnded", {
+          detail: {
+            chatId: job.chat_id,
+            taskId: job.assistant_message_id,
+            userMessageId: taskInfo?.taskId === job.assistant_message_id
+              ? taskInfo.userMessageId || undefined : undefined,
+            status: "completed",
+          },
+        }));
         return;
       }
       if (
