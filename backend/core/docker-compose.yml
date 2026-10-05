@@ -163,6 +163,8 @@ services:
       CHAT_RECOVERY_MIGRATION_PATH: "/usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql"
       STORAGE_REPLICATION_MIGRATION_PATH: "/usr/src/app/migrations/migrate_storage_replication_indexes.sql"
       STORAGE_QUERY_MIGRATION_PATH: "/usr/src/app/migrations/migrate_storage_query_indexes.sql"
+      STORAGE_BILLING_MIGRATION_PATH: "/usr/src/app/migrations/migrate_storage_billing_indexes.sql"
+      STORAGE_USAGE_METERING_MIGRATION_PATH: "/usr/src/app/migrations/migrate_storage_usage_metering_indexes.sql"
       WORKFLOW_RUNTIME_MIGRATION_PATH: "/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql"
       USER_CHAT_PREFERENCE_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql"
       NOTIFICATION_EMAIL_MIGRATION_PATH: "/usr/src/app/migrations/migrate_notification_email_preferences.sql"
@@ -180,6 +182,8 @@ services:
       - ./directus/setup/migrate_chat_recovery_outputs_indexes.sql:/usr/src/app/migrations/migrate_chat_recovery_outputs_indexes.sql:ro
       - ./directus/setup/migrate_storage_replication_indexes.sql:/usr/src/app/migrations/migrate_storage_replication_indexes.sql:ro
       - ./directus/setup/migrate_storage_query_indexes.sql:/usr/src/app/migrations/migrate_storage_query_indexes.sql:ro
+      - ./directus/setup/migrate_storage_billing_indexes.sql:/usr/src/app/migrations/migrate_storage_billing_indexes.sql:ro
+      - ./directus/setup/migrate_storage_usage_metering_indexes.sql:/usr/src/app/migrations/migrate_storage_usage_metering_indexes.sql:ro
       - ./directus/setup/migrate_chat_message_archive_indexes.sql:/usr/src/app/migrations/migrate_chat_message_archive_indexes.sql:ro
       - ./directus/setup/migrate_workflow_runtime_indexes.sql:/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql:ro
       - ./directus/setup/migrate_user_chat_preferences_indexes.sql:/usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql:ro

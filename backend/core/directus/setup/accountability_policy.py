@@ -24,6 +24,9 @@ REDUCED_ACCOUNTABILITY = {
     "chat_recovery_legacy_output_producers": None,
     "chat_recovery_legacy_batch_claims": None,
     "chat_compression_checkpoints": None,
+    "storage_billing_periods": None,
+    "storage_billing_owner_state": None,
+    "storage_billing_warning_units": None,
 }
 
 

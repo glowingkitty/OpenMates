@@ -82,6 +82,26 @@ embed_diffs:
       nullable: true
       note: "SHA-256 of the exact archived ciphertext envelope."
 
+    archive_size_bytes:
+      type: integer
+      nullable: true
+      note: "Exact UTF-8 byte length of the verified archived ciphertext envelope; null legacy rows require reconciliation before billing."
+
+    archive_owner_kind:
+      type: string
+      nullable: true
+      note: "Personal or Team scope captured from the canonical chat at verified archive copy."
+
+    archive_owner_hash:
+      type: string
+      nullable: true
+      note: "Current billable owner hash at verified archive copy; checked against live chat scope while the chat exists."
+
+    archive_hashed_chat_id:
+      type: string
+      nullable: true
+      note: "Hashed canonical chat identity for owner reconciliation after embed head archival."
+
     archive_regions:
       type: json
       nullable: true

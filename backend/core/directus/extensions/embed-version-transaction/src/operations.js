@@ -694,6 +694,16 @@ export async function finalizeEmbedArchiveCopy(database, raw) {
   return database.transaction(async (trx) => {
     const row = await trx(DIFFS).where({ id: rowId, embed_id: embedId, version_number: version }).forUpdate().first();
     if (!row) fail(404, 'version_not_found');
+    const embed = await trx(EMBEDS).where({ embed_id: embedId }).forUpdate().first();
+    if (!embed || embed.hashed_user_id !== row.hashed_user_id) fail(409, 'history_owner_mismatch');
+    const chat = await trx('chats')
+      .whereRaw("encode(digest(id::text, 'sha256'), 'hex') = ?", [embed.hashed_chat_id])
+      .forUpdate().first();
+    if (!chat || chat.storage_state === 'deleting') fail(409, 'archive_chat_deleting');
+    const archiveOwner = chat.hashed_team_id
+      ? { archive_owner_kind: 'team', archive_owner_hash: chat.hashed_team_id }
+      : { archive_owner_kind: 'personal', archive_owner_hash: chat.hashed_user_id };
+    if (!archiveOwner.archive_owner_hash) fail(409, 'archive_owner_missing');
     if (row.archive_pending_object_key !== objectKey || row.archive_pending_checksum !== checksum
         || !Number.isSafeInteger(row.archive_copy_lease_until)
         || row.archive_copy_lease_until < Math.floor(Date.now() / 1000)) {
@@ -717,11 +727,17 @@ export async function finalizeEmbedArchiveCopy(database, raw) {
       }
       fail(409, 'pruned_archive_immutable');
     }
-    const actual = sha256(stableJson({
+    const encoded = stableJson({
       encrypted_patch: row.encrypted_patch ?? null,
       encrypted_snapshot: row.encrypted_snapshot ?? null,
       version_number: version,
-    }));
+    });
+    const actual = sha256(encoded);
+    const archiveSizeBytes = Buffer.byteLength(encoded, 'utf8');
+    const meteringMetadata = {
+      archive_size_bytes: archiveSizeBytes, archive_hashed_chat_id: embed.hashed_chat_id,
+      ...archiveOwner,
+    };
     if (actual !== checksum) {
       return { status: 'stale', version_number: version };
     }
@@ -734,10 +750,12 @@ export async function finalizeEmbedArchiveCopy(database, raw) {
             archive_regions: [...new Set([...recordedRegions, ...input.archive_regions])],
             archive_pending_object_key: null, archive_pending_checksum: null,
             archive_copy_lease_until: null,
+            ...meteringMetadata,
           });
         } else {
           await trx(DIFFS).where({ id: rowId }).update({ archive_pending_object_key: null,
-            archive_pending_checksum: null, archive_copy_lease_until: null });
+            archive_pending_checksum: null, archive_copy_lease_until: null,
+            ...meteringMetadata });
         }
       return { status: row.archive_state, version_number: version, idempotent: true,
         superseded_object_key: row.archive_superseded_object_key ?? null };
@@ -750,6 +768,7 @@ export async function finalizeEmbedArchiveCopy(database, raw) {
     await trx(DIFFS).where({ id: rowId }).update({
       archive_state: 'copied', archive_object_key: objectKey,
       archive_checksum: checksum, archive_regions: input.archive_regions,
+      ...meteringMetadata,
       archive_superseded_object_key: superseded,
       archive_pending_object_key: null, archive_pending_checksum: null,
       archive_copy_lease_until: null,

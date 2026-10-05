@@ -223,6 +223,18 @@ class EmailTemplateService:
         """True only when the selected provider enforces our stable key."""
         return self.selected_delivery_transport() == "brevo"
 
+    async def get_delivery_events_for_message(self, message_id: str) -> dict[str, Any]:
+        """Fetch at most 100 events for one Brevo message; ambiguity fails closed."""
+        if self.selected_delivery_transport() != "brevo" or not message_id:
+            return {"events": [], "error": "delivery_receipt_unavailable"}
+        api_key = await self.secrets_manager.get_secret(
+            secret_path="kv/data/providers/brevo", secret_key="api_key",
+        )
+        if not api_key:
+            return {"events": [], "error": "delivery_receipt_unavailable"}
+        provider = BrevoProvider(api_key=api_key)
+        return await provider.get_email_events(message_id=message_id, days=90, limit=101)
+
     async def send_email(
         self,
         template: str,
@@ -235,6 +247,7 @@ class EmailTemplateService:
         lang: str = "en",
         attachments: Optional[list] = None, # Add attachments parameter
         delivery_idempotency_key: str | None = None,
+        accepted_message_id: Callable[[str], Awaitable[None]] | None = None,
         late_before_send: Callable[[], Awaitable[bool]] | None = None,
         subject_options: dict[str, Any] | None = None,
     ) -> bool:
@@ -383,13 +396,16 @@ class EmailTemplateService:
                     subject_key = "email.account_created"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "storage-billing-failed-1":
-                    subject_key = "email.storage_billing_failed_1.subject"
+                    subject_key = "email.storage_billing_notice_1.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "storage-billing-failed-2":
-                    subject_key = "email.storage_billing_failed_2.subject"
+                    subject_key = "email.storage_billing_notice_2.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "storage-billing-failed-3":
-                    subject_key = "email.storage_billing_failed_3.subject"
+                    subject_key = "email.storage_billing_notice_3.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "storage-billing-failed-4":
+                    subject_key = "email.storage_billing_notice_4.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "storage-files-deleted":
                     subject_key = "email.storage_files_deleted.subject"
@@ -457,7 +473,8 @@ class EmailTemplateService:
                 'inactive-account-deletion-reminder', 'inactive-account-deleted',
                 'account-deletion-warning-correction',
                 'storage-billing-failed-1', 'storage-billing-failed-2',
-                'storage-billing-failed-3', 'storage-files-deleted',
+                'storage-billing-failed-3', 'storage-billing-failed-4',
+                'storage-files-deleted',
                 'openrouter_model_watch', 'free-testing-budget-exhausted',
                 'billing-processing-error', 'health-status-alert',
             }
@@ -552,7 +569,9 @@ class EmailTemplateService:
                 html_content=html_content,
                 plain_text_content=plain_text_content,
                 email_headers=email_headers,
-                attachments=attachments
+                attachments=attachments,
+                **({"accepted_message_id": accepted_message_id}
+                   if accepted_message_id is not None and not ci_mail_capture else {}),
             )
                         
         except EmailSendIneligible:

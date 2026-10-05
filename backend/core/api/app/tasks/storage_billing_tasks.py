@@ -1,734 +1,1094 @@
-# backend/core/api/app/tasks/storage_billing_tasks.py
-#
-# Weekly Celery Beat task that charges users for S3 file storage.
-#
-# Billing model:
-#   - First 1 GB (FREE_BYTES) is free for every user.
-#   - Beyond that: 3 credits per GB per week (CREDITS_PER_GB_PER_WEEK).
-#   - Only users with more than 1 GB of stored files are charged.
-#
-# Billing failure handling:
-#   - A per-user storage_billing_failures counter (integer, default 0) is
-#     incremented on each insufficient-credits failure.
-#   - Week 1 failure: warning email sent.
-#   - Week 2 failure: second notice email sent.
-#   - Week 3 failure: final warning email sent (files at risk in 7 days).
-#   - Week 4 failure: all upload files deleted from S3 + Directus, deletion
-#     confirmation email sent, counter reset to 0.
-#   - Counter is also reset to 0 on any successful charge.
-#   - Users with failure_count > 0 are included in each billing run even if
-#     they have since dropped below 1 GB, so the counter can be resolved.
-#
-# Efficiency and scalability:
-#   - Queries upload_files aggregated by user_id directly from Directus.
-#   - Filters users below 1 GB at the DB level — only billable/at-risk users
-#     are processed.
-#   - Processes users in configurable batches with bounded concurrency to
-#     prevent overloading the API, cache, or Directus under large user counts.
-#   - Each user charge is independent — one failure does not block the rest.
-#   - storage_used_bytes on the user is reconciled each run from the real
-#     aggregate, correcting any drift from the running counter.
-#   - A usage entry is created per charge so users can see storage costs in
-#     their activity log (app_id="system", skill_id="storage").
-#
-# Schedule: every Sunday at 03:00 UTC (celery_config.py beat_schedule).
+"""Weekly personal storage invoices, exact credit settlement, and delivered warnings.
+
+The charge is based on one immutable Sunday 03:00 UTC usage snapshot. The
+credit ledger is authoritative for payment; invoices and warning state are
+serialized by the Directus transaction endpoint. Protected expiry removes only
+the frozen warned units and waives their episode after verified usage reduction.
+"""
+
+from __future__ import annotations
 
 import asyncio
 import hashlib
 import logging
-import math
 import os
+import re
 import time
-from typing import Any, Dict, List, Literal
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
+from typing import Any
+
+from fastapi import HTTPException
 
 from backend.core.api.app.tasks.celery_config import app
-from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
-from backend.core.api.app.services.billing_service import BillingService
+from backend.core.api.app.services.billing_service import (
+    BillingService, PERSONAL_CREDIT_OVERDRAFT_LIMIT,
+)
 from backend.core.api.app.services.server_stats_service import ServerStatsService
 from backend.core.api.app.services.email_template import EmailTemplateService
-from backend.core.api.app.services.s3.service import S3UploadService
+from backend.core.api.app.services.email_delivery_guard import (
+    build_delivery_id,
+    build_delivery_key,
+    send_email_once,
+)
+from backend.core.api.app.services.sub_chat_orchestration_service import (
+    SubChatOrchestrationService,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
+from backend.core.api.app.utils.server_mode import is_payment_enabled
 
 logger = logging.getLogger(__name__)
-
-# ─── Billing constants ────────────────────────────────────────────────────────
-
-# 1 GB in bytes — storage below this threshold is free
-FREE_BYTES: int = 1_073_741_824  # 1 * 1024³
-
-# Credits charged per GB per week above the free tier
-CREDITS_PER_GB_PER_WEEK: int = 3
-
-# Processing batch size — how many users are processed in one asyncio gather call
-BATCH_SIZE: int = 50
-
-# Charge result type — distinguishes success from insufficient credits vs other errors
-ChargeResult = Literal["charged", "insufficient_credits", "error"]
-
-# ─── Helpers ─────────────────────────────────────────────────────────────────
+FREE_BYTES = 1_073_741_824
+CREDITS_PER_GB_PER_WEEK = 3
+BATCH_SIZE = 100
+WARNING_INTERVAL_SECONDS = 7 * 24 * 60 * 60
+MAX_PROVIDER_EVENTS = 100
+PROVIDER_RECEIPT_RECHECK_SECONDS = 3600
+PROVIDER_RECEIPT_SWEEP_SECONDS = 45
+FAILED_PROVIDER_EVENTS = frozenset({
+    "bounces", "hardBounces", "softBounces", "invalid",
+    "blocked", "spam", "error",
+})
+KNOWN_PROVIDER_EVENTS = FAILED_PROVIDER_EVENTS | frozenset({
+    "delivered", "requests", "opened", "clicks",
+    "deferred", "unsubscribed", "loadedByProxy",
+})
 
 
 def _compute_billable_credits(total_bytes: int) -> int:
-    """
-    Return the number of credits to charge for a given storage volume.
-
-    Billing formula:
-      billable_gb = ceil((total_bytes - FREE_BYTES) / 1_073_741_824)
-      credits     = billable_gb * CREDITS_PER_GB_PER_WEEK
-
-    Examples:
-      1.0 GB → 0 credits   (within free tier)
-      1.1 GB → 3 credits   (1 GB over free tier, ceil → 1 billable GB)
-      2.5 GB → 6 credits   (1.5 GB over free, ceil → 2 billable GB)
-      10 GB  → 27 credits  (9 GB over free, ceil → 9 billable GB)
-    """
-    if total_bytes <= FREE_BYTES:
-        return 0
-    billable_bytes = total_bytes - FREE_BYTES
-    billable_gb = math.ceil(billable_bytes / 1_073_741_824)
-    return billable_gb * CREDITS_PER_GB_PER_WEEK
+    if not isinstance(total_bytes, int) or total_bytes < 0:
+        raise ValueError("Storage usage must be a non-negative integer")
+    return max(0, (total_bytes - FREE_BYTES + FREE_BYTES - 1) // FREE_BYTES) * CREDITS_PER_GB_PER_WEEK
 
 
-async def _send_storage_billing_email(
-    user_id: str,
-    template: str,
-    total_bytes: int,
-    credits_needed: int,
-    directus_service: DirectusService,
-    encryption_service: EncryptionService,
-    email_template_service: EmailTemplateService,
-) -> None:
-    """
-    Decrypt the user's email address and send a storage billing notification.
+def _period_start_at(now: datetime | None = None) -> int:
+    """Stable Sunday 03:00 UTC boundary, including retries later in the week."""
+    current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    days_since_sunday = (current.weekday() + 1) % 7
+    sunday = (current - timedelta(days=days_since_sunday)).replace(
+        hour=3, minute=0, second=0, microsecond=0
+    )
+    if current < sunday:
+        sunday -= timedelta(days=7)
+    return int(sunday.timestamp())
 
-    Args:
-        user_id:               Plaintext user ID.
-        template:              MJML template name (e.g. "storage-billing-failed-1").
-        total_bytes:           Total bytes the user currently has stored.
-        credits_needed:        Credits per week required to cover their storage.
-        directus_service:      Initialised DirectusService.
-        encryption_service:    Initialised EncryptionService.
-        email_template_service: Initialised EmailTemplateService.
-    """
+
+def _ledger_time_in_period(value: Any, period_start_at: int) -> bool:
+    """An unreadable ledger timestamp is uncertain, so it fences the charge."""
+    if not isinstance(value, str):
+        return True
     try:
-        # Fetch encrypted email + vault_key_id + preferred language from Directus
-        user_records = await directus_service.get_items(
-            'directus_users',
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.timestamp() >= period_start_at
+    except ValueError:
+        return True
+
+
+async def _legacy_charge_in_period(
+    directus: DirectusService, owner_hash: str, period_start_at: int,
+) -> bool:
+    """Fence the first Sunday invoice against either intersecting Unix week key.
+
+    The old task used ``int(time.time()) // 604800``. Its Thursday rollover
+    occurs inside our Sunday billing period, so both possible keys matter.
+    Read the durable charge and retry ledgers; cache absence proves nothing.
+    """
+    old_week = period_start_at // WARNING_INTERVAL_SECONDS
+    keys = [f"storage:{owner_hash}:{old_week + offset}" for offset in (0, 1)]
+    for collection in ("billing_charge_identities", "billing_settlement_outbox"):
+        fields = ("charge_id,state,committed_at" if collection == "billing_charge_identities"
+                  else "charge_id,state,created_at,updated_at")
+        rows = await directus.get_items(
+            collection,
             params={
-                'filter[id][_eq]': user_id,
-                'fields': 'id,encrypted_email_address,vault_key_id,language',
-                'limit': 1,
+                "filter": {"charge_id": {"_in": keys}},
+                "fields": fields,
+                "limit": 2,
             },
-            no_cache=True,
+            admin_required=True, no_cache=True, raise_on_error=True,
         )
-        if not user_records or not isinstance(user_records, list) or not user_records[0]:
-            logger.error(
-                f"[StorageBilling] Cannot send {template} email for user {user_id}: "
-                f"user record not found."
-            )
-            return
-
-        user_record = user_records[0]
-        encrypted_email = user_record.get('encrypted_email_address')
-        vault_key_id = user_record.get('vault_key_id')
-        language = user_record.get('language') or 'en'
-
-        if not encrypted_email or not vault_key_id:
-            logger.error(
-                f"[StorageBilling] Cannot send {template} email for user {user_id}: "
-                f"missing encrypted_email_address or vault_key_id."
-            )
-            return
-
-        # Decrypt the email address
-        plaintext_email = await encryption_service.decrypt_with_user_key(
-            ciphertext=encrypted_email,
-            key_id=vault_key_id,
-        )
-        if not plaintext_email:
-            logger.error(
-                f"[StorageBilling] Failed to decrypt email for user {user_id}. Skipping {template} email."
-            )
-            return
-
-        # Build template context
-        storage_gb = round(total_bytes / 1_073_741_824, 2)
-        base_url = os.getenv("WEBAPP_URL", "https://openmates.org")
-        context: Dict[str, Any] = {
-            'storage_gb': storage_gb,
-            'credits_needed': credits_needed,
-            'credits_url': f"{base_url}/settings/billing",
-            'darkmode': False,
-        }
-
-        success = await email_template_service.send_email(
-            template=template,
-            recipient_email=plaintext_email,
-            context=context,
-            lang=language,
-        )
-        if success:
-            logger.info(
-                f"[StorageBilling] Sent {template} email to user {user_id} "
-                f"({storage_gb} GB, {credits_needed} credits/week)."
-            )
-        else:
-            logger.error(
-                f"[StorageBilling] Email send failed for {template} to user {user_id}."
-            )
-
-    except Exception as e:
-        logger.error(
-            f"[StorageBilling] Error sending {template} email for user {user_id}: {e}",
-            exc_info=True,
-        )
+        if not isinstance(rows, list) or len(rows) > 2:
+            raise RuntimeError("Legacy storage charge ledger lookup was incomplete")
+        for row in rows:
+            if not isinstance(row, dict) or row.get("charge_id") not in keys:
+                raise RuntimeError("Legacy storage charge ledger returned invalid evidence")
+            if collection == "billing_charge_identities":
+                if (row.get("state") != "committed"
+                        or _ledger_time_in_period(row.get("committed_at"), period_start_at)):
+                    return True
+            elif row.get("state") in ("pending", "retry_scheduled"):
+                return True
+            elif row.get("state") not in ("committed", "failed", "cancelled"):
+                return True
+            elif (_ledger_time_in_period(row.get("created_at"), period_start_at)
+                  or _ledger_time_in_period(row.get("updated_at"), period_start_at)):
+                return True
+    return False
 
 
-async def _handle_billing_failure(
+async def _owner_operation(
+    orchestration: SubChatOrchestrationService,
+    operation: str,
     user_id: str,
-    total_bytes: int,
-    current_failure_count: int,
-    directus_service: DirectusService,
-    encryption_service: EncryptionService,
-    email_template_service: EmailTemplateService,
-    s3_service: S3UploadService,
-) -> None:
+    **data: Any,
+) -> dict[str, Any]:
+    return await orchestration.execute(operation, {
+        "protocol_version": 1,
+        "user_id": user_id,
+        "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+        **data,
+    })
+
+
+async def _apply_due_expiry(
+    user_id: str, episode_id: str, *, directus: DirectusService,
+    encryption: EncryptionService, orchestration: SubChatOrchestrationService,
+) -> dict[str, Any]:
+    """Fresh authoritative affordability check followed by a balance-CAS removal.
+
+    The SQL operation repeats all receipt, ownership, unit, reference and usage
+    checks under locks. A top-up after this read changes the ciphertext and stops
+    removal. Neither a stale cache nor a 402 alone admits data deletion.
     """
-    Handle a single user's billing failure.
-
-    Increments the storage_billing_failures counter, sends the appropriate
-    warning email, and on the 4th consecutive failure deletes all user files.
-
-    Args:
-        user_id:               Plaintext user ID.
-        total_bytes:           Total bytes the user currently has stored.
-        current_failure_count: The current value of storage_billing_failures
-                               BEFORE this failure (0-based).
-        directus_service:      Initialised DirectusService.
-        encryption_service:    Initialised EncryptionService.
-        email_template_service: Initialised EmailTemplateService.
-        s3_service:            Initialised S3UploadService.
-    """
-    new_failure_count = current_failure_count + 1
-    credits_needed = _compute_billable_credits(total_bytes)
-
-    logger.info(
-        f"[StorageBilling] Billing failure #{new_failure_count} for user {user_id} "
-        f"({total_bytes:,} bytes, {credits_needed} credits/week needed)."
+    if os.getenv("STORAGE_UNPAID_EXPIRY_ENABLED", "0") != "1":
+        return {"applied": False, "held": True, "reason": "expiry_disabled"}
+    fields = await directus.get_user_fields_direct(
+        user_id, ["encrypted_credit_balance", "vault_key_id"]
+    )
+    if not isinstance(fields, dict) or not all(fields.get(key) for key in (
+        "encrypted_credit_balance", "vault_key_id",
+    )):
+        raise RuntimeError("Authoritative expiry balance is unavailable")
+    balance = await encryption.decrypt_with_user_key(
+        fields["encrypted_credit_balance"], fields["vault_key_id"]
+    )
+    if balance is None:
+        raise RuntimeError("Authoritative expiry balance cannot be decrypted")
+    try:
+        credits = int(balance)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("Authoritative expiry balance is invalid") from exc
+    debt = await _owner_operation(orchestration, "list_storage_debt", user_id)
+    periods = debt.get("periods")
+    if not isinstance(periods, list):
+        raise RuntimeError("Authoritative expiry debt is unavailable")
+    if not periods:
+        return {"applied": False, "held": True, "reason": "debt_settled"}
+    due = int(periods[0]["credits_due"])
+    if due <= 0:
+        raise RuntimeError("Authoritative expiry invoice is invalid")
+    if credits > PERSONAL_CREDIT_OVERDRAFT_LIMIT and credits - due >= PERSONAL_CREDIT_OVERDRAFT_LIMIT:
+        return {"applied": False, "held": True, "reason": "payment_available"}
+    from backend.shared.python_utils.object_storage_regions import parse_storage_regions
+    return await _owner_operation(
+        orchestration, "apply_storage_expiry", user_id,
+        episode_id=episode_id, now_at=int(time.time()),
+        expected_encrypted_balance=fields["encrypted_credit_balance"],
+        regions=list(parse_storage_regions(os.getenv("S3_REGIONS"))),
     )
 
-    if new_failure_count >= 4:
-        # ── Nuclear deletion path ──────────────────────────────────────────
-        logger.warning(
-            f"[StorageBilling] 4th consecutive billing failure for user {user_id}. "
-            f"Deleting all upload files."
-        )
-        await require_storage_available(s3_service)
-        from backend.core.api.app.services.directus.embed_methods import EmbedMethods
 
-        embed_methods = EmbedMethods(directus_service)
-        bytes_freed = await embed_methods.delete_all_upload_files_for_user(
-            user_id=user_id,
-            s3_service=s3_service,
-        )
-        logger.info(
-            f"[StorageBilling] Deleted all files for user {user_id}: "
-            f"{bytes_freed:,} bytes freed."
-        )
+def _provider_delivery_decision(
+    report: dict[str, Any], *, message_id: str, recipient_hash: str,
+) -> tuple[str, int | None]:
+    """Classify one exact Brevo message; missing, stale or truncated evidence is unknown."""
+    events = report.get("events") if isinstance(report, dict) else None
+    if not isinstance(report, dict) or report.get("error") or not isinstance(events, list) or len(events) > MAX_PROVIDER_EVENTS:
+        return "unknown", None
+    delivered_at: int | None = None
+    failed = False
+    for event in events:
+        if not isinstance(event, dict) or event.get("messageId") != message_id:
+            return "unknown", None
+        email = event.get("email")
+        if not isinstance(email, str) or hashlib.sha256(email.strip().lower().encode()).hexdigest() != recipient_hash:
+            return "unknown", None
+        kind = event.get("event")
+        if kind not in KNOWN_PROVIDER_EVENTS:
+            return "unknown", None
+        if kind in FAILED_PROVIDER_EVENTS:
+            failed = True
+        elif kind == "delivered":
+            try:
+                observed = datetime.fromisoformat(str(event["date"]).replace("Z", "+00:00"))
+                if observed.tzinfo is None:
+                    return "unknown", None
+                epoch = int(observed.timestamp())
+                delivered_at = epoch if delivered_at is None else min(delivered_at, epoch)
+            except (ValueError, TypeError, KeyError):
+                return "unknown", None
+    if failed:
+        return "failed", int(time.time())
+    if delivered_at is not None:
+        return "delivered", delivered_at
+    return "unknown", None
 
-        # Reset counter to 0 and reconcile storage bytes to 0
-        await directus_service.update_user(
-            user_id,
-            {
-                'storage_billing_failures': 0,
-                'storage_used_bytes': 0,
+
+async def _reconcile_provider_receipt(
+    user_id: str, episode: str, stage: int, row: dict[str, Any],
+    *, email_service: EmailTemplateService, orchestration: SubChatOrchestrationService,
+) -> bool:
+    """Poll at most 101 exact-ID events within Brevo's 90-day report window."""
+    message_id = row.get("provider_message_id")
+    recipient_hash = row.get("recipient_hash")
+    if (row.get("status") != "sent" or not isinstance(message_id, str)
+            or not message_id or not isinstance(recipient_hash, str)
+            or len(recipient_hash) != 64):
+        return False
+    report = await email_service.get_delivery_events_for_message(message_id)
+    state, observed_at = _provider_delivery_decision(
+        report, message_id=message_id, recipient_hash=recipient_hash,
+    )
+    if state == "unknown" or observed_at is None:
+        return False
+    receipt = await _owner_operation(
+        orchestration, "record_storage_delivery_receipt", user_id,
+        episode_id=episode, warning_stage=stage, delivery_id=row["id"],
+        message_id=message_id, state=state, observed_at=observed_at,
+        now_at=int(time.time()),
+    )
+    return receipt.get("state") == "delivered" and not receipt.get("held")
+
+
+async def _recheck_four_provider_receipts(
+    user_id: str, episode: str, *, directus: DirectusService,
+    email_service: EmailTemplateService, orchestration: SubChatOrchestrationService,
+) -> bool:
+    """Final bounded provider check; a later bounce suppresses expiry admission."""
+    for stage in range(1, 5):
+        key = build_delivery_key(
+            email_type="storage-billing-warning", campaign_key=episode,
+            recipient_kind="directus_user", recipient_id=user_id, stage=f"week-{stage}",
+        )
+        delivery_id = build_delivery_id(key)
+        rows = await directus.get_items(
+            "email_deliveries",
+            params={"filter[id][_eq]": delivery_id,
+                    "fields": "id,status,recipient_hash,provider_message_id",
+                    "limit": 1},
+            admin_required=True, no_cache=True, raise_on_error=True,
+        )
+        if not isinstance(rows, list) or len(rows) != 1:
+            return False
+        if not await _reconcile_provider_receipt(
+            user_id, episode, stage, rows[0],
+            email_service=email_service, orchestration=orchestration,
+        ):
+            return False
+    return True
+
+
+async def _deliver_warning(
+    user_id: str,
+    warning: dict[str, Any],
+    *,
+    directus: DirectusService,
+    encryption: EncryptionService,
+    email_service: EmailTemplateService,
+    orchestration: SubChatOrchestrationService,
+    cache: CacheService,
+) -> bool:
+    """Count a warning only after an exact provider delivered event is recorded."""
+    stage = int(warning["warning_stage"])
+    episode = str(warning["episode_id"])
+    selection_hash = warning.get("unit_selection_hash")
+    units = warning.get("units")
+    if (not isinstance(selection_hash, str) or not re.fullmatch(r"[a-f0-9]{64}", selection_hash)
+            or not isinstance(units, list) or not 1 <= len(units) <= 100):
+        raise RuntimeError("Frozen affected storage list is unavailable")
+    delivery_key = build_delivery_key(
+        email_type="storage-billing-warning",
+        campaign_key=episode,
+        recipient_kind="directus_user",
+        recipient_id=user_id,
+        stage=f"week-{stage}",
+    )
+    delivery_id = build_delivery_id(delivery_key)
+    existing = await directus.get_items(
+        "email_deliveries",
+        params={"filter[id][_eq]": delivery_id,
+                "fields": "id,status,metadata,lang,recipient_hash,provider_message_id",
+                "limit": 1},
+        admin_required=True, no_cache=True, raise_on_error=True,
+    )
+    if not isinstance(existing, list):
+        raise RuntimeError("Storage warning delivery lookup was incomplete")
+    if not existing or existing[0].get("status") != "sent":
+        users = await directus.get_items(
+            "directus_users",
+            params={
+                "filter[id][_eq]": user_id,
+                "fields": "id,encrypted_email_address,vault_key_id,language",
+                "limit": 1,
             },
+            admin_required=True, no_cache=True, raise_on_error=True,
+        )
+        if not isinstance(users, list) or len(users) != 1:
+            raise RuntimeError("Storage warning recipient is unavailable")
+        user = users[0]
+        if not user.get("encrypted_email_address") or not user.get("vault_key_id"):
+            raise RuntimeError("Storage warning recipient encryption metadata is incomplete")
+        address = await encryption.decrypt_with_user_key(
+            ciphertext=user["encrypted_email_address"], key_id=user["vault_key_id"]
+        )
+        if not address:
+            raise RuntimeError("Storage warning recipient cannot be decrypted")
+        now_at = int(time.time())
+        first_at = int(warning.get("first_warning_at") or now_at)
+        earliest = max(
+            first_at + 4 * WARNING_INTERVAL_SECONDS,
+            now_at + WARNING_INTERVAL_SECONDS,
+        )
+        # Show the first whole UTC calendar day after every known minimum.
+        # Delivery can cross midnight during the bounded retry window; the
+        # transaction also fences expiry behind the advertised date.
+        deadline_date = (
+            datetime.fromtimestamp(earliest, tz=timezone.utc).date()
+            + timedelta(days=1)
+        ).isoformat()
+        base_url = os.getenv("WEBAPP_URL", "https://openmates.org").rstrip("/")
+        if existing:
+            metadata = existing[0].get("metadata")
+            if not isinstance(metadata, dict) or metadata.get("template") != f"storage-billing-failed-{stage}":
+                raise RuntimeError("Storage warning retry payload is unavailable")
+            context = metadata.get("context")
+            if not isinstance(context, dict):
+                raise RuntimeError("Storage warning retry context is unavailable")
+            if context.get("unit_selection_hash") != selection_hash:
+                raise RuntimeError("Storage warning retry selection changed")
+            language = existing[0].get("lang") or "en"
+        else:
+            context = {
+                "storage_gb": round(int(warning["measured_bytes"]) / FREE_BYTES, 2),
+                "credits_needed": int(warning["credits_due"]),
+                "outstanding_credits": int(warning["outstanding_credits"]),
+                "deadline_date": deadline_date,
+                "credits_url": f"{base_url}/#settings/billing",
+                "export_url": f"{base_url}/#settings/account/export",
+                "storage_url": f"{base_url}/#settings/account/storage",
+                "unit_selection_hash": selection_hash,
+                "affected_units": [{
+                    "unit_id": unit["unit_id"], "kind": unit["kind"],
+                    "resource_id": unit["resource_id"],
+                    "oldest_date": datetime.fromtimestamp(
+                        int(unit["oldest_at"]), tz=timezone.utc,
+                    ).date().isoformat(),
+                    "size_mib": round(int(unit["bytes"]) / (1024 * 1024), 2),
+                } for unit in units],
+                "darkmode": False,
+            }
+            language = user.get("language") or "en"
+        async def still_eligible() -> bool:
+            current = await _owner_operation(
+                orchestration, "claim_storage_warning", user_id,
+                now_at=int(time.time()),
+            )
+            return bool(
+                current.get("due") and current.get("episode_id") == episode
+                and int(current.get("warning_stage", 0)) == stage
+            )
+        sent, _ = await send_email_once(
+            directus=directus,
+            email_template_service=email_service,
+            email_type="storage-billing-warning",
+            campaign_key=episode,
+            recipient_kind="directus_user",
+            recipient_id=user_id,
+            recipient_email=address,
+            template=f"storage-billing-failed-{stage}",
+            context=context,
+            stage=f"week-{stage}",
+            lang=language,
+            metadata={
+                "oldest_period_id": warning["oldest_period_id"],
+                "template": f"storage-billing-failed-{stage}",
+                "context": context,
+            },
+            retry_cache=cache,
+            before_send=still_eligible,
+        )
+        if not sent:
+            return False
+
+    receipt_rows = await directus.get_items(
+        "email_deliveries",
+        params={"filter[id][_eq]": delivery_id,
+                "fields": "id,status,recipient_hash,provider_message_id",
+                "limit": 1},
+        admin_required=True, no_cache=True, raise_on_error=True,
+    )
+    if not isinstance(receipt_rows, list) or len(receipt_rows) != 1:
+        raise RuntimeError("Storage warning provider receipt lookup was incomplete")
+    if not await _reconcile_provider_receipt(
+        user_id, episode, stage, receipt_rows[0],
+        email_service=email_service, orchestration=orchestration,
+    ):
+        return False
+
+    # The provider delivered event, not its submission acceptance, starts the clock.
+    await _owner_operation(
+        orchestration, "acknowledge_storage_warning", user_id,
+        episode_id=episode, warning_stage=stage, delivery_id=delivery_id,
+        now_at=int(time.time()),
+    )
+    return True
+
+
+async def _settle_owner(
+    user_id: str,
+    quote: Any,
+    *,
+    period_start_at: int,
+    directus: DirectusService,
+    billing: BillingService,
+    orchestration: SubChatOrchestrationService,
+    encryption: EncryptionService,
+    email_service: EmailTemplateService,
+    cache: CacheService,
+    _final_check: bool = False,
+) -> dict[str, int]:
+    """Freeze this week, settle old debt first, then advance one owner warning."""
+    result = {"billed": 0, "credits": 0, "insufficient": 0, "operational_error": 0,
+              "warnings_delivered": 0, "expiry_due": 0, "legacy_period_ignored": 0,
+              "expiry_applied": 0, "periods_waived": 0}
+    total_bytes = quote.total_bytes
+    credits = _compute_billable_credits(total_bytes)
+    owner_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    try:
+        legacy_attempt = await _legacy_charge_in_period(directus, owner_hash, period_start_at)
+    except Exception:
+        logger.exception("[StorageBilling] Legacy charge ledger unavailable for owner %s", user_id)
+        result["operational_error"] = 1
+        return result
+    if legacy_attempt:
+        # Keep the old charge as this period's settlement. Do not freeze a new
+        # invoice, mark paid, increment debt, or send a warning. Retry next week.
+        logger.info("[StorageBilling] Ignoring overlapping legacy billing period for owner %s", user_id)
+        result["legacy_period_ignored"] = 1
+        return result
+    if credits:
+        await _owner_operation(
+            orchestration, "freeze_storage_period", user_id,
+            period_start_at=period_start_at, measured_bytes=total_bytes,
+            credits_due=credits, charge_id=f"storage:{owner_hash}:{period_start_at}",
+            free_bytes=FREE_BYTES, credits_per_gib=CREDITS_PER_GB_PER_WEEK,
+            policy_version=quote.policy_version, source_version=quote.source_version,
+            category_bytes=quote.categories,
         )
 
-        # Send deletion confirmation email
-        await _send_storage_billing_email(
-            user_id=user_id,
-            template='storage-files-deleted',
-            total_bytes=total_bytes,
-            credits_needed=credits_needed,
-            directus_service=directus_service,
-            encryption_service=encryption_service,
-            email_template_service=email_template_service,
+    # The extension returns at most 20 oldest unpaid rows. Settlement removes
+    # the head, so repeating this read drains arbitrarily old debt in bounds.
+    while True:
+        debt = await _owner_operation(orchestration, "list_storage_debt", user_id)
+        periods = debt.get("periods")
+        if not isinstance(periods, list):
+            raise RuntimeError("Storage debt lookup was incomplete")
+        if not periods:
+            break
+        period = periods[0]
+        due = int(period["credits_due"])
+        try:
+            charged = await billing.charge_user_credits(
+                user_id=user_id,
+                credits_to_deduct=due,
+                user_id_hash=owner_hash,
+                app_id="system",
+                skill_id="storage",
+                idempotency_key=period["charge_id"],
+                usage_details={
+                    "storage_bytes": int(period["measured_bytes"]),
+                    "period_start_at": int(period["period_start_at"]),
+                    "free_gb": 1,
+                    "credits_per_gb": CREDITS_PER_GB_PER_WEEK,
+                },
+                require_full_charge=True,
+                _defer_exhausted_conflict=False,
+            )
+        except HTTPException as exc:
+            if exc.status_code == 402:
+                result["insufficient"] = 1
+                break
+            raise
+        if not isinstance(charged, dict) or charged.get("state") != "committed" or int(
+            charged.get("charged_credits", -1)
+        ) != due:
+            # Includes retry_scheduled and partial charges. The extension also
+            # checks the committed ledger before it can mark an invoice paid.
+            result["operational_error"] = 1
+            break
+        await _owner_operation(
+            orchestration, "mark_storage_period_paid", user_id, period_id=period["id"]
         )
+        result["billed"] += 1
+        result["credits"] += due
 
-    else:
-        # ── Warning email path ────────────────────────────────────────────
-        template_map = {
-            1: 'storage-billing-failed-1',
-            2: 'storage-billing-failed-2',
-            3: 'storage-billing-failed-3',
+    if result["insufficient"]:
+        warning = await _owner_operation(
+            orchestration, "claim_storage_warning", user_id, now_at=int(time.time())
+        )
+        if warning.get("due") and not _final_check:
+            selection = await _owner_operation(
+                orchestration, "freeze_storage_warning_units", user_id,
+                episode_id=warning["episode_id"], now_at=int(time.time()),
+            )
+            if selection.get("frozen") and not selection.get("held"):
+                result["warnings_delivered"] = int(await _deliver_warning(
+                    user_id, {**warning, **selection}, directus=directus, encryption=encryption,
+                    email_service=email_service, orchestration=orchestration,
+                    cache=cache,
+                ))
+        if warning.get("reason") == "four_delivered":
+            episode = warning.get("episode_id")
+            if not isinstance(episode, str) or not await _recheck_four_provider_receipts(
+                user_id, episode, directus=directus,
+                email_service=email_service, orchestration=orchestration,
+            ):
+                return result
+        expiry = await _owner_operation(
+            orchestration, "inspect_storage_expiry", user_id, now_at=int(time.time())
+        )
+        result["expiry_due"] = int(bool(expiry.get("due")))
+        if result["expiry_due"] and not _final_check:
+            # Re-read and try every outstanding invoice immediately before
+            # admitting expiry. A late top-up or a settlement outage must
+            # suppress admission even if the old four-warning clock elapsed.
+            final = await _settle_owner(
+                user_id, quote, period_start_at=period_start_at,
+                directus=directus, billing=billing, orchestration=orchestration,
+                encryption=encryption, email_service=email_service, cache=cache,
+                _final_check=True,
+            )
+            result["expiry_due"] = int(
+                bool(final["insufficient"] and final["expiry_due"]
+                     and not final["operational_error"])
+            )
+            if result["expiry_due"]:
+                applied = await _apply_due_expiry(
+                    user_id, expiry["episode_id"], directus=directus,
+                    encryption=encryption, orchestration=orchestration,
+                )
+                result["expiry_applied"] = int(bool(applied.get("applied")))
+                result["periods_waived"] = len(applied.get("waived_period_ids") or [])
+    return result
+
+
+async def _metered_owner_ids(metering):
+    cursor: str | None = None
+    while True:
+        page = await metering.list_personal_owner_ids(
+            after_user_id=cursor, limit=BATCH_SIZE
+        )
+        if not isinstance(page, list) or len(page) > BATCH_SIZE:
+            raise RuntimeError("Storage owner page was incomplete")
+        if not page:
+            return
+        if any(not isinstance(item, str) for item in page) or page != sorted(set(page)):
+            raise RuntimeError("Storage owner page order was invalid")
+        if cursor is not None and page[0] <= cursor:
+            raise RuntimeError("Storage owner cursor did not advance")
+        for owner_id in page:
+            yield owner_id
+        cursor = page[-1]
+        if len(page) < BATCH_SIZE:
+            return
+
+
+async def _debt_owner_ids(directus: DirectusService):
+    """Page all unpaid periods by stable ID; sort and dedupe one bounded batch."""
+    cursor: str | None = None
+    while True:
+        params: dict[str, Any] = {
+            "filter[state][_eq]": "unpaid", "fields": "id,user_id",
+            "sort": "id", "limit": BATCH_SIZE,
         }
-        template_name = template_map.get(new_failure_count, 'storage-billing-failed-3')
-
-        # Persist the incremented counter
-        await directus_service.update_user(
-            user_id,
-            {'storage_billing_failures': new_failure_count},
+        if cursor is not None:
+            params["filter[id][_gt]"] = cursor
+        page = await directus.get_items(
+            "storage_billing_periods", params=params, admin_required=True,
+            no_cache=True, raise_on_error=True,
         )
+        if not isinstance(page, list) or len(page) > BATCH_SIZE:
+            raise RuntimeError("Storage debt owner page was incomplete")
+        if not page:
+            return
+        # Period hashes do not order by owner. The unique owner set here is
+        # limited to a page; duplicates across pages are harmless because the
+        # same immutable charge ID and extension locks make retries idempotent.
+        for row in page:
+            if not row.get("id") or not row.get("user_id"):
+                raise RuntimeError("Storage debt owner row was incomplete")
+            yield str(row["user_id"])
+        next_cursor = str(page[-1]["id"])
+        if cursor is not None and next_cursor <= cursor:
+            raise RuntimeError("Storage debt cursor did not advance")
+        cursor = next_cursor
+        if len(page) < BATCH_SIZE:
+            return
 
-        # Send the appropriate warning email
-        await _send_storage_billing_email(
-            user_id=user_id,
-            template=template_name,
-            total_bytes=total_bytes,
-            credits_needed=credits_needed,
-            directus_service=directus_service,
-            encryption_service=encryption_service,
-            email_template_service=email_template_service,
-        )
+
+async def _iter_billing_owner_batches(directus: DirectusService, metering):
+    """Bound memory while including archive-only and unpaid owners."""
+    batch: list[str] = []
+    seen_in_batch: set[str] = set()
+    for owner_source in (_metered_owner_ids(metering), _debt_owner_ids(directus)):
+        async for owner_id in owner_source:
+            if owner_id in seen_in_batch:
+                continue
+            batch.append(owner_id)
+            seen_in_batch.add(owner_id)
+            if len(batch) == BATCH_SIZE:
+                yield batch
+                batch, seen_in_batch = [], set()
+    if batch:
+        yield batch
+
+
+async def _quote_owners_isolating_incomplete(metering, ids: list[str]):
+    """Keep one corrupt owner from suppressing every other owner in its page."""
+    from backend.core.api.app.services.storage_usage_metering import StorageUsageIncompleteError
+
+    try:
+        quotes = await metering.quote_personal(ids)
+        if not isinstance(quotes, dict) or set(quotes) != set(ids):
+            raise StorageUsageIncompleteError("storage_metering_missing_owner")
+        return quotes, []
+    except StorageUsageIncompleteError as exc:
+        if str(exc) in {
+            "storage_metering_unavailable",
+            "storage_metering_internal_token_missing",
+            "storage_metering_invalid_response",
+        }:
+            raise
+        if len(ids) == 1:
+            return {}, ids
+        middle = len(ids) // 2
+        left, left_failed = await _quote_owners_isolating_incomplete(metering, ids[:middle])
+        right, right_failed = await _quote_owners_isolating_incomplete(metering, ids[middle:])
+        return {**left, **right}, left_failed + right_failed
+
+
+async def _async_charge_storage_fees() -> dict[str, Any]:
+    if not is_payment_enabled():
+        return {"skipped": "payment_disabled"}
+    run_start = time.time()
+    secrets = SecretsManager()
+    directus = DirectusService()
+    cache = CacheService()
+    encryption = EncryptionService()
+    billing = BillingService(
+        cache_service=cache, directus_service=directus,
+        encryption_service=encryption,
+        server_stats_service=ServerStatsService(cache, directus),
+    )
+    orchestration = SubChatOrchestrationService(directus)
+    summary: dict[str, Any] = {
+        "users_checked": 0, "users_billed": 0, "users_failed": 0,
+        "warnings_delivered": 0, "users_expiry_due": 0,
+        "total_credits_charged": 0, "duration_seconds": 0.0,
+        "legacy_periods_ignored": 0,
+        "users_expired": 0, "periods_waived": 0,
+    }
+    try:
+        await directus.ensure_auth_token()
+        await secrets.initialize()
+        email_service = EmailTemplateService(secrets_manager=secrets)
+        from backend.core.api.app.services.storage_usage_metering import StorageUsageMeteringService
+        metering = StorageUsageMeteringService(directus)
+        period_start = _period_start_at()
+        async for ids in _iter_billing_owner_batches(directus, metering):
+            quotes, incomplete_owners = await _quote_owners_isolating_incomplete(metering, ids)
+            summary["users_failed"] += len(incomplete_owners)
+            for user_id in ids:
+                if user_id in incomplete_owners:
+                    continue
+                quote = quotes[user_id]
+                if not quote.complete or not isinstance(quote.total_bytes, int):
+                    raise RuntimeError("Storage usage quote was incomplete")
+                try:
+                    outcome = await _settle_owner(
+                        user_id, quote, period_start_at=period_start,
+                        directus=directus, billing=billing, orchestration=orchestration,
+                        encryption=encryption, email_service=email_service, cache=cache,
+                    )
+                    summary["users_checked"] += 1
+                    summary["users_billed"] += outcome["billed"]
+                    summary["total_credits_charged"] += outcome["credits"]
+                    summary["warnings_delivered"] += outcome["warnings_delivered"]
+                    summary["users_expiry_due"] += outcome["expiry_due"]
+                    summary["legacy_periods_ignored"] += outcome["legacy_period_ignored"]
+                    summary["users_expired"] += outcome["expiry_applied"]
+                    summary["periods_waived"] += outcome["periods_waived"]
+                    summary["users_failed"] += int(bool(outcome["insufficient"] or outcome["operational_error"]))
+                except Exception:
+                    summary["users_failed"] += 1
+                    logger.exception("[StorageBilling] Owner settlement failed for %s", user_id)
+        summary["duration_seconds"] = round(time.time() - run_start, 2)
+        return summary
+    finally:
+        await cache.close()
+        await secrets.aclose()
+
+
+async def _async_retry_storage_warning_deliveries() -> dict[str, int | str]:
+    """Reconcile recent notice rows after worker restart without a second ID.
+
+    The first reservation timestamp is immutable. The existing delivery guard
+    retries with the same Brevo UUID only inside its 10-minute window and a
+    Redis lease; uncertain rows beyond that window require manual review.
+    """
+    if not is_payment_enabled():
+        return {"skipped": "payment_disabled"}
+    from backend.core.api.app.services.storage_usage_metering import StorageUsageMeteringService
+
+    secrets = SecretsManager()
+    directus = DirectusService()
+    cache = CacheService()
+    encryption = EncryptionService()
+    billing = BillingService(
+        cache_service=cache, directus_service=directus,
+        encryption_service=encryption,
+        server_stats_service=ServerStatsService(cache, directus),
+    )
+    orchestration = SubChatOrchestrationService(directus)
+    metering = StorageUsageMeteringService(directus)
+    summary: dict[str, int | str] = {"examined": 0, "warnings_delivered": 0, "errors": 0}
+    try:
+        await directus.ensure_auth_token()
+        await secrets.initialize()
+        email_service = EmailTemplateService(secrets_manager=secrets)
+        # This task runs every two minutes. Bound all provider-capable phases
+        # under one clock so an outage cannot build overlapping sweeps.
+        sweep_deadline = time.monotonic() + PROVIDER_RECEIPT_SWEEP_SECONDS
+        retry_deadline = min(sweep_deadline, time.monotonic() + 15)
+        now = datetime.now(timezone.utc)
+        # Allow the original provider call to finish, and never cross the
+        # documented idempotency lifetime. The guard checks exact age again.
+        earliest = (now - timedelta(seconds=600)).isoformat()
+        latest = (now - timedelta(seconds=120)).isoformat()
+        cursor: str | None = None
+        while True:
+            if time.monotonic() >= retry_deadline:
+                break
+            filters: dict[str, Any] = {
+                "email_type": {"_eq": "storage-billing-warning"},
+                "status": {"_in": ["processing", "failed", "sent"]},
+                "storage_warning_acknowledged_at": {"_null": True},
+                "processing_started_at": {"_gte": earliest, "_lte": latest},
+            }
+            if cursor is not None:
+                filters["id"] = {"_gt": cursor}
+            page = await directus.get_items(
+                "email_deliveries",
+                params={
+                    "filter": filters, "fields": "id,recipient_id,recipient_kind",
+                    "sort": "id", "limit": BATCH_SIZE,
+                },
+                admin_required=True, no_cache=True, raise_on_error=True,
+            )
+            if not isinstance(page, list) or len(page) > BATCH_SIZE:
+                raise RuntimeError("Storage warning retry page was incomplete")
+            if not page:
+                break
+            for row in page:
+                if time.monotonic() >= retry_deadline:
+                    break
+                summary["examined"] += 1
+                user_id = row.get("recipient_id")
+                if row.get("recipient_kind") != "directus_user" or not isinstance(user_id, str):
+                    summary["errors"] += 1
+                    continue
+                try:
+                    quotes = await asyncio.wait_for(
+                        metering.quote_personal([user_id]),
+                        timeout=max(0.001, retry_deadline - time.monotonic()),
+                    )
+                    quote = quotes[user_id]
+                    if time.monotonic() >= retry_deadline:
+                        raise TimeoutError("Storage warning retry budget exhausted")
+                    outcome = await asyncio.wait_for(
+                        _settle_owner(
+                            user_id, quote, period_start_at=_period_start_at(),
+                            directus=directus, billing=billing, orchestration=orchestration,
+                            encryption=encryption, email_service=email_service, cache=cache,
+                        ),
+                        timeout=max(0.001, retry_deadline - time.monotonic()),
+                    )
+                    summary["warnings_delivered"] += outcome["warnings_delivered"]
+                except Exception:
+                    summary["errors"] += 1
+                    logger.exception("[StorageBilling] Warning reconciliation failed for %s", user_id)
+            next_cursor = str(page[-1].get("id") or "")
+            if not next_cursor or (cursor is not None and next_cursor <= cursor):
+                raise RuntimeError("Storage warning retry cursor did not advance")
+            cursor = next_cursor
+            if time.monotonic() >= retry_deadline:
+                break
+            if len(page) < BATCH_SIZE:
+                break
+        # Expired uncertainty cannot be replayed after the provider's
+        # idempotency window. Move it to an explicit durable operator hold
+        # instead of silently retrying each week or counting a warning.
+        cursor = None
+        expired_deadline = min(sweep_deadline, time.monotonic() + 5)
+        for _page_number in range(10):
+            if time.monotonic() >= expired_deadline:
+                break
+            filters = {
+                "email_type": {"_eq": "storage-billing-warning"},
+                "status": {"_in": ["processing", "failed"]},
+                "processing_started_at": {"_lt": earliest},
+            }
+            if cursor is not None:
+                filters["id"] = {"_gt": cursor}
+            page = await directus.get_items(
+                "email_deliveries",
+                params={
+                    "filter": filters,
+                    "fields": "id,recipient_id,recipient_kind,campaign_key,stage",
+                    "sort": "id", "limit": BATCH_SIZE,
+                },
+                admin_required=True, no_cache=True, raise_on_error=True,
+            )
+            if not isinstance(page, list) or len(page) > BATCH_SIZE:
+                raise RuntimeError("Expired storage warning page was incomplete")
+            if not page:
+                break
+            for row in page:
+                if time.monotonic() >= expired_deadline:
+                    break
+                user_id = row.get("recipient_id")
+                stage = row.get("stage")
+                if (row.get("recipient_kind") != "directus_user"
+                    or not isinstance(user_id, str) or not isinstance(stage, str)
+                    or not stage.startswith("week-") or not stage[5:].isdigit()):
+                    summary["errors"] += 1
+                    logger.error("[StorageBilling] Malformed expired warning delivery %s", row.get("id"))
+                    continue
+                try:
+                    held = await asyncio.wait_for(
+                        _owner_operation(
+                            orchestration, "mark_storage_warning_manual_review", user_id,
+                            episode_id=row["campaign_key"], warning_stage=int(stage[5:]),
+                            delivery_id=row["id"], now_at=int(time.time()),
+                        ),
+                        timeout=max(0.001, expired_deadline - time.monotonic()),
+                    )
+                    if held.get("held"):
+                        logger.error(
+                            "[StorageBilling] Warning requires manual provider reconciliation: delivery=%s",
+                            row["id"],
+                        )
+                except Exception:
+                    summary["errors"] += 1
+                    logger.exception(
+                        "[StorageBilling] Could not hold expired warning delivery %s", row.get("id")
+                    )
+            next_cursor = str(page[-1].get("id") or "")
+            if not next_cursor or (cursor is not None and next_cursor <= cursor):
+                raise RuntimeError("Expired storage warning cursor did not advance")
+            cursor = next_cursor
+            if time.monotonic() >= expired_deadline:
+                break
+            if len(page) < BATCH_SIZE:
+                break
+        # Submission acceptance is not delivery. Poll pending exact message
+        # IDs independently of the 10-minute send retry window, including a
+        # first warning whose owner warning_count is still zero. Each row is
+        # checked at most hourly and each sweep reads at most 10 x 100 rows.
+        cursor = None
+        receipt_sweep_deadline = min(sweep_deadline, time.monotonic() + 15)
+        checked_before = (now - timedelta(seconds=PROVIDER_RECEIPT_RECHECK_SECONDS)).isoformat()
+        for _page_number in range(10):
+            if time.monotonic() >= receipt_sweep_deadline:
+                break
+            filters = {
+                "email_type": {"_eq": "storage-billing-warning"},
+                "status": {"_eq": "sent"},
+                "provider_delivery_state": {"_eq": "accepted"},
+                "storage_warning_acknowledged_at": {"_null": True},
+                "processing_started_at": {"_lt": earliest},
+                "_or": [
+                    {"provider_receipt_checked_at": {"_null": True}},
+                    {"provider_receipt_checked_at": {"_lte": checked_before}},
+                ],
+            }
+            if cursor is not None:
+                filters["id"] = {"_gt": cursor}
+            page = await directus.get_items(
+                "email_deliveries",
+                params={
+                    "filter": filters,
+                    "fields": "id,recipient_id,recipient_kind,recipient_hash,campaign_key,"
+                              "stage,status,provider_message_id,processing_started_at",
+                    "sort": "id", "limit": BATCH_SIZE,
+                },
+                admin_required=True, no_cache=True, raise_on_error=True,
+            )
+            if not isinstance(page, list) or len(page) > BATCH_SIZE:
+                raise RuntimeError("Storage receipt page was incomplete")
+            if not page:
+                break
+            for row in page:
+                if time.monotonic() >= receipt_sweep_deadline:
+                    break
+                summary["examined"] += 1
+                user_id = row.get("recipient_id")
+                episode = row.get("campaign_key")
+                stage_text = row.get("stage")
+                if (row.get("recipient_kind") != "directus_user"
+                    or not isinstance(user_id, str) or not isinstance(episode, str)
+                    or not isinstance(stage_text, str) or not stage_text.startswith("week-")
+                    or not stage_text[5:].isdigit()):
+                    summary["errors"] += 1
+                    continue
+                stage = int(stage_text[5:])
+                try:
+                    try:
+                        started = datetime.fromisoformat(
+                            str(row.get("processing_started_at")).replace("Z", "+00:00"))
+                        beyond_event_horizon = (
+                            started.tzinfo is None or
+                            now - started.astimezone(timezone.utc) >= timedelta(days=90)
+                        )
+                    except (TypeError, ValueError):
+                        beyond_event_horizon = True
+                    if beyond_event_horizon:
+                        await _owner_operation(
+                            orchestration, "mark_storage_warning_manual_review", user_id,
+                            episode_id=episode, warning_stage=stage,
+                            delivery_id=row["id"], now_at=int(time.time()),
+                        )
+                        continue
+                    if await asyncio.wait_for(
+                        _reconcile_provider_receipt(
+                            user_id, episode, stage, row,
+                            email_service=email_service, orchestration=orchestration,
+                        ),
+                        timeout=max(0.001, receipt_sweep_deadline - time.monotonic()),
+                    ):
+                        await _owner_operation(
+                            orchestration, "acknowledge_storage_warning", user_id,
+                            episode_id=episode, warning_stage=stage,
+                            delivery_id=row["id"], now_at=int(time.time()),
+                        )
+                        summary["warnings_delivered"] += 1
+                    updated = await directus.update_item(
+                        "email_deliveries", row["id"],
+                        {"provider_receipt_checked_at": datetime.now(timezone.utc).isoformat()},
+                        admin_required=True,
+                    )
+                    if not updated:
+                        raise RuntimeError("Storage receipt poll marker not persisted")
+                except Exception:
+                    summary["errors"] += 1
+                    logger.exception("[StorageBilling] Provider receipt reconciliation failed")
+            next_cursor = str(page[-1].get("id") or "")
+            if not next_cursor or (cursor is not None and next_cursor <= cursor):
+                raise RuntimeError("Storage receipt cursor did not advance")
+            cursor = next_cursor
+            if time.monotonic() >= receipt_sweep_deadline:
+                break
+            if len(page) < BATCH_SIZE:
+                break
+        # Weekly warnings are seven days from the previous delivery receipt,
+        # which may be minutes after Sunday's billing run. A two-minute sweep
+        # avoids accidentally postponing the next stage by an entire week.
+        due_before = int(time.time()) - WARNING_INTERVAL_SECONDS
+        cursor = None
+        for _page_number in range(10):
+            if time.monotonic() >= sweep_deadline:
+                break
+            filters = {
+                "warning_count": {"_gte": 1, "_lte": 3},
+                "last_warning_at": {"_lte": due_before},
+                "closed_at": {"_null": True},
+                "warning_manual_review_at": {"_null": True},
+            }
+            if cursor is not None:
+                filters["id"] = {"_gt": cursor}
+            page = await directus.get_items(
+                "storage_billing_owner_state",
+                params={"filter": filters, "fields": "id,user_id",
+                        "sort": "id", "limit": BATCH_SIZE},
+                admin_required=True, no_cache=True, raise_on_error=True,
+            )
+            if not isinstance(page, list) or len(page) > BATCH_SIZE:
+                raise RuntimeError("Storage dunning page was incomplete")
+            if not page:
+                break
+            for row in page:
+                if time.monotonic() >= sweep_deadline:
+                    break
+                user_id = row.get("user_id")
+                if not isinstance(user_id, str):
+                    summary["errors"] += 1
+                    continue
+                try:
+                    # Existing frozen debt is the only chargeable source here.
+                    # The regular Sunday run owns the new weekly usage quote.
+                    outcome = await asyncio.wait_for(
+                        _settle_owner(
+                            user_id, SimpleNamespace(total_bytes=0),
+                            period_start_at=_period_start_at(),
+                            directus=directus, billing=billing, orchestration=orchestration,
+                            encryption=encryption, email_service=email_service, cache=cache,
+                        ),
+                        timeout=max(0.001, sweep_deadline - time.monotonic()),
+                    )
+                    summary["warnings_delivered"] += outcome["warnings_delivered"]
+                except Exception:
+                    summary["errors"] += 1
+                    logger.exception("[StorageBilling] Due warning failed for %s", user_id)
+            next_cursor = str(page[-1].get("id") or "")
+            if not next_cursor or (cursor is not None and next_cursor <= cursor):
+                raise RuntimeError("Storage dunning cursor did not advance")
+            cursor = next_cursor
+            if time.monotonic() >= sweep_deadline:
+                break
+            if len(page) < BATCH_SIZE:
+                break
+        return summary
+    finally:
+        await cache.close()
+        await secrets.aclose()
 
 
 @app.task(
-    name="app.tasks.storage_billing_tasks.retry_storage_deletion",
+    name="app.tasks.storage_billing_tasks.retry_storage_warning_deliveries",
     bind=True,
-    base=BaseServiceTask,
-    max_retries=3,
-    default_retry_delay=300,
-    queue="persistence",
+    max_retries=1,
+    default_retry_delay=120,
 )
-async def retry_storage_deletion(self, user_id: str, total_bytes: int) -> Dict[str, Any]:
-    """Retry one fourth-strike deletion without replaying other users' billing state."""
+def retry_storage_warning_deliveries(self) -> dict[str, int | str]:
+    loop = asyncio.new_event_loop()
     try:
-        await self.initialize_core_services()
-        s3_service = await initialize_task_storage(self)
-        email_template_service = EmailTemplateService(secrets_manager=self._secrets_manager)
-        await _handle_billing_failure(
-            user_id=user_id,
-            total_bytes=total_bytes,
-            current_failure_count=3,
-            directus_service=self._directus_service,
-            encryption_service=self._encryption_service,
-            email_template_service=email_template_service,
-            s3_service=s3_service,
-        )
-        return {"success": True}
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(_async_retry_storage_warning_deliveries())
     except Exception as exc:
-        logger.warning(
-            "[StorageBilling] Storage deletion remains pending: %s",
-            type(exc).__name__,
-        )
+        logger.exception("[StorageBilling] Warning reconciliation failed")
         raise self.retry(exc=exc)
-
-
-async def _charge_single_user(
-    user_id: str,
-    total_bytes: int,
-    failure_count: int,
-    directus_service: DirectusService,
-    cache_service: CacheService,
-    encryption_service: EncryptionService,
-    billing_service: BillingService,
-) -> ChargeResult:
-    """
-    Charge one user for their weekly storage fees and update their storage counter.
-
-    Steps:
-    1. Compute billable credits.
-    2. Fetch the user's hashed_email for the usage entry.
-    3. Call BillingService.charge_user_credits — this deducts credits, updates
-       Directus, broadcasts to WebSocket clients, and creates a usage entry.
-    4. Reconcile storage_used_bytes with the real aggregate value.
-    5. Reset storage_billing_failures counter to 0 on success.
-    6. Update storage_last_billed_at.
-
-    Returns:
-        "charged"               — charge succeeded
-        "insufficient_credits"  — user has too few credits (billing failure)
-        "error"                 — unexpected error (not a billing failure)
-    """
-    credits = _compute_billable_credits(total_bytes)
-    if credits <= 0:
-        # User is below or at the free tier — reconcile their counter if needed
-        if failure_count > 0:
-            # They had failures but now have less than 1 GB — still charge 0
-            # but do NOT reset the failure counter (they haven't paid yet).
-            # Just update the storage bytes.
-            now_ts = int(time.time())
-            await directus_service.update_user(
-                user_id,
-                {
-                    'storage_used_bytes': total_bytes,
-                    'storage_last_billed_at': now_ts,
-                },
-            )
-        return "charged"
-
-    try:
-        # Fetch the user record for vault_key_id (needed by billing)
-        user_record_list = await directus_service.get_items(
-            'directus_users',
-            params={
-                'filter[id][_eq]': user_id,
-                'fields': 'id,vault_key_id,hashed_email',
-                'limit': 1,
-            },
-            no_cache=True,
-        )
-        if not user_record_list or not isinstance(user_record_list, list):
-            logger.error(
-                f"[StorageBilling] Cannot charge user {user_id}: user record not found in Directus."
-            )
-            return "error"
-
-        user_record = user_record_list[0]
-        vault_key_id = user_record.get('vault_key_id')
-        if not vault_key_id:
-            logger.error(
-                f"[StorageBilling] Cannot charge user {user_id}: vault_key_id missing."
-            )
-            return "error"
-
-        user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
-        billable_gb = math.ceil((total_bytes - FREE_BYTES) / 1_073_741_824)
-
-        # Charge the user. BillingService also creates a usage entry automatically.
-        await billing_service.charge_user_credits(
-            user_id=user_id,
-            credits_to_deduct=credits,
-            user_id_hash=user_id_hash,
-            app_id="system",
-            skill_id="storage",
-            idempotency_key=f"storage:{user_id_hash}:{int(time.time()) // (7 * 24 * 60 * 60)}",
-            usage_details={
-                "storage_bytes": total_bytes,
-                "billable_gb": billable_gb,
-                "free_gb": 1,
-                "credits_per_gb": CREDITS_PER_GB_PER_WEEK,
-            },
-        )
-
-        logger.info(
-            f"[StorageBilling] Charged user {user_id}: {credits} credits "
-            f"({billable_gb} billable GB, {total_bytes:,} bytes total)."
-        )
-
-        # Successful charge — reconcile storage counter and reset failure counter
-        now_ts = int(time.time())
-        update_fields: Dict[str, Any] = {
-            'storage_used_bytes': total_bytes,
-            'storage_last_billed_at': now_ts,
-        }
-        if failure_count > 0:
-            update_fields['storage_billing_failures'] = 0
-            logger.info(
-                f"[StorageBilling] Resetting storage_billing_failures to 0 for user {user_id} "
-                f"after successful charge."
-            )
-        await directus_service.update_user(user_id, update_fields)
-
-        # Also update cache so the frontend sees the fresh value immediately
-        try:
-            cache_update: Dict[str, Any] = {'storage_used_bytes': total_bytes, 'storage_last_billed_at': now_ts}
-            if failure_count > 0:
-                cache_update['storage_billing_failures'] = 0
-            await cache_service.update_user(user_id, cache_update)
-        except Exception as cache_err:
-            logger.warning(
-                f"[StorageBilling] Failed to update cache for user {user_id}: {cache_err}"
-            )
-
-        return "charged"
-
-    except Exception as e:
-        # BillingService raises an HTTPException (or similar) when the user cannot
-        # afford the charge. We detect this by checking if the exception message
-        # mentions insufficient credits or by inspecting the HTTP status code.
-        # Rather than coupling tightly to the exception class, we check the repr.
-        err_str = str(e).lower()
-        if 'insufficient' in err_str or 'credits' in err_str or '402' in err_str:
-            logger.warning(
-                f"[StorageBilling] Insufficient credits for user {user_id}: {e}"
-            )
-            return "insufficient_credits"
-
-        logger.error(
-            f"[StorageBilling] Unexpected error charging user {user_id}: {e}", exc_info=True
-        )
-        return "error"
-
-
-async def _async_charge_storage_fees() -> Dict[str, Any]:
-    """
-    Main async logic for the weekly storage billing run.
-
-    Algorithm:
-    1. Aggregate upload_files by user_id to get total bytes per user.
-    2. Build two sets:
-       a. Users above the free tier (>1 GB) — need billing.
-       b. Users with storage_billing_failures > 0 (have prior failures) — need
-          failure-state processing even if they have since dropped below 1 GB.
-    3. Merge and deduplicate into a single work list.
-    4. Process in batches with bounded concurrency (BATCH_SIZE at a time).
-    5. For insufficient-credits results, call _handle_billing_failure.
-    6. Return a summary dict for logging/monitoring.
-    """
-    run_start = time.time()
-    logger.info("[StorageBilling] Starting weekly storage billing run.")
-
-    secrets_manager = SecretsManager()
-    directus_service = DirectusService()
-    cache_service = CacheService()
-    encryption_service = EncryptionService()
-    server_stats_service = ServerStatsService(cache_service, directus_service)
-    billing_service = BillingService(
-        cache_service=cache_service,
-        directus_service=directus_service,
-        encryption_service=encryption_service,
-        server_stats_service=server_stats_service,
-    )
-
-    summary: Dict[str, Any] = {
-        'users_checked': 0,
-        'users_billed': 0,
-        'users_failed': 0,
-        'users_deleted': 0,
-        'total_credits_charged': 0,
-        'duration_seconds': 0.0,
-    }
-
-    try:
-        await directus_service.ensure_auth_token()
-        await secrets_manager.initialize()
-        email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
-
-        # Initialise S3 service for the deletion path
-        s3_service = S3UploadService(secrets_manager=secrets_manager)
-        await s3_service.initialize(configure_buckets=False)
-
-        # ──────────────────────────────────────────────────────────────────
-        # Step 1: Aggregate upload_files by user_id.
-        # ──────────────────────────────────────────────────────────────────
-        agg_params = {
-            'aggregate[sum]': 'file_size_bytes',
-            'groupBy[]': 'user_id',
-            'limit': -1,
-        }
-        aggregate_result = await directus_service.get_items(
-            'upload_files', params=agg_params, no_cache=True
-        )
-
-        # Build a map: user_id → total_bytes from the aggregate
-        bytes_by_user: Dict[str, int] = {}
-        if aggregate_result and isinstance(aggregate_result, list):
-            for row in aggregate_result:
-                uid = row.get('user_id')
-                if not uid:
-                    continue
-                sum_data = row.get('sum') or {}
-                total_bytes_raw = (
-                    sum_data.get('file_size_bytes') or row.get('file_size_bytes') or 0
-                )
-                bytes_by_user[uid] = int(total_bytes_raw)
-
-        # ──────────────────────────────────────────────────────────────────
-        # Step 2: Find users with existing billing failures (even if now
-        # under 1 GB — they still need their failure state resolved).
-        # ──────────────────────────────────────────────────────────────────
-        failure_users_result = await directus_service.get_items(
-            'directus_users',
-            params={
-                'filter[storage_billing_failures][_gt]': 0,
-                'fields': 'id,storage_billing_failures',
-                'limit': -1,
-            },
-            no_cache=True,
-        )
-        failure_count_by_user: Dict[str, int] = {}
-        if failure_users_result and isinstance(failure_users_result, list):
-            for row in failure_users_result:
-                uid = row.get('id')
-                if uid:
-                    failure_count_by_user[uid] = int(row.get('storage_billing_failures') or 0)
-
-        # ──────────────────────────────────────────────────────────────────
-        # Step 3: Build the work list — union of billable users and users
-        # with active failure counters.
-        # ──────────────────────────────────────────────────────────────────
-        all_user_ids: set = set()
-        for uid, tbytes in bytes_by_user.items():
-            if tbytes > FREE_BYTES or uid in failure_count_by_user:
-                all_user_ids.add(uid)
-        for uid in failure_count_by_user:
-            all_user_ids.add(uid)
-
-        work_list: List[tuple] = []
-        for uid in all_user_ids:
-            tbytes = bytes_by_user.get(uid, 0)
-            fc = failure_count_by_user.get(uid, 0)
-            work_list.append((uid, tbytes, fc))
-            summary['users_checked'] += 1
-
-        logger.info(
-            f"[StorageBilling] {len(bytes_by_user)} users have stored files; "
-            f"{len(failure_count_by_user)} have active failure counters; "
-            f"{len(work_list)} users to process."
-        )
-
-        if not work_list:
-            logger.info("[StorageBilling] No users to process. Billing complete.")
-            return summary
-
-        # ──────────────────────────────────────────────────────────────────
-        # Step 4: Process in batches with bounded concurrency.
-        # ──────────────────────────────────────────────────────────────────
-        for batch_start in range(0, len(work_list), BATCH_SIZE):
-            batch = work_list[batch_start: batch_start + BATCH_SIZE]
-
-            charge_tasks = [
-                _charge_single_user(
-                    user_id=uid,
-                    total_bytes=tbytes,
-                    failure_count=fc,
-                    directus_service=directus_service,
-                    cache_service=cache_service,
-                    encryption_service=encryption_service,
-                    billing_service=billing_service,
-                )
-                for uid, tbytes, fc in batch
-            ]
-            results = await asyncio.gather(*charge_tasks, return_exceptions=True)
-
-            # Process results and handle failures
-            failure_tasks = []
-            failure_task_users = []
-            for (uid, tbytes, fc), result in zip(batch, results):
-                credits = _compute_billable_credits(tbytes)
-                if isinstance(result, Exception):
-                    logger.error(
-                        f"[StorageBilling] Batch error for user {uid}: {result}",
-                        exc_info=False,
-                    )
-                    summary['users_failed'] += 1
-                elif result == "charged":
-                    if credits > 0:
-                        summary['users_billed'] += 1
-                        summary['total_credits_charged'] += credits
-                elif result == "insufficient_credits":
-                    summary['users_failed'] += 1
-                    failure_tasks.append(
-                        _handle_billing_failure(
-                            user_id=uid,
-                            total_bytes=tbytes,
-                            current_failure_count=fc,
-                            directus_service=directus_service,
-                            encryption_service=encryption_service,
-                            email_template_service=email_template_service,
-                            s3_service=s3_service,
-                        )
-                    )
-                    failure_task_users.append((uid, tbytes, fc))
-                else:  # "error"
-                    summary['users_failed'] += 1
-
-            # Run all failure handlers concurrently (within this batch)
-            if failure_tasks:
-                failure_results = await asyncio.gather(*failure_tasks, return_exceptions=True)
-                for (uid, tbytes, fc), fresult in zip(failure_task_users, failure_results):
-                    if isinstance(fresult, Exception):
-                        logger.error(
-                            f"[StorageBilling] Error in billing failure handler for user {uid}: {fresult}",
-                            exc_info=False,
-                        )
-                        if fc >= 3:
-                            try:
-                                app.send_task(
-                                    "app.tasks.storage_billing_tasks.retry_storage_deletion",
-                                    kwargs={"user_id": uid, "total_bytes": tbytes},
-                                    queue="persistence",
-                                )
-                            except Exception as dispatch_error:
-                                logger.error(
-                                    "[StorageBilling] Failed to schedule pending storage deletion: %s",
-                                    type(dispatch_error).__name__,
-                                )
-                    elif fc >= 3:
-                        # fc was 3 before this run → this was the 4th failure → deletion occurred
-                        summary['users_deleted'] += 1
-
-            logger.info(
-                f"[StorageBilling] Batch {batch_start // BATCH_SIZE + 1}: "
-                f"processed {len(batch)} users."
-            )
-
-        elapsed = time.time() - run_start
-        summary['duration_seconds'] = round(elapsed, 2)
-
-        logger.info(
-            f"[StorageBilling] Weekly billing run complete in {elapsed:.1f}s. "
-            f"Billed: {summary['users_billed']}, "
-            f"Failed: {summary['users_failed']}, "
-            f"Deleted: {summary['users_deleted']}, "
-            f"Total credits charged: {summary['total_credits_charged']}."
-        )
-        return summary
-
-    except Exception as e:
-        logger.error(
-            f"[StorageBilling] Fatal error in billing run: {e}", exc_info=True
-        )
-        raise
-
     finally:
-        # Always close async resources to avoid event-loop errors
-        try:
-            await cache_service.close()
-        except Exception:
-            pass
-        try:
-            await secrets_manager.aclose()
-        except Exception:
-            pass
-
-
-# ─── Celery task wrapper ───────────────────────────────────────────────────────
+        loop.close()
 
 
 @app.task(
     name="app.tasks.storage_billing_tasks.charge_storage_fees",
     bind=True,
     max_retries=1,
-    default_retry_delay=300,  # 5-minute delay before retrying on catastrophic failure
+    default_retry_delay=300,
 )
-def charge_storage_fees(self) -> Dict[str, Any]:
-    """
-    Celery Beat task — runs every Sunday at 03:00 UTC.
-
-    Charges users 3 credits per GB per week for S3 file storage above the
-    1 GB free tier. Each charge creates a usage entry (app_id='system',
-    skill_id='storage') so users can see the charge in their activity log.
-
-    On repeated billing failures (insufficient credits):
-      - Sends escalating warning emails at weeks 1, 2, and 3.
-      - On the 4th consecutive failure, permanently deletes all upload files
-        and sends a deletion confirmation email.
-
-    Processes users in batches (BATCH_SIZE=50 at a time) for scalability.
-    A single user failure does not block other users from being billed.
-    """
-    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN'
-    logger.info(f"[StorageBilling] Task started. task_id={task_id}")
-
-    loop = None
+def charge_storage_fees(self) -> dict[str, Any]:
+    loop = asyncio.new_event_loop()
     try:
-        loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(_async_charge_storage_fees())
-        logger.info(f"[StorageBilling] Task completed. Summary: {result}")
-        return result
-    except Exception as e:
-        logger.error(
-            f"[StorageBilling] Task failed. task_id={task_id}: {e}", exc_info=True
-        )
-        raise self.retry(exc=e)
+        return loop.run_until_complete(_async_charge_storage_fees())
+    except Exception as exc:
+        logger.exception("[StorageBilling] Weekly run failed")
+        raise self.retry(exc=exc)
     finally:
-        if loop:
-            loop.close()
+        loop.close()

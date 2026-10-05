@@ -18,6 +18,7 @@ from pathlib import Path
 import re
 import secrets
 import stat
+import sys
 import time
 import uuid
 from typing import Any
@@ -29,6 +30,63 @@ SELECTOR_SCHEMA = "storage-billing-selector-v1"
 RECEIPT_SCHEMA = "storage-billing-receipt-v1"
 FREE_BYTES = 1_073_741_824
 WEEK = 7 * 24 * 60 * 60
+SAFE_RUNTIME_FAILURE_CODES = frozenset({
+    "storage_billing_fixture_write_failed", "storage_billing_fixture_admin_unavailable",
+    "storage_billing_fixture_patch_failed", "storage_billing_metering_status_mismatch",
+    "storage_billing_metering_error_mismatch", "storage_billing_metering_incomplete",
+    "storage_billing_page_not_verified", "storage_billing_page_not_active",
+    "storage_billing_expiry_disposable_owner_failed", "storage_billing_expiry_object_not_verified",
+    "storage_billing_expiry_simulated_quote_mismatch", "storage_billing_expiry_fixed_oldest_selection_failed",
+    "storage_billing_expiry_notice_membership_changed", "storage_billing_expiry_warning_stage_failed",
+    "storage_billing_expiry_early_delete", "storage_billing_expiry_result_mismatch",
+    "storage_billing_expiry_tombstone_missing", "storage_billing_expiry_tombstone_scope_invalid",
+    "storage_billing_expiry_real_purge_failed", "storage_billing_expiry_survivor_or_ledger_changed",
+    "storage_billing_expiry_rows_or_frozen_invoice_changed", "storage_billing_cleanup_scope_exceeded",
+    "storage_billing_disposable_account_missing", "storage_billing_account_not_empty",
+    "storage_billing_upload_not_verified", "storage_billing_measured_quote_mismatch",
+    "storage_billing_conflict_restore_failed", "storage_billing_owner_probe_restore_failed",
+    "storage_billing_fixture_cleanup_incomplete",
+    "storage_billing_owner_constraint_row_changed", "storage_billing_owner_constraint_quote_changed",
+})
+SAFE_OPERATION_FAILURE_CODES = {
+    "storage_billing_expiry_operation_failed:" + operation:
+    "storage_billing_expiry_operation_failed_" + operation
+    for operation in (
+        "freeze_storage_period", "claim_storage_warning", "freeze_storage_warning_units",
+        "list_storage_warning_units", "record_storage_delivery_receipt", "acknowledge_storage_warning",
+        "apply_storage_expiry", "list_storage_debt",
+    )
+}
+
+
+class FixtureInitializationError(RuntimeError):
+    """Only static initialization stages are eligible for public diagnostics."""
+
+
+def _new_fixture_task() -> Any:
+    from celery import Celery
+    from backend.core.api.app.tasks.base_task import BaseServiceTask
+
+    app = Celery("storage_billing_fixture", broker="memory://", backend="cache+memory://",
+                 set_as_current=False)
+    task = BaseServiceTask()
+    task.bind(app)
+    return task
+
+
+async def _initialize_fixture_services(task: Any) -> None:
+    try:
+        await task.initialize_core_services()
+    except Exception:
+        raise FixtureInitializationError("core_initialization_failed") from None
+    try:
+        from backend.core.api.app.services.s3.service import S3UploadService
+        task._s3_service = S3UploadService(
+            secrets_manager=task.secrets_manager, directus_service=task.directus_service,
+        )
+        await task._s3_service.initialize()
+    except Exception:
+        raise FixtureInitializationError("s3_initialization_failed") from None
 
 
 def require_expiry_profile(environ: dict[str, str], selector: dict[str, str]) -> None:
@@ -114,7 +172,14 @@ async def _write(directus: Any, collection: str, row: dict[str, Any], created: l
     return result
 
 
-async def _patch(directus: Any, collection: str, row_id: str, fields: dict[str, Any]) -> None:
+async def _patch(directus: Any, collection: str, row_id: str, fields: dict[str, Any],
+                 *, expected_status: int = 200) -> None:
+    if expected_status != 200 and not (
+            expected_status == 500 and collection in {
+                "chat_message_archive_pages", "chat_message_archive_segments"}
+            and len(fields) == 1 and next(iter(fields)) in {"hashed_user_id", "hashed_team_id"}
+            and next(iter(fields.values())) is None):
+        raise ValueError("storage_billing_invalid_patch_status_probe")
     token = await directus.ensure_auth_token(admin_required=True)
     if not token:
         raise RuntimeError("storage_billing_fixture_admin_unavailable")
@@ -122,7 +187,7 @@ async def _patch(directus: Any, collection: str, row_id: str, fields: dict[str, 
         "PATCH", f"{directus.base_url.rstrip('/')}/items/{collection}/{row_id}",
         headers={"Authorization": f"Bearer {token}"}, json=fields,
     )
-    if response.status_code != 200:
+    if response.status_code != expected_status:
         raise RuntimeError("storage_billing_fixture_patch_failed")
 
 
@@ -151,9 +216,34 @@ async def _assert_owner_metadata_hold(
     original: Any, invalid: Any, user_id: str | None = None,
     team_hash: str | None = None,
 ) -> None:
-    """Mutate one disposable reference; the real SQL must reject its quote."""
+    """Missing sole owners hit the DB guard; wrong owners hit the meter guard."""
     if original == invalid or bool(user_id) == bool(team_hash):
         raise ValueError("storage_billing_invalid_owner_probe")
+    if invalid is None:
+        if (collection not in {"chat_message_archive_pages", "chat_message_archive_segments"}
+                or field != ("hashed_user_id" if user_id else "hashed_team_id")):
+            raise ValueError("storage_billing_invalid_owner_null_probe")
+        opposite = "hashed_team_id" if user_id else "hashed_user_id"
+        params = {"filter": {"id": {"_eq": row_id}}, "fields": "id," + field + "," + opposite,
+                  "limit": 1}
+        before = await directus.get_items(collection, params=params, admin_required=True,
+                                           no_cache=True, raise_on_error=True)
+        if (len(before) != 1 or before[0].get("id") != row_id
+                or before[0].get(field) != original or before[0].get(opposite) is not None):
+            raise ValueError("storage_billing_invalid_owner_null_probe")
+        baseline = await _quote(directus, user_id=user_id, team_hash=team_hash)
+        # Directus currently maps PostgreSQL's owner_required CHECK (23514)
+        # to HTTP 500. The reread proves this rejected write changed no owner.
+        await _patch(directus, collection, row_id, {field: None}, expected_status=500)
+        after = await directus.get_items(collection, params=params, admin_required=True,
+                                          no_cache=True, raise_on_error=True)
+        if after != before:
+            raise RuntimeError("storage_billing_owner_constraint_row_changed")
+        restored = await _quote(directus, user_id=user_id, team_hash=team_hash)
+        if ({key: value for key, value in baseline.items() if key != "measurement_at"}
+                != {key: value for key, value in restored.items() if key != "measurement_at"}):
+            raise RuntimeError("storage_billing_owner_constraint_quote_changed")
+        return
     await _patch(directus, collection, row_id, {field: invalid})
     try:
         await _quote(directus, user_id=user_id, team_hash=team_hash, expected_status=409)
@@ -476,10 +566,9 @@ async def _cleanup(directus: Any, s3: Any, receipt: dict[str, Any]) -> dict[str,
 
 async def prepare(selector: dict[str, str], receipt_path: Path) -> dict[str, Any]:
     from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
-    from backend.core.api.app.tasks.base_task import BaseServiceTask
 
-    task = BaseServiceTask()
-    await task.initialize_services()
+    task = _new_fixture_task()
+    initialized = False
     receipt: dict[str, Any] = {
         "schema": RECEIPT_SCHEMA, "source_commit": selector["source_commit"],
         "selector_digest": hashlib.sha256(json.dumps(selector, sort_keys=True).encode()).hexdigest(),
@@ -487,6 +576,8 @@ async def prepare(selector: dict[str, str], receipt_path: Path) -> dict[str, Any
         "created": [], "objects": [], "cleaned": False,
     }
     try:
+        await _initialize_fixture_services(task)
+        initialized = True
         directus, s3 = task.directus_service, task.s3_service
         user_rows = await directus.get_items("directus_users", params={
             "filter": {"id": {"_eq": selector["user_id"]}}, "fields": "id,status", "limit": 1,
@@ -586,9 +677,9 @@ async def prepare(selector: dict[str, str], receipt_path: Path) -> dict[str, Any
         restored = await _quote(directus, user_id=selector["user_id"])
         if restored["total_bytes"] != full["total_bytes"]:
             raise RuntimeError("storage_billing_conflict_restore_failed")
-        # Every reference remains in the canonical SQL source set while its
-        # owner metadata is invalid, so a 409 proves it was held rather than
-        # silently omitted or attributed to the wrong payer.
+        # Sole-owner null writes must be rejected by the database CHECK without
+        # changing either the row or complete quote. Wrong owner hashes remain
+        # canonical references and must produce a metering 409 before restoration.
         mismatched_personal = ("0" if owner_hash[0] != "0" else "1") + owner_hash[1:]
         mismatched_team = ("0" if team_hash[0] != "0" else "1") + team_hash[1:]
         for collection, row_id, field, original, invalid, quote_owner in (
@@ -641,15 +732,14 @@ async def prepare(selector: dict[str, str], receipt_path: Path) -> dict[str, Any
                 "team_unrated": True, "dedup": True, "conflict_failed_closed": True,
                 "owner_metadata_failed_closed": True, "expiry": expiry}
     except Exception:
-        await _cleanup(task.directus_service, task.s3_service, receipt)
+        if initialized:
+            await _cleanup(task.directus_service, task.s3_service, receipt)
         raise
     finally:
         await task.cleanup_services()
 
 
 async def cleanup(selector: dict[str, str], receipt_path: Path) -> dict[str, Any]:
-    from backend.core.api.app.tasks.base_task import BaseServiceTask
-
     info = receipt_path.lstat()
     if not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600 or info.st_size > 65536:
         raise ValueError("storage_billing_receipt_not_private_or_bounded")
@@ -661,9 +751,9 @@ async def cleanup(selector: dict[str, str], receipt_path: Path) -> dict[str, Any
             receipt.get("user_id") != selector["user_id"] or
             receipt.get("fixture_prefix") != selector["fixture_prefix"]):
         raise ValueError("storage_billing_cleanup_receipt_mismatch")
-    task = BaseServiceTask()
-    await task.initialize_services()
+    task = _new_fixture_task()
     try:
+        await _initialize_fixture_services(task)
         result = await _cleanup(task.directus_service, task.s3_service, receipt)
         if not result["cleaned"]:
             raise RuntimeError("storage_billing_fixture_cleanup_incomplete")
@@ -681,13 +771,30 @@ def main() -> None:
     parser.add_argument("--selector-file", required=True, type=Path)
     parser.add_argument("--receipt-file", required=True, type=Path)
     args = parser.parse_args()
-    source = require_isolated_profile(dict(os.environ))
-    private_path(args.selector_file)
-    private_path(args.receipt_file)
-    selector = load_selector(args.selector_file, source)
-    result = asyncio.run(prepare(selector, args.receipt_file) if args.operation == "prepare"
-                         else cleanup(selector, args.receipt_file))
-    print(json.dumps(result, sort_keys=True))
+    stage = "profile_validation_failed"
+    try:
+        source = require_isolated_profile(dict(os.environ))
+        stage = "selector_validation_failed"
+        private_path(args.selector_file)
+        private_path(args.receipt_file)
+        selector = load_selector(args.selector_file, source)
+        stage = args.operation + "_failed"
+        result = asyncio.run(prepare(selector, args.receipt_file) if args.operation == "prepare"
+                             else cleanup(selector, args.receipt_file))
+        print(json.dumps(result, sort_keys=True))
+    except Exception as exc:
+        if isinstance(exc, FixtureInitializationError) and str(exc) in {
+            "core_initialization_failed", "s3_initialization_failed",
+        }:
+            stage = str(exc)
+        elif isinstance(exc, RuntimeError):
+            code = str(exc)
+            if code in SAFE_RUNTIME_FAILURE_CODES:
+                stage = code
+            elif code in SAFE_OPERATION_FAILURE_CODES:
+                stage = SAFE_OPERATION_FAILURE_CODES[code]
+        print("storage_billing_fixture_failed:" + stage, file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

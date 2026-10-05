@@ -118,45 +118,48 @@ already enabled. Translation sources and the canonical privacy mirror must agree
   expiration until metering, notices, final settlement, reference checks, and the
   complete legal disclosure have source-bound evidence.
 
-## Current state
+## Approved expiry selection and invoice closure (2026-10-04)
 
-Metering and personal settlement are implemented in the candidate with local
-focused evidence. `STORAGE_LOGICAL_S3_BILLING_ENABLED` defaults off; only `1`
-adds logical S3 categories to the personal bill. Team usage remains unrated.
-The settings quote now uses bounded SQL category aggregation and exposes its
-active policy version. Unknown or inconsistent usage fails visibly.
+The user approved `feature.billing@6`, fingerprint
+`65deeacf5875ee2c4e77325bec72102b0980f3dda2311f3728709f03a456ac99`.
+The exact review and explicit confirmation are recorded in session 2f80.
 
-The frozen weekly invoice, exact-settlement check, provider-delivery notice ACK,
-account-deletion billing closure, and bounded two-minute dunning/retry sweeps
-are implemented. Notice delivery uses the existing Brevo idempotency guard;
-uncertain delivery beyond its safe retry window becomes a durable manual-review
-hold. Advertised UTC deadlines and the recorded notice timestamps both fence expiration.
-A further audit found that the existing `email_deliveries.sent_at` proves Brevo
-accepted a submission, not delivery to the recipient mail server. The candidate
-now retains a private message ID and correlates bounded exact-ID provider events
-before counting a warning. Accepted-only, unknown and bounced notices cannot
-count; a later bounce holds expiry. Delayed delivery starts the warning clock at
-the provider's delivered timestamp, and final admission rechecks all four
-receipts. Storage warning records survive the generic seven-day email archive;
-the separate receipt sweep can reconcile acceptance beyond the ten-minute send
-retry window without sending the notice again. The provider's 90-day event
-report horizon and uncertain receipts fail closed. These changes have focused
-local evidence but no integrated delivery proof. Expiration must remain disabled
-until that proof and the protected expiry action are complete; neither email
-opening nor reading is promised.
+Freeze a fixed list of complete, independently removable personal units before
+sending the first notice. Select oldest first, only enough to bring usage within
+the 1 GiB allowance. All four delivered notices refer to this same list. Recheck
+current usage at expiry and remove only the necessary subset of that list.
+Uncertain references, active writers, shared/Team/Project data, sole recovery
+copies and later paid storage remain protected. If no complete safe set reaches
+the allowance, leave data intact.
 
-Local focused checks include metering Node 9/9, Python 7/7, embed transaction
-28/28, billing Python 70, warning transaction 7/7, notice rendering 21, legal
-rendering 3, and the 21-locale translation build. These are candidate-local
-checks, not isolated integrated PostgreSQL/S3 or source-bound release evidence.
-A fixed-date unrelated workflow-digest retry test failed because its October 1
-fixture had elapsed; it was not altered.
+After verified customer-reference removal and a complete current quote at or
+below the allowance, waive only the unpaid invoices included in the warned
+episode. Record `waived_on_expiry`, removed units, amounts and period identities;
+make no credit debit and never report payment. Preserve later unnotified debt,
+paid periods and unrelated charges. Incomplete removal or measurement never
+waives an invoice. A new debt episode requires its own notices.
 
-`feature.billing@6` is a validated draft covering the additional requirements;
-its current fingerprint is
-`ecf992c704d267106ce195106dec88fcf3ee31a0f75153638a5df175e61e87ab`.
-An exact-fingerprint private review PDF was generated and visually inspected; it is not an approval. No approval receipt is claimed for that extension. The original approved
-storage contract and its independently frozen CI sources remain unchanged.
+## Implementation and verification
 
-Team payer, precise archive expiry and invoice-closure policy, formal extension
-review, integrated evidence, and release activation remain open. No new storage charge or deletion has been run against real users.
+The candidate contains authoritative bounded metering, immutable Sunday invoices,
+full-charge ledger checks, legacy charge-overlap fences, exact provider delivery
+receipts and retry holds, the fixed affected-unit API/web/email list, atomic safe
+expiry and audited invoice closure. Production defaults remain conservative.
+
+Initial deletion admission has explicit bounds of 100 selected complete units
+and 2000 object references. Complex chat graphs or uncertain histories remain
+protected. Rare expiry transactions briefly lock reference authorities, with a
+bounded lock wait, to fence writers that do not yet share a resource-level
+protocol. Replacing these coarse locks with comprehensive resource-level fences
+is a scaling follow-up; correctness is preserved while that work remains open.
+
+Isolated tests use small encrypted S3 objects and explicitly SIMULATED declared
+logical usage to cross allowance boundaries. They exercise actual PostgreSQL
+transactions and regional object deletion without real inference, real emails,
+large uploads or real user data. The source-bound CI and deployment receipts
+will be recorded here after completion; prepared fixtures are not passing proof.
+
+Team payer and allowance policy remains unanswered, so Team usage is unrated and
+Team billing/expiry is disabled. Archive/pruning and the larger capacity benchmark
+retain their separately recorded gates. The two real CLI/web canary turns have
+already passed; this billing extension requires no additional real inference.

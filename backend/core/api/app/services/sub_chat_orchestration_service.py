@@ -41,6 +41,18 @@ ORCHESTRATION_OPERATIONS = {
     "transition_pending_settlement_to_manual_review",
     "commit_team_charge",
     "commit_team_credit_add",
+    "freeze_storage_period",
+    "list_storage_debt",
+    "mark_storage_period_paid",
+    "claim_storage_warning",
+    "acknowledge_storage_warning",
+    "record_storage_delivery_receipt",
+    "inspect_storage_expiry",
+    "close_storage_billing_for_deleted_account",
+    "mark_storage_warning_manual_review",
+    "freeze_storage_warning_units",
+    "list_storage_warning_units",
+    "apply_storage_expiry",
 }
 
 

@@ -59,6 +59,7 @@ SUPPORT_EMAIL_TEMPLATES = {
     "storage-billing-failed-1",
     "storage-billing-failed-2",
     "storage-billing-failed-3",
+    "storage-billing-failed-4",
     "storage-files-deleted",
     "support-contribution-confirmation",
     "usecase_submitted",

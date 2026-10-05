@@ -496,6 +496,7 @@ export function buildPrivacyPolicyContent(
   lines.push(`- ${t("legal.privacy.data_retention.usage_and_logs")}`);
   lines.push(`- ${t("legal.privacy.data_retention.device_fingerprints")}`);
   lines.push(`- ${t("legal.privacy.data_retention.content_v3")}`);
+  lines.push(`- ${t("legal.privacy.data_retention.storage_expiry")}`);
   lines.push(`- ${t("legal.privacy.data_retention.deletion_markers_v1")}`);
   lines.push(`- ${t("legal.privacy.data_retention.historical_snapshots_v1")}`);
   lines.push(`- ${t("legal.privacy.data_retention.payments_and_invoices_v2")}`);
@@ -688,6 +689,12 @@ export function buildTermsOfUseContent(
   lines.push(t("legal.terms.credits.description"));
   lines.push("");
   lines.push(t("legal.terms.credits.refund"));
+  lines.push("");
+  lines.push(t("legal.terms.credits.storage_billing"));
+  lines.push("");
+  lines.push(t("legal.terms.credits.storage_expiry"));
+  lines.push("");
+  lines.push(t("legal.terms.credits.storage_invoice_waiver"));
   lines.push("");
 
   // Section 7: Disclaimer

@@ -76,6 +76,33 @@ email_deliveries:
       type: datetime
       nullable: true
 
+    storage_warning_acknowledged_at:
+      type: datetime
+      nullable: true
+      note: "Storage warnings only: owner dunning stage committed after sent receipt."
+
+    provider_message_id:
+      type: string
+      length: 255
+      nullable: true
+      note: "Storage warnings only: private Brevo message ID for exact delivery-event correlation."
+
+    provider_delivery_state:
+      type: string
+      length: 24
+      nullable: true
+      note: "Storage warnings only: accepted, delivered, or failed; acceptance is not delivery."
+
+    provider_delivered_at:
+      type: datetime
+      nullable: true
+      note: "Storage warnings only: timestamp of the correlated provider delivered event."
+
+    provider_receipt_checked_at:
+      type: datetime
+      nullable: true
+      note: "Storage warnings only: last bounded exact-message event reconciliation."
+
     failed_at:
       type: datetime
       nullable: true

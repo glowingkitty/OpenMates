@@ -42,6 +42,7 @@ function fakeDatabase(seed) {
     };
     return query;
   };
+  client.raw = async () => ({ rows: [] });
   client.rows = rows;
   client.transaction = async (callback) => callback(client);
   return client;

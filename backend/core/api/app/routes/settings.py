@@ -2,7 +2,6 @@ from fastapi import APIRouter, HTTPException, Depends, Header, Request, Security
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 import logging
-import math
 import time
 import os
 import hashlib
@@ -16,6 +15,13 @@ from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field, SecretStr # Import BaseModel and Field for response models
 
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.storage_usage_metering import (
+    StorageUsageIncompleteError,
+    StorageUsageMeteringService,
+)
+from backend.core.api.app.schemas.settings import StorageNoticeResponse
+from backend.core.api.app.services.storage_billing_notice_service import read_storage_notice
+from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
@@ -5582,7 +5588,7 @@ async def update_topic_preferences(
 # ─── Storage Overview ─────────────────────────────────────────────────────────
 
 # Mirrors the constants in storage_billing_tasks.py — update both if pricing changes.
-_STORAGE_FREE_BYTES: int = 1_073_741_824       # 1 GB
+_STORAGE_FREE_BYTES: int = 1_073_741_824       # 1 GiB
 _STORAGE_CREDITS_PER_GB_PER_WEEK: int = 3
 
 
@@ -5676,10 +5682,8 @@ async def get_storage_overview(
     Return the current user's storage usage, broken down by file-type category,
     along with billing information (free tier, weekly cost, next billing date).
 
-    Source of truth: the `upload_files` collection is queried directly so that
-    the numbers are accurate immediately after file deletions (the cached
-    `storage_used_bytes` counter on directus_users is only reconciled during
-    the weekly billing run).
+    The internal logical-object quote is the same source used by weekly
+    settlement. File-type breakdown remains based on uploaded files.
 
     Endpoint: GET /v1/settings/storage
     """
@@ -5687,53 +5691,25 @@ async def get_storage_overview(
     logger.info(f"[Storage] Fetching storage overview for user {user_id}")
 
     try:
-        # ── 1. Fetch all upload_files records for the user ──────────────────
-        # We need content_type and file_size_bytes for each file so we can
-        # categorise them in Python.  Directus aggregate + groupBy on
-        # content_type would give us bytes per MIME type but not file_count,
-        # so fetching fields directly is simpler and accurate.
-        files_result = await directus_service.get_items(
-            "upload_files",
-            params={
-                "filter": {"user_id": {"_eq": user_id}},
-                "fields": "content_type,file_size_bytes",
-                "limit": -1,
-            },
-            no_cache=True,
-        )
-
-        # ── 2. Aggregate into categories ────────────────────────────────────
-        # category_name → {"bytes": int, "count": int}
-        category_map: Dict[str, Dict[str, int]] = {}
-
-        total_bytes: int = 0
-        total_files: int = 0
-
-        if files_result and isinstance(files_result, list):
-            for row in files_result:
-                mime: str = row.get("content_type") or ""
-                size: int = int(row.get("file_size_bytes") or 0)
-                cat: str = _classify_mime_type(mime)
-
-                if cat not in category_map:
-                    category_map[cat] = {"bytes": 0, "count": 0}
-                category_map[cat]["bytes"] += size
-                category_map[cat]["count"] += 1
-
-                total_bytes += size
-                total_files += 1
-
-        # ── 3. Build ordered breakdown list ─────────────────────────────────
-        # Only include categories that have at least one file.
+        # The internal aggregate returns at most nine categories. Each count and byte
+        # total is computed in SQL, so settings never fetches every uploaded file.
+        metering = StorageUsageMeteringService(directus_service)
+        upload_rows = await metering.upload_breakdown(user_id)
+        quote = (await metering.quote_personal([user_id]))[user_id]
+        upload_breakdown_bytes = sum(int(row["bytes_used"]) for row in upload_rows)
+        if upload_breakdown_bytes != quote.legacy_upload_bytes:
+            raise StorageUsageIncompleteError("storage_usage_breakdown_mismatch")
+        total_bytes = quote.total_bytes
+        total_files = sum(int(row["file_count"]) for row in upload_rows)
         category_order = ["images", "videos", "audio", "pdf", "code", "docs", "sheets", "archives", "other"]
+        by_category = {row["category"]: row for row in upload_rows}
         breakdown = [
             StorageCategoryBreakdown(
-                category=cat,
-                bytes_used=category_map[cat]["bytes"],
-                file_count=category_map[cat]["count"],
+                category=category,
+                bytes_used=int(by_category[category]["bytes_used"]),
+                file_count=int(by_category[category]["file_count"]),
             )
-            for cat in category_order
-            if cat in category_map
+            for category in category_order if category in by_category
         ]
 
         # ── 4. Compute billing fields ────────────────────────────────────────
@@ -5742,7 +5718,7 @@ async def get_storage_overview(
         next_billing_date: Optional[int] = None
 
         if total_bytes > _STORAGE_FREE_BYTES:
-            billable_gb = math.ceil((total_bytes - _STORAGE_FREE_BYTES) / _STORAGE_FREE_BYTES)
+            billable_gb = (total_bytes - _STORAGE_FREE_BYTES + _STORAGE_FREE_BYTES - 1) // _STORAGE_FREE_BYTES
             weekly_cost_credits = billable_gb * _STORAGE_CREDITS_PER_GB_PER_WEEK
             next_billing_date = _next_billing_timestamp()
 
@@ -5769,6 +5745,14 @@ async def get_storage_overview(
         return StorageOverviewResponse(
             total_bytes=total_bytes,
             total_files=total_files,
+            logical_s3_bytes=quote.logical_s3_bytes,
+            metering_source_version=quote.source_version,
+            metering_policy_version=quote.policy_version,
+            metering_categories={
+                category: bytes_used for category, bytes_used in quote.categories.items()
+                if category != "legacy_uploads"
+            },
+            measurement_at=quote.measurement_at,
             free_bytes=_STORAGE_FREE_BYTES,
             billable_gb=billable_gb,
             credits_per_gb_per_week=_STORAGE_CREDITS_PER_GB_PER_WEEK,
@@ -5786,6 +5770,28 @@ async def get_storage_overview(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="Failed to fetch storage overview")
+
+
+# First-party session surface only; metadata is always derived from the caller,
+# never a supplied owner. No ciphertext/object keys, paid work or public API key
+# access. The bounded cursor and rate limit also bound the internal SQL request.
+@router.get("/storage/notice", response_model=StorageNoticeResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def get_storage_notice(
+    request: Request,
+    after_unit_id: Optional[str] = Query(default=None, min_length=1, max_length=64, pattern="^[a-f0-9]{64}$"),
+    limit: int = Query(default=50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> StorageNoticeResponse:
+    try:
+        return await read_storage_notice(
+            SubChatOrchestrationService(directus_service), current_user.id,
+            after_unit_id=after_unit_id, limit=limit,
+        )
+    except Exception:
+        logger.exception("[Storage] Frozen notice lookup failed")
+        raise HTTPException(status_code=503, detail="Storage notice temporarily unavailable")
 
 
 # ─── Category → MIME filter helper ────────────────────────────────────────────

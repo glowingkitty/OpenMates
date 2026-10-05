@@ -103,6 +103,28 @@ STORAGE_QUERY_INDEXES = (
     'chat_key_wrappers_team_cursor_idx',
     'chats_owner_main_hot_recency_idx',
 )
+STORAGE_BILLING_MIGRATION_PATH = os.getenv(
+    'STORAGE_BILLING_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_storage_billing_indexes.sql',
+)
+STORAGE_BILLING_INDEXES = (
+    'storage_billing_periods_owner_debt_idx',
+    'storage_billing_periods_charge_uq',
+    'email_deliveries_storage_warning_retry_idx',
+    'email_deliveries_storage_receipt_pending_idx',
+    'storage_billing_owner_dunning_due_idx',
+    'storage_billing_warning_units_episode_unit_uq',
+    'storage_billing_warning_units_owner_page_idx',
+)
+STORAGE_USAGE_METERING_MIGRATION_PATH = os.getenv(
+    'STORAGE_USAGE_METERING_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_storage_usage_metering_indexes.sql',
+)
+STORAGE_USAGE_METERING_INDEXES = (
+    'cold_archive_manifests_metering_resource_idx',
+    'chat_recovery_outputs_metering_root_idx',
+    'embed_diffs_metering_archive_idx',
+)
 CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH = os.getenv(
     'CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_chat_message_archive_indexes.sql',
@@ -315,6 +337,9 @@ BACKEND_PERMISSION_COLLECTIONS = (
     'embed_version_archive_rollout',
     'chat_recovery_outputs',
     'chat_recovery_account_fences',
+    'storage_billing_periods',
+    'storage_billing_owner_state',
+    'storage_billing_warning_units',
 )
 BACKEND_PERMISSION_ACTIONS = ('create', 'read', 'update', 'delete')
 BACKEND_PERMISSION_POLICY_NAMES = ('Backend API', 'Administrator')
@@ -1383,6 +1408,62 @@ def apply_and_verify_storage_query_indexes(*, bounded: bool = False):
     print(f"Verified {len(STORAGE_QUERY_INDEXES)} storage query indexes")
 
 
+def apply_and_verify_storage_billing_indexes():
+    """Install indexes for immutable invoices and owner-level debt scans."""
+    if not os.path.isfile(STORAGE_BILLING_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required storage billing migration is missing: {STORAGE_BILLING_MIGRATION_PATH}"
+        )
+    with open(STORAGE_BILLING_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(STORAGE_BILLING_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+    missing_indexes = set(STORAGE_BILLING_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Storage billing index verification failed: " + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(STORAGE_BILLING_INDEXES)} storage billing indexes")
+
+
+def apply_and_verify_storage_usage_metering_indexes():
+    """Install source-bound metadata and indexes for bounded logical quotes."""
+    if not os.path.isfile(STORAGE_USAGE_METERING_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required storage metering migration is missing: {STORAGE_USAGE_METERING_MIGRATION_PATH}"
+        )
+    with open(STORAGE_USAGE_METERING_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(STORAGE_USAGE_METERING_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+    missing_indexes = set(STORAGE_USAGE_METERING_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Storage metering index verification failed: " + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(STORAGE_USAGE_METERING_INDEXES)} storage metering indexes")
+
+
 def apply_and_verify_chat_message_archive_indexes():
     """Install indexes required by bounded chat message archive processing."""
     if not os.path.isfile(CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH):
@@ -1908,6 +1989,12 @@ def setup_schemas():
 
         print("\n--- Applying storage query database indexes ---")
         apply_and_verify_storage_query_indexes()
+
+        print("\n--- Applying storage billing database indexes ---")
+        apply_and_verify_storage_billing_indexes()
+
+        print("\n--- Applying storage usage metering database indexes ---")
+        apply_and_verify_storage_usage_metering_indexes()
 
         print("\n--- Applying chat message archive database indexes ---")
         apply_and_verify_chat_message_archive_indexes()

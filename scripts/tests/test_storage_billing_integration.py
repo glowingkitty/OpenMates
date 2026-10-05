@@ -2,7 +2,9 @@
 """Private selector and isolated profile guards for the real PG/S3 billing probe."""
 
 import json
+import hashlib
 import os
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 import uuid
@@ -13,6 +15,7 @@ from scripts.storage_billing_integration import (
     _assert_owner_metadata_hold, _billing_operation, _cleanup, _quote, load_selector,
     require_expiry_profile, require_isolated_profile,
 )
+from scripts import storage_billing_integration as fixture
 
 
 SOURCE = "a" * 40
@@ -32,6 +35,113 @@ PROFILE = {
 def selector() -> dict[str, str]:
     return {"schema": "storage-billing-selector-v1", "source_commit": SOURCE,
             "user_id": USER, "fixture_prefix": PREFIX}
+
+
+def test_fixture_task_binds_to_local_celery_without_replacing_current_app(monkeypatch) -> None:
+    calls = []
+    class LocalApp:
+        def __init__(self, name, **settings):
+            assert name == "storage_billing_fixture"
+            assert settings == {"broker": "memory://", "backend": "cache+memory://",
+                                "set_as_current": False}
+            calls.append("local_app")
+    class Task:
+        request_stack = None
+        def bind(self, app):
+            assert isinstance(app, LocalApp)
+            self.app = app
+            self.request_stack = [SimpleNamespace(id=None)]
+            calls.append("bound")
+        @property
+        def request(self):
+            return self.request_stack[-1]
+    monkeypatch.setitem(sys.modules, "celery", SimpleNamespace(Celery=LocalApp))
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.base_task",
+                        SimpleNamespace(BaseServiceTask=Task))
+    task = fixture._new_fixture_task()
+    assert task.request.id is None
+    assert calls == ["local_app", "bound"]
+
+
+@pytest.mark.asyncio
+async def test_fixture_initializes_only_core_and_storage(monkeypatch) -> None:
+    calls = []
+    class Task:
+        secrets_manager = object()
+        directus_service = object()
+        async def initialize_core_services(self):
+            calls.append("core")
+        async def initialize_services(self):
+            pytest.fail("Invoice and payment initialization must not run")
+    task = Task()
+    class S3:
+        def __init__(self, *, secrets_manager, directus_service):
+            assert secrets_manager is task.secrets_manager
+            assert directus_service is task.directus_service
+            calls.append("storage_constructor")
+        async def initialize(self):
+            calls.append("storage_initialize")
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.s3.service",
+                        SimpleNamespace(S3UploadService=S3))
+    await fixture._initialize_fixture_services(task)
+    assert calls == ["core", "storage_constructor", "storage_initialize"]
+    assert isinstance(task._s3_service, S3)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["prepare", "cleanup"])
+async def test_fixture_closes_partial_initialization(monkeypatch, tmp_path, operation) -> None:
+    closed = []
+    class Task:
+        async def cleanup_services(self):
+            closed.append(True)
+    monkeypatch.setattr(fixture, "_new_fixture_task", Task)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.chat_message_archive_service",
+                        SimpleNamespace(ChatMessageArchiveService=object))
+    async def failed_init(_task):
+        raise fixture.FixtureInitializationError("s3_initialization_failed")
+    monkeypatch.setattr(fixture, "_initialize_fixture_services", failed_init)
+    receipt_path = tmp_path / "receipt.json"
+    receipt_path.write_text(json.dumps({
+        "schema": fixture.RECEIPT_SCHEMA, "source_commit": SOURCE,
+        "selector_digest": hashlib.sha256(json.dumps(selector(), sort_keys=True).encode()).hexdigest(),
+        "user_id": USER, "fixture_prefix": PREFIX,
+    }))
+    os.chmod(receipt_path, 0o600)
+    with pytest.raises(fixture.FixtureInitializationError):
+        await getattr(fixture, operation)(selector(), receipt_path)
+    assert closed == [True]
+
+
+@pytest.mark.parametrize("failure,marker", [
+    (RuntimeError("secret-token /private/object " + USER), "prepare_failed"),
+    (fixture.FixtureInitializationError("s3_initialization_failed"), "s3_initialization_failed"),
+])
+def test_fixture_main_emits_only_static_failure_marker(monkeypatch, capsys, failure, marker) -> None:
+    monkeypatch.setattr(sys, "argv", ["fixture", "prepare", "--selector-file", "/unused/selector",
+                                      "--receipt-file", "/unused/receipt"])
+    monkeypatch.setattr(fixture, "require_isolated_profile", lambda _env: SOURCE)
+    monkeypatch.setattr(fixture, "private_path", lambda _path: None)
+    monkeypatch.setattr(fixture, "load_selector", lambda _path, _source: selector())
+    cases = [(failure, marker)]
+    if marker == "prepare_failed":
+        cases.extend([
+            (RuntimeError("storage_billing_page_not_verified"), "storage_billing_page_not_verified"),
+            (RuntimeError("storage_billing_expiry_operation_failed:apply_storage_expiry"),
+             "storage_billing_expiry_operation_failed_apply_storage_expiry"),
+            (RuntimeError("storage_billing_page_not_verified " + USER), "prepare_failed"),
+            (RuntimeError("storage_billing_expiry_operation_failed:" + USER), "prepare_failed"),
+        ])
+    for failure, expected in cases:
+        async def failed_prepare(*_args):
+            raise failure
+        monkeypatch.setattr(fixture, "prepare", failed_prepare)
+        with pytest.raises(SystemExit) as exited:
+            fixture.main()
+        assert exited.value.code == 1
+        output = capsys.readouterr()
+        assert output.out == ""
+        assert output.err == "storage_billing_fixture_failed:" + expected + "\n"
 
 
 def test_probe_requires_exact_isolated_stack_and_source() -> None:
@@ -141,10 +251,10 @@ async def test_owner_metadata_probe_restores_disposable_row_after_incomplete_quo
     monkeypatch.setattr("scripts.storage_billing_integration._quote", quote)
     await _assert_owner_metadata_hold(
         object(), collection="chat_message_archive_pages", row_id="disposable-row",
-        field="hashed_user_id", original="owner-hash", invalid=None, user_id=USER,
+        field="hashed_user_id", original="owner-hash", invalid="wrong-owner-hash", user_id=USER,
     )
     assert patches == [
-        ("chat_message_archive_pages", "disposable-row", {"hashed_user_id": None}),
+        ("chat_message_archive_pages", "disposable-row", {"hashed_user_id": "wrong-owner-hash"}),
         ("chat_message_archive_pages", "disposable-row", {"hashed_user_id": "owner-hash"}),
     ]
     assert quotes == [{"user_id": USER, "team_hash": None, "expected_status": 409}]
@@ -156,11 +266,51 @@ async def test_owner_metadata_probe_restores_disposable_row_after_incomplete_quo
     with pytest.raises(RuntimeError, match="probe_quote_rejected"):
         await _assert_owner_metadata_hold(
             object(), collection="chat_message_archive_segments", row_id="disposable-row",
-            field="hashed_team_id", original="team-hash", invalid=None,
+            field="hashed_team_id", original="team-hash", invalid="wrong-team-hash",
             team_hash="team-hash",
         )
     assert patches[-1] == ("chat_message_archive_segments", "disposable-row",
                            {"hashed_team_id": "team-hash"})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", ["rejected", "unexpected_status", "mutated_row", "changed_quote"])
+async def test_null_owner_probe_requires_constraint_rejection_and_unchanged_row_and_quote(monkeypatch, case):
+    calls = []
+    baseline = {"id": "disposable-row", "hashed_user_id": "owner-hash", "hashed_team_id": None}
+    class Directus:
+        base_url = "http://directus.test"
+        async def ensure_auth_token(self, **kwargs):
+            return "test-only-placeholder"
+        async def get_items(self, collection, *, params, **kwargs):
+            assert collection == "chat_message_archive_pages"
+            assert params["filter"] == {"id": {"_eq": "disposable-row"}}
+            assert kwargs == {"admin_required": True, "no_cache": True, "raise_on_error": True}
+            reads = calls.count("read")
+            calls.append("read")
+            return [{**baseline, "hashed_user_id": None}] if reads and case == "mutated_row" else [dict(baseline)]
+        async def _make_api_request(self, method, url, *, headers, json):
+            assert method == "PATCH" and url.endswith("/chat_message_archive_pages/disposable-row")
+            assert json == {"hashed_user_id": None}
+            calls.append("patch")
+            return SimpleNamespace(status_code=200 if case == "unexpected_status" else 500)
+    async def quote(_directus, **kwargs):
+        assert kwargs == {"user_id": USER, "team_hash": None}
+        count = calls.count("quote")
+        calls.append("quote")
+        return {"complete": True, "total_bytes": 99 if count and case == "changed_quote" else 96,
+                "categories": {"legacy_uploads": 96}, "measurement_at": count}
+    monkeypatch.setattr(fixture, "_quote", quote)
+    if case == "rejected":
+        await fixture._assert_owner_metadata_hold(Directus(), collection="chat_message_archive_pages",
+            row_id="disposable-row", field="hashed_user_id", original="owner-hash", invalid=None, user_id=USER)
+        assert calls == ["read", "quote", "patch", "read", "quote"]
+    else:
+        expected = {"unexpected_status": "fixture_patch_failed", "mutated_row": "constraint_row_changed",
+                    "changed_quote": "constraint_quote_changed"}[case]
+        with pytest.raises(RuntimeError, match=expected):
+            await fixture._assert_owner_metadata_hold(Directus(), collection="chat_message_archive_pages",
+                row_id="disposable-row", field="hashed_user_id", original="owner-hash", invalid=None, user_id=USER)
 
 
 @pytest.mark.asyncio

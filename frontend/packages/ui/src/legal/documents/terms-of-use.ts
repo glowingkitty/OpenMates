@@ -38,6 +38,6 @@ export const termsOfUseChat: DemoChat = {
 		icon_names: ['file-text', 'scale', 'shield'],
 		featured: false, // Don't show in regular sidebar (but always visible)
 		order: 4, // Order: 1=welcome, 2=different, 3=privacy, 4=terms, 5=imprint
-		lastUpdated: '2026-01-28T00:00:00Z' // Single source of truth for "last updated" date - formatted via Intl.DateTimeFormat
+		lastUpdated: '2026-10-04T00:00:00Z' // Single source of truth for "last updated" date - formatted via Intl.DateTimeFormat
 	}
 };

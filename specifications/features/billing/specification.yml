@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.billing
-version: 5
+version: 6
 status: draft
 title: Billing And Payments
 summary: >
@@ -11,6 +11,8 @@ summary: >
 scope:
   includes:
     - Personal and team credit balance charging for paid work.
+    - Weekly excess-storage quotes, exact settlement, unpaid-storage notices, and scoped expiration.
+    - Accurate storage-price and retention disclosures matching enabled behavior.
     - Stripe card payments, Stripe managed payments, and SEPA bank-transfer orders.
     - Gift-card redemption and free-testing-credit grants.
     - Invoice, payment-confirmation, credit-note, and refund document visibility.
@@ -214,6 +216,43 @@ assertions:
     must: REST, CLI, npm SDK, pip SDK, web, and Apple billing usage surfaces preserve the same authorization, summary, detail, export, invoice, and usage semantics where that surface is implemented.
     depends_on: [models, examples, applies_to]
 
+  - id: billing.storage.logical-usage
+    type: invariant
+    must: Additional customer S3 archive pages, large payloads, old artifact versions and snapshots, and sole durable sealed recovery outputs are measured from complete authoritative owner and size metadata once per logical object. Regional replicas, repeated references, temporary migration or rollback copies, and system records do not multiply the customer bill. Missing or conflicting size or ownership pauses billing. Existing uploaded-file measurement and payer remain compatible during the initial migration; operational physical-byte accounting remains separate.
+    depends_on: [examples.storage_usage]
+  - id: billing.storage.weekly-quote
+    type: behavior
+    must: Personal storage retains a free allowance of 1 GiB (1073741824 bytes), then costs 3 credits for each started additional GiB per weekly period scheduled Sunday at 03:00 UTC. Settings and settlement use the same authoritative usage categories and policy, with the measurement time visible; retries may settle later without changing the frozen period quote.
+    depends_on: [examples.storage_weekly]
+  - id: billing.storage.exact-settlement
+    type: invariant
+    must: Each weekly period freezes payer, measured bytes and categories, allowance and rate policy, amount, measurement time, and immutable charge identity. Concurrent calls and retries commit at most one complete debit under the existing credit-floor rules. Only authoritative full settlement marks the period paid; partial results, scheduled retries, and operational failures do not clear outstanding debt or advance nonpayment notices. Billing-disabled editions neither charge nor warn nor expire unpaid storage.
+    depends_on: [models.CreditSettlement, examples.storage_settlement]
+  - id: billing.storage.four-warning-expiry
+    type: security
+    must: Unpaid-storage expiration requires four provider-confirmed delivered payer-level weekly email warnings at least seven days apart, a notified deadline no earlier than 28 days after the first delivery and seven days after the fourth, and a final authoritative payment and eligibility check. Each email identifies the frozen affected-data list through an authenticated account link, states the earliest deletion date, and explains how to pay, reduce storage, or export it; submission acceptance or an email open alone is not proof of delivery. A successful payment cancels expiration; outages, uncertain delivery, active writers, or protected references defer it. Only notified chargeable data under that payer's deletion authority may expire; free account metadata and another owner or Team's content are preserved. Automatic expiry remains disabled until the approved selection policy, immutable notice membership, final payment and reference fences, and disposable integrated evidence are implemented.
+    depends_on: [examples.storage_warning]
+  - id: billing.storage.legacy-cutover-safe
+    type: invariant
+    must: Transitioning from uploaded-file billing to immutable weekly periods must not charge the same storage twice for an overlapping legacy billing period. Authoritative committed, pending, or uncertain legacy attempts defer the new period without falsely marking it paid, changing existing debt, or sending a nonpayment warning. Legacy workers are drained before the new task is activated, and incomplete ledger checks defer billing.
+    depends_on: [examples.storage_cutover]
+  - id: billing.storage.personal-expiry-selection
+    type: security
+    must: Personal automatic expiry considers only complete independently removable units frozen in a warned unpaid period, in stable oldest-completed-first order, and stops once logical storage is at or below the 1 GiB allowance. A unit is an independently removable upload, an old artifact history dependency unit, or a complete archived chat graph; no page or dependent history fragment is removed alone. Team or shared data, active writers, sole sealed recovery copies, changed or ambiguous ownership or references, and units covered by a later paid period stay protected. If no safe selection can reach the allowance, expiry holds without deleting a partial graph. Notices name the fixed eligible units before their four-delivery clock starts.
+    depends_on: [examples.storage_expiry_selection]
+  - id: billing.storage.expiry-invoice-closure
+    type: invariant
+    must: After verified safe expiry removes the selected last customer references and current measured storage is at or below the free allowance, only the warned unpaid episode is closed as waived_on_expiry with an immutable audit of units and periods. It is never reported paid and does not debit credits; already paid periods and later unnotified debt remain unchanged. Debt remains unchanged when no eligible unit was removed, removal or final measurement is incomplete, or the affected units are protected by later payment. Later excess storage starts a new billing episode.
+    depends_on: [examples.storage_expiry_closure]
+  - id: billing.storage.disclosures
+    type: behavior
+    must: Rendered terms and privacy disclosures accurately state enabled storage categories, measurement, price, allowance, schedule, warning and deletion criteria, and encryption boundaries. They distinguish server-readable Vault-encrypted AI context from client-encrypted durable storage and client-public-key-sealed recovery, do not promise immediate physical regional purge or an unsupported backup service, and do not describe inactive expanded billing or recovery retention as already enabled. Canonical privacy text and rendered translation sources agree.
+    depends_on: [examples.storage_disclosures]
+  - id: billing.storage.team-policy-gate
+    type: security
+    must: New Team-owned archive and version usage is reported separately with explicit ownership, but is not charged or expired until the Team payer, allowance, authorized settlement path, and reference-safe deletion policy are approved. Existing uploaded-file payer attribution is preserved during the initial migration, and membership or repeated references cannot charge the same new logical object to multiple subjects.
+    depends_on: [examples.storage_team]
+
 applies_to:
   rest_api:
     required: true
@@ -237,4 +276,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [credit_charges, settlement_concurrency, settlement_recovery, credit_purchases, billing_documents, storage_failures, bank_transfers, usage_receipts, usage_landing, self_host_guards]
+  required_groups: [credit_charges, settlement_concurrency, settlement_recovery, credit_purchases, billing_documents, storage_failures, bank_transfers, usage_receipts, usage_landing, self_host_guards, storage_usage, storage_weekly, storage_settlement, storage_warning, storage_disclosures, storage_team, storage_cutover, storage_expiry_selection, storage_expiry_closure]

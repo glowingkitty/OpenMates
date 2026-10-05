@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List
+from typing import Optional, List, Dict, Literal
 
 class UsernameUpdateRequest(BaseModel):
     """Request model for updating the user's username."""
@@ -230,6 +230,25 @@ class StorageCategoryBreakdown(BaseModel):
     file_count: int = Field(default=0, description="Number of uploaded files in this category")
 
 
+class StorageNoticeUnit(BaseModel):
+    """A fixed warned unit; no object keys, fingerprints or plaintext titles."""
+    unit_id: str
+    kind: Literal["upload", "cold_chat", "artifact_history"]
+    resource_id: str
+    oldest_at: int
+    bytes: int = Field(ge=0)
+
+
+class StorageNoticeResponse(BaseModel):
+    episode_id: Optional[str] = None
+    warning_count: int = Field(default=0, ge=0, le=4)
+    deadline_at: Optional[int] = None
+    manual_review: bool = False
+    units: List[StorageNoticeUnit] = Field(default_factory=list)
+    has_more: bool = False
+    next_after_unit_id: Optional[str] = None
+
+
 class StorageOverviewResponse(BaseModel):
     """
     Response model for GET /v1/settings/storage.
@@ -239,27 +258,34 @@ class StorageOverviewResponse(BaseModel):
     and the next scheduled billing date.
 
     Pricing model (mirrors storage_billing_tasks.py):
-      - First 1 GB is always free.
-      - 3 credits per GB per week above the free tier.
+      - First 1 GiB is always free.
+      - 3 credits per started GiB per week above the free tier.
     """
     # ─── Totals ──────────────────────────────────────────────────────────────
     total_bytes: int = Field(default=0, description="Total bytes stored across all file types")
     total_files: int = Field(default=0, description="Total number of uploaded files")
+    logical_s3_bytes: int = Field(default=0, description="Additional canonical logical ciphertext bytes in S3")
+    metering_source_version: str = Field(default="", description="Authoritative storage metering source version")
+    metering_policy_version: str = Field(default="", description="Storage quote policy version used for the displayed weekly cost")
+    metering_categories: Dict[str, int] = Field(
+        default_factory=dict, description="Logical S3 usage by canonical encrypted object category"
+    )
+    measurement_at: int = Field(description="UTC Unix seconds when the current storage quote SQL began")
 
     # ─── Free tier info ───────────────────────────────────────────────────────
     free_bytes: int = Field(
         default=1_073_741_824,
-        description="Free storage allowance in bytes (always 1 GB = 1,073,741,824 bytes)"
+        description="Free storage allowance in bytes (always 1 GiB = 1,073,741,824 bytes)"
     )
 
     # ─── Billing ─────────────────────────────────────────────────────────────
     billable_gb: int = Field(
         default=0,
-        description="Number of GB above the free tier (ceiling). 0 if within free tier."
+        description="Number of started GiB above the free tier (ceiling). 0 if within free tier."
     )
     credits_per_gb_per_week: int = Field(
         default=3,
-        description="Credits charged per billable GB per week"
+        description="Credits charged per billable started GiB per week"
     )
     weekly_cost_credits: int = Field(
         default=0,

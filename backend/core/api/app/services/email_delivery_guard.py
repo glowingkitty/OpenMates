@@ -282,6 +282,16 @@ async def send_email_once(
                 COLLECTION, delivery_id, {"status": "skipped", "error": None}, admin_required=True,
             )
             return False, "ineligible_at_dispatch"
+        async def record_storage_message_id(message_id: str) -> None:
+            if not isinstance(message_id, str) or not message_id or len(message_id) > 255:
+                raise RuntimeError("storage_warning_provider_id_invalid")
+            updated = await directus.update_item(
+                COLLECTION, delivery_id,
+                {"provider_message_id": message_id, "provider_delivery_state": "accepted"},
+                admin_required=True,
+            )
+            if not updated:
+                raise RuntimeError("storage_warning_provider_id_not_persisted")
         sent = await email_template_service.send_email(
             template=template,
             recipient_email=recipient_email,
@@ -294,8 +304,23 @@ async def send_email_once(
             attachments=attachments,
             **({"late_before_send": before_send, "subject_options": send_options} if before_send is not None else {}),
             **({"delivery_idempotency_key": delivery_id} if retry_cache is not None and _provider_enforces_idempotency(email_template_service) else {}),
+            **({"accepted_message_id": record_storage_message_id}
+               if email_type == "storage-billing-warning" else {}),
         )
         if sent:
+            if email_type == "storage-billing-warning":
+                receipt_rows = await directus.get_items(
+                    COLLECTION,
+                    params={"filter": {"id": {"_eq": delivery_id}},
+                            "fields": "id,provider_message_id", "limit": 1},
+                    admin_required=True, no_cache=True, raise_on_error=True,
+                )
+                if (not isinstance(receipt_rows, list) or len(receipt_rows) != 1
+                        or not receipt_rows[0].get("provider_message_id")):
+                    await mark_delivery_failed(
+                        directus, delivery_id, "storage_warning_provider_id_missing",
+                    )
+                    return False, "provider_receipt_missing"
             await mark_delivery_sent(directus, delivery_id)
             return True, "sent"
 

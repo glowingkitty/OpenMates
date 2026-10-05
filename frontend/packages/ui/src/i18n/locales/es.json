@@ -6093,6 +6093,89 @@
     },
     "bank_transfer_reminder_footer": {
       "text": "¿Preguntas? Responda a este correo o visite nuestra página de soporte."
+    },
+    "storage_billing_notice_1": {
+      "subject": {
+        "text": "Storage payment notice 1: action needed"
+      },
+      "header": {
+        "text": "Storage payment could not be collected"
+      },
+      "body": {
+        "text": "We could not collect the weekly storage charge of {credits_needed} credits. The outstanding balance is {outstanding_credits} credits. Storage measured for this charge: {storage_gb} GiB. The unpaid charge concerns storage above your free allowance. If it remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
+      },
+      "action": {
+        "text": "Add credits or export affected files before the stated date. Files another authorized owner or Team still retains are outside this notice."
+      }
+    },
+    "storage_billing_notice_2": {
+      "subject": {
+        "text": "Storage payment notice 2: balance still due"
+      },
+      "header": {
+        "text": "Second storage payment notice"
+      },
+      "body": {
+        "text": "The weekly storage charge of {credits_needed} credits remains unpaid. Your outstanding balance is now {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. If the balance remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
+      },
+      "action": {
+        "text": "Please add credits or export affected files before that date. This notice does not cover files retained by another authorized owner or Team."
+      }
+    },
+    "storage_billing_notice_3": {
+      "subject": {
+        "text": "Storage payment notice 3: deletion deadline approaching"
+      },
+      "header": {
+        "text": "Third storage payment notice"
+      },
+      "body": {
+        "text": "The weekly storage charge of {credits_needed} credits remains unpaid. Your outstanding balance is {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. A fourth and final notice will follow if payment is still missing. Affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check."
+      },
+      "action": {
+        "text": "Add credits or export affected files while there is still time. Files retained by another authorized owner or Team are outside this notice."
+      }
+    },
+    "storage_billing_notice_4": {
+      "subject": {
+        "text": "Final storage payment warning: deadline {deadline_date}"
+      },
+      "header": {
+        "text": "Final storage payment warning"
+      },
+      "body": {
+        "text": "This is the fourth delivered notice about your unpaid storage charge. The weekly charge was {credits_needed} credits; your total outstanding balance is {outstanding_credits} credits. Storage measured for the first unpaid charge: {storage_gb} GiB. If it remains unpaid, affected chargeable files may be removed no earlier than {deadline_date} UTC, after a final payment check. They have not been deleted by this notice."
+      },
+      "action": {
+        "text": "Add enough credits or export affected files before the earliest removal date shown here. Files retained by another authorized owner or Team are outside this notice."
+      }
+    },
+    "storage_billing_notice_affected": {
+      "text": "Only the following fixed list of personal storage is covered by this notice. Removal is oldest first and stops once storage is within the free allowance. Protected or changed units are retained; if safe removal cannot reach the allowance, deletion is paused."
+    },
+    "storage_billing_notice_date_policy": {
+      "text": "This is the earliest removal date, not a scheduled deletion. Later notices may move it later. We will not remove affected storage before the latest date we notified."
+    },
+    "storage_billing_notice_export": {
+      "text": "Export my files"
+    },
+    "storage_billing_notice_top_up": {
+      "text": "Add credits"
+    },
+    "storage_billing_notice_unit_artifact_history": {
+      "text": "Older artifact history"
+    },
+    "storage_billing_notice_unit_cold_chat": {
+      "text": "Archived chat"
+    },
+    "storage_billing_notice_unit_upload": {
+      "text": "Uploaded file"
+    },
+    "storage_billing_notice_units_link": {
+      "text": "Review affected storage"
+    },
+    "storage_billing_notice_waiver": {
+      "text": "After verified removal brings usage within the free allowance, the warned unpaid storage charges are written off without taking credits. Paid charges and later charges outside this notice are preserved."
     }
   },
   "embeds": {
@@ -11822,13 +11905,16 @@
           "text": "Compliance logs: Security and accountability audit logs are configured for up to two years; financial transaction logs for up to ten years. These configured periods are distinct from the statutory duties that depend on the record type."
         },
         "content_v3": {
-          "text": "Current personal chat and artifact records remain until you delete them or close your account. A pending assistant response sealed to a client public key remains available until an authorized client verifies and confirms its normal client-encrypted save, or the related chat or account is deleted. Retry-lease or AI working-cache expiry alone does not remove that pending copy. Another authorized owner or Team can retain shared content. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
+          "text": "Current personal chat and artifact records remain until you delete them or close your account, except eligible personal files may be removed under the unpaid-storage warning and expiry safeguards below where that feature is enabled. A pending assistant response sealed to a client public key remains available until an authorized client verifies and confirms its normal client-encrypted save, or the related chat or account is deleted. Retry-lease or AI working-cache expiry alone does not remove that pending copy, and unpaid-storage expiry protects the sole remaining offline recovery copy. Another authorized owner or Team can retain shared content. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
         },
         "historical_snapshots_v1": {
           "text": "Historical database revision and activity records: Earlier revision and activity history may retain earlier account-profile fields or encrypted chat and artifact snapshots after deletion of the current records. There is currently no enforced automatic expiry for that historical history. It is not a content-free deletion marker."
         },
         "compliance_logs_v3": {
           "text": "Compliance logs: Security and accountability records do not currently have an enforced automatic two-year expiry for historical database revision and activity records. Financial transaction records are configured for up to ten years, subject to the record-specific legal duties and holds described below."
+        },
+        "storage_expiry": {
+          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy."
         }
       },
       "legal_basis": {
@@ -12470,6 +12556,15 @@
         },
         "refund": {
           "text": "Política de reembolso: puede solicitar un reembolso de créditos no utilizados dentro de los 14 días posteriores a la compra. Su derecho de desistimiento expira una vez que se usan los créditos. Consulte nuestro proceso de registro para obtener los detalles completos del consentimiento de reembolso."
+        },
+        "storage_billing": {
+          "text": "Where personal storage billing is enabled for your account, the first 1 GiB of eligible personal encrypted object storage is free. Above that allowance, each started additional GiB costs 3 credits per week, assessed on Sundays at 03:00 UTC. We count each logical encrypted S3 object once; regional replicas do not create additional charges. Legacy uploads are not retroactively enrolled or charged under this rollout. Team storage is not rated under this personal-storage policy; its pricing policy remains unresolved."
+        },
+        "storage_expiry": {
+          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing."
+        },
+        "storage_invoice_waiver": {
+          "text": "Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. The waived amount is written off without taking credits or recording a payment. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy."
         }
       },
       "disclaimer": {
@@ -19668,6 +19763,21 @@
       },
       "storage_delete_error": {
         "text": "Error al eliminar archivos. Por favor, inténtalo de nuevo."
+      },
+      "storage_category_artifact_history": {
+        "text": "Artifact history"
+      },
+      "storage_category_large_messages": {
+        "text": "Large chat messages"
+      },
+      "storage_category_older_chats": {
+        "text": "Older chat archives"
+      },
+      "storage_category_pending_outputs": {
+        "text": "Outputs waiting to sync"
+      },
+      "storage_category_saved_chats": {
+        "text": "Saved chat history"
       }
     }
   },

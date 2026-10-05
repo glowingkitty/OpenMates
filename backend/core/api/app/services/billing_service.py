@@ -23,6 +23,7 @@ from backend.shared.python_utils.e2e_user_detection import is_non_production_e2e
 
 logger = logging.getLogger(__name__)
 MAX_BALANCE_CAS_RETRIES = 3
+PERSONAL_CREDIT_OVERDRAFT_LIMIT = -500
 BALANCE_CAS_RETRY_BASE_SECONDS = 0.05
 EXPLICIT_USAGE_SOURCES = frozenset({"benchmark", "workflow", "workflow_test"})
 WORKFLOW_USAGE_SOURCES = frozenset({"workflow", "workflow_test"})
@@ -158,6 +159,7 @@ class BillingService:
         _settlement_locked: bool = False,
         _force_balance_refresh: bool = False,
         _defer_exhausted_conflict: bool = True,
+        require_full_charge: bool = False,
     ) -> Dict[str, Any]:
         """
         Deducts credits and records the usage entry.
@@ -211,6 +213,7 @@ class BillingService:
                     _settlement_locked=True,
                     _force_balance_refresh=_force_balance_refresh,
                     _defer_exhausted_conflict=_defer_exhausted_conflict,
+                    require_full_charge=require_full_charge,
                 )
             if lease.lock_lost:
                 logger.warning(
@@ -345,7 +348,7 @@ class BillingService:
             # generations) consumes slightly more than the remaining balance. When the user
             # purchases credits again, the overdraft is subtracted from the purchased amount.
             # See docs/architecture/billing.md for the full overdraft policy.
-            OVERDRAFT_LIMIT = -500
+            OVERDRAFT_LIMIT = PERSONAL_CREDIT_OVERDRAFT_LIMIT
             
             if payment_enabled:
                 # Payment enabled — allow up to OVERDRAFT_LIMIT before refusing the charge.
@@ -365,6 +368,11 @@ class BillingService:
                 # Allow the charge even if it takes the balance below 0 (overdraft).
                 new_credits = current_credits - credits_to_deduct
                 if new_credits < OVERDRAFT_LIMIT:
+                    if require_full_charge:
+                        raise HTTPException(
+                            status_code=402,
+                            detail="Insufficient credits for the full charge.",
+                        )
                     # Clamp: don't go deeper than the limit in a single charge.
                     new_credits = OVERDRAFT_LIMIT
                     credits_to_deduct = current_credits - OVERDRAFT_LIMIT
@@ -689,6 +697,7 @@ class BillingService:
                     _settlement_locked=True,
                     _force_balance_refresh=True,
                     _defer_exhausted_conflict=_defer_exhausted_conflict,
+                    require_full_charge=require_full_charge,
                 )
             if e.code == "stale_credit_balance" and _defer_exhausted_conflict:
                 pending = await self._create_or_reuse_pending_settlement(

@@ -1186,6 +1186,25 @@ async def _async_delete_user_account(
             directus_service=directus_service, user_id_hash=user_id_hash,
         )
 
+        # Stop new storage charges and warnings before account credentials or
+        # content disappear. The transaction preserves fully committed charges
+        # as paid and waives only unpaid periods for this deleting owner.
+        from backend.core.api.app.services.sub_chat_orchestration_service import (
+            SubChatOrchestrationService,
+        )
+        storage_billing_close = await SubChatOrchestrationService(
+            directus_service
+        ).execute(
+            "close_storage_billing_for_deleted_account",
+            {
+                "protocol_version": 1,
+                "user_id": user_id,
+                "hashed_user_id": user_id_hash,
+            },
+        )
+        if storage_billing_close.get("closed") is not True:
+            raise RuntimeError("Account storage billing closure was not confirmed")
+
         # ===== PHASE 1: Authentication Data (Highest Priority) =====
         logger.info(f"[DELETE_ACCOUNT] Phase 1: Deleting authentication data for user {user_id}")
         

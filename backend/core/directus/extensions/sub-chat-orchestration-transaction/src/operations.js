@@ -3,6 +3,7 @@
  * Payload validation rejects content-bearing fields before any database write.
  */
 import { createHash, randomUUID } from 'node:crypto';
+import { quoteUsage } from '../../storage-usage-metering/src/quote.js';
 
 const ORCHESTRATIONS = 'sub_chat_orchestrations';
 const CHILDREN = 'sub_chat_orchestration_children';
@@ -13,6 +14,10 @@ const USERS = 'directus_users';
 const CHARGE_IDENTITIES = 'billing_charge_identities';
 const REFUND_IDENTITIES = 'billing_refund_identities';
 const SETTLEMENT_OUTBOX = 'billing_settlement_outbox';
+const STORAGE_PERIODS = 'storage_billing_periods';
+const STORAGE_OWNERS = 'storage_billing_owner_state';
+const EMAIL_DELIVERIES = 'email_deliveries';
+const STORAGE_WARNING_INTERVAL_SECONDS = 7 * 24 * 60 * 60;
 const SETTLEMENT_RETRY_DELAYS_MS = [5_000, 30_000, 120_000, 300_000];
 const USAGE = 'usage';
 const TEAM_ACCOUNTS = 'team_credit_accounts';
@@ -103,6 +108,39 @@ const OPERATION_FIELDS = Object.freeze({
   commit_team_credit_add: new Set([
     'protocol_version', 'event_id', 'hashed_team_id', 'actor_user_hash', 'credits',
     'expected_version', 'encrypted_balance', 'event_type', 'encrypted_metadata', 'occurred_at',
+  ]),
+  freeze_storage_period: new Set([
+    'protocol_version', 'user_id', 'hashed_user_id', 'period_start_at',
+    'measured_bytes', 'credits_due', 'charge_id', 'free_bytes',
+    'credits_per_gib', 'policy_version', 'source_version', 'category_bytes',
+  ]),
+  list_storage_debt: new Set(['protocol_version', 'user_id', 'hashed_user_id']),
+  mark_storage_period_paid: new Set([
+    'protocol_version', 'user_id', 'hashed_user_id', 'period_id',
+  ]),
+  claim_storage_warning: new Set([
+    'protocol_version', 'user_id', 'hashed_user_id', 'now_at',
+  ]),
+  acknowledge_storage_warning: new Set([
+    'protocol_version', 'user_id', 'hashed_user_id', 'episode_id',
+    'warning_stage', 'delivery_id', 'now_at',
+  ]),
+  record_storage_delivery_receipt: new Set([
+    'protocol_version', 'user_id', 'hashed_user_id', 'episode_id',
+    'warning_stage', 'delivery_id', 'message_id', 'state', 'observed_at', 'now_at',
+  ]),
+  freeze_storage_warning_units: new Set(['protocol_version','user_id','hashed_user_id','episode_id','now_at']),
+  list_storage_warning_units: new Set(['protocol_version','user_id','hashed_user_id','episode_id','after_unit_id','limit']),
+  apply_storage_expiry: new Set(['protocol_version','user_id','hashed_user_id','episode_id','expected_encrypted_balance','regions','now_at']),
+  inspect_storage_expiry: new Set([
+    'protocol_version', 'user_id', 'hashed_user_id', 'now_at',
+  ]),
+  close_storage_billing_for_deleted_account: new Set([
+    'protocol_version', 'user_id', 'hashed_user_id',
+  ]),
+  mark_storage_warning_manual_review: new Set([
+    'protocol_version', 'user_id', 'hashed_user_id', 'episode_id',
+    'warning_stage', 'delivery_id', 'now_at',
   ]),
 });
 const CHILD_FIELDS = new Set(['child_chat_id', 'user_message_id', 'dispatch_token', 'budget_limit']);
@@ -678,6 +716,7 @@ async function commitPersonalCharge(database, raw, now) {
   integer(usageEntry.created_at, 'invalid_usage_timestamp');
   integer(usageEntry.updated_at, 'invalid_usage_timestamp');
   return database.transaction(async (trx) => {
+    await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [`storage-billing:${ownerHash}`]);
     let existing = await trx(CHARGE_IDENTITIES).where({ charge_id: chargeId }).forUpdate().first();
     if (existing) {
       if (existing.hashed_user_id !== ownerHash || existing.app_id !== appId
@@ -692,6 +731,19 @@ async function commitPersonalCharge(database, raw, now) {
     }
     const user = await trx(USERS).where({ id: userId }).forUpdate().first();
     if (!user) fail(404, 'billing_user_not_found');
+    if (appId === 'system' && skillId === 'storage') {
+      const storageOwner = await trx(STORAGE_OWNERS).where({ id: ownerHash }).first();
+      // Legacy workers identify invoices by Unix week number, while frozen
+      // invoices use Sunday epoch seconds. Permit only that exact old namespace
+      // to drain; existing frozen rows always keep their terminal-state fence.
+      const suffix=chargeId.startsWith(`storage:${ownerHash}:`)?chargeId.slice(`storage:${ownerHash}:`.length):'';
+      const legacyWeek=/^(0|[1-9][0-9]*)$/.test(suffix)&&Number.isSafeInteger(Number(suffix))
+        && Number(suffix)<=Math.floor(now.getTime()/1000/STORAGE_WARNING_INTERVAL_SECONDS)+1;
+      if (storageOwner?.closed_at || (!storageOwner&&!legacyWeek)) fail(409, 'storage_owner_closed');
+      const period=await trx(STORAGE_PERIODS).where({charge_id:chargeId,user_id:userId,hashed_user_id:ownerHash}).forUpdate().first();
+      if((period&&period.state!=='unpaid')||(!period&&!legacyWeek)) fail(409,'storage_period_not_chargeable');
+
+    }
     existing = await trx(CHARGE_IDENTITIES).where({ charge_id: chargeId }).first();
     if (existing) {
       if (existing.hashed_user_id !== ownerHash || existing.app_id !== appId
@@ -842,6 +894,7 @@ async function createOrReusePendingSettlement(database, raw, now) {
   if (!/^[a-f0-9]{64}$/.test(payloadHash)) fail(400, 'invalid_settlement_payload_hash');
   const errorCode = string(body.retryable_error_code, 'invalid_retryable_error_code', 64);
   return database.transaction(async (trx) => {
+    await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [`storage-billing:${ownerHash}`]);
     const committed = await trx(CHARGE_IDENTITIES).where({ charge_id: chargeId }).forUpdate().first();
     if (committed) {
       if (committed.hashed_user_id !== ownerHash) fail(409, 'charge_identity_mismatch');
@@ -851,6 +904,22 @@ async function createOrReusePendingSettlement(database, raw, now) {
         encrypted_balance_after: committed.encrypted_balance_after,
         usage_id: committed.usage_id,
       };
+    }
+    if (chargeId.startsWith('storage:')) {
+      const prefix = `storage:${ownerHash}:`;
+      if (!chargeId.startsWith(prefix)) fail(409, 'storage_owner_mismatch');
+      const suffix = chargeId.slice(prefix.length);
+      const legacyWeek = /^(0|[1-9][0-9]*)$/.test(suffix)
+        && Number.isSafeInteger(Number(suffix))
+        && Number(suffix) <= Math.floor(now.getTime() / 1000 / STORAGE_WARNING_INTERVAL_SECONDS) + 1;
+      const owner = await trx(STORAGE_OWNERS).where({ id: ownerHash }).forUpdate().first();
+      if (owner?.closed_at || (!owner && !legacyWeek)) fail(409, 'storage_owner_closed');
+      const period = await trx(STORAGE_PERIODS).where({
+        charge_id: chargeId, user_id: userId, hashed_user_id: ownerHash,
+      }).forUpdate().first();
+      if ((period && period.state !== 'unpaid') || (!period && !legacyWeek)) {
+        fail(409, 'storage_period_not_chargeable');
+      }
     }
     const existing = await trx(SETTLEMENT_OUTBOX).where({ charge_id: chargeId }).forUpdate().first();
     if (existing) {
@@ -1078,6 +1147,818 @@ async function commitTeamCreditAdd(database, raw) {
   });
 }
 
+// Only selected complete units are persisted. Discovery stays in PostgreSQL;
+// fingerprints commit to canonical rows without retaining keys or ciphertext.
+const STORAGE_UNITS = 'storage_billing_warning_units';
+const FREE_STORAGE_BYTES = 1_073_741_824;
+const EXPIRY_TABLES = [
+  'upload_files', 'embeds', 'embed_keys', 'embed_diffs', 'chats', 'chat_key_wrappers',
+  'messages', 'drafts', 'chat_compression_checkpoints', 'code_run_outputs',
+  'notebook_run_outputs', 'message_highlights', 'cold_archive_manifests', 'cold_archive_parts',
+  'chat_message_archive_pages', 'chat_message_archive_segments', 'chat_recovery_outputs',
+  'project_items', 'storage_replication_jobs', 'storage_deletion_tombstones',
+  'workspace_change_archives', 'sub_chat_orchestrations', 'sub_chat_orchestration_children',
+];
+const jsonValue = (value) => typeof value === 'string' ? JSON.parse(value) : value;
+const safeUnit = (unit) => ({ unit_id: unit.unit_id, kind: ({independent_upload:'upload',archived_chat_graph:'cold_chat',artifact_history_prefix:'artifact_history'})[unit.kind],
+  resource_id: unit.resource_id, oldest_at: Number(unit.oldest_at),
+  bytes: Number(unit.bytes), fingerprint: unit.fingerprint });
+
+// Coarse locks prevent a new reference, publication, ownership move or writer
+// lease from racing the final validation. All waits remain transaction scoped.
+async function lockExpiryReferences(trx) {
+  await trx.raw("SET LOCAL lock_timeout = '2s'");
+  await trx.raw(`LOCK TABLE ${[...EXPIRY_TABLES].sort().join(', ')} IN SHARE ROW EXCLUSIVE MODE`);
+}
+
+const unitFingerprint = (unit) => tokenHash(JSON.stringify({
+  kind: unit.kind, resource_id: unit.resource_id, oldest_at: Number(unit.oldest_at),
+  bytes: Number(unit.bytes), rows: unit.rows, objects: unit.objects,
+}));
+
+async function discoverStorageUnits(trx, userId, ownerHash, nowAt) {
+  const response = await trx.raw(`
+WITH scope AS (SELECT ?::text AS user_id, ?::text AS owner_hash, ?::integer AS now_at),
+independent_uploads AS (
+  SELECT 'independent_upload'::text AS kind, u.id::text AS resource_id,
+    u.created_at AS oldest_at, u.file_size_bytes::bigint AS bytes,
+    jsonb_build_array(jsonb_build_object('collection','upload_files','id',u.id,
+      'fingerprint',encode(digest(to_jsonb(u)::text,'sha256'),'hex'))) AS rows,
+    (SELECT jsonb_agg(jsonb_build_object('logical_bucket','chatfiles','object_key',v.value->>'s3_key')
+      ORDER BY v.value->>'s3_key') FROM jsonb_each(u.files_metadata::jsonb) v) AS objects
+  FROM upload_files u, scope s
+  WHERE u.user_id=s.user_id AND coalesce(u.embed_id,'')<>'' AND u.created_at IS NOT NULL AND u.file_size_bytes>0
+    AND jsonb_typeof(u.files_metadata::jsonb)='object' AND u.files_metadata::jsonb<>'{}'::jsonb
+    AND NOT EXISTS (SELECT 1 FROM jsonb_each(u.files_metadata::jsonb) v
+      WHERE jsonb_typeof(v.value)<>'object' OR coalesce(v.value->>'s3_key','')='')
+    AND NOT EXISTS (SELECT 1 FROM embeds e WHERE e.embed_id=u.embed_id
+      OR e.parent_embed_id=u.embed_id OR coalesce(e.embed_ids::text,'') LIKE '%'||u.embed_id||'%')
+    AND NOT EXISTS (SELECT 1 FROM embed_keys k
+      WHERE k.hashed_embed_id=encode(digest(u.embed_id,'sha256'),'hex'))
+    AND NOT EXISTS (SELECT 1 FROM project_items p WHERE p.target_id_hash IN
+      (encode(digest(u.id::text,'sha256'),'hex'),encode(digest(u.embed_id,'sha256'),'hex')))
+),
+standalone_cold AS (
+ SELECT 'archived_chat_graph'::text AS kind,c.id::text AS resource_id,
+   m.archived_at AS oldest_at,sum(p.size_bytes)::bigint AS bytes,
+   jsonb_build_array(jsonb_build_object('collection','chats','id',c.id,
+     'fingerprint',encode(digest(to_jsonb(c)::text,'sha256'),'hex')),
+     jsonb_build_object('collection','cold_archive_manifests','id',m.id,
+     'fingerprint',encode(digest(to_jsonb(m)::text,'sha256'),'hex')))
+   ||jsonb_agg(jsonb_build_object('collection','cold_archive_parts','id',p.id,
+     'fingerprint',encode(digest(to_jsonb(p)::text,'sha256'),'hex')) ORDER BY p.id) AS rows,
+   jsonb_agg(jsonb_build_object('logical_bucket',p.logical_bucket,'object_key',p.object_key)
+     ORDER BY p.logical_bucket,p.object_key) AS objects
+ FROM chats c JOIN cold_archive_manifests m ON m.resource_id=c.id::text
+ JOIN cold_archive_parts p ON p.archive_id=m.archive_id,scope s
+ WHERE c.hashed_user_id=s.owner_hash AND c.hashed_team_id IS NULL AND c.storage_state='cold'
+   AND c.parent_id IS NULL AND NOT coalesce(c.is_shared,false) AND NOT coalesce(c.shared_public,false)
+   AND NOT coalesce(c.share_with_community,false) AND coalesce(c.shared_with_user_hashes::text,'[]') IN ('[]','null')
+   AND m.state='cold' AND m.resource_type='chat' AND m.hashed_user_id=s.owner_hash
+   AND m.hashed_team_id IS NULL AND m.hashed_resource_id=encode(digest(c.id::text,'sha256'),'hex')
+   AND m.archive_id=c.cold_archive_id AND m.active_generation=c.cold_generation
+   AND m.file_references::jsonb='[]'::jsonb AND m.promotion_intent IS NULL
+   AND NOT EXISTS (SELECT 1 FROM chats child WHERE child.parent_id=c.id)
+   AND NOT EXISTS (SELECT 1 FROM cold_archive_manifests other
+     WHERE other.resource_id=c.id::text AND other.id<>m.id)
+   AND NOT EXISTS (SELECT 1 FROM chat_key_wrappers k
+     WHERE k.hashed_chat_id=encode(digest(c.id::text,'sha256'),'hex'))
+   AND NOT EXISTS (SELECT 1 FROM project_items pi
+     WHERE pi.target_id_hash=encode(digest(c.id::text,'sha256'),'hex'))
+   AND NOT EXISTS (SELECT 1 FROM embeds e WHERE e.hashed_chat_id=encode(digest(c.id::text,'sha256'),'hex'))
+   AND NOT EXISTS (SELECT 1 FROM messages x WHERE x.chat_id=c.id::text)
+   AND NOT EXISTS (SELECT 1 FROM chat_message_archive_pages x WHERE x.chat_id=c.id::text)
+   AND NOT EXISTS (SELECT 1 FROM chat_message_archive_segments x WHERE x.chat_id=c.id::text)
+   AND NOT EXISTS (SELECT 1 FROM chat_recovery_outputs x WHERE x.root_chat_id=c.id OR x.target_chat_id=c.id)
+   AND NOT EXISTS (SELECT 1 FROM sub_chat_orchestrations x WHERE x.root_chat_id=c.id AND x.status='active')
+   AND NOT EXISTS (SELECT 1 FROM sub_chat_orchestration_children x WHERE x.child_chat_id=c.id AND x.state IN ('prepared','dispatched','running'))
+   AND NOT EXISTS (SELECT 1 FROM drafts x WHERE x.chat_id=c.id::text)
+   AND NOT EXISTS (SELECT 1 FROM chat_compression_checkpoints x WHERE x.chat_id=c.id::text)
+   AND NOT EXISTS (SELECT 1 FROM code_run_outputs x WHERE x.chat_id=c.id::text)
+   AND NOT EXISTS (SELECT 1 FROM notebook_run_outputs x WHERE x.chat_id=c.id::text)
+   AND NOT EXISTS (SELECT 1 FROM message_highlights x WHERE x.chat_id=c.id::text)
+ GROUP BY c.id,m.id
+ HAVING count(*)=m.part_count AND count(DISTINCT p.logical_bucket||':'||p.object_key)=count(*) AND bool_and(p.generation=m.active_generation
+   AND p.size_bytes>0 AND p.object_key<>'' AND p.logical_bucket='cold_archives'
+   AND p.checksum<>'' AND jsonb_typeof(p.regional_states::jsonb)='object'
+   AND p.regional_states::jsonb<>'{}'::jsonb
+   AND NOT EXISTS (SELECT 1 FROM jsonb_each_text(p.regional_states::jsonb) region WHERE region.value<>'verified'))
+),
+version_boundaries AS (
+ SELECT e.embed_id,e.id,c.id AS chat_id,max(d.version_number) FILTER
+   (WHERE d.version_number<e.version_number AND coalesce(d.has_snapshot,false)
+     AND (coalesce(d.encrypted_snapshot,'')<>'' OR (d.archive_state IN ('reader_active','pruned')
+       AND d.archive_object_key<>'' AND d.archive_checksum<>'' AND d.archive_reader_activated_at IS NOT NULL))) AS boundary
+ FROM embeds e JOIN chats c ON e.hashed_chat_id=encode(digest(c.id::text,'sha256'),'hex')
+ JOIN embed_diffs d ON d.embed_id=e.embed_id AND d.hashed_user_id=e.hashed_user_id,scope s
+ WHERE e.hashed_user_id=s.owner_hash AND c.hashed_user_id=s.owner_hash AND c.hashed_team_id IS NULL
+   AND coalesce(c.storage_state,'hot') IN ('hot','cold')
+   AND coalesce(c.updated_at,c.last_message_timestamp,c.created_at)>0
+   AND coalesce(c.updated_at,c.last_message_timestamp,c.created_at)<=s.now_at-28*86400
+   AND coalesce(e.updated_at,e.created_at)>0 AND coalesce(e.updated_at,e.created_at)<=s.now_at-28*86400
+   AND NOT coalesce(e.is_shared,false)
+   AND NOT coalesce(c.is_shared,false) AND NOT coalesce(c.shared_public,false)
+   AND NOT coalesce(c.share_with_community,false)
+   AND coalesce(c.shared_with_user_hashes::text,'[]') IN ('[]','null')
+   AND NOT EXISTS (SELECT 1 FROM project_items pi WHERE pi.target_id_hash IN
+     (encode(digest(e.embed_id,'sha256'),'hex'),encode(digest(c.id::text,'sha256'),'hex')))
+   AND NOT EXISTS (SELECT 1 FROM embed_keys k WHERE k.hashed_embed_id=encode(digest(e.embed_id,'sha256'),'hex')
+     AND (k.hashed_user_id<>s.owner_hash OR k.key_type NOT IN ('master','chat')
+       OR k.hashed_project_id IS NOT NULL OR k.hashed_plan_id IS NOT NULL OR k.hashed_team_id IS NOT NULL
+       OR (k.key_type='chat' AND k.hashed_chat_id IS DISTINCT FROM e.hashed_chat_id)))
+   AND NOT EXISTS (SELECT 1 FROM chat_recovery_outputs recovery
+     WHERE (recovery.root_chat_id=c.id OR recovery.target_chat_id=c.id) AND recovery.deleted_at IS NULL)
+   AND NOT EXISTS (SELECT 1 FROM sub_chat_orchestrations active WHERE active.root_chat_id=c.id AND active.status='active')
+   AND NOT EXISTS (SELECT 1 FROM sub_chat_orchestration_children active WHERE active.child_chat_id=c.id
+     AND active.state IN ('prepared','dispatched','running'))
+   AND NOT EXISTS (SELECT 1 FROM chat_key_wrappers k WHERE k.hashed_chat_id=e.hashed_chat_id
+     AND (k.hashed_user_id<>s.owner_hash OR k.key_type<>'master' OR k.hashed_team_id IS NOT NULL
+       OR k.hashed_project_id IS NOT NULL OR k.hashed_plan_id IS NOT NULL))
+   AND NOT EXISTS (SELECT 1 FROM embeds other WHERE other.embed_id=e.embed_id AND other.id<>e.id)
+ GROUP BY e.embed_id,e.id,c.id
+),
+old_prefixes AS (
+ SELECT 'artifact_history_prefix'::text AS kind,b.embed_id AS resource_id,min(d.created_at) AS oldest_at,
+   sum(d.archive_size_bytes)::bigint AS bytes,
+   jsonb_agg(jsonb_build_object('collection','embed_diffs','id',d.id,
+     'fingerprint',encode(digest(to_jsonb(d)::text,'sha256'),'hex')) ORDER BY d.id) AS rows,
+   jsonb_agg(jsonb_build_object('logical_bucket','chatfiles','object_key',d.archive_object_key)
+     ORDER BY d.archive_object_key) AS objects
+ FROM version_boundaries b JOIN embed_diffs d ON d.embed_id=b.embed_id,scope s
+ WHERE b.boundary>2 AND d.archive_hashed_chat_id=encode(digest(b.chat_id::text,'sha256'),'hex') AND d.version_number>1 AND d.version_number<b.boundary
+ GROUP BY b.embed_id,b.boundary
+ HAVING count(*)=b.boundary-2 AND count(DISTINCT d.archive_object_key)=count(*) AND bool_and(d.hashed_user_id=(SELECT owner_hash FROM scope)
+   AND d.archive_state IN ('reader_active','pruned') AND d.archive_owner_kind='personal'
+   AND d.archive_owner_hash=(SELECT owner_hash FROM scope) AND d.archive_object_key<>''
+   AND d.archive_checksum<>'' AND d.archive_size_bytes>0 AND d.archive_reader_activated_at IS NOT NULL
+   AND d.archive_pending_object_key IS NULL AND d.archive_superseded_object_key IS NULL
+   AND d.archive_copy_lease_until IS NULL)
+)
+, candidates AS (
+ SELECT * FROM independent_uploads UNION ALL SELECT * FROM standalone_cold UNION ALL SELECT * FROM old_prefixes
+), bounded AS (
+ SELECT candidates.*,sum(jsonb_array_length(objects)) OVER (ORDER BY oldest_at,kind,resource_id) AS object_count
+ FROM candidates WHERE jsonb_array_length(rows)<=2000 AND jsonb_array_length(objects)<=2000
+)
+SELECT kind,resource_id,oldest_at,bytes,rows,objects FROM bounded WHERE object_count<=2000
+ ORDER BY oldest_at,kind,resource_id LIMIT 100
+`, [userId, ownerHash, nowAt]);
+  return response.rows.map((row) => {
+    const unit = { ...row, oldest_at: Number(row.oldest_at), bytes: Number(row.bytes),
+      rows: jsonValue(row.rows), objects: jsonValue(row.objects) };
+    unit.unit_id = tokenHash(`${unit.kind}:${unit.resource_id}`);
+    unit.fingerprint = unitFingerprint(unit);
+    return unit;
+  });
+}
+
+// Every supported live object reference is inventoried globally. Unknown shapes
+// protect candidates instead of treating a missing locator as absence.
+async function storageObjectReferences(trx, objects) {
+  const requestedObjects = [...new Map(objects.map((obj)=>[`${obj.logical_bucket}\0${obj.object_key}`,obj])).values()];
+  const response = await trx.raw(`
+WITH requested_objects AS (SELECT * FROM jsonb_to_recordset(?::jsonb) AS x(logical_bucket text,object_key text)), refs AS (
+ SELECT 'upload_files'::text AS collection,u.id::text AS id,'chatfiles'::text AS bucket,
+   v.value->>'s3_key' AS object_key FROM upload_files u CROSS JOIN LATERAL jsonb_each(
+     CASE WHEN jsonb_typeof(u.files_metadata::jsonb)='object' THEN u.files_metadata::jsonb ELSE '{}'::jsonb END) v
+ UNION ALL SELECT 'embeds',e.id::text,v.value->>'bucket',v.value->>'key'
+   FROM embeds e CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(e.s3_file_keys::jsonb)='array'
+     THEN e.s3_file_keys::jsonb ELSE '[]'::jsonb END) v
+ UNION ALL SELECT 'embed_diffs',id::text,'chatfiles',archive_object_key FROM embed_diffs WHERE archive_object_key IS NOT NULL
+ UNION ALL SELECT 'embed_diffs',id::text,'chatfiles',archive_pending_object_key FROM embed_diffs WHERE archive_pending_object_key IS NOT NULL
+ UNION ALL SELECT 'embed_diffs',id::text,'chatfiles',archive_superseded_object_key FROM embed_diffs WHERE archive_superseded_object_key IS NOT NULL
+ UNION ALL SELECT 'cold_archive_parts',id::text,logical_bucket,object_key FROM cold_archive_parts
+ UNION ALL SELECT 'cold_archive_manifests',m.id::text,v.value->>'logical_bucket',v.value->>'object_key'
+   FROM cold_archive_manifests m CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(m.file_references::jsonb)='array'
+     THEN m.file_references::jsonb ELSE '[]'::jsonb END) v
+ UNION ALL SELECT 'chat_message_archive_pages',id::text,'cold_archives',object_key FROM chat_message_archive_pages
+ UNION ALL SELECT 'chat_message_archive_pages',p.id::text,'cold_archives',v.value->>'object_key'
+   FROM chat_message_archive_pages p CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(p.large_objects::jsonb)='array'
+     THEN p.large_objects::jsonb ELSE '[]'::jsonb END) v
+ UNION ALL SELECT 'chat_recovery_outputs',id::text,'cold_archives',payload_s3_key FROM chat_recovery_outputs WHERE payload_s3_key IS NOT NULL
+ UNION ALL SELECT 'workspace_change_archives',id::text,s3_bucket_key,s3_object_key FROM workspace_change_archives WHERE s3_object_key IS NOT NULL
+)
+SELECT coalesce(jsonb_agg(to_jsonb(matching)),'[]'::jsonb) AS refs,
+ EXISTS(SELECT 1 FROM embeds WHERE s3_file_keys IS NOT NULL AND jsonb_typeof(s3_file_keys::jsonb)<>'array')
+ OR EXISTS(SELECT 1 FROM upload_files WHERE files_metadata IS NULL OR jsonb_typeof(files_metadata::jsonb)<>'object')
+ OR EXISTS(SELECT 1 FROM cold_archive_manifests WHERE file_references IS NULL OR jsonb_typeof(file_references::jsonb)<>'array')
+ OR EXISTS(SELECT 1 FROM chat_message_archive_pages WHERE large_objects IS NULL OR jsonb_typeof(large_objects::jsonb)<>'array')
+ OR EXISTS(SELECT 1 FROM embed_diffs WHERE
+   (archive_state IS NOT NULL AND archive_state NOT IN ('hot','preparing','stale','copied','ready','reader_active','pruned'))
+   OR (archive_state IN ('copied','ready','reader_active','pruned') AND coalesce(btrim(archive_object_key),'')='')
+   OR (archive_state='preparing' AND coalesce(btrim(archive_pending_object_key),'')=''))
+ OR EXISTS(SELECT 1 FROM chat_recovery_outputs WHERE
+   (payload_storage IS NOT NULL AND payload_storage NOT IN ('inline','s3'))
+   OR (payload_storage='s3' AND coalesce(btrim(payload_s3_key),'')=''))
+ OR EXISTS(SELECT 1 FROM refs WHERE coalesce(btrim(bucket),'')='' OR coalesce(btrim(object_key),'')='') AS ambiguous
+FROM (SELECT refs.* FROM refs JOIN requested_objects o ON o.logical_bucket=refs.bucket AND o.object_key=refs.object_key LIMIT 2001) matching`, [JSON.stringify(requestedObjects)]);
+  const row = response.rows[0];
+  if (!row || row.ambiguous !== false || jsonValue(row.refs).length>2000) fail(409, 'storage_reference_inventory_incomplete');
+  return jsonValue(row.refs);
+}
+
+function independentlyReferenced(unit, references) {
+  const rowIds = new Set(unit.rows.map((row) => `${row.collection}:${row.id}`));
+  return unit.objects.some((obj) => references.some((ref) => ref.bucket === obj.logical_bucket
+    && ref.object_key === obj.object_key && !rowIds.has(`${ref.collection}:${ref.id}`)));
+}
+
+async function blockedStorageWriters(trx,objects) {
+  const response=await trx.raw(`WITH requested_objects AS
+    (SELECT * FROM jsonb_to_recordset(?::jsonb) AS x(logical_bucket text,object_key text))
+    SELECT DISTINCT j.logical_bucket,j.object_key FROM storage_replication_jobs j
+    JOIN requested_objects o ON o.logical_bucket=j.logical_bucket AND o.object_key=j.object_key
+    WHERE j.state IS NULL OR j.state NOT IN ('verified','completed','cancelled') LIMIT 2001`,[JSON.stringify(objects)]);
+  if(response.rows.length>2000) fail(409,'storage_writer_inventory_incomplete');
+  return new Set(response.rows.map((row)=>`${row.logical_bucket}\0${row.object_key}`));
+}
+
+async function currentStorageQuote(trx, userId, sourceVersion) {
+  if (!['legacy-upload-files-v1','logical-s3-v1'].includes(sourceVersion)) fail(409,'storage_warning_policy_unknown');
+  return (await quoteUsage(trx, { user_ids: [userId], team_hashes: [], legacy_only: sourceVersion==='legacy-upload-files-v1' }))[0];
+}
+
+async function freezeStorageWarningUnits(database, raw, now) {
+  const { body, userId, ownerHash } = storageOwner(raw, 'freeze_storage_warning_units');
+  const nowAt = integer(body.now_at, 'invalid_storage_now');
+  const suppliedEpisode = body.episode_id == null ? null : uuid(body.episode_id, 'invalid_storage_episode');
+  return database.transaction(async (trx) => {
+    const owner = await lockedStorageOwner(trx, userId, ownerHash, now);
+    if (owner.closed_at || owner.warning_manual_review_at) return { frozen: false, held: true, reason: 'owner_held' };
+    if (suppliedEpisode && owner.episode_id !== suppliedEpisode) fail(409, 'storage_episode_mismatch');
+    if (owner.selection_hash) {
+      const units = await trx(STORAGE_UNITS).where({ hashed_user_id: ownerHash, episode_id: owner.episode_id }).orderBy('unit_id','asc');
+      return { frozen: true, held: false, idempotent: true, episode_id: owner.episode_id,
+        unit_selection_hash: owner.selection_hash, units: units.map(safeUnit),
+        period_ids: jsonValue(owner.warned_period_ids), selected_bytes: Number(owner.selected_bytes) };
+    }
+    if (Number(owner.warning_count)>0) return { frozen: false, held: true, reason: 'warning_selection_missing' };
+    const periods = await trx(STORAGE_PERIODS).where({ hashed_user_id: ownerHash,state:'unpaid' }).orderBy('period_start_at','asc').limit(101);
+    if (!periods.length) return { frozen: false,held:true,reason:'no_debt' };
+    if (periods.length>100) return { frozen:false,held:true,reason:'warning_debt_limit' };
+    const sourceVersion=periods[0].source_version;
+    if(periods.some((period)=>period.source_version!==sourceVersion||period.policy_version!==periods[0].policy_version)) {
+      return {frozen:false,held:true,reason:'mixed_storage_policy'};
+    }
+    await lockExpiryReferences(trx);
+    const quote = await currentStorageQuote(trx,userId,sourceVersion);
+    if (quote.total_bytes<=FREE_STORAGE_BYTES) return { frozen:false,held:true,reason:'within_free_storage' };
+    const candidates = (await discoverStorageUnits(trx,userId,ownerHash,nowAt)).filter((unit)=>sourceVersion!=='legacy-upload-files-v1'||unit.kind==='independent_upload');
+    const references = await storageObjectReferences(trx,candidates.flatMap((unit)=>unit.objects));
+    const blocked=await blockedStorageWriters(trx,candidates.flatMap((unit)=>unit.objects));
+    const units=[]; let selectedBytes=0; let objectCount=0;
+    const seen = new Set();
+    for (const unit of candidates) {
+      if (units.length>=100 || objectCount+unit.objects.length>2000) break;
+      if (!Number.isSafeInteger(unit.bytes) || unit.bytes<=0 || unit.rows.length>2000
+        || independentlyReferenced(unit,references)
+        || unit.objects.some((obj)=>blocked.has(`${obj.logical_bucket}\0${obj.object_key}`))) continue;
+      if (unit.objects.some((obj) => seen.has(`${obj.logical_bucket}:${obj.object_key}`))) continue;
+      units.push(unit); selectedBytes+=unit.bytes; objectCount+=unit.objects.length;
+      unit.objects.forEach((obj)=>seen.add(`${obj.logical_bucket}:${obj.object_key}`));
+      if (quote.total_bytes-selectedBytes<=FREE_STORAGE_BYTES) break;
+    }
+    if (!units.length || quote.total_bytes-selectedBytes>FREE_STORAGE_BYTES) {
+      return { frozen:false,held:true,reason:'no_complete_safe_set',total_bytes:quote.total_bytes };
+    }
+    const episodeId=owner.episode_id||randomUUID();
+    const selectionHash=tokenHash(JSON.stringify(units.map((unit)=>[unit.unit_id,unit.fingerprint])));
+    for (const unit of units) await trx(STORAGE_UNITS).insert({
+      id: tokenHash(`${episodeId}:${unit.unit_id}`),hashed_user_id:ownerHash,episode_id:episodeId,
+      unit_id:unit.unit_id,kind:unit.kind,resource_id:unit.resource_id,oldest_at:unit.oldest_at,
+      bytes:unit.bytes,fingerprint:unit.fingerprint,membership:JSON.stringify(unit.rows),
+      object_references:JSON.stringify(unit.objects),created_at:now,
+    });
+    await trx(STORAGE_OWNERS).where({id:ownerHash}).update({episode_id:episodeId,
+      selection_hash:selectionHash,selection_at:nowAt,selected_bytes:selectedBytes,
+      selection_source_version:sourceVersion,selection_policy_version:periods[0].policy_version,
+      warned_period_ids:JSON.stringify(periods.map((period)=>period.id)),updated_at:now});
+    return { frozen:true,held:false,idempotent:false,episode_id:episodeId,
+      unit_selection_hash:selectionHash,units:[...units].sort((a,b)=>a.unit_id.localeCompare(b.unit_id)).map(safeUnit),period_ids:periods.map((period)=>period.id),
+      total_bytes:quote.total_bytes,selected_bytes:selectedBytes,expected_after_bytes:quote.total_bytes-selectedBytes };
+  });
+}
+
+async function listStorageWarningUnits(database,raw,now) {
+  const {body,userId,ownerHash}=storageOwner(raw,'list_storage_warning_units');
+  const episodeId=body.episode_id==null?null:uuid(body.episode_id,'invalid_storage_episode');
+  const limit=integer(body.limit??100,'invalid_storage_unit_limit');
+  if(limit<1||limit>100) fail(400,'invalid_storage_unit_limit');
+  const after=body.after_unit_id==null?null:string(body.after_unit_id,'invalid_storage_unit_cursor',64);
+  return database.transaction(async(trx)=>{
+    const owner=await trx(STORAGE_OWNERS).where({id:ownerHash,user_id:userId}).first();
+    if(!owner) return {episode_id:null,warning_count:0,deadline_at:null,manual_review:false,unit_selection_hash:null,units:[],has_more:false,next_after_unit_id:null};
+    if(episodeId && episodeId!==owner.episode_id) fail(409,'storage_episode_mismatch');
+    const query=trx(STORAGE_UNITS).where({hashed_user_id:ownerHash,episode_id:owner.episode_id}).orderBy('unit_id','asc').limit(limit+1);
+    if(after) query.where('unit_id','>',after);
+    const rows=owner.episode_id?await query:[];
+    const units=rows.slice(0,limit).map(safeUnit);
+    return {episode_id:owner.episode_id,warning_count:Number(owner.warning_count),deadline_at:owner.deadline_at,
+      manual_review:Boolean(owner.warning_manual_review_at),unit_selection_hash:owner.selection_hash??null,
+      units,has_more:rows.length>limit,next_after_unit_id:rows.length>limit?units.at(-1).unit_id:null};
+  });
+}
+
+async function storageExpiryGate(trx,owner,userId,nowAt) {
+  if(owner.closed_at||owner.warning_manual_review_at||!owner.selection_hash||Number(owner.warning_count)!==4) return false;
+  const keys=[1,2,3,4].map((stage)=>`storage-billing-warning:${owner.episode_id}:directus_user:${userId}:week-${stage}`);
+  const receipts=await trx(EMAIL_DELIVERIES).whereIn('delivery_key',keys).forShare();
+  if(receipts.length!==4) return false;
+  let firstAt; let priorAt;
+  for(const key of keys) {
+    const matches=receipts.filter((r)=>r.delivery_key===key);
+    if(matches.length!==1) return false;
+    const r=matches[0]; const at=Math.floor(Date.parse(r.provider_delivered_at)/1000);
+    let metadata; try{metadata=jsonValue(r.metadata);}catch{return false;}
+    const date=metadata?.context?.deadline_date;
+    if(r.status!=='sent'||r.provider_delivery_state!=='delivered'||!r.storage_warning_acknowledged_at
+      ||!Number.isFinite(at)||at<Number(owner.selection_at)||metadata?.context?.unit_selection_hash!==owner.selection_hash
+      ||typeof date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+    const advertised=Math.floor(Date.parse(`${date}T00:00:00Z`)/1000);
+    if(!Number.isFinite(advertised)||nowAt<advertised|| (priorAt!=null&&at<priorAt+STORAGE_WARNING_INTERVAL_SECONDS)) return false;
+    firstAt??=at;priorAt=at;
+  }
+  return nowAt>=firstAt+4*STORAGE_WARNING_INTERVAL_SECONDS && nowAt>=priorAt+STORAGE_WARNING_INTERVAL_SECONDS
+    && nowAt>=Number(owner.deadline_at) && nowAt>=Number(owner.advertised_not_before_at);
+}
+
+async function applyStorageExpiry(database,raw,now) {
+  const {body,userId,ownerHash}=storageOwner(raw,'apply_storage_expiry');
+  const episodeId=uuid(body.episode_id,'invalid_storage_episode');
+  const nowAt=integer(body.now_at,'invalid_storage_now');
+  const expected=string(body.expected_encrypted_balance,'invalid_expected_balance',16384);
+  const regions=body.regions;
+  if(!Array.isArray(regions)||!regions.length||regions.length>8||new Set(regions).size!==regions.length
+    ||regions.some((region)=>typeof region!=='string'||!/^[a-z0-9_-]{1,16}$/.test(region))) fail(400,'invalid_storage_regions');
+  return database.transaction(async(trx)=>{
+    const owner=await lockedStorageOwner(trx,userId,ownerHash,now);
+    const priorWaiver=await trx(STORAGE_PERIODS).where({hashed_user_id:ownerHash,waived_episode_id:episodeId}).first();
+    if(priorWaiver?.waiver_audit) return {...jsonValue(priorWaiver.waiver_audit),idempotent:true};
+    if(owner.expiry_audit) {
+      const audit=jsonValue(owner.expiry_audit);
+      if(audit.episode_id===episodeId) return {...audit,idempotent:true};
+    }
+    if(owner.episode_id!==episodeId) fail(409,'storage_episode_mismatch');
+    const user=await trx(USERS).where({id:userId}).forUpdate().first();
+    if(!user||user.encrypted_credit_balance!==expected) fail(409,'stale_credit_balance');
+    if(!await storageExpiryGate(trx,owner,userId,nowAt)) return {applied:false,held:true,reason:'warning_gate'};
+    const periodIds=jsonValue(owner.warned_period_ids);
+    if(!Array.isArray(periodIds)||!periodIds.length||periodIds.length>100) fail(409,'storage_warning_periods_missing');
+    const warned=await trx(STORAGE_PERIODS).whereIn('id',periodIds).where({hashed_user_id:ownerHash}).forUpdate();
+    if(warned.length!==periodIds.length||warned.some((p)=>p.state!=='unpaid')) return {applied:false,held:true,reason:'warned_debt_changed'};
+    const charges=await trx(CHARGE_IDENTITIES).whereIn('charge_id',warned.map((p)=>p.charge_id)).forShare();
+    if(charges.some((charge)=>charge.state==='committed')) return {applied:false,held:true,reason:'warned_payment_committed'};
+    const laterPaid=await trx(STORAGE_PERIODS).where({hashed_user_id:ownerHash,state:'paid'})
+      .where('created_at','>=',new Date(Number(owner.selection_at)*1000)).first();
+    if(laterPaid) return {applied:false,held:true,reason:'later_paid_storage'};
+    // Paid protection also sees a charge committed before its invoice state catches up.
+    const laterCommitted=await trx.raw(`SELECT 1 FROM storage_billing_periods p JOIN billing_charge_identities c
+      ON c.charge_id=p.charge_id WHERE p.hashed_user_id=? AND p.created_at>=?
+      AND c.state='committed' LIMIT 1`,[ownerHash,new Date(Number(owner.selection_at)*1000)]);
+    if(laterCommitted.rows.length) return {applied:false,held:true,reason:'later_paid_storage'};
+    const pendingSettlements=await trx.raw(`SELECT 1 FROM billing_settlement_outbox o
+      JOIN storage_billing_periods p ON p.charge_id=o.charge_id
+      WHERE p.hashed_user_id=? AND o.hashed_user_id=?
+      AND o.state IN ('pending','retry_scheduled','manual_review') LIMIT 1`,[ownerHash,ownerHash]);
+    if(pendingSettlements.rows.length) return {applied:false,held:true,reason:'storage_settlement_unresolved'};
+    await lockExpiryReferences(trx);
+    const frozen=await trx(STORAGE_UNITS).where({hashed_user_id:ownerHash,episode_id:episodeId}).orderBy('unit_id','asc').forUpdate();
+    if(!frozen.length||frozen.length>100) fail(409,'storage_warning_units_missing');
+    const before=await currentStorageQuote(trx,userId,owner.selection_source_version);
+    if(before.total_bytes<=FREE_STORAGE_BYTES) return {applied:false,held:true,reason:'within_free_storage'};
+    const current=await discoverStorageUnits(trx,userId,ownerHash,nowAt);
+    const references=await storageObjectReferences(trx,frozen.flatMap((unit)=>jsonValue(unit.object_references)));
+    const committedSelection=[...frozen].sort((a,b)=>Number(a.oldest_at)-Number(b.oldest_at)||a.kind.localeCompare(b.kind)||a.resource_id.localeCompare(b.resource_id));
+    if(tokenHash(JSON.stringify(committedSelection.map((unit)=>[unit.unit_id,unit.fingerprint])))!==owner.selection_hash) fail(409,'storage_warning_selection_mismatch');
+    const eligible=[];
+    for(const record of frozen) {
+      const unit=current.find((candidate)=>candidate.unit_id===record.unit_id);
+      if(unit && unit.fingerprint===record.fingerprint && !independentlyReferenced(unit,references)) eligible.push(unit);
+    }
+    eligible.sort((a,b)=>a.oldest_at-b.oldest_at||a.kind.localeCompare(b.kind)||a.resource_id.localeCompare(b.resource_id));
+    const units=[];let planned=0;
+    for(const unit of eligible) {
+      units.push(unit);planned+=unit.bytes;
+      if(before.total_bytes-planned<=FREE_STORAGE_BYTES) break;
+    }
+    if(!units.length||before.total_bytes-planned>FREE_STORAGE_BYTES) return {applied:false,held:true,reason:'no_complete_safe_set'};
+    const tombstones=[]; const objectKeys=new Set();
+    for(const unit of units) for(const obj of unit.objects) {
+      const identity=`${obj.logical_bucket}\0${obj.object_key}`;
+      if(objectKeys.has(identity)) continue;objectKeys.add(identity);
+      const existing=await trx('storage_deletion_tombstones').where({idempotency_key:tokenHash(identity)}).forUpdate().first();
+      if(existing) return {applied:false,held:true,reason:'object_already_tombstoned'};
+      const jobs=await trx('storage_replication_jobs').where({logical_bucket:obj.logical_bucket,object_key:obj.object_key}).forUpdate();
+      if(jobs.some((job)=>!['verified','completed','cancelled'].includes(job.state))) return {applied:false,held:true,reason:'object_writer_active'};
+      const generations=[...new Set([1,...jobs.map((job)=>Number(job.generation))])].sort((a,b)=>a-b);
+      if(generations.some((generation)=>!Number.isSafeInteger(generation)||generation<1)) fail(409,'storage_generation_ambiguous');
+      const jobRegions=[];
+      for(const job of jobs) {
+        const desired=jsonValue(job.desired_regions);const states=jsonValue(job.region_states);
+        if(!Array.isArray(desired)||!states||typeof states!=='object'||Array.isArray(states)) fail(409,'storage_region_inventory_ambiguous');
+        jobRegions.push(...desired,job.active_region,...Object.keys(states));
+      }
+      const allRegions=[...new Set([...regions,...jobRegions])];
+      if(allRegions.some((region)=>typeof region!=='string'||!/^[a-z0-9_-]{1,16}$/.test(region))) fail(409,'storage_region_inventory_ambiguous');
+      const tombstone={id:randomUUID(),idempotency_key:tokenHash(identity),...obj,
+        generations:JSON.stringify(generations),generation_keys:JSON.stringify(Object.fromEntries(generations.map((g)=>[g,obj.object_key]))),
+        purge_states:JSON.stringify(Object.fromEntries(generations.map((g)=>[g,Object.fromEntries(allRegions.map((region)=>[region,'pending']))]))),
+        state:'prepared',version:1,attempts:0,next_attempt_at:now,created_at:now,updated_at:now};
+      tombstones.push(tombstone);
+    }
+    for(const tombstone of tombstones) await trx('storage_deletion_tombstones').insert(tombstone);
+    const tombstoneIds=tombstones.map((tombstone)=>tombstone.id);
+    const removed=[];
+    for(const unit of units) {
+      // Parts precede manifest and root; other units contain independent rows.
+      const ordered=[...unit.rows].sort((a,b)=>['cold_archive_parts','cold_archive_manifests','chats'].indexOf(a.collection)
+        -['cold_archive_parts','cold_archive_manifests','chats'].indexOf(b.collection));
+      for(const row of ordered) {
+        const deleted=await trx(row.collection).where({id:row.id}).delete();
+        if(deleted!==1) fail(409,'storage_selected_row_changed');
+        removed.push({collection:row.collection,id:row.id});
+      }
+    }
+    const after=await currentStorageQuote(trx,userId,owner.selection_source_version);
+    if(after.total_bytes>FREE_STORAGE_BYTES) fail(409,'storage_expiry_after_quote_above_free');
+    const surviving=await storageObjectReferences(trx,units.flatMap((unit)=>unit.objects));
+    if(units.some((unit)=>unit.objects.some((obj)=>surviving.some((ref)=>ref.bucket===obj.logical_bucket&&ref.object_key===obj.object_key)))) {
+      fail(409,'storage_expiry_surviving_reference');
+    }
+    await trx('storage_deletion_tombstones').whereIn('id',tombstoneIds).update({state:'pending',version:2,next_attempt_at:now,updated_at:now});
+    await trx(STORAGE_PERIODS).whereIn('id',periodIds).where({state:'unpaid',hashed_user_id:ownerHash})
+      .update({state:'waived_on_expiry',waived_at:now,waived_episode_id:episodeId});
+    const audit={applied:true,held:false,episode_id:episodeId,removed_unit_ids:units.map((u)=>u.unit_id),
+      removed_row_ids:removed,removed_bytes:before.total_bytes-after.total_bytes,before_bytes:before.total_bytes,
+      after_bytes:after.total_bytes,waived_period_ids:periodIds,tombstone_ids:tombstoneIds,applied_at:nowAt};
+    await trx(STORAGE_PERIODS).whereIn('id',periodIds).where({waived_episode_id:episodeId})
+      .update({waiver_audit:JSON.stringify(audit)});
+    await trx(STORAGE_OWNERS).where({id:ownerHash}).update({expiry_audit:JSON.stringify(audit),
+      episode_id:null,warning_count:0,first_warning_at:null,last_warning_at:null,deadline_at:null,
+      advertised_not_before_at:null,selection_hash:null,selection_at:null,selected_bytes:null,selection_source_version:null,selection_policy_version:null,
+      warned_period_ids:null,updated_at:now});
+    return {...audit,idempotent:false};
+  });
+}
+
+function storageOwner(raw, operation) {
+  const body = operationBody(raw, operation);
+  const userId = uuid(body.user_id, 'invalid_user_id');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  if (ownerHash !== tokenHash(userId)) fail(403, 'storage_owner_mismatch');
+  return { body, userId, ownerHash };
+}
+
+async function lockedStorageOwner(trx, userId, ownerHash, now) {
+  await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [`storage-billing:${ownerHash}`]);
+  let owner = await trx(STORAGE_OWNERS).where({ id: ownerHash }).forUpdate().first();
+  if (owner && owner.user_id !== userId) fail(403, 'storage_owner_mismatch');
+  if (!owner) {
+    owner = {
+      id: ownerHash, user_id: userId, episode_id: null, warning_count: 0,
+      first_warning_at: null, last_warning_at: null, deadline_at: null,
+      advertised_not_before_at: null, warning_manual_review_at: null,
+      warning_manual_review_reason: null, closed_at: null, updated_at: now,
+    };
+    await trx(STORAGE_OWNERS).insert(owner);
+  }
+  return owner;
+}
+
+async function freezeStoragePeriod(database, raw, now) {
+  const { body, userId, ownerHash } = storageOwner(raw, 'freeze_storage_period');
+  const periodStart = integer(body.period_start_at, 'invalid_storage_period');
+  const bytes = body.measured_bytes;
+  if (!Number.isSafeInteger(bytes) || bytes < 0) fail(400, 'invalid_storage_bytes');
+  const credits = integer(body.credits_due, 'invalid_storage_credits');
+  if (credits <= 0) fail(400, 'invalid_storage_credits');
+  const freeBytes = body.free_bytes;
+  if (freeBytes !== 1_073_741_824) fail(409, 'storage_policy_mismatch');
+  const rate = integer(body.credits_per_gib, 'invalid_storage_rate');
+  const excess = BigInt(Math.max(0, bytes - freeBytes));
+  const expectedCredits = Number((excess + BigInt(freeBytes) - 1n) / BigInt(freeBytes)) * rate;
+  if (rate !== 3 || credits !== expectedCredits) {
+    fail(409, 'storage_quote_mismatch');
+  }
+  const policyVersion = string(body.policy_version, 'invalid_storage_policy_version', 100);
+  const sourceVersion = string(body.source_version, 'invalid_storage_source_version', 100);
+  const categories = object(body.category_bytes);
+  if (Object.keys(categories).length > 20 || Object.values(categories).some(
+    (value) => !Number.isSafeInteger(value) || value < 0
+  )) fail(400, 'invalid_storage_categories');
+  const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
+  if (chargeId !== `storage:${ownerHash}:${periodStart}`) fail(409, 'storage_charge_identity_mismatch');
+  const periodId = tokenHash(`storage-period:${ownerHash}:${periodStart}`);
+  return database.transaction(async (trx) => {
+    const owner = await lockedStorageOwner(trx, userId, ownerHash, now);
+    if (owner.closed_at) fail(409, 'storage_owner_closed');
+    const existing = await trx(STORAGE_PERIODS).where({ id: periodId }).forUpdate().first();
+    if (existing) {
+      if (existing.user_id !== userId || existing.hashed_user_id !== ownerHash
+        || existing.period_start_at !== periodStart || existing.charge_id !== chargeId) {
+        fail(409, 'storage_period_identity_mismatch');
+      }
+      return { period: existing, idempotent: true };
+    }
+    const period = {
+      id: periodId, user_id: userId, hashed_user_id: ownerHash,
+      period_start_at: periodStart, measured_bytes: bytes, credits_due: credits,
+      free_bytes: freeBytes, credits_per_gib: rate, policy_version: policyVersion,
+      source_version: sourceVersion, category_bytes: JSON.stringify(categories),
+      charge_id: chargeId, state: 'unpaid', created_at: now, paid_at: null,
+    };
+    await trx(STORAGE_PERIODS).insert(period);
+    return { period, idempotent: false };
+  });
+}
+
+async function listStorageDebt(database, raw, now) {
+  const { userId, ownerHash } = storageOwner(raw, 'list_storage_debt');
+  return database.transaction(async (trx) => {
+    const owner = await lockedStorageOwner(trx, userId, ownerHash, now);
+    if (owner.closed_at) return { periods: [], has_more: false, closed: true };
+    const periods = await trx(STORAGE_PERIODS)
+      .where({ hashed_user_id: ownerHash, state: 'unpaid' })
+      .orderBy('period_start_at', 'asc').limit(21);
+    return { periods: periods.slice(0, 20), has_more: periods.length > 20,
+      warning_count: owner.warning_count, deadline_at: owner.deadline_at };
+  });
+}
+
+async function markStoragePeriodPaid(database, raw, now) {
+  const { body, userId, ownerHash } = storageOwner(raw, 'mark_storage_period_paid');
+  const periodId = string(body.period_id, 'invalid_storage_period', 64);
+  return database.transaction(async (trx) => {
+    const owner = await lockedStorageOwner(trx, userId, ownerHash, now);
+    if (owner.closed_at) fail(409, 'storage_owner_closed');
+    const period = await trx(STORAGE_PERIODS).where({ id: periodId, hashed_user_id: ownerHash }).forUpdate().first();
+    if (!period) fail(404, 'storage_period_not_found');
+    if(!['unpaid','paid'].includes(period.state)) fail(409,'storage_period_not_chargeable');
+    const charge = await trx(CHARGE_IDENTITIES).where({ charge_id: period.charge_id }).forUpdate().first();
+    if (!charge || charge.hashed_user_id !== ownerHash
+      || charge.app_id !== 'system' || charge.skill_id !== 'storage'
+      || charge.requested_credits !== period.credits_due
+      || charge.charged_credits !== period.credits_due || charge.state !== 'committed') {
+      fail(409, 'storage_charge_not_fully_committed');
+    }
+    if (period.state !== 'paid') {
+      await trx(STORAGE_PERIODS).where({ id: periodId }).update({ state: 'paid', paid_at: now });
+    }
+    const remaining = await trx(STORAGE_PERIODS).where({ hashed_user_id: ownerHash, state: 'unpaid' }).first();
+    if (!remaining) {
+      await trx(STORAGE_OWNERS).where({ id: ownerHash }).update({
+        episode_id: null, warning_count: 0, first_warning_at: null,
+        last_warning_at: null, deadline_at: null, advertised_not_before_at: null,
+        warning_manual_review_at: null, warning_manual_review_reason: null,
+        selection_hash: null, selection_at: null, selected_bytes: null, warned_period_ids: null,
+        selection_source_version: null, selection_policy_version: null,
+        updated_at: now,
+      });
+    }
+    return { state: 'paid', all_debt_settled: !remaining, idempotent: period.state === 'paid' };
+  });
+}
+
+async function claimStorageWarning(database, raw, now) {
+  const { body, userId, ownerHash } = storageOwner(raw, 'claim_storage_warning');
+  const nowAt = integer(body.now_at, 'invalid_storage_now');
+  return database.transaction(async (trx) => {
+    const owner = await lockedStorageOwner(trx, userId, ownerHash, now);
+    if (owner.closed_at) return { due: false, reason: 'owner_closed' };
+    if (owner.warning_manual_review_at) return { due: false, reason: 'manual_review' };
+    const oldest = await trx(STORAGE_PERIODS)
+      .where({ hashed_user_id: ownerHash, state: 'unpaid' })
+      .orderBy('period_start_at', 'asc').first();
+    if (!oldest) return { due: false, reason: 'no_debt' };
+    if (owner.warning_count >= 4) return { due: false, reason: 'four_delivered',
+      episode_id: owner.episode_id, deadline_at: owner.deadline_at };
+    if (owner.last_warning_at != null
+      && nowAt < Number(owner.last_warning_at) + STORAGE_WARNING_INTERVAL_SECONDS) {
+      return { due: false, reason: 'waiting', next_due_at: Number(owner.last_warning_at) + STORAGE_WARNING_INTERVAL_SECONDS };
+    }
+    const episodeId = owner.episode_id || randomUUID();
+    if (!owner.episode_id) {
+      await trx(STORAGE_OWNERS).where({ id: ownerHash }).update({ episode_id: episodeId, updated_at: now });
+    }
+    const total = await trx(STORAGE_PERIODS)
+      .where({ hashed_user_id: ownerHash, state: 'unpaid' })
+      .sum({ outstanding_credits: 'credits_due' }).first();
+    return { due: true, episode_id: episodeId, warning_stage: Number(owner.warning_count) + 1,
+      oldest_period_id: oldest.id, measured_bytes: Number(oldest.measured_bytes),
+      credits_due: oldest.credits_due, outstanding_credits: Number(total.outstanding_credits),
+      first_warning_at: owner.first_warning_at };
+  });
+}
+
+async function acknowledgeStorageWarning(database, raw, now) {
+  const { body, userId, ownerHash } = storageOwner(raw, 'acknowledge_storage_warning');
+  const episodeId = uuid(body.episode_id, 'invalid_storage_episode');
+  const stage = integer(body.warning_stage, 'invalid_storage_warning');
+  const deliveryId = uuid(body.delivery_id, 'invalid_storage_delivery');
+  const nowAt = integer(body.now_at, 'invalid_storage_now');
+  if (stage < 1 || stage > 4) fail(400, 'invalid_storage_warning');
+  return database.transaction(async (trx) => {
+    const owner = await lockedStorageOwner(trx, userId, ownerHash, now);
+    if (owner.closed_at) fail(409, 'storage_owner_closed');
+    if (owner.episode_id !== episodeId) fail(409, 'storage_episode_mismatch');
+    if (Number(owner.warning_count) >= stage) return { warning_count: owner.warning_count, idempotent: true };
+    if (Number(owner.warning_count) + 1 !== stage) fail(409, 'storage_warning_order_mismatch');
+    const oldest = await trx(STORAGE_PERIODS).where({ hashed_user_id: ownerHash, state: 'unpaid' }).first();
+    if (!oldest) fail(409, 'storage_debt_settled');
+    const delivery = await trx(EMAIL_DELIVERIES).where({ id: deliveryId }).forShare().first();
+    const expectedKey = `storage-billing-warning:${episodeId}:directus_user:${userId}:week-${stage}`;
+    if (!delivery || delivery.delivery_key !== expectedKey || delivery.status !== 'sent'
+      || delivery.provider_delivery_state !== 'delivered' || !delivery.provider_delivered_at) {
+      fail(409, 'storage_warning_not_delivered');
+    }
+    const sentAtMs = Date.parse(delivery.provider_delivered_at);
+    if (!Number.isFinite(sentAtMs)) fail(409, 'storage_warning_receipt_missing');
+    const sentAt = Math.floor(sentAtMs / 1000);
+    if (sentAt > nowAt + 60) fail(409, 'storage_warning_receipt_in_future');
+    const firstAt = stage === 1 ? sentAt : Number(owner.first_warning_at);
+    let metadata;
+    try {
+      metadata = typeof delivery.metadata === 'string'
+        ? JSON.parse(delivery.metadata) : delivery.metadata;
+    } catch {
+      fail(409, 'storage_warning_advertised_deadline_missing');
+    }
+    if (!owner.selection_hash || owner.selection_at == null || sentAt < Number(owner.selection_at)
+      || metadata?.context?.unit_selection_hash !== owner.selection_hash) {
+      fail(409, 'storage_warning_selection_mismatch');
+    }
+    const dateText = metadata?.context?.deadline_date;
+    if (typeof dateText !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateText)) {
+      fail(409, 'storage_warning_advertised_deadline_missing');
+    }
+    const advertisedMs = Date.parse(`${dateText}T00:00:00Z`);
+    if (!Number.isFinite(advertisedMs)) fail(409, 'storage_warning_advertised_deadline_invalid');
+    const advertisedAt = Math.floor(advertisedMs / 1000);
+    // The notice states a UTC calendar date; the actual gate may occur later
+    // within that day when provider delivery crosses midnight.
+    // A provider may deliver later than submission. The notice explicitly
+    // permits moving the date later; expiry uses the later delivered-time
+    // gates as well as every date advertised to the owner.
+    if (stage > 1 && (owner.last_warning_at == null
+      || sentAt < Number(owner.last_warning_at) + STORAGE_WARNING_INTERVAL_SECONDS)) {
+      fail(409, 'storage_warning_too_early');
+    }
+    await trx(STORAGE_OWNERS).where({ id: ownerHash }).update({
+      warning_count: stage, first_warning_at: firstAt, last_warning_at: sentAt,
+      deadline_at: firstAt + 4 * STORAGE_WARNING_INTERVAL_SECONDS, updated_at: now,
+      advertised_not_before_at: Math.max(Number(owner.advertised_not_before_at || 0), advertisedAt),
+      warning_manual_review_at: null, warning_manual_review_reason: null,
+    });
+    await trx(EMAIL_DELIVERIES).where({ id: deliveryId })
+      .update({ storage_warning_acknowledged_at: now });
+    return { warning_count: stage, first_warning_at: firstAt,
+      deadline_at: firstAt + 4 * STORAGE_WARNING_INTERVAL_SECONDS, idempotent: false };
+  });
+}
+
+async function recordStorageDeliveryReceipt(database, raw, now) {
+  const { body, userId, ownerHash } = storageOwner(raw, 'record_storage_delivery_receipt');
+  const episodeId = uuid(body.episode_id, 'invalid_storage_episode');
+  const stage = integer(body.warning_stage, 'invalid_storage_warning');
+  const deliveryId = uuid(body.delivery_id, 'invalid_storage_delivery');
+  const messageId = string(body.message_id, 'invalid_provider_message_id', 255);
+  const state = string(body.state, 'invalid_provider_delivery_state', 24);
+  const observedAt = integer(body.observed_at, 'invalid_provider_event_time');
+  const nowAt = integer(body.now_at, 'invalid_storage_now');
+  if (stage < 1 || stage > 4 || !['delivered', 'failed'].includes(state)
+    || observedAt > nowAt + 60) fail(400, 'invalid_provider_delivery_receipt');
+  return database.transaction(async (trx) => {
+    const owner = await lockedStorageOwner(trx, userId, ownerHash, now);
+    const delivery = await trx(EMAIL_DELIVERIES).where({ id: deliveryId }).forUpdate().first();
+    const key = `storage-billing-warning:${episodeId}:directus_user:${userId}:week-${stage}`;
+    if (!delivery || delivery.delivery_key !== key || delivery.provider_message_id !== messageId
+      || delivery.status !== 'sent') fail(409, 'storage_delivery_identity_mismatch');
+    if (owner.episode_id !== episodeId || owner.closed_at) fail(409, 'storage_episode_mismatch');
+    const submittedAt = Date.parse(delivery.sent_at);
+    if (state === 'delivered' && (!Number.isFinite(submittedAt)
+      || observedAt < Math.floor(submittedAt / 1000) - 60)) {
+      fail(409, 'storage_delivery_event_before_submission');
+    }
+    if (state === 'failed') {
+      if (delivery.provider_delivery_state !== 'failed') {
+        await trx(EMAIL_DELIVERIES).where({ id: deliveryId })
+          .update({ provider_delivery_state: 'failed' });
+      }
+      await trx(STORAGE_OWNERS).where({ id: ownerHash }).update({
+        warning_manual_review_at: now,
+        warning_manual_review_reason: 'provider_delivery_failed',
+        updated_at: now,
+      });
+      return { state: 'failed', held: true };
+    }
+    if (delivery.provider_delivery_state === 'failed') {
+      return { state: 'failed', held: true };
+    }
+    if (delivery.provider_delivery_state !== 'delivered') {
+      await trx(EMAIL_DELIVERIES).where({ id: deliveryId }).update({
+        provider_delivery_state: 'delivered',
+        provider_delivered_at: new Date(observedAt * 1000),
+      });
+    }
+    return { state: 'delivered', held: false };
+  });
+}
+
+async function inspectStorageExpiry(database, raw, now) {
+  const { body, userId, ownerHash } = storageOwner(raw, 'inspect_storage_expiry');
+  const nowAt = integer(body.now_at, 'invalid_storage_now');
+  return database.transaction(async (trx) => {
+    const owner = await lockedStorageOwner(trx, userId, ownerHash, now);
+    if (owner.closed_at) return { due: false, reason: 'owner_closed' };
+    if (owner.warning_manual_review_at) return { due: false, reason: 'manual_review' };
+    const oldest = await trx(STORAGE_PERIODS).where({ hashed_user_id: ownerHash, state: 'unpaid' })
+      .orderBy('period_start_at', 'asc').first();
+    const due = Boolean(oldest && await storageExpiryGate(trx, owner, userId, nowAt));
+    return { due, oldest_period_id: due ? oldest.id : null,
+      episode_id: due ? owner.episode_id : null, deadline_at: owner.deadline_at };
+
+  });
+}
+
+async function closeStorageBillingForDeletedAccount(database, raw, now) {
+  const { userId, ownerHash } = storageOwner(raw, 'close_storage_billing_for_deleted_account');
+  return database.transaction(async (trx) => {
+    const owner = await lockedStorageOwner(trx, userId, ownerHash, now);
+    if (owner.closed_at) return { closed: true, waived_count: 0, idempotent: true };
+    // Personal charges lock this same row before committing a ledger identity.
+    // Once acquired, every earlier charge is visible and future storage
+    // charges will see closed_at after this transaction commits.
+    const user = await trx(USERS).where({ id: userId }).forUpdate().first();
+    if (!user) fail(404, 'billing_user_not_found');
+    let waived = 0;
+    let paid = 0;
+    while (true) {
+      const periods = await trx(STORAGE_PERIODS)
+        .where({ hashed_user_id: ownerHash, state: 'unpaid' })
+        .orderBy('period_start_at', 'asc').limit(20);
+      if (!periods.length) break;
+      for (const period of periods) {
+        const charge = await trx(CHARGE_IDENTITIES).where({ charge_id: period.charge_id }).first();
+        const fullyCommitted = charge && charge.hashed_user_id === ownerHash
+          && charge.app_id === 'system' && charge.skill_id === 'storage'
+          && charge.requested_credits === period.credits_due
+          && charge.charged_credits === period.credits_due && charge.state === 'committed';
+        await trx(STORAGE_PERIODS).where({ id: period.id }).update(
+          fullyCommitted ? { state: 'paid', paid_at: now } : { state: 'waived' }
+        );
+        if (fullyCommitted) paid += 1; else waived += 1;
+      }
+    }
+    await trx(STORAGE_OWNERS).where({ id: ownerHash }).update({
+      closed_at: now, episode_id: null, warning_count: 0,
+      first_warning_at: null, last_warning_at: null, deadline_at: null,
+      advertised_not_before_at: null, warning_manual_review_at: null,
+      warning_manual_review_reason: null, updated_at: now,
+    });
+    return { closed: true, waived_count: waived, paid_count: paid, idempotent: false };
+  });
+}
+
+async function markStorageWarningManualReview(database, raw, now) {
+  const { body, userId, ownerHash } = storageOwner(raw, 'mark_storage_warning_manual_review');
+  const episodeId = uuid(body.episode_id, 'invalid_storage_episode');
+  const stage = integer(body.warning_stage, 'invalid_storage_warning');
+  const deliveryId = uuid(body.delivery_id, 'invalid_storage_delivery');
+  const nowAt = integer(body.now_at, 'invalid_storage_now');
+  if (stage < 1 || stage > 4) fail(400, 'invalid_storage_warning');
+  return database.transaction(async (trx) => {
+    const owner = await lockedStorageOwner(trx, userId, ownerHash, now);
+    const delivery = await trx(EMAIL_DELIVERIES).where({ id: deliveryId }).forUpdate().first();
+    const expectedKey = `storage-billing-warning:${episodeId}:directus_user:${userId}:week-${stage}`;
+    if (!delivery || delivery.delivery_key !== expectedKey) fail(409, 'storage_delivery_identity_mismatch');
+    const startedMs = Date.parse(delivery.processing_started_at);
+    const acceptedExpired = delivery.status === 'sent'
+      && delivery.provider_delivery_state === 'accepted'
+      && (!Number.isFinite(startedMs)
+        || nowAt >= Math.floor(startedMs / 1000) + 90 * 86400);
+    if (!['failed', 'processing'].includes(delivery.status) && !acceptedExpired) {
+      return { held: false, reason: 'delivery_changed' };
+    }
+    if (Number.isFinite(startedMs) && nowAt < Math.floor(startedMs / 1000) + 600) {
+      return { held: false, reason: 'retry_window_open' };
+    }
+    const reason = acceptedExpired ? 'provider_delivery_unverified' : 'provider_receipt_uncertain';
+    await trx(EMAIL_DELIVERIES).where({ id: deliveryId }).update({
+      status: 'manual_review', error: reason,
+    });
+    if (!owner.closed_at && owner.episode_id === episodeId
+      && Number(owner.warning_count) + 1 === stage) {
+      await trx(STORAGE_OWNERS).where({ id: ownerHash }).update({
+        warning_manual_review_at: now,
+        warning_manual_review_reason: reason,
+        updated_at: now,
+      });
+      return { held: true, reason };
+    }
+    return { held: false, reason: 'owner_episode_changed' };
+  });
+}
+
 export const operations = Object.freeze({
   health_check: healthCheck,
   create_root: createRoot,
@@ -1102,6 +1983,18 @@ export const operations = Object.freeze({
   transition_pending_settlement_to_manual_review: transitionPendingSettlementToManualReview,
   commit_team_charge: commitTeamCharge,
   commit_team_credit_add: commitTeamCreditAdd,
+  freeze_storage_period: freezeStoragePeriod,
+  list_storage_debt: listStorageDebt,
+  mark_storage_period_paid: markStoragePeriodPaid,
+  claim_storage_warning: claimStorageWarning,
+  acknowledge_storage_warning: acknowledgeStorageWarning,
+  record_storage_delivery_receipt: recordStorageDeliveryReceipt,
+  freeze_storage_warning_units: freezeStorageWarningUnits,
+  list_storage_warning_units: listStorageWarningUnits,
+  apply_storage_expiry: applyStorageExpiry,
+  inspect_storage_expiry: inspectStorageExpiry,
+  close_storage_billing_for_deleted_account: closeStorageBillingForDeletedAccount,
+  mark_storage_warning_manual_review: markStorageWarningManualReview,
 });
 
 export async function executeOperation(database, operation, data, now = new Date()) {
@@ -1113,5 +2006,5 @@ export async function executeOperation(database, operation, data, now = new Date
 export const testing = Object.freeze({
   validatedChildren, tokenHash, PROTOCOL_VERSION, MAX_DEPTH,
   AUTO_DESCENDANT_LIMIT, MAX_DESCENDANT_LIMIT, AUTO_CREDIT_LIMIT,
-  operationReservationFits,
+  operationReservationFits, unitFingerprint, independentlyReferenced, storageExpiryGate,
 });

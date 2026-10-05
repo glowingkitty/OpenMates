@@ -2,7 +2,8 @@
 
 Development backend commits
 `1e7b84c33ea33734ec53c85deda27b90aad3124d` and recovery guard
-`9f42f3f23c5550c1166d0fdab792c3b113c0c82d` are public and active. The user
+`9f42f3f23c5550c1166d0fdab792c3b113c0c82d`, followed by saved-reference restoration
+`8addcd723385c67660d77623f167f8d7408dd85d`, are public and active. The user
 is the only Apple tester and does not require backward compatibility for this
 development rollout, so the legacy-client compatibility hold is cleared on dev.
 Production is unchanged. Do not use that decision to bypass capability checks or
@@ -45,6 +46,13 @@ this handoff.
 
 # Apple storage compatibility handoff
 
+The Mac Task reports on 2026-10-04 that strict main and Watch writers are paired
+with the exact development profile, with focused verification still running.
+That activity is not a published commit or a completed test result. Finish and
+publish that work rather than reimplementing it. Typed v2 remains unadvertised.
+The saved-reference API was briefly missing in `9f42f3f`; `8addcd7` restores it
+and its six regression tests. Use the restored contract below on current dev.
+
 The user assigned Apple implementation and verification to the existing Mac chat on 2026-10-03. That chat owns Apple changes. The backend chat keeps session `2f80` and the backend/web/CLI storage work. No product Apple file has been changed by the backend chat. An interrupted, uncompiled proposal remains in ignored scratch and is excluded from its candidate.
 
 ## Start on the Mac
@@ -62,7 +70,7 @@ When the canonical checkout is clean and on `dev`:
 git pull --ff-only origin dev
 ```
 
-Preserve the Mac chat's existing changes and follow its session integration workflow for a dirty or detached task worktree. Read this handoff, the storage Plan, and `specifications/architecture/storage-lifecycle/specification.yml` when the backend changes reach dev. The approved Specification, Plan and backend implementation are published. Pull development commit `9f42f3f23c5550c1166d0fdab792c3b113c0c82d` or newer before implementing and verifying this contract.
+Preserve the Mac chat's existing changes and follow its session integration workflow for a dirty or detached task worktree. Read this handoff, the storage Plan, and `specifications/architecture/storage-lifecycle/specification.yml` when the backend changes reach dev. The approved Specification, Plan and backend implementation are published. Pull development commit `8addcd723385c67660d77623f167f8d7408dd85d` or newer before implementing and verifying this contract.
 
 ## 1. Repair the live AI embed writer first
 
@@ -356,15 +364,16 @@ commit when it is announced; the Mac chat keeps ownership of native changes.
 
 ### Weekly storage settings
 
-The additional `feature.billing@6` contract is awaiting user review. This section
-is a proposed API handoff, not authorization to activate native billing behavior
-before that review and the matching backend release.
+The user approved `feature.billing@6` on 2026-10-04. Implement the following
+read-only native storage surfaces against the matching backend release. Expanded
+archive charging and automatic expiry retain their server activation gates.
 
 `GET /v1/settings/storage` keeps `total_bytes`, `free_bytes`, weekly price, and
 legacy uploaded-file breakdown. The candidate additionally returns:
 
 | Field | Native handling |
 | --- | --- |
+| `measurement_at` | Optional UTC Unix timestamp of the authoritative measurement. Display a date using UTC; never substitute the device clock when absent. |
 | `logical_s3_bytes` | Optional on older APIs; included in authoritative personal `total_bytes` only under the active billing policy. |
 | `metering_categories` | Optional map of additional billable category bytes; display positive recognized entries as storage, not as uploaded-file counts. |
 | `metering_source_version`, `metering_policy_version` | Preserve for consistency/debugging; do not show raw internal identifiers as category names. |
@@ -390,3 +399,24 @@ allowance remain pending approval, so native must not invent a Team storage bill
 The four-warning notices and final-payment/reference-safe expiry workflow must
 be released with matching policy and backend behavior. Do not add native
 expiration actions or assume the inactive archive-billing rollout is enabled.
+
+
+### Fixed affected-unit notice
+
+Use authenticated `GET /v1/settings/storage/notice?limit=20` and continue using
+`after_unit_id` from `next_after_unit_id` while `has_more` is true. This owner-scoped
+endpoint returns `episode_id`, `warning_count`, `deadline_at`, `manual_review`,
+`units`, `has_more`, and `next_after_unit_id`. Each unit has `unit_id`, `kind`,
+`resource_id`, `oldest_at`, and `bytes`. Kinds are `upload`, `cold_chat`, and
+`artifact_history`. Display readable labels, size and dated deadline; load the
+next page on demand. No S3 keys, encrypted content or server deletion action is
+exposed. Preserve visible retry for a failed request and clear cached notices
+on account changes. Empty units mean no fixed affected-data list is available;
+do not invent deletion eligibility.
+
+The fixed list is frozen before warning one. After four delivered weekly notices
+and the dated deadline, the server may remove only enough revalidated safe units
+to return to 1 GiB. It then writes off only the warned unpaid episode, without a
+credit debit or a payment record. Later unnotified debt remains unpaid. Test this
+UI with synthetic API fixtures; no new inference or destructive real-user test
+is needed. Native clients never trigger expiry themselves.

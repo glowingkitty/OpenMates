@@ -34,6 +34,18 @@ Snapshot: 2026-10-04. OpenMates Tasks owns work status and dependencies.
   services in 84.36 seconds; all are healthy and CMS schema was unchanged.
   Exact-source isolated CI `37233294260` passed the bounded version-404 case
   1/1 in 0.50 seconds; the focused local route suite passed 15/15.
+- Saved-reference restoration `8addcd723385c67660d77623f167f8d7408dd85d`
+  is now public and active. It repairs the unintended removal of reference
+  availability and authorized cross-chat reads in the follow-up recovery commit,
+  while preserving the missing-version 404 fix. All 21 route tests passed locally
+  and in isolated CI run `37239918530` at exact source `899f9575676d02282df460e77f0294aef5d145ba`.
+  Coordinated restart `docker-0557ff83` completed with all API/worker services healthy.
+- Billing integration now has prepared guards against overlapping legacy weekly
+  charges and missing/conflicting archive ownership. The disposable SQL fixture
+  covers personal/Team page and segment ownership errors; execution is pending.
+  The user confirmed expiring only enough complete safe personal units to reduce
+  the excess, and mandatory email notifications. The revised billing contract
+  awaits the explicit invoice-closure decision; Team billing remains gated.
 - Exactly two real user turns completed, once each and without inference retry:
   CLI used 25 credits and web used 33, 58 total. CLI SQL and a fresh process
   verify exactly one user/assistant pair, the exact saved `add_one` code embed,
@@ -697,3 +709,13 @@ the existing v1 metadata read. Archive, prune, and expanded billing flags remain
 OFF. The development-only Apple rollout decision permits web, CLI, and backend
 activation after critical proof; native typed-reader support remains a pruning
 gate. No activation has been performed here.
+
+## 2026-10-04 — approved unpaid-storage invoice closure implemented
+
+The user approved the exact billing@6 review and the proposed warned-episode
+write-off. Session 2f80 now contains fixed affected-unit notices, owner-scoped
+metadata pagination, protected atomic expiry, authoritative balance-CAS admission
+and auditable warned-only invoice waiver. The isolated fixture uses two 112-byte
+objects with explicit simulated logical sizes; no GiB upload or inference is
+required. Focused checks and source-bound PostgreSQL/S3 CI precede dev publication.
+Team policy, real-data archive/pruning and the full capacity target remain gated.

@@ -1298,6 +1298,7 @@ _EXPLICIT_TASK_ROUTES = {
 
     # Storage billing tasks
     "app.tasks.storage_billing_tasks.charge_storage_fees": "persistence",
+    "app.tasks.storage_billing_tasks.retry_storage_warning_deliveries": "persistence",
 
     # Auto-delete tasks
     "app.tasks.auto_delete_tasks.auto_delete_old_chats": "persistence",
@@ -1625,6 +1626,11 @@ app.conf.beat_schedule = {
     'charge-storage-fees-weekly': {
         'task': 'app.tasks.storage_billing_tasks.charge_storage_fees',
         'schedule': crontab(hour=3, minute=0, day_of_week=0),  # Sunday 03:00 UTC
+        'options': {'queue': 'persistence'},
+    },
+    'retry-storage-warning-deliveries': {
+        'task': 'app.tasks.storage_billing_tasks.retry_storage_warning_deliveries',
+        'schedule': timedelta(minutes=2),
         'options': {'queue': 'persistence'},
     },
     # Daily auto-delete - removes old chats for users who have configured a retention period.
