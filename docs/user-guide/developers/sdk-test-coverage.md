@@ -231,6 +231,8 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `teams` | `om.teams.update()` | `om.teams.update()` | direct | direct |
 | `teams` | `om.teams.updateGeneratedProfileImage()` | `om.teams.update_generated_profile_image()` | direct | direct |
 | `teams` | `om.teams.usage()` | `om.teams.usage()` | direct | direct |
+| `wikipedia` | `om.wikipedia.article()` | `om.wikipedia.article()` | direct | direct |
+| `wikipedia` | `om.wikipedia.learning()` | `om.wikipedia.learning()` | direct | direct |
 | `wikipedia` | `om.wikipedia.search()` | `om.wikipedia.search()` | direct | direct |
 | `wikipedia` | `om.wikipedia.summary()` | `om.wikipedia.summary()` | direct | direct |
 | `workflows` | `om.workflows.addToProject()` | `om.workflows.add_to_project()` | direct | direct |

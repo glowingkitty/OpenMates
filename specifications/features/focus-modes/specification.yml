@@ -14,6 +14,7 @@ scope:
   - Composition with individual focus-mode specifications.
   - Project-owned focus activation as a necessary deterministic condition for chat file writes, and preservation
     of read access to files already shown in the chat after deactivation.
+  - Learning follow-ups and phased Learn topic and Test knowledge tutoring that use learner attempts as evidence.
   excludes:
   - Exact focus prompt wording, conversational tactics, and instruction authoring; these belong to app instruction
     implementation.
@@ -128,12 +129,21 @@ assertions:
     one phase; user-confirmation requirements depend on actual user input, never assistant or tool self-approval.
     An explicit user request can return to an earlier phase, without immediately advancing again in the same turn.
     Current encrypted phase state restores progress independently of historical rendering. Web and Apple focus details
-    show phases and requirements; active chat chrome retains the existing focus display. Clarification instructions
-    default to at least five one-question rounds with examples and a recommendation, waiting for each answer and
-    considering further research; users can skip remaining questions or ask them together, and no runtime question-count
-    minimum is enforced.
+    show phases and requirements; active chat chrome retains the existing focus display. Each focus defines its
+    own intake and pacing, waiting for actual user answers and considering further research as needed. Users can
+    skip remaining questions or ask them together; no shared question-count minimum is enforced.
   depends_on:
   - examples.phases
+- id: focus-modes.learning.progress-and-suggestions
+  type: behavior
+  must: Study Learn topic and Test knowledge use the shared phased lifecycle with a brief goal intake, teaching
+    or assessment, learner practice, a fresh independent check and review as appropriate. Progress requires learner
+    evidence rather than assistant claims or merely saying I understand; skipped stages remain unassessed. Learning-mode
+    follow-ups prefer hints, learner attempts and retrieval practice, never expose the answer to an unanswered exercise
+    or bypass the teaching policy. Each focus controls its own intake length; there is no shared five-round intake
+    requirement.
+  depends_on:
+  - examples.learning_progress
 applies_to:
   rest_api:
     required: true
@@ -178,3 +188,4 @@ examples:
   - banner_placement
   - specializations
   - retirement
+  - learning_progress

@@ -2122,7 +2122,7 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     appId: "study",
     itemType: "learning_goals",
     entryType: "list",
-    required: ["topic", "difficulty_level"],
+    required: ["topic"],
     properties: {
       topic: { type: "string" },
       difficulty_level: {
@@ -2710,6 +2710,15 @@ function stripLegacySuggestionPrefix(text: string): string {
   return text.replace(/^\s*\[[^\]]+\]\s*/, "").trim();
 }
 
+export interface WikipediaLearningBundle {
+  canonical_title: string;
+  language: string;
+  source_url: string;
+  questions: string[];
+  related_articles: Array<{ title: string; canonical_title: string; language: string; description: string }>;
+  expires_in_seconds: number;
+}
+
 /** A decrypted memory entry as returned to CLI callers. */
 export interface DecryptedMemoryEntry {
   id: string;
@@ -3220,6 +3229,22 @@ export class OpenMatesClient {
       throw new Error(`Wikipedia search failed with HTTP ${response.status}`);
     }
     return Array.isArray(response.data.results) ? response.data.results : [];
+  }
+
+  async wikipediaSummary(title: string, language = "en"): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const params = new URLSearchParams({ title, language });
+    const response = await this.http.get<Record<string, unknown>>(`/v1/wikipedia/summary?${params}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Wikipedia summary failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async wikipediaLearning(title: string, language = "en"): Promise<WikipediaLearningBundle> {
+    this.requireSession();
+    const params = new URLSearchParams({ title, language });
+    const response = await this.http.get<WikipediaLearningBundle>(`/v1/wikipedia/learning?${params}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Wikipedia suggestions failed with HTTP ${response.status}`);
+    return response.data;
   }
 
   async startAccountExport(options: AccountExportStartOptions = {}): Promise<AccountExportResponse> {

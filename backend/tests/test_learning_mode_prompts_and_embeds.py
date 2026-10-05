@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import yaml
+
 from backend.apps.ai.utils.mate_utils import load_mates_config
 from backend.shared.python_utils.learning_mode import (
     AGE_GROUP_16_18,
@@ -21,29 +23,40 @@ from backend.shared.python_utils.learning_mode import (
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MATES_DIR = REPO_ROOT / "backend/apps/ai/mates"
-LEARNING_MODE_SPEC = REPO_ROOT / "docs/specs/learning-mode/spec.yml"
+# The permanent tutoring contract includes follow-up safety and preserves the
+# existing teaching policy. Legacy docs/specs paths were removed in the migration.
+LEARNING_MODE_SPEC = REPO_ROOT / "specifications/features/focus-modes/specification.yml"
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.learning.progress-and-suggestions
 def test_every_mate_has_explicit_learning_mode_prompt_variant() -> None:
     mates = load_mates_config(str(MATES_DIR))
 
     assert mates
-    missing = [mate.id for mate in mates if not mate.learning_mode_system_prompt.strip()]
+    missing = [
+        mate.id for mate in mates if not mate.learning_mode_system_prompt.strip()
+    ]
     assert missing == []
 
 
+# contract-test: tooling
 def test_mate_prompts_do_not_include_named_identity_instruction() -> None:
     mates = load_mates_config(str(MATES_DIR))
 
     assert mates
     for mate in mates:
-        prompt_text = f"{mate.default_system_prompt}\n{mate.learning_mode_system_prompt}"
+        prompt_text = (
+            f"{mate.default_system_prompt}\n{mate.learning_mode_system_prompt}"
+        )
         names = {mate.id, mate.name}
         for name in names:
             pattern = re.compile(rf"\bYou are\s+{re.escape(name)}\b", re.IGNORECASE)
-            assert not pattern.search(prompt_text), f"{mate.id} prompt includes named identity instruction"
+            assert not pattern.search(prompt_text), (
+                f"{mate.id} prompt includes named identity instruction"
+            )
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.learning.progress-and-suggestions
 def test_learning_mode_prompt_uses_mate_variant_and_global_instruction() -> None:
     mates = load_mates_config(str(MATES_DIR))
     sophia = next(mate for mate in mates if mate.category == "software_development")
@@ -60,6 +73,7 @@ def test_learning_mode_prompt_uses_mate_variant_and_global_instruction() -> None
     assert sophia.default_system_prompt not in prompt
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.learning.progress-and-suggestions
 def test_learning_mode_code_lines_are_capped_with_metadata() -> None:
     code = "\n".join(f"line {line}" for line in range(1, 81))
 
@@ -73,12 +87,18 @@ def test_learning_mode_code_lines_are_capped_with_metadata() -> None:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.learning.progress-and-suggestions
 def test_learning_mode_caps_app_skill_code_child_embed_results() -> None:
     code = "\n".join(f"line {line}" for line in range(1, 81))
 
     result = apply_learning_mode_cap_to_embed_result(
         "code",
-        {"type": "code", "code": code, "line_count": 80, "embed_ref": "example.py-abc123"},
+        {
+            "type": "code",
+            "code": code,
+            "line_count": 80,
+            "embed_ref": "example.py-abc123",
+        },
         {"enabled": True, "age_group": "13_15"},
     )
 
@@ -90,6 +110,7 @@ def test_learning_mode_caps_app_skill_code_child_embed_results() -> None:
     assert result["embed_ref"] == "example.py-abc123"
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.learning.progress-and-suggestions
 def test_learning_mode_filters_artifact_bypass_suggestions() -> None:
     suggestions = [
         "Generate an image with the answer key for 3(x - 4) = 2x + 10",
@@ -107,6 +128,7 @@ def test_learning_mode_filters_artifact_bypass_suggestions() -> None:
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.learning.progress-and-suggestions
 def test_learning_mode_hides_complete_math_tool_results() -> None:
     result = apply_learning_mode_policy_to_skill_result(
         "math",
@@ -133,12 +155,14 @@ def test_learning_mode_hides_complete_math_tool_results() -> None:
     assert result["embed_ref"] == "solving-3-x-abc123"
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.learning.progress-and-suggestions
 def test_learning_mode_blocks_math_calculate_skill() -> None:
     assert is_learning_mode_blocked_skill("math", "calculate") is True
     assert is_learning_mode_blocked_skill("math", "convert") is False
     assert is_learning_mode_blocked_skill("web", "search") is False
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.learning.progress-and-suggestions
 def test_learning_mode_short_line_content_is_not_marked_shortened() -> None:
     content = "short\nexample"
 
@@ -152,11 +176,22 @@ def test_learning_mode_short_line_content_is_not_marked_shortened() -> None:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.learning.progress-and-suggestions
 def test_application_artifacts_are_disabled_in_learning_mode() -> None:
     assert should_disable_learning_mode_application_artifact({"enabled": True}) is True
-    assert should_disable_learning_mode_application_artifact({"enabled": False}) is False
+    assert (
+        should_disable_learning_mode_application_artifact({"enabled": False}) is False
+    )
     assert should_disable_learning_mode_application_artifact(None) is False
 
 
+# contract-test: tooling
 def test_learning_mode_spec_exists() -> None:
     assert LEARNING_MODE_SPEC.is_file()
+    specification = yaml.safe_load(LEARNING_MODE_SPEC.read_text())
+    requirement = next(
+        item
+        for item in specification["assertions"]
+        if item["id"] == "focus-modes.learning.progress-and-suggestions"
+    )
+    assert "teaching policy" in requirement["must"]

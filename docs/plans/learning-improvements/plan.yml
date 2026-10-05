@@ -1,0 +1,269 @@
+schema_version: 2
+id: learning-improvements
+title: Article learning actions and phased tutoring
+goal: Implement and test and deploy the approved learning improvements to OpenMates CLI, then web app, then Apple
+  app.
+authorization:
+  source: User confirmation in codex:01a10908-1dde-7ee2-a3b4-d6ca117ba2f1
+  text: Yes great - go ahead and implement and test and deploy. To OpenMates cli, then web app, then apple app.
+  approved_design: The immediately preceding wiki cache, Study learning_goals, follow-up spoiler prevention and
+    phased Study tutoring proposal. Existing explicit approval is reused; no new product scope is introduced.
+approved_by_user: true
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-10-04'
+  plan:
+    status: approved
+    approved_at: '2026-10-04'
+tracking:
+  authority: OpenMates Tasks
+  session: 0c78
+  external_chat: codex:01a10908-1dde-7ee2-a3b4-d6ca117ba2f1
+scope:
+  in:
+  - Canonical wiki label validation.
+  - Public-only GPT-OSS 120B learning bundles, 24-hour Redis cache with miss coalescing and bounded authenticated
+    generation.
+  - Existing CLI chat validation and npm/pip Wikipedia learning API access, optional Study goal difficulty.
+  - Web fullscreen related links, preserve-draft send to originating chat and encrypted deduplicated Study save.
+  - Strengthened learning follow-ups and phased Learn topic/Test knowledge with learner evidence.
+  - "Apple handoff prompt for the user\u2019s Mac agent, based on the deployed dev commit."
+  - User-approved wiki search and wiki show commands; show mirrors fullscreen article content, related articles
+    and questions.
+  out:
+  - Production rollout or TestFlight release.
+  - New memory permission or encryption protocol.
+  - New mastery scoring or arbitrary phase graphs.
+  - Socratic and Code Learn by building phase conversion in the initial release.
+  - Apple implementation or release in this Linux session; user requested a Mac-agent handoff.
+delivery_sequence:
+- backend and CLI/SDK implementation plus required isolated CI
+- scoped dev deploy and real CLI/SDK AI evidence
+- web implementation, component and browser CI, dev deploy and laptop/mobile smoke
+- Prepare a self-contained Apple implementation/test handoff with deployed source commit and web evidence.
+decisions:
+- decision: Reuse study.learning_goals; make difficulty optional and store canonical reference inside encrypted
+    data.
+  reason: Avoid duplicate interest categories and invented learner levels.
+  id: D-1
+  status: active
+  decided_at: '2026-10-04'
+- decision: Use existing confirmed authorization for the reviewed design and client order.
+  reason: No material unresolved design decision; do not repeat approval ceremonies.
+  id: D-2
+  status: active
+  decided_at: '2026-10-04'
+- id: D-3
+  status: active
+  decision: Provide wiki search and wiki show; no learning subcommand. Validate tutoring via existing chat conversations.
+  reason: User explicitly approved article search and reading commands and clarified that learning is a confusing
+    subcommand name.
+  decided_at: '2026-10-04'
+- id: D-4
+  status: active
+  decision: Provide the user a prompt for their Mac agent to implement remaining Apple changes.
+  reason: User requested this delivery route instead of a TestFlight or Simulator delivery from this session.
+  decided_at: '2026-10-04'
+- id: D-5
+  status: active
+  decision: Include search, summary, public suggestions and the complete article view in both TypeScript and Python SDKs.
+  reason: User explicitly requested SDK parity with CLI and web.
+  decided_at: '2026-10-04'
+verification:
+- Focused backend and phase unit tests.
+- Relevant REST/CLI/npm/pip/browser E2E coverage through isolated GitHub CI; real inference on dev only.
+- Real multi-message CLI learning chat and same-article cache reuse.
+- Web preview and laptop/mobile rendering/action verification.
+- Apple handoff tied to the final deployed dev commit; native compile and interaction checks assigned to the Mac agent.
+status: implementing
+scenarios:
+- id: S-1
+  title: Learn from an article in the current lesson
+  given:
+  - A learner opens a canonical article from a learning chat.
+  when:
+  - They save the topic or send a public learning question.
+  then:
+  - One encrypted interest is saved or one message sends in the original chat, preserving drafts and teaching state.
+- id: S-2
+  title: Tutor with evidence and no answer leaks
+  given:
+  - A learner practices in an active Study focus.
+  when:
+  - The tutor evaluates an attempt and creates follow-ups.
+  then:
+  - Hints preserve unanswered exercises and progression follows learner evidence.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: CLI/SDK public article bundles use canonical identity, validated output, bounded generation and shared cache.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: cli
+  verification_ids:
+  - T-LEARN-1
+- id: AC-2
+  scenario: S-2
+  text: Study phases and learning follow-ups preserve learner effort and unanswered exercise answers.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-LEARN-2
+- id: AC-3
+  scenario: S-1
+  text: Web related articles, current-chat sends and encrypted interest saves work at laptop/mobile sizes.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-LEARN-3
+- id: AC-4
+  scenario: S-1
+  text: Provide a self-contained Apple handoff prompt with exact deployed source, rendered web behavior, remaining
+    changes and required Mac checks.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: manual
+  verification_ids:
+  - T-LEARN-4
+tests:
+- id: T-LEARN-1
+  type: manual
+  covers:
+  - AC-1
+  assertions:
+  - CLI/SDK public article bundles use canonical identity, validated output, bounded generation and shared cache.
+  red_phase:
+    required: false
+    expected: Existing evaluation evidence suffices.
+    evidence:
+      status: pending
+  green_phase:
+    required: true
+    expected: Required scoped checks pass with actual receipts.
+    evidence:
+      status: pending
+- id: T-LEARN-2
+  type: manual
+  covers:
+  - AC-2
+  assertions:
+  - Study phases and learning follow-ups preserve learner effort and unanswered exercise answers.
+  red_phase:
+    required: false
+    expected: Existing evaluation evidence suffices.
+    evidence:
+      status: pending
+  green_phase:
+    required: true
+    expected: Required scoped checks pass with actual receipts.
+    evidence:
+      status: pending
+- id: T-LEARN-3
+  type: manual
+  covers:
+  - AC-3
+  assertions:
+  - Web related articles, current-chat sends and encrypted interest saves work at laptop/mobile sizes.
+  red_phase:
+    required: false
+    expected: Existing evaluation evidence suffices.
+    evidence:
+      status: pending
+  green_phase:
+    required: true
+    expected: Required scoped checks pass with actual receipts.
+    evidence:
+      status: pending
+- id: T-LEARN-4
+  type: manual
+  covers:
+  - AC-4
+  assertions:
+  - Provide a self-contained Apple handoff prompt with exact deployed source, rendered web behavior, remaining changes
+    and required Mac checks.
+  red_phase:
+    required: false
+    expected: Existing evaluation evidence suffices.
+    evidence:
+      status: pending
+  green_phase:
+    required: true
+    expected: Required scoped checks pass with actual receipts.
+    evidence:
+      status: pending
+tasks:
+- id: TASK-2518
+  title: Article learning actions across clients
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+    - AC-3
+    - AC-4
+  expected_files:
+  - backend
+  - frontend
+  - apple
+  verification_ids:
+  - T-LEARN-1
+  - T-LEARN-3
+  - T-LEARN-4
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    owner: Codex
+    files:
+    - backend
+    - frontend
+    - apple
+    shared_files: []
+- id: TASK-430
+  title: Learning suggestions and phased Study tutoring
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-2
+    acceptance_criteria:
+    - AC-2
+  expected_files:
+  - backend/apps/study
+  - backend/apps/ai/processing
+  verification_ids:
+  - T-LEARN-2
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    owner: Codex
+    files:
+    - backend
+    - frontend
+    - apple
+    shared_files: []
+implementation_state:
+  subject_commit: 8addcd723385c67660d77623f167f8d7408dd85d
+attempts:
+- id: ATT-1
+  task_id: TASK-2518
+  outcome: planned
+  approach: Implement the user-approved design in CLI, web and Apple order.
+  recorded_at: '2026-10-04'
+handoff:
+  current_task_id: TASK-2518
+  next_action: Implement backend and CLI article learning bundles.
+  command: Use the assigned agent-0c78 workspace.
+  expected_outcome: Tested CLI/SDK behavior before web implementation.
+  last_verified_commit: 8addcd723385c67660d77623f167f8d7408dd85d
+  blocker: null

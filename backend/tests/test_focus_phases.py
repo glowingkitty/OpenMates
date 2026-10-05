@@ -580,3 +580,18 @@ def test_main_transition_preserves_mate_permissions_and_recovery_prompt(assigned
     assert generated == ([permitted] if permitted else [])
     assert {tool["function"]["name"] for tool in tools} == {
         "internal-lifecycle", *(app + "-search" for app in permitted)}
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.learning.progress-and-suggestions
+@pytest.mark.parametrize("slug,phase_ids", [
+    ("learn-topic", ["understand", "build_understanding", "guided_practice", "independent_check", "review"]),
+    ("test-knowledge", ["understand", "assess", "check_gaps", "review"]),
+])
+def test_study_phases_use_brief_intake_and_learner_evidence(slug, phase_ids):
+    path = Path(__file__).resolve().parents[1] / "apps" / "study" / "focus_modes" / slug / "SKILL.md"
+    f = AppFocusDefinition.model_validate(load_focus_mode_from_skill_md(str(path), "study"))
+    assert [p.id for p in f.phases] == phase_ids
+    prompt = phase_prompt(f, restore_state(f, focus_id=f"study-{f.id}", chat_id="test"))
+    assert "at least five rounds" not in prompt
+    requirements = " ".join(r.text for p in f.phases for r in p.requirements)
+    assert "learner" in requirements and "unassessed" in requirements

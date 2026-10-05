@@ -9258,8 +9258,13 @@ async def _consume_main_processing_stream(
             from backend.shared.providers.wikipedia.wikipedia_api import batch_validate_topics
             _wiki_language = _resolve_wikipedia_validation_language(request_data, preprocessing_result)
             _validated = await batch_validate_topics(topics=_unique_titles, language=_wiki_language)
-            _valid_titles = {t.wiki_title for t in _validated} | {t.topic for t in _validated}
-            _invalid_titles = [t for t in _unique_titles if t not in _valid_titles]
+            from backend.shared.providers.wikipedia.learning import wiki_label_matches
+            _canonical_by_topic = {t.topic: t.wiki_title for t in _validated}
+            _invalid_links = [
+                link for link in _wiki_links
+                if not wiki_label_matches(link.label, _canonical_by_topic.get(link.href.removeprefix("wiki:"), ""))
+            ]
+            _invalid_titles = [link.href.removeprefix("wiki:") for link in _invalid_links]
 
             if _invalid_titles:
                 logger.info(
@@ -9269,10 +9274,9 @@ async def _consume_main_processing_stream(
                 # Replace [text](wiki:BadTitle) with just `text`.
                 _parts = []
                 _cursor = 0
-                _invalid_title_set = set(_invalid_titles)
                 for _link in _wiki_links:
                     _title = _link.href.removeprefix("wiki:")
-                    if _title not in _invalid_title_set:
+                    if _link not in _invalid_links:
                         continue
                     _parts.append(aggregated_response[_cursor:_link.full_start])
                     _parts.append(_link.label)
@@ -9296,8 +9300,17 @@ async def _consume_main_processing_stream(
             else:
                 logger.debug(f"{log_prefix} All {len(_unique_titles)} wiki title(s) valid — no corrections needed")
         except Exception as _e:
-            # Never let wiki validation break the stream — fall through with original content
-            logger.warning(f"{log_prefix} Wiki link validation failed (keeping all links as-is): {_e}")
+            # Unverified destinations remain readable as plain text, never misleading links.
+            logger.warning(f"{log_prefix} Wiki validation unavailable; removing clickable links: {type(_e).__name__}")
+            _corrected = aggregated_response
+            for _link in reversed(_wiki_links):
+                _corrected = _corrected[:_link.full_start] + _link.label + _corrected[_link.full_end:]
+            aggregated_response = _corrected
+            final_response_chunks = [_corrected]
+            correction_payload = _create_redis_payload(
+                task_id, request_data, _corrected, stream_chunk_count + 3, is_final=False, model_name=stream_model_name,
+            )
+            await _publish_to_redis(cache_service, redis_channel_name, correction_payload, log_prefix, "Removed unverified wiki links")
 
     # NOTE: Embed references are now streamed as chunks during skill execution
     # They appear in final_response_chunks and are already part of aggregated_response

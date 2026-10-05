@@ -358,6 +358,8 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 
 | npm | pip | npm inputs | pip inputs | Return |
 | --- | --- | --- | --- | --- |
+| `om.wikipedia.article()` | `om.wikipedia.article()` | `title, language` | `title, language` | `object` |
+| `om.wikipedia.learning()` | `om.wikipedia.learning()` | `title, language` | `title, language` | `object` |
 | `om.wikipedia.search()` | `om.wikipedia.search()` | `input, language, limit` | `input, language, limit` | `object` |
 | `om.wikipedia.summary()` | `om.wikipedia.summary()` | `title, language` | `title, language` | `object` |
 

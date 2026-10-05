@@ -62,12 +62,37 @@ describe("OpenMates SDK", () => {
         title: "Albert Einstein",
       });
       await wikipedia.summary("Albert_Einstein", { language: "de" });
+      await wikipedia.learning("Albert_Einstein", { language: "de" });
     });
 
     assert.deepEqual(requests, [
       "/v1/wikipedia/search?query=AlbertEin&language=de&limit=3",
       "/v1/wikipedia/summary?title=Albert_Einstein&language=de",
+      "/v1/wikipedia/learning?title=Albert_Einstein&language=de",
     ]);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=wikipedia-mentions.learning.public-cache,wikipedia-mentions.surfaces.semantic-parity
+  it("returns the fullscreen article view and keeps the article when suggestions are unavailable", async () => {
+    let failSuggestions = false;
+    await withServer((request, response) => {
+      const isGuide = request.url?.startsWith("/v1/wikipedia/learning?");
+      response.writeHead(isGuide && failSuggestions ? 503 : 200, { "content-type": "application/json" });
+      response.end(JSON.stringify(isGuide
+        ? { questions: ["Why did Ada Lovelace study the Analytical Engine?"], related_articles: [{ title: "Analytical Engine" }] }
+        : { title: "Ada Lovelace", extract: "English mathematician" }));
+    }, async (apiUrl) => {
+      const wikipedia = new OpenMates({ apiKey: "sk-api-test", apiUrl }).wikipedia;
+      const article = await wikipedia.article("Ada_Lovelace");
+      assert.equal(article.extract, "English mathematician");
+      assert.equal(article.suggestions_unavailable, false);
+      assert.deepEqual(article.related_articles, [{ title: "Analytical Engine" }]);
+      failSuggestions = true;
+      const fallback = await wikipedia.article("Ada_Lovelace");
+      assert.equal(fallback.extract, "English mathematician");
+      assert.equal(fallback.suggestions_unavailable, true);
+      assert.deepEqual(fallback.questions, []);
+    });
   });
 
   it("uses an injected opaque device id without deriving it from the platform", async () => {

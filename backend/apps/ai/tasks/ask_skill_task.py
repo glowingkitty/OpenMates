@@ -3169,6 +3169,13 @@ async def _async_process_ai_skill_ask_task(
                     follow_up_suggestions_enabled=follow_up_suggestions_enabled,
                     quick_tips_enabled=quick_tips_enabled,
                     learning_mode_context=effective_learning_mode_context,
+                    learning_focus_context=(
+                        {"focus_id": request_data.active_focus_id,
+                         "phase": (getattr(request_data, "focus_phase_state", None) or {}).get(request_data.active_focus_id)}
+                        if request_data.active_focus_id in {
+                            "study-learn_topic", "study-test_knowledge", "study-socratic_questioning", "code-learn_by_building"
+                        } else None
+                    ),
                     decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
                 )
 

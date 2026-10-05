@@ -318,6 +318,25 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 		expect(preferredTechType.required).toContain('name');
 		logCheckpoint(`Found ${types.length} code memory types.`);
 
+        // A learning interest needs no invented level and stays encrypted through the normal memory lifecycle.
+        const goal = await runCli(apiUrl, ['settings', 'memories', 'create', '--app-id', 'study',
+            '--item-type', 'learning_goals', '--data', JSON.stringify({ topic: 'Ada Lovelace',
+                _wikipedia: { canonical_title: 'Ada Lovelace', language: 'en', source_url: 'https://en.wikipedia.org/wiki/Ada_Lovelace' } }), '--json']);
+        expect(goal.code).toBe(0);
+        const goalId = parseJsonOutput(goal.stdout, 'study interest create').id;
+        try {
+            const goals = await runCli(apiUrl, ['settings', 'memories', 'list', '--app-id', 'study', '--item-type', 'learning_goals', '--json'], MEMORY_LIST_TIMEOUT_MS);
+            expect(goals.code).toBe(0);
+            const saved = parseJsonOutput(goals.stdout, 'study interest list').find((entry: any) => entry.id === goalId);
+            expect(saved.data.topic).toBe('Ada Lovelace');
+            expect(saved.data.difficulty_level).toBeUndefined();
+            expect(saved.data._wikipedia.canonical_title).toBe('Ada Lovelace');
+        } finally {
+            const deleted = await runCli(apiUrl, ['settings', 'memories', 'delete', '--id', goalId, '--json']);
+            expect(deleted.code).toBe(0);
+        }
+
+
 		// -----------------------------------------------------------------------
 		// Step 3: Create a memory entry
 		// -----------------------------------------------------------------------

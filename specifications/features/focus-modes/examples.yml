@@ -146,3 +146,18 @@ phases:
   expect: The requested earlier phase is current, a clickable system message records the return, and encrypted state
     restores it. Current instructions and requirements are full while other phases have IDs/titles only. Unmet or
     uncertain requirements retain the phase; stale decisions and the same rewind turn cannot bounce forward.
+learning_progress:
+- id: fraction-practice-no-answer-leak
+  given: Learning mode asks the learner to try 1/5 + 1/2 and waits for an answer.
+  when: OpenMates creates follow-up suggestions.
+  then: Suggestions offer a small hint or another attempt without naming 7/10, providing the working, or calculating
+    the answer.
+  assertion_ids:
+  - focus-modes.learning.progress-and-suggestions
+- id: independent-check-evidence
+  given: A learner completed a worked example and says I understand.
+  when: The lesson evaluates readiness for review.
+  then: The tutor asks a fresh independent question; review follows the learner’s attempt rather than the assistant’s
+    worked example.
+  assertion_ids:
+  - focus-modes.learning.progress-and-suggestions

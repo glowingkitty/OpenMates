@@ -7,6 +7,7 @@
  * Tests: frontend/packages/openmates-cli/tests/sdk.test.ts
  */
 
+import type { WikipediaLearningBundle } from "./client.js";
 import { GeneratedAppSkills, type AppSkillRunOptions } from "./generated/appSkills.js";
 import { decode as toonDecode } from "@toon-format/toon";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
@@ -5109,6 +5110,23 @@ export class OpenMatesWikipedia {
       language: options.language ?? "en",
       limit: options.limit,
     }));
+  }
+
+  async learning(title: string, options: { language?: string } = {}): Promise<WikipediaLearningBundle> {
+    return this.client.get<WikipediaLearningBundle>(withQuery("/v1/wikipedia/learning", {
+      title, language: options.language ?? "en",
+    }));
+  }
+
+  /** The article view used by `wiki show`; the article stays readable if suggestions fail. */
+  async article(title: string, options: { language?: string } = {}): Promise<Record<string, unknown>> {
+    const summary = await this.summary(title, options);
+    try {
+      const guide = await this.learning(String(summary.title || title), options);
+      return { ...summary, questions: guide.questions, related_articles: guide.related_articles, suggestions_unavailable: false };
+    } catch {
+      return { ...summary, questions: [], related_articles: [], suggestions_unavailable: true };
+    }
   }
 
   async summary(title: string, options: { language?: string } = {}): Promise<Record<string, unknown>> {

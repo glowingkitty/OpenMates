@@ -472,7 +472,7 @@ specifications:
     version: 1
     status: draft
     path: features/focus-modes
-    fingerprint: 57a9851de73d1bab3d8f5b453f35864f811990ebfe7ac5c036b00b58aacb19c3
+    fingerprint: 682fafdb30831d3986e9bb0ab07336fc5c09c53416e58048d15b8759f6871dc4
     required_applies_to:
     - rest_api
     - cli
@@ -624,13 +624,14 @@ specifications:
     version: 1
     status: draft
     path: features/wikipedia-mentions
-    fingerprint: db86b067f4231768bf2582a3f07d02852bb9a5d97f9bb60f5fc57bb5c8f2cdcf
+    fingerprint: c780b89843f481502f8f0fdb5c239cce1e44eb9909ecae249d1a96f918480674
     required_applies_to:
     - rest_api
     - cli
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   feature.workflows:
     version: 9
     status: draft
@@ -5803,7 +5804,19 @@ assertions:
     specification: feature.focus-modes@1
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: a74da24e206cf1288f414e236f9d958590ac967fc23807def10b8aac47c80a7c
+    fingerprint: 6c1c62e1bea646e3fa019909809120551973da2b4574b037f8986059c41276d3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.learning.progress-and-suggestions:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: 8c37e8b54271a8175a7c457a149ec7763a4ffa76fcde401e28b8dc1b01e8a5dc
     required_applies_to:
     - rest_api
     - cli
@@ -7735,6 +7748,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   wikipedia-mentions.discovery.web-menu:
     specification: feature.wikipedia-mentions@1
     specification_id: feature.wikipedia-mentions
@@ -7746,6 +7760,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   wikipedia-mentions.resolution.first-result:
     specification: feature.wikipedia-mentions@1
     specification_id: feature.wikipedia-mentions
@@ -7757,6 +7772,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   wikipedia-mentions.resolution.disambiguation-visible:
     specification: feature.wikipedia-mentions@1
     specification_id: feature.wikipedia-mentions
@@ -7768,6 +7784,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   wikipedia-mentions.references.maximum-three:
     specification: feature.wikipedia-mentions@1
     specification_id: feature.wikipedia-mentions
@@ -7779,6 +7796,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   wikipedia-mentions.context.summary-only:
     specification: feature.wikipedia-mentions@1
     specification_id: feature.wikipedia-mentions
@@ -7790,6 +7808,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   wikipedia-mentions.safety.fail-closed:
     specification: feature.wikipedia-mentions@1
     specification_id: feature.wikipedia-mentions
@@ -7801,6 +7820,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   wikipedia-mentions.ai.source-aware-intent:
     specification: feature.wikipedia-mentions@1
     specification_id: feature.wikipedia-mentions
@@ -7812,6 +7832,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   wikipedia-mentions.provider.bounded-access:
     specification: feature.wikipedia-mentions@1
     specification_id: feature.wikipedia-mentions
@@ -7823,6 +7844,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   wikipedia-mentions.privacy.explicit-third-party-query:
     specification: feature.wikipedia-mentions@1
     specification_id: feature.wikipedia-mentions
@@ -7834,17 +7856,55 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   wikipedia-mentions.surfaces.semantic-parity:
     specification: feature.wikipedia-mentions@1
     specification_id: feature.wikipedia-mentions
     type: parity
-    fingerprint: 0452c4667eb36c3f5b5195942c9da36674f33112c26f02430a32ff2c30657e66
+    fingerprint: d866dd6d11781d02d331b6c09b6699aed6420ed530ae59c6fd5e8123606240ed
     required_applies_to:
     - rest_api
     - cli
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
+  wikipedia-mentions.links.name-consistency:
+    specification: feature.wikipedia-mentions@1
+    specification_id: feature.wikipedia-mentions
+    type: behavior
+    fingerprint: 923f5b561c6e161abd0c20ff3fa1bf891cd453f2bb140e5c93dc2c60eef8fe11
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wikipedia-mentions.learning.public-cache:
+    specification: feature.wikipedia-mentions@1
+    specification_id: feature.wikipedia-mentions
+    type: privacy
+    fingerprint: 08af65bcabf1004e91754cf15df144e72e3e8d803ef5a006f723fc8eea31e284
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wikipedia-mentions.learning.chat-and-memory:
+    specification: feature.wikipedia-mentions@1
+    specification_id: feature.wikipedia-mentions
+    type: behavior
+    fingerprint: e4a620046842bcd4768a80b95af42f651e43d643806615bb9639d4df20c152a2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   workflows.website-change.baseline:
     specification: feature.workflows@9
     specification_id: feature.workflows

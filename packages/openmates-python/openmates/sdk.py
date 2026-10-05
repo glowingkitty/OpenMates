@@ -6086,8 +6086,18 @@ class OpenMatesWikipedia:
     def __init__(self, client: OpenMates): self._client = client
     def search(self, query: str, *, language: str | None = "en", limit: int | None = None) -> dict[str, Any]:
         return self._client._get(_with_query("/v1/wikipedia/search", query=query, language=language or "en", limit=limit))
+    def learning(self, title: str, *, language: str | None = "en") -> dict[str, Any]:
+        return self._client._get(_with_query("/v1/wikipedia/learning", title=title, language=language or "en"))
     def summary(self, title: str, *, language: str | None = "en") -> dict[str, Any]:
         return self._client._get(_with_query("/v1/wikipedia/summary", title=title, language=language or "en"))
+    def article(self, title: str, *, language: str | None = "en") -> dict[str, Any]:
+        """Fullscreen article content, related articles and public follow-up questions."""
+        summary = self.summary(title, language=language)
+        try:
+            guide = self.learning(str(summary.get("title") or title), language=language)
+        except OpenMatesApiError:
+            return {**summary, "questions": [], "related_articles": [], "suggestions_unavailable": True}
+        return {**summary, "questions": guide["questions"], "related_articles": guide["related_articles"], "suggestions_unavailable": False}
 
 
 class OpenMatesEmbeds:

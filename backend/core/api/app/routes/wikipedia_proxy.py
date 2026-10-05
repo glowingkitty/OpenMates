@@ -22,6 +22,7 @@ import hashlib
 import json
 import logging
 import time
+import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any, Dict, Optional
 
@@ -31,10 +32,14 @@ from fastapi.responses import JSONResponse
 from backend.core.api.app.routes.apps_api import charge_credits_via_internal_api
 from backend.core.api.app.services.limiter import limiter
 from backend.shared.providers.wikipedia.wikipedia_api import (
+    batch_validate_topics,
     fetch_page_summary,
     fetch_wikidata_entity,
     normalize_wikipedia_language,
     search_wikipedia_titles,
+)
+from backend.shared.providers.wikipedia.learning import (
+    LEARNING_CACHE_TTL, generate_learning_guide, learning_cache_key, public_article,
 )
 
 logger = logging.getLogger(__name__)
@@ -310,6 +315,125 @@ async def wikipedia_summary(
 
     await _charge_if_api_key(auth_info, skill_id="wikipedia_summary")
     return JSONResponse(content=_summary_response_payload(data, language))
+
+
+async def _authorize_learning_request(request: Request, response: Response) -> Dict[str, Any]:
+    """Paid generation requires a real session/device or developer key, never Origin alone."""
+    from backend.core.api.app.routes.apps_api import get_session_or_api_key_info
+    from backend.core.api.app.services.cache import CacheService
+    from backend.core.api.app.services.directus import DirectusService
+    cache = CacheService()
+    return await get_session_or_api_key_info(
+        request=request, response=response, cache_service=cache,
+        directus_service=DirectusService(cache_service=cache),
+        refresh_token=request.cookies.get("auth_refresh_token"),
+    )
+
+
+async def _learning_payload(request: Request, article: dict) -> dict:
+    """Derived public content: a miss regenerates from the provider, not private DB data."""
+    client = await _cache_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Learning suggestions temporarily unavailable")
+    key = learning_cache_key(article)
+    cached = await _get_cached_payload(key)
+    if cached is not None:
+        return cached
+    lock_key, token = key + ":lock", uuid.uuid4().hex
+    if not await client.set(lock_key, token, nx=True, ex=60):
+        # Coalesce misses across API workers. Failed leaders let the next request retry.
+        for _ in range(100):
+            await asyncio.sleep(0.3)
+            cached = await _get_cached_payload(key)
+            if cached is not None:
+                return cached
+            if not await client.exists(lock_key):
+                break
+        raise HTTPException(status_code=503, detail="Learning suggestions are not ready; retry shortly")
+    try:
+        cached = await _get_cached_payload(key)
+        if cached is not None:
+            return cached
+        # Shared paid-inference budget is fail-closed and separate from Wikimedia's budget.
+        budget = f"wikipedia_learning_budget:{int(time.time()) // 60}"
+        count = await client.incr(budget)
+        if count == 1:
+            await client.expire(budget, 90)
+        if count > 20:
+            raise HTTPException(status_code=429, detail="Learning generation capacity reached; retry shortly")
+        from backend.apps.ai.processing.wikipedia_context import build_wikipedia_reference_context
+        secrets = request.app.state.secrets_manager
+        # Reuse the existing fail-closed public-source scan before generative inference.
+        safe = (await asyncio.wait_for(build_wikipedia_reference_context(
+            [article], task_id="wiki-learning:" + key.rsplit(":", 1)[-1], secrets_manager=secrets,
+            cache_service=getattr(request.app.state, "cache_service", None),
+        ), timeout=8.0))[0]
+        safe.pop("page_id", None)
+        safe.pop("revision", None)
+        guide = None
+        for provider in ("cerebras", "groq"):
+            try:
+                api_key = await secrets.get_secret(secret_path=f"kv/data/providers/{provider}", secret_key="api_key")
+                if api_key:
+                    guide = await generate_learning_guide(safe, api_key, provider)
+                    break
+            except Exception as exc:
+                # Log type only: never provider bodies, credentials or source prose.
+                logger.warning("Wikipedia learning provider %s failed: %s", provider, type(exc).__name__)
+        if guide is None:
+            raise HTTPException(status_code=503, detail="Learning suggestions temporarily unavailable")
+        await _reserve_shared_wikipedia_budget()
+        async with _wikipedia_upstream_semaphore:
+            topics = await batch_validate_topics(guide["related_titles"], language=article["language"])
+        related = []
+        seen = {article["canonical_title"].replace("_", " ").casefold()}
+        for topic in topics:
+            identity = topic.wiki_title.replace("_", " ").casefold()
+            if identity in seen:
+                continue
+            seen.add(identity)
+            related.append({"title": topic.wiki_title, "canonical_title": topic.wiki_title,
+                            "language": article["language"], "description": topic.description or ""})
+        payload = {"canonical_title": article["canonical_title"], "language": article["language"],
+                   "source_url": article["source_url"], "questions": guide["questions"],
+                   "related_articles": related, "expires_in_seconds": LEARNING_CACHE_TTL}
+        await client.setex(key, LEARNING_CACHE_TTL, json.dumps(payload, ensure_ascii=True))
+        return payload
+    finally:
+        await client.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0", 1, lock_key, token)
+
+
+@router.get("/learning")
+@limiter.limit("10/minute")
+async def wikipedia_learning(
+    request: Request, response: Response,
+    title: str = Query(..., min_length=1, max_length=300),
+    language: str = Query("en", min_length=2, max_length=10),
+) -> JSONResponse:
+    """Session/device and developer-key surface; public article data only.
+
+    Session/device calls are free; successful developer-key calls cost one credit.
+    No account-owned content is accepted or returned. The existing Wikipedia Caddy
+    allowlist applies, with 10 caller requests/minute and 20 shared generations/minute.
+    """
+    auth = await _authorize_learning_request(request, response)
+    language = normalize_wikipedia_language(language)
+    try:
+        summary = await _fetch_cached_wikipedia_payload(
+            _wikipedia_cache_key("summary", language, title),
+            lambda: fetch_page_summary(title=title, language=language),
+        )
+        if summary is None:
+            raise HTTPException(status_code=404, detail="Article not found")
+        article = public_article(_summary_response_payload(summary, language), language)
+        payload = await _learning_payload(request, article)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("Wikipedia learning unavailable: %s", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Learning suggestions temporarily unavailable") from exc
+    await _charge_if_api_key(auth, skill_id="wikipedia_learning")
+    return JSONResponse(content=payload)
 
 
 @router.get("/wikidata/{qid}")

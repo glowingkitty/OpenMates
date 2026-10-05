@@ -461,6 +461,10 @@ async function main(): Promise<void> {
       printFeedbackHelp();
       return;
     }
+    if (command === "wiki") {
+      printWikiHelp();
+      return;
+    }
     if (command === "docs") {
       printDocsHelp();
       return;
@@ -497,6 +501,11 @@ async function main(): Promise<void> {
   // Server and docs commands don't need login
   if (command === "server") {
     await handleServer(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "wiki") {
+    await handleWiki(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -14263,6 +14272,7 @@ Commands:
   openmates connected-accounts [--help]      Connected account import helpers
   openmates connect-account [--help]         Local connected-account setup helpers
   openmates finance [--help]                 Finance account analysis commands
+  openmates wiki [--help]                    Search Wikipedia and read article summaries
   openmates learning-mode [--help]           Account-wide Learning Mode controls
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
@@ -15145,6 +15155,51 @@ Examples:
 // ---------------------------------------------------------------------------
 // Docs
 // ---------------------------------------------------------------------------
+
+function printWikiHelp(): void {
+  console.log("Wikipedia commands:\n  openmates wiki search <query> [--language en] [--json]\n  openmates wiki show <canonical-title> [--language en] [--json]");
+}
+
+export async function handleWiki(
+  client: OpenMatesClient, action: string | undefined, rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!action || action === "help") { printWikiHelp(); return; }
+  if (!["search", "show"].includes(action) || !rest.length) throw new Error("Use openmates wiki search <query> or openmates wiki show <canonical-title>.");
+  const language = typeof flags.language === "string" ? flags.language : "en";
+  const topic = rest.join(" ");
+  const apiKey = resolveApiKey(flags);
+  const sdk = apiKey ? createCliOpenMates(client, apiKey).wikipedia : null;
+  if (action === "search") {
+    const payload = sdk ? await sdk.search(topic, { language }) : { results: await client.searchWikipediaTitles(topic, language) };
+    if (flags.json === true) printJson(payload);
+    else for (const result of (payload.results as Array<{ title: string; description?: string; disambiguation?: boolean }>) ?? []) {
+      console.log(`${result.title}${result.disambiguation ? " (choose a specific article)" : ""}${result.description ? ` — ${result.description}` : ""}`);
+    }
+    return;
+  }
+  const summary = sdk ? await sdk.summary(topic, { language }) : await client.wikipediaSummary(topic, language);
+  let suggestions = null;
+  let suggestionsUnavailable = false;
+  try {
+    const canonicalTitle = String(summary.title || topic);
+    suggestions = sdk ? await sdk.learning(canonicalTitle, { language }) : await client.wikipediaLearning(canonicalTitle, language);
+  } catch {
+    suggestionsUnavailable = true;
+  }
+  const payload = { ...summary, questions: suggestions?.questions ?? [],
+    related_articles: suggestions?.related_articles ?? [], suggestions_unavailable: suggestionsUnavailable };
+  if (flags.json === true) printJson(payload);
+  else {
+    console.log(`${summary.title}\n${summary.description || ""}\n\n${summary.extract || ""}\n\n${summary.source_url || ""}`);
+    if (suggestions) {
+      console.log("\nRelated articles:");
+      suggestions.related_articles.forEach((article) => console.log(`- ${article.title}`));
+      console.log("\nFollow-up questions:");
+      suggestions.questions.forEach((question, index) => console.log(`${index + 1}. ${question}`));
+    } else console.log("\nArticle suggestions are temporarily unavailable. Try again shortly.");
+  }
+}
 
 async function handleDocs(
   client: OpenMatesClient,

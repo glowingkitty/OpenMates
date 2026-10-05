@@ -114,6 +114,26 @@ def test_native_app_skill_method_uses_generated_namespace(monkeypatch):
     assert requests[0]["json"] == {"requests": [{"query": "hello"}]}
 
 
+# contract-test: supporting surface=sdks.pip assertions=wikipedia-mentions.surfaces.semantic-parity
+def test_wikipedia_article_preserves_content_when_suggestions_are_unavailable(monkeypatch):
+    from openmates.sdk import OpenMatesApiError
+    wikipedia = OpenMates(api_key="sk-api-test").wikipedia
+    monkeypatch.setattr(wikipedia, "summary", lambda *args, **kwargs: {"title": "Ada Lovelace", "extract": "English mathematician"})
+    monkeypatch.setattr(wikipedia, "learning", lambda *args, **kwargs: {"questions": ["What did Ada Lovelace contribute?"], "related_articles": [{"title": "Analytical Engine"}]})
+    article = wikipedia.article("Ada_Lovelace")
+    assert article["suggestions_unavailable"] is False
+    assert article["related_articles"] == [{"title": "Analytical Engine"}]
+
+    def unavailable(*args, **kwargs):
+        raise OpenMatesApiError(503, {"detail": "temporarily unavailable"})
+
+    monkeypatch.setattr(wikipedia, "learning", unavailable)
+    article = wikipedia.article("Ada_Lovelace")
+    assert article["extract"] == "English mathematician"
+    assert article["questions"] == []
+    assert article["suggestions_unavailable"] is True
+
+
 # contract-test: direct surface=sdks.pip assertions=wikipedia-mentions.surfaces.semantic-parity,wikipedia-mentions.references.maximum-three
 def test_wikipedia_preserves_query_language_and_title_metadata(monkeypatch):
     requests_seen = []
@@ -137,6 +157,7 @@ def test_wikipedia_preserves_query_language_and_title_metadata(monkeypatch):
         "title": "Albert Einstein",
     }
     wikipedia.summary("Albert_Einstein", language="de")
+    wikipedia.learning("Albert_Einstein", language="de")
 
     assert requests_seen == [
         (
@@ -145,6 +166,10 @@ def test_wikipedia_preserves_query_language_and_title_metadata(monkeypatch):
         ),
         (
             "https://api.openmates.org/v1/wikipedia/summary?title=Albert_Einstein&language=de",
+            "Bearer sk-api-test",
+        ),
+        (
+            "https://api.openmates.org/v1/wikipedia/learning?title=Albert_Einstein&language=de",
             "Bearer sk-api-test",
         ),
     ]

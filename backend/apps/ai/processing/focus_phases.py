@@ -85,9 +85,9 @@ def phase_prompt(focus: AppFocusDefinition, state: FocusPhaseState) -> str:
             f"Upcoming phases:\n{future}\n\n"
             "Only the current phase's instructions apply. Requirements are evaluated by the platform; "
             "do not claim to have switched phases or execute future-phase instructions early. "
-            "Clarifying questions use at least five rounds by default, one question per round with "
-            "concrete examples and a recommendation. Wait for the user's reply and consider further "
-            "research after each answer. Honor requests to skip remaining questions or ask all at once. "
+            "Follow the current phase's intake length and pacing. Wait for the user's reply to a "
+            "question before asking the next. Honor requests to skip remaining intake questions or "
+            "ask them together. A skipped learning assessment remains unassessed; it is not proof of mastery. "
             + ("This phase is complete; help with follow-ups or return when asked." if state.complete else ""))
 
 

@@ -82,6 +82,7 @@ In a normal terminal, plain `openmates` enters the full-screen chat UI. Use `/ex
 | `settings`, `learning-mode` | Predefined settings commands, Learning Mode controls, invoices, notifications, mates, newsletter, memories | [settings.md](./settings.md) |
 | `benchmark` | Run real product-path model benchmarks, comparisons, and judged case suites | [benchmarks.md](./benchmarks.md) |
 | `embeds`, `mentions` | View embeds, create share links, search mentions | [embeds-and-sharing.md](./embeds-and-sharing.md) |
+| `wiki` | Search Wikipedia and read articles with related topics and follow-up questions | [wiki.md](./wiki.md) |
 | `remote-access` | Attach and search local Project sources without uploading repository files | [remote-access.md](./remote-access.md) |
 | `connect-account proton` | Run an online-only local Proton Mail Bridge connector on supported macOS or amd64 Linux systems | [Mail app](../apps/mail.md) |
 | `inspirations`, `newchatsuggestions` | Daily inspirations and personalized suggestions | [chats.md](./chats.md) |
