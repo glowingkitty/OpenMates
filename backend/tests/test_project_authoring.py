@@ -55,7 +55,7 @@ def test_authored_focus_phase_schema_matches_runtime_and_unphased_markdown_omits
                                              "phases": [phase.model_dump() for phase in phased.phases]})
 
 
-def _focus_author_fake_provider(monkeypatch, result):
+def _focus_author_fake_provider(monkeypatch, result=None, *, raw=None):
     from backend.core.api.app.services import project_authoring_service as module
     allowed = {"$id", "$defs", "$ref", "$anchor", "type", "format", "title", "description", "enum",
                "items", "prefixItems", "minItems", "maxItems", "minimum", "maximum", "anyOf", "oneOf",
@@ -75,6 +75,11 @@ def _focus_author_fake_provider(monkeypatch, result):
         if isinstance(schema.get("additionalProperties"), dict):
             check_schema(schema["additionalProperties"])
 
+    if raw is None:
+        raw = json.dumps({"status": result["status"],
+                          "document_json": json.dumps(result["document"]) if result["document"] is not None else None,
+                          "question": result.get("question")})
+
     class Response:
         content = b"{}"
 
@@ -83,7 +88,7 @@ def _focus_author_fake_provider(monkeypatch, result):
 
         def json(self):
             return {"usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1},
-                    "candidates": [{"content": {"parts": [{"text": json.dumps(result)}]}}]}
+                    "candidates": [{"content": {"parts": [{"text": raw}]}}]}
 
     class Client:
         async def __aenter__(self):
@@ -96,7 +101,12 @@ def _focus_author_fake_provider(monkeypatch, result):
             assert headers["x-goog-api-key"] == "fake-key"
             schema = json["generationConfig"]["responseJsonSchema"]
             check_schema(schema)
-            assert schema["$defs"]["ProjectFocusDocument"]["properties"]["phases_version"]["anyOf"][0]["enum"] == [1]
+            assert "$defs" not in schema and "$ref" not in schema
+            assert set(schema["properties"]) == {"status", "document_json", "question"}
+            assert schema["properties"]["document_json"] == {"anyOf": [{"type": "string"}, {"type": "null"}]}
+            prompt = json["systemInstruction"]["parts"][0]["text"]
+            local_schema = module.json.loads(prompt.split("The decoded document must satisfy this schema: ")[1])
+            assert local_schema == ProjectFocusDocument.model_json_schema()
             sent.append(schema)
             return Response()
 
@@ -108,7 +118,7 @@ def _focus_author_fake_provider(monkeypatch, result):
 
 # contract-test: supporting surface=rest_api assertions=focus-modes.project-authoring-persistence,focus-modes.phases
 @pytest.mark.asyncio
-async def test_focus_author_provider_schema_accepts_runtime_phases_and_keeps_local_validation(monkeypatch):
+async def test_focus_author_flat_provider_transport_accepts_runtime_phases_and_keeps_local_validation(monkeypatch):
     from backend.apps.ai.processing.focus_phases import parse_project_phase_focus
     phase = {"id": "verify", "title": "Verify", "instructions": "Check the source revision.",
              "requirements": [{"id": "source_checked", "type": "semantic", "text": "The source revision was checked."}]}
@@ -131,7 +141,7 @@ async def test_focus_author_provider_schema_accepts_runtime_phases_and_keeps_loc
     {"phases_version": 1, "phases": [{"id": "INVALID PRIVATE SENTINEL", "title": "Verify", "instructions": "Check.",
                                       "requirements": [{"id": "checked", "type": "semantic", "text": "Checked."}]}]},
 ])
-async def test_focus_author_provider_projection_does_not_weaken_private_document_validation(monkeypatch, invalid_phase):
+async def test_focus_author_flat_transport_does_not_weaken_private_document_validation(monkeypatch, invalid_phase):
     sent, _ = _focus_author_fake_provider(monkeypatch, {
         "status": "authored", "document": {**DOCUMENT, **invalid_phase}, "question": None,
     })
@@ -141,6 +151,46 @@ async def test_focus_author_provider_projection_does_not_weaken_private_document
     assert error.value.code == "PROJECT_FOCUS_AUTHORING_INVALID_DOCUMENT"
     assert "INVALID PRIVATE SENTINEL" not in str(error.value)
     assert len(sent) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-authoring-persistence
+@pytest.mark.asyncio
+async def test_focus_author_flat_transport_keeps_clarification_without_a_document(monkeypatch):
+    _, ledger = _focus_author_fake_provider(monkeypatch, {
+        "status": "needs_input", "document": None, "question": "Which review goal?",
+    })
+    author = ProjectFocusAuthor(SimpleNamespace(get_secret=AsyncMock(return_value="fake-key")))
+    result = await author.author(user_id="owner", job_id="job", history=HISTORY, target=None)
+    assert result.status == "needs_input" and result.document is None and result.question == "Which review goal?"
+    ledger.settle.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw", [
+    '{"status":"needs_input","status":"authored","document_json":null,"question":"PRIVATE SENTINEL"}',
+    json.dumps({"status": "authored", "document_json": json.dumps(DOCUMENT)[:-1] + ',"name":"PRIVATE SENTINEL"}', "question": None}),
+    json.dumps({"status": "authored", "document_json": '{"name":NaN}', "question": None}),
+    json.dumps({"status": "authored", "document_json": '{"name":"PRIVATE SENTINEL"', "question": None}),
+    json.dumps({"status": "authored", "document_json": None, "question": None}),
+    json.dumps({"status": "needs_input", "document_json": json.dumps(DOCUMENT), "question": "PRIVATE SENTINEL"}),
+    json.dumps({"status": "needs_input", "document_json": None, "question": " "}),
+    json.dumps({"status": "authored", "document_json": json.dumps(DOCUMENT), "question": None, "extra": "PRIVATE SENTINEL"}),
+    json.dumps({"status": "authored", "document": DOCUMENT, "question": None}),
+    json.dumps({"status": "authored", "document_json": "PRIVATE SENTINEL" * 12_000, "question": None}),
+    json.dumps({"status": "authored", "document_json": "[" * 10_000 + "]" * 10_000, "question": None}),
+])
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-authoring-persistence,focus-modes.phases
+async def test_focus_author_transport_rejects_ambiguous_or_invalid_json_without_private_errors(monkeypatch, raw):
+    import traceback
+    _, ledger = _focus_author_fake_provider(monkeypatch, raw=raw)
+    author = ProjectFocusAuthor(SimpleNamespace(get_secret=AsyncMock(return_value="fake-key")))
+    with pytest.raises(ProjectWriteAuthorizationError) as error:
+        await author.author(user_id="owner", job_id="job", history=HISTORY, target=None)
+    assert error.value.code == "PROJECT_FOCUS_AUTHORING_INVALID_DOCUMENT"
+    assert error.value.status_code == 422
+    assert "PRIVATE SENTINEL" not in "".join(traceback.format_exception(error.value))
+    ledger.precheck.assert_awaited_once()
+    ledger.settle.assert_awaited_once()
 
 
 class Cache:
