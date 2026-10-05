@@ -2,6 +2,7 @@
 """Disk budget and cleanup tests use only isolated fixture directories."""
 
 import json
+from datetime import timezone
 import hashlib
 import os
 from pathlib import Path
@@ -14,6 +15,21 @@ import time
 import pytest
 
 from scripts import resource_budget as budget
+
+
+def test_inventory_counts_other_files_after_unsafe_link_without_following_it(tmp_path):
+    own = tmp_path / "owned"
+    own.mkdir()
+    first, second = own / "first", own / "second"
+    first.write_bytes(b"a" * 4096)
+    second.write_bytes(b"b" * 4096)
+    external = tmp_path / "external"
+    external.write_bytes(b"x" * 65536)
+    link = own / "link"
+    link.symlink_to(external)
+    count, safe = budget._bytes(own)
+    assert safe is False
+    assert count == sum(item.lstat().st_blocks * 512 for item in (first, second, link))
 
 
 def _queue(root: Path, rows: list[tuple[str, str, str]]) -> None:
@@ -180,7 +196,7 @@ def test_integrated_candidate_patch_retires_only_after_consumer(tmp_path):
     patch = candidate / "candidate.patch"
     patch.write_bytes(b"exact reproducible patch")
     expired = budget.datetime.fromtimestamp(time.time() - budget.RESULT_AGE_SECONDS - 3600,
-                                            budget.timezone.utc).isoformat()
+                                                timezone.utc).isoformat()
     (candidate / "manifest.json").write_text(json.dumps({
         "source": source, "session": "finished", "artifact_expires_at": expired,
         "local_patch": str(patch), "patch_sha256": hashlib.sha256(patch.read_bytes()).hexdigest(),

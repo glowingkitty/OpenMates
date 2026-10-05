@@ -24,3 +24,9 @@ rollout:
   - Preserve the durable CI queue and safely restart only its current reconciler.
   - Discover content-keyed schema images first; retain verified legacy discovery only for the transition release.
   - Record measured outcomes and any remaining work in the linked Tasks.
+decisions:
+  - The transition release d902d69 completed its cold browser canary; consumers now stop legacy mutable discovery.
+  - Schema cache publication runs independently of the self-host image workflow that cancels on every dev push, serialized by schema compatibility key.
+evidence:
+  - Cold composer-workspace-layout.spec.ts passed in isolated run 37356953151; bootstrap 487.334 seconds, cms-setup 461.665 seconds.
+  - Coordinator restart preserved all 5261 durable queue jobs; bounded 12-job canary is in progress.

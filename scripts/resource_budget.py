@@ -129,20 +129,22 @@ def reserve(root: Path, amount: int, *, min_free: int = MIN_FREE,
 def _bytes(path: Path) -> tuple[int, bool]:
     """Count allocated file bytes without following links; report unsafe types."""
     total = 0
-    try:
-        paths = [path]
-        while paths:
-            current = paths.pop()
+    safe = True
+    paths = [path]
+    while paths:
+        current = paths.pop()
+        try:
             info = current.lstat()
             if stat.S_ISDIR(info.st_mode):
                 paths.extend(current.iterdir())
             elif stat.S_ISREG(info.st_mode):
                 total += info.st_blocks * 512
             else:
-                return total, False
-        return total, True
-    except OSError:
-        return total, False
+                total += info.st_blocks * 512
+                safe = False
+        except OSError:
+            safe = False
+    return total, safe
 
 
 def _queue_rows(root: Path) -> list[dict] | None:

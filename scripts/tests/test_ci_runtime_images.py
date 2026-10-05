@@ -300,3 +300,30 @@ def test_schema_workflow_labels_use_executed_contract():
         assert f"org.openmates.ci.schema-restore-semantics=${{{{ steps.{output}.outputs.schema_restore }}}}" in labels
         producer = next(step for step in steps if step.get("id") == output and "schema-contract" in step.get("run", ""))
         assert "ci_runtime_images.py schema-contract" in producer["run"]
+
+
+def test_schema_cache_producer_survives_unrelated_pushes_and_serializes_by_key():
+    import yaml
+    root = Path(__file__).resolve().parents[2]
+    text = (root / ".github/workflows/publish-ci-schema.yml").read_text()
+    workflow = yaml.safe_load(text)
+    trigger = yaml.load(text, Loader=yaml.BaseLoader)["on"]
+    assert trigger["push"]["branches"] == ["dev"]
+    for pattern in runtime.RUNTIME_INPUTS["schema"]:
+        assert pattern.replace("/**/*", "/**") in trigger["push"]["paths"]
+    assert "concurrency" not in workflow
+    publish = workflow["jobs"]["publish"]
+    assert publish["concurrency"] == {
+        "group": "ci-schema-${{ needs.key.outputs.schema }}", "cancel-in-progress": False}
+    for job in workflow["jobs"].values():
+        checkout = next(step for step in job["steps"] if step.get("uses", "").startswith("actions/checkout@"))
+        assert checkout["with"]["ref"] == "${{ github.sha }}"
+    carrier = next(step for step in publish["steps"] if step.get("name") == "Build missing prepared schema carrier")
+    assert "org.openmates.ci.schema-bundle-format=${{ needs.key.outputs.schema_format }}" in carrier["with"]["labels"]
+    assert "org.openmates.ci.schema-restore-semantics=${{ needs.key.outputs.schema_restore }}" in carrier["with"]["labels"]
+    verifier = next(step for step in publish["steps"] if step.get("name") == "Verify schema in two fresh consumers")
+    assert "verify-image" in verifier["run"]
+    uploader = next(step for step in publish["steps"] if step.get("name") == "Publish exact verified schema identity")
+    assert publish["steps"].index(verifier) < publish["steps"].index(uploader)
+    assert ":runtime-${RUNTIME_KEY}" in uploader["run"]
+    assert ":dev" not in uploader["run"] and ":sha-" not in uploader["run"]

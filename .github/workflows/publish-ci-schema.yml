@@ -1,0 +1,124 @@
+name: Publish Content-Keyed CI Schema
+
+# This producer must survive unrelated dev pushes. The self-host publisher
+# cancels superseded builds; schema initialization can take longer than a chat's
+# deployment interval. Each compatibility key gets its own serialized producer.
+on:
+  push:
+    branches: [dev]
+    paths:
+      - '.github/workflows/publish-ci-schema.yml'
+      - 'scripts/ci_runtime_images.py'
+      - 'scripts/ci_schema_bundle.py'
+      - 'scripts/ci_schema_image.Dockerfile'
+      - 'scripts/ci_environment.py'
+      - 'backend/core/directus/Dockerfile'
+      - 'backend/core/directus/Dockerfile.setup.selfhost'
+      - 'backend/core/directus/extensions/**'
+      - 'backend/core/directus/schemas/**'
+      - 'backend/core/directus/setup/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io/glowingkitty
+
+jobs:
+  key:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      schema: ${{ steps.contract.outputs.schema }}
+      schema_format: ${{ steps.contract.outputs.schema_format }}
+      schema_restore: ${{ steps.contract.outputs.schema_restore }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Calculate executed schema contract
+        id: contract
+        run: |
+          echo "schema=$(python3 scripts/ci_runtime_images.py key --kind schema)" >> "$GITHUB_OUTPUT"
+          python3 scripts/ci_runtime_images.py schema-contract >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: key
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: ci-schema-${{ needs.key.outputs.schema }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Discover verified content-keyed schema
+        id: images
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          from scripts.ci_runtime_images import restore, write_outputs
+          result = restore(Path.cwd(), "schema", os.environ["REGISTRY"])
+          write_outputs([result])
+          print(json.dumps(result))
+          PY
+      - uses: docker/setup-buildx-action@v3
+        if: steps.images.outputs.schema != 'true'
+      - name: Build schema producer Directus
+        if: steps.images.outputs.schema != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/core/directus
+          file: backend/core/directus/Dockerfile
+          load: true
+          tags: openmates-ci-cms:local
+          cache-from: type=gha,scope=ci-schema-cms
+          cache-to: type=gha,scope=ci-schema-cms,mode=max
+      - name: Build schema producer initializer
+        if: steps.images.outputs.schema != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/core/directus
+          file: backend/core/directus/Dockerfile.setup.selfhost
+          load: true
+          tags: openmates-ci-setup:local
+          cache-from: type=gha,scope=ci-schema-setup
+          cache-to: type=gha,scope=ci-schema-setup,mode=max
+      - name: Prepare sanitized schema bundle
+        if: steps.images.outputs.schema != 'true'
+        run: python3 scripts/ci_schema_bundle.py
+      - name: Build missing prepared schema carrier
+        if: steps.images.outputs.schema != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: test-results/ci-private
+          file: scripts/ci_schema_image.Dockerfile
+          load: true
+          tags: openmates-ci-database:local
+          labels: |
+            org.opencontainers.image.source=https://github.com/glowingkitty/OpenMates
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.openmates.ci.runtime-key=${{ needs.key.outputs.schema }}
+            org.openmates.ci.schema-bundle-format=${{ needs.key.outputs.schema_format }}
+            org.openmates.ci.schema-restore-semantics=${{ needs.key.outputs.schema_restore }}
+      - name: Verify schema in two fresh consumers
+        if: steps.images.outputs.schema != 'true'
+        run: python3 scripts/ci_schema_bundle.py verify-image openmates-ci-database:local
+      - name: Publish exact verified schema identity
+        if: steps.images.outputs.schema != 'true'
+        env:
+          RUNTIME_KEY: ${{ needs.key.outputs.schema }}
+        run: |
+          remote="${REGISTRY}/openmates-ci-schema:runtime-${RUNTIME_KEY}"
+          docker tag openmates-ci-database:local "$remote"
+          docker push "$remote"

@@ -263,10 +263,10 @@ jobs:
               --manifest "${{ steps.artifacts.outputs.manifest }}"; then
               python3 ../tooling/scripts/ci_artifacts.py runtime-fallback \
                 --reason runtime_manifest_rejected
-              python3 ../tooling/scripts/ci_runtime_images.py restore --allow-legacy-discovery "${upload_args[@]}"
+              python3 ../tooling/scripts/ci_runtime_images.py restore "${upload_args[@]}"
             fi
           else
-            python3 ../tooling/scripts/ci_runtime_images.py restore --allow-legacy-discovery "${upload_args[@]}"
+            python3 ../tooling/scripts/ci_runtime_images.py restore "${upload_args[@]}"
           fi
       - name: Calculate runtime compatibility keys
         id: runtime_keys
