@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../config/api", () => ({ getApiEndpoint: (path: string) => path }));
+vi.mock("../../config/api", () => ({ storageArchiveFetch: (input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init), getApiEndpoint: (path: string) => path }));
 vi.mock("../../message_parsing/utils", () => ({ computeSHA256: vi.fn() }));
 vi.mock("../userPlanService", () => ({ validateUserFlows: vi.fn() }));
 vi.mock("../cryptoService", () => ({ decryptWithEmbedKey: vi.fn(), unwrapEmbedKeyWithChatKey: vi.fn() }));

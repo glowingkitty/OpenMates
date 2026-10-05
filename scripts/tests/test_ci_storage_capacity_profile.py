@@ -735,3 +735,13 @@ def test_target_available_memory_respects_restrictive_v2_cgroup(monkeypatch) -> 
     monkeypatch.setattr(Path, "read_text", lambda path: values[str(path)])
     monkeypatch.setattr(Path, "exists", lambda path: str(path) == "/sys/fs/cgroup/memory.max")
     assert _available_target_memory_bytes() == 512 * 1024**2
+
+
+def test_capacity_archive_eligibility_proof_is_readonly_and_all_runtime_sources_are_candidate_bound():
+    source = "a" * 40
+    profile = compose_profile(source, storage_capacity=True, capacity_concurrency=2)
+    for name in ("api", "core-worker", "ai-worker"):
+        service = profile["services"][name]
+        assert service["environment"]["BUILD_COMMIT_SHA"] == source
+        assert any(isinstance(mount, str) and mount.endswith("/storage-isolation:/app/ci-storage-isolation:ro")
+                   for mount in service["volumes"])

@@ -25,6 +25,9 @@ from backend.core.api.app.services.s3.replication import (
 from backend.core.api.app.services.storage_reference_service import reconcile_prepared_storage_tombstones
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
+from backend.shared.python_utils.storage_archive_rollout_config import (
+    archive_feature_enabled, archive_advancement_allowed,
+)
 from backend.shared.python_utils.object_storage_regions import resolve_regional_bucket_name
 
 logger = logging.getLogger(__name__)
@@ -32,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 async def enqueue_warm_archive_check(*, cache_service: Any, chat_id: str) -> bool:
     """Coalesce canonical writes; the durable SQL sweep recovers lost deliveries."""
-    if os.getenv("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED") != "1":
+    if not archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED"):
         return False
     client = await cache_service.client
     if not client:
@@ -51,7 +54,7 @@ async def enqueue_warm_archive_check(*, cache_service: Any, chat_id: str) -> boo
 @app.task(name="storage.copy_chat_checkpoint_archive", base=BaseServiceTask, bind=True)
 def copy_chat_checkpoint_archive(self: BaseServiceTask, *, chat_id: str, checkpoint_id: str) -> dict[str, Any]:
     """Copy an acknowledged checkpoint prefix; payload removal is separate."""
-    if os.getenv("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED") != "1":
+    if not archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED"):
         return {"state": "archive_copy_disabled"}
     async def run() -> dict[str, Any]:
         from backend.core.api.app.services.chat_message_archive_service import ArchiveIntegrityError, ChatMessageArchiveService
@@ -167,7 +170,7 @@ def process_storage_deletion_tombstone(
 @app.task(name="storage.archive_cold_chat", base=BaseServiceTask, bind=True)
 def archive_cold_chat(self: BaseServiceTask, *, chat_id: str) -> dict[str, Any]:
     """Copy one policy-eligible bounded prefix, without whole-graph deletion."""
-    if os.getenv("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED") != "1":
+    if not archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED"):
         return {"state": "archive_copy_disabled"}
     async def run() -> dict[str, Any]:
         from backend.core.api.app.services.chat_message_archive_service import (
@@ -211,7 +214,7 @@ async def dispatch_due_warm_chat_archives(
     cursor = await cache_service.get(cursor_key)
     if cursor is not None and not isinstance(cursor, str):
         raise RuntimeError("WARM_ARCHIVE_SWEEP_CURSOR_INVALID")
-    if os.getenv("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED") != "1":
+    if not archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED"):
         return 0
     service = ChatMessageArchiveService(directus_service=directus_service, s3_service=None)
     candidates = await service.transaction("policy_candidates", {
@@ -234,7 +237,7 @@ async def dispatch_due_warm_chat_archives(
 @app.task(name="storage.advance_chat_archive", base=BaseServiceTask, bind=True)
 def advance_chat_archive(self: BaseServiceTask, *, segment_id: str) -> dict[str, Any]:
     """Restart expired copies or advance one read/prune batch; all flags default off."""
-    if os.getenv("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED") != "1":
+    if not archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED"):
         return {"state": "archive_copy_disabled"}
     async def run() -> dict[str, Any]:
         from backend.core.api.app.services.chat_message_archive_service import (
@@ -254,6 +257,10 @@ def advance_chat_archive(self: BaseServiceTask, *, segment_id: str) -> dict[str,
                     if int(segment["lease_until"]) > int(datetime.now(timezone.utc).timestamp()):
                         return {"state": "archive_copy_in_progress"}
                     segment = await service.copy_segment(chat_id=segment["chat_id"], resume_segment_id=segment_id)
+                if segment["state"] in {"verified", "reader_active"}:
+                    phase = "read" if segment["state"] == "verified" else "prune"
+                    if not await archive_advancement_allowed(self.directus_service, phase=phase):
+                        return {"state": "deferred", "reason": "release_or_client_gate_pending"}
                 return await service.advance_segment(segment)
             except ArchiveIntegrityError as exc:
                 reason = str(exc)
@@ -278,7 +285,7 @@ async def dispatch_chat_archive_progress(*, directus_service: Any, cache_service
                                        now_timestamp: int) -> dict[str, int]:
     """Durable SQL intent is authoritative; Redis stores disposable scan cursors."""
     from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService, SEGMENTS
-    if os.getenv("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED") != "1":
+    if not archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED"):
         return {"archive_segments_dispatched": 0, "archive_checkpoints_dispatched": 0}
     service = ChatMessageArchiveService(directus_service=directus_service, s3_service=None)
     checkpoint_key = "storage:checkpoint_archive_cursor:v1"
@@ -293,9 +300,9 @@ async def dispatch_chat_archive_progress(*, directus_service: Any, cache_service
     for row in checkpoints["checkpoints"]:
         checkpoint_dispatch(row["chat_id"], row["id"])
     due = [{"_and": [{"state": {"_eq": "copying"}}, {"lease_until": {"_lte": now_timestamp}}]}]
-    if os.getenv("CHAT_MESSAGE_ARCHIVE_READS_ENABLED") == "1":
+    if archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_READS_ENABLED"):
         due.append({"state": {"_eq": "verified"}})
-    if os.getenv("CHAT_MESSAGE_ARCHIVE_PRUNE_ENABLED") == "1":
+    if archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_PRUNE_ENABLED"):
         due.append({"_and": [{"state": {"_eq": "reader_active"}}, {"source_copy_until": {"_lte": now_timestamp}}]})
     cursor_key = "storage:archive_progress_cursor:v1"
     cursor = await cache_service.get(cursor_key)

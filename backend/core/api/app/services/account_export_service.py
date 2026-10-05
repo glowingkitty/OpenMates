@@ -1104,25 +1104,25 @@ class AccountExportService:
         domain: str,
         filters: dict[str, Any],
     ) -> AsyncIterator[dict[str, Any]]:
+        from backend.core.api.app.services.cold_archive_export import (
+            ColdArchiveExportError, cold_archive_metadata, iter_cold_archive_parts,
+        )
+
         resource_types = COLD_RESOURCE_TYPES_BY_DOMAIN.get(domain)
         if not resource_types:
             return
-        cold = await self._cold_archive_references(user_id=user_id, team_id=team_id, resource_types=resource_types, filters=filters)
-        failures = [
-            {"domain": domain, "item_id": failure["item_id"], "reason": failure["reason"]}
-            for failure in cold["failures"]
-        ]
-        yielded = False
-        for start in range(0, len(cold["items"]), self.part_item_limit):
-            yielded = True
-            yield {
-                "source": "cold_archive_manifests+parts",
-                "items": [],
-                "cold_archives": cold["items"][start:start + self.part_item_limit],
-                "failures": failures if start == 0 else [],
-            }
-        if failures and not yielded:
-            yield {"source": "cold_archive_manifests+parts", "items": [], "cold_archives": [], "failures": failures}
+        async for manifest in self._iter_cold_export_manifests(
+            user_id=user_id, team_id=team_id, resource_types=resource_types, filters=filters,
+        ):
+            try:
+                # Each persisted chunk holds one admitted compressed part. An
+                # arbitrarily large archived graph never becomes one giant row.
+                async for part in iter_cold_archive_parts(self, manifest):
+                    yield {"source": "cold_archive_manifests+parts", "items": [],
+                           "cold_archives": [{**cold_archive_metadata(manifest), "parts": [part]}], "failures": []}
+            except ColdArchiveExportError as exc:
+                yield {"source": "cold_archive_manifests+parts", "items": [], "cold_archives": [],
+                       "failures": [{"domain": domain, "item_id": str(manifest.get("archive_id") or ""), "reason": str(exc)}]}
 
     async def _cold_archive_references(
         self,
@@ -1132,60 +1132,46 @@ class AccountExportService:
         resource_types: tuple[str, ...],
         filters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        from backend.core.api.app.services.cold_archive_export import ColdArchiveExportError, export_cold_archive
+
+        items: list[dict[str, Any]] = []
+        failures: list[dict[str, str]] = []
+        async for manifest in self._iter_cold_export_manifests(
+            user_id=user_id, team_id=team_id, resource_types=resource_types, filters=filters,
+        ):
+            try:
+                items.append(await export_cold_archive(self, manifest))
+            except ColdArchiveExportError as exc:
+                failures.append({"item_id": str(manifest.get("archive_id") or ""), "reason": str(exc)})
+        return {"items": items, "failures": failures}
+
+    async def _iter_cold_export_manifests(
+        self, *, user_id: str, team_id: str | None, resource_types: tuple[str, ...],
+        filters: dict[str, Any] | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
         scope_field = "hashed_team_id" if team_id else "hashed_user_id"
         scope_hash = _hash_id(team_id or user_id)
-        manifests = await self._get_items_bounded(
+        manifests = self._iter_items_bounded(
             collection="cold_archive_manifests",
             params={
-                "filter": {
-                    "_and": [
-                        {scope_field: {"_eq": scope_hash}},
-                        {"resource_type": {"_in": list(resource_types)}},
-                        {"state": {"_eq": "cold"}},
-                    ]
-                },
-                "fields": "id,archive_id,resource_type,resource_id,hashed_user_id,hashed_team_id,encrypted_listing_metadata,active_generation,part_count,state,archived_at",
+                "filter": {"_and": [
+                    {scope_field: {"_eq": scope_hash}},
+                    *([] if team_id else [{"hashed_team_id": {"_null": True}}]),
+                    {"resource_type": {"_in": list(resource_types)}},
+                    {"state": {"_eq": "cold"}},
+                ]},
+                "fields": "id,archive_id,resource_type,resource_id,hashed_user_id,hashed_team_id,encrypted_listing_metadata,active_generation,graph_checksum,part_count,state,archived_at",
                 "sort": "-archived_at,-archive_id",
             },
             admin_required=True,
         )
-        items: list[dict[str, Any]] = []
-        failures: list[dict[str, str]] = []
-        for manifest in manifests:
+        async for manifest in manifests:
+            if (manifest.get(scope_field) != scope_hash or (not team_id and manifest.get("hashed_team_id"))
+                    or manifest.get("state") != "cold" or manifest.get("resource_type") not in resource_types):
+                raise AccountExportAuthorizationError("Cold archive escaped authorized export scope")
             if filters and not _matches_export_filters(manifest, filters):
                 continue
-            archive_id = str(manifest.get("archive_id") or "")
-            generation = int(manifest.get("active_generation") or 0)
-            parts = await self._get_items_bounded(
-                collection="cold_archive_parts",
-                params={
-                    "filter": {
-                        "_and": [
-                            {"archive_id": {"_eq": archive_id}},
-                            {"generation": {"_eq": generation}},
-                        ]
-                    },
-                    "fields": "archive_id,part_id,part_number,generation,checksum,size_bytes,regional_states",
-                    "sort": "part_number",
-                },
-                admin_required=True,
-            )
-            expected_parts = int(manifest.get("part_count") or 0)
-            if expected_parts and len(parts) < expected_parts:
-                failures.append({"item_id": archive_id, "reason": "missing_cold_archive_part"})
-            items.append(
-                {
-                    "archive_id": archive_id,
-                    "resource_type": manifest.get("resource_type"),
-                    "resource_id": manifest.get("resource_id"),
-                    "active_generation": generation,
-                    "encrypted_listing_metadata": manifest.get("encrypted_listing_metadata"),
-                    "part_count": expected_parts,
-                    "archived_at": manifest.get("archived_at"),
-                    "parts": [_safe_cold_part(part) for part in parts],
-                }
-            )
-        return {"items": items, "failures": failures}
+            yield manifest
 
     async def _get_items_bounded(
         self,
@@ -1650,18 +1636,6 @@ def _chunk_manifest(chunk: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _safe_cold_part(part: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "archive_id": part.get("archive_id"),
-        "part_id": part.get("part_id"),
-        "part_number": part.get("part_number"),
-        "generation": part.get("generation"),
-        "checksum": part.get("checksum"),
-        "size_bytes": part.get("size_bytes"),
-        "regional_states": dict(part.get("regional_states") or {}),
-    }
-
-
 def _safe_task_archive_reference(row: dict[str, Any]) -> dict[str, Any]:
     reference = {"archive_s3_key": row.get("archive_s3_key"), "task_count": row.get("task_count")}
     if row.get("archived_at") is not None:
@@ -1685,7 +1659,10 @@ def _domain_count(payload: dict[str, Any]) -> int:
         count += len(runs)
     cold_archives = payload.get("cold_archives")
     if isinstance(cold_archives, list):
-        count += len(cold_archives)
+        # A cold graph may span several chunks. Count its first part once while
+        # subsequent parts retain the same archive identity for reconstruction.
+        count += sum(1 for archive in cold_archives if not archive.get("parts")
+                     or archive["parts"][0].get("part_number") == 1)
     return count
 
 

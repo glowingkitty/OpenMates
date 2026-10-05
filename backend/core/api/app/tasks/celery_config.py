@@ -27,6 +27,7 @@ from backend.core.api.app.tasks.base_task import (
     AI_CHAT_TASK_NAME,
     ai_chat_failure_identity,
 )
+from backend.shared.python_utils.storage_archive_rollout_config import archive_feature_enabled
 from backend.shared.python_utils.chat_failure_notifications import (
     notify_chat_failure_sync,
 )
@@ -213,6 +214,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.billing_settlement_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.embed_version_archive_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_rollout_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
     {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
     {'name': 'app_docs',    'module': 'backend.apps.docs.tasks'},  # DOCX artifact + preview generation tasks
@@ -1741,24 +1743,32 @@ app.conf.beat_schedule = {
     },
 }
 
-# Copying is safe and non-destructive, but rollout stays opt-in until the
-# isolated version-reader and storage capacity gates have passed.
-if os.getenv("EMBED_VERSION_ARCHIVE_COPY_ENABLED") == "1":
+# Retry signed release gates after updates, network interruptions and client
+# replacement. Durable per-unit copy/read/retention fences remain authoritative.
+app.conf.beat_schedule['advance-automatic-storage-migration'] = {
+    'task': 'storage.advance_automatic_migration',
+    'schedule': timedelta(seconds=60),
+    'options': {'queue': 'persistence', 'expires': 55},
+}
+
+# Copy jobs retain the source. Activation and pruning jobs recheck signed
+# release eligibility and durable per-unit fences before advancing.
+if archive_feature_enabled("EMBED_VERSION_ARCHIVE_COPY_ENABLED"):
     app.conf.beat_schedule['copy-older-embed-version-payloads'] = {
         'task': 'storage.copy_embed_version_payloads',
         'schedule': timedelta(minutes=30),
         'options': {'queue': 'persistence', 'expires': 1500},
     }
-if (os.getenv("EMBED_VERSION_ARCHIVE_COPY_ENABLED") == "1"
-        and os.getenv("EMBED_VERSION_ARCHIVE_READ_ENABLED") == "1"):
+if (archive_feature_enabled("EMBED_VERSION_ARCHIVE_COPY_ENABLED")
+        and archive_feature_enabled("EMBED_VERSION_ARCHIVE_READ_ENABLED")):
     app.conf.beat_schedule['activate-verified-embed-version-readers'] = {
         'task': 'storage.activate_embed_version_readers',
         'schedule': timedelta(minutes=30),
         'options': {'queue': 'persistence', 'expires': 1500},
     }
-if (os.getenv("EMBED_VERSION_ARCHIVE_COPY_ENABLED") == "1"
-        and os.getenv("EMBED_VERSION_ARCHIVE_READ_ENABLED") == "1"
-        and os.getenv("EMBED_VERSION_ARCHIVE_PRUNE_ENABLED") == "1"):
+if (archive_feature_enabled("EMBED_VERSION_ARCHIVE_COPY_ENABLED")
+        and archive_feature_enabled("EMBED_VERSION_ARCHIVE_READ_ENABLED")
+        and archive_feature_enabled("EMBED_VERSION_ARCHIVE_PRUNE_ENABLED")):
     app.conf.beat_schedule['prune-verified-embed-version-payloads'] = {
         'task': 'storage.prune_embed_version_payloads',
         'schedule': timedelta(minutes=30),

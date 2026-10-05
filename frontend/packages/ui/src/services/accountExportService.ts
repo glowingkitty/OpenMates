@@ -11,7 +11,7 @@
  */
 
 import JSZip from "jszip";
-import { getApiEndpoint, getApiUrl, apiEndpoints } from "../config/api";
+import { storageArchiveFetch, getApiEndpoint, getApiUrl, apiEndpoints } from "../config/api";
 import { chatDB } from "./db";
 import { convertChatToYaml, generateChatFilename } from "./chatExportService";
 import { tipTapToCanonicalMarkdown } from "../message_parsing/serializers";
@@ -576,7 +576,7 @@ function delay(milliseconds: number): Promise<void> {
 }
 
 async function accountExportRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(getApiEndpoint(path), {
+  const response = await storageArchiveFetch(getApiEndpoint(path), {
     ...init,
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -814,7 +814,7 @@ function safeArchiveSegment(value: string): string {
 // ============================================================================
 
 async function _fetchExportManifest(): Promise<ExportManifest> {
-  const response = await fetch(
+  const response = await storageArchiveFetch(
     getApiEndpoint(apiEndpoints.settings.exportAccountManifest),
     {
       method: "GET",
@@ -840,7 +840,7 @@ async function _fetchExportData(options: ExportOptions): Promise<ExportData> {
     include_settings: String(options.includeSettings),
     include_profile: String(options.includeProfile),
   });
-  const response = await fetch(
+  const response = await storageArchiveFetch(
     `${getApiEndpoint(apiEndpoints.settings.exportAccountData)}?${params}`,
     {
       method: "GET",
@@ -1027,7 +1027,7 @@ async function _downloadProfileImage(): Promise<Blob | null> {
   // Legacy public URL — fetch directly without auth
   if (url.startsWith("http://") || url.startsWith("https://")) {
     try {
-      const response = await fetch(url);
+      const response = await storageArchiveFetch(url);
       if (!response.ok) return null;
       return await response.blob();
     } catch (e) {
@@ -1042,7 +1042,7 @@ async function _downloadProfileImage(): Promise<Blob | null> {
   // Authenticated proxy path (e.g. /v1/users/{userId}/profile-image)
   try {
     const fullUrl = url.startsWith("/") ? `${getApiUrl()}${url}` : url;
-    const response = await fetch(fullUrl, { credentials: "include" });
+    const response = await storageArchiveFetch(fullUrl, { credentials: "include" });
     if (!response.ok) {
       console.warn(
         `[AccountExport] Profile image fetch failed: HTTP ${response.status}`,
@@ -1074,7 +1074,7 @@ async function _downloadInvoicePDFs(
     const batch = invoiceIds.slice(i, i + BATCH_SIZE);
     const results = await Promise.allSettled(
       batch.map(async (invoiceId) => {
-        const response = await fetch(
+        const response = await storageArchiveFetch(
           getApiEndpoint(
             apiEndpoints.payments.downloadInvoice.replace("{id}", invoiceId),
           ),

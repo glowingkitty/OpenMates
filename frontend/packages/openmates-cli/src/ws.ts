@@ -464,6 +464,7 @@ export class OpenMatesWsClient {
     const clientCapabilities = [
       "canonical_embed_receipts_v1",
       "typed_recovery_outputs_v2",
+      "agentic-storage-v2",
       ...(options.taskUpdateJobs !== false ? ["task_update_jobs"] : []),
       ...(options.projectFileJobs === true ? ["project_file_jobs"] : []),
       ...(options.remoteCommandJobs === true ? ["remote_command_jobs"] : []),

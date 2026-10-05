@@ -4,7 +4,7 @@
 // Projects use a project-specific AES key for metadata. Uploaded files are
 // represented as embeds first, then linked into a project via project_items.
 
-import { getApiEndpoint } from "../config/api";
+import { getApiEndpoint, storageArchiveFetch } from "../config/api";
 import { WorkspaceQueryCache, getWorkspaceCacheIdentity, WorkspaceCacheDiscardedError } from "./workspaceQueryCache";
 import { PROJECTS_CHANGED_EVENT } from "./projectBrowserEvents";
 import { getTeamKey } from './teamService';
@@ -277,6 +277,8 @@ export interface ProjectUploadLocation {
 
 export interface ProjectViewModel {
   project_id: string;
+  /** Team whose matching wrapper decrypted this Project; captured with the key. */
+  teamId?: string | null;
   name: string;
   description: string;
   icon: string;
@@ -358,7 +360,7 @@ function nowSeconds(): number {
 }
 
 async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(getApiEndpoint(path), {
+  const response = await storageArchiveFetch(getApiEndpoint(path), {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
@@ -392,6 +394,7 @@ export async function decryptProject(record: EncryptedProjectRecord): Promise<Pr
   if (!projectKey) return null;
   return {
     project_id: record.project_id,
+    teamId: teamWrapper && teamId ? teamId : null,
     name: await decryptOptional(record.encrypted_name, projectKey),
     description: await decryptOptional(record.encrypted_description, projectKey),
     icon: await decryptOptional(record.encrypted_icon, projectKey),
@@ -815,7 +818,7 @@ async function pollProjectRemoteResult(
     });
     let response: Response;
     try {
-      response = await fetch(getApiEndpoint(path), {
+      response = await storageArchiveFetch(getApiEndpoint(path), {
         credentials: "include",
         signal,
       });
@@ -928,7 +931,7 @@ function withProjectRemoteQuery(path: string, values: Record<string, string | nu
 async function requestRemoteJson<T>(path: string, init: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(getApiEndpoint(path), {
+    response = await storageArchiveFetch(getApiEndpoint(path), {
       credentials: "include",
       ...init,
       headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
@@ -1188,6 +1191,9 @@ export async function readEncryptedProjectFile(
   const content = await decodeHostedProjectFileContent(plaintext);
   const revision = Number(data.embed.version_number ?? 1);
   if (!Number.isSafeInteger(revision) || revision < 1) throw new Error("Invalid Project file revision");
+  // History uses this same client key. Keep it only in the existing ephemeral
+  // cache after current Project authorization and decryption have succeeded.
+  embedStore.setEmbedKeyInCache(embedId, embedKey);
   return {
     embedKey,
     content,
@@ -1210,7 +1216,7 @@ export async function getProjectFileRevisionReceipt(
     proposal_digest: proposalDigest,
     team_id: context.teamId,
   });
-  const response = await fetch(getApiEndpoint(path), {
+  const response = await storageArchiveFetch(getApiEndpoint(path), {
     credentials: "include",
   });
   if (response.status === 404) return null;

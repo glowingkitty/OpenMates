@@ -1090,6 +1090,7 @@ export class OpenMates {
       Authorization: `Bearer ${splitApiKeyCredential(this.apiKey ?? "").bearer}`,
       Origin: sdkOrigin(this.apiUrl),
       "X-OpenMates-SDK": this.sdkName,
+      "X-OpenMates-Client-Capabilities": "agentic-storage-v2",
       "X-OpenMates-Device-Identity": this.deviceId,
     };
     if (hasBody) {
@@ -1102,6 +1103,7 @@ export class OpenMates {
     return {
       Accept: "application/json",
       "X-OpenMates-SDK": this.sdkName,
+      "X-OpenMates-Client-Capabilities": "agentic-storage-v2",
       "X-OpenMates-Device-Identity": this.deviceId,
     };
   }

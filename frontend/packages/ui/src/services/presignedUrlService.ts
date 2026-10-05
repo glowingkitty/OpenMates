@@ -1,3 +1,4 @@
+import { storageArchiveFetch } from "../config/api";
 /**
  * frontend/packages/ui/src/services/presignedUrlService.ts
  *
@@ -55,7 +56,7 @@ export async function getPresignedUrl(s3Key: string): Promise<string> {
 
   let response: Response;
   try {
-    response = await fetch(endpoint, {
+    response = await storageArchiveFetch(endpoint, {
       method: "GET",
       credentials: "include", // Send session cookie for authentication
       signal: controller.signal,
@@ -103,12 +104,12 @@ export async function fetchWithPresignedUrl(
   try {
     // First attempt: get a presigned URL and fetch the blob
     let presignedUrl = await getPresignedUrl(s3Key);
-    let response = await fetch(presignedUrl, { signal: controller.signal });
+    let response = await storageArchiveFetch(presignedUrl, { signal: controller.signal });
 
     // If 403 (expired URL), retry once with a fresh presigned URL
     if (response.status === 403) {
       presignedUrl = await getPresignedUrl(s3Key);
-      response = await fetch(presignedUrl, { signal: controller.signal });
+      response = await storageArchiveFetch(presignedUrl, { signal: controller.signal });
     }
 
     if (!response.ok) {

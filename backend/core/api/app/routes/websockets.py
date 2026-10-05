@@ -8,6 +8,10 @@ from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.storage_archive_client_compatibility import (
+    REQUIRED_CAPABILITY, archive_phase_active, declares_archive_capability, invalidate_runtime_proof,
+)
+
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 from backend.core.api.app.services.notification_event_service import NotificationEventService
@@ -2442,6 +2446,29 @@ async def websocket_endpoint(
     supports_canonical_embed_receipts = "canonical_embed_receipts_v1" in connection_capabilities
     supports_typed_recovery_outputs = "typed_recovery_outputs_v2" in connection_capabilities
 
+    supports_storage_archive = declares_archive_capability(raw_capabilities)
+    if not supports_storage_archive:
+        # Invalidate a previously published zero-session proof before admission.
+        # Redis failure also closes the shared advancement verifier.
+        try:
+            async with asyncio.timeout(5):
+                await invalidate_runtime_proof(websocket.app)
+        except Exception:
+            logger.debug("Storage compatibility admission proof could not be invalidated")
+        try:
+            async with asyncio.timeout(5):
+                archive_active = await archive_phase_active(directus_service)
+        except Exception:
+            await websocket.accept()
+            await websocket.close(code=1013, reason="Storage compatibility temporarily unavailable")
+            return
+        if archive_active:
+            await websocket.accept()
+            await websocket.send_json({"type": "update_required", "payload": {
+                "required_capability": REQUIRED_CAPABILITY}})
+            await websocket.close(code=4406)
+            return
+
     # Extract user OTel attributes for privacy tier resolution (OTEL-02, OTEL-06).
     # These are set once per connection and passed to every handler span.
     # auth_data["user_data"] is the session cache dict from auth_ws.py.
@@ -2463,6 +2490,7 @@ async def websocket_endpoint(
         supports_chat_metadata_recovery=supports_chat_metadata_recovery,
         supports_project_file_jobs=supports_project_file_jobs,
         supports_remote_command_jobs=supports_remote_command_jobs,
+        supports_storage_archive=supports_storage_archive,
         supports_canonical_embed_receipts=supports_canonical_embed_receipts,
         supports_typed_recovery_outputs=supports_typed_recovery_outputs,
         volatile_session_revoker=lambda nonce: revoke_volatile_ai_live_session(
@@ -2655,6 +2683,25 @@ async def websocket_endpoint(
                     cache_service, user_id, presence_connection_id, presence_foreground,
                     manager.get_active_chat(user_id, device_fingerprint_hash),
                 )
+
+            # Recheck connections admitted before activation. The legacy full-chat
+            # operation reads only PostgreSQL and cannot return an archived chat.
+            if not supports_storage_archive or message_type == "get_chat_messages":
+                try:
+                    async with asyncio.timeout(5):
+                        archive_active = await archive_phase_active(directus_service)
+                except Exception:
+                    await websocket.send_json({"type": "error", "payload": {
+                        "message": "Storage compatibility temporarily unavailable"}})
+                    continue
+                if archive_active:
+                    await websocket.send_json({"type": "update_required", "payload": {
+                        "required_capability": REQUIRED_CAPABILITY,
+                        "use_bounded_reader": message_type == "get_chat_messages"}})
+                    if not supports_storage_archive:
+                        await websocket.close(code=4406)
+                        break
+                    continue
 
             # Process different message types
             if message_type == "update_draft":

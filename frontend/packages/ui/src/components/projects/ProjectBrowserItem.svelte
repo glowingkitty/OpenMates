@@ -28,6 +28,8 @@
     viewMode = 'tile',
     onOpenFullscreen,
     loadProjectEmbed,
+    projectId,
+    teamId,
     displayName = item.displayName,
     chatPresentation,
   }: {
@@ -35,6 +37,8 @@
     viewMode?: 'tile' | 'list';
     onOpenFullscreen: (detail: EmbedFullscreenDispatchDetail) => void;
     loadProjectEmbed?: (item: ProjectItemViewModel) => Promise<ProjectBrowserResolvedEmbed | null>;
+    projectId?: string;
+    teamId?: string | null;
     displayName?: string;
     chatPresentation?: ProjectChatPresentation | null;
   } = $props();
@@ -133,6 +137,8 @@
   function openEmbedFullscreen(embedData: Record<string, unknown>, decodedContent: Record<string, unknown>): void {
     const detail: EmbedFullscreenDispatchDetail = {
       embedId: item.target_id,
+      projectId,
+      teamId,
       embedData,
       decodedContent,
       embedType: String(decodedContent.type || item.metadata.embed_type || 'app-skill-use'),

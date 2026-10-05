@@ -46,6 +46,8 @@
      * PII toggle and the embed fullscreen's PII toggle in sync. See OPE-400.
      */
     chatId?: string;
+    projectId?: string;
+    teamId?: string | null;
   }
 
   let {
@@ -62,6 +64,8 @@
     piiMappings = [],
     piiRevealed = false,
     chatId,
+    projectId,
+    teamId,
   }: Props = $props();
 
   // ── Extract fields from data.decodedContent ─────────────────────────────────
@@ -259,6 +263,8 @@
       <EmbedVersionTimeline
           {embedId}
           {chatId}
+        {projectId}
+        {teamId}
           currentVersion={versionNumber}
           currentContent={latestMailContent}
           buildRestoredContent={(versionContent, newVersion) => ({

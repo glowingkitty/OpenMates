@@ -20,6 +20,7 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+import signal
 
 MIB = 1024**2
 GIB = 1024**3
@@ -442,6 +443,7 @@ def compose_profile(
     ]
     if storage_capacity:
         source_mounts.append(f"{SOURCE}/test-results/ci-private/capacity-receipts:/app/capacity-receipts")
+        source_mounts.append(f"{SOURCE}/test-results/ci-private/storage-isolation:/app/ci-storage-isolation:ro")
     if storage_accountability:
         source_mounts.append(f"{SOURCE}/test-results/ci-private/accountability:/app/ci-accountability")
     api = {
@@ -978,6 +980,11 @@ def main():
         COMPOSE_PATH.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         if storage_capacity:
             (COMPOSE_PATH.parent / "capacity-receipts").mkdir(parents=True, exist_ok=True, mode=0o700)
+            isolation_private = COMPOSE_PATH.parent / "storage-isolation"
+            isolation_private.mkdir(parents=True, exist_ok=True, mode=0o700)
+            if isolation_private.is_symlink():
+                raise RuntimeError("Storage isolation proof bind cannot be a symlink")
+            isolation_private.chmod(0o700)
         if storage_accountability:
             private = COMPOSE_PATH.parent / "accountability"
             private.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -1093,7 +1100,14 @@ def main():
             if evidence.get("storage_capacity") and (service in {"api", "core-worker"} or service.startswith("ai-worker")):
                 runtime_names = {entry.split("=", 1)[0] for entry in info["Config"].get("Env", [])}
                 forbidden = {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "TOGETHER_API_KEY"}
-                if runtime_names.intersection(forbidden):
+                runtime_source = next((entry.partition("=")[2] for entry in info["Config"].get("Env", [])
+                                       if entry.startswith("BUILD_COMMIT_SHA=")), "")
+                if runtime_source != evidence["source_commit"]:
+                    raise RuntimeError("Mounted candidate runtime source differs from verified source")
+                if (runtime_names.intersection(forbidden) or any(
+                        name.startswith("SECRET__") and any(provider in name.upper() for provider in (
+                            "OPENAI", "ANTHROPIC", "GOOGLE", "GEMINI", "OPENROUTER", "GROQ", "CEREBRAS", "TOGETHER", "MISTRAL",
+                        )) for name in runtime_names)):
                     raise RuntimeError("Capacity container has live inference credentials")
             if (
                 info["Config"]["Labels"].get("org.openmates.source")
@@ -1157,9 +1171,86 @@ def main():
             shared_dev_https="rejected",
             runner_environment=os.environ["RUNNER_ENVIRONMENT"],
         )
+        if evidence.get("storage_capacity"):
+            # Reuse the verified network/source/runtime checks above. Vault
+            # inspection returns only the provider key names, never values.
+            vault_check = """import os, requests
+response=requests.request('LIST','http://vault:8200/v1/kv/metadata/providers',headers={'X-Vault-Token':os.environ['VAULT_DEV_ROOT_TOKEN_ID']},timeout=10)
+response.raise_for_status()
+assert sorted(response.json().get('data',{}).get('keys',[])) == ['core_server','hetzner'], 'Unexpected provider key namespace in isolated Vault'
+"""
+            # The Vault image's busybox wget lacks portable LIST support. Use
+            # the API image's requests client through a fresh one-shot runner
+            # carrying only the generated CI root token from private profile.
+            vault_keys = subprocess.run(
+                ["docker", "run", "--rm", "--network", "openmates-ci_default", "-e", "VAULT_DEV_ROOT_TOKEN_ID",
+                 "openmates-ci-api:local", "python", "-c", vault_check],
+                env={**os.environ, "VAULT_DEV_ROOT_TOKEN_ID": profile["services"]["vault"]["environment"]["VAULT_DEV_ROOT_TOKEN_ID"]},
+                capture_output=True, text=True, timeout=30,
+            )
+            if vault_keys.returncode:
+                raise RuntimeError("Isolated storage Vault provider namespace is unverified")
+            proof = {
+                "schema": "agentic-storage-ci-isolation-v1", "source_commit": evidence["source_commit"],
+                "harness_commit": evidence["harness_commit"], "run_id": str(evidence["run_id"]),
+                "environment": "github-isolated", "observed_at": int(time.time()),
+                "expires_at": int(time.time()) + 90000,
+                "provider_network": "internal", "provider_credentials": "absent",
+                "vault_provider_keys": ["core_server", "hetzner"],
+                "source_mount": "read_only_exact_candidate", "shared_dev_dns": "rejected",
+                "shared_dev_https": "rejected", "object_storage": "authenticated_disposable_roundtrip",
+            }
+            proof_path = COMPOSE_PATH.parent / "storage-isolation/proof.json"
+            temporary_proof = proof_path.with_suffix(".tmp")
+            temporary_proof.write_text(json.dumps(proof, sort_keys=True), encoding="utf-8")
+            temporary_proof.chmod(0o444)
+            temporary_proof.replace(proof_path)
+            inventory_refresh = subprocess.run([sys.executable, str(Path(SOURCE) / "scripts/storage_runtime_inventory.py"),
+                                                "refresh", "--compose-file", str(COMPOSE_PATH)],
+                                               capture_output=True, text=True, timeout=90)
+            if inventory_refresh.returncode or json.loads(inventory_refresh.stdout).get("status") != "published":
+                raise RuntimeError("Isolated API process inventory is unverified")
+            # CI does not install host systemd services. Its disposable runner
+            # refreshes the same actual-process inventory throughout the job.
+            inventory_log = COMPOSE_PATH.parent / "storage-inventory.log"
+            with inventory_log.open("ab") as output:
+                inventory_process = subprocess.Popen([sys.executable, str(Path(SOURCE) / "scripts/storage_runtime_inventory.py"),
+                                                      "refresh", "--compose-file", str(COMPOSE_PATH), "--loop"],
+                                                     stdout=output, stderr=output, start_new_session=True)
+            inventory_pid = COMPOSE_PATH.parent / "storage-inventory.pid"
+            inventory_pid.write_text(str(inventory_process.pid), encoding="ascii")
+            inventory_pid.chmod(0o600)
+            # Fixture gates are source-bound and remain usable only while the
+            # independent isolation proof and real API runtime guard are live.
+            fixture_setup = """import asyncio, os
+from backend.core.api.app.tasks.base_task import BaseServiceTask
+from scripts.storage_rollout import COLLECTIONS, write_rollout
+async def run():
+    task=BaseServiceTask()
+    try:
+        await task.initialize_core_services()
+        receipt='ci-storage-capacity:'+os.environ['BUILD_COMMIT_SHA']
+        for name in COLLECTIONS:
+            await write_rollout(task.directus_service,name,{'read_enabled':True,'pruning_enabled':True,'initial_cohort':False,'compatibility_verified':True,'reader_receipt':receipt,'validation_receipt':receipt,'failure_code':None})
+    finally:
+        await task.cleanup_services()
+asyncio.run(run())
+"""
+            compose("exec", "-T", "api", "python", "-c", fixture_setup, capture=True, timeout=60)
+            evidence["storage_isolation_proof"] = {"source_bound": True, "read_only_bind": True, "vault_provider_namespace": "disposable_only"}
         evidence_path.write_text(json.dumps(evidence, indent=2))
     elif action == "stop":
         if COMPOSE_PATH.exists():
+            inventory_pid = COMPOSE_PATH.parent / "storage-inventory.pid"
+            if inventory_pid.is_file():
+                try:
+                    pid = int(inventory_pid.read_text())
+                    args = Path(f"/proc/{pid}/cmdline").read_bytes().decode().split("\0")
+                    if (str(Path(SOURCE) / "scripts/storage_runtime_inventory.py") in args
+                            and str(COMPOSE_PATH) in args and "--loop" in args):
+                        os.kill(pid, signal.SIGTERM)
+                except (OSError, ValueError, UnicodeError):
+                    pass
             compose("down", "--volumes", "--remove-orphans", "--timeout", "20")
             for kind, command in (("containers", ["docker", "ps", "-aq"]), ("volumes", ["docker", "volume", "ls", "-q"])):
                 remaining = subprocess.check_output([*command, "--filter", "label=com.docker.compose.project=openmates-ci"], text=True).strip()

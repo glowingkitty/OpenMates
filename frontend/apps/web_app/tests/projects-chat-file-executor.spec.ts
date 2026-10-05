@@ -443,12 +443,26 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await expect(item).toBeVisible({ timeout: 30_000 });
       const hostedPreview = item.locator('.unified-embed-preview');
       await expect(hostedPreview).toHaveAttribute('aria-disabled', 'false', { timeout: 30_000 });
+      const versionMetadata = page.waitForRequest((request) => {
+        const url = new URL(request.url());
+        return /\/v1\/embeds\/[^/]+\/versions$/.test(url.pathname)
+          && url.searchParams.get('project_id') === projectId;
+      });
       await hostedPreview.click();
       const overlay = page.getByTestId('embed-fullscreen-overlay').last();
       await expect(overlay).toBeVisible({ timeout: 30_000 });
       expect(await readFullscreenCodeLines(overlay)).toEqual([marker, 'updated', 'owner@example.invalid', '']);
       await expect(overlay.getByTestId('embed-version-timeline')).toBeVisible({ timeout: 30_000 });
       await expect(overlay.getByTestId('version-dot-2')).toBeVisible();
+      expect(new URL((await versionMetadata).url()).searchParams.has('chat_id')).toBe(false);
+      const exactHistory = page.waitForRequest((request) => {
+        const url = new URL(request.url());
+        return /\/v1\/embeds\/[^/]+\/versions\/1$/.test(url.pathname)
+          && url.searchParams.get('project_id') === projectId;
+      });
+      await overlay.getByTestId('version-dot-1').click();
+      expect(new URL((await exactHistory).url()).searchParams.has('chat_id')).toBe(false);
+      await expect.poll(() => readFullscreenCodeLines(overlay)).toEqual([marker, 'original', 'owner@example.invalid', '']);
       await closeFullscreen(page, overlay);
       console.log('Hosted Project proof: historical mention opened the Project and both revisions.');
 

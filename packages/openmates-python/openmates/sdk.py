@@ -558,6 +558,7 @@ class OpenMates:
             "Authorization": f"Bearer {_split_api_key_credential(self._api_key or '')[0]}",
             "Origin": origin,
             "X-OpenMates-SDK": "pip",
+            "X-OpenMates-Client-Capabilities": "agentic-storage-v2",
             "X-OpenMates-Device-Identity": self._device_id,
         }
         if has_body:
@@ -568,6 +569,7 @@ class OpenMates:
         return {
             "Accept": "application/json",
             "X-OpenMates-SDK": "pip",
+            "X-OpenMates-Client-Capabilities": "agentic-storage-v2",
             "X-OpenMates-Device-Identity": self._device_id,
         }
 

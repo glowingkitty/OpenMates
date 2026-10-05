@@ -128,6 +128,7 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
     "typed_recovery_outputs_v2",
     ...(projectFileJobsCapabilityEnabled ? ["project_file_jobs"] : []),
     ...(remoteCommandJobsCapabilityEnabled ? ["remote_command_jobs"] : []),
+    "agentic-storage-v2",
   ];
   if (clientCapabilities.length > 0) {
     params.push(`client_capabilities=${clientCapabilities.join(",")}`);
@@ -390,4 +391,15 @@ export function getPreviewUrl(): string {
     default:
       return previewUrls.development;
   }
+}
+
+/** Fetch an archive-aware API response without changing external downloads. */
+export function storageArchiveFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const apiUrl = new URL(getApiUrl());
+  const requestUrl = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url, apiUrl);
+  if (requestUrl.origin !== apiUrl.origin) return globalThis.fetch(input, init);
+  const requestHeaders = typeof input === "object" && "headers" in input ? input.headers : undefined;
+  const headers = new Headers(init?.headers ?? requestHeaders);
+  headers.set("X-OpenMates-Client-Capabilities", "agentic-storage-v2");
+  return globalThis.fetch(input, { ...init, headers });
 }

@@ -18,7 +18,7 @@ import { authStore } from "../stores/authState";
 import { get } from "svelte/store";
 import { activeChatStore } from "../stores/activeChatStore";
 import { activeTeamId } from "../stores/teamStore";
-import { getApiEndpoint } from "../config/api";
+import { getApiEndpoint, storageArchiveFetch } from "../config/api";
 
 /**
  * Tracks embed IDs that are known to be in an error or cancelled state.
@@ -52,7 +52,7 @@ async function fetchEncryptedEmbedForChat(embedId: string, chatId: string, teamI
   const path = shared
     ? `/v1/share/chat/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}`
     : `/v1/embeds/chats/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}`;
-  const response = await fetch(getApiEndpoint(`${path}${suffix}`), { credentials: "include" });
+  const response = await storageArchiveFetch(getApiEndpoint(`${path}${suffix}`), { credentials: "include" });
   if (response.status === 404) return false;
   if (!response.ok) throw new Error(`Embed read failed (${response.status})`);
   const page = await response.json();
@@ -74,7 +74,7 @@ async function fetchEncryptedEmbedForChat(embedId: string, chatId: string, teamI
     const keyPath = shared
       ? `/v1/share/chat/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}/keys/window`
       : `/v1/embeds/chats/${encodeURIComponent(chatId)}/keys/window`;
-    const keyResponse = await fetch(getApiEndpoint(`${keyPath}?${keyParams}`), { credentials: "include" });
+    const keyResponse = await storageArchiveFetch(getApiEndpoint(`${keyPath}?${keyParams}`), { credentials: "include" });
     if (!keyResponse.ok) throw new Error(`Embed key read failed (${keyResponse.status})`);
     const keyPage = await keyResponse.json();
     if (oversizedId && (!Array.isArray(keyPage.embed_keys)
@@ -109,7 +109,7 @@ async function fetchEncryptedEmbedForChat(embedId: string, chatId: string, teamI
       ["notebook_run_outputs", page.notebook_run_output_id, "notebook_embed_id"],
     ] as const) {
       if (typeof selectedId !== "string" || !selectedId) continue;
-      const sidecarResponse = await fetch(getApiEndpoint(
+      const sidecarResponse = await storageArchiveFetch(getApiEndpoint(
         `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/${kind}/${encodeURIComponent(selectedId)}`,
       ));
       if (!sidecarResponse.ok) throw new Error(`Shared embed output failed (${sidecarResponse.status})`);

@@ -1354,7 +1354,9 @@ class S3UploadService:
             raise storage_unavailable_error() from exc
         return (response.get('Metadata') or {}).get('openmates-sha256') == checksum
 
-    async def get_file(self, bucket_name: str, object_key: str) -> Optional[bytes]:
+    async def get_file(
+        self, bucket_name: str, object_key: str, *, max_bytes: int | None = None,
+    ) -> Optional[bytes]:
         """
         Download a file from S3 and return its content as bytes.
         
@@ -1368,6 +1370,8 @@ class S3UploadService:
         Raises:
             HTTPException: If the download fails due to service unavailability
         """
+        if max_bytes is not None and (not isinstance(max_bytes, int) or isinstance(max_bytes, bool) or max_bytes < 1):
+            raise ValueError("max_bytes must be a positive integer")
         # Ensure client is initialized before proceeding
         if not self.client:
             logger.error("S3 service not initialized. Cannot download file.")
@@ -1402,7 +1406,21 @@ class S3UploadService:
                     # boto3 get_object + Body.read() are synchronous network calls.
                     def _download() -> bytes:
                         response = candidate_client.get_object(Bucket=candidate_bucket, Key=object_key)
-                        return response['Body'].read()
+                        body = response['Body']
+                        try:
+                            if max_bytes is None:
+                                return body.read()
+                            length = response.get('ContentLength')
+                            if isinstance(length, int) and length > max_bytes:
+                                raise ValueError("Object exceeds the admitted read budget")
+                            content = body.read(max_bytes + 1)
+                            if len(content) > max_bytes:
+                                raise ValueError("Object exceeds the admitted read budget")
+                            return content
+                        finally:
+                            close = getattr(body, 'close', None)
+                            if close is not None:
+                                close()
 
                     file_content = await asyncio.to_thread(_download)
                     break

@@ -377,6 +377,7 @@ def scenario_billing(api_url: str, skip_build: bool) -> dict[str, Any]:
     return {"status": "passed", "team_id_prefix": team_id[:8]}
 
 
+# contract-test: direct surface=cli assertions=storage.export.persisted-bounded-complete,teams.workspace.surface-parity,teams.membership.role-gated,teams.chat-billing.team-credit-boundary
 def scenario_data_portability(api_url: str, skip_build: bool) -> dict[str, Any]:
     setup_cli(api_url, skip_build)
     source_team_id = create_test_team("CLI Teams export")
@@ -391,8 +392,45 @@ def scenario_data_portability(api_url: str, skip_build: bool) -> dict[str, Any]:
             artifact["rewrapped_with_destination_team_key"] = True
             export_path.write_text(f"{json.dumps(artifact, indent=2)}\n", encoding="utf-8")
             destination_team_id = create_test_team("CLI Teams import")
+            rejected_authority = run_cli_failure(["teams", "import", "--file", str(export_path), "--team", destination_team_id])
+            require("Server-controlled Team records cannot be imported" in rejected_authority,
+                    "Full Team artifact replay did not reject server-controlled memberships or credit ledgers")
+            # Selected client ciphertext metadata has an explicit import path;
+            # memberships, invitations and financial ledgers remain read-only
+            # export records and can only change through their owning APIs.
+            artifact = {
+                **artifact,
+                "collections": {key: artifact["collections"].get(key, []) for key in (
+                    "user_app_settings_and_memories", "connected_accounts", "team_connected_account_grants",
+                )},
+            }
+            export_path.write_text(f"{json.dumps(artifact, indent=2)}\n", encoding="utf-8")
             imported = run_cli_json(["teams", "import", "--file", str(export_path), "--team", destination_team_id])
             require(imported.get("success") is True, "Team import did not report success")
+
+            # The selected-metadata importer must reject content restoration
+            # before inserting metadata, instead of reporting a lossy success.
+            before_path = Path(tmp) / "destination-before.json"
+            run_cli_json(["teams", "export", destination_team_id, "--output", str(before_path)])
+            before = json.loads(before_path.read_text(encoding="utf-8"))["collections"]
+            unsupported = {
+                **artifact,
+                "collections": {
+                    "user_app_settings_and_memories": [{
+                        "owner_context": "team", "hashed_team_id": artifact["hashed_team_id"],
+                        "encrypted_item_json": "disposable-test-ciphertext",
+                    }],
+                    "chats": [{"id": "unsupported-restoration-test"}],
+                },
+            }
+            rejected_path = Path(tmp) / "unsupported-restore.json"
+            rejected_path.write_text(json.dumps(unsupported), encoding="utf-8")
+            rejected = run_cli_failure(["teams", "import", "--file", str(rejected_path), "--team", destination_team_id])
+            require("400" in rejected, "Unsupported Team restore did not fail visibly")
+            after_path = Path(tmp) / "destination-after.json"
+            run_cli_json(["teams", "export", destination_team_id, "--output", str(after_path)])
+            after = json.loads(after_path.read_text(encoding="utf-8"))["collections"]
+            require(after == before, "Rejected Team restore mutated destination metadata")
     finally:
         if destination_team_id:
             cleanup_team(destination_team_id)

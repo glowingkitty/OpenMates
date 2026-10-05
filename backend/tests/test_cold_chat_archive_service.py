@@ -9,6 +9,7 @@ Contract: architecture.storage-lifecycle.
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 import hashlib
 import gzip
 import json
@@ -134,13 +135,30 @@ class RegionalFailoverS3(FakeS3):
             yield content[offset : offset + chunk_size]
 
 
-def sparse_directus(directus: FakeDirectus | None = None) -> FakeDirectus:
-    directus = directus or FakeDirectus()
-    for collection in (*ARCHIVE_COLLECTIONS_BY_CHAT_ID, "embeds", "embed_keys", "chat_key_wrappers"):
-        if collection != "messages":
-            directus.collections[collection] = []
-    directus.collections["chats"][0]["hashed_user_id"] = hashlib.sha256(b"alice").hexdigest()
-    return directus
+async def existing_archive_fixture(service, *, now=40 * 86_400):
+    """Construct a historical archive without invoking a held migration path."""
+    directus, store = service.directus_service, service.s3_service
+    graph = await service._collect_chat_graph(directus.collections["chats"][0])
+    regions = sorted(store.region_clients)
+    parts = []
+    for number, content in enumerate(service._build_parts("archive-1", 1, graph), 1):
+        key = f"historical/archive-1/part-{number}.gz"
+        checksum = hashlib.sha256(content).hexdigest()
+        for region in regions:
+            await store.upload_file(bucket_key=COLD_ARCHIVE_BUCKET_KEY, file_key=key, content=content,
+                                    content_type="application/gzip", metadata={}, region=region)
+            assert await store.verify_regional_object(bucket_key=COLD_ARCHIVE_BUCKET_KEY, object_key=key,
+                                                       region=region, checksum=checksum)
+        parts.append({"id": f"part-{number}", "archive_id": "archive-1", "generation": 1,
+                      "logical_bucket": COLD_ARCHIVE_BUCKET_KEY, "object_key": key, "checksum": checksum,
+                      "size_bytes": len(content), "regional_states": {region: "verified" for region in regions}})
+    manifest = {"id": "manifest-1", "archive_id": "archive-1", "resource_id": "chat-1",
+                "active_generation": 1, "state": "cold", "part_count": len(parts),
+                "graph_checksum": service._graph_checksum(graph), "verified_regions": regions,
+                "file_references": service._file_references(graph), "archived_at": now}
+    directus.collections["cold_archive_parts"] = parts
+    directus.collections["cold_archive_manifests"] = [manifest]
+    return manifest
 
 
 # contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs
@@ -159,184 +177,27 @@ def test_eligibility_rejects_recent_pinned_shared_and_processing_chats() -> None
 
 # contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs,storage.files.reference-safe-single-copy
 @pytest.mark.asyncio
-async def test_complete_graph_verifies_every_region_before_hot_child_deletion() -> None:
+async def test_complete_graph_policy_hold_retains_every_head_key_and_metadata_row() -> None:
     directus = FakeDirectus()
+    original = deepcopy(directus.collections)
     service = ColdArchiveService(directus_service=directus, s3_service=FakeS3())
-
-    result = await service.archive_chat("chat-1", now_timestamp=40 * 86_400)
-
-    assert result["state"] == "cold"
-    assert result["verified_regions"] == ["fsn1", "hel1", "nbg1"]
-    assert directus.collections["chats"]
-    assert directus.collections["messages"] == []
-    assert directus.collections["embeds"] == []
-    assert {row["id"] for row in directus.collections["embed_keys"]} == {
-        "embed-key-master",
-        "embed-key-foreign",
-    }
-    manifest = directus.collections["cold_archive_manifests"][0]
-    assert manifest["file_references"] == [{"logical_bucket": "chatfiles", "object_key": "files/shared.enc"}]
-    assert directus.events.index(("create", "cold_archive_manifests")) < directus.events.index(("delete", "messages"))
-    created_manifest = next(payload for collection, payload in directus.created_payloads if collection == "cold_archive_manifests")
-    assert created_manifest["state"] == "preparing"
-
-
-# contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs,storage-resilience.core.s3-is-noncritical
-def test_celery_archive_uses_storage_clients_without_remote_reconciliation(monkeypatch) -> None:
-    """An enabled bounded archive task uses clients without remote setup."""
-    from backend.core.api.app.tasks import base_task, storage_tasks
-    from backend.core.api.app.services import chat_message_archive_service
-
-    directus = FakeDirectus()
-    storage = FakeS3()
-    cache_checks: list[str] = []
-    init_modes: list[bool] = []
-    archive_calls: list[str] = []
-
-    async def initialize_storage(*, configure_buckets: bool = True) -> None:
-        init_modes.append(configure_buckets)
-        if configure_buckets:
-            raise RuntimeError("object_storage_reconciliation_failed")
-
-    async def get_active_ai_task(chat_id: str) -> None:
-        cache_checks.append(chat_id)
-        return None
-
-    async def initialize_core_services(task) -> None:
-        task._directus_service = directus
-        task._secrets_manager = object()
-        task._cache_service = type("Cache", (), {"get_active_ai_task": staticmethod(get_active_ai_task)})()
-
-    async def cleanup_services(_task) -> None:
-        pass
-
-    class ArchiveService:
-        def __init__(self, *, directus_service, s3_service):
-            assert directus_service is directus and s3_service is storage
-
-        async def copy_segment(self, *, chat_id):
-            archive_calls.append(chat_id)
-            return {"state": "copied", "verified_regions": ["fsn1", "hel1", "nbg1"]}
-
-    storage.initialize = initialize_storage
-    monkeypatch.setenv("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED", "1")
-    monkeypatch.setattr(chat_message_archive_service, "ChatMessageArchiveService", ArchiveService)
-    monkeypatch.setattr(base_task, "S3UploadService", lambda **_kwargs: storage)
-    monkeypatch.setattr(base_task.BaseServiceTask, "initialize_core_services", initialize_core_services)
-    monkeypatch.setattr(base_task.BaseServiceTask, "cleanup_services", cleanup_services)
-    task = storage_tasks.archive_cold_chat
-    for name in (
-        "_s3_service", "_invoice_template_service", "_credit_note_template_service",
-        "_email_template_service", "_translation_service", "_invoice_ninja_service",
-        "_payment_service",
-    ):
-        monkeypatch.setattr(task, name, None if name == "_s3_service" else object(), raising=False)
-
-    result = task.run(chat_id="chat-1")
-
-    assert init_modes == [False]
-    assert result == {"state": "copied", "verified_regions": ["fsn1", "hel1", "nbg1"]}
-    assert cache_checks == ["chat-1"]
-    assert archive_calls == ["chat-1"]
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("timeout_first_upload", [False, True])
-# contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs,storage.replication.active-write-durable-outbox
-async def test_complete_archive_through_signed_s3_requests_verifies_before_removing_hot_graph(monkeypatch, timeout_first_upload):
-    """Exercise the archive pipeline through the real SDK, with offline S3 HTTP responses."""
-    from botocore.awsrequest import AWSResponse
-    from backend.tests.s3_service_test_support import load_s3_service_module
-    from backend.tests.test_s3_multi_region_service import FakeSecretsManager
-
-    module = load_s3_service_module()
-    monkeypatch.setenv("S3_REGIONS", "nbg1,fsn1,hel1")
-    monkeypatch.delenv("S3_ENDPOINT_URL", raising=False)
-    directus = FakeDirectus()
-    directus.collections["storage_replication_jobs"] = []
-    s3 = module.S3UploadService(FakeSecretsManager(), directus_service=directus)
-    await s3.initialize(configure_buckets=False)
-    objects = {}
-    uploads = []
-
-    class EmptyResponse:
-        def stream(self, *_args, **_kwargs):
-            yield b""
-
-    def respond(request, **_kwargs):
-        headers = {name.lower(): value.decode() if isinstance(value, bytes) else value
-                   for name, value in request.headers.items()}
-        assert headers["authorization"].startswith("AWS4-HMAC-SHA256 ")
-        if request.method == "PUT":
-            body = request.body.read()
-            # These assertions reject SigV2 and aws-chunked trailer bodies.
-            assert headers["x-amz-content-sha256"] == hashlib.sha256(body).hexdigest()
-            assert "aws-chunked" not in headers.get("content-encoding", "")
-            assert headers["content-type"] == "application/gzip"
-            objects[request.url] = (body, headers)
-            uploads.append(request.url)
-            return AWSResponse(request.url, 200, {}, EmptyResponse())
-        body, stored_headers = objects[request.url]
-        return AWSResponse(request.url, 200, {
-            "content-length": str(len(body)),
-            "x-amz-meta-openmates-sha256": stored_headers["x-amz-meta-openmates-sha256"],
-        }, EmptyResponse())
-
-    for client in (*s3.upload_region_clients.values(), *s3.region_clients.values()):
-        client.meta.events.register("before-send.s3", respond)
-
-    retry_configs = []
-    if timeout_first_upload:
-        from unittest.mock import AsyncMock
-
-        class TimeoutClient:
-            def put_object(self, **_kwargs):
-                raise module.ReadTimeoutError(endpoint_url="https://storage.example.test")
-
-        s3.upload_region_clients["fsn1"] = TimeoutClient()
-        original_client = module.boto3.client
-
-        def retry_client(*args, **kwargs):
-            retry_configs.append(kwargs["config"])
-            client = original_client(*args, **kwargs)
-            client.meta.events.register("before-send.s3", respond)
-            return client
-
-        monkeypatch.setattr(module.boto3, "client", retry_client)
-        monkeypatch.setattr(module.asyncio, "sleep", AsyncMock())
-
-    manifest = await ColdArchiveService(directus_service=directus, s3_service=s3).archive_chat(
-        "chat-1", now_timestamp=40 * 86_400,
-    )
-
-    assert manifest["state"] == "cold"
-    assert manifest["verified_regions"] == ["fsn1", "hel1", "nbg1"]
-    assert len(uploads) == 3
-    assert len(directus.collections["storage_replication_jobs"]) == 3
-    if timeout_first_upload:
-        assert [config.read_timeout for config in retry_configs] == [30]
-    assert directus.collections["messages"] == []
-    assert directus.collections["embeds"] == []
-    assert directus.events.index(("create", "storage_replication_jobs")) < directus.events.index(("delete", "messages"))
+    with pytest.raises(ColdArchiveConflictError, match="FULL_GRAPH_PRUNING_POLICY_PENDING"):
+        await service.archive_chat("chat-1", now_timestamp=40 * 86_400)
+    assert directus.collections == original
+    assert directus.events == []
+    assert service.s3_service.objects == {}
 
 
 # contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs
 @pytest.mark.asyncio
-async def test_degraded_region_leaves_complete_hot_graph_intact() -> None:
+async def test_degraded_regional_copy_preserves_original_graph_and_publishes_no_archive() -> None:
     directus = FakeDirectus()
+    original = deepcopy(directus.collections)
     service = ColdArchiveService(directus_service=directus, s3_service=FakeS3(fail_region="hel1"))
-
     with pytest.raises(RuntimeError, match="regional write failed"):
-        await service.archive_chat("chat-1", now_timestamp=40 * 86_400)
-
-    assert directus.collections["messages"]
-    assert directus.collections["embeds"]
-    assert directus.collections["cold_archive_manifests"] == []
-    assert directus.collections["cold_archive_parts"][0]["regional_states"] == {
-        "fsn1": "pending",
-        "hel1": "pending",
-        "nbg1": "pending",
-    }
+        await existing_archive_fixture(service)
+    assert directus.collections == original
+    assert directus.events == []
 
 
 # contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.rehydrate-on-mutation
@@ -345,13 +206,16 @@ async def test_part_read_streams_without_restoring_hot_rows() -> None:
     directus = FakeDirectus()
     s3 = FakeS3()
     service = ColdArchiveService(directus_service=directus, s3_service=s3)
-    manifest = await service.archive_chat("chat-1", now_timestamp=40 * 86_400)
+    manifest = await existing_archive_fixture(service)
     part = directus.collections["cold_archive_parts"][0]
+    # Simulate source rows already removed by a historical deployment.
+    directus.collections["messages"] = []
 
     chunks = [chunk async for chunk in service.stream_archive_part(manifest=manifest, part=part)]
 
     assert chunks
     assert directus.collections["messages"] == []
+    assert directus.events == []
 
 
 # contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs
@@ -364,7 +228,7 @@ async def test_root_archive_contains_complete_sub_chat_tree() -> None:
     directus.collections["messages"].append({"id": "message-2", "chat_id": "chat-2", "encrypted_content": "cipher-sub-chat"})
     s3 = FakeS3()
 
-    await ColdArchiveService(directus_service=directus, s3_service=s3).archive_chat("chat-1", now_timestamp=40 * 86_400)
+    await existing_archive_fixture(ColdArchiveService(directus_service=directus, s3_service=s3))
 
     archived_chat_ids: set[str] = set()
     for (region, _key), content in s3.objects.items():
@@ -373,7 +237,7 @@ async def test_root_archive_contains_complete_sub_chat_tree() -> None:
         payload = json.loads(gzip.decompress(content))
         archived_chat_ids.update(row["id"] for row in payload["records"].get("chats", []))
     assert archived_chat_ids == {"chat-1", "chat-2"}
-    assert directus.collections["messages"] == []
+    assert directus.collections["messages"]
 
 
 # contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded
@@ -382,7 +246,7 @@ async def test_part_read_uses_verified_regional_failover() -> None:
     directus = FakeDirectus()
     s3 = RegionalFailoverS3()
     service = ColdArchiveService(directus_service=directus, s3_service=s3)
-    manifest = await service.archive_chat("chat-1", now_timestamp=40 * 86_400)
+    manifest = await existing_archive_fixture(service)
     part = directus.collections["cold_archive_parts"][0]
 
     chunks = [chunk async for chunk in service.stream_archive_part(manifest=manifest, part=part)]
@@ -456,145 +320,53 @@ def test_database_guard_covers_every_mutable_chat_graph_collection() -> None:
 
 # contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs
 @pytest.mark.asyncio
-async def test_concurrent_archive_claim_creates_one_manifest() -> None:
+async def test_concurrent_legacy_migrations_are_held_without_claims() -> None:
     directus = FakeDirectus()
+    original = deepcopy(directus.collections)
     service = ColdArchiveService(directus_service=directus, s3_service=FakeS3())
-
-    results = await asyncio.gather(
-        service.archive_chat("chat-1", now_timestamp=40 * 86_400),
-        service.archive_chat("chat-1", now_timestamp=40 * 86_400),
-        return_exceptions=True,
-    )
-
-    assert sum(isinstance(result, dict) for result in results) == 1
-    assert sum(isinstance(result, ColdArchiveConflictError) for result in results) == 1
-    assert len(directus.collections["cold_archive_manifests"]) == 1
+    results = await asyncio.gather(service.archive_chat("chat-1"), service.archive_chat("chat-1"), return_exceptions=True)
+    assert all(isinstance(result, ColdArchiveConflictError) and str(result) == "FULL_GRAPH_PRUNING_POLICY_PENDING" for result in results)
+    assert directus.collections == original
+    assert directus.events == []
 
 
 # contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs
 @pytest.mark.asyncio
-async def test_expired_archive_lease_resumes_partial_hot_deletion() -> None:
-    class FailOnceDirectus(FakeDirectus):
-        failed = False
-
-        async def delete_item(self, collection, item_id, **kwargs):
-            if collection == "messages" and not self.failed:
-                self.failed = True
-                return False
-            return await super().delete_item(collection, item_id, **kwargs)
-
-    directus = FailOnceDirectus()
-    service = ColdArchiveService(directus_service=directus, s3_service=FakeS3())
-    started_at = 40 * 86_400
-
-    with pytest.raises(ColdArchiveError, match="HOT_GRAPH_DELETE_FAILED"):
-        await service.archive_chat("chat-1", now_timestamp=started_at)
-
-    result = await service.archive_chat("chat-1", now_timestamp=started_at + ARCHIVE_LEASE_SECONDS + 1)
-
-    assert result["state"] == "cold"
-    assert directus.collections["messages"] == []
-    assert directus.collections["chats"][0]["storage_state"] == "cold"
-
-
-# contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs,storage.cold.rehydrate-on-mutation
-@pytest.mark.asyncio
-async def test_sparse_graph_archive_loads_and_promotes_without_checksum_mismatch() -> None:
-    directus = sparse_directus()
-    service = ColdArchiveService(directus_service=directus, s3_service=FakeS3())
-
-    manifest = await service.archive_chat("chat-1", now_timestamp=40 * 86_400)
-    graph = await service._load_archive_graph(manifest)
-    assert graph["messages"][0]["id"] == "message-1"
-    assert graph["drafts"] == []
-    assert graph["embed_keys"] == []
-
-    result = await service.promote_archive(
-        manifest["archive_id"],
-        user_id="alice",
-        team_id=None,
-        expected_generation=1,
-        mutation_intent="add_message",
-    )
-
-    assert result["state"] == "hot"
-    assert [row["id"] for row in directus.collections["messages"]] == ["message-1"]
-    assert directus.collections["chats"][0]["storage_state"] == "hot"
-
-
-# contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs
-@pytest.mark.asyncio
-async def test_expired_sparse_archive_lease_resumes_partial_hot_deletion() -> None:
-    class FailOnceDirectus(FakeDirectus):
-        failed = False
-
-        async def delete_item(self, collection, item_id, **kwargs):
-            if collection == "messages" and not self.failed:
-                self.failed = True
-                return False
-            return await super().delete_item(collection, item_id, **kwargs)
-
-    directus = sparse_directus(FailOnceDirectus())
-    service = ColdArchiveService(directus_service=directus, s3_service=FakeS3())
-    started_at = 40 * 86_400
-
-    with pytest.raises(ColdArchiveError, match="HOT_GRAPH_DELETE_FAILED"):
-        await service.archive_chat("chat-1", now_timestamp=started_at)
-
-    result = await service.archive_chat("chat-1", now_timestamp=started_at + ARCHIVE_LEASE_SECONDS + 1)
-
-    assert result["state"] == "cold"
-    assert directus.collections["messages"] == []
-    assert directus.collections["chats"][0]["storage_state"] == "cold"
-
-
-# contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs
-@pytest.mark.asyncio
-@pytest.mark.parametrize("damage", ["missing_part", "altered_records"])
-async def test_sparse_graph_still_rejects_missing_or_altered_nonempty_records(damage: str) -> None:
-    directus = sparse_directus()
-    s3 = FakeS3()
-    service = ColdArchiveService(directus_service=directus, s3_service=s3)
-    manifest = await service.archive_chat("chat-1", now_timestamp=40 * 86_400)
-    part = directus.collections["cold_archive_parts"][0]
-
-    if damage == "missing_part":
-        directus.collections["cold_archive_parts"].clear()
-    else:
-        object_key = part["object_key"]
-        payload = json.loads(gzip.decompress(s3.objects[("nbg1", object_key)]))
-        payload["records"].pop("messages")
-        altered = gzip.compress(json.dumps(payload).encode())
-        part["checksum"] = hashlib.sha256(altered).hexdigest()
-        s3.objects[("nbg1", object_key)] = altered
-
-    with pytest.raises(ColdArchiveError, match="ARCHIVE_GRAPH_CHECKSUM_MISMATCH"):
-        await service._load_archive_graph(manifest)
-
-
-# contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs
-@pytest.mark.asyncio
-async def test_graph_change_after_claim_aborts_and_activates_part_cleanup() -> None:
+async def test_expired_legacy_archive_lease_cannot_resume_head_or_metadata_deletion() -> None:
     directus = FakeDirectus()
+    directus.collections["chats"][0].update(storage_state="archiving", cold_archive_id="old-archive", archive_started_at=1)
+    original = deepcopy(directus.collections)
+    service = ColdArchiveService(directus_service=directus, s3_service=FakeS3())
+    with pytest.raises(ColdArchiveConflictError, match="FULL_GRAPH_PRUNING_POLICY_PENDING"):
+        await service.archive_chat("chat-1", now_timestamp=40 * 86_400 + ARCHIVE_LEASE_SECONDS)
+    assert directus.collections == original
+    assert directus.events == []
 
-    class MutatingS3(FakeS3):
-        mutated = False
 
+# contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs
+@pytest.mark.asyncio
+async def test_policy_hold_precedes_object_copy_and_any_graph_claim() -> None:
+    directus = FakeDirectus()
+    class UnexpectedS3(FakeS3):
         async def upload_file(self, **kwargs):
-            result = await super().upload_file(**kwargs)
-            if not self.mutated:
-                self.mutated = True
-                directus.collections["messages"].append(
-                    {"id": "late-message", "chat_id": "chat-1", "encrypted_content": "late-cipher"}
-                )
-            return result
+            raise AssertionError("Held migration must not write objects")
+    original = deepcopy(directus.collections)
+    with pytest.raises(ColdArchiveConflictError, match="FULL_GRAPH_PRUNING_POLICY_PENDING"):
+        await ColdArchiveService(directus_service=directus, s3_service=UnexpectedS3()).archive_chat("chat-1")
+    assert directus.collections == original
+    assert directus.events == []
 
-    with pytest.raises(ColdArchiveConflictError, match="CHAT_GRAPH_CHANGED_DURING_ARCHIVE"):
-        await ColdArchiveService(directus_service=directus, s3_service=MutatingS3()).archive_chat(
-            "chat-1",
-            now_timestamp=40 * 86_400,
-        )
 
-    assert directus.collections["chats"][0]["storage_state"] == "hot"
-    assert directus.collections["cold_archive_parts"] == []
-    assert directus.collections["storage_deletion_tombstones"][0]["state"] == "pending"
+# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.integrity.observable-reconcilable
+@pytest.mark.asyncio
+async def test_existing_archive_checksum_failure_keeps_hot_graph_unchanged() -> None:
+    directus, store = FakeDirectus(), FakeS3()
+    service = ColdArchiveService(directus_service=directus, s3_service=store)
+    manifest = await existing_archive_fixture(service)
+    original = deepcopy(directus.collections)
+    part = directus.collections["cold_archive_parts"][0]
+    store.objects["nbg1", part["object_key"]] = b"corrupt-archive"
+    with pytest.raises(ColdArchiveError, match="ARCHIVE_PART_CHECKSUM_MISMATCH"):
+        await service._load_archive_graph(manifest)
+    assert directus.collections == original
+    assert directus.events == []

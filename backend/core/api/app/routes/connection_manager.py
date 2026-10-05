@@ -150,6 +150,8 @@ class ConnectionManager:
         self.project_file_job_capability: Dict[Tuple[str, str], bool] = {}
         # Clients that implement reviewed, client-encrypted remote commands.
         self.remote_command_job_capability: Dict[Tuple[str, str], bool] = {}
+        self.storage_archive_capability: Dict[Tuple[str, str], bool] = {}
+        self.storage_archive_dispatch_guard_installed = False
         self.canonical_embed_receipt_capability: Dict[Tuple[str, str], bool] = {}
         self.typed_recovery_output_capability: Dict[Tuple[str, str], bool] = {}
         # Nonces are bound to one concrete WebSocket object. Reconnection never
@@ -172,6 +174,7 @@ class ConnectionManager:
         supports_chat_metadata_recovery: bool = False,
         supports_project_file_jobs: bool = False,
         supports_remote_command_jobs: bool = False,
+        supports_storage_archive: bool = False,
         supports_canonical_embed_receipts: bool = False,
         supports_typed_recovery_outputs: bool = False,
         volatile_session_revoker: Callable[[str], Awaitable[None]] | None = None,
@@ -222,6 +225,7 @@ class ConnectionManager:
         self.chat_metadata_recovery_capability[connection_key] = supports_chat_metadata_recovery
         self.project_file_job_capability[connection_key] = supports_project_file_jobs
         self.remote_command_job_capability[connection_key] = supports_remote_command_jobs
+        self.storage_archive_capability[connection_key] = supports_storage_archive
         self.canonical_embed_receipt_capability[connection_key] = supports_canonical_embed_receipts
         self.typed_recovery_output_capability[connection_key] = supports_typed_recovery_outputs
         session_nonce = secrets.token_urlsafe(32)
@@ -370,6 +374,7 @@ class ConnectionManager:
                 self.chat_metadata_recovery_capability.pop(connection_key, None)
                 self.project_file_job_capability.pop(connection_key, None)
                 self.remote_command_job_capability.pop(connection_key, None)
+                self.storage_archive_capability.pop(connection_key, None)
                 self.canonical_embed_receipt_capability.pop(connection_key, None)
                 self.typed_recovery_output_capability.pop(connection_key, None)
             else:
@@ -392,6 +397,7 @@ class ConnectionManager:
                 self.chat_metadata_recovery_capability.pop(connection_key, None)
                 self.project_file_job_capability.pop(connection_key, None)
                 self.remote_command_job_capability.pop(connection_key, None)
+                self.storage_archive_capability.pop(connection_key, None)
 
     async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str) -> bool:
         websocket = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)

@@ -52,6 +52,7 @@ from fastapi.testclient import TestClient
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes import teams
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
+from backend.core.api.app.services.storage_usage_metering import StorageUsageIncompleteError, StorageUsageQuote
 
 
 _TEST_CLIENT_COUNTER = count(1)
@@ -432,6 +433,73 @@ def test_teams_routes_expose_billing_contract(monkeypatch) -> None:
     usage_response = client.get("/v1/teams/team-1/billing/usage?member_user_id=bob")
     assert usage_response.status_code == 200
     assert usage_response.json()["usage"] == [{"event_id": "usage-1", "credit_amount": 10}]
+
+
+# contract-test: direct surface=rest_api assertions=billing.storage.team-policy-gate,teams.membership.role-gated
+def test_team_storage_quote_is_role_gated_and_unrated(monkeypatch) -> None:
+    seen: list[list[str]] = []
+
+    class Metering:
+        def __init__(self, _directus) -> None:
+            pass
+
+        async def quote_team(self, hashes: list[str]):
+            seen.append(hashes)
+            return {hashes[0]: StorageUsageQuote(
+                owner_kind="team", owner_id=hashes[0], policy_version="unrated-team-usage-v1",
+                source_version="logical-s3-v1", complete=True, categories={"chat_pages": 40},
+                legacy_upload_bytes=0, logical_s3_bytes=40, total_bytes=40,
+                measurement_at=1791082800,
+            )}
+
+    monkeypatch.setattr(teams, "StorageUsageMeteringService", Metering)
+    owner = build_client(RoleTeamService("owner"))
+    response = owner.get("/v1/teams/team-1/storage")
+    assert response.status_code == 200
+    assert response.json() == {"storage": {
+        "total_bytes": 40, "legacy_upload_bytes": 0, "logical_s3_bytes": 40,
+        "categories": {"chat_pages": 40}, "measurement_at": 1791082800,
+        "metering_source_version": "logical-s3-v1", "metering_policy_version": "unrated-team-usage-v1",
+        "billing_status": "unrated_pending_team_payer_decision",
+    }}
+    assert seen == [[teams.hash_id("team-1")]]
+    viewer = build_client(RoleTeamService("viewer"))
+    assert viewer.get("/v1/teams/team-1/storage").status_code == 403
+    assert len(seen) == 1
+
+
+# contract-test: direct surface=rest_api assertions=billing.storage.team-policy-gate
+def test_team_storage_quote_fails_closed_when_metering_incomplete(monkeypatch) -> None:
+    class Metering:
+        def __init__(self, _directus) -> None:
+            pass
+
+        async def quote_team(self, _hashes: list[str]):
+            raise StorageUsageIncompleteError("storage_usage_incomplete")
+
+    monkeypatch.setattr(teams, "StorageUsageMeteringService", Metering)
+    response = build_client(RoleTeamService("admin")).get("/v1/teams/team-1/storage")
+    assert response.status_code == 503
+    assert response.json()["detail"] == "TEAM_STORAGE_USAGE_UNAVAILABLE"
+
+
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,teams.membership.role-gated
+def test_team_import_returns_explicit_restore_error_before_persistence(monkeypatch) -> None:
+    from backend.core.api.app.services.team_data_portability_service import TeamDataPortabilityError
+
+    class Portability:
+        def __init__(self, _directus) -> None:
+            pass
+
+        async def import_team_data(self, *_args, **_kwargs):
+            raise TeamDataPortabilityError("Team content restore is unsupported for chats; no rows were imported")
+
+    monkeypatch.setattr(teams, "TeamDataPortabilityService", Portability)
+    response = build_client(RoleTeamService("owner")).post("/v1/teams/import", json={
+        "destination_team_id": "team-1", "artifact": {"schema": "openmates.team_export.v1"},
+    })
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Team content restore is unsupported for chats; no rows were imported"
 
 
 # contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary

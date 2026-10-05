@@ -15,6 +15,13 @@ from backend.core.api.app.services.chat_message_archive_service import (
 )
 
 
+@pytest.fixture(autouse=True)
+def verified_release_gate(monkeypatch):
+    from unittest.mock import AsyncMock
+    monkeypatch.setattr("backend.core.api.app.services.chat_message_archive_service.archive_advancement_allowed",
+                        AsyncMock(return_value=True))
+
+
 class ObjectStore:
     region_clients = {"nbg1": object(), "fsn1": object()}
     environment = "development"
@@ -227,6 +234,7 @@ async def lifecycle_fixture(page_count=1, size=100):
 @pytest.mark.asyncio
 async def test_reader_verification_resumes_bounded_batches_after_worker_restart(monkeypatch):
     monkeypatch.setenv("CHAT_MESSAGE_ARCHIVE_READS_ENABLED", "1")
+    monkeypatch.setenv("CHAT_MESSAGE_ARCHIVE_PRUNE_ENABLED", "0")
     service, segment = await lifecycle_fixture(26)
     first = await service.advance_segment(segment)
     assert first["state"] == "reader_verification_pending"
@@ -330,3 +338,34 @@ async def test_sparse_overlapping_archive_pages_never_skip_messages_at_a_cursor(
     last = first["messages"][-1]
     following = await service.read_after(chat_id="chat", after=(last["created_at"], last["client_message_id"]), limit=3)
     assert [r["created_at"] for r in following["messages"]] == [97, 99, 100]
+
+
+# contract-test: direct surface=rest_api assertions=storage.rollout.verified-24-hour-buffer,storage.cold.atomic-eligible-graphs
+@pytest.mark.asyncio
+async def test_prune_stops_before_source_delete_when_current_release_or_runtime_gate_fails(monkeypatch):
+    from unittest.mock import AsyncMock
+    service, segment = await lifecycle_fixture()
+    segment.update(state="reader_active", source_copy_until=0)
+    service.directus.gate.update(pruning_enabled=True, validation_receipt="reviewed-capacity")
+    gate = AsyncMock(return_value=False)
+    monkeypatch.setattr("backend.core.api.app.services.chat_message_archive_service.archive_advancement_allowed", gate)
+    result = await service.advance_segment(segment)
+    assert result["state"] == "release_or_client_gate_pending"
+    assert not any(page.get("pruned") for page in service.pages)
+    gate.assert_awaited_once_with(service.directus, phase="prune")
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs
+@pytest.mark.asyncio
+async def test_isolated_capacity_environment_flags_cannot_bypass_verified_runtime(monkeypatch):
+    from unittest.mock import AsyncMock
+    from backend.core.api.app.services import chat_message_archive_service as module
+    monkeypatch.setattr(module, "trusted_isolated_storage_profile", lambda _env: False)
+    for name, value in {"OPENMATES_CI_ISOLATED": "1", "OPENMATES_STORAGE_CAPACITY_FIXTURES": "true",
+                        "S3_ENDPOINT_URL": "http://storage.ci.test:9000", "SERVER_ENVIRONMENT": "development"}.items():
+        monkeypatch.setenv(name, value)
+    service = ChatMessageArchiveService(directus_service=object(), s3_service=ObjectStore())
+    service.transaction = AsyncMock()
+    with pytest.raises(ArchiveIntegrityError, match="ISOLATED_CAPACITY_PROFILE_REQUIRED"):
+        await service.activate_isolated_capacity_segment({"state": "verified"})
+    service.transaction.assert_not_awaited()

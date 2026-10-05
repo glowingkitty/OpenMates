@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../config/api', () => ({
-  getApiEndpoint: (path: string) => `https://api.test${path}`
+  storageArchiveFetch: (input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init), getApiEndpoint: (path: string) => `https://api.test${path}`
 }));
 
 vi.mock('../db', () => ({
@@ -55,6 +55,8 @@ vi.mock('../chatSyncServiceSenders', () => ({
   sendStoreEmbedDiffImpl: senderMocks.sendStoreEmbedDiffImpl
 }));
 
+import { chatDB } from '../db';
+
 import {
   fetchEmbedVersionContent,
   fetchEmbedVersions,
@@ -65,6 +67,64 @@ describe('embedDiffStore REST version helpers', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.cold.shared-team-authorized,storage.versions.metadata-and-payload
+  it('uses the captured Project scope for metadata pagination without looking up a chat', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({
+      embed_id: 'embed-1', current_version: 80, readonly: true, versions: [], next_cursor: null
+    }));
+    for (const cursor of [undefined, 49]) {
+      await fetchEmbedVersions('embed-1', { projectId: 'project-1', teamId: 'team-7', cursor });
+    }
+    for (const [url] of fetchMock.mock.calls) {
+      const params = new URL(String(url)).searchParams;
+      expect(params.get('project_id')).toBe('project-1');
+      expect(params.get('team_id')).toBe('team-7');
+      expect(params.has('chat_id')).toBe(false);
+    }
+    expect(chatDB.getChat).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.cold.shared-team-authorized,storage.versions.bounded-reconstruction
+  it('retains Project scope for bounded and legacy exact reads', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json({ detail: 'checkpoint needed' }, { status: 409 }))
+      .mockResolvedValueOnce(Response.json({ embed_id: 'embed-1', version_number: 1, current_version: 2, content: 'old', readonly: true }));
+    const result = await fetchEmbedVersionContent('embed-1', 1, { projectId: 'project-1', teamId: 'team-7' });
+    expect(result.content).toBe('old');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const [url] of fetchMock.mock.calls) {
+      const params = new URL(String(url)).searchParams;
+      expect(params.get('project_id')).toBe('project-1');
+      expect(params.get('team_id')).toBe('team-7');
+      expect(params.has('chat_id')).toBe(false);
+    }
+    expect(chatDB.getChat).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.cold.shared-team-authorized,storage.versions.bounded-reconstruction
+  it('publishes a reconstructed checkpoint under the same Project authorization', async () => {
+    const rows = Array.from({ length: 33 }, (_, index) => ({
+      version_number: index + 1, created_at: index, has_snapshot: true, has_patch: false, encrypted_snapshot: 'enc:content'
+    }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) =>
+      init?.method === 'POST' ? Response.json({}) : Response.json({
+        embed_id: 'embed-1', version_number: 33, current_version: 34, rows, readonly: false
+      }));
+    await fetchEmbedVersionContent('embed-1', 33, { projectId: 'project-1', teamId: 'team-7' });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const body = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    expect(body).toEqual({ encrypted_snapshot: 'enc:content', expected_revision: 34,
+      operation_id: 'snapshot.v33', project_id: 'project-1', team_id: 'team-7' });
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.cold.shared-team-authorized
+  it('rejects ambiguous or unbound Team scopes before requesting history', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    await expect(fetchEmbedVersions('embed-1', { projectId: 'project-1', chatId: 'chat-1' })).rejects.toThrow('either Project or chat');
+    await expect(fetchEmbedVersionContent('embed-1', 1, { teamId: 'team-1' })).rejects.toThrow('requires a Project or chat');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=storage.cold.shared-team-authorized

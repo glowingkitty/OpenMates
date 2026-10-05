@@ -79,6 +79,11 @@ class ColdArchiveCursorError(ColdArchiveError):
     pass
 
 
+def require_full_graph_pruning_policy() -> None:
+    """Hold legacy graph migration until head/metadata retention is approved."""
+    raise ColdArchiveConflictError("FULL_GRAPH_PRUNING_POLICY_PENDING")
+
+
 def _hash_id(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
@@ -229,6 +234,11 @@ class ColdArchiveService:
         has_processing_task: bool = False,
         processing_task_checker: Any | None = None,
     ) -> dict[str, Any]:
+        # Whole-graph archival removes current embed heads and child metadata.
+        # Keep the legacy reader/promoter for existing archives, but do not
+        # create or resume destructive graph migration under the indexed-page
+        # rollout. Its metadata-retention policy remains unresolved.
+        require_full_graph_pruning_policy()
         now = int(now_timestamp or time.time())
         chat = await self._get_one("chats", {"id": {"_eq": chat_id}})
         if not chat:
@@ -519,6 +529,7 @@ class ColdArchiveService:
         scope_hash = _hash_id(team_id or user_id)
         filters: list[dict[str, Any]] = [
             {scope_field: {"_eq": scope_hash}},
+            *([] if team_id else [{"hashed_team_id": {"_null": True}}]),
             {"resource_type": {"_eq": resource_type}},
             {"state": {"_eq": "cold"}},
         ]
@@ -882,6 +893,7 @@ class ColdArchiveService:
         return [references[key] for key in sorted(references)]
 
     async def _delete_hot_graph(self, graph: dict[str, list[dict[str, Any]]]) -> None:
+        require_full_graph_pruning_policy()
         for collection in ARCHIVE_DELETE_ORDER:
             for row in graph.get(collection, []):
                 row_id = row.get("id")

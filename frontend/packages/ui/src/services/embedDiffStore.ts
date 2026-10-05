@@ -8,8 +8,9 @@
  * Architecture: docs/architecture/messaging/embed-diff-editing.md
  */
 
+import { reconstructVersionRows } from '../utils/embedVersionReconstruction';
 import { chatDB } from './db';
-import { getApiEndpoint } from '../config/api';
+import { getApiEndpoint, storageArchiveFetch } from '../config/api';
 import { decryptWithEmbedKey, encryptWithEmbedKey } from './encryption/MetadataEncryptor';
 import { embedStore } from './embedStore';
 import { computeSHA256 } from '../message_parsing/utils';
@@ -60,10 +61,15 @@ export interface EmbedVersionRestoreResponse {
 	content: string;
 }
 
-export interface RestoreEmbedVersionOptions {
+export interface EmbedVersionContext {
+	chatId?: string;
+	projectId?: string;
+	teamId?: string | null;
+}
+
+export interface RestoreEmbedVersionOptions extends EmbedVersionContext {
 	currentVersion: number;
 	currentContent: string;
-	chatId?: string;
 	buildRestoredContent: (restoredContent: string, newVersion: number) => Record<string, unknown>;
 }
 
@@ -81,12 +87,23 @@ function embedVersionError(data: unknown, fallback: string): Error {
 	return new Error(fallback);
 }
 
-async function versionReadScope(chatId?: string): Promise<URLSearchParams> {
+async function versionReadScope(context?: string | EmbedVersionContext): Promise<URLSearchParams> {
+	const selected = typeof context === 'string' ? { chatId: context } : context;
 	const params = new URLSearchParams();
-	if (!chatId) return params;
-	params.set('chat_id', chatId);
-	const chat = await chatDB.getChat(chatId);
-	if (chat?.team_id) params.set('team_id', chat.team_id);
+	if (selected?.projectId) {
+		if (selected.chatId) throw new Error('Select either Project or chat version context');
+		params.set('project_id', selected.projectId);
+		if (selected.teamId) params.set('team_id', selected.teamId);
+		return params;
+	}
+	if (!selected?.chatId) {
+		if (selected?.teamId) throw new Error('Team version context requires a Project or chat');
+		return params;
+	}
+	params.set('chat_id', selected.chatId);
+	const chat = await chatDB.getChat(selected.chatId);
+	const teamId = selected.teamId ?? chat?.team_id;
+	if (teamId) params.set('team_id', teamId);
 	return params;
 }
 
@@ -103,16 +120,16 @@ async function readJsonResponse<T>(response: Response, fallback: string): Promis
 
 export async function fetchEmbedVersions(
 	embedId: string,
-	pageOptions?: { cursor?: number; limit?: number; order?: 'asc' | 'desc'; chatId?: string }
+	pageOptions?: EmbedVersionContext & { cursor?: number; limit?: number; order?: 'asc' | 'desc' }
 ): Promise<EmbedVersionsResponse> {
 	const path = `/v1/embeds/${encodeURIComponent(embedId)}/versions`;
-	const scope = await versionReadScope(pageOptions?.chatId);
+	const scope = await versionReadScope(pageOptions);
 	if (pageOptions) {
 		const params = new URLSearchParams(scope);
 		params.set('order', pageOptions.order ?? 'desc');
 		params.set('limit', String(pageOptions.limit ?? 32));
 		if (pageOptions.cursor !== undefined) params.set('cursor', String(pageOptions.cursor));
-		const response = await fetch(getApiEndpoint(`${path}?${params}`), { credentials: 'include' });
+		const response = await storageArchiveFetch(getApiEndpoint(`${path}?${params}`), { credentials: 'include' });
 		return readJsonResponse<EmbedVersionsResponse>(response, `Failed to load embed versions (${response.status})`);
 	}
 	let cursor: number | null = null;
@@ -120,7 +137,7 @@ export async function fetchEmbedVersions(
 	do {
 		const params = new URLSearchParams(scope);
 		if (cursor !== null) params.set('cursor', String(cursor));
-		const response = await fetch(getApiEndpoint(`${path}${params.size ? `?${params}` : ''}`), {
+		const response = await storageArchiveFetch(getApiEndpoint(`${path}${params.size ? `?${params}` : ''}`), {
 			credentials: 'include'
 		});
 		const page = await readJsonResponse<EmbedVersionsResponse>(response, `Failed to load embed versions (${response.status})`);
@@ -136,43 +153,49 @@ export async function fetchEmbedVersions(
 export async function fetchEmbedVersionContent(
 	embedId: string,
 	versionNumber: number,
-	chatId?: string
+	context?: string | EmbedVersionContext
 ): Promise<EmbedVersionContentResponse> {
 	const path = `/v1/embeds/${encodeURIComponent(embedId)}/versions/${versionNumber}`;
-	const scope = await versionReadScope(chatId);
+	const scope = await versionReadScope(context);
 	const bounded = new URLSearchParams(scope);
 	bounded.set('capability', 'bounded-v1');
-	let response = await fetch(
+	let response = await storageArchiveFetch(
 		getApiEndpoint(`${path}?${bounded}`),
 		{ credentials: 'include' }
 	);
 	// Older histories remain readable while a write-authorized client supplies
 	// checkpoints. Their PostgreSQL source payloads cannot be evicted yet.
 	if (response.status === 409) {
-		response = await fetch(getApiEndpoint(`${path}${scope.size ? `?${scope}` : ''}`), { credentials: 'include' });
+		response = await storageArchiveFetch(getApiEndpoint(`${path}${scope.size ? `?${scope}` : ''}`), { credentials: 'include' });
 	}
 	const responseData = await readJsonResponse<EmbedVersionContentResponse>(
 		response,
 		`Failed to load embed version ${versionNumber} (${response.status})`
 	);
+	if (responseData.embed_id !== embedId || responseData.version_number !== versionNumber) {
+		throw new Error('Version response does not match the selected version');
+	}
 	if (typeof responseData.content === 'string') return responseData;
-	if (!Array.isArray(responseData.rows)) return responseData;
+	if (!Array.isArray(responseData.rows) || responseData.rows.at(-1)?.version_number !== versionNumber) {
+		throw new Error('Version response does not match the selected version');
+	}
 	const content = await reconstructEncryptedVersion(embedId, responseData.rows);
 	if (responseData.rows.length > 32 && responseData.readonly === false) {
-		void publishClientSnapshot(embedId, versionNumber, responseData.current_version, content);
+		void publishClientSnapshot(embedId, versionNumber, responseData.current_version, content, scope);
 	}
 	return { ...responseData, content };
 }
 
-async function publishClientSnapshot(embedId: string, versionNumber: number, currentVersion: number, content: string): Promise<void> {
+async function publishClientSnapshot(embedId: string, versionNumber: number, currentVersion: number, content: string, scope: URLSearchParams): Promise<void> {
 	try {
 		const key = await embedStore.getEmbedKey(embedId);
 		if (!key) return;
 		const encrypted = await encryptWithEmbedKey(content, key);
 		if (!encrypted) return;
-		await fetch(getApiEndpoint(`/v1/embeds/${encodeURIComponent(embedId)}/versions/${versionNumber}/snapshot`), {
+		await storageArchiveFetch(getApiEndpoint(`/v1/embeds/${encodeURIComponent(embedId)}/versions/${versionNumber}/snapshot`), {
 			method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ encrypted_snapshot: encrypted, expected_revision: currentVersion, operation_id: `snapshot.v${versionNumber}` })
+			body: JSON.stringify({ encrypted_snapshot: encrypted, expected_revision: currentVersion, operation_id: `snapshot.v${versionNumber}`,
+				...(scope.has('project_id') ? { project_id: scope.get('project_id'), ...(scope.has('team_id') ? { team_id: scope.get('team_id') } : {}) } : {}) })
 		});
 	} catch {
 		// A read-only device or concurrent edit cannot publish; the source stays hot.
@@ -191,7 +214,7 @@ export async function restoreEmbedVersion(
 		throw new Error('Selected version is already current');
 	}
 
-	const response = await fetchEmbedVersionContent(embedId, versionNumber, options.chatId);
+	const response = await fetchEmbedVersionContent(embedId, versionNumber, options);
 	if (typeof response.content !== 'string') {
 		throw new Error('Version content was not available for restore');
 	}
@@ -251,12 +274,14 @@ async function encodeRestoredEmbedContent(payload: Record<string, unknown>): Pro
 }
 
 function buildUnifiedDiff(currentContent: string, restoredContent: string, currentVersion: number, newVersion: number): string {
+	const oldLines = currentContent ? currentContent.split('\n') : [];
+	const newLines = restoredContent ? restoredContent.split('\n') : [];
 	return [
 		`--- v${currentVersion}`,
 		`+++ v${newVersion}`,
-		`@@ -1,${Math.max(1, currentContent.split('\n').length)} +1,${Math.max(1, restoredContent.split('\n').length)} @@`,
-		...currentContent.split('\n').map((line) => `-${line}`),
-		...restoredContent.split('\n').map((line) => `+${line}`)
+		`@@ -${oldLines.length ? 1 : 0},${oldLines.length} +${newLines.length ? 1 : 0},${newLines.length} @@`,
+		...oldLines.map((line) => `-${line}`),
+		...newLines.map((line) => `+${line}`)
 	].join('\n');
 }
 
@@ -290,53 +315,7 @@ async function reconstructEncryptedVersion(embedId: string, rows: EmbedVersionMe
 }
 
 export async function reconstructEncryptedVersionRows(rows: EmbedVersionMeta[], embedKey: Uint8Array): Promise<string> {
-	const sortedRows = [...rows].sort((a, b) => a.version_number - b.version_number);
-	let content: string | null = null;
-	for (const row of sortedRows) {
-		if (row.encrypted_snapshot) {
-			content = await decryptWithEmbedKey(row.encrypted_snapshot, embedKey);
-			continue;
-		}
-		if (row.encrypted_patch && content !== null) {
-			const patch = await decryptWithEmbedKey(row.encrypted_patch, embedKey);
-			content = applyUnifiedDiff(content, patch || '');
-		}
-	}
-	if (content === null) throw new Error('Version history is missing the initial snapshot');
-	return content;
-}
-
-function applyUnifiedDiff(content: string, patch: string): string {
-	const contentLines = content.split('\n');
-	const lines = patch.split('\n');
-	const hunks: Array<{ start: number; oldLines: string[]; newLines: string[] }> = [];
-	let current: { start: number; oldLines: string[]; newLines: string[] } | null = null;
-	for (const line of lines) {
-		const match = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
-		if (match) {
-			if (current) hunks.push(current);
-			current = { start: Number(match[1]) - 1, oldLines: [], newLines: [] };
-			continue;
-		}
-		if (!current) continue;
-		if (line.startsWith(' ')) {
-			current.oldLines.push(line.slice(1));
-			current.newLines.push(line.slice(1));
-		} else if (line.startsWith('-')) {
-			current.oldLines.push(line.slice(1));
-		} else if (line.startsWith('+')) {
-			current.newLines.push(line.slice(1));
-		}
-	}
-	if (current) hunks.push(current);
-	for (const hunk of hunks.sort((a, b) => b.start - a.start)) {
-		const actual = contentLines.slice(hunk.start, hunk.start + hunk.oldLines.length);
-		if (actual.join('\n') !== hunk.oldLines.join('\n')) {
-			throw new Error('Version patch context does not match local content');
-		}
-		contentLines.splice(hunk.start, hunk.oldLines.length, ...hunk.newLines);
-	}
-	return contentLines.join('\n');
+	return reconstructVersionRows(rows, (ciphertext) => decryptWithEmbedKey(ciphertext, embedKey));
 }
 
 /**

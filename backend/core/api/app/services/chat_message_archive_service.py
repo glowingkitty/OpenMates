@@ -13,6 +13,9 @@ import os
 import time
 import uuid
 from typing import Any
+from backend.shared.python_utils.storage_archive_rollout_config import (
+    archive_feature_enabled, archive_advancement_allowed, trusted_isolated_storage_profile,
+)
 
 from backend.core.api.app.services.bounded_archive_io import (
     ArchiveIntegrityError, put_verified_bytes, read_verified_bytes,
@@ -178,14 +181,16 @@ class ChatMessageArchiveService:
         if not gate.get("read_enabled") or not gate.get("compatibility_verified") or not gate.get("reader_receipt") or gate.get("failure_code"):
             return {"state": "rollout_paused_or_unverified"}
         if segment["state"] == "verified":
-            if os.getenv("CHAT_MESSAGE_ARCHIVE_READS_ENABLED") != "1":
+            if not archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_READS_ENABLED"):
                 return {"state": "reader_disabled"}
             if not await self.verify_reader_pages(segment):
                 return {"state": "reader_verification_pending"}
+            if not await archive_advancement_allowed(self.directus, phase="read"):
+                return {"state": "release_or_client_gate_pending"}
             segment = await self.transaction("activate_segment", {
                 "segment_id": segment["id"], "expected_version": segment["version"],
             })
-        if segment["state"] != "reader_active" or os.getenv("CHAT_MESSAGE_ARCHIVE_PRUNE_ENABLED") != "1":
+        if segment["state"] != "reader_active" or not archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_PRUNE_ENABLED"):
             return {"state": segment["state"]}
         if not gate.get("pruning_enabled") or not gate.get("validation_receipt"):
             return {"state": "prune_receipt_missing"}
@@ -198,6 +203,8 @@ class ChatMessageArchiveService:
         if not isinstance(pages, list):
             raise ArchiveIntegrityError("ARCHIVE_PRUNE_INDEX_UNAVAILABLE")
         if not pages:
+            if not await archive_advancement_allowed(self.directus, phase="prune"):
+                return {"state": "release_or_client_gate_pending"}
             return await self.transaction("finish_pruning", {
                 "segment_id": segment["id"], "expected_version": segment["version"],
             })
@@ -208,6 +215,8 @@ class ChatMessageArchiveService:
             # reject any concurrent canonical edit or recovery acknowledgement.
             for record in await self.read_page(page):
                 await self.hydrate_records([record])
+            if not await archive_advancement_allowed(self.directus, phase="prune"):
+                return {"state": "release_or_client_gate_pending"}
             await self.transaction("prune_page", {
                 "segment_id": segment["id"], "expected_version": segment["version"], "page_id": page["id"],
             })
@@ -284,10 +293,7 @@ class ChatMessageArchiveService:
         synthetic and has no initial rollback delay; separate lifecycle tests
         exercise the real initial-cohort 24-hour gate with a controlled clock.
         """
-        if not (os.getenv("OPENMATES_STORAGE_CAPACITY_FIXTURES") == "true"
-                and os.getenv("OPENMATES_CI_ISOLATED") == "1"
-                and os.getenv("S3_ENDPOINT_URL") == "http://storage.ci.test:9000"
-                and os.getenv("SERVER_ENVIRONMENT") == "development"):
+        if not trusted_isolated_storage_profile(dict(os.environ)):
             raise ArchiveIntegrityError("ISOLATED_CAPACITY_PROFILE_REQUIRED")
         receipt = "ci-storage-capacity:" + os.environ["BUILD_COMMIT_SHA"]
         rows = await self.directus.get_items("chat_message_archive_rollout", params={
@@ -314,16 +320,20 @@ class ChatMessageArchiveService:
         if segment["state"] == "verified":
             while not await self.verify_reader_pages(segment):
                 pass
+            if not await archive_advancement_allowed(self.directus, phase="read"):
+                raise ArchiveIntegrityError("ISOLATED_ARCHIVE_RELEASE_OR_CLIENT_GATE_PENDING")
             segment = await self.transaction("activate_segment", {
                 "segment_id": segment["id"], "expected_version": segment["version"], "now": int(time.time()),
             })
-        pages = await self.directus.get_items(PAGES, params={
-            "filter": {"segment_id": {"_eq": segment["id"]}}, "sort": "page_number", "limit": 1000,
-        }, admin_required=True, no_cache=True, raise_on_error=True)
-        for page in pages:
-            await self.transaction("prune_page", {"segment_id": segment["id"], "expected_version": segment["version"],
-                                                 "page_id": page["id"], "now": int(time.time())})
-        return segment
+        # Use the production reader/reverification/SQL fences in bounded
+        # batches; fixture isolation does not waive any per-page source fence.
+        while True:
+            result = await self.advance_segment(segment)
+            if result.get("state") == "prune_batch_complete":
+                continue
+            if result.get("state") == "pruned":
+                return result
+            raise ArchiveIntegrityError("ISOLATED_ARCHIVE_ADVANCEMENT_DEFERRED")
 
     async def _copy_page(self, segment: dict[str, Any], number: int, rows: list[dict[str, Any]], now: int) -> None:
         digest = hashlib.sha256(encode_record(rows)).hexdigest()

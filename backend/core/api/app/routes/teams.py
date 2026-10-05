@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 import yaml
 
 from backend.core.api.app.models.user import User
-from backend.core.api.app.services.directus.team_methods import PENDING_ACCESS_APPROVAL_STATUS, TeamPermissionError
+from backend.core.api.app.services.directus.team_methods import PENDING_ACCESS_APPROVAL_STATUS, TeamPermissionError, hash_id
 from backend.core.api.app.services.feature_availability_guards import ensure_teams_enabled
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.project_remote_access_service import ProjectRemoteAccessService
@@ -31,6 +31,7 @@ from backend.core.api.app.services.team_billing_service import TEAM_BILLING_ROLE
 from backend.core.api.app.services.team_data_portability_service import TeamDataPortabilityError, TeamDataPortabilityService
 from backend.core.api.app.services.team_invite_email_service import TeamInviteEmailService
 from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.core.api.app.services.storage_usage_metering import StorageUsageIncompleteError, StorageUsageMeteringService
 from backend.core.api.app.utils.bank_transfer_references import generate_bank_transfer_reference
 
 if TYPE_CHECKING:
@@ -807,6 +808,44 @@ async def get_team_billing(
     except Exception as exc:  # noqa: BLE001 - converted by typed handler
         _handle_team_error(exc)
     return {"billing": billing}
+
+
+@router.get("/{team_id}/storage")
+@limiter.limit("30/minute")
+async def get_team_storage_overview(
+    request: Request,
+    response: Response,
+    team_id: str,
+    current_user: User = Depends(_current_user),
+    directus_service: "DirectusService" = Depends(get_directus_service),
+) -> dict[str, Any]:
+    """First-party/approved CLI and SDK Team storage metadata.
+
+    Session/API-key authentication and current owner/admin membership are
+    required. Caddy forwards /v1/teams/*; FastAPI enforces this role gate.
+    This read-only, 30/minute surface does not charge credits or expose objects.
+    """
+    del request, response
+    try:
+        await directus_service.team.require_team_role(team_id, current_user.id, TEAM_BILLING_ROLES)
+        team_hash = hash_id(team_id)
+        quote = (await StorageUsageMeteringService(directus_service).quote_team([team_hash]))[team_hash]
+    except TeamPermissionError as exc:
+        _handle_team_error(exc)
+    except StorageUsageIncompleteError as exc:
+        raise HTTPException(status_code=503, detail="TEAM_STORAGE_USAGE_UNAVAILABLE") from exc
+    return {
+        "storage": {
+            "total_bytes": quote.total_bytes,
+            "legacy_upload_bytes": quote.legacy_upload_bytes,
+            "logical_s3_bytes": quote.logical_s3_bytes,
+            "categories": quote.categories,
+            "measurement_at": quote.measurement_at,
+            "metering_source_version": quote.source_version,
+            "metering_policy_version": quote.policy_version,
+            "billing_status": "unrated_pending_team_payer_decision",
+        }
+    }
 
 
 @router.post("/{team_id}/billing/bank-transfer-orders", response_model=CreateBankTransferOrderResponse)

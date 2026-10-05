@@ -13,9 +13,31 @@ import json
 import logging
 import re
 from dataclasses import dataclass
+from difflib import unified_diff
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+
+def build_committed_version_patch(original: str, committed: str) -> str:
+    """Replay the actual committed text, including fuzzy and capped edits.
+
+    Version ciphertext readers use exact coordinates, whereas runtime model
+    edits may use a fallback. Preserve the legacy split/join LF representation.
+    """
+    old_lines = original.split('\n') if original else []
+    new_lines = committed.split('\n') if committed else []
+    if original != committed:
+        return '\n'.join(unified_diff(
+            old_lines, new_lines, fromfile='previous', tofile='committed', lineterm='',
+        ))
+    old_start = 1 if old_lines else 0
+    new_start = 1 if new_lines else 0
+    return '\n'.join([
+        f'@@ -{old_start},{len(old_lines)} +{new_start},{len(new_lines)} @@',
+        *('-' + line for line in old_lines),
+        *('+' + line for line in new_lines),
+    ])
 
 
 def resolve_diff_target_embed_id(diff_embed_ref: Optional[str], file_path_index: Dict[str, str]) -> Optional[str]:
@@ -129,7 +151,7 @@ def apply_patch_exact(content: str, diff: ParsedDiff) -> PatchResult:
 
     for hunk in sorted_hunks:
         # Convert to 0-indexed
-        start_idx = hunk.old_start - 1
+        start_idx = hunk.old_start if hunk.old_count == 0 else hunk.old_start - 1
 
         # Extract expected old lines from hunk
         old_lines = []

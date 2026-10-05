@@ -16,7 +16,7 @@ import {
   type ChatCompletionRecoveryEnvelope,
 } from "../utils/chatCompletionRecovery";
 import { chatDB } from "./db";
-import { getApiEndpoint } from "../config/api";
+import { getApiEndpoint, storageArchiveFetch } from "../config/api";
 import { userDB } from "./userDB";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
@@ -207,7 +207,7 @@ async function verifyExactCanonicalEmbedWrappers(
 ): Promise<Array<Record<string, unknown>>> {
   const chat = await chatDB.getChat(output.target_chat_id);
   const query = chat?.team_id ? `?team_id=${encodeURIComponent(chat.team_id)}` : "";
-  const response = await fetch(getApiEndpoint(
+  const response = await storageArchiveFetch(getApiEndpoint(
     `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(keySubject)}${query}`,
   ), { credentials: "include" });
   if (!response.ok) throw new Error(`Canonical embed wrapper read failed (${response.status}).`);
@@ -245,7 +245,7 @@ async function readRecoveredCanonicalEmbed(
 ): Promise<RecoveredEmbedReceipt | null> {
   const chat = await chatDB.getChat(output.target_chat_id);
   const query = chat?.team_id ? `?team_id=${encodeURIComponent(chat.team_id)}` : "";
-  const response = await fetch(getApiEndpoint(
+  const response = await storageArchiveFetch(getApiEndpoint(
     `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(output.subject_id)}${query}`,
   ), { credentials: "include" });
   if (response.status === 404) return null;
@@ -267,7 +267,7 @@ async function readRecoveredCanonicalEmbed(
   if (version > output.output_version) {
     const versionQuery = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
     if (chat?.team_id) versionQuery.set("team_id", chat.team_id);
-    const versionResponse = await fetch(getApiEndpoint(
+    const versionResponse = await storageArchiveFetch(getApiEndpoint(
       `/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${versionQuery}`,
     ), { credentials: "include" });
     if (!versionResponse.ok) throw new Error(`Canonical historical embed read failed (${versionResponse.status}).`);
@@ -352,7 +352,7 @@ async function readRecoveredCanonicalDiff(
   const chat = await chatDB.getChat(output.target_chat_id);
   const query = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
   if (chat?.team_id) query.set("team_id", chat.team_id);
-  const response = await fetch(getApiEndpoint(
+  const response = await storageArchiveFetch(getApiEndpoint(
     `/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${query}`,
   ), { credentials: "include" });
   if (response.status === 404) return null;

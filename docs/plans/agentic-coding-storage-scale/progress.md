@@ -4,6 +4,21 @@ Snapshot: 2026-10-05. OpenMates Tasks owns work status and dependencies.
 
 ## Current release status
 
+The user explicitly resumed the remaining work on 2026-10-05: heavy-user
+simulation, Team storage completion, and automatic migration for production and
+self-hosted installations. Four workers share session 2f80: capacity harness and
+proof (TASK-7213), archive/update automation (TASK-5795), Team storage and billing
+(TASK-9893), and artifact payload/history correctness (TASK-5243). The parent owns
+client compatibility enforcement, release evidence publication, Specifications
+and this Plan. Worker patches are integrated; combined-source CI and the full capacity workload
+remain required evidence.
+
+Team payer/allowance policy and the D-9 refinement permitting S3-backed inactive
+current artifact payloads have been asked and remain pending. Work independent
+of those decisions continues. No new real inference is authorized or required;
+production and real-data pruning remain behind their existing safety gates.
+
+
 - Core development release
   `1e7b84c33ea33734ec53c85deda27b90aad3124d` is public and active. It includes
   the bounded storage, recovery, archive and artifact-version foundation.
@@ -767,3 +782,59 @@ TASK-9893's approved personal billing scope is complete. Team payer policy,
 native storage/writer work, full P-7 capacity evidence, current-head payload growth
 and the first real archive/prune activation remain separate open work. The
 architecture is not yet claimed proven for 1000 heavy daily users.
+
+
+## Remaining execution resumed (2026-10-05)
+
+- At resumption, the old isolated profile capped 500 requested prefork slots
+  to four. The published admission repair removes that cap; measured target-scale
+  evidence is still required.
+- Automatic schema setup exists, but the full unattended copy/read/prune pipeline
+  needs release eligibility and actual compatible-client enforcement. The user
+  authorized this completion for official-cloud and self-hosted updates.
+- Team archive metadata listing and complete cold-content export are being
+  repaired. Team storage quote/settlement policy must preserve Team ownership
+  and current role/revocation checks; payer semantics await the user answer.
+- Artifact reconstruction must reject corrupt or incomplete patch chains and
+  store history patches matching the actually committed final content. The
+  current-head warm-byte refinement is a separate pending storage decision.
+
+
+## Integration and simulation checkpoint (2026-10-05)
+
+- Capacity admission/calibration and the dedicated runner route are published in
+  dev `29bf4246d4356c53d7164d9edfadd6209388b247`; 143 focused harness checks passed.
+  The requested 500 active executions are never silently reduced to four. No
+  target-scale pass is claimed. GitHub currently has no dedicated self-hosted
+  runner; actual calibration must size the target host before admission.
+- Team storage quotes remain measured and unrated while the payer choice is
+  pending. Personal cold listings exclude Team-owned manifests. Team/personal
+  account exports include bounded verified encrypted archive parts. Unsupported
+  graph restoration, membership/invite imports and authoritative credit/usage
+  ledgers are rejected before writes; selected supported metadata still imports.
+- Historical reconstruction rejects missing/corrupt patch chains and archive
+  envelopes, and generated patches describe the actually committed final bytes.
+  Shared Project history carries the authorized Project/Team scope and retains
+  the successfully unwrapped file key in the existing ephemeral client cache.
+- Automatic migration is being integrated with trusted source-specific release
+  eligibility, actual distributed API reader enforcement, periodic retries and
+  host inventory refresh. A release attestation does not waive per-unit
+  ciphertext, reference, generation, acknowledgement or 24-hour source fences.
+  No real eligibility certificate has been issued; production is unchanged.
+- Legacy whole-graph deletion is not the automatic bounded migration path. It
+  must remain held where it would delete current artifact heads or chat listing
+  metadata, or lacks an atomic source-write fence. The approved message-page and
+  historical-version paths retain those PostgreSQL indexes and heads.
+- Apple evidence, actual combined-source CI, the heavy target and first real
+  pruning activation remain open. No new real inference or test email has run.
+
+## Combined-source publication checkpoint
+
+- All four worker patches are integrated with current dev changes. The exact
+  combined rollout, release issuer and runtime inventory unit checks passed
+  53 cases; changed Python syntax, whitespace and Specification generation pass.
+- The coordinator stages verified reader admission before retiring incompatible
+  sessions, and still requires zero incompatible sessions before pruning. The
+  host updater renews complete process inventory automatically after updates.
+- This checkpoint authorizes no real-data pruning: release eligibility is absent,
+  native and full P-7 evidence remain open, and production has not been changed.

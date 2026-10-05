@@ -1,4 +1,6 @@
 <script lang="ts">
+import { storageArchiveFetch } from "../config/api";
+
   import { searchResultImageUrl } from '../utils/searchPreviewImages';
   import { collectHeaderImageRefs } from './embeds/embedPreviewHydration';
   import { embedStore, embedRefIndexVersion } from '../services/embedStore';
@@ -938,7 +940,7 @@
           limit: String(FORGOTTEN_MESSAGE_PAGE_LIMIT),
         });
         if (beforeMessageId) params.set('before_message_id', beforeMessageId);
-        const response = await fetch(getApiEndpoint(`/v1/share/chat/${latestCompressionCheckpoint.chat_id}/messages?${params.toString()}`));
+        const response = await storageArchiveFetch(getApiEndpoint(`/v1/share/chat/${latestCompressionCheckpoint.chat_id}/messages?${params.toString()}`));
         if (!response.ok) throw new Error(`Shared forgotten-message fetch failed: ${response.status}`);
         await handleOldMessagesResponse(await response.json() as {
           chat_id: string;

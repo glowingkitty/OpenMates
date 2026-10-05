@@ -34,6 +34,8 @@ export interface FullscreenRouteState {
 
 export interface EmbedFullscreenDispatchDetail {
   embedId?: string | null;
+  projectId?: string;
+  teamId?: string | null;
   embedData?: unknown;
   decodedContent?: unknown;
   embedType?: string | null;

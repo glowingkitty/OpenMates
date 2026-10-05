@@ -5,7 +5,7 @@
 // the locally cached share chat key without expanding any owner permissions.
 // Backend access model: unauthenticated public REST, encrypted payload only.
 
-import { getApiEndpoint } from "../config/api";
+import { getApiEndpoint, storageArchiveFetch } from "../config/api";
 import { computeSHA256 } from "../message_parsing/utils";
 import { validateUserFlows, type UserPlanViewModel, type EncryptedUserPlanRecord, type UserPlanKeyWrapperRecord } from "./userPlanService";
 import type { UserTaskViewModel, EncryptedUserTaskRecord, UserTaskKeyWrapperRecord } from "./userTaskService";
@@ -58,7 +58,7 @@ async function fetchEncryptedPage(chatId: string, kind: "plans" | "tasks", curso
   if (cursor && (!Number.isSafeInteger(cursor.timestamp) || cursor.timestamp < 0 || !cursor.id)) {
     throw new Error(`Shared ${kind} cursor was invalid`);
   }
-  const response = await fetch(sharedAuxiliaryUrl(chatId, kind, cursor));
+  const response = await storageArchiveFetch(sharedAuxiliaryUrl(chatId, kind, cursor));
   if (!response.ok) throw new Error(`Shared ${kind} page failed (${response.status})`);
   const page = await response.json() as SharedChatEncryptedPage;
   if (!Array.isArray(page.items) || page.items.length > 20 || !Array.isArray(page.key_wrappers)
@@ -93,7 +93,7 @@ async function fetchEncryptedPage(chatId: string, kind: "plans" | "tasks", curso
 }
 
 async function fetchExactOversizedItem(chatId: string, kind: "plans" | "tasks", id: string): Promise<SharedChatEncryptedPage> {
-  const response = await fetch(getApiEndpoint(
+  const response = await storageArchiveFetch(getApiEndpoint(
     `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/${kind}/${encodeURIComponent(id)}`,
   ));
   if (!response.ok) throw new Error(`Shared ${kind} item failed (${response.status})`);
@@ -125,7 +125,7 @@ async function completeWrapperWindow(chatId: string, kind: "plans" | "tasks", pa
     if (window.oversized_key_id) query.set("key_id", window.oversized_key_id);
     else if (window.end_cursor) query.set("after_key_id", window.end_cursor);
     else throw new Error(`Shared ${kind} key cursor did not advance`);
-    const response = await fetch(getApiEndpoint(
+    const response = await storageArchiveFetch(getApiEndpoint(
       `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/${kind}/keys/window?${query}`,
     ));
     if (!response.ok) throw new Error(`Shared ${kind} keys failed (${response.status})`);
@@ -342,7 +342,7 @@ export async function loadSharedSubChatPage(chatId: string, before?: SharedChatC
   }
   const base = `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/sub_chats`;
   const query = before ? `?${new URLSearchParams({ before_timestamp: String(before.timestamp), before_id: before.id })}` : "";
-  const response = await fetch(getApiEndpoint(`${base}${query}`));
+  const response = await storageArchiveFetch(getApiEndpoint(`${base}${query}`));
   if (!response.ok) throw new Error(`Shared subchat page failed (${response.status}).`);
   const page = await response.json() as {
     items?: unknown; has_more_before?: unknown; start_cursor?: unknown;
@@ -361,7 +361,7 @@ export async function loadSharedSubChatPage(chatId: string, before?: SharedChatC
     if (items.length !== 0 || typeof page.oversized_id !== "string" || !page.oversized_id || !page.has_more_before) {
       throw new Error("Shared subchat oversized cursor was invalid.");
     }
-    const selected = await fetch(getApiEndpoint(`${base}/${encodeURIComponent(page.oversized_id)}`));
+    const selected = await storageArchiveFetch(getApiEndpoint(`${base}/${encodeURIComponent(page.oversized_id)}`));
     if (!selected.ok) throw new Error(`Shared oversized subchat failed (${selected.status}).`);
     const body = await selected.json() as { item?: unknown };
     if (!validSharedSubChat(body.item, chatId) || body.item.id !== page.oversized_id) {

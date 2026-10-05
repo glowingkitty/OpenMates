@@ -49,6 +49,7 @@ import {
   type SignupCryptoMaterial,
 } from "./crypto.js";
 import { buildMemoryRequestMessage, coalesceMemoryRequestMessages } from "../../ui/src/utils/appMemoryRequests.js";
+import { applyVersionPatch, reconstructVersionRows } from "../../ui/src/utils/embedVersionReconstruction.js";
 import { COMPRESSION_SUMMARY_CATEGORY } from "./accountImport.js";
 import { OpenMatesHttpClient, type HttpResponse } from "./http.js";
 import {
@@ -2961,41 +2962,6 @@ const BLOCKED_SETTINGS_MUTATE_PATHS = new Set<string>([
   "/v1/settings/user/disable-2fa",
 ]);
 
-function applyUnifiedDiffForEmbedVersion(content: string, patch: string): string {
-  const contentLines = content.split("\n");
-  const lines = patch.split("\n");
-  const hunks: Array<{ start: number; oldLines: string[]; newLines: string[] }> = [];
-  let current: { start: number; oldLines: string[]; newLines: string[] } | null = null;
-
-  for (const line of lines) {
-    const match = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
-    if (match) {
-      if (current) hunks.push(current);
-      current = { start: Number(match[1]) - 1, oldLines: [], newLines: [] };
-      continue;
-    }
-    if (!current) continue;
-    if (line.startsWith(" ")) {
-      current.oldLines.push(line.slice(1));
-      current.newLines.push(line.slice(1));
-    } else if (line.startsWith("-")) {
-      current.oldLines.push(line.slice(1));
-    } else if (line.startsWith("+")) {
-      current.newLines.push(line.slice(1));
-    }
-  }
-  if (current) hunks.push(current);
-
-  for (const hunk of hunks.sort((a, b) => b.start - a.start)) {
-    const actual = contentLines.slice(hunk.start, hunk.start + hunk.oldLines.length);
-    if (actual.join("\n") !== hunk.oldLines.join("\n")) {
-      throw new Error("Version patch context does not match local content");
-    }
-    contentLines.splice(hunk.start, hunk.oldLines.length, ...hunk.newLines);
-  }
-
-  return contentLines.join("\n");
-}
 
 function buildUnifiedDiffForEmbedRestore(
   currentContent: string,
@@ -3003,12 +2969,12 @@ function buildUnifiedDiffForEmbedRestore(
   currentVersion: number,
   newVersion: number,
 ): string {
-  const currentLines = currentContent.split("\n");
-  const restoredLines = restoredContent.split("\n");
+  const currentLines = currentContent ? currentContent.split("\n") : [];
+  const restoredLines = restoredContent ? restoredContent.split("\n") : [];
   return [
     `--- v${currentVersion}`,
     `+++ v${newVersion}`,
-    `@@ -1,${Math.max(1, currentLines.length)} +1,${Math.max(1, restoredLines.length)} @@`,
+    `@@ -${currentLines.length ? 1 : 0},${currentLines.length} +${restoredLines.length ? 1 : 0},${restoredLines.length} @@`,
     ...currentLines.map((line) => `-${line}`),
     ...restoredLines.map((line) => `+${line}`),
   ].join("\n");
@@ -3717,7 +3683,11 @@ export class OpenMatesClient {
       artifact,
       imported_at: Math.floor(Date.now() / 1000),
     }, this.getCliRequestHeaders());
-    if (!response.ok) throw new Error(`Team import failed with HTTP ${response.status}`);
+    if (!response.ok) {
+      const detail = response.data?.detail;
+      const explanation = typeof detail === "string" && detail.length <= 500 ? `: ${detail}` : "";
+      throw new Error(`Team import failed with HTTP ${response.status}${explanation}`);
+    }
     return response.data;
   }
 
@@ -7253,7 +7223,7 @@ export class OpenMatesClient {
                   historicalContent = await decryptWithAesGcmCombined(versionRow.encrypted_snapshot, embedKey);
                 } else if (typeof versionRow.encrypted_patch === "string" && historicalContent !== null) {
                   const patch = await decryptWithAesGcmCombined(versionRow.encrypted_patch, embedKey);
-                  historicalContent = applyUnifiedDiffForEmbedVersion(historicalContent, patch ?? "");
+                  historicalContent = applyVersionPatch(historicalContent, patch ?? "");
                 } else {
                   throw new Error("Canonical recovery embed history lacks a starting snapshot.");
                 }
@@ -13633,8 +13603,12 @@ export class OpenMatesClient {
     if (!response.ok || !response.data) {
       throw new Error(this.formatEmbedVersionError(response.data, `Failed to load embed version ${version} (HTTP ${response.status})`));
     }
-    if (typeof response.data.content === "string" || !Array.isArray(response.data.rows)) {
-      return response.data;
+    if (response.data.embed_id !== embedId || response.data.version_number !== version) {
+      throw new Error("Version response does not match the selected version");
+    }
+    if (typeof response.data.content === "string") return response.data;
+    if (!Array.isArray(response.data.rows) || response.data.rows.at(-1)?.version_number !== version) {
+      throw new Error("Version response does not match the selected version");
     }
     const content = await this.reconstructEncryptedEmbedVersion(embedId, response.data.rows, context);
     if (response.data.rows.length > 32 && response.data.readonly === false) {
@@ -13811,22 +13785,7 @@ export class OpenMatesClient {
       throw new Error("Could not resolve embed encryption key for version history.");
     }
 
-    const sortedRows = [...rows].sort((a, b) => a.version_number - b.version_number);
-    let content: string | null = null;
-    for (const row of sortedRows) {
-      if (row.encrypted_snapshot) {
-        content = await decryptWithAesGcmCombined(row.encrypted_snapshot, embedKey);
-        continue;
-      }
-      if (row.encrypted_patch && content !== null) {
-        const patch = await decryptWithAesGcmCombined(row.encrypted_patch, embedKey);
-        content = applyUnifiedDiffForEmbedVersion(content, patch ?? "");
-      }
-    }
-    if (content === null) {
-      throw new Error("Version history is missing the initial snapshot");
-    }
-    return content;
+    return reconstructVersionRows(rows, (ciphertext) => decryptWithAesGcmCombined(ciphertext, embedKey));
   }
 
   private async resolveVersionEmbedKey(embedId: string, context?: EmbedVersionReadContext): Promise<Uint8Array | null> {
@@ -14977,6 +14936,7 @@ export class OpenMatesClient {
     return {
       "User-Agent": this.getCliUserAgent(),
       "X-OpenMates-SDK": "cli",
+      "X-OpenMates-Client-Capabilities": "agentic-storage-v2",
       "X-OpenMates-Device-Identity": this.getCliApiKeyDeviceIdentity(),
       Origin: deriveAppUrl(this.apiUrl),
     };

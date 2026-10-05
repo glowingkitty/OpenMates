@@ -38,9 +38,12 @@ class FakeStorage:
     async def verify_regional_object(self, *, bucket_key, object_key, region, checksum):
         return region != self.bad_region and hashlib.sha256(self.objects[(region, object_key)]).hexdigest() == checksum
 
-    async def get_file(self, bucket, key):
+    async def get_file(self, bucket, key, *, max_bytes=None):
         del bucket
-        return self.objects.get(("eu-a", key))
+        payload = self.objects.get(("eu-a", key))
+        if payload is not None and max_bytes is not None and len(payload) > max_bytes:
+            raise RuntimeError("Object exceeds the admitted read budget")
+        return payload
 
     async def delete_file(self, bucket_key, key):
         assert bucket_key == "chatfiles"
@@ -227,6 +230,12 @@ async def test_reader_activation_and_prune_verify_archive_and_leave_metadata(mon
         directus_service=directus, s3_service=storage, embed_id="embed-1",
         hashed_user_id="owner-hash", version_number=1, current_version=65,
     )
+    phases = []
+    async def allow_transition(service, *, phase):
+        assert service is directus
+        phases.append(phase)
+        return True
+    monkeypatch.setattr("backend.core.api.app.services.embed_version_archive_service.archive_advancement_allowed", allow_transition)
     activated = await activate_version_reader(
         directus_service=directus, s3_service=storage, embed_id="embed-1",
         hashed_user_id="owner-hash", version_number=1,
@@ -237,6 +246,7 @@ async def test_reader_activation_and_prune_verify_archive_and_leave_metadata(mon
         hashed_user_id="owner-hash", version_number=1,
     )
     assert pruned["pruned_count"] == 1
+    assert phases == ["read", "prune"]
     assert row["encrypted_snapshot"] is None
     assert row["has_snapshot"] is True
     assert (await read_archived_version(s3_service=storage, row=row))["encrypted_snapshot"] == "opaque-snapshot"
@@ -335,3 +345,47 @@ async def test_copy_scheduler_scans_one_bounded_page_and_skips_recent_payloads(m
     )
     assert calls == [1]
     assert result == {"copied": 1, "skipped": 1, "failed": 0, "next_cursor": "2"}
+
+
+# contract-test: supporting surface=rest_api assertions=storage.versions.bounded-reconstruction
+@pytest.mark.asyncio
+@pytest.mark.parametrize("payload", [
+    [], {"version_number": True, "encrypted_snapshot": "opaque", "encrypted_patch": None},
+    {"version_number": 1, "encrypted_snapshot": None, "encrypted_patch": None},
+    {"version_number": 1, "encrypted_snapshot": "opaque", "encrypted_patch": None, "extra": "unexpected"},
+])
+async def test_checksum_valid_but_malformed_archive_cannot_be_returned(payload):
+    data = json.dumps(payload).encode()
+    storage = FakeStorage()
+    storage.objects[("eu-a", "malformed")] = data
+    row = {"version_number": 1, "archive_object_key": "malformed",
+           "archive_checksum": hashlib.sha256(data).hexdigest()}
+    with pytest.raises(RuntimeError, match="malformed|no ciphertext"):
+        await read_archived_version(s3_service=storage, row=row)
+
+
+# contract-test: direct surface=rest_api assertions=storage.versions.bounded-reconstruction
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["read", "prune"])
+async def test_version_transition_rechecks_shared_runtime_fences(monkeypatch, operation):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-token")
+    row = {"id": "row-1", "embed_id": "embed-1", "version_number": 1,
+           "encrypted_snapshot": "opaque-snapshot", "encrypted_patch": None,
+           "archive_state": None, "snapshot_digest": None}
+    storage, directus = FakeStorage(), FakeDirectus(row)
+    await copy_and_index_version(directus_service=directus, s3_service=storage,
+                                embed_id="embed-1", hashed_user_id="owner-hash",
+                                version_number=1, current_version=65)
+    if operation == "prune":
+        row.update(archive_state="reader_active", archive_reader_activated_at=10,
+                   archive_source_copy_until=11)
+    async def reject_transition(service, *, phase):
+        assert service is directus and phase == operation
+        return False
+    monkeypatch.setattr("backend.core.api.app.services.embed_version_archive_service.archive_advancement_allowed", reject_transition)
+    transition = activate_version_reader if operation == "read" else prune_version_payload
+    with pytest.raises(RuntimeError, match="runtime fences"):
+        await transition(directus_service=directus, s3_service=storage,
+                         embed_id="embed-1", hashed_user_id="owner-hash", version_number=1)
+    assert row["encrypted_snapshot"] == "opaque-snapshot"
+    assert row["archive_state"] == ("copied" if operation == "read" else "reader_active")

@@ -1824,7 +1824,7 @@
     if (!project || item.item_type !== 'embed') return null;
     try {
       const head = await readEncryptedProjectFile(project, item.target_id, {
-        teamId: getActiveTeamContextSnapshot().teamId,
+        teamId: project.teamId,
       });
       if (selectedProject?.project_id !== project.project_id) return null;
       const type = String(head.content.type || item.metadata.embed_type || 'code');
@@ -2047,7 +2047,7 @@
     <div class="search-result-card stored-item-entry" class:selected={storedItemSelected(entry.item.project_item_id)} data-testid="project-search-result"
       onclickcapture={(event) => handleStoredSelectionClick(event, entry.item)}
       oncontextmenucapture={(event) => openStoredContextMenu(event, entry.item)}>
-      <ProjectBrowserItem item={entry.item} {viewMode} displayName={projectBrowserItemName(entry.item)}
+      <ProjectBrowserItem projectId={selectedProject.project_id} teamId={selectedProject.teamId} item={entry.item} {viewMode} displayName={projectBrowserItemName(entry.item)}
         chatPresentation={previewState?.chatPresentations?.[entry.item.target_id]}
         loadProjectEmbed={loadProjectEmbed} onOpenFullscreen={openStoredFullscreen} />
     </div>
@@ -2414,6 +2414,8 @@
                 onclickcapture={(event) => handleStoredSelectionClick(event, item)}
                 oncontextmenucapture={(event) => openStoredContextMenu(event, item)}>
               <ProjectBrowserItem
+                projectId={selectedProject.project_id}
+                teamId={selectedProject.teamId}
                 {item}
                 {viewMode}
                 displayName={projectBrowserItemName(item)}
@@ -2501,7 +2503,7 @@
                     <div class="stored-item-entry" data-project-entry={row.key} class:selected={storedItemSelected(row.item.project_item_id)}
                       onclickcapture={(event) => handleStoredSelectionClick(event, row.item)}
                       oncontextmenucapture={(event) => openStoredContextMenu(event, row.item)}>
-                      <ProjectBrowserItem item={row.item} {viewMode} chatPresentation={previewState?.chatPresentations?.[row.item.target_id]} onOpenFullscreen={openStoredFullscreen} />
+                      <ProjectBrowserItem projectId={selectedProject.project_id} teamId={selectedProject.teamId} item={row.item} {viewMode} chatPresentation={previewState?.chatPresentations?.[row.item.target_id]} onOpenFullscreen={openStoredFullscreen} />
                     </div>
                   {:else if row.kind === 'chat-folder'}
                     {#if viewMode === 'list'}
@@ -2796,6 +2798,8 @@
                     embedData: activeStoredFullscreen.embedData,
                   }}
                   embedId={activeStoredFullscreen.embedId || ''}
+                  projectId={activeStoredFullscreen.projectId}
+                  teamId={activeStoredFullscreen.teamId}
                   onClose={closeStoredFullscreen}
                   showChatButton={false}
                 />

@@ -4,6 +4,8 @@
 
 FROM python:3.13-slim
 
+ARG BUILD_COMMIT_SHA=""
+
 # Set the working directory in the container
 # PYTHONPATH will be set to /app, and the 'backend' module will reside in /app/backend
 WORKDIR /app
@@ -34,6 +36,7 @@ COPY scripts/verify_storage_lifecycle_api.py /app/scripts/verify_storage_lifecyc
 COPY scripts/verify_storage_replication_cli_chat.py /app/scripts/verify_storage_replication_cli_chat.py
 COPY scripts/audit_object_storage_inventory.py /app/scripts/audit_object_storage_inventory.py
 COPY scripts/storage_rollout.py /app/scripts/storage_rollout.py
+COPY scripts/storage_runtime_inventory.py /app/scripts/storage_runtime_inventory.py
 COPY config/media_encryption_rollout.yml /app/config/media_encryption_rollout.yml
 COPY frontend/apps/web_app/static/favicon.png /app/frontend/apps/web_app/static/favicon.png
 COPY frontend/packages/ui/src/i18n/locales /app/frontend/packages/ui/src/i18n/locales
@@ -42,6 +45,7 @@ COPY frontend/packages/ui/src/i18n/locales /app/frontend/packages/ui/src/i18n/lo
 RUN mkdir -p /app/logs && chown -R celeryuser:celeryuser /app/logs
 
 # Set environment variables for Python
+ENV BUILD_COMMIT_SHA=${BUILD_COMMIT_SHA}
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 # Set PYTHONPATH to /app. Python will look for modules in /app.

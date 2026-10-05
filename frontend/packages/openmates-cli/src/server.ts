@@ -63,6 +63,10 @@ import {
   type VaultSecretPresence,
   validateServerEnvironmentTarget,
 } from "./serverPlanning.js";
+import {
+  parseStorageMigrationOutcome, parseStorageMigrationProgress, storageMigrationCommand,
+  type StorageMigrationOutcome, type StorageMigrationProgress,
+} from "./serverStorageMigration.js";
 import { publishServerBackupArchive } from "./serverBackupArchive.js";
 import { applyCaddyPathUpdate, caddyHostOperation, officialUploadOrigins, readCaddyUpdateState, renderOfficialUploadCaddyTemplate, resolveCaddyProfile, validateOfficialUploadCaddy, verifyCaddyCoreRoutes, verifyCaddyUploadRoutes, type CaddyUpdateResult } from "./serverCaddyUpdate.js";
 import {
@@ -1487,6 +1491,85 @@ function sourceUpdateMetadata(installPath: string): { installedVersion: string; 
   };
 }
 
+function runAutomaticStorageMigration(
+  installPath: string, role: ServerRole, installMode: "image" | "source",
+  withOverrides: boolean,
+): StorageMigrationOutcome {
+  if (role !== "core") return { status: "not_applicable" };
+  if (!shouldAutoInstallRuntimeMonitoringServices(process.env)) {
+    return { status: "paused", reason: "inventory_refresh_service_disabled", retry_seconds: 60 };
+  }
+  if (!refreshStorageRuntimeInventory(installPath, role, installMode, withOverrides)) {
+    return { status: "paused", reason: "runtime_inventory_refresh_unavailable", retry_seconds: 60 };
+  }
+  let sourceRevision: string | undefined;
+  if (installMode === "source") {
+    // A source build containing uncommitted code cannot be authorized by a
+    // certificate for HEAD, even if the commit itself is release eligible.
+    if (exec("git status --porcelain", installPath).trim()) {
+      return { status: "pending", reason: "source_worktree_unverified" };
+    }
+    const revision = exec("git rev-parse HEAD", installPath).trim();
+    if (!/^[a-f0-9]{40}$/i.test(revision)) {
+      return { status: "pending", reason: "source_revision_unavailable" };
+    }
+    sourceRevision = revision;
+  }
+  const args = storageMigrationCommand(composeArgs(installPath, withOverrides, installMode, role), "auto", sourceRevision);
+  const result = spawnSync("docker", args, {
+    cwd: installPath, encoding: "utf8", timeout: 45_000,
+    stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024,
+  });
+  if (result.error || result.status !== 0) {
+    return { status: "paused", reason: "migration_coordinator_unavailable" };
+  }
+  try {
+    return parseStorageMigrationOutcome(JSON.parse(result.stdout.trim()));
+  } catch {
+    // Only the bounded, sanitized coordinator status is exposed to callers.
+  }
+  return { status: "paused", reason: "migration_coordinator_response_invalid" };
+}
+
+function refreshStorageRuntimeInventory(
+  installPath: string, role: ServerRole, installMode: "image" | "source", withOverrides: boolean,
+): boolean {
+  if (role !== "core") return true;
+  if (installMode === "source" && exec("git status --porcelain", installPath).trim()) return false;
+  try {
+    const containers = execFileSync("docker", [...composeArgs(installPath, withOverrides, installMode, role), "ps", "--all", "-q", "api"],
+      { cwd: installPath, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 15_000 }).trim().split(/\s+/).filter(Boolean);
+    if (containers.length < 1 || containers.length > 128 || new Set(containers).size !== containers.length
+        || containers.some((id) => !/^[a-f0-9]{12,64}$/.test(id))) return false;
+    const cohort: unknown[] = [];
+    for (const container of containers) {
+      const output = execFileSync("docker", ["exec", container, "python", "/app/scripts/storage_runtime_inventory.py", "inspect"],
+        { cwd: installPath, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 15_000, maxBuffer: 64 * 1024 });
+      cohort.push(JSON.parse(output.trim()));
+    }
+    const result = spawnSync("docker", ["exec", "-i", containers[0], "python", "/app/scripts/storage_runtime_inventory.py", "publish"],
+      { cwd: installPath, encoding: "utf8", input: JSON.stringify(cohort), timeout: 45_000,
+        stdio: ["pipe", "pipe", "pipe"], maxBuffer: 64 * 1024 });
+    if (result.error || result.status !== 0) return false;
+    const published = JSON.parse(result.stdout.trim()) as { status?: string };
+    return published.status === "published";
+  } catch { return false; }
+}
+
+function readStorageMigrationProgress(
+  installPath: string, role: ServerRole, installMode: "image" | "source", withOverrides: boolean,
+): StorageMigrationProgress {
+  if (role !== "core") return { automatic: { status: "not_applicable" } };
+  const result = spawnSync("docker", storageMigrationCommand(
+    composeArgs(installPath, withOverrides, installMode, role), "status",
+  ), { cwd: installPath, encoding: "utf8", timeout: 45_000,
+       stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 });
+  if (!result.error && result.status === 0) {
+    try { return parseStorageMigrationProgress(JSON.parse(result.stdout.trim())); } catch { /* bounded status below */ }
+  }
+  return { automatic: { status: "paused", reason: "migration_coordinator_unavailable", retry_seconds: 60 } };
+}
+
 function copyIfExists(source: string, destination: string): void {
   if (!existsSync(source)) return;
   mkdirSync(dirname(destination), { recursive: true });
@@ -2097,8 +2180,26 @@ async function serverStatus(flags: Record<string, string | boolean>): Promise<vo
   }
   if (selection.requested) args.push(...selection.services);
 
+  if (flags.json === true) {
+    const output = execFileSync("docker", args, { cwd: installPath, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+    const containers: unknown[] = [];
+    if (output) {
+      if (output.startsWith("[")) containers.push(...JSON.parse(output));
+      else for (const line of output.split("\n")) containers.push(JSON.parse(line));
+    }
+    printJson({ command: "status", path: installPath, role, containers,
+      storageMigration: readStorageMigrationProgress(installPath, role, getInstallMode(installPath, config), withOverrides) });
+    return;
+  }
   const code = await runInteractive("docker", args, installPath);
   if (code !== 0) process.exit(code);
+  const migration = readStorageMigrationProgress(installPath, role, getInstallMode(installPath, config), withOverrides);
+  const outcome = migration.automatic;
+  console.log(`Storage migration: ${outcome.status}${outcome.reason ? ` (${outcome.reason})` : ""}${outcome.retry_seconds ? `; retry in ${outcome.retry_seconds}s` : ""}`);
+  if (migration.legacy_full_graph) console.log(`Legacy full graph migration: ${migration.legacy_full_graph.status} (${migration.legacy_full_graph.reason ?? "policy_pending"})`);
+  if (migration.message_segments) console.log(`Message segments: ${JSON.stringify(migration.message_segments)}`);
+  if (migration.message_pages) console.log(`Message pages: ${JSON.stringify(migration.message_pages)}`);
+  if (migration.version_rows) console.log(`Version rows: ${JSON.stringify(migration.version_rows)}`);
 }
 
 async function serverStart(flags: Record<string, string | boolean>): Promise<void> {
@@ -2877,6 +2978,11 @@ async function installRuntimeMonitoringServices(installPath: string, role: Serve
   execSync("systemctl daemon-reload", { stdio: "pipe" });
   const timers = files.filter(([name]) => name.endsWith(".timer")).map(([name]) => name);
   execSync(`systemctl enable --now ${timers.map(shellQuote).join(" ")}`, { stdio: "pipe" });
+  // Reload the new cadence even when these timers were already active.
+  execFileSync("systemctl", ["restart", plan.timerName], { stdio: "pipe" });
+  // An in-flight oneshot may still execute the previous installed CLI code.
+  // Restart it without waiting for the health run; inactive oneshots stay idle.
+  execFileSync("systemctl", ["--no-block", "try-restart", plan.serviceName], { stdio: "pipe" });
   for (const timer of timers) execFileSync("systemctl", ["is-active", "--quiet", timer], { stdio: "pipe" });
 }
 
@@ -3264,6 +3370,9 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       throw error;
     }
 
+    const automaticStorageMigration = runAutomaticStorageMigration(installPath, role, installMode, withOverrides);
+    console.error(`Storage migration: ${automaticStorageMigration.status}${automaticStorageMigration.reason ? ` (${automaticStorageMigration.reason})` : ""}`);
+
     if (config) {
       saveServerConfig({ ...config, imageTag: target.tag, imageChannel: target.channel });
     }
@@ -3303,6 +3412,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         checks: successfulRuntimeOutput?.checks ?? [],
         runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
         quickTest,
+        automaticStorageMigration,
         completionEmailDelivery: completion.delivery,
       });
       if (flags.json === true) {
@@ -3332,6 +3442,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       checks: successfulRuntimeOutput?.checks ?? [],
       runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
       quickTest,
+      automaticStorageMigration,
       completionEmailDelivery: completion.delivery,
       completionEmailDeliveryId: completion.deliveryId,
       completionEmailPendingAt: completion.deliveryPendingAt,
@@ -3347,6 +3458,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         runtimeVerification: successfulRuntimeOutput,
         caddy,
         quickTest,
+        automaticStorageMigration,
         completionEmailDelivery: completion.delivery,
         completedAt: completion.completedAt,
       });
@@ -3415,9 +3527,18 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
     }
   }
 
+  // Bake only clean source provenance into every rebuilt API/worker image;
+  // a dirty development tree keeps automatic archive advancement paused.
+  let sourceBuildRevision = "";
+  try {
+    if (!exec("git status --porcelain", installPath).trim()) {
+      const revision = exec("git rev-parse HEAD", installPath).trim();
+      if (/^[a-f0-9]{40}$/i.test(revision)) sourceBuildRevision = revision.toLowerCase();
+    }
+  } catch { /* A build without verified provenance remains supported. */ }
   // Rebuild and restart
   const buildArgs = appendSelectedServices(
-    [...composeArgs(installPath, withOverrides, installMode, role), "build"],
+    [...composeArgs(installPath, withOverrides, installMode, role), "build", "--build-arg", `BUILD_COMMIT_SHA=${sourceBuildRevision}`],
     coreSetupPlan.pullOrBuildServices,
     filterRequested,
   );
@@ -3487,6 +3608,9 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
     throw error;
   }
 
+  const automaticStorageMigration = runAutomaticStorageMigration(installPath, role, installMode, withOverrides);
+  console.error(`Storage migration: ${automaticStorageMigration.status}${automaticStorageMigration.reason ? ` (${automaticStorageMigration.reason})` : ""}`);
+
   try {
     await autoInstallRuntimeMonitoringServices(installPath, role);
   } catch (error) {
@@ -3513,6 +3637,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       checks: successfulRuntimeOutput?.checks ?? [],
       runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
       quickTest,
+      automaticStorageMigration,
       completionEmailDelivery: completion.delivery,
     });
     if (flags.json === true) {
@@ -3540,6 +3665,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
     checks: successfulRuntimeOutput?.checks ?? [],
     runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
     quickTest,
+    automaticStorageMigration,
     completionEmailDelivery: completion.delivery,
     completionEmailDeliveryId: completion.deliveryId,
     completionEmailPendingAt: completion.deliveryPendingAt,
@@ -3556,6 +3682,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       runtimeVerification: successfulRuntimeOutput,
       caddy,
       quickTest,
+      automaticStorageMigration,
       completionEmailDelivery: completion.delivery,
       completedAt: completion.completedAt,
     });
@@ -3726,7 +3853,14 @@ async function serverMonitoring(rest: string[], flags: Record<string, string | b
   let output: RuntimeVerifierOutput;
   try {
     requireDocker();
+    const inventoryRefreshed = refreshStorageRuntimeInventory(
+      installPath, role, getInstallMode(installPath, config), config?.composeProfile === "full",
+    );
     output = runRuntimeVerification(installPath, role, config);
+    if (!inventoryRefreshed) {
+      output.checks.push({ id: "core.storage_migration_inventory", status: "failed", required: false,
+        duration_ms: 0, failureClass: "configuration", sanitized_reason: "runtime_inventory_refresh_unavailable" });
+    }
   } catch (error) {
     console.error(`Runtime verifier unavailable: ${error instanceof Error ? error.name : "UnknownError"}`);
     output = {

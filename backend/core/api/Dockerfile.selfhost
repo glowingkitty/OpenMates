@@ -41,6 +41,8 @@ COPY backend /app/backend
 COPY scripts/verify_storage_lifecycle_api.py /app/scripts/verify_storage_lifecycle_api.py
 COPY scripts/verify_storage_replication_cli_chat.py /app/scripts/verify_storage_replication_cli_chat.py
 COPY scripts/audit_object_storage_inventory.py /app/scripts/audit_object_storage_inventory.py
+COPY scripts/storage_rollout.py /app/scripts/storage_rollout.py
+COPY scripts/storage_runtime_inventory.py /app/scripts/storage_runtime_inventory.py
 COPY config/media_encryption_rollout.yml /app/config/media_encryption_rollout.yml
 COPY shared /shared
 RUN test -s /shared/config/pricing.yml && test -s /shared/config/urls.yml

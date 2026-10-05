@@ -1011,7 +1011,18 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         logger.error("[Startup] Failed to check/trigger daily inspiration defaults: %s", _e, exc_info=True)
 
-    yield  # This is where FastAPI serves requests
+    from backend.core.api.app.services.storage_archive_client_compatibility import runtime_proof_loop
+    app.state.connection_manager = websockets.manager
+    websockets.manager.storage_archive_dispatch_guard_installed = True
+    compatibility_task = asyncio.create_task(runtime_proof_loop(app))
+    try:
+        yield  # This is where FastAPI serves requests
+    finally:
+        compatibility_task.cancel()
+        try:
+            await compatibility_task
+        except asyncio.CancelledError:
+            pass
     
     # Shutdown logic
     logger.info("Shutting down application...")
@@ -1224,6 +1235,8 @@ def create_app() -> FastAPI:
     # Add logging middleware (pass metrics service from backend.core.api.app.state if needed, or remove if unused)
     # Assuming LoggingMiddleware doesn't actually need metrics_service passed here
     app.add_middleware(LoggingMiddleware)
+    from backend.core.api.app.services.storage_archive_client_compatibility import StorageArchiveClientCompatibilityMiddleware
+    app.add_middleware(StorageArchiveClientCompatibilityMiddleware)
     app.add_middleware(SessionCookiePublicationMiddleware)
     # If it does need it, it should fetch it via request.app.state inside the middleware
 

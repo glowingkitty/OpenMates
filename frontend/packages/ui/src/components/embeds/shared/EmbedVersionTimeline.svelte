@@ -21,13 +21,15 @@
 	interface Props {
 		embedId: string;
 		chatId?: string;
+		projectId?: string;
+		teamId?: string | null;
 		currentVersion: number;
 		currentContent: string;
 		buildRestoredContent?: (restoredContent: string, newVersion: number) => Record<string, unknown>;
 		onVersionSelect: (version: number, content: string | null) => void;
 	}
 
-	let { embedId, chatId, currentVersion, currentContent, buildRestoredContent, onVersionSelect }: Props = $props();
+	let { embedId, chatId, projectId, teamId, currentVersion, currentContent, buildRestoredContent, onVersionSelect }: Props = $props();
 
 	let versions: EmbedVersionMeta[] = $state([]);
 	let nextCursor: number | null = $state(null);
@@ -60,7 +62,7 @@
 		loading = true;
 		errorMessage = '';
 		try {
-			const response = await fetchEmbedVersions(embedId, { order: 'desc', limit: 32, chatId });
+			const response = await fetchEmbedVersions(embedId, { order: 'desc', limit: 32, chatId, projectId, teamId });
 			versions = response.versions;
 			nextCursor = response.next_cursor ?? null;
 			readonly = response.readonly;
@@ -88,7 +90,7 @@
 		loadingMore = true;
 		errorMessage = '';
 		try {
-			const response = await fetchEmbedVersions(embedId, { order: 'desc', limit: 32, cursor: nextCursor, chatId });
+			const response = await fetchEmbedVersions(embedId, { order: 'desc', limit: 32, cursor: nextCursor, chatId, projectId, teamId });
 			const known = new Set(versions.map((row) => row.version_number));
 			versions = [...versions, ...response.versions.filter((row) => !known.has(row.version_number))];
 			nextCursor = response.next_cursor ?? null;
@@ -113,7 +115,7 @@
 		selectedContent = null;
 		loadingContent = true;
 		try {
-			const response = await fetchEmbedVersionContent(embedId, version, chatId);
+			const response = await fetchEmbedVersionContent(embedId, version, { chatId, projectId, teamId });
 			if (requestId !== contentRequestId) return;
 			selectedContent = response.content;
 			onVersionSelect(version, response.content);
@@ -140,6 +142,8 @@
 				currentVersion: activeCurrentVersion,
 				currentContent,
 				chatId,
+				projectId,
+				teamId,
 				buildRestoredContent
 			});
 			activeCurrentVersion = response.version_number;

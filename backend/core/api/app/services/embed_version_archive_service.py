@@ -15,6 +15,7 @@ import time
 from typing import Any
 
 from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.shared.python_utils.storage_archive_rollout_config import archive_feature_enabled, archive_advancement_allowed
 
 BUCKET_KEY = "chatfiles"
 MAX_ENVELOPE_BYTES = 8 * 1024 * 1024
@@ -68,16 +69,25 @@ async def read_archived_version(*, s3_service: Any, row: dict[str, Any]) -> dict
     checksum = row.get("archive_checksum")
     if not isinstance(key, str) or not isinstance(checksum, str):
         raise RuntimeError("Archived version is missing its verified locator")
-    data = await s3_service.get_file(get_bucket_name(BUCKET_KEY, s3_service.environment), key)
+    data = await s3_service.get_file(
+        get_bucket_name(BUCKET_KEY, s3_service.environment), key, max_bytes=MAX_ENVELOPE_BYTES,
+    )
     if data is None or len(data) > MAX_ENVELOPE_BYTES or hashlib.sha256(data).hexdigest() != checksum:
         raise RuntimeError("Archived version checksum mismatch or missing object")
     payload = json.loads(data)
+    if (not isinstance(payload, dict)
+            or set(payload) != {"version_number", "encrypted_snapshot", "encrypted_patch"}
+            or not isinstance(payload["version_number"], int)
+            or isinstance(payload["version_number"], bool)):
+        raise RuntimeError("Archived version envelope is malformed")
     if payload.get("version_number") != row.get("version_number"):
         raise RuntimeError("Archived version identity mismatch")
     if not isinstance(payload.get("encrypted_snapshot"), (str, type(None))) or not isinstance(
         payload.get("encrypted_patch"), (str, type(None))
     ):
         raise RuntimeError("Archived version envelope is malformed")
+    if not payload.get("encrypted_snapshot") and not payload.get("encrypted_patch"):
+        raise RuntimeError("Archived version envelope has no ciphertext")
     return payload
 
 
@@ -141,7 +151,7 @@ async def activate_version_reader(
     hashed_user_id: str, version_number: int,
 ) -> dict[str, Any]:
     """Enable the verified S3 reader; PostgreSQL payload remains for rollback."""
-    if os.getenv("EMBED_VERSION_ARCHIVE_READ_ENABLED") != "1":
+    if not archive_feature_enabled("EMBED_VERSION_ARCHIVE_READ_ENABLED"):
         raise RuntimeError("Version archive reader rollout is disabled")
     row = await _read_version_for_transition(
         directus_service=directus_service, embed_id=embed_id,
@@ -154,6 +164,8 @@ async def activate_version_reader(
         row.get(field) != archived.get(field) for field in ("encrypted_snapshot", "encrypted_patch")
     ):
         raise RuntimeError("Version archive differs from PostgreSQL source")
+    if not await archive_advancement_allowed(directus_service, phase="read"):
+        raise RuntimeError("Version archive reader runtime fences are unavailable")
     return await _version_transition(directus_service=directus_service, operation="archive-activate", row=row)
 
 
@@ -162,9 +174,10 @@ async def prune_version_payload(
     hashed_user_id: str, version_number: int,
 ) -> dict[str, Any]:
     """Clear only the hot ciphertext after read, retention and recovery gates."""
-    if (os.getenv("EMBED_VERSION_ARCHIVE_COPY_ENABLED") != "1"
-            or os.getenv("EMBED_VERSION_ARCHIVE_READ_ENABLED") != "1"
-            or os.getenv("EMBED_VERSION_ARCHIVE_PRUNE_ENABLED") != "1"):
+    if any(not archive_feature_enabled(name) for name in (
+        "EMBED_VERSION_ARCHIVE_COPY_ENABLED", "EMBED_VERSION_ARCHIVE_READ_ENABLED",
+        "EMBED_VERSION_ARCHIVE_PRUNE_ENABLED",
+    )):
         raise RuntimeError("Version archive pruning rollout is disabled")
     row = await _read_version_for_transition(
         directus_service=directus_service, embed_id=embed_id,
@@ -181,6 +194,8 @@ async def prune_version_payload(
             raise RuntimeError("Version archive source changed before pruning")
     elif row.get("encrypted_snapshot") or row.get("encrypted_patch"):
         raise RuntimeError("Pruned version unexpectedly retains PostgreSQL ciphertext")
+    if not await archive_advancement_allowed(directus_service, phase="prune"):
+        raise RuntimeError("Version archive pruning runtime fences are unavailable")
     return await _version_transition(directus_service=directus_service, operation="archive-prune", row=row)
 
 

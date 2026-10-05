@@ -1347,7 +1347,7 @@ async def _apply_diff_block_to_existing_embed(
 ) -> str:
     """Apply a unified diff fence to an existing embed and return response markdown."""
     from backend.core.api.app.services.embed_diff_service import (
-        apply_patch, parse_unified_diff, resolve_diff_target_embed_id
+        apply_patch, build_committed_version_patch, parse_unified_diff, resolve_diff_target_embed_id
     )
     from toon_format import decode
 
@@ -1437,7 +1437,7 @@ async def _apply_diff_block_to_existing_embed(
     version_history_rows.append({
         "embed_id": target_embed_id,
         "version_number": new_version,
-        "patch": diff_content,
+        "patch": build_committed_version_patch(current_content, patch_result.new_content),
         **({"snapshot": patch_result.new_content} if new_version % 32 == 0 else {}),
         "created_at": now,
     })
@@ -1446,10 +1446,9 @@ async def _apply_diff_block_to_existing_embed(
     if embed_type == "code" or "code" in (cached_embed.get("encrypted_type") or ""):
         capped_current_content, _ = _cap_code_for_learning_mode(request_data, current_content)
         capped_new_content, learning_mode_metadata = _cap_code_for_learning_mode(request_data, patch_result.new_content)
-        capped_diff_content, _ = _cap_code_for_learning_mode(request_data, diff_content)
         if version_history_rows and version_history_rows[0].get("snapshot") == current_content:
             version_history_rows[0]["snapshot"] = capped_current_content
-        version_history_rows[-1]["patch"] = capped_diff_content
+        version_history_rows[-1]["patch"] = build_committed_version_patch(capped_current_content, capped_new_content)
         if new_version % 32 == 0:
             version_history_rows[-1]["snapshot"] = capped_new_content
         new_content_hash = hashlib.sha256(capped_new_content.encode("utf-8")).hexdigest()
@@ -1484,10 +1483,9 @@ async def _apply_diff_block_to_existing_embed(
     elif embed_type == "document":
         capped_current_content, _ = _cap_document_for_learning_mode(request_data, current_content)
         capped_new_content, learning_mode_metadata = _cap_document_for_learning_mode(request_data, patch_result.new_content)
-        capped_diff_content, _ = _cap_document_for_learning_mode(request_data, diff_content)
         if version_history_rows and version_history_rows[0].get("snapshot") == current_content:
             version_history_rows[0]["snapshot"] = capped_current_content
-        version_history_rows[-1]["patch"] = capped_diff_content
+        version_history_rows[-1]["patch"] = build_committed_version_patch(capped_current_content, capped_new_content)
         if new_version % 32 == 0:
             version_history_rows[-1]["snapshot"] = capped_new_content
         new_content_hash = hashlib.sha256(capped_new_content.encode("utf-8")).hexdigest()
@@ -1540,10 +1538,9 @@ async def _apply_diff_block_to_existing_embed(
             max(0, len(current_content.splitlines()) - 2),
             0,
         )
-        capped_diff_content, _ = _cap_code_for_learning_mode(request_data, diff_content)
         if version_history_rows and version_history_rows[0].get("snapshot") == current_content:
             version_history_rows[0]["snapshot"] = capped_current_table
-        version_history_rows[-1]["patch"] = capped_diff_content
+        version_history_rows[-1]["patch"] = build_committed_version_patch(capped_current_table, capped_table_content)
         if new_version % 32 == 0:
             version_history_rows[-1]["snapshot"] = capped_table_content
         new_content_hash = hashlib.sha256(capped_table_content.encode("utf-8")).hexdigest()

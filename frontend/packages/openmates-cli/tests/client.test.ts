@@ -213,6 +213,20 @@ after(() => {
 });
 
 describe("OpenMatesClient session API URL", () => {
+  // contract-test: supporting surface=sdks.npm assertions=storage.export.persisted-bounded-complete,teams.workspace.surface-parity
+  it("shows why a Team content import was rejected without dumping response data", async () => {
+    const client = OpenMatesClient.load();
+    const internals = client as unknown as { http: { post: (...args: unknown[]) => Promise<unknown> } };
+    internals.http.post = async () => ({
+      ok: false, status: 400,
+      data: { detail: "Team content restore is unsupported for chats; no rows were imported", private_payload: "private-ciphertext" },
+    });
+    await assert.rejects(client.importTeamData("team-1", {}),
+      /HTTP 400: Team content restore is unsupported for chats; no rows were imported/);
+    internals.http.post = async () => ({ ok: false, status: 400, data: { detail: { private_payload: "private-ciphertext" } } });
+    await assert.rejects(client.importTeamData("team-1", {}), /^Error: Team import failed with HTTP 400$/);
+  });
+
   beforeEach(() => {
     writeLegacySession();
     rmSync(serverConfigPath, { force: true });

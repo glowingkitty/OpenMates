@@ -3,6 +3,11 @@ name: Publish Self-Host Images
 on:
   workflow_dispatch:
     inputs:
+      renew_storage_eligibility:
+        description: Reissue eligibility with additional reviewed proof for this exact main/dev ref
+        required: false
+        default: false
+        type: boolean
       image_tag:
         description: Optional image tag override, e.g. v0.X.0-alpha.0
         required: false
@@ -35,6 +40,8 @@ on:
       - 'scripts/ci_runtime_images.py'
       - 'scripts/ci_schema_bundle.py'
       - 'scripts/ci_schema_image.Dockerfile'
+      - 'scripts/storage_release_eligibility.py'
+      - 'config/storage-release-evidence.json'
   push:
     branches: [main, dev]
     paths:
@@ -54,6 +61,8 @@ on:
       - 'scripts/ci_runtime_images.py'
       - 'scripts/ci_schema_bundle.py'
       - 'scripts/ci_schema_image.Dockerfile'
+      - 'scripts/storage_release_eligibility.py'
+      - 'config/storage-release-evidence.json'
 
 concurrency:
   group: publish-selfhost-images-${{ github.ref }}
@@ -114,7 +123,7 @@ jobs:
           echo "build_timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
   build-api:
-    if: ${{ inputs.notification_test != true }}
+    if: ${{ inputs.notification_test != true && inputs.renew_storage_eligibility != true }}
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -173,7 +182,7 @@ jobs:
             org.openmates.ci.runtime-key=${{ steps.runtime-key.outputs.key }}
 
   build-docs-worker:
-    if: ${{ inputs.notification_test != true }}
+    if: ${{ inputs.notification_test != true && inputs.renew_storage_eligibility != true }}
     needs: [prepare, build-api]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -208,7 +217,7 @@ jobs:
             OPENMATES_IMAGE_TAG=${{ env.PUBLISH_IMAGES == 'true' && needs.prepare.outputs.image_tag || 'dev' }}
 
   build-image:
-    if: ${{ inputs.notification_test != true }}
+    if: ${{ inputs.notification_test != true && inputs.renew_storage_eligibility != true }}
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -366,6 +375,52 @@ jobs:
             docker tag openmates-ci-database:local "$remote"
             docker push "$remote"
           done
+
+  storage-release-eligibility:
+    if: >-
+      always() && inputs.notification_test != true &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') &&
+      ((github.event_name == 'push' && needs.build-api.result == 'success' &&
+        needs.build-docs-worker.result == 'success' && needs.build-image.result == 'success' &&
+        needs.build-ci-schema.result == 'success') ||
+       (github.event_name == 'workflow_dispatch' && inputs.renew_storage_eligibility == true))
+    needs: [prepare, build-api, build-docs-worker, build-image, build-ci-schema]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install certificate verification dependency
+        run: python3 -m pip install --disable-pip-version-check cryptography==48.0.1
+      - name: Verify reviewed release proof and issue eligibility
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STORAGE_MIGRATION_RELEASE_SIGNING_KEY: ${{ secrets.STORAGE_MIGRATION_RELEASE_SIGNING_KEY }}
+        run: python3 scripts/storage_release_eligibility.py --source "$GITHUB_SHA" --output "test-results/storage-release/$GITHUB_SHA.json"
+      - name: Publish verified source-named release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          certificate="test-results/storage-release/$GITHUB_SHA.json"
+          if [ ! -f "$certificate" ]; then
+            echo 'Storage migration eligibility remains pending; PostgreSQL copies stay retained.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if ! gh release view storage-rollout-v1 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create storage-rollout-v1 --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title 'Storage migration release eligibility' \
+              --notes 'Signed eligibility assets bind verified reader, lifecycle and capacity evidence to exact application releases.'
+          fi
+          gh release upload storage-rollout-v1 "$certificate" --repo "$GITHUB_REPOSITORY" --clobber
+          echo "Published verified storage migration eligibility for $GITHUB_SHA." >> "$GITHUB_STEP_SUMMARY"
 
   notify:
     if: ${{ always() && (inputs.notification_test == true || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}

@@ -31,7 +31,7 @@
 		type Message
 	} from '@repo/ui';
 	import { goto } from '$app/navigation';
-	import { getApiEndpoint } from '@repo/ui';
+	import { getApiEndpoint, storageArchiveFetch } from '@repo/ui';
 	import {
 		dedupeShareChatEmbeds,
 		deriveParentByChildEmbeds,
@@ -219,7 +219,7 @@
 	 */
 	async function getServerTime(): Promise<number> {
 		try {
-			const response = await fetch(getApiEndpoint('/v1/share/time'));
+			const response = await storageArchiveFetch(getApiEndpoint('/v1/share/time'));
 			if (response.ok) {
 				const data = await response.json();
 				return data.timestamp || data.server_time || Math.floor(Date.now() / 1000);
@@ -309,8 +309,8 @@
 					messageParams.set('target_message_id', messageId);
 				}
 				const [manifestResponse, messagesResponse] = await Promise.all([
-					fetch(getApiEndpoint(`/v1/share/chat/${chatId}/manifest`)),
-					fetch(getApiEndpoint(`/v1/share/chat/${chatId}/messages?${messageParams.toString()}`))
+					storageArchiveFetch(getApiEndpoint(`/v1/share/chat/${chatId}/manifest`)),
+					storageArchiveFetch(getApiEndpoint(`/v1/share/chat/${chatId}/messages?${messageParams.toString()}`))
 				]);
 				if (!manifestResponse.ok || !messagesResponse.ok) {
 					throw new Error(`Windowed share endpoints returned ${manifestResponse.status}/${messagesResponse.status}`);
@@ -318,7 +318,7 @@
 				const manifestData = await manifestResponse.json();
 				if (manifestData.compression_checkpoint_window?.oversized_checkpoint_id) {
 					const selectedId = manifestData.compression_checkpoint_window.oversized_checkpoint_id;
-					const exactResponse = await fetch(getApiEndpoint(
+					const exactResponse = await storageArchiveFetch(getApiEndpoint(
 						`/v1/share/chat/${encodeURIComponent(chatId)}/compression-checkpoints/${encodeURIComponent(selectedId)}`
 					));
 					if (!exactResponse.ok) throw new Error(`Selected shared checkpoint failed (${exactResponse.status})`);
@@ -330,7 +330,7 @@
 				const selectedMessages = Array.isArray(messageWindowData.messages) ? [...messageWindowData.messages] : [];
 				if (messageWindowData.oversized_message_cursor?.message_id) {
 					const selectedId = messageWindowData.oversized_message_cursor.message_id;
-					const exactResponse = await fetch(getApiEndpoint(
+					const exactResponse = await storageArchiveFetch(getApiEndpoint(
 						`/v1/share/chat/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(selectedId)}`
 					));
 					if (!exactResponse.ok) throw new Error(`Selected shared message failed (${exactResponse.status})`);

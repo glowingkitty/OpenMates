@@ -121,6 +121,8 @@
     piiRevealed?: boolean;
     /** Current chat ID — required for piiVisibilityStore.toggle(chatId). See OPE-400. */
     chatId?: string;
+    projectId?: string;
+    teamId?: string | null;
   }
 
   let {
@@ -139,7 +141,9 @@
     onShowChat,
     piiMappings = [],
     piiRevealed = false,
-    chatId
+    chatId,
+    projectId,
+    teamId
   }: Props = $props();
 
   // ── Extract fields from data.decodedContent (with attrs fallback) ───────────
@@ -1897,6 +1901,8 @@
       <EmbedVersionTimeline
         {embedId}
         {chatId}
+        {projectId}
+        {teamId}
         currentVersion={versionNumber}
         currentContent={latestCodeContent}
         buildRestoredContent={(content, newVersion) => ({ ...dc, code: content, version_number: newVersion })}

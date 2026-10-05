@@ -248,6 +248,9 @@ implementation_phases:
       - Backfill a small cohort by copying, checksumming, replicating, and reading through the new path while PostgreSQL remains authoritative.
       - Enable verified S3 reads for the initial small cohort after targeted zero-inference safety, recovery, failure, and client-read tests; retain PostgreSQL source copies for 24 hours after cutover as a rollback buffer.
       - Compare graph/page manifests and client results, pause automatically on mismatch, and throttle by database and object-store load.
+      - Complete automatic migration for official-cloud production and self-hosted updates through the standard server CLI: schema setup, resumable bounded copy and verification, release evidence and enforced reader compatibility, verified read activation, the initial 24-hour source buffer, then per-unit fenced pruning.
+      - Ship migration eligibility evidence with the trusted release and verify it against deployed code; missing capacity, client, integrity or recovery evidence pauses automatic advancement rather than requiring operators to invent receipts or bypass gates.
+      - Surface migration progress, retry and pause reasons in server update/status; interrupted updates resume idempotently, and no automatic database restore may overwrite newer user writes or claim a database/runtime backup is a complete Vault/S3 recovery package.
       - Before the first real-data prune, require P-7 zero-inference load, lifecycle, and client-path checks as well as every supported reader's compatibility, per-unit durable-copy and canonical-persistence acknowledgements, generation/write fences, and tested rollback. Pause pruning and use the rollback path on failure; explicit deletion purges immediately. Keep the separate seven-day superseded-generation rule.
     source_paths:
       - backend/core/api/app/tasks/user_cache_tasks.py
@@ -268,6 +271,7 @@ implementation_phases:
       - Represent 1000 heavy user-days and ramp to 500 simultaneous main/subchat executions with realistic payload distributions, stream chunking, thinking content, slow producers, long histories, version chains, concurrent readers, and background archival. Preserve actual encryption so artificial plaintext compression cannot inflate capacity claims.
       - Separate paced steady-load and burst tests from accelerated volume/backfill runs; report rate, duration, payload distribution, hardware, network assumptions, latency, queue lag, memory, database/WAL growth, and object operations for each. Simulated inference measures infrastructure behavior and not reasoning quality or real model latency.
       - Benchmark staged loading, compression ratios, page sizing, reconstruction, and migration at the target daily workload.
+      - Admit and measure the requested concurrency explicitly; an infrastructure cap must be reported as insufficient admission rather than silently reducing 500 active executions to a smaller passing workload. Preserve separate accelerated volume and paced traffic evidence.
       - Gate ordinary uncached archive-page reads on p95 at most 1000 milliseconds through client decryption and page readiness, using declared hardware/network and disabled initial client/application payload caches. Measure prefetched/warm reads and failure cases separately.
       - Verify global deletion, Team revocation, shared references, complete exports, and seven-day superseded-generation cleanup through inherited contracts.
       - Verify web, CLI, SDK, and Apple scroll/decrypt behavior before broad rollout.

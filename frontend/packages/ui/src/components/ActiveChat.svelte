@@ -1,4 +1,6 @@
 <script lang="ts">
+import { storageArchiveFetch } from "../config/api";
+
     import HeaderActionMenu from './HeaderActionMenu.svelte';
     import { headerOverlayControls } from '../actions/headerOverlayControls';
     import MessageInput from './enter_message/MessageInput.svelte';
@@ -3608,7 +3610,7 @@
             upcoming_hours: '24',
             recent_hours: '12',
         });
-        const response = await fetch(getApiEndpoint(`/v1/settings/reminders?${params.toString()}`), {
+        const response = await storageArchiveFetch(getApiEndpoint(`/v1/settings/reminders?${params.toString()}`), {
             credentials: 'include',
         });
 
@@ -5630,7 +5632,7 @@
         const path = shared
             ? `/v1/share/chat/${encodeURIComponent(chatId)}/compression-checkpoints`
             : `/v1/chats/${encodeURIComponent(chatId)}/compression-checkpoints`;
-        const response = await fetch(getApiEndpoint(`${path}?${params}`), { credentials: 'include' });
+        const response = await storageArchiveFetch(getApiEndpoint(`${path}?${params}`), { credentials: 'include' });
         if (!response.ok) throw new Error(`Authenticated checkpoint-window fetch failed: ${response.status}`);
         const page = await response.json() as {
             checkpoints?: ChatCompressionCheckpoint[];
@@ -5643,7 +5645,7 @@
                 : `/v1/chats/${encodeURIComponent(chatId)}/compression-checkpoints/${encodeURIComponent(page.oversized_checkpoint_id)}`;
             const exactParams = new URLSearchParams();
             if (!shared && teamId) exactParams.set('team_id', teamId);
-            const exactResponse = await fetch(getApiEndpoint(`${exactPath}${exactParams.size ? `?${exactParams}` : ''}`), {
+            const exactResponse = await storageArchiveFetch(getApiEndpoint(`${exactPath}${exactParams.size ? `?${exactParams}` : ''}`), {
                 credentials: 'include',
             });
             if (!exactResponse.ok) throw new Error(`Selected checkpoint fetch failed: ${exactResponse.status}`);
@@ -9496,7 +9498,7 @@
         if (options.anchorMessageId) params.set('anchor_message_id', options.anchorMessageId);
         if (currentChat?.chat_id === chatId && currentChat.team_id) params.set('team_id', currentChat.team_id);
 
-        const response = await fetch(getApiEndpoint(`/v1/chats/${chatId}/messages/window?${params.toString()}`), {
+        const response = await storageArchiveFetch(getApiEndpoint(`/v1/chats/${chatId}/messages/window?${params.toString()}`), {
             credentials: 'include',
         });
         if (!response.ok) throw new Error(`Authenticated message-window fetch failed: ${response.status}`);
@@ -9513,7 +9515,7 @@
             const exactParams = new URLSearchParams();
             if (currentChat?.chat_id === chatId && currentChat.team_id) exactParams.set('team_id', currentChat.team_id);
             const exactPath = `/v1/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(selectedId)}`;
-            const exactResponse = await fetch(getApiEndpoint(`${exactPath}${exactParams.size ? `?${exactParams}` : ''}`), {
+            const exactResponse = await storageArchiveFetch(getApiEndpoint(`${exactPath}${exactParams.size ? `?${exactParams}` : ''}`), {
                 credentials: 'include',
             });
             if (!exactResponse.ok) throw new Error(`Selected message fetch failed: ${exactResponse.status}`);
@@ -9572,7 +9574,7 @@
                 let items: Record<string, unknown>[];
                 let nextState: typeof state;
                 if (state.oversized_id) {
-                    const response = await fetch(getApiEndpoint(
+                    const response = await storageArchiveFetch(getApiEndpoint(
                         `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/${kind}/${encodeURIComponent(state.oversized_id)}`,
                     ));
                     if (!response.ok) throw new Error(`Selected shared ${kind} failed: ${response.status}`);
@@ -9589,7 +9591,7 @@
                         params.set('before_id', state.start_cursor.id);
                     }
                     const path = `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/${kind}`;
-                    const response = await fetch(getApiEndpoint(`${path}${params.size ? `?${params}` : ''}`));
+                    const response = await storageArchiveFetch(getApiEndpoint(`${path}${params.size ? `?${params}` : ''}`));
                     if (!response.ok) throw new Error(`Shared ${kind} continuation failed: ${response.status}`);
                     const page = await response.json() as {
                         items?: Record<string, unknown>[]; has_more_before?: boolean;
@@ -9651,7 +9653,7 @@
                     before_message_id: currentChat.shared_message_window_next_before_message_id,
                     limit: String(MESSAGE_WINDOW_LIMIT),
                 });
-                const response = await fetch(getApiEndpoint(`/v1/share/chat/${openedChatId}/messages?${params.toString()}`));
+                const response = await storageArchiveFetch(getApiEndpoint(`/v1/share/chat/${openedChatId}/messages?${params.toString()}`));
                 if (!response.ok) throw new Error(`Shared older-window fetch failed: ${response.status}`);
                 const payload = await response.json() as {
                     messages?: Array<string | Record<string, unknown>>;
@@ -9664,7 +9666,7 @@
                 const selectedMessages = [...(payload.messages || [])];
                 if (payload.oversized_message_cursor) {
                     const selectedId = payload.oversized_message_cursor.message_id;
-                    const exactResponse = await fetch(getApiEndpoint(
+                    const exactResponse = await storageArchiveFetch(getApiEndpoint(
                         `/v1/share/chat/${encodeURIComponent(currentChat.chat_id)}/messages/${encodeURIComponent(selectedId)}`,
                     ));
                     if (!exactResponse.ok) throw new Error(`Selected shared message fetch failed: ${exactResponse.status}`);
@@ -11633,7 +11635,7 @@
             // Check server status to determine if payment is enabled (for signup status bar)
             try {
                 const { getApiEndpoint } = await import('../config/api');
-                const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
+                const response = await storageArchiveFetch(getApiEndpoint('/v1/settings/server-status'));
                 if (response.ok) {
                     const status = await response.json();
                     // Use is_self_hosted from request-based validation (more accurate than paymentEnabled)

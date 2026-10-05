@@ -1,3 +1,23 @@
+# Additional archive reader requirement (2026-10-05)
+
+After pulling the latest `dev`, complete archive-aware readers before advertising
+`agentic-storage-v2` in the WebSocket `client_capabilities` list and in the HTTP
+`X-OpenMates-Client-Capabilities` header. The capability means the full native
+reader can page mixed PostgreSQL/S3 chat history, fetch exact oversized messages,
+load child history on demand, decrypt and reconstruct historical artifact
+versions, and preserve Personal/Team/Project/share scope and revocation.
+
+Treat HTTP 426 and WebSocket `update_required` as an explicit update requirement;
+never report a hot-only transcript or a failed persistence acknowledgement as a
+complete saved result. Exact Project version reads and checkpoint writes carry
+`project_id` and, for a Team Project, its authorized `team_id`; never infer that
+association from an unrelated currently open Project. Preserve the existing
+canonical writer and typed-output recovery requirements below.
+
+Return the native source commit, supported platforms, focused reader/writer
+results and bounded evidence for release review. Native compatibility remains a
+required migration gate. There is no request to run large real inference tests.
+
 # Immediate Mac action for the active development storage API
 
 Development backend commits

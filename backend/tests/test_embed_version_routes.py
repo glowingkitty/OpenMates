@@ -424,7 +424,7 @@ async def test_selected_copied_version_reads_verified_archive_payload(monkeypatc
     class S3:
         environment = "development"
 
-        async def get_file(self, bucket, key):
+        async def get_file(self, bucket, key, *, max_bytes=None):
             calls.append((bucket, key))
             return payload
 
@@ -460,7 +460,7 @@ async def test_pruned_version_reconstructs_from_checksum_verified_s3_ciphertext(
     class S3:
         environment = "development"
 
-        async def get_file(self, bucket, key):
+        async def get_file(self, bucket, key, *, max_bytes=None):
             assert key == "archive-v1"
             return archived
 
@@ -562,7 +562,7 @@ async def test_team_embed_window_rechecks_membership_and_exact_chat_scope():
         async def require_team_role(self, team_id, user_id, roles):
             visited.append((team_id, user_id))
             if team_id != "team-1":
-                raise team_methods_stub.TeamPermissionError("denied")
+                raise embeds_api.TeamPermissionError("denied")
 
     class Chat:
         async def get_chat_metadata(self, chat_id, admin_required=False):
