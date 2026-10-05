@@ -1,5 +1,5 @@
 # contract-test-file: tooling
-"""Keep maps chat epoch activation inside its disposable marker-only CI stack."""
+"""Keep marker-only chat epoch activation inside its disposable marker-only CI stack."""
 
 import contextlib
 import io
@@ -32,7 +32,12 @@ def _runner_profile(tmp_path, monkeypatch, **options):
     ({"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 1}, False),
     ({"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}, True),
 ])
-def test_maps_epoch_activates_only_fresh_idle_state(tmp_path, monkeypatch, initial, pending):
+@pytest.mark.parametrize("spec_name", [
+    "maps-discovery-chat.spec.ts",
+    "audio-recording-deferred-send.spec.ts",
+    "connection-resilience.spec.ts",
+])
+def test_marker_chat_epoch_activates_only_fresh_idle_state(tmp_path, monkeypatch, initial, pending, spec_name):
     runner, profile, _ = _runner_profile(tmp_path, monkeypatch, ai_fixtures=True)
     state = initial.copy()
     calls = []
@@ -87,12 +92,12 @@ def test_maps_epoch_activates_only_fresh_idle_state(tmp_path, monkeypatch, initi
     for key, value in profile["services"]["api"]["environment"].items():
         if isinstance(value, str):
             monkeypatch.setenv(key, value)
-    monkeypatch.setenv("OPENMATES_CI_MAPS_CHAT_EPOCH_FIXTURE", "1")
+    monkeypatch.setenv("OPENMATES_CI_MARKER_CHAT_EPOCH_FIXTURE", "1")
     monkeypatch.delenv("HTTPS_PROXY", raising=False)
     monkeypatch.delenv("S3_ENDPOINT_URL", raising=False)
 
     def compose(*args, **kwargs):
-        assert args[:6] == ("exec", "-T", "-e", "OPENMATES_CI_MAPS_CHAT_EPOCH_FIXTURE=1", "api", "python")
+        assert args[:6] == ("exec", "-T", "-e", "OPENMATES_CI_MARKER_CHAT_EPOCH_FIXTURE=1", "api", "python")
         output = io.StringIO()
         try:
             with contextlib.redirect_stdout(output):
@@ -103,14 +108,14 @@ def test_maps_epoch_activates_only_fresh_idle_state(tmp_path, monkeypatch, initi
 
     monkeypatch.setattr(runner, "compose", compose)
     if initial == {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0} and not pending:
-        assert runner.activate_isolated_maps_chat_epoch("maps-discovery-chat.spec.ts") == {
+        assert runner.activate_isolated_marker_chat_epoch(spec_name) == {
             "protocol_epoch": 1, "sends_paused": False, "legacy_in_flight": 0,
         }
         assert calls == ["get_cutover_state", "set_sends_paused", "activate_protocol_epoch",
                          "set_sends_paused"]
     else:
         with pytest.raises(RuntimeError, match="activation failed"):
-            runner.activate_isolated_maps_chat_epoch("maps-discovery-chat.spec.ts")
+            runner.activate_isolated_marker_chat_epoch(spec_name)
         if pending:
             assert calls == ["get_cutover_state", "set_sends_paused", "activate_protocol_epoch",
                              "set_sends_paused"]
@@ -134,18 +139,18 @@ def test_maps_epoch_rejects_other_profiles(tmp_path, monkeypatch, profile_option
         path.write_text(json.dumps(profile))
     monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: pytest.fail("Docker was reached"))
     with pytest.raises(RuntimeError, match="isolated marker-only AI profile"):
-        runner.activate_isolated_maps_chat_epoch("maps-discovery-chat.spec.ts")
+        runner.activate_isolated_marker_chat_epoch("maps-discovery-chat.spec.ts")
 
 
 def test_maps_epoch_rejects_other_spec_and_bad_receipt(tmp_path, monkeypatch):
     runner, _, _ = _runner_profile(tmp_path, monkeypatch, ai_fixtures=True)
     monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: pytest.fail("Docker was reached"))
     with pytest.raises(RuntimeError, match="exact browser spec"):
-        runner.activate_isolated_maps_chat_epoch("storage-capacity-replay.spec.ts")
+        runner.activate_isolated_marker_chat_epoch("storage-capacity-replay.spec.ts")
     monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: SimpleNamespace(
         stdout='{"protocol_epoch": 1, "sends_paused": true, "legacy_in_flight": 0}\n'))
     with pytest.raises(RuntimeError, match="incomplete"):
-        runner.activate_isolated_maps_chat_epoch("maps-discovery-chat.spec.ts")
+        runner.activate_isolated_marker_chat_epoch("maps-discovery-chat.spec.ts")
 
 
 def test_maps_epoch_requires_github_runner(tmp_path, monkeypatch):
@@ -154,7 +159,7 @@ def test_maps_epoch_requires_github_runner(tmp_path, monkeypatch):
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: pytest.fail("Docker was reached"))
     with pytest.raises(RuntimeError, match="GitHub-hosted"):
-        runner.activate_isolated_maps_chat_epoch("maps-discovery-chat.spec.ts")
+        runner.activate_isolated_marker_chat_epoch("maps-discovery-chat.spec.ts")
 
 
 def test_capacity_epoch_profile_guard_remains_separate(tmp_path, monkeypatch):
@@ -162,3 +167,54 @@ def test_capacity_epoch_profile_guard_remains_separate(tmp_path, monkeypatch):
     monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: pytest.fail("Docker was reached"))
     with pytest.raises(RuntimeError, match="exact isolated capacity profile"):
         runner.activate_isolated_recovery_epoch()
+
+
+def test_send_and_reconnect_batch_activates_epoch_once_before_browser(tmp_path, monkeypatch):
+    runner, _, _ = _runner_profile(tmp_path, monkeypatch, ai_fixtures=True)
+    web = tmp_path / "web"
+    (web / "tests").mkdir(parents=True)
+    specs = ["audio-recording-deferred-send.spec.ts", "connection-resilience.spec.ts"]
+    for spec in specs:
+        (web / "tests" / spec).write_text("// authenticated marker fixture")
+    results = tmp_path / "results"
+    results.mkdir()
+    monkeypatch.setattr(runner, "WEB", web)
+    monkeypatch.setattr(runner, "RESULTS", results)
+    monkeypatch.setattr(runner, "reserved_account_slot", lambda _: 1)
+    monkeypatch.setattr(runner, "provision_account", lambda _, identity_index: {
+        "OPENMATES_TEST_ACCOUNT_EMAIL": f"fixture-{identity_index}@example.com",
+    })
+    calls = []
+    receipt = {"protocol_epoch": 1, "sends_paused": False, "legacy_in_flight": 0}
+
+    def activate(spec):
+        calls.append(("activate", spec))
+        return receipt
+
+    monkeypatch.setattr(runner, "activate_isolated_marker_chat_epoch", activate)
+    monkeypatch.setattr(runner, "activate_isolated_recovery_epoch", lambda: pytest.fail("Capacity activation reached"))
+
+    class Process:
+        def terminate(self):
+            pass
+
+        def wait(self, timeout):
+            return 0
+
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *args, **kwargs: Process())
+    monkeypatch.setattr(runner, "wait_web", lambda _: None)
+
+    def browser(command, **kwargs):
+        calls.append(("browser", command[4]))
+        assert calls[0] == ("activate", specs[0])
+        from pathlib import Path
+        Path(kwargs["env"]["PLAYWRIGHT_JSON_OUTPUT_NAME"]).write_text(
+            json.dumps({"stats": {"expected": 1}})
+        )
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(runner.subprocess, "run", browser)
+    outcomes = runner.run_e2e(specs)
+    assert calls == [("activate", specs[0]), *(('browser', 'tests/' + spec) for spec in specs)]
+    assert all(result["exit_code"] == 0 for result in outcomes)
+    assert all(result["accounts"]["recovery_protocol_epoch"] == 1 for result in outcomes)

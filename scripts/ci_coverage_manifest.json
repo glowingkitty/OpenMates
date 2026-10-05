@@ -371,6 +371,7 @@
       "enabling_work": "Original committed TEST_MOCK fixtures on genuine runner API/AI worker; internal Docker network rejects provider egress. No live inference coverage claimed.",
       "specs": [
         "ai-response-language.spec.ts",
+        "audio-recording-deferred-send.spec.ts",
         "chat-key-wrapper-migration.spec.ts",
         "chat-management-flow.spec.ts",
         "chat-scroll-streaming.spec.ts",
