@@ -1642,47 +1642,54 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 # Client provided full history - use it directly and re-cache
                 logger.info(f"Client provided {len(client_provided_history)} messages for chat {chat_id}. Using client history and re-caching.")
                 
-                # Clear old cache and re-cache with current vault key
-                await cache_service.delete_chat_messages_history(user_id, chat_id)
-                
-                for hist_msg in client_provided_history:
-                    # CRITICAL: Resolve embed references in message content before adding to AI history
-                    # According to embeds architecture, messages contain embed references (JSON blocks)
-                    # that need to be replaced with actual embed content for LLM context
-                    hist_content = hist_msg.get("content", "")
-                    resolved_hist_content = hist_content
-                    try:
-                        from backend.core.api.app.services.embed_service import EmbedService
-                        embed_service = EmbedService(
-                            cache_service=cache_service,
-                            directus_service=directus_service,
-                            encryption_service=encryption_service
+                # The current turn was already admitted to the AI cache above.
+                # Preserve that exact ID and Vault ciphertext when replacing the
+                # earlier history supplied by the client.
+                try:
+                    deleted = await cache_service.delete_chat_messages_history(user_id, chat_id)
+                    if not deleted and not is_incognito:
+                        raise RuntimeError("ai_history_delete_failed")
+
+                    for hist_msg in client_provided_history:
+                        hist_message_id = (
+                            hist_msg.get("message_id") or hist_msg.get("client_message_id") or hist_msg.get("id")
                         )
-                        resolved_hist_content, _msg_fp_index = await embed_service.resolve_embed_references_in_content(
-                            content=hist_content,
-                            user_vault_key_id=user_vault_key_id,
-                            log_prefix=f"[Chat {chat_id}]",
-                            seen_embed_refs=_seen_embed_refs,
-                        )
-                        _embed_file_path_index.update(_msg_fp_index)
-                    except Exception as e_resolve:
-                        logger.warning(f"Failed to resolve embed references in client-provided message for chat {chat_id}: {e_resolve}. Using original content.")
-                        # Continue with original content if resolution fails
+                        if hist_message_id == message_id:
+                            continue
+                        # Resolve embed references before adding client history to AI context.
+                        hist_content = hist_msg.get("content", "")
+                        resolved_hist_content = hist_content
+                        try:
+                            from backend.core.api.app.services.embed_service import EmbedService
+                            embed_service = EmbedService(
+                                cache_service=cache_service,
+                                directus_service=directus_service,
+                                encryption_service=encryption_service
+                            )
+                            resolved_hist_content, _msg_fp_index = await embed_service.resolve_embed_references_in_content(
+                                content=hist_content,
+                                user_vault_key_id=user_vault_key_id,
+                                log_prefix=f"[Chat {chat_id}]",
+                                seen_embed_refs=_seen_embed_refs,
+                            )
+                            _embed_file_path_index.update(_msg_fp_index)
+                        except Exception as e_resolve:
+                            logger.warning(f"Failed to resolve embed references in client-provided message for chat {chat_id}: {e_resolve}. Using original content.")
+                            # Continue with original content if resolution fails
                     
-                    # Add to AI history
-                    message_history_for_ai.append(
-                        AIHistoryMessage(
-                            message_id=hist_msg.get("message_id") or hist_msg.get("client_message_id") or hist_msg.get("id"),
-                            role=hist_msg.get("role", "user"),
-                            category=hist_msg.get("category"),
-                            sender_name=hist_msg.get("sender_name", "user"),
-                            content=resolved_hist_content, # Resolved content with embeds replaced
-                            created_at=int(hist_msg.get("created_at", datetime.now(timezone.utc).timestamp()))
+                        # Add to AI history
+                        message_history_for_ai.append(
+                            AIHistoryMessage(
+                                message_id=hist_message_id,
+                                role=hist_msg.get("role", "user"),
+                                category=hist_msg.get("category"),
+                                sender_name=hist_msg.get("sender_name", "user"),
+                                content=resolved_hist_content,
+                                created_at=int(hist_msg.get("created_at", datetime.now(timezone.utc).timestamp()))
+                            )
                         )
-                    )
                     
-                    # Re-encrypt and cache for future use
-                    try:
+                        # Re-encrypt and cache for future use
                         content_str = hist_msg.get("content", "")
                         if isinstance(content_str, dict):
                             content_str = json.dumps(content_str)
@@ -1693,7 +1700,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         )
                         
                         cached_msg = MessageInCache(
-                            id=hist_msg.get("message_id", str(uuid.uuid4())),
+                            id=hist_message_id or str(uuid.uuid4()),
                             chat_id=chat_id,
                             role=hist_msg.get("role", "user"),
                             category=hist_msg.get("category"),
@@ -1703,15 +1710,33 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             status="delivered"
                         )
                         
-                        await cache_service.add_message_to_chat_history(
+                        cached = await cache_service.add_message_to_chat_history(
                             user_id,
                             chat_id,
                             cached_msg.model_dump_json()
                         )
-                    except Exception as e_recache:
-                        logger.warning(f"Failed to re-cache message for chat {chat_id}: {e_recache}")
+                        if not cached:
+                            raise RuntimeError("ai_history_write_failed")
+
+                    if not is_incognito:
+                        cached = await cache_service.add_message_to_chat_history(
+                            user_id, chat_id, message_for_cache.model_dump_json(),
+                        )
+                        if not cached:
+                            raise RuntimeError("ai_history_write_failed")
+                except Exception as e_recache:
+                    logger.warning("Failed to replace AI history for chat %s: %s", chat_id, type(e_recache).__name__)
+                    try:
+                        await manager.send_personal_message(
+                            {"type": "error", "payload": {"message": "Failed to process message due to cache error.",
+                                                         "chat_id": chat_id, "message_id": message_id}},
+                            user_id, device_fingerprint_hash,
+                        )
+                    except Exception:
+                        logger.warning("Could not deliver AI history cache error for chat %s", chat_id)
+                    return
                 
-                logger.info(f"Re-cached {len(client_provided_history)} messages for chat {chat_id} with current vault key")
+                logger.info(f"Re-cached client history for chat {chat_id} with current vault key")
                 
             else:
                 # No client history - try AI inference cache
