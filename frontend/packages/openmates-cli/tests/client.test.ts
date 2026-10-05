@@ -1662,7 +1662,7 @@ describe("memory type registry", () => {
 });
 
 describe("CLI streamed embed persistence", () => {
-  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,storage.versions.bounded-reconstruction
   it("uses the same deterministic parent embed key across version updates", async () => {
     writeLegacySession();
     const client = OpenMatesClient.load();
@@ -1680,6 +1680,7 @@ describe("CLI streamed embed persistence", () => {
       },
     };
 
+    const replacementPatch = "--- v1\n+++ v2\n@@ -1,1 +1,2 @@\n-version one\n+version two\n+";
     const persist = async (content: string, version: number) => {
       await (client as any).persistStreamedEmbeds({
         ws,
@@ -1693,6 +1694,7 @@ describe("CLI streamed embed persistence", () => {
             embed_id: "embed-123",
             version_number: version,
             snapshot: content,
+            ...(version > 1 ? { patch: replacementPatch } : {}),
             created_at: 1780000000 + version,
           }],
         }],
@@ -1704,7 +1706,7 @@ describe("CLI streamed embed persistence", () => {
     };
 
     await persist("version one", 1);
-    await persist("version two", 2);
+    await persist("version two\n", 2);
 
     const keyFrames = frames.filter((frame) => frame.type === "store_embed_keys");
     const diffFrames = frames.filter((frame) => frame.type === "store_embed_diff");
@@ -1735,7 +1737,11 @@ describe("CLI streamed embed persistence", () => {
     );
     assert.equal(
       await decryptWithAesGcmCombined(diffFrames[1].payload.encrypted_snapshot, secondKey),
-      "version two",
+      "version two\n",
+    );
+    assert.equal(
+      await decryptWithAesGcmCombined(diffFrames[1].payload.encrypted_patch, secondKey),
+      replacementPatch,
     );
   });
 });

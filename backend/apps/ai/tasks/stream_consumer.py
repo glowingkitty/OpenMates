@@ -1307,6 +1307,32 @@ def _render_diff_visual_card(diff_embed_ref: Optional[str], diff_content: str, r
     return f"\n**Suggested changes to `{label}`:**\n```diff\n{diff_content}\n```\n"
 
 
+def _full_replacement_history_rows(
+    embed_id: str, current_content: str, new_content: str, current_version: int, created_at: int,
+) -> list[dict[str, Any]]:
+    """Emit the same whole-file patch format used by client-side embed restores."""
+    old_lines = current_content.split("\n")
+    new_lines = new_content.split("\n")
+    patch = "\n".join([
+        f"--- v{current_version}",
+        f"+++ v{current_version + 1}",
+        f"@@ -1,{max(1, len(old_lines))} +1,{max(1, len(new_lines))} @@",
+        *(f"-{line}" for line in old_lines),
+        *(f"+{line}" for line in new_lines),
+    ])
+    rows = []
+    if current_version == 1:
+        rows.append({
+            "embed_id": embed_id, "version_number": 1,
+            "snapshot": current_content, "created_at": created_at,
+        })
+    rows.append({
+        "embed_id": embed_id, "version_number": current_version + 1,
+        "patch": patch, "snapshot": new_content, "created_at": created_at,
+    })
+    return rows
+
+
 async def _apply_diff_block_to_existing_embed(
     *,
     diff_content: str,
@@ -6665,20 +6691,10 @@ async def _consume_main_processing_stream(
                                                     current_version = cached_embed.get("version_number") or 1
                                                     new_version = current_version + 1
                                                     now = int(time.time())
-                                                    version_history_rows = []
-                                                    if current_version == 1:
-                                                        version_history_rows.append({
-                                                            "embed_id": target_embed_id,
-                                                            "version_number": 1,
-                                                            "snapshot": capped_current_content,
-                                                            "created_at": now,
-                                                        })
-                                                    version_history_rows.append({
-                                                        "embed_id": target_embed_id,
-                                                        "version_number": new_version,
-                                                        "snapshot": capped_code_content,
-                                                        "created_at": now,
-                                                    })
+                                                    version_history_rows = _full_replacement_history_rows(
+                                                        target_embed_id, capped_current_content, capped_code_content,
+                                                        current_version, now,
+                                                    )
                                                     await embed_service.update_code_embed_content(
                                                         embed_id=target_embed_id,
                                                         code_content=capped_code_content,
@@ -8230,20 +8246,10 @@ async def _consume_main_processing_stream(
                                             current_version = cached_embed.get("version_number") or 1
                                             new_version = current_version + 1
                                             now = int(time.time())
-                                            version_history_rows = []
-                                            if current_version == 1:
-                                                version_history_rows.append({
-                                                    "embed_id": current_code_embed_id,
-                                                    "version_number": 1,
-                                                    "snapshot": capped_current_content,
-                                                    "created_at": now,
-                                                })
-                                            version_history_rows.append({
-                                                "embed_id": current_code_embed_id,
-                                                "version_number": new_version,
-                                                "snapshot": current_code_content,
-                                                "created_at": now,
-                                            })
+                                            version_history_rows = _full_replacement_history_rows(
+                                                current_code_embed_id, capped_current_content, current_code_content,
+                                                current_version, now,
+                                            )
                                             logger.info(
                                                 f"{log_prefix} [FULL_REPLACEMENT_EDIT] Finalizing reused streaming code "
                                                 f"embed {current_code_embed_id} via ref {current_code_replacement_ref!r} "
