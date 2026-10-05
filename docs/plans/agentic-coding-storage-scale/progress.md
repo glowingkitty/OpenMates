@@ -1038,3 +1038,42 @@ eligibility are available. The final complete-image result remains pending.
 +using tiny ciphertext with zero inference or delivered email. Team payer and
 +notice/expiry decisions still precede charging and deletion activation.
 +
+
+## Bound standalone migration tasks and real Team portability coverage
+
++The exact-source `a6d7d5e` preparation `37341441618` passed. Its consumer
++`37342192109` verified clean inventory JSON, then failed during publisher
++bootstrap with a typed `AttributeError`; no workload measurements exist.
++Retained startup and cleanup artifacts are digest-bound in session 2f80's
++`logs/helper-ready/p7-a6d7d5/manifest.json`. Cleanup verified zero containers,
++zero volumes and removal of private account state.
++
++Static tracing identified standalone `BaseServiceTask` request access without
++Celery application binding. Both collector and capacity fixture now bind the
++task to the actual application before service initialization. Eleven collector
++checks and one fixture regression passed using real Celery 5.5.1 request
++behavior; they reproduce the unbound failure and verify binding before access.
++The clean output protocol and source/process/nonce/expiry/provider fences remain
++intact. Actual complete startup and the conditional sizing pilot still require
++one changed-source run; the 500-execution target remains separate and unproven.
++
++Team imports now require a successful database acknowledgement and created
++record identity before incrementing confirmed imports. A failure stops the
++import and reports the confirmed count and possible partial state; it does not
++claim transactional rollback. Four persistence regressions and two resource
++cleanup checks passed. The focused real-path probe verifies original archive
++ciphertext, Personal/other-Team isolation, viewer and removed-member denial,
++rejected authority/content imports without writes, selected metadata persistence
++and local destination-key readability, plus exact row and regional-object cleanup.
++
++One dedicated `storage-team-portability.spec.ts` reuses the existing guarded
++storage profile. It creates no browser or signup account and makes no inference
++or email request. Its selector is standalone, has zero retries and checks an
++exact-source bounded receipt. Python/TypeScript syntax, Ruff, ESLint, metadata
++and registry validation passed; actual isolated PostgreSQL/S3 execution is
++pending. No new testing harness was introduced.
++
++Team payer and notice/expiry choices remain unresolved, so Team charging and
++deletion are not activated. Production, archive flags and real-user pruning
++remain unchanged; no eligibility certificate is issued from these unit checks.
++

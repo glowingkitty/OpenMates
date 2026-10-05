@@ -57,6 +57,7 @@ CAPACITY_WORKLOAD_SPECS = frozenset({
     "storage-capacity-target.spec.ts",
 })
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
+TEAM_PORTABILITY_SPEC = "storage-team-portability.spec.ts"
 MARKER_CHAT_EPOCH_SPECS = frozenset({
     "maps-discovery-chat.spec.ts",
     "audio-recording-deferred-send.spec.ts",
@@ -1133,6 +1134,9 @@ def run_e2e(
     if not specs:
         raise ValueError("An explicit nonempty spec batch is required")
     accountability_only = specs == [ACCOUNTABILITY_SPEC] and not (artifact or component or visual_smoke)
+    node_probe_only = accountability_only or specs == [TEAM_PORTABILITY_SPEC]
+    if TEAM_PORTABILITY_SPEC in specs and specs != [TEAM_PORTABILITY_SPEC]:
+        raise ValueError("Team portability requires its exact standalone E2E selector")
     if ACCOUNTABILITY_SPEC in specs and not accountability_only:
         raise ValueError("Accountability probe requires its exact standalone E2E selector")
     if visual_smoke:
@@ -1177,11 +1181,11 @@ def run_e2e(
                 stderr=log,
             )
         else:
-            app_server = None if artifact or accountability_only else subprocess.Popen(
+            app_server = None if artifact or node_probe_only else subprocess.Popen(
                 ["pnpm", "exec", "vite", "preview", "--host", "127.0.0.1", "--port", "5174", "--strictPort"],
                 cwd=WEB, stdout=log, stderr=log,
             )
-            child = None if artifact or accountability_only else subprocess.Popen(
+            child = None if artifact or node_probe_only else subprocess.Popen(
                 [
                     sys.executable,
                     str(Path(__file__).with_name("ci_static_web.py")),
@@ -1214,13 +1218,19 @@ def run_e2e(
                 if name in CAPACITY_EPOCH_SPECS:
                     env["E2E_STORAGE_CAPACITY"] = "1"
                     env["E2E_STORAGE_CAPACITY_TARGET"] = "1" if name == "storage-capacity-target.spec.ts" else "0"
+                if name == TEAM_PORTABILITY_SPEC:
+                    env["E2E_STORAGE_CAPACITY"] = "1"
+                    env["E2E_STORAGE_TEAM_COMPOSE_FILE"] = str(COMPOSE_PATH)
+                    env["E2E_STORAGE_TEAM_SOURCE_COMMIT"] = json.loads(
+                        COMPOSE_PATH.read_text()
+                    )["services"]["api"]["environment"]["BUILD_COMMIT_SHA"]
                 if name == "storage-detached-producer.spec.ts":
                     env["E2E_STORAGE_DETACHED_COMPOSE_FILE"] = str(COMPOSE_PATH)
                     env["E2E_STORAGE_DETACHED_SOURCE_COMMIT"] = json.loads(
                         COMPOSE_PATH.read_text()
                     )["services"]["api"]["environment"]["BUILD_COMMIT_SHA"]
                 local_signup_assertion = not (component or artifact) and name == "signup-skip-2fa-flow.spec.ts" and "mailpit" in profile["services"]
-                account_free = component or artifact or name == ACCOUNTABILITY_SPEC or (
+                account_free = component or artifact or name in {ACCOUNTABILITY_SPEC, TEAM_PORTABILITY_SPEC} or (
                     "// playwright-account: not_required reason=isolated_component_preview"
                     in source
                 )
@@ -1355,7 +1365,7 @@ def run_e2e(
                         )
                     except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
                         spec_result["recovery_api_trace_error"] = type(exc).__name__
-                if spec_result["exit_code"] and not (artifact or component or accountability_only):
+                if spec_result["exit_code"] and not (artifact or component or node_probe_only):
                     if name in {"storage-recovery-replay.spec.ts", "storage-recovery-canonical-receipts.spec.ts"}:
                         try:
                             spec_result["recovery_ai_trace"] = capture_recovery_ai_diagnostics(

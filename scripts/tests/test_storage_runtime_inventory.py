@@ -2,7 +2,7 @@
 """Serving-process inventory uses observed deployment state, not worker hints."""
 import json
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 import uuid
 
 import pytest
@@ -10,6 +10,15 @@ import pytest
 from scripts.storage_runtime_inventory import serving_process_ids, validate_cohort, publish_inventory
 
 SOURCE = "a" * 40
+
+
+@pytest.fixture
+def celery_app(monkeypatch):
+    import sys
+    from celery import Celery
+    app = Celery("isolated-inventory-test", set_as_current=False)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.celery_config", SimpleNamespace(app=app))
+    return app
 
 
 def root(workers="1", argv=None):
@@ -46,13 +55,13 @@ def test_cohort_requires_complete_distinct_source_bound_process_ids():
 
 
 @pytest.mark.asyncio
-async def test_fresh_same_cohort_renews_nonce_and_changed_cohort_rotates(monkeypatch):
+async def test_fresh_same_cohort_renews_nonce_and_changed_cohort_rotates(monkeypatch, celery_app):
     import sys
     import time
     nonce = str(uuid.uuid4())
     existing = {"inventory_id": nonce, "source_commit": SOURCE, "instance_ids": ["container-a:1"], "expires_at": int(time.time()) + 120}
     redis = SimpleNamespace(get=AsyncMock(return_value=json.dumps(existing)), set=AsyncMock())
-    task = SimpleNamespace(initialize_core_services=AsyncMock(), cleanup_services=AsyncMock(), directus_service=object())
+    task = SimpleNamespace(bind=Mock(), initialize_core_services=AsyncMock(), cleanup_services=AsyncMock(), directus_service=object())
     monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.base_task", SimpleNamespace(BaseServiceTask=lambda: task))
     monkeypatch.setitem(sys.modules, "backend.core.api.app.services.storage_archive_client_compatibility", SimpleNamespace(_redis=AsyncMock(return_value=redis)))
     monkeypatch.setenv("BUILD_COMMIT_SHA", SOURCE)
@@ -66,13 +75,13 @@ async def test_fresh_same_cohort_renews_nonce_and_changed_cohort_rotates(monkeyp
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("failing_stage", ["bootstrap", "publish"])
-async def test_publisher_failures_keep_source_fences_and_emit_only_typed_diagnostics(monkeypatch, failing_stage):
+async def test_publisher_failures_keep_source_fences_and_emit_only_typed_diagnostics(monkeypatch, celery_app, failing_stage):
     import sys
     from scripts import storage_runtime_inventory as collector
     private = "private-token-and-user-content"
     initialize = AsyncMock(side_effect=RuntimeError(private)) if failing_stage == "bootstrap" else AsyncMock()
     redis = SimpleNamespace(get=AsyncMock(side_effect=ConnectionError(private)), set=AsyncMock())
-    task = SimpleNamespace(initialize_core_services=initialize, cleanup_services=AsyncMock(), directus_service=object())
+    task = SimpleNamespace(bind=Mock(), initialize_core_services=initialize, cleanup_services=AsyncMock(), directus_service=object())
     monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.base_task", SimpleNamespace(BaseServiceTask=lambda: task))
     monkeypatch.setitem(sys.modules, "backend.core.api.app.services.storage_archive_client_compatibility", SimpleNamespace(_redis=AsyncMock(return_value=redis)))
     monkeypatch.setenv("BUILD_COMMIT_SHA", SOURCE)
@@ -129,13 +138,24 @@ def test_subprocess_diagnostics_expose_bounded_exit_code_without_command_or_logs
 
 
 @pytest.mark.parametrize("bootstrap_failure", [False, True])
-def test_actual_publish_main_emits_one_safe_json_despite_noisy_service_bootstrap(monkeypatch, capsys, bootstrap_failure):
+def test_actual_publish_main_emits_one_safe_json_despite_noisy_service_bootstrap(monkeypatch, capsys, celery_app, bootstrap_failure):
     import io
     import logging
     import sys
     from scripts import storage_runtime_inventory as collector
+    from celery import Task
+    class StandalonePublisherTask(Task):
+        abstract = True
+    task = StandalonePublisherTask()
+    # This is the same real Celery property touched by production initialization.
+    assert StandalonePublisherTask.request_stack is None
+    with pytest.raises(AttributeError):
+        _ = task.request.id
     private = "private-service-output-must-not-be-retained"
     async def initialize():
+        assert StandalonePublisherTask.request_stack is not None
+        assert task.app is celery_app
+        assert task.request.id is None
         print(private)
         print(private, file=sys.stderr)
         logger = logging.Logger("isolated-collector-fixture")
@@ -146,8 +166,9 @@ def test_actual_publish_main_emits_one_safe_json_despite_noisy_service_bootstrap
     async def cleanup():
         print(private)
         print(private, file=sys.stderr)
-    task = SimpleNamespace(initialize_core_services=AsyncMock(side_effect=initialize),
-        cleanup_services=AsyncMock(side_effect=cleanup), directus_service=object())
+    task.initialize_core_services = AsyncMock(side_effect=initialize)
+    task.cleanup_services = AsyncMock(side_effect=cleanup)
+    task.directus_service = object()
     def bootstrap_task():
         print(private)
         return task

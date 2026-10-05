@@ -174,6 +174,7 @@ async def publish_inventory(cohort: Any) -> dict[str, Any]:
     failure = None
     try:
         from backend.core.api.app.tasks.base_task import BaseServiceTask
+        from backend.core.api.app.tasks.celery_config import app as celery_app
         from backend.core.api.app.services.storage_archive_client_compatibility import _redis
         stage = "cohort"
         inventory = validate_cohort(cohort)
@@ -182,6 +183,8 @@ async def publish_inventory(cohort: Any) -> dict[str, Any]:
             raise ValueError("api_deployment_publisher_source_mismatch")
         stage = "bootstrap"
         task = BaseServiceTask()
+        # Standalone publication has no worker to bind the task request stack.
+        task.bind(celery_app)
         await task.initialize_core_services()
         stage = "publish"
         client = await _redis(task.directus_service)

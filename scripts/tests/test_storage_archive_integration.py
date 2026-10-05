@@ -66,3 +66,41 @@ def test_archive_probe_initializes_only_directus_and_s3_without_celery(monkeypat
     assert isinstance(directus, DirectusService)
     assert isinstance(s3, S3UploadService)
     assert events == ["secrets_initialized", "s3_initialized"]
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_team_portability_selector_runs_only_its_probe_and_closes_resources(monkeypatch, fails) -> None:
+    from scripts import storage_archive_integration as integration
+    events = []
+    monkeypatch.setenv("BUILD_COMMIT_SHA", "a" * 40)
+
+    class Directus:
+        async def close(self):
+            events.append("directus_closed")
+
+    class Secrets:
+        async def aclose(self):
+            events.append("secrets_closed")
+
+    directus, secrets, s3 = Directus(), Secrets(), object()
+
+    async def load():
+        return secrets, directus, s3
+
+    async def team_probe(actual_directus, actual_s3, now):
+        assert actual_directus is directus and actual_s3 is s3 and isinstance(now, int)
+        events.append("team_probe")
+        if fails:
+            raise RuntimeError("synthetic probe failure")
+        return {"passed": True, "team_portability_cleanup_verified": True}
+
+    monkeypatch.setattr(integration, "require_isolated_storage", lambda: events.append("profile_guard"))
+    monkeypatch.setattr(integration, "_load_archive_services", load)
+    monkeypatch.setattr(integration, "_probe_team_portability", team_probe)
+    if fails:
+        with pytest.raises(RuntimeError, match="synthetic probe failure"):
+            asyncio.run(integration.probe_team_portability())
+    else:
+        result = asyncio.run(integration.probe_team_portability())
+        assert result == {"passed": True, "team_portability_cleanup_verified": True, "source_commit": "a" * 40}
+    assert events == ["profile_guard", "team_probe", "directus_closed", "secrets_closed"]

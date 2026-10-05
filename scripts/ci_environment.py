@@ -31,6 +31,7 @@ STORAGE_CAPACITY_SPECS = frozenset({
     "storage-capacity-replay.spec.ts",
     "storage-capacity-calibration.spec.ts",
     "storage-message-embed-bundle.spec.ts",
+    "storage-team-portability.spec.ts",
     "storage-capacity-target.spec.ts",
     "storage-recovery-replay.spec.ts",
     "storage-recovery-canonical-receipts.spec.ts",
@@ -274,9 +275,11 @@ stage='bootstrap'
 async def run():
     global stage
     from backend.core.api.app.tasks.base_task import BaseServiceTask
+    from backend.core.api.app.tasks.celery_config import app
     from scripts.storage_rollout import COLLECTIONS, write_rollout
     task=BaseServiceTask()
     try:
+        task.bind(app)
         await task.initialize_core_services()
         source=os.environ['BUILD_COMMIT_SHA']
         receipt='ci-storage-capacity:'+source

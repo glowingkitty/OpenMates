@@ -494,3 +494,61 @@ def test_missing_or_incompatible_schema_uses_cold_initializer():
             ]
         },
     )
+
+
+def test_capacity_fixture_binds_application_before_real_celery_request_access(monkeypatch, capsys):
+    import json
+    import sys
+    from types import ModuleType
+    from celery import Celery, Task
+    from scripts.ci_environment import CAPACITY_FIXTURE_SETUP
+
+    app = Celery("ci-fixture-request-contract", broker="memory://", backend="cache+memory://")
+    events = []
+    directus = object()
+
+    class FixtureTask(Task):
+        request_stack = None
+        __bound__ = False
+
+        def __init__(self):
+            self.directus_service = directus
+
+        @classmethod
+        def bind(cls, actual_app):
+            assert actual_app is app
+            events.append("bind_application")
+            return super().bind(actual_app)
+
+        async def initialize_core_services(self):
+            assert self.app is app
+            # Use Celery's real request property, including its LocalStack lookup.
+            assert self.request.id is None
+            events.append("request_access")
+
+        async def cleanup_services(self):
+            events.append("cleanup")
+
+    # Reproduce the unbound contract that broke the real fixture bootstrap.
+    with pytest.raises(AttributeError):
+        _ = FixtureTask().request.id
+
+    async def write_rollout(actual_directus, name, fields):
+        assert actual_directus is directus and name == "synthetic-rollout"
+        assert fields["reader_receipt"] == "ci-storage-capacity:" + "a" * 40
+        events.append("write_synthetic_rollout")
+
+    for name, values in (
+        ("backend.core.api.app.tasks.base_task", {"BaseServiceTask": FixtureTask}),
+        ("backend.core.api.app.tasks.celery_config", {"app": app}),
+        ("scripts.storage_rollout", {"COLLECTIONS": ["synthetic-rollout"], "write_rollout": write_rollout}),
+    ):
+        module = ModuleType(name)
+        for key, value in values.items():
+            setattr(module, key, value)
+        monkeypatch.setitem(sys.modules, name, module)
+    monkeypatch.setenv("BUILD_COMMIT_SHA", "a" * 40)
+    exec(compile(CAPACITY_FIXTURE_SETUP, "capacity-fixture-setup", "exec"), {})
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt == {"status": "ready", "source_commit": "a" * 40, "collections_count": 1}
+    assert events == ["bind_application", "request_access", "write_synthetic_rollout", "cleanup"]

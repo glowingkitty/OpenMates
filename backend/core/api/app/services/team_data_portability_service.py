@@ -194,7 +194,16 @@ class TeamDataPortabilityService:
                 if collection in {"user_app_settings_and_memories", "connected_accounts"}:
                     clean["owner_context"] = "team"
                     clean["updated_at"] = now
-                await self.directus_service.create_item(collection, clean, admin_required=True)
+                failure_message = (
+                    f"Team import failed after {imported_count} confirmed imported rows; "
+                    "destination may contain partial data. Inspect it before retrying."
+                )
+                try:
+                    success, created = await self.directus_service.create_item(collection, clean, admin_required=True)
+                except Exception as exc:
+                    raise TeamDataPortabilityError(failure_message) from exc
+                if not success or not isinstance(created, dict) or not created.get("id"):
+                    raise TeamDataPortabilityError(failure_message)
                 imported_count += 1
         return {"success": True, "imported_rows": imported_count, "hashed_team_id": destination_hash}
 

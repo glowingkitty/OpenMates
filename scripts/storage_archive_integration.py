@@ -746,8 +746,8 @@ async def _probe_legacy_embed_json_columns(directus, owner_hash: str) -> None:
             raise RuntimeError("Synthetic legacy embed fixture cleanup failed")
 
 
-async def _probe_team_archive(directus, archive, now: int) -> None:
-    """Prove a Team-owned cold page survives source pruning on real PG/S3."""
+async def _probe_team_archive(directus, archive, now: int) -> dict:
+    """Prove Team archival and portability on real PG/S3."""
     chat_id = str(uuid.uuid4())
     team_hash = hashlib.sha256(f"team:{chat_id}".encode()).hexdigest()
     checkpoint_id = str(uuid.uuid4())
@@ -809,6 +809,198 @@ async def _probe_team_archive(directus, archive, now: int) -> None:
     after = await archive.read_before(chat_id=chat_id, before=None, limit=3)
     if remaining or [row["encrypted_content"] for row in after["messages"]] != ciphertexts:
         raise RuntimeError("Synthetic Team archive was not readable after source prune")
+    return await _probe_team_portability(directus, archive.s3, now)
+
+
+async def _probe_team_portability(directus, s3, now: int) -> dict:
+    """One tiny Team export/import flow against disposable Directus/PG/S3."""
+    require_isolated_storage()
+    from backend.shared.python_utils.storage_archive_rollout_config import trusted_isolated_storage_profile
+    if not trusted_isolated_storage_profile(dict(os.environ)):
+        raise RuntimeError("Team portability requires verified source/network/credential isolation proof")
+    import gzip
+    import sys
+    from builtins import ExceptionGroup
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from botocore.exceptions import ClientError
+    from backend.core.api.app.services.bounded_archive_io import put_verified_bytes
+    from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+    from backend.core.api.app.services.team_data_portability_service import (
+        TeamDataPortabilityError, TeamDataPortabilityService,
+    )
+    from backend.core.api.app.services.s3.config import get_bucket_name
+    from backend.shared.python_utils.object_storage_regions import resolve_regional_bucket_name
+
+    source, destination, other = [str(uuid.uuid4()) for _ in range(3)]
+    owner, viewer = str(uuid.uuid4()), str(uuid.uuid4())
+    scopes = [hash_id(value) for value in (source, destination, other)]
+    owner_hash = hash_id(owner)
+    archive_ids = [str(uuid.uuid4()) for _ in range(3)]
+    object_key = f"ci-team-portability/{archive_ids[0]}/part-1.json.gz"
+    item_key = hash_id(f"memory:{source}")
+    source_cipher = base64.b64encode(secrets.token_bytes(64)).decode()
+    raw = gzip.compress(json.dumps({"encrypted_content": source_cipher}).encode(), mtime=0)
+    cleanup_failures = []
+
+    async def rows(collection, filters):
+        result = await directus.get_items(collection, params={"filter": filters, "limit": 32, "sort": "id"},
+                                         admin_required=True, no_cache=True, raise_on_error=True)
+        if not isinstance(result, list) or len(result) >= 32:
+            raise RuntimeError("Team portability fixture query was not bounded")
+        return result
+
+    async def destination_state():
+        return {collection: await rows(collection, {"hashed_team_id": {"_eq": scopes[1]}})
+                for collection in ("user_app_settings_and_memories", "team_memberships", "team_credit_accounts")}
+
+    service = TeamDataPortabilityService(directus, s3_service=s3)
+    try:
+        for team_id, team_hash in zip((source, destination), scopes):
+            await _write(directus, "teams", {
+                "team_id": team_id, "hashed_team_id": team_hash, "slug": team_id,
+                "encrypted_name": source_cipher, "encrypted_profile_image_metadata": source_cipher,
+                "created_by_user_hash": owner_hash, "status": "active", "created_at": now, "updated_at": now,
+            })
+            await _write(directus, "team_memberships", {
+                "hashed_team_id": team_hash, "hashed_user_id": owner_hash, "role": "owner",
+                "status": "active", "joined_at": now, "created_at": now, "updated_at": now,
+            })
+        await _write(directus, "team_memberships", {
+            "hashed_team_id": scopes[0], "hashed_user_id": hash_id(viewer), "role": "viewer",
+            "status": "active", "joined_at": now, "created_at": now, "updated_at": now,
+        })
+        for team_hash in (scopes[0], scopes[2], None):
+            await _write(directus, "user_app_settings_and_memories", {
+                "hashed_team_id": team_hash, "hashed_user_id": owner_hash if team_hash is None else None,
+                "app_id": "code", "item_type": "ci_portability", "item_key": item_key,
+                "encrypted_item_json": source_cipher, "created_at": now, "updated_at": now,
+            })
+        verified = await put_verified_bytes(s3, object_key, raw, content_type="application/gzip")
+        for archive_id, team_hash in zip(archive_ids, (scopes[0], scopes[2], None)):
+            await _write(directus, "cold_archive_manifests", {
+                "archive_id": archive_id, "resource_type": "chat", "resource_id": str(uuid.uuid4()),
+                "hashed_resource_id": hash_id(archive_id), "hashed_user_id": owner_hash,
+                "hashed_team_id": team_hash, "encrypted_listing_metadata": {"encrypted_title": source_cipher},
+                "active_generation": 1, "graph_checksum": verified["checksum"], "part_count": 1,
+                "file_references": [], "state": "cold", "version": 1, "archived_at": now, "updated_at": now,
+            })
+        await _write(directus, "cold_archive_parts", {
+            "archive_id": archive_ids[0], "part_id": "part-1", "part_number": 1, "generation": 1,
+            "logical_bucket": "cold_archives", "object_key": object_key, "checksum": verified["checksum"],
+            "size_bytes": len(raw), "regional_states": {region: "verified" for region in verified["verified_regions"]},
+            "created_at": now,
+        })
+        artifact = (await service.export_team_data(source, owner))["artifact"]
+        if ([item["archive_id"] for item in artifact["collections"]["cold_archives"]] != [archive_ids[0]]
+                or base64.b64decode(artifact["collections"]["cold_archives"][0]["parts"][0]["ciphertext"]) != raw
+                or any(row.get("hashed_team_id") != scopes[0]
+                       for row in artifact["collections"]["user_app_settings_and_memories"])):
+            raise RuntimeError("Team export changed ciphertext or mixed Personal/other-Team scope")
+        serialized = json.dumps(artifact)
+        if object_key in serialized or any(value in serialized for value in archive_ids[1:]):
+            raise RuntimeError("Team export exposed storage routing or unrelated archives")
+        if len(artifact["collections"]["user_app_settings_and_memories"]) != 1:
+            raise RuntimeError("Team export omitted its synthetic memory")
+        try:
+            await service.export_team_data(source, viewer)
+        except TeamPermissionError:
+            pass
+        else:
+            raise RuntimeError("Viewer exported Team ciphertext")
+
+        # Construct destination ciphertext locally; only ciphertext reaches Directus.
+        destination_key = AESGCM.generate_key(bit_length=256)
+        nonce = secrets.token_bytes(12)
+        plaintext = b'{"note":"disposable Team import"}'
+        destination_cipher = base64.b64encode(nonce + AESGCM(destination_key).encrypt(nonce, plaintext, None)).decode()
+        memory = {"owner_context": "team", "hashed_team_id": scopes[0], "hashed_user_id": None,
+                  "app_id": "code", "item_type": "ci_portability", "item_key": item_key,
+                  "encrypted_item_json": destination_cipher, "created_at": now}
+        selected = {"schema": "openmates.team_export.v1", "rewrapped_with_destination_team_key": True,
+                    "collections": {"user_app_settings_and_memories": [memory]}}
+        before = await destination_state()
+        for collection, detail in (("cold_archives", "restore is unsupported"),
+                                   ("team_memberships", "Server-controlled Team records"),
+                                   ("team_credit_accounts", "Server-controlled Team records")):
+            rejected = {**selected, "collections": {**selected["collections"], collection: [{"id": str(uuid.uuid4())}]}}
+            try:
+                await service.import_team_data(destination, owner, rejected)
+            except TeamDataPortabilityError as error:
+                if detail not in str(error):
+                    raise RuntimeError("Team import returned the wrong preflight rejection") from error
+            else:
+                raise RuntimeError("Team import accepted unsupported or authoritative rows")
+            if await destination_state() != before:
+                raise RuntimeError("Rejected Team import changed persisted destination state")
+        imported = await service.import_team_data(destination, owner, selected)
+        persisted = await rows("user_app_settings_and_memories", {"hashed_team_id": {"_eq": scopes[1]}})
+        if (imported.get("imported_rows") != 1 or len(persisted) != 1
+                or persisted[0].get("hashed_user_id") or persisted[0].get("encrypted_item_json") != destination_cipher):
+            raise RuntimeError("Selected Team import reported success without correct persisted ciphertext")
+        decoded = base64.b64decode(persisted[0]["encrypted_item_json"])
+        if AESGCM(destination_key).decrypt(decoded[:12], decoded[12:], None) != plaintext:
+            raise RuntimeError("Imported Team memory lost destination-key readability")
+        memberships = await rows("team_memberships", {"hashed_team_id": {"_eq": scopes[0]}, "hashed_user_id": {"_eq": owner_hash}})
+        await _patch(directus, "team_memberships", memberships[0]["id"], {"status": "removed", "removed_at": now})
+        try:
+            await service.export_team_data(source, owner)
+        except TeamPermissionError:
+            pass
+        else:
+            raise RuntimeError("Revoked membership exported Team ciphertext")
+    finally:
+        original_error = sys.exception()
+        # Remove only fixture scopes/keys created here; continue cleanup after a failure.
+        queries = [(collection, {"hashed_team_id": {"_in": scopes}}) for collection in (
+            "team_data_exports", "user_app_settings_and_memories", "team_memberships", "team_credit_accounts", "teams")]
+        queries += [("user_app_settings_and_memories", {"item_key": {"_eq": item_key}}),
+                    ("cold_archive_parts", {"archive_id": {"_in": archive_ids}}),
+                    ("cold_archive_manifests", {"archive_id": {"_in": archive_ids}}),
+                    ("storage_replication_jobs", {"object_key": {"_eq": object_key}})]
+        for collection, filters in queries:
+            try:
+                for row in await rows(collection, filters):
+                    if not await directus.delete_item(collection, row["id"], admin_required=True):
+                        raise RuntimeError("Fixture deletion failed")
+                if await rows(collection, filters):
+                    raise RuntimeError("Fixture rows survived cleanup")
+            except Exception:
+                cleanup_failures.append(collection)
+        for region, client in s3.region_clients.items():
+            try:
+                bucket = resolve_regional_bucket_name(get_bucket_name("cold_archives", s3.environment), region)
+                await asyncio.to_thread(client.delete_object, Bucket=bucket, Key=object_key)
+                try:
+                    await asyncio.to_thread(client.head_object, Bucket=bucket, Key=object_key)
+                except ClientError as error:
+                    if str(error.response.get("Error", {}).get("Code")) not in {"404", "NoSuchKey", "NotFound"}:
+                        raise
+                else:
+                    raise RuntimeError("Fixture object survived cleanup")
+            except Exception:
+                cleanup_failures.append("regional-object")
+        if cleanup_failures:
+            cleanup_error = RuntimeError("Team portability fixture cleanup failed: " + ",".join(cleanup_failures))
+            if original_error is not None:
+                raise ExceptionGroup("Team portability and cleanup failed", [original_error, cleanup_error])
+            raise cleanup_error
+    return {"passed": True, "team_export_original_ciphertext": True, "team_scope_and_revocation": True,
+            "team_import_preflight_no_writes": True, "team_selected_import_persisted": True,
+            "team_portability_cleanup_verified": True}
+
+
+async def probe_team_portability() -> dict:
+    """Select only this tiny existing Team probe, without capacity traffic."""
+    require_isolated_storage()
+    secrets_manager, directus, s3 = await _load_archive_services()
+    try:
+        result = await _probe_team_portability(directus, s3, int(time.time()))
+        return {**result, "source_commit": os.environ["BUILD_COMMIT_SHA"]}
+    finally:
+        try:
+            await directus.close()
+        finally:
+            await secrets_manager.aclose()
 
 
 async def _probe_project_attach_deletion_fence(directus, archive, *,
@@ -1439,7 +1631,7 @@ async def probe() -> dict:
         await _patch(directus, "chat_message_archive_rollout", rollout_id, {
             **rollout_fields, "initial_cohort": False,
         })
-        await _probe_team_archive(directus, archive, now)
+        team_portability = await _probe_team_archive(directus, archive, now)
         await _probe_project_attach_deletion_fence(
             directus, archive, deleting_chat_id=chat_id, owner_hash=owner_hash, now=now,
         )
@@ -1459,6 +1651,7 @@ async def probe() -> dict:
             "sparse_overlap_sql_locators": True,
             "legacy_embed_json_readback": True,
             "team_archive_claim_read_prune": True,
+            "team_data_portability": team_portability,
             "project_attach_deletion_fence": True,
             "project_attach_deletion_race": True,
             "project_upload_identity_deletion_race": True,
@@ -1472,5 +1665,6 @@ async def probe() -> dict:
 
 
 if __name__ == "__main__":
-    selected = probe_legacy_claims if os.getenv("OPENMATES_CI_LEGACY_CLAIM_PROBE") == "1" else probe
+    selected = (probe_team_portability if os.getenv("OPENMATES_CI_TEAM_PORTABILITY_PROBE") == "1"
+                else probe_legacy_claims if os.getenv("OPENMATES_CI_LEGACY_CLAIM_PROBE") == "1" else probe)
     print(json.dumps(asyncio.run(selected()), sort_keys=True))

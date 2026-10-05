@@ -316,3 +316,41 @@ async def test_team_inline_export_byte_limit_fails_visibly_without_ready_record(
     with pytest.raises(TeamDataPortabilityError, match=r"inline byte limit.*POST /v1/account-exports with team_id"):
         await TeamDataPortabilityService(directus, s3_service=s3).export_team_data("team-1", "alice")
     assert directus.rows["team_data_exports"] == []
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=teams.workspace.surface-parity,teams.context.full-switch-local
+@pytest.mark.parametrize("confirmed_rows", [0, 1])
+@pytest.mark.parametrize("failure", ["negative_ack", "exception"])
+async def test_import_reports_persistence_failure_and_preserves_confirmed_partial_writes(confirmed_rows, failure) -> None:
+    directus, service = await _seed_export_data()
+    create = directus.create_item
+    attempts = 0
+
+    async def fail_selected_write(collection, record, admin_required=False):
+        nonlocal attempts
+        if collection == "user_app_settings_and_memories":
+            attempts += 1
+            if attempts == confirmed_rows + 1:
+                if failure == "exception":
+                    raise RuntimeError("synthetic persistence failure")
+                return False, None
+        return await create(collection, record, admin_required=admin_required)
+
+    directus.create_item = fail_selected_write
+    artifact = {
+        "schema": "openmates.team_export.v1", "rewrapped_with_destination_team_key": True,
+        "collections": {"user_app_settings_and_memories": [
+            {"owner_context": "team", "hashed_team_id": hash_id("team-1"),
+             "encrypted_item_json": f"destination-ciphertext-{index}"}
+            for index in range(3)
+        ]},
+    }
+    with pytest.raises(TeamDataPortabilityError, match=rf"{confirmed_rows} confirmed imported rows.*partial data.*before retrying"):
+        await service.import_team_data("team-1", "alice", artifact)
+    imported = [row for row in directus.rows["user_app_settings_and_memories"]
+                if str(row.get("encrypted_item_json", "")).startswith("destination-ciphertext-")]
+    assert len(imported) == confirmed_rows
+    assert [row["encrypted_item_json"] for row in imported] == [f"destination-ciphertext-{index}" for index in range(confirmed_rows)]
+    assert all(row["hashed_team_id"] == hash_id("team-1") and row["owner_context"] == "team" for row in imported)
+    assert attempts == confirmed_rows + 1
