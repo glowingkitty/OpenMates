@@ -572,6 +572,23 @@ def test_owner_occupancy_deducts_external_hosted_jobs_and_selfhosted_is_separate
     assert len(remote.sent) == 10
 
 
+def test_account_scan_runs_only_when_new_admission_is_ready(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    queue = Queue(tmp_path / "queue.db")
+    remote = Remote()
+    scans = []
+    remote.account_occupancy = lambda tokens: (scans.append(tokens) or {"hosted": 2, "selfhosted": 0})
+    queue.enqueue("one", "a" * 40, ["one.spec.ts"])
+    queue.tick(remote, 100)
+    assert len(scans) == 1
+    queue.tick(remote, 250)
+    assert len(scans) == 1
+    queue.enqueue("two", "a" * 40, ["two.spec.ts"])
+    queue.tick(remote, 300)
+    assert len(scans) == 2
+    assert len(remote.sent) == 2
+
+
 def test_failed_occupancy_discovery_does_not_dispatch(tmp_path):
     queue = Queue(tmp_path / "queue.db")
     remote = Remote()

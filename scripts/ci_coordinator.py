@@ -681,7 +681,7 @@ class Queue:
                     # One owner-wide snapshot per two minutes avoids per-caller polling.
                     # A failed or stale discovery never grants new slots.
                     snapshot = json.loads(self.metadata(db, "account_occupancy", "{}"))
-                    if not snapshot or now - snapshot.get("at", 0) >= OCCUPANCY_CACHE_SECONDS:
+                    if pending and (not snapshot or now - snapshot.get("at", 0) >= OCCUPANCY_CACHE_SECONDS):
                         if not hasattr(github, "account_occupancy"):
                             # Only deterministic fixture transports omit discovery.
                             external = {"hosted": 0, "selfhosted": 0}
@@ -691,7 +691,9 @@ class Queue:
                             raise ValueError("Invalid owner-wide CI occupancy")
                         snapshot = {"at": now, **external}
                         self.set_meta(db, "account_occupancy", json.dumps(snapshot))
-                    external = {kind: snapshot[kind] for kind in local}
+                    # With nothing ready to admit, only reconcile existing jobs.
+                    # The next admission always refreshes absent/stale occupancy.
+                    external = {kind: snapshot.get(kind, 0) for kind in local}
                     owners = {}
                     for job in active_jobs:
                         owners[job["owner"]] = owners.get(job["owner"], 0) + reservations[job["id"]]
