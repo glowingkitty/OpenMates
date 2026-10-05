@@ -9,6 +9,7 @@ never blindly repeated. See docs/plans/isolated-github-tests/plan.yml.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timedelta, timezone
 import fcntl
 import hashlib
 import json
@@ -22,7 +23,11 @@ import time
 import uuid
 
 POLL_SECONDS = 30
-MAX_ACTIVE = 10
+MAX_ACTIVE = 20  # Confirmed GitHub Free hosted-job entitlement.
+MAX_SELFHOSTED = 1
+OCCUPANCY_CACHE_SECONDS = 120
+MAX_OCCUPANCY_REQUESTS = 80
+ACTIVE_RUN_LOOKBACK_DAYS = 70
 LIGHTWEIGHT_MODES = frozenset({"component", "pytest", "vitest", "codex"})
 RATE_RESERVE = 100
 ERROR_BACKOFF = 60
@@ -30,6 +35,11 @@ UNCERTAIN_SECONDS = 600
 WORKFLOW = "isolated-tests.yml"
 ACTIVE = ("dispatching", "submitted", "running", "attention")
 TERMINAL = ("success", "failure", "cancelled")
+
+
+def runner_class(job: dict) -> str:
+    # This must match isolated-tests.yml's runs-on expression.
+    return "selfhosted" if "storage-capacity-target.spec.ts" in json.loads(job["specs"]) else "hosted"
 
 
 def canonical_root(root: Path) -> Path:
@@ -101,6 +111,73 @@ class GitHub:
             f"repos/{self.repo}/actions/workflows/{WORKFLOW}/runs?event=workflow_dispatch&per_page=100"
         )["workflow_runs"]
 
+    def account_occupancy(self, managed_tokens: set[str]) -> dict[str, int]:
+        """Count other active Actions jobs across this owner, bounded and fail closed.
+
+        A run may contain several simultaneous jobs, so counting runs alone can
+        over-admit. Unknown labels and runs whose jobs have not appeared yet are
+        charged to hosted capacity. The dedicated runner is identified by label.
+        """
+        owner = self.repo.split("/", 1)[0]
+        account = self.request(f"users/{owner}")
+        endpoints = (
+            f"orgs/{owner}/repos?type=all&per_page=100&page=1"
+            if account["type"] == "Organization" else
+            "user/repos?affiliation=owner&per_page=100&page=1"
+        )
+        requests = 1
+
+        def bounded(endpoint):
+            nonlocal requests
+            requests += 1
+            if requests > MAX_OCCUPANCY_REQUESTS:
+                raise ValueError("Owner-wide CI occupancy exceeds bounded query budget")
+            return self.request(endpoint)
+
+        repos = bounded(endpoints)
+        if len(repos) == 100:
+            raise ValueError("Owner has at least 100 repositories; CI occupancy cannot be bounded")
+        if self.repo not in {repo["full_name"] for repo in repos}:
+            raise ValueError("Current repository absent from owner-wide CI occupancy")
+        occupancy = {"hosted": 0, "selfhosted": 0}
+        # GitHub permits reruns for 30 days and a run can execute for 35 days.
+        # A 70-day created window therefore contains every potentially active
+        # run, including a late rerun. Most owner repos need only one request.
+        since = (datetime.now(timezone.utc) - timedelta(days=ACTIVE_RUN_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+        for repo in repos:
+            if repo.get("archived") or repo.get("disabled"):
+                continue
+            name = repo["full_name"]
+            listing = bounded(f"repos/{name}/actions/runs?created=%3E%3D{since}&per_page=100")
+            if listing["total_count"] <= 100:
+                active_runs = [run for run in listing["workflow_runs"] if run["status"] != "completed"]
+            else:
+                # A busy repo can hide an older active run behind 100 newer
+                # completed runs. Query every active status rather than guess.
+                active_runs = []
+                for status in ("in_progress", "queued", "waiting", "pending", "requested"):
+                    filtered = bounded(f"repos/{name}/actions/runs?status={status}&per_page=100")
+                    if filtered["total_count"] > 100:
+                        raise ValueError("Too many active Actions runs for bounded occupancy")
+                    active_runs.extend(filtered["workflow_runs"])
+            for run in active_runs:
+                if name == self.repo and any(token in run.get("display_title", "") for token in managed_tokens):
+                    continue
+                jobs = bounded(f"repos/{name}/actions/runs/{run['id']}/jobs?per_page=100")
+                if jobs["total_count"] > 100:
+                    raise ValueError("Too many jobs in active Actions run")
+                active = [job for job in jobs["jobs"] if job["status"] != "completed"]
+                if not active:
+                    # GitHub can expose a queued run before creating its jobs.
+                    occupancy["hosted"] += 1
+                for job in active:
+                    labels = set(job.get("labels") or ())
+                    if "openmates-capacity" in labels:
+                        occupancy["selfhosted"] += 1
+                    elif "self-hosted" not in labels:
+                        occupancy["hosted"] += 1
+        return occupancy
+
     def prepare_dispatch(self, job: dict) -> dict:
         """Resolve private capabilities before recording any remote send intent."""
         prepared = dict(job)
@@ -161,12 +238,14 @@ class GitHub:
 
 
 class Queue:
-    def __init__(self, path: Path, *, max_active=None, lightweight_reserve=None):
+    def __init__(self, path: Path, *, max_active=None, lightweight_reserve=None, max_selfhosted=None, hosted_entitlement=None):
         self.path = path
+        self.hosted_entitlement = int(hosted_entitlement if hosted_entitlement is not None else os.environ.get("OPENMATES_CI_HOSTED_ENTITLEMENT", MAX_ACTIVE))
         self.max_active = int(max_active if max_active is not None else os.environ.get("OPENMATES_CI_MAX_ACTIVE", MAX_ACTIVE))
         self.lightweight_reserve = int(lightweight_reserve if lightweight_reserve is not None else os.environ.get("OPENMATES_CI_LIGHTWEIGHT_RESERVE", min(1, self.max_active - 1)))
-        if not 1 <= self.max_active <= 32 or not 0 <= self.lightweight_reserve < self.max_active:
-            raise ValueError("CI capacity must be 1..32 with a smaller nonnegative lightweight reserve")
+        self.max_selfhosted = int(max_selfhosted if max_selfhosted is not None else os.environ.get("OPENMATES_CI_MAX_SELFHOSTED", MAX_SELFHOSTED))
+        if not 1 <= self.hosted_entitlement <= 1000 or not 1 <= self.max_active <= self.hosted_entitlement or not 0 <= self.lightweight_reserve < self.max_active or not 1 <= self.max_selfhosted <= 1000:
+            raise ValueError("CI capacity must fit the configured hosted entitlement with a smaller nonnegative lightweight reserve")
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         with self.connect() as db:
             db.executescript("""
@@ -492,7 +571,7 @@ class Queue:
                     return
                 try:
                     budget = github.budget()
-                    if int(budget["remaining"]) < RATE_RESERVE + 2 * self.max_active + 2:
+                    if int(budget["remaining"]) < RATE_RESERVE + MAX_OCCUPANCY_REQUESTS + 2 * self.max_active + 2:
                         self.set_meta(
                             db,
                             "network_retry_at",
@@ -596,19 +675,36 @@ class Queue:
                         pending.append(job)
                     db.commit()
                     active_jobs = [job for job in current if job["id"] in reservations]
-                    active = sum(reservations.values())
-                    heavy = sum(reservations[job["id"]] for job in active_jobs if job["mode"] not in LIGHTWEIGHT_MODES)
+                    local = {"hosted": 0, "selfhosted": 0}
+                    for job in active_jobs:
+                        local[runner_class(job)] += reservations[job["id"]]
+                    # One owner-wide snapshot per two minutes avoids per-caller polling.
+                    # A failed or stale discovery never grants new slots.
+                    snapshot = json.loads(self.metadata(db, "account_occupancy", "{}"))
+                    if not snapshot or now - snapshot.get("at", 0) >= OCCUPANCY_CACHE_SECONDS:
+                        if not hasattr(github, "account_occupancy"):
+                            # Only deterministic fixture transports omit discovery.
+                            external = {"hosted": 0, "selfhosted": 0}
+                        else:
+                            external = github.account_occupancy({job["token"] for job in active_jobs})
+                        if any(not isinstance(external.get(kind), int) or external[kind] < 0 for kind in local):
+                            raise ValueError("Invalid owner-wide CI occupancy")
+                        snapshot = {"at": now, **external}
+                        self.set_meta(db, "account_occupancy", json.dumps(snapshot))
+                    external = {kind: snapshot[kind] for kind in local}
                     owners = {}
                     for job in active_jobs:
                         owners[job["owner"]] = owners.get(job["owner"], 0) + reservations[job["id"]]
                     priority = self.metadata(db, "prerequisite_request", "")
                     last_owner = self.metadata(db, "last_admitted_owner", "")
                     # One writer owns capacity and owner fairness across all callers.
-                    while pending and active < self.max_active:
-                        eligible = [job for job in pending if job["mode"] in LIGHTWEIGHT_MODES or heavy < self.max_active - self.lightweight_reserve]
+                    while pending:
+                        eligible = [job for job in pending if local[runner_class(job)] + external[runner_class(job)] < (self.max_selfhosted if runner_class(job) == "selfhosted" else self.max_active)]
                         if not eligible:
                             break
-                        job = min(eligible, key=lambda item: (item["id"] != priority, owners.get(item["owner"], 0), item["owner"] == last_owner, item["created"], item["id"]))
+                        # The lightweight reservation is lent when no quick job
+                        # is ready; a newly ready quick job receives the next slot.
+                        job = min(eligible, key=lambda item: (item["id"] != priority, runner_class(item) == "hosted" and item["mode"] not in LIGHTWEIGHT_MODES, owners.get(item["owner"], 0), item["owner"] == last_owner, item["created"], item["id"]))
                         pending.remove(job)
                         dispatch_job = job
                         if hasattr(github, "prepare_dispatch"):
@@ -634,15 +730,14 @@ class Queue:
                             (now, job["id"]),
                         )
                         db.commit()
-                        active += 1
-                        heavy += job["mode"] not in LIGHTWEIGHT_MODES
+                        local[runner_class(job)] += 1
                         owners[job["owner"]] = owners.get(job["owner"], 0) + 1
                         last_owner = job["owner"]
                         self.set_meta(db, "last_admitted_owner", last_owner)
                         # Respect GitHub's guidance to space mutating requests.
                         time.sleep(1)
                     self.set_meta(db, "last_error", "")
-                    self.set_meta(db, "capacity", json.dumps({"total": self.max_active, "lightweight_reserved": self.lightweight_reserve, "active": active}))
+                    self.set_meta(db, "capacity", json.dumps({"total": self.max_active, "lightweight_reserved": self.lightweight_reserve, "active": local["hosted"], "external": external["hosted"], "selfhosted_total": self.max_selfhosted, "selfhosted_active": local["selfhosted"], "selfhosted_external": external["selfhosted"]}))
                 except (
                     GitHubError,
                     subprocess.TimeoutExpired,

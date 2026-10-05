@@ -151,6 +151,10 @@ def test_result_binds_subject_harness_runner_and_execution(
         lambda command, root, output: output.write(archive.getvalue()),
     )
     monkeypatch.setattr(ci_results, "RESERVE", 0)
+    monkeypatch.setattr(ci_results.shutil, "disk_usage",
+                        lambda _path: type("Usage", (), {"total": 100 * 1024**3,
+                                                         "used": 10 * 1024**3,
+                                                         "free": 90 * 1024**3})())
 
     class Remote:
         repo = "example/repo"
@@ -340,6 +344,10 @@ def test_team_node_fetch_preserves_cleanup_gate_after_strict_runtime_validation(
             }))
     monkeypatch.setattr(ci_results, "download", lambda command, root, output: output.write(archive.getvalue()))
     monkeypatch.setattr(ci_results, "RESERVE", 0)
+    monkeypatch.setattr(ci_results.shutil, "disk_usage",
+                        lambda _path: type("Usage", (), {"total": 100 * 1024**3,
+                                                         "used": 10 * 1024**3,
+                                                         "free": 90 * 1024**3})())
     monkeypatch.setattr(ci_results, "attach_visual_evidence", lambda result, directory: result)
 
     class Remote:

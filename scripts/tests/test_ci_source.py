@@ -7,6 +7,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 """
 
 import subprocess
+from contextlib import contextmanager
 import pytest
 from scripts.ci_source import candidate_preflight, reviewed_paths, fingerprint
 
@@ -91,6 +92,10 @@ def test_unchanged_source_uses_reachable_base_without_artifact(tmp_path, monkeyp
 
     root = repository(tmp_path)
     monkeypatch.setattr(ci_source, "DISK_RESERVE", 0)
+    monkeypatch.setattr(ci_source.shutil, "disk_usage",
+                        lambda _path: type("Usage", (), {"total": 100 * 1024**3,
+                                                         "used": 10 * 1024**3,
+                                                         "free": 90 * 1024**3})())
     result = ci_source.publish(
         root,
         "fixture",
@@ -133,6 +138,10 @@ def test_resolved_patch_uses_reviewed_base_without_touching_worktree(
 
     monkeypatch.setattr(ci_source, "git", controlled_git)
     monkeypatch.setattr(ci_source, "DISK_RESERVE", 0)
+    monkeypatch.setattr(ci_source.shutil, "disk_usage",
+                        lambda _path: type("Usage", (), {"total": 100 * 1024**3,
+                                                         "used": 10 * 1024**3,
+                                                         "free": 90 * 1024**3})())
     result = ci_source.publish(
         root,
         "daba",
@@ -154,3 +163,35 @@ def test_resolved_patch_uses_reviewed_base_without_touching_worktree(
     assert (root / ".git/index").read_bytes() == before_index
     assert not (root / "new.py").exists()
     assert (root / "unrelated.py").read_text() == "preserve dirty work"
+
+
+def test_candidate_reservation_covers_private_upload(tmp_path, monkeypatch):
+    from scripts import ci_source, resource_budget
+
+    root = repository(tmp_path)
+    (root / "selected.py").write_text("value = 1\n")
+    monkeypatch.setattr(ci_source, "DISK_RESERVE", 0)
+    active = []
+
+    @contextmanager
+    def reserved(reservation_root, amount, **limits):
+        assert reservation_root == root
+        assert amount == ci_source.MAX_CHANGED_BYTES
+        assert limits == {"min_free": 0, "max_used_percent": 100}
+        active.append(True)
+        try:
+            yield
+        finally:
+            active.pop()
+
+    monkeypatch.setattr(resource_budget, "reserve", reserved)
+
+    def upload(_patch, *, source, sha256):
+        assert active == [True]
+        return {"url": "https://nbg1.your-objectstorage.com/private?signature=test",
+                "bucket": "private", "key": f"candidate/{source}.patch",
+                "expires_at": "2026-09-21T00:00:00+00:00"}
+
+    result = ci_source.publish(root, "fixture", ["selected.py"], artifact_uploader=upload)
+    assert result["source"]
+    assert active == []

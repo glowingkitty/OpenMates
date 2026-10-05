@@ -206,7 +206,7 @@ def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
             raise RuntimeError("Expected exactly one visual-smoke capture receipt")
         result["visual_smoke"] = verify_capture(captures[0].parent, json.loads(job["specs"]))
     paths = list(directory.rglob("ci-cleanup.json"))
-    cleanup = json.loads(paths[0].read_text()) if len(paths) == 1 else None
+    cleanup = json.loads(paths[0].read_text()) if len(paths) == 1 else result.get("cleanup")
     valid = bool(cleanup and str(cleanup.get("run_id")) == str(job["run_id"])
                  and cleanup.get("harness_commit") == result.get("harness_commit")
                  and cleanup.get("containers_remaining") == 0
@@ -232,6 +232,21 @@ def attach_visual_evidence(result, directory):
 
 
 def fetch(github, job: dict, root: Path) -> dict:
+    """Reserve archive plus expanded bytes until extraction and receipt finish."""
+    destination = root / "test-results/ci-runs" / job["id"]
+    if (destination / "receipt.json").is_file():
+        return _fetch_reserved(github, job, root)
+    try:
+        from scripts.resource_budget import reserve
+    except ModuleNotFoundError:
+        from resource_budget import reserve
+    # Retrieval has always used the 30 GiB reserve; 85% gates new worktrees.
+    with reserve(root, MAX_ARCHIVE + MAX_EXPANDED, min_free=RESERVE,
+                 max_used_percent=100):
+        return _fetch_reserved(github, job, root)
+
+
+def _fetch_reserved(github, job: dict, root: Path) -> dict:
     destination = root / "test-results/ci-runs" / job["id"]
     receipt = destination / "receipt.json"
     if receipt.is_file():
@@ -272,7 +287,7 @@ def fetch(github, job: dict, root: Path) -> dict:
     artifact = matches[0]
     if (
         artifact["size_in_bytes"] > MAX_ARCHIVE
-        or shutil.disk_usage(root).free < RESERVE + MAX_ARCHIVE + MAX_EXPANDED
+        or shutil.disk_usage(root).free < RESERVE
     ):
         raise RuntimeError(
             "Artifact retrieval would exceed size limit or 30 GiB reserve"

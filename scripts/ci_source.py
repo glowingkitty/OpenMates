@@ -219,6 +219,31 @@ def publish(
     patch_sha256: str = "",
     artifact_uploader=upload_patch,
 ) -> dict:
+    """Reserve candidate bytes across concurrent publishers through upload."""
+    try:
+        from scripts.resource_budget import reserve
+    except ModuleNotFoundError:
+        from resource_budget import reserve
+    common_dir = Path(git(root, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+    # Publication keeps its 30 GiB guard; 85% gates new worktrees only.
+    with reserve(common_dir.resolve().parent, MAX_CHANGED_BYTES,
+                 min_free=DISK_RESERVE, max_used_percent=100):
+        return _publish_reserved(root, session_id, session_files, base=base,
+                                 resolved_patch=resolved_patch,
+                                 patch_sha256=patch_sha256,
+                                 artifact_uploader=artifact_uploader)
+
+
+def _publish_reserved(
+    root: Path,
+    session_id: str,
+    session_files: list[str],
+    *,
+    base: str = "",
+    resolved_patch: Path | None = None,
+    patch_sha256: str = "",
+    artifact_uploader=upload_patch,
+) -> dict:
     if not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", session_id):
         raise ValueError("Invalid session identity")
     if shutil.disk_usage(root).free < DISK_RESERVE + MAX_CHANGED_BYTES:

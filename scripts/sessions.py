@@ -1730,6 +1730,21 @@ def _workspace_transition(action):
 @_workspace_transition("ensure")
 def ensure_session_worktree(session_id: str) -> dict:
     """Ensure one session has an active local git worktree and metadata."""
+    session = _load_sessions().get("sessions", {}).get(session_id, {})
+    metadata = session.get("worktree") or {}
+    if metadata.get("path") and metadata.get("status") in {"active", "merged"}:
+        return _ensure_session_worktree_impl(session_id)
+    try:
+        from scripts.resource_budget import reserve
+    except ModuleNotFoundError:
+        from resource_budget import reserve
+    with reserve(CONTROL_PLANE_ROOT, 1024**3,
+                 min_free=WORKTREE_MIN_FREE_BYTES,
+                 max_used_percent=WORKTREE_MAX_DISK_PERCENT):
+        return _ensure_session_worktree_impl(session_id)
+
+
+def _ensure_session_worktree_impl(session_id: str) -> dict:
     created: dict | None = None
 
     def existing(data: dict) -> dict | None:
@@ -4876,6 +4891,36 @@ def _enforce_worktree_creation_capacity() -> None:
             "; ".join(breaches)
             + f". Run: python3 scripts/sessions.py worktree expire --max-age-hours {WORKTREE_HARD_MAX_AGE_HOURS}"
         )
+
+
+def cmd_disk(args: argparse.Namespace) -> None:
+    """Inspect managed bytes, or apply an explicit previously reviewed manifest."""
+    try:
+        from scripts import resource_budget
+    except ModuleNotFoundError:
+        import resource_budget
+    if args.disk_action == "inventory":
+        report = resource_budget.inventory(CONTROL_PLANE_ROOT)
+        rendered = json.dumps(report, indent=2, sort_keys=True) + "\n"
+        if args.output:
+            destination = args.output.resolve()
+            if destination.exists():
+                raise RuntimeError("Refusing to overwrite an existing disk manifest")
+            destination.write_text(rendered)
+            print(f"Dry-run disk manifest: {destination}")
+        else:
+            print(rendered, end="")
+    elif args.disk_action == "cleanup":
+        report = resource_budget.cleanup(CONTROL_PLANE_ROOT,
+                                         manifest=json.loads(args.manifest.read_text()))
+        print(json.dumps(report, indent=2, sort_keys=True))
+    elif args.disk_action == "enable":
+        resource_budget.enable_auto(CONTROL_PLANE_ROOT,
+                                    manifest=json.loads(args.manifest.read_text()))
+        print("Verified disposable-payload cleanup enabled for budget admission")
+    elif args.disk_action == "disable":
+        resource_budget.disable_auto(CONTROL_PLANE_ROOT)
+        print("Disposable-payload cleanup disabled")
 
 
 def cleanup_session_worktrees(*, idle_hours: int = WORKTREE_CLEANUP_IDLE_HOURS) -> list[str]:
@@ -13929,6 +13974,16 @@ def main() -> None:
     p_ci_adopt = sub.add_parser("ci-adopt", help="Install canonical CI forwarding in an existing session worktree")
     p_ci_adopt.add_argument("--session", required=True)
 
+    p_disk = sub.add_parser("disk", help="Inventory managed disk use or apply reviewed disposable cleanup")
+    disk_actions = p_disk.add_subparsers(dest="disk_action", required=True)
+    p_disk_inventory = disk_actions.add_parser("inventory", help="Print dry-run inventory and cleanup manifest")
+    p_disk_inventory.add_argument("--output", type=Path, help="Write the exact dry-run manifest to a new file")
+    p_disk_cleanup = disk_actions.add_parser("cleanup", help="Apply only eligible paths in an existing manifest")
+    p_disk_cleanup.add_argument("--manifest", type=Path, required=True)
+    p_disk_enable = disk_actions.add_parser("enable", help="Opt in after reviewing a fresh dry-run manifest")
+    p_disk_enable.add_argument("--manifest", type=Path, required=True)
+    disk_actions.add_parser("disable", help="Disable admission-triggered disposable cleanup")
+
     # track
     p_track = sub.add_parser("track", help="Track a file as modified")
     p_track.add_argument(
@@ -14592,6 +14647,7 @@ def main() -> None:
         "release": cmd_release,
         "ci-source": cmd_ci_source,
         "ci-adopt": cmd_ci_adopt,
+        "disk": cmd_disk,
         "track": cmd_track,
         "track-stdin": cmd_track_stdin,
         "untrack": cmd_untrack,
