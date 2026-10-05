@@ -155,6 +155,7 @@ async function withUpdateRequiredMock<T>(
   server.on("upgrade", (request, socket, head) => {
     if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
     wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
       ws.on("message", (raw) => {
         const frame = JSON.parse(raw.toString()) as { type: string };
         frameTypes.push(frame.type);
@@ -221,6 +222,7 @@ async function withChatDeleteMock<T>(
   });
   server.on("upgrade", (request, socket, head) => {
     wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
       ws.on("message", (raw) => {
         const frame = JSON.parse(raw.toString()) as { type: string; payload?: { chat_id?: string; chatId?: string } };
         frameTypes.push(frame.type);
@@ -307,6 +309,7 @@ async function withWorkspaceAskFallbackChatMock<T>(
   });
   server.on("upgrade", (request, socket, head) => {
     wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
       let turnId = "turn-1";
       let chatId = "chat-1";
       let messageId = "message-1";
@@ -442,6 +445,7 @@ async function withGoalChatMock<T>(
   server.on("upgrade", (request, socket, head) => {
     if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
     wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
       let turnId = "22222222-2222-4222-8222-222222222222";
       let chatId = "11111111-2222-4333-8444-555555555555";
       let messageId = "33333333-3333-4333-8333-333333333333";
@@ -2124,7 +2128,7 @@ async function withEmbedVersionsMockApi<T>(
       });
       return;
     }
-    if (request.method === "GET" && request.url === `/v1/embeds/${embedId}/versions/1`) {
+    if (request.method === "GET" && request.url === `/v1/embeds/${embedId}/versions/1?capability=bounded-v1`) {
       writeJson(response, {
         embed_id: embedId,
         version_number: 1,
@@ -3579,7 +3583,7 @@ describe("embed version commands", () => {
     await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
       const output = await runCliAsync(["embeds", "versions", "show", embedId, "--version", "1"], { OPENMATES_API_URL: apiUrl });
       assert.match(output, /def calculate_average/);
-      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions/1`]);
+      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions/1?capability=bounded-v1`]);
     });
   });
 
@@ -3589,7 +3593,7 @@ describe("embed version commands", () => {
       const output = await runCliAsync(["embeds", "versions", "show", embedId, "--version", "1", "--output", tempFile], { OPENMATES_API_URL: apiUrl });
       assert.match(output, /Wrote .* v1/);
       assert.match(readFileSync(tempFile, "utf-8"), /def calculate_average/);
-      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions/1`]);
+      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions/1?capability=bounded-v1`]);
     });
     rmSync(tempFile, { force: true });
   });
