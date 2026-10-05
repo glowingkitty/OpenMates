@@ -3,7 +3,6 @@
 Validates bounded, explicit geographic areas and the six supported categories.
 Normalizes OSM-backed results into the existing maps-place child embed shape.
 Missing data stays unknown and each result retains its provider and source.
-Spec: specifications/features/app-skills/maps-search/specification.yml
 """
 
 import hashlib

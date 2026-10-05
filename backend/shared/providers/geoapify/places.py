@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import os
+import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional
 
@@ -147,9 +148,11 @@ class GeoapifyPlacesProvider:
         if budget_status != "ok":
             return GeoapifyPlacesSearchResult(status=budget_status, error=_budget_error(budget_status))
 
+        request_started = time.monotonic()
         try:
             response = await self._http_get(GEOAPIFY_PLACES_URL, params, self.timeout_seconds)
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as exc:
+            logger.warning("Geoapify Places %s after %.2fs", type(exc).__name__, time.monotonic() - request_started)
             return GeoapifyPlacesSearchResult(
                 status="timed_out",
                 error="Geoapify Places request timed out",

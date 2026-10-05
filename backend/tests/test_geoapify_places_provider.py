@@ -208,6 +208,24 @@ async def test_missing_api_key_returns_not_configured(monkeypatch: pytest.Monkey
     assert result.places == []
 
 
+# contract-test: supporting surface=rest_api assertions=maps-search.provider.budget-and-cache
+async def test_timeout_diagnostics_exclude_request_credentials(caplog) -> None:
+    async def timeout_get(url, params, timeout):
+        request = httpx.Request("GET", url, params=params)
+        raise httpx.ReadTimeout("private request details", request=request)
+
+    provider = GeoapifyPlacesProvider(
+        secrets_manager=_FakeSecretsManager({(GEOAPIFY_SECRET_PATH, "api_key"): "private-geo-key"}),
+        cache_service=_MemoryCache(), http_get=timeout_get,
+    )
+    result = await provider.search_places(query="", categories=["tourism.sights.ruines"])
+    assert result.status == "timed_out"
+    assert "ReadTimeout after" in caplog.text
+    assert "private-geo-key" not in caplog.text
+    assert "private request details" not in caplog.text
+    assert "apiKey" not in caplog.text
+
+
 @pytest.mark.parametrize("payload", [{}, {"features": None}, {"features": {"not": "a list"}}, []])
 # contract-test: supporting surface=rest_api assertions=maps-search.provider.budget-and-cache
 async def test_malformed_success_is_unavailable_and_not_cached(payload):

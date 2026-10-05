@@ -616,7 +616,8 @@ class SearchSkill(BaseSkill):
             else:
                 message = str(exc)
             return request_id, [], message, metadata
-        provider = GeoapifyPlacesProvider(secrets_manager=secrets_manager, cache_service=cache_service, timeout_seconds=5)
+        # Uncached Places responses can take longer than enrichment lookups.
+        provider = GeoapifyPlacesProvider(secrets_manager=secrets_manager, cache_service=cache_service, timeout_seconds=10)
         area = discovery.area
         center = (area.latitude, area.longitude)
         if area.name:
