@@ -358,6 +358,7 @@ Use `ActiveChat.svelte`, `WorkspacePromptComposer.svelte`, and
 | Message alignment | Assistant left/start, user right/end, with compact behavior below 500px container width. |
 | Processing details | Muted, clickable, aligned with assistant avatar offset. |
 | Embedded cards in chat | Horizontal scroll, snap, compact gaps, no layout-breaking overflow. |
+| Map/calendar results views in assistant messages | Fill the permitted message lane regardless of prose length, within the existing history cap and avatar/mobile gutters. The standalone results preview cap does not limit in-chat views. Source: `chat.css`. |
 
 Do not replace chat with a generic card feed. The chat metaphor is central.
 

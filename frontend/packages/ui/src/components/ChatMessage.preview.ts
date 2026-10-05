@@ -8,6 +8,32 @@
  * Access at: /dev/preview/ChatMessage
  */
 
+import { embedStore } from '../services/embedStore';
+
+// Fictional, local-only event data exercises the real results node renderer.
+const widthEventId = 'preview-message-width-event';
+embedStore.registerStaticEmbed({
+	embedId: widthEventId,
+	type: 'event',
+	appId: 'events',
+	content: JSON.stringify({
+		type: 'event_result',
+		title: 'Local founders meetup',
+		provider: 'eventbrite',
+		url: 'https://example.org/meetup',
+		date_start: '2026-10-06T18:30:00+02:00',
+		date_end: '2026-10-06T20:00:00+02:00',
+		timezone: 'Europe/Berlin',
+		event_type: 'IN_PERSON',
+		venue_name: 'Startup hub',
+		venue_city: 'Berlin',
+		venue_country: 'Germany',
+		venue_lat: 52.52,
+		venue_lon: 13.405,
+	}),
+});
+const widthResults = '```embeds_results_view\ntitle: Upcoming events\nembeds: ' + widthEventId + '\n```';
+
 /** Default props — shows a user message */
 const defaultProps = {
 	role: 'user' as const,
@@ -26,6 +52,16 @@ export default defaultProps;
 
 /** Named variants for different message types and states */
 export const variants = {
+	resultsOnly: {
+		...defaultProps, role: 'assistant' as const, content: widthResults,
+	},
+	shortResults: {
+		...defaultProps, role: 'assistant' as const, content: 'Here you go.\n\n' + widthResults,
+	},
+	workflowResults: {
+		...defaultProps, role: 'assistant' as const,
+		content: '[View workflow run](/workflows#workflow-id=998a335e-741f-582c-885c-bf61d12ace93&workflow-tab=runs&run-id=118a335e-741f-582c-885c-bf61d12ace93)\n\n' + widthResults,
+	},
   focusPhase: {
     ...defaultProps, role: 'system' as const,
     content: JSON.stringify({ type: 'focus_phase_changed', event_id: '11111111-1111-4111-8111-111111111111',

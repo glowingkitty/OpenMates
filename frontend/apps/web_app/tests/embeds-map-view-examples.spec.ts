@@ -2,6 +2,7 @@
 
 const { expect, test } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { expectChatResultsFullWidth } = require('./helpers/chat-results-width');
 
 /**
  * Public example-chat coverage for the `embeds_map_view` presentation block.
@@ -25,6 +26,7 @@ const PRIVATE_MARKERS = [
 ];
 
 test.describe('Embeds map view public examples', () => {
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,chats.layout.responsive-history
 	test('renders the CLI-backed Berlin founder events map example without provider calls', async ({
 		page,
 		request
@@ -70,13 +72,17 @@ test.describe('Embeds map view public examples', () => {
 
 		const mapView = page.getByTestId('embeds-map-view');
 		await expect(mapView).toBeVisible({ timeout: 30_000 });
+		await expectChatResultsFullWidth(mapView);
 		await expect(mapView).not.toContainText('Mapped results');
 		await expect(mapView).not.toContainText('Map view');
 		await expect(mapView).toContainText(/build fridays berlin/i);
 		await expect(mapView.getByTestId('embeds-map-view-filter-button')).toBeVisible();
 		await mapView.getByTestId('embeds-map-view-filter-button').click();
 		await expect(mapView.getByTestId('embeds-map-view-filter-menu')).toBeVisible();
-		await expect(mapView.getByTestId('embeds-map-view-filter-menu')).toContainText('event');
+		const eventbriteFilter = mapView.getByTestId('embeds-map-view-filter-menu')
+			.getByTestId('embeds-map-view-option-provider-eventbrite');
+		await expect(eventbriteFilter).toBeVisible();
+		await expect(eventbriteFilter).toHaveAttribute('aria-checked', 'true');
 		await mapView.getByTestId('embeds-map-view-filter-button').click();
 		await expect(mapView.getByTestId('embeds-map-view-filter-menu')).toBeHidden();
 
@@ -138,6 +144,17 @@ test.describe('Embeds map view public examples', () => {
 		await expect(mapView.getByTestId('embeds-map-view-map')).not.toContainText(
 			'Referenced embeds do not expose coordinates yet.'
 		);
+
+		// Check the real history lane after responsive transitions, including
+		// the calendar tab's internal horizontal scroll on compact screens.
+		for (const width of [390, 1024, 1440]) {
+			await page.setViewportSize({ width, height: 1000 });
+			await expectChatResultsFullWidth(mapView);
+			await mapView.getByTestId('embeds-results-view-tab-calendar').click();
+			await expect(mapView.getByTestId('embeds-results-view-calendar-week')).toBeVisible();
+			await expectChatResultsFullWidth(mapView);
+			await mapView.getByTestId('embeds-results-view-tab-map').click();
+		}
 
 		expect(forbiddenApiCalls).toEqual([]);
 	});
