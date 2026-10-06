@@ -1,3 +1,17 @@
+# Additional compression checkpoint requirement — 2026-10-06
+
+Pull current dev including CLI fix `e9ec49cd` for the reference contract.
+The backend bounded-query release `54935c2c` is public and active, with all 17
+services verified. During the CLI audit, ordinary compression checkpoint saves
+were found to omit the stable message boundary and source manifest. For the Mac
+storage work, preserve `compressed_up_to_message_id` and `covered_message_ids`
+from the server compression event into the normal checkpoint save. Require the
+canonical receipt to match chat/checkpoint identity, stable boundary and exact
+manifest before considering it persisted. Typed recovery already carries these
+fields and must keep its existing stronger persist/reread/ACK checks. Return
+focused native writer/reader evidence; this backend chat does not change Apple
+product files. Archive pruning remains disabled until native and P-7 gates pass.
+
 # Current Mac handoff — 2026-10-06
 
 Backend, web, CLI and SDK Team storage settlement is published and active on

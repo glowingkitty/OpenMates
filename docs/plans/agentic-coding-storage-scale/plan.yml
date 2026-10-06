@@ -468,3 +468,18 @@ document_checks:
     Passes with the supported lightweight profile. OpenMates Tasks owns status
     and dependencies. Structural validation does not prove runtime conformance;
     implementation evidence and outstanding rollout gates are recorded in README.md.
+
+focused_completion_checkpoint:
+  recorded_on: "2026-10-06"
+  database_release: 54935c2c4a5a89348d92f9e2b7032a0db263d123
+  publication_tests: "40/40; lint and Specification passed"
+  runtime_evidence: "docker-06f5a696; 17 healthy services; billing on; six archive flags off"
+  database_probe: "37497045177: actual hot PostgreSQL window and archive integrity passed"
+  strict_processing_pilot: "37497045177: failed; 53/60 rounds, 6/8 versions; zero real provider calls"
+  latency_and_full_capacity: unqualified
+  cli_checkpoint_fix: "e9ec49cd445982a89084320dec5ff857d4bd17e3; GitHub37512438654 passed"
+  separate_capacity_runner: user_decision_pending
+  native_readers_and_typed_ack: separately_owned_mac_gate
+  source_retention_before_pruning_hours: 24
+  pruning: disabled_pending_required_proof
+  conformance: "Partial: structural validation is not full runtime acceptance; preserve all existing gates."

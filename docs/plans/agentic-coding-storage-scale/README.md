@@ -2,31 +2,36 @@
 
 ## Current status — 2026-10-06
 
-Team storage settlement is published as `a5ad0627a99a105a75bcb45ea0abf4a0002351e4`.
-All eight required isolated Team gates and the mandatory publication checks
-passed, including the exact 221-case backend gate. Authenticated, create-only
-recovery closed the local offline dependency cache blocker. Coordinated additive
-schema setup, coherent restart and flag activation passed. Readback confirms
-three Team tables, five valid/ready indexes and 17 healthy services with Team
-billing/expiry enabled. Matching Vercel deployment succeeded. Personal billing
-remains active; all six archive
-copy/read/prune flags remain off. Production is unchanged.
+The database fixes are published and active on dev at `54935c2c`: fixed bounded
+PostgreSQL message windows, stable cursors and storage maintenance independent of
+finance/template startup. All 40 required publication tests, lint and
+Specification checks passed. The actual isolated PostgreSQL window/archive
+probes passed. Coordinated restart verified all 17 services; the matching web
+deployment succeeded.
 
-Strict zero-inference pilot `37478841402` failed on frozen source `f299c3cb`
-and harness `b971d533`. It includes the reviewed version/privacy fixture repairs,
-bounded branch diagnostics, stream context cleanup and actual warm-window SQL.
-It reached 46/60 rounds and 4/8 versions, with zero real calls and verified
-cleanup. New bounded diagnostics support causal fixes to the privacy-read and
-request-budget fixtures; other unattributed rows remain unresolved. No full
-processing or capacity pass is claimed. Calibration, the dedicated-host
-1000-heavy-user-day/500-execution target, native reader/recovery evidence and
-signed pruning eligibility remain open. The two real CLI/web canaries already
-passed; do not repeat real inference for architecture testing.
+Personal and Team weekly storage billing, confirmed email warnings, protected
+warned-unit expiry and episode waivers are already deployed. Each Team has a
+separate 1 GiB allowance and wallet. All eight Team CI gates passed. Automatic
+schema-before-writer migration and exact-release/client eligibility retries are
+published; a missing proof pauses advancement while preserving existing data.
 
-No retained evidence attributes the previous pilot failure to workflow chat
-`01a10cd6…`. Its earlier tooling changes were included; the proven failures were
-in deterministic version/privacy fixtures. See [progress.md](progress.md) for
-the exact evidence and current rollout status.
+The CLI compression-boundary fix is published as `e9ec49cd`; its focused
+GitHub check passed both changed test files and the real CLI build. The latest
+strict processing pilot failed at 53/60 rounds and 6/8 versions, with zero real
+inference and complete disposable cleanup. Its tiny PostgreSQL probe establishes
+query correctness, not 500-execution capacity or archive latency. No speculative
+fixture repair is counted as an end-to-end pass.
+
+**Rollout remains gated:** all six archive flags are off, so PostgreSQL payload
+pruning and its storage reduction are not active. The full 1000-user-day /
+500-execution test needs separate runner capacity, valid deterministic fixtures,
+and native reader/recovery evidence before signed pruning eligibility. Production
+is unchanged. The two earlier real CLI/web canaries already passed; architecture
+verification makes no real inference requests.
+
+See [progress.md](progress.md) for exact evidence and
+[apple-handoff.md](apple-handoff.md) for the Mac work. Current artifact heads remain
+in PostgreSQL; optional head eviction is outside the approved completion scope.
 
 ## Historical checkpoint — earlier 2026-10-06
 

@@ -2,7 +2,61 @@
 
 Snapshot: 2026-10-06. OpenMates Tasks owns work status and dependencies.
 
-## Latest checkpoint — 2026-10-06
+## Latest checkpoint — focused completion on 2026-10-06
+
+Database and storage startup fixes are published as
+`54935c2c4a5a89348d92f9e2b7032a0db263d123`. This scoped ten-path release uses the
+internal PostgreSQL message window with a fixed ciphertext projection, stable
+same-timestamp cursors and a 101-row sentinel. Storage maintenance initializes
+core services and S3 without unrelated invoice or email-template configuration.
+The required four-file publication gate passed all 40 cases; lint and the
+Specification gate passed. Isolated run `37497045177` independently passed the
+actual PostgreSQL warm-window probe, including legacy client-ID fallback,
+limit-plus-one, owner/deletion guards and disposable fixture cleanup.
+
+Coordinated operation `docker-06f5a696` applied the release. Exact target readback
+verified 17 healthy/running services at source `54935c2c`, personal and Team
+billing/expiry enabled and all six archive flags disabled. Matching Vercel
+deployment `4RuJqqmVxbT2xLhc6xecSWkwWAUu` succeeded. The earlier eight Team
+gates, 221-case Team publication gate, schema/index verification and two real
+CLI/web canaries remain valid scoped evidence; no additional real inference
+was used in this completion turn. Production is unchanged.
+
+The resumed strict P-7 run `37497045177`, candidate `2c146ece`, completed
+53/60 rounds, 8/8 embeds, 6/8 versions and 2/2 children. Browser persistence and
+PostgreSQL/S3 probes passed; processing did not. It recorded 511 fixture hits,
+83 misses, 218 blocked attempts and zero real provider calls. The revision-3
+version update had zero authorized callbacks. No warm or uncached archive-page
+samples were obtained, so latency and full capacity remain unqualified. Cleanup
+verified no disposable containers/volumes and removal of private account files.
+
+Review rejected a proposed continuation fixture repair: its manually constructed
+long non-latest message is truncated by the actual preprocessing builder, so its
+old-fail/new-pass test does not establish the CI cause. That patch is preserved
+privately with the causal claim withdrawn and is excluded from publication and
+retry. No new P-7 replay was submitted on that basis.
+
+A separate concrete CLI defect was found: ordinary compression checkpoint
+persistence omitted `compressed_up_to_message_id` and `covered_message_ids`,
+which the server requires before archive scheduling. The focused CLI fix retains
+these event fields, forwards the exact boundary/manifest and validates the
+canonical receipt. It is published as `e9ec49cd445982a89084320dec5ff857d4bd17e3`. Focused
+GitHub run `37512438654` passed dependency installation, the CLI declaration
+build and both selected WebSocket/checkpoint test files on exact candidate
+`3cae3a9e`. Publication lint, Specification, translations and SDK boundary gates
+passed. No backend runtime restart was needed for the CLI-only change. The missing fields explain a real archival gap, while retained run logs do
+not prove that this gap caused that run's lack of readable pages.
+
+The accepted architecture remains implemented behind rollout gates. The
+1000-heavy-user-day/500-simultaneous-execution test still needs approved separate
+runner capacity and successful full-path fixtures. Native bounded readers and
+typed persist/ACK evidence remain owned by the Mac chat. Signed release
+eligibility and the 24-hour verified source buffer remain mandatory before real
+payload pruning. PostgreSQL payload reduction is therefore not active yet.
+Current artifact heads remain in PostgreSQL; optional current-head eviction was
+not approved. No unrelated repair campaign or extra inference canary is required.
+
+## Earlier checkpoint — 2026-10-06
 
 Public dev is `a5ad0627a99a105a75bcb45ea0abf4a0002351e4`, including Team
 storage settlement and the Apple publication `25fdf752`. The storage foundation,
