@@ -7,6 +7,8 @@ A local invocation must fail before invoking any Docker command.
 See docs/plans/isolated-github-tests/plan.yml.
 """
 
+import json
+
 import pytest
 from scripts.ci_environment import (
     PREPARED_SCHEMA_ADMIN_PASSWORD,
@@ -16,6 +18,7 @@ from scripts.ci_environment import (
     SOURCE,
     apply_prepared_schema,
     compose_profile,
+    mail_capture_specs,
     require_runner,
     start_stack,
 )
@@ -71,6 +74,34 @@ def test_signup_mail_capture_stays_on_disposable_internal_network():
         assert service["environment"]["SELF_HOST_SIGNUP_MODE"] == "invite_and_domain"
         assert service["depends_on"]["mailpit"]["condition"] == "service_started"
         assert "BREVO_API_KEY" not in service["environment"]
+
+
+def test_candidate_mail_dependencies_add_only_mail_capture(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts/ci_coverage_manifest.json").write_text(
+        json.dumps({"groups": {
+            "local_email_signup": {"specs": ["teams-invite-acceptance.spec.ts"]},
+            "ai_committed_fixtures": {"specs": ["teams-invite-acceptance.spec.ts"]},
+        }})
+    )
+    harness = {"groups": {"local_email_signup": {"specs": ["signup-flow.spec.ts"]}}}
+    assert mail_capture_specs(harness, tmp_path) == {
+        "signup-flow.spec.ts",
+        "teams-invite-acceptance.spec.ts",
+    }
+
+
+def test_candidate_cannot_remove_harness_mail_capture_or_supply_bad_specs(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    harness = {"groups": {"local_email_signup": {"specs": ["signup-flow.spec.ts"]}}}
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    assert mail_capture_specs(harness, tmp_path) == {"signup-flow.spec.ts"}
+    candidate_manifest.write_text(
+        json.dumps({"groups": {"local_email_signup": {"specs": "bad"}}})
+    )
+    with pytest.raises(RuntimeError, match="Invalid local_email_signup specs"):
+        mail_capture_specs(harness, tmp_path)
 
 
 def test_fresh_credentials_and_runner_only(monkeypatch):

@@ -51,6 +51,23 @@ CAPACITY_WORKLOAD_SPECS = frozenset({
 SOURCE = os.environ.get(
     "OPENMATES_CI_SOURCE_ROOT", str(Path(__file__).resolve().parent.parent)
 )
+
+
+def mail_capture_specs(harness_manifest: dict, candidate_root: Path) -> set[str]:
+    """Add candidate mail dependencies without changing harness-owned CI gates."""
+    candidate_manifest = json.loads(
+        (candidate_root / "scripts/ci_coverage_manifest.json").read_text()
+    )
+    harness_specs = harness_manifest["groups"].get("local_email_signup", {}).get("specs", [])
+    candidate_specs = candidate_manifest["groups"].get("local_email_signup", {}).get("specs", [])
+    if any(
+        not isinstance(specs, list) or not all(isinstance(spec, str) for spec in specs)
+        for specs in (harness_specs, candidate_specs)
+    ):
+        raise RuntimeError("Invalid local_email_signup specs in CI coverage manifest")
+    return set(harness_specs) | set(candidate_specs)
+
+
 QUEUES = "persistence,health_check,server_stats,user_init,user_tasks,email,push"
 STACK_START_RETRY_DELAYS = (5, 15)
 TRANSIENT_REGISTRY_FAILURE = re.compile(
@@ -1223,7 +1240,7 @@ def main():
         upload_specs = set(manifest["groups"].get("uploads", {}).get("specs", []))
         needs_uploads = bool(upload_specs.intersection(selected))
         public_specs = set(manifest["groups"].get("ai_cached_public_provider", {}).get("specs", []))
-        mail_specs = set(manifest["groups"].get("local_email_signup", {}).get("specs", []))
+        mail_specs = mail_capture_specs(manifest, Path(SOURCE))
         needs_public_provider = bool(public_specs.intersection(selected))
         workflow_specs = set(manifest["groups"].get("workflow_weather", {}).get("specs", []))
         needs_workflows = bool(workflow_specs.intersection(selected))
