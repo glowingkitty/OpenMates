@@ -229,6 +229,8 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `teams` | `om.teams.memories()` | `om.teams.memories()` | direct | direct |
 | `teams` | `om.teams.rejectAccess()` | `om.teams.reject_access()` | direct | direct |
 | `teams` | `om.teams.removeMember()` | `om.teams.remove_member()` | direct | direct |
+| `teams` | `om.teams.storage()` | `om.teams.storage()` | direct | direct |
+| `teams` | `om.teams.storageNotice()` | `om.teams.storage_notice()` | direct | direct |
 | `teams` | `om.teams.update()` | `om.teams.update()` | direct | direct |
 | `teams` | `om.teams.updateGeneratedProfileImage()` | `om.teams.update_generated_profile_image()` | direct | direct |
 | `teams` | `om.teams.usage()` | `om.teams.usage()` | direct | direct |

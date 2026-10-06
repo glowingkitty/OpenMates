@@ -351,6 +351,8 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.teams.memories()` | `om.teams.memories()` | `id` | `id` | `list` |
 | `om.teams.rejectAccess()` | `om.teams.reject_access()` | `id, access_request_id, input` | `id, access_request_id, input` | `object` |
 | `om.teams.removeMember()` | `om.teams.remove_member()` | `id, member_user_id, input` | `id, member_user_id, input` | `object` |
+| `om.teams.storage()` | `om.teams.storage()` | `id` | `id` | `object` |
+| `om.teams.storageNotice()` | `om.teams.storage_notice()` | `id, limit, after_unit_id` | `id, limit, after_unit_id` | `object` |
 | `om.teams.update()` | `om.teams.update()` | `id, input` | `id, input` | `object` |
 | `om.teams.updateGeneratedProfileImage()` | `om.teams.update_generated_profile_image()` | `id, icon_name, background_color` | `id, input, input` | `object` |
 | `om.teams.usage()` | `om.teams.usage()` | `id, member_user_id` | `id, member_user_id` | `list` |

@@ -18,7 +18,7 @@ PERSONAL_POLICY_VERSION = "personal-storage-1gb-3credits-week-v1"
 LEGACY_SOURCE_VERSION = "legacy-upload-files-v1"
 LEGACY_PERSONAL_POLICY_VERSION = "legacy-upload-storage-1gb-3credits-week-v1"
 LOGICAL_S3_BILLING_SWITCH = "STORAGE_LOGICAL_S3_BILLING_ENABLED"
-TEAM_POLICY_VERSION = "unrated-team-usage-v1"
+TEAM_POLICY_VERSION = "team-storage-1gb-3credits-week-v1"
 CATEGORIES = frozenset({
     "legacy_uploads", "chat_pages", "chat_oversized", "cold_chat_graphs",
     "sealed_recovery", "embed_versions",
@@ -154,7 +154,7 @@ class StorageUsageMeteringService:
         )
 
     async def quote_team(self, team_hashes: list[str]) -> dict[str, StorageUsageQuote]:
-        """Unrated Team usage; callers must not apply personal billing policy."""
+        """Complete Team usage in its own 1 GiB weekly billing scope."""
         return await self._quote(team_hashes, owner_kind="team", legacy_only=False)
 
     async def _quote(

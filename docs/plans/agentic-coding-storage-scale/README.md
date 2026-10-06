@@ -1,6 +1,60 @@
 # Bounded storage for agentic coding scale
 
-## Current status — 2026-10-05
+## Current status — 2026-10-06
+
+Public dev is `6aa4e63a` (including the TypeSafe changes from `f6f5fdc1`). Storage prerequisites include the personal billing
+admission guard, automatic schema-before-writer migration, frozen-source schema
+policy binding, and exact capability-specific PostgreSQL proof validation.
+The last verified runtime generation was `97da9047` at 09:56 UTC; personal
+billing was active and all six archive copy/read/prune flags were off. Runtime
+source will be checked again before Team activation. The two real CLI/web
+canaries already passed; architecture tests use zero real inference.
+
+Team candidate `614440ce` passed strict GitHub logical-storage integration
+(run `37453710810`): cold schema setup, all 17 PostgreSQL proof fields, the real
+Vault owner-contact encrypt/decrypt and current-email-hash checks, and one
+browser case with no skips or flaky results. Cleanup verified zero containers,
+zero volumes and removal of disposable account files. Backend, service,
+CLI, Python SDK and Team component gates already passed. The final Team creation
+flow (`37456069796`) also passed one expected case with no skips/flakes and
+verified cleanup. The personal legacy check (`37456065370`) stopped in setup:
+it correctly disabled Team finance, then its fixture incorrectly attempted a
+new Team archive. The revised fixture now proves the exact rejected CMS claim
+and absence of archive rows. It preserves all personal assertions and the
+already-tested logical Team proof. Independent review closed; 48 fixture and
+95 runner/profile/proof checks passed. The scoped prerequisite is public as
+`6aa4e63a`; one corrected legacy consumer follows. API/workers retain valid
+self-host mode; this rejection proof explicitly covers the CMS guard only.
+Team finance stays disabled until that result and the schema-before-writer
+rollout are verified. Each Team has
+its own 1 GiB allowance and numeric Team wallet; see
+[billing-extension.md](billing-extension.md).
+
+The P-7 pilot on `e8bf612b` (`37451643830`) passed browser persistence/reload
+and disposable PostgreSQL/S3 archive checks, but failed processing: 30/60
+rounds and 2/8 versions, with 182 fixture hits, 171 misses and 263 blocked
+attempts. Actual provider calls remained zero and strict cleanup passed.
+A causal reproduction through actual client privacy redaction and the configured
+scanner found the synthetic fixture compared raw file bytes against the
+model-visible placeholder text. A narrow fixture correction must preserve the
+signed episode and independently seeded raw-file commitment. The correction
+and reconciliation with current direct TypeSafe transport passed 74 affected
+checks and two bounded reviews. Combined source `fbbdae39` preserves the tested
+Team implementation and current provider code. One strict pilot is running
+(`37458636329`); no passing processing result is claimed yet. Calibration and
+full-target testing have not run.
+
+The Oct 5 jobs acquired no runner and executed zero steps. October 6 failures
+have retained causes in our storage test setup and deterministic fixtures;
+no evidence attributes them to the other workflow chat. Its published workflow
+speed commit changed only two documentation files.
+
+Remaining gates: final Team flows and dev activation, successful P-7 pilot and
+calibration, dedicated-host target measurement, native reader/writer evidence,
+and signed release eligibility before any real archival pruning. Production
+is unchanged. No skipped assertions or increased timeouts count as a pass.
+
+## Historical checkpoint — 2026-10-05
 
 Automatic migration and complete bounded archive readers/exports are published
 in dev `8d50ac6555faff1f44a447c8b3600fa1e95080d8`; `34beeb72` adds only the

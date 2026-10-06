@@ -115,6 +115,11 @@ STORAGE_BILLING_INDEXES = (
     'storage_billing_owner_dunning_due_idx',
     'storage_billing_warning_units_episode_unit_uq',
     'storage_billing_warning_units_owner_page_idx',
+    'team_storage_billing_period_uq',
+    'team_storage_billing_charge_uq',
+    'team_storage_billing_debt_idx',
+    'team_storage_billing_unit_uq',
+    'team_storage_billing_units_owner_idx',
 )
 STORAGE_USAGE_METERING_MIGRATION_PATH = os.getenv(
     'STORAGE_USAGE_METERING_MIGRATION_PATH',
@@ -340,6 +345,9 @@ BACKEND_PERMISSION_COLLECTIONS = (
     'storage_billing_periods',
     'storage_billing_owner_state',
     'storage_billing_warning_units',
+    'team_storage_billing_periods',
+    'team_storage_billing_owner_state',
+    'team_storage_billing_warning_units',
 )
 BACKEND_PERMISSION_ACTIONS = ('create', 'read', 'update', 'delete')
 BACKEND_PERMISSION_POLICY_NAMES = ('Backend API', 'Administrator')

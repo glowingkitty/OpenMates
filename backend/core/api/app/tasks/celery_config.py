@@ -211,6 +211,7 @@ TASK_CONFIG = [
     {'name': 'leaderboard', 'module': 'backend.core.api.app.tasks.leaderboard_tasks'},  # Leaderboard aggregation tasks
     {'name': 'reminder',    'module': 'backend.apps.reminder.tasks'},  # Reminder app tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.team_storage_billing_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.billing_settlement_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.embed_version_archive_tasks'},
@@ -1301,6 +1302,8 @@ _EXPLICIT_TASK_ROUTES = {
     # Storage billing tasks
     "app.tasks.storage_billing_tasks.charge_storage_fees": "persistence",
     "app.tasks.storage_billing_tasks.retry_storage_warning_deliveries": "persistence",
+    "app.tasks.team_storage_billing_tasks.charge_team_storage_fees": "persistence",
+    "app.tasks.team_storage_billing_tasks.retry_team_storage_warnings": "persistence",
 
     # Auto-delete tasks
     "app.tasks.auto_delete_tasks.auto_delete_old_chats": "persistence",
@@ -1632,6 +1635,16 @@ app.conf.beat_schedule = {
     },
     'retry-storage-warning-deliveries': {
         'task': 'app.tasks.storage_billing_tasks.retry_storage_warning_deliveries',
+        'schedule': timedelta(minutes=2),
+        'options': {'queue': 'persistence'},
+    },
+    'charge-team-storage-fees-weekly': {
+        'task': 'app.tasks.team_storage_billing_tasks.charge_team_storage_fees',
+        'schedule': crontab(hour=3, minute=0, day_of_week=0),
+        'options': {'queue': 'persistence'},
+    },
+    'retry-team-storage-warnings': {
+        'task': 'app.tasks.team_storage_billing_tasks.retry_team_storage_warnings',
         'schedule': timedelta(minutes=2),
         'options': {'queue': 'persistence'},
     },

@@ -47,6 +47,7 @@ SAFE_RUNTIME_FAILURE_CODES = frozenset({
     "storage_billing_conflict_restore_failed", "storage_billing_owner_probe_restore_failed",
     "storage_billing_fixture_cleanup_incomplete",
     "storage_billing_owner_constraint_row_changed", "storage_billing_owner_constraint_quote_changed",
+    "storage_billing_team_contact_unavailable", "storage_billing_team_disabled_claim_not_rejected",
 })
 SAFE_OPERATION_FAILURE_CODES = {
     "storage_billing_expiry_operation_failed:" + operation:
@@ -252,7 +253,8 @@ async def _assert_owner_metadata_hold(
 
 
 async def _archive_page(directus: Any, archive: Any, *, owner_hash: str | None,
-                        team_hash: str | None, created: list[tuple[str, str]]) -> dict[str, Any]:
+                        team_hash: str | None, created: list[tuple[str, str]],
+                        reject_team_claim: bool = False) -> dict[str, Any]:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
     now = int(time.time())
@@ -288,6 +290,31 @@ async def _archive_page(directus: Any, archive: Any, *, owner_hash: str | None,
         "covered_message_ids": message_ids, "compressed_message_count": 3,
         "summary_token_estimate": 20, "created_at": now, "updated_at": now,
     }, created)
+    if reject_team_claim:
+        require_isolated_profile(dict(os.environ))
+        if (not team_hash or os.environ.get("TEAM_STORAGE_BILLING_ENABLED") != "0"
+                or os.environ.get("STORAGE_LOGICAL_S3_BILLING_ENABLED") != "0"
+                or os.environ.get("OPENMATES_DEPLOYMENT_MODE") != "self_host"
+                or os.environ.get("OPENMATES_CLOUD_OVERLAY_ENABLED") == "true"
+                or os.environ.get("OPENMATES_CLOUD_OVERLAY_PACKAGE") == "OpenMatesCloud"):
+            raise ValueError("storage_billing_team_disabled_profile_required")
+        response = await directus._make_api_request(
+            "POST", f"{directus.base_url.rstrip('/')}/chat-archive-transaction",
+            headers={"X-Internal-Service-Token": os.environ["INTERNAL_API_SHARED_TOKEN"]},
+            json={"operation": "claim_segment", "data": {
+                "chat_id": chat_id, "checkpoint_id": checkpoint_id,
+                "end_timestamp": now - 18, "end_message_id": message_ids[-1], "now": now,
+            }},
+        )
+        if (response.status_code != 409
+                or response.json().get("error", {}).get("code") != "team_storage_billing_not_ready"):
+            raise RuntimeError("storage_billing_team_disabled_claim_not_rejected")
+        for collection in ("chat_message_archive_segments", "chat_message_archive_pages"):
+            if await directus.get_items(collection, params={
+                    "filter": {"chat_id": {"_eq": chat_id}}, "fields": "id", "limit": 1,
+            }, admin_required=True, no_cache=True, raise_on_error=True):
+                raise RuntimeError("storage_billing_team_disabled_claim_not_rejected")
+        return {"chat_id": chat_id, "claim_rejected": True}
     segment = await archive.copy_segment(
         chat_id=chat_id, checkpoint_id=checkpoint_id,
         end=(now - 18, message_ids[-1]), now_timestamp=now,
@@ -564,6 +591,70 @@ async def _cleanup(directus: Any, s3: Any, receipt: dict[str, Any]) -> dict[str,
     return {"cleaned": not errors, "errors": errors}
 
 
+def require_team_fixture_profile(environ: dict[str, str], selector: dict[str, str]) -> bool:
+    source = require_isolated_profile(environ)
+    logical = environ.get("STORAGE_LOGICAL_S3_BILLING_ENABLED")
+    if (source != selector.get("source_commit") or not PREFIX_RE.fullmatch(selector.get("fixture_prefix", ""))
+            or logical not in ("0", "1") or environ.get("TEAM_STORAGE_BILLING_ENABLED") != logical):
+        raise ValueError("storage_billing_team_fixture_profile_mismatch")
+    if logical == "0" and (environ.get("OPENMATES_DEPLOYMENT_MODE") != "self_host"
+            or environ.get("OPENMATES_CLOUD_OVERLAY_ENABLED") == "true"
+            or environ.get("OPENMATES_CLOUD_OVERLAY_PACKAGE") == "OpenMatesCloud"):
+        raise ValueError("storage_billing_team_fixture_mode_mismatch")
+    return logical == "1"
+
+
+async def _ensure_team_owner_contact(task: Any, selector: dict[str, str],
+                                     user: dict[str, Any], created: list[tuple[str, str]]) -> None:
+    """Bootstrap only a proven disposable identity through the real Vault path."""
+    environ = dict(os.environ)
+    require_expiry_profile(environ, selector)
+    if (environ.get("TEAM_STORAGE_BILLING_ENABLED") != "1"
+            or user.get("id") != selector["user_id"] or user.get("status") != "active"):
+        raise RuntimeError("storage_billing_team_contact_unavailable")
+    emails = [value.strip().lower() for key, value in environ.items()
+              if re.fullmatch(r"OPENMATES_TEST_ACCOUNT_CI_[0-9]+_EMAIL", key)
+              and re.fullmatch(r"ci-[a-z0-9-]+@example\.com", value.strip().lower())
+              and base64.b64encode(hashlib.sha256(value.strip().lower().encode()).digest()).decode()
+              == user.get("hashed_email")]
+    if len(emails) != 1:
+        raise RuntimeError("storage_billing_team_contact_unavailable")
+    directus = task.directus_service
+    params = {"filter[user_id][_eq]": selector["user_id"],
+              "fields": "id,user_id,purpose,hashed_email,encrypted_email_address,verified_at", "limit": 2}
+    contacts = await directus.get_items("account_contact_emails", params=params,
+                                        admin_required=True, no_cache=True, raise_on_error=True)
+    if contacts == []:
+        from backend.core.api.app.routes.auth_routes.auth_utils import (
+            _account_contact_email_id, store_account_lifecycle_contact_email,
+        )
+        contact_id = _account_contact_email_id(selector["user_id"])
+        # Track before the helper: a failed notification projection may follow a
+        # successful contact write, and that partial write still needs cleanup.
+        created.append(("account_contact_emails", contact_id))
+        if not await store_account_lifecycle_contact_email(
+                directus, task.encryption_service, user_id=selector["user_id"],
+                hashed_email=user["hashed_email"], email=emails[0],
+                verified_at=datetime.now(timezone.utc).isoformat()):
+            raise RuntimeError("storage_billing_team_contact_unavailable")
+        contacts = await directus.get_items("account_contact_emails", params=params,
+                                            admin_required=True, no_cache=True, raise_on_error=True)
+    if (not isinstance(contacts, list) or len(contacts) != 1
+            or contacts[0].get("user_id") != selector["user_id"]
+            or contacts[0].get("purpose") != "account_lifecycle"
+            or not contacts[0].get("verified_at")
+            or not contacts[0].get("encrypted_email_address")):
+        raise RuntimeError("storage_billing_team_contact_unavailable")
+    contact = await task.encryption_service.decrypt_account_contact_email(
+        contacts[0]["encrypted_email_address"])
+    normalized = contact.strip().lower() if isinstance(contact, str) else ""
+    expected_hash = base64.b64encode(hashlib.sha256(normalized.encode()).digest()).decode() if normalized else ""
+    if (normalized != emails[0] or "@" not in normalized
+            or contacts[0].get("hashed_email") != expected_hash
+            or user.get("hashed_email") != expected_hash):
+        raise RuntimeError("storage_billing_team_contact_unavailable")
+
+
 async def prepare(selector: dict[str, str], receipt_path: Path) -> dict[str, Any]:
     from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
 
@@ -580,10 +671,16 @@ async def prepare(selector: dict[str, str], receipt_path: Path) -> dict[str, Any
         initialized = True
         directus, s3 = task.directus_service, task.s3_service
         user_rows = await directus.get_items("directus_users", params={
-            "filter": {"id": {"_eq": selector["user_id"]}}, "fields": "id,status", "limit": 1,
+            "filter": {"id": {"_eq": selector["user_id"]}},
+            "fields": "id,status,hashed_email", "limit": 1,
         }, admin_required=True, no_cache=True, raise_on_error=True)
         if len(user_rows) != 1 or user_rows[0]["id"] != selector["user_id"]:
             raise RuntimeError("storage_billing_disposable_account_missing")
+        team_rated = require_team_fixture_profile(dict(os.environ), selector)
+        team_contact_crypto = False
+        if os.environ.get("TEAM_STORAGE_BILLING_ENABLED") == "1":
+            await _ensure_team_owner_contact(task, selector, user_rows[0], receipt["created"])
+            team_contact_crypto = True
         baseline = await _quote(directus, user_id=selector["user_id"], legacy_only=True)
         full_baseline = await _quote(directus, user_id=selector["user_id"], legacy_only=False)
         if baseline["total_bytes"] != 0 or full_baseline["total_bytes"] != 0:
@@ -654,9 +751,12 @@ async def prepare(selector: dict[str, str], receipt_path: Path) -> dict[str, Any
             "joined_at": team_now, "created_at": team_now, "updated_at": team_now,
         }, receipt["created"])
         team = await _archive_page(directus, archive, owner_hash=None,
-                                   team_hash=team_hash, created=receipt["created"])
-        team_page = team["page"]
-        receipt["objects"].append(["cold_archives", team_page["object_key"]])
+                                   team_hash=team_hash, created=receipt["created"],
+                                   reject_team_claim=not team_rated)
+        team_page = team.get("page")
+        team_bytes = int(team_page["size_bytes"]) if team_page else 0
+        if team_page:
+            receipt["objects"].append(["cold_archives", team_page["object_key"]])
         legacy = await _quote(directus, user_id=selector["user_id"], legacy_only=True)
         full = await _quote(directus, user_id=selector["user_id"], legacy_only=False)
         team_usage = await _quote(directus, team_hash=team_hash)
@@ -664,8 +764,8 @@ async def prepare(selector: dict[str, str], receipt_path: Path) -> dict[str, Any
         if (legacy["total_bytes"] != len(raw) or
                 full["total_bytes"] != len(raw) + page_bytes or
                 full["categories"].get("chat_pages") != page_bytes or
-                team_usage["total_bytes"] != int(team_page["size_bytes"]) or
-                team_usage["policy_version"] != "unrated-team-usage-v1"):
+                team_usage["total_bytes"] != team_bytes or
+                team_usage["policy_version"] != "team-storage-1gb-3credits-week-v1"):
             raise RuntimeError("storage_billing_measured_quote_mismatch")
         await _patch(directus, "chat_message_archive_pages", duplicate_row["id"],
                      {"size_bytes": page_bytes + 1})
@@ -682,7 +782,7 @@ async def prepare(selector: dict[str, str], receipt_path: Path) -> dict[str, Any
         # canonical references and must produce a metering 409 before restoration.
         mismatched_personal = ("0" if owner_hash[0] != "0" else "1") + owner_hash[1:]
         mismatched_team = ("0" if team_hash[0] != "0" else "1") + team_hash[1:]
-        for collection, row_id, field, original, invalid, quote_owner in (
+        owner_probes = (
             ("chat_message_archive_pages", personal_page["id"], "hashed_user_id",
              owner_hash, None, "personal"),
             ("chat_message_archive_pages", personal_page["id"], "hashed_user_id",
@@ -691,6 +791,9 @@ async def prepare(selector: dict[str, str], receipt_path: Path) -> dict[str, Any
              owner_hash, None, "personal"),
             ("chat_message_archive_segments", personal["segment_id"], "hashed_user_id",
              owner_hash, mismatched_personal, "personal"),
+        )
+        if team_page:
+            owner_probes += (
             ("chat_message_archive_pages", team_page["id"], "hashed_team_id",
              team_hash, None, "team"),
             ("chat_message_archive_pages", team_page["id"], "hashed_team_id",
@@ -699,7 +802,8 @@ async def prepare(selector: dict[str, str], receipt_path: Path) -> dict[str, Any
              team_hash, None, "team"),
             ("chat_message_archive_segments", team["segment_id"], "hashed_team_id",
              team_hash, mismatched_team, "team"),
-        ):
+            )
+        for collection, row_id, field, original, invalid, quote_owner in owner_probes:
             await _assert_owner_metadata_hold(
                 directus, collection=collection, row_id=row_id, field=field,
                 original=original, invalid=invalid,
@@ -713,10 +817,10 @@ async def prepare(selector: dict[str, str], receipt_path: Path) -> dict[str, Any
             raise RuntimeError("storage_billing_owner_probe_restore_failed")
         receipt.update({
             "personal_chat_id": personal["chat_id"], "team_chat_id": team["chat_id"],
-            "team_hash": team_hash,
+            "team_hash": team_hash, "team_id": team_id,
             "personal_page_key": personal_page["object_key"],
             "personal_page_size_bytes": page_bytes,
-            "team_page_size_bytes": int(team_page["size_bytes"]),
+            "team_page_size_bytes": team_bytes,
             "legacy_upload_bytes": len(raw),
             "full_total_bytes": len(raw) + page_bytes,
             "legacy_quote": legacy, "full_quote": full, "team_quote": team_usage,
@@ -729,7 +833,11 @@ async def prepare(selector: dict[str, str], receipt_path: Path) -> dict[str, Any
         write_private_json(receipt_path, receipt)
         return {"prepared": True, "legacy_upload_bytes": len(raw),
                 "page_bytes": page_bytes, "full_total_bytes": len(raw) + page_bytes,
-                "team_unrated": True, "dedup": True, "conflict_failed_closed": True,
+                "team_rated": team_rated, "team_contact_crypto": team_contact_crypto,
+                "cms_team_disabled_claim_rejected": team.get("claim_rejected") is True,
+                "team_id": team_id,
+                "team_total_bytes": int(team_usage["total_bytes"]),
+                "dedup": True, "conflict_failed_closed": True,
                 "owner_metadata_failed_closed": True, "expiry": expiry}
     except Exception:
         if initialized:

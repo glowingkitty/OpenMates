@@ -86,17 +86,17 @@ async def test_owner_discovery_uses_bounded_keyset_page(monkeypatch):
 
 # contract-test: supporting surface=rest_api assertions=billing.storage.team-policy-gate
 @pytest.mark.asyncio
-async def test_team_quote_is_unrated_and_separate_from_personal(monkeypatch):
+async def test_team_quote_uses_separate_weekly_policy(monkeypatch):
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "local-placeholder")
     team_hash = "b" * 64
     directus = FakeDirectus([{
         "owner_kind": "team", "owner_id": team_hash, "complete": True,
-        "policy_version": "unrated-team-usage-v1", "source_version": "logical-s3-v1", "measurement_at": 1791082800,
+        "policy_version": "team-storage-1gb-3credits-week-v1", "source_version": "logical-s3-v1", "measurement_at": 1791082800,
         "categories": {"chat_pages": 40}, "legacy_upload_bytes": 0,
         "logical_s3_bytes": 40, "total_bytes": 40,
     }])
     quote = (await StorageUsageMeteringService(directus).quote_team([team_hash]))[team_hash]
-    assert quote.policy_version == "unrated-team-usage-v1"
+    assert quote.policy_version == "team-storage-1gb-3credits-week-v1"
     assert directus.calls[0]["body"]["user_ids"] == []
     assert directus.calls[0]["body"]["team_hashes"] == [team_hash]
     assert directus.calls[0]["body"]["legacy_only"] is False

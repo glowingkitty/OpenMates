@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { teamArchiveFinancialReady } from './team-storage-readiness.js';
 
 const MAX_CANDIDATE_PREFIX = 1000;
 const MAX_NEWEST_WINDOW = 101;
@@ -26,6 +27,7 @@ export async function policyCandidates(trx, now, { afterChatId = null, limit = 1
   if (!policy) return { chat_ids: [], next_cursor: null, scanned_count: 0, reason: 'invalid_warm_policy_configuration' };
   const boundedLimit = Number.isSafeInteger(limit) && limit > 0 ? Math.min(limit, 1000) : 1000;
   const cutoff = now - policy.inactiveDays * DAY_SECONDS;
+  const teamFinancialReady = teamArchiveFinancialReady('team');
   const sql = `
     WITH page AS (
       SELECT c.id, c.hashed_user_id, c.hashed_team_id, c.parent_id, c.is_sub_chat,
@@ -45,6 +47,7 @@ export async function policyCandidates(trx, now, { afterChatId = null, limit = 1
         FROM messages m WHERE m.chat_id = p.id::text
       ) stats ON true
       WHERE stats.message_count > 0
+        AND (p.hashed_team_id IS NULL OR ${teamFinancialReady ? 'TRUE' : 'FALSE'})
         AND NOT EXISTS (SELECT 1 FROM chat_turn_preflights f WHERE f.chat_id = p.id AND f.state IN ('PREPARED','ENQUEUED','RUNNING'))
         AND NOT EXISTS (SELECT 1 FROM chat_completion_recovery_jobs j WHERE j.chat_id = p.id AND j.state IN ('AVAILABLE','LEASED'))
         AND NOT EXISTS (SELECT 1 FROM chat_recovery_outputs o WHERE (o.target_chat_id = p.id OR o.root_chat_id = p.id) AND o.state IN ('PREPARING','PENDING') AND o.deleted_at IS NULL)

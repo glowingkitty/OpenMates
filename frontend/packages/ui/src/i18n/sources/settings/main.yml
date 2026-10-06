@@ -277,6 +277,66 @@ teams:
   sv: Team
   he: צוותים
   verified_by_human: []
+team_storage_title:
+  context: Team settings storage heading, visible to owners and admins
+  en: Team storage
+  de: Teamspeicher
+  verified_by_human: []
+team_storage_policy:
+  context: Team storage price and timing disclosure
+  en: "The team has 1 GiB of free storage, separate from personal storage. Each started GiB above that is 3 team credits per week, billed on Sundays at 03:00 UTC. The quote uses the latest measured usage."
+  de: "Das Team hat 1 GiB kostenlosen Speicher, getrennt vom persönlichen Speicher. Jedes angefangene GiB darüber kostet 3 Team-Credits pro Woche; die Abrechnung erfolgt sonntags um 03:00 UTC. Die Schätzung basiert auf der zuletzt gemessenen Nutzung."
+  verified_by_human: []
+team_storage_free_tier:
+  context: Team storage free tier label
+  en: Free team storage
+  de: Kostenloser Teamspeicher
+  verified_by_human: []
+team_storage_billable:
+  context: Started excess GiB used to calculate the weekly team storage quote
+  en: Started GiB above free tier
+  de: Angefangene GiB über Freigrenze
+  verified_by_human: []
+team_storage_preview:
+  context: Team storage billing is disabled pending validation; do not imply a charge was made
+  en: "Team storage billing is not yet enabled. This is a price preview, not an invoice."
+  de: "Die Abrechnung von Teamspeicher ist noch nicht aktiviert. Dies ist eine Preisvorschau, keine Rechnung."
+  verified_by_human: []
+team_storage_payment_due:
+  context: Team storage payment has not settled
+  en: "Team storage payment is due. Owners and admins receive warning emails when delivery succeeds."
+  de: "Die Zahlung für Teamspeicher ist fällig. Eigentümer und Administratoren erhalten Warn-E-Mails, wenn die Zustellung erfolgreich ist."
+  verified_by_human: []
+team_storage_review:
+  context: Team storage billing or affected data needs manual review
+  en: "Some team storage needs manual review. It will not be removed automatically."
+  de: "Ein Teil des Teamspeichers muss manuell geprüft werden und wird nicht automatisch entfernt."
+  verified_by_human: []
+team_storage_notice_title:
+  context: Team storage notice heading
+  en: Team storage payment notice
+  de: Hinweis zur Teamspeicherzahlung
+  verified_by_human: []
+team_storage_notice_policy:
+  context: Fixed affected subset and delayed expiry disclosure for team storage
+  en: "This list shows team storage units covered by the notice. Only after four delivered weekly warning rounds and the deadline, at least 28 days after the first warning and 7 days after the fourth, may the oldest eligible units be removed until usage is below 1 GiB. Protected data and later paid units remain. Charges covered by expiry are waived, not marked paid."
+  de: "Diese Liste zeigt die vom Hinweis betroffenen Teamspeichereinheiten. Erst nach vier zugestellten wöchentlichen Warnrunden und Ablauf der Frist, mindestens 28 Tage nach der ersten und 7 Tage nach der vierten Warnung, dürfen die ältesten geeigneten Einheiten entfernt werden, bis die Nutzung unter 1 GiB liegt. Geschützte Daten und später bezahlte Einheiten bleiben erhalten. Von der Frist betroffene Gebühren werden erlassen, nicht als bezahlt markiert."
+  verified_by_human: []
+team_storage_notice_empty:
+  context: No active team storage payment notice
+  en: No active team storage payment notice.
+  de: Kein aktiver Hinweis zur Teamspeicherzahlung.
+  verified_by_human: []
+team_storage_notice_error:
+  context: Team storage notice page fetch failed
+  en: Could not load affected team storage. Please try again.
+  de: Betroffener Teamspeicher konnte nicht geladen werden. Bitte versuche es erneut.
+  verified_by_human: []
+team_storage_error:
+  context: Team storage quote fetch failed
+  en: Could not load team storage usage. Please try again.
+  de: Teamspeichernutzung konnte nicht geladen werden. Bitte versuche es erneut.
+  verified_by_human: []
 projects:
   context: Settings menu entry for project settings
   en: Projects

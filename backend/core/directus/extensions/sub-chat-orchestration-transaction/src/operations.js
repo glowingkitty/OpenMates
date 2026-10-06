@@ -16,6 +16,11 @@ const REFUND_IDENTITIES = 'billing_refund_identities';
 const SETTLEMENT_OUTBOX = 'billing_settlement_outbox';
 const STORAGE_PERIODS = 'storage_billing_periods';
 const STORAGE_OWNERS = 'storage_billing_owner_state';
+const TEAM_STORAGE_PERIODS = 'team_storage_billing_periods';
+const TEAM_STORAGE_OWNERS = 'team_storage_billing_owner_state';
+const TEAM_STORAGE_UNITS = 'team_storage_billing_warning_units';
+const TEAM_STORAGE_POLICY = 'team-storage-1gb-3credits-week-v1';
+const TEAM_STORAGE_SYSTEM_ACTOR = createHash('sha256').update('system:team-storage').digest('hex');
 const EMAIL_DELIVERIES = 'email_deliveries';
 const STORAGE_WARNING_INTERVAL_SECONDS = 7 * 24 * 60 * 60;
 const SETTLEMENT_RETRY_DELAYS_MS = [5_000, 30_000, 120_000, 300_000];
@@ -142,6 +147,19 @@ const OPERATION_FIELDS = Object.freeze({
     'protocol_version', 'user_id', 'hashed_user_id', 'episode_id',
     'warning_stage', 'delivery_id', 'now_at',
   ]),
+  freeze_team_storage_period: new Set(['protocol_version','hashed_team_id','period_start_at','measured_bytes','credits_due','charge_id','free_bytes','credits_per_gib','policy_version','source_version','category_bytes']),
+  list_team_storage_debt: new Set(['protocol_version','hashed_team_id']),
+  commit_team_storage_charge: new Set(['protocol_version','hashed_team_id','period_id','expected_version','occurred_at']),
+  claim_team_storage_warning: new Set(['protocol_version','hashed_team_id','now_at']),
+  list_team_storage_recipients: new Set(['protocol_version','hashed_team_id']),
+  freeze_team_storage_warning_units: new Set(['protocol_version','hashed_team_id','episode_id','now_at']),
+  list_team_storage_warning_units: new Set(['protocol_version','hashed_team_id','episode_id','limit','after_unit_id']),
+  acknowledge_team_storage_warning: new Set(['protocol_version','hashed_team_id','episode_id','warning_stage','recipient_hashes','now_at']),
+  record_team_storage_delivery_receipt: new Set(['protocol_version','hashed_team_id','episode_id','warning_stage','recipient_hash','delivery_id','message_id','state','observed_at','now_at']),
+  mark_team_storage_warning_manual_review: new Set(['protocol_version','hashed_team_id','episode_id','warning_stage','recipient_hash','delivery_id','now_at']),
+  set_team_storage_notice_hold: new Set(['protocol_version','hashed_team_id','episode_id','reason']),
+  inspect_team_storage_expiry: new Set(['protocol_version','hashed_team_id','now_at']),
+  apply_team_storage_expiry: new Set(['protocol_version','hashed_team_id','episode_id','expected_version','now_at','regions']),
 });
 const CHILD_FIELDS = new Set(['child_chat_id', 'user_message_id', 'dispatch_token', 'budget_limit']);
 const USAGE_FIELDS = new Set([
@@ -1037,6 +1055,7 @@ async function transitionPendingSettlementToManualReview(database, raw, now) {
 async function commitTeamCharge(database, raw) {
   const body = operationBody(raw, 'commit_team_charge');
   const eventId = string(body.event_id, 'invalid_event_id', 255);
+  if (eventId.startsWith('team-storage:')) fail(403, 'reserved_team_storage_charge');
   const teamHash = string(body.hashed_team_id, 'invalid_team', 128);
   const actorHash = string(body.actor_user_hash, 'invalid_actor', 128);
   const credits = integer(body.credits, 'invalid_credits');
@@ -1103,6 +1122,7 @@ async function commitTeamCharge(database, raw) {
 async function commitTeamCreditAdd(database, raw) {
   const body = operationBody(raw, 'commit_team_credit_add');
   const eventId = string(body.event_id, 'invalid_event_id', 255);
+  if (eventId.startsWith('team-storage:')) fail(403, 'reserved_team_storage_charge');
   const teamHash = string(body.hashed_team_id, 'invalid_team', 128);
   const actorHash = string(body.actor_user_hash, 'invalid_actor', 128);
   const credits = integer(body.credits, 'invalid_credits');
@@ -1176,7 +1196,7 @@ const unitFingerprint = (unit) => tokenHash(JSON.stringify({
   bytes: Number(unit.bytes), rows: unit.rows, objects: unit.objects,
 }));
 
-async function discoverStorageUnits(trx, userId, ownerHash, nowAt) {
+async function discoverStorageUnits(trx, userId, ownerHash, nowAt, ownerKind = 'personal') {
   const response = await trx.raw(`
 WITH scope AS (SELECT ?::text AS user_id, ?::text AS owner_hash, ?::integer AS now_at),
 independent_uploads AS (
@@ -1211,11 +1231,13 @@ standalone_cold AS (
      ORDER BY p.logical_bucket,p.object_key) AS objects
  FROM chats c JOIN cold_archive_manifests m ON m.resource_id=c.id::text
  JOIN cold_archive_parts p ON p.archive_id=m.archive_id,scope s
- WHERE c.hashed_user_id=s.owner_hash AND c.hashed_team_id IS NULL AND c.storage_state='cold'
+ WHERE ((s.user_id IS NULL AND c.hashed_team_id=s.owner_hash AND m.hashed_team_id=s.owner_hash)
+     OR (s.user_id IS NOT NULL AND c.hashed_user_id=s.owner_hash AND c.hashed_team_id IS NULL
+       AND m.hashed_user_id=s.owner_hash AND m.hashed_team_id IS NULL)) AND c.storage_state='cold'
    AND c.parent_id IS NULL AND NOT coalesce(c.is_shared,false) AND NOT coalesce(c.shared_public,false)
    AND NOT coalesce(c.share_with_community,false) AND coalesce(c.shared_with_user_hashes::text,'[]') IN ('[]','null')
-   AND m.state='cold' AND m.resource_type='chat' AND m.hashed_user_id=s.owner_hash
-   AND m.hashed_team_id IS NULL AND m.hashed_resource_id=encode(digest(c.id::text,'sha256'),'hex')
+   AND m.state='cold' AND m.resource_type='chat'
+   AND m.hashed_resource_id=encode(digest(c.id::text,'sha256'),'hex')
    AND m.archive_id=c.cold_archive_id AND m.active_generation=c.cold_generation
    AND m.file_references::jsonb='[]'::jsonb AND m.promotion_intent IS NULL
    AND NOT EXISTS (SELECT 1 FROM chats child WHERE child.parent_id=c.id)
@@ -1251,7 +1273,7 @@ version_boundaries AS (
        AND d.archive_object_key<>'' AND d.archive_checksum<>'' AND d.archive_reader_activated_at IS NOT NULL))) AS boundary
  FROM embeds e JOIN chats c ON e.hashed_chat_id=encode(digest(c.id::text,'sha256'),'hex')
  JOIN embed_diffs d ON d.embed_id=e.embed_id AND d.hashed_user_id=e.hashed_user_id,scope s
- WHERE e.hashed_user_id=s.owner_hash AND c.hashed_user_id=s.owner_hash AND c.hashed_team_id IS NULL
+ WHERE s.user_id IS NOT NULL AND e.hashed_user_id=s.owner_hash AND c.hashed_user_id=s.owner_hash AND c.hashed_team_id IS NULL
    AND coalesce(c.storage_state,'hot') IN ('hot','cold')
    AND coalesce(c.updated_at,c.last_message_timestamp,c.created_at)>0
    AND coalesce(c.updated_at,c.last_message_timestamp,c.created_at)<=s.now_at-28*86400
@@ -1302,7 +1324,7 @@ old_prefixes AS (
 )
 SELECT kind,resource_id,oldest_at,bytes,rows,objects FROM bounded WHERE object_count<=2000
  ORDER BY oldest_at,kind,resource_id LIMIT 100
-`, [userId, ownerHash, nowAt]);
+`, [ownerKind === 'team' ? null : userId, ownerHash, nowAt]);
   return response.rows.map((row) => {
     const unit = { ...row, oldest_at: Number(row.oldest_at), bytes: Number(row.bytes),
       rows: jsonValue(row.rows), objects: jsonValue(row.objects) };
@@ -1373,9 +1395,10 @@ async function blockedStorageWriters(trx,objects) {
   return new Set(response.rows.map((row)=>`${row.logical_bucket}\0${row.object_key}`));
 }
 
-async function currentStorageQuote(trx, userId, sourceVersion) {
+async function currentStorageQuote(trx, userId, sourceVersion, teamHash = null) {
   if (!['legacy-upload-files-v1','logical-s3-v1'].includes(sourceVersion)) fail(409,'storage_warning_policy_unknown');
-  return (await quoteUsage(trx, { user_ids: [userId], team_hashes: [], legacy_only: sourceVersion==='legacy-upload-files-v1' }))[0];
+  if (teamHash && sourceVersion !== 'logical-s3-v1') fail(409,'storage_warning_policy_unknown');
+  return (await quoteUsage(trx, { user_ids: teamHash ? [] : [userId], team_hashes: teamHash ? [teamHash] : [], legacy_only: sourceVersion==='legacy-upload-files-v1' }))[0];
 }
 
 async function freezeStorageWarningUnits(database, raw, now) {
@@ -1959,6 +1982,642 @@ async function markStorageWarningManualReview(database, raw, now) {
   });
 }
 
+function teamStorageOwner(raw, operation) {
+  const body = operationBody(raw, operation);
+  const teamHash = string(body.hashed_team_id, 'invalid_team', 64);
+  if (!/^[a-f0-9]{64}$/.test(teamHash)) fail(400, 'invalid_team');
+  return { body, teamHash };
+}
+
+async function teamStorageRecipients(trx, teamHash) {
+  const rows = await trx('team_memberships').where({ hashed_team_id: teamHash, status: 'active' })
+    .whereIn('role', ['owner', 'admin']).select('hashed_user_id').limit(101);
+  const hashes = [...new Set(rows.map((row) => row.hashed_user_id))].sort();
+  if (!hashes.length || rows.length > 100 || hashes.some((hash) => !/^[a-f0-9]{64}$/.test(hash))) {
+    fail(409, 'team_storage_recipients_unresolved');
+  }
+  // Non-passkey users are included: membership hashes resolve through the
+  // canonical Directus user ID, regardless of their login mechanism.
+  const users = await trx.raw(`SELECT encode(digest(id::text,'sha256'),'hex') AS user_hash
+    FROM directus_users WHERE encode(digest(id::text,'sha256'),'hex') = ANY(?::text[])`, [hashes]);
+  if (users.rows.length !== hashes.length || users.rows.some((row) => !hashes.includes(row.user_hash))) {
+    fail(409, 'team_storage_recipients_unresolved');
+  }
+  return hashes;
+}
+
+async function listTeamStorageRecipients(database, raw, now) {
+  const { teamHash } = teamStorageOwner(raw, 'list_team_storage_recipients');
+  return database.transaction(async (trx) => {
+    await lockedTeamStorageOwner(trx, teamHash, now);
+    const hashes = await teamStorageRecipients(trx, teamHash);
+    const result = await trx.raw(`SELECT id::text AS user_id,
+      encode(digest(id::text,'sha256'),'hex') AS user_hash FROM directus_users
+      WHERE encode(digest(id::text,'sha256'),'hex') = ANY(?::text[])`, [hashes]);
+    if (result.rows.length !== hashes.length) fail(409, 'team_storage_recipients_unresolved');
+    return { recipients: result.rows.sort((a, b) => a.user_hash.localeCompare(b.user_hash)) };
+  });
+}
+
+async function lockedTeamStorageOwner(trx, teamHash, now) {
+  await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [`team-storage-billing:${teamHash}`]);
+  const team = await trx('teams').where({ hashed_team_id: teamHash, status: 'active' }).first();
+  if (!team) fail(409, 'team_storage_owner_inactive');
+  let owner = await trx(TEAM_STORAGE_OWNERS).where({ id: teamHash }).forUpdate().first();
+  if (owner && (owner.hashed_team_id !== teamHash || owner.owner_kind !== 'team')) fail(409, 'team_storage_owner_mismatch');
+  if (!owner) {
+    owner = { id: teamHash, owner_kind: 'team', hashed_team_id: teamHash,
+      episode_id: null, warning_count: 0, updated_at: now };
+    await trx(TEAM_STORAGE_OWNERS).insert(owner);
+  }
+  return owner;
+}
+
+const resetTeamStorageWarning = (now) => ({ episode_id: null, warning_count: 0,
+  first_warning_at: null, last_warning_at: null, deadline_at: null,
+  advertised_not_before_at: null, warning_manual_review_at: null,
+  warning_manual_review_reason: null, selection_hash: null, selection_at: null,
+  selection_source_version: null, selection_policy_version: null,
+  selected_bytes: null, warned_period_ids: null, warned_recipient_hashes: null, updated_at: now });
+
+async function freezeTeamStoragePeriod(database, raw, now) {
+  const { body, teamHash } = teamStorageOwner(raw, 'freeze_team_storage_period');
+  const periodStart = integer(body.period_start_at, 'invalid_storage_period');
+  const bytes = body.measured_bytes;
+  if (!Number.isSafeInteger(bytes) || bytes <= FREE_STORAGE_BYTES) fail(400, 'invalid_storage_bytes');
+  const credits = integer(body.credits_due, 'invalid_storage_credits');
+  const freeBytes = body.free_bytes;
+  const rate = integer(body.credits_per_gib, 'invalid_storage_rate');
+  const expected = Number((BigInt(bytes - FREE_STORAGE_BYTES) + BigInt(FREE_STORAGE_BYTES) - 1n)
+    / BigInt(FREE_STORAGE_BYTES)) * 3;
+  if (freeBytes !== FREE_STORAGE_BYTES || rate !== 3 || credits !== expected) fail(409, 'storage_quote_mismatch');
+  const policy = string(body.policy_version, 'invalid_storage_policy_version', 100);
+  const source = string(body.source_version, 'invalid_storage_source_version', 100);
+  if (policy !== TEAM_STORAGE_POLICY || source !== 'logical-s3-v1') fail(409, 'storage_policy_mismatch');
+  const categories = object(body.category_bytes);
+  if (Object.keys(categories).length > 20 || Object.values(categories).some((value) => !Number.isSafeInteger(value) || value < 0)
+    || Object.values(categories).reduce((sum, value) => sum + value, 0) !== bytes) fail(409, 'storage_quote_mismatch');
+  const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
+  if (chargeId !== `team-storage:${teamHash}:${periodStart}`) fail(409, 'storage_charge_identity_mismatch');
+  const id = tokenHash(`team-storage-period:${teamHash}:${periodStart}`);
+  return database.transaction(async (trx) => {
+    await lockedTeamStorageOwner(trx, teamHash, now);
+    const existing = await trx(TEAM_STORAGE_PERIODS).where({ id }).forUpdate().first();
+    if (existing) {
+      if (existing.owner_kind !== 'team' || existing.hashed_team_id !== teamHash
+        || existing.charge_id !== chargeId || Number(existing.measured_bytes) !== bytes
+        || existing.credits_due !== credits || existing.policy_version !== policy
+        || existing.source_version !== source) fail(409, 'storage_period_identity_mismatch');
+      return { period: existing, idempotent: true };
+    }
+    const period = { id, owner_kind: 'team', hashed_team_id: teamHash, period_start_at: periodStart,
+      measured_bytes: bytes, credits_due: credits, free_bytes: freeBytes, credits_per_gib: rate,
+      policy_version: policy, source_version: source, category_bytes: JSON.stringify(categories),
+      charge_id: chargeId, state: 'unpaid', created_at: now, paid_at: null };
+    await trx(TEAM_STORAGE_PERIODS).insert(period);
+    return { period, idempotent: false };
+  });
+}
+
+async function listTeamStorageDebt(database, raw, now) {
+  const { teamHash } = teamStorageOwner(raw, 'list_team_storage_debt');
+  return database.transaction(async (trx) => {
+    const owner = await lockedTeamStorageOwner(trx, teamHash, now);
+    const periods = await trx(TEAM_STORAGE_PERIODS).where({ hashed_team_id: teamHash, state: 'unpaid' })
+      .orderBy('period_start_at', 'asc').limit(21);
+    const totals = await trx(TEAM_STORAGE_PERIODS).where({ hashed_team_id: teamHash, state: 'unpaid' })
+      .sum({ outstanding_credits: 'credits_due' }).first();
+    return { periods: periods.slice(0, 20), has_more: periods.length > 20,
+      outstanding_credits: Number(totals.outstanding_credits || 0),
+      warning_count: owner.warning_count, deadline_at: owner.deadline_at };
+  });
+}
+
+async function commitTeamStorageCharge(database, raw, now) {
+  const { body, teamHash } = teamStorageOwner(raw, 'commit_team_storage_charge');
+  const periodId = string(body.period_id, 'invalid_storage_period', 64);
+  const expectedVersion = integer(body.expected_version, 'invalid_account_version');
+  const occurredAt = integer(body.occurred_at, 'invalid_occurred_at');
+  return database.transaction(async (trx) => {
+    await lockedTeamStorageOwner(trx, teamHash, now);
+    const period = await trx(TEAM_STORAGE_PERIODS).where({ id: periodId, hashed_team_id: teamHash }).forUpdate().first();
+    if (!period || period.owner_kind !== 'team') fail(404, 'storage_period_not_found');
+    const account = await lockedTeamAccount(trx, teamHash);
+    const event = await trx(TEAM_CREDIT_EVENTS).where({ event_id: period.charge_id }).forUpdate().first();
+    if (period.state === 'paid') {
+      if (!event || event.hashed_team_id !== teamHash || event.actor_user_hash !== TEAM_STORAGE_SYSTEM_ACTOR
+        || event.event_type !== 'deduction' || event.amount !== -period.credits_due) fail(409, 'storage_charge_not_fully_committed');
+      return { state: 'paid', idempotent: true, charged_credits: period.credits_due, account };
+    }
+    if (period.state !== 'unpaid' || event) fail(409, 'storage_period_not_chargeable');
+    if (account.version !== expectedVersion) fail(409, 'stale_team_credit_balance');
+    if (!Number.isSafeInteger(account.balance_credits) || account.balance_credits < period.credits_due) {
+      fail(402, 'insufficient_team_credits');
+    }
+    const updated = await trx(TEAM_ACCOUNTS).where({ id: account.id, version: expectedVersion })
+      .where('balance_credits', '>=', period.credits_due).update({
+        balance_credits: account.balance_credits - period.credits_due,
+        version: expectedVersion + 1, updated_at: occurredAt,
+        // encrypted_balance is an opaque client snapshot. The numeric ledger
+        // and version are authoritative for this trusted SYSTEM debit.
+      });
+    if (updated !== 1) fail(409, 'stale_team_credit_balance');
+    await trx(TEAM_CREDIT_EVENTS).insert({ id: randomUUID(), event_id: period.charge_id,
+      hashed_team_id: teamHash, actor_user_hash: TEAM_STORAGE_SYSTEM_ACTOR,
+      event_type: 'deduction', amount: -period.credits_due, encrypted_metadata: null,
+      created_at: occurredAt });
+    await trx(TEAM_USAGE_EVENTS).insert({ id: randomUUID(), event_id: period.charge_id,
+      hashed_team_id: teamHash, actor_user_hash: TEAM_STORAGE_SYSTEM_ACTOR,
+      workspace_type: 'team_storage', object_id_hash: null,
+      credit_amount: period.credits_due, created_at: occurredAt });
+    await trx(TEAM_STORAGE_PERIODS).where({ id: period.id, state: 'unpaid' }).update({ state: 'paid', paid_at: now });
+    const next = await trx(TEAM_STORAGE_PERIODS).where({ hashed_team_id: teamHash, state: 'unpaid' }).first();
+    if (!next) await trx(TEAM_STORAGE_OWNERS).where({ id: teamHash }).update(resetTeamStorageWarning(now));
+    return { state: 'paid', idempotent: false, charged_credits: period.credits_due,
+      account: { ...account, balance_credits: account.balance_credits - period.credits_due, version: expectedVersion + 1 } };
+  });
+}
+
+async function claimTeamStorageWarning(database, raw, now) {
+  const { body, teamHash } = teamStorageOwner(raw, 'claim_team_storage_warning');
+  const nowAt = integer(body.now_at, 'invalid_storage_now');
+  return database.transaction(async (trx) => {
+    let owner = await lockedTeamStorageOwner(trx, teamHash, now);
+    const recipients = await teamStorageRecipients(trx, teamHash);
+    const oldest = await trx(TEAM_STORAGE_PERIODS).where({ hashed_team_id: teamHash, state: 'unpaid' })
+      .orderBy('period_start_at', 'asc').first();
+    if (!oldest) return { due: false, reason: 'no_debt' };
+    const frozenRecipients = owner.warned_recipient_hashes == null ? null : jsonValue(owner.warned_recipient_hashes);
+    if (frozenRecipients && JSON.stringify(frozenRecipients) !== JSON.stringify(recipients)) {
+      // Newly appointed owners/admins need their own four-week notice clock.
+      // Old provider receipts remain retained, but cannot authorize expiry.
+      await trx(TEAM_STORAGE_OWNERS).where({ id: teamHash }).update(resetTeamStorageWarning(now));
+      owner = { ...owner, ...resetTeamStorageWarning(now) };
+    }
+    if (owner.warning_manual_review_at) return { due: false, reason: 'manual_review' };
+    if (Number(owner.warning_count) >= 4) return { due: false, reason: 'four_delivered',
+      episode_id: owner.episode_id, deadline_at: owner.deadline_at, recipient_hashes: recipients };
+    if (owner.last_warning_at != null && nowAt < Number(owner.last_warning_at) + STORAGE_WARNING_INTERVAL_SECONDS) {
+      return { due: false, reason: 'waiting', next_due_at: Number(owner.last_warning_at) + STORAGE_WARNING_INTERVAL_SECONDS };
+    }
+    const episodeId = owner.episode_id || randomUUID();
+    if (!owner.episode_id) await trx(TEAM_STORAGE_OWNERS).where({ id: teamHash }).update({
+      episode_id: episodeId, warned_recipient_hashes: JSON.stringify(recipients), updated_at: now });
+    const total = await trx(TEAM_STORAGE_PERIODS).where({ hashed_team_id: teamHash, state: 'unpaid' })
+      .sum({ outstanding_credits: 'credits_due' }).first();
+    return { due: true, episode_id: episodeId, warning_stage: Number(owner.warning_count) + 1,
+      oldest_period_id: oldest.id, measured_bytes: Number(oldest.measured_bytes),
+      credits_due: oldest.credits_due, outstanding_credits: Number(total.outstanding_credits),
+      first_warning_at: owner.first_warning_at, recipient_hashes: recipients };
+  });
+}
+
+async function freezeTeamStorageWarningUnits(database, raw, now) {
+  const { body, teamHash } = teamStorageOwner(raw, 'freeze_team_storage_warning_units');
+  const episodeId = uuid(body.episode_id, 'invalid_storage_episode');
+  const nowAt = integer(body.now_at, 'invalid_storage_now');
+  return database.transaction(async (trx) => {
+    const owner = await lockedTeamStorageOwner(trx, teamHash, now);
+    if (owner.episode_id !== episodeId || owner.warning_manual_review_at) fail(409, 'storage_episode_mismatch');
+    const recipients = await teamStorageRecipients(trx, teamHash);
+    if (JSON.stringify(recipients) !== JSON.stringify(jsonValue(owner.warned_recipient_hashes))) {
+      return { frozen: false, held: true, reason: 'team_recipients_changed' };
+    }
+    if (owner.selection_hash) {
+      const rows = await trx(TEAM_STORAGE_UNITS).where({ hashed_team_id: teamHash, episode_id: episodeId }).orderBy('unit_id', 'asc');
+      return { frozen: true, held: false, idempotent: true, episode_id: episodeId,
+        unit_selection_hash: owner.selection_hash, units: rows.map(safeUnit),
+        period_ids: jsonValue(owner.warned_period_ids), selected_bytes: Number(owner.selected_bytes) };
+    }
+    if (Number(owner.warning_count) > 0) return { frozen: false, held: true, reason: 'warning_selection_missing' };
+    const periods = await trx(TEAM_STORAGE_PERIODS).where({ hashed_team_id: teamHash, state: 'unpaid' })
+      .orderBy('period_start_at', 'asc').limit(101);
+    if (!periods.length || periods.length > 100) return { frozen: false, held: true, reason: 'warning_debt_limit' };
+    if (periods.some((p) => p.source_version !== 'logical-s3-v1' || p.policy_version !== TEAM_STORAGE_POLICY)) {
+      return { frozen: false, held: true, reason: 'mixed_storage_policy' };
+    }
+    await lockExpiryReferences(trx);
+    const quote = await currentStorageQuote(trx, null, 'logical-s3-v1', teamHash);
+    if (quote.total_bytes <= FREE_STORAGE_BYTES) return { frozen: false, held: true, reason: 'within_free_storage' };
+    const candidates = await discoverStorageUnits(trx, null, teamHash, nowAt, 'team');
+    const references = await storageObjectReferences(trx, candidates.flatMap((unit) => unit.objects));
+    const blocked = await blockedStorageWriters(trx, candidates.flatMap((unit) => unit.objects));
+    const units = []; let selectedBytes = 0; let objectCount = 0;
+    const seen = new Set();
+    for (const unit of candidates) {
+      if (units.length >= 100 || objectCount + unit.objects.length > 2000) break;
+      if (!Number.isSafeInteger(unit.bytes) || unit.bytes <= 0 || unit.rows.length > 2000
+        || independentlyReferenced(unit, references)
+        || unit.objects.some((obj) => blocked.has(`${obj.logical_bucket}\0${obj.object_key}`))
+        || unit.objects.some((obj) => seen.has(`${obj.logical_bucket}:${obj.object_key}`))) continue;
+      units.push(unit); selectedBytes += unit.bytes; objectCount += unit.objects.length;
+      unit.objects.forEach((obj) => seen.add(`${obj.logical_bucket}:${obj.object_key}`));
+      if (quote.total_bytes - selectedBytes <= FREE_STORAGE_BYTES) break;
+    }
+    if (!units.length || quote.total_bytes - selectedBytes > FREE_STORAGE_BYTES) {
+      return { frozen: false, held: true, reason: 'no_complete_safe_set', total_bytes: quote.total_bytes };
+    }
+    const selectionHash = tokenHash(JSON.stringify(units.map((unit) => [unit.unit_id, unit.fingerprint])));
+    for (const unit of units) await trx(TEAM_STORAGE_UNITS).insert({
+      id: tokenHash(`${episodeId}:${unit.unit_id}`), owner_kind: 'team', hashed_team_id: teamHash,
+      episode_id: episodeId, unit_id: unit.unit_id, kind: unit.kind, resource_id: unit.resource_id,
+      oldest_at: unit.oldest_at, bytes: unit.bytes, fingerprint: unit.fingerprint,
+      membership: JSON.stringify(unit.rows), object_references: JSON.stringify(unit.objects), created_at: now });
+    await trx(TEAM_STORAGE_OWNERS).where({ id: teamHash }).update({ selection_hash: selectionHash,
+      selection_at: nowAt, selected_bytes: selectedBytes, selection_source_version: 'logical-s3-v1',
+      selection_policy_version: TEAM_STORAGE_POLICY,
+      warned_period_ids: JSON.stringify(periods.map((p) => p.id)), updated_at: now });
+    return { frozen: true, held: false, idempotent: false, episode_id: episodeId,
+      unit_selection_hash: selectionHash,
+      units: [...units].sort((a, b) => a.unit_id.localeCompare(b.unit_id)).map(safeUnit),
+      period_ids: periods.map((p) => p.id), total_bytes: quote.total_bytes,
+      selected_bytes: selectedBytes, expected_after_bytes: quote.total_bytes - selectedBytes };
+  });
+}
+
+async function listTeamStorageWarningUnits(database, raw, now) {
+  const { body, teamHash } = teamStorageOwner(raw, 'list_team_storage_warning_units');
+  const episodeId = body.episode_id == null ? null : uuid(body.episode_id, 'invalid_storage_episode');
+  const limit = integer(body.limit ?? 100, 'invalid_storage_unit_limit');
+  if (limit < 1 || limit > 100) fail(400, 'invalid_storage_unit_limit');
+  const after = body.after_unit_id == null ? null : string(body.after_unit_id, 'invalid_storage_unit_cursor', 64);
+  return database.transaction(async (trx) => {
+    const owner = await lockedTeamStorageOwner(trx, teamHash, now);
+    if (episodeId && episodeId !== owner.episode_id) fail(409, 'storage_episode_mismatch');
+    const query = trx(TEAM_STORAGE_UNITS).where({ hashed_team_id: teamHash, episode_id: owner.episode_id })
+      .orderBy('unit_id', 'asc').limit(limit + 1);
+    if (after) query.where('unit_id', '>', after);
+    const rows = owner.episode_id ? await query : [];
+    const units = rows.slice(0, limit).map(safeUnit);
+    return { episode_id: owner.episode_id, warning_count: Number(owner.warning_count),
+      deadline_at: owner.deadline_at, manual_review: Boolean(owner.warning_manual_review_at),
+      notice_held: Boolean(owner.warning_manual_review_reason && !owner.warning_manual_review_at),
+      notice_hold_reason: owner.warning_manual_review_at ? null : owner.warning_manual_review_reason,
+      unit_selection_hash: owner.selection_hash ?? null, units, has_more: rows.length > limit,
+      next_after_unit_id: rows.length > limit ? units.at(-1).unit_id : null };
+  });
+}
+
+async function teamStorageStageReceipts(trx, owner, teamHash, stage, recipients) {
+  const rows = await trx(EMAIL_DELIVERIES).where({ email_type: 'team-storage-billing-warning',
+    campaign_key: owner.episode_id, stage: `week-${stage}` }).forShare();
+  if (rows.length !== recipients.length) return null;
+  const byHash = new Map();
+  for (const row of rows) {
+    if (row.recipient_kind !== 'directus_user' || typeof row.recipient_id !== 'string') return null;
+    const userHash = tokenHash(row.recipient_id);
+    const expectedKey = `team-storage-billing-warning:${owner.episode_id}:directus_user:${row.recipient_id}:week-${stage}`;
+    if (!recipients.includes(userHash) || byHash.has(userHash) || row.delivery_key !== expectedKey) return null;
+    byHash.set(userHash, row);
+  }
+  return byHash.size === recipients.length ? rows : null;
+}
+
+async function teamStorageCurrentEmailHashes(trx, recipients) {
+  const users = await trx('directus_users').whereIn(trx.raw("encode(digest(id::text,'sha256'),'hex')"), recipients)
+    .select('id', 'hashed_email').forShare();
+  if (users.length !== recipients.length) return null;
+  const contacts = await trx('account_contact_emails').whereIn('user_id', users.map((user) => user.id))
+    .where({ purpose: 'account_lifecycle' }).select('user_id', 'hashed_email', 'verified_at').forShare();
+  if (contacts.length !== recipients.length) return null;
+  const contactByUser = new Map(contacts.map((contact) => [contact.user_id, contact]));
+  const hashes = new Map();
+  for (const user of users) {
+    if (typeof user.hashed_email !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(user.hashed_email)) return null;
+    const contact = contactByUser.get(user.id);
+    if (!contact?.verified_at || contact.hashed_email !== user.hashed_email) return null;
+    const emailHash = Buffer.from(user.hashed_email, 'base64');
+    if (emailHash.length !== 32) return null;
+    hashes.set(tokenHash(user.id), emailHash.toString('hex'));
+  }
+  return hashes.size === recipients.length ? hashes : null;
+}
+
+function teamStorageDeliveredReceipt(row, owner, nowAt) {
+  const sentAt = Math.floor(Date.parse(row.provider_delivered_at) / 1000);
+  let metadata; try { metadata = jsonValue(row.metadata); } catch { return null; }
+  const date = metadata?.context?.deadline_date;
+  const advertised = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000) : NaN;
+  if (row.status !== 'sent' || row.provider_delivery_state !== 'delivered'
+    || !Number.isFinite(sentAt) || sentAt < Number(owner.selection_at) || sentAt > nowAt + 60
+    || !Number.isFinite(advertised) || metadata?.context?.unit_selection_hash !== owner.selection_hash) return null;
+  return { sentAt, advertised };
+}
+
+async function acknowledgeTeamStorageWarning(database, raw, now) {
+  const { body, teamHash } = teamStorageOwner(raw, 'acknowledge_team_storage_warning');
+  const episodeId = uuid(body.episode_id, 'invalid_storage_episode');
+  const stage = integer(body.warning_stage, 'invalid_storage_warning');
+  const nowAt = integer(body.now_at, 'invalid_storage_now');
+  if (stage < 1 || stage > 4) fail(400, 'invalid_storage_warning');
+  return database.transaction(async (trx) => {
+    const owner = await lockedTeamStorageOwner(trx, teamHash, now);
+    if (owner.episode_id !== episodeId || !owner.selection_hash) fail(409, 'storage_episode_mismatch');
+    const recipients = await teamStorageRecipients(trx, teamHash);
+    if (JSON.stringify(recipients) !== JSON.stringify(jsonValue(owner.warned_recipient_hashes))
+      || JSON.stringify(recipients) !== JSON.stringify(body.recipient_hashes)) fail(409, 'team_storage_recipients_changed');
+    if (Number(owner.warning_count) >= stage) return { warning_count: owner.warning_count, idempotent: true };
+    if (Number(owner.warning_count) + 1 !== stage) fail(409, 'storage_warning_order_mismatch');
+    const debt = await trx(TEAM_STORAGE_PERIODS).where({ hashed_team_id: teamHash, state: 'unpaid' }).first();
+    if (!debt) fail(409, 'storage_debt_settled');
+    const receipts = await teamStorageStageReceipts(trx, owner, teamHash, stage, recipients);
+    if (!receipts) fail(409, 'storage_warning_not_delivered');
+    let deliveredAt = 0; let advertisedAt = 0;
+    for (const row of receipts) {
+      const evidence = teamStorageDeliveredReceipt(row, owner, nowAt);
+      if (!evidence) fail(409, 'storage_warning_not_delivered');
+      deliveredAt = Math.max(deliveredAt, evidence.sentAt);
+      advertisedAt = Math.max(advertisedAt, evidence.advertised);
+    }
+    if (stage > 1 && (owner.last_warning_at == null
+      || deliveredAt < Number(owner.last_warning_at) + STORAGE_WARNING_INTERVAL_SECONDS)) {
+      fail(409, 'storage_warning_too_early');
+    }
+    const firstAt = stage === 1 ? deliveredAt : Number(owner.first_warning_at);
+    await trx(TEAM_STORAGE_OWNERS).where({ id: teamHash }).update({ warning_count: stage,
+      first_warning_at: firstAt, last_warning_at: deliveredAt,
+      deadline_at: firstAt + 4 * STORAGE_WARNING_INTERVAL_SECONDS,
+      advertised_not_before_at: Math.max(Number(owner.advertised_not_before_at || 0), advertisedAt),
+      warning_manual_review_at: null, warning_manual_review_reason: null, updated_at: now });
+    await trx(EMAIL_DELIVERIES).whereIn('id', receipts.map((row) => row.id))
+      .update({ storage_warning_acknowledged_at: now });
+    return { warning_count: stage, first_warning_at: firstAt,
+      deadline_at: firstAt + 4 * STORAGE_WARNING_INTERVAL_SECONDS, idempotent: false };
+  });
+}
+
+async function recordTeamStorageDeliveryReceipt(database, raw, now) {
+  const { body, teamHash } = teamStorageOwner(raw, 'record_team_storage_delivery_receipt');
+  const episodeId = uuid(body.episode_id, 'invalid_storage_episode');
+  const stage = integer(body.warning_stage, 'invalid_storage_warning');
+  const userHash = string(body.recipient_hash, 'invalid_storage_recipient', 64);
+  const deliveryId = uuid(body.delivery_id, 'invalid_storage_delivery');
+  const messageId = string(body.message_id, 'invalid_provider_message_id', 255);
+  const state = string(body.state, 'invalid_provider_delivery_state', 24);
+  const observedAt = integer(body.observed_at, 'invalid_provider_event_time');
+  const nowAt = integer(body.now_at, 'invalid_storage_now');
+  if (stage < 1 || stage > 4 || !['delivered', 'failed'].includes(state)
+    || observedAt > nowAt + 60) fail(400, 'invalid_provider_delivery_receipt');
+  return database.transaction(async (trx) => {
+    const owner = await lockedTeamStorageOwner(trx, teamHash, now);
+    if (owner.episode_id !== episodeId) fail(409, 'storage_episode_mismatch');
+    const recipients = await teamStorageRecipients(trx, teamHash);
+    if (!recipients.includes(userHash) || JSON.stringify(recipients) !== JSON.stringify(jsonValue(owner.warned_recipient_hashes))) {
+      fail(409, 'team_storage_recipients_changed');
+    }
+    const delivery = await trx(EMAIL_DELIVERIES).where({ id: deliveryId }).forUpdate().first();
+    const key = `team-storage-billing-warning:${episodeId}:directus_user:${delivery?.recipient_id}:week-${stage}`;
+    if (!delivery || tokenHash(delivery.recipient_id) !== userHash || delivery.delivery_key !== key
+      || delivery.provider_message_id !== messageId || delivery.status !== 'sent') fail(409, 'storage_delivery_identity_mismatch');
+    const submittedAt = Date.parse(delivery.sent_at);
+    if (state === 'delivered' && (!Number.isFinite(submittedAt)
+      || observedAt < Math.floor(submittedAt / 1000) - 60)) fail(409, 'storage_delivery_event_before_submission');
+    if (state === 'failed') {
+      await trx(EMAIL_DELIVERIES).where({ id: deliveryId }).update({ provider_delivery_state: 'failed' });
+      await trx(TEAM_STORAGE_OWNERS).where({ id: teamHash }).update({
+        warning_manual_review_at: now, warning_manual_review_reason: 'provider_delivery_failed', updated_at: now });
+      return { state: 'failed', held: true };
+    }
+    if (delivery.provider_delivery_state === 'failed') return { state: 'failed', held: true };
+    if (delivery.provider_delivery_state !== 'delivered') await trx(EMAIL_DELIVERIES).where({ id: deliveryId }).update({
+      provider_delivery_state: 'delivered', provider_delivered_at: new Date(observedAt * 1000) });
+    return { state: 'delivered', held: false };
+  });
+}
+
+async function markTeamStorageWarningManualReview(database, raw, now) {
+  const { body, teamHash } = teamStorageOwner(raw, 'mark_team_storage_warning_manual_review');
+  const episodeId = uuid(body.episode_id, 'invalid_storage_episode');
+  const stage = integer(body.warning_stage, 'invalid_storage_warning');
+  const userHash = string(body.recipient_hash, 'invalid_storage_recipient', 64);
+  const deliveryId = uuid(body.delivery_id, 'invalid_storage_delivery');
+  const nowAt = integer(body.now_at, 'invalid_storage_now');
+  if (stage < 1 || stage > 4) fail(400, 'invalid_storage_warning');
+  return database.transaction(async (trx) => {
+    const owner = await lockedTeamStorageOwner(trx, teamHash, now);
+    const delivery = await trx(EMAIL_DELIVERIES).where({ id: deliveryId }).forUpdate().first();
+    const key = `team-storage-billing-warning:${episodeId}:directus_user:${delivery?.recipient_id}:week-${stage}`;
+    if (!delivery || tokenHash(delivery.recipient_id) !== userHash || delivery.delivery_key !== key) {
+      fail(409, 'storage_delivery_identity_mismatch');
+    }
+    const startedMs = Date.parse(delivery.processing_started_at);
+    const acceptedExpired = delivery.status === 'sent' && delivery.provider_delivery_state === 'accepted'
+      && (!Number.isFinite(startedMs) || nowAt >= Math.floor(startedMs / 1000) + 90 * 86400);
+    if (!['failed', 'processing'].includes(delivery.status) && !acceptedExpired) return { held: false, reason: 'delivery_changed' };
+    if (Number.isFinite(startedMs) && nowAt < Math.floor(startedMs / 1000) + 600) return { held: false, reason: 'retry_window_open' };
+    const reason = acceptedExpired ? 'provider_delivery_unverified' : 'provider_receipt_uncertain';
+    await trx(EMAIL_DELIVERIES).where({ id: deliveryId }).update({ status: 'manual_review', error: reason });
+    if (owner.episode_id === episodeId && Number(owner.warning_count) + 1 === stage) {
+      await trx(TEAM_STORAGE_OWNERS).where({ id: teamHash }).update({
+        warning_manual_review_at: now, warning_manual_review_reason: reason, updated_at: now });
+      return { held: true, reason };
+    }
+    return { held: false, reason: 'owner_episode_changed' };
+  });
+}
+
+async function setTeamStorageNoticeHold(database, raw, now) {
+  const { body, teamHash } = teamStorageOwner(raw, 'set_team_storage_notice_hold');
+  const episodeId = uuid(body.episode_id, 'invalid_storage_episode');
+  const reason = body.reason === null ? null : string(body.reason, 'invalid_storage_notice_hold', 80);
+  if (reason !== null && reason !== 'recipient_contact_unavailable') fail(400, 'invalid_storage_notice_hold');
+  return database.transaction(async (trx) => {
+    const owner = await lockedTeamStorageOwner(trx, teamHash, now);
+    if (owner.episode_id !== episodeId || owner.warning_manual_review_at) {
+      return { held: false, reason: 'owner_episode_changed' };
+    }
+    await trx(TEAM_STORAGE_OWNERS).where({ id: teamHash }).update({
+      warning_manual_review_reason: reason, updated_at: now });
+    return { held: reason !== null, reason };
+  });
+}
+
+async function teamStorageExpiryGate(trx, owner, teamHash, nowAt) {
+  if (owner.warning_manual_review_at || owner.warning_manual_review_reason
+    || !owner.selection_hash || Number(owner.warning_count) !== 4) return false;
+  const recipients = await teamStorageRecipients(trx, teamHash);
+  if (JSON.stringify(recipients) !== JSON.stringify(jsonValue(owner.warned_recipient_hashes))) return false;
+  // User email changes can leave old-address provider receipts intact. Lock
+  // current identities through removal and require every notice to match.
+  const currentEmails = await teamStorageCurrentEmailHashes(trx, recipients);
+  if (!currentEmails) return false;
+  let firstAt; let priorAt;
+  for (let stage = 1; stage <= 4; stage += 1) {
+    const receipts = await teamStorageStageReceipts(trx, owner, teamHash, stage, recipients);
+    if (!receipts) return false;
+    let stageAt = 0;
+    for (const row of receipts) {
+      if (currentEmails.get(tokenHash(row.recipient_id)) !== row.recipient_hash) return false;
+      const evidence = teamStorageDeliveredReceipt(row, owner, nowAt);
+      if (!evidence || !row.storage_warning_acknowledged_at || nowAt < evidence.advertised) return false;
+      stageAt = Math.max(stageAt, evidence.sentAt);
+    }
+    if (priorAt != null && stageAt < priorAt + STORAGE_WARNING_INTERVAL_SECONDS) return false;
+    firstAt ??= stageAt; priorAt = stageAt;
+  }
+  return nowAt >= firstAt + 4 * STORAGE_WARNING_INTERVAL_SECONDS
+    && nowAt >= priorAt + STORAGE_WARNING_INTERVAL_SECONDS
+    && nowAt >= Number(owner.deadline_at) && nowAt >= Number(owner.advertised_not_before_at);
+}
+
+async function inspectTeamStorageExpiry(database, raw, now) {
+  const { body, teamHash } = teamStorageOwner(raw, 'inspect_team_storage_expiry');
+  const nowAt = integer(body.now_at, 'invalid_storage_now');
+  return database.transaction(async (trx) => {
+    const owner = await lockedTeamStorageOwner(trx, teamHash, now);
+    const oldest = await trx(TEAM_STORAGE_PERIODS).where({ hashed_team_id: teamHash, state: 'unpaid' })
+      .orderBy('period_start_at', 'asc').first();
+    const due = Boolean(oldest && await teamStorageExpiryGate(trx, owner, teamHash, nowAt));
+    return { due, oldest_period_id: due ? oldest.id : null,
+      episode_id: due ? owner.episode_id : null, deadline_at: owner.deadline_at };
+  });
+}
+
+async function applyTeamStorageExpiry(database, raw, now) {
+  const { body, teamHash } = teamStorageOwner(raw, 'apply_team_storage_expiry');
+  const episodeId = uuid(body.episode_id, 'invalid_storage_episode');
+  const expectedVersion = integer(body.expected_version, 'invalid_account_version');
+  const nowAt = integer(body.now_at, 'invalid_storage_now');
+  const regions = body.regions;
+  if (!Array.isArray(regions) || !regions.length || regions.length > 8 || new Set(regions).size !== regions.length
+    || regions.some((region) => typeof region !== 'string' || !/^[a-z0-9_-]{1,16}$/.test(region))) {
+    fail(400, 'invalid_storage_regions');
+  }
+  return database.transaction(async (trx) => {
+    const owner = await lockedTeamStorageOwner(trx, teamHash, now);
+    const priorWaiver = await trx(TEAM_STORAGE_PERIODS).where({ hashed_team_id: teamHash,
+      waived_episode_id: episodeId }).first();
+    if (priorWaiver?.waiver_audit) return { ...jsonValue(priorWaiver.waiver_audit), idempotent: true };
+    if (owner.expiry_audit) {
+      const audit = jsonValue(owner.expiry_audit);
+      if (audit.episode_id === episodeId) return { ...audit, idempotent: true };
+    }
+    if (owner.episode_id !== episodeId) fail(409, 'storage_episode_mismatch');
+    const account = await lockedTeamAccount(trx, teamHash);
+    if (account.version !== expectedVersion) fail(409, 'stale_team_credit_balance');
+    // Role changes are concurrent writes. Hold both membership and Team status
+    // through the final receipt check and removal transaction.
+    await trx.raw('LOCK TABLE team_memberships, teams IN SHARE ROW EXCLUSIVE MODE');
+    if (!await trx('teams').where({ hashed_team_id: teamHash, status: 'active' }).first()) {
+      return { applied: false, held: true, reason: 'team_inactive' };
+    }
+    if (!await teamStorageExpiryGate(trx, owner, teamHash, nowAt)) return { applied: false, held: true, reason: 'warning_gate' };
+    const periodIds = jsonValue(owner.warned_period_ids);
+    if (!Array.isArray(periodIds) || !periodIds.length || periodIds.length > 100) fail(409, 'storage_warning_periods_missing');
+    const warned = await trx(TEAM_STORAGE_PERIODS).whereIn('id', periodIds)
+      .where({ hashed_team_id: teamHash }).orderBy('period_start_at', 'asc').forUpdate();
+    if (warned.length !== periodIds.length || warned.some((period) => period.state !== 'unpaid')) {
+      return { applied: false, held: true, reason: 'warned_debt_changed' };
+    }
+    if (!Number.isSafeInteger(account.balance_credits) || account.balance_credits >= warned[0].credits_due) {
+      return { applied: false, held: true, reason: 'payment_available' };
+    }
+    const chargeIds = warned.map((period) => period.charge_id);
+    const committed = await trx(TEAM_CREDIT_EVENTS).whereIn('event_id', chargeIds).forShare();
+    if (committed.length) return { applied: false, held: true, reason: 'warned_payment_committed' };
+    const laterPaid = await trx(TEAM_STORAGE_PERIODS).where({ hashed_team_id: teamHash, state: 'paid' })
+      .where('created_at', '>=', new Date(Number(owner.selection_at) * 1000)).first();
+    if (laterPaid) return { applied: false, held: true, reason: 'later_paid_storage' };
+    const laterCommitted = await trx.raw(`SELECT 1 FROM team_storage_billing_periods p
+      JOIN team_credit_events e ON e.event_id=p.charge_id
+      WHERE p.hashed_team_id=? AND p.created_at>=? LIMIT 1`,
+    [teamHash, new Date(Number(owner.selection_at) * 1000)]);
+    if (laterCommitted.rows.length) return { applied: false, held: true, reason: 'later_paid_storage' };
+    await lockExpiryReferences(trx);
+    const frozen = await trx(TEAM_STORAGE_UNITS).where({ hashed_team_id: teamHash, episode_id: episodeId })
+      .orderBy('unit_id', 'asc').forUpdate();
+    if (!frozen.length || frozen.length > 100) fail(409, 'storage_warning_units_missing');
+    const before = await currentStorageQuote(trx, null, owner.selection_source_version, teamHash);
+    if (before.total_bytes <= FREE_STORAGE_BYTES) return { applied: false, held: true, reason: 'within_free_storage' };
+    const current = await discoverStorageUnits(trx, null, teamHash, nowAt, 'team');
+    const references = await storageObjectReferences(trx, frozen.flatMap((unit) => jsonValue(unit.object_references)));
+    const committedSelection = [...frozen].sort((a, b) => Number(a.oldest_at) - Number(b.oldest_at)
+      || a.kind.localeCompare(b.kind) || a.resource_id.localeCompare(b.resource_id));
+    if (tokenHash(JSON.stringify(committedSelection.map((unit) => [unit.unit_id, unit.fingerprint]))) !== owner.selection_hash) {
+      fail(409, 'storage_warning_selection_mismatch');
+    }
+    const eligible = [];
+    for (const record of frozen) {
+      const unit = current.find((candidate) => candidate.unit_id === record.unit_id);
+      if (unit && unit.fingerprint === record.fingerprint && !independentlyReferenced(unit, references)) eligible.push(unit);
+    }
+    eligible.sort((a, b) => a.oldest_at - b.oldest_at || a.kind.localeCompare(b.kind)
+      || a.resource_id.localeCompare(b.resource_id));
+    const units = []; let planned = 0;
+    for (const unit of eligible) {
+      units.push(unit); planned += unit.bytes;
+      if (before.total_bytes - planned <= FREE_STORAGE_BYTES) break;
+    }
+    if (!units.length || before.total_bytes - planned > FREE_STORAGE_BYTES) {
+      return { applied: false, held: true, reason: 'no_complete_safe_set' };
+    }
+    const tombstones = []; const objectKeys = new Set();
+    for (const unit of units) for (const obj of unit.objects) {
+      const identity = `${obj.logical_bucket}\0${obj.object_key}`;
+      if (objectKeys.has(identity)) continue;
+      objectKeys.add(identity);
+      const existing = await trx('storage_deletion_tombstones').where({ idempotency_key: tokenHash(identity) }).forUpdate().first();
+      if (existing) return { applied: false, held: true, reason: 'object_already_tombstoned' };
+      const jobs = await trx('storage_replication_jobs').where({ logical_bucket: obj.logical_bucket,
+        object_key: obj.object_key }).forUpdate();
+      if (jobs.some((job) => !['verified', 'completed', 'cancelled'].includes(job.state))) {
+        return { applied: false, held: true, reason: 'object_writer_active' };
+      }
+      const generations = [...new Set([1, ...jobs.map((job) => Number(job.generation))])].sort((a, b) => a - b);
+      if (generations.some((generation) => !Number.isSafeInteger(generation) || generation < 1)) fail(409, 'storage_generation_ambiguous');
+      const jobRegions = [];
+      for (const job of jobs) {
+        const desired = jsonValue(job.desired_regions); const states = jsonValue(job.region_states);
+        if (!Array.isArray(desired) || !states || typeof states !== 'object' || Array.isArray(states)) {
+          fail(409, 'storage_region_inventory_ambiguous');
+        }
+        jobRegions.push(...desired, job.active_region, ...Object.keys(states));
+      }
+      const allRegions = [...new Set([...regions, ...jobRegions])];
+      if (allRegions.some((region) => typeof region !== 'string' || !/^[a-z0-9_-]{1,16}$/.test(region))) {
+        fail(409, 'storage_region_inventory_ambiguous');
+      }
+      tombstones.push({ id: randomUUID(), idempotency_key: tokenHash(identity), ...obj,
+        generations: JSON.stringify(generations),
+        generation_keys: JSON.stringify(Object.fromEntries(generations.map((g) => [g, obj.object_key]))),
+        purge_states: JSON.stringify(Object.fromEntries(generations.map((g) =>
+          [g, Object.fromEntries(allRegions.map((region) => [region, 'pending']))]))),
+        state: 'prepared', version: 1, attempts: 0, next_attempt_at: now, created_at: now, updated_at: now });
+    }
+    for (const tombstone of tombstones) await trx('storage_deletion_tombstones').insert(tombstone);
+    const tombstoneIds = tombstones.map((tombstone) => tombstone.id);
+    const removed = [];
+    for (const unit of units) {
+      const ordered = [...unit.rows].sort((a, b) => ['cold_archive_parts', 'cold_archive_manifests', 'chats'].indexOf(a.collection)
+        - ['cold_archive_parts', 'cold_archive_manifests', 'chats'].indexOf(b.collection));
+      for (const row of ordered) {
+        const deleted = await trx(row.collection).where({ id: row.id }).delete();
+        if (deleted !== 1) fail(409, 'storage_selected_row_changed');
+        removed.push({ collection: row.collection, id: row.id });
+      }
+    }
+    const after = await currentStorageQuote(trx, null, owner.selection_source_version, teamHash);
+    if (after.total_bytes > FREE_STORAGE_BYTES) fail(409, 'storage_expiry_after_quote_above_free');
+    const surviving = await storageObjectReferences(trx, units.flatMap((unit) => unit.objects));
+    if (units.some((unit) => unit.objects.some((obj) => surviving.some((ref) =>
+      ref.bucket === obj.logical_bucket && ref.object_key === obj.object_key)))) fail(409, 'storage_expiry_surviving_reference');
+    await trx('storage_deletion_tombstones').whereIn('id', tombstoneIds).update({
+      state: 'pending', version: 2, next_attempt_at: now, updated_at: now });
+    await trx(TEAM_STORAGE_PERIODS).whereIn('id', periodIds).where({ state: 'unpaid', hashed_team_id: teamHash })
+      .update({ state: 'waived_on_expiry', waived_at: now, waived_episode_id: episodeId });
+    const audit = { applied: true, held: false, episode_id: episodeId,
+      removed_unit_ids: units.map((unit) => unit.unit_id), removed_row_ids: removed,
+      removed_bytes: before.total_bytes - after.total_bytes, before_bytes: before.total_bytes,
+      after_bytes: after.total_bytes, waived_period_ids: periodIds, tombstone_ids: tombstoneIds, applied_at: nowAt };
+    await trx(TEAM_STORAGE_PERIODS).whereIn('id', periodIds).where({ waived_episode_id: episodeId })
+      .update({ waiver_audit: JSON.stringify(audit) });
+    await trx(TEAM_STORAGE_OWNERS).where({ id: teamHash }).update({
+      ...resetTeamStorageWarning(now), expiry_audit: JSON.stringify(audit) });
+    return { ...audit, idempotent: false };
+  });
+}
+
 export const operations = Object.freeze({
   health_check: healthCheck,
   create_root: createRoot,
@@ -1995,6 +2654,19 @@ export const operations = Object.freeze({
   inspect_storage_expiry: inspectStorageExpiry,
   close_storage_billing_for_deleted_account: closeStorageBillingForDeletedAccount,
   mark_storage_warning_manual_review: markStorageWarningManualReview,
+  freeze_team_storage_period: freezeTeamStoragePeriod,
+  list_team_storage_debt: listTeamStorageDebt,
+  commit_team_storage_charge: commitTeamStorageCharge,
+  claim_team_storage_warning: claimTeamStorageWarning,
+  list_team_storage_recipients: listTeamStorageRecipients,
+  freeze_team_storage_warning_units: freezeTeamStorageWarningUnits,
+  list_team_storage_warning_units: listTeamStorageWarningUnits,
+  acknowledge_team_storage_warning: acknowledgeTeamStorageWarning,
+  record_team_storage_delivery_receipt: recordTeamStorageDeliveryReceipt,
+  mark_team_storage_warning_manual_review: markTeamStorageWarningManualReview,
+  set_team_storage_notice_hold: setTeamStorageNoticeHold,
+  inspect_team_storage_expiry: inspectTeamStorageExpiry,
+  apply_team_storage_expiry: applyTeamStorageExpiry,
 });
 
 export async function executeOperation(database, operation, data, now = new Date()) {

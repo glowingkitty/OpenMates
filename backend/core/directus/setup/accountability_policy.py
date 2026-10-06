@@ -27,6 +27,9 @@ REDUCED_ACCOUNTABILITY = {
     "storage_billing_periods": None,
     "storage_billing_owner_state": None,
     "storage_billing_warning_units": None,
+    "team_storage_billing_periods": None,
+    "team_storage_billing_owner_state": None,
+    "team_storage_billing_warning_units": None,
 }
 
 

@@ -334,6 +334,15 @@ async def test_brevo_accepts_only_documented_duplicate_response(monkeypatch, sta
 
 # contract-test: supporting surface=rest_api assertions=notifications.delivery.idempotent,notifications.delivery.email-enabled
 def test_digest_retry_uses_only_ids_and_fixed_backoff(monkeypatch):
+    cutoff = datetime.fromtimestamp(1790845200, timezone.utc)
+    assert cutoff.hour == 9 and cutoff.minute == 0 and cutoff.second == 0
+
+    class FrozenDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return (cutoff + timedelta(hours=1)).astimezone(tz)
+
+    monkeypatch.setattr(digest_task, "datetime", FrozenDateTime)
     queued = []
     monkeypatch.setattr(digest_task.retry_workflow_digest, "apply_async", lambda **kwargs: queued.append(kwargs))
     assert digest_task.queue_workflow_digest_retry("user-1", 1790845200, 1)

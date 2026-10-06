@@ -664,6 +664,9 @@ def test_ensure_backend_collection_permissions_creates_missing_crud(monkeypatch)
         "storage_billing_periods": {"create", "read", "update", "delete"},
         "storage_billing_owner_state": {"create", "read", "update", "delete"},
         "storage_billing_warning_units": {"create", "read", "update", "delete"},
+        "team_storage_billing_periods": {"create", "read", "update", "delete"},
+        "team_storage_billing_owner_state": {"create", "read", "update", "delete"},
+        "team_storage_billing_warning_units": {"create", "read", "update", "delete"},
     }
 
 
@@ -1009,6 +1012,7 @@ def test_accountability_schema_matrix_is_exact_and_preserves_embed_history() -> 
         "chat_recovery_legacy_batch_claims",
         "chat_compression_checkpoints",
         "storage_billing_periods", "storage_billing_owner_state", "storage_billing_warning_units",
+        "team_storage_billing_periods", "team_storage_billing_owner_state", "team_storage_billing_warning_units",
     }
     assert "directus_users" not in declared
     # Product version history remains a normal collection with its payload/indexes.

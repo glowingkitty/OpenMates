@@ -28,7 +28,7 @@ vi.mock('../../stores/userProfile', async () => {
 	return { userProfile: writable({ user_id: 'team-cache-test-user' }) };
 });
 
-import { createTeam, createTeamEmailInvite, getTeam, getTeamKey, listTeams, loadTeamBilling, TeamRequestCancelledError } from '../teamService';
+import { createTeam, createTeamEmailInvite, getTeam, getTeamKey, listTeams, loadTeamBilling, TeamRequestCancelledError, type TeamViewModel } from '../teamService';
 import { invalidateWorkspaceCaches } from '../workspaceCacheLifecycle';
 import { TEAMS_UPDATED_EVENT } from '../../stores/teamStore';
 
@@ -38,6 +38,18 @@ describe('teamService', () => {
 		vi.restoreAllMocks();
 		vi.clearAllMocks();
 		vi.spyOn(crypto, 'randomUUID').mockReturnValue('team-local-id' as ReturnType<Crypto['randomUUID']>);
+	});
+
+	// contract-test: direct surface=gui.web assertions=billing.storage.weekly-quote
+	it('uses the versioned numeric team wallet balance over an older encrypted snapshot', async () => {
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ billing: {
+			balance_credits: 4, version: 3, encrypted_balance: 'enc:99'
+		} }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+		const team = { team_id: 'team-1', zeroBalance: 99, encrypted: { team_id: 'team-1' } } as TeamViewModel;
+		const result = await loadTeamBilling(team);
+		expect(result.balanceCredits).toBe(4);
+		expect(result.version).toBe(3);
+		expect(cryptoMocks.decryptWithEmbedKey).not.toHaveBeenCalled();
 	});
 
 	// contract-test: supporting surface=gui.web assertions=teams.lifecycle.encrypted-profiled,teams.context.full-switch-local

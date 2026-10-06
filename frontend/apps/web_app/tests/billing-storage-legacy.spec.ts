@@ -23,7 +23,9 @@ test('storage overview uses the legacy upload quote while logical S3 billing is 
       throw new Error('Two disposable test accounts are required for owner isolation.');
     }
     expect(getTestAccount(2).email).not.toBe(getTestAccount().email);
-    expect(process.env.E2E_STORAGE_BILLING_TEAM_UNRATED).toBe('1');
+    // This proves only the isolated CMS financial guard; API remains self-hosted.
+    expect(process.env.E2E_STORAGE_BILLING_TEAM_RATED).toBeUndefined();
+    expect(process.env.E2E_STORAGE_BILLING_CMS_TEAM_DISABLED_CLAIM_REJECTED).toBe('1');
     expect(process.env.E2E_STORAGE_BILLING_CONFLICT_REJECTED).toBe('1');
     expect(EXPECTED_LEGACY_BYTES).toBeGreaterThan(0);
     const log = createSignupLogger('billing-storage-quote');

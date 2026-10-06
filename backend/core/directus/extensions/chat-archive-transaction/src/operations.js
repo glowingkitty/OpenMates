@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { policyBoundary, policyCandidates } from './warm-policy.js';
+import { teamArchiveFinancialReady } from './team-storage-readiness.js';
 import { selectWindowLocators } from './locator-window.js';
 
 const SEGMENTS = 'chat_message_archive_segments';
@@ -16,6 +17,7 @@ function text(value) { requireState(typeof value === 'string' && value.length > 
 function integer(value) { requireState(Number.isSafeInteger(value) && value >= 0, 'invalid_integer', 400); return value; }
 function ownerOf(row) { return row.hashed_team_id
   ? `team:${row.hashed_team_id}` : row.hashed_user_id ? `user:${row.hashed_user_id}` : null; }
+function teamFinancialReady(chat) { return teamArchiveFinancialReady(chat.hashed_team_id); }
 export function stable(value) {
   if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
   if (value && typeof value === 'object') return `{${Object.keys(value).sort().map(k => `${JSON.stringify(k)}:${stable(value[k])}`).join(',')}}`;
@@ -201,6 +203,7 @@ export async function archiveOperation(database, body) {
     }
     if (operation === 'claim_segment') {
       const chat = await lockedChat(trx, data.chat_id);
+      requireState(teamFinancialReady(chat), 'team_storage_billing_not_ready');
       if (data.resume_segment_id) {
         const existing = await trx(SEGMENTS).where({ id: text(data.resume_segment_id), chat_id: chat.id }).forUpdate().first();
         requireState(existing?.state === 'copying' && existing.lease_until <= now, 'archive_copy_in_progress');
@@ -365,6 +368,7 @@ export async function archiveOperation(database, body) {
       return saved;
     }
     if (operation === 'prune_page') {
+      requireState(teamFinancialReady(chat), 'team_storage_billing_not_ready');
       const rollout = await trx(ROLLOUT).where('id', 'agentic-storage-v2').forShare().first();
       requireState(rollout?.pruning_enabled && rollout.compatibility_verified && rollout.validation_receipt && !rollout.failure_code, 'archive_prune_gates_not_verified');
       requireState(segment.state === 'reader_active' && segment.source_copy_until <= now, 'archive_rollback_buffer_active');
@@ -381,6 +385,7 @@ export async function archiveOperation(database, body) {
       return { pruned: true, message_count: rows.length };
     }
     if (operation === 'finish_pruning') {
+      requireState(teamFinancialReady(chat), 'team_storage_billing_not_ready');
       requireState(segment.state === 'reader_active', 'archive_reader_not_active');
       const remaining = await trx(PAGES).where('segment_id', segment.id).where({ pruned: false }).first();
       requireState(!remaining, 'archive_pruning_incomplete');

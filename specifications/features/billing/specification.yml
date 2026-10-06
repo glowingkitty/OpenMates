@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.billing
-version: 6
+version: 7
 status: draft
 title: Billing And Payments
 summary: >
@@ -33,12 +33,12 @@ models:
       required: true
     encrypted_balance_before:
       type: encrypted_string
-      required: true
-      constraints: {plaintext: forbidden}
+      required: false
+      constraints: {plaintext: forbidden, required_for: personal}
     encrypted_balance_after:
       type: encrypted_string
-      required: true
-      constraints: {plaintext: forbidden}
+      required: false
+      constraints: {plaintext: forbidden, required_for: personal}
     charge_id:
       type: string
       required: true
@@ -146,6 +146,12 @@ models:
       nullable: true
       constraints: {minimum: 0, maximum: 100, exposes_credit_counts: false}
 
+  TeamStorageWallet:
+    hashed_team_id: {type: string, required: true}
+    balance_credits: {type: integer, required: true, constraints: {minimum: 0, authoritative: true, financial_metadata: true}}
+    balance_version: {type: integer, required: true, constraints: {minimum: 0, compare_and_swap: true}}
+    encrypted_balance_snapshot: {type: encrypted_string, nullable: true, constraints: {client_managed: true, authoritative: false, may_lag_after_system_charge: true}}
+
 assertions:
   - id: billing.access.authenticated-first-party
     type: security
@@ -157,8 +163,8 @@ assertions:
     depends_on: [models.CreditBalance, models.CreditSettlement, examples.credit_charges, examples.settlement_concurrency]
   - id: billing.credits.encrypted-authority-cache-projection
     type: invariant
-    must: The Vault-encrypted Directus balance and transactional charge ledger remain the durable billing authority; Dragonfly is the primary operational read, distributed-lock, deduplication-hint, and post-commit projection target, but cache loss or restart cannot lose or invent credits, charges, usage, or retry work.
-    depends_on: [models.CreditBalance, models.CreditSettlement, examples.settlement_concurrency, examples.settlement_recovery]
+    must: For personal wallets, the Vault-encrypted Directus balance and transactional charge ledger remain the durable billing authority. Team wallets retain their existing server-authoritative numeric balance, version and atomic credit ledger; an optional client-encrypted snapshot may lag after a system charge and cannot authorize spending or overwrite a concurrent debit. Dragonfly is the primary operational read, distributed-lock, deduplication-hint and post-commit projection target, but cache loss or restart cannot lose or invent credits, charges, usage or retry work.
+    depends_on: [models.CreditBalance, models.CreditSettlement, models.TeamStorageWallet, examples.team_wallet]
   - id: billing.credits.retryable-completion-safe
     type: failure
     must: A retryable settlement conflict after paid work completes creates or reuses one durable pending settlement tied to the original charge id, retries asynchronously without duplicate deduction, and never regresses an already persisted or client-finalized assistant response to failed; exhausted retries become observable manual review.
@@ -222,7 +228,7 @@ assertions:
     depends_on: [examples.storage_usage]
   - id: billing.storage.weekly-quote
     type: behavior
-    must: Personal storage retains a free allowance of 1 GiB (1073741824 bytes), then costs 3 credits for each started additional GiB per weekly period scheduled Sunday at 03:00 UTC. Settings and settlement use the same authoritative usage categories and policy, with the measurement time visible; retries may settle later without changing the frozen period quote.
+    must: Each personal account and each Team has its own separate free allowance of 1 GiB (1073741824 bytes), then costs 3 credits for each started additional GiB per weekly period scheduled Sunday at 03:00 UTC. Team storage uses its Team credit wallet and cannot consume a member's personal allowance or credits. Settings and settlement use the same authoritative usage categories and policy, with the measurement time visible; retries may settle later without changing the frozen period quote.
     depends_on: [examples.storage_weekly]
   - id: billing.storage.exact-settlement
     type: invariant
@@ -250,8 +256,13 @@ assertions:
     depends_on: [examples.storage_disclosures]
   - id: billing.storage.team-policy-gate
     type: security
-    must: New Team-owned archive and version usage is reported separately with explicit ownership, but is not charged or expired until the Team payer, allowance, authorized settlement path, and reference-safe deletion policy are approved. Existing uploaded-file payer attribution is preserved during the initial migration, and membership or repeated references cannot charge the same new logical object to multiple subjects.
+    must: Team-owned storage is measured once under its Team ownership and settles only from that Team's existing wallet through an authenticated trusted system transaction tied to an immutable weekly invoice. Its separate 1 GiB allowance and 3-credit-per-started-excess-GiB weekly policy remain independent of every member and other Team. Team credit balances cannot become negative, and failed or partial settlement never marks an invoice paid. Existing uploaded-file payer attribution is preserved during the initial migration; membership, imported financial fields and repeated references cannot reassign charges or charge the same new logical object to multiple subjects. Team charging and expiry activate only after their scoped integrated verification passes.
     depends_on: [examples.storage_team]
+
+  - id: billing.storage.team-warning-expiry
+    type: security
+    must: Team unpaid-storage warnings reach the current owner and all current admins. Each complete warning round requires provider-confirmed delivery to every required recipient, with four weekly rounds at least seven days apart and deletion no earlier than the notified deadline, 28 days after the first complete round and seven days after the fourth. Unresolved contacts, failed deliveries or a changed recipient set without the required notice history hold expiry. Only specifically warned complete independently removable Team units may expire, oldest first and only enough to reduce current logical usage to the Team's 1 GiB allowance. Active work, sole recovery copies, required references outside the selected unit, including personal or other-Team references, ambiguous ownership or generations, and later-paid units remain protected. A final authoritative Team-wallet/payment, membership, complete-usage and reference check is required; when no safe selection can reach the allowance, nothing is deleted or waived. Only verified expiry may waive the exact warned unpaid episode; personal data, paid periods and later unnotified Team debt remain unaffected.
+    depends_on: [models.TeamStorageWallet, examples.team_storage_warning]
 
 applies_to:
   rest_api:

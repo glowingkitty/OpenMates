@@ -30,17 +30,31 @@
         listTeams,
         loadTeamBilling,
         loadTeamMemoryCount,
+        loadTeamStorage,
+        loadTeamStorageNotice,
         type TeamBillingSummary,
+        type TeamStorageNotice,
+        type TeamStorageSummary,
+        type TeamStorageUnit,
         type TeamViewModel,
     } from '../../services/teamService';
 
-    let { activeSettingsView = 'teams' }: { activeSettingsView?: string } = $props();
+    let { activeSettingsView = 'teams', previewData = null }: {
+        activeSettingsView?: string;
+        previewData?: { team?: TeamViewModel; teams?: TeamViewModel[]; billing: TeamBillingSummary; storage?: TeamStorageSummary; notice?: TeamStorageNotice | null } | null;
+    } = $props();
 
     const dispatch = createEventDispatcher();
 
     let teams = $state<TeamViewModel[]>([]);
     let billing = $state<TeamBillingSummary | null>(null);
     let teamMemoryCount = $state(0);
+    let storage = $state<TeamStorageSummary | null>(null);
+    let storageNotice = $state<TeamStorageNotice | null>(null);
+    let storageError = $state(false);
+    let noticeError = $state(false);
+    let noticeLoading = $state(false);
+    let noticeRequestGeneration = 0;
     let isLoading = $state(true);
     let isCreating = $state(false);
     let isInviting = $state(false);
@@ -56,6 +70,65 @@
     let sortedTeams = $derived([...teams].sort((a, b) => b.createdAt - a.createdAt));
     let canCreateTeam = $derived(newTeamName.trim().length > 0 && !isCreating);
     let canInvite = $derived(!!selectedTeam && inviteEmail.trim().length > 0 && !isInviting);
+    let canManageStorage = $derived(selectedTeam?.role === 'owner' || selectedTeam?.role === 'admin');
+
+    function formatBytes(bytes: number): string {
+        if (!Number.isFinite(bytes) || bytes < 0) return '—';
+        if (bytes === 0) return '0 B';
+        const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+        const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+        const value = bytes / 1024 ** index;
+        return `${index >= 2 ? value.toFixed(1) : Math.round(value)} ${units[index]}`;
+    }
+
+    function formatUtc(timestamp: number): string {
+        return new Date(timestamp * 1000).toLocaleString(undefined, { timeZone: 'UTC', dateStyle: 'medium', timeStyle: 'short' }) + ' UTC';
+    }
+
+    function unitLabel(unit: TeamStorageUnit): string {
+        return $text(`settings.storage.storage_unit_${unit.kind}`);
+    }
+
+    async function fetchStorage(teamId: string): Promise<void> {
+        // A route change invalidates any notice request still awaiting a response.
+        noticeRequestGeneration += 1;
+        noticeLoading = false;
+        storage = null;
+        storageNotice = null;
+        storageError = false;
+        noticeError = false;
+        try {
+            const next = await loadTeamStorage(teamId);
+            if (selectedTeamId !== teamId) return;
+            storage = next;
+            if (next.billing_status !== 'disabled_pending_validation') void fetchNotice(teamId);
+        } catch (error) {
+            console.error('[SettingsTeams] Failed to load team storage:', error);
+            if (selectedTeamId === teamId) storageError = true;
+        }
+    }
+
+    async function fetchNotice(teamId: string, loadMore = false): Promise<void> {
+        if (noticeLoading) return;
+        const requestGeneration = ++noticeRequestGeneration;
+        noticeLoading = true;
+        noticeError = false;
+        const previous = loadMore ? storageNotice : null;
+        try {
+            const next = await loadTeamStorageNotice(teamId, previous?.next_after_unit_id ?? undefined);
+            if (selectedTeamId !== teamId || requestGeneration !== noticeRequestGeneration) return;
+            if (previous && previous.episode_id === next.episode_id) {
+                const known = new Set(previous.units.map((unit) => unit.unit_id));
+                next.units = [...previous.units, ...next.units.filter((unit) => !known.has(unit.unit_id))];
+            }
+            storageNotice = next;
+        } catch (error) {
+            console.error('[SettingsTeams] Failed to load team storage notice:', error);
+            if (selectedTeamId === teamId && requestGeneration === noticeRequestGeneration) noticeError = true;
+        } finally {
+            if (requestGeneration === noticeRequestGeneration) noticeLoading = false;
+        }
+    }
 
     $effect(() => {
         if (loadedRoute === activeSettingsView) return;
@@ -64,6 +137,18 @@
     });
 
     async function loadTeams(): Promise<void> {
+        // Fixtures are accepted only by the runner-local, development preview route.
+        if (previewData && import.meta.env.DEV && typeof window !== 'undefined' && window.location.pathname.startsWith('/dev/preview/')) {
+            teams = previewData.teams ?? (previewData.team ? [previewData.team] : []);
+            billing = previewData.billing;
+            storage = previewData.storage ?? null;
+            storageNotice = previewData.notice ?? null;
+            teamMemoryCount = 0;
+            isLoading = false;
+            const team = teams.find((candidate) => candidate.team_id === selectedTeamId);
+            if (team && !previewData.storage && (team.role === 'owner' || team.role === 'admin')) void fetchStorage(team.team_id);
+            return;
+        }
         isLoading = true;
         loadError = '';
         try {
@@ -73,15 +158,22 @@
                 ? nextTeams.find((candidate) => candidate.team_id === selectedTeamId)
                 : null;
             if (team) {
+                storage = null;
+                storageNotice = null;
+                storageError = false;
+                noticeError = false;
                 const [nextBilling, nextMemoryCount] = await Promise.all([
                     loadTeamBilling(team),
                     loadTeamMemoryCount(team.team_id),
                 ]);
                 billing = nextBilling;
                 teamMemoryCount = nextMemoryCount;
+                if (team.role === 'owner' || team.role === 'admin') void fetchStorage(team.team_id);
             } else {
                 billing = null;
                 teamMemoryCount = 0;
+                storage = null;
+                storageNotice = null;
             }
         } catch (error) {
             console.error('[SettingsTeams] Failed to load Teams settings:', error);
@@ -89,6 +181,8 @@
             teams = [];
             billing = null;
             teamMemoryCount = 0;
+            storage = null;
+            storageNotice = null;
         } finally {
             isLoading = false;
         }
@@ -174,6 +268,71 @@
                     <p><strong>Personal data boundary</strong></p>
                     <p>Personal memories and personal connected accounts stay outside team context.</p>
                 </SettingsInfoBox>
+
+                {#if canManageStorage}
+                    <SettingsSectionHeading title={$text('settings.team_storage_title')} icon="storage" />
+                    {#if storage}
+                        <SettingsInfoBox type="info" data-testid="team-storage-policy">
+                            {$text('settings.team_storage_policy')}
+                        </SettingsInfoBox>
+                        <SettingsCard dataTestid="team-storage-summary">
+                            <SettingsDetailRow label={$text('settings.storage.storage_total_used')} value={formatBytes(storage.total_bytes)} highlight />
+                            <SettingsDetailRow label={$text('settings.storage.storage_measured_at')} value={formatUtc(storage.measurement_at)} />
+                            <SettingsDetailRow label={$text('settings.team_storage_free_tier')} value={formatBytes(storage.free_bytes)} />
+                            <SettingsDetailRow label={$text('settings.team_storage_billable')} value={`${storage.billable_gib} GiB`} />
+                            <SettingsDetailRow label={$text('settings.storage.storage_weekly_cost')} value={$text('settings.storage.storage_credits_per_week', { values: { credits: storage.weekly_cost_credits } })} />
+                        </SettingsCard>
+                        {#if storage.billing_status === 'disabled_pending_validation'}
+                            <SettingsInfoBox type="info" data-testid="team-storage-preview">
+                                {$text('settings.team_storage_preview')}
+                            </SettingsInfoBox>
+                        {:else}
+                            {#if storage.billing_status === 'unpaid'}
+                                <SettingsInfoBox type="warning">{$text('settings.team_storage_payment_due')}</SettingsInfoBox>
+                            {:else if storage.billing_status === 'manual_review'}
+                                <SettingsInfoBox type="warning">{$text('settings.team_storage_review')}</SettingsInfoBox>
+                            {/if}
+                            <SettingsSectionHeading title={$text('settings.team_storage_notice_title')} icon="storage" />
+                            {#if storageNotice?.episode_id}
+                                <SettingsInfoBox type="warning" data-testid="team-storage-active-notice">
+                                    {$text('settings.team_storage_notice_policy')}
+                                </SettingsInfoBox>
+                                <SettingsCard>
+                                    <SettingsDetailRow label={$text('settings.storage.storage_notices_delivered')} value={`${storageNotice.warning_count} / 4`} />
+                                    {#if storageNotice.deadline_at}
+                                        <SettingsDetailRow label={$text('settings.storage.storage_notice_deadline')} value={formatUtc(storageNotice.deadline_at)} />
+                                    {/if}
+                                </SettingsCard>
+                                {#if storageNotice.manual_review}
+                                    <SettingsInfoBox type="warning">{$text('settings.team_storage_review')}</SettingsInfoBox>
+                                {/if}
+                                {#each storageNotice.units as unit (unit.unit_id)}
+                                    <SettingsCard dataTestid="team-storage-affected-unit">
+                                        <SettingsDetailRow label={$text('settings.storage.storage_unit_type')} value={unitLabel(unit)} />
+                                        <SettingsDetailRow label={$text('settings.storage.storage_unit_oldest')} value={formatUtc(unit.oldest_at)} />
+                                        <SettingsDetailRow label={$text('settings.storage.storage_unit_size')} value={formatBytes(unit.bytes)} />
+                                    </SettingsCard>
+                                {/each}
+                                {#if storageNotice.has_more}
+                                    <SettingsButton variant="secondary" loading={noticeLoading} dataTestid="team-storage-load-more" onClick={() => void fetchNotice(selectedTeam.team_id, true)}>
+                                        {$text('settings.storage.storage_notice_load_more')}
+                                    </SettingsButton>
+                                {/if}
+                            {:else if storageNotice && !noticeError}
+                                <SettingsInfoBox data-testid="team-storage-notice-empty">{$text('settings.team_storage_notice_empty')}</SettingsInfoBox>
+                            {/if}
+                            {#if noticeError}
+                                <SettingsInfoBox type="warning">{$text('settings.team_storage_notice_error')}</SettingsInfoBox>
+                                <SettingsButton variant="secondary" onClick={() => void fetchNotice(selectedTeam.team_id, Boolean(storageNotice?.has_more))}>
+                                    {$text('settings.storage.storage_retry')}
+                                </SettingsButton>
+                            {/if}
+                        {/if}
+                    {:else if storageError}
+                        <SettingsInfoBox type="warning">{$text('settings.team_storage_error')}</SettingsInfoBox>
+                        <SettingsButton variant="secondary" onClick={() => void fetchStorage(selectedTeam.team_id)}>{$text('settings.storage.storage_retry')}</SettingsButton>
+                    {/if}
+                {/if}
 
                 <SettingsSectionHeading title="Invite members" icon="team" />
                 <SettingsInput

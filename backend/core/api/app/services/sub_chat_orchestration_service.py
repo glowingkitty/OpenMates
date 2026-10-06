@@ -53,6 +53,19 @@ ORCHESTRATION_OPERATIONS = {
     "freeze_storage_warning_units",
     "list_storage_warning_units",
     "apply_storage_expiry",
+    "freeze_team_storage_period",
+    "list_team_storage_debt",
+    "commit_team_storage_charge",
+    "claim_team_storage_warning",
+    "list_team_storage_recipients",
+    "freeze_team_storage_warning_units",
+    "list_team_storage_warning_units",
+    "acknowledge_team_storage_warning",
+    "record_team_storage_delivery_receipt",
+    "mark_team_storage_warning_manual_review",
+    "set_team_storage_notice_hold",
+    "inspect_team_storage_expiry",
+    "apply_team_storage_expiry",
 }
 
 

@@ -81,6 +81,12 @@ test.describe('Teams V1 web flow', () => {
 		await expect(page.getByTestId('teams-settings-detail')).toContainText(/owner/i, { timeout: 15000 });
 		await expect(page.getByTestId('teams-settings-detail')).toContainText(/team credits/i, { timeout: 30000 });
 		await expect(page.getByTestId('teams-settings-detail')).toContainText(/team memories/i, { timeout: 30000 });
+		// contract-test: direct surface=gui.web assertions=billing.storage.weekly-quote,billing.storage.team-policy-gate
+		await expect(page.getByTestId('team-storage-summary')).toContainText('Free team storage', { timeout: 30000 });
+		await expect(page.getByTestId('team-storage-summary')).toContainText('0 credits / week');
+		await expect(page.getByTestId('team-storage-policy')).toContainText('Sundays at 03:00 UTC');
+		await expect(page.getByTestId('team-storage-preview')).toContainText('not yet enabled');
+		await expect(page.getByTestId('team-storage-active-notice')).toHaveCount(0);
 		await expect(page.getByTestId('teams-settings-detail')).toContainText(/connected accounts/i, { timeout: 30000 });
 		await expect(page.getByTestId('teams-settings-detail')).toContainText(/personal memories and personal connected accounts stay outside team context/i, { timeout: 15000 });
 		await holdProofState(page);

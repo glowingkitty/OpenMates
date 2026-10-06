@@ -32,6 +32,7 @@ from backend.core.api.app.services.team_data_portability_service import TeamData
 from backend.core.api.app.services.team_invite_email_service import TeamInviteEmailService
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.storage_usage_metering import StorageUsageIncompleteError, StorageUsageMeteringService
+from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
 from backend.core.api.app.utils.bank_transfer_references import generate_bank_transfer_reference
 
 if TYPE_CHECKING:
@@ -720,8 +721,6 @@ async def remove_team_member(
         raise HTTPException(status_code=404, detail="Member not found")
     removed_at = int(body.removed_at if body and body.removed_at else time.time())
     await directus_service.team.deactivate_member(removable, removed_at=removed_at)
-    from backend.shared.python_utils.recent_work_summary_cache import recent_work_summary_cache
-    recent_work_summary_cache.revoke_owner(member_user_id)
     await ProjectRemoteAccessService(request.app.state.cache_service).revoke_member(
         team_id=team_id,
         member_user_id=member_user_id,
@@ -834,6 +833,51 @@ async def get_team_storage_overview(
         _handle_team_error(exc)
     except StorageUsageIncompleteError as exc:
         raise HTTPException(status_code=503, detail="TEAM_STORAGE_USAGE_UNAVAILABLE") from exc
+    billing_enabled = os.getenv("TEAM_STORAGE_BILLING_ENABLED", "0") == "1"
+    billing_state: dict[str, Any] = {"status": "disabled_pending_validation", "invoices": [],
+                                      "outstanding_credits": 0, "warning_count": 0,
+                                      "expiry_due": False, "affected_units": []}
+    if billing_enabled:
+        try:
+            orchestration = SubChatOrchestrationService(directus_service)
+            debt = await orchestration.execute("list_team_storage_debt", {
+                "protocol_version": 1, "hashed_team_id": team_hash})
+            periods = debt.get("periods")
+            if not isinstance(periods, list):
+                raise RuntimeError("Team storage invoice lookup incomplete")
+            owner_rows = await directus_service.get_items("team_storage_billing_owner_state", params={
+                "filter[id][_eq]": team_hash,
+                "fields": "episode_id,warning_count,deadline_at,warning_manual_review_at,warning_manual_review_reason,selection_hash",
+                "limit": 1,
+            }, admin_required=True, no_cache=True, raise_on_error=True)
+            if not isinstance(owner_rows, list) or len(owner_rows) != 1:
+                raise RuntimeError("Team storage warning status unavailable")
+            owner = owner_rows[0]
+            units = await orchestration.execute("list_team_storage_warning_units", {
+                "protocol_version": 1, "hashed_team_id": team_hash,
+                "episode_id": owner.get("episode_id"), "limit": 100})
+            expiry = await orchestration.execute("inspect_team_storage_expiry", {
+                "protocol_version": 1, "hashed_team_id": team_hash, "now_at": int(time.time())})
+            billing_state = {
+                "status": "manual_review" if owner.get("warning_manual_review_at") else
+                          "unpaid" if periods else "current",
+                "invoices": [{"id": period["id"], "period_start_at": period["period_start_at"],
+                              "measured_bytes": period["measured_bytes"], "credits_due": period["credits_due"],
+                              "state": period["state"], "policy_version": period["policy_version"]}
+                             for period in periods],
+                "has_more_invoices": bool(debt.get("has_more")),
+                "outstanding_credits": int(debt["outstanding_credits"]),
+                "warning_count": int(owner.get("warning_count") or 0),
+                "notice_held": bool(owner.get("warning_manual_review_reason") and not owner.get("warning_manual_review_at")),
+                "notice_hold_reason": owner.get("warning_manual_review_reason") if not owner.get("warning_manual_review_at") else None,
+                "deadline_at": owner.get("deadline_at"),
+                "expiry_due": bool(expiry.get("due")),
+                "expiry_enabled": os.getenv("TEAM_STORAGE_UNPAID_EXPIRY_ENABLED", "0") == "1",
+                "affected_units": units.get("units") or [],
+                "has_more_affected_units": bool(units.get("has_more")),
+            }
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="TEAM_STORAGE_BILLING_UNAVAILABLE") from exc
     return {
         "storage": {
             "total_bytes": quote.total_bytes,
@@ -843,9 +887,46 @@ async def get_team_storage_overview(
             "measurement_at": quote.measurement_at,
             "metering_source_version": quote.source_version,
             "metering_policy_version": quote.policy_version,
-            "billing_status": "unrated_pending_team_payer_decision",
+            "free_bytes": 1_073_741_824,
+            "credits_per_started_excess_gib_per_week": 3,
+            "billable_gib": max(0, (quote.total_bytes - 1_073_741_824 + 1_073_741_823) // 1_073_741_824),
+            "weekly_cost_credits": max(0, (quote.total_bytes - 1_073_741_824 + 1_073_741_823) // 1_073_741_824) * 3,
+            "billing_status": billing_state["status"],
+            "billing": billing_state,
         }
     }
+
+
+@router.get("/{team_id}/storage/notice")
+@limiter.limit("30/minute")
+async def get_team_storage_notice(
+    request: Request,
+    response: Response,
+    team_id: str,
+    after_unit_id: str | None = Query(default=None, min_length=64, max_length=64, pattern="^[a-f0-9]{64}$"),
+    limit: int = Query(default=50, ge=1, le=100),
+    current_user: User = Depends(_current_user),
+    directus_service: "DirectusService" = Depends(get_directus_service),
+) -> dict[str, Any]:
+    """Owner/admin view of the frozen Team warning scope, with bounded paging."""
+    del request, response
+    try:
+        await directus_service.team.require_team_role(team_id, current_user.id, TEAM_BILLING_ROLES)
+    except TeamPermissionError as exc:
+        _handle_team_error(exc)
+    if os.getenv("TEAM_STORAGE_BILLING_ENABLED", "0") != "1":
+        return {"episode_id": None, "warning_count": 0, "deadline_at": None,
+                "manual_review": False, "notice_held": False,
+                "notice_hold_reason": None, "unit_selection_hash": None,
+                "units": [], "has_more": False, "next_after_unit_id": None}
+    try:
+        return await SubChatOrchestrationService(directus_service).execute(
+            "list_team_storage_warning_units", {
+                "protocol_version": 1, "hashed_team_id": hash_id(team_id),
+                "limit": limit, "after_unit_id": after_unit_id,
+            })
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="TEAM_STORAGE_NOTICE_UNAVAILABLE") from exc
 
 
 @router.post("/{team_id}/billing/bank-transfer-orders", response_model=CreateBankTransferOrderResponse)

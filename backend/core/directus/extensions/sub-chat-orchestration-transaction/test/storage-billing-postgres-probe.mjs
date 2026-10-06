@@ -25,6 +25,7 @@ const FREE_BYTES = 1_073_741_824;
 const START = Math.floor(Date.UTC(2025, 0, 5, 3) / 1000);
 const ROLLBACK = Symbol('billing_probe_rollback');
 let probeStage = 'isolated_setup';
+let teamOwnerContactState = 'not_checked';
 
 function isolatedUserId() {
   const required = {
@@ -364,6 +365,209 @@ async function proveExpiry(db, originalBalance) {
   return {userId,ownerHash,unitIds:frozen.units.map((unit)=>unit.unit_id),tombstoneIds:applied.tombstone_ids};
 }
 
+// Disposable Team wallet and complete cold-chat graph. Logical bytes are
+// declared for billing while object bodies remain tiny/absent in this SQL-only
+// rollback probe; no provider email, credit purchase, or real GiB is created.
+async function proveTeam(db, userId) {
+  probeStage = 'team_fixture';
+  const teamId = randomUUID();
+  const teamHash = createHash('sha256').update(teamId).digest('hex');
+  const userHash = createHash('sha256').update(userId).digest('hex');
+  const adminId = randomUUID();
+  const adminHash = createHash('sha256').update(adminId).digest('hex');
+  const adminEmail = `ci-team-admin-${adminId}@example.com`;
+  const adminEmailBase64 = createHash('sha256').update(adminEmail).digest('base64');
+  const adminEmailHash = createHash('sha256').update(adminEmail).digest('hex');
+  const ownerEmailBase64 = (await db('directus_users').where({id:userId}).select('hashed_email').first()).hashed_email;
+  const ownerEmailHash = Buffer.from(ownerEmailBase64,'base64').toString('hex');
+  const ownerContactBaseline = await db('account_contact_emails').where({user_id:userId}).orderBy('id');
+  const ownerContact = {id:randomUUID(),user_id:userId,
+    hashed_email:ownerEmailBase64,encrypted_email_address:'ci-synthetic-not-decrypted',
+    purpose:'account_lifecycle',source:'isolated_probe',verified_at:dateAt(START)};
+  // Signup contact capture is not a precondition of this rollback SQL proof.
+  // Restore every original row through the outer transaction's rollback.
+  await db('account_contact_emails').where({user_id:userId}).delete();
+  await db('account_contact_emails').insert(ownerContact);
+  const checkOwnerContactState = async (expected) => {
+    const contacts = await db('account_contact_emails').where({user_id:userId,purpose:'account_lifecycle'})
+      .select('hashed_email','verified_at');
+    teamOwnerContactState = contacts.length === 0 ? 'missing'
+      : contacts.length !== 1 ? 'multiple'
+        : !contacts[0].verified_at ? 'unverified'
+          : contacts[0].hashed_email !== ownerEmailBase64 ? 'mismatched' : 'verified';
+    assert.equal(teamOwnerContactState,expected);
+  };
+  const walletId = randomUUID();
+  const chatId = randomUUID();
+  const archiveId = randomUUID();
+  const manifestId = randomUUID();
+  const partId = randomUUID();
+  const objectKey = `ci-team-billing/${teamId}/tiny.enc`;
+  const logicalBytes = FREE_BYTES + 64;
+  await db('teams').insert({id:randomUUID(),team_id:teamId,hashed_team_id:teamHash,
+    slug:`ci-billing-${teamId.slice(0,8)}`,encrypted_name:'ci-opaque-name',
+    encrypted_profile_image_metadata:'ci-opaque-profile',created_by_user_hash:userHash,
+    status:'active',created_at:START,updated_at:START});
+  await db('team_memberships').insert({id:randomUUID(),hashed_team_id:teamHash,
+    hashed_user_id:userHash,role:'owner',status:'active',joined_at:START,
+    created_at:START,updated_at:START});
+  await db('directus_users').insert({id:adminId,email:adminEmail,hashed_email:adminEmailBase64,
+    status:'active',encrypted_credit_balance:'ci-opaque-balance'});
+  await db('account_contact_emails').insert({id:randomUUID(),user_id:adminId,
+    hashed_email:adminEmailBase64,encrypted_email_address:'ci-synthetic-not-decrypted',
+    purpose:'account_lifecycle',source:'isolated_probe',verified_at:dateAt(START)});
+  const adminMembershipId = randomUUID();
+  await db('team_memberships').insert({id:adminMembershipId,hashed_team_id:teamHash,
+    hashed_user_id:adminHash,role:'admin',status:'active',joined_at:START,
+    created_at:START,updated_at:START});
+  await db('team_credit_accounts').insert({id:walletId,hashed_team_id:teamHash,
+    encrypted_balance:'ci-opaque-client-snapshot',balance_credits:0,version:1,updated_at:START});
+  await db('chats').insert({id:chatId,hashed_user_id:null,hashed_team_id:teamHash,
+    storage_state:'cold',cold_archive_id:archiveId,cold_generation:1,
+    encrypted_title:'ci-opaque-title',encrypted_chat_key:'ci-opaque-key',
+    messages_v:0,title_v:1,last_message_timestamp:START-86400,
+    created_at:START-86400,updated_at:START-86400});
+  await db('cold_archive_manifests').insert({id:manifestId,archive_id:archiveId,
+    resource_type:'chat',resource_id:chatId,
+    hashed_resource_id:createHash('sha256').update(chatId).digest('hex'),
+    hashed_user_id:null,hashed_team_id:teamHash,encrypted_listing_metadata:JSON.stringify({}),
+    active_generation:1,graph_checksum:'a'.repeat(64),part_count:1,
+    file_references:JSON.stringify([]),state:'cold',version:1,
+    archived_at:START-86400,updated_at:START});
+  await db('cold_archive_parts').insert({id:partId,archive_id:archiveId,
+    part_id:randomUUID(),part_number:1,generation:1,logical_bucket:'cold_archives',
+    object_key:objectKey,checksum:'b'.repeat(64),size_bytes:logicalBytes,
+    regional_states:JSON.stringify({nbg1:'verified'}),created_at:START-86400});
+  const team = (name, extra = {}, at = START) => {
+    probeStage = `team_${name}`;
+    return executeOperation(db, name, {protocol_version:1,hashed_team_id:teamHash,...extra},new Date(at*1000));
+  };
+  const period = (at,bytes=logicalBytes) => team('freeze_team_storage_period',{
+    period_start_at:at,measured_bytes:bytes,
+    credits_due:Math.ceil((bytes-FREE_BYTES)/FREE_BYTES)*3,
+    charge_id:`team-storage:${teamHash}:${at}`,free_bytes:FREE_BYTES,credits_per_gib:3,
+    policy_version:'team-storage-1gb-3credits-week-v1',source_version:'logical-s3-v1',
+    category_bytes:{cold_chat_graphs:bytes},
+  },at);
+  const paid = (id,version,at=START) => team('commit_team_storage_charge',{
+    period_id:id,expected_version:version,occurred_at:at,
+  },at);
+  const early = await period(START-2*WEEK);
+  assert.equal((await period(START-2*WEEK)).idempotent,true);
+  await assert.rejects(()=>paid(early.period.id,1,START-2*WEEK),{code:'insufficient_team_credits'});
+  assert.equal((await db('team_credit_accounts').where({id:walletId}).first()).balance_credits,0);
+  await db('team_credit_accounts').where({id:walletId}).update({balance_credits:5,version:2});
+  await assert.rejects(()=>paid(early.period.id,1,START-2*WEEK),{code:'stale_team_credit_balance'});
+  const settled=await paid(early.period.id,2,START-2*WEEK);
+  assert.equal(settled.idempotent,false);
+  assert.equal((await paid(early.period.id,2,START-2*WEEK)).idempotent,true);
+  assert.equal((await db('team_credit_accounts').where({id:walletId}).first()).balance_credits,2);
+  assert.equal((await db('team_credit_events').where({event_id:early.period.charge_id})).length,1);
+  assert.equal((await db('team_usage_events').where({event_id:early.period.charge_id})).length,1);
+  await db('team_credit_accounts').where({id:walletId}).update({balance_credits:0,version:4});
+  const warned = await period(START-WEEK);
+  const warnedLarge = await period(START,2*FREE_BYTES+64);
+  const claim = await team('claim_team_storage_warning',{now_at:START});
+  assert.equal(claim.due,true);
+  assert.deepEqual(claim.recipient_hashes,[adminHash,userHash].sort());
+  const frozen = await team('freeze_team_storage_warning_units',{
+    episode_id:claim.episode_id,now_at:START});
+  assert.equal(frozen.frozen,true);
+  assert.equal(frozen.units.length,1);
+  assert.equal(frozen.units[0].kind,'cold_chat');
+  assert.equal(frozen.units[0].resource_id,chatId);
+  assert.equal((await team('freeze_team_storage_warning_units',{
+    episode_id:claim.episode_id,now_at:START+DAY})).idempotent,true);
+  const later = await period(START+WEEK);
+  for(let stage=1;stage<=4;stage++) {
+    const at=START+(stage-1)*WEEK;
+    const current=await team('claim_team_storage_warning',{now_at:at},at);
+    assert.equal(current.warning_stage,stage);
+    for(const [recipientId,recipientHash,emailHash] of [[userId,userHash,ownerEmailHash],[adminId,adminHash,adminEmailHash]]) {
+      const id=randomUUID();const messageId=`ci-team-delivered-${stage}-${recipientId}`;
+      await db('email_deliveries').insert({id,
+        delivery_key:`team-storage-billing-warning:${claim.episode_id}:directus_user:${recipientId}:week-${stage}`,
+        email_type:'team-storage-billing-warning',campaign_key:claim.episode_id,
+        recipient_kind:'directus_user',recipient_id:recipientId,stage:`week-${stage}`,
+        recipient_hash:emailHash,
+        status:'sent',provider:'ci-canned-no-email',provider_message_id:messageId,
+        provider_delivery_state:'accepted',processing_started_at:dateAt(at),sent_at:dateAt(at),
+        metadata:JSON.stringify({context:{deadline_date:dateAt(START+4*WEEK).slice(0,10),
+          unit_selection_hash:frozen.unit_selection_hash},SIMULATED:'no email sent'}),
+      });
+      await assert.rejects(()=>team('acknowledge_team_storage_warning',{
+        episode_id:claim.episode_id,warning_stage:stage,recipient_hashes:claim.recipient_hashes,now_at:at},at),
+      {code:'storage_warning_not_delivered'});
+      await team('record_team_storage_delivery_receipt',{
+        episode_id:claim.episode_id,warning_stage:stage,recipient_hash:recipientHash,
+        delivery_id:id,message_id:messageId,state:'delivered',observed_at:at,now_at:at},at);
+    }
+    assert.equal((await team('acknowledge_team_storage_warning',{
+      episode_id:claim.episode_id,warning_stage:stage,recipient_hashes:claim.recipient_hashes,now_at:at},at)).warning_count,stage);
+  }
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK-1},START+4*WEEK-1)).due,false);
+  await checkOwnerContactState('verified');
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK},START+4*WEEK)).due,true);
+  await db('account_contact_emails').where({id:ownerContact.id}).delete();
+  await checkOwnerContactState('missing');
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK},START+4*WEEK)).due,false);
+  await db('account_contact_emails').insert(ownerContact);
+  await checkOwnerContactState('verified');
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK},START+4*WEEK)).due,true);
+  await db('account_contact_emails').where({id:ownerContact.id}).update({verified_at:null});
+  await checkOwnerContactState('unverified');
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK},START+4*WEEK)).due,false);
+  await db('account_contact_emails').where({id:ownerContact.id}).update({verified_at:ownerContact.verified_at});
+  await checkOwnerContactState('verified');
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK},START+4*WEEK)).due,true);
+  await db('account_contact_emails').where({id:ownerContact.id}).update({
+    hashed_email:createHash('sha256').update('ci-owner-contact-mismatch@example.com').digest('base64')});
+  await checkOwnerContactState('mismatched');
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK},START+4*WEEK)).due,false);
+  await db('account_contact_emails').where({id:ownerContact.id}).update({hashed_email:ownerEmailBase64});
+  await checkOwnerContactState('verified');
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK},START+4*WEEK)).due,true);
+  await db('directus_users').where({id:adminId}).update({hashed_email:createHash('sha256').update('ci-changed@example.com').digest('base64')});
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK},START+4*WEEK)).due,false);
+  await db('directus_users').where({id:adminId}).update({hashed_email:adminEmailBase64});
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK},START+4*WEEK)).due,true);
+  await db('account_contact_emails').where({user_id:adminId}).update({hashed_email:createHash('sha256').update('ci-changed@example.com').digest('base64')});
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK},START+4*WEEK)).due,false);
+  await db('account_contact_emails').where({user_id:adminId}).update({hashed_email:adminEmailBase64});
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK},START+4*WEEK)).due,true);
+  await db('team_memberships').where({id:adminMembershipId}).update({role:'member'});
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK},START+4*WEEK)).due,false);
+  await db('team_memberships').where({id:adminMembershipId}).update({role:'admin'});
+  assert.equal((await team('inspect_team_storage_expiry',{now_at:START+4*WEEK},START+4*WEEK)).due,true);
+  await db('team_credit_accounts').where({id:walletId}).update({balance_credits:4,version:5});
+  const payable = await team('apply_team_storage_expiry',{
+    episode_id:claim.episode_id,expected_version:5,now_at:START+4*WEEK,regions:['nbg1']},START+4*WEEK);
+  assert.equal(payable.reason,'payment_available');
+  assert.equal((await db('chats').where({id:chatId})).length,1);
+  await db('team_credit_accounts').where({id:walletId}).update({balance_credits:0,version:4});
+  await assert.rejects(()=>team('apply_team_storage_expiry',{
+    episode_id:claim.episode_id,expected_version:3,now_at:START+4*WEEK,regions:['nbg1']},START+4*WEEK),
+  {code:'stale_team_credit_balance'});
+  assert.equal((await db('chats').where({id:chatId})).length,1);
+  const applied=await team('apply_team_storage_expiry',{
+    episode_id:claim.episode_id,expected_version:4,now_at:START+4*WEEK,regions:['nbg1']},START+4*WEEK);
+  assert.equal(applied.applied,true);
+  assert.equal(applied.after_bytes,0);
+  assert.deepEqual(applied.waived_period_ids,[warned.period.id,warnedLarge.period.id]);
+  assert.equal((await db('team_storage_billing_periods').where({id:warned.period.id}).first()).state,'waived_on_expiry');
+  assert.equal((await db('team_storage_billing_periods').where({id:warnedLarge.period.id}).first()).state,'waived_on_expiry');
+  assert.equal((await db('team_storage_billing_periods').where({id:later.period.id}).first()).state,'unpaid');
+  assert.equal((await db('team_storage_billing_periods').where({id:early.period.id}).first()).state,'paid');
+  assert.equal((await db('team_credit_accounts').where({id:walletId}).first()).balance_credits,0);
+  assert.equal((await db('team_credit_events').where({event_id:warned.period.charge_id})).length,0);
+  assert.equal((await db('chats').where({id:chatId})).length,0);
+  assert.equal((await db('storage_deletion_tombstones').whereIn('id',applied.tombstone_ids)).length,1);
+  assert.equal((await team('apply_team_storage_expiry',{
+    episode_id:claim.episode_id,expected_version:4,now_at:START+4*WEEK,regions:['nbg1']},START+4*WEEK)).idempotent,true);
+  return {teamHash,teamId,walletId,adminId,chatId,manifestId,partId,ownerContactBaseline,periodIds:[early.period.id,warned.period.id,warnedLarge.period.id,later.period.id],
+    tombstoneIds:applied.tombstone_ids};
+}
+
 async function main() {
   const userId = isolatedUserId();
   const ownerHash = createHash('sha256').update(userId).digest('hex');
@@ -380,7 +584,7 @@ async function main() {
     },
     pool: { min: 0, max: 1 },
   });
-  let proof;let expiryProof;
+  let proof;let expiryProof;let teamProof;
   try {
     const baseline = await db('directus_users').where({ id: userId })
       .select('id', 'email', 'hashed_email', 'encrypted_credit_balance').first();
@@ -403,12 +607,13 @@ async function main() {
         }
         proof = await prove(trx, userId, ownerHash, baseline.encrypted_credit_balance);
         expiryProof = await proveExpiry(trx, baseline.encrypted_credit_balance);
+        teamProof = await proveTeam(trx, userId);
         throw ROLLBACK;
       });
     } catch (error) {
       if (error !== ROLLBACK) throw error;
     }
-    if (!proof || !expiryProof) throw new Error('billing_pg_proof_incomplete');
+    if (!proof || !expiryProof || !teamProof) throw new Error('billing_pg_proof_incomplete');
     assert.equal(await db('directus_users').where({id:expiryProof.userId}).first(),undefined);
     assert.equal((await db('storage_billing_warning_units').where({hashed_user_id:expiryProof.ownerHash})).length,0);
     assert.equal((await db('storage_deletion_tombstones').whereIn('id',expiryProof.tombstoneIds)).length,0);
@@ -419,11 +624,18 @@ async function main() {
     assert.equal((await db('billing_charge_identities').whereIn('charge_id', proof.chargeIds)).length, 0);
     assert.equal((await db('usage').whereIn('id', proof.usageIds)).length, 0);
     assert.equal((await db('storage_billing_owner_state').where({ id: ownerHash })).length, 0);
+    assert.deepEqual(await db('account_contact_emails').where({user_id:userId}).orderBy('id'),teamProof.ownerContactBaseline);
+    assert.equal((await db('teams').where({hashed_team_id:teamProof.teamHash})).length,0);
+    assert.equal((await db('directus_users').where({id:teamProof.adminId})).length,0);
+    assert.equal((await db('team_credit_accounts').where({id:teamProof.walletId})).length,0);
+    assert.equal((await db('team_storage_billing_periods').whereIn('id',teamProof.periodIds)).length,0);
+    assert.equal((await db('storage_deletion_tombstones').whereIn('id',teamProof.tombstoneIds)).length,0);
     process.stdout.write(JSON.stringify({
       passed: true, frozen_snapshot: true, exact_ledger_replay: true,
       partial_invoice_unpaid: true, four_delivered_warning_gates: true,
       manual_hold: true, deleted_owner_closed: true, rollback_verified: true,
       immutable_selected_units:true,actual_expiry_transaction:true,exact_warned_waiver:true,regional_purge_outbox:true,expiry_audit_replay:true,
+      team_wallet_once:true,team_four_recipient_warnings:true,team_exact_warned_waiver:true,team_rollback_verified:true,
     }) + '\n');
   } finally {
     await db.destroy();
@@ -436,6 +648,7 @@ main().catch((error) => {
     : /^(ERR_[A-Z0-9_]+|(?:storage|billing|isolated|disposable)_[a-z0-9_]{1,100})$/.test(raw)
       ? raw.toLowerCase() : 'probe_failed';
   const line = String(error?.stack || '').match(/storage-billing-postgres-probe[.]mjs:([0-9]+):/);
+  process.stderr.write(`storage_billing_pg_probe_owner_contact_state:${teamOwnerContactState}\n`);
   process.stderr.write(`storage_billing_pg_probe_failed:${safe}_during_${probeStage}${line ? '_at_' + line[1] : ''}\n`);
   process.exitCode = 1;
 });

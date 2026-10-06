@@ -26,4 +26,14 @@ CREATE INDEX IF NOT EXISTS storage_billing_warning_units_owner_page_idx
 CREATE INDEX IF NOT EXISTS storage_billing_periods_waiver_episode_idx
   ON storage_billing_periods (hashed_user_id, waived_episode_id)
   WHERE waived_episode_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS team_storage_billing_period_uq
+  ON team_storage_billing_periods (hashed_team_id, period_start_at);
+CREATE UNIQUE INDEX IF NOT EXISTS team_storage_billing_charge_uq
+  ON team_storage_billing_periods (charge_id);
+CREATE INDEX IF NOT EXISTS team_storage_billing_debt_idx
+  ON team_storage_billing_periods (hashed_team_id, state, period_start_at, id);
+CREATE UNIQUE INDEX IF NOT EXISTS team_storage_billing_unit_uq
+  ON team_storage_billing_warning_units (episode_id, unit_id);
+CREATE INDEX IF NOT EXISTS team_storage_billing_units_owner_idx
+  ON team_storage_billing_warning_units (hashed_team_id, episode_id, unit_id);
 COMMIT;

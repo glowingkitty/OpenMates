@@ -13,6 +13,8 @@ const API_URL = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmate
 const LEGACY_BYTES = Number(process.env.E2E_STORAGE_BILLING_EXPECTED_LEGACY_BYTES || 0);
 const PAGE_BYTES = Number(process.env.E2E_STORAGE_BILLING_EXPECTED_PAGE_BYTES || 0);
 const TOTAL_BYTES = Number(process.env.E2E_STORAGE_BILLING_EXPECTED_TOTAL_BYTES || 0);
+const TEAM_BYTES = Number(process.env.E2E_STORAGE_BILLING_TEAM_BYTES || 0);
+const TEAM_ID = process.env.E2E_STORAGE_BILLING_TEAM_ID || '';
 
 // contract-test: direct surface=rest_api assertions=billing.storage.logical-usage,billing.storage.weekly-quote,billing.storage.disclosures
 // contract-test: supporting surface=rest_api assertions=billing.storage.team-policy-gate
@@ -23,12 +25,14 @@ test('storage overview bills one real logical page once alongside the small uplo
       throw new Error('Two disposable test accounts are required for owner isolation.');
     }
     expect(getTestAccount(2).email).not.toBe(getTestAccount().email);
-    expect(process.env.E2E_STORAGE_BILLING_TEAM_UNRATED).toBe('1');
+    expect(process.env.E2E_STORAGE_BILLING_TEAM_RATED).toBe('1');
     expect(process.env.E2E_STORAGE_BILLING_CONFLICT_REJECTED).toBe('1');
     expect(process.env.E2E_STORAGE_BILLING_EXPIRY_VERIFIED).toBe('1');
     expect(LEGACY_BYTES).toBeGreaterThan(0);
     expect(PAGE_BYTES).toBeGreaterThan(0);
     expect(TOTAL_BYTES).toBe(LEGACY_BYTES + PAGE_BYTES);
+    expect(TEAM_BYTES).toBeGreaterThan(0);
+    expect(TEAM_ID).toMatch(/^[0-9a-f-]{36}$/);
 
     const log = createSignupLogger('billing-storage-logical');
     const screenshot = createStepScreenshotter(log);
@@ -67,6 +71,29 @@ test('storage overview bills one real logical page once alongside the small uplo
     expect(overview.breakdown.reduce((sum: number, row: any) => sum + row.bytes_used, 0))
       .toBe(LEGACY_BYTES);
 
+    const teamUrl = `${API_URL}/v1/teams/${TEAM_ID}/storage`;
+    const teamResponse = await page.request.get(teamUrl);
+    expect(teamResponse.ok()).toBe(true);
+    const { storage: teamStorage } = await teamResponse.json();
+    expect(teamStorage).toMatchObject({
+      total_bytes: TEAM_BYTES,
+      metering_policy_version: 'team-storage-1gb-3credits-week-v1',
+      free_bytes: 1_073_741_824,
+      credits_per_started_excess_gib_per_week: 3,
+      billable_gib: 0,
+      weekly_cost_credits: 0,
+      billing_status: 'current',
+    });
+    expect(teamStorage.billing).toMatchObject({
+      status: 'current', outstanding_credits: 0,
+      warning_count: 0, affected_units: [],
+    });
+    const teamNoticeResponse = await page.request.get(`${teamUrl}/notice?limit=50`);
+    expect(teamNoticeResponse.ok()).toBe(true);
+    expect(await teamNoticeResponse.json()).toMatchObject({
+      episode_id: null, warning_count: 0, units: [], has_more: false,
+    });
+
     // A second fresh owner has no access to the first owner's upload or archive.
     const otherContext = await browser.newContext();
     try {
@@ -82,6 +109,8 @@ test('storage overview bills one real logical page once alongside the small uplo
       expect(otherNoticeResponse.ok()).toBe(true);
       const otherNotice = await otherNoticeResponse.json();
       expect(otherNotice).toMatchObject({ episode_id: null, warning_count: 0, units: [], has_more: false });
+      const otherTeam = await otherPage.request.get(teamUrl);
+      expect([403, 404]).toContain(otherTeam.status());
     } finally {
       await otherContext.close();
     }

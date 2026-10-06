@@ -502,7 +502,37 @@ export interface TeamRecord {
 
 export interface TeamBillingSummary {
   balance_credits?: number;
+  version?: number;
   encrypted_balance?: string | null;
+  [key: string]: unknown;
+}
+
+export interface TeamStorageSummary {
+  total_bytes: number;
+  legacy_upload_bytes: number;
+  logical_s3_bytes: number;
+  categories: Record<string, number>;
+  measurement_at: number;
+  metering_source_version: string;
+  metering_policy_version: string;
+  free_bytes: number;
+  billable_gib: number;
+  weekly_cost_credits: number;
+  credits_per_started_excess_gib_per_week: number;
+  billing_status: "disabled_pending_validation" | "current" | "unpaid" | "manual_review";
+  billing: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface TeamStorageNotice {
+  episode_id: string | null;
+  warning_count: number;
+  deadline_at: number | null;
+  manual_review: boolean;
+  unit_selection_hash: string | null;
+  units: Array<{ unit_id: string; kind: "upload" | "cold_chat" | "artifact_history"; resource_id: string; oldest_at: number; bytes: number; fingerprint: string }>;
+  has_more: boolean;
+  next_after_unit_id: string | null;
   [key: string]: unknown;
 }
 
@@ -3733,6 +3763,22 @@ export class OpenMatesClient {
     const response = await this.http.get<{ billing?: TeamBillingSummary }>(`/v1/teams/${encodeURIComponent(teamId)}/billing`, this.getCliRequestHeaders());
     if (!response.ok || !response.data.billing) throw new Error(`Team billing failed with HTTP ${response.status}`);
     return response.data.billing;
+  }
+
+  async getTeamStorage(teamId: string): Promise<TeamStorageSummary> {
+    this.requireSession();
+    const response = await this.http.get<{ storage?: TeamStorageSummary }>(`/v1/teams/${encodeURIComponent(teamId)}/storage`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.storage) throw new Error(`Team storage failed with HTTP ${response.status}`);
+    return response.data.storage;
+  }
+
+  async getTeamStorageNotice(teamId: string, options: { limit?: number; afterUnitId?: string } = {}): Promise<TeamStorageNotice> {
+    this.requireSession();
+    const query = new URLSearchParams({ limit: String(options.limit ?? 50) });
+    if (options.afterUnitId) query.set("after_unit_id", options.afterUnitId);
+    const response = await this.http.get<TeamStorageNotice>(`/v1/teams/${encodeURIComponent(teamId)}/storage/notice?${query}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team storage notice failed with HTTP ${response.status}`);
+    return response.data;
   }
 
   async addTeamCredits(_teamId: string, _input: { credits: number }): Promise<TeamBillingSummary> {

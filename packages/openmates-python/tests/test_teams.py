@@ -18,6 +18,28 @@ from openmates.sdk import (
 )
 
 
+# contract-test: direct surface=sdks.pip assertions=billing.storage.weekly-quote,billing.storage.team-warning-expiry
+def test_pip_sdk_reads_team_storage_and_notice_pages(monkeypatch):
+    client = OpenMates(api_key="x")
+    seen = []
+    cursor = "a" * 64
+
+    def fake_get(path):
+        seen.append(path)
+        if path == "/v1/teams/team-1/storage":
+            return {"storage": {"total_bytes": 0, "weekly_cost_credits": 0, "billing_status": "disabled_pending_validation"}}
+        if path == f"/v1/teams/team-1/storage/notice?limit=25&after_unit_id={cursor}":
+            return {"episode_id": "episode-1", "units": [], "has_more": False}
+        raise AssertionError(f"unexpected Team storage GET {path}")
+
+    monkeypatch.setattr(client, "_get", fake_get)
+    assert client.teams.storage("team-1")["weekly_cost_credits"] == 0
+    assert client.teams.storage_notice("team-1", limit=25, after_unit_id=cursor)["episode_id"] == "episode-1"
+    assert seen == ["/v1/teams/team-1/storage", f"/v1/teams/team-1/storage/notice?limit=25&after_unit_id={cursor}"]
+    with pytest.raises(ValueError, match="limit"):
+        client.teams.storage_notice("team-1", limit=101)
+
+
 # contract-test: direct surface=sdks.pip assertions=teams.workspace.surface-parity
 def test_pip_sdk_teams_methods_use_shared_teams_api(monkeypatch):
     requests_seen = []
@@ -126,6 +148,8 @@ def test_pip_sdk_teams_methods_use_shared_teams_api(monkeypatch):
 def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypatch):
     master_key = bytes([11]) * 32
     api_key, material = _create_api_key_material("pip teams profile", master_key)
+    bearer_api_key = api_key.partition(".")[0]
+    assert bearer_api_key != api_key  # The local decryption secret must stay out of the Authorization header.
     requests_seen = []
     stored_team = None
 
@@ -142,7 +166,7 @@ def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypat
 
     def fake_get(url, *, headers, timeout):
         requests_seen.append({"method": "GET", "url": url})
-        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
+        assert headers["Authorization"] == f"Bearer {bearer_api_key}"
         assert headers["X-OpenMates-SDK"] == "pip"
         if url.endswith("/v1/teams/team-1/profile-image"):
             return FakeResponse(content=b"\x89PNG", headers={"content-type": "image/png", "content-disposition": 'attachment; filename="team.png"'})
@@ -154,7 +178,7 @@ def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypat
     def fake_post(url, *, json, headers, timeout):
         nonlocal stored_team
         requests_seen.append({"method": "POST", "url": url, "json": json})
-        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
+        assert headers["Authorization"] == f"Bearer {bearer_api_key}"
         assert headers["X-OpenMates-SDK"] == "pip"
         if url.endswith("/v1/sdk/session"):
             return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})
@@ -166,7 +190,7 @@ def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypat
     def fake_patch(url, *, json, headers, timeout):
         nonlocal stored_team
         requests_seen.append({"method": "PATCH", "url": url, "json": json})
-        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
+        assert headers["Authorization"] == f"Bearer {bearer_api_key}"
         assert headers["X-OpenMates-SDK"] == "pip"
         if url.endswith("/v1/teams/team-1"):
             stored_team = {**(stored_team or {}), **json}

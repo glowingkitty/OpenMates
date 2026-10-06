@@ -436,7 +436,8 @@ def test_teams_routes_expose_billing_contract(monkeypatch) -> None:
 
 
 # contract-test: direct surface=rest_api assertions=billing.storage.team-policy-gate,teams.membership.role-gated
-def test_team_storage_quote_is_role_gated_and_unrated(monkeypatch) -> None:
+def test_team_storage_quote_is_role_gated_with_team_policy(monkeypatch) -> None:
+    monkeypatch.delenv("TEAM_STORAGE_BILLING_ENABLED", raising=False)
     seen: list[list[str]] = []
 
     class Metering:
@@ -446,7 +447,7 @@ def test_team_storage_quote_is_role_gated_and_unrated(monkeypatch) -> None:
         async def quote_team(self, hashes: list[str]):
             seen.append(hashes)
             return {hashes[0]: StorageUsageQuote(
-                owner_kind="team", owner_id=hashes[0], policy_version="unrated-team-usage-v1",
+                owner_kind="team", owner_id=hashes[0], policy_version="team-storage-1gb-3credits-week-v1",
                 source_version="logical-s3-v1", complete=True, categories={"chat_pages": 40},
                 legacy_upload_bytes=0, logical_s3_bytes=40, total_bytes=40,
                 measurement_at=1791082800,
@@ -459,8 +460,13 @@ def test_team_storage_quote_is_role_gated_and_unrated(monkeypatch) -> None:
     assert response.json() == {"storage": {
         "total_bytes": 40, "legacy_upload_bytes": 0, "logical_s3_bytes": 40,
         "categories": {"chat_pages": 40}, "measurement_at": 1791082800,
-        "metering_source_version": "logical-s3-v1", "metering_policy_version": "unrated-team-usage-v1",
-        "billing_status": "unrated_pending_team_payer_decision",
+        "metering_source_version": "logical-s3-v1", "metering_policy_version": "team-storage-1gb-3credits-week-v1",
+        "free_bytes": 1_073_741_824, "credits_per_started_excess_gib_per_week": 3,
+        "billable_gib": 0, "weekly_cost_credits": 0,
+        "billing_status": "disabled_pending_validation",
+        "billing": {"status": "disabled_pending_validation", "invoices": [],
+                    "outstanding_credits": 0, "warning_count": 0,
+                    "expiry_due": False, "affected_units": []},
     }}
     assert seen == [[teams.hash_id("team-1")]]
     viewer = build_client(RoleTeamService("viewer"))

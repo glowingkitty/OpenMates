@@ -5348,6 +5348,17 @@ export class OpenMatesTeams {
     return result.billing ?? result;
   }
 
+  async storage(teamId: string): Promise<Record<string, unknown>> {
+    const result = await this.client.get<{ storage?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/storage`);
+    return result.storage ?? result;
+  }
+
+  async storageNotice(teamId: string, options: { limit?: number; afterUnitId?: string } = {}): Promise<Record<string, unknown>> {
+    const query = new URLSearchParams({ limit: String(options.limit ?? 50) });
+    if (options.afterUnitId) query.set("after_unit_id", options.afterUnitId);
+    return this.client.get<Record<string, unknown>>(`/v1/teams/${encodeURIComponent(teamId)}/storage/notice?${query}`);
+  }
+
   async usage(teamId: string, memberUserId?: string): Promise<Record<string, unknown>[]> {
     const query = memberUserId ? `?member_user_id=${encodeURIComponent(memberUserId)}` : "";
     const result = await this.client.get<{ usage?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/billing/usage${query}`);

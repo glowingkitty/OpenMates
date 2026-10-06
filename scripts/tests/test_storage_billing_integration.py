@@ -340,3 +340,170 @@ async def test_cleanup_reverses_owned_rows_and_skips_already_pruned_messages() -
     assert (await _cleanup(Directus(), S3(), receipt))["cleaned"] is True
     assert deleted == [("upload_files", "upload-1"), ("chats", USER),
                        ("chatfiles", "ci-storage-billing/file.enc")]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("existing", [False, True])
+async def test_team_contact_bootstrap_preserves_real_crypto_guard(monkeypatch, existing) -> None:
+    import base64
+    email = "ci-contact-fixture@example.com"
+    hashed = base64.b64encode(hashlib.sha256(email.encode()).digest()).decode()
+    user = {"id": USER, "status": "active", "hashed_email": hashed}
+    row = {"id": "contact", "user_id": USER, "purpose": "account_lifecycle",
+           "hashed_email": hashed, "encrypted_email_address": "vault-encrypted-test-envelope",
+           "verified_at": "2026-10-06T00:00:00Z"}
+    rows = [row] if existing else []
+    calls = []
+    class Directus:
+        async def get_items(self, collection, *, params, **kwargs):
+            assert collection == "account_contact_emails"
+            assert params["filter[user_id][_eq]"] == USER
+            assert kwargs == {"admin_required": True, "no_cache": True, "raise_on_error": True}
+            return list(rows)
+    class Encryption:
+        async def decrypt_account_contact_email(self, envelope):
+            assert envelope == row["encrypted_email_address"]
+            calls.append("decrypt")
+            return email
+    task = SimpleNamespace(directus_service=Directus(), encryption_service=Encryption())
+    async def store(directus, encryption, **fields):
+        assert directus is task.directus_service and encryption is task.encryption_service
+        assert fields["user_id"] == USER and fields["hashed_email"] == hashed
+        assert fields["email"] == email and fields["verified_at"]
+        calls.append("vault_store")
+        rows.append(row)
+        return True
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.auth_routes.auth_utils",
+                        SimpleNamespace(_account_contact_email_id=lambda user_id: "contact",
+                                        store_account_lifecycle_contact_email=store))
+    for key, value in {**PROFILE, "STORAGE_LOGICAL_S3_BILLING_ENABLED": "1",
+                       "TEAM_STORAGE_BILLING_ENABLED": "1",
+                       "OPENMATES_TEST_ACCOUNT_CI_0_EMAIL": email}.items():
+        monkeypatch.setenv(key, value)
+    created = []
+    await fixture._ensure_team_owner_contact(task, selector(), user, created)
+    assert calls == (["decrypt"] if existing else ["vault_store", "decrypt"])
+    assert created == ([] if existing else [("account_contact_emails", "contact")])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid", ["source", "production", "profile", "email", "duplicate_email",
+                                      "owner", "status", "hash", "purpose", "unverified", "ciphertext",
+                                      "contact_hash", "contact_owner", "duplicate_contact", "decrypt"])
+async def test_team_contact_refuses_unproven_identity_without_overwrite(monkeypatch, invalid) -> None:
+    import base64
+    email = "ci-contact-fixture@example.com"
+    hashed = base64.b64encode(hashlib.sha256(email.encode()).digest()).decode()
+    environ = {**PROFILE, "STORAGE_LOGICAL_S3_BILLING_ENABLED": "1",
+               "TEAM_STORAGE_BILLING_ENABLED": "1", "OPENMATES_TEST_ACCOUNT_CI_0_EMAIL": email}
+    selected = selector()
+    user = {"id": USER, "status": "active", "hashed_email": hashed}
+    row = {"id": "contact", "user_id": USER, "purpose": "account_lifecycle",
+           "hashed_email": hashed, "encrypted_email_address": "vault-envelope", "verified_at": "verified"}
+    if invalid == "source":
+        selected["source_commit"] = "b" * 40
+    if invalid == "production":
+        environ["SERVER_ENVIRONMENT"] = "production"
+    if invalid == "profile":
+        environ["TEAM_STORAGE_BILLING_ENABLED"] = "0"
+    if invalid == "email":
+        environ["OPENMATES_TEST_ACCOUNT_CI_0_EMAIL"] = "unknown@example.com"
+    if invalid == "duplicate_email":
+        environ["OPENMATES_TEST_ACCOUNT_CI_1_EMAIL"] = email
+    if invalid == "owner":
+        user["id"] = str(uuid.uuid4())
+    if invalid == "status":
+        user["status"] = "suspended"
+    if invalid == "hash":
+        user["hashed_email"] = "wrong"
+    if invalid == "purpose":
+        row["purpose"] = "unknown"
+    if invalid == "unverified":
+        row["verified_at"] = None
+    if invalid == "ciphertext":
+        row["encrypted_email_address"] = None
+    if invalid == "contact_hash":
+        row["hashed_email"] = "wrong"
+    if invalid == "contact_owner":
+        row["user_id"] = str(uuid.uuid4())
+    class Directus:
+        async def get_items(self, *args, **kwargs):
+            return [row, row] if invalid == "duplicate_contact" else [row]
+    class Encryption:
+        async def decrypt_account_contact_email(self, envelope):
+            return "ci-wrong@example.com" if invalid == "decrypt" else email
+    task = SimpleNamespace(directus_service=Directus(), encryption_service=Encryption())
+    async def forbidden_store(*args, **kwargs):
+        pytest.fail("Existing or unproven contacts must never be overwritten")
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.auth_routes.auth_utils",
+                        SimpleNamespace(store_account_lifecycle_contact_email=forbidden_store))
+    for key, value in environ.items():
+        monkeypatch.setenv(key, value)
+    created = []
+    with pytest.raises((RuntimeError, ValueError), match="storage_billing_"):
+        await fixture._ensure_team_owner_contact(task, selected, user, created)
+    assert created == []
+
+
+@pytest.mark.parametrize("logical,team,source", [("0", "0", SOURCE), ("1", "1", SOURCE),
+                                                ("0", "1", SOURCE), ("1", "0", SOURCE),
+                                                ("0", None, SOURCE), ("0", "0", "b" * 40)])
+def test_team_fixture_profile_requires_exact_source_and_flags(logical, team, source):
+    environ = {**PROFILE, "STORAGE_LOGICAL_S3_BILLING_ENABLED": logical,
+               "TEAM_STORAGE_BILLING_ENABLED": team, "OPENMATES_DEPLOYMENT_MODE": "self_host",
+               "OPENMATES_CLOUD_OVERLAY_ENABLED": "false", "OPENMATES_CLOUD_OVERLAY_PACKAGE": ""}
+    selected = {**selector(), "source_commit": source}
+    if logical == team and source == SOURCE:
+        assert fixture.require_team_fixture_profile(environ, selected) is (logical == "1")
+    else:
+        with pytest.raises(ValueError, match="storage_billing_team_fixture_profile_mismatch"):
+            fixture.require_team_fixture_profile(environ, selected)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status,code,rows", [(409, "team_storage_billing_not_ready", []),
+    (200, "team_storage_billing_not_ready", []), (409, "unrelated_error", []),
+    (409, "team_storage_billing_not_ready", [{"id": "unexpected"}])])
+async def test_disabled_team_claim_requires_exact_guard_and_no_archive_rows(monkeypatch, status, code, rows):
+    for key, value in {**PROFILE, "STORAGE_LOGICAL_S3_BILLING_ENABLED": "0",
+                       "TEAM_STORAGE_BILLING_ENABLED": "0", "OPENMATES_DEPLOYMENT_MODE": "self_host",
+                       "OPENMATES_CLOUD_OVERLAY_ENABLED": "false", "OPENMATES_CLOUD_OVERLAY_PACKAGE": ""}.items():
+        monkeypatch.setenv(key, value)
+    writes = []
+    async def write(directus, collection, row, created):
+        writes.append(collection)
+        created.append((collection, row["id"]))
+        return row
+    monkeypatch.setattr(fixture, "_write", write)
+    class Directus:
+        base_url = "http://cms:8055"
+        async def _make_api_request(self, method, url, **kwargs):
+            assert method == "POST" and kwargs["json"]["operation"] == "claim_segment"
+            assert kwargs["json"]["data"]["checkpoint_id"]
+            return SimpleNamespace(status_code=status, json=lambda: {"error": {"code": code}})
+        async def get_items(self, collection, **kwargs):
+            assert collection in ("chat_message_archive_segments", "chat_message_archive_pages")
+            return rows
+    class Archive:
+        async def copy_segment(self, **kwargs):
+            pytest.fail("A disabled Team claim must never copy S3 content")
+    call = fixture._archive_page(Directus(), Archive(), owner_hash=None,
+                                team_hash="a" * 64, created=[], reject_team_claim=True)
+    if status == 409 and code == "team_storage_billing_not_ready" and not rows:
+        result = await call
+        assert result["claim_rejected"] is True and "page" not in result
+    else:
+        with pytest.raises(RuntimeError, match="storage_billing_team_disabled_claim_not_rejected"):
+            await call
+    assert writes == ["chats", "messages", "messages", "messages", "chat_compression_checkpoints"]
+
+
+@pytest.mark.parametrize("key,value", [("OPENMATES_DEPLOYMENT_MODE", "official_cloud"),
+    ("OPENMATES_DEPLOYMENT_MODE", "production"), ("OPENMATES_CLOUD_OVERLAY_ENABLED", "true"),
+    ("OPENMATES_CLOUD_OVERLAY_PACKAGE", "OpenMatesCloud")])
+def test_disabled_team_fixture_requires_valid_api_self_host_mode(key, value):
+    environ = {**PROFILE, "STORAGE_LOGICAL_S3_BILLING_ENABLED": "0", "TEAM_STORAGE_BILLING_ENABLED": "0",
+               "OPENMATES_DEPLOYMENT_MODE": "self_host", "OPENMATES_CLOUD_OVERLAY_ENABLED": "false",
+               "OPENMATES_CLOUD_OVERLAY_PACKAGE": "", key: value}
+    with pytest.raises(ValueError, match="storage_billing_team_fixture_mode_mismatch"):
+        fixture.require_team_fixture_profile(environ, selector())

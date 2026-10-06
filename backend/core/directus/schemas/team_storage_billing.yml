@@ -1,0 +1,70 @@
+# Frozen weekly Team invoices and warning selections. Payment authority is the
+# existing team_credit_accounts/team_credit_events ledger, never these rows.
+team_storage_billing_periods:
+  type: collection
+  meta:
+    accountability: null
+  fields:
+    id: {type: string, length: 64, primary: true}
+    owner_kind: {type: string, length: 8, required: true}
+    hashed_team_id: {type: string, length: 64, required: true}
+    period_start_at: {type: integer, required: true}
+    measured_bytes: {type: bigInteger, required: true}
+    credits_due: {type: integer, required: true}
+    free_bytes: {type: bigInteger, required: true}
+    credits_per_gib: {type: integer, required: true}
+    policy_version: {type: string, length: 100, required: true}
+    source_version: {type: string, length: 100, required: true}
+    category_bytes: {type: json, required: true}
+    charge_id: {type: string, length: 255, required: true}
+    state: {type: string, length: 24, required: true}
+    created_at: {type: datetime, required: true}
+    paid_at: {type: datetime, nullable: true}
+    waived_at: {type: datetime, nullable: true}
+    waived_episode_id: {type: uuid, nullable: true}
+    waiver_audit: {type: json, nullable: true}
+
+team_storage_billing_owner_state:
+  type: collection
+  meta:
+    accountability: null
+  fields:
+    id: {type: string, length: 64, primary: true}
+    owner_kind: {type: string, length: 8, required: true}
+    hashed_team_id: {type: string, length: 64, required: true}
+    episode_id: {type: uuid, nullable: true}
+    warning_count: {type: integer, required: true, default: 0}
+    first_warning_at: {type: integer, nullable: true}
+    last_warning_at: {type: integer, nullable: true}
+    deadline_at: {type: integer, nullable: true}
+    advertised_not_before_at: {type: integer, nullable: true}
+    warning_manual_review_at: {type: datetime, nullable: true}
+    warning_manual_review_reason: {type: string, length: 80, nullable: true}
+    selection_hash: {type: string, length: 64, nullable: true}
+    selection_at: {type: integer, nullable: true}
+    selection_source_version: {type: string, length: 100, nullable: true}
+    selection_policy_version: {type: string, length: 100, nullable: true}
+    selected_bytes: {type: bigInteger, nullable: true}
+    warned_period_ids: {type: json, nullable: true}
+    warned_recipient_hashes: {type: json, nullable: true}
+    expiry_audit: {type: json, nullable: true}
+    updated_at: {type: datetime, required: true}
+
+team_storage_billing_warning_units:
+  type: collection
+  meta:
+    accountability: null
+  fields:
+    id: {type: string, length: 64, primary: true}
+    owner_kind: {type: string, length: 8, required: true}
+    hashed_team_id: {type: string, length: 64, required: true}
+    episode_id: {type: uuid, required: true}
+    unit_id: {type: string, length: 64, required: true}
+    kind: {type: string, length: 32, required: true}
+    resource_id: {type: string, length: 128, required: true}
+    oldest_at: {type: integer, required: true}
+    bytes: {type: bigInteger, required: true}
+    fingerprint: {type: string, length: 64, required: true}
+    membership: {type: json, required: true}
+    object_references: {type: json, required: true}
+    created_at: {type: datetime, required: true}

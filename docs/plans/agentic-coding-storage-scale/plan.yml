@@ -1,4 +1,5 @@
-profile: lightweight
+schema_version: 2
+profile: concise
 id: agentic-coding-storage-scale
 title: Bounded Storage For Agentic Coding Scale
 status: implementing
@@ -306,7 +307,7 @@ implementation_phases:
     approval_fingerprint: 65deeacf5875ee2c4e77325bec72102b0980f3dda2311f3728709f03a456ac99
     approved_at: "2026-10-04"
     changes:
-      - Meter authoritative personal customer objects once, preserve legacy upload pricing, and keep Team usage unrated until its payer policy is decided.
+      - Meter authoritative personal customer objects once and preserve legacy upload pricing. P-9 implements the separately approved Team payer policy.
       - Freeze Sunday weekly invoices and require one full authoritative credit settlement before marking paid.
       - Freeze complete oldest safe affected units before the first notice; count four provider-confirmed delivered notices at least seven days apart.
       - Recheck balance, references, active work, paid periods and complete usage before atomically removing only the necessary warned subset.
@@ -324,15 +325,25 @@ implementation_phases:
   - id: P-9
     name: Team storage ownership and settlement completion
     task: TASK-9893
-    dependency: P-8 personal settlement invariants and an explicit Team payer decision before rating or charging.
+    dependency: P-8 personal settlement invariants and the Team decisions recorded in Q-6 and Q-7 on 2026-10-06.
+    contract: feature.billing@7
+    policy_approval: The user confirmed each Team has its own free allowance and accepted owner/admin notices with safe warned-data expiry. Existing approval authorizes implementation; the Specification records those decisions.
     changes:
       - Preserve measured complete owner/admin Team quotes, bounded Team cold exports and personal-scope exclusion already published in 8d50ac6.
-      - After the payer decision, implement owner-scoped Team invoices and authoritative credit settlement with distinct personal and Team accounting; never infer permission from imported credit or membership rows.
-      - Resolve warning recipients and Team-specific unpaid expiry before enabling Team dunning or deletion; personal expiry continues to protect Team data.
+      - Give every Team a separate 1 GiB allowance and charge its existing Team wallet 3 credits per started excess GiB each Sunday at 03:00 UTC; keep personal and Team invoices distinct.
+      - Reuse the authoritative numeric Team wallet and compare-and-set version with an atomic SYSTEM credit/usage ledger event. The optional client-encrypted balance snapshot is advisory and cannot overwrite a concurrent debit; do not introduce a Team-content-key migration.
+      - Never infer financial authority from imported credit, owner or membership records; preserve legacy upload payer attribution and avoid duplicate logical-object or replica charges.
+      - Notify the current Team owner and admins. Count a warning round only after every required recipient has provider-confirmed delivery; require four rounds at least seven days apart and an expiry deadline no earlier than 28 days after the first and seven days after the fourth.
+      - Freeze complete affected Team units before warning. Select the oldest safe warned units only far enough to restore the separate allowance; protect active work, sole recovery copies, references outside selected units and later-paid data. If no safe sufficient subset exists, remove and waive nothing.
+      - Recheck Team wallet, current membership, recipient history, complete usage and references immediately before removal. Waive only the warned episode after verified logical removal restores the allowance; keep later debt and paid periods. Personal expiry continues to protect Team data.
+      - Expose matching owner/admin quote, wallet version, notice and affected-unit pagination in REST, web settings, CLI and SDKs, and publish conditional Team terms/privacy disclosures.
+      - Preserve self-host archival without official-cloud finance flags. Official-cloud new Team archive copies and pruning require Team billing readiness; existing verified cold reads and recovery stay available.
       - Preserve encryption, current membership and role checks, unique logical-object metering, reference protection and idempotent invoice/credit transitions.
     exit_evidence:
       - Focused role, complete-meter, forged-import, scope and export checks already passed in the combined backend release.
-      - Required settlement verification will use isolated PostgreSQL/S3 with tiny ciphertext and simulated declared sizes, zero real inference or delivered test email.
+      - Required settlement verification uses isolated PostgreSQL/S3 with tiny ciphertext and simulated declared sizes, zero real inference or delivered test email. Verify separate allowances, atomic debit/retry/CAS, complete recipient rounds, unpaid/paid/waiver transitions, safe enough-unit selection, ownership and reference fences.
+      - Verify the changed Team settings and CLI/SDK surfaces through focused existing isolated suites; use required settings contract and component preview checks.
+      - Publish the scoped additive schema/index migration before enabling Team writers and confirm ready indexes and coherent dev service flags.
       - Team charging and expiry remain off until the accepted policy and its exact-source tests pass.
 
 required_implementation_checks:
@@ -416,16 +427,21 @@ open_questions:
 
   - id: Q-6
     topic: Team storage payer
-    status: pending
+    status: answered
     asked_at: "2026-10-05"
+    answered_at: "2026-10-06"
+    user_confirmation: "Regarding team: yes every team has their own separate free 1gb allowance."
+    decision: Each Team has its own 1 GiB allowance and uses the recommended separate Team wallet with the existing weekly rate.
     question: Should weekly Team storage charges use a separate Team credit wallet or the owner's personal balance?
     recommendation: A separate Team wallet with its own 1 GiB free allowance and the existing 3 credits per started excess GiB per week, keeping Team costs and unpaid invoices distinct.
-    activation: No rated Team quote, settlement or expiry until the user answers and the corresponding policy is implemented and verified.
+    activation: Team policy is approved; settlement and expiry remain off until the corresponding implementation and focused exact-source verification pass.
   - id: Q-7
     topic: Team unpaid-storage notices and expiry
-    status: pending
+    status: answered
+    answered_at: "2026-10-06"
+    user_confirmation: "Notify owner/admins; expire enough safe warned data (Recommended)"
     question: Who receives Team warnings and may specifically warned Team units expire after four delivered weekly warnings?
-    unresolved_details: Resolve after the payer choice; personal expiry continues to protect Team data and no Team deletion policy is inferred from the personal policy.
+    decision: Notify the owner and admins; after four complete delivered weekly rounds, expire only enough specifically warned safe Team units to restore its own allowance, with the same timing and protections as personal storage. Hold when delivery, membership, payment, usage or safe selection is unresolved. Personal expiry continues to protect Team data.
   - id: Q-8
     topic: Optional inactive current-head byte refinement
     status: pending

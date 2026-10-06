@@ -249,7 +249,7 @@ export function parseQuoteRows(rows, expectedOwners, { legacyOnly = false } = {}
       .reduce((sum, [, bytes]) => safeBytes(sum + bytes), 0);
     result.push({
       owner_kind: row.owner_kind, owner_id: row.owner_id,
-      policy_version: row.owner_kind === 'team' ? 'unrated-team-usage-v1'
+      policy_version: row.owner_kind === 'team' ? 'team-storage-1gb-3credits-week-v1'
         : legacyOnly ? LEGACY_POLICY_VERSION : POLICY_VERSION,
       source_version: legacyOnly ? LEGACY_SOURCE_VERSION : SOURCE_VERSION,
       complete: true, measurement_at: measurementAt, categories, legacy_upload_bytes: legacyUploadBytes,

@@ -407,6 +407,9 @@ class EmailTemplateService:
                 elif template == "storage-billing-failed-4":
                     subject_key = "email.storage_billing_notice_4.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "team-storage-billing-failed":
+                    subject_key = "email.team_storage_billing_notice.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "storage-files-deleted":
                     subject_key = "email.storage_files_deleted.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
@@ -474,6 +477,7 @@ class EmailTemplateService:
                 'account-deletion-warning-correction',
                 'storage-billing-failed-1', 'storage-billing-failed-2',
                 'storage-billing-failed-3', 'storage-billing-failed-4',
+                'team-storage-billing-failed',
                 'storage-files-deleted',
                 'openrouter_model_watch', 'free-testing-budget-exhausted',
                 'billing-processing-error', 'health-status-alert',

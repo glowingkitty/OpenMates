@@ -18,6 +18,7 @@ import {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
   encryptBytesWithAesGcm,
+  splitApiKeyCredential,
 } from "../src/crypto.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
@@ -37,39 +38,74 @@ async function withServer(
   expectedAuthorization = "Bearer x",
 ): Promise<void> {
   const seen: SeenRequest[] = [];
+  let handlerError: unknown = null;
   const server = createServer((request: IncomingMessage, response: ServerResponse) => {
     let raw = "";
     request.setEncoding("utf8");
     request.on("data", (chunk) => { raw += chunk; });
     request.on("end", () => {
-      const body = raw ? JSON.parse(raw) : undefined;
-      seen.push({ method: request.method, url: request.url, body });
-      assert.equal(request.headers.authorization, expectedAuthorization);
-      assert.equal(request.headers["x-openmates-sdk"], "npm");
-      const result = handler(request, body);
-      if (isRawResponse(result)) {
-        response.writeHead(200, {
-          "content-type": result.contentType,
-          ...(result.filename ? { "content-disposition": `attachment; filename="${result.filename}"` } : {}),
-        });
-        response.end(Buffer.from(result.body));
-        return;
+      try {
+        const body = raw ? JSON.parse(raw) : undefined;
+        seen.push({ method: request.method, url: request.url, body });
+        assert.equal(request.headers.authorization, expectedAuthorization);
+        assert.equal(request.headers["x-openmates-sdk"], "npm");
+        const result = handler(request, body);
+        if (isRawResponse(result)) {
+          response.writeHead(200, {
+            "content-type": result.contentType,
+            ...(result.filename ? { "content-disposition": `attachment; filename="${result.filename}"` } : {}),
+          });
+          response.end(Buffer.from(result.body));
+          return;
+        }
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify(result));
+      } catch (error) {
+        handlerError ??= error;
+        response.writeHead(500, { "content-type": "application/json" });
+        response.end(JSON.stringify({ error: "Test server assertion failed" }));
       }
-      response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify(result));
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   assert.ok(address && typeof address === "object");
+  let runFailed = false;
+  let runError: unknown;
   try {
     await run(`http://127.0.0.1:${address.port}`, seen);
+  } catch (error) {
+    runFailed = true;
+    runError = error;
   } finally {
+    server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
+  if (handlerError) throw handlerError;
+  if (runFailed) throw runError;
 }
 
 describe("OpenMates SDK Teams", () => {
+  // contract-test: direct surface=sdks.npm assertions=billing.storage.weekly-quote,billing.storage.team-warning-expiry
+  it("reads a team storage quote and paginated notice without a mutation", async () => {
+    const cursor = "a".repeat(64);
+    await withServer(
+      (request) => {
+        if (request.url === "/v1/teams/team-1/storage") return { storage: { total_bytes: 0, weekly_cost_credits: 0, billing_status: "disabled_pending_validation" } };
+        if (request.url === `/v1/teams/team-1/storage/notice?limit=25&after_unit_id=${cursor}`) return { episode_id: "episode-1", units: [], has_more: false };
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMates({ apiKey: "x", apiUrl });
+        assert.equal((await client.teams.storage("team-1")).weekly_cost_credits, 0);
+        assert.equal((await client.teams.storageNotice("team-1", { limit: 25, afterUnitId: cursor })).episode_id, "episode-1");
+        assert.deepEqual(seen.map(({ method, url }) => [method, url]), [
+          ["GET", "/v1/teams/team-1/storage"],
+          ["GET", `/v1/teams/team-1/storage/notice?limit=25&after_unit_id=${cursor}`],
+        ]);
+      },
+    );
+  });
   // contract-test: direct surface=sdks.npm assertions=teams.workspace.surface-parity
   it("maps Teams V1 methods to the shared REST contract", async () => {
     await withServer(
@@ -213,7 +249,7 @@ describe("OpenMates SDK Teams", () => {
           ["GET", "/v1/teams/team-1/profile-image"],
         ]);
       },
-      `Bearer ${material.apiKey}`,
+      `Bearer ${splitApiKeyCredential(material.apiKey).bearer}`,
     );
   });
 
@@ -259,7 +295,7 @@ describe("OpenMates SDK Teams", () => {
         assert.equal(await decryptWithAesGcmCombined(String(encryptedMessage.encrypted_sender_name), chatKey), "Alice");
         assert.deepEqual((payload.inference_request as Record<string, unknown>).messages, []);
       },
-      `Bearer ${material.apiKey}`,
+      `Bearer ${splitApiKeyCredential(material.apiKey).bearer}`,
     );
   });
 

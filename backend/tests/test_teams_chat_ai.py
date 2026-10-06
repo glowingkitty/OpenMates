@@ -5,36 +5,9 @@ while @openmates messages can trigger AI and carry team billing context through
 the shared AI request schemas.
 """
 
-import sys
-import types
 import base64
 from pathlib import Path
 
-
-if "celery" not in sys.modules:
-    celery_module = types.ModuleType("celery")
-    exceptions_module = types.ModuleType("celery.exceptions")
-    states_module = types.ModuleType("celery.states")
-    signals_module = types.ModuleType("celery.signals")
-    schedules_module = types.ModuleType("celery.schedules")
-
-    class FakeCelery:
-        pass
-
-    def fake_crontab(*_args, **_kwargs):
-        return None
-
-    celery_module.Celery = FakeCelery
-    celery_module.signals = signals_module
-    exceptions_module.Ignore = Exception
-    exceptions_module.SoftTimeLimitExceeded = TimeoutError
-    states_module.REVOKED = "REVOKED"
-    schedules_module.crontab = fake_crontab
-    sys.modules["celery"] = celery_module
-    sys.modules["celery.exceptions"] = exceptions_module
-    sys.modules["celery.states"] = states_module
-    sys.modules["celery.signals"] = signals_module
-    sys.modules["celery.schedules"] = schedules_module
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest as AppAskSkillRequest
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as CoreAskSkillRequest

@@ -8,6 +8,7 @@ const USER = '22222222-2222-4222-8222-222222222222';
 const OWNER = createHash('sha256').update(USER).digest('hex');
 const START = 1791082800;
 const WEEK = 604800;
+const TEAM = 'b'.repeat(64);
 
 function db(seed = {}) {
   const rows = structuredClone({ storage_billing_owner_state: [{
@@ -106,6 +107,94 @@ const freeze = (database, measured = 1_073_741_825) => executeOperation(
     source_version: 'logical-s3-v1', category_bytes: { uploads: measured },
   }), new Date(START * 1000),
 );
+
+const teamRequest = (extra = {}) => ({ protocol_version: 1, hashed_team_id: TEAM, ...extra });
+const teamDb = (balance = 0) => db({
+  teams: [{ id: '33333333-3333-4333-8333-333333333333', hashed_team_id: TEAM, status: 'active' }],
+  team_credit_accounts: [{ id: '44444444-4444-4444-8444-444444444444', hashed_team_id: TEAM,
+    balance_credits: balance, version: 1, encrypted_balance: 'opaque-client-snapshot' }],
+  team_credit_events: [], team_usage_events: [],
+});
+const freezeTeam = (database, periodStart = START) => executeOperation(database,
+  'freeze_team_storage_period', teamRequest({
+    period_start_at: periodStart, measured_bytes: 1_073_741_825, credits_due: 3,
+    charge_id: `team-storage:${TEAM}:${periodStart}`, free_bytes: 1_073_741_824,
+    credits_per_gib: 3, policy_version: 'team-storage-1gb-3credits-week-v1',
+    source_version: 'logical-s3-v1', category_bytes: { chat_pages: 1_073_741_825 },
+  }), new Date(periodStart * 1000));
+
+// contract-test: supporting surface=rest_api assertions=billing.storage.team-warning-expiry
+test('unresolved Team notice contact has a durable retryable hold status', async () => {
+  const database = teamDb();
+  const episode = '55555555-5555-4555-8555-555555555555';
+  database.rows.team_storage_billing_owner_state = [{ id: TEAM, owner_kind: 'team',
+    hashed_team_id: TEAM, episode_id: episode, warning_count: 0,
+    warning_manual_review_at: null, warning_manual_review_reason: null }];
+  const set = (reason) => executeOperation(database, 'set_team_storage_notice_hold',
+    teamRequest({ episode_id: episode, reason }), new Date(START * 1000));
+  assert.equal((await set('recipient_contact_unavailable')).held, true);
+  assert.equal(database.rows.team_storage_billing_owner_state[0].warning_manual_review_reason,
+    'recipient_contact_unavailable');
+  assert.equal(database.rows.team_storage_billing_owner_state[0].warning_manual_review_at, null);
+  assert.equal((await set(null)).held, false);
+  assert.equal(database.rows.team_storage_billing_owner_state[0].warning_manual_review_reason, null);
+});
+
+// contract-test: supporting surface=rest_api assertions=billing.storage.team-policy-gate,billing.storage.exact-settlement
+test('Team Sunday invoice debits only the Team wallet once with SYSTEM attribution', async () => {
+  const database = teamDb(6);
+  const { period } = await freezeTeam(database);
+  const retry = await freezeTeam(database);
+  assert.equal(retry.idempotent, true);
+  assert.equal(database.rows.team_storage_billing_periods.length, 1);
+  const charge = () => executeOperation(database, 'commit_team_storage_charge', teamRequest({
+    period_id: period.id, expected_version: 1, occurred_at: START,
+  }), new Date(START * 1000));
+  const paid = await charge();
+  assert.equal(paid.state, 'paid');
+  assert.equal(paid.charged_credits, 3);
+  assert.equal(database.rows.team_credit_accounts[0].balance_credits, 3);
+  assert.equal(database.rows.team_credit_accounts[0].version, 2);
+  assert.equal(database.rows.team_credit_accounts[0].encrypted_balance, 'opaque-client-snapshot');
+  assert.equal(database.rows.team_credit_events[0].event_id, period.charge_id);
+  assert.equal(database.rows.team_credit_events[0].event_type, 'deduction');
+  assert.equal(database.rows.team_credit_events[0].amount, -3);
+  assert.equal(database.rows.team_credit_events[0].actor_user_hash,
+    createHash('sha256').update('system:team-storage').digest('hex'));
+  assert.equal(database.rows.team_usage_events[0].workspace_type, 'team_storage');
+  const duplicate = await charge();
+  assert.equal(duplicate.idempotent, true);
+  assert.equal(database.rows.team_credit_events.length, 1);
+  assert.equal(database.rows.team_credit_accounts[0].balance_credits, 3);
+  assert.equal(database.rows.storage_billing_periods, undefined);
+});
+
+// contract-test: supporting surface=rest_api assertions=billing.storage.team-policy-gate,billing.storage.exact-settlement
+test('Team storage debit holds on insufficient, negative, and stale version; top-up retry pays once', async () => {
+  const database = teamDb(0);
+  const { period } = await freezeTeam(database);
+  const charge = (version) => executeOperation(database, 'commit_team_storage_charge', teamRequest({
+    period_id: period.id, expected_version: version, occurred_at: START,
+  }), new Date(START * 1000));
+  await assert.rejects(charge(1), { code: 'insufficient_team_credits' });
+  assert.equal(database.rows.team_credit_accounts[0].balance_credits, 0);
+  assert.equal(database.rows.team_storage_billing_periods[0].state, 'unpaid');
+  database.rows.team_credit_accounts[0].balance_credits = -1;
+  await assert.rejects(charge(1), { code: 'insufficient_team_credits' });
+  database.rows.team_credit_accounts[0].balance_credits = 5;
+  database.rows.team_credit_accounts[0].version = 2;
+  await assert.rejects(charge(1), { code: 'stale_team_credit_balance' });
+  assert.equal(database.rows.team_credit_events.length, 0);
+  await charge(2);
+  assert.equal(database.rows.team_credit_accounts[0].balance_credits, 2);
+  assert.equal(database.rows.team_credit_accounts[0].version, 3);
+  assert.equal(database.rows.team_credit_events.length, 1);
+  await assert.rejects(executeOperation(database, 'commit_team_charge', {
+    protocol_version: 1, event_id: period.charge_id, hashed_team_id: TEAM,
+    actor_user_hash: OWNER, credits: 3, expected_version: 3,
+    encrypted_balance: 'opaque', workspace_type: 'chat', occurred_at: START,
+  }), { code: 'reserved_team_storage_charge' });
+});
 
 // contract-test: supporting surface=rest_api assertions=billing.storage.weekly-quote,billing.storage.exact-settlement
 test('weekly snapshot is immutable and a changed retry reuses the original charge', async () => {

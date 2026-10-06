@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.billing@6
+specification: feature.billing@7
 
 anonymous_free_use:
   - id: web-and-cli-share-the-same-allowance
@@ -199,14 +199,13 @@ storage_usage:
 
 storage_weekly:
   - id: free-tier-and-started-gib-rounding
-    given: One personal account uses 1 GiB, another 1.1 GiB, and another 2.5 GiB of measured billable storage.
-    when: They view settings and the weekly period is billed.
-    then: The quotes and charges are respectively 0, 3, and 6 credits under the same policy.
+    given: A personal account and each of two separate Teams have eligible storage measured independently at 1 GiB, 1.1 GiB or 2.5 GiB.
+    when: Their weekly storage quotes are viewed and settled.
+    then: Each subject independently receives its own 1 GiB free allowance and a quote of 0, 3 or 6 credits; Team charges use only that Team wallet.
   - id: later-retry-preserves-first-period-measurement
-    given: Sunday storage is measured at 2.5 GiB and its 6-credit charge is temporarily pending; the customer subsequently deletes some files.
-    when: That same weekly period is retried on Monday.
-    then: Its original measurement and 6-credit charge identity remain unchanged; the next period reflects the new usage.
-
+    given: A personal or Team weekly invoice is frozen on Sunday at 2.5 GiB and 6 credits, and the payer deletes some files while settlement is pending.
+    when: That same invoice is retried on Monday.
+    then: Its original measurement and stable 6-credit charge remain unchanged; the next period reflects the new usage.
 storage_settlement:
   - id: concurrent-complete-debit-and-pending-retry
     given: Two jobs attempt the same frozen 6-credit weekly storage charge and one returns a scheduled retry before confirmation.
@@ -238,15 +237,14 @@ storage_disclosures:
     then: It removes the unsupported backup promise and explains authorized references and verified regional deletion without promising instant physical purge.
 
 storage_team:
-  - id: team-policy-awaits-explicit-payer-decision
-    given: A new encrypted version belongs to a Team whose storage payer and allowance have not been approved.
-    when: Usage is measured and weekly billing runs.
-    then: Its usage is reported separately and neither a Team nor a member is charged or warned for that new storage.
+  - id: team-wallet-and-independent-allowance
+    given: Team A stores 2.5 GiB, Team B stores 1 GiB, and a member also has personal storage.
+    when: Complete weekly quotes are settled through the trusted system invoice path.
+    then: Team A pays 6 credits from its own wallet and Team B pays zero; neither Team consumes the member's personal allowance or credits, and an insufficient Team balance leaves its invoice unpaid without becoming negative.
   - id: existing-upload-payer-does-not-silently-migrate
     given: A Team member previously uploaded a file billed under their personal account.
-    when: Additional archive metering is introduced.
-    then: That upload retains its existing payer during the initial migration rather than silently moving to another wallet.
-
+    when: Additional Team archive metering is introduced.
+    then: That upload retains its existing payer during the initial migration and is never billed to both the personal account and the Team.
 storage_cutover:
   - id: already-charged-upload-is-not-charged-again
     given: The old weekly job charged an uploaded file on Sunday, and the new storage billing job is installed on Monday.
@@ -276,3 +274,23 @@ storage_expiry_closure:
     given: Removal is interrupted, final usage cannot be measured, or no eligible unit was removed.
     when: The expiry job retries.
     then: It resumes the same immutable operation and leaves debt unchanged until verified removal and the allowance check complete.
+
+team_wallet:
+  - id: system-debit-uses-current-team-ledger
+    given: A Team wallet has an authoritative balance of 20 credits at version 4 and an older optional client-encrypted balance snapshot.
+    when: A trusted weekly storage transaction commits its immutable 3-credit invoice.
+    then: The Team wallet becomes 17 credits at version 5 with one credit and usage event; the old encrypted snapshot cannot replace that balance, and no member is invented as the actor.
+  - id: stale-client-update-cannot-undo-storage-charge
+    given: A client prepared a wallet update at version 4 while a storage charge committed version 5.
+    when: The stale client update or the same storage charge is retried.
+    then: The stale update conflicts and must refresh, the storage retry returns the prior settlement without another debit, and personal wallet balances remain unchanged.
+
+team_storage_warning:
+  - id: complete-manager-notices-and-safe-subset
+    given: A Team owner and all current admins receive provider-confirmed warnings for the same safe affected units on days 0, 7, 14 and 21, with the notified deadline on day 28.
+    when: The Team is still unpaid on day 28 and final payment, membership, usage and reference checks pass.
+    then: Only enough oldest complete warned Team units expire to reach its 1 GiB allowance; other owners' data and later paid or unnotified periods remain intact, and only the exact warned episode is waived after verified removal.
+  - id: unresolved-manager-or-new-admin-holds-expiry
+    given: An admin's warning delivery is unconfirmed, or a newly appointed admin has not received the required warning history, or a warned unit is still needed by active work or another owner.
+    when: Team expiry is evaluated at the apparent deadline.
+    then: The incomplete notice or reference proof holds expiry; no partial unit is deleted, no personal credit is debited, and no debt is falsely marked paid or waived.

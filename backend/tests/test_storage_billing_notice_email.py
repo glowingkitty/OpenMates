@@ -84,3 +84,26 @@ def test_final_notice_has_complete_safe_fallback_copy_in_every_locale(lang: str)
     assert "https://openmates.org/#settings/account/export" in rendered
     assert "affected chargeable files" in rendered
     assert "{deadline_date}" not in rendered
+
+
+# contract-test: supporting surface=rest_api assertions=billing.storage.team-warning-expiry
+def test_team_notice_names_the_team_allowance_all_recipients_and_frozen_unit() -> None:
+    context = {
+        "team_slug": "ci-team", "warning_stage": 4, "storage_gb": 1.5,
+        "credits_needed": 3, "outstanding_credits": 12,
+        "deadline_date": "2026-11-01", "team_url": "https://openmates.org/#settings/teams",
+        "affected_units": [{"kind": "cold_chat", "resource_id": "ci-chat",
+                            "oldest_date": "2026-09-01", "size_mib": 5.0}],
+        "darkmode": False,
+    }
+    template_dir = Path(__file__).resolve().parents[1] / "core/api/templates/email"
+    source = (template_dir / "team-storage-billing-failed.mjml").read_text()
+    translations = TranslationService().get_translations("en", variables=context)
+    rendered = Template(source).render(**context, t=translations)
+    assert "ci-team" in rendered
+    assert "1 GiB free allowance" in rendered
+    assert "2026-11-01 UTC" in rendered
+    assert "warning 4 of 4" in rendered
+    assert "ci-chat" in rendered
+    assert context["team_url"] in rendered
+    assert sender_profile_for_template("team-storage-billing-failed")[1] == "support@openmates.org"

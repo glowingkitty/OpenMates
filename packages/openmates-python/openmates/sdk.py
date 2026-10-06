@@ -6300,6 +6300,15 @@ class OpenMatesTeams:
         result = self._client._get(f"/v1/teams/{_quote(team_id)}/billing")
         return dict(result.get("billing") or result)
 
+    def storage(self, team_id: str) -> dict[str, Any]:
+        result = self._client._get(f"/v1/teams/{_quote(team_id)}/storage")
+        return dict(result.get("storage") or result)
+
+    def storage_notice(self, team_id: str, *, limit: int = 50, after_unit_id: str | None = None) -> dict[str, Any]:
+        if not 1 <= limit <= 100:
+            raise ValueError("limit must be between 1 and 100")
+        return self._client._get(_with_query(f"/v1/teams/{_quote(team_id)}/storage/notice", limit=limit, after_unit_id=after_unit_id))
+
     def usage(self, team_id: str, *, member_user_id: str | None = None) -> list[dict[str, Any]]:
         result = self._client._get(_with_query(f"/v1/teams/{_quote(team_id)}/billing/usage", member_user_id=member_user_id))
         return list(result.get("usage") or [])

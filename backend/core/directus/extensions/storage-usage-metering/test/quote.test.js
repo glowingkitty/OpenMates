@@ -185,7 +185,7 @@ test('settings upload breakdown is a bounded SQL aggregate and fails closed', as
 });
 
 // contract-test: direct surface=rest_api assertions=billing.storage.team-policy-gate
-test('Team usage is attributed separately and has no personal billing policy', async () => {
+test('Team usage is attributed separately with its own weekly billing policy', async () => {
   const teamHash = 'b'.repeat(64);
   const database = {
     async raw(sql, bindings) {
@@ -199,6 +199,6 @@ test('Team usage is attributed separately and has no personal billing policy', a
   };
   const [quote] = await quoteUsage(database, { team_hashes: [teamHash] });
   assert.equal(quote.owner_kind, 'team');
-  assert.equal(quote.policy_version, 'unrated-team-usage-v1');
+  assert.equal(quote.policy_version, 'team-storage-1gb-3credits-week-v1');
   assert.equal(quote.total_bytes, 90);
 });

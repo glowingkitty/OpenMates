@@ -305,10 +305,10 @@ async def send_email_once(
             **({"late_before_send": before_send, "subject_options": send_options} if before_send is not None else {}),
             **({"delivery_idempotency_key": delivery_id} if retry_cache is not None and _provider_enforces_idempotency(email_template_service) else {}),
             **({"accepted_message_id": record_storage_message_id}
-               if email_type == "storage-billing-warning" else {}),
+               if email_type in {"storage-billing-warning", "team-storage-billing-warning"} else {}),
         )
         if sent:
-            if email_type == "storage-billing-warning":
+            if email_type in {"storage-billing-warning", "team-storage-billing-warning"}:
                 receipt_rows = await directus.get_items(
                     COLLECTION,
                     params={"filter": {"id": {"_eq": delivery_id}},

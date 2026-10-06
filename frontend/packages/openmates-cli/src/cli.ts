@@ -37,6 +37,8 @@ import {
   type BankTransferStatus,
   type GiftCardBankTransferStatus,
   type TeamBillingSummary,
+  type TeamStorageSummary,
+  type TeamStorageNotice,
   type TeamRecord,
   type TopicPreferencesPayload,
   type WorkflowCapability,
@@ -4235,6 +4237,25 @@ async function handleTeams(
     return;
   }
 
+  if (subcommand === "storage") {
+    if (rest[0] === "notice") {
+      const teamId = requireTeamId(rest.slice(1), flags);
+      const limit = flags.limit === undefined ? 50 : requiredNumberFlag(flags.limit, "--limit <1..100>");
+      if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("--limit must be an integer from 1 to 100");
+      const afterUnitId = typeof flags["after-unit-id"] === "string" ? flags["after-unit-id"] : undefined;
+      if (afterUnitId && !/^[a-f0-9]{64}$/.test(afterUnitId)) throw new Error("--after-unit-id must be a 64-character storage unit cursor");
+      const notice = await client.getTeamStorageNotice(teamId, { limit, afterUnitId });
+      if (flags.json === true) printJson(notice);
+      else printTeamStorageNotice(notice);
+      return;
+    }
+    const teamId = requireTeamId(rest, flags);
+    const storage = await client.getTeamStorage(teamId);
+    if (flags.json === true) printJson({ storage });
+    else printTeamStorageSummary(storage);
+    return;
+  }
+
   if (subcommand === "add-credits") {
     throw new Error("Direct team credit grants are disabled. Use 'openmates teams billing bank-transfer create <team-id> --credits <amount>'.");
   }
@@ -4348,6 +4369,30 @@ function parseTeamInviteInput(value: string): { inviteId: string; inviteSecret: 
 
 function requireTeamId(rest: string[], flags: Record<string, string | boolean>): string {
   return requiredStringFlag(flags.team ?? flags["team-id"] ?? rest[0], "--team <team-id>");
+}
+
+function printTeamStorageSummary(storage: TeamStorageSummary): void {
+  const measuredAt = new Date(storage.measurement_at * 1000).toISOString();
+  console.log(`Team storage: ${(storage.total_bytes / 1024 ** 3).toFixed(2)} GiB measured ${measuredAt}`);
+  console.log(`Free allowance: ${(storage.free_bytes / 1024 ** 3).toFixed(0)} GiB · ${storage.billable_gib} started excess GiB`);
+  console.log(`Weekly quote: ${storage.weekly_cost_credits} team credits (${storage.credits_per_started_excess_gib_per_week} per started excess GiB; Sundays at 03:00 UTC)`);
+  if (storage.billing_status === "disabled_pending_validation") console.log("Billing is not yet enabled. This is a price preview, not an invoice.");
+  else if (storage.billing_status === "unpaid") console.log("Storage payment is due.");
+  else if (storage.billing_status === "manual_review") console.log("Storage payment needs manual review.");
+  else console.log("No storage payment is currently due.");
+}
+
+function printTeamStorageNotice(notice: TeamStorageNotice): void {
+  if (!notice.episode_id) {
+    console.log("No active team storage payment notice.");
+    return;
+  }
+  console.log(`Delivered warning rounds: ${notice.warning_count} / 4`);
+  if (notice.deadline_at) console.log(`Earliest removal deadline: ${new Date(notice.deadline_at * 1000).toISOString()}`);
+  if (notice.manual_review) console.log("Some storage needs manual review and will not be removed automatically.");
+  console.log("Affected units:");
+  for (const unit of notice.units) console.log(`  ${unit.kind.replaceAll("_", " ")} · ${(unit.bytes / 1024 ** 2).toFixed(1)} MiB · oldest ${new Date(unit.oldest_at * 1000).toISOString()}`);
+  if (notice.has_more) console.log(`More affected units available. Next cursor: ${notice.next_after_unit_id ?? "unavailable"}`);
 }
 
 function requiredTeamRecordId(team: TeamRecord): string {
@@ -14942,6 +14987,8 @@ function printTeamsHelp(): void {
   openmates teams role <team-id> --user <user-id> --role admin|member|viewer [--json]
   openmates teams remove-member <team-id> --user <user-id> [--json]
   openmates teams billing <team-id> [--json]
+  openmates teams storage <team-id> [--json]
+  openmates teams storage notice <team-id> [--limit 1..100] [--after-unit-id <cursor>] [--json]
   openmates teams billing bank-transfer create <team-id> --credits <amount> [--json]
   openmates teams billing bank-transfer status <team-id> <order-id> [--json]
   openmates teams billing bank-transfer list <team-id> [--json]

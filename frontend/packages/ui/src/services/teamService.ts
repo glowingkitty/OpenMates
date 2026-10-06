@@ -51,8 +51,53 @@ export interface TeamViewModel {
 
 export interface TeamBillingSummary {
   balanceCredits: number;
+  version?: number;
   encryptedBalance?: string | null;
   raw: Record<string, unknown>;
+}
+
+export interface TeamStorageUnit {
+  unit_id: string;
+  kind: 'upload' | 'cold_chat' | 'artifact_history';
+  resource_id: string;
+  oldest_at: number;
+  bytes: number;
+  fingerprint: string;
+}
+
+export interface TeamStorageNotice {
+  episode_id: string | null;
+  warning_count: number;
+  deadline_at: number | null;
+  manual_review: boolean;
+  unit_selection_hash: string | null;
+  units: TeamStorageUnit[];
+  has_more: boolean;
+  next_after_unit_id: string | null;
+}
+
+export interface TeamStorageSummary {
+  total_bytes: number;
+  legacy_upload_bytes: number;
+  logical_s3_bytes: number;
+  categories: Record<string, number>;
+  measurement_at: number;
+  metering_source_version: string;
+  metering_policy_version: string;
+  free_bytes: number;
+  credits_per_started_excess_gib_per_week: number;
+  billable_gib: number;
+  weekly_cost_credits: number;
+  billing_status: 'disabled_pending_validation' | 'current' | 'unpaid' | 'manual_review';
+  billing: {
+    status: 'disabled_pending_validation' | 'current' | 'unpaid' | 'manual_review';
+    warning_count: number;
+    deadline_at: number | null;
+    expiry_due: boolean;
+    expiry_enabled: boolean;
+    affected_units: TeamStorageUnit[];
+    has_more_affected_units: boolean;
+  };
 }
 
 export interface TeamInviteResult {
@@ -300,16 +345,41 @@ export async function loadTeamBilling(team: TeamViewModel): Promise<TeamBillingS
   const scope = ensureTeamKeyScope();
   const data = await requestJson<{ billing: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(team.team_id)}/billing`);
   assertTeamKeyScope(scope);
-  const rawBalance = data.billing.balance_credits ?? data.billing.credits ?? data.billing.balance;
+  const version = data.billing.version;
+  const authoritative = typeof version === 'number' && Number.isInteger(version);
+  const rawBalance = authoritative
+    ? data.billing.balance_credits
+    : data.billing.balance_credits ?? data.billing.credits ?? data.billing.balance;
   let balanceCredits = typeof rawBalance === "number" ? rawBalance : Number.parseInt(String(rawBalance ?? ""), 10);
   const encryptedBalance = typeof data.billing.encrypted_balance === "string" ? data.billing.encrypted_balance : null;
-  const teamKey = await teamKeyForRecord(team.encrypted, scope);
-  if ((!Number.isFinite(balanceCredits) || balanceCredits < 0) && encryptedBalance && teamKey) {
-    const decrypted = await decryptWithEmbedKey(encryptedBalance, teamKey);
-    balanceCredits = Number.parseInt(decrypted ?? "0", 10);
+  if (authoritative && (typeof rawBalance !== 'number' || !Number.isInteger(balanceCredits) || balanceCredits < 0)) {
+    throw new Error('Team wallet balance is unavailable');
+  }
+  if ((!Number.isFinite(balanceCredits) || balanceCredits < 0) && encryptedBalance) {
+    const teamKey = await teamKeyForRecord(team.encrypted, scope);
+    if (teamKey) {
+      const decrypted = await decryptWithEmbedKey(encryptedBalance, teamKey);
+      balanceCredits = Number.parseInt(decrypted ?? "0", 10);
+    }
   }
   if (!Number.isFinite(balanceCredits) || balanceCredits < 0) balanceCredits = team.zeroBalance;
-  return { balanceCredits, encryptedBalance, raw: data.billing };
+  return { balanceCredits, version: authoritative ? version : undefined, encryptedBalance, raw: data.billing };
+}
+
+export async function loadTeamStorage(teamId: string): Promise<TeamStorageSummary> {
+  const scope = ensureTeamKeyScope();
+  const data = await requestJson<{ storage: TeamStorageSummary }>(`/v1/teams/${encodeURIComponent(teamId)}/storage`);
+  assertTeamKeyScope(scope);
+  return data.storage;
+}
+
+export async function loadTeamStorageNotice(teamId: string, afterUnitId?: string): Promise<TeamStorageNotice> {
+  const scope = ensureTeamKeyScope();
+  const query = new URLSearchParams({ limit: '50' });
+  if (afterUnitId) query.set('after_unit_id', afterUnitId);
+  const notice = await requestJson<TeamStorageNotice>(`/v1/teams/${encodeURIComponent(teamId)}/storage/notice?${query}`);
+  assertTeamKeyScope(scope);
+  return notice;
 }
 
 export async function loadTeamMemoryCount(teamId: string): Promise<number> {

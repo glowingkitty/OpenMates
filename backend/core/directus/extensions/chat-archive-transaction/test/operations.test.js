@@ -272,6 +272,9 @@ test('claim requires the exact chat checkpoint, canonical summary, and unfenced 
 
 // contract-test: direct surface=rest_api assertions=storage.compression.incremental-archive
 test('Team checkpoint claim and page metadata accept a Team owner without a user owner', async () => {
+  const previous = process.env.TEAM_STORAGE_BILLING_ENABLED;
+  process.env.TEAM_STORAGE_BILLING_ENABLED = '1';
+  try {
   const rows = seed();
   rows.chats[0].hashed_user_id = null;
   rows.chats[0].hashed_team_id = TEAM;
@@ -282,6 +285,8 @@ test('Team checkpoint claim and page metadata accept a Team owner without a user
   await prepare(db, segment);
   assert.equal(db.rows.chat_message_archive_pages[0].hashed_user_id, null);
   assert.equal(db.rows.chat_message_archive_pages[0].hashed_team_id, TEAM);
+  } finally { if (previous === undefined) delete process.env.TEAM_STORAGE_BILLING_ENABLED;
+    else process.env.TEAM_STORAGE_BILLING_ENABLED = previous; }
 });
 
 // contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative
@@ -312,6 +317,9 @@ test('chat hash resolver is bounded and exposes current Team authority without c
 
 // contract-test: direct surface=rest_api assertions=storage.compression.incremental-archive
 test('Team owner takes precedence over a retained creator hash on legacy Team chats', async () => {
+  const previous = process.env.TEAM_STORAGE_BILLING_ENABLED;
+  process.env.TEAM_STORAGE_BILLING_ENABLED = '1';
+  try {
   const rows = seed();
   rows.chats[0].hashed_team_id = TEAM;
   const db = fakeDatabase(rows);
@@ -321,6 +329,39 @@ test('Team owner takes precedence over a retained creator hash on legacy Team ch
   await prepare(db, segment);
   assert.equal(db.rows.chat_message_archive_pages[0].hashed_user_id, null);
   assert.equal(db.rows.chat_message_archive_pages[0].hashed_team_id, TEAM);
+  } finally { if (previous === undefined) delete process.env.TEAM_STORAGE_BILLING_ENABLED;
+    else process.env.TEAM_STORAGE_BILLING_ENABLED = previous; }
+});
+
+// contract-test: supporting surface=rest_api assertions=billing.storage.team-policy-gate
+test('Team archive claim requires the financial readiness switch while personal claim remains available', async () => {
+  const previous = process.env.TEAM_STORAGE_BILLING_ENABLED;
+  const previousMode = process.env.OPENMATES_DEPLOYMENT_MODE;
+  const previousOverlay = process.env.OPENMATES_CLOUD_OVERLAY_ENABLED;
+  const previousPackage = process.env.OPENMATES_CLOUD_OVERLAY_PACKAGE;
+  delete process.env.TEAM_STORAGE_BILLING_ENABLED;
+  try {
+    const teamRows = seed();
+    teamRows.chats[0].hashed_user_id = null;
+    teamRows.chats[0].hashed_team_id = TEAM;
+    process.env.OPENMATES_DEPLOYMENT_MODE = 'official_cloud';
+    await assert.rejects(claim(fakeDatabase(teamRows)), { code: 'team_storage_billing_not_ready' });
+    assert.equal((await claim(fakeDatabase(seed()))).hashed_user_id, OWNER);
+    process.env.OPENMATES_DEPLOYMENT_MODE = 'self_host';
+    process.env.OPENMATES_CLOUD_OVERLAY_ENABLED = 'false';
+    delete process.env.OPENMATES_CLOUD_OVERLAY_PACKAGE;
+    assert.equal((await claim(fakeDatabase(teamRows))).hashed_team_id, TEAM);
+    process.env.OPENMATES_CLOUD_OVERLAY_ENABLED = 'true';
+    await assert.rejects(claim(fakeDatabase(teamRows)), { code: 'team_storage_billing_not_ready' });
+  } finally {
+    if (previous !== undefined) process.env.TEAM_STORAGE_BILLING_ENABLED = previous;
+    if (previousMode === undefined) delete process.env.OPENMATES_DEPLOYMENT_MODE;
+    else process.env.OPENMATES_DEPLOYMENT_MODE = previousMode;
+    if (previousOverlay === undefined) delete process.env.OPENMATES_CLOUD_OVERLAY_ENABLED;
+    else process.env.OPENMATES_CLOUD_OVERLAY_ENABLED = previousOverlay;
+    if (previousPackage === undefined) delete process.env.OPENMATES_CLOUD_OVERLAY_PACKAGE;
+    else process.env.OPENMATES_CLOUD_OVERLAY_PACKAGE = previousPackage;
+  }
 });
 
 // contract-test: direct surface=rest_api assertions=storage.compression.incremental-archive
@@ -343,8 +384,18 @@ test('chat transfer rehomes archived references atomically and keeps Team reads 
   assert.equal(db.rows.chat_message_archive_pages[0].hashed_team_id, TEAM);
   assert.equal(db.rows.chat_message_archive_pages.filter(row => row.hashed_user_id === OWNER).length, 0);
   db.rows.chat_message_archive_pages[0].read_enabled = true;
-  const lookup = await archiveOperation(db, body('lookup_message', { chat_id: CHAT, message_id: 'm1' }));
-  assert.equal(lookup.page.id, 'page-1');
+  const previousMode = process.env.OPENMATES_DEPLOYMENT_MODE;
+  const previousFlag = process.env.TEAM_STORAGE_BILLING_ENABLED;
+  process.env.OPENMATES_DEPLOYMENT_MODE = 'official_cloud';
+  delete process.env.TEAM_STORAGE_BILLING_ENABLED;
+  try {
+    const lookup = await archiveOperation(db, body('lookup_message', { chat_id: CHAT, message_id: 'm1' }));
+    assert.equal(lookup.page.id, 'page-1');
+  } finally {
+    if (previousMode === undefined) delete process.env.OPENMATES_DEPLOYMENT_MODE;
+    else process.env.OPENMATES_DEPLOYMENT_MODE = previousMode;
+    if (previousFlag !== undefined) process.env.TEAM_STORAGE_BILLING_ENABLED = previousFlag;
+  }
   await assert.rejects(move(), { code: 'archive_authority_changed' });
 });
 
