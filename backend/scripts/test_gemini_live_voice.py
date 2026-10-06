@@ -20,7 +20,7 @@ from typing import Any
 
 import aiohttp
 
-from backend.core.api.app.routes.video_call_experiment import GEMINI_MODEL, GEMINI_URL, UsageLedger, _gemini_setup
+from backend.core.api.app.routes.video_call_experiment import GEMINI_MODEL, GEMINI_URL, UsageLedger, _decode_gemini_event, _gemini_setup
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 
@@ -56,7 +56,7 @@ async def _probe(key: str) -> dict[str, Any]:
                 max_msg_size=3 * 1024 * 1024,
             ) as socket:
                 await socket.send_json(setup)
-                reply = await socket.receive_json()
+                reply = _decode_gemini_event(await socket.receive())
                 if not isinstance(reply, dict) or "setupComplete" not in reply:
                     raise RuntimeError("setup was not accepted")
                 await socket.send_json({"clientContent": {
@@ -65,11 +65,7 @@ async def _probe(key: str) -> dict[str, Any]:
                 }})
                 while not turn_complete:
                     message = await socket.receive()
-                    if message.type != aiohttp.WSMsgType.TEXT:
-                        raise RuntimeError("Live connection ended before turn completion")
-                    event = json.loads(message.data)
-                    if not isinstance(event, dict):
-                        raise ValueError("Live event is invalid")
+                    event = _decode_gemini_event(message)
                     if event.get("toolCall"):
                         raise RuntimeError("Unexpected visual tool call")
                     usage = event.get("usageMetadata")

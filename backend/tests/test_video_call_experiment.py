@@ -54,6 +54,7 @@ class _RouteSocket:
 class _RouteProvider:
     def __init__(self):
         self.incoming: asyncio.Queue[dict] = asyncio.Queue()
+        self.incoming.put_nowait({"setupComplete": {}})
         self.sent: list[dict] = []
 
     async def __aenter__(self):
@@ -65,12 +66,9 @@ class _RouteProvider:
     async def send_json(self, event):
         self.sent.append(event)
 
-    async def receive_json(self):
-        return {"setupComplete": {}}
-
     async def receive(self):
         event = await self.incoming.get()
-        return SimpleNamespace(type=call.aiohttp.WSMsgType.TEXT, data=json.dumps(event))
+        return SimpleNamespace(type=call.aiohttp.WSMsgType.BINARY, data=json.dumps(event).encode("utf-8"))
 
     def send(self, event):
         self.incoming.put_nowait(event)
@@ -213,6 +211,24 @@ async def test_route_rejects_concurrent_call_for_same_user_then_releases_lock(ro
     third.send({"type": "hangup"})
     await asyncio.wait_for(third_task, timeout=2)
     assert len(route_harness.providers) == 2
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.live-voice
+@pytest.mark.asyncio
+async def test_binary_gemini_setup_and_speech_reach_the_caller(route_harness) -> None:
+    socket = route_harness.socket()
+    task = asyncio.create_task(call.video_call(socket, auth_data={"user_id": "user-1"}))
+    await socket.expect("ready")
+    audio = base64.b64encode(b"\x00\x01\x00\x02").decode("ascii")
+    route_harness.providers[0].send({"serverContent": {
+        "outputTranscription": {"text": "Hello."},
+        "modelTurn": {"parts": [{"inlineData": {"mimeType": "audio/pcm;rate=24000", "data": audio}}]},
+    }})
+    assert (await socket.expect("transcript"))["text"] == "Hello."
+    assert (await socket.expect("audio_chunk"))["data"] == audio
+    socket.send({"type": "hangup"})
+    await asyncio.wait_for(task, timeout=2)
+    assert not route_harness.redis.values
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals

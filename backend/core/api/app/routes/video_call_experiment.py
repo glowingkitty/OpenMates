@@ -337,6 +337,20 @@ async def _settle_final_usage(websocket: WebSocket, ledger: UsageLedger, *, user
         logger.exception("Video-call final settlement failed")
 
 
+def _decode_gemini_event(message: aiohttp.WSMessage) -> dict[str, Any]:
+    """Google Live sends UTF-8 JSON in binary as well as text frames."""
+    if message.type not in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY):
+        # Frame metadata is safe to log; provider payloads can contain audio,
+        # transcripts or credentials and must never reach these diagnostics.
+        close_code = message.data if message.type == aiohttp.WSMsgType.CLOSE and isinstance(message.data, int) else None
+        logger.warning("Gemini Live ended with frame=%s close_code=%s", message.type.name, close_code)
+        raise RuntimeError("Gemini Live disconnected")
+    event = json.loads(message.data)
+    if not isinstance(event, dict):
+        raise ValueError("Invalid Gemini Live event")
+    return event
+
+
 def _gemini_setup() -> dict[str, Any]:
     return {
         "setup": {
@@ -458,7 +472,7 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     max_msg_size=3 * 1024 * 1024,
                 ) as gemini:
                     await send_provider(gemini, _gemini_setup())
-                    setup_reply = await asyncio.wait_for(gemini.receive_json(), timeout=10)
+                    setup_reply = _decode_gemini_event(await asyncio.wait_for(gemini.receive(), timeout=10))
                     if "setupComplete" not in setup_reply:
                         raise RuntimeError("Gemini Live setup failed")
                     started = time.monotonic()
@@ -660,11 +674,7 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 client_receive = asyncio.create_task(websocket.receive_text())
                             if provider_receive in done:
                                 msg = provider_receive.result()
-                                if msg.type != aiohttp.WSMsgType.TEXT:
-                                    raise RuntimeError("Gemini Live disconnected")
-                                event = json.loads(msg.data)
-                                if not isinstance(event, dict):
-                                    raise RuntimeError("Invalid Gemini Live event")
+                                event = _decode_gemini_event(msg)
                                 usage = event.get("usageMetadata")
                                 if isinstance(usage, dict):
                                     ledger.stage_gemini(usage)
