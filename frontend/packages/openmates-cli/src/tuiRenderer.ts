@@ -53,6 +53,8 @@ export type TuiState = {
   inspirations: DailyInspiration[];
   inspirationIndices: Partial<Record<TuiWorkspace,number>>;
   homeLoading: boolean;
+  homeChatsLoading: boolean;
+  homeAbortController: AbortController | null;
   homeError: string | null;
   homeLoadVersion: number;
   homeShowAll: boolean;
@@ -160,7 +162,7 @@ export const TUI_INTERESTS = [
 
 export function createInitialTuiState(): TuiState {
   return {
-    username:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeError:null,homeLoadVersion:0,homeShowAll:false,
+    username:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeChatsLoading:false,homeAbortController:null,homeError:null,homeLoadVersion:0,homeShowAll:false,
     apps:[],activeApp:null,activeAppSkill:null,appTab:"skills",appSkillTab:"overview",appResults:{items:[],hasMore:false,offset:0},
     appWorkflows:{items:[],hasMore:false,offset:0},activeAppResult:null,appPreparedRun:null,
     workspace: "chats", sidebarOpen: false, sidebarIndex: 0, navigationIndex: 0,

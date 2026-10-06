@@ -6,6 +6,7 @@ import { loadHomeData, workspaceInspirations } from "../src/tuiHome.js";
 import { handleWorkspaceCommand, handleWorkspaceKey, type WorkspaceContext } from "../src/tuiWorkspaceController.js";
 import { cells, lineText, sliceCells, stripAnsi } from "../src/tuiText.js";
 import { renderCardCarousel } from "../src/tuiCarousel.js";
+import { tuiChatSidebarRows } from "../src/tuiChatSidebar.js";
 import type { TuiApp } from "../src/tuiAppsWorkspace.js";
 
 function context(state=createInitialTuiState(),client:Record<string,unknown>={}) {
@@ -16,6 +17,96 @@ function context(state=createInitialTuiState(),client:Record<string,unknown>={})
 const inspiration={id:"daily",phrase:"Make room for the next idea",title:"A daily planning tip",category:"productivity",content_type:"feature",video:null,generated_at:1,assistant_response:"Plan one small action.",follow_up_suggestions:[]};
 const chat=(i:number)=>({id:`chat-${i}`,shortId:`C${i}`,title:`Conversation ${i}`,summary:`Summary ${i}`,category:"technology",mateName:null,updatedAt:null});
 const app=(id:string,name:string):TuiApp=>({id,name,description:`${name} description`,category:"general_knowledge",skills:[],focusModes:[],settingsMemories:[]});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+test("startup renders cached chats before background sync and preserves the selected chat when sync finishes", async () => {
+  const state=createInitialTuiState();state.signedIn=true;
+  let sync!:(page:unknown)=>void, inspiration!:(list:unknown[])=>void;
+  const frames:string[]=[],events:string[]=[];
+  const client={
+    listCachedChats:async()=>{events.push('cache');return {chats:[chat(1),chat(2)]};},
+    listChats:(_limit:number,_page:number,options:{forceRefresh:boolean})=>{
+      events.push('sync');assert.equal(options.forceRefresh,true);return new Promise(done=>{sync=done;});
+    },
+    getDailyInspirations:()=>new Promise(done=>{inspiration=done;})
+  };
+  const loading=loadHomeData(state,client as never,()=>frames.push(stripAnsi(renderTuiFrame(state,120,40))));
+  await new Promise<void>(done=>setImmediate(done));
+  assert.deepEqual(events,['cache','sync']);
+  assert.equal(state.homeLoading,true);assert.equal(state.homeChatsLoading,false);
+  assert.match(frames[0],/Continue where you left off/);assert.match(frames[0],/Conversation 1/);
+  assert.doesNotMatch(frames[0],/Loading your recent chats/);
+  const {ctx}=context(state,client);
+  await handleWorkspaceKey(ctx,"",{ctrl:true,name:"b"});
+  assert.equal(state.sidebarOpen,true);assert.equal(state.focus,'sidebar');
+  await handleWorkspaceKey(ctx,"",{name:"down"});
+  assert.equal(tuiChatSidebarRows(state)[state.sidebarIndex].chatId,'chat-1');
+  await handleWorkspaceKey(ctx,"",{ctrl:true,name:"b"});
+  await handleWorkspaceCommand(ctx,'/chats');
+  assert.deepEqual(events,['cache','sync'],'Cached navigation must reuse the startup sync');
+  state.selectedIndex=1;
+  sync({chats:[chat(0),chat(1),chat(2)]});
+  await new Promise<void>(done=>setImmediate(done));
+  assert.equal(state.recentChats.length,3);assert.equal(state.selectedIndex,2);
+  assert.equal(state.homeChatsLoading,false);
+  inspiration([]);await loading;
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+test("cold startup shows verified synced previews while saved output recovery is still pending", async () => {
+  const state=createInitialTuiState();state.signedIn=true;
+  let finish!:(page:unknown)=>void;
+  let publish!:(page:{chats:ReturnType<typeof chat>[]})=>void;
+  const loading=loadHomeData(state,{
+    listCachedChats:async()=>null,
+    listChats:(_limit:number,_page:number,options:{onSyncedChats:typeof publish})=>{
+      publish=options.onSyncedChats;return new Promise(done=>{finish=done;});
+    }
+  } as never,()=>{});
+  await new Promise<void>(done=>setImmediate(done));
+  assert.equal(state.homeChatsLoading,true);
+  publish({chats:[chat(1)]});
+  assert.equal(state.homeLoading,true);assert.equal(state.homeChatsLoading,false);
+  const frame=stripAnsi(renderTuiFrame(state,120,40));
+  assert.match(frame,/Conversation 1/);assert.doesNotMatch(frame,/Loading your recent chats/);
+  const version=state.homeLoadVersion;
+  Object.assign(state,createInitialTuiState(),{homeLoadVersion:version+1});
+  publish({chats:[chat(2)]});assert.deepEqual(state.recentChats,[]);
+  finish({chats:[chat(3)]});await loading;assert.deepEqual(state.recentChats,[]);
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+test("failed sync keeps cached chats usable and a cold failure stops loading without waiting for inspiration", async () => {
+  for(const cached of [[],[chat(1)]]) {
+    const state=createInitialTuiState();state.signedIn=true;
+    let inspiration!:(list:unknown[])=>void;
+    const loading=loadHomeData(state,{
+      listCachedChats:async()=>({chats:cached}),
+      listChats:async()=>{throw new Error('offline');},
+      getDailyInspirations:()=>new Promise(done=>{inspiration=done;})
+    } as never,()=>{});
+    await new Promise<void>(done=>setImmediate(done));
+    assert.equal(state.homeLoading,true);assert.equal(state.homeChatsLoading,false);
+    assert.deepEqual(state.recentChats,cached);
+    const frame=stripAnsi(renderTuiFrame(state,120,40));
+    assert.doesNotMatch(frame,/Loading your recent chats/);
+    assert.match(frame,cached.length?/Conversation 1/:/Saved chats could not be synced/);
+    inspiration([]);await loading;
+  }
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+test("late cached home data cannot restore private chats after account reset", async () => {
+  let cached!:(page:unknown)=>void,syncs=0;
+  const state=createInitialTuiState();state.signedIn=true;
+  const loading=loadHomeData(state,{
+    listCachedChats:()=>new Promise(done=>{cached=done;}),
+    listChats:async()=>{syncs++;return {chats:[]};}
+  } as never,()=>{});
+  Object.assign(state,createInitialTuiState(),{homeLoadVersion:state.homeLoadVersion+1});
+  cached({chats:[chat(1)]});await loading;
+  assert.deepEqual(state.recentChats,[]);assert.equal(syncs,0);
+});
 
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
 test("authenticated default home loads inspiration username and horizontal keyboard-selected chats",async()=>{

@@ -78,6 +78,7 @@ export async function runTui(
     if (closed) return;
     if (state.screen !== "chat") client.clearInteractiveChatViewer();
     if (state.signedIn && typeof client.hasSession === "function" && !client.hasSession()) {
+      state.homeAbortController?.abort();
       Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
       Object.assign(state, createInitialTuiState(), {routeVersion: state.routeVersion + 1, homeLoadVersion:state.homeLoadVersion+1,status: "Session ended. Sign in to reopen your work."});
       hydrateExamples(state);
@@ -91,6 +92,7 @@ export async function runTui(
 
   const finish = (result: TuiResult) => {
     closed = true;
+    state.homeAbortController?.abort();
     Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
     stopActivity?.(); clearTimeout(activityTimer); clearInterval(activityPoll); clearInterval(activityAnimation);
     client.endInteractiveViewerSession();

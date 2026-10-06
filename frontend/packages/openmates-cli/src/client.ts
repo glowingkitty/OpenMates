@@ -5297,11 +5297,35 @@ export class OpenMatesClient {
     return () => { cleanup.forEach(remove => remove()); ws.close(); };
   }
 
-  async listChats(limit = 10, page = 1, options: TeamContextOptions = {}): Promise<ChatListPage> {
+  /** Read encrypted local history without refreshing or opening a connection. */
+  async listCachedChats(limit = 10, page = 1, options: TeamContextOptions = {}): Promise<ChatListPage | null> {
     const teamId = this.resolveTeamContext(options);
     const masterKey = Buffer.from(this.getMasterKeyBytes());
-    const cache = await this.ensureSynced(false, [], options);
-    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+    const cache = loadSyncCache(teamId);
+    if (!cache) return null;
+    const localTeamKey = teamId ? loadLocalTeamKey(this.requireSession().hashedEmail, teamId) : null;
+    if (teamId && !localTeamKey) return null;
+    const wrappingKey = localTeamKey ? base64ToBytes(localTeamKey) : masterKey;
+    return this.decryptChatListPage(cache, limit, page, options, teamId, masterKey, wrappingKey);
+  }
+
+  async listChats(limit = 10, page = 1, options: TeamContextOptions & { forceRefresh?: boolean; signal?: AbortSignal; onSyncedChats?: (page: ChatListPage) => void } = {}): Promise<ChatListPage> {
+    const teamId = this.resolveTeamContext(options);
+    const masterKey = Buffer.from(this.getMasterKeyBytes());
+    const cache = await this.ensureSynced(options.forceRefresh === true, [], options, false, options.onSyncedChats ? async (synced) => {
+      const syncedPage = await this.decryptChatListPage(synced, limit, page, options, teamId, masterKey);
+      options.signal?.throwIfAborted();
+      // Verified history remains readable if recovery is slow or the terminal closes.
+      // Decryption above fences the account and Team before this synchronous write.
+      saveSyncCache({ ...synced, syncedAt: 0 }, teamId);
+      options.onSyncedChats?.(syncedPage);
+    } : undefined, options.signal);
+    return this.decryptChatListPage(cache, limit, page, options, teamId, masterKey);
+  }
+
+  private async decryptChatListPage(cache: SyncCache, limit: number, page: number, options: TeamContextOptions,
+    teamId: string | null, masterKey: Buffer, cachedWrappingKey?: Uint8Array): Promise<ChatListPage> {
+    const wrappingKey = cachedWrappingKey ?? await this.getChatWrappingKey(teamId, masterKey);
     const total = cache.chats.length;
     const offset = (page - 1) * limit;
     const slice = cache.chats.slice(offset, offset + limit);
@@ -7461,10 +7485,16 @@ export class OpenMatesClient {
       try {
         acknowledged += await this.persistAvailableRecoveryOutputs(ws, ownerId, cache, group, teamId);
       } finally {
-        clearSyncCache(teamId);
+        this.invalidateSyncedHistory(teamId);
       }
     }
     return acknowledged;
+  }
+
+  /** Refresh canonical history after recovery without removing offline browsing data. */
+  private invalidateSyncedHistory(teamId: string | null): void {
+    const cache = loadSyncCache(teamId);
+    if (cache) saveSyncCache({ ...cache, syncedAt: 0 }, teamId);
   }
 
   private async replayRecoveryOutputPages(
@@ -7474,9 +7504,11 @@ export class OpenMatesClient {
     cache: SyncCache,
     teamId: string | null,
     onPending?: () => void,
+    signal?: AbortSignal,
   ): Promise<number> {
     let acknowledged = 0;
     for (const page of pages) {
+      signal?.throwIfAborted();
       if (!onPending) {
         acknowledged += await this.replayAvailableRecoveryOutputs(ws, ownerId, page, cache, teamId);
         continue;
@@ -7484,8 +7516,9 @@ export class OpenMatesClient {
       // Browsing accepts only verified canonical history. A broken recovery
       // record stays pending on the server and cannot hide unrelated chats.
       for (const output of page) {
+        signal?.throwIfAborted();
         try { acknowledged += await this.replayAvailableRecoveryOutputs(ws, ownerId, [output], cache, teamId); }
-        catch { onPending(); }
+        catch { signal?.throwIfAborted();onPending(); }
       }
     }
     return acknowledged;
@@ -14278,7 +14311,10 @@ export class OpenMatesClient {
     refreshChatIds: string[] = [],
     options: TeamContextOptions = {},
     includeMessageContentRefresh = false,
+    onSyncedCache?: (cache: SyncCache) => Promise<void>,
+    signal?: AbortSignal,
   ): Promise<SyncCache> {
+    signal?.throwIfAborted();
     const teamId = this.resolveTeamContext(options);
     const refreshChatIdSet = new Set(refreshChatIds.filter(Boolean));
     if (!forceRefresh && refreshChatIdSet.size === 0 && isSyncCacheFresh(300_000, teamId)) {
@@ -14326,6 +14362,9 @@ export class OpenMatesClient {
     }
 
     const { ws, ownerId } = await this.openWsClient();
+    const abort=()=>ws.close();
+    if(signal?.aborted){ws.close();signal.throwIfAborted();}
+    signal?.addEventListener('abort',abort,{once:true});
     const chats: CachedChat[] = [];
     const embeds: Record<string, unknown>[] = [];
     const embedKeys: Record<string, unknown>[] = [];
@@ -14348,7 +14387,7 @@ export class OpenMatesClient {
         client_embed_ids: clientEmbedIds,
       };
 
-      const syncFrames = ws.collectMessages("phased_sync_complete", 90_000);
+      const syncFrames = ws.collectMessages("phased_sync_complete", 90_000, true);
       ws.send("phased_sync_request", {
         phase: "all",
         ...baseSyncPayload,
@@ -14360,13 +14399,18 @@ export class OpenMatesClient {
       // a fast server response could arrive before a waitForMessage listener
       // is registered.
       const frames = await syncFrames;
+      signal?.throwIfAborted();
+      if(onSyncedCache && !frames.some(frame=>frame.type==='phase_2_last_20_chats_ready')) {
+        throw new Error("Chat metadata sync ended before history arrived.");
+      }
       if (includeMessageContentRefresh && refreshChatIdSet.size > 0) {
-        const phase3Frames = ws.collectMessages("phased_sync_complete", 90_000);
+        const phase3Frames = ws.collectMessages("phased_sync_complete", 90_000, true);
         ws.send("phased_sync_request", {
           phase: "phase3",
           ...baseSyncPayload,
         });
         const collectedPhase3Frames = await phase3Frames;
+        signal?.throwIfAborted();
         frames.push(...collectedPhase3Frames);
       }
 
@@ -14452,6 +14496,7 @@ export class OpenMatesClient {
 
       if (totalChatCount === 0) totalChatCount = chats.length;
     } catch (error) {
+      signal?.removeEventListener('abort',abort);
       ws.close();
       throw error;
     }
@@ -14578,10 +14623,15 @@ export class OpenMatesClient {
     let recoveredOutputCount = 0;
     let pendingRecoveryOutputs = 0;
     try {
+      // Browsing can publish verified canonical metadata while output recovery continues.
+      await onSyncedCache?.({ syncedAt: 0, totalChatCount, loadedChatCount: chats.length,
+        chats, embeds, embedKeys, chatKeyWrappers, newChatSuggestions });
+      signal?.throwIfAborted();
       await this.persistPendingAIResponsesFromSync(ws, chats, pendingAIResponses, teamId);
       // Reconnect discovery runs concurrently with phased sync. Wait for its
       // last cursor page before snapshotting identities or closing this socket.
       await ws.waitForRecoveryOutputDiscovery();
+      signal?.throwIfAborted();
       const pages = ws.drainAvailableRecoveryOutputPages();
       if (pages.length > 0) {
         if (!ownerId) throw new Error("Authenticated owner identity is required for recovery output replay.");
@@ -14590,7 +14640,7 @@ export class OpenMatesClient {
           chats, embeds, embedKeys, chatKeyWrappers,
         };
         recoveredOutputCount = await this.replayRecoveryOutputPages(ws, ownerId, pages, currentCache, teamId,
-          () => { pendingRecoveryOutputs += 1; });
+          () => { pendingRecoveryOutputs += 1; }, signal);
       }
       // Normal user-key chat encryption is an owner-device operation. Do not mix
       // personal workflow delivery keys into an active team's cache/key context.
@@ -14609,12 +14659,14 @@ export class OpenMatesClient {
         requireActiveTurnEvent: false,
       });
     } finally {
+      signal?.removeEventListener('abort',abort);
       ws.close();
     }
+    signal?.throwIfAborted();
 
     if (persistedTaskJobIds.size > 0 || persistedWorkflowDeliveryCount > 0 || recoveredOutputCount > 0) {
-      clearSyncCache(teamId);
-      return this.ensureSynced(true, refreshChatIds, { teamId });
+      this.invalidateSyncedHistory(teamId);
+      return this.ensureSynced(true, refreshChatIds, { teamId }, includeMessageContentRefresh, onSyncedCache, signal);
     }
 
     const cache: SyncCache = {

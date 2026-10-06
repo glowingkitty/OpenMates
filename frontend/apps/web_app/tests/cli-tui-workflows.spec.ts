@@ -38,6 +38,7 @@ test.describe('CLI TUI workflows', () => {
 			'tests/tuiHome.test.ts',
 			'tests/tuiChatSidebar.test.ts',
 			'tests/sdk-chat-sidebar.test.ts',
+			'tests/ws.test.ts',
 			'tests/draft-sync.test.ts',
 			'tests/sdk-draft-sync.test.ts'
 		]);
@@ -47,6 +48,12 @@ test.describe('CLI TUI workflows', () => {
 			`Workflow TUI interaction test failed\n── stdout ──\n${result.stdout}\n── stderr ──\n${result.stderr}`
 		).toBe(0);
 		expect(result.stdout).toContain('opens workflows, switches tabs, runs, cancels, expands, and edits node details');
+		expect(result.stdout).toContain('startup renders cached chats before background sync');
+		expect(result.stdout).toContain('requires the sync completion frame before publishing collected history');
+		expect(result.stdout).toContain('does not create response timers after the socket has already closed');
+		expect(result.stdout).toContain('cold startup shows verified synced previews while saved output recovery is still pending');
+		expect(result.stdout).toContain('verified synced history is published and retained on disk before slow recovery finishes');
+		expect(result.stdout).toContain('failed sync keeps cached chats usable');
 	});
 });
 

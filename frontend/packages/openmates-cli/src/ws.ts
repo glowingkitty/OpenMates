@@ -792,6 +792,9 @@ export class OpenMatesWsClient {
     predicate?: (payload: unknown) => boolean,
     timeoutMs = 20_000,
   ): Promise<WsEnvelope> {
+    if (this.socket.readyState === WebSocket.CLOSING || this.socket.readyState === WebSocket.CLOSED) {
+      return Promise.reject(new Error("WebSocket closed while waiting for message"));
+    }
     return new Promise<WsEnvelope>((resolve, reject) => {
       const seenTypes = new Set<string>();
       let predicateMisses = 0;
@@ -859,7 +862,10 @@ export class OpenMatesWsClient {
    * Returns every frame received before the terminator, in order.
    * Used by ensureSynced to consume the full phased-sync event stream.
    */
-  collectMessages(terminatorType: string, timeoutMs = 90_000): Promise<WsEnvelope[]> {
+  collectMessages(terminatorType: string, timeoutMs = 90_000, requireTerminator = false): Promise<WsEnvelope[]> {
+    if (this.socket.readyState === WebSocket.CLOSING || this.socket.readyState === WebSocket.CLOSED) {
+      return Promise.reject(new Error(`WebSocket closed before '${terminatorType}'`));
+    }
     return new Promise<WsEnvelope[]>((resolve, reject) => {
       const collected: WsEnvelope[] = [];
 
@@ -884,7 +890,11 @@ export class OpenMatesWsClient {
       };
 
       const onError = (error: Error) => { cleanup(); reject(error); };
-      const onClose = () => { cleanup(); resolve(collected); };
+      const onClose = () => {
+        cleanup();
+        if(requireTerminator)reject(new Error(`WebSocket closed before '${terminatorType}'`));
+        else resolve(collected);
+      };
       const timeout = setTimeout(() => {
         cleanup();
         reject(new Error(`Timeout waiting for '${terminatorType}'`));

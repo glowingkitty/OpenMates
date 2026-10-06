@@ -51,7 +51,7 @@ function newChat(state: TuiState): void {
 }
 async function recent(context: WorkspaceContext): Promise<void> {
   const {state, client, render} = context;
-  if (!state.signedIn || typeof client.listChats !== "function") return;
+  if (!state.signedIn || state.homeLoading || typeof client.listChats !== "function") return;
   const request=state.routeVersion,homeRequest=state.homeLoadVersion;
   const chats=(await client.listChats(Number.MAX_SAFE_INTEGER, 1)).chats;
   if(request!==state.routeVersion||homeRequest!==state.homeLoadVersion||!state.signedIn)return;
@@ -332,8 +332,8 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
         created_at: timestamp, updated_at: timestamp, position: timestamp });
       await refreshTuiChatSidebar(state, client, render, true); return true;
     }
-    case "/sidebar": state.sidebarOpen = !state.sidebarOpen; state.focus = state.sidebarOpen ? "sidebar" : state.workspace === "chats" && !["start","chats"].includes(state.screen) ? "composer" : "content"; render(); if (state.sidebarOpen) await recent(context); return true;
-    case "/chats": route(state, "chats", "chats"); await recent(context); render(); return true;
+    case "/sidebar": state.sidebarOpen = !state.sidebarOpen; state.focus = state.sidebarOpen ? "sidebar" : state.workspace === "chats" && !["start","chats"].includes(state.screen) ? "composer" : "content"; render(); if (state.sidebarOpen) void recent(context).catch(() => { if(state.signedIn){state.status="Showing cached chats. Sync failed; /refresh to retry.";render();} }); return true;
+    case "/chats": route(state, "chats", "chats"); render(); void recent(context).catch(() => { if(state.signedIn){state.status="Showing cached chats. Sync failed; /refresh to retry.";render();} }); return true;
     case "/chat": if (!arg) return handleWorkspaceCommand(context, "/chats"); await openSavedChat(context, arg); return true;
     case "/projects": {
       const request = route(state, "projects", "projects"); state.status = "Loading Projects…"; render();

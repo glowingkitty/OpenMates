@@ -33,6 +33,34 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
+  // contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent
+  it("requires the sync completion frame before publishing collected history", async () => {
+    for(const complete of [false,true]) {
+      server.once('connection',(socket)=>socket.once('message',()=>{
+        socket.send(JSON.stringify({type:'phase_2_last_20_chats_ready',payload:{chats:[]}}));
+        if(complete)socket.send(JSON.stringify({type:'phased_sync_complete',payload:{}}));
+        else socket.close();
+      }));
+      const client=new OpenMatesWsClient({apiUrl,sessionId:'fixture',wsToken:'fixture',refreshToken:null});
+      try {
+        await client.open();
+        const frames=client.collectMessages('phased_sync_complete',1000,true);
+        client.send('phased_sync_request',{phase:'all'});
+        if(complete)assert.equal((await frames)[0].type,'phase_2_last_20_chats_ready');
+        else await assert.rejects(frames,/WebSocket closed before 'phased_sync_complete'/);
+      } finally {client.close();}
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent
+  it("does not create response timers after the socket has already closed", async () => {
+    const client=new OpenMatesWsClient({apiUrl,sessionId:'fixture',wsToken:'fixture',refreshToken:null});
+    await client.open();
+    const closed=new Promise<void>(done=>{client.onClose(done);});client.close();await closed;
+    await assert.rejects(client.waitForMessage('recovery_output_ready',undefined,1000),/WebSocket closed/);
+    await assert.rejects(client.collectMessages('phased_sync_complete',1000,true),/WebSocket closed/);
+  });
+
   // contract-test: supporting surface=cli assertions=auth.secrets.lifecycle
   it("never places a refresh token in the WebSocket URL", async () => {
     const rawRefreshToken = "raw-refresh-token-must-not-enter-query";

@@ -26,10 +26,36 @@ export function currentInspiration(state: TuiState): DailyInspiration | undefine
   const list = workspaceInspirations(state);
   return list[(state.inspirationIndices[state.workspace] ?? 0) % Math.max(1,list.length)];
 }
+function updateHomeChats(state: TuiState, chats: ChatListItem[]): void {
+  const preserveSelection=isWorkspaceHome(state) && state.workspace==="chats";
+  const selectedId=preserveSelection ? homeChatItems(state)[state.selectedIndex]?.id : undefined;
+  updateTuiChatSidebar(state,()=>{state.recentChats=chats;});
+  if(preserveSelection) {
+    const items=homeChatItems(state), index=items.findIndex(chat=>chat.id===selectedId);
+    state.selectedIndex=index>=0 ? index : Math.max(0,Math.min(state.selectedIndex,items.length-1));
+  }
+}
 export async function loadHomeData(state: TuiState, client: OpenMatesClient, render: () => void): Promise<void> {
+  state.homeAbortController?.abort();
+  const controller=new AbortController();state.homeAbortController=controller;
   const request = ++state.homeLoadVersion, signedIn=state.signedIn;
-  const current=()=>request===state.homeLoadVersion && state.signedIn===signedIn;
+  const current=()=>!controller.signal.aborted && request===state.homeLoadVersion && state.signedIn===signedIn;
   state.homeLoading=true;
+  state.homeError=null;
+  state.homeChatsLoading=signedIn && homeChatItems(state).length===0;
+  // Publish locally decrypted history before starting any remote home request.
+  if(signedIn && typeof client.listCachedChats === "function") {
+    try {
+      const cached=await client.listCachedChats(Number.MAX_SAFE_INTEGER,1);
+      if(!current())return;
+      if(cached)updateHomeChats(state,cached.chats);
+    } catch {
+      if(!current())return;
+      // An unavailable local cache still permits the normal remote refresh.
+    }
+    state.homeChatsLoading=homeChatItems(state).length===0;
+    render();
+  }
   const work: Promise<void>[]=[];
   if (typeof client.getDailyInspirations === "function") work.push(client.getDailyInspirations().then((list)=>{
     if(current()) {state.inspirations=list; for(const workspace of ["chats","apps","projects","tasks","workflows"] as const) {
@@ -38,11 +64,17 @@ export async function loadHomeData(state: TuiState, client: OpenMatesClient, ren
     }render();}
   }).catch(()=>{if(current())state.homeError="Daily inspiration is temporarily unavailable.";}));
   if(signedIn && typeof client.whoAmI === "function") work.push(client.whoAmI().then((user)=>{if(current()){state.username=typeof user.username==="string" ? terminalText(user.username):null;render();}}).catch(()=>{}));
-  if(signedIn && typeof client.listChats === "function") work.push(client.listChats(Number.MAX_SAFE_INTEGER,1).then((page)=>{if(current()){
-    updateTuiChatSidebar(state,()=>{state.recentChats=page.chats;});
+  if(signedIn && typeof client.listChats === "function") work.push(client.listChats(Number.MAX_SAFE_INTEGER,1,{forceRefresh:true,signal:controller.signal,onSyncedChats:(page)=>{
+    if(current()){updateHomeChats(state,page.chats);state.homeChatsLoading=false;render();}
+  }}).then((page)=>{if(current()){
+    updateHomeChats(state,page.chats);
     if(page.pendingRecoveryOutputs)state.status="Some saved AI outputs are pending recovery. Use /refresh to retry.";
     render();
-  }}).catch(()=>{if(current())state.homeError="Saved chats could not be loaded. Use /refresh to retry.";}));
+  }}).catch(()=>{if(current()){
+    state.homeError="Saved chats could not be synced. Use /refresh to retry.";
+    if(homeChatItems(state).length)state.status="Showing cached chats. Sync failed; /refresh to retry.";
+  }}).finally(()=>{if(current()){state.homeChatsLoading=false;render();}}));
+  else state.homeChatsLoading=false;
   if(signedIn) work.push(refreshTuiChatSidebar(state,client,render,true).catch(()=>{if(current())state.homeError="Chat projects could not be loaded. Use /refresh to retry.";}));
   await Promise.all(work);
   if(current()){state.homeLoading=false;render();}
@@ -69,7 +101,7 @@ export function renderHomeChatCards(state:TuiState,width:number,height:number):T
   const activeCount = runningTuiChatGroups(state).length;
   if (activeCount) result.push(centered(`${activeCount} ${activeCount === 1 ? 'chat' : 'chats'} active…  /active`, width), '');
   if(!chats.length){
-    result.push(centered(state.homeLoading ? "Loading your recent chats…" : state.homeError || "Start a chat below. Your recent chats will appear here.",width),"");
+    result.push(centered(state.homeChatsLoading ? "Loading your recent chats…" : state.homeError || "Start a chat below. Your recent chats will appear here.",width),"");
     return result;
   }
   result.push(centered(state.signedIn ? "Continue where you left off" : "Explore example chats",width),"");

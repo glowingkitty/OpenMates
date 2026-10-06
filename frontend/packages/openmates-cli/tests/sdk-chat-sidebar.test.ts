@@ -18,6 +18,55 @@ function fixture() {
   return { client, master, changeAccount: () => { master = Buffer.alloc(32, 2); } };
 }
 
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+test('cached history decrypts stale local chats without network access and retains account fences', async () => {
+  const previousStateDir = process.env.OPENMATES_STATE_DIR;
+  const stateDir = mkdtempSync(join(tmpdir(), 'openmates-local-chat-list-'));
+  process.env.OPENMATES_STATE_DIR = stateDir;
+  try {
+    const {client,master,changeAccount}=fixture(),key=Buffer.alloc(32,3);
+    saveSyncCache({syncedAt:0,totalChatCount:1,loadedChatCount:1,chats:[{details:{id:'cached',
+      encrypted_chat_key:await encryptBytesWithAesGcm(key,master),
+      encrypted_title:await encryptWithAesGcmCombined('Saved conversation',key)},messages:[]}],embeds:[],embedKeys:[]});
+    Object.assign(client,{ensureSynced:async()=>{throw new Error('Network must not be called');},
+      getChatWrappingKey:async()=>{throw new Error('Remote key lookup must not be called');}});
+    const page=await client.listCachedChats(Number.MAX_SAFE_INTEGER,1);
+    assert.equal(page?.chats[0].title,'Saved conversation');assert.equal(page?.total,1);
+    let forced=false;
+    Object.assign(client,{getChatWrappingKey:async()=>master,ensureSynced:async(force:boolean)=>{
+      forced=force;return loadSyncCache();
+    }});
+    await client.listChats(10,1,{forceRefresh:true});assert.equal(forced,true);
+    Object.assign(client,{decryptChatListItem:async()=>{changeAccount();return {};}});
+    await assert.rejects(client.listCachedChats(),/workspace changed/);
+  } finally {
+    if(previousStateDir===undefined)delete process.env.OPENMATES_STATE_DIR;
+    else process.env.OPENMATES_STATE_DIR=previousStateDir;
+    rmSync(stateDir,{recursive:true,force:true});
+  }
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+test('missing team cache or local team key never falls back to personal chats or fetches a key', async () => {
+  const previousStateDir=process.env.OPENMATES_STATE_DIR;
+  const stateDir=mkdtempSync(join(tmpdir(),'openmates-local-team-chat-list-'));
+  process.env.OPENMATES_STATE_DIR=stateDir;
+  try {
+    const {client}=fixture();
+    const cache={syncedAt:0,totalChatCount:1,loadedChatCount:1,chats:[{details:{id:'private'},messages:[]}],embeds:[],embedKeys:[]};
+    saveSyncCache(cache);
+    Object.assign(client,{resolveTeamContext:()=> 'team',requireSession:()=>({hashedEmail:'fixture'}),
+      getTeam:async()=>{throw new Error('Remote team lookup must not be called');}});
+    assert.equal(await client.listCachedChats(),null);
+    saveSyncCache(cache,'team');
+    assert.equal(await client.listCachedChats(),null);
+  } finally {
+    if(previousStateDir===undefined)delete process.env.OPENMATES_STATE_DIR;
+    else process.env.OPENMATES_STATE_DIR=previousStateDir;
+    rmSync(stateDir,{recursive:true,force:true});
+  }
+});
+
 // contract-test: supporting surface=cli assertions=chat-navigation.projects.organize
 test('project naming sends structured titles through the naming route', async () => {
   const { client } = fixture();
@@ -191,5 +240,90 @@ test('clearing a new draft remembers its deletion without marking the chat censu
     if (previousStateDir === undefined) delete process.env.OPENMATES_STATE_DIR;
     else process.env.OPENMATES_STATE_DIR = previousStateDir;
     rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent,chats.completion.recovery-takeover,chats.persistence.client-encrypted
+test('verified synced history is published and retained on disk before slow recovery finishes', async () => {
+  const previous=process.env.OPENMATES_STATE_DIR,stateDir=mkdtempSync(join(tmpdir(),'tui-metadata-recovery-'));
+  process.env.OPENMATES_STATE_DIR=stateDir;
+  try {
+    const {client,master}=fixture(),key=Buffer.alloc(32,3);
+    const details={id:'saved',encrypted_chat_key:await encryptBytesWithAesGcm(key,master),encrypted_title:await encryptWithAesGcmCombined('Saved conversation',key)};
+    let release!:()=>void, published!:(page:unknown)=>void;
+    const metadata=new Promise(done=>{published=done;});
+    const recovery=new Promise<void>(done=>{release=done;});
+    Object.assign(client,{
+      openWsClient:async()=>({ownerId:'owner',ws:{
+        collectMessages:async()=>[{type:'phase_2_last_20_chats_ready',payload:{chats:[{chat_details:details}],total_chat_count:1}}],
+        send:()=>{},close:()=>{},drainPassiveTaskUpdateJobs:()=>[],
+        waitForRecoveryOutputDiscovery:async()=>{},drainAvailableRecoveryOutputPages:()=>[[{record_id:'pending',root_chat_id:'saved'}]],
+      }}),
+      persistPendingAIResponsesFromSync:async()=>{},persistPendingWorkflowChatDeliveries:async()=>0,
+      persistPendingTaskUpdateJobs:async()=>new Set(),
+      persistAvailableRecoveryOutputs:async()=>{await recovery;throw new Error('Recovery unavailable');},
+    });
+    const listing=client.listChats(10,1,{forceRefresh:true,onSyncedChats:published});
+    const page=await metadata as {chats:{id:string}[]};
+    assert.equal(page.chats[0].id,'saved');assert.equal(loadSyncCache()?.syncedAt,0);
+    assert.equal((await client.listCachedChats())?.chats[0].title,'Saved conversation');
+    release();assert.equal((await listing).pendingRecoveryOutputs,1);
+    assert.equal((await client.listCachedChats())?.chats[0].id,'saved');
+    // A recovery failure outside the browsing observer also retains the encrypted history.
+    const replay=client as unknown as {replayAvailableRecoveryOutputs:(...args:unknown[])=>Promise<number>};
+    await assert.rejects(replay.replayAvailableRecoveryOutputs({},'owner',[{root_chat_id:'saved'}],loadSyncCache(),null),/Recovery unavailable/);
+    assert.equal(loadSyncCache()?.syncedAt,0);assert.equal((await client.listCachedChats())?.chats[0].id,'saved');
+  } finally {
+    if(previous===undefined)delete process.env.OPENMATES_STATE_DIR;else process.env.OPENMATES_STATE_DIR=previous;
+    rmSync(stateDir,{recursive:true,force:true});
+  }
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent,chats.completion.recovery-takeover
+test('cancelling background chat sync closes its socket and stops recovery without removing saved history', async () => {
+  const previous=process.env.OPENMATES_STATE_DIR,stateDir=mkdtempSync(join(tmpdir(),'tui-cancel-sync-'));
+  process.env.OPENMATES_STATE_DIR=stateDir;
+  try {
+    const {client,master}=fixture(),key=Buffer.alloc(32,3),controller=new AbortController();
+    let entered!:()=>void,rejectRecovery!:(error:Error)=>void,closed=0;
+    const recovering=new Promise<void>(done=>{entered=done;});
+    const pending=new Promise<number>((_done,reject)=>{rejectRecovery=reject;});
+    Object.assign(client,{
+      openWsClient:async()=>({ownerId:'owner',ws:{
+        collectMessages:async()=>[{type:'phase_2_last_20_chats_ready',payload:{chats:[{chat_details:{id:'saved',
+          encrypted_chat_key:await encryptBytesWithAesGcm(key,master),encrypted_title:await encryptWithAesGcmCombined('Saved conversation',key)}}],total_chat_count:1}}],
+        send:()=>{},close:()=>{closed++;rejectRecovery(new Error('Socket closed'));},drainPassiveTaskUpdateJobs:()=>[],
+        waitForRecoveryOutputDiscovery:async()=>{},drainAvailableRecoveryOutputPages:()=>[[{record_id:'pending',root_chat_id:'saved'}]],
+      }}),
+      persistPendingAIResponsesFromSync:async()=>{},persistPendingWorkflowChatDeliveries:async()=>0,
+      persistPendingTaskUpdateJobs:async()=>new Set(),
+      persistAvailableRecoveryOutputs:()=>{entered();return pending;},
+    });
+    const listing=client.listChats(10,1,{forceRefresh:true,signal:controller.signal,onSyncedChats:()=>{}});
+    await recovering;controller.abort();
+    await assert.rejects(listing,{name:'AbortError'});assert.ok(closed>0);
+    assert.equal((await client.listCachedChats())?.chats[0].id,'saved');
+  } finally {
+    if(previous===undefined)delete process.env.OPENMATES_STATE_DIR;else process.env.OPENMATES_STATE_DIR=previous;
+    rmSync(stateDir,{recursive:true,force:true});
+  }
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent
+test('an incomplete metadata sync cannot replace the saved chat cache or publish an empty list', async () => {
+  const previous=process.env.OPENMATES_STATE_DIR,stateDir=mkdtempSync(join(tmpdir(),'tui-incomplete-sync-'));
+  process.env.OPENMATES_STATE_DIR=stateDir;
+  try {
+    const {client,master}=fixture(),key=Buffer.alloc(32,3);let published=false;
+    saveSyncCache({syncedAt:1,totalChatCount:1,loadedChatCount:1,embeds:[],embedKeys:[],chats:[{messages:[],details:{
+      id:'saved',encrypted_chat_key:await encryptBytesWithAesGcm(key,master),encrypted_title:await encryptWithAesGcmCombined('Saved conversation',key),
+    }}]});
+    Object.assign(client,{openWsClient:async()=>({ws:{collectMessages:async()=>[],send:()=>{},close:()=>{}}})});
+    await assert.rejects(client.listChats(10,1,{forceRefresh:true,onSyncedChats:()=>{published=true;}}),/before history arrived/);
+    assert.equal(published,false);assert.equal(loadSyncCache()?.syncedAt,1);
+    assert.equal((await client.listCachedChats())?.chats[0].title,'Saved conversation');
+  } finally {
+    if(previous===undefined)delete process.env.OPENMATES_STATE_DIR;else process.env.OPENMATES_STATE_DIR=previous;
+    rmSync(stateDir,{recursive:true,force:true});
   }
 });

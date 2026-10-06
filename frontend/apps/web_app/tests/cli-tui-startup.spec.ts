@@ -100,6 +100,18 @@ test('cold TUI loads a saved chat and canonical child reads return only authoriz
     ]);
     expect(result.code).toBe(0);
     await testInfo.attach('cold-tui-chat-frames', {body: JSON.stringify(result), contentType: 'application/json'});
+    // An expired cache must remain immediately usable while the next sync fails.
+    const cachePath = path.join(home, '.openmates/sync_cache.json');
+    const cache = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+    cache.syncedAt = 0;
+    fs.writeFileSync(cachePath, JSON.stringify(cache), {mode: 0o600});
+    const offline = await runTuiPty(cli, {...env, OPENMATES_API_URL: 'http://127.0.0.1:1',
+      TERM: 'xterm-256color', OPENMATES_CLI_LATEST_VERSION: fixture.version}, [
+      {waitFor: 'TUI saved recovery draft', absent: ['Loading your recent chats']},
+      {waitFor: 'Showing cached chats. Sync failed', absent: ['Loading your recent chats']},
+    ]);
+    expect(offline.code).toBe(0);
+    await testInfo.attach('cached-offline-tui-frames', {body: JSON.stringify(offline), contentType: 'application/json'});
   } finally {
     try {
       if (chatId) sdk(`await client.deleteChat(input.chatId,{personal:true});process.stdout.write('{}');`, {chatId});
