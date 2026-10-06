@@ -99,7 +99,7 @@ verification:
     - Never issue real fal/H3 requests in automated verification; a bounded Gemini-only provider probe is authorized.
 
 verification_evidence:
-  backend: 21 focused mocked route/provider/billing tests passed, including binary Gemini setup and speech forwarding; deployment lint passed.
+  backend: 29 focused mocked route/provider/billing tests passed, including binary speech forwarding, sparse tool-only usage accounting and video delivery without cancellation; deployment lint passed.
   frontend: Five focused microphone/PCM/controller tests passed; changed-path ESLint and compilation passed.
   component:
     source: 6a51e056842c6c6bbd6f72a4cfe5c016da7dbee7
@@ -107,15 +107,15 @@ verification_evidence:
     run: 37491657808
     result: Three desktop cases passed; captures reviewed; all recordings uploaded.
   responsive: Execution waived by the user; the separate responsive spec remains available.
-  provider_limits: No real fal requests were made. Further automated verification is not a deployment gate; the user will evaluate the deployed experiment.
+  provider_limits: No automated real fal requests were made. Further automated verification is not a deployment gate; the user will evaluate the deployed experiment.
   route:
     source: 32dbc1abbe46725d6b5243f14fad9e6253f015ac
     request: 161d14ea435eb0176f723f0058d13e28b05763f8b6df92879a3983e0d32880ae
     result: Failed during test collection in the existing module loader; no route tests or recordings ran. The user waived this run as a deployment gate.
     retrieval: Artifact download hit the host disk-budget limit; the GitHub failure log confirms no tests executed.
   deployment:
-    code_commit: 288f5bf3b2d376982b65187d6c606f8de0167e8f
-    backend: Dev API and dependent workers refreshed together with the binary-frame fix; all services healthy (docker-4fa0af70).
+    code_commit: 24bb1fb283872dac9835651b77b9c2894e3551ec
+    backend: Dev API and dependent workers refreshed together with the sparse-tool-usage and silent-response fixes; all services healthy (docker-cd8d3761).
     frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall is published.
     connection_route: Operator applied the managed Caddy update; the authenticated call WebSocket reaches the backend.
   gemini_live_probe:
@@ -123,3 +123,11 @@ verification_evidence:
     framing: Real Google setup replies use binary UTF-8 JSON; startup and streaming now decode both text and binary frames.
     bounds: One benign text turn, maximum 20 seconds and 256 output tokens; no fal request or saved media.
     provider_cost_usd: "0.00200025"
+  gemini_tool_probe:
+    failure: A real spoken video request produced a function-call-only turn with positive responseTokenCount and no responseTokensDetails; the old billing validator ended the call.
+    fix: Infer the text output rate only for a turn that emitted function calls and no audio. Mixed or unknown output still requires provider modality details. SILENT scheduling now uses the FunctionResponse schema position.
+    result: The corrected candidate completed and billed one real tool-only turn with 59 output tokens and omitted response details.
+    tool_turn_provider_cost_usd: "0.00198675"
+    bounds: Two Google connections for synthetic speech and one spoken tool request, at most 45 seconds; tool response mocked, no fal request, no saved media or transcripts.
+    diagnostics: Future route failures report exception type and origin function/line without provider payloads or user content.
+    limitation: The original user attempts lacked a stack trace; actual fal playback and perceived browser behavior remain for the user's manual trial.
