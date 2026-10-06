@@ -1,6 +1,7 @@
 // contract-test-file: infrastructure
 /** Synthetic TUI interaction coverage. No real terminal, account, or network. */
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import type { DecryptedUserTask } from "../src/tasksCli.js";
 import { loadHomeData } from "../src/tuiHome.js";
@@ -133,7 +134,7 @@ test("a reply finishing after workspace navigation does not restore the old chat
 });
 
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
-test("first send shows pending header, then metadata; second send reuses chat ID", async () => {
+test("completed first send releases the header before metadata; second send reuses chat ID", async () => {
   const terminal = new FakeTerminal();
   const metadata = deferred<ReturnType<typeof chat>>();
   const {client, calls} = fakeClient({getChatMetadata: () => metadata.promise});
@@ -141,7 +142,8 @@ test("first send shows pending header, then metadata; second send reuses chat ID
   await tick();
   terminal.type("First question"); terminal.enterKey();
   await tick();
-  assert.match(terminal.latest(), /Creating new chat/);
+  assert.match(terminal.latest(), /Response/);
+  assert.doesNotMatch(terminal.latest(), /Creating new chat|is typing/);
   assert.equal(calls.length, 1);
   const id = String(calls[0].newChatId);
   assert.ok(id);
@@ -219,6 +221,99 @@ test("/chat reopens saved content and late fetch cannot replace Ctrl+N new chat"
   assert.match(terminal.latest(), /Ask anything/);
   terminal.press("\u0003", {ctrl:true,name:"c"});
   await run;
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.draft-only.addressable
+test("a short chat ID keeps early history, final history and its saved draft", async () => {
+  const state=createInitialTuiState(),id=randomUUID(),shortId=id.slice(0,8);
+  const final=deferred<{chat:ReturnType<typeof chat>;messages:Array<{role:string;content:string;senderName:string;embedIds:string[]}>}>();
+  const draft=deferred<{markdown:string}>();
+  const {client}=fakeClient({
+    getChatMessages:async(query:string,options:{onMessages:(result:unknown)=>void})=>{
+      assert.equal(query,shortId);
+      options.onMessages({chat:chat(id,"Early title"),messages:[{role:"user",content:"Early history",senderName:"User",embedIds:[]}]});
+      return final.promise;
+    },
+    getCachedDraft:async(query:string)=>{assert.equal(query,id);return draft.promise;},
+  });
+  const context={state,client,render:()=>{},terminal:{},command:async()=>{},send:async()=>{}} as unknown as WorkspaceContext;
+  const opening=openSavedChat(context,shortId);
+  assert.equal(state.activeChatId,id);assert.equal(state.messages[0]?.content,"Early history");
+  final.resolve({chat:chat(id,"Final title"),messages:[{role:"user",content:"Final history",senderName:"User",embedIds:[]}]});
+  await opening;
+  assert.equal(state.activeChat?.title,"Final title");assert.equal(state.messages[0]?.content,"Final history");
+  assert.equal(state.status,null);
+  draft.resolve({markdown:"Saved short-ID draft"});await tick();
+  assert.equal(state.input,"Saved short-ID draft");
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.draft-only.addressable,cli.surface.semantic-parity
+test("/chat opens an uncached draft-only UUID with its saved composer text", async () => {
+  const terminal = new FakeTerminal(), id = randomUUID(), markdown = "TUI saved recovery draft";
+  let draftFetched = false, historyReads = 0;
+  const {client,calls} = fakeClient({
+    getChatMessages: async (query:string,options:{preferCache?:boolean}) => {
+      assert.equal(query,id);historyReads++;
+      if (!options.preferCache || !draftFetched) throw new Error("Chat metadata failed with HTTP 404");
+      return {chat:{...chat(id),title:null,summary:null,category:null,hasDraft:true},messages:[]};
+    },
+    getDraft: async (query:string,forceRefresh:boolean) => {
+      assert.equal(query,id);assert.equal(forceRefresh,true);draftFetched=true;
+      return {chatId:id,markdown};
+    },
+  });
+  const run=runTui(client as never,terminal as never);
+  try {
+    await tick();terminal.type(`/chat ${id}`);terminal.enterKey();await tick();
+    assert.equal(historyReads,2);assert.match(terminal.latest(),/TUI saved recovery draft/);
+    assert.doesNotMatch(terminal.latest(),/Could not load chat|Loading chat/);
+    terminal.enterKey();await tick();
+    assert.equal(calls[0].chatId,id);assert.equal(calls[0].message,markdown);
+  } finally {terminal.press("\u0003",{ctrl:true,name:"c"});await run;}
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.draft-only.addressable,cli.output.actionable-readable
+test("/chat keeps a missing UUID as an error when no owned draft exists", async () => {
+  const terminal=new FakeTerminal(),id=randomUUID();let draftReads=0;
+  const {client}=fakeClient({
+    getChatMessages:async()=>{throw new Error("Chat metadata failed with HTTP 404");},
+    getDraft:async()=>{draftReads++;return null;},
+  });
+  const run=runTui(client as never,terminal as never);
+  try {
+    await tick();terminal.type(`/chat ${id}`);terminal.enterKey();await tick();
+    assert.equal(draftReads,1);assert.match(terminal.latest(),/Could not load chat/);
+    assert.match(terminal.latest(),/Chat metadata failed with HTTP 404/);
+  } finally {terminal.press("\u0003",{ctrl:true,name:"c"});await run;}
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.draft-only.addressable,cli.output.actionable-readable
+test("a messages HTTP 404 cannot be relabeled as a draft-only chat", async () => {
+  const state=createInitialTuiState(),id=randomUUID();let draftReads=0;
+  const {client}=fakeClient({
+    getChatMessages:async()=>{throw new Error("Chat messages failed with HTTP 404");},
+    getDraft:async()=>{draftReads++;return {chatId:id,markdown:"Unrelated draft"};},
+  });
+  const context={state,client,render:()=>{},terminal:{},command:async()=>{},send:async()=>{}} as unknown as WorkspaceContext;
+  await openSavedChat(context,id);
+  assert.equal(draftReads,0);assert.equal(state.headerState,"error");
+  assert.match(state.status!,/Chat messages failed with HTTP 404/);
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.draft-only.addressable,cli.surface.semantic-parity
+test("late draft recovery cannot publish after its owning account changes", async () => {
+  const state=createInitialTuiState(),id=randomUUID(),pending=deferred<{chatId:string;markdown:string}>();
+  let account="first",historyReads=0;
+  const {client}=fakeClient({
+    apiUrl:"https://other.example",
+    getSession:()=>({apiUrl:"https://owner.example",hashedEmail:account,activeTeamId:null,createdAt:1,masterKeyExportedB64:"key"}),
+    getChatMessages:async()=>{historyReads++;throw new Error("Chat metadata failed with HTTP 404");},
+    getDraft:async()=>pending.promise,
+  });
+  const context={state,client,render:()=>{},terminal:{},command:async()=>{},send:async()=>{}} as unknown as WorkspaceContext;
+  const opening=openSavedChat(context,id);
+  await tick();account="second";pending.resolve({chatId:id,markdown:"Previous account draft"});await opening;
+  assert.equal(historyReads,1);assert.equal(state.input,"");assert.equal(state.activeChat,null);
 });
 
 function task(id: string, position: number): DecryptedUserTask {

@@ -14452,6 +14452,7 @@ export class OpenMatesClient {
   private interactiveViewerChatId: string | null = null;
   private interactiveViewerSocket: OpenMatesWsClient | null = null;
   private interactiveViewerAllowed = false;
+  private interactiveViewerGeneration = 0;
 
   beginInteractiveViewerSession(): void {
     this.interactiveViewerAllowed = process.stdin.isTTY === true && process.stdout.isTTY === true;
@@ -14468,30 +14469,32 @@ export class OpenMatesClient {
     if (this.interactiveViewerChatId === chatId && this.interactiveViewerSocket) return;
     this.clearInteractiveChatViewer();
     this.interactiveViewerChatId = chatId;
+    const generation = this.interactiveViewerGeneration;
     try {
       const { ws } = await this.openWsClient({ taskUpdateJobs: false, interactiveHuman: true });
-      if (this.interactiveViewerChatId !== chatId) { ws.close(); return; }
+      if (!this.interactiveViewerAllowed || this.interactiveViewerGeneration !== generation || this.interactiveViewerChatId !== chatId) { ws.close(); return; }
       this.interactiveViewerSocket = ws;
       ws.onClose(() => {
-        if (this.interactiveViewerSocket !== ws) return;
+        if (this.interactiveViewerSocket !== ws || this.interactiveViewerGeneration !== generation) return;
         this.interactiveViewerSocket = null;
         if (this.interactiveViewerChatId !== chatId) return;
         const retry = setTimeout(() => {
-          if (this.interactiveViewerChatId === chatId) void this.setInteractiveChatViewer(chatId);
+          if (this.interactiveViewerGeneration === generation && this.interactiveViewerChatId === chatId) void this.setInteractiveChatViewer(chatId);
         }, 1_000);
         retry.unref?.();
       });
       ws.send("set_active_chat", { chat_id: chatId });
     } catch {
-      if (this.interactiveViewerChatId !== chatId) return;
+      if (this.interactiveViewerGeneration !== generation || this.interactiveViewerChatId !== chatId) return;
       const retry = setTimeout(() => {
-        if (this.interactiveViewerChatId === chatId) void this.setInteractiveChatViewer(chatId);
+        if (this.interactiveViewerGeneration === generation && this.interactiveViewerChatId === chatId) void this.setInteractiveChatViewer(chatId);
       }, 1_000);
       retry.unref?.();
     }
   }
 
   clearInteractiveChatViewer(): void {
+    this.interactiveViewerGeneration = (this.interactiveViewerGeneration ?? 0) + 1;
     this.interactiveViewerChatId = null;
     const ws = this.interactiveViewerSocket;
     this.interactiveViewerSocket = null;

@@ -1,3 +1,4 @@
+// contract-test-file: infrastructure
 /**
  * Unit tests for CLI interactive question protocol helpers.
  *
@@ -10,11 +11,15 @@ import assert from "node:assert/strict";
 
 import {
   formatInteractiveQuestionAnswer,
+  isCustomChoiceOption,
+  isInteractiveQuestionPayload,
   parseInteractiveQuestionBlock,
   toWaitingForUserResult,
+  validateInteractiveQuestionAnswer,
 } from "../src/interactiveQuestions.ts";
 
 describe("CLI interactive question helpers", () => {
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
   it("parses a valid interactive_question fenced block", () => {
     const parsed = parseInteractiveQuestionBlock(`Intro
 
@@ -36,6 +41,7 @@ describe("CLI interactive question helpers", () => {
     assert.equal(parsed?.type, "choice");
   });
 
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
   it("parses choice option embed references", () => {
     const parsed = parseInteractiveQuestionBlock(`\`\`\`interactive_question
 {
@@ -54,6 +60,7 @@ describe("CLI interactive question helpers", () => {
     assert.deepEqual(parsed?.options?.[0]?.embed_ids, ["embed-code-a"]);
   });
 
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
   it("parses valid input questions without a top-level question", () => {
     const parsed = parseInteractiveQuestionBlock(`\`\`\`interactive_question
 {
@@ -68,6 +75,7 @@ describe("CLI interactive question helpers", () => {
     assert.equal(parsed?.type, "input");
   });
 
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
   it("parses rating questions that use the web max_stars schema", () => {
     const parsed = parseInteractiveQuestionBlock(`\`\`\`interactive_question
 {
@@ -83,6 +91,7 @@ describe("CLI interactive question helpers", () => {
     assert.equal(parsed?.type, "rating");
   });
 
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
   it("formats choice answers as answer-only display text plus hidden protocol", () => {
     const result = formatInteractiveQuestionAnswer(
       {
@@ -105,6 +114,7 @@ describe("CLI interactive question helpers", () => {
     assert.match(result.messageContent, /"id": "python_slicing"/);
   });
 
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
   it("formats choice answers with selected embed IDs without duplicating embed content", () => {
     const result = formatInteractiveQuestionAnswer(
       {
@@ -126,6 +136,7 @@ describe("CLI interactive question helpers", () => {
     assert.doesNotMatch(result.messageContent, /function robustImplementation/);
   });
 
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
   it("formats input answers from the web-compatible inputs object", () => {
     const result = formatInteractiveQuestionAnswer(
       {
@@ -142,6 +153,7 @@ describe("CLI interactive question helpers", () => {
     assert.match(result.messageContent, /```interactive_response/);
   });
 
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
   it("formats custom choice answers as typed answer text plus hidden protocol", () => {
     const result = formatInteractiveQuestionAnswer(
       {
@@ -164,6 +176,68 @@ describe("CLI interactive question helpers", () => {
     assert.match(result.messageContent, /"custom_answer": "Let users type a custom response"/);
   });
 
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+  it("validates choice selection and custom text while preserving option order and answer immutability", () => {
+    const question = {type: "choice" as const, id: "direction", question: "Choose", multiple: true,
+      options: [{id: "first", text: "First", embed_ids: ["a"]}, {id: "own", text: "Other"},
+        {id: "last", text: "Last", embed_ids: ["b"]}]};
+    assert.equal(isCustomChoiceOption(question, "own"), true);
+    assert.equal(validateInteractiveQuestionAnswer(question, {selection: ["last", "own"]}), "Enter a custom answer.");
+    assert.equal(validateInteractiveQuestionAnswer(question, {selection: ["missing"]}), "Select a valid option.");
+    const answer = {selection: ["last", "own", "first"], custom_answer: "My plan"};
+    const result = formatInteractiveQuestionAnswer(question, answer);
+    assert.equal(result.displayText, "First\nMy plan\nLast");
+    assert.deepEqual(result.responsePayload.embed_ids, ["a", "b"]);
+    assert.deepEqual(answer, {selection: ["last", "own", "first"], custom_answer: "My plan"});
+  });
+
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+  it("formats input fields in question order and checks required text", () => {
+    const question = {type: "input" as const, id: "form", fields: [
+      {id: "first", label: "First", required: true}, {id: "optional", label: "Optional"},
+      {id: "last", label: "Last", required: true}]};
+    assert.equal(validateInteractiveQuestionAnswer(question, {inputs: {first: " ", last: "Done"}}), "Fill in every required field.");
+    const result = formatInteractiveQuestionAnswer(question, {inputs: {last: "Done", first: "Start"}});
+    assert.equal(result.displayText, "Start\nDone");
+    assert.deepEqual(result.responsePayload.inputs, {first: "Start", optional: "", last: "Done"});
+  });
+
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+  it("uses slider defaults and labels in the web schema while checking bounds and steps", () => {
+    const question = {type: "slider" as const, id: "scale", question: "How much?", min: 0, max: 10,
+      step: 0.5, default: 5, labels: {5: "middle"}};
+    assert.equal(isInteractiveQuestionPayload(question), true);
+    assert.equal(validateInteractiveQuestionAnswer(question, {value: 5.2}), "Choose a value on the slider step.");
+    assert.equal(validateInteractiveQuestionAnswer(question, {value: 11}), "Choose a value within the slider range.");
+    assert.equal(formatInteractiveQuestionAnswer(question, {value: 5}).displayText, "5 (middle)");
+    assert.equal(isInteractiveQuestionPayload({...question, step: 0}), false);
+  });
+
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+  it("requires a decision for every swipe card and formats all decisions", () => {
+    const question = {type: "swipe" as const, id: "cards", cards: [
+      {id: "a", text: "Alpha", embed_ids: ["embed-a"]},
+      {id: "b", text: "Beta", embed_ids: ["embed-b"]}]};
+    assert.equal(isInteractiveQuestionPayload(question), true);
+    assert.equal(validateInteractiveQuestionAnswer(question, {swipes: {a: "like"}}), "Review every card.");
+    const result = formatInteractiveQuestionAnswer(question, {swipes: {a: "like", b: "dislike"}});
+    assert.equal(result.displayText, "Alpha: like\nBeta: dislike");
+    assert.deepEqual(result.responsePayload.embed_ids, ["embed-a", "embed-b"]);
+    assert.deepEqual(result.responsePayload.swipes, {a: "like", b: "dislike"});
+  });
+
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+  it("defaults rating to five stars and enforces a required comment", () => {
+    const question = {type: "rating" as const, id: "stars", question: "Rate this", require_comment: true};
+    assert.equal(isInteractiveQuestionPayload(question), true);
+    assert.equal(validateInteractiveQuestionAnswer(question, {rating: 0, comment: "Helpful"}), "Choose a rating from 1 to 5.");
+    assert.equal(validateInteractiveQuestionAnswer(question, {rating: 4, comment: "  "}), "Enter a comment.");
+    const result = formatInteractiveQuestionAnswer(question, {rating: 4, comment: " Helpful "});
+    assert.equal(result.displayText, "4/5\nHelpful");
+    assert.deepEqual(result.responsePayload, {id: "stars", rating: 4, comment: "Helpful"});
+  });
+
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
   it("builds structured waiting_for_user JSON for automation", () => {
     const question = {
       type: "input" as const,

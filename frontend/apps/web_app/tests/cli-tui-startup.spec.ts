@@ -2,12 +2,27 @@
 /** Startup gates and inherited-key chat reads over the isolated product stack, without inference. */
 export {};
 const { test, expect } = require('./console-monitor');
-const { requireIsolatedCliBuild, workflowApiUrl, createWorkflowCliHome } = require('./cli-tui-proof-helpers');
+const { requireIsolatedCliBuild, workflowApiUrl, createWorkflowCliHome, captureProof, installRecorderDeps } = require('./cli-tui-proof-helpers');
 const { loginWorkflowCliViaPair, removeWorkflowCliHome, workflowCliEnv, clearWorkflowCliSyncCache } = require('./helpers/workflow-cli-e2e-helpers');
 const { runTuiPty } = require('./helpers/tui-pty-test-helpers');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+
+const startupProofContract = {
+  id: 'cli-tui-cached-event-real-terminal', title: 'Cached saved event and draft-only chat in the terminal',
+  surface: 'cli', devices: ['cli-terminal'],
+  transcript: [
+    {id: 'event', text: 'The saved upcoming event remains visible offline while the expired event is absent.', checkpoint: 'offline-home', devices: ['cli-terminal']},
+    {id: 'draft', text: 'The local draft-only chat opens offline and restores its encrypted draft.', checkpoint: 'draft-open', devices: ['cli-terminal']},
+  ],
+  assertions: [
+    {id: 'chats.persistence.client-encrypted', checkpoint: 'draft-open', visual: 'The encrypted local draft is readable in the offline chat.', devices: ['cli-terminal']},
+    {id: 'continue-carousel.saved-item.start-time-gated', checkpoint: 'offline-home', visual: 'The upcoming saved event appears while the expired event does not.', devices: ['cli-terminal']},
+    {id: 'cli.surface.semantic-parity', checkpoint: 'event-open', visual: 'The saved event opens its details in the terminal.', devices: ['cli-terminal']},
+  ],
+  tutorial: {readingWordsPerSecond: 2.5, minimumHoldMs: 1200, maximumHoldMs: 5000},
+};
 
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,pii.surface.semantic-parity
 // eslint-disable-next-line no-empty-pattern -- Playwright requires an object pattern for unused fixtures.
@@ -45,6 +60,7 @@ test('cold TUI loads a saved chat and canonical child reads return only authoriz
   const api = workflowApiUrl(), env = workflowCliEnv(api, home);
   let chatId: string | undefined;
   let memoryId: string | undefined;
+  let expiredMemoryId: string | undefined;
   let offlineSessionOriginal: string | undefined;
   const sessionPath=path.join(home, ".openmates/session.json");
   const sdk = (program: string, input: unknown = {}) => JSON.parse(execFileSync('node', ['-e', `
@@ -77,6 +93,7 @@ test('cold TUI loads a saved chat and canonical child reads return only authoriz
       };
       try {
         const now=Math.floor(Date.now()/1000),eventStart=new Date(Date.now()+3600000).toISOString();
+        const expiredStart=new Date(Date.now()-4*3600000).toISOString(),expiredEnd=new Date(Date.now()-3*3600000).toISOString();
         for(const id of [parentId,childId]) await send('store_embed','store_embed_confirmed',{
           embed_id:id,encrypted_content:await encrypt(JSON.stringify(id===childId ? {app_id:'events',skill_id:'event',title:'Remembered terminal event',date_start:eventStart,description:'Full remembered event details',venue:{name:'Community hall'},organizer:{name:'Community'},url:'https://example.org/event',is_paid:false} : {code:'export const terminalProof = true;',language:'typescript'}),embedKey),
           encrypted_type:await encrypt(id===childId?'events-event':'code',embedKey),status:'finished',
@@ -93,14 +110,16 @@ test('cold TUI loads a saved chat and canonical child reads return only authoriz
         const missing=await client.http.get('/v1/embeds/chats/'+chatId+'/embeds/'+randomUUID(),client.getCliRequestHeaders());
         if(missing.status!==404)throw Error('Unknown child must stay masked');
         const memory=await client.createMemory({appId:'events',itemType:'saved_events',personal:true,itemValue:{embed_id:childId,title:'Remembered terminal event',date_start:eventStart,url:'https://example.org/event'}});
-        process.stdout.write(JSON.stringify({chatId,memoryId:memory.id,version:JSON.parse(require('node:fs').readFileSync(require('node:path').join(require('node:path').dirname(process.argv[1]),'../package.json'),'utf8')).version}));
+        const expired=await client.createMemory({appId:'events',itemType:'saved_events',personal:true,itemValue:{embed_id:randomUUID(),title:'Expired terminal event',date_start:expiredStart,date_end:expiredEnd,url:'https://example.org/past-event'}});
+        process.stdout.write(JSON.stringify({chatId,memoryId:memory.id,expiredMemoryId:expired.id,version:JSON.parse(require('node:fs').readFileSync(require('node:path').join(require('node:path').dirname(process.argv[1]),'../package.json'),'utf8')).version}));
       } finally {ws.close();}
     `);
     chatId = fixture.chatId;
     memoryId = fixture.memoryId;
+    expiredMemoryId = fixture.expiredMemoryId;
     clearWorkflowCliSyncCache(home);
     const result = await runTuiPty(cli, {...env, TERM: 'xterm-256color', OPENMATES_CLI_LATEST_VERSION: fixture.version}, [
-      {waitFor: 'Remembered terminal event', absent: ['Canonical recovery embed reread failed', 'Saved chats could not be loaded']},
+      {waitFor: 'Remembered terminal event', absent: ['Expired terminal event', 'Canonical recovery embed reread failed', 'Saved chats could not be loaded']},
       {key: 'enter', waitFor: 'Full remembered event details', absent: ['Loading embed', 'Continue where you left off']},
       {key: 'escape', waitFor: 'Remembered terminal event', absent: ['Full remembered event details']},
       {text: '/chat ' + chatId, waitFor: 'Draft', absent: ['DAILY INSPIRATION', 'Canonical recovery embed reread failed']},
@@ -121,7 +140,7 @@ test('cold TUI loads a saved chat and canonical child reads return only authoriz
     fs.writeFileSync(sessionPath,JSON.stringify(offlineSession),{mode:0o600});
     const offline = await runTuiPty(cli, {...env, OPENMATES_API_URL: 'http://127.0.0.1:1',
       TERM: 'xterm-256color', OPENMATES_CLI_LATEST_VERSION: fixture.version}, [
-      {waitFor: 'TUI saved recovery draft', absent: ['Loading your recent chats']},
+      {waitFor: 'TUI saved recovery draft', absent: ['Expired terminal event', 'Loading your recent chats']},
       {waitFor: 'Showing cached chats. Sync failed', absent: ['Loading your recent chats']},
       {key: 'enter', waitFor: 'Full remembered event details', absent: ['Loading embed', 'Continue where you left off']},
       {key: 'escape', waitFor: 'Remembered terminal event', absent: ['Full remembered event details']},
@@ -129,10 +148,35 @@ test('cold TUI loads a saved chat and canonical child reads return only authoriz
     ]);
     expect(offline.code).toBe(0);
     await testInfo.attach('cached-offline-tui-frames', {body: JSON.stringify(offline), contentType: 'application/json'});
+    installRecorderDeps();
+    const previousLatestVersion = process.env.OPENMATES_CLI_LATEST_VERSION;
+    process.env.OPENMATES_CLI_LATEST_VERSION = fixture.version;
+    try {
+      const recording = await captureProof('http://127.0.0.1:1', home, cli, [
+        {name: 'offline-home', wait_for: 'Remembered terminal event', wait_for_absent: 'Expired terminal event', hold_ms: 500},
+        {name: 'event-open', key: 'Return', wait_for: 'Full remembered event details', wait_for_absent: 'Loading embed', hold_ms: 400},
+        {name: 'event-close', key: 'Escape', wait_for: 'Remembered terminal event', hold_ms: 300},
+        {name: 'draft-command', text: '/chat ' + chatId},
+        {name: 'draft-open', key: 'Return', wait_for: 'TUI saved recovery draft', wait_for_absent: 'Loading chat', hold_ms: 500},
+        {name: 'draft-close', key: 'Escape', wait_for: 'Remembered terminal event', hold_ms: 300},
+        {name: 'exit-command', text: '/exit'},
+        {name: 'exit', key: 'Return'},
+      ], startupProofContract, testInfo);
+      const homeFrame = recording.frame('offline-home').join('\n');
+      expect(homeFrame).toContain('Remembered terminal event');
+      expect(homeFrame).not.toContain('Expired terminal event');
+      expect(recording.frame('event-open').join('\n')).toContain('Full remembered event details');
+      expect(recording.frame('draft-open').join('\n')).toContain('TUI saved recovery draft');
+      await recording.attest();
+    } finally {
+      if (previousLatestVersion === undefined) delete process.env.OPENMATES_CLI_LATEST_VERSION;
+      else process.env.OPENMATES_CLI_LATEST_VERSION = previousLatestVersion;
+    }
   } finally {
     if(offlineSessionOriginal !== undefined)fs.writeFileSync(sessionPath,offlineSessionOriginal,{mode:0o600});
     try {
       if (memoryId) sdk(`await client.deleteMemory(input.memoryId,{personal:true});process.stdout.write('{}');`, {memoryId});
+      if (expiredMemoryId) sdk(`await client.deleteMemory(input.memoryId,{personal:true});process.stdout.write('{}');`, {memoryId:expiredMemoryId});
       if (chatId) sdk(`await client.deleteChat(input.chatId,{personal:true});process.stdout.write('{}');`, {chatId});
     } catch {
       // The isolated runner destroys its disposable database after this spec.

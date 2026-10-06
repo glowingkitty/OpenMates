@@ -1,5 +1,6 @@
 /** Small, terminal-safe Markdown renderer for chat text. No browser or ANSI input is trusted. */
 import {cells, terminalText, type TuiLine, type TuiSpan} from './tuiText.js';
+import {isInteractiveQuestionPayload, type InteractiveQuestionPayload, type InteractiveQuestionAnswer} from './interactiveQuestions.js';
 
 export type TuiResultsViewBlock = {
   type: 'results-view';
@@ -8,8 +9,9 @@ export type TuiResultsViewBlock = {
   sources: string[];
   highlight: string[];
 };
-export type TuiMarkdownBlock = {type: 'line'; line: TuiLine} | TuiResultsViewBlock;
-export type TuiMarkdownOptions = {resolveEmbedAlias?: (canonicalId: string) => string | undefined};
+export type TuiMarkdownBlock = {type: 'line'; line: TuiLine} | TuiResultsViewBlock
+  | {type:'question';payload:InteractiveQuestionPayload} | {type:'response';payload:InteractiveQuestionAnswer};
+export type TuiMarkdownOptions = {resolveEmbedAlias?: (canonicalId: string) => string | undefined;questionBlocks?:boolean};
 
 const ACCENT = '#80caff';
 const LINK = '#85c9e8';
@@ -135,6 +137,17 @@ export function parseTuiMarkdown(content: string, width: number, options: TuiMar
       let next = index + 1;
       const close = new RegExp(`^\\s{0,3}${fence[1][0]}{${fence[1].length},}\\s*$`);
       while (next < rows.length && !close.test(rows[next])) body.push(rows[next++]);
+      if(next<rows.length&&(language==='interactive_question'||language==='interactive_response')){
+        try{
+          const payload:unknown=JSON.parse(body.join('\n'));
+          if(language==='interactive_question'&&options.questionBlocks!==false&&isInteractiveQuestionPayload(payload)){
+            output.push({type:'question',payload});index=next;continue;
+          }
+          if(language==='interactive_response'&&payload&&typeof payload==='object'&&!Array.isArray(payload)&&typeof (payload as Record<string,unknown>).id==='string'){
+            output.push({type:'response',payload:payload as InteractiveQuestionAnswer});index=next;continue;
+          }
+        }catch{/* Malformed protocol remains readable as a literal code block. */}
+      }
       if (language === 'embeds_results_view' || language === 'embeds_map_view') {
         output.push(resultView(body)); index = next; continue;
       }

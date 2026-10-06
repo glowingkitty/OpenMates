@@ -161,7 +161,7 @@ async function handleKey(params: {
   const context: WorkspaceContext = {
     state, client, terminal, render,
     command: (command) => handleCommand({command,state,client,terminal,render,finish}),
-    send: (message) => sendTuiMessage({message,state,client,render}),
+    send: (message, options) => sendTuiMessage({message,state,client,render,questionAnswer:options?.questionAnswer}),
   };
   if (await handleWorkspaceKey(context, chunk, key)) return;
   if (key.name === "escape") {
@@ -334,7 +334,7 @@ async function handleCommand(params: {
 }): Promise<void> {
   const { command, state, client, terminal, render, finish } = params;
   client.clearInteractiveChatViewer();
-  if (await handleWorkspaceCommand({state,client,terminal,render,command:(next)=>handleCommand({...params,command:next}),send:(message)=>sendTuiMessage({message,state,client,render})},command)) return;
+  if (await handleWorkspaceCommand({state,client,terminal,render,command:(next)=>handleCommand({...params,command:next}),send:(message,options)=>sendTuiMessage({message,state,client,render,questionAnswer:options?.questionAnswer})},command)) return;
   const [name, ...parts] = command.split(/\s+/);
   const arg = parts.join(" ");
   rememberDraft(state);
@@ -453,6 +453,7 @@ async function handleCommand(params: {
 }
 
 async function sendTuiMessage(params: {
+  questionAnswer?:boolean;
   message: string;
   state: TuiState;
   client: OpenMatesClient;
@@ -466,7 +467,7 @@ async function sendTuiMessage(params: {
   const preparingRoute = state.routeVersion;
   let prepared: Awaited<ReturnType<typeof prepareTuiMessage>>;
   try {
-    prepared = await prepareTuiMessage(client, message);
+    prepared = params.questionAnswer ? {message,preparedEmbeds:[],displayNames:[]} : await prepareTuiMessage(client, message);
   } catch (error) {
     state.isBusy = false;
     if (preparingRoute === state.routeVersion) {
@@ -476,6 +477,7 @@ async function sendTuiMessage(params: {
     render(); return;
   }
   if (preparingRoute !== state.routeVersion) {state.isBusy = false; render(); return;}
+  const previousMessages = state.messages, previousActiveChat = state.activeChat, previousHeaderState = state.headerState;
   const sourceExample = state.screen === "example" ? state.activeExample : null;
   const history = sourceExample ? buildExampleContinuationHistory(sourceExample) : undefined;
   if (sourceExample) state.messages = sourceExample.messages.map((m) => ({role:m.role === "user" ? "user" : "assistant",content:m.content,title:m.senderName}));
@@ -499,6 +501,7 @@ async function sendTuiMessage(params: {
   const assistantMessage = { role: "assistant" as const, content: "", title: "Assistant" };
   state.messages.push(assistantMessage);
   render();
+  let questionSendError: Error | null = null;
   try {
     if (!client.hasSession()) {
       const result = await client.sendAnonymousMessage({
@@ -545,18 +548,39 @@ async function sendTuiMessage(params: {
       assistantMessage.content = result.assistant;
       if (state.messages === messages) {
         state.activeChatId = result.chatId; state.followUpSuggestions = result.followUpSuggestions ?? [];
-        if (state.screen === "chat") await client.setInteractiveChatViewer(result.chatId);
+        // A completed reply must release send controls even if viewer sync is offline.
+        if (state.screen === "chat") void client.setInteractiveChatViewer(result.chatId).catch(() => {});
         if (result.mateName) assistantMessage.title = result.mateName;
         if (typeof client.getChatMetadata === "function") {
-          try { const metadata = await client.getChatMetadata(result.chatId); if (state.messages === messages) state.activeChat = metadata; } catch { /* Saved messages remain usable while metadata catches up. */ }
+          const completedLength = messages.length;
+          const ownsMetadata = () => state.routeVersion === preparingRoute && state.messages === messages
+            && state.activeChatId === result.chatId && messages.length === completedLength;
+          void (async () => {
+            try {
+              const metadata = await client.getChatMetadata(result.chatId);
+              if (ownsMetadata()) state.activeChat = metadata;
+            } catch { /* Saved messages remain usable while metadata catches up. */ }
+            finally { if (ownsMetadata()) { state.headerState = "ready"; render(); } }
+          })();
         }
       }
     }
     if (state.messages === messages) {state.status = null;state.headerState="ready";}
   } catch (error) {
-    assistantMessage.title = "Error";
-    assistantMessage.content = error instanceof Error ? error.message : String(error);
-    if (state.messages === messages) {state.headerState="error";state.headerError=/credit/i.test(assistantMessage.content)?"Not enough credits":assistantMessage.content;}
+    if (params.questionAnswer) {
+      questionSendError = error instanceof Error ? error : new Error(String(error));
+      for (const optimistic of [userMessage, assistantMessage]) {
+        const index = messages.indexOf(optimistic); if (index >= 0) messages.splice(index, 1);
+      }
+      if (state.messages === messages && state.routeVersion === preparingRoute) {
+        state.messages = previousMessages; state.activeChatId = existingChatId; state.activeChat = previousActiveChat;
+        state.headerState = previousHeaderState; state.screen = sourceExample ? "example" : "chat"; state.status = null;
+      }
+    } else {
+      assistantMessage.title = "Error";
+      assistantMessage.content = error instanceof Error ? error.message : String(error);
+      if (state.messages === messages) {state.headerState="error";state.headerError=/credit/i.test(assistantMessage.content)?"Not enough credits":assistantMessage.content;}
+    }
   } finally {
     state.isBusy = false;
     state.projectFocusPending = null;
@@ -565,6 +589,7 @@ async function sendTuiMessage(params: {
     if(state.screen==='chat'&&typeof client.getEmbed==='function')void hydrateChatEmbedPreviews(state,client,render);
     render();
   }
+  if (questionSendError) throw questionSendError;
 }
 
 function hydrateExamples(state: TuiState): void {

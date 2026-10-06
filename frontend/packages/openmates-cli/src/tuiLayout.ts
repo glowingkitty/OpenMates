@@ -1,5 +1,6 @@
 /** Pure shared workspace layout, terminal color adaptation and overlays. */
 import type { TuiState } from "./tuiRenderer.js";
+import {renderQuestionEditor} from './tuiInteractiveQuestions.js';
 import { CATEGORY_GRADIENTS } from "../../chatCategoryTheme.js";
 import { paletteActions } from "./tuiActions.js";
 import { tuiChatSidebarRows, tuiChatBreadcrumb } from './tuiChatSidebar.js';
@@ -14,7 +15,7 @@ export const WORKSPACE_MAX_COLUMNS = 180;
 export function workspaceGeometry(state: TuiState, rawWidth: number) {
   const width = Math.max(1, Math.floor(rawWidth));
   const gutter = Math.min(2, Math.floor((width - 1) / 2));
-  const sidebarWidth = state.sidebarOpen && width >= 90 && !state.form && !state.paletteOpen ? 27 : 0;
+  const sidebarWidth = state.sidebarOpen && width >= 90 && !state.form && !state.paletteOpen && !state.questionEditor ? 27 : 0;
   const paneWidth = Math.max(1, width - gutter * 2 - sidebarWidth);
   const contentWidth = Math.min(WORKSPACE_MAX_COLUMNS, paneWidth);
   const inset = Math.floor((paneWidth - contentWidth) / 2);
@@ -63,6 +64,7 @@ export function sidebarLines(state: TuiState): string[] {
 }
 
 export function workspaceHint(state: TuiState): string {
+  if(state.questionEditor)return 'Tab / ↑↓ move   Space choose   ←/→ adjust   Ctrl+S send   Esc cancel';
   if (state.form) return "Tab field   ←/→ choice   Ctrl+S save   Esc cancel";
   if (state.paletteOpen) return "↑/↓ choose   Enter action   Esc close";
   if (state.focus === "navigation") return "←/→ workspace   Enter open   Tab focus   Ctrl+B sidebar";
@@ -88,10 +90,11 @@ export function workspaceHint(state: TuiState): string {
   if (state.screen === "tasks") return "←/→ columns   ↑/↓ task   Enter open   /search filter   Tab focus";
   if (state.screen === "interests") return "↑/↓ move   Space select   Enter continue   Esc back";
   if (state.screen === "examples") return "↑/↓ choose   Enter open   /search filter   Esc back";
-  return "Enter send   Alt+Enter newline   Esc chats   Ctrl+Y select text   Ctrl+B sidebar";
+  return "Enter send   Alt+Enter newline   Esc chats   Ctrl+Q question   Ctrl+Y select text   Ctrl+B sidebar";
 }
 
 function overlayLines(state: TuiState, width: number, height: number): TuiLine[] {
+  if(state.questionEditor)return renderQuestionEditor(state.questionEditor,width);
   if (state.paletteOpen) {
     const actions = paletteActions(state.paletteQuery);
     const start = Math.max(0, state.paletteIndex - Math.max(1, height - 5));
@@ -160,7 +163,7 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
   const showComposer = state.workspace !== "apps" || state.focus === "composer" || Boolean(state.input);
   const composerRows = showComposer ? input.count : 0;
   const bodyHeight = Math.max(1, height - 2 - (showComposer ? composerRows + 3 : 1));
-  const overlay = state.form || state.paletteOpen;
+  const overlay = state.form || state.paletteOpen || state.questionEditor;
   const sidebar = state.sidebarOpen && !overlay;
   const sidebarOverlay = sidebar && !sidebarWidth;
   let content = overlay ? overlayLines(state, contentWidth, bodyHeight) : sidebarOverlay ? sidebarLines(state) : body;

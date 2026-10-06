@@ -21,6 +21,7 @@ import { formatEmbedFullscreenLines } from "./embedRenderers.js";
 import { registerChatEmbedAliases, exampleEmbedMap, chatEmbedReferences, hydrateChatEmbedPreviews, hydrateFitnessResults, aliasForEmbed, isFitnessEmbed, fitnessSearchDetail, fitnessResultDetail } from './tuiEmbeds.js';
 import { normalizeFitnessSearchContent } from '../../ui/src/components/embeds/fitness/fitnessEmbedData.js';
 import { chatResultsViews } from './tuiChatResults.js';
+import {handleQuestionKey, openQuestion} from './tuiInteractiveQuestions.js';
 import { buildTuiResultsViewData, type TuiResultsViewMode } from './tuiResultsViews.js';
 import { currentInspiration, homeContinueItems, isWorkspaceHome, loadHomeData, workspaceInspirations } from "./tuiHome.js";
 import { loadTuiApps, homeTuiApps, loadTuiAppsSkill, buildTuiAppsSkillForm, prepareTuiAppsSkillRun, buildTuiAppsRunConfirmation, executeTuiAppsSkill, loadTuiAppsResults, loadTuiAppsResult, loadTuiAppsWorkflows } from "./tuiAppsWorkspace.js";
@@ -28,10 +29,14 @@ import { loadCachedTuiWorkspace, invalidateCachedTuiWorkspace, writeCachedTuiWor
 
 export type WorkspaceContext = {
   state: TuiState; client: OpenMatesClient; terminal: TuiTerminal; render: () => void;
-  command: (command: string) => Promise<void>; send: (message: string) => Promise<void>;
+  command: (command: string) => Promise<void>; send: (message: string,options?:{questionAnswer?:boolean}) => Promise<void>;
 };
 
 function chatDraftKey(state: TuiState) { return state.screen === "example" ? `example:${state.activeExample?.chat.id}` : state.activeChatId ?? "new"; }
+const DRAFT_ONLY_CHAT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function missingChatMetadata(error: unknown, id: string): boolean {
+  return error instanceof Error && (error.message === "Chat metadata failed with HTTP 404" || error.message.startsWith(`Chat '${id}' not found.`));
+}
 function selectedTask(state:TuiState) {return state.screen==="tasks"?filterTasks(state.tasks,state.filter,state.taskStatusFilter as UserTaskStatus||undefined)[state.selectedIndex]:state.activeTask;}
 export function rememberDraft(state: TuiState): void {
   if (state.workspace === "chats" && !state.input.startsWith("/")) state.drafts[chatDraftKey(state)] = state.input;
@@ -44,7 +49,7 @@ export function route(state: TuiState, workspace: TuiWorkspace, screen: TuiScree
   state.sidebarIndex = 0;
   state.homeShowAll = false;state.homeSelectionMoved=false;
   state.status = null;
-  state.form = null; state.workflowEdit = null;
+  state.form = null; state.workflowEdit = null;state.questionEditor=null;
   state.textSelection = false;
   return ++state.routeVersion;
 }
@@ -71,14 +76,18 @@ async function recent(context: WorkspaceContext): Promise<void> {
 export async function openSavedChat(context: WorkspaceContext, id: string): Promise<void> {
   const {state, client, render} = context;
   const request = route(state, "chats", "chat");
+  const ownerCurrent = captureTuiWorkspaceOwner(client);
+  let ownedChatId = id;
+  const current = () => state.routeVersion === request && state.activeChatId === ownedChatId && ownerCurrent();
   state.activeChatId=id;state.activeChat=[...state.recentChats,...state.sidebarLinkedChats,...state.activityChats].find(chat=>chat.id===id) ?? null;
   state.activeExample=null;state.messages=[];state.headerState=state.activeChat ? "ready" : "loading";
   state.chatEmbeds={};state.embedAliases={};state.chatSelectedEmbedId=null;state.chatEmbedLoads=new Set();
   state.resultsViewModes={};state.activeResultsView=null;state.resultsViewOrigin=null;
   state.status = "Loading chat…"; render();
   let published = false;
-  const publish = (result: Awaited<ReturnType<OpenMatesClient['getChatMessages']>>, pending = false) => {
-    if (state.routeVersion !== request) return;
+  const publish = (result: Awaited<ReturnType<OpenMatesClient['getChatMessages']>>, pending = false, draftMarkdown?: string) => {
+    if (!current()) return;
+    ownedChatId = result.chat.id;
     state.activeChatId = result.chat.id; state.activeChat = result.chat; state.activeExample = null;
     state.selectedProjectId = null;
     state.messages = result.messages.map((m) => ({id: m.id, role: m.role === "user" ? "user" : m.role === "system" ? "system" : "assistant", content: m.content, title: m.senderName, category:m.category, embedIds: m.embedIds}));
@@ -86,18 +95,18 @@ export async function openSavedChat(context: WorkspaceContext, id: string): Prom
     if(typeof client.getEmbed==='function')void hydrateChatEmbedPreviews(state,client,render);
     state.projectFocusPending = null;
     state.headerState = "ready"; state.headerError = null;
-    if (!published) state.input = state.drafts[result.chat.id] ?? "";
+    if (!published) state.input = state.drafts[result.chat.id] ?? draftMarkdown ?? "";
     state.status = pending ? "Loading older messages…" : result.historyIncomplete ? "Showing cached recent messages. Older history is unavailable offline." : null; render();
     // Draft lookup must not delay browsing or replace text typed after opening.
-    if (!published && state.drafts[result.chat.id] === undefined) {
+    if (!published && state.drafts[result.chat.id] === undefined && draftMarkdown === undefined) {
       const inputAtOpen = state.input;
       const draft = typeof client.getCachedDraft === "function" ? client.getCachedDraft(result.chat.id) :
         typeof client.getDraft === "function" ? client.getDraft(result.chat.id) : Promise.resolve(null);
       void draft.then(remoteDraft => {
-        if (state.routeVersion !== request || state.input !== inputAtOpen || state.drafts[result.chat.id] !== undefined) return;
+        if (!current() || state.input !== inputAtOpen || state.drafts[result.chat.id] !== undefined) return;
         state.input = remoteDraft?.markdown ?? "";render();
       }).catch(() => {
-        if (state.routeVersion === request && !state.status) { state.status = "Saved draft unavailable."; render(); }
+        if (current() && !state.status) { state.status = "Saved draft unavailable."; render(); }
       });
     }
     published = true;
@@ -106,7 +115,22 @@ export async function openSavedChat(context: WorkspaceContext, id: string): Prom
     const result = await client.getChatMessages(id, {preferCache:true,onMessages:latest=>publish(latest,true)});
     publish(result);
   } catch (error) {
-    if (state.routeVersion !== request) return;
+    if (!current()) return;
+    if (!published && DRAFT_ONLY_CHAT_ID.test(id) && missingChatMetadata(error,id) &&
+        typeof client.hasSession === "function" && client.hasSession() && typeof client.getDraft === "function") {
+      try {
+        // Only an owner-decrypted, targeted draft may establish a chat without metadata.
+        const draft = await client.getDraft(id,true);
+        if (current() && client.hasSession() && draft?.chatId === id && draft.markdown.trim()) {
+          const recovered = await client.getChatMessages(id,{preferCache:true});
+          if (current() && recovered.chat.id === id && recovered.chat.hasDraft === true && recovered.messages.length === 0) {
+            publish(recovered,false,draft.markdown);
+            return;
+          }
+        }
+      } catch { /* Keep the original missing-chat error when no draft-only chat is proven. */ }
+    }
+    if (!current()) return;
     if (!published) { state.headerState = 'error'; state.headerError = 'Could not load chat'; }
     state.status = `${error instanceof Error ? error.message : String(error)}. Use /refresh to retry.`;
     render();
@@ -429,6 +453,11 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
       else state.form = { kind: "workspace-search", title: `Search ${state.workspace}`, fields: [{name:"query", label:"Search", value:state.filter}], fieldIndex:0 };
       render(); return true;
     }
+    case "/question": {
+      const key=arg?Number(arg):undefined;
+      if(key!==undefined&&(!Number.isInteger(key)||key<1))throw Error('Use /question <number> shown in this chat.');
+      openQuestion(state,key);render();return true;
+    }
     case "/view": {
       const [indexText,modeText] = arg.split(/\s+/), key=Number(indexText || 1);
       const descriptor=chatResultsViews(state)[key-1];
@@ -650,8 +679,9 @@ async function saveForm(context: WorkspaceContext): Promise<void> {
 export async function handleWorkspaceKey(context: WorkspaceContext, chunk: string, key: TerminalKey): Promise<boolean> {
   const {state, render, client} = context;
   if(key.ctrl&&key.name==='g'){
-    state.textSelection=false;state.focus='navigation';state.navigationIndex=WORKSPACES.indexOf(state.workspace);render();return true;
+    state.questionEditor=null;state.textSelection=false;state.focus='navigation';state.navigationIndex=WORKSPACES.indexOf(state.workspace);render();return true;
   }
+  if(state.focus!=='navigation'&&await handleQuestionKey(context,chunk,key))return true;
   if(state.focus==='navigation'&&['left','right','return','escape'].includes(key.name??'')){
     if(key.name==='left'||key.name==='right')state.navigationIndex=(state.navigationIndex+(key.name==='left'?-1:1)+WORKSPACES.length)%WORKSPACES.length;
     else if(key.name==='return'){state.paletteOpen=false;await context.command(`/${WORKSPACES[state.navigationIndex]}`);}

@@ -583,3 +583,5 @@ Update `DESIGN.md` when you change:
 | Cross-medium rules | Video, print, social, native app visual conventions. |
 
 If a visual change is one-off and not reusable, do not expand this file. If it becomes a pattern, update this file with concrete values and source references.
+
+Terminal interactive questions replace protocol JSON with colored, bold question prompts and readable options. `/question <number>` or Ctrl+Q opens keyboard controls for choices, custom answers, fields, sliders, ratings and swipe decisions. Selecting leaves a draft; Send or Ctrl+S submits the web-compatible response, Clear resets it, and Escape cancels. Answered questions stay locked when cached chat history is reopened. Hidden response JSON is never displayed.

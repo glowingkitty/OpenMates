@@ -33,6 +33,7 @@ import { buildTuiResultsViewData, renderTuiResultsViewLines, type TuiResultsView
 import { chatResultsViews, messageResultsViews, renderChatResultsView } from './tuiChatResults.js';
 import { parseChatContextContent, chatContextSummary } from "./chatContextEvents.js";
 import type { ProjectFocusCountdown } from "./projectFocusCountdown.js";
+import {chatQuestions, messageQuestions, renderQuestionCard, type TuiQuestionEditor} from './tuiInteractiveQuestions.js';
 
 export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chats" | "chat" | "embed" | "results-view" | "apps" | "app" | "app-skill" | "app-result" | "projects" | "project" | "workflows" | "workflow" | "tasks" | "task" | "status";
 export type TuiWorkspace = "chats" | "apps" | "projects" | "tasks" | "workflows";
@@ -54,6 +55,7 @@ export type TuiWorkflowEdit = {
 };
 
 export type TuiState = {
+  questionEditor:TuiQuestionEditor|null;
   textSelection: boolean;
   chatEmbeds: Record<string, DecryptedEmbed>;
   chatEmbedLoads: Set<string>;
@@ -181,6 +183,7 @@ export const TUI_INTERESTS = [
 
 export function createInitialTuiState(): TuiState {
   return {
+    questionEditor:null,
     textSelection:false,chatEmbeds:{},chatEmbedLoads:new Set(),embedAliases:{},chatSelectedEmbedId:null,username:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeChatsLoading:false,homeAbortController:null,homeError:null,homeLoadVersion:0,homeShowAll:false,homeSelectionMoved:false,homeContextKey:null,continueData:null,detailEmbed:null,embedOrigin:null,embedChoices:[],
     apps:[],activeApp:null,activeAppSkill:null,appTab:"skills",appSkillTab:"overview",appResults:{items:[],hasMore:false,offset:0},
     appWorkflows:{items:[],hasMore:false,offset:0},activeAppResult:null,appPreparedRun:null,
@@ -409,6 +412,7 @@ function renderHelp(width: number): string[] {
     "  /embed <shortcut>  Open an embed (UUIDs also work)",
     "  /embed             List this chat's embed shortcuts",
     "  /wiki <title>      Read the linked Wikipedia article",
+    "  /question <n>      Answer a question · Ctrl+Q latest",
     "  /view <n> <mode>   Open map, calendar or list results",
     "  Ctrl+Y             Select and copy text using the terminal",
     "  Esc                Back from embed, then back to chats",
@@ -506,11 +510,12 @@ function renderExampleChat(state: TuiState, width: number): TuiLine[] {
     `Example chat: ${convo.chat.title ?? convo.chat.slug}`,
     "",
   ];
-  let viewOffset = 0;
+  let viewOffset = 0, questionOffset=0;
   for (const message of convo.messages) {
     lines.push({text: messageLabel(message.role,message.senderName,message.category,convo.chat),color:'#5a85eb',bold:true});
-    lines.push(...renderMessageContentStyled(message.content, width, embeds,state,[],viewOffset));
+    lines.push(...renderMessageContentStyled(message.content, width, embeds,state,[],viewOffset,questionOffset,message.role==='assistant'));
     viewOffset += messageResultsViews(message.content).length;
+    if(message.role==='assistant')questionOffset+=messageQuestions(message.content).length;
     lines.push("");
   }
   if (convo.followUpSuggestions.length > 0) {
@@ -524,7 +529,7 @@ function renderExampleChat(state: TuiState, width: number): TuiLine[] {
 
 function renderChat(state: TuiState, width: number): TuiLine[] {
   const lines = renderChatHeader(state, width);
-  let contextIndex = 0, viewOffset = 0;
+  let contextIndex = 0, viewOffset = 0, questionOffset=0;
   for (const message of state.messages) {
     const event = message.role === "system" ? parseChatContextContent(message.content) : null;
     if (event) {
@@ -540,8 +545,9 @@ function renderChat(state: TuiState, width: number): TuiLine[] {
     }
     lines.push({text:messageLabel(message.role,message.title,message.category,state.activeChat),color:'#5a85eb',bold:true});
     const embeds = new Map(Object.entries(state.chatEmbeds));
-    lines.push(...renderMessageContentStyled(message.content, width, embeds,state,message.role==='assistant'?message.embedIds:undefined,viewOffset));
+    lines.push(...renderMessageContentStyled(message.content, width, embeds,state,message.role==='assistant'?message.embedIds:undefined,viewOffset,questionOffset,message.role==='assistant'));
     viewOffset += messageResultsViews(message.content).length;
+    if(message.role==='assistant')questionOffset+=messageQuestions(message.content).length;
     lines.push("");
   }
   if (state.projectFocusPending) lines.push("Project access starts after the countdown. /project-focus-reject to cancel.");
@@ -584,9 +590,9 @@ function renderStatus(state: TuiState, width: number): string[] {
 export function renderMessageContent(content: string, width: number, embeds: Map<string, DecryptedEmbed> = new Map()): string[] {
   return renderMessageContentStyled(content,width,embeds).map(lineText);
 }
-export function renderMessageContentStyled(content: string, width: number, embeds: Map<string, DecryptedEmbed> = new Map(), state?:TuiState,extraIds:string[]=[],viewOffset=0): TuiLine[] {
+export function renderMessageContentStyled(content: string, width: number, embeds: Map<string, DecryptedEmbed> = new Map(), state?:TuiState,extraIds:string[]=[],viewOffset=0,questionOffset=0,questionBlocks=true): TuiLine[] {
   const lines:TuiLine[]=[],segments=parseMessageSegments(content,{preserveCodeFences:true});
-  let pending:Array<{value:string;meta?:Record<string,unknown>}>=[], viewIndex=viewOffset;
+  let pending:Array<{value:string;meta?:Record<string,unknown>}>=[], viewIndex=viewOffset, questionIndex=questionOffset;
   const flush=()=>{
     if(!pending.length)return;
     const unique=pending.filter((ref,index)=>pending.findIndex(other=>other.value===ref.value)===index);
@@ -602,9 +608,14 @@ export function renderMessageContentStyled(content: string, width: number, embed
     pending=[];
   };
   const text=(value:string)=>{
-    for(const block of parseTuiMarkdown(value,width,{resolveEmbedAlias:id=>state?aliasForEmbed(state,id):id})) {
+    for(const block of parseTuiMarkdown(value,width,{resolveEmbedAlias:id=>state?aliasForEmbed(state,id):id,questionBlocks})) {
       if(block.type==='line')lines.push(block.line);
-      else {
+      else if(block.type==='question'){
+        const key=++questionIndex;
+        const question=state?chatQuestions(state).find(item=>item.key===key&&item.payload.id===block.payload.id):undefined;
+        lines.push(...renderQuestionCard(question??{key,messageIndex:0,payload:block.payload},width));
+      }
+      else if(block.type==='results-view') {
         const key=++viewIndex;
         if(state)lines.push(...renderChatResultsView(state,block,key,width));
         else lines.push(...renderTuiResultsViewLines(buildTuiResultsViewData(block,embeds),{viewKey:key}).flatMap(row=>wrap(row,width)));

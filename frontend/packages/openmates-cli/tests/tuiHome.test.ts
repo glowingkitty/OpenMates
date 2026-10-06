@@ -118,6 +118,37 @@ test("failed sync keeps cached chats usable and a cold failure stops loading wit
 });
 
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+test("cached chat sync failures keep their actionable status in either activity failure order", async () => {
+  for(const activityFirst of [false,true]) {
+    const state=createInitialTuiState();state.signedIn=true;
+    let failSync!:(error:Error)=>void,failActivity!:(error:Error)=>void;
+    const loading=loadHomeData(state,{
+      listCachedChats:async()=>({chats:[chat(1)]}),
+      listChats:()=>new Promise((_done,reject)=>{failSync=reject;}),
+      getChatActivity:()=>new Promise((_done,reject)=>{failActivity=reject;})
+    } as never,()=>{});
+    await new Promise<void>(done=>setImmediate(done));
+    (activityFirst?failActivity:failSync)(Error('offline'));
+    await new Promise<void>(done=>setImmediate(done));
+    if(activityFirst)assert.equal(state.status,'Running chat status unavailable.');
+    (activityFirst?failSync:failActivity)(Error('offline'));await loading;
+    assert.equal(state.status,'Showing cached chats. Sync failed; /refresh to retry.');
+    assert.deepEqual(state.recentChats,[chat(1)]);
+  }
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+test("cached sync failure preserves an existing user action error", async () => {
+  const state=createInitialTuiState();state.signedIn=true;state.status='Could not open selected embed. Use /embed to retry.';
+  await loadHomeData(state,{
+    listCachedChats:async()=>({chats:[chat(1)]}),
+    listChats:async()=>{throw Error('offline');},
+    getChatActivity:async()=>{throw Error('offline');}
+  } as never,()=>{});
+  assert.equal(state.status,'Could not open selected embed. Use /embed to retry.');
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
 test("late cached home data cannot restore private chats after account reset", async () => {
   let cached!:(page:unknown)=>void,syncs=0;
   const state=createInitialTuiState();state.signedIn=true;
@@ -364,6 +395,82 @@ test("remembered items and due chats precede recents while dated embeds obey the
   assert.deepEqual(items.map(item=>item.kind==='embed'?item.embedId:item.chat.id),['chat-2','Soon event','chat-1']);
   assert.match(items[0].priority!.label,/Reminder/);assert.match(items[1].priority!.label,/Event/);
   assert.equal(homeContinueItems(state,now+48*3600000).some(item=>item.kind==='embed' && item.embedId==='Soon event'),false);
+});
+
+// contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,cli.surface.semantic-parity
+test("saved event highlights end at date_end or date_start and hide invalid dates",()=>{
+  const state=createInitialTuiState(),now=Date.parse("2026-10-06T12:00:00Z");
+  state.signedIn=true;state.recentChats=[chat(1)];
+  const memory=(id:string,dateStart:string,dateEnd?:string)=>({id,app_id:"events",item_type:"saved_events",
+    item_key_hash:id,item_version:1,created_at:1,updated_at:1,
+    data:{embed_id:id,title:id,date_start:dateStart,...(dateEnd===undefined?{}:{date_end:dateEnd})}});
+  state.continueData={memories:[
+    memory("Upcoming",new Date(now+3600000).toISOString()),
+    memory("Ongoing",new Date(now-3600000).toISOString(),new Date(now+1000).toISOString()),
+    memory("Ended",new Date(now-3600000).toISOString(),new Date(now-1).toISOString()),
+    memory("Start only ended",new Date(now-1).toISOString()),
+    memory("Invalid end",new Date(now+3600000).toISOString(),"invalid"),
+    memory("Invalid start","invalid"),
+  ],reminders:[]};
+  const ids=(time:number)=>homeContinueItems(state,time).filter(item=>item.kind==="embed").map(item=>item.embedId);
+  assert.deepEqual(ids(now),["Ongoing","Upcoming"]);
+  assert.deepEqual(ids(now+1000),["Ongoing","Upcoming"]);
+  assert.deepEqual(ids(now+1001),["Upcoming"]);
+  assert.deepEqual(ids(now+3600001),[]);
+  assert.equal(homeContinueItems(state,now).at(-1)?.kind,"chat");
+});
+
+// contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,cli.surface.semantic-parity
+test("saved items with explicit end times expire across apps while undated items keep reminder eligibility",()=>{
+  const state=createInitialTuiState(),now=Date.parse("2026-10-06T12:00:00Z");state.signedIn=true;
+  const memory=(id:string,appId:string,data:Record<string,unknown>)=>({id,app_id:appId,
+    item_type:appId==="travel"?"saved_connections":"saved_listings",item_key_hash:id,item_version:1,
+    created_at:1,updated_at:1,data:{embed_id:id,title:id,...data}});
+  state.continueData={memories:[
+    memory("Finished trip","travel",{departure:new Date(now-3600000).toISOString(),arrival:new Date(now-1).toISOString()}),
+    memory("Current trip","travel",{departure:new Date(now-3600000).toISOString(),arrival:new Date(now+1000).toISOString()}),
+    memory("Undated note","home",{}),
+  ],reminders:[{reminder_id:"undated",trigger_at:(now+60000)/1000,target_type:"embed",
+    target_embed_id:"Undated note",status:"pending"}]};
+  const ids=(time:number)=>homeContinueItems(state,time).filter(item=>item.kind==="embed").map(item=>item.embedId);
+  assert.deepEqual(ids(now),["Undated note","Current trip"]);
+  assert.deepEqual(ids(now+1001),["Undated note"]);
+});
+
+// contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,cli.surface.semantic-parity
+test("idle home rerenders at event expiry and keeps the next selected item",async()=>{
+  const state=createInitialTuiState();state.signedIn=true;state.recentChats=[chat(1)];
+  const now=Date.now(),end=new Date(now+80).toISOString();
+  state.continueData={memories:[{id:"soon",app_id:"events",item_type:"saved_events",item_key_hash:"soon",
+    item_version:1,created_at:1,updated_at:1,
+    data:{embed_id:"soon",title:"Soon-ending event",date_start:new Date(now-1000).toISOString(),date_end:end}}],reminders:[]};
+  state.selectedIndex=1;
+  let rendered=0;
+  const stop=startHomeSync(state,{} as never,()=>{rendered++;},()=>false);
+  try {
+    assert.equal(homeContinueItems(state).length,2);
+    await new Promise(resolve=>setTimeout(resolve,150));
+    assert.equal(homeContinueItems(state).length,1);
+    assert.ok(rendered>0);
+    assert.equal(state.selectedIndex,0);
+  } finally {stop();}
+});
+
+// contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,cli.surface.semantic-parity
+test("idle event expiry does not change selection or rerender a non-chat workspace",async()=>{
+  const state=createInitialTuiState();state.signedIn=true;state.workspace="projects";state.screen="projects";
+  const now=Date.now();state.selectedIndex=3;
+  state.continueData={memories:[{id:"soon",app_id:"events",item_type:"saved_events",item_key_hash:"soon",
+    item_version:1,created_at:1,updated_at:1,
+    data:{embed_id:"soon",title:"Soon-ending event",date_start:new Date(now-1000).toISOString(),
+      date_end:new Date(now+80).toISOString()}}],reminders:[]};
+  let renders=0;const stop=startHomeSync(state,{} as never,()=>{renders++;},()=>false);
+  try {
+    await new Promise(resolve=>setTimeout(resolve,150));
+    assert.equal(state.selectedIndex,3);
+    assert.equal(renders,0);
+    assert.equal(homeContinueItems(state).some(item=>item.kind==="embed"),false);
+  } finally {stop();}
 });
 
 // contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,cli.surface.semantic-parity

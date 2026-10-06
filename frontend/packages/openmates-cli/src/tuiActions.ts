@@ -17,6 +17,7 @@ export const TUI_ACTIONS = [
   { label: "Saved embed", command: "/embed" },
   { label: "Wikipedia article", command: "/wiki" },
   { label: "Map or calendar results", command: "/view" },
+  { label: "Answer an interactive question", command: "/question" },
   { label: "App results", command: "/app-results" },
   { label: "Toggle sidebar", command: "/sidebar" },
   { label: "Create task", command: "/task-create" },

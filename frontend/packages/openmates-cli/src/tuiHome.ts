@@ -12,6 +12,28 @@ import {getSavedEmbedContinueCandidates,getReminderByTargetEmbedId,getReminderBy
   type ActiveReminderForContinue,type ContinuePriority,type SavedEmbedContinueCandidate} from "../../ui/src/services/continueCarouselService.js";
 
 export type HomeContinueItem = SavedEmbedContinueCandidate | {kind:"chat";chat:ChatListItem;priority?:ContinuePriority};
+/** Saved event memories use date_end when supplied, otherwise date_start, like the web event list. */
+function savedEventExpiry(value:Record<string,unknown>):number|null {
+  const raw=value.date_end || value.date_start;
+  if(typeof raw!=="string" || !raw.trim())return null;
+  const timestamp=new Date(raw).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+function savedItemExpiry(appId:string,isEvent:boolean,value:Record<string,unknown>):number|null {
+  if(appId==="events" || isEvent)return savedEventExpiry(value);
+  // Keep undated saved items. A recorded end time is authoritative for every app.
+  const raw=value.date_end || value.arrival || value.arrival_datetime || value.end_time ||
+    value.ends_at || value.checkout || value.available_until;
+  if(raw===undefined || raw===null || raw==="")return null;
+  const timestamp=typeof raw==="string" ? new Date(raw).getTime() : NaN;
+  return Number.isFinite(timestamp) ? timestamp : -Infinity;
+}
+function isLiveSavedItem(item:SavedEmbedContinueCandidate,now:number):boolean {
+  const expiry=savedItemExpiry(item.appId,item.category==="events",item.itemValue);
+  if(item.appId==="events" || item.category==="events")return expiry!==null && expiry>=now;
+  return expiry===null || expiry>=now;
+}
+const homeExpirySchedulers=new WeakMap<TuiState,()=>void>();
 export function homeContinueItems(state:TuiState,now=Date.now()):HomeContinueItem[] {
   const chats=homeChatItems(state);
   if(!state.signedIn || !state.continueData)return chats.map(chat=>({kind:"chat",chat}));
@@ -26,6 +48,7 @@ export function homeContinueItems(state:TuiState,now=Date.now()):HomeContinueIte
   const priorityChats=chats.filter(chat=>reminderChats.has(chat.id) && !chat.parentId && !chat.isSubChat && chat.id!==state.activeChatId)
     .map(chat=>({kind:"chat" as const,chat,priority:reminderChats.get(chat.id)!.priority}));
   const embeds=getSavedEmbedContinueCandidates({entriesByApp},getReminderByTargetEmbedId(reminders,now),now)
+    .filter(item=>isLiveSavedItem(item,now))
     .filter(item=>`${item.title} ${item.summary??""} ${item.priority.label}`.toLowerCase().includes(state.filter.toLowerCase()));
   const priority=sortContinuePriorityItems([...priorityChats,...embeds],now).slice(0,10);
   const promoted=new Set(priority.filter(item=>item.kind==="chat").map(item=>item.chat.id));
@@ -99,6 +122,7 @@ export async function loadHomeData(state: TuiState, client: OpenMatesClient, ren
       state.selectedIndex=index<0 ? 0 : index;
     } else state.selectedIndex=0;
     render();
+    homeExpirySchedulers.get(state)?.();
   };
   if(signedIn && typeof client.getCachedContinueItems === "function") {
     try {const cached=await client.getCachedContinueItems();if(!current())return;if(cached)updateContinue(cached);} catch {if(!current())return;}
@@ -148,7 +172,7 @@ export async function loadHomeData(state: TuiState, client: OpenMatesClient, ren
     render();
   }}).catch(()=>{if(current()){
     state.homeError="Saved chats could not be synced. Use /refresh to retry.";
-    if(homeChatItems(state).length && isWorkspaceHome(state) && !state.status)state.status="Showing cached chats. Sync failed; /refresh to retry.";
+    if(homeChatItems(state).length && isWorkspaceHome(state) && (!state.status || state.status==="Running chat status unavailable."))state.status="Showing cached chats. Sync failed; /refresh to retry.";
   }}).finally(()=>{if(current()){state.homeChatsLoading=false;render();}}));
   else state.homeChatsLoading=false;
   if(signedIn) work.push(refreshTuiChatSidebar(state,client,render,true).catch(()=>{if(current())state.homeError="Chat projects could not be loaded. Use /refresh to retry.";}));
@@ -158,13 +182,41 @@ export async function loadHomeData(state: TuiState, client: OpenMatesClient, ren
 /** Reconnect and refresh recent ciphertext without overlapping recovery or user refreshes. */
 export function startHomeSync(state:TuiState,client:OpenMatesClient,render:()=>void,closed:()=>boolean):()=>void {
   let refreshing=false;
+  let expiryTimer:ReturnType<typeof setTimeout>|undefined;
+  const scheduleExpiry=()=>{
+    if(expiryTimer)clearTimeout(expiryTimer);
+    expiryTimer=undefined;
+    if(closed() || !state.signedIn || !state.continueData)return;
+    const now=Date.now();
+    const next=state.continueData.memories
+      .map(memory=>savedItemExpiry(memory.app_id,memory.item_type.includes("event"),memory.data))
+      .filter((expiry):expiry is number=>expiry!==null && expiry>=now && expiry-now<=24*60*60*1000)
+      .sort((a,b)=>a-b)[0];
+    if(next===undefined)return;
+    // The web keeps an event through its exact end instant, then hides it.
+    expiryTimer=setTimeout(()=>{
+      if(closed())return;
+      if(state.workspace==="chats" && (state.screen==="start" || state.screen==="chats")) {
+        const before=homeContinueItems(state,next);
+        const selected=homeItemId(before[state.selectedIndex]);
+        const after=homeContinueItems(state);
+        const index=after.findIndex(item=>homeItemId(item)===selected);
+        state.selectedIndex=index>=0 ? index : Math.max(0,Math.min(state.selectedIndex,after.length-1));
+        render();
+      }
+      scheduleExpiry();
+    },Math.max(1,next-now+1));
+    expiryTimer.unref?.();
+  };
+  homeExpirySchedulers.set(state,scheduleExpiry);
+  scheduleExpiry();
   const timer=setInterval(()=>{
     if(closed() || state.startup || !state.signedIn || state.homeLoading || refreshing)return;
     refreshing=true;
     void loadHomeData(state,client,render).catch(()=>{}).finally(()=>{refreshing=false;});
   },60_000);
   timer.unref?.();
-  return ()=>clearInterval(timer);
+  return ()=>{clearInterval(timer);if(expiryTimer)clearTimeout(expiryTimer);homeExpirySchedulers.delete(state);};
 }
 const centered = centeredCarouselText;
 export function homeHeader(state:TuiState,width:number,height:number):TuiLine[] {
