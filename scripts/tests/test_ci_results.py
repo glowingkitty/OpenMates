@@ -261,6 +261,7 @@ def _team_node_environment():
     }
 
 
+@pytest.mark.parametrize("selector", ["storage-team-portability.spec.ts", "storage-archive-lifecycle.spec.ts"])
 @pytest.mark.parametrize("fault", [
     "", "source", "harness", "run", "frontend", "dns", "https", "runner", "missing_actor", "extra_actor",
     "stopped", "malformed_service", "missing_mount", "different_mount", "relative_mount", "provider_egress",
@@ -268,12 +269,12 @@ def _team_node_environment():
     "replicas", "isolation_source", "isolation_readonly", "isolation_namespace", "storage_endpoint",
     "storage_provider", "storage_protocol", "missing_proof",
 ])
-def test_team_node_result_requires_strict_disposable_storage_runtime(fault):
+def test_team_node_result_requires_strict_disposable_storage_runtime(fault, selector):
     import json
 
     environment = _team_node_environment()
     job = {"source": "a" * 40, "mode": "e2e", "run_id": 7,
-           "specs": json.dumps(["storage-team-portability.spec.ts"])}
+           "specs": json.dumps([selector])}
     if fault in {"source", "harness"}:
         environment[f"{fault}_commit"] = "c" * 40
     elif fault == "run":
@@ -325,14 +326,15 @@ def test_team_node_result_requires_strict_disposable_storage_runtime(fault):
         assert ci_results.green_e2e_source_and_egress_verified(environment, job) is False
 
 
+@pytest.mark.parametrize("selector", ["storage-team-portability.spec.ts", "storage-archive-lifecycle.spec.ts"])
 @pytest.mark.parametrize("cleanup_present", [False, True])
-def test_team_node_fetch_preserves_cleanup_gate_after_strict_runtime_validation(tmp_path, monkeypatch, cleanup_present):
+def test_team_node_fetch_preserves_cleanup_gate_after_strict_runtime_validation(tmp_path, monkeypatch, cleanup_present, selector):
     import json
 
     environment = _team_node_environment()
     source, harness = environment["source_commit"], environment["harness_commit"]
     report = {"source_commit": source, "run_id": "7", "success": True, "harness_commit": harness,
-              "results": [{"exit_code": 0, "spec": "storage-team-portability.spec.ts"}]}
+              "results": [{"exit_code": 0, "spec": selector}]}
     archive = io.BytesIO()
     with zipfile.ZipFile(archive, "w") as bundle:
         bundle.writestr("ci-results.json", json.dumps(report))
@@ -362,7 +364,7 @@ def test_team_node_fetch_preserves_cleanup_gate_after_strict_runtime_validation(
             return {"head_sha": harness}
 
     job = {"id": "team", "source": source, "mode": "e2e", "run_id": 7, "state": "success",
-           "url": "https://example.test/7", "specs": json.dumps(["storage-team-portability.spec.ts"])}
+           "url": "https://example.test/7", "specs": json.dumps([selector])}
     if cleanup_present:
         result = ci_results.fetch(Remote(), job, tmp_path)
         assert result["cleanup_verified"] is True

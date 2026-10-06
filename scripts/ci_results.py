@@ -49,7 +49,9 @@ def green_e2e_source_and_egress_verified(
             if not isinstance(source, str) or Path(source).parts[-2:] != ("subject", "backend"):
                 return False
         return True
-    if job.get("mode") == "e2e" and selected == ["storage-team-portability.spec.ts"]:
+    if job.get("mode") == "e2e" and selected in (
+        ["storage-team-portability.spec.ts"], ["storage-archive-lifecycle.spec.ts"],
+    ):
         services = environment["services"]
         expected = {"api", "core-worker", "cms", "cms-database", "cache", "vault",
                     "ai-worker", "runner-gateway", "object-storage"}
