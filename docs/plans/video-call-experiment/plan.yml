@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: video-call-experiment
 title: Gemini Voice And H3 Turbo Experiment
-status: implementing
+status: verified
 goal: >
   Implement a first test to see how well such a system can actually work, before
   spending more time on it: a basic /experiment/videocall page for Gemini voice
@@ -99,7 +99,7 @@ verification:
     - Never issue real fal/H3 requests in automated verification; a bounded Gemini-only provider probe is authorized.
 
 verification_evidence:
-  backend: 20 focused mocked route/provider/billing tests passed; Ruff passed.
+  backend: 21 focused mocked route/provider/billing tests passed, including binary Gemini setup and speech forwarding; deployment lint passed.
   frontend: Five focused microphone/PCM/controller tests passed; changed-path ESLint and compilation passed.
   component:
     source: 6a51e056842c6c6bbd6f72a4cfe5c016da7dbee7
@@ -114,7 +114,12 @@ verification_evidence:
     result: Failed during test collection in the existing module loader; no route tests or recordings ran. The user waived this run as a deployment gate.
     retrieval: Artifact download hit the host disk-budget limit; the GitHub failure log confirms no tests executed.
   deployment:
-    code_commit: a9a7b128894bd8ada9ba368f4a63b30f8c4f8765
-    backend: Dev API and dependent workers refreshed together; all services healthy.
+    code_commit: 288f5bf3b2d376982b65187d6c606f8de0167e8f
+    backend: Dev API and dependent workers refreshed together with the binary-frame fix; all services healthy (docker-4fa0af70).
     frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall is published.
-    connection_route: Managed Caddy update needs the operator to authenticate sudo on the dev host.
+    connection_route: Operator applied the managed Caddy update; the authenticated call WebSocket reaches the backend.
+  gemini_live_probe:
+    result: The exact candidate accepted setup and returned native PCM audio, output transcription, turn completion and modality-level usage.
+    framing: Real Google setup replies use binary UTF-8 JSON; startup and streaming now decode both text and binary frames.
+    bounds: One benign text turn, maximum 20 seconds and 256 output tokens; no fal request or saved media.
+    provider_cost_usd: "0.00200025"
