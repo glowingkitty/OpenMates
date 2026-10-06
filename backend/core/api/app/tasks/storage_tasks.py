@@ -284,7 +284,7 @@ async def dispatch_chat_archive_progress(*, directus_service: Any, cache_service
                                        segment_dispatch: Any, checkpoint_dispatch: Any,
                                        now_timestamp: int) -> dict[str, int]:
     """Durable SQL intent is authoritative; Redis stores disposable scan cursors."""
-    from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService, SEGMENTS
+    from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
     if not archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED"):
         return {"archive_segments_dispatched": 0, "archive_checkpoints_dispatched": 0}
     service = ChatMessageArchiveService(directus_service=directus_service, s3_service=None)
@@ -299,19 +299,16 @@ async def dispatch_chat_archive_progress(*, directus_service: Any, cache_service
         await cache_service.delete(checkpoint_key)
     for row in checkpoints["checkpoints"]:
         checkpoint_dispatch(row["chat_id"], row["id"])
-    due = [{"_and": [{"state": {"_eq": "copying"}}, {"lease_until": {"_lte": now_timestamp}}]}]
-    if archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_READS_ENABLED"):
-        due.append({"state": {"_eq": "verified"}})
-    if archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_PRUNE_ENABLED"):
-        due.append({"_and": [{"state": {"_eq": "reader_active"}}, {"source_copy_until": {"_lte": now_timestamp}}]})
     cursor_key = "storage:archive_progress_cursor:v1"
-    cursor = await cache_service.get(cursor_key)
-    filters = [{"_or": due}]
-    if cursor:
-        filters.append({"id": {"_gt": cursor}})
-    segments = await directus_service.get_items(SEGMENTS, params={
-        "filter": {"_and": filters}, "fields": "id", "sort": "id", "limit": 25,
-    }, admin_required=True, no_cache=True, raise_on_error=True)
+    # Directus rejects ordered filters on UUID fields. Keep the stable cursor
+    # comparison in the internal SQL transaction, where UUID ordering is valid.
+    candidates = await service.transaction("progress_candidates", {
+        "after_id": await cache_service.get(cursor_key), "limit": 25,
+        "now": now_timestamp,
+        "reads_enabled": archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_READS_ENABLED"),
+        "prune_enabled": archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_PRUNE_ENABLED"),
+    })
+    segments = candidates.get("segments")
     if not isinstance(segments, list):
         raise RuntimeError("ARCHIVE_PROGRESS_INDEX_UNAVAILABLE")
     if segments:

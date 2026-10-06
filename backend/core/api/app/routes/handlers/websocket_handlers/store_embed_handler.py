@@ -57,6 +57,10 @@ async def _complete_direct_intent(
     """Close only a direct-skill intent after its canonical head and keys exist."""
     embed_id = canonical_embed.get("embed_id")
     version = canonical_embed.get("version_number")
+    # Existing legacy heads have a nullable version. The authoritative Directus
+    # completion transaction interprets that stored null as initial version 1.
+    if version is None:
+        version = 1
     hashed_chat_id = canonical_embed.get("hashed_chat_id")
     if not isinstance(embed_id, str) or not embed_id:
         raise RuntimeError("Canonical embed identity is unavailable for direct completion")

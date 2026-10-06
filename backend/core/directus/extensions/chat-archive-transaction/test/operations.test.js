@@ -8,6 +8,34 @@ const OWNER = 'a'.repeat(64);
 const TEAM = 'b'.repeat(64);
 const SOURCE_FIELDS = ['id', 'chat_id', 'client_message_id', 'created_at', 'encrypted_content'];
 
+// contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive,storage.integrity.observable-reconcilable
+test('archive progress pages UUID cursors and honors due-state feature gates', async () => {
+  const initial = seed();
+  const identity = number => `00000000-0000-4000-8000-${String(number).padStart(12, '0')}`;
+  initial.chat_message_archive_segments = Array.from({ length: 26 }, (_, index) => ({
+    id: identity(index + 1), state: 'copying', lease_until: 99,
+  }));
+  initial.chat_message_archive_segments.push(
+    { id: identity(27), state: 'copying', lease_until: 101 },
+    { id: identity(28), state: 'verified' },
+    { id: identity(29), state: 'reader_active', source_copy_until: 100 },
+    { id: identity(30), state: 'reader_active', source_copy_until: 101 },
+    { id: identity(31), state: 'pruned' },
+  );
+  const database = fakeDatabase(initial);
+  const data = { now: 100, reads_enabled: false, prune_enabled: false, limit: 1000 };
+  const page = await archiveOperation(database, { operation: 'progress_candidates', data });
+  assert.equal(page.segments.length, 25);
+  const next = await archiveOperation(database, { operation: 'progress_candidates',
+    data: { ...data, after_id: page.segments.at(-1).id } });
+  assert.deepEqual(next.segments.map(row => row.id), [identity(26)]);
+  const gated = await archiveOperation(database, { operation: 'progress_candidates',
+    data: { ...data, after_id: identity(26), reads_enabled: true, prune_enabled: true } });
+  assert.deepEqual(gated.segments.map(row => row.id), [identity(28), identity(29)]);
+  await assert.rejects(archiveOperation(database, { operation: 'progress_candidates',
+    data: { ...data, after_id: 'not-a-uuid' } }), { code: 'invalid_archive_progress_cursor' });
+});
+
 function sourceRows() {
   return [
     { id: 'row-1', chat_id: CHAT, client_message_id: 'm1', created_at: 1, encrypted_content: 'cipher-1' },

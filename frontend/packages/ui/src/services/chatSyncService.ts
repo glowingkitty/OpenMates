@@ -192,7 +192,7 @@ export class ChatSynchronizationService extends EventTarget {
   }
 
   public async refreshChatActivity(): Promise<void> {
-    if (!get(authStore).isAuthenticated) return;
+    if (!get(authStore).isAuthenticated || get(isLoggingOut) || get(forcedLogoutInProgress)) return;
     if (this.activitySnapshotPending) { this.activitySnapshotQueued = true; return; }
     const identity = getWorkspaceCacheIdentity();
     const revision = this.activityRevision;
@@ -200,6 +200,15 @@ export class ChatSynchronizationService extends EventTarget {
     this.activitySnapshotPending = true;
     try {
       const response = await fetch(getApiEndpoint(`/v1/chats/activity${teamId ? `?team_id=${encodeURIComponent(teamId)}` : ''}`), { credentials: 'include' });
+      if (identity !== getWorkspaceCacheIdentity()) return;
+      if (response.status === 401) {
+        // A rejected snapshot must trigger the existing authoritative session
+        // check, or every focus/reconnect keeps querying with the expired cookie.
+        this.activitySnapshotQueued = false;
+        const { checkAuth } = await import('../stores/authStore');
+        if (identity === getWorkspaceCacheIdentity()) await checkAuth(undefined, true);
+        return;
+      }
       if (!response.ok) throw new Error('Activity snapshot unavailable');
       const snapshot = await response.json() as { active_tasks: Array<{ chat_id: string; task_id: string }>; chats: Array<{ chat_id: string; parent_id?: string | null }> };
       if (identity !== getWorkspaceCacheIdentity() || revision !== this.activityRevision) return;

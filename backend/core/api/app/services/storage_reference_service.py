@@ -208,12 +208,16 @@ async def load_account_deletable_embed_rows(
     for start in range(0, len(embed_ids), REFERENCE_SCAN_PAGE_SIZE):
         versions.extend(await _get_items_bounded(
             directus_service=directus_service, collection="embed_diffs",
-            fields="id,embed_id,archive_object_key,archive_superseded_object_key,archive_pending_object_key,archive_state",
+            fields="id,embed_id,archive_object_key,archive_superseded_object_key,archive_pending_object_key,archive_state,archive_copy_lease_until",
             item_filter={
                 "embed_id": {"_in": embed_ids[start:start + REFERENCE_SCAN_PAGE_SIZE]},
-                "hashed_user_id": {"_eq": user_id_hash}, "hashed_team_id": {"_null": True},
+                "hashed_user_id": {"_eq": user_id_hash},
             },
         ))
+    # embed_diffs has no Team-owner column. Its eligible parent IDs above are
+    # the ownership authority, including for live copy leases. Check both the
+    # preflight and refreshed snapshot before preparing deletion tombstones.
+    _assert_no_live_embed_version_copy_leases(versions, now=datetime.now(timezone.utc))
     return AccountDeletableEmbedRows(embeds=embeds, versions=tuple(versions))
 
 
@@ -751,12 +755,6 @@ async def fence_account_chats_for_deletion(
         item_filter={"hashed_user_id": {"_eq": user_id_hash}, "hashed_team_id": {"_null": True}},
     )
     _assert_no_live_copy_leases(segments, now=datetime.now(timezone.utc))
-    versions = await _get_items_bounded(
-        directus_service=directus_service, collection="embed_diffs",
-        fields="id,archive_state,archive_pending_object_key,archive_copy_lease_until",
-        item_filter={"hashed_user_id": {"_eq": user_id_hash}, "hashed_team_id": {"_null": True}},
-    )
-    _assert_no_live_embed_version_copy_leases(versions, now=datetime.now(timezone.utc))
     outputs = await _get_items_bounded(
         directus_service=directus_service, collection="chat_recovery_outputs",
         fields="id,state,writer_lease_until,payload_storage,payload_s3_key",

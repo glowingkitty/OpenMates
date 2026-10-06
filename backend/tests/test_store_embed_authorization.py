@@ -315,7 +315,8 @@ async def test_store_embed_rejects_project_link_added_after_precheck():
 
 # contract-test: supporting surface=rest_api assertions=projects.files.concurrent-chat-safety
 @pytest.mark.asyncio
-async def test_store_embed_guarded_write_preserves_canonical_receipt(monkeypatch):
+@pytest.mark.parametrize("stored_version,expected_version", [(3, 3), (None, 1)])
+async def test_store_embed_guarded_write_preserves_canonical_receipt(monkeypatch, stored_version, expected_version):
     from backend.core.api.app.services import chat_recovery_service
     monkeypatch.setattr(
         chat_recovery_service,
@@ -334,7 +335,7 @@ async def test_store_embed_guarded_write_preserves_canonical_receipt(monkeypatch
         device_fingerprint_hash="device-1",
         payload=store_payload(
             request_id="store-request-1", recovery_record_id="recovery-record-1",
-            text_length_chars=12, version_number=3,
+            text_length_chars=12, version_number=stored_version,
             chat_id="11111111-1111-4111-8111-111111111111",
             hashed_chat_id=hashlib.sha256(
                 b"11111111-1111-4111-8111-111111111111"
@@ -359,7 +360,7 @@ async def test_store_embed_guarded_write_preserves_canonical_receipt(monkeypatch
         "hashed_user_id": OWNER_HASH,
         "primary_embed_id": "embed-1",
         "target_chat_id": "11111111-1111-4111-8111-111111111111",
-        "canonical_version": 3,
+        "canonical_version": expected_version,
     }]
 
 

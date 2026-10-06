@@ -6,6 +6,8 @@ import time
 import uuid
 from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI
+from starlette.websockets import WebSocketState
+from backend.core.api.app.utils.websocket_lifecycle import receive_json_or_disconnect
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.storage_archive_client_compatibility import (
@@ -2655,9 +2657,10 @@ async def websocket_endpoint(
     else:
         manager.mark_volatile_session_unavailable(websocket)
 
+    disconnect_reason = "Server closed connection"
     try:
         while True:
-            data = await websocket.receive_json()
+            data = await receive_json_or_disconnect(websocket)
             try:
                 volatile_session_live = await refresh_volatile_ai_live_session(
                     cache_service, volatile_session_nonce, user_id,
@@ -4080,31 +4083,27 @@ async def websocket_endpoint(
         logger.debug(f"WebSocket connection closed for User {user_id}, Device {device_fingerprint_hash}. {disconnect_reason_str}")
         # Ensure manager.disconnect(websocket) is called if the exception originates from receive_json or an explicit client close.
         # The manager's disconnect method now handles the grace period.
-        manager.disconnect(websocket, reason=disconnect_reason_str)
+        disconnect_reason = disconnect_reason_str
 
     except Exception as e:
         # Log unexpected errors during communication
         logger.error(f"Unexpected WebSocket error for User {user_id}, Device {device_fingerprint_hash}: {e}", exc_info=True)
         # Attempt to close gracefully if possible, although the connection might already be broken
         # Provide a reason for the disconnect call
-        unexpected_error_reason = f"Unexpected server error: {type(e).__name__}"
+        disconnect_reason = f"Unexpected server error: {type(e).__name__}"
         try:
             # Try to inform the client about an internal error before closing from server-side.
             # This might fail if the connection is already too broken.
             # Check websocket state before attempting to close
-            if hasattr(websocket, 'client_state') and hasattr(websocket.client_state, 'DISCONNECTED'): # Check if attributes exist
-                if websocket.client_state != websocket.client_state.DISCONNECTED:
-                    await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Internal server error")
-                    logger.debug(f"Sent close frame to User {user_id}, Device {device_fingerprint_hash} due to unexpected error.")
-            else: # Fallback if client_state is not available as expected
-                logger.warning(f"WebSocket client_state attribute not found as expected for User {user_id}, Device {device_fingerprint_hash}. Proceeding with disconnect without sending close frame.")
+            if websocket.application_state == WebSocketState.CONNECTED:
+                await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Internal server error")
+                logger.debug(f"Sent close frame to User {user_id}, Device {device_fingerprint_hash} due to unexpected error.")
 
         except Exception as close_exc:
             logger.warning(f"Error attempting to send close frame to User {user_id}, Device {device_fingerprint_hash} after unexpected error: {close_exc}")
-        finally:
-            # Ensure cleanup happens even with unexpected errors, passing the reason.
-            manager.disconnect(websocket, reason=unexpected_error_reason)
     finally:
+        # Include deliberate protocol closes/breaks and task cancellation.
+        manager.disconnect(websocket, reason=disconnect_reason)
         # Volatile authority ends immediately even though ordinary connection
         # metadata intentionally remains in the manager's 30 second grace.
         manager.mark_volatile_session_unavailable(websocket)

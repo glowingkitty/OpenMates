@@ -1540,6 +1540,126 @@ async def _load_archive_services():
         raise
 
 
+async def _probe_degraded_storage_regressions(directus, archive, now: int) -> None:
+    """Exercise UUID paging, legacy completion, and schema-valid deletion scope."""
+    from backend.core.api.app.routes.handlers.websocket_handlers.store_embed_handler import _complete_direct_intent
+    from backend.core.api.app.services.storage_reference_service import (
+        fence_account_chats_for_deletion, load_account_deletable_embed_rows,
+    )
+
+    actor_id, chat_id, team_chat_id = (str(uuid.uuid4()) for _ in range(3))
+    owner_hash = hashlib.sha256(actor_id.encode()).hexdigest()
+    team_hash = hashlib.sha256(team_chat_id.encode()).hexdigest()
+    ciphertext = base64.b64encode(secrets.token_bytes(96)).decode()
+    created: list[tuple[str, str]] = []
+    actor_created = False
+
+    async def write(collection: str, payload: dict) -> dict:
+        row = await _write(directus, collection, payload)
+        created.append((collection, str(row["id"])))
+        return row
+
+    try:
+        await _legacy_claim_fixture_user(directus, actor_id)
+        actor_created = True
+        for identity, team in ((chat_id, None), (team_chat_id, team_hash)):
+            await write("chats", {
+                "id": identity, "hashed_user_id": owner_hash, "hashed_team_id": team,
+                "storage_state": "hot", "encrypted_title": ciphertext,
+                "encrypted_chat_key": ciphertext, "messages_v": 0, "title_v": 1,
+                "created_at": now, "updated_at": now,
+            })
+        segment_ids = [f"00000000-0000-4000-8000-{number:012d}" for number in range(1, 27)]
+        for segment_id in segment_ids:
+            await write("chat_message_archive_segments", {
+                "id": segment_id, "chat_id": chat_id,
+                "chat_hash": hashlib.sha256(chat_id.encode()).hexdigest(),
+                "hashed_user_id": owner_hash, "checkpoint_id": str(uuid.uuid4()),
+                "start_timestamp": now - 2, "end_timestamp": now - 1,
+                "end_message_id": str(uuid.uuid4()), "state": "copying",
+                "lease_until": now - 100, "created_at": now,
+            })
+        data = {"now": now, "reads_enabled": False, "prune_enabled": False, "limit": 25}
+        first = await archive.transaction("progress_candidates", data)
+        second = await archive.transaction("progress_candidates", {
+            **data, "after_id": first["segments"][-1]["id"], "limit": 1,
+        })
+        if ([row["id"] for row in first["segments"]] != segment_ids[:25]
+                or [row["id"] for row in second["segments"]] != segment_ids[25:]):
+            raise RuntimeError("Archive progress skipped or repeated a UUID cursor page")
+
+        embed_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
+        version_ids = []
+        for identity, parent in zip(embed_ids, (chat_id, team_chat_id)):
+            await write("embeds", {
+                "id": str(uuid.uuid4()), "embed_id": identity,
+                "hashed_embed_id": hashlib.sha256(identity.encode()).hexdigest(),
+                "hashed_chat_id": hashlib.sha256(parent.encode()).hexdigest(),
+                "hashed_user_id": owner_hash, "encrypted_type": ciphertext,
+                "encrypted_content": ciphertext, "status": "finished", "encryption_mode": "client",
+            })
+            version = await write("embed_diffs", {
+                "id": str(uuid.uuid4()), "embed_id": identity, "version_number": 1,
+                "hashed_user_id": owner_hash, "encrypted_snapshot": ciphertext,
+                "created_at": now,
+            })
+            version_ids.append(version["id"])
+        snapshot = await load_account_deletable_embed_rows(directus_service=directus, user_id_hash=owner_hash)
+        if {row["id"] for row in snapshot.versions} != {version_ids[0]}:
+            raise RuntimeError("Account version inventory crossed Team ownership")
+        if await fence_account_chats_for_deletion(directus_service=directus, user_id_hash=owner_hash) != 1:
+            raise RuntimeError("Account deletion did not fence exactly its personal chat")
+        await load_account_deletable_embed_rows(directus_service=directus, user_id_hash=owner_hash)
+
+        intent_id, embed_id = str(uuid.uuid4()), str(uuid.uuid4())
+        binding = hashlib.sha256(intent_id.encode()).hexdigest()
+        task_name = "apps.social_media.tasks.skill_get-posts"
+        status, registered = await _recovery_sql(directus, "register_authorized_direct_skill", {
+            "protocol_version": 1, "task_uuid": intent_id, "task_name": task_name,
+            "kwargs_binding": binding, "actor_user_id": actor_id, "hashed_user_id": owner_hash,
+            "hashed_team_id": None, "target_chat_id": None, "primary_message_id": None,
+            "primary_embed_id": embed_id,
+        })
+        if status != 200 or registered.get("status") != "DIRECT_AUTHORIZED":
+            raise RuntimeError("Synthetic direct completion registration failed")
+        created.append(("chat_recovery_authorized_direct_skills", intent_id))
+        status, claimed = await _recovery_sql(directus, "claim_authorized_direct_producer", {
+            "protocol_version": 1, "task_uuid": intent_id, "task_name": task_name, "kwargs_binding": binding,
+        })
+        if status != 200 or claimed.get("claimed") is not True:
+            raise RuntimeError("Synthetic direct completion claim failed")
+        head = await write("embeds", {
+            "id": str(uuid.uuid4()), "embed_id": embed_id,
+            "hashed_embed_id": hashlib.sha256(embed_id.encode()).hexdigest(),
+            "hashed_user_id": owner_hash, "encrypted_type": ciphertext,
+            "encrypted_content": ciphertext, "status": "finished", "encryption_mode": "client",
+            "version_number": None,
+        })
+        pending = await _complete_direct_intent(directus, actor_hash=owner_hash, canonical_embed=head)
+        if pending.get("reason_code") != "pending_wrappers":
+            raise RuntimeError("Legacy direct head completed before canonical wrappers")
+        await write("embed_keys", {
+            "id": str(uuid.uuid4()), "hashed_embed_id": hashlib.sha256(embed_id.encode()).hexdigest(),
+            "hashed_user_id": owner_hash, "key_type": "master", "encrypted_embed_key": ciphertext,
+            "created_at": now,
+        })
+        completed = await _complete_direct_intent(directus, actor_hash=owner_hash, canonical_embed=head)
+        if completed.get("completed") is not True:
+            raise RuntimeError("Legacy nullable canonical head left a direct intent pending")
+    finally:
+        for collection, identity in reversed(created):
+            if not await directus.delete_item(collection, identity, admin_required=True):
+                raise RuntimeError("Degraded storage regression fixture cleanup failed")
+        if actor_created:
+            token = await directus.ensure_auth_token(admin_required=True)
+            response = await directus._make_api_request(
+                "DELETE", f"{directus.base_url.rstrip('/')}/users/{actor_id}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            if response.status_code not in {200, 204}:
+                raise RuntimeError("Degraded storage regression actor cleanup failed")
+
+
 async def probe() -> dict:
     require_isolated_storage()
     from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
@@ -1548,6 +1668,7 @@ async def probe() -> dict:
     try:
         archive = ChatMessageArchiveService(directus_service=directus, s3_service=s3)
         now = int(time.time())
+        await _probe_degraded_storage_regressions(directus, archive, now)
         chat_id = str(uuid.uuid4())
         owner_hash = hashlib.sha256(chat_id.encode()).hexdigest()
         await _probe_legacy_embed_json_columns(directus, owner_hash)
@@ -1760,7 +1881,7 @@ async def probe() -> dict:
             directus, owner_hash=owner_hash, now=now,
         )
         recovery_races = await _probe_recovery_sql_races(directus, now)
-        return {"passed": True, "fixture_ciphertext_digest": hashlib.sha256(
+        return {"passed": True, "degraded_storage_regressions": True, "fixture_ciphertext_digest": hashlib.sha256(
             "".join(synthetic_ciphertexts).encode()).hexdigest(),
             "source_messages": 20, "verified_pages": 1, "pruned_messages": 20,
             "official_billing_copy_prune_hold_existing_reads_available": True,

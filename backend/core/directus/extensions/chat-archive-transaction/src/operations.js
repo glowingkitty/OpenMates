@@ -135,6 +135,23 @@ export async function archiveOperation(database, body) {
         'chat_hash_resolution_failed');
       return { chats: rows };
     }
+    if (operation === 'progress_candidates') {
+      const afterId = data.after_id;
+      requireState(afterId == null || (typeof afterId === 'string'
+        && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(afterId)),
+      'invalid_archive_progress_cursor', 400);
+      requireState(typeof data.reads_enabled === 'boolean' && typeof data.prune_enabled === 'boolean',
+        'invalid_archive_progress_gates', 400);
+      const query = trx(SEGMENTS).select('id').where(function () {
+        this.where(function () { this.where('state', 'copying').where('lease_until', '<=', now); });
+        if (data.reads_enabled) this.orWhere('state', 'verified');
+        if (data.prune_enabled) this.orWhere(function () {
+          this.where('state', 'reader_active').where('source_copy_until', '<=', now);
+        });
+      }).orderBy('id');
+      if (afterId) query.where('id', '>', afterId);
+      return { segments: await query.limit(Math.min(integer(data.limit ?? 25), 25)) };
+    }
     if (operation === 'checkpoint_candidates') {
       const query = trx('chat_compression_checkpoints as cp').select(['cp.id', 'cp.chat_id'])
         .whereNotNull('cp.covered_message_ids').whereNotNull('cp.compressed_up_to_message_id')

@@ -75,3 +75,8 @@ def test_all_legacy_celery_services_build_complete_repository_layout_without_vol
     assert "USER celeryuser" in text
     assert '"backend.core.api.app.tasks.celery_config"' in text
     assert "COPY . /app/" not in text
+
+
+def test_scheduler_imports_have_the_same_vault_token_mount_as_workers():
+    compose = yaml.safe_load((ROOT / "backend/core/docker-compose.yml").read_text())
+    assert "vault-setup-data:/vault-data" in compose["services"]["task-scheduler"]["volumes"]

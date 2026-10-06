@@ -87,6 +87,7 @@ const mocks = vi.hoisted(() => {
       clearAll: vi.fn(),
     },
     authStore: createReadable({ isAuthenticated: false }),
+    checkAuth: vi.fn(async () => false),
     forcedLogoutInProgress: createReadable(false),
     isLoggingOut: createReadable(false),
     activeTeamId: createReadable(null),
@@ -133,6 +134,7 @@ vi.mock("../../stores/signupState", () => ({
 }));
 vi.mock("../../stores/authStore", () => ({
   authStore: mocks.authStore,
+  checkAuth: mocks.checkAuth,
 }));
 vi.mock("../../stores/teamStore", () => ({
   activeTeamId: mocks.activeTeamId,
@@ -216,6 +218,7 @@ describe('Sidebar metadata hydration', () => {
 
 describe('authoritative chat activity on resume', () => {
   beforeEach(() => {
+    mocks.checkAuth.mockClear();
     mocks.workspaceIdentity = 'account-a';
     mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: true }); return () => undefined; });
     mocks.chatDB.addChat.mockReset();
@@ -224,6 +227,36 @@ describe('authoritative chat activity on resume', () => {
   afterEach(() => {
     mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: false }); return () => undefined; });
     vi.unstubAllGlobals();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it('checks session authority once after a rejected activity snapshot', async () => {
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 401 })));
+    await service.refreshChatActivity();
+    expect(mocks.checkAuth).toHaveBeenCalledExactlyOnceWith(undefined, true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it('does not check a replacement account for a stale activity rejection', async () => {
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      mocks.workspaceIdentity = 'account-b';
+      return { ok: false, status: 401 };
+    }));
+    await service.refreshChatActivity();
+    expect(mocks.checkAuth).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it('preserves session state after a temporary activity failure', async () => {
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 503 })));
+    await service.refreshChatActivity();
+    expect(mocks.checkAuth).not.toHaveBeenCalled();
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced

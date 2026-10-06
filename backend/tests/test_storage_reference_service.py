@@ -142,6 +142,12 @@ class _OwnershipDirectus(_Directus):
 
     async def get_items(self, collection: str, *, params: dict, **_kwargs: object) -> list[dict]:
         filters = params.get("filter", {})
+        if collection == "embed_diffs":
+            from pathlib import Path
+            import yaml
+            schema = yaml.safe_load((Path(__file__).resolve().parents[1]
+                / "core/directus/schemas/embed_diffs.yml").read_text())["embed_diffs"]["fields"]
+            assert set(filters) <= set(schema), "Version query uses fields absent from Directus schema"
         def matched(row: dict) -> bool:
             return all(
                 (row.get(field) == condition["_eq"] if "_eq" in condition else
@@ -184,16 +190,23 @@ async def test_account_embed_snapshot_excludes_team_project_and_unresolved_survi
          "hashed_user_id": None, "hashed_team_id": "team-owner"},
     ]
     directus.rows["embed_diffs"] = [
-        {"id": "v1", "embed_id": "personal-embed", "hashed_user_id": "owner", "hashed_team_id": None},
-        {"id": "v2", "embed_id": "team-embed", "hashed_user_id": "owner", "hashed_team_id": None},
-        {"id": "v3", "embed_id": "orphan-embed", "hashed_user_id": "owner", "hashed_team_id": None},
-        {"id": "v4", "embed_id": "shared-embed", "hashed_user_id": "owner", "hashed_team_id": None},
+        {"id": "v1", "embed_id": "personal-embed", "hashed_user_id": "owner"},
+        {"id": "v2", "embed_id": "team-embed", "hashed_user_id": "owner",
+         "archive_pending_object_key": "team/live.json", "archive_copy_lease_until": 4102444800},
+        {"id": "v3", "embed_id": "orphan-embed", "hashed_user_id": "owner"},
+        {"id": "v4", "embed_id": "shared-embed", "hashed_user_id": "owner"},
     ]
     snapshot = await module.load_account_deletable_embed_rows(
         directus_service=directus, user_id_hash="owner",
     )
     assert {row["id"] for row in snapshot.embeds} == {"e1", "e3"}
     assert {row["id"] for row in snapshot.versions} == {"v1", "v3"}
+    directus.rows["embed_diffs"][0].update({
+        "archive_pending_object_key": "personal/live.json", "archive_copy_lease_until": 4102444800,
+    })
+    with pytest.raises(RuntimeError, match="Embed version writer lease is active"):
+        await module.load_account_deletable_embed_rows(directus_service=directus, user_id_hash="owner")
+    directus.rows["embed_diffs"][0].pop("archive_pending_object_key")
     directus.rows["chats"] = []
     directus.rows["embeds"] = []
     deleted = await module.delete_account_storage_reference_rows(

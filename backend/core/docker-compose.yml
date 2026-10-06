@@ -481,6 +481,7 @@ services:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       - ./api/logs:/app/logs # This maps host:backend/core/api/logs to /app/logs
       - celerybeat-schedule-data:/celerybeat-data
+      - vault-setup-data:/vault-data
       - ../../frontend/packages/ui/src/i18n/locales:/translations
       # Mount entire i18n directory (includes sources YAML files and languages.json)
       - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
