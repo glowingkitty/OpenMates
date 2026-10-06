@@ -6,7 +6,9 @@ import { buildEncryptedObjectSlugMetadata } from "./objectSlugs.js";
 import { requestProjectRemoteOperation } from "./projectRequester.js";
 import { isProtectedProjectReadPath } from "../../ui/src/utils/projectSearchProtocol.js";
 import { formValue, type TuiForm } from "./tuiForms.js";
-import { cells, padCells, terminalText, truncateCells } from "./tuiText.js";
+import { cells, padCells, terminalText, truncateCells, type TuiLine } from "./tuiText.js";
+import { centeredCarouselText, renderCardCarousel } from "./tuiCarousel.js";
+import { PRIMARY_GRADIENT } from "../../appGradientTheme.js";
 
 export interface TuiProjectFile {
   id: string;
@@ -267,6 +269,29 @@ export async function readTuiProjectFile(client: OpenMatesClient, project: TuiPr
 export function filteredProjects(projects: TuiProject[], query = ''): TuiProject[] {
   const term = query.trim().toLocaleLowerCase();
   return projects.filter(project => !term || `${project.name} ${project.slug} ${project.description}`.toLocaleLowerCase().includes(term));
+}
+
+function projectCardColor(color: string): string {
+  if (/^#[\da-f]{6}$/i.test(color)) return color;
+  if (/^#[\da-f]{3}$/i.test(color)) return `#${[...color.slice(1)].map((digit) => digit.repeat(2)).join("")}`;
+  return PRIMARY_GRADIENT.start;
+}
+
+/** Project summaries in the shared horizontal card viewport. */
+export function renderProjectCarousel(projects: TuiProject[], width: number, selectedIndex: number, focused: boolean): TuiLine[] {
+  if (!projects.length) return [];
+  const selected = Math.max(0, Math.min(projects.length - 1, selectedIndex));
+  const cards = projects.map((project) => {
+    const count = project.itemCount ?? project.items.length;
+    return {
+      title: safeText(project.name),
+      description: safeText(project.description),
+      footer: `${count} ${count === 1 ? "item" : "items"}${project.pinned ? " · Pinned" : ""}${project.archived ? " · Archived" : ""}`,
+      background: projectCardColor(project.color),
+    };
+  });
+  return [...renderCardCarousel(cards, width, selected, focused), "",
+    centeredCarouselText(`Project ${selected + 1} of ${projects.length} · ←/→ choose project · Enter open`, width)];
 }
 
 export function renderProjectList(projects: TuiProject[], options: { width: number; selectedId?: string; query?: string }): string[] {

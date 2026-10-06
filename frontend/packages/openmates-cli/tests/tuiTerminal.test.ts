@@ -92,3 +92,12 @@ test("buffered Escape still dismisses controls and split arrow keys retain their
   input.write("\x1b[");await new Promise((resolve)=>setTimeout(resolve,45));input.write("A");
   await new Promise((resolve)=>setImmediate(resolve));assert.deepEqual(names,["escape","up"]);terminal.leave();
 });
+
+test('composer caret is positioned and native text selection releases mouse capture and freezes redraws',()=>{
+  const {terminal,written}=fakeTerminal();terminal.enter();
+  terminal.render('Frame',{row:20,column:34});assert.ok(written().includes('\x1b[21;35H\x1b[?25h'));
+  terminal.render('Select text',null,true);assert.ok(written().includes('\x1b[?1000l\x1b[?1006l'));
+  const selected=written();terminal.render('Background update',null,true);assert.equal(written(),selected);
+  terminal.render('Resumed',{row:20,column:34},false);assert.ok(written().includes('Resumed'));assert.ok(written().slice(selected.length).includes('\x1b[?1000h\x1b[?1006h'));
+  terminal.leave();assert.ok(written().endsWith('\x1b[?1049l'));
+});

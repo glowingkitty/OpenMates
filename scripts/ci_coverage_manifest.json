@@ -37,6 +37,7 @@
         "cli-tui-chat-sidebar-proof.spec.ts",
         "cli-tui-startup.spec.ts",
         "cli-tui-centered-carousels-proof.spec.ts",
+        "cli-tui-chat-previews-proof.spec.ts",
         "cli-tui-workspace-proof.spec.ts",
         "cli-tui-workspace-details-proof.spec.ts",
         "cli-workflow-data-branches.spec.ts",

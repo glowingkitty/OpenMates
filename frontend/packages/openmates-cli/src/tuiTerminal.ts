@@ -25,6 +25,7 @@ export type TerminalKey = {
 
 export type TerminalKeyHandler = (chunk: string, key: TerminalKey) => void;
 export type TerminalResizeHandler = () => void;
+export type TerminalCursor = { row: number; column: number };
 
 export class TuiTerminal {
   private rawWasEnabled = false;
@@ -32,6 +33,7 @@ export class TuiTerminal {
   private resizeHandler: TerminalResizeHandler | null = null;
   private active = false;
   private suspended = false;
+  private selectingText = false;
   private readonly keyInput = new PassThrough();
   private readonly decoder = new StringDecoder("utf8");
   private pendingInput = "";
@@ -129,7 +131,7 @@ export class TuiTerminal {
       this.output.write("\x1b[?1049h");
       this.output.write("\x1b[?25l");
       this.output.write("\x1b[?2004h");
-      this.output.write("\x1b[?1000h\x1b[?1006h");
+      this.output.write(this.selectingText ? "\x1b[?1000l\x1b[?1006l" : "\x1b[?1000h\x1b[?1006h");
       this.output.write("\x1b[2J\x1b[H");
       }
     }
@@ -147,14 +149,21 @@ export class TuiTerminal {
     this.output.on("resize", handler);
   }
 
-  render(frame: string): void {
+  render(frame: string, cursor: TerminalCursor | null = null, selectingText = false): void {
     if (!this.active || this.suspended) return;
+    // Native terminal selection is erased by repainting. Freeze the displayed
+    // frame and release mouse capture while background sync keeps running.
+    if (selectingText && this.selectingText) return;
+    const mouse = selectingText ? "\x1b[?1000l\x1b[?1006l" : this.selectingText ? "\x1b[?1000h\x1b[?1006h" : "";
+    this.selectingText = selectingText;
     // Address each row explicitly: SSH/PTY newline modes and delayed autowrap
     // must not shift a full-width frame or erase its final border cell.
     const rows=frame.split("\n").slice(0,this.height);
     const body=rows.map((row,index)=>`\x1b[${index+1};1H\x1b[2K${row}`).join("");
     const tail=rows.length<this.height?`\x1b[${rows.length+1};1H\x1b[J`:"";
-    this.output.write(`\x1b[?2026h${body}${tail}\x1b[?2026l`);
+    const caret = cursor && !selectingText && cursor.row >= 0 && cursor.row < this.height && cursor.column >= 0 && cursor.column < this.width
+      ? `\x1b[${cursor.row + 1};${cursor.column + 1}H\x1b[?25h` : "";
+    this.output.write(`\x1b[?2026h\x1b[?25l${mouse}${body}${tail}${caret}\x1b[?2026l`);
   }
 
   private receiveInput(text: string): void {

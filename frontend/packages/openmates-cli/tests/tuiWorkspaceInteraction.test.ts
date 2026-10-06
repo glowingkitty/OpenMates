@@ -3,12 +3,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { DecryptedUserTask } from "../src/tasksCli.js";
-import { runTui as runProductTui } from "../src/tui.js";
-import { noStartupPrompts } from "./tuiTestServices.js";
-const runTui = (client: Parameters<typeof runProductTui>[0], terminal: Parameters<typeof runProductTui>[1]) =>
-  runProductTui(client, terminal, noStartupPrompts);
+import { loadHomeData } from "../src/tuiHome.js";
+import { runTui } from "../src/tui.js";
 import { createInitialTuiState } from "../src/tuiRenderer.js";
-import { handleWorkspaceKey, handleWorkspaceCommand, type WorkspaceContext } from "../src/tuiWorkspaceController.js";
+import { handleWorkspaceKey, handleWorkspaceCommand, openSavedChat, type WorkspaceContext } from "../src/tuiWorkspaceController.js";
 
 test("public example embed cards open from their bundled content without an account fetch", async () => {
   const state = createInitialTuiState();
@@ -288,10 +286,35 @@ test('a slug-only project search opens the visible card and refresh preserves it
   const ctx={state,client,terminal:{width:120},render:()=>{},send:async()=>{},command:async(command:string)=>{await handleWorkspaceCommand(ctx as unknown as WorkspaceContext,command);}} as unknown as WorkspaceContext;
   state.focus='composer';await handleWorkspaceCommand(ctx,'/search secret-slug');
   assert.equal(state.focus,'content');
-  assert.match(renderTuiFrame(state,120,30),/>.*PROJECT/);
+  assert.match(renderTuiFrame(state,120,30),/› Launch/);
+  assert.match(renderTuiFrame(state,120,30),/Project 1 of 1/);
   await handleWorkspaceKey(ctx,'\r',{name:'return'});assert.equal(state.activeProject?.id,'project');
   state.projectTab='files';state.projectFolderId='docs';state.filter='Nested';state.scrollOffset=2;
   await handleWorkspaceCommand(ctx,'/refresh');assert.equal(state.projectTab,'files');assert.equal(state.projectFolderId,'docs');assert.equal(state.filter,'Nested');assert.equal(state.scrollOffset,2);
   assert.deepEqual(state.projectFiles.map(f=>f.name),['Nested']);
   state.projectTab='tasks';await handleWorkspaceCommand(ctx,'/refresh');assert.equal(state.projectTab,'tasks');
+});
+
+// contract-test: supporting surface=cli assertions=cli.output.actionable-readable
+// An HTTP failure and a later background sync failure must remain distinguishable.
+test("opening a failed chat exits loading and background sync preserves its retry error", async () => {
+  const state=createInitialTuiState();state.signedIn=true;state.recentChats=[chat('saved')];
+  const {client}=fakeClient({getChatMessages:async()=>{throw new Error('Chat messages failed with HTTP 503');},listChats:async()=>{throw new Error('Sync unavailable');}});
+  const context={state,client,render:()=>{},terminal:{},command:async()=>{},send:async()=>{}} as unknown as WorkspaceContext;
+  await openSavedChat(context,'saved');
+  assert.equal(state.headerState,'error');assert.equal(state.headerError,'Could not load chat');
+  assert.match(state.status!,/HTTP 503.*\/refresh/);
+  const message=state.status;await loadHomeData(state,client as never,()=>{});
+  assert.equal(state.status,message);
+});
+
+test("a failed chat request finishing after Escape leaves the landing page intact", async () => {
+  const state=createInitialTuiState();const pending=deferred<never>();
+  const client={getChatMessages:async()=>pending.promise};
+  const context={state,client,render:()=>{},terminal:{},command:async()=>{},send:async()=>{}} as unknown as WorkspaceContext;
+  const opening=openSavedChat(context,'saved');
+  await handleWorkspaceKey(context,'\x1b',{name:'escape'});
+  // Resolve through a rejected promise without an unhandled rejection.
+  pending.resolve(Promise.reject(new Error('HTTP 503')) as never);await opening;
+  assert.equal(state.screen,'start');assert.equal(state.headerState,'new');assert.equal(state.status,null);
 });

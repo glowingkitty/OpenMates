@@ -2,7 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { WorkflowDetail, WorkflowGraph, WorkflowRunDetail } from "../src/client.js";
 import { cells } from "../src/tuiText.js";
-import { buildWorkflowNodeForm, loadWorkflowRunGraph, renderWorkflowIdentity, renderWorkflowPreviewCard, renderWorkflowWorkspace, submitWorkflowNodeForm } from "../src/tuiWorkflowWorkspace.js";
+import { buildWorkflowNodeForm, loadWorkflowRunGraph, renderWorkflowCarousel, renderWorkflowIdentity, renderWorkflowPreviewCard, renderWorkflowWorkspace, submitWorkflowNodeForm } from "../src/tuiWorkflowWorkspace.js";
+import { PRIMARY_GRADIENT } from "../../appGradientTheme.js";
 
 const graph: WorkflowGraph = {
   version: 1,
@@ -41,6 +42,28 @@ const run: WorkflowRunDetail = {
 };
 
 describe("workflow workspace", () => {
+  // contract-test: direct surface=cli assertions=workflows.surface.semantic-parity
+  it("centers selected Workflow cards with trigger, status, and bounded rows", () => {
+    const workflows = [{ ...workflow, title: "First" }, { ...workflow, id: "second", title: "Forecast",
+      description: "Weather report", trigger_summary: "Daily 09:00", last_run_status: "completed" as const },
+    { ...workflow, id: "third", title: "Third", enabled: false }];
+    const lines = renderWorkflowCarousel(workflows, 110, 1, true);
+    const rows = lines.slice(0, 7);
+    const text = rows.map((line) => typeof line === "string" ? line : line.text).join("\n");
+    assert.equal(lines.length, 9);
+    assert.match(text, /First[\s\S]*Forecast[\s\S]*Third/);
+    assert.match(text, /Weather report/);
+    assert.match(text, /Daily 09:00/);
+    assert.match(text, /Enabled · Last: completed/);
+    assert.equal((rows[0] as Exclude<typeof rows[number], string>).text.indexOf("╭", 20), 37);
+    assert.equal((rows[0] as Exclude<typeof rows[number], string>).spans?.find((span) => span.bold)?.background, PRIMARY_GRADIENT.start);
+    assert.match(String(lines.at(-1)), /Workflow 2 of 3 · ←\/→ choose workflow · Enter open/);
+    for (const width of [1, 4, 17, 36]) {
+      const narrow = renderWorkflowCarousel(workflows, width, 1, false);
+      assert.equal(narrow.length, width < 4 ? 3 : 9);
+      assert.ok(narrow.every((line) => cells(typeof line === "string" ? line : line.text) <= width));
+    }
+  });
   // contract-test: direct surface=cli assertions=workflows.surface.semantic-parity,workflows-ui.workspace.continue-priority
   it("renders a selectable workflow preview card", () => {
     const lines = renderWorkflowPreviewCard({ ...workflow, trigger_summary: "Every day at 09:00", last_run_status: "completed" }, { width: 44, selected: true });

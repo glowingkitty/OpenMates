@@ -36,6 +36,8 @@ import { prepareTuiMessage } from "./tuiAttachments.js";
 import { loadHomeData, startHomeSync } from "./tuiHome.js";
 import { refreshTuiChatSidebar } from './tuiChatSidebar.js';
 import { parseChatContextContent } from "./chatContextEvents.js";
+import { tuiComposerCursor } from './tuiLayout.js';
+import { registerChatEmbedAliases, hydrateChatEmbedPreviews } from './tuiEmbeds.js';
 
 export type CliDefaultMode = "tui" | "quickstart";
 export type TuiResult = { action: "exit" | "signup" | "restart" };
@@ -86,7 +88,7 @@ export async function runTui(
     if (renderTimer) return;
     renderTimer = setTimeout(() => {
       renderTimer = null;
-      terminal.render(renderTuiFrame(state, terminal.width, terminal.height, { colorMode: terminal.colorMode, ascii: terminal.ascii }));
+      terminal.render(renderTuiFrame(state, terminal.width, terminal.height, { colorMode: terminal.colorMode, ascii: terminal.ascii }),tuiComposerCursor(state,terminal.width,terminal.height),state.textSelection);
     }, 16);
   };
 
@@ -158,7 +160,6 @@ async function handleKey(params: {
     command: (command) => handleCommand({command,state,client,terminal,render,finish}),
     send: (message) => sendTuiMessage({message,state,client,render}),
   };
-  if (key.name === "escape") client.clearInteractiveChatViewer();
   if (await handleWorkspaceKey(context, chunk, key)) return;
   if (key.name === "escape") {
     if (state.workflowEdit) {
@@ -263,7 +264,7 @@ async function handleKey(params: {
     return;
   }
   if (key.name === "return") {
-    if (state.isBusy && state.workspace === "chats") return;
+    if (state.isBusy && state.workspace === "chats" && !state.input.startsWith('/')) return;
     await handleEnter({ state, client, terminal, render, finish });
     return;
   }
@@ -491,7 +492,7 @@ async function sendTuiMessage(params: {
     onPrivacyPrepared: (safe: string) => { userMessage.content = safe; render(); },
     onPrivacyProgress: (done: number, total: number) => { if (state.messages === messages) { state.status = `Offline personal-data scan: ${Math.floor(done * 100 / total)}%`; render(); } },
   };
-  const assistantMessage = { role: "assistant" as const, content: "", title: "Sophia" };
+  const assistantMessage = { role: "assistant" as const, content: "", title: "Assistant" };
   state.messages.push(assistantMessage);
   render();
   try {
@@ -556,6 +557,8 @@ async function sendTuiMessage(params: {
     state.isBusy = false;
     state.projectFocusPending = null;
     state.aiTaskId = null;
+    registerChatEmbedAliases(state);
+    if(state.screen==='chat'&&typeof client.getEmbed==='function')void hydrateChatEmbedPreviews(state,client,render);
     render();
   }
 }
@@ -575,7 +578,9 @@ function openExample(state: TuiState, slug: string): void {
   const conversation = getExampleChatConversation(slug);
   if (!conversation) return;
   state.activeExample = conversation;
+  state.chatEmbeds={};state.embedAliases={};state.chatEmbedLoads=new Set();
   state.screen = "example";
+  registerChatEmbedAliases(state);
   state.input = state.drafts[`example:${conversation.chat.id}`] ?? "";
   state.scrollOffset = 0;
 }

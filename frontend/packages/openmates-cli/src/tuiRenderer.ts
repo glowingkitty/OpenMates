@@ -10,16 +10,16 @@ import { ENHANCED_ANONYMIZATION_LABEL } from "./privacyModel.js";
  */
 
 import type { ExampleChatConversation, ExampleChatListItem } from "./exampleChats.js";
-import { parseEmbedContentObject, type DailyInspiration, type DecryptedEmbed, type ChatListItem, type UserTaskStatus, type WorkflowDetail, type WorkflowGraph, type WorkflowRunDetail, type WorkflowSummary } from "./client.js";
+import { MATE_NAMES, type DailyInspiration, type DecryptedEmbed, type ChatListItem, type UserTaskStatus, type WorkflowDetail, type WorkflowGraph, type WorkflowRunDetail, type WorkflowSummary } from "./client.js";
 import { APP_GRADIENTS, PRIMARY_GRADIENT } from "../../appGradientTheme.js";
 import { type DecryptedUserTask } from "./tasksCli.js";
 import type { TuiForm } from "./tuiForms.js";
 import type { TuiProject, TuiProjectFile } from "./tuiProjectsWorkspace.js";
-import { renderProjectList, renderProjectDetail, renderProjectIdentity, renderProjectTabs, filteredProjects, filteredProjectFiles } from "./tuiProjectsWorkspace.js";
+import { renderProjectCarousel, renderProjectDetail, renderProjectIdentity, renderProjectTabs, filteredProjects, filteredProjectFiles } from "./tuiProjectsWorkspace.js";
 import { renderTaskBoard, renderTaskDetails, filterTasks, type TaskContext } from "./tuiTasksWorkspace.js";
-import { renderWorkflowWorkspace, renderWorkflowPreviewCard, renderWorkflowIdentity } from "./tuiWorkflowWorkspace.js";
-import { renderWorkspaceFrame, workspaceGeometry } from "./tuiLayout.js";
-import { cells, wrapCells, truncateCells, padCells, foreground, type TuiColorMode, type TuiLine } from "./tuiText.js";
+import { renderWorkflowWorkspace, renderWorkflowCarousel, renderWorkflowIdentity } from "./tuiWorkflowWorkspace.js";
+import { chatBackground, renderWorkspaceFrame, workspaceGeometry } from "./tuiLayout.js";
+import { cells, wrapCells, truncateCells, padCells, foreground, lineText, type TuiColorMode, type TuiLine } from "./tuiText.js";
 import type { TuiStartupScreen } from "./tuiStartup.js";
 import { centeredCarouselText } from "./tuiCarousel.js";
 import { homeHeader, renderHomeChatCards } from "./tuiHome.js";
@@ -27,6 +27,7 @@ import { homeTuiApps, renderTuiAppsHome, renderTuiApp, renderTuiAppIdentity, ren
   type TuiApp, type TuiAppsTab, type TuiAppsSkillTab, type TuiAppsSkillDetails, type TuiAppsResultsPage, type TuiAppsSavedResult, type TuiAppsPreparedRun, type TuiAppsWorkflowPage } from "./tuiAppsWorkspace.js";
 import { parseMessageSegments } from "./messageSegments.js";
 import { formatEmbedPreviewLines } from "./embedRenderers.js";
+import { aliasForEmbed, exampleEmbedMap, isFitnessEmbed, renderFitnessPreview, type TuiEmbedTarget } from './tuiEmbeds.js';
 import { parseChatContextContent, chatContextSummary } from "./chatContextEvents.js";
 import type { ProjectFocusCountdown } from "./projectFocusCountdown.js";
 
@@ -39,6 +40,7 @@ export type TuiMessage = {
   role: "user" | "assistant" | "system";
   content: string;
   title?: string | null;
+  category?: string | null;
   embedIds?: string[];
 };
 
@@ -49,6 +51,10 @@ export type TuiWorkflowEdit = {
 };
 
 export type TuiState = {
+  textSelection: boolean;
+  chatEmbeds: Record<string, DecryptedEmbed>;
+  chatEmbedLoads: Set<string>;
+  embedAliases: Record<string, TuiEmbedTarget>;
   username: string | null;
   inspirations: DailyInspiration[];
   inspirationIndices: Partial<Record<TuiWorkspace,number>>;
@@ -168,7 +174,7 @@ export const TUI_INTERESTS = [
 
 export function createInitialTuiState(): TuiState {
   return {
-    username:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeChatsLoading:false,homeAbortController:null,homeError:null,homeLoadVersion:0,homeShowAll:false,homeSelectionMoved:false,homeContextKey:null,continueData:null,detailEmbed:null,embedOrigin:null,embedChoices:[],
+    textSelection:false,chatEmbeds:{},chatEmbedLoads:new Set(),embedAliases:{},username:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeChatsLoading:false,homeAbortController:null,homeError:null,homeLoadVersion:0,homeShowAll:false,homeSelectionMoved:false,homeContextKey:null,continueData:null,detailEmbed:null,embedOrigin:null,embedChoices:[],
     apps:[],activeApp:null,activeAppSkill:null,appTab:"skills",appSkillTab:"overview",appResults:{items:[],hasMore:false,offset:0},
     appWorkflows:{items:[],hasMore:false,offset:0},activeAppResult:null,appPreparedRun:null,
     workspace: "chats", sidebarOpen: false, sidebarIndex: 0, navigationIndex: 0,
@@ -302,15 +308,6 @@ function renderStartupFrame(state: TuiState, width: number, height: number, colo
 
 function coloredHero(lines:string[],rows:number,gradient=PRIMARY_GRADIENT):TuiLine[]{return lines.map((text,index)=>index<rows?{text,background:gradient.start}:text);}
 const blueHero=(lines:string[],rows:number)=>coloredHero(lines,rows);
-/** Keep each stacked home card centered and independently colored. */
-function homeCards(lines:string[],width:number,gradients:Array<{start:string;end:string}>):TuiLine[] {
-  const groups:string[][]=[[]];
-  for(const line of lines){if(line===""){if(groups.at(-1)!.length)groups.push([]);}else groups.at(-1)!.push(line);}
-  return groups.filter((group)=>group.length).flatMap((group,index)=>{
-    const cardWidth=Math.min(width,Math.max(...group.map(cells))),inset=Math.max(0,Math.floor((width-cardWidth)/2));
-    return [...group.map((text)=>({text,background:(gradients[index]??PRIMARY_GRADIENT).start,inset})),""];
-  });
-}
 function renderBody(state: TuiState, width: number,height:number): TuiLine[] {
   return renderScreenBody(state, width, height);
 }
@@ -349,7 +346,7 @@ function renderScreenBody(state: TuiState, width: number,height:number): TuiLine
     }
     case "app-result": return state.activeAppResult ? renderTuiAppsResult(state.activeAppResult,width):["Loading saved result…"];
     case "projects":
-      return [...homeHeader(state,width,height),...homeCards(renderProjectList(state.projects, { width, selectedId: filteredProjects(state.projects,state.filter)[state.selectedIndex]?.id, query: state.filter }),width,[])];
+      return [...homeHeader(state,width,height),...renderProjectCarousel(filteredProjects(state.projects,state.filter),width,state.selectedIndex,state.focus==='content')];
     case "project":
       return state.activeProject ? state.projectTab === "tasks"
         ? [...blueHero(renderProjectIdentity(state.activeProject,{width}),renderProjectIdentity(state.activeProject,{width}).length),...renderProjectTabs("tasks",width),"",...renderTaskBoard(state.tasks, { width, selectedTaskId: filterTasks(state.tasks, state.filter)[state.selectedIndex]?.taskId, query: state.filter })]
@@ -360,10 +357,10 @@ function renderScreenBody(state: TuiState, width: number,height:number): TuiLine
       const app=state.detailEmbed?.appId ?? "", gradient=APP_GRADIENTS[app] ?? PRIMARY_GRADIENT;
       const title=state.detailTitle || "Embed";
       const header=[title, state.detailEmbed ? `${state.detailEmbed.type?.replaceAll("-"," ") ?? "Saved item"} · ${state.detailEmbed.embedId.slice(0,8)}` : "Saved embeds"];
-      return [...coloredHero(header,header.length,gradient),"",...(state.embedChoices.length ? state.embedChoices.map((id,index)=>`${index===state.selectedIndex?">":" "} Embed ${index+1} · ${id.slice(0,8)} · Enter open`) : state.detailLines).flatMap(line=>wrap(line,width))];
+      return [...coloredHero(header,header.length,gradient),"",...(state.embedChoices.length ? state.embedChoices.map((alias,index)=>`${index===state.selectedIndex?">":" "} /embed ${alias} · Enter open`) : state.detailLines).flatMap(line=>wrap(line,width))];
     }
     case "workflows":
-      return [...homeHeader(state,width,height),...homeCards(state.workflows.filter((w)=>w.title.toLowerCase().includes(state.filter.toLowerCase())).flatMap((w,i)=>[...renderWorkflowPreviewCard(w,{width:Math.min(width,88),selected:state.focus==="content"&&i===state.selectedIndex}),""]),width,[]),"Show my workflows  ·  /search Search"];
+      return [...homeHeader(state,width,height),...renderWorkflowCarousel(state.workflows.filter(w=>w.title.toLowerCase().includes(state.filter.toLowerCase())),width,state.selectedIndex,state.focus==='content')];
     case "workflow":
       return renderWorkflowDetail(state, width);
     case "tasks":
@@ -398,7 +395,10 @@ function renderHelp(width: number): string[] {
     "  /tasks             Open your task workspace",
     "  /login             Pair-auth login",
     "  /signup            Leave TUI and run guided signup",
-    "  /embed <id>        Open an embed detail view",
+    "  /embed <shortcut>  Open an embed (UUIDs also work)",
+    "  /embed             List this chat's embed shortcuts",
+    "  Ctrl+Y             Select and copy text using the terminal",
+    "  Esc                Back from embed, then back to chats",
     "  /exit              Leave OpenMates and restore terminal",
     "",
     "Outside TUI: openmates --help, openmates chats --help, openmates apps --help",
@@ -484,23 +484,18 @@ function renderExamples(state: TuiState, width: number): string[] {
   return lines.flatMap((line) => wrap(line, width));
 }
 
-function renderExampleChat(state: TuiState, width: number): string[] {
+function renderExampleChat(state: TuiState, width: number): TuiLine[] {
   const convo = state.activeExample;
   if (!convo) return renderExamples(state, width);
-  const embeds = new Map<string, DecryptedEmbed>((convo.embeds ?? []).map((embed) => {
-    const content = parseEmbedContentObject(embed.content);
-    return [embed.embed_id, {id: embed.embed_id, embedId: embed.embed_id, type: embed.type, content, textPreview: null,
-      appId: typeof content.app_id === "string" ? content.app_id : null,
-      skillId: typeof content.skill_id === "string" ? content.skill_id : null, createdAt: null}];
-  }));
+  const embeds = new Map(Object.entries(exampleEmbedMap(state)));
   const lines = [
     ...renderChatHeader(state, width),
     `Example chat: ${convo.chat.title ?? convo.chat.slug}`,
     "",
   ];
   for (const message of convo.messages) {
-    lines.push(labelForRole(message.role));
-    lines.push(...renderMessageContent(message.content, width, embeds));
+    lines.push({text: messageLabel(message.role,message.senderName,message.category,convo.chat),color:'#5a85eb',bold:true});
+    lines.push(...renderMessageContentStyled(message.content, width, embeds,state));
     lines.push("");
   }
   if (convo.followUpSuggestions.length > 0) {
@@ -509,10 +504,10 @@ function renderExampleChat(state: TuiState, width: number): string[] {
       lines.push(`  ${index + 1}. ${suggestion}`);
     }
   }
-  return lines.flatMap((line) => wrap(line, width));
+  return lines.flatMap(line=>typeof line==='string'?wrap(line,width):[line]);
 }
 
-function renderChat(state: TuiState, width: number): string[] {
+function renderChat(state: TuiState, width: number): TuiLine[] {
   const lines = renderChatHeader(state, width);
   let contextIndex = 0;
   for (const message of state.messages) {
@@ -528,18 +523,21 @@ function renderChat(state: TuiState, width: number): string[] {
       lines.push("");
       continue;
     }
-    lines.push(message.title ?? labelForRole(message.role));
-    lines.push(...renderMessageContent(message.content, width));
+    lines.push({text:messageLabel(message.role,message.title,message.category,state.activeChat),color:'#5a85eb',bold:true});
+    const embeds = new Map(Object.entries(state.chatEmbeds));
+    lines.push(...renderMessageContentStyled(message.content, width, embeds,state));
+    const inlineIds = parseMessageSegments(message.content).filter(segment=>segment.type==='embed').map(segment=>segment.value);
+    for(const id of message.embedIds??[])if(!inlineIds.includes(id))lines.push(...renderMessageContentStyled('```json_embed\n'+JSON.stringify({embed_id:id})+'\n```',width,embeds,state));
     lines.push("");
   }
   if (state.projectFocusPending) lines.push("Project access starts after the countdown. /project-focus-reject to cancel.");
-  if (state.isBusy) lines.push("Sophia is typing...");
+  if (state.isBusy) lines.push(`${messageLabel('assistant',null,null,state.activeChat)} is typing...`);
   if (state.followUpSuggestions.length) lines.push("", "Suggestions", ...state.followUpSuggestions.slice(0, 3).map((s, i) => `  ${i + 1}. ${s}`));
   if (state.status) lines.push("", state.status);
-  return lines.flatMap((line) => wrap(line, width));
+  return lines.flatMap(line=>typeof line==='string'?wrap(line,width):[line]);
 }
 
-export function renderChatHeader(state: TuiState, width: number): string[] {
+export function renderChatHeader(state: TuiState, width: number): TuiLine[] {
   const chat = state.screen === "example" ? state.activeExample?.chat : state.activeChat;
   const title = state.headerState === "loading" && !chat?.title ? state.status === "Loading chat…" ? "Loading chat…" : "Creating new chat…"
     : state.headerState === "error" ? state.headerError || "Could not send message"
@@ -550,8 +548,11 @@ export function renderChatHeader(state: TuiState, width: number): string[] {
   const timestamp = chat && "createdAt" in chat ? chat.createdAt : null;
   const when = timestamp ? `Started ${relativeTime(timestamp)}` : "";
   const meta = [category, when, badges, state.selectedProjectId && state.activeProject?.name].filter(Boolean).join("  ·  ");
-  return ["", ...wrap(`  ${title}`, width), ...wrap(`  ${summary}`, width).slice(0, 2), meta ? truncateCells(`  ${meta}`, width) : "", ""];
+  const background=chatBackgroundFor(state);
+  return ['',...wrap(`  ${title}`,width).map(text=>({text,bold:true})),...wrap(`  ${summary}`,width).slice(0,2),meta?truncateCells(`  ${meta}`,width):'', ''].map(row=>typeof row==='string'?{text:row,background}:{...row,background});
 }
+
+function chatBackgroundFor(state:TuiState):string { return chatBackground(state.screen==='example'?state.activeExample?.chat.category:state.activeChat?.category); }
 
 function relativeTime(timestamp: number): string {
   const seconds = Math.max(0, Math.floor(Date.now() / 1000 - timestamp));
@@ -567,20 +568,26 @@ function renderStatus(state: TuiState, width: number): string[] {
 }
 
 export function renderMessageContent(content: string, width: number, embeds: Map<string, DecryptedEmbed> = new Map()): string[] {
+  return renderMessageContentStyled(content,width,embeds).map(lineText);
+}
+function renderMessageContentStyled(content: string, width: number, embeds: Map<string, DecryptedEmbed> = new Map(), state?:TuiState): TuiLine[] {
   return parseMessageSegments(content, {preserveCodeFences: true}).flatMap((segment) => {
     if (segment.type === "text") return renderTextContent(segment.value, width);
     const meta = segment.meta ?? {};
     const saved = embeds.get(segment.value);
+    const alias=state?aliasForEmbed(state,segment.value):segment.value;
     if (saved) {
       const embed = {...saved, content: {...meta, ...saved.content},
         appId: saved.appId ?? (typeof meta.app_id === "string" ? meta.app_id : null),
         skillId: saved.skillId ?? (typeof meta.skill_id === "string" ? meta.skill_id : null)};
-      return formatEmbedPreviewLines(embed, 2).map((line) => line.startsWith("└─") ? `└─ /embed ${embed.embedId}` : line).flatMap((line) => wrap(line, width));
+      if(isFitnessEmbed(embed))return renderFitnessPreview(embed,width,alias);
+      return formatEmbedPreviewLines(embed, 2).map((line) => line.startsWith("└─") ? `└─ /embed ${alias}` : line).flatMap((line) => wrap(line, width));
     }
     const app = typeof meta.app_id === "string" ? meta.app_id : "Embed";
     const skill = typeof meta.skill_id === "string" ? `/${meta.skill_id}` : "";
     const title = [meta.title, meta.name, meta.query].find((value) => typeof value === "string");
-    return [`┌─ ${app}${skill}${title ? ` · ${title}` : ""}`, `└─ /embed ${segment.value}`].flatMap((line) => wrap(line, width));
+    if(app==='fitness'&&meta.skill_id==='search_classes')return renderFitnessPreview({id:segment.value,embedId:segment.value,type:'app_skill_use',appId:app,skillId:'search_classes',content:{...meta,status:meta.status??'processing'},textPreview:null,createdAt:null},width,alias);
+    return [`┌─ ${app}${skill}${title ? ` · ${title}` : ""}`, `└─ /embed ${alias}`].flatMap((line) => wrap(line, width));
   });
 }
 
@@ -618,10 +625,11 @@ function interestScore(haystack: string, interest: string): number {
   return score;
 }
 
-function labelForRole(role: string): string {
+function messageLabel(role: string, sender?:string|null, category?:string|null, chat?:ChatListItem|null): string {
   if (role === "user") return "You";
   if (role === "system") return "System";
-  return "Sophia";
+  if(sender&&!/^(assistant|ai assistant|ai|openmates)$/i.test(sender.trim()))return sender;
+  return MATE_NAMES[category??''] || chat?.mateName || MATE_NAMES[chat?.category??''] || 'Assistant';
 }
 
 function wrap(line: string, width: number): string[] {

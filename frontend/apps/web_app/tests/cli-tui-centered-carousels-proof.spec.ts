@@ -48,8 +48,12 @@ test('records centered chat and app containers without an outer terminal border'
 		expect(Math.abs(left - right)).toBeLessThanOrEqual(1);
 		expect(input.indexOf('╮') - left + 1).toBe(100);
 		expect(chatRows.find((row: string) => row.includes('What would you like to work on?')).indexOf('What')).toBe(left + 2);
-		expect(appRows.find((row: string) => row.includes('APP WORKSPACE')).indexOf('╭')).toBe(left);
-		expect(appRows.find((row: string) => row.includes('[Skills]')).indexOf('1 [Skills]')).toBe(left + 1);
+    const appHeader=appRows.find((row: string)=>row.includes('APP WORKSPACE'));
+    const appLeft=appHeader.indexOf('╭'),appRight=appHeader.length-appHeader.indexOf('╮')-1;
+    expect(appLeft).toBeGreaterThanOrEqual(2);
+    expect(Math.abs(appLeft-appRight)).toBeLessThanOrEqual(1);
+    expect(appHeader.indexOf('╮')-appLeft+1).toBeGreaterThanOrEqual(100);
+    expect(appRows.find((row: string) => row.includes('[Skills]')).indexOf('1 [Skills]')).toBe(appLeft + 1);
 		for (const checkpoint of ['initial-centered', 'chat-open', 'chat-sidebar', 'app-open']) {
 			const rows = recording.frame(checkpoint);
 			expect(rows.every((row: string) => row.startsWith(' ') && row.endsWith(' '))).toBe(true);

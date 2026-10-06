@@ -55,6 +55,31 @@ test("wide board keeps five statuses while narrow board focuses one reachable co
 });
 
 // contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,cli.output.actionable-readable
+test("medium board shows adjacent columns and keeps the focused status reachable", () => {
+  const records = [
+    task({taskId: "backlog", shortId: "T-1", status: "backlog", title: "Plan work"}),
+    task({taskId: "progress", shortId: "T-2", status: "in_progress", title: "Build work"}),
+    task({taskId: "done", shortId: "T-3", status: "done", title: "Ship work"}),
+  ];
+  const three = renderTaskBoard(records, {width: 100, selectedTaskId: "done"});
+  const threeText = three.join("\n");
+  assert.match(threeText, /In progress \(1\) +Blocked \(0\) +Done \(1\)/);
+  assert.match(threeText, /No tasks here\./);
+  assert.match(threeText, /› Ship work/);
+  assert.match(threeText, /T-3/);
+  assert.doesNotMatch(threeText, /Plan work/);
+  assert.ok(three.every((line) => cells(line) <= 100));
+
+  const two = renderTaskBoard(records, {width: 80, status: "blocked"});
+  const twoText = two.join("\n");
+  assert.match(twoText, /In progress \(1\) +Blocked \(0\)/);
+  assert.match(twoText, /Build work/);
+  assert.match(twoText, /No tasks here\./);
+  assert.doesNotMatch(twoText, /Ship work/);
+  assert.ok(two.every((line) => cells(line) <= 80));
+});
+
+// contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,cli.output.actionable-readable
 test("wide board aligns display cells for CJK and emoji titles", () => {
   const records = [task({title: "確認 🧪 task", status: "backlog"})];
   const lines = renderTaskBoard(records, {width: 125});

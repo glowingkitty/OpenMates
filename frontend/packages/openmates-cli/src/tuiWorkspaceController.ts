@@ -12,12 +12,14 @@ import { loadTuiProjects, loadTuiProject, loadTuiProjectFiles, readTuiProjectFil
 import { buildWorkflowNodeForm, submitWorkflowNodeForm } from "./tuiWorkflowWorkspace.js";
 import { decryptUserTasks, TASK_STATUSES } from "./tasksCli.js";
 import { formValue } from "./tuiForms.js";
-import { WORKSPACES, workspaceGeometry } from "./tuiLayout.js";
+import { WORKSPACES } from "./tuiLayout.js";
 import { tuiChatSidebarRows, refreshTuiChatSidebar, placeTuiChats, createTuiChatProject, moveTuiChatSidebarSelection, updateTuiChatSidebar } from './tuiChatSidebar.js';
 import { encryptWithAesGcmCombined } from './crypto.js';
 import { paletteActions, TUI_ACTIONS } from "./tuiActions.js";
 import { eraseGrapheme, moveGraphemeCursor, terminalText } from "./tuiText.js";
 import { formatEmbedFullscreenLines } from "./embedRenderers.js";
+import { registerChatEmbedAliases, hydrateChatEmbedPreviews, hydrateFitnessResults, aliasForEmbed, isFitnessEmbed, fitnessSearchDetail, fitnessResultDetail } from './tuiEmbeds.js';
+import { normalizeFitnessSearchContent } from '../../ui/src/components/embeds/fitness/fitnessEmbedData.js';
 import { currentInspiration, homeContinueItems, isWorkspaceHome, loadHomeData, workspaceInspirations } from "./tuiHome.js";
 import { loadTuiApps, homeTuiApps, loadTuiAppsSkill, buildTuiAppsSkillForm, prepareTuiAppsSkillRun, buildTuiAppsRunConfirmation, executeTuiAppsSkill, loadTuiAppsResults, loadTuiAppsResult, loadTuiAppsWorkflows } from "./tuiAppsWorkspace.js";
 
@@ -40,12 +42,14 @@ export function route(state: TuiState, workspace: TuiWorkspace, screen: TuiScree
   state.homeShowAll = false;state.homeSelectionMoved=false;
   state.status = null;
   state.form = null; state.workflowEdit = null;
+  state.textSelection = false;
   return ++state.routeVersion;
 }
 function newChat(state: TuiState): void {
   route(state, "chats", "start");
   state.activeChatId = null; state.activeChat = null; state.activeExample = null;
   state.messages = []; state.headerState = "new"; state.headerError = null; state.followUpSuggestions = [];
+  state.chatEmbeds={};state.embedAliases={};state.chatEmbedLoads=new Set();
   state.projectFocusPending = null;
   state.input = state.drafts.new ?? "";
 }
@@ -65,13 +69,16 @@ export async function openSavedChat(context: WorkspaceContext, id: string): Prom
   const request = route(state, "chats", "chat");
   state.activeChatId=id;state.activeChat=[...state.recentChats,...state.sidebarLinkedChats,...state.activityChats].find(chat=>chat.id===id) ?? null;
   state.activeExample=null;state.messages=[];state.headerState=state.activeChat ? "ready" : "loading";
+  state.chatEmbeds={};state.embedAliases={};state.chatEmbedLoads=new Set();
   state.status = "Loading chat…"; render();
   let published = false;
   const publish = (result: Awaited<ReturnType<OpenMatesClient['getChatMessages']>>, pending = false) => {
     if (state.routeVersion !== request) return;
     state.activeChatId = result.chat.id; state.activeChat = result.chat; state.activeExample = null;
     state.selectedProjectId = null;
-    state.messages = result.messages.map((m) => ({id: m.id, role: m.role === "user" ? "user" : m.role === "system" ? "system" : "assistant", content: m.content, title: m.senderName, embedIds: m.embedIds}));
+    state.messages = result.messages.map((m) => ({id: m.id, role: m.role === "user" ? "user" : m.role === "system" ? "system" : "assistant", content: m.content, title: m.senderName, category:m.category, embedIds: m.embedIds}));
+    registerChatEmbedAliases(state);
+    if(typeof client.getEmbed==='function')void hydrateChatEmbedPreviews(state,client,render);
     state.projectFocusPending = null;
     state.headerState = "ready"; state.headerError = null;
     if (!published) state.input = state.drafts[result.chat.id] ?? "";
@@ -90,8 +97,15 @@ export async function openSavedChat(context: WorkspaceContext, id: string): Prom
     }
     published = true;
   };
-  const result = await client.getChatMessages(id, {preferCache:true,onMessages:latest=>publish(latest,true)});
-  publish(result);
+  try {
+    const result = await client.getChatMessages(id, {preferCache:true,onMessages:latest=>publish(latest,true)});
+    publish(result);
+  } catch (error) {
+    if (state.routeVersion !== request) return;
+    if (!published) { state.headerState = 'error'; state.headerError = 'Could not load chat'; }
+    state.status = `${error instanceof Error ? error.message : String(error)}. Use /refresh to retry.`;
+    render();
+  }
 }
 async function openProject(context: WorkspaceContext, id: string): Promise<void> {
   const {state, client, render} = context;
@@ -382,24 +396,39 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
       render(); return true;
     }
     case "/embed": {
+      registerChatEmbedAliases(state);
+      const target=state.embedAliases[arg];
+      const id=target?.embedId??arg;
       if(state.screen!=="embed")state.embedOrigin={screen:state.screen,workspace:state.workspace,focus:state.focus,selectedIndex:state.selectedIndex,scrollOffset:state.scrollOffset,filter:state.filter,input:state.input};
       const request = route(state, state.workspace, "embed"); state.detailTitle = "Embeds";state.detailEmbed=null;state.focus="content";
       state.detailLines=["Loading saved embed…"];render();
       if (!arg) {
-        const ids = [...new Set(state.messages.flatMap((message) => message.embedIds ?? []))];state.embedChoices=ids;
-        state.detailLines = ids.length ? ids.map((id) => `/embed ${id}`) : ["No saved embeds in this chat yet."];
+        const aliases = Object.keys(state.embedAliases);state.embedChoices=aliases;
+        state.detailLines = aliases.length ? aliases.map(alias => `/embed ${alias}`) : ["No saved embeds in this chat yet."];
       } else {
         try {
-        const example = state.activeExample?.embeds?.find((embed) => embed.embed_id === arg);
+        const example = state.activeExample?.embeds?.find((embed) => embed.embed_id === id);
         const content = example ? parseEmbedContentObject(example.content) : null;
-        const embed = example && content ? {id:arg, embedId:arg, type:example.type, content, textPreview:null,
-          appId:typeof content.app_id==="string"?content.app_id:null, skillId:typeof content.skill_id==="string"?content.skill_id:null, createdAt:null} : await client.getEmbed(arg,{preferCache:true,chatId:state.activeChatId ?? undefined});
+        let embed = state.chatEmbeds[id] ?? (example && content ? {id, embedId:id, type:example.type, content, textPreview:null,
+          appId:typeof content.app_id==="string"?content.app_id:null, skillId:typeof content.skill_id==="string"?content.skill_id:null, createdAt:null} : await client.getEmbed(id,{preferCache:true,chatId:state.activeChatId ?? undefined}));
         if (request !== state.routeVersion) return true;
         state.detailTitle = embed.textPreview || (embed.appId ? `${embed.appId}${embed.skillId ? `/${embed.skillId}` : ""}` : embed.type?.replaceAll("_", " ")) || "Embed";
         state.detailEmbed=embed;state.embedChoices=[];
         const cachedClient=Object.create(client) as OpenMatesClient;
         cachedClient.getEmbed=(id,options)=>client.getEmbed(id,{...options,preferCache:true,chatId:state.activeChatId ?? undefined});
-        const lines=await formatEmbedFullscreenLines(embed,cachedClient);
+        let lines:string[];
+        if(isFitnessEmbed(embed)){
+          embed=await hydrateFitnessResults(embed,cachedClient);
+          if(request!==state.routeVersion)return true;
+          state.chatEmbeds[id]=embed;registerChatEmbedAliases(state);
+          const result=target?.resultIndex===undefined?undefined:normalizeFitnessSearchContent(embed.content).results[target.resultIndex];
+          if(target?.resultIndex!==undefined&&!result)throw Error('This class result is unavailable. Open the search to see its current results.');
+          if(result?._tuiUnavailable)throw Error('Class details are unavailable offline. Reconnect and open this shortcut again to retry.');
+          if(result){embed={...embed,type:'fitness-class',embedId:result.embed_id??embed.embedId,content:result};state.detailTitle=String(result.name??result.venue_name??'Fitness class');}
+          else state.detailTitle=embed.type==='fitness-class'?String(embed.content.name??'Fitness class'):'Search classes';
+          state.detailEmbed=embed;
+          lines=embed.type==='fitness-class'?fitnessResultDetail(embed.content):fitnessSearchDetail(embed,aliasForEmbed(state,id));
+        }else lines=await formatEmbedFullscreenLines(embed,cachedClient);
         if(request!==state.routeVersion)return true;
         state.detailLines=lines;
         } catch(error) {
@@ -502,6 +531,11 @@ async function saveForm(context: WorkspaceContext): Promise<void> {
 
 export async function handleWorkspaceKey(context: WorkspaceContext, chunk: string, key: TerminalKey): Promise<boolean> {
   const {state, render, client} = context;
+  if (key.ctrl && key.name === 'y') { state.textSelection = !state.textSelection;render();return true; }
+  if (state.textSelection) {
+    if(key.name==='escape'){state.textSelection=false;render();}
+    return true;
+  }
   if (state.form) {
     const form = state.form, field = form.fields[form.fieldIndex];
     if (!field) {if(key.name === "escape" && !form.busy) state.form=null;else if(key.name === "return" || key.ctrl && key.name === "s") await saveForm(context);render();return true;}
@@ -533,7 +567,7 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
   if (key.ctrl && key.name === "n") { await handleWorkspaceCommand(context,"/new"); return true; }
   if(key.ctrl && key.name==="o" && isWorkspaceHome(state)){state.focus="inspiration";state.scrollOffset=0;render();return true;}
   if (state.workflowEdit) return false;
-  const chatHome=state.screen==="start"||state.screen==="chats", carouselHome=chatHome||state.screen==="apps";
+  const chatHome=state.screen==="start"||state.screen==="chats", carouselHome=chatHome||['apps','projects','workflows'].includes(state.screen);
   if (state.focus === 'sidebar' && ['pageup','pagedown','home','end','scrollup','scrolldown'].includes(key.name ?? '')) {
     const direction = ['pageup','scrollup'].includes(key.name ?? '') ? -1 : 1;
     const step = key.name?.startsWith('page') ? Math.max(1,(context.terminal.height ?? 24)-9) : 3;
@@ -573,6 +607,7 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
       else {state.screen=state.workspace==="projects"?"project":"chats";state.focus="content";}
       ++state.routeVersion;
     }
+    else if(state.screen==='chat'||state.screen==='example') { newChat(state);state.focus='content'; }
     else { state.input = ""; state.focus = state.workspace === "chats" ? "composer" : "content"; }
     render(); return true;
   }
@@ -588,7 +623,7 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     render();return true;
   }
   if(carouselHome&&state.focus==="content"&&(key.name==="left"||key.name==="right")){
-    const count=chatHome?homeContinueItems(state).length:homeTuiApps(state.apps,state.filter,state.homeShowAll).length;
+    const count=chatHome?homeContinueItems(state).length:state.screen==='projects'?filteredProjects(state.projects,state.filter).length:state.screen==='workflows'?state.workflows.filter(w=>w.title.toLowerCase().includes(state.filter.toLowerCase())).length:homeTuiApps(state.apps,state.filter,state.homeShowAll).length;
     state.homeSelectionMoved=true;
     state.selectedIndex=Math.max(0,Math.min(Math.max(0,count-1),state.selectedIndex+(key.name==="left"?-1:1)));
     state.followSelection=true;render();return true;
@@ -692,7 +727,7 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     }
   }
   if (state.focus === "content" && (state.screen === "task" || state.screen === "tasks")) {
-    if(state.screen==="tasks"&&(key.name==="left"||key.name==="right")&&workspaceGeometry(state,context.terminal.width).contentWidth<110){
+    if(state.screen==="tasks"&&(key.name==="left"||key.name==="right")){
       const selected=selectedTask(state),current=TASK_STATUSES.indexOf((state.taskStatusFilter||selected?.status||"todo") as UserTaskStatus);
       state.taskStatusFilter=TASK_STATUSES[(current+(key.name==="left"?-1:1)+TASK_STATUSES.length)%TASK_STATUSES.length];state.selectedIndex=0;state.scrollOffset=0;render();return true;
     }
@@ -719,6 +754,9 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     if(state.screen==="embed" && state.embedChoices.length){await context.command(`/embed ${state.embedChoices[state.selectedIndex]}`);return true;}
   }
   if (state.focus === "composer") {
+    if(key.name==='return'&&state.workspace==='chats'&&state.isBusy&&!state.input.startsWith('/')){
+      rememberDraft(state);state.status='The previous reply is still running. Your draft is kept.';render();return true;
+    }
     if (key.name === "return" && state.workspace !== "chats") {
       const value=state.input.trim();state.input="";state.inputCursor=null;
       if(value&&state.screen==="projects"){state.form=buildProjectForm();const name=state.form.fields.find((f)=>f.name==="name");if(name)name.value=value;}

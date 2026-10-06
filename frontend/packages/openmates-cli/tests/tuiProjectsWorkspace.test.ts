@@ -4,10 +4,11 @@ import { createHash } from "node:crypto";
 import type { OpenMatesClient, ProjectRecord } from "../src/client.ts";
 import { decryptBytesWithAesGcm, encryptWithAesGcmCombined } from "../src/crypto.ts";
 import { cells } from "../src/tuiText.ts";
+import { PRIMARY_GRADIENT } from "../../appGradientTheme.ts";
 import {
   buildProjectForm, filteredProjectFiles, loadTuiProject, loadTuiProjectFiles, loadTuiProjects,
   parentTuiProjectFolderId, readTuiProjectFile, renderProjectDetail, renderProjectIdentity,
-  renderProjectList, renderProjectTabs, submitProjectForm,
+  renderProjectCarousel, renderProjectList, renderProjectTabs, submitProjectForm,
 } from "../src/tuiProjectsWorkspace.ts";
 
 const key = new Uint8Array(32).fill(9);
@@ -27,6 +28,30 @@ async function record(): Promise<ProjectRecord> {
 }
 
 describe("TUI Project workspace", () => {
+  // contract-test: direct surface=cli assertions=projects.surface.semantic-parity
+  it("centers selected Project cards with metadata and bounded terminal rows", () => {
+    const base = { id, name: "First", description: "Project notes", color: "#abc", pinned: false, archived: false,
+      itemCount: 1, items: [] } as unknown as Awaited<ReturnType<typeof loadTuiProject>>;
+    const projects = [base, { ...base, id: "second", name: "Second", description: "Selected workspace", color: "invalid", pinned: true,
+      archived: true, itemCount: 3 }, { ...base, id: "third", name: "Third", color: "#aabbccdd" }];
+    const lines = renderProjectCarousel(projects, 110, 1, true);
+    const cardRows = lines.slice(0, 7);
+    assert.equal(lines.length, 9);
+    assert.ok(cardRows.every((line) => typeof line !== "string" && cells(line.text) === 110));
+    assert.match(cardRows.map((line) => typeof line === "string" ? line : line.text).join("\n"), /First[\s\S]*Second[\s\S]*Third/);
+    assert.match(cardRows.map((line) => typeof line === "string" ? line : line.text).join("\n"), /Selected workspace/);
+    assert.match(cardRows.map((line) => typeof line === "string" ? line : line.text).join("\n"), /3 items · Pinned · Archived/);
+    assert.equal((cardRows[0] as Exclude<typeof cardRows[number], string>).spans?.find((span) => span.bold)?.background, PRIMARY_GRADIENT.start);
+    assert.equal((cardRows[0] as Exclude<typeof cardRows[number], string>).spans?.[0]?.background, "#aabbcc");
+    assert.equal((cardRows[0] as Exclude<typeof cardRows[number], string>).spans?.at(-1)?.background, PRIMARY_GRADIENT.start);
+    assert.equal((cardRows[0] as Exclude<typeof cardRows[number], string>).text.indexOf("╭", 20), 37);
+    assert.match(String(lines.at(-1)), /Project 2 of 3 · ←\/→ choose project · Enter open/);
+    for (const width of [1, 4, 17, 36]) {
+      const narrow = renderProjectCarousel(projects, width, 1, false);
+      assert.equal(narrow.length, width < 4 ? 3 : 9);
+      assert.ok(narrow.every((line) => cells(typeof line === "string" ? line : line.text) <= width));
+    }
+  });
   // contract-test: supporting surface=cli assertions=projects.lifecycle.encrypted-crud,projects.links.openmates-only-encrypted,projects.files.no-server-decryption-authority
   it("decrypts metadata and linked files without requesting or activating remote access", async () => {
     const projectRecord = await record();

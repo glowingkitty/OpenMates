@@ -49,23 +49,29 @@ export function renderTaskBoard(tasks: DecryptedUserTask[], options: { width: nu
     "",
   ];
   const columns = TASK_STATUSES.map((status) => ({ status, tasks: visible.filter((task) => task.status === status) }));
-  if (width >= 110) {
+  // Keep the selected status in view as the terminal narrows. A medium terminal
+  // can still show adjacent Kanban columns without squeezing every card.
+  const selected = visible.find((task) => task.taskId === options.selectedTaskId);
+  const focused = options.status ?? selected?.status ?? columns.find((column) => column.tasks.length)?.status ?? "todo";
+  const focusedIndex = TASK_STATUSES.indexOf(focused);
+  const columnCount = width >= 110 ? 5 : width >= 96 ? 3 : width >= 70 ? 2 : 1;
+  const firstColumn = Math.min(Math.max(focusedIndex - Math.floor(columnCount / 2), 0), columns.length - columnCount);
+  if (columnCount > 1) {
     const gap = "  ";
-    const colWidth = Math.floor((width - gap.length * 4) / 5);
-    lines.push(columns.map(({status, tasks}) => padCells(`${STATUS_LABELS[status]} (${tasks.length})`, colWidth)).join(gap));
-    lines.push(columns.map(() => "─".repeat(colWidth)).join(gap));
-    const stacks = columns.map(({tasks: group}) => group.length
+    const shown = columns.slice(firstColumn, firstColumn + columnCount);
+    const colWidth = Math.floor((width - gap.length * (columnCount - 1)) / columnCount);
+    lines.push(truncateCells(`←/→ columns  ·  ${STATUS_LABELS[focused]} ${focusedIndex + 1}/5`, width));
+    lines.push(shown.map(({status, tasks}) => padCells(`${STATUS_LABELS[status]} (${tasks.length})`, colWidth)).join(gap));
+    lines.push(shown.map(() => "─".repeat(colWidth)).join(gap));
+    const stacks = shown.map(({tasks: group}) => group.length
       ? group.flatMap((task) => [...taskCard(task, colWidth, task.taskId === options.selectedTaskId), ""])
       : [padCells("No tasks here.", colWidth)]);
     for (let row = 0; row < Math.max(...stacks.map((stack) => stack.length)); row++) {
       lines.push(stacks.map((stack) => padCells(stack[row] ?? "", colWidth)).join(gap));
     }
   } else {
-    const selected = visible.find((task) => task.taskId === options.selectedTaskId);
-    const focused = options.status ?? selected?.status ?? columns.find((column) => column.tasks.length)?.status ?? "todo";
-    const index = TASK_STATUSES.indexOf(focused);
-    const group = columns[index]?.tasks ?? [];
-    lines.push(truncateCells(`←/→ columns  ·  ${STATUS_LABELS[focused]} ${index + 1}/5`, width));
+    const group = columns[focusedIndex]?.tasks ?? [];
+    lines.push(truncateCells(`←/→ columns  ·  ${STATUS_LABELS[focused]} ${focusedIndex + 1}/5`, width));
     lines.push(`${STATUS_LABELS[focused]} (${group.length})`, "─".repeat(Math.min(width, 52)));
     if (!group.length) lines.push("  No tasks here.");
     for (const task of group) {

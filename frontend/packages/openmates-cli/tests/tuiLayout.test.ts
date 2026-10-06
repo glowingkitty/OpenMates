@@ -101,7 +101,7 @@ test("wide chat header and composer share centered containers without an outer f
 });
 
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
-test("app identity tabs and composer align within the same centered main pane with a sidebar", () => {
+test("app content expands while the composer stays centered at its existing maximum width", () => {
   const state = createInitialTuiState();
   state.workspace = "apps"; state.screen = "app";
   state.activeApp = {id: "health", name: "Health", description: "Improve your health", category: "personal", skills: [], focusModes: [], settingsMemories: []};
@@ -114,7 +114,10 @@ test("app identity tabs and composer align within the same centered main pane wi
     const inputTop = rows.find((row) => /^\s+╭─+╮\s+$/.test(row))!;
     const left = header.indexOf("╭"), right = 200 - header.indexOf("╮") - 1;
     assert.ok(Math.abs(left - (sidebar ? 27 : 0) - right) <= 1);
-    assert.equal(inputTop.indexOf("╭"), left);
+    const inputLeft=inputTop.indexOf('╭'),inputRight=200-inputTop.indexOf('╮')-1;
+    assert.ok(Math.abs(inputLeft-(sidebar?27:0)-inputRight)<=1);
+    assert.equal(inputTop.indexOf('╮')-inputLeft+1,100);
+    assert.ok(header.indexOf('╮')-left+1>100);
     assert.equal(tabs.indexOf("1 [Skills]"), left + 1);
     assert.ok(rows.every((row) => cells(row) === 200 && row.startsWith(" ") && row.endsWith(" ")));
     assert.equal(rows.length, 32);

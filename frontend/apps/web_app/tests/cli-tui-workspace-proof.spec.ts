@@ -8,7 +8,9 @@ test('records the real terminal Chats, Tasks, Projects, Workflows, and Apps home
 	skipWithoutCredentials(test, email, password, otpKey);
 	const candidateCli = requireIsolatedCliBuild();
 	installRecorderDeps();
-	const apiUrl = workflowApiUrl(), home = createWorkflowCliHome('tui-proof-homes'), fixture = newFixture();
+  const apiUrl = workflowApiUrl(), home = createWorkflowCliHome('tui-proof-homes'), fixture = newFixture();
+  fixture.projectName=fixture.projectName.replace('Terminal proof project','Proof project');
+  fixture.workflowTitle=fixture.workflowTitle.replace('Terminal proof workflow','Proof workflow');
 	try {
 		await seedWorkspace(page, apiUrl, home, fixture, true);
 		const steps: ProofStep[] = [
@@ -65,9 +67,12 @@ test('records the real terminal Chats, Tasks, Projects, Workflows, and Apps home
 		for (const status of ['Backlog', 'Todo', 'In progress', 'Blocked', 'Done'])
 			expect(recording.segment('tasks-done', 'tasks-command')).toContain(status);
 		expect(recording.segment('projects-home', 'projects-command')).toContain(fixture.projectName);
-		expect(recording.segment('projects-home', 'projects-command')).toContain('PROJECT');
+    expect(recording.segment('projects-home', 'projects-command')).toContain('Project 1 of 1');
+    expect(recording.segment('projects-home', 'projects-command')).toContain('←/→ choose project');
 		expect(recording.segment('workflows-home', 'workflows-command')).toContain(fixture.workflowTitle);
-		expect(recording.segment('workflows-home', 'workflows-command')).toContain('DAILY INSPIRATION');
+    expect(recording.segment('workflows-home', 'workflows-command')).toContain('DAILY INSPIRATION');
+    expect(recording.segment('workflows-home', 'workflows-command')).toContain('Workflow 1 of 1');
+    expect(recording.segment('workflows-home', 'workflows-command')).toContain('←/→ choose workflow');
 		expect(recording.segment('apps-home', 'apps-command')).toContain('What app do you want to use?');
 		expect(recording.segment('apps-home', 'apps-command')).toContain('Web');
 		await recording.attest();

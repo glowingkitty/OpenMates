@@ -9,14 +9,40 @@ export const WORKSPACES = ["chats", "apps", "projects", "workflows", "tasks"] as
 export const DEFAULT_CHAT_BACKGROUND = "#4867cd";
 // A terminal-sized counterpart to the web app's centered content containers.
 export const CONTENT_MAX_COLUMNS = 100;
+export const WORKSPACE_MAX_COLUMNS = 180;
 export function workspaceGeometry(state: TuiState, rawWidth: number) {
   const width = Math.max(1, Math.floor(rawWidth));
   const gutter = Math.min(2, Math.floor((width - 1) / 2));
   const sidebarWidth = state.sidebarOpen && width >= 90 && !state.form && !state.paletteOpen ? 27 : 0;
   const paneWidth = Math.max(1, width - gutter * 2 - sidebarWidth);
-  const contentWidth = Math.min(CONTENT_MAX_COLUMNS, paneWidth);
+  const contentWidth = Math.min(state.workspace === 'chats' ? CONTENT_MAX_COLUMNS : WORKSPACE_MAX_COLUMNS, paneWidth);
   const inset = Math.floor((paneWidth - contentWidth) / 2);
-  return { width, gutter, sidebarWidth, paneWidth, contentWidth, inset };
+  const composerWidth = Math.min(CONTENT_MAX_COLUMNS, paneWidth);
+  const composerInset = Math.floor((paneWidth - composerWidth) / 2);
+  return { width, gutter, sidebarWidth, paneWidth, contentWidth, inset, composerWidth, composerInset };
+}
+
+/** Keep the edit caret and its surrounding lines in the same composer viewport. */
+function composerViewport(state: TuiState, width: number) {
+  const wrapWidth = Math.max(1, width - 6);
+  const lines = state.input.split('\n').flatMap(text => wrapCells(text, wrapWidth));
+  const before = state.input.slice(0, state.inputCursor ?? state.input.length).split('\n');
+  let row = before.slice(0, -1).reduce((count, text) => count + wrapCells(text, wrapWidth).length, 0);
+  const current = wrapCells(before.at(-1) ?? '', wrapWidth);
+  row += current.length - 1;
+  const column = cells(current.at(-1) ?? '');
+  const count = Math.min(3, Math.max(1, lines.length));
+  const start = Math.max(0, Math.min(lines.length - count, row - count + 1));
+  return { lines: lines.slice(start, start + count), row: row - start, column, count };
+}
+
+export function tuiComposerCursor(state: TuiState, width: number, height: number): {row: number; column: number} | null {
+  if (state.focus !== 'composer' || state.form || state.paletteOpen || state.startup || state.privacyOffer || state.textSelection) return null;
+  const geometry = workspaceGeometry(state, width), input = composerViewport(state, geometry.composerWidth);
+  const bodyHeight = Math.max(1, height - 2 - input.count - 3);
+  const row = 2 + bodyHeight + 1 + input.row;
+  const column = geometry.gutter + geometry.sidebarWidth + geometry.composerInset + 4 + input.column;
+  return row < height && column < width ? {row, column} : null;
 }
 export function chatBackground(category: string | null | undefined) {
   return category && CATEGORY_GRADIENTS[category]?.start || DEFAULT_CHAT_BACKGROUND;
@@ -55,10 +81,11 @@ export function workspaceHint(state: TuiState): string {
   if (state.screen === "apps") return state.focus === "composer"
     ? "Type /command   Shift+Tab apps   Ctrl+B sidebar"
     : "←/→ app   Enter open   ↑/↓ scroll   /search   /browse Show all   Ctrl+B sidebar";
-  if (state.screen === "projects" || state.screen === "tasks" || state.screen === "workflows" ) return "↑/↓ choose   Enter open   /search filter   Tab focus   Ctrl+P actions";
+  if (state.screen === "projects" || state.screen === "workflows") return "←/→ card   Enter open   ↑/↓ scroll   /search filter   Tab focus";
+  if (state.screen === "tasks") return "←/→ columns   ↑/↓ task   Enter open   /search filter   Tab focus";
   if (state.screen === "interests") return "↑/↓ move   Space select   Enter continue   Esc back";
   if (state.screen === "examples") return "↑/↓ choose   Enter open   /search filter   Esc back";
-  return "Enter send   Alt+Enter newline   Ctrl+B sidebar   Ctrl+P actions   @ attach";
+  return "Enter send   Alt+Enter newline   Esc chats   Ctrl+Y select text   Ctrl+B sidebar";
 }
 
 function overlayLines(state: TuiState, width: number, height: number): string[] {
@@ -81,7 +108,7 @@ function overlayLines(state: TuiState, width: number, height: number): string[] 
 }
 
 export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeight: number, body: TuiLine[], options: {colorMode?: TuiColorMode; ascii?: boolean; headerRows?: number; stickyRows?:number} = {}): string {
-  const { gutter, sidebarWidth, paneWidth, contentWidth, inset } = workspaceGeometry(state, rawWidth);
+  const { gutter, sidebarWidth, paneWidth, contentWidth, inset, composerWidth, composerInset } = workspaceGeometry(state, rawWidth);
   const height = Math.max(1, Math.floor(rawHeight));
   const mode = options.colorMode ?? "none";
   const ascii = options.ascii ?? false;
@@ -89,12 +116,14 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
   const place = (rendered: string, side = " ".repeat(sidebarWidth)) =>
     " ".repeat(gutter) + side + " ".repeat(inset) + rendered + " ".repeat(paneWidth - inset - contentWidth + gutter);
   const labels = WORKSPACES.map((w, i) => state.workspace === w ? `[${titleCase(w)}]` : state.focus === "navigation" && i === state.navigationIndex ? `>${titleCase(w)}<` : titleCase(w)).join("  ");
-  const title = state.activeChat?.title && state.workspace === "chats" ? ` · ${state.activeChat.title}` : "";
-  const nav = contentWidth >= 90 ? `OpenMates  ${labels}${title}` : `OpenMates  [${titleCase(state.workspace)}]  ${state.sidebarOpen ? "Sidebar open" : "Ctrl+B sidebar"}${title}`;
-  const inputWidth = Math.max(1, contentWidth - 6);
-  const inputLines = state.input.split("\n").flatMap((text) => wrapCells(text, inputWidth));
+  const nav = contentWidth >= 90 ? `OpenMates  ${labels}` : `OpenMates  [${titleCase(state.workspace)}]  ${state.sidebarOpen ? "Sidebar open" : "Ctrl+B sidebar"}`;
+  const activeLabel = `[${titleCase(state.workspace)}]`, activeAt = nav.indexOf(activeLabel);
+  const beforeNav = truncateCells(nav.slice(0, activeAt), contentWidth), activeNav = truncateCells(activeLabel, Math.max(0,contentWidth-cells(beforeNav)));
+  const afterNav = padCells(nav.slice(activeAt+activeLabel.length), Math.max(0,contentWidth-cells(beforeNav)-cells(activeNav)));
+  const renderedNav = foreground(beforeNav,'#cfcfcf',mode,true)+foreground(activeNav,'#ff553b',mode,true)+foreground(afterNav,'#cfcfcf',mode,true);
+  const input = composerViewport(state, composerWidth);
   const showComposer = state.workspace !== "apps" || state.focus === "composer" || Boolean(state.input);
-  const composerRows = showComposer ? Math.min(3, Math.max(1, inputLines.length)) : 0;
+  const composerRows = showComposer ? input.count : 0;
   const bodyHeight = Math.max(1, height - 2 - (showComposer ? composerRows + 3 : 1));
   const overlay = state.form || state.paletteOpen;
   const sidebar = state.sidebarOpen && !overlay;
@@ -118,7 +147,7 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     const markers=content.map((row,index)=>/(?:^|[│|])\s*[>›] /.test(lineText(row))?index:-1).filter((index)=>index>=0);
     const marker=state.screen==="workflow" ? markers.at(-1)??-1 : markers[0]??-1;
     let selectionEnd=marker;
-    if(["workflow","start","chats","apps"].includes(state.screen)&&marker>=0){
+    if(["workflow","start","chats","apps","projects","workflows"].includes(state.screen)&&marker>=0){
       const closing=content.findIndex((row,index)=>index>marker&&lineText(row).includes("╰"));
       selectionEnd=Math.min(marker+10,closing<0?marker:closing);
     }
@@ -167,19 +196,20 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     : state.workspace === "projects" ? "Name a new project  ·  /search to browse"
     : state.workspace === "workflows" ? "Describe new workflow  ·  /search to browse"
     : state.workspace === "tasks" ? "Add or update tasks  ·  /search to browse" : "Search apps or type / for actions";
-  const hint = state.status && state.screen !== "status" && state.screen !== "embed" ? `${state.status}  ·  ${workspaceHint(state)}` : workspaceHint(state);
+  const hint = state.textSelection ? 'Select text: drag to highlight, use terminal copy. Ctrl+Y / Esc resume.' : state.status && state.screen !== "status" && state.screen !== "embed" ? `${state.status}  ·  ${workspaceHint(state)}` : workspaceHint(state);
   const hintColor = state.focus === "composer" ? "#a0a0a0" : "#ff553b";
   const composer: string[] = [];
   if (showComposer) {
-    const inputRows = inputLines.slice(-composerRows).map((text, i) => `${i ? "  " : "> "}${text || (!state.input ? placeholder : "")}`);
-    if (contentWidth < 6) composer.push(...inputRows.map((text) => place(padCells(text, contentWidth))), place(foreground(padCells(hint, contentWidth), hintColor, mode)), place(" ".repeat(contentWidth)), place(" ".repeat(contentWidth)));
+    const placeInput = (rendered: string) => ' '.repeat(gutter + sidebarWidth + composerInset) + rendered + ' '.repeat(paneWidth - composerInset - composerWidth + gutter);
+    const inputRows = input.lines.map((text, i) => `${i ? "  " : "> "}${text || (!state.input ? placeholder : "")}`);
+    if (composerWidth < 6) composer.push(...inputRows.map((text) => placeInput(padCells(text, composerWidth))), placeInput(foreground(padCells(hint, composerWidth), hintColor, mode)), placeInput(" ".repeat(composerWidth)), placeInput(" ".repeat(composerWidth)));
     else {
-      const edge = (left: string, right: string) => place(foreground(left + line.repeat(contentWidth - 2) + right, "#6b6b6b", mode));
-      const inputRow = (text: string, color?: string) => place(foreground(vertical, "#6b6b6b", mode) + " " + foreground(padCells(text, contentWidth - 4), color ?? "#e6e6e6", mode) + " " + foreground(vertical, "#6b6b6b", mode));
+      const edge = (left: string, right: string) => placeInput(foreground(left + line.repeat(composerWidth - 2) + right, "#6b6b6b", mode));
+      const inputRow = (text: string, color?: string) => placeInput(foreground(vertical, "#6b6b6b", mode) + " " + foreground(padCells(text, composerWidth - 4), color ?? "#e6e6e6", mode) + " " + foreground(vertical, "#6b6b6b", mode));
       composer.push(edge(ascii ? "+" : "╭", ascii ? "+" : "╮"), ...inputRows.map((text) => inputRow(text)), inputRow(hint, hintColor), edge(ascii ? "+" : "╰", ascii ? "+" : "╯"));
     }
   }
-  const frame = [place(foreground(padCells(nav, contentWidth), "#cfcfcf", mode, true)), place(" ".repeat(contentWidth)), ...rows,
+  const frame = [place(renderedNav), place(" ".repeat(contentWidth)), ...rows,
     ...(showComposer ? composer : [place(foreground(padCells(hint, contentWidth), hintColor, mode))])];
   // Even tiny terminals are bounded by their actual dimensions.
   return frame.slice(0, height).join("\n");

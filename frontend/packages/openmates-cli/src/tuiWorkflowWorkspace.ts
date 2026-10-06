@@ -2,7 +2,9 @@
 import type { OpenMatesClient, WorkflowDetail, WorkflowGraph, WorkflowNode, WorkflowNodeRun, WorkflowRunDetail, WorkflowSummary } from "./client.js";
 import type { TuiForm } from "./tuiForms.js";
 import { formValue } from "./tuiForms.js";
-import { cells, padCells, truncateCells, wrapCells } from "./tuiText.js";
+import { cells, padCells, terminalText, truncateCells, wrapCells, type TuiLine } from "./tuiText.js";
+import { centeredCarouselText, renderCardCarousel } from "./tuiCarousel.js";
+import { PRIMARY_GRADIENT } from "../../appGradientTheme.js";
 
 export type WorkflowWorkspaceOptions = {
   width: number;
@@ -15,6 +17,22 @@ export type WorkflowWorkspaceOptions = {
   runGraph?: WorkflowGraph | null;
   edit?: {nodeId:string;field:"title"|"config";value:string};
 };
+
+/** Workflow summaries in the shared horizontal card viewport. */
+export function renderWorkflowCarousel(workflows: WorkflowSummary[], width: number, selectedIndex: number, focused: boolean): TuiLine[] {
+  if (!workflows.length) return [];
+  const selected = Math.max(0, Math.min(workflows.length - 1, selectedIndex));
+  const clean = (value: string) => terminalText(value).replace(/\s+/g, " ").trim();
+  const cards = workflows.map((workflow) => ({
+    title: clean(workflow.title),
+    description: [workflow.description ? truncateCells(clean(workflow.description), 32) : "",
+      truncateCells(clean(workflow.trigger_summary || "Manual"), 32)].filter(Boolean).join("\n"),
+    footer: `${workflow.enabled ? "Enabled" : "Paused"}${workflow.last_run_status ? ` · Last: ${clean(workflow.last_run_status)}` : ""}`,
+    background: PRIMARY_GRADIENT.start,
+  }));
+  return [...renderCardCarousel(cards, width, selected, focused), "",
+    centeredCarouselText(`Workflow ${selected + 1} of ${workflows.length} · ←/→ choose workflow · Enter open`, width)];
+}
 
 export function renderWorkflowPreviewCard(workflow: WorkflowSummary, options: { width: number; selected?: boolean }): string[] {
   const status = workflow.enabled ? "Enabled" : "Paused";

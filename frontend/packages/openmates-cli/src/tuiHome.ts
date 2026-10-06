@@ -144,11 +144,11 @@ export async function loadHomeData(state: TuiState, client: OpenMatesClient, ren
     updateHomeChats(state,page.chats);warmRecent();
     if(teamId)await refreshContinue();
     if(!current())return;
-    if(page.pendingRecoveryOutputs)state.status="Some saved AI outputs are pending recovery. Use /refresh to retry.";
+    if(page.pendingRecoveryOutputs && isWorkspaceHome(state) && !state.status)state.status="Some saved AI outputs are pending recovery. Use /refresh to retry.";
     render();
   }}).catch(()=>{if(current()){
     state.homeError="Saved chats could not be synced. Use /refresh to retry.";
-    if(homeChatItems(state).length)state.status="Showing cached chats. Sync failed; /refresh to retry.";
+    if(homeChatItems(state).length && isWorkspaceHome(state) && !state.status)state.status="Showing cached chats. Sync failed; /refresh to retry.";
   }}).finally(()=>{if(current()){state.homeChatsLoading=false;render();}}));
   else state.homeChatsLoading=false;
   if(signedIn) work.push(refreshTuiChatSidebar(state,client,render,true).catch(()=>{if(current())state.homeError="Chat projects could not be loaded. Use /refresh to retry.";}));

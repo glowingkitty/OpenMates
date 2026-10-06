@@ -242,7 +242,8 @@ async function seedWorkspace(page: Page, apiUrl: string, home: string, fixture: 
 }
 
 async function cleanupWorkspace(apiUrl: string, home: string, fixture: SeededWorkspace): Promise<void> {
-	for (const id of fixture.draftIds) await runWorkflowCli(apiUrl, home, ['drafts', 'clear', id, '--json']);
+	// Clearing a draft leaves its chat behind; remove only this test's owned chats.
+	for (const id of fixture.draftIds) await runWorkflowCliJson(apiUrl, home, ['chats', 'delete', id, '--yes', '--json'], 'delete proof chat');
 	if (fixture.workflowId) await deleteWorkflowQuietly(apiUrl, home, fixture.workflowId);
 	if (fixture.taskId) await runWorkflowCli(apiUrl, home, ['tasks', 'delete', fixture.taskId, '--confirm', '--json']);
 	if (fixture.projectId) await runWorkflowCli(apiUrl, home, ['projects', 'delete', fixture.projectId, '--confirm', fixture.projectId, '--json']);
