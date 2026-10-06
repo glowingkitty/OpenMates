@@ -17,6 +17,57 @@ required_keys:
     docs_url: "https://docs.mistral.ai/getting-started/quickstart/"
 
 models:
+  - id: "mistral-large-4"
+    name: "Mistral Large 4"
+    description: >-
+      Mistral AI's public-preview flagship for reasoning, coding, agentic
+      workflows, and multimodal understanding, with a one-million-token context.
+    country_origin: "FR"
+    for_app_skill: "ai.ask"
+    release_date: "2026-10-06"
+    capability_level: "high" # Provisional: broad parity with Max models is not established.
+    allow_auto_select: true
+    reasoning: true
+    reasoning_effort: "high"
+    search_aliases:
+      - "mistral large 4"
+      - "ml4"
+      - "le chonk"
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "mistral"
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "mistral-large-4"
+        region: "EU"
+    # Current Standard direct-API rates, verified 2026-10-06:
+    # https://docs.mistral.ai/models/mistral-large-4-0
+    # Original rates: $1.36 input, $0.14 cached input, $4.18 output / M.
+    # No reduction expiry is published; recheck when the preview changes.
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 490 # About 3x $0.68/M at $0.001 per credit.
+        output:
+          per_credit_unit: 155 # About 3x $2.09/M, including reasoning tokens.
+    costs:
+      input_per_million_token:
+        price: 0.68
+        currency: USD
+        max_context: 1000000
+      cached_input_per_million_token:
+        price: 0.07
+        currency: USD
+      output_per_million_token:
+        price: 2.09
+        currency: USD
+        max_context: 1000000
+    features:
+      tool_use: true
+      streaming: true
+      agents: true
+
   - id: "mistral-small-2506" # Official model ID — Mistral Small 3.2 (June 2025 pinned version)
     name: "Mistral Small 3.2"
     description: >-

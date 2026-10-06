@@ -65,6 +65,7 @@
         "long-chat-history.spec.ts",
         "logout-blocked-userdb-relogin.spec.ts",
         "model-toggle-settings.spec.ts",
+        "mistral-large4-model-picker.spec.ts",
         "newsletter-categories.spec.ts",
         "passkey-login-alternatives.spec.ts",
         "persisted-draft-discovery.spec.ts",

@@ -18,7 +18,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import response types (these are shared types, not provider-specific)
-from backend.apps.ai.llm_providers.mistral_client import UnifiedMistralResponse as UnifiedMistralResponse
+from backend.apps.ai.llm_providers.mistral_client import (
+    MISTRAL_THINKING_STATE_KEY,
+    UnifiedMistralResponse as UnifiedMistralResponse,
+)
 from backend.apps.ai.llm_providers.google_client import (
     GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY,
     UnifiedGoogleResponse,
@@ -1813,9 +1816,21 @@ async def call_main_llm_stream(
         return signature_providers == {provider_prefix}
 
     def _messages_for_server(server_model_id: str) -> List[Dict[str, Any]]:
-        if _accepts_stripped_thought_signatures(server_model_id):
-            return _strip_thought_signatures_from_messages(llm_api_messages)
-        return llm_api_messages
+        messages = (
+            _strip_thought_signatures_from_messages(llm_api_messages)
+            if _accepts_stripped_thought_signatures(server_model_id)
+            else llm_api_messages
+        )
+        if _provider_prefix_from_server_model_id(server_model_id) == "mistral":
+            return messages
+        # Mistral reasoning is native replay state, never another provider's input.
+        prepared = copy.deepcopy(messages)
+        for message in prepared:
+            for call in message.get("tool_calls") or []:
+                state = call.get("provider_transport_state")
+                if isinstance(state, dict) and MISTRAL_THINKING_STATE_KEY in state:
+                    call.pop("provider_transport_state")
+        return prepared
 
     # Flag: have we already stripped thought signatures and retried for this call?
     # We only do this once to avoid an infinite retry loop.

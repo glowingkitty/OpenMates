@@ -557,3 +557,45 @@ def test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fa
     )
     assert "thought_signature" not in captured_messages_by_provider["fallback"][1]["tool_calls"][0]
     assert "provider_transport_state" not in captured_messages_by_provider["fallback"][1]["tool_calls"][0]
+
+
+@pytest.mark.parametrize("fallback", ["openai", "openrouter", "google_ai_studio"])
+def test_mistral_thinking_replay_is_removed_for_foreign_fallback(monkeypatch, fallback):
+    captured = {}
+
+    async def primary(**kwargs):
+        captured["mistral"] = kwargs["messages"]
+        raise ValueError("timeout waiting for first chunk")
+
+    async def recovered(**kwargs):
+        captured[fallback] = kwargs["messages"]
+
+        async def stream():
+            yield "Recovered answer"
+
+        return stream()
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda provider: primary if provider == "mistral" else recovered)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: ("mistral", "mistral/mistral-large-4"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [f"{fallback}/model"])
+    monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _: True)
+
+    state = {"mistral_thinking": [{"type": "thinking", "thinking": [{"type": "text", "text": "Reasoning"}]}]}
+    messages = [
+        {"role": "assistant", "content": "Checking", "tool_calls": [{
+            "id": "search-1", "type": "function", "function": {"name": "search", "arguments": "{}"},
+            "provider_transport_state": state,
+        }]},
+        {"role": "tool", "tool_call_id": "search-1", "content": "Result"},
+    ]
+
+    async def run():
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="mistral-fallback", model_id="mistral/mistral-large-4", system_prompt="system",
+            message_history=messages, temperature=0.2, tools=None, tool_choice="auto",
+        )]
+
+    assert asyncio.run(run()) == ["Recovered answer"]
+    assert captured["mistral"][1]["tool_calls"][0]["provider_transport_state"] == state
+    assert "provider_transport_state" not in captured[fallback][1]["tool_calls"][0]
+    assert messages[0]["tool_calls"][0]["provider_transport_state"] == state

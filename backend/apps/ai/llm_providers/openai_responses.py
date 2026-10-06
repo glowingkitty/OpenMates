@@ -21,7 +21,7 @@ def responses_input(messages: list[dict]) -> list[dict]:
         role = message.get("role")
         calls = message.get("tool_calls") or []
         state = next((c.get("provider_transport_state") for c in calls if c.get("provider_transport_state")), None)
-        if role == "assistant" and state:
+        if role == "assistant" and isinstance(state, list) and state and all(isinstance(item, dict) for item in state):
             result.extend(state)
             continue
         if role == "tool":

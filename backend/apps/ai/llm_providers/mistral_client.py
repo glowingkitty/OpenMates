@@ -1,20 +1,25 @@
 # backend/apps/ai/llm_providers/mistral_client.py
 # Client for interacting with Mistral AI models.
 
+import copy
 import logging
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import httpx
 import json
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import tiktoken
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.config_manager import config_manager
 from .openai_shared import calculate_token_breakdown
+from .types import StreamChunkType, UnifiedStreamChunk
 
 logger = logging.getLogger(__name__)
 
 MISTRAL_API_BASE_URL = "https://api.mistral.ai/v1"
 MISTRAL_API_KEY: Optional[str] = None
+MISTRAL_THINKING_STATE_KEY = "mistral_thinking"
+MISTRAL_REASONING_EFFORTS = {"none", "high"}
 
 # --- Pydantic Models for Structured Mistral Response ---
 
@@ -29,7 +34,7 @@ class MistralToolCall(BaseModel):
 
 class MistralResponseMessage(BaseModel):
     role: str
-    content: Optional[str] = None
+    content: Optional[Union[str, List[Dict[str, Any]]]] = None
     tool_calls: Optional[List[MistralToolCall]] = None
 
 class MistralChoice(BaseModel):
@@ -58,6 +63,7 @@ class ParsedMistralToolCall(BaseModel):
     function_arguments_raw: str
     function_arguments_parsed: Optional[Dict[str, Any]] = None
     parsing_error: Optional[str] = None
+    provider_transport_state: Optional[Dict[str, Any]] = Field(default=None, repr=False, exclude=True)
 
 class UnifiedMistralResponse(BaseModel):
     task_id: str
@@ -68,6 +74,55 @@ class UnifiedMistralResponse(BaseModel):
     tool_calls_made: Optional[List[ParsedMistralToolCall]] = None
     raw_response: Optional[RawMistralChatCompletionResponse] = None
     usage: Optional[MistralUsage] = None
+
+
+def _get_mistral_reasoning_effort(model_id: str) -> Optional[str]:
+    """Use the catalog's provider-specific reasoning setting when configured."""
+    model = config_manager.get_model_pricing("mistral", model_id) or {}
+    effort = model.get("reasoning_effort")
+    if effort is not None and effort not in MISTRAL_REASONING_EFFORTS:
+        raise ValueError(f"Invalid Mistral reasoning_effort for model '{model_id}': {effort!r}")
+    return effort
+
+
+def _mistral_content_chunks(content: Any) -> List[Union[str, UnifiedStreamChunk]]:
+    """Keep thinking on its own channel, including mixed thinking/text deltas."""
+    if isinstance(content, str):
+        return [content] if content else []
+    chunks: List[Union[str, UnifiedStreamChunk]] = []
+    for block in content or []:
+        if block.get("type") == "text" and block.get("text"):
+            chunks.append(block["text"])
+        elif block.get("type") == "thinking":
+            for inner in block.get("thinking") or []:
+                if inner.get("type") == "text" and inner.get("text"):
+                    chunks.append(UnifiedStreamChunk(type=StreamChunkType.THINKING, content=inner["text"]))
+    return chunks
+
+
+def _mistral_thinking_state(text: str) -> Optional[Dict[str, Any]]:
+    """Attach native thinking to tool history for the next inference iteration."""
+    if not text:
+        return None
+    return {MISTRAL_THINKING_STATE_KEY: [
+        {"type": "thinking", "thinking": [{"type": "text", "text": text}]}
+    ]}
+
+
+def _prepare_mistral_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Replay native thinking from tool turns without sending internal metadata."""
+    prepared = copy.deepcopy(messages)
+    for message in prepared:
+        thinking = None
+        for call in message.get("tool_calls") or []:
+            state = call.pop("provider_transport_state", None)
+            call.pop("thought_signature", None)
+            if isinstance(state, dict) and state.get(MISTRAL_THINKING_STATE_KEY):
+                thinking = state[MISTRAL_THINKING_STATE_KEY]
+        if message.get("role") == "assistant" and thinking:
+            text = message.get("content")
+            message["content"] = [*thinking, *([{"type": "text", "text": text}] if text else [])]
+    return prepared
 
 
 def _resolve_mistral_tool_choice(
@@ -109,14 +164,14 @@ async def initialize_mistral_client(secrets_manager: SecretsManager):
 async def invoke_mistral_chat_completions(
     task_id: str,
     model_id: str,
-    messages: List[Dict[str, str]],
+    messages: List[Dict[str, Any]],
     secrets_manager: Optional[SecretsManager] = None,
     temperature: float = 0.7,
     max_tokens: Optional[int] = None,
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[Union[str, Dict[str, Any]]] = None,
     stream: bool = False
-) -> Union[UnifiedMistralResponse, AsyncIterator[Union[str, ParsedMistralToolCall, MistralUsage]]]:
+) -> Union[UnifiedMistralResponse, AsyncIterator[Union[str, UnifiedStreamChunk, ParsedMistralToolCall, MistralUsage]]]:
     global MISTRAL_API_KEY
     if not MISTRAL_API_KEY and secrets_manager:
         await initialize_mistral_client(secrets_manager)
@@ -140,12 +195,15 @@ async def invoke_mistral_chat_completions(
     
     payload: Dict[str, Any] = {
         "model": model_id,
-        "messages": messages,
+        "messages": _prepare_mistral_messages(messages),
         "temperature": temperature,
         "stream": stream
     }
     if max_tokens is not None:
         payload["max_tokens"] = max_tokens
+    reasoning_effort = _get_mistral_reasoning_effort(model_id)
+    if reasoning_effort is not None:
+        payload["reasoning_effort"] = reasoning_effort
     if tools:
         payload["tools"] = tools
         payload["tool_choice"] = _resolve_mistral_tool_choice(tool_choice, tools)
@@ -195,22 +253,29 @@ async def invoke_mistral_chat_completions(
                         unified_resp_obj.tool_calls_made.append(ParsedMistralToolCall(
                             tool_call_id=tc.id, function_name=tc.function.name,
                             function_arguments_raw=tc.function.arguments,
-                            function_arguments_parsed=parsed_args, parsing_error=parsing_err_msg
+                            function_arguments_parsed=parsed_args, parsing_error=parsing_err_msg,
+                            provider_transport_state=_mistral_thinking_state("".join(
+                                part.content or "" for part in _mistral_content_chunks(message_data.content)
+                                if isinstance(part, UnifiedStreamChunk)
+                            )),
                         ))
                 elif message_data.content is not None:
-                    unified_resp_obj.direct_message_content = message_data.content
+                    unified_resp_obj.direct_message_content = "".join(
+                        part for part in _mistral_content_chunks(message_data.content) if isinstance(part, str)
+                    )
             return unified_resp_obj
         except Exception as e:
             logger.error(f"{log_prefix} Failed to parse non-streamed response: {e}", exc_info=True)
             return UnifiedMistralResponse(task_id=task_id, model_id=model_id, success=False, error_message=str(e))
 
-    async def _iterate_stream_response(client: httpx.AsyncClient) -> AsyncIterator[Union[str, ParsedMistralToolCall, MistralUsage]]:
+    async def _iterate_stream_response(client: httpx.AsyncClient) -> AsyncIterator[Union[str, UnifiedStreamChunk, ParsedMistralToolCall, MistralUsage]]:
         current_tool_call_id: Optional[str] = None
         current_tool_function_name: Optional[str] = None
         current_tool_function_args_buffer: str = ""
         
         usage_info: Optional[Dict[str, int]] = None
         aggregated_response = ""
+        thinking_text = ""
         was_interrupted = False
 
         try:
@@ -233,9 +298,12 @@ async def invoke_mistral_chat_completions(
                                 choice = chunk["choices"][0]
                                 delta = choice.get("delta", {})
                                 if delta.get("content"):
-                                    content_chunk = delta["content"]
-                                    aggregated_response += content_chunk
-                                    yield content_chunk
+                                    for content_chunk in _mistral_content_chunks(delta["content"]):
+                                        if isinstance(content_chunk, str):
+                                            aggregated_response += content_chunk
+                                        else:
+                                            thinking_text += content_chunk.content or ""
+                                        yield content_chunk
                                 if delta.get("tool_calls"):
                                     for tc_delta_part in delta["tool_calls"]:
                                         new_tool_id = tc_delta_part.get("id")
@@ -247,7 +315,7 @@ async def invoke_mistral_chat_completions(
                                                     parsed_args = json.loads(current_tool_function_args_buffer)
                                                 except json.JSONDecodeError as e:
                                                     err_msg += f" JSONDecodeError: {e}"
-                                                yield ParsedMistralToolCall(tool_call_id=current_tool_call_id, function_name=current_tool_function_name, function_arguments_raw=current_tool_function_args_buffer, function_arguments_parsed=parsed_args, parsing_error=err_msg)
+                                                yield ParsedMistralToolCall(tool_call_id=current_tool_call_id, function_name=current_tool_function_name, function_arguments_raw=current_tool_function_args_buffer, function_arguments_parsed=parsed_args, parsing_error=err_msg, provider_transport_state=_mistral_thinking_state(thinking_text))
                                             current_tool_call_id = new_tool_id
                                             current_tool_function_name = func_details.get("name") or ""
                                             current_tool_function_args_buffer = func_details.get("arguments") or ""
@@ -264,7 +332,8 @@ async def invoke_mistral_chat_completions(
                                         function_name=current_tool_function_name,
                                         function_arguments_raw=current_tool_function_args_buffer,
                                         function_arguments_parsed=parsed_args,
-                                        parsing_error=err_msg
+                                        parsing_error=err_msg,
+                                        provider_transport_state=_mistral_thinking_state(thinking_text),
                                     )
                                     current_tool_function_name, current_tool_function_args_buffer, current_tool_call_id = None, "", None
 
@@ -316,7 +385,7 @@ async def invoke_mistral_chat_completions(
                 estimated_input_tokens = len(encoding.encode(conversation_text))
 
             # Estimate output tokens from the aggregated response
-            estimated_output_tokens = len(encoding.encode(aggregated_response))
+            estimated_output_tokens = len(encoding.encode(thinking_text + aggregated_response))
             
             log_message_prefix = "Mistral stream was interrupted." if was_interrupted else "Mistral stream finished without usage info."
             logger.warning(f"[{task_id}] {log_message_prefix} Estimating tokens: "
