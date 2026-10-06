@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { policyBoundary, policyCandidates } from './warm-policy.js';
 import { teamArchiveFinancialReady } from './team-storage-readiness.js';
 import { selectWindowLocators } from './locator-window.js';
+import { readHotMessageWindow } from './hot-message-window.js';
 
 const SEGMENTS = 'chat_message_archive_segments';
 const PAGES = 'chat_message_archive_pages';
@@ -71,6 +72,10 @@ export async function archiveOperation(database, body) {
   const { operation, data } = body;
   const now = integer(data.now ?? Math.floor(Date.now() / 1000));
   return database.transaction(async trx => {
+    if (operation === 'hot_message_window') {
+      await lockedChat(trx, data.chat_id);
+      return readHotMessageWindow(trx, data);
+    }
     if (operation === 'transfer_chat_to_team') {
       const chat = await lockedChat(trx, data.chat_id);
       const personalHash = text(data.expected_hashed_user_id);

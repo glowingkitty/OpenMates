@@ -176,3 +176,107 @@ def test_official_billing_probe_restores_isolated_deployment_and_billing_configu
         assert fail
     assert os.environ["OPENMATES_DEPLOYMENT_MODE"] == "self_host"
     assert os.environ["STORAGE_LOGICAL_S3_BILLING_ENABLED"] == "1"
+
+
+@pytest.mark.parametrize("failure", [None, "raw_order", "raw_sentinel", "adapter_fallback",
+                                     "adapter_sentinel", "legacy_cursor", "owner_fence",
+                                     "partial_seed", "cleanup"])
+def test_hot_window_probe_is_bounded_checks_sql_and_adapter_and_cleans_up(monkeypatch, failure):
+    """Pure harness proof; only the isolated pilot exercises real PostgreSQL."""
+    import json
+    from types import SimpleNamespace
+    from scripts import storage_archive_integration as integration
+
+    collections = {"chats": {}, "messages": {}}
+    raw_calls, adapter_calls, deletes = [], [], []
+
+    def read(data):
+        rows = sorted(collections["messages"].values(),
+                      key=lambda row: row["client_message_id"] or row["id"])
+        cursor = data.get("cursor_message_id")
+        if cursor:
+            rows = [row for row in rows if ((row["client_message_id"] or row["id"]) > cursor
+                                           if data["direction"] == "after"
+                                           else (row["client_message_id"] or row["id"]) < cursor)]
+        if data["direction"] != "after":
+            rows.reverse()
+        return [dict(row) for row in rows[:data["limit"]]]
+
+    class Directus:
+        async def create_item(self, collection, payload, **kwargs):
+            assert kwargs == {"admin_required": True}
+            if failure == "partial_seed" and collection == "messages" and len(collections[collection]) == 2:
+                return False, None
+            collections[collection][payload["id"]] = dict(payload)
+            return True, payload
+
+        async def delete_item(self, collection, item_id, **kwargs):
+            assert kwargs == {"admin_required": True}
+            deletes.append(collection)
+            if failure == "cleanup" and collection == "messages" and deletes.count("messages") == 1:
+                return False
+            collections[collection].pop(item_id, None)
+            return True
+
+        async def get_items(self, collection, *, params, **kwargs):
+            assert params["limit"] == 1 and params["fields"] == "id"
+            assert kwargs == {"admin_required": True, "no_cache": True, "raise_on_error": True}
+            return [{"id": row["id"]} for row in list(collections[collection].values())[:1]]
+
+    class Archive:
+        async def transaction(self, operation, data):
+            assert operation == "hot_message_window" and data["limit"] == 3
+            assert data["chat_id"] in collections["chats"]
+            raw_calls.append(dict(data))
+            if not collections["chats"][data["chat_id"]]["hashed_user_id"] and failure != "owner_fence":
+                raise RuntimeError("archive_owner_missing")
+            rows = read(data)
+            if failure == "raw_order":
+                rows.reverse()
+            if failure == "raw_sentinel":
+                rows = rows[:2]
+            if failure == "legacy_cursor" and len(raw_calls) > 3:
+                rows = []
+            return {"messages": rows}
+
+    async def window(chat_id, *, direction, limit, before_timestamp, before_message_id,
+                     after_timestamp, after_message_id):
+        assert limit == 2 and chat_id in collections["chats"]
+        adapter_calls.append(direction)
+        rows = read({"direction": direction, "limit": limit + 1,
+                     "cursor_message_id": before_message_id or after_message_id})
+        page = rows[:limit]
+        if direction != "after":
+            page.reverse()
+        for row in page:
+            row["message_id"] = row["client_message_id"] or row["id"]
+            if failure == "adapter_fallback" and not row["client_message_id"]:
+                row["message_id"] = "invalid-fallback"
+        def cursor(row):
+            return {"created_at": row["created_at"], "message_id": row["message_id"]}
+        return {"messages": [json.dumps(row) for row in page],
+                "has_more_before": True,
+                "has_more_after": False if failure == "adapter_sentinel" else direction != "latest",
+                "start_cursor": cursor(page[0]), "end_cursor": cursor(page[-1])}
+
+    async def patch_row(_directus, collection, item_id, payload):
+        collections[collection][item_id].update(payload)
+        return collections[collection][item_id]
+
+    directus = Directus()
+    directus.chat = SimpleNamespace(get_message_window_for_chat=window)
+    monkeypatch.setattr(integration, "_patch", patch_row)
+    if failure:
+        with pytest.raises(RuntimeError):
+            asyncio.run(integration._probe_hot_message_window(directus, Archive(), 100))
+    else:
+        result = asyncio.run(integration._probe_hot_message_window(directus, Archive(), 100))
+        assert result == {"same_timestamp_before_after": True, "legacy_client_id_fallback": True,
+                          "limit_plus_one_sentinel": True, "owner_missing_rejected": True,
+                          "fixture_messages": 6, "cleanup_verified": True}
+        assert adapter_calls == ["latest", "before", "after"]
+        assert len(raw_calls) == 8
+    assert collections["chats"] == {}
+    assert len(collections["messages"]) == int(failure == "cleanup")
+    assert deletes[-1] == "chats"
+    assert deletes.count("messages") == (2 if failure == "partial_seed" else 6)

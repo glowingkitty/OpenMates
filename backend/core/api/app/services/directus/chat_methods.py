@@ -1,4 +1,5 @@
 import logging
+import os
 import json
 from typing import List, Dict, Any, Optional, Union
 import hashlib
@@ -1230,23 +1231,36 @@ class ChatMethods:
 
     async def _fetch_message_window_rows(
         self,
-        message_filter: Dict[str, Any],
-        sort: List[str],
+        chat_id: str,
+        *,
+        direction: str,
         limit: int,
+        cursor_timestamp: Optional[int] = None,
+        cursor_message_id: Optional[str] = None,
+        lower_bound_timestamp: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        rows = await self.directus_service.get_items(
-            'messages',
-            params={
-                'filter': message_filter,
-                'fields': MESSAGE_ALL_FIELDS,
-                'sort': sort,
-                'limit': limit,
-            },
-            admin_required=True,
-            no_cache=True,
-            raise_on_error=True,
+        """Read a fixed, bounded projection through the internal SQL endpoint.
+
+        Callers retain the current owner/Team authorization before this read.
+        Directus item filters do not permit inequalities on string message IDs.
+        """
+        token = os.environ.get('INTERNAL_API_SHARED_TOKEN')
+        if not token:
+            raise RuntimeError('INTERNAL_API_SHARED_TOKEN_REQUIRED')
+        response = await self.directus_service._make_api_request(
+            'POST', f"{self.directus_service.base_url.rstrip('/')}/chat-archive-transaction",
+            headers={'X-Internal-Service-Token': token},
+            json={'operation': 'hot_message_window', 'data': {
+                'chat_id': chat_id, 'direction': direction, 'limit': limit,
+                'cursor_timestamp': cursor_timestamp, 'cursor_message_id': cursor_message_id,
+                'lower_bound_timestamp': lower_bound_timestamp or None,
+            }},
         )
-        if not isinstance(rows, list):
+        payload = response.json()
+        data = payload.get('data') if isinstance(payload, dict) else None
+        rows = data.get('messages') if isinstance(data, dict) else None
+        if (response.status_code != 200 or not isinstance(rows, list) or len(rows) > limit
+                or any(not isinstance(row, dict) or row.get('chat_id') != chat_id for row in rows)):
             raise RuntimeError('Canonical message window unavailable')
         return self._normalize_message_window_rows(rows)
 
@@ -1270,9 +1284,8 @@ class ChatMethods:
             if after_timestamp is None:
                 return self._message_window_result([], True, False, anchor_found=False)
             rows = await self._fetch_message_window_rows(
-                self._cursor_after_filter(chat_id, int(after_timestamp), after_message_id),
-                ['created_at', 'client_message_id', 'id'],
-                safe_limit + 1,
+                chat_id, direction="after", limit=safe_limit + 1,
+                cursor_timestamp=int(after_timestamp), cursor_message_id=after_message_id,
             )
             has_more_after = len(rows) > safe_limit
             if has_more_after:
@@ -1290,17 +1303,13 @@ class ChatMethods:
             before_limit = max(0, (safe_limit - 1) // 2)
             after_limit = max(0, safe_limit - 1 - before_limit)
             before_rows = await self._fetch_message_window_rows(
-                self._apply_lower_bound(
-                    self._cursor_before_filter(chat_id, anchor_timestamp, str(anchor_id) if anchor_id else None),
-                    lower_bound_timestamp,
-                ),
-                ['-created_at', '-client_message_id', '-id'],
-                before_limit + 1,
+                chat_id, direction="before", limit=before_limit + 1,
+                cursor_timestamp=anchor_timestamp, cursor_message_id=str(anchor_id) if anchor_id else None,
+                lower_bound_timestamp=lower_bound_timestamp,
             ) if before_limit > 0 else []
             after_rows = await self._fetch_message_window_rows(
-                self._cursor_after_filter(chat_id, anchor_timestamp, str(anchor_id) if anchor_id else None),
-                ['created_at', 'client_message_id', 'id'],
-                after_limit + 1,
+                chat_id, direction="after", limit=after_limit + 1,
+                cursor_timestamp=anchor_timestamp, cursor_message_id=str(anchor_id) if anchor_id else None,
             ) if after_limit > 0 else []
             has_more_before = len(before_rows) > before_limit
             has_more_after = len(after_rows) > after_limit
@@ -1315,12 +1324,9 @@ class ChatMethods:
             if before_timestamp is None:
                 return self._message_window_result([], False, True, anchor_found=False)
             rows = await self._fetch_message_window_rows(
-                self._apply_lower_bound(
-                    self._cursor_before_filter(chat_id, int(before_timestamp), before_message_id),
-                    lower_bound_timestamp,
-                ),
-                ['-created_at', '-client_message_id', '-id'],
-                safe_limit + 1,
+                chat_id, direction="before", limit=safe_limit + 1,
+                cursor_timestamp=int(before_timestamp), cursor_message_id=before_message_id,
+                lower_bound_timestamp=lower_bound_timestamp,
             )
             has_more_before = len(rows) > safe_limit
             if has_more_before:
@@ -1329,9 +1335,8 @@ class ChatMethods:
             return self._message_window_result(rows, has_more_before, True)
 
         rows = await self._fetch_message_window_rows(
-            self._apply_lower_bound({'chat_id': {'_eq': chat_id}}, lower_bound_timestamp),
-            ['-created_at', '-client_message_id', '-id'],
-            safe_limit + 1,
+            chat_id, direction="latest", limit=safe_limit + 1,
+            lower_bound_timestamp=lower_bound_timestamp,
         )
         has_more_before = len(rows) > safe_limit
         if has_more_before:

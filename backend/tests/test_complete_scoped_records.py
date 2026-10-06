@@ -55,15 +55,17 @@ async def test_repeated_provider_page_fails_instead_of_repeating_or_looping():
 # contract-test: supporting surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.cold.discoverable-bounded
 @pytest.mark.asyncio
 @pytest.mark.parametrize("failure", [None, RuntimeError("Database read failed")])
-async def test_hot_message_read_failure_cannot_be_reported_as_empty_history(failure):
-    async def fail_read(_collection, **kwargs):
-        assert kwargs["raise_on_error"] is True
-        assert kwargs["no_cache"] is True
+async def test_hot_message_read_failure_cannot_be_reported_as_empty_history(failure, monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "disposable-unit-token")
+
+    async def fail_read(method, url, **kwargs):
+        assert method == "POST" and url.endswith("/chat-archive-transaction")
+        assert kwargs["json"]["operation"] == "hot_message_window"
         if isinstance(failure, Exception):
             raise failure
-        return failure
+        return SimpleNamespace(status_code=200, json=lambda: {"data": None})
 
-    methods = ChatMethods(SimpleNamespace(get_items=fail_read))
+    methods = ChatMethods(SimpleNamespace(base_url="http://cms:8055", _make_api_request=fail_read))
     with pytest.raises(RuntimeError):
         await methods.get_message_window_for_chat(
             "authorized-chat", direction="after", after_timestamp=0, after_message_id="", limit=20,

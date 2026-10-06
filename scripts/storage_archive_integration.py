@@ -1660,6 +1660,114 @@ async def _probe_degraded_storage_regressions(directus, archive, now: int) -> No
                 raise RuntimeError("Degraded storage regression actor cleanup failed")
 
 
+async def _probe_hot_message_window(directus, archive, now: int) -> dict:
+    """Exercise the real warm SQL and adapter with six disposable tied rows."""
+    from builtins import ExceptionGroup
+
+    chat_id = str(uuid.uuid4())
+    owner_hash = hashlib.sha256(chat_id.encode()).hexdigest()
+    timestamp = now - 10
+    client_ids = [f"!{chat_id}-0", f"!{chat_id}-1", None, "",
+                  f"~{chat_id}-0", f"~{chat_id}-1"]
+    fixtures = [{"id": str(uuid.uuid4()), "client_message_id": client_id,
+                 "chat_id": chat_id, "hashed_user_id": owner_hash,
+                 "encrypted_content": base64.b64encode(secrets.token_bytes(96)).decode(),
+                 "role": "user", "created_at": timestamp, "updated_at": timestamp}
+                for client_id in client_ids]
+    ordered = sorted(fixtures, key=lambda row: row["client_message_id"] or row["id"])
+    identities = [row["client_message_id"] or row["id"] for row in ordered]
+    created_rows = []
+    chat_created = False
+    original_error = None
+    try:
+        await _write(directus, "chats", {
+            "id": chat_id, "hashed_user_id": owner_hash, "storage_state": "hot",
+            "messages_v": len(fixtures), "created_at": timestamp, "updated_at": now,
+        })
+        chat_created = True
+        for row in fixtures:
+            await _write(directus, "messages", row)
+            created_rows.append(row["id"])
+
+        # limit3 is the real limit2+1 sentinel query. Assert raw descending and
+        # ascending SQL results separately from the adapter's chronological page.
+        cases = [
+            ("latest", None, None, identities[-3:][::-1], identities[-2:], True, False),
+            ("before", identities[4], None, identities[1:4][::-1], identities[2:4], True, True),
+            ("after", None, identities[1], identities[2:5], identities[2:4], True, True),
+        ]
+        for direction, before_id, after_id, raw_ids, page_ids, more_before, more_after in cases:
+            raw = await archive.transaction("hot_message_window", {
+                "chat_id": chat_id, "direction": direction, "limit": 3,
+                "cursor_timestamp": timestamp if direction != "latest" else None,
+                "cursor_message_id": before_id or after_id,
+            })
+            rows = raw.get("messages")
+            if (not isinstance(rows, list) or len(rows) != 3
+                    or any(row.get("chat_id") != chat_id or row.get("created_at") != timestamp for row in rows)
+                    or [row.get("client_message_id") or row.get("id") for row in rows] != raw_ids):
+                raise RuntimeError("Synthetic hot message SQL order or sentinel was incorrect")
+            window = await directus.chat.get_message_window_for_chat(
+                chat_id, direction=direction, limit=2,
+                before_timestamp=timestamp if before_id else None, before_message_id=before_id,
+                after_timestamp=timestamp if after_id else None, after_message_id=after_id,
+            )
+            page = [json.loads(row) if isinstance(row, str) else row for row in window.get("messages", [])]
+            if ([row.get("message_id") for row in page] != page_ids
+                    or window.get("has_more_before") is not more_before
+                    or window.get("has_more_after") is not more_after
+                    or window.get("start_cursor") != {"created_at": timestamp, "message_id": page_ids[0]}
+                    or window.get("end_cursor") != {"created_at": timestamp, "message_id": page_ids[-1]}):
+                raise RuntimeError("Synthetic hot message adapter fallback or sentinel was incorrect")
+
+        # Cursoring on each legacy fallback ID must also use the SQL ID fallback.
+        for index in (2, 3):
+            for direction, expected in (("before", identities[max(0, index - 3):index][::-1]),
+                                        ("after", identities[index + 1:index + 4])):
+                result = await archive.transaction("hot_message_window", {
+                    "chat_id": chat_id, "direction": direction, "limit": 3,
+                    "cursor_timestamp": timestamp, "cursor_message_id": identities[index],
+                })
+                if [row.get("client_message_id") or row.get("id")
+                        for row in result.get("messages", [])] != expected:
+                    raise RuntimeError("Synthetic hot message legacy cursor fallback was incorrect")
+
+        await _patch(directus, "chats", chat_id, {"hashed_user_id": None, "hashed_team_id": None})
+        await _expect_error(lambda: archive.transaction("hot_message_window", {
+            "chat_id": chat_id, "direction": "latest", "limit": 3,
+        }), "archive_owner_missing")
+    except Exception as error:
+        original_error = error
+        raise
+    finally:
+        failures = []
+        for collection, item_ids in (("messages", created_rows), ("chats", [chat_id] if chat_created else [])):
+            for item_id in item_ids:
+                try:
+                    if not await directus.delete_item(collection, item_id, admin_required=True):
+                        raise RuntimeError("Synthetic hot message fixture deletion failed")
+                except Exception:
+                    failures.append(collection)
+        if chat_created:
+            for collection, field in (("messages", "chat_id"), ("chats", "id")):
+                try:
+                    rows = await directus.get_items(collection, params={
+                        "filter": {field: {"_eq": chat_id}}, "fields": "id", "limit": 1,
+                    }, admin_required=True, no_cache=True, raise_on_error=True)
+                    if rows != []:
+                        raise RuntimeError("Synthetic hot message fixture survived cleanup")
+                except Exception:
+                    failures.append(collection)
+        if failures:
+            cleanup_error = RuntimeError("Synthetic hot message fixture cleanup failed")
+            if original_error:
+                raise ExceptionGroup("Hot message probe and cleanup failed", [original_error, cleanup_error])
+            raise cleanup_error
+    return {"same_timestamp_before_after": True, "legacy_client_id_fallback": True,
+            "limit_plus_one_sentinel": True, "owner_missing_rejected": True,
+            "fixture_messages": len(fixtures), "cleanup_verified": True}
+
+
 async def probe() -> dict:
     require_isolated_storage()
     from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
@@ -1668,6 +1776,7 @@ async def probe() -> dict:
     try:
         archive = ChatMessageArchiveService(directus_service=directus, s3_service=s3)
         now = int(time.time())
+        hot_window_sql = await _probe_hot_message_window(directus, archive, now)
         await _probe_degraded_storage_regressions(directus, archive, now)
         chat_id = str(uuid.uuid4())
         owner_hash = hashlib.sha256(chat_id.encode()).hexdigest()
@@ -1889,6 +1998,7 @@ async def probe() -> dict:
             "pending_recovery_fence": True, "source_mutation_fence": True,
             "late_arrival_retained": True, "reader_verified_before_activation": True,
             "sparse_overlap_sql_locators": True,
+            "hot_message_window_sql": hot_window_sql,
             "legacy_embed_json_readback": True,
             "team_archive_claim_read_prune": True,
             "team_data_portability": team_portability,

@@ -17,6 +17,7 @@ import uuid
 from backend.core.api.app.services.s3.job_processor import RegionalStorageJobProcessor
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.s3.probe import probe_region_data_plane
+from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.replication import (
     dispatch_due_storage_jobs,
     record_persisted_region_error,
@@ -31,6 +32,21 @@ from backend.shared.python_utils.storage_archive_rollout_config import (
 from backend.shared.python_utils.object_storage_regions import resolve_regional_bucket_name
 
 logger = logging.getLogger(__name__)
+
+
+class StorageServiceTask(BaseServiceTask):
+    """Initialize storage maintenance without billing or template dependencies."""
+
+    async def initialize_services(self) -> None:
+        await self.initialize_core_services()
+        if self._s3_service is None:
+            self._s3_service = S3UploadService(
+                secrets_manager=self._secrets_manager,
+                directus_service=self._directus_service,
+            )
+            # API startup owns bucket and policy reconciliation; workers only
+            # initialize clients, including when no billing provider is configured.
+            await self._s3_service.initialize(configure_buckets=False)
 
 
 async def enqueue_warm_archive_check(*, cache_service: Any, chat_id: str) -> bool:
@@ -51,8 +67,8 @@ async def enqueue_warm_archive_check(*, cache_service: Any, chat_id: str) -> boo
     return True
 
 
-@app.task(name="storage.copy_chat_checkpoint_archive", base=BaseServiceTask, bind=True)
-def copy_chat_checkpoint_archive(self: BaseServiceTask, *, chat_id: str, checkpoint_id: str) -> dict[str, Any]:
+@app.task(name="storage.copy_chat_checkpoint_archive", base=StorageServiceTask, bind=True)
+def copy_chat_checkpoint_archive(self: StorageServiceTask, *, chat_id: str, checkpoint_id: str) -> dict[str, Any]:
     """Copy an acknowledged checkpoint prefix; payload removal is separate."""
     if not archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED"):
         return {"state": "archive_copy_disabled"}
@@ -127,9 +143,9 @@ async def probe_configured_storage_regions(
     return {"region_probes_passed": passed, "region_probes_failed": failed}
 
 
-@app.task(name="storage.process_replication_job", base=BaseServiceTask, bind=True)
+@app.task(name="storage.process_replication_job", base=StorageServiceTask, bind=True)
 def process_storage_replication_job(
-    self: BaseServiceTask,
+    self: StorageServiceTask,
     *,
     job_id: str,
     expected_version: int,
@@ -147,9 +163,9 @@ def process_storage_replication_job(
     return asyncio.run(run())
 
 
-@app.task(name="storage.process_deletion_tombstone", base=BaseServiceTask, bind=True)
+@app.task(name="storage.process_deletion_tombstone", base=StorageServiceTask, bind=True)
 def process_storage_deletion_tombstone(
-    self: BaseServiceTask,
+    self: StorageServiceTask,
     *,
     tombstone_id: str,
     expected_version: int,
@@ -167,8 +183,8 @@ def process_storage_deletion_tombstone(
     return asyncio.run(run())
 
 
-@app.task(name="storage.archive_cold_chat", base=BaseServiceTask, bind=True)
-def archive_cold_chat(self: BaseServiceTask, *, chat_id: str) -> dict[str, Any]:
+@app.task(name="storage.archive_cold_chat", base=StorageServiceTask, bind=True)
+def archive_cold_chat(self: StorageServiceTask, *, chat_id: str) -> dict[str, Any]:
     """Copy one policy-eligible bounded prefix, without whole-graph deletion."""
     if not archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED"):
         return {"state": "archive_copy_disabled"}
@@ -234,8 +250,8 @@ async def dispatch_due_warm_chat_archives(
     return len(chat_ids)
 
 
-@app.task(name="storage.advance_chat_archive", base=BaseServiceTask, bind=True)
-def advance_chat_archive(self: BaseServiceTask, *, segment_id: str) -> dict[str, Any]:
+@app.task(name="storage.advance_chat_archive", base=StorageServiceTask, bind=True)
+def advance_chat_archive(self: StorageServiceTask, *, segment_id: str) -> dict[str, Any]:
     """Restart expired copies or advance one read/prune batch; all flags default off."""
     if not archive_feature_enabled("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED"):
         return {"state": "archive_copy_disabled"}
@@ -321,8 +337,8 @@ async def dispatch_chat_archive_progress(*, directus_service: Any, cache_service
     return {"archive_segments_dispatched": len(segments), "archive_checkpoints_dispatched": len(checkpoints["checkpoints"])}
 
 
-@app.task(name="storage.sweep_due_jobs", base=BaseServiceTask, bind=True)
-def sweep_due_storage_jobs(self: BaseServiceTask) -> dict[str, int]:
+@app.task(name="storage.sweep_due_jobs", base=StorageServiceTask, bind=True)
+def sweep_due_storage_jobs(self: StorageServiceTask) -> dict[str, int]:
     async def run() -> dict[str, int]:
         try:
             await self.initialize_services()
