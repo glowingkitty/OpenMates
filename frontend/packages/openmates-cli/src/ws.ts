@@ -83,6 +83,8 @@ export interface ChatCompressionCheckpointEvent {
   checkpointId: string;
   summaryContent: string;
   compressedUpToTimestamp: number;
+  compressedUpToMessageId: string | null;
+  coveredMessageIds: string[] | null;
   compressedMessageCount: number;
   summaryTokenEstimate: number | null;
 }
@@ -1437,6 +1439,13 @@ export class OpenMatesWsClient {
               compressedUpToTimestamp: typeof p.compressed_up_to_timestamp === "number"
                 ? p.compressed_up_to_timestamp
                 : 0,
+              compressedUpToMessageId: typeof p.compressed_up_to_message_id === "string"
+                ? p.compressed_up_to_message_id
+                : null,
+              coveredMessageIds: Array.isArray(p.covered_message_ids)
+                && p.covered_message_ids.every((id: unknown) => typeof id === "string")
+                ? p.covered_message_ids
+                : null,
               compressedMessageCount: typeof p.compressed_message_count === "number"
                 ? p.compressed_message_count
                 : 0,

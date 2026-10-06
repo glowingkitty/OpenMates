@@ -3190,6 +3190,46 @@ export async function stageCliTeamNotificationPreview(
   });
 }
 
+/** Persist the exact server compression boundary before considering a checkpoint saved. */
+export async function persistCompressionCheckpoints(
+  ws: OpenMatesWsClient,
+  chatKeyBytes: Uint8Array | null,
+  checkpoints: ChatCompressionCheckpointEvent[],
+): Promise<void> {
+  if (!chatKeyBytes || checkpoints.length === 0) return;
+  for (const checkpoint of checkpoints) {
+    const storedPromise = ws.waitForMessage(
+      "chat_compression_checkpoint_stored",
+      (payload) => {
+        const p = payload as Record<string, unknown>;
+        const stored = p.checkpoint as Record<string, unknown> | undefined;
+        return p.chat_id === checkpoint.chatId && stored?.id === checkpoint.checkpointId;
+      },
+      20_000,
+    );
+    void storedPromise.catch(() => {});
+    await ws.sendAsync("store_chat_compression_checkpoint", {
+      chat_id: checkpoint.chatId,
+      checkpoint_id: checkpoint.checkpointId,
+      encrypted_summary: await encryptWithAesGcmCombined(checkpoint.summaryContent, chatKeyBytes),
+      compressed_up_to_timestamp: checkpoint.compressedUpToTimestamp,
+      compressed_up_to_message_id: checkpoint.compressedUpToMessageId,
+      covered_message_ids: checkpoint.coveredMessageIds,
+      compressed_message_count: checkpoint.compressedMessageCount,
+      summary_token_estimate: checkpoint.summaryTokenEstimate,
+      key_version: 1,
+      created_at: Math.floor(Date.now() / 1000),
+    });
+    const receipt = (await storedPromise).payload as Record<string, unknown>;
+    const stored = receipt.checkpoint as Record<string, unknown> | undefined;
+    if (receipt.chat_id !== checkpoint.chatId || stored?.id !== checkpoint.checkpointId
+      || (stored?.compressed_up_to_message_id ?? null) !== checkpoint.compressedUpToMessageId
+      || JSON.stringify(stored?.covered_message_ids ?? null) !== JSON.stringify(checkpoint.coveredMessageIds)) {
+      throw new Error("Canonical compression checkpoint receipt did not match the server boundary and source manifest.");
+    }
+  }
+}
+
 export class OpenMatesClient {
   private readonly workflowDeliveriesBySocket = new WeakMap<OpenMatesWsClient, Map<string, WorkflowDeliveryDiscovery>>();
   readonly apiUrl: string;
@@ -8624,38 +8664,6 @@ export class OpenMatesClient {
       );
     };
 
-    const persistCompressionCheckpoints = async (
-      checkpoints: ChatCompressionCheckpointEvent[],
-    ) => {
-      if (!chatKeyBytes || checkpoints.length === 0) return;
-      for (const checkpoint of checkpoints) {
-        const createdAtSeconds = Math.floor(Date.now() / 1000);
-        const storedPromise = ws.waitForMessage(
-          "chat_compression_checkpoint_stored",
-          (payload) => {
-            const p = payload as Record<string, unknown>;
-            const storedCheckpoint = p.checkpoint as Record<string, unknown> | undefined;
-            return p.chat_id === checkpoint.chatId && storedCheckpoint?.id === checkpoint.checkpointId;
-          },
-          20_000,
-        );
-        await ws.sendAsync("store_chat_compression_checkpoint", {
-          chat_id: checkpoint.chatId,
-          checkpoint_id: checkpoint.checkpointId,
-          encrypted_summary: await encryptWithAesGcmCombined(
-            checkpoint.summaryContent,
-            chatKeyBytes,
-          ),
-          compressed_up_to_timestamp: checkpoint.compressedUpToTimestamp,
-          compressed_message_count: checkpoint.compressedMessageCount,
-          summary_token_estimate: checkpoint.summaryTokenEstimate,
-          key_version: 1,
-          created_at: createdAtSeconds,
-        });
-        await storedPromise;
-      }
-    };
-
     const persistMemoryRequestSystemMessage = async (
       event: AppSettingsMemoriesRequestEvent,
     ) => {
@@ -8798,7 +8806,7 @@ export class OpenMatesClient {
         subChatEvents = resp.subChatEvents;
         // Incognito chats are not post-processed — follow-up suggestions are not stored.
         if (resp.status === "waiting_for_user") {
-          await persistCompressionCheckpoints(resp.compressionCheckpoints);
+          await persistCompressionCheckpoints(ws, chatKeyBytes, resp.compressionCheckpoints);
           return {
             status: resp.status,
             chatId,
@@ -8973,7 +8981,7 @@ export class OpenMatesClient {
               ownerId,
             });
             clearSyncCache(teamId);
-            await persistCompressionCheckpoints(resp.compressionCheckpoints);
+            await persistCompressionCheckpoints(ws, chatKeyBytes, resp.compressionCheckpoints);
             await persistTaskEventSystemMessages(taskEvents);
             await recoverCurrentTurnOutputs();
             await projectFocusCountdown?.flush();
@@ -9186,7 +9194,7 @@ export class OpenMatesClient {
             sourceMetadataVersion: resp.sourceMetadataVersion,
             encryptedChatKey,
           });
-          await persistCompressionCheckpoints(resp.compressionCheckpoints);
+          await persistCompressionCheckpoints(ws, chatKeyBytes, resp.compressionCheckpoints);
           if (taskUpdateJobsEnabled) {
             const persistedTaskJobIds = await this.persistPendingTaskUpdateJobs({
               ws,
