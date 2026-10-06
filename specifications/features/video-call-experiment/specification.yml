@@ -1,0 +1,174 @@
+schema_version: 1
+id: feature.video-call-experiment
+version: 1
+status: draft
+title: Experimental Gemini Voice And H3 Turbo Video Calls
+summary: An authenticated two-minute web experiment evaluates native Gemini voice and automatically
+  directed short H3 Turbo visuals with user controls and metered billing.
+scope:
+  includes:
+  - The standalone /experiment/videocall web page and its private authenticated WebSocket.
+  - Gemini 3.8 Live voice, transient transcript, interruption and visible two-minute session limit.
+  - Gemini-triggered five-second H3 Max Turbo 480p clips, last-frame continuation and ten-second
+    visual-instruction inactivity shutdown.
+  - Independent user Close video and Hangup controls, narrator-first audio mix and responsive transcript/video
+    layout.
+  - 1.2-multiplier proportional provider usage billing through the existing credit ledger with rate/time/spend
+    visibility.
+  - Transient media, first-party admission controls and server-side provider keys.
+  excludes:
+  - Normal chat/sidebar integration, persisted chat messages, ordinary app skills and result displays.
+  - Recording, S3 storage, replay, download and audio-gap composition.
+  - Public/developer-key APIs, Apple/CLI/SDK call clients, unlimited sessions and automatic paid
+    reconnect.
+  - Guaranteed seamless real-time video or scientific accuracy before real-provider evaluation.
+models:
+  ExperimentSession:
+    identity:
+      type: stable_session_id
+      required: true
+    mode:
+      type: enum
+      values:
+      - connecting
+      - audio
+      - video
+      - ended
+      required: true
+    last_visual_instruction:
+      type: monotonic_timestamp
+      nullable: true
+    visual_permission:
+      type: boolean
+      required: true
+      constraints:
+        user_stop_respected: true
+  MeteredUsage:
+    provider_usage:
+      type: modality_tokens_and_generated_seconds
+      required: true
+    fractional_credits:
+      type: exact_decimal_credits
+      required: true
+    settlement_identity:
+      type: idempotency_key
+      required: true
+assertions:
+- id: video-call.experiment.live-voice
+  type: behavior
+  must: '/experiment/videocall provides a minimal authenticated voice-call interface with via Google
+    Gemini attribution, microphone permission handling, live user/Gemini transcript, interruption
+    and hangup. Native Gemini speech is streamed without a separate TTS provider. A visible two-minute
+    experimental limit ends and cleans up the call without automatic paid reconnect.
+
+    '
+  depends_on:
+  - examples.voice
+- id: video-call.experiment.generated-visuals
+  type: behavior
+  must: 'Gemini can automatically start and redirect H3 Max Turbo 480p visuals during voice conversation.
+    The experiment chains approximately five-second clips guided by the previous generated last frame,
+    with at most one generation request outstanding. Visual instructions affect upcoming clips; playback
+    frames sampled for Gemini do not become new visual instructions. The first scene may start from
+    text without a separately generated image.
+
+    '
+  depends_on:
+  - examples.visuals
+- id: video-call.experiment.user-stop
+  type: behavior
+  must: 'Ten seconds without a new Gemini visual instruction stops new generation, closes the video
+    panel and returns to audio-only while the call continues. User Close video stops queued generation
+    immediately; late clips cannot reopen it. Explicit visual re-enablement or a later user request
+    may allow another segment. Hangup, expiry and disconnect stop further paid work.
+
+    '
+  depends_on:
+  - examples.stop
+- id: video-call.experiment.audio-mix
+  type: behavior
+  must: 'Gemini is the spoken narrator. Video prompts request ambience/effects without dialogue.
+    Video sound is mixed quietly and automatically ducked while the user or Gemini speaks so Gemini
+    remains clearly audible. Interruption clears queued Gemini speech without ending the call.
+
+    '
+  depends_on:
+  - examples.audio
+- id: video-call.experiment.responsive
+  type: behavior
+  must: 'On wide screens the experimental transcript and video remain visible side by side. On narrow
+    screens active video occupies the main fullscreen experience with accessible Close video and
+    Hangup controls and access to the transcript. Resizing or opening the transcript does not restart
+    a call.
+
+    '
+  depends_on:
+  - examples.layout
+- id: video-call.experiment.billing
+  type: invariant
+  must: 'Audio and video usage are charged through the existing credit ledger with a 1.2 provider-cost
+    multiplier and proportional per-second usage, without a started-minute charge. Gemini modality usage includes
+    retained-context and text charges; video uses generated billable duration. Fractional credits
+    are accumulated before idempotent whole-credit settlement, with a minimum of one credit for
+    positive billable usage. Prices are displayed as rounded whole credits per minute while actual
+    billing keeps usage precise. Elapsed time, mode, known current rates and accrued credits remain
+    visible; switching to video highlights the rate change. No frozen/replayed
+    frame generates new video charges, and already accepted paid provider work is accounted for on
+    stop.
+
+    '
+  depends_on:
+  - models.MeteredUsage
+  - examples.billing
+- id: video-call.experiment.no-recording
+  type: invariant
+  must: 'The first experiment keeps microphone data, transcripts and generated clips transient. It
+    creates no persisted chat messages, S3 recordings, replay or download links and invokes no ordinary
+    app skills or result displays. The normal chat workspace and sidebar remain unchanged.
+
+    '
+  depends_on:
+  - examples.experimental_scope
+- id: video-call.experiment.privacy
+  type: invariant
+  must: 'Paid live connections are first-party, authenticated, owner-scoped and origin-bound with
+    bounded message sizes, session limits, admission credit checks and spend controls. Provider keys
+    remain server-side; no client provider prompts or arbitrary remote URLs grant a paid operation.
+    Media and transcript plaintext are not logged or durably retained. Unavailable authorization
+    or admission control does not open a paid provider session.
+
+    '
+  depends_on:
+  - examples.privacy
+applies_to:
+  rest_api:
+    required: false
+    role: Private first-party WebSocket; no public developer API.
+  cli:
+    required: false
+    role: Experimental voice capture is web-only.
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: true
+      apple:
+        required: false
+examples:
+  file: examples.yml
+  required_groups:
+  - voice
+  - visuals
+  - stop
+  - audio
+  - layout
+  - billing
+  - experimental_scope
+  - privacy

@@ -1,0 +1,69 @@
+schema_version: 1
+specification: feature.video-call-experiment@1
+voice:
+- id: speak-and-interrupt
+  given: Maya is signed in on /experiment/videocall and has allowed microphone access.
+  when: She starts a call and interrupts Gemini's answer with another question.
+  then: Google Gemini attribution and live transcript remain visible, queued speech clears and the
+    conversation continues.
+- id: microphone-denied
+  given: Maya has not granted microphone access.
+  when: She tries to start the experimental call and denies permission.
+  then: A readable permission error appears and no paid provider session starts.
+visuals:
+- id: illustrate-a-black-hole
+  given: Maya is in an experimental voice call with visuals allowed.
+  when: She asks Gemini to show an accretion disk and then zoom in.
+  then: Gemini starts 480p short clips automatically, upcoming clips follow the new direction, and
+    only one generation can be outstanding.
+stop:
+- id: idle-visuals-return-to-voice
+  given: Gemini's last visual instruction was ten seconds ago, although speech and frame feedback
+    continue.
+  when: The inactivity deadline expires.
+  then: New video generation stops and the panel closes while the voice call continues.
+- id: close-with-request-in-flight
+  given: A visual clip is still generating.
+  when: Maya closes video.
+  then: No queued request starts or late clip reopens the panel; already accepted provider usage
+    remains accounted for.
+audio:
+- id: narrator-over-ambience
+  given: A generated clip is playing background sound during the experimental call.
+  when: Gemini explains the event horizon or Maya asks a question.
+  then: The clip's sound lowers automatically and Gemini's speech stays clearly audible.
+layout:
+- id: laptop-and-phone
+  given: An experimental call has a live transcript and active video.
+  when: Maya changes between a wide laptop and narrow phone viewport.
+  then: Laptop shows transcript and video side by side; phone shows the video experience with accessible
+    stop, hangup and transcript controls without restarting.
+billing:
+- id: generated-five-second-clip
+  given: The configured 480p video provider rate is $0.015 per generated second and the multiplier
+    is 1.2.
+  when: A clip has five billable generated seconds.
+  then: Video accrues 90 credits; voice and retained-context usage are separately included and neither
+    is rounded once per packet. The UI highlights the rounded combined estimate of 1,108 credits
+    per minute when video starts; actual charges use the generated seconds and Gemini usage.
+- id: short-audio-only-call
+  given: Maya's short audio-only call accrues a positive voice charge of 0.4 credits and never generates video.
+  when: She ends the call.
+  then: The final charge is one credit, rather than one credit per audio packet or a started-minute
+    charge. The UI showed a rounded base voice estimate of 28 credits per minute.
+experimental_scope:
+- id: end-first-experiment
+  given: Maya is using the first /experiment/videocall implementation.
+  when: She ends her voice/video call.
+  then: Streams and transient media are released, no recording or persisted chat link is created,
+    and other app skills have not run.
+privacy:
+- id: unauthorized-call
+  given: A caller lacks a valid first-party session or permitted origin.
+  when: They connect to the experimental live endpoint.
+  then: The connection is refused before a paid provider session opens.
+- id: admission-unavailable
+  given: Authoritative credit admission or the concurrent-call lock is unavailable.
+  when: Maya tries to start a paid experimental call.
+  then: The call is refused visibly without spending provider credit or exposing keys or private
+    media.

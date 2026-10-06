@@ -1,0 +1,172 @@
+schema_version: 1
+id: feature.video-call
+version: 1
+status: draft
+title: Voice Calls With Generated Video
+summary: Draft future chat and whole-call recording integration for native voice and generated visuals;
+  the initial live-call behavior has a separate experimental contract.
+scope:
+  includes:
+  - A future chat-bound call mode with Google Gemini voice and fal H3 Max Turbo visuals.
+  - Automatic short-clip visual generation, ten-second visual-instruction inactivity shutdown, and
+    user stop controls.
+  - Clearly audible Gemini narration with generated-video ambience and effects.
+  - Responsive simultaneous chat and video, fixed chat binding, and new-tab sidebar navigation.
+  - Future encrypted whole-call audio or video recordings, playback and download.
+  - Future Gemini chat messages and existing app skills with results available in chat and call visuals.
+  - Future full mode retains the voice/visual control, audio-mixing and billing outcomes of feature.video-call-experiment@1.
+  excludes:
+  - Implementing the full chat-bound mode, recordings or ordinary app skills in the first experiment.
+  - Public/developer-key access to live provider connections or decrypted chat material.
+  - Guaranteed instantaneous prompt changes, uninterrupted clip continuity or physically accurate
+    generated scenes.
+  - Apple, CLI and SDK call clients in the first experimental increment.
+models:
+  CallSession:
+    identity:
+      type: stable_session_id
+      required: true
+    chat_id:
+      type: owning_chat_id
+      nullable: true
+      constraints:
+        immutable_in_full_mode: true
+    mode:
+      type: enum
+      values:
+      - connecting
+      - audio
+      - video
+      - ended
+      required: true
+    visual_permission:
+      type: boolean
+      required: true
+      constraints:
+        user_stop_respected: true
+    last_visual_instruction:
+      type: monotonic_timestamp
+      nullable: true
+  VideoSegment:
+    identity:
+      type: stable_segment_id
+      required: true
+    content:
+      type: generated_visuals_and_mixed_audio
+      required: true
+  CallRecording:
+    identity:
+      type: stable_call_recording_id
+      required: true
+    media_type:
+      type: enum
+      values:
+      - audio
+      - video
+      required: true
+    timeline:
+      type: complete_call_timeline
+      required: true
+    ciphertext:
+      type: client_encrypted_media_manifest
+      nullable: true
+      constraints:
+        absent_in_first_experiment: true
+assertions:
+- id: video-call.chat.launch-and-provider
+  type: behavior
+  must: 'The future chat workspace offers a voice-call action at the top right using the existing
+    report-action style. A call uses the open chat, or creates a chat if none is open, and visibly
+    identifies voice via Google Gemini and generated visuals via MiniMax on fal before paid use.
+    Prices are shown as rounded whole credits per minute, while billing uses precise proportional
+    per-second usage with a one-credit minimum for positive billable usage.
+
+    '
+  depends_on:
+  - examples.launch
+- id: video-call.chat.fixed-binding
+  type: invariant
+  must: 'A full-mode call stays bound to its starting chat. While it is active, sidebar selections
+    open other chats in a new tab and never change the original tab''s context or the destination
+    of messages, skills or recordings.
+
+    '
+  depends_on:
+  - models.CallSession.chat_id
+  - examples.binding
+- id: video-call.chat.skill-integration
+  type: behavior
+  must: 'In future full mode Gemini can post ordinary messages and invoke existing app skills in
+    the bound chat using their existing access, privacy, billing and confirmation rules. Their results
+    appear in chat and can also be presented in the call; voice playback does not block chat delivery.
+
+    '
+  depends_on:
+  - examples.skills
+- id: video-call.recording.encrypted-whole-call
+  type: invariant
+  must: 'At call end future full mode saves exactly one recording of the complete call, including
+    user microphone, audible Gemini narration, video ambience and displayed skill results. Audio-only
+    calls save an encrypted audio file. If any interval contains video, the recording is a video
+    file covering the whole call; audio-only intervals show a typical call background with the mate
+    portrait in a circle and a visible AI icon gently animated in scale. Media is encrypted before
+    S3 upload using existing owner/chat-key boundaries. No plaintext recording is persisted server-side.
+    The rendering process is deferred until experiment evaluation and is not prescribed as Remotion.
+
+    '
+  depends_on:
+  - models.CallRecording
+  - examples.recording
+- id: video-call.recording.open-and-download
+  type: behavior
+  must: 'Future full mode adds one call-ended system-message link in the bound chat when the whole
+    call ends: Video call ended if it included video, otherwise Audio call ended. It shows processing
+    until upload is ready, opens authorized decrypted playback alongside chat on wide screens or
+    fullscreen on narrow screens, and offers a playable download. Returning from video to audio during
+    the call does not finalize a separate recording. Replay does not generate new media or incur
+    inference charges.
+
+    '
+  depends_on:
+  - examples.replay
+- id: video-call.privacy
+  type: invariant
+  must: 'Paid live connections are first-party, authenticated, owner-scoped and origin-bound with
+    bounded message sizes, session limits, admission credit checks and spend controls. Provider keys
+    remain server-side; no client provider prompts or arbitrary remote URLs grant a paid operation.
+    Media and transcript plaintext are not logged or durably retained. Unavailable authorization
+    or admission control does not open a paid provider session.
+
+    '
+  depends_on:
+  - examples.privacy
+applies_to:
+  rest_api:
+    required: false
+    role: Private first-party WebSocket; no public developer API.
+  cli:
+    required: false
+    role: Experimental voice capture is web-only.
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: true
+      apple:
+        required: false
+examples:
+  file: examples.yml
+  required_groups:
+  - launch
+  - binding
+  - skills
+  - recording
+  - replay
+  - privacy

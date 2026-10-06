@@ -89833,6 +89833,118 @@ assertions:
         - *id11235
         supporting_tests: []
     current_direct_proof: false
+  video-call.chat.launch-and-provider:
+    specification: feature.video-call@1
+    fingerprint: ec8e56c37dfe49c1019d9a6264248c70d0835d735190648559128cde3bf83269
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  video-call.chat.fixed-binding:
+    specification: feature.video-call@1
+    fingerprint: fe254fba804c8e504ba6762b1c2139e69eae4741a845c60851c6bee50efc0429
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  video-call.chat.skill-integration:
+    specification: feature.video-call@1
+    fingerprint: ae9506aef5b416c865bdef1e10bcfcd4dcb837fdb17d49cc296e94636dc07a8d
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  video-call.recording.encrypted-whole-call:
+    specification: feature.video-call@1
+    fingerprint: 9771396c15f4f9160f4d0f535f49d97a164fa80e4fcba01a822108b70c2043fe
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  video-call.recording.open-and-download:
+    specification: feature.video-call@1
+    fingerprint: e7954782b4dd8ee486f604ca93359bcdd054a7f79d659e328f4b1d325f9907e3
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  video-call.privacy:
+    specification: feature.video-call@1
+    fingerprint: aa56bc3e2e4772715bbf8882d03dbd793ae3bf2b051bd65b51150189c9e62fda
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  video-call.experiment.live-voice:
+    specification: feature.video-call-experiment@1
+    fingerprint: 852b4f802e45f4c68e80d5999c906ad89b93282606e4d68cfa712a96ffc42c66
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  video-call.experiment.generated-visuals:
+    specification: feature.video-call-experiment@1
+    fingerprint: 131c91e10e7f32752ee1f245cde241de44551229bd0b2eff9911c503ccfa0fa6
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  video-call.experiment.user-stop:
+    specification: feature.video-call-experiment@1
+    fingerprint: b9da78cc59df95eed4886f8706d2fb8a3d0d7343ce56582904bbf677dafa9703
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  video-call.experiment.audio-mix:
+    specification: feature.video-call-experiment@1
+    fingerprint: 94f2feaa110ad11e658c499c153e877e267be182be633a6f32c53007271e3ced
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  video-call.experiment.responsive:
+    specification: feature.video-call-experiment@1
+    fingerprint: 839451e3002ca7d7374dd8371e43aeebf33b361ca83f2f32d15e17f3554f4a55
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  video-call.experiment.billing:
+    specification: feature.video-call-experiment@1
+    fingerprint: 5678b6c8c6e99b65ad40f677fef4087c80417ed3ede9c4cf8fd10409658456d4
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  video-call.experiment.no-recording:
+    specification: feature.video-call-experiment@1
+    fingerprint: 649f547015292643ef98e17d0154344abcf22da3d87bbb659c20a790fdd4fa30
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  video-call.experiment.privacy:
+    specification: feature.video-call-experiment@1
+    fingerprint: a8f47080b2f1c7d84d0407d8510ae59c84d0a4349eda0044e3b0c8e0729ce8e2
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   wikipedia-mentions.syntax.explicit-trigger:
     specification: feature.wikipedia-mentions@1
     fingerprint: 638af34ad0cab2ef46f3daf0037e5daa26b849089be4ca586a80f9c56914ee42

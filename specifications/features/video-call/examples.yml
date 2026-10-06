@@ -1,0 +1,46 @@
+schema_version: 1
+specification: feature.video-call@1
+launch:
+- id: start-in-existing-chat
+  given: Maya has her black-hole chat open in the future full call mode.
+  when: She activates the voice-call button.
+  then: The call uses that chat and visibly identifies Google Gemini and rounded credits per minute
+    before paid use; the displayed rounding does not change per-second usage billing.
+binding:
+- id: browse-another-chat
+  given: Maya is speaking in a call attached to her black-hole chat.
+  when: She selects her travel chat in the sidebar.
+  then: Travel opens in a new tab; the call tab stays on black holes and receives its own messages
+    and eventual whole-call recording.
+skills:
+- id: search-during-full-call
+  given: A future full-mode call is discussing a destination in the travel chat.
+  when: Maya asks Gemini to find a hotel.
+  then: The existing hotel skill uses its normal rules, publishes results in that chat and may present
+    selected results in the call.
+recording:
+- id: save-mixed-call
+  given: Maya's future full-mode call switches from audio to generated video and back to audio.
+  when: She ends the call.
+  then: One encrypted video recording covers the entire conversation; audio-only intervals show the
+    mate portrait and gently animated AI icon, with both voices preserved.
+- id: save-audio-only-call
+  given: Maya's future full-mode call never contains video.
+  when: She ends the call.
+  then: One encrypted audio file contains the complete conversation; no video file is created.
+replay:
+- id: open-ended-call
+  given: Maya's completed mixed audio/video call has finished its encrypted upload.
+  when: She activates Video call ended in its originating chat.
+  then: Authorized playback opens beside chat on a wide screen or fullscreen on a phone, with a playable
+    download and no new inference charge.
+privacy:
+- id: unauthorized-call
+  given: A caller lacks a valid first-party session or permitted origin.
+  when: They connect to the experimental live endpoint.
+  then: The connection is refused before a paid provider session opens.
+- id: admission-unavailable
+  given: Authoritative credit admission or the concurrent-call lock is unavailable.
+  when: Maya tries to start a paid experimental call.
+  then: The call is refused visibly without spending provider credit or exposing keys or private
+    media.
