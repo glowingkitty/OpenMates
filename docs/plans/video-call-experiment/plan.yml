@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: video-call-experiment
 title: Gemini Voice And H3 Turbo Experiment
-status: implementing
+status: verified
 goal: >
   Implement a first test to see how well such a system can actually work, before
   spending more time on it: a basic /experiment/videocall page for Gemini voice
@@ -108,7 +108,7 @@ verification_evidence:
     source: d3055576339a88bbaa0d64b261ca525d4f48c5dd
     request: cb1f1df676311b2f27697ea325d5738295ec3bc63d2c14f123ef115670feb33c
     run: 37521112579
-    result: Four desktop cases passed with synthetic clips, including simultaneous speech, idle drain and explicit close during drain.
+    result: Four desktop cases passed with synthetic clips, including simultaneous speech, idle drain and explicit close during drain; captures reviewed and all four recordings uploaded.
     source_scope: Panel, preview and desktop spec stayed frozen after this candidate; later bounded frame-feedback guards and backend drain cleanup passed focused unit checks.
   responsive: Execution waived by the user; the separate responsive spec remains available.
   provider_limits: No automated real fal requests were made. Further automated verification is not a deployment gate; the user will evaluate the deployed experiment.
@@ -118,9 +118,9 @@ verification_evidence:
     result: Failed during test collection in the existing module loader; no route tests or recordings ran. The user waived this run as a deployment gate.
     retrieval: Artifact download hit the host disk-budget limit; the GitHub failure log confirms no tests executed.
   deployment:
-    code_commit: 24bb1fb283872dac9835651b77b9c2894e3551ec
-    backend: Dev API and dependent workers refreshed together with the sparse-tool-usage and silent-response fixes; all services healthy (docker-cd8d3761).
-    frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall is published.
+    code_commit: 8ebcbfc99111c9975fe6f3e869253b3ed287c142
+    backend: Dev API and dependent workers refreshed together with independent playback, accepted-clip idle drain and displayed-frame feedback; all services healthy (docker-2b051573).
+    frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall is published (Vercel HrYi68FUHmKKWj8nAdNb9U47TZvf).
     connection_route: Operator applied the managed Caddy update; the authenticated call WebSocket reaches the backend.
   gemini_live_probe:
     result: The exact candidate accepted setup and returned native PCM audio, output transcription, turn completion and modality-level usage.
