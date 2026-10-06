@@ -79,7 +79,7 @@ test("manual paging is not overridden by selection and overshoot reverses immedi
 });
 
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
-test("wide chat header and composer share centered containers without an outer frame", () => {
+test("wide chat body uses the workspace container while the composer stays centered at 100 columns", () => {
   const state = createInitialTuiState();
   state.screen = "chat";
   state.activeChat = {id: "chat", title: "Centered chat", category: "software_development"} as typeof state.activeChat;
@@ -92,12 +92,29 @@ test("wide chat header and composer share centered containers without an outer f
   const header = frame.split("\n").find((row) => row.includes("Centered chat") && row.includes("\x1b[48;2;"))!;
   // eslint-disable-next-line no-control-regex -- Inspect the painted header bounds.
   const painted = /\x1b\[48;2;[\d;]+m([^\x1b]*)/.exec(header)!;
-  assert.equal(cells(painted[1]), 100);
-  assert.equal(cells(stripAnsi(header.slice(0, painted.index))), 30);
-  assert.equal(rows.find((row) => row.includes("A message in the centered column"))!.indexOf("A message"), 30);
+  assert.equal(cells(painted[1]), 156);
+  assert.equal(cells(stripAnsi(header.slice(0, painted.index))), 2);
+  assert.equal(rows.find((row) => row.includes("A message in the centered column"))!.indexOf("A message"), 2);
   assert.ok(rows.every((row) => row.startsWith(" ") && row.endsWith(" ") && cells(row) === 160));
   assert.equal(rows.length, 24);
-  assert.match(frame, /Enter send/);
+  assert.match(frame, /←\/→ embed/);
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+test("chat and app workspace bodies share the 180-column cap on very wide terminals", () => {
+  const state = createInitialTuiState();
+  state.screen = "chat";
+  state.activeChat = {id: "chat", title: "Wide chat", category: "software_development"} as typeof state.activeChat;
+  const frame = renderTuiFrame(state, 220, 24, {colorMode: "truecolor"});
+  const rows = stripAnsi(frame).split("\n");
+  const heading = frame.split("\n").find((row) => row.includes("Wide chat") && row.includes("\x1b[48;2;"))!;
+  // eslint-disable-next-line no-control-regex -- Inspect the painted workspace bounds.
+  const painted = /\x1b\[48;2;[\d;]+m([^\x1b]*)/.exec(heading)!;
+  assert.equal(cells(painted[1]), 180);
+  assert.equal(cells(stripAnsi(heading.slice(0, painted.index))), 20);
+  const inputTop = rows.find((row) => /^\s+╭─+╮\s+$/.test(row))!;
+  assert.equal(inputTop.indexOf("╭"), 60);
+  assert.equal(inputTop.indexOf("╮") - inputTop.indexOf("╭") + 1, 100);
 });
 
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
@@ -146,8 +163,21 @@ test("sidebar sizing keeps the active workspace visible in the navigation header
   const state = createInitialTuiState();
   state.workspace = "tasks"; state.screen = "tasks"; state.sidebarOpen = true;
   const nav = stripAnsi(renderTuiFrame(state, 112, 24)).split("\n")[0];
-  assert.match(nav, /OpenMates {2}\[Tasks\] {2}Sidebar open/);
+  assert.match(nav, /OpenMates\s+Chats\s+Apps\s+Projects\s+Workflows\s+\[Tasks\]/);
+  assert.match(nav, /(?:Ctrl\+G navigation|\^G nav)/);
   assert.doesNotMatch(nav, /…/);
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+test("navigation distinguishes the focused workspace, active workspace, and keyboard hint", () => {
+  const state = createInitialTuiState();
+  state.workspace = "chats"; state.screen = "chats";
+  state.focus = "navigation"; state.navigationIndex = 2;
+  const nav = renderTuiFrame(state, 160, 24, {colorMode: "truecolor"}).split("\n")[0];
+  assert.ok(nav.includes('\x1b[38;2;255;85;59m[Chats]'));
+  assert.ok(nav.includes('\x1b[38;2;50;173;230m› Projects'));
+  assert.ok(nav.includes('\x1b[38;2;128;128;128mCtrl+G navigation'));
+  assert.match(stripAnsi(nav), /\[Chats\].*› Projects.*Ctrl\+G navigation/);
 });
 
 // contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,cli.surface.semantic-parity

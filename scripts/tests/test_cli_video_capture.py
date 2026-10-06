@@ -59,9 +59,9 @@ def test_capture_plan_uses_exact_graphical_terminal_profile(tmp_path: Path) -> N
 def test_interactive_plan_runs_cli_directly_and_validates_bounded_inputs(tmp_path: Path) -> None:
     module = load_module()
     path = tmp_path / "input.json"
-    path.write_text('{"steps":[{"name":"ready","wait_for":"OpenMates"},{"name":"sidebar","key":"ctrl+b","wait_for":"Chats"},{"name":"tasks","text":"/tasks"},{"name":"enter","key":"Return","wait_for":"Tasks","hold_ms":400}]}', encoding="utf-8")
+    path.write_text('{"steps":[{"name":"ready","wait_for":"OpenMates"},{"name":"navigation","key":"ctrl+g"},{"name":"sidebar","key":"ctrl+b","wait_for":"Chats"},{"name":"tasks","text":"/tasks"},{"name":"enter","key":"Return","wait_for":"Tasks","hold_ms":400}]}', encoding="utf-8")
     steps = module.load_input_plan(path)
-    assert [step["name"] for step in steps] == ["ready", "sidebar", "tasks", "enter"]
+    assert [step["name"] for step in steps] == ["ready", "navigation", "sidebar", "tasks", "enter"]
     plan = module.build_capture_plan(
         argv=["node", "frontend/packages/openmates-cli/dist/cli.js"], output_dir=tmp_path,
         xvfb_binary="Xvfb", terminal_binary="zutty", ffmpeg_binary="ffmpeg", interactive=True,
@@ -196,6 +196,75 @@ def test_interactive_driver_wheels_over_sidebar_and_rejects_mixed_inputs(tmp_pat
     input_path.write_text(json.dumps({"steps": [{"name": "bad-wheel", "wheel": "left"}]}), encoding="utf-8")
     with pytest.raises(module.CliCaptureError, match="unsupported wheel direction"):
         module.load_input_plan(input_path)
+
+
+@pytest.mark.parametrize("repeat", [1, 8, 16])
+def test_interactive_plan_accepts_bounded_key_repeats(tmp_path: Path, repeat: int) -> None:
+    module = load_module()
+    path = tmp_path / "repeat-plan.json"
+    path.write_text(json.dumps({"steps": [{"name": "visit-fields", "key": "Tab", "repeat": repeat}]}), encoding="utf-8")
+    assert module.load_input_plan(path)[0]["repeat"] == repeat
+
+
+@pytest.mark.parametrize("step", [
+    {"key": "Tab", "repeat": 0}, {"key": "Tab", "repeat": 17},
+    {"key": "Tab", "repeat": True}, {"key": "Tab", "repeat": "8"},
+    {"key": "Tab", "repeat": 1.5}, {"text": "hello", "repeat": 2},
+    {"wheel": "down", "repeat": 2}, {"wait_for": "ready", "repeat": 2},
+])
+def test_interactive_plan_rejects_invalid_or_non_key_repeats(tmp_path: Path, step: dict) -> None:
+    module = load_module()
+    path = tmp_path / "invalid-repeat-plan.json"
+    path.write_text(json.dumps({"steps": [{"name": "bad-repeat", **step}]}), encoding="utf-8")
+    with pytest.raises(module.CliCaptureError, match="invalid key repeat"):
+        module.load_input_plan(path)
+
+
+@pytest.mark.parametrize("step", [
+    {"key": "Tab", "text": "hello", "repeat": 2},
+    {"key": "Tab", "wheel": "down", "repeat": 2},
+])
+def test_interactive_plan_rejects_repeated_mixed_inputs(tmp_path: Path, step: dict) -> None:
+    module = load_module()
+    path = tmp_path / "mixed-repeat-plan.json"
+    path.write_text(json.dumps({"steps": [{"name": "bad-repeat", **step}]}), encoding="utf-8")
+    with pytest.raises(module.CliCaptureError, match="exactly one input"):
+        module.load_input_plan(path)
+
+
+def test_interactive_plan_rejects_unbounded_repeat_delay_override(tmp_path: Path) -> None:
+    module = load_module()
+    path = tmp_path / "repeat-delay-plan.json"
+    path.write_text(json.dumps({"steps": [{"name": "bad-repeat", "key": "Tab", "repeat": 2, "repeat_delay_ms": 0}]}), encoding="utf-8")
+    with pytest.raises(module.CliCaptureError, match="invalid step"):
+        module.load_input_plan(path)
+
+
+def test_interactive_driver_sends_repeated_real_tab_keys(tmp_path: Path, monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    module = load_module()
+    plan = tmp_path / "repeat-plan.json"
+    plan.write_text(json.dumps({"steps": [{"name": "visit-fields", "key": "Tab", "repeat": 8}]}), encoding="utf-8")
+    transcript = tmp_path / "transcript.txt"
+    transcript.write_text("ready\n", encoding="utf-8")
+    commands: list[list[str]] = []
+
+    def fake_run(argv, **_kwargs):
+        commands.append(argv)
+        if "search" in argv:
+            return SimpleNamespace(returncode=0, stdout="42\n", stderr="")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    monkeypatch.setattr(module.time, "sleep", lambda _seconds: None)
+    checkpoints = module.drive_terminal_inputs(
+        steps=module.load_input_plan(plan), transcript_path=transcript, display=":91",
+        terminal=SimpleNamespace(poll=lambda: None), started_at=module.time.monotonic(),
+        xdotool_binary="xdotool",
+    )
+    assert commands[-1] == ["xdotool", "key", "--clearmodifiers", "--repeat", "8", "--delay", "120", "Tab"]
+    assert [checkpoint["name"] for checkpoint in checkpoints] == ["visit-fields"]
 
 
 @pytest.mark.parametrize("output,ready", [

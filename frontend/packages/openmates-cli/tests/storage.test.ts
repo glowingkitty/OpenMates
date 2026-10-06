@@ -18,6 +18,7 @@ import { join } from "node:path";
 import {
   type OpenMatesSession,
   saveSession,
+  persistSessionRefreshCookie,
   loadSession,
   getCredentialStorageMode,
   clearSession,
@@ -456,6 +457,37 @@ describe("stale session writers", () => {
     saveSession({ ...stale, activeTeamId: "team-selected-later" });
     assert.equal(loadSession()!.cookies.auth_refresh_token, "replacement");
     assert.equal(loadSession()!.activeTeamId, "team-selected-later");
+    clearSession();
+  });
+
+  it("merges a rotated cookie without reverting a newer team or WS token", () => {
+    clearSession();
+    saveSession(SAMPLE_SESSION);
+    const owner = loadSession()!;
+    saveSession({ ...owner, activeTeamId: "new-team", wsToken: "new-ws" },
+      { expectedRefreshToken: owner.cookies.auth_refresh_token });
+    const result = persistSessionRefreshCookie(owner, owner.cookies.auth_refresh_token, "new-refresh");
+    assert.equal(result.status, "saved");
+    assert.equal(loadSession()!.cookies.auth_refresh_token, "new-refresh");
+    assert.equal(loadSession()!.activeTeamId, "new-team");
+    assert.equal(loadSession()!.wsToken, "new-ws");
+    assert.equal(persistSessionRefreshCookie(owner, owner.cookies.auth_refresh_token, "late-refresh").status, "current");
+    assert.equal(loadSession()!.cookies.auth_refresh_token, "new-refresh");
+    clearSession();
+  });
+
+  it("rejects late cookie saves after logout or a replacement login", () => {
+    clearSession();
+    saveSession(SAMPLE_SESSION);
+    const owner = loadSession()!;
+    clearSession();
+    assert.equal(persistSessionRefreshCookie(owner, owner.cookies.auth_refresh_token, "late-refresh").status, "stale");
+    assert.throws(() => saveSession({ ...owner, cookies: { auth_refresh_token: "late-refresh" } },
+      { expectedRefreshToken: owner.cookies.auth_refresh_token }), /removed/);
+    assert.equal(loadSession(), null);
+    saveSession({ ...SAMPLE_SESSION, sessionId: "new-login", cookies: { auth_refresh_token: "new-token" } });
+    assert.equal(persistSessionRefreshCookie(owner, owner.cookies.auth_refresh_token, "late-refresh").status, "stale");
+    assert.equal(loadSession()!.cookies.auth_refresh_token, "new-token");
     clearSession();
   });
 });

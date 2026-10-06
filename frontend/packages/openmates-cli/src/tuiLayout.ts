@@ -3,6 +3,7 @@ import type { TuiState } from "./tuiRenderer.js";
 import { CATEGORY_GRADIENTS } from "../../chatCategoryTheme.js";
 import { paletteActions } from "./tuiActions.js";
 import { tuiChatSidebarRows, tuiChatBreadcrumb } from './tuiChatSidebar.js';
+import { orderedWorkflowNodes, workflowNodeColor } from './tuiWorkflowWorkspace.js';
 import { backgroundLine, cells, foreground, lineText, padCells, terminalText, truncateCells, wrapCells, type TuiColorMode, type TuiLine } from "./tuiText.js";
 
 export const WORKSPACES = ["chats", "apps", "projects", "workflows", "tasks"] as const;
@@ -15,7 +16,7 @@ export function workspaceGeometry(state: TuiState, rawWidth: number) {
   const gutter = Math.min(2, Math.floor((width - 1) / 2));
   const sidebarWidth = state.sidebarOpen && width >= 90 && !state.form && !state.paletteOpen ? 27 : 0;
   const paneWidth = Math.max(1, width - gutter * 2 - sidebarWidth);
-  const contentWidth = Math.min(state.workspace === 'chats' ? CONTENT_MAX_COLUMNS : WORKSPACE_MAX_COLUMNS, paneWidth);
+  const contentWidth = Math.min(WORKSPACE_MAX_COLUMNS, paneWidth);
   const inset = Math.floor((paneWidth - contentWidth) / 2);
   const composerWidth = Math.min(CONTENT_MAX_COLUMNS, paneWidth);
   const composerInset = Math.floor((paneWidth - composerWidth) / 2);
@@ -70,7 +71,9 @@ export function workspaceHint(state: TuiState): string {
   if (state.screen === "start" || state.screen === "chats") return state.focus === "composer"
     ? "Enter send   Shift+Tab chats   Ctrl+N new   Ctrl+B sidebar"
     : "←/→ chat   Enter open   Tab write   ↑/↓ scroll   Ctrl+B sidebar";
+  if (state.screen === "results-view") return "m map   c calendar   l list   /embed open   ↑/↓ scroll   Esc back";
   if (state.screen === "embed") return state.embedChoices.length ? "↑/↓ choose   Enter open   Esc back" : "↑/↓ scroll   PgUp/PgDn page   Esc back";
+  if(['chat','example'].includes(state.screen)&&state.focus==='content')return '←/→ embed   Enter open   ↑/↓ scroll   Tab write   Ctrl+G navigation';
   if (state.workflowEdit) return "Enter save title   Esc cancel edit";
   if (state.screen === "workflow") return "g template   r runs   ↑/↓ select   Enter expand   e title   E config   x run   c cancel";
   if (state.screen === "task") return "e edit   m status   a activity   s start   d done   b block   Esc back";
@@ -88,7 +91,7 @@ export function workspaceHint(state: TuiState): string {
   return "Enter send   Alt+Enter newline   Esc chats   Ctrl+Y select text   Ctrl+B sidebar";
 }
 
-function overlayLines(state: TuiState, width: number, height: number): string[] {
+function overlayLines(state: TuiState, width: number, height: number): TuiLine[] {
   if (state.paletteOpen) {
     const actions = paletteActions(state.paletteQuery);
     const start = Math.max(0, state.paletteIndex - Math.max(1, height - 5));
@@ -96,6 +99,28 @@ function overlayLines(state: TuiState, width: number, height: number): string[] 
   }
   const form = state.form;
   if (!form) return [];
+  if(form.kind.startsWith('workflow-')&&form.fields.length){
+    const panelWidth=Math.min(width,76),inset=Math.max(0,Math.floor((width-panelWidth)/2));
+    const node=state.activeWorkflow?orderedWorkflowNodes(state.activeWorkflow.graph).find(node=>node.id===form.contextId):undefined;
+    const color=node?workflowNodeColor(node)??'#4867cd':'#DE1E66';
+    const title=truncateCells(form.title,panelWidth),center=Math.max(0,Math.floor((panelWidth-cells(title))/2));
+    const rows:TuiLine[]=[{text:padCells(' '.repeat(center)+title,panelWidth),background:color,bold:true,inset},'',
+      {text:'Step configuration · Tab field · Ctrl+S save',color:'#a0a0a0',inset},''];
+    for(const [index,field] of form.fields.entries()){
+      const focused=index===form.fieldIndex;
+      const suffix=[field.required?'required':'',field.valueType&&field.valueType!=='string'?field.valueType:'',field.options?'←/→ choose':''].filter(Boolean).join(' · ');
+      rows.push({text:`${focused?'›':' '} ${field.label}${suffix?` · ${suffix}`:''}`,bold:true,color:focused?'#32ade6':'#e6e6e6',inset});
+      if(panelWidth>=6){
+        const edge='─'.repeat(panelWidth-2),border=focused?'#32ade6':'#626878';
+        rows.push({text:`╭${edge}╮`,color:border,inset});
+        rows.push(...wrapCells(`${field.value||'(empty)'}${focused&&!form.busy?'_':''}`,panelWidth-4).map(text=>({text:`│ ${padCells(text,panelWidth-4)} │`,color:focused?'#ffffff':'#cfcfcf',...(focused?{background:'#2b3548'}:{}),inset})));
+        rows.push({text:`╰${edge}╯`,color:border,inset},'');
+      }else rows.push(...wrapCells(field.value,panelWidth));
+    }
+    if(form.error)rows.push({text:form.error,color:'#ff6b6b',bold:true,inset});
+    rows.push({text:form.busy?'Saving…':'Ctrl+S saves changes · Escape cancels',color:'#a0a0a0',inset});
+    return rows;
+  }
   const rows = [form.title, ""];
   for (const [index, field] of form.fields.entries()) {
     rows.push(`${index === form.fieldIndex ? ">" : " "} ${field.label}${field.options ? " [←/→]" : ""}`);
@@ -115,12 +140,22 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
   const line = ascii ? "-" : "─", vertical = ascii ? "|" : "│";
   const place = (rendered: string, side = " ".repeat(sidebarWidth)) =>
     " ".repeat(gutter) + side + " ".repeat(inset) + rendered + " ".repeat(paneWidth - inset - contentWidth + gutter);
-  const labels = WORKSPACES.map((w, i) => state.workspace === w ? `[${titleCase(w)}]` : state.focus === "navigation" && i === state.navigationIndex ? `>${titleCase(w)}<` : titleCase(w)).join("  ");
-  const nav = contentWidth >= 90 ? `OpenMates  ${labels}` : `OpenMates  [${titleCase(state.workspace)}]  ${state.sidebarOpen ? "Sidebar open" : "Ctrl+B sidebar"}`;
-  const activeLabel = `[${titleCase(state.workspace)}]`, activeAt = nav.indexOf(activeLabel);
-  const beforeNav = truncateCells(nav.slice(0, activeAt), contentWidth), activeNav = truncateCells(activeLabel, Math.max(0,contentWidth-cells(beforeNav)));
-  const afterNav = padCells(nav.slice(activeAt+activeLabel.length), Math.max(0,contentWidth-cells(beforeNav)-cells(activeNav)));
-  const renderedNav = foreground(beforeNav,'#cfcfcf',mode,true)+foreground(activeNav,'#ff553b',mode,true)+foreground(afterNav,'#cfcfcf',mode,true);
+  const navParts = [{text:'OpenMates  ',color:'#cfcfcf',bold:true},...WORKSPACES.map((workspace,index)=>{
+    const focused=state.focus==='navigation'&&index===state.navigationIndex;
+    const label=state.workspace===workspace?`[${titleCase(workspace)}]`:titleCase(workspace);
+    return {text:`${focused?'› ':''}${label}  `,color:focused?'#32ade6':state.workspace===workspace?'#ff553b':'#cfcfcf',bold:true};
+  })];
+  if(cells(navParts.map(part=>part.text).join(''))>contentWidth-6){
+    const focused=state.focus==='navigation';
+    navParts.splice(0,navParts.length,{text:`OpenMates  [${titleCase(state.workspace)}]${focused?`  › ${titleCase(WORKSPACES[state.navigationIndex])}`:''}  `,color:focused?'#32ade6':'#ff553b',bold:true});
+  }
+  const navUsed=cells(navParts.map(part=>part.text).join(''));
+  navParts.push({text:contentWidth-navUsed>=18?'Ctrl+G navigation':'^G nav',color:'#808080',bold:false});
+  let navRemaining=contentWidth;
+  const renderedNav=navParts.map(part=>{
+    const value=truncateCells(part.text,navRemaining);navRemaining-=cells(value);
+    return foreground(value,part.color,mode,part.bold);
+  }).join('')+' '.repeat(navRemaining);
   const input = composerViewport(state, composerWidth);
   const showComposer = state.workspace !== "apps" || state.focus === "composer" || Boolean(state.input);
   const composerRows = showComposer ? input.count : 0;
@@ -141,9 +176,9 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
   }
   if (overlay) {
     // Keep the focused form field visible without changing transcript scroll.
-    const marker = content.findIndex((row) => lineText(row).startsWith("> "));
-    start = marker >= bodyHeight ? Math.max(0, marker - bodyHeight + 3) : 0;
-  } else if (state.followSelection && ["start", "tasks", "projects", "project", "chats", "examples", "workflow", "workflows", "apps", "app", "app-skill"].includes(state.screen) && state.focus === "content") {
+    const marker = content.findIndex((row) => /^[>›] /.test(lineText(row).trimStart()));
+    start = marker >= bodyHeight-4 ? Math.max(0, marker - bodyHeight + 6) : 0;
+  } else if (state.followSelection && ["start", "tasks", "projects", "project", "chat", "chats", "example", "examples", "workflow", "workflows", "apps", "app", "app-skill"].includes(state.screen) && state.focus === "content") {
     const markers=content.map((row,index)=>/(?:^|[│|])\s*[>›] /.test(lineText(row))?index:-1).filter((index)=>index>=0);
     const marker=state.screen==="workflow" ? markers.at(-1)??-1 : markers[0]??-1;
     let selectionEnd=marker;
@@ -171,14 +206,14 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     const style = typeof value === "string" ? undefined : value;
     const raw = terminalText(lineText(value)).replace(/\n/g, " ");
     let rendered = padCells(raw, contentWidth);
-    if (style && !overlay && !sidebarOverlay) {
+    if (style && !sidebarOverlay) {
       const inset=Math.max(0,Math.min(Math.floor(contentWidth/2)-1,style.inset??0));
       const span=Math.max(1,contentWidth-2*inset);
       if(style.spans){
         let remaining=span;rendered="";
         for(const part of style.spans){
           const text=truncateCells(terminalText(part.text).replace(/\n/g," "),remaining),size=cells(text);
-          rendered+=part.background?backgroundLine(text,size,part.background,mode,part.bold):text;
+          rendered+=part.background?backgroundLine(text,size,part.background,mode,part.bold):foreground(text,part.color??'#e6e6e6',mode,part.bold);
           remaining-=size;if(!remaining)break;
         }
         rendered=" ".repeat(inset)+rendered+" ".repeat(remaining+inset);

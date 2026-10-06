@@ -1,7 +1,7 @@
 /** Plain-text Tasks workspace model and mutations for the terminal UI. */
 import type { OpenMatesClient, UserTaskStatus, WorkDependencyRecord } from "./client.js";
 import { formValue, type TuiForm } from "./tuiForms.js";
-import { padCells, terminalText, truncateCells, wrapCells } from "./tuiText.js";
+import { cells, lineText, padCells, terminalText, truncateCells, wrapCells, type TuiLine, type TuiSpan } from "./tuiText.js";
 import {
   TASK_STATUSES,
   buildBlockUserTaskInput,
@@ -20,6 +20,38 @@ import {
 const STATUS_LABELS: Record<UserTaskStatus, string> = {
   backlog: "Backlog", todo: "Todo", in_progress: "In progress", blocked: "Blocked", done: "Done",
 };
+const STATUS_COLORS: Record<UserTaskStatus, string> = {
+  backlog: "#bf5af2", todo: "#32ade6", in_progress: "#f0a050", blocked: "#ff6b6b", done: "#30d158",
+};
+const SELECTED_BACKGROUND = "#263b52";
+type ColoredSpan = TuiSpan & { color?: string };
+
+function styledLine(spans: ColoredSpan[]): TuiLine {
+  return {text: spans.map((span) => span.text).join(""), spans};
+}
+
+function columnHeader(status: UserTaskStatus, count: number, width: number): TuiLine {
+  const heading = truncateCells(`${STATUS_LABELS[status]} (${count})`, Math.max(0, width - 2));
+  return styledLine([
+    {text: "▌", color: STATUS_COLORS[status], bold: true},
+    {text: ` ${heading}`, bold: true},
+    {text: " ".repeat(Math.max(0, width - 2 - cells(heading)))},
+  ]);
+}
+
+function joinColumns(rows: TuiLine[], width: number, gap: string): TuiLine {
+  const spans: ColoredSpan[] = [];
+  rows.forEach((row, index) => {
+    if (index) spans.push({text: gap});
+    if (typeof row === "string") spans.push({text: padCells(row, width)});
+    else {
+      spans.push(...(row.spans as ColoredSpan[] | undefined ?? [{text: row.text, background: row.background, bold: row.bold, color: row.color}]));
+      const padding = Math.max(0, width - cells(lineText(row)));
+      if (padding) spans.push({text: " ".repeat(padding)});
+    }
+  });
+  return styledLine(spans);
+}
 
 const oneLine = (value: string): string => terminalText(value).replace(/\s+/g, " ").trim();
 const label = (task: DecryptedUserTask): string => task.shortId || task.slug || task.taskId;
@@ -37,12 +69,12 @@ export function filterTasks(tasks: DecryptedUserTask[], query: string, status?: 
   }));
 }
 
-export function renderTaskBoard(tasks: DecryptedUserTask[], options: { width: number; selectedTaskId?: string; query?: string; status?: UserTaskStatus }): string[] {
+export function renderTaskBoard(tasks: DecryptedUserTask[], options: { width: number; selectedTaskId?: string; query?: string; status?: UserTaskStatus }): TuiLine[] {
   const width = Math.max(18, options.width);
   const visible = filterTasks(tasks, options.query ?? "");
   const chips = [...new Set(tasks.flatMap((task) => task.labels))].filter(Boolean).slice(0, 3);
   const search = options.query ? `Search: ${oneLine(options.query)}` : "Search: /search";
-  const lines = [
+  const lines: TuiLine[] = [
     truncateCells(`Tasks board  ·  ${visible.length} ${visible.length === 1 ? "task" : "tasks"}`, width),
     truncateCells(width < 90 ? search : `${search}  ·  Filter: All statuses`, width),
     ...(width >= 90 && chips.length ? [truncateCells(`Tags  ${chips.map((chip) => `#${chip}`).join("  ")}`, width)] : []),
@@ -61,18 +93,18 @@ export function renderTaskBoard(tasks: DecryptedUserTask[], options: { width: nu
     const shown = columns.slice(firstColumn, firstColumn + columnCount);
     const colWidth = Math.floor((width - gap.length * (columnCount - 1)) / columnCount);
     lines.push(truncateCells(`←/→ columns  ·  ${STATUS_LABELS[focused]} ${focusedIndex + 1}/5`, width));
-    lines.push(shown.map(({status, tasks}) => padCells(`${STATUS_LABELS[status]} (${tasks.length})`, colWidth)).join(gap));
+    lines.push(joinColumns(shown.map(({status, tasks}) => columnHeader(status, tasks.length, colWidth)), colWidth, gap));
     lines.push(shown.map(() => "─".repeat(colWidth)).join(gap));
     const stacks = shown.map(({tasks: group}) => group.length
       ? group.flatMap((task) => [...taskCard(task, colWidth, task.taskId === options.selectedTaskId), ""])
       : [padCells("No tasks here.", colWidth)]);
     for (let row = 0; row < Math.max(...stacks.map((stack) => stack.length)); row++) {
-      lines.push(stacks.map((stack) => padCells(stack[row] ?? "", colWidth)).join(gap));
+      lines.push(joinColumns(stacks.map((stack) => stack[row] ?? ""), colWidth, gap));
     }
   } else {
     const group = columns[focusedIndex]?.tasks ?? [];
     lines.push(truncateCells(`←/→ columns  ·  ${STATUS_LABELS[focused]} ${focusedIndex + 1}/5`, width));
-    lines.push(`${STATUS_LABELS[focused]} (${group.length})`, "─".repeat(Math.min(width, 52)));
+    lines.push(columnHeader(focused, group.length, Math.min(width, 52)), "─".repeat(Math.min(width, 52)));
     if (!group.length) lines.push("  No tasks here.");
     for (const task of group) {
       lines.push(...taskCard(task, Math.min(width, 52), task.taskId === options.selectedTaskId));
@@ -81,19 +113,31 @@ export function renderTaskBoard(tasks: DecryptedUserTask[], options: { width: nu
   return lines;
 }
 
-function taskCard(task: DecryptedUserTask, width: number, selected: boolean): string[] {
+function taskCard(task: DecryptedUserTask, width: number, selected: boolean): TuiLine[] {
   const inside = Math.max(8, width - 2);
-  const edge = "─".repeat(inside);
-  const row = (value: string) => `│${padCells(value, inside)}│`;
+  const edge = (selected ? "═" : "─").repeat(inside);
+  const row = (value: string, title = false): TuiLine => {
+    const content = padCells(value, inside);
+    if (!selected) return `│${content}│`;
+    return styledLine([
+      {text: "║", color: STATUS_COLORS[task.status], background: SELECTED_BACKGROUND, bold: true},
+      {text: content, background: SELECTED_BACKGROUND, bold: title},
+      {text: "║", color: STATUS_COLORS[task.status], background: SELECTED_BACKGROUND, bold: true},
+    ]);
+  };
+  const border = (top: boolean): TuiLine => {
+    if (!selected) return top ? `╭${edge}╮` : `╰${edge}╯`;
+    return styledLine([{text: top ? `╔${edge}╗` : `╚${edge}╝`, color: STATUS_COLORS[task.status], background: SELECTED_BACKGROUND, bold: true}]);
+  };
   const titleLines = wrapCells(`${selected ? "› " : "  "}${task.title || "Untitled task"}`, inside).slice(0, 2);
   const metadata = [task.linkedProjectIds.length ? "Project" : "", assignee(task), task.dueAt ? `Due ${new Date(task.dueAt * 1000).toISOString().slice(0, 10)}` : "", task.priority > 1 ? task.priorityLevel : ""].filter(Boolean);
   return [
-    `╭${edge}╮`,
-    ...titleLines.map(row),
+    border(true),
+    ...titleLines.map((title) => row(title, true)),
     row(`  ${label(task)}`),
     ...metadata.map((item) => row(`  ${item}`)),
     ...(task.queueState && task.queueState !== "none" ? [row(`Q ${task.queueState}`)] : []),
-    `╰${edge}╯`,
+    border(false),
   ];
 }
 

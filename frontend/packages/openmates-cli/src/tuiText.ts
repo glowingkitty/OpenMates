@@ -76,7 +76,7 @@ export function moveGraphemeCursor(value: string, cursor: number, direction: -1 
 }
 
 export type TuiColorMode = "none" | "ansi16" | "ansi256" | "truecolor";
-export type TuiSpan = { text: string; background?: string; bold?: boolean };
+export type TuiSpan = { text: string; background?: string; color?: string; bold?: boolean };
 /** Trusted rendering metadata, kept separate from untrusted terminal text. */
 export type TuiLine = string | {
   text: string;

@@ -9,7 +9,7 @@ import { registerCliProjectFileExecutor } from "./projectFileExecutor.js";
 import { boundedAuthoringHistory, startCliProjectAuthoring, type AuthoringRecommendation } from "./cliProjectAuthoring.js";
 import { buildTaskForm, filterTasks, loadTaskContext, submitTaskForm } from "./tuiTasksWorkspace.js";
 import { loadTuiProjects, loadTuiProject, loadTuiProjectFiles, readTuiProjectFile, buildProjectForm, submitProjectForm, filteredProjects, filteredProjectFiles, parentTuiProjectFolderId } from "./tuiProjectsWorkspace.js";
-import { buildWorkflowNodeForm, submitWorkflowNodeForm } from "./tuiWorkflowWorkspace.js";
+import { buildWorkflowNodeForm, orderedWorkflowNodes, submitWorkflowNodeForm } from "./tuiWorkflowWorkspace.js";
 import { decryptUserTasks, TASK_STATUSES } from "./tasksCli.js";
 import { formValue } from "./tuiForms.js";
 import { WORKSPACES } from "./tuiLayout.js";
@@ -18,10 +18,13 @@ import { encryptWithAesGcmCombined } from './crypto.js';
 import { paletteActions, TUI_ACTIONS } from "./tuiActions.js";
 import { eraseGrapheme, moveGraphemeCursor, terminalText } from "./tuiText.js";
 import { formatEmbedFullscreenLines } from "./embedRenderers.js";
-import { registerChatEmbedAliases, hydrateChatEmbedPreviews, hydrateFitnessResults, aliasForEmbed, isFitnessEmbed, fitnessSearchDetail, fitnessResultDetail } from './tuiEmbeds.js';
+import { registerChatEmbedAliases, exampleEmbedMap, chatEmbedReferences, hydrateChatEmbedPreviews, hydrateFitnessResults, aliasForEmbed, isFitnessEmbed, fitnessSearchDetail, fitnessResultDetail } from './tuiEmbeds.js';
 import { normalizeFitnessSearchContent } from '../../ui/src/components/embeds/fitness/fitnessEmbedData.js';
+import { chatResultsViews } from './tuiChatResults.js';
+import { buildTuiResultsViewData, type TuiResultsViewMode } from './tuiResultsViews.js';
 import { currentInspiration, homeContinueItems, isWorkspaceHome, loadHomeData, workspaceInspirations } from "./tuiHome.js";
 import { loadTuiApps, homeTuiApps, loadTuiAppsSkill, buildTuiAppsSkillForm, prepareTuiAppsSkillRun, buildTuiAppsRunConfirmation, executeTuiAppsSkill, loadTuiAppsResults, loadTuiAppsResult, loadTuiAppsWorkflows } from "./tuiAppsWorkspace.js";
+import { loadCachedTuiWorkspace, invalidateCachedTuiWorkspace, writeCachedTuiWorkspace, readCachedTuiWorkspace, captureTuiWorkspaceOwner } from './tuiCachedWorkspaces.js';
 
 export type WorkspaceContext = {
   state: TuiState; client: OpenMatesClient; terminal: TuiTerminal; render: () => void;
@@ -49,7 +52,8 @@ function newChat(state: TuiState): void {
   route(state, "chats", "start");
   state.activeChatId = null; state.activeChat = null; state.activeExample = null;
   state.messages = []; state.headerState = "new"; state.headerError = null; state.followUpSuggestions = [];
-  state.chatEmbeds={};state.embedAliases={};state.chatEmbedLoads=new Set();
+  state.chatEmbeds={};state.embedAliases={};state.chatSelectedEmbedId=null;state.chatEmbedLoads=new Set();
+  state.resultsViewModes={};state.activeResultsView=null;state.resultsViewOrigin=null;
   state.projectFocusPending = null;
   state.input = state.drafts.new ?? "";
 }
@@ -69,7 +73,8 @@ export async function openSavedChat(context: WorkspaceContext, id: string): Prom
   const request = route(state, "chats", "chat");
   state.activeChatId=id;state.activeChat=[...state.recentChats,...state.sidebarLinkedChats,...state.activityChats].find(chat=>chat.id===id) ?? null;
   state.activeExample=null;state.messages=[];state.headerState=state.activeChat ? "ready" : "loading";
-  state.chatEmbeds={};state.embedAliases={};state.chatEmbedLoads=new Set();
+  state.chatEmbeds={};state.embedAliases={};state.chatSelectedEmbedId=null;state.chatEmbedLoads=new Set();
+  state.resultsViewModes={};state.activeResultsView=null;state.resultsViewOrigin=null;
   state.status = "Loading chat…"; render();
   let published = false;
   const publish = (result: Awaited<ReturnType<OpenMatesClient['getChatMessages']>>, pending = false) => {
@@ -110,30 +115,56 @@ export async function openSavedChat(context: WorkspaceContext, id: string): Prom
 async function openProject(context: WorkspaceContext, id: string): Promise<void> {
   const {state, client, render} = context;
   const request = route(state, "projects", "project");
+  state.activeProject=null;state.projectFiles=[];state.projectTab='overview';state.projectPath='';state.projectFolderId=null;state.projectSourceId=null;
   state.status = "Loading Project…"; render();
-  const project = await loadTuiProject(client, id);
-  if (state.routeVersion !== request) return;
-  const files = await loadTuiProjectFiles(client, project);
-  if (state.routeVersion !== request) return;
-  state.activeProject = project; state.projectFiles = files; state.projectTab = "overview"; state.projectPath = ""; state.projectFolderId = null; state.projectSourceId = null;
-  state.status = null; render();
+  await loadCachedTuiWorkspace(client,`project:${id}:detail`,()=>loadTuiProject(client,id),async project=>{
+    if(state.routeVersion!==request)return;
+    state.activeProject=project;state.status=null;render();
+    if(state.projectTab!=='tasks')await projectFiles(context,project,{folderId:state.projectFolderId??undefined,sourceId:state.projectSourceId??undefined,path:state.projectSourceId?state.projectPath:undefined});
+  },(error,cached)=>workspaceLoadError(context,request,'Project',error,cached));
+}
+function workspaceLoadError(context:WorkspaceContext,request:number,label:string,error:unknown,cached:boolean):void {
+  if(context.state.routeVersion!==request)return;
+  context.state.status=cached?`Showing saved ${label}. Offline; /refresh to retry.`:`Could not load ${label}: ${error instanceof Error?error.message:String(error)}`;
+  context.render();
+}
+type ProjectFileOptions=Parameters<typeof loadTuiProjectFiles>[2];
+function projectFilesKey(id:string,options:ProjectFileOptions={}) {return `project:${id}:files:${JSON.stringify([options?.folderId??null,options?.sourceId??null,options?.path??null])}`;}
+async function projectFiles(context:WorkspaceContext,project:NonNullable<TuiState['activeProject']>,options:ProjectFileOptions={}):Promise<void> {
+  const {state,client,render}=context,request=state.routeVersion;
+  const location=JSON.stringify([state.projectFolderId,state.projectSourceId,state.projectPath]);
+  await loadCachedTuiWorkspace(client,projectFilesKey(project.id,options),()=>loadTuiProjectFiles(client,project,options),files=>{
+    if(request!==state.routeVersion||state.activeProject?.id!==project.id||location!==JSON.stringify([state.projectFolderId,state.projectSourceId,state.projectPath]))return;
+    const selected=filteredProjectFiles(state.projectFiles,state.filter)[state.selectedIndex]?.id;
+    state.projectFiles=files;
+    if(selected){const index=filteredProjectFiles(files,state.filter).findIndex(file=>file.id===selected);if(index>=0)state.selectedIndex=index;}
+    state.status=null;render();
+  },(error,cached)=>workspaceLoadError(context,request,'Files',error,cached));
+}
+async function projectTasks(context:WorkspaceContext,id:string):Promise<void> {
+  const {state,client,render}=context,request=state.routeVersion;
+  await loadCachedTuiWorkspace(client,`project:${id}:tasks`,async()=>decryptUserTasks(await client.listUserTasks({projectId:id}),client.getMasterKeyBytes()),tasks=>{
+    if(request!==state.routeVersion||state.activeProject?.id!==id||state.projectTab!=='tasks')return;
+    const selected=filterTasks(state.tasks,state.filter)[state.selectedIndex]?.taskId;
+    state.tasks=tasks;
+    if(selected){const index=filterTasks(tasks,state.filter).findIndex(task=>task.taskId===selected);if(index>=0)state.selectedIndex=index;}
+    state.status=null;render();
+  },(error,cached)=>workspaceLoadError(context,request,'Project Tasks',error,cached));
 }
 async function refreshOpenProject(context: WorkspaceContext): Promise<void> {
   const {state, client, render} = context, id = state.activeProject!.id;
   const request = ++state.routeVersion;
-  const view = {tab: state.projectTab, folderId: state.projectFolderId, sourceId: state.projectSourceId,
-    path: state.projectPath, filter: state.filter, selectedIndex: state.selectedIndex, scrollOffset: state.scrollOffset};
   state.status = 'Refreshing Project…'; render();
-  const project = await loadTuiProject(client, id);
-  if (request !== state.routeVersion || state.activeProject?.id !== id) return;
-  const files = await loadTuiProjectFiles(client, project, view.tab === 'files' ?
-    {folderId: view.folderId ?? undefined, sourceId: view.sourceId ?? undefined, path: view.sourceId ? view.path : undefined} : {});
-  const tasks = view.tab === 'tasks' ? await decryptUserTasks(await client.listUserTasks({projectId: id}), client.getMasterKeyBytes()) : state.tasks;
-  if (request !== state.routeVersion || state.activeProject?.id !== id) return;
-  state.activeProject = project; state.projectFiles = files; state.tasks = tasks;
-  state.projectTab = view.tab; state.projectFolderId = view.folderId; state.projectSourceId = view.sourceId; state.projectPath = view.path;
-  state.filter = view.filter; state.selectedIndex = view.selectedIndex; state.scrollOffset = view.scrollOffset;
-  state.status = null; render();
+  await invalidateCachedTuiWorkspace(client,`project:${id}:detail`);
+  await loadCachedTuiWorkspace(client,`project:${id}:detail`,()=>loadTuiProject(client,id),async project=>{
+    if(request!==state.routeVersion||state.activeProject?.id!==id)return;
+    state.activeProject=project;state.status=null;render();
+    if(state.projectTab==='tasks') {await invalidateCachedTuiWorkspace(client,`project:${id}:tasks`);await projectTasks(context,id);}
+    else {
+      const options={folderId:state.projectFolderId??undefined,sourceId:state.projectSourceId??undefined,path:state.projectSourceId?state.projectPath:undefined};
+      await invalidateCachedTuiWorkspace(client,projectFilesKey(id,options));await projectFiles(context,project,options);
+    }
+  },(error,cached)=>workspaceLoadError(context,request,'Project',error,cached));
 }
 async function openTask(context: WorkspaceContext, taskId: string): Promise<void> {
   const {state, client, render} = context;
@@ -369,9 +400,13 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
     case "/chat": if (!arg) return handleWorkspaceCommand(context, "/chats"); await openSavedChat(context, arg); return true;
     case "/projects": {
       const request = route(state, "projects", "projects"); state.status = "Loading Projects…"; render();
-      const projects = await loadTuiProjects(client);
-      if (request === state.routeVersion) { state.projects = projects; state.status = null; }
-      render(); return true;
+      await loadCachedTuiWorkspace(client,'projects:list',()=>loadTuiProjects(client),projects=>{
+        if(request!==state.routeVersion)return;
+        const selected=filteredProjects(state.projects,state.filter)[state.selectedIndex]?.id;
+        state.projects=projects;
+        if(selected){const index=filteredProjects(projects,state.filter).findIndex(project=>project.id===selected);if(index>=0)state.selectedIndex=index;}
+        state.status=null;render();
+      },(error,cached)=>workspaceLoadError(context,request,'Projects',error,cached));return true;
     }
     case "/project": if (!arg) return handleWorkspaceCommand(context, "/projects"); await openProject(context, arg); return true;
     case "/project-create": state.form = buildProjectForm(); render(); return true;
@@ -379,10 +414,9 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
     case "/project-source": {
       if (!state.activeProject) throw new Error("Open a Project first.");
       if (!arg) {state.status = state.activeProject.sources.map((source) => `${source.name ?? source.id}: /project-source ${source.id}`).join("  ") || "This Project has no connected sources.";render();return true;}
-      const request = state.routeVersion, project = state.activeProject;
-      const files = await loadTuiProjectFiles(client, project, {sourceId:arg, path:"."});
-      if (request === state.routeVersion) {state.projectFiles=files;state.projectTab="files";state.projectSourceId=arg;state.projectFolderId=null;state.projectPath=".";state.selectedIndex=0;state.filter="";}
-      render(); return true;
+      const project = state.activeProject;
+      ++state.routeVersion;state.projectTab='files';state.projectSourceId=arg;state.projectFolderId=null;state.projectPath='.';state.projectFiles=[];state.selectedIndex=0;state.filter='';render();
+      await projectFiles(context,project,{sourceId:arg,path:'.'});return true;
     }
     case "/project-chat": {
       const project = state.activeProject;
@@ -395,6 +429,35 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
       else state.form = { kind: "workspace-search", title: `Search ${state.workspace}`, fields: [{name:"query", label:"Search", value:state.filter}], fieldIndex:0 };
       render(); return true;
     }
+    case "/view": {
+      const [indexText,modeText] = arg.split(/\s+/), key=Number(indexText || 1);
+      const descriptor=chatResultsViews(state)[key-1];
+      if(!Number.isInteger(key)||!descriptor)throw Error('Use /view <number> map, calendar or list for a results view in this chat.');
+      if(modeText&&!['map','calendar','list'].includes(modeText))throw Error('Choose map, calendar or list.');
+      const data=buildTuiResultsViewData(descriptor,{...exampleEmbedMap(state),...state.chatEmbeds});
+      const mode=(modeText||state.resultsViewModes[key]||data.availableModes[0]||'list') as TuiResultsViewMode;
+      if(data.entries.length&&!data.availableModes.includes(mode))throw Error(`This results view has no ${mode==='calendar'?'dated':mode==='map'?'mapped':'available'} results.`);
+      if(state.screen!=='results-view')state.resultsViewOrigin={screen:state.screen,workspace:state.workspace,focus:state.focus,selectedIndex:state.selectedIndex,scrollOffset:state.scrollOffset,filter:state.filter,input:state.input};
+      state.resultsViewModes[key]=mode;state.activeResultsView=key;
+      route(state,state.workspace,'results-view');state.focus='content';render();return true;
+    }
+    case "/wiki": {
+      if(!arg)throw Error('Use /wiki <article-title>, for example /wiki Apple_Watch.');
+      const languageMatch=/^([a-z]{2,10}):(.+)$/i.exec(arg),language=languageMatch?.[1]??'en',title=languageMatch?.[2]??arg;
+      if(state.screen!=='embed')state.embedOrigin={screen:state.screen,workspace:state.workspace,focus:state.focus,selectedIndex:state.selectedIndex,scrollOffset:state.scrollOffset,filter:state.filter,input:state.input};
+      const request=route(state,state.workspace,'embed');state.detailEmbed=null;state.embedChoices=[];state.detailTitle=title.replaceAll('_',' ');
+      state.detailLines=['Loading Wikipedia article…'];state.focus='content';render();
+      try {
+        const summary=await client.wikipediaSummary(title,language);
+        if(request!==state.routeVersion)return true;
+        state.detailTitle=String(summary.title||title).replaceAll('_',' ');
+        state.detailLines=[String(summary.description||''),'',String(summary.extract||''),'',String(summary.source_url||'')];
+      } catch(error) {
+        if(request!==state.routeVersion)return true;
+        state.detailLines=['Wikipedia article unavailable.',error instanceof Error?error.message:String(error),'',`/wiki ${arg} · Retry`];
+      }
+      render();return true;
+    }
     case "/embed": {
       registerChatEmbedAliases(state);
       const target=state.embedAliases[arg];
@@ -403,7 +466,7 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
       const request = route(state, state.workspace, "embed"); state.detailTitle = "Embeds";state.detailEmbed=null;state.focus="content";
       state.detailLines=["Loading saved embed…"];render();
       if (!arg) {
-        const aliases = Object.keys(state.embedAliases);state.embedChoices=aliases;
+        const aliases = Object.keys(state.embedAliases).filter(alias=>!state.embedAliases[alias].legacy);state.embedChoices=aliases;
         state.detailLines = aliases.length ? aliases.map(alias => `/embed ${alias}`) : ["No saved embeds in this chat yet."];
       } else {
         try {
@@ -455,13 +518,33 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
       return true;
     }
     case "/workflow-edit": {
-      const workflow = state.activeWorkflow, node = workflow?.graph.nodes[state.selectedWorkflowNodeIndex];
+      const workflow = state.activeWorkflow, node = workflow?orderedWorkflowNodes(workflow.graph)[state.selectedWorkflowNodeIndex]:undefined;
       if (!workflow || !node || state.workflowTab !== "graph") throw new Error("Select a Template step first.");
-      state.form = buildWorkflowNodeForm(workflow, node); render(); return true;
+      const request=state.routeVersion;
+      const fallback=buildWorkflowNodeForm(workflow,node),values=JSON.stringify(fallback.fields);
+      state.form=fallback;render();
+      if(typeof client.listWorkflowCapabilities==='function'){
+        await loadCachedTuiWorkspace(client,'workflows:capabilities',()=>client.listWorkflowCapabilities(),capabilities=>{
+          // Metadata arriving late must never discard edits already made in the fallback form.
+          if(request===state.routeVersion&&state.form===fallback&&!fallback.busy&&JSON.stringify(fallback.fields)===values)state.form=buildWorkflowNodeForm(workflow,node,capabilities);
+          render();
+        });
+      }
+      render(); return true;
     }
     case "/workflow-toggle": {
       if (!state.activeWorkflow) throw new Error("Open a workflow first.");
-      state.activeWorkflow = await client.updateWorkflow(state.activeWorkflow.id, {enabled: !state.activeWorkflow.enabled}); render(); return true;
+      const workflow=state.activeWorkflow,request=state.routeVersion,ownerCurrent=captureTuiWorkspaceOwner(client);
+      await invalidateCachedTuiWorkspace(client,'workflows:list',ownerCurrent);await invalidateCachedTuiWorkspace(client,`workflow:${workflow.id}:detail`,ownerCurrent);
+      if(!ownerCurrent())return true;
+      const updated=await client.updateWorkflow(workflow.id,{enabled:!workflow.enabled});
+      await writeCachedTuiWorkspace(client,`workflow:${workflow.id}:detail`,updated,ownerCurrent);
+      if(!ownerCurrent())return true;
+      const hasSummary=state.workflows.some(item=>item.id===updated.id);
+      state.workflows=state.workflows.map(item=>item.id===updated.id?updated:item);
+      if(hasSummary)await writeCachedTuiWorkspace(client,'workflows:list',state.workflows,ownerCurrent);
+      if(request===state.routeVersion&&state.activeWorkflow?.id===workflow.id)state.activeWorkflow=updated;
+      render();return true;
     }
     case "/stop": {
       if (!state.isBusy || !state.aiTaskId || !state.activeChatId) {state.status = state.isBusy ? "Waiting for the AI task to start before it can be stopped." : "No active response.";render();return true;}
@@ -486,6 +569,7 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
 async function saveForm(context: WorkspaceContext): Promise<void> {
   const {state, client, render} = context, form = state.form;
   if (!form || form.busy) return;
+  const request=state.routeVersion,ownerCurrent=captureTuiWorkspaceOwner(client),current=()=>ownerCurrent()&&request===state.routeVersion&&state.form===form;
   form.busy = true; form.error = undefined; render();
   try {
     if (form.kind === "app-skill-input") {
@@ -501,16 +585,40 @@ async function saveForm(context: WorkspaceContext): Promise<void> {
     }
     else if (form.kind === "workspace-search") { state.filter = formValue(form,"query"); state.selectedIndex = 0; state.scrollOffset = 0; }
     else if (form.kind.startsWith("task-")) {
+      const projectId=state.workspace==='projects'?state.activeProject?.id:undefined;
+      const before=state.activeTask,projectIds=new Set([...(before?.linkedProjectIds??[]),...(projectId?[projectId]:[])]);
+      const snapshots=new Map<string,typeof state.tasks>();
+      const allTasks=await readCachedTuiWorkspace<typeof state.tasks>(client,'tasks:list',ownerCurrent);
+      if(allTasks)snapshots.set('tasks:list',allTasks);
+      for(const id of projectIds){
+        const key=`project:${id}:tasks`,saved=await readCachedTuiWorkspace<typeof state.tasks>(client,key,ownerCurrent);
+        if(saved)snapshots.set(key,saved);
+        await invalidateCachedTuiWorkspace(client,key,ownerCurrent);
+      }
+      await invalidateCachedTuiWorkspace(client,'tasks:list',ownerCurrent);
+      if(!current())return;
       const result = await submitTaskForm(client, form, state.activeTask ?? undefined, state.workspace === "projects" ? state.activeProject?.id : undefined);
+      if(!current())return;
       if (result.deleted) { state.tasks = state.tasks.filter((task) => task.taskId !== state.activeTask?.taskId); state.activeTask = null; state.screen = "tasks"; }
       if (result.task) {
         state.tasks = [result.task, ...state.tasks.filter((t) => t.taskId !== result.task!.taskId)]; state.activeTask = result.task; state.screen = "task";
         state.taskContext = null; state.status = result.task.queueState !== "none" ? `Queue: ${result.task.queueState}` : "Task saved.";
       }
+      for(const [key,saved] of snapshots){
+        const updated=saved.filter(task=>task.taskId!==before?.taskId&&task.taskId!==result.task?.taskId);
+        if(result.task)updated.push(result.task);
+        await writeCachedTuiWorkspace(client,key,updated,ownerCurrent);
+      }
+      await writeCachedTuiWorkspace(client,projectId?`project:${projectId}:tasks`:'tasks:list',state.tasks,ownerCurrent);
     } else if (form.kind.startsWith("project-")) {
+      await invalidateCachedTuiWorkspace(client,'projects:list',ownerCurrent);
+      if(!current())return;
       const project = await submitProjectForm(client, form);
+      if(!current())return;
       state.projects = [project, ...state.projects.filter((p) => p.id !== project.id)]; state.activeProject = project;
       state.workspace = "projects"; state.screen = "project"; state.projectTab = "overview"; state.projectFiles = project.files;
+      await writeCachedTuiWorkspace(client,'projects:list',state.projects,ownerCurrent);
+      await writeCachedTuiWorkspace(client,`project:${project.id}:detail`,project,ownerCurrent);
     } else if(form.kind==="workflow-create"){
       const description=formValue(form,"description").trim();if(!description)throw new Error("Describe what this workflow should do.");
       const request=state.routeVersion,session=await client.startWorkflowInput({text:description,inputType:"text",optimisticSave:true,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,idempotencyKey:randomUUID()});
@@ -521,9 +629,19 @@ async function saveForm(context: WorkspaceContext): Promise<void> {
       state.status=session.error??session.message??(workflow?"Workflow created.":"Creating workflow. Use /refresh to check progress.");
     } else if (form.kind.startsWith("workflow-")) {
       if (!state.activeWorkflow) throw new Error("Workflow is no longer selected.");
-      state.activeWorkflow = await submitWorkflowNodeForm(client, state.activeWorkflow, form);
+      await invalidateCachedTuiWorkspace(client,'workflows:list',ownerCurrent);
+      await invalidateCachedTuiWorkspace(client,`workflow:${state.activeWorkflow.id}:detail`,ownerCurrent);
+      if(!current())return;
+      const workflow=await submitWorkflowNodeForm(client, state.activeWorkflow, form);
+      await writeCachedTuiWorkspace(client,`workflow:${workflow.id}:detail`,workflow,ownerCurrent);
+      if(!current())return;
+      state.activeWorkflow=workflow;
+      const hasSummary=state.workflows.some(item=>item.id===workflow.id);
+      state.workflows=state.workflows.map(item=>item.id===workflow.id?workflow:item);
+      if(hasSummary)await writeCachedTuiWorkspace(client,'workflows:list',state.workflows,ownerCurrent);
       state.status = "Workflow step saved.";
     }
+    if(!current())return;
     state.form = null; state.focus = "content"; state.scrollOffset = 0;
   } catch (error) { form.error = error instanceof Error ? error.message : String(error); }
   finally { form.busy = false; render(); }
@@ -531,6 +649,15 @@ async function saveForm(context: WorkspaceContext): Promise<void> {
 
 export async function handleWorkspaceKey(context: WorkspaceContext, chunk: string, key: TerminalKey): Promise<boolean> {
   const {state, render, client} = context;
+  if(key.ctrl&&key.name==='g'){
+    state.textSelection=false;state.focus='navigation';state.navigationIndex=WORKSPACES.indexOf(state.workspace);render();return true;
+  }
+  if(state.focus==='navigation'&&['left','right','return','escape'].includes(key.name??'')){
+    if(key.name==='left'||key.name==='right')state.navigationIndex=(state.navigationIndex+(key.name==='left'?-1:1)+WORKSPACES.length)%WORKSPACES.length;
+    else if(key.name==='return'){state.paletteOpen=false;await context.command(`/${WORKSPACES[state.navigationIndex]}`);}
+    else state.focus=state.screen==='chat'||state.screen==='example'?'composer':'content';
+    render();return true;
+  }
   if (key.ctrl && key.name === 'y') { state.textSelection = !state.textSelection;render();return true; }
   if (state.textSelection) {
     if(key.name==='escape'){state.textSelection=false;render();}
@@ -559,6 +686,9 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     else if (!key.ctrl && !key.meta && chunk) {state.paletteQuery += terminalText(chunk); state.paletteIndex = 0;}
     render(); return true;
   }
+  if(state.screen==='results-view'&&state.focus==='content'&&!key.ctrl&&!key.meta&&['m','c','l'].includes(key.name??'')) {
+    await context.command(`/view ${state.activeResultsView??1} ${{m:'map',c:'calendar',l:'list'}[key.name!]}`);return true;
+  }
   if(state.screen==="embed" && state.embedChoices.length && state.focus==="content" && ["up","down"].includes(key.name ?? "")) {
     state.selectedIndex=Math.max(0,Math.min(state.embedChoices.length-1,state.selectedIndex+(key.name==="up"?-1:1)));render();return true;
   }
@@ -568,6 +698,15 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
   if(key.ctrl && key.name==="o" && isWorkspaceHome(state)){state.focus="inspiration";state.scrollOffset=0;render();return true;}
   if (state.workflowEdit) return false;
   const chatHome=state.screen==="start"||state.screen==="chats", carouselHome=chatHome||['apps','projects','workflows'].includes(state.screen);
+  if(['chat','example'].includes(state.screen)&&state.focus==='content'&&['left','right','return'].includes(key.name??'')){
+    const refs=chatEmbedReferences(state);
+    if(refs.length){
+      const selected=Math.max(0,refs.findIndex(ref=>ref.value===state.chatSelectedEmbedId));
+      if(key.name==='return')await context.command(`/embed ${aliasForEmbed(state,refs[selected].value)}`);
+      else {state.chatSelectedEmbedId=refs[Math.max(0,Math.min(refs.length-1,selected+(key.name==='left'?-1:1)))].value;state.followSelection=true;}
+      render();return true;
+    }
+  }
   if (state.focus === 'sidebar' && ['pageup','pagedown','home','end','scrollup','scrolldown'].includes(key.name ?? '')) {
     const direction = ['pageup','scrollup'].includes(key.name ?? '') ? -1 : 1;
     const step = key.name?.startsWith('page') ? Math.max(1,(context.terminal.height ?? 24)-9) : 3;
@@ -601,8 +740,10 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     else if(state.screen==="app-result"){state.screen=state.activeAppSkill?"app-skill":"app";state.appSkillTab="embeds";state.appTab="embeds";state.focus="content";state.scrollOffset=0;}
     else if(state.screen==="app-skill"){state.screen="app";state.appTab="skills";state.focus="content";state.scrollOffset=0;}
     else if(state.screen==="app"){state.screen="apps";state.focus="content";state.scrollOffset=0;}
-    else if (state.screen === "embed") {
-      const origin=state.embedOrigin;state.embedOrigin=null;state.detailEmbed=null;state.embedChoices=[];
+    else if (state.screen === "embed" || state.screen === "results-view") {
+      const origin=state.screen==='results-view'?state.resultsViewOrigin:state.embedOrigin;
+      if(state.screen==='results-view')state.resultsViewOrigin=null;else state.embedOrigin=null;
+      state.detailEmbed=null;state.embedChoices=[];
       if(origin){state.screen=origin.screen;state.workspace=origin.workspace;state.focus=origin.focus;state.selectedIndex=origin.selectedIndex;state.scrollOffset=origin.scrollOffset;state.filter=origin.filter;state.input=origin.input;state.inputCursor=null;}
       else {state.screen=state.workspace==="projects"?"project":"chats";state.focus="content";}
       ++state.routeVersion;
@@ -702,17 +843,20 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
   if (state.input.startsWith("/") && key.name === "return") {const command=state.input.trim(); state.input=""; state.inputCursor=null; await context.command(command); return true;}
   if (state.focus === "content" && state.screen === "project") {
     if (key.name === "backspace" && state.projectTab === "files" && state.activeProject) {
-      const request=state.routeVersion, project=state.activeProject;
+      const project=state.activeProject;
       const folderId=state.projectFolderId?parentTuiProjectFolderId(project,state.projectFolderId):null;
       const path=state.projectSourceId?state.projectPath.split("/").slice(0,-1).join("/")||".":"";
-      const files=await loadTuiProjectFiles(context.client,project,state.projectSourceId?{sourceId:state.projectSourceId,path}:{folderId:folderId??undefined});
-      if(request===state.routeVersion){state.projectFiles=files;state.projectFolderId=folderId;state.projectPath=path;state.selectedIndex=0;state.filter="";}
+      ++state.routeVersion;state.projectFiles=[];state.projectFolderId=folderId;state.projectPath=path;state.selectedIndex=0;state.filter='';render();
+      await projectFiles(context,project,state.projectSourceId?{sourceId:state.projectSourceId,path}:{folderId:folderId??undefined});
       render();return true;
     }
     if (["1", "2", "3"].includes(chunk)) {
-      const request=++state.routeVersion,projectId=state.activeProject?.id;
+      // An early tab key must not invalidate the pending Project detail request.
+      if(!state.activeProject)return true;
+      ++state.routeVersion;const projectId=state.activeProject?.id;
       state.projectTab = chunk === "1" ? "overview" : chunk === "2" ? "files" : "tasks"; state.selectedIndex = 0; state.scrollOffset = 0;
-      if (state.projectTab === "tasks" && projectId) {const tasks=await decryptUserTasks(await context.client.listUserTasks({projectId}),context.client.getMasterKeyBytes());if(request===state.routeVersion&&state.activeProject?.id===projectId&&state.projectTab==="tasks")state.tasks=tasks;}
+      if (state.projectTab === "tasks" && projectId) {state.tasks=[];render();await projectTasks(context,projectId);}
+      else if(state.projectTab==='files'&&state.activeProject)await projectFiles(context,state.activeProject,{folderId:state.projectFolderId??undefined,sourceId:state.projectSourceId??undefined,path:state.projectSourceId?state.projectPath:undefined});
       render(); return true;
     }
     if (chunk === "n") {await context.command("/project-chat"); return true;}
@@ -720,7 +864,7 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
       if (state.projectTab === "tasks") {const task=filterTasks(state.tasks,state.filter)[state.selectedIndex]; if(task) await openTask(context,task.taskId);}
       else if (state.projectTab === "files" && state.activeProject) {
         const file=filteredProjectFiles(state.projectFiles,state.filter)[state.selectedIndex],project=state.activeProject,request=state.routeVersion;
-        if (file?.kind === "folder") {const files=await loadTuiProjectFiles(context.client,project,file.sourceId?{path:file.path,sourceId:file.sourceId}:{folderId:file.id});if(request===state.routeVersion&&state.activeProject?.id===project.id){state.projectPath=file.path;state.projectFolderId=file.sourceId?null:file.id;state.projectSourceId=file.sourceId??null;state.projectFiles=files;state.selectedIndex=0;state.filter="";}}
+        if (file?.kind === "folder") {++state.routeVersion;state.projectPath=file.path;state.projectFolderId=file.sourceId?null:file.id;state.projectSourceId=file.sourceId??null;state.projectFiles=[];state.selectedIndex=0;state.filter='';render();await projectFiles(context,project,file.sourceId?{path:file.path,sourceId:file.sourceId}:{folderId:file.id});}
         else if(file) {const text=await readTuiProjectFile(context.client,project,file);if(request===state.routeVersion&&state.activeProject?.id===project.id){state.detailTitle=file.name;state.detailLines=text.split("\n");state.screen="embed";state.scrollOffset=0;}}
       }
       render();return true;

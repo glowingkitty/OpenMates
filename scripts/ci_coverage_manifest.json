@@ -32,6 +32,7 @@
         "chat-sync-empty-indexeddb-recovery.spec.ts",
         "cli-created-account-login.spec.ts",
         "cli-memories.spec.ts",
+        "cli-session-cookie-rotation.spec.ts",
         "wikipedia-learning-api.spec.ts",
         "cli-pair-login.spec.ts",
         "cli-tui-chat-sidebar-proof.spec.ts",
@@ -117,7 +118,8 @@
         "chat-sidebar-projects.spec.ts",
         "maps-discovery-sdk.spec.ts",
         "cli-project-focus-settings.spec.ts",
-        "jev-project-context-api.spec.ts"
+        "jev-project-context-api.spec.ts",
+        "cli-tui-rich-chat-proof.spec.ts"
       ]
     },
     "external_integration": {

@@ -194,6 +194,22 @@ export function saveAnonymousId(anonymousId: string): void {
 const SESSION_LOCK_STALE_MS = 30_000;
 const SESSION_LOCK_POLL_MS = 50;
 
+function withSessionWriteLock<T>(operation: () => T): T {
+  const path = join(ensureStateDir(), "session.json");
+  let release: (() => void) | undefined;
+  const waitCell = new Int32Array(new SharedArrayBuffer(4));
+  for (let attempt = 0; ; attempt++) {
+    try {
+      release = lockfile.lockSync(`${path}.write`, { realpath: false, stale: SESSION_LOCK_STALE_MS });
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ELOCKED" || attempt >= 100) throw error;
+      Atomics.wait(waitCell, 0, 0, SESSION_LOCK_POLL_MS);
+    }
+  }
+  try { return operation(); } finally { release(); }
+}
+
 /** Serialize refresh requests across processes sharing this profile. */
 export async function withSessionRefreshLock<T>(operation: () => Promise<T>): Promise<T> {
   const path = join(ensureStateDir(), "session.json");
@@ -209,20 +225,12 @@ export function saveSession(session: OpenMatesSession, options: {
   expectedRefreshToken?: string;
   replace?: boolean;
 } = {}): void {
-  const path = join(ensureStateDir(), "session.json");
-  let release: (() => void) | undefined;
-  const waitCell = new Int32Array(new SharedArrayBuffer(4));
-  for (let attempt = 0; ; attempt++) {
-    try {
-      release = lockfile.lockSync(`${path}.write`, { realpath: false, stale: SESSION_LOCK_STALE_MS });
-      break;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ELOCKED" || attempt >= 100) throw error;
-      Atomics.wait(waitCell, 0, 0, SESSION_LOCK_POLL_MS);
-    }
-  }
-  try {
+  withSessionWriteLock(() => {
+    const path = join(ensureStateDir(), "session.json");
     const current = readJsonFile<SessionOnDisk>(path);
+    if (!current && options.expectedRefreshToken !== undefined) {
+      throw new Error("Login session was removed. Retry using the current profile.");
+    }
     if (current && !options.replace) {
       if (current.sessionId !== session.sessionId || current.hashedEmail !== session.hashedEmail || current.apiUrl !== session.apiUrl) {
         throw new Error("Login session changed in another process. Retry the command using the current profile.");
@@ -244,7 +252,35 @@ export function saveSession(session: OpenMatesSession, options: {
       }
     }
     writeSession(session, current?.hashedEmail === session.hashedEmail ? current : null);
-  } finally { release(); }
+  });
+}
+
+/** Persist only a rotated refresh cookie; never copy stale context from a caller. */
+export function persistSessionRefreshCookie(
+  owner: Pick<OpenMatesSession, "apiUrl" | "sessionId" | "hashedEmail" | "createdAt">,
+  expectedToken: string,
+  newToken: string,
+): { status: "saved" | "current" | "stale"; cookies?: Record<string, string> } {
+  if (!expectedToken || !newToken) throw new Error("Refresh cookies must be nonempty.");
+  return withSessionWriteLock(() => {
+    const path = join(ensureStateDir(), "session.json");
+    const current = readJsonFile<SessionOnDisk>(path);
+    if (!current || current.apiUrl !== owner.apiUrl || current.sessionId !== owner.sessionId ||
+        current.hashedEmail !== owner.hashedEmail || current.createdAt !== owner.createdAt ||
+        typeof current.pairedSessionExpiresAt === "number" && current.pairedSessionExpiresAt <= Date.now()) {
+      return { status: "stale" };
+    }
+    if (current.cookies.auth_refresh_token !== expectedToken) {
+      return { status: "current", cookies: { ...current.cookies } };
+    }
+    const cookies = { ...current.cookies, auth_refresh_token: newToken };
+    const temporary = `${path}.${process.pid}.tmp`;
+    try {
+      writeJsonFile(temporary, { ...current, cookies });
+      renameSync(temporary, path);
+    } finally { rmSync(temporary, { force: true }); }
+    return { status: "saved", cookies };
+  });
 }
 
 function writeSession(session: OpenMatesSession, previous: SessionOnDisk | null): void {
@@ -366,6 +402,10 @@ export function getCredentialStorageMode(): CredentialStorageMode {
  * Clear session — removes the file and deletes the keychain entry if applicable.
  */
 export function clearSession(): void {
+  withSessionWriteLock(() => clearSessionLocked());
+}
+
+function clearSessionLocked(): void {
   const filePath = join(ensureStateDir(), "session.json");
 
   // Read current storage type before deleting, so we can clean up the keychain
@@ -388,6 +428,7 @@ export function clearSession(): void {
   if (existsSync(filePath)) {
     rmSync(filePath);
   }
+  rmSync(join(getStateDir(), "tui_workspace_cache.json"), { force: true });
   if (cleanupError) throw cleanupError;
 }
 
@@ -428,6 +469,7 @@ function purgeLocalTeamKeys(hashedEmail: string | null): void {
 
 function purgeSyncCaches(stateDir: string): void {
   rmSync(join(stateDir, "project_file_privacy"), { recursive: true, force: true });
+  rmSync(join(stateDir, "tui_workspace_cache.json"), { force: true });
   for (const fileName of readdirSync(stateDir)) {
     if (fileName === SYNC_CACHE_FILE || (fileName.startsWith("sync_cache.team.") && fileName.endsWith(".json"))) {
       rmSync(join(stateDir, fileName), { force: true });

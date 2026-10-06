@@ -8,12 +8,14 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { WorkflowGraph } from "../src/client.js";
 
-import { runTui as runProductTui } from "../src/tui.ts";
-import { noStartupPrompts } from "./tuiTestServices.js";
-const runTui = (client: Parameters<typeof runProductTui>[0], terminal: Parameters<typeof runProductTui>[1]) =>
-  runProductTui(client, terminal, noStartupPrompts);
+import { runTui } from "../src/tui.ts";
+import { createTuiWorkspaceCache } from "../src/tuiWorkspaceCache.ts";
+import { clearSession, saveSession, type OpenMatesSession } from "../src/storage.ts";
 
 function workflowSummary() {
   return {
@@ -126,8 +128,162 @@ class FakeClient {
 async function tick(ms = 30): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
+async function waitForFrame(terminal:FakeTerminal,pattern:RegExp):Promise<void> {
+  for(let attempt=0;attempt<100&&!pattern.test(terminal.latestFrame());attempt++)await tick(10);
+  assert.match(terminal.latestFrame(),pattern);
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((yes) => { resolve = yes; });
+  return { promise, resolve };
+}
 
 describe("CLI TUI Workflow interaction", () => {
+  // contract-test: supporting surface=cli assertions=workflows.surface.semantic-parity,workflows.execution.lifecycle-visible
+  it("opens cached workflow list, detail, runs, and recorded graph before refresh", async () => {
+    const stateDir = mkdtempSync(join(tmpdir(), "openmates-tui-workflow-offline-"));
+    const oldStateDir = process.env.OPENMATES_STATE_DIR;
+    process.env.OPENMATES_STATE_DIR = stateDir;
+    const session: OpenMatesSession = {
+      apiUrl: "https://api.example.test", sessionId: "offline-session", wsToken: null, cookies: {},
+      masterKeyExportedB64: Buffer.alloc(32, 13).toString("base64"), hashedEmail: "offline-account",
+      userEmailSalt: "salt", createdAt: Date.now(), authorizerDeviceName: null,
+      autoLogoutMinutes: null, activeTeamId: null,
+    };
+    const terminal = new FakeTerminal();
+    const client = new FakeClient() as FakeClient & {apiUrl: string; getSession: () => OpenMatesSession; getWorkflowVersion: () => Promise<{graph: WorkflowGraph}>};
+    let tui: Promise<unknown> | null = null;
+    try {
+      saveSession(session, { replace: true });
+      const cache = createTuiWorkspaceCache(session);
+      const detail = { ...workflowDetail(), current_version_id: "v2" };
+      const oldGraph: WorkflowGraph = {
+        version: 1, trigger_node_id: "old", nodes: [{id: "old", type: "manual_trigger", title: "Historical start", config: {}}], edges: [],
+      };
+      const oldRun = {...workflowRun(), id: "run-old", version_id: "v1", node_runs: [{...workflowRun().node_runs[0], node_id: "old"}]};
+      await cache.set("workflows:list", [workflowSummary()]);
+      await cache.set("workflow:wf-rain:detail", detail);
+      await cache.set("workflow:wf-rain:runs", [oldRun]);
+      await cache.set("workflow:wf-rain:version:v1", oldGraph);
+
+      const listRefresh = deferred<ReturnType<typeof workflowSummary>[]>();
+      const detailRefresh = deferred<typeof detail>();
+      const runsRefresh = deferred<typeof oldRun[]>();
+      const graphRefresh = deferred<{graph: WorkflowGraph}>();
+      let detailCalls = 0;
+      client.apiUrl = session.apiUrl;
+      client.getSession = () => session;
+      client.listWorkflows = () => listRefresh.promise;
+      client.getWorkflow = () => { detailCalls++; return detailRefresh.promise; };
+      client.listWorkflowRuns = () => runsRefresh.promise;
+      client.getWorkflowVersion = () => graphRefresh.promise;
+      tui = runTui(client as never, terminal as never);
+      await tick();
+
+      for (const char of "/workflows") terminal.press(char, { name: char });
+      terminal.press("\r", { name: "return" }); await waitForFrame(terminal,/Daily rain check/);
+      assert.match(terminal.latestFrame(), /Daily rain check/);
+      terminal.press("\r", { name: "return" }); await waitForFrame(terminal,/Weather forecast/);
+      assert.match(terminal.latestFrame(), /Weather forecast/);
+      terminal.press("r", { name: "r" }); await waitForFrame(terminal,/Historical start/);
+      assert.match(terminal.latestFrame(), /Historical start/);
+      assert.equal(detailCalls, 1);
+
+      listRefresh.resolve([{...workflowSummary(), title: "Rain check refreshed"}]);
+      detailRefresh.resolve({...detail, title: "Rain check refreshed"});
+      runsRefresh.resolve([oldRun]);
+      graphRefresh.resolve({graph: oldGraph});
+      await tick(100);
+      assert.match(terminal.latestFrame(), /Runs · r/);
+      assert.match(terminal.latestFrame(), /Historical start/);
+      assert.match(terminal.latestFrame(), /Rain check refreshed/);
+    } finally {
+      if (tui) { terminal.press("\u0003", {ctrl: true, name: "c"}); await tui; }
+      clearSession();
+      rmSync(stateDir, { recursive: true, force: true });
+      if (oldStateDir === undefined) delete process.env.OPENMATES_STATE_DIR;
+      else process.env.OPENMATES_STATE_DIR = oldStateDir;
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=tasks.surface.semantic-parity,cli.surface.semantic-parity
+  it("shows the cached Tasks board while task sync is pending", async () => {
+    const stateDir = mkdtempSync(join(tmpdir(), "openmates-tui-tasks-offline-"));
+    const oldStateDir = process.env.OPENMATES_STATE_DIR;
+    process.env.OPENMATES_STATE_DIR = stateDir;
+    const session: OpenMatesSession = {
+      apiUrl: "https://api.example.test", sessionId: "task-session", wsToken: null, cookies: {},
+      masterKeyExportedB64: Buffer.alloc(32, 17).toString("base64"), hashedEmail: "task-account",
+      userEmailSalt: "salt", createdAt: Date.now(), authorizerDeviceName: null,
+      autoLogoutMinutes: null, activeTeamId: null,
+    };
+    const terminal = new FakeTerminal();
+    const client = new FakeClient() as FakeClient & {
+      apiUrl: string; getSession: () => OpenMatesSession;
+      getMasterKeyBytes: () => Uint8Array; listUserTasks: () => Promise<never[]>;
+    };
+    let tui: Promise<unknown> | null = null;
+    try {
+      saveSession(session, { replace: true });
+      await createTuiWorkspaceCache(session).set("tasks:list", [{
+        taskId: "task-offline", shortId: "T-1", slug: "offline", title: "Offline task title",
+        description: "Saved locally", labels: [], tags: [], latestInstruction: "", status: "todo",
+        assigneeType: "user", assigneeIdentity: null, assigneeHash: null, primaryChatId: null,
+        externalChat: null, linkedProjectIds: [], planId: null, dueAt: null, priority: 0,
+        priorityLevel: "none", position: 1, queueState: "none", blockedReasonCode: null,
+        blockedReason: "", aiExecutionState: null, version: 1, encrypted: {},
+      }]);
+      const pendingTasks = deferred<never[]>();
+      client.apiUrl = session.apiUrl;
+      client.getSession = () => session;
+      client.getMasterKeyBytes = () => Buffer.alloc(32, 17);
+      client.listUserTasks = () => pendingTasks.promise;
+      tui = runTui(client as never, terminal as never);
+      await tick();
+      for (const char of "/tasks") terminal.press(char, {name: char});
+      terminal.press("\r", {name: "return"}); await tick(70);
+      assert.match(terminal.latestFrame(), /Offline task title/);
+      pendingTasks.resolve([]);
+      await tick(70);
+      assert.doesNotMatch(terminal.latestFrame(), /Offline task title/);
+    } finally {
+      if (tui) { terminal.press("\u0003", {ctrl: true, name: "c"}); await tui; }
+      clearSession();
+      rmSync(stateDir, { recursive: true, force: true });
+      if (oldStateDir === undefined) delete process.env.OPENMATES_STATE_DIR;
+      else process.env.OPENMATES_STATE_DIR = oldStateDir;
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=workflows.surface.semantic-parity
+  it("uses displayed graph order for keyboard node editing", async () => {
+    const terminal = new FakeTerminal();
+    const client = new FakeClient();
+    const detail = workflowDetail();
+    client.getWorkflow = async () => ({
+      ...detail,
+      graph: {
+        ...detail.graph,
+        nodes: [...detail.graph.nodes].reverse(),
+        edges: [{from: "trigger", to: "forecast"}, {from: "forecast", to: "notify"}],
+      },
+    } as never);
+    const tui = runTui(client as never, terminal as never);
+    try {
+      await tick();
+      for (const char of "/workflows") terminal.press(char, {name: char});
+      terminal.press("\r", {name: "return"}); await tick();
+      terminal.press("\r", {name: "return"}); await tick();
+      terminal.press("", {name: "down"}); await tick();
+      terminal.press("e", {name: "e"}); await tick();
+      assert.match(terminal.latestFrame(), /Editing title for forecast/);
+    } finally {
+      terminal.press("\u0003", {ctrl: true, name: "c"});
+      await tui;
+    }
+  });
+
   // contract-test: direct surface=cli assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
   it("opens workflows, switches tabs, runs, cancels, expands, and edits node details", async () => {
     const terminal = new FakeTerminal();

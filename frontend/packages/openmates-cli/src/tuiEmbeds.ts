@@ -8,11 +8,27 @@ import type { DecryptedEmbed, OpenMatesClient } from './client.js';
 import { parseEmbedContentObject } from './client.js';
 import type { TuiState } from './tuiRenderer.js';
 import { parseMessageSegments } from './messageSegments.js';
-import { APP_GRADIENTS } from '../../appGradientTheme.js';
+import { messageSupplementalEmbedIds } from './tuiChatResults.js';
+import { tuiResultsSourceChildren } from './tuiResultsViews.js';
+import { renderTuiEmbedPreview } from './tuiEmbedPreviews.js';
 import { normalizeFitnessSearchContent, getFitnessResultTitle, getFitnessResultAddress, getFitnessResultUrl, normalizePipedList, asText, asNumber, type FitnessResult } from '../../ui/src/components/embeds/fitness/fitnessEmbedData.js';
-import { padCells, wrapCells, truncateCells, type TuiLine } from './tuiText.js';
+import { type TuiLine } from './tuiText.js';
 
-export type TuiEmbedTarget = { embedId: string; appId: string; skillId: string; resultIndex?: number };
+export type TuiEmbedTarget = { embedId: string; appId: string; skillId: string; resultIndex?: number; legacy?: boolean };
+/** Tool metadata can point to the originating request. It is not user-message content. */
+export function messageEmbedReferences(message: {role:string;content:string;embedIds?:string[]}) {
+  const inline=parseMessageSegments(message.content).filter(segment=>segment.type==='embed');
+  const metadataIds=message.role==='assistant'?message.embedIds??[]:[];
+  const extra=metadataIds.filter(id=>!inline.some(ref=>ref.value===id)).map(id=>({value:id,meta:{} as Record<string,unknown>}));
+  return [...inline,...extra];
+}
+export function chatEmbedReferences(state:TuiState) {
+  const messages=state.screen==='example'?state.activeExample?.messages??[]:state.messages;
+  const seen=new Set<string>();
+  return messages.flatMap(message=>messageEmbedReferences(message)).filter(ref=>{
+    if(seen.has(ref.value))return false;seen.add(ref.value);return true;
+  });
+}
 const shortPart = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 export function embedAliasPrefix(app: string, skill: string): string {
   return `${shortPart(app).slice(0, 3) || 'emb'}-${shortPart(skill).split('_').filter(Boolean).map(word => word[0]).join('_') || 'v'}`;
@@ -30,26 +46,33 @@ export function exampleEmbedMap(state: TuiState): Record<string, DecryptedEmbed>
 
 /** Allocation is stable while an open chat gains older messages or synced content. */
 export function registerChatEmbedAliases(state: TuiState): void {
-  const messages = state.screen === 'example' ? state.activeExample?.messages ?? [] : state.messages;
+  const messages = state.activeExample && (state.screen === 'example' || state.embedOrigin?.screen === 'example' || state.resultsViewOrigin?.screen === 'example') ? state.activeExample.messages : state.messages;
   const saved = {...exampleEmbedMap(state), ...state.chatEmbeds};
-  const known = new Set(Object.values(state.embedAliases).filter(target => target.resultIndex === undefined).map(target => target.embedId));
+  const metadata=new Map(messages.flatMap(message=>parseMessageSegments(message.content).filter(segment=>segment.type==='embed')).map(ref=>[ref.value,ref.meta??{}]));
   for (const message of messages) {
-    const segments = parseMessageSegments(message.content).filter(segment => segment.type === 'embed');
-    const refs = [...segments, ...(message.embedIds ?? []).filter(id => !segments.some(segment => segment.value === id)).map(id => ({value:id, meta:{} as Record<string,unknown>}))];
+    const refs = [...messageEmbedReferences(message),...messageSupplementalEmbedIds(message.content).map(value=>({value,meta:{}}))];
     for (const ref of refs) {
-      if (known.has(ref.value)) continue;
-      const embed = saved[ref.value], meta = ref.meta ?? {};
-      const appId = embed?.appId || asText(meta.app_id) || asText(embed?.content.app_id) || 'embed';
-      const skillId = embed?.skillId || asText(meta.skill_id) || asText(embed?.content.skill_id) || 'view';
+      const embed = saved[ref.value], meta = metadata.get(ref.value) ?? ref.meta ?? {};
+      const appId = embed?.appId || asText(meta.app_id) || asText(embed?.content.app_id) || (embed?.type==='fitness-class'?'fitness':'embed');
+      const skillId = embed?.skillId || asText(meta.skill_id) || asText(embed?.content.skill_id) || (embed?.type==='fitness-class'?'search_classes':'view');
       const prefix = embedAliasPrefix(appId, skillId);
+      // Source child aliases already allocated under their parent remain actionable.
+      if(Object.values(saved).some(parent=>isFitnessEmbed(parent)&&normalizeFitnessSearchContent(parent.content).results.some(result=>result.embed_id===ref.value)))continue;
+      const current=Object.entries(state.embedAliases).find(([,target])=>target.embedId===ref.value&&target.resultIndex===undefined&&!target.legacy);
+      if(current){
+        const placeholder=current[1].appId==='embed'||current[1].skillId==='view';
+        if(!placeholder||current[1].appId===appId&&current[1].skillId===skillId)continue;
+        // Replace a placeholder once metadata arrives, while accepting its old command.
+        current[1].legacy=true;
+        for(const [alias,target] of Object.entries(state.embedAliases))if(alias.startsWith(current[0]+'-'))target.legacy=true;
+      }
       let count = 1;
       while (state.embedAliases[`${prefix}-${count}`]) count++;
       state.embedAliases[`${prefix}-${count}`] = {embedId:ref.value, appId, skillId};
-      known.add(ref.value);
     }
   }
   for (const [alias, target] of Object.entries(state.embedAliases)) {
-    if (target.resultIndex !== undefined) continue;
+    if (target.resultIndex !== undefined || target.legacy) continue;
     const embed = saved[target.embedId];
     if (!embed || !isFitnessEmbed(embed) || embed.type === 'fitness-class') continue;
     normalizeFitnessSearchContent(embed.content).results.forEach((_result, index) => {
@@ -58,7 +81,10 @@ export function registerChatEmbedAliases(state: TuiState): void {
   }
 }
 export function aliasForEmbed(state: TuiState, id: string): string {
-  return Object.entries(state.embedAliases).find(([,target]) => target.embedId === id && target.resultIndex === undefined)?.[0] ?? id;
+  const direct=Object.entries(state.embedAliases).find(([,target]) => target.embedId === id && target.resultIndex === undefined&&!target.legacy)?.[0];
+  if(direct)return direct;
+  const saved={...exampleEmbedMap(state),...state.chatEmbeds};
+  return Object.entries(state.embedAliases).find(([,target])=>!target.legacy&&target.resultIndex!==undefined&&saved[target.embedId]&&normalizeFitnessSearchContent(saved[target.embedId].content).results[target.resultIndex]?.embed_id===id)?.[0]??id;
 }
 
 export async function hydrateFitnessResults(embed: DecryptedEmbed, client: OpenMatesClient, limit = 50): Promise<DecryptedEmbed> {
@@ -87,38 +113,37 @@ export async function hydrateFitnessResults(embed: DecryptedEmbed, client: OpenM
 export async function hydrateChatEmbedPreviews(state: TuiState, client: OpenMatesClient, render: () => void): Promise<void> {
   registerChatEmbedAliases(state);
   const chatId = state.activeChatId, loads = state.chatEmbedLoads, aliases = state.embedAliases;
-  const ids = [...new Set(Object.values(aliases).filter(target => target.resultIndex === undefined).map(target => target.embedId))].filter(id => !state.chatEmbeds[id] && !loads.has(id)).slice(-20);
+  const ids = [...new Set(Object.values(aliases).filter(target => target.resultIndex === undefined).map(target => target.embedId))].slice(-40);
   let next = 0;
+  const queued = new Set(ids);
+  const current = () => aliases === state.embedAliases && chatId === state.activeChatId;
   await Promise.all(Array.from({length:Math.min(3, ids.length)}, async () => {
     while (next < ids.length) {
-      const id = ids[next++]; loads.add(id);
+      const id = ids[next++];
+      if(!current())return;
+      if(loads.has(id))continue;
+      loads.add(id);
       try {
-        let embed = await client.getEmbed(id, {preferCache:true, chatId:chatId ?? undefined});
+        let embed=state.chatEmbeds[id]??await client.getEmbed(id, {preferCache:true, chatId:chatId ?? undefined});
+        if(!current())return;
+        // Keep every cached child available to map/calendar as well as parent previews.
         const cachedClient=Object.create(client) as OpenMatesClient;
-        cachedClient.getEmbed=(id,options)=>client.getEmbed(id,{...options,preferCache:true,chatId:chatId??undefined});
+        cachedClient.getEmbed=async(childId,options)=>{
+          const child=state.chatEmbeds[childId]??await client.getEmbed(childId,{...options,preferCache:true,chatId:chatId??undefined});
+          if(current())state.chatEmbeds[childId]=child;
+          return child;
+        };
         embed=await hydrateFitnessResults(embed,cachedClient,2);
-        if (aliases !== state.embedAliases || chatId !== state.activeChatId) return;
-        state.chatEmbeds[id] = embed;
-        registerChatEmbedAliases(state); render();
+        if(!current())return;
+        state.chatEmbeds[id]=embed;
+        for(const child of tuiResultsSourceChildren(embed))if(!queued.has(child)&&ids.length<80){queued.add(child);ids.push(child);}
+        registerChatEmbedAliases(state);render();
       } catch { /* Keep the reference card and let /embed retry explicitly. */ }
       finally { loads.delete(id); }
     }
   }));
 }
 
-function card(rows: string[], width: number): TuiLine[] {
-  width = Math.max(1, Math.min(width, 62));
-  if (width < 6) return rows.flatMap(row => wrapCells(row, width));
-  const color = APP_GRADIENTS.fitness.start;
-  return [
-    {text:`╭${'─'.repeat(width-2)}╮`, color},
-    ...rows.flatMap((row,index) => wrapCells(row, width-4).map(text => {
-      const value=`│ ${padCells(text,width-4)} │`;
-      return {text:value,...(index<2 ? {spans:[{text:value,background:color,bold:index===1}]} : {color:'#e6e6e6'})};
-    })),
-    {text:`╰${'─'.repeat(width-2)}╯`,color},
-  ];
-}
 export function fitnessResultRows(result: FitnessResult): string[] {
   const distance = asNumber(result.distance_km);
   return [getFitnessResultTitle(result),
@@ -127,13 +152,9 @@ export function fitnessResultRows(result: FitnessResult): string[] {
     normalizePipedList(result.plans_required).length ? `Plans: ${normalizePipedList(result.plans_required).join(', ')}` : '',
   ].filter(Boolean);
 }
+/** Compatibility export; the shared renderer owns every preview's bottom info bar. */
 export function renderFitnessPreview(embed: DecryptedEmbed, width: number, alias: string): TuiLine[] {
-  if (embed.type === 'fitness-class') return card(['Urban Sports Club',...fitnessResultRows(embed.content as FitnessResult),`/embed ${alias} · Open class`],width);
-  const data = normalizeFitnessSearchContent(embed.content);
-  const location = asText(data.filters.address || data.filters.city || data.query || 'Urban Sports');
-  const state = data.status === 'processing' ? 'Searching for classes…' : data.status === 'error' ? 'Search failed. No verified results.' : data.status === 'cancelled' ? 'Search cancelled.' : `${data.resultCount} classes`;
-  const chips = [data.filters.radius_km ? `${asText(data.filters.radius_km)} km` : '',data.filters.plan ? `Plan: ${asText(data.filters.plan)}` : '',asText(data.filters.attendance_mode)].filter(Boolean).join(' · ');
-  return card([data.provider,'Search classes',location,state,...(data.status==='finished' ? [data.summary,...data.results.slice(0,2).map((result,index) => `${index+1}. ${getFitnessResultTitle(result)}${result.venue_name ? ` · ${result.venue_name}` : ''}`)] : []),chips,`/embed ${alias} · Open results`].filter(Boolean).map(row=>truncateCells(row,Math.max(1,width-4))),width);
+  return renderTuiEmbedPreview(embed,width,alias);
 }
 export function fitnessResultDetail(result: FitnessResult): string[] {
   return [...fitnessResultRows(result),'',getFitnessResultAddress(result),

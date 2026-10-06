@@ -42,7 +42,9 @@ describe("CLI TUI renderer", () => {
     const code = '```json\n{"a":true}\n```';
     const content = `Before\n${reference}\nAfter\n${code}`;
     const lines = renderMessageContent(content, 80).join("\n");
-    assert.match(lines, /web\/search · Cargo planes/);
+    assert.match(lines, /Cargo planes/);
+    assert.match(lines, /Web · Search/);
+    assert.ok(lines.indexOf('Cargo planes') < lines.indexOf('Web · Search'));
     assert.match(lines, /\/embed embed-one/);
     assert.match(lines, /Before/);
     assert.match(lines, /After/);
@@ -52,7 +54,9 @@ describe("CLI TUI renderer", () => {
     const resolved = renderMessageContent(reference, 80, new Map([["embed-one", {
       id:"embed-one",embedId:"embed-one",type:"app_skill_use",textPreview:null,content:{query:"Stored query",status:"finished"},appId:null,skillId:null,createdAt:null,
     }]])).join("\n");
-    assert.match(resolved, /web\/search · Stored query/);
+    assert.match(resolved, /Stored query/);
+    assert.match(resolved, /Web · Search/);
+    assert.ok(resolved.indexOf('Stored query') < resolved.indexOf('Web · Search'));
     assert.doesNotMatch(resolved, /app_skill_use|"embed_id"/);
   });
 
@@ -248,11 +252,12 @@ describe("CLI TUI renderer", () => {
 
     const detailFrame = renderTuiFrame(state, 100, 40);
 
-    assert.match(detailFrame, /Workflow: Daily rain check/);
+    assert.match(detailFrame, /Workflow\s*\n/);
+    assert.match(detailFrame, /Daily rain check/);
     assert.match(detailFrame, /Template · g/);
-    assert.match(detailFrame, /> \[manual trigger\]/);
+    assert.match(detailFrame, /> manual trigger/);
     assert.match(detailFrame, /Manual start/);
-    assert.match(detailFrame, /\[app skill\]/);
+    assert.match(detailFrame, /Use app skill/);
     assert.match(detailFrame, /Weather forecast/);
     assert.match(detailFrame, /g template {3}r runs/);
 
@@ -264,7 +269,7 @@ describe("CLI TUI renderer", () => {
     assert.match(runsFrame, /Runs · r/);
     assert.match(runsFrame, /> run-1 · completed/);
     assert.match(runsFrame, /Run run-1 · completed/);
-    assert.match(runsFrame, /> \[app skill\]/);
+    assert.match(runsFrame, /> Use app skill/);
     assert.match(runsFrame, /Weather forecast/);
     assert.match(runsFrame, /completed/);
     assert.match(runsFrame, /Output/);

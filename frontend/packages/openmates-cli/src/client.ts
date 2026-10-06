@@ -58,6 +58,7 @@ import {
   type CachedChat,
   loadSession,
   saveSession,
+  persistSessionRefreshCookie,
   withSessionRefreshLock,
   purgeLocalPrivateData,
   loadSyncCache,
@@ -3210,6 +3211,29 @@ export class OpenMatesClient {
     this.http = new OpenMatesHttpClient({
       apiUrl: this.apiUrl,
       cookies: diskSession?.cookies,
+      authSessionId: () => !this.explicitSession && this.session?.apiUrl.replace(/\/$/, "") === this.apiUrl
+        ? this.session.sessionId : null,
+      onRefreshCookieRotated: (sessionId, sentToken, newToken) =>
+        this.persistOrdinaryRefreshCookie(sessionId, sentToken, newToken),
+    });
+  }
+
+  private async persistOrdinaryRefreshCookie(sessionId: string, sentToken: string, newToken: string): Promise<void> {
+    await withSessionRefreshLock(async () => {
+      const session = this.session;
+      if (!session || session.sessionId !== sessionId || this.explicitSession) {
+        this.http.replaceCookies(session?.cookies ?? {});
+        return;
+      }
+      const result = persistSessionRefreshCookie(session, sentToken, newToken);
+      if (result.status === "stale") {
+        this.session = null;
+        this.http.replaceCookies({});
+        return;
+      }
+      // A competing request or process may already have saved a newer token.
+      session.cookies = result.cookies!;
+      this.http.replaceCookies(result.cookies!);
     });
   }
 

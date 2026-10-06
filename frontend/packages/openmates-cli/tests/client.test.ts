@@ -621,6 +621,123 @@ describe("OpenMatesClient session API URL", () => {
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  it("persists an ordinary API cookie rotation for the next CLI process", async () => {
+    const seen: string[] = [];
+    const server = createServer((request, response) => {
+      seen.push(String(request.headers.cookie ?? ""));
+      const first = seen.length === 1;
+      response.writeHead(200, {
+        "content-type": "application/json",
+        ...(first ? { "set-cookie": "auth_refresh_token=ordinary-rotated; Path=/; HttpOnly" } : {}),
+      });
+      response.end(JSON.stringify({ apps: [] }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      await OpenMatesClient.load({ apiUrl }).listApps();
+      assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).cookies.auth_refresh_token, "ordinary-rotated");
+      await new Promise<void>((resolve, reject) => {
+        execFile(process.execPath, ["--experimental-strip-types", "--loader", "./tests/loader.mjs", "--input-type=module", "-e",
+          "import { OpenMatesClient } from './src/client.ts'; await OpenMatesClient.load().listApps();"],
+        { env: { ...process.env }, timeout: 30_000 }, error => error ? reject(error) : resolve());
+      });
+      assert.deepEqual(seen, ["auth_refresh_token=test-refresh-token", "auth_refresh_token=ordinary-rotated"]);
+    } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("coalesces parallel ordinary rotations without restoring the sent cookie", async () => {
+    const seen: string[] = [];
+    const server = createServer((request, response) => {
+      seen.push(String(request.headers.cookie ?? ""));
+      setTimeout(() => {
+        response.writeHead(200, {
+          "content-type": "application/json",
+          "set-cookie": "auth_refresh_token=shared-rotated; Path=/; HttpOnly",
+        });
+        response.end(JSON.stringify({ apps: [] }));
+      }, 20);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      await Promise.all([client.listApps(), client.listApps()]);
+      assert.deepEqual(seen, ["auth_refresh_token=test-refresh-token", "auth_refresh_token=test-refresh-token"]);
+      assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).cookies.auth_refresh_token, "shared-rotated");
+      assert.equal(client.getSession().cookies.auth_refresh_token, "shared-rotated");
+    } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=auth.session.lifecycle
+  it("does not persist a stale ordinary response after logout or account replacement", async () => {
+    const pending: Array<() => void> = [];
+    const server = createServer((_request, response) => {
+      pending.push(() => {
+        response.writeHead(200, { "content-type": "application/json", "set-cookie": "auth_refresh_token=late-token; Path=/; HttpOnly" });
+        response.end(JSON.stringify({ apps: [] }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const request = client.listApps();
+      while (!pending.length) await new Promise(resolve => setTimeout(resolve, 1));
+      clearSession();
+      pending.shift()!();
+      await request;
+      assert.equal(loadStoredSession(), null);
+
+      writeLegacySession(apiUrl);
+      const oldClient = OpenMatesClient.load({ apiUrl });
+      const second = oldClient.listApps();
+      while (!pending.length) await new Promise(resolve => setTimeout(resolve, 1));
+      const replacement = JSON.parse(readFileSync(sessionPath, "utf8"));
+      replacement.sessionId = "replacement-session";
+      replacement.cookies.auth_refresh_token = "replacement-token";
+      writeFileSync(sessionPath, JSON.stringify(replacement), { mode: 0o600 });
+      pending.shift()!();
+      await second;
+      assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).cookies.auth_refresh_token, "replacement-token");
+    } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle,auth.session.isolation
+  it("does not persist response cookies for explicit or unauthenticated clients", async () => {
+    const server = createServer((_request, response) => {
+      response.writeHead(200, {
+        "content-type": "application/json",
+        "set-cookie": "auth_refresh_token=should-not-persist; Path=/; HttpOnly",
+      });
+      response.end(JSON.stringify({ apps: [] }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const explicit = loadStoredSession()!;
+      await OpenMatesClient.load({ apiUrl, session: explicit }).listApps();
+      assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).cookies.auth_refresh_token, "test-refresh-token");
+      clearSession();
+      await OpenMatesClient.load({ apiUrl }).listApps();
+      assert.equal(loadStoredSession(), null);
+    } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("persists rotated auth cookies and ws tokens after whoami", async () => {
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       assert.strictEqual(request.url, "/v1/auth/session");

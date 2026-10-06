@@ -16,7 +16,7 @@ import { createInterface } from "node:readline/promises";
 import { stdin as nodeStdin, stdout as nodeStdout } from "node:process";
 import { randomUUID } from "node:crypto";
 
-import type { OpenMatesClient, WorkflowDetail, WorkflowGraph, WorkflowRunDetail, WorkflowSummary } from "./client.js";
+import type { OpenMatesClient, WorkflowGraph, WorkflowRunDetail } from "./client.js";
 import type { StreamEvent } from "./ws.js";
 import { getExampleChatConversation, listExampleChats } from "./exampleChats.js";
 import { buildExampleContinuationHistory } from "./tuiExampleContinuation.js";
@@ -31,7 +31,9 @@ import {
 } from "./tuiRenderer.js";
 import { decryptUserTasks } from "./tasksCli.js";
 import { handleWorkspaceKey, handleWorkspaceCommand, rememberDraft, route, type WorkspaceContext } from "./tuiWorkspaceController.js";
-import { loadWorkflowRunGraph } from "./tuiWorkflowWorkspace.js";
+import { loadWorkflowRunGraph, orderedWorkflowNodes } from "./tuiWorkflowWorkspace.js";
+import { loadTuiProjects } from "./tuiProjectsWorkspace.js";
+import { captureTuiWorkspaceOwner, invalidateCachedTuiWorkspace, loadCachedTuiWorkspace, writeCachedTuiWorkspace } from "./tuiCachedWorkspaces.js";
 import { prepareTuiMessage } from "./tuiAttachments.js";
 import { loadHomeData, startHomeSync } from "./tuiHome.js";
 import { refreshTuiChatSidebar } from './tuiChatSidebar.js';
@@ -112,6 +114,7 @@ export async function runTui(
     ready: () => {
       void loadHomeData(state, client, render);
       void refreshActivity();
+      warmTuiWorkspaceLists(client);
       if (state.signedIn && typeof client.observeChatActivity === 'function') {
         void client.observeChatActivity(() => {
           clearTimeout(activityTimer); activityTimer = setTimeout(() => { void refreshActivity(); }, 300);
@@ -302,7 +305,7 @@ async function handleEnter(params: {
   }
   if (state.screen === "workflows") {
     const selected = state.workflows.filter((w)=>w.title.toLowerCase().includes(state.filter.toLowerCase()))[state.selectedIndex];
-    if (selected) await openWorkflowDetail({ state, client, workflow: selected, render });
+    if (selected) await openWorkflowDetail({ state, client, workflowId: selected.id, render });
     render();
     return;
   }
@@ -425,6 +428,7 @@ async function handleCommand(params: {
     hydrateExamples(state);
     void claimPrivacyOffer().then((show) => { state.privacyOffer = show; render(); }).catch(() => {});
     void loadHomeData(state,client,render);
+    warmTuiWorkspaceLists(client);
     render();
     return;
   }
@@ -579,6 +583,7 @@ function openExample(state: TuiState, slug: string): void {
   if (!conversation) return;
   state.activeExample = conversation;
   state.chatEmbeds={};state.embedAliases={};state.chatEmbedLoads=new Set();
+  state.resultsViewModes={};state.activeResultsView=null;state.resultsViewOrigin=null;
   state.screen = "example";
   registerChatEmbedAliases(state);
   state.input = state.drafts[`example:${conversation.chat.id}`] ?? "";
@@ -623,7 +628,7 @@ function toggleSelectedWorkflowNode(state: TuiState): void {
   const graph = state.workflowTab === "runs"
     ? state.workflowRunGraph ?? (run?.version_id === workflow.current_version_id ? workflow.graph : null)
     : workflow.graph;
-  const node = graph?.nodes[state.selectedWorkflowNodeIndex];
+  const node = graph ? orderedWorkflowNodes(graph)[state.selectedWorkflowNodeIndex] : null;
   if (!node) return;
   if (state.workflowTab === "runs") {
     state.expandedWorkflowRunNodeId = state.expandedWorkflowRunNodeId === node.id ? null : node.id;
@@ -635,12 +640,29 @@ function toggleSelectedWorkflowNode(state: TuiState): void {
 function firstRunNodeIndex(graph: WorkflowGraph, run: WorkflowRunDetail): number {
   const firstNodeRun = run?.node_runs?.[0];
   if (!firstNodeRun) return 0;
-  return Math.max(0, graph.nodes.findIndex((node) => node.id === firstNodeRun.node_id));
+  return Math.max(0, orderedWorkflowNodes(graph).findIndex((node) => node.id === firstNodeRun.node_id));
+}
+
+const tasksListCacheKey = "tasks:list";
+const workflowsListCacheKey = "workflows:list";
+const workflowDetailCacheKey = (id: string) => `workflow:${id}:detail`;
+const workflowRunsCacheKey = (id: string) => `workflow:${id}:runs`;
+const workflowVersionCacheKey = (id: string, version: string) => `workflow:${id}:version:${version}`;
+
+function warmTuiWorkspaceLists(client: OpenMatesClient): void {
+  // Fake clients and unauthenticated startup never access a personal disk cache.
+  if (typeof client.getSession !== "function" || !client.hasSession()) return;
+  void Promise.allSettled([
+    loadCachedTuiWorkspace(client, "projects:list", () => loadTuiProjects(client), () => {}),
+    loadCachedTuiWorkspace(client, tasksListCacheKey,
+      async () => decryptUserTasks(await client.listUserTasks(), client.getMasterKeyBytes()), () => {}),
+    loadCachedTuiWorkspace(client, workflowsListCacheKey, () => client.listWorkflows(), () => {}),
+  ]);
 }
 
 const workflowRunGraphRequests = new WeakMap<TuiState, number>();
-async function loadSelectedWorkflowRunGraph(params: { state: TuiState; client: OpenMatesClient; render: () => void }): Promise<void> {
-  const { state, client, render } = params;
+async function loadSelectedWorkflowRunGraph(params: { state: TuiState; client: OpenMatesClient; render: () => void; ownerCurrent?: () => boolean }): Promise<void> {
+  const { state, client, render, ownerCurrent } = params;
   const workflow = state.activeWorkflow;
   const run = state.workflowRuns[state.selectedWorkflowRunIndex];
   const routeVersion = state.routeVersion;
@@ -651,21 +673,25 @@ async function loadSelectedWorkflowRunGraph(params: { state: TuiState; client: O
   state.selectedWorkflowNodeIndex = 0;
   render();
   if (!workflow || !run) return;
-  const current = () => state.screen === "workflow" && state.routeVersion === routeVersion
+  const current = () => (!ownerCurrent || ownerCurrent()) && state.screen === "workflow" && state.routeVersion === routeVersion
     && state.activeWorkflow?.id === workflow.id
     && state.workflowRuns[state.selectedWorkflowRunIndex]?.id === run.id
     && workflowRunGraphRequests.get(state) === request;
-  try {
-    const graph = await loadWorkflowRunGraph(client, workflow, run);
+  await loadCachedTuiWorkspace(client, workflowVersionCacheKey(workflow.id, run.version_id ?? "unknown"),
+    () => loadWorkflowRunGraph(client, workflow, run), (graph, source) => {
     if (!current()) return;
+    const selectedNodeId = source === "sync" && state.workflowRunGraph
+      ? orderedWorkflowNodes(state.workflowRunGraph)[state.selectedWorkflowNodeIndex]?.id : null;
     state.workflowRunGraph = graph;
-    state.selectedWorkflowNodeIndex = firstRunNodeIndex(graph, run);
+    const selectedIndex = selectedNodeId ? orderedWorkflowNodes(graph).findIndex(node => node.id === selectedNodeId) : -1;
+    state.selectedWorkflowNodeIndex = selectedIndex >= 0 ? selectedIndex : firstRunNodeIndex(graph, run);
     state.status = null;
-  } catch (error) {
+    render();
+  }, (error, hasCached) => {
     if (!current()) return;
-    state.status = workflowError(error, `Could not load recorded graph for run ${run.id}.`);
-  }
-  render();
+    state.status = hasCached ? "Showing cached recorded graph. Refresh failed." : workflowError(error, `Could not load recorded graph for run ${run.id}.`);
+    render();
+  });
 }
 
 async function openTaskList(params: {
@@ -675,21 +701,29 @@ async function openTaskList(params: {
 }): Promise<void> {
   const { state, client, render } = params;
   state.focus = "content"; state.filter = ""; state.taskContext = null;
+  const routeVersion = state.routeVersion;
   state.screen = "status";
   state.status = "Loading tasks...";
   render();
-  try {
-    state.tasks = await decryptUserTasks(await client.listUserTasks(), client.getMasterKeyBytes());
-    state.selectedIndex = 0;
-    state.scrollOffset = 0;
-    state.activeTask = null;
+  const current = () => state.routeVersion === routeVersion && (state.screen === "status" || state.screen === "tasks");
+  await loadCachedTuiWorkspace(client, tasksListCacheKey,
+    async () => decryptUserTasks(await client.listUserTasks(), client.getMasterKeyBytes()), (tasks) => {
+    if (!current()) return;
+    const opening = state.screen === "status";
+    const selectedId = opening ? null : state.tasks[state.selectedIndex]?.taskId;
+    state.tasks = tasks;
+    const selectedIndex = selectedId ? tasks.findIndex(task => task.taskId === selectedId) : -1;
+    state.selectedIndex = selectedIndex >= 0 ? selectedIndex : clamp(state.selectedIndex, 0, Math.max(0, tasks.length - 1));
+    if (opening) { state.scrollOffset = 0; state.activeTask = null; }
     state.status = null;
     state.screen = "tasks";
-  } catch (error) {
-    state.status = workflowError(error, "Could not load tasks. Use /login first if you are not signed in.");
-    state.screen = "status";
-  }
-  render();
+    render();
+  }, (error, hasCached) => {
+    if (!current()) return;
+    state.status = hasCached ? "Showing cached tasks. Refresh failed." : workflowError(error, "Could not load tasks. Use /login first if you are not signed in.");
+    if (!hasCached) state.screen = "status";
+    render();
+  });
 }
 
 const workflowOpenRequests = new WeakMap<TuiState, number>();
@@ -710,22 +744,26 @@ async function openWorkflowList(params: {
   state.status = "Loading workflows...";
   const routeVersion = state.routeVersion;
   const request = nextWorkflowOpenRequest(state);
-  const current = () => state.routeVersion === routeVersion && state.screen === "status" && workflowOpenRequests.get(state) === request;
+  const current = () => state.routeVersion === routeVersion &&
+    (state.screen === "status" || state.screen === "workflows") && workflowOpenRequests.get(state) === request;
   render();
-  try {
-    const workflows = await client.listWorkflows();
+  await loadCachedTuiWorkspace(client, workflowsListCacheKey, () => client.listWorkflows(), (workflows) => {
     if (!current()) return;
+    const opening = state.screen === "status";
+    const selectedId = opening ? null : state.workflows[state.selectedIndex]?.id;
     state.workflows = workflows;
-    state.selectedIndex = 0;
-    state.scrollOffset = 0;
+    const selectedIndex = selectedId ? workflows.findIndex(item => item.id === selectedId) : -1;
+    state.selectedIndex = selectedIndex >= 0 ? selectedIndex : clamp(state.selectedIndex, 0, Math.max(0, workflows.length - 1));
+    if (opening) state.scrollOffset = 0;
     state.status = null;
     state.screen = "workflows";
-  } catch (error) {
+    render();
+  }, (error, hasCached) => {
     if (!current()) return;
-    state.status = workflowError(error, "Could not load workflows. Use /login first if you are not signed in.");
-    state.screen = "status";
-  }
-  render();
+    state.status = hasCached ? "Showing cached workflows. Refresh failed." : workflowError(error, "Could not load workflows. Use /login first if you are not signed in.");
+    if (!hasCached) state.screen = "status";
+    render();
+  });
 }
 
 async function openWorkflowById(params: {
@@ -735,91 +773,90 @@ async function openWorkflowById(params: {
   render: () => void;
 }): Promise<void> {
   const { state, client, workflowId, render } = params;
-  state.screen = "status";
-  state.status = `Loading workflow ${workflowId}...`;
-  const routeVersion = state.routeVersion;
-  const request = nextWorkflowOpenRequest(state);
-  const current = () => state.routeVersion === routeVersion && state.screen === "status" && workflowOpenRequests.get(state) === request;
-  render();
-  try {
-    const workflow = await client.getWorkflow(workflowId);
-    if (!current()) return;
-    await openWorkflowDetail({ state, client, workflow, render });
-  } catch (error) {
-    if (!current()) return;
-    state.status = workflowError(error, `Could not load workflow ${workflowId}.`);
-    state.screen = "status";
-    render();
-  }
+  await openWorkflowDetail({ state, client, workflowId, render });
 }
 
 async function openWorkflowDetail(params: {
   state: TuiState;
   client: OpenMatesClient;
-  workflow: WorkflowSummary;
+  workflowId: string;
   render: () => void;
 }): Promise<void> {
-  const { state, client, workflow, render } = params;
+  const { state, client, workflowId, render } = params;
   const routeVersion = state.routeVersion;
   const request = nextWorkflowOpenRequest(state);
   state.screen = "status";
-  const current = () => state.routeVersion === routeVersion && state.screen === "status" && workflowOpenRequests.get(state) === request;
-  state.status = `Loading workflow ${workflow.id}...`;
+  const current = () => state.routeVersion === routeVersion && workflowOpenRequests.get(state) === request &&
+    (state.screen === "status" || (state.screen === "workflow" && state.activeWorkflow?.id === workflowId));
+  const detailVisible = () => state.screen === "workflow" && state.activeWorkflow?.id === workflowId;
+  state.status = `Loading workflow ${workflowId}...`;
   render();
-  let detail: WorkflowDetail;
-  try {
-    detail = await client.getWorkflow(workflow.id);
-  } catch (error) {
+  await loadCachedTuiWorkspace(client, workflowDetailCacheKey(workflowId), () => client.getWorkflow(workflowId), (detail) => {
     if (!current()) return;
-    state.status = workflowError(error, `Could not load workflow ${workflow.id}.`);
-    state.screen = "status";
+    const opening = state.screen === "status";
+    const selectedNodeId = !opening && state.workflowTab === "graph" && state.activeWorkflow
+      ? orderedWorkflowNodes(state.activeWorkflow.graph)[state.selectedWorkflowNodeIndex]?.id : null;
+    state.activeWorkflow = detail;
+    if (opening) {
+      state.workflowRuns = [];
+      state.workflowRunGraph = null;
+      state.workflowTab = "graph";
+      state.selectedWorkflowNodeIndex = 0;
+      state.selectedWorkflowRunIndex = 0;
+      state.expandedWorkflowNodeId = null;
+      state.expandedWorkflowRunNodeId = null;
+      state.workflowEdit = null;
+      state.scrollOffset = 0;
+    } else if (selectedNodeId) {
+      const selectedIndex = orderedWorkflowNodes(detail.graph).findIndex(node => node.id === selectedNodeId);
+      state.selectedWorkflowNodeIndex = selectedIndex >= 0 ? selectedIndex : 0;
+    }
+    state.screen = "workflow";
+    state.status = null;
     render();
-    return;
-  }
-  if (!current()) return;
-  state.activeWorkflow = detail;
-  state.workflowRuns = [];
-  state.workflowRunGraph = null;
-  state.workflowTab = "graph";
-  state.selectedWorkflowNodeIndex = 0;
-  state.selectedWorkflowRunIndex = 0;
-  state.expandedWorkflowNodeId = null;
-  state.expandedWorkflowRunNodeId = null;
-  state.workflowEdit = null;
-  state.screen = "workflow";
-  state.scrollOffset = 0;
-  state.status = null;
-  render();
-  await refreshActiveWorkflowRuns({ state, client, render });
+  }, (error, hasCached) => {
+    if (!current()) return;
+    state.status = hasCached ? "Showing cached workflow. Refresh failed." : workflowError(error, `Could not load workflow ${workflowId}.`);
+    if (!hasCached) state.screen = "status";
+    render();
+  });
+  if (current() && detailVisible()) await refreshActiveWorkflowRuns({ state, client, render });
 }
 
 async function refreshActiveWorkflowRuns(params: {
   state: TuiState;
   client: OpenMatesClient;
   render: () => void;
+  ownerCurrent?: () => boolean;
 }): Promise<void> {
-  const { state, client, render } = params;
+  const { state, client, render, ownerCurrent } = params;
   const workflow = state.activeWorkflow;
   if (!workflow) return;
   const routeVersion = state.routeVersion;
-  const current = () => state.screen === "workflow" && state.routeVersion === routeVersion && state.activeWorkflow?.id === workflow.id;
-  state.status = "Refreshing workflow runs...";
-  render();
-  try {
-    const runs = await client.listWorkflowRuns(workflow.id);
+  const current = () => (!ownerCurrent || ownerCurrent()) && state.screen === "workflow" && state.routeVersion === routeVersion && state.activeWorkflow?.id === workflow.id;
+  if (!state.workflowRuns.length) { state.status = "Refreshing workflow runs..."; render(); }
+  await loadCachedTuiWorkspace(client, workflowRunsCacheKey(workflow.id),
+    () => client.listWorkflowRuns(workflow.id), (runs) => {
     if (!current()) return;
-    const selectedRunId = state.workflowRuns[state.selectedWorkflowRunIndex]?.id;
+    const previousRun = state.workflowRuns[state.selectedWorkflowRunIndex];
+    const selectedRunId = previousRun?.id;
     state.workflowRuns = runs;
     const selectedIndex = selectedRunId ? runs.findIndex((run) => run.id === selectedRunId) : -1;
     if (selectedIndex >= 0) state.selectedWorkflowRunIndex = selectedIndex;
     state.selectedWorkflowRunIndex = clamp(state.selectedWorkflowRunIndex, 0, Math.max(0, state.workflowRuns.length - 1));
     state.status = null;
-    if (state.workflowTab === "runs") await loadSelectedWorkflowRunGraph({ state, client, render });
-  } catch (error) {
+    const currentRun = state.workflowRuns[state.selectedWorkflowRunIndex];
+    if (!currentRun) state.workflowRunGraph = null;
+    if (state.workflowTab === "runs" && currentRun &&
+        (!state.workflowRunGraph || currentRun.id !== selectedRunId || currentRun.version_id !== previousRun?.version_id)) {
+      void loadSelectedWorkflowRunGraph({ state, client, render, ownerCurrent });
+    }
+    render();
+  }, (error, hasCached) => {
     if (!current()) return;
-    state.status = workflowError(error, "Could not refresh workflow runs.");
-  }
-  render();
+    state.status = hasCached ? "Showing cached runs. Refresh failed." : workflowError(error, "Could not refresh workflow runs.");
+    render();
+  });
 }
 
 async function saveWorkflowNodeTitle(params: {
@@ -831,8 +868,9 @@ async function saveWorkflowNodeTitle(params: {
   const workflow = state.activeWorkflow;
   const edit = state.workflowEdit;
   if (!workflow || !edit) return;
+  const ownerCurrent = captureTuiWorkspaceOwner(client);
   const routeVersion = state.routeVersion;
-  const current = () => state.screen === "workflow" && state.routeVersion === routeVersion && state.activeWorkflow?.id === workflow.id && state.workflowEdit === edit;
+  const current = () => ownerCurrent() && state.screen === "workflow" && state.routeVersion === routeVersion && state.activeWorkflow?.id === workflow.id && state.workflowEdit === edit;
   let parsedConfig: Record<string, unknown> | null = null;
   if (edit.field === "config") {
     try {
@@ -856,9 +894,21 @@ async function saveWorkflowNodeTitle(params: {
   state.status = `Saving node ${edit.field}...`;
   render();
   try {
+    await Promise.all([
+      invalidateCachedTuiWorkspace(client, workflowDetailCacheKey(workflow.id), ownerCurrent),
+      invalidateCachedTuiWorkspace(client, workflowsListCacheKey, ownerCurrent),
+    ]);
+    if (!current()) return;
     const updated = await client.updateWorkflow(workflow.id, { graph });
     if (!current()) return;
+    const hasListEntry = state.workflows.some(item => item.id === updated.id);
+    const updatedList = hasListEntry ? state.workflows.map(item => item.id === updated.id ? updated : item) : state.workflows;
+    await writeCachedTuiWorkspace(client, workflowDetailCacheKey(workflow.id), updated, ownerCurrent);
+    if (!current()) return;
+    if (hasListEntry) await writeCachedTuiWorkspace(client, workflowsListCacheKey, updatedList, ownerCurrent);
+    if (!current()) return;
     state.activeWorkflow = updated;
+    state.workflows = updatedList;
     state.workflowEdit = null;
     state.status = `Saved node ${edit.field}.`;
   } catch (error) {
@@ -874,7 +924,7 @@ function startWorkflowNodeEdit(state: TuiState, field: "title" | "config"): void
     state.status = "Switch to the Graph tab before editing node details.";
     return;
   }
-  const node = workflow.graph.nodes[state.selectedWorkflowNodeIndex];
+  const node = orderedWorkflowNodes(workflow.graph)[state.selectedWorkflowNodeIndex];
   if (!node) return;
   state.workflowEdit = {
     nodeId: node.id,
@@ -893,8 +943,9 @@ async function runActiveWorkflow(params: {
   const { state, client, render } = params;
   const workflow = state.activeWorkflow;
   if (!workflow) return;
+  const ownerCurrent = captureTuiWorkspaceOwner(client);
   const routeVersion = state.routeVersion;
-  const current = () => state.screen === "workflow" && state.routeVersion === routeVersion && state.activeWorkflow?.id === workflow.id;
+  const current = () => ownerCurrent() && state.screen === "workflow" && state.routeVersion === routeVersion && state.activeWorkflow?.id === workflow.id;
   if (!workflow.enabled) {
     state.status = "This workflow is disabled. Press t to enable it before running.";
     render();
@@ -903,15 +954,20 @@ async function runActiveWorkflow(params: {
   state.status = "Starting workflow run...";
   render();
   try {
+    await invalidateCachedTuiWorkspace(client, workflowRunsCacheKey(workflow.id), ownerCurrent);
+    if (!current()) return;
     const run = await client.runWorkflow(workflow.id, {
       idempotencyKey: `tui-${workflow.id}-${Date.now()}`,
       mode: "manual",
       input: {},
     });
     if (!current()) return;
-    state.workflowRuns = [run, ...state.workflowRuns.filter((candidate) => candidate.id !== run.id)];
+    const updatedRuns = [run, ...state.workflowRuns.filter((candidate) => candidate.id !== run.id)];
+    await writeCachedTuiWorkspace(client, workflowRunsCacheKey(workflow.id), updatedRuns, ownerCurrent);
+    if (!current()) return;
+    state.workflowRuns = updatedRuns;
     state.selectedWorkflowRunIndex = 0;
-    if (state.workflowTab === "runs") await loadSelectedWorkflowRunGraph({ state, client, render });
+    if (state.workflowTab === "runs") await loadSelectedWorkflowRunGraph({ state, client, render, ownerCurrent });
     if (!current()) return;
     state.status = `Started run ${run.id}. Press u to refresh.`;
   } catch (error) {
@@ -934,15 +990,18 @@ async function cancelLatestWorkflowRun(params: {
     render();
     return;
   }
+  const ownerCurrent = captureTuiWorkspaceOwner(client);
   const routeVersion = state.routeVersion;
-  const current = () => state.screen === "workflow" && state.routeVersion === routeVersion && state.activeWorkflow?.id === workflow.id;
+  const current = () => ownerCurrent() && state.screen === "workflow" && state.routeVersion === routeVersion && state.activeWorkflow?.id === workflow.id;
   state.status = `Cancelling run ${run.id}...`;
   render();
   try {
+    await invalidateCachedTuiWorkspace(client, workflowRunsCacheKey(workflow.id), ownerCurrent);
+    if (!current()) return;
     const result = await client.cancelWorkflowRun(workflow.id, run.id);
     if (!current()) return;
     state.status = `Run ${result.run_id} ${result.status}.`;
-    await refreshActiveWorkflowRuns({ state, client, render });
+    await refreshActiveWorkflowRuns({ state, client, render, ownerCurrent });
   } catch (error) {
     if (!current()) return;
     state.status = workflowError(error, "Could not cancel workflow run.");

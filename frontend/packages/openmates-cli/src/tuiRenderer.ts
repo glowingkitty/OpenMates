@@ -21,17 +21,20 @@ import { renderWorkflowWorkspace, renderWorkflowCarousel, renderWorkflowIdentity
 import { chatBackground, renderWorkspaceFrame, workspaceGeometry } from "./tuiLayout.js";
 import { cells, wrapCells, truncateCells, padCells, foreground, lineText, type TuiColorMode, type TuiLine } from "./tuiText.js";
 import type { TuiStartupScreen } from "./tuiStartup.js";
-import { centeredCarouselText } from "./tuiCarousel.js";
+import { centeredCarouselText, renderLineCarousel } from "./tuiCarousel.js";
 import { homeHeader, renderHomeChatCards } from "./tuiHome.js";
 import { homeTuiApps, renderTuiAppsHome, renderTuiApp, renderTuiAppIdentity, renderTuiAppTabs, renderTuiAppsSkill, renderTuiAppsSkillIdentity, renderTuiAppsSkillTabs, renderTuiAppsResults, renderTuiAppsResult, renderTuiAppsWorkflows,
   type TuiApp, type TuiAppsTab, type TuiAppsSkillTab, type TuiAppsSkillDetails, type TuiAppsResultsPage, type TuiAppsSavedResult, type TuiAppsPreparedRun, type TuiAppsWorkflowPage } from "./tuiAppsWorkspace.js";
 import { parseMessageSegments } from "./messageSegments.js";
-import { formatEmbedPreviewLines } from "./embedRenderers.js";
-import { aliasForEmbed, exampleEmbedMap, isFitnessEmbed, renderFitnessPreview, type TuiEmbedTarget } from './tuiEmbeds.js';
+import { aliasForEmbed, chatEmbedReferences, exampleEmbedMap, type TuiEmbedTarget } from './tuiEmbeds.js';
+import { renderTuiEmbedPreview } from './tuiEmbedPreviews.js';
+import { parseTuiMarkdown } from './tuiMarkdown.js';
+import { buildTuiResultsViewData, renderTuiResultsViewLines, type TuiResultsViewMode } from './tuiResultsViews.js';
+import { chatResultsViews, messageResultsViews, renderChatResultsView } from './tuiChatResults.js';
 import { parseChatContextContent, chatContextSummary } from "./chatContextEvents.js";
 import type { ProjectFocusCountdown } from "./projectFocusCountdown.js";
 
-export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chats" | "chat" | "embed" | "apps" | "app" | "app-skill" | "app-result" | "projects" | "project" | "workflows" | "workflow" | "tasks" | "task" | "status";
+export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chats" | "chat" | "embed" | "results-view" | "apps" | "app" | "app-skill" | "app-result" | "projects" | "project" | "workflows" | "workflow" | "tasks" | "task" | "status";
 export type TuiWorkspace = "chats" | "apps" | "projects" | "tasks" | "workflows";
 export type TuiFocus = "composer" | "content" | "inspiration" | "sidebar" | "navigation";
 
@@ -55,6 +58,10 @@ export type TuiState = {
   chatEmbeds: Record<string, DecryptedEmbed>;
   chatEmbedLoads: Set<string>;
   embedAliases: Record<string, TuiEmbedTarget>;
+  chatSelectedEmbedId: string | null;
+  resultsViewModes: Record<number, TuiResultsViewMode>;
+  activeResultsView: number | null;
+  resultsViewOrigin: TuiState["embedOrigin"];
   username: string | null;
   inspirations: DailyInspiration[];
   inspirationIndices: Partial<Record<TuiWorkspace,number>>;
@@ -174,7 +181,7 @@ export const TUI_INTERESTS = [
 
 export function createInitialTuiState(): TuiState {
   return {
-    textSelection:false,chatEmbeds:{},chatEmbedLoads:new Set(),embedAliases:{},username:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeChatsLoading:false,homeAbortController:null,homeError:null,homeLoadVersion:0,homeShowAll:false,homeSelectionMoved:false,homeContextKey:null,continueData:null,detailEmbed:null,embedOrigin:null,embedChoices:[],
+    textSelection:false,chatEmbeds:{},chatEmbedLoads:new Set(),embedAliases:{},chatSelectedEmbedId:null,username:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeChatsLoading:false,homeAbortController:null,homeError:null,homeLoadVersion:0,homeShowAll:false,homeSelectionMoved:false,homeContextKey:null,continueData:null,detailEmbed:null,embedOrigin:null,embedChoices:[],
     apps:[],activeApp:null,activeAppSkill:null,appTab:"skills",appSkillTab:"overview",appResults:{items:[],hasMore:false,offset:0},
     appWorkflows:{items:[],hasMore:false,offset:0},activeAppResult:null,appPreparedRun:null,
     workspace: "chats", sidebarOpen: false, sidebarIndex: 0, navigationIndex: 0,
@@ -187,6 +194,7 @@ export function createInitialTuiState(): TuiState {
     detailTitle: "", detailLines: [], projects: [], activeProject: null,
     projectFiles: [], projectTab: "overview", projectPath: "", projectFolderId: null, projectSourceId: null, selectedProjectId: null,
     workflowRunGraph: null,workflowInputSessionId:null,
+    resultsViewModes: {}, activeResultsView: null, resultsViewOrigin:null,
     screen: "start",
     input: "",
     scrollOffset: 0,
@@ -268,7 +276,7 @@ export function rankExamples(
 export function renderTuiFrame(state: TuiState, width: number, height: number, options: { colorMode?: TuiColorMode; ascii?: boolean } = {}): string {
   if (state.startup || state.privacyOffer) return renderStartupFrame(state, width, height, options.colorMode ?? "none");
   const bodyWidth = workspaceGeometry(state, width).contentWidth;
-  const stickyRows=state.screen==="embed"?3:state.screen==="project"&&state.activeProject?renderProjectIdentity(state.activeProject,{width:bodyWidth}).length+renderProjectTabs(state.projectTab,bodyWidth).length:
+  const stickyRows=state.screen==="embed"?3:state.screen==="results-view"?2:state.screen==="project"&&state.activeProject?renderProjectIdentity(state.activeProject,{width:bodyWidth}).length+renderProjectTabs(state.projectTab,bodyWidth).length:
     state.screen==="app"&&state.activeApp?renderTuiAppIdentity(state.activeApp,bodyWidth).length+renderTuiAppTabs(state.appTab,bodyWidth).length:
     state.screen==="app-skill"&&state.activeAppSkill?renderTuiAppsSkillIdentity(state.activeAppSkill,bodyWidth).length+renderTuiAppsSkillTabs(state.appSkillTab,bodyWidth).length:
     state.screen==="workflow"&&state.activeWorkflow?renderWorkflowIdentity(state.activeWorkflow,{width:bodyWidth,run:state.workflowTab==="runs"?state.workflowRuns[state.selectedWorkflowRunIndex]:undefined}).length+(bodyWidth<36?7:4):0;
@@ -307,7 +315,6 @@ function renderStartupFrame(state: TuiState, width: number, height: number, colo
 }
 
 function coloredHero(lines:string[],rows:number,gradient=PRIMARY_GRADIENT):TuiLine[]{return lines.map((text,index)=>index<rows?{text,background:gradient.start}:text);}
-const blueHero=(lines:string[],rows:number)=>coloredHero(lines,rows);
 function renderBody(state: TuiState, width: number,height:number): TuiLine[] {
   return renderScreenBody(state, width, height);
 }
@@ -349,10 +356,14 @@ function renderScreenBody(state: TuiState, width: number,height:number): TuiLine
       return [...homeHeader(state,width,height),...renderProjectCarousel(filteredProjects(state.projects,state.filter),width,state.selectedIndex,state.focus==='content')];
     case "project":
       return state.activeProject ? state.projectTab === "tasks"
-        ? [...blueHero(renderProjectIdentity(state.activeProject,{width}),renderProjectIdentity(state.activeProject,{width}).length),...renderProjectTabs("tasks",width),"",...renderTaskBoard(state.tasks, { width, selectedTaskId: filterTasks(state.tasks, state.filter)[state.selectedIndex]?.taskId, query: state.filter })]
-        : blueHero(renderProjectDetail(state.activeProject, { width, tab: state.projectTab, files: state.projectFiles, selectedFileId: filteredProjectFiles(state.projectFiles,state.filter)[state.selectedIndex]?.id, query: state.filter, folderId:state.projectFolderId??undefined, sourceId:state.projectSourceId??undefined, path:state.projectPath }),renderProjectIdentity(state.activeProject,{width}).length) : ["Projects", "Loading project…"];
+        ? [...renderProjectIdentity(state.activeProject,{width}),...renderProjectTabs("tasks",width),"",...renderTaskBoard(state.tasks, { width, selectedTaskId: filterTasks(state.tasks, state.filter)[state.selectedIndex]?.taskId, query: state.filter })]
+        : renderProjectDetail(state.activeProject, { width, tab: state.projectTab, files: state.projectFiles, selectedFileId: filteredProjectFiles(state.projectFiles,state.filter)[state.selectedIndex]?.id, query: state.filter, folderId:state.projectFolderId??undefined, sourceId:state.projectSourceId??undefined, path:state.projectPath }) : ["Projects", "Loading project…"];
     case "status":
       return renderStatus(state, width);
+    case "results-view": {
+      const key = state.activeResultsView ?? 1, descriptor = chatResultsViews(state)[key-1];
+      return descriptor ? [...renderChatResultsView(state,descriptor,key,width), '', 'm Map · c Calendar · l List · /embed <shortcut> open · Esc back'] : ['Results view unavailable. Escape returns to the chat.'];
+    }
     case "embed": {
       const app=state.detailEmbed?.appId ?? "", gradient=APP_GRADIENTS[app] ?? PRIMARY_GRADIENT;
       const title=state.detailTitle || "Embed";
@@ -397,6 +408,8 @@ function renderHelp(width: number): string[] {
     "  /signup            Leave TUI and run guided signup",
     "  /embed <shortcut>  Open an embed (UUIDs also work)",
     "  /embed             List this chat's embed shortcuts",
+    "  /wiki <title>      Read the linked Wikipedia article",
+    "  /view <n> <mode>   Open map, calendar or list results",
     "  Ctrl+Y             Select and copy text using the terminal",
     "  Esc                Back from embed, then back to chats",
     "  /exit              Leave OpenMates and restore terminal",
@@ -405,11 +418,11 @@ function renderHelp(width: number): string[] {
   ].flatMap((line) => wrap(line, width));
 }
 
-function renderTasks(state: TuiState, width: number): string[] {
+function renderTasks(state: TuiState, width: number): TuiLine[] {
   return renderTaskBoard(state.tasks, { width, selectedTaskId: filterTasks(state.tasks, state.filter, (state.taskStatusFilter || undefined) as UserTaskStatus | undefined)[state.selectedIndex]?.taskId, query: state.filter, status: (state.taskStatusFilter || undefined) as UserTaskStatus | undefined });
 }
 
-function renderTaskDetail(state: TuiState, width: number): string[] {
+function renderTaskDetail(state: TuiState, width: number): TuiLine[] {
   if (!state.activeTask) return renderTasks(state, width);
   return renderTaskDetails(state.activeTask, { width, activity: state.taskContext?.activity, dependencies: state.taskContext?.dependencies });
 }
@@ -446,7 +459,7 @@ function renderWorkflowDetail(state: TuiState, width: number): TuiLine[] {
     edit: state.workflowEdit ?? undefined,
   });
   if (state.status) lines.push("", state.status);
-  return blueHero(lines,renderWorkflowIdentity(state.activeWorkflow,{width,run:state.workflowTab==="runs"?state.workflowRuns[state.selectedWorkflowRunIndex]:undefined}).length);
+  return lines;
 }
 
 function renderInterests(state: TuiState, width: number): string[] {
@@ -493,9 +506,11 @@ function renderExampleChat(state: TuiState, width: number): TuiLine[] {
     `Example chat: ${convo.chat.title ?? convo.chat.slug}`,
     "",
   ];
+  let viewOffset = 0;
   for (const message of convo.messages) {
     lines.push({text: messageLabel(message.role,message.senderName,message.category,convo.chat),color:'#5a85eb',bold:true});
-    lines.push(...renderMessageContentStyled(message.content, width, embeds,state));
+    lines.push(...renderMessageContentStyled(message.content, width, embeds,state,[],viewOffset));
+    viewOffset += messageResultsViews(message.content).length;
     lines.push("");
   }
   if (convo.followUpSuggestions.length > 0) {
@@ -509,7 +524,7 @@ function renderExampleChat(state: TuiState, width: number): TuiLine[] {
 
 function renderChat(state: TuiState, width: number): TuiLine[] {
   const lines = renderChatHeader(state, width);
-  let contextIndex = 0;
+  let contextIndex = 0, viewOffset = 0;
   for (const message of state.messages) {
     const event = message.role === "system" ? parseChatContextContent(message.content) : null;
     if (event) {
@@ -525,9 +540,8 @@ function renderChat(state: TuiState, width: number): TuiLine[] {
     }
     lines.push({text:messageLabel(message.role,message.title,message.category,state.activeChat),color:'#5a85eb',bold:true});
     const embeds = new Map(Object.entries(state.chatEmbeds));
-    lines.push(...renderMessageContentStyled(message.content, width, embeds,state));
-    const inlineIds = parseMessageSegments(message.content).filter(segment=>segment.type==='embed').map(segment=>segment.value);
-    for(const id of message.embedIds??[])if(!inlineIds.includes(id))lines.push(...renderMessageContentStyled('```json_embed\n'+JSON.stringify({embed_id:id})+'\n```',width,embeds,state));
+    lines.push(...renderMessageContentStyled(message.content, width, embeds,state,message.role==='assistant'?message.embedIds:undefined,viewOffset));
+    viewOffset += messageResultsViews(message.content).length;
     lines.push("");
   }
   if (state.projectFocusPending) lines.push("Project access starts after the countdown. /project-focus-reject to cancel.");
@@ -570,51 +584,49 @@ function renderStatus(state: TuiState, width: number): string[] {
 export function renderMessageContent(content: string, width: number, embeds: Map<string, DecryptedEmbed> = new Map()): string[] {
   return renderMessageContentStyled(content,width,embeds).map(lineText);
 }
-function renderMessageContentStyled(content: string, width: number, embeds: Map<string, DecryptedEmbed> = new Map(), state?:TuiState): TuiLine[] {
-  return parseMessageSegments(content, {preserveCodeFences: true}).flatMap((segment) => {
-    if (segment.type === "text") return renderTextContent(segment.value, width);
-    const meta = segment.meta ?? {};
-    const saved = embeds.get(segment.value);
-    const alias=state?aliasForEmbed(state,segment.value):segment.value;
-    if (saved) {
-      const embed = {...saved, content: {...meta, ...saved.content},
-        appId: saved.appId ?? (typeof meta.app_id === "string" ? meta.app_id : null),
-        skillId: saved.skillId ?? (typeof meta.skill_id === "string" ? meta.skill_id : null)};
-      if(isFitnessEmbed(embed))return renderFitnessPreview(embed,width,alias);
-      return formatEmbedPreviewLines(embed, 2).map((line) => line.startsWith("└─") ? `└─ /embed ${alias}` : line).flatMap((line) => wrap(line, width));
-    }
-    const app = typeof meta.app_id === "string" ? meta.app_id : "Embed";
-    const skill = typeof meta.skill_id === "string" ? `/${meta.skill_id}` : "";
-    const title = [meta.title, meta.name, meta.query].find((value) => typeof value === "string");
-    if(app==='fitness'&&meta.skill_id==='search_classes')return renderFitnessPreview({id:segment.value,embedId:segment.value,type:'app_skill_use',appId:app,skillId:'search_classes',content:{...meta,status:meta.status??'processing'},textPreview:null,createdAt:null},width,alias);
-    return [`┌─ ${app}${skill}${title ? ` · ${title}` : ""}`, `└─ /embed ${alias}`].flatMap((line) => wrap(line, width));
-  });
-}
-
-function renderTextContent(content: string, width: number): string[] {
-  const lines: string[] = [];
-  const rawLines = content.replace(/\n{3,}/g, "\n\n").split("\n");
-  let inFence = false;
-  let fenceLines = 0;
-  for (const rawLine of rawLines) {
-    if (rawLine.startsWith("```") || rawLine.startsWith("~~~")) {
-      inFence = !inFence;
-      fenceLines = 0;
-      lines.push(rawLine);
-      continue;
-    }
-    if (inFence) {
-      if (fenceLines < CONTENT_PREVIEW_LINES) {
-        lines.push(rawLine);
-      } else if (fenceLines === CONTENT_PREVIEW_LINES) {
-        lines.push("...");
+export function renderMessageContentStyled(content: string, width: number, embeds: Map<string, DecryptedEmbed> = new Map(), state?:TuiState,extraIds:string[]=[],viewOffset=0): TuiLine[] {
+  const lines:TuiLine[]=[],segments=parseMessageSegments(content,{preserveCodeFences:true});
+  let pending:Array<{value:string;meta?:Record<string,unknown>}>=[], viewIndex=viewOffset;
+  const flush=()=>{
+    if(!pending.length)return;
+    const unique=pending.filter((ref,index)=>pending.findIndex(other=>other.value===ref.value)===index);
+    const id=state?.chatSelectedEmbedId??(state?chatEmbedReferences(state)[0]?.value:undefined);
+    const selected=unique.findIndex(ref=>ref.value===id),cardWidth=Math.min(width,62);
+    const rawCards=unique.map(ref=>renderEmbedReference(ref,cardWidth,embeds,state));
+    const height=Math.max(...rawCards.map(card=>card.length));
+    // Keep the web basic-info bars aligned while detail areas have different heights.
+    const cards=rawCards.map(card=>card.length<5?card:[...card.slice(0,-4),
+      ...Array.from({length:height-card.length},()=>`│ ${padCells('',Math.max(0,cardWidth-4))} │`),...card.slice(-4)]);
+    lines.push(...renderLineCarousel(cards,width,Math.max(0,selected),Boolean(state?.focus==='content'&&selected>=0),cardWidth));
+    if(state&&selected>=0)lines.push(centeredCarouselText(`Embed ${selected+1}/${unique.length} · ←/→ choose · Enter open · /embed ${aliasForEmbed(state,id!)}`,width));
+    pending=[];
+  };
+  const text=(value:string)=>{
+    for(const block of parseTuiMarkdown(value,width,{resolveEmbedAlias:id=>state?aliasForEmbed(state,id):id})) {
+      if(block.type==='line')lines.push(block.line);
+      else {
+        const key=++viewIndex;
+        if(state)lines.push(...renderChatResultsView(state,block,key,width));
+        else lines.push(...renderTuiResultsViewLines(buildTuiResultsViewData(block,embeds),{viewKey:key}).flatMap(row=>wrap(row,width)));
       }
-      fenceLines += 1;
-      continue;
     }
-    lines.push(...wrap(rawLine, width));
+  };
+  for(const segment of segments){
+    if(segment.type==='embed')pending.push(segment);
+    else if(segment.value.trim()){flush();text(segment.value);}
+    else if(!pending.length)text(segment.value);
   }
-  return lines;
+  const inline=new Set(segments.filter(segment=>segment.type==='embed').map(segment=>segment.value));
+  pending.push(...extraIds.filter(id=>!inline.has(id)).map(value=>({value})));
+  flush();return lines;
+}
+function renderEmbedReference(segment:{value:string;meta?:Record<string,unknown>},width:number,embeds:Map<string,DecryptedEmbed>,state?:TuiState):TuiLine[] {
+  const meta=segment.meta??{}, saved=embeds.get(segment.value);
+  const alias=state?aliasForEmbed(state,segment.value):segment.value;
+  const app=typeof meta.app_id==='string'?meta.app_id:null,skill=typeof meta.skill_id==='string'?meta.skill_id:null;
+  const embed:DecryptedEmbed=saved?{...saved,content:{...meta,...saved.content},appId:saved.appId??app,skillId:saved.skillId??skill}:
+    {id:segment.value,embedId:segment.value,type:'app_skill_use',appId:app,skillId:skill,content:{...meta,status:meta.status??'processing'},textPreview:null,createdAt:null};
+  return renderTuiEmbedPreview(embed,width,alias);
 }
 
 function interestScore(haystack: string, interest: string): number {

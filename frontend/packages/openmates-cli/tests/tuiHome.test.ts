@@ -207,10 +207,12 @@ test("Apps inspiration routes parse the actual web skill and catalog paths",asyn
 
 test("a late Project Tasks fetch cannot replace the next Project's task state",async()=>{
   let resolve!:(value:[])=>void;
+  let fetched!:()=>void;
+  const pending=new Promise<[]>((done)=>{resolve=done;}),started=new Promise<void>((done)=>{fetched=done;});
   const state=createInitialTuiState();state.workspace="projects";state.screen="project";state.focus="content";state.activeProject={id:"a"} as never;
   const sentinel={taskId:"task-b"};
-  const {ctx}=context(state,{listUserTasks:()=>new Promise((done)=>{resolve=done;}),getMasterKeyBytes:()=>new Uint8Array(32)});
-  const loading=handleWorkspaceKey(ctx,"3",{name:"3"});state.routeVersion++;state.activeProject={id:"b"} as never;state.tasks=[sentinel] as never;resolve([]);await loading;
+  const {ctx}=context(state,{listUserTasks:()=>{fetched();return pending;},getMasterKeyBytes:()=>new Uint8Array(32)});
+  const loading=handleWorkspaceKey(ctx,"3",{name:"3"});await started;state.routeVersion++;state.activeProject={id:"b"} as never;state.tasks=[sentinel] as never;resolve([]);await loading;
   assert.equal(state.tasks[0].taskId,"task-b");
 });
 

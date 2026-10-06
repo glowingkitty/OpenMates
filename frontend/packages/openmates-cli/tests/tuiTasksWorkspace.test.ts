@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { OpenMatesClient } from "../src/client.js";
 import type { DecryptedUserTask } from "../src/tasksCli.js";
-import { cells } from "../src/tuiText.js";
+import { cells, lineText, type TuiLine } from "../src/tuiText.js";
 import { buildTaskForm, filterTasks, renderTaskBoard, renderTaskDetails, submitTaskForm } from "../src/tuiTasksWorkspace.js";
 
 function task(overrides: Partial<DecryptedUserTask> = {}): DecryptedUserTask {
@@ -14,6 +14,7 @@ function task(overrides: Partial<DecryptedUserTask> = {}): DecryptedUserTask {
     aiExecutionState: null, version: 2, encrypted: {} as DecryptedUserTask["encrypted"], ...overrides,
   };
 }
+const boardText = (lines: TuiLine[]): string => lines.map(lineText).join("\n");
 
 // contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,cli.output.actionable-readable
 test("filters by status and searchable task details in position order", () => {
@@ -25,7 +26,7 @@ test("filters by status and searchable task details in position order", () => {
 // contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,cli.output.actionable-readable
 test("wide board keeps five statuses while narrow board focuses one reachable column", () => {
   const records = [task({queueState: "waiting_for_user"}), task({taskId: "two", shortId: "T-2", status: "done", title: "Finished"})];
-  const wide = renderTaskBoard(records, {width: 125, selectedTaskId: "task-1"}).join("\n");
+  const wide = boardText(renderTaskBoard(records, {width: 125, selectedTaskId: "task-1"}));
   assert.match(wide, /Backlog/);
   assert.match(wide, /In progress/);
   assert.match(wide, /Blocked/);
@@ -35,21 +36,21 @@ test("wide board keeps five statuses while narrow board focuses one reachable co
   assert.match(wide, /Tags {2}#cli/);
   assert.match(wide, /Q waiting_for_user/);
   assert.match(wide, /› First task/);
-  const wideFocused = renderTaskBoard(records, {width:125, status:"done"}).join("\n");
-  assert.match(wideFocused, /Todo \(1\)/);
-  assert.match(wideFocused, /Done \(1\)/);
-  const narrow = renderTaskBoard(records, {width: 55}).join("\n");
+  const wideFocused = boardText(renderTaskBoard(records, {width:125, status:"done"}));
+  assert.match(wideFocused, /▌ Todo \(1\)/);
+  assert.match(wideFocused, /▌ Done \(1\)/);
+  const narrow = boardText(renderTaskBoard(records, {width: 55}));
   assert.match(narrow, /←\/→ columns {2}· {2}Todo 2\/5/);
-  assert.match(narrow, /Todo \(1\)/);
+  assert.match(narrow, /▌ Todo \(1\)/);
   assert.match(narrow, /First task/);
   assert.doesNotMatch(narrow, /T-2/);
   assert.doesNotMatch(narrow, /Tags {2}#cli/);
-  const done = renderTaskBoard(records, {width:55, selectedTaskId:"two"}).join("\n");
+  const done = boardText(renderTaskBoard(records, {width:55, selectedTaskId:"two"}));
   assert.match(done, /Done 5\/5/);
   assert.match(done, /Finished/);
   assert.doesNotMatch(done, /First task/);
-  const empty = renderTaskBoard(records, {width:55, status:"backlog"}).join("\n");
-  assert.match(empty, /Backlog \(0\)/);
+  const empty = boardText(renderTaskBoard(records, {width:55, status:"backlog"}));
+  assert.match(empty, /▌ Backlog \(0\)/);
   assert.match(empty, /No tasks here/);
   assert.match(empty, /Tasks board {2}· {2}2 tasks/);
 });
@@ -62,31 +63,58 @@ test("medium board shows adjacent columns and keeps the focused status reachable
     task({taskId: "done", shortId: "T-3", status: "done", title: "Ship work"}),
   ];
   const three = renderTaskBoard(records, {width: 100, selectedTaskId: "done"});
-  const threeText = three.join("\n");
-  assert.match(threeText, /In progress \(1\) +Blocked \(0\) +Done \(1\)/);
+  const threeText = boardText(three);
+  assert.match(threeText, /▌ In progress \(1\) +▌ Blocked \(0\) +▌ Done \(1\)/);
   assert.match(threeText, /No tasks here\./);
   assert.match(threeText, /› Ship work/);
   assert.match(threeText, /T-3/);
   assert.doesNotMatch(threeText, /Plan work/);
-  assert.ok(three.every((line) => cells(line) <= 100));
+  assert.ok(three.every((line) => cells(lineText(line)) <= 100));
 
   const two = renderTaskBoard(records, {width: 80, status: "blocked"});
-  const twoText = two.join("\n");
-  assert.match(twoText, /In progress \(1\) +Blocked \(0\)/);
+  const twoText = boardText(two);
+  assert.match(twoText, /▌ In progress \(1\) +▌ Blocked \(0\)/);
   assert.match(twoText, /Build work/);
   assert.match(twoText, /No tasks here\./);
   assert.doesNotMatch(twoText, /Ship work/);
-  assert.ok(two.every((line) => cells(line) <= 80));
+  assert.ok(two.every((line) => cells(lineText(line)) <= 80));
 });
 
 // contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,cli.output.actionable-readable
 test("wide board aligns display cells for CJK and emoji titles", () => {
   const records = [task({title: "確認 🧪 task", status: "backlog"})];
   const lines = renderTaskBoard(records, {width: 125});
-  const cardLine = lines.find((line) => line.includes("確認 🧪"));
+  const cardLine = lines.find((line) => lineText(line).includes("確認 🧪"));
   assert.ok(cardLine);
-  assert.equal(cells(cardLine), 123);
-  assert.match(lines.join("\n"), /╭─+╮/);
+  assert.equal(cells(lineText(cardLine)), 123);
+  assert.match(boardText(lines), /╭─+╮/);
+});
+
+// contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,cli.output.actionable-readable
+test("Kanban headers carry web status colors and bold labels at every responsive width", () => {
+  const colors = ["#bf5af2", "#32ade6", "#f0a050", "#ff6b6b", "#30d158"];
+  for (const [width, focus, expected] of [[125, "todo", colors], [100, "in_progress", colors.slice(1, 4)], [80, "in_progress", colors.slice(1, 3)], [55, "todo", [colors[1]]] ] as const) {
+    const lines = renderTaskBoard([task()], {width, status: focus});
+    const header = lines.find((line) => lineText(line).includes("▌ Todo (1)"));
+    assert.ok(header && typeof header !== "string");
+    assert.deepEqual(header.spans?.filter((span) => span.text === "▌").map((span) => span.color), expected);
+    assert.ok(header.spans?.filter((span) => span.text.includes("(")).every((span) => span.bold));
+    assert.ok(lines.every((line) => cells(lineText(line)) <= width));
+  }
+});
+
+// contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,cli.output.actionable-readable
+test("only the selected card has the accented border, background, and title marker", () => {
+  const records = [task(), task({taskId: "two", shortId: "T-2", title: "Second task", position: 2})];
+  const lines = renderTaskBoard(records, {width: 55, selectedTaskId: "two"});
+  const text = boardText(lines);
+  assert.match(text, /╭─+╮[\s\S]*First task[\s\S]*╰─+╯/);
+  assert.match(text, /╔═+╗[\s\S]*› Second task[\s\S]*╚═+╝/);
+  assert.equal((text.match(/› /g) ?? []).length, 1);
+  const selectedRows = lines.filter((line) => lineText(line).includes("Second task") || lineText(line).includes("╔") || lineText(line).includes("╚"));
+  assert.ok(selectedRows.every((line) => typeof line !== "string" && line.spans?.some((span) => span.background === "#263b52")));
+  const firstTitle = lines.find((line) => lineText(line).includes("First task"));
+  assert.equal(typeof firstTitle, "string");
 });
 
 // contract-test: supporting surface=cli assertions=tasks.structure.flat-dependencies,tasks.activity.single-final-section
@@ -103,7 +131,7 @@ test("detail leads with readable task context, relations, and activity", () => {
 
 // contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,cli.output.actionable-readable
 test("web-aligned cards place title before project, assignee and due metadata", () => {
-  const board = renderTaskBoard([task({title:"Design 3D model",linkedProjectIds:["opaque-project-id"],dueAt:1767225600})], {width:125}).join("\n");
+  const board = boardText(renderTaskBoard([task({title:"Design 3D model",linkedProjectIds:["opaque-project-id"],dueAt:1767225600})], {width:125}));
   const title = board.indexOf("Design 3D model");
   const project = board.indexOf("Project", title);
   const assigned = board.indexOf("User", project);

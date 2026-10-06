@@ -5,6 +5,12 @@ export type TuiFormField = {
   value: string;
   options?: string[];
   multiline?: boolean;
+  /** Schema metadata lets the terminal editor explain and validate typed inputs. */
+  valueType?: "string" | "number" | "integer" | "boolean" | "object" | "array";
+  required?: boolean;
+  minimum?: number;
+  maximum?: number;
+  format?: string;
 };
 
 export type TuiForm = {

@@ -8,7 +8,7 @@ import { isProtectedProjectReadPath } from "../../ui/src/utils/projectSearchProt
 import { formValue, type TuiForm } from "./tuiForms.js";
 import { cells, padCells, terminalText, truncateCells, type TuiLine } from "./tuiText.js";
 import { centeredCarouselText, renderCardCarousel } from "./tuiCarousel.js";
-import { PRIMARY_GRADIENT } from "../../appGradientTheme.js";
+import { APP_GRADIENTS, PRIMARY_GRADIENT } from "../../appGradientTheme.js";
 
 export interface TuiProjectFile {
   id: string;
@@ -326,37 +326,44 @@ function startedLabel(createdAt: number | null | undefined): string | null {
   return Number.isNaN(date.getTime()) ? null : `Started ${date.toISOString().slice(0, 10)}`;
 }
 
-/** The web Project hero's identity, rendered as a bounded terminal card. */
-export function renderProjectIdentity(project: TuiProject, options: { width: number }): string[] {
+function projectHeroLine(value: string, width: number, bold = false): TuiLine {
+  const clean = safeText(value);
+  const inset = Math.max(0, Math.floor((width - cells(clean)) / 2));
+  return { text: padCells(`${" ".repeat(inset)}${clip(clean, width)}`, width), background: APP_GRADIENTS.weather.start, color: "#ffffff", bold };
+}
+
+/** The web header centers the kicker, identity, description and date. */
+export function renderProjectIdentity(project: TuiProject, options: { width: number }): TuiLine[] {
+  const width = Math.max(1, options.width);
   const count = project.itemCount ?? project.items.length;
   const rows = [
-    "PROJECT  /  PRODUCTIVITY",
+    "Project",
+    "",
     `[${safeText(project.icon || "folder")}]  ${project.name}`,
     project.description || "Add chats, embeds, PDFs, sheets, images, audio, video, code, mail, and files.",
-    `${count} ${count === 1 ? "item" : "items"}${startedLabel(project.createdAt) ? `  |  ${startedLabel(project.createdAt)}` : ""}`,
+    "",
+    `${startedLabel(project.createdAt) ?? "Started recently"}  ·  ${count} ${count === 1 ? "item" : "items"}`,
   ];
-  return renderProjectCard(false, rows, options.width, "PROJECT WORKSPACE");
+  return rows.flatMap((row, index) => row
+    ? [projectHeroLine(row, width, index === 0 || index === 2)]
+    : [projectHeroLine("", width)]);
 }
 
 /** A visibly selected tab strip, shared by the Overview, Files and Tasks panes. */
 export function renderProjectTabs(tab: "overview" | "files" | "tasks", width: number): string[] {
-  const labels = (["overview", "files", "tasks"] as const).map((name) => name === tab ? `[${name.toUpperCase()}]` : name[0]!.toUpperCase() + name.slice(1));
-  if (width < 36) return ["", clip(`  ${labels.join(" | ")}`, width), ""];
-  const tabWidth = Math.min(15, Math.floor((width - 6) / 3));
-  const edge = `  +${Array(3).fill("-".repeat(tabWidth)).join("+")}+`;
-  const tabCells = labels.map((label) => {
-    const left = Math.max(0, Math.floor((tabWidth - cells(label)) / 2));
-    return `${" ".repeat(left)}${padCells(label, tabWidth - left)}`;
-  });
-  return ["", edge, `  |${tabCells.join("|")}|`, edge, ""];
+  const labels = (["overview", "files", "tasks"] as const).map((name, index) =>
+    `${name === tab ? "[" : " "}${name[0]!.toUpperCase() + name.slice(1)} · ${index + 1}${name === tab ? "]" : " "}`);
+  const text = labels.join("  ");
+  const inset = Math.max(0, Math.floor((width - cells(text)) / 2));
+  return ["", `${" ".repeat(inset)}${clip(text, width)}`, ""];
 }
 
 export function renderProjectDetail(project: TuiProject, options: {
   width: number; tab: "overview" | "files" | "tasks"; files?: TuiProjectFile[];
   selectedFileId?: string; query?: string; folderId?: string; sourceId?: string; path?: string;
-}): string[] {
+}): TuiLine[] {
   const width = options.width;
-  const lines = [...renderProjectIdentity(project, { width }), ...renderProjectTabs(options.tab, width)];
+  const lines: TuiLine[] = [...renderProjectIdentity(project, { width }), ...renderProjectTabs(options.tab, width)];
   if (options.tab === "overview") {
     lines.push(...renderProjectCard(false, project.readme
       ? project.readme.split("\n")

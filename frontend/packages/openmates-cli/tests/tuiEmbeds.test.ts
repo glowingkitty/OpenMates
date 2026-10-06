@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {createInitialTuiState, renderTuiFrame} from '../src/tuiRenderer.js';
-import {embedAliasPrefix, registerChatEmbedAliases, renderFitnessPreview, hydrateFitnessResults, fitnessResultDetail} from '../src/tuiEmbeds.js';
+import {aliasForEmbed, chatEmbedReferences, embedAliasPrefix, messageEmbedReferences, registerChatEmbedAliases, renderFitnessPreview, hydrateFitnessResults, fitnessResultDetail} from '../src/tuiEmbeds.js';
 import {lineText, cells, stripAnsi} from '../src/tuiText.js';
 import {tuiComposerCursor} from '../src/tuiLayout.js';
 import {handleWorkspaceKey,handleWorkspaceCommand,type WorkspaceContext} from '../src/tuiWorkspaceController.js';
@@ -19,6 +19,35 @@ test('chat-local shortcuts remain stable during hydration and older-history arri
   assert.equal(state.embedAliases['fit-s_c-1'].embedId,'root');assert.equal(state.embedAliases['fit-s_c-2'].embedId,'other');
   state.chatEmbeds.root=embed;state.messages.unshift({role:'assistant',content:reference('older')});registerChatEmbedAliases(state);
   assert.equal(state.embedAliases['fit-s_c-1'].embedId,'root');assert.equal(state.embedAliases['fit-s_c-3'].embedId,'older');assert.equal(state.embedAliases['fit-s_c-1-2'].resultIndex,1);
+});
+test('user metadata IDs do not create embed references while assistant roots remain available',()=>{
+  const state=createInitialTuiState();state.screen='chat';
+  const user={role:'user',content:'Please inspect these two roots',embedIds:['user-root-1','user-root-2']};
+  const assistant={role:'assistant',content:'Here are the results',embedIds:['assistant-root-1','assistant-root-2']};
+  assert.deepEqual(messageEmbedReferences(user),[]);
+  assert.deepEqual(messageEmbedReferences(assistant).map(ref=>ref.value),['assistant-root-1','assistant-root-2']);
+  state.messages=[user,assistant];
+  assert.deepEqual(chatEmbedReferences(state).map(ref=>ref.value),['assistant-root-1','assistant-root-2']);
+  registerChatEmbedAliases(state);
+  assert.deepEqual(Object.values(state.embedAliases).map(target=>target.embedId),['assistant-root-1','assistant-root-2']);
+});
+test('hydration promotes a placeholder alias and keeps the old command as a hidden legacy target',async()=>{
+  const state=createInitialTuiState();state.screen='chat';state.workspace='chats';state.activeChatId='saved';
+  state.messages=[{role:'assistant',content:'Results are loading',embedIds:['root']}];
+  registerChatEmbedAliases(state);
+  assert.equal(aliasForEmbed(state,'root'),'emb-v-1');
+  state.chatEmbeds.root=embed;
+  registerChatEmbedAliases(state);
+  assert.equal(aliasForEmbed(state,'root'),'fit-s_c-1');
+  assert.equal(state.embedAliases['emb-v-1'].legacy,true);
+  assert.equal(state.embedAliases['emb-v-1'].embedId,'root');
+  assert.equal(state.embedAliases['fit-s_c-1'].legacy,undefined);
+  const ctx=context(state,{getEmbed:async()=>embed});
+  await handleWorkspaceCommand(ctx,'/embed');
+  assert.ok(state.embedChoices.includes('fit-s_c-1'));
+  assert.ok(!state.embedChoices.includes('emb-v-1'));
+  await handleWorkspaceCommand(ctx,'/embed emb-v-1');
+  assert.equal(state.detailEmbed?.embedId,'root');
 });
 test('fitness preview shares web normalization, statuses and bounded result fields',()=>{
   const rows=renderFitnessPreview(embed,62,'fit-s_c-1').map(lineText).join('\n');

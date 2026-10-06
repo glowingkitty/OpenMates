@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import type { OpenMatesClient, ProjectRecord } from "../src/client.ts";
 import { decryptBytesWithAesGcm, encryptWithAesGcmCombined } from "../src/crypto.ts";
-import { cells } from "../src/tuiText.ts";
+import { cells, lineText } from "../src/tuiText.ts";
 import { PRIMARY_GRADIENT } from "../../appGradientTheme.ts";
 import {
   buildProjectForm, filteredProjectFiles, loadTuiProject, loadTuiProjectFiles, loadTuiProjects,
@@ -83,7 +83,7 @@ describe("TUI Project workspace", () => {
     assert.equal(await readTuiProjectFile(client, project, file), "# Notes\n");
     assert.equal(storedReads, 1);
     assert.ok(renderProjectList([project], { width: 80, selectedId: id })[0]?.startsWith(">"));
-    assert.ok(!renderProjectDetail(project, { width: 80, tab: "overview" })[0]?.includes("\u001b"));
+    assert.ok(!lineText(renderProjectDetail(project, { width: 80, tab: "overview" })[0]!).includes("\u001b"));
   });
 
   // contract-test: supporting surface=cli assertions=projects.keys.client-wrapped,projects.files.write-policy-setup,projects.lifecycle.encrypted-crud
@@ -149,7 +149,7 @@ describe("TUI Project workspace", () => {
     assert.equal(parentTuiProjectFolderId(project, "folder-nested"), "folder-root");
     assert.equal(parentTuiProjectFolderId(project, "folder-root"), null);
     assert.deepEqual(filteredProjectFiles(guidesFiles, "SETUP").map((file) => file.id), ["nested-item"]);
-    assert.ok(renderProjectDetail(project, { width: 80, tab: "files", files: guidesFiles, folderId: "folder-nested" }).some((line) => line.includes("Files / Docs / Guides")));
+    assert.ok(renderProjectDetail(project, { width: 80, tab: "files", files: guidesFiles, folderId: "folder-nested" }).some((line) => lineText(line).includes("Files / Docs / Guides")));
     await assert.rejects(loadTuiProjectFiles(client, project, { path: "folder-root" }), /Select a Project source/);
     await assert.rejects(loadTuiProjectFiles(client, project, { sourceId: "source-1", path: "folder-root" }), /local folder ID/);
     assert.equal(remoteCalls, 0);
@@ -170,28 +170,29 @@ describe("TUI Project workspace", () => {
     assert.ok(home.findIndex((line) => line.includes("Research Project")) > home.findIndex((line) => line.includes("Design Project")));
     assert.ok(home.every((line) => line.length <= 48));
     const identity = renderProjectIdentity(project, { width: 48 });
-    assert.ok(identity.some((line) => line.includes("PROJECT / PRODUCTIVITY")));
-    assert.ok(identity.some((line) => line.includes("3 items")));
-    assert.deepEqual(renderProjectTabs("files", 48).filter((line) => line.includes("FILES" )).length, 1);
+    assert.ok(identity.some((line) => lineText(line).trim() === "Project"));
+    assert.ok(identity.some((line) => lineText(line).includes("3 items")));
+    assert.ok(identity.every((line) => typeof line !== "string" && line.background === "#005ba5"));
+    assert.deepEqual(renderProjectTabs("files", 48).filter((line) => line.includes("[Files · 2]")).length, 1);
     const overview = renderProjectDetail(project, { width: 48, tab: "overview" });
-    assert.ok(overview.some((line) => line.includes("[OVERVIEW]")));
-    assert.ok(overview.some((line) => line.includes("Goals and next steps.")));
+    assert.ok(overview.some((line) => lineText(line).includes("Overview · 1")));
+    assert.ok(overview.some((line) => lineText(line).includes("Goals and next steps.")));
     const files = renderProjectDetail(project, { width: 48, tab: "files", files: [
       { id: "folder-1", name: "Research", path: "folder-1", kind: "folder" },
       { id: "file-1", name: "notes.md", path: "notes.md", kind: "stored", embedId: "embed-1" },
     ], selectedFileId: "file-1" });
-    assert.ok(files.some((line) => line.includes("[FILES]")));
-    assert.ok(files.some((line) => line.includes("1 folder, 1 file")));
-    assert.ok(files.some((line) => line.includes("> [embed] notes.md")));
-    assert.ok(files.every((line) => line.length <= 48));
-    assert.ok(renderProjectDetail(project, { width: 30, tab: "files", files: [] }).every((line) => line.length <= 30));
+    assert.ok(files.some((line) => lineText(line).includes("[Files · 2]")));
+    assert.ok(files.some((line) => lineText(line).includes("1 folder, 1 file")));
+    assert.ok(files.some((line) => lineText(line).includes("> [embed] notes.md")));
+    assert.ok(files.every((line) => cells(lineText(line)) <= 48));
+    assert.ok(renderProjectDetail(project, { width: 30, tab: "files", files: [] }).every((line) => cells(lineText(line)) <= 30));
     const wide = { ...project, name: "研究🧭 Project", description: "多语言 work 🌍 and planning" };
     const wideHome = renderProjectList([wide], { width: 112, selectedId: wide.id });
     assert.equal(cells(wideHome[0]!), 88);
     assert.ok(wideHome.every((line) => cells(line) <= 88));
     const wideDetail = renderProjectDetail(wide, { width: 112, tab: "overview" });
-    assert.equal(cells(wideDetail[0]!), 112);
-    assert.ok(wideDetail.every((line) => cells(line) <= 112));
-    assert.ok(renderProjectDetail(wide, { width: 30, tab: "files", files: [] }).every((line) => cells(line) <= 30));
+    assert.equal(cells(lineText(wideDetail[0]!)), 112);
+    assert.ok(wideDetail.every((line) => cells(lineText(line)) <= 112));
+    assert.ok(renderProjectDetail(wide, { width: 30, tab: "files", files: [] }).every((line) => cells(lineText(line)) <= 30));
   });
 });

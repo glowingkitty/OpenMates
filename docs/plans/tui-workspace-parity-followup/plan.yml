@@ -1,0 +1,34 @@
+schema_version: 2
+profile: concise
+id: tui-workspace-parity-followup
+title: Terminal workspace parity follow-up
+status: implementing
+goal: >
+  Fix embeds shown beneath text-only user messages, use horizontal embed previews
+  and /embed fit-s_c-1 aliases, make header navigation visibly selectable,
+  match the web Project tabs and Workflow editor and run history, cache Projects,
+  Workflows and Tasks offline, match Tasks column colors and selection, and make
+  Chats use the same viewport width as the other workspaces while keeping the
+  current maximum width for the message input field.
+scope:
+  in:
+    - Terminal presentation and keyboard navigation using the existing client contracts.
+    - Encrypted account, team and API-scoped persistent workspace snapshots with background refresh.
+    - Structured Workflow capability fields and retained run history.
+    - Persist rotated CLI credentials from background workspace requests with logout and identity guards.
+  out:
+    - Backend tool-result attribution changes or new API contracts.
+    - Production deployment or changes to real account content.
+decisions:
+  - Tool result metadata links the originating request; user previews require explicit inline references.
+  - Project embeds remain inside Files, matching the rendered web Project tabs.
+  - Workspace content is capped at 180 terminal cells; the composer remains capped at 100.
+  - Cache refreshes preserve active tabs, selection, drafts and routing, and are fenced after identity changes and mutations.
+  - Ordinary response credential rotation must survive CLI restart without restoring a logged-out session or changing current team context.
+verification:
+  required:
+    - Focused CLI unit tests and package build.
+    - Isolated GitHub real terminal proof for chat embeds, navigation and workspace details.
+    - Focused credential-rotation units and an isolated CLI restart regression.
+    - Deliver every existing recording from the selected CI runs.
+    - Scoped dev deployment and read-only installed authenticated CLI smoke.

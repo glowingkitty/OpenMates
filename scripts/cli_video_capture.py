@@ -29,9 +29,11 @@ TERMINAL_HEIGHT = 720
 DISPLAY_DEPTH = 24
 RESULT_HOLD_SECONDS = 3
 MAX_INPUT_STEPS = 64
+MAX_KEY_REPEAT = 16
+KEY_REPEAT_DELAY_MS = 120
 MAX_STEP_WAIT_MS = 30_000
 MAX_STEP_HOLD_MS = 5_000
-ALLOWED_KEYS = {"Return", "Escape", "Tab", "Up", "Down", "Left", "Right", "ctrl+b", "ctrl+s", "ctrl+c", "ctrl+o", "ctrl+u", "ctrl+y", "shift+Tab", "Home", "End", "Page_Up", "Page_Down"}
+ALLOWED_KEYS = {"Return", "Escape", "Tab", "Up", "Down", "Left", "Right", "ctrl+b", "ctrl+s", "ctrl+c", "ctrl+g", "ctrl+o", "ctrl+u", "ctrl+y", "shift+Tab", "Home", "End", "Page_Up", "Page_Down"}
 SECRET_FLAGS = {"--api-key", "--password", "--token", "--secret", "--otp", "--totp"}
 TERMINAL_GEOMETRY = "160x48"
 TERMINAL_FONT_SIZE = "14"
@@ -72,7 +74,7 @@ def load_input_plan(path: Path) -> list[dict[str, Any]]:
         raise CliCaptureError(f"Terminal input plan must contain 1–{MAX_INPUT_STEPS} steps")
     names: set[str] = set()
     for step in steps:
-        if not isinstance(step, dict) or set(step) - {"name", "text", "key", "wheel", "wait_for", "wait_for_absent", "wait_timeout_ms", "hold_ms"}:
+        if not isinstance(step, dict) or set(step) - {"name", "text", "key", "wheel", "repeat", "wait_for", "wait_for_absent", "wait_timeout_ms", "hold_ms"}:
             raise CliCaptureError("Terminal input plan contains an invalid step")
         name = step.get("name")
         if not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9-]{0,63}", name) or name in names:
@@ -89,6 +91,10 @@ def load_input_plan(path: Path) -> list[dict[str, Any]]:
                 raise CliCaptureError(f"Step {name} contains a secret-bearing flag")
         if "key" in step and (not isinstance(step["key"], str) or step["key"] not in ALLOWED_KEYS):
             raise CliCaptureError(f"Step {name} has unsupported key")
+        if "repeat" in step:
+            repeat = step["repeat"]
+            if "key" not in step or not isinstance(repeat, int) or isinstance(repeat, bool) or not 1 <= repeat <= MAX_KEY_REPEAT:
+                raise CliCaptureError(f"Step {name} has invalid key repeat")
         if "wheel" in step and step["wheel"] not in ("up", "down"):
             raise CliCaptureError(f"Step {name} has unsupported wheel direction")
         if "wait_for" in step and (not isinstance(step["wait_for"], str) or not 1 <= len(step["wait_for"]) <= 120):
@@ -167,7 +173,10 @@ def drive_terminal_inputs(
         if "text" in step:
             command = [xdotool, "type", "--clearmodifiers", "--delay", "15", "--", step["text"]]
         elif "key" in step:
-            command = [xdotool, "key", "--clearmodifiers", step["key"]]
+            command = [xdotool, "key", "--clearmodifiers"]
+            if "repeat" in step:
+                command.extend(["--repeat", str(step["repeat"]), "--delay", str(KEY_REPEAT_DELAY_MS)])
+            command.append(step["key"])
         elif "wheel" in step:
             # A real XTEST wheel event over the left sidebar is routed by the
             # terminal to the CLI's scroll handler. Keep the pointer inside the
