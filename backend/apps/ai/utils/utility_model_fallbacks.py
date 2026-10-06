@@ -3,7 +3,7 @@
 from typing import List
 
 
-MISTRAL_UTILITY_MODEL = "mistral/mistral-small-2506"
+MISTRAL_UTILITY_MODEL = "mistral/mistral-small-latest"
 DEEPSEEK_UTILITY_MODEL = "deepseek/deepseek-v4-flash"
 
 

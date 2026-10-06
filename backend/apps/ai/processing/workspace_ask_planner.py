@@ -23,7 +23,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
 
-WORKSPACE_ASK_MODEL_ID = "mistral/mistral-small-2506"
+WORKSPACE_ASK_MODEL_ID = "mistral/mistral-small-latest"
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
 WORKSPACE_ASK_MAX_DESCRIPTIONS = 5
 WORKSPACE_ASK_VALID_TASK_AREAS = {"code", "math", "creative", "instruction", "general"}

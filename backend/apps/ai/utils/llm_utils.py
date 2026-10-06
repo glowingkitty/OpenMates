@@ -503,7 +503,7 @@ def resolve_fallback_servers_from_provider_config(model_id: str) -> List[str]:
     
     Returns:
         List of fallback model IDs in format "server/model-id" or "server/provider/model-id"
-        (e.g., ["openrouter/mistralai/mistral-small-3.2-24b-instruct"])
+        (e.g., ["openrouter/mistralai/mistral-small-2603"])
         Returns empty list if no fallbacks are configured or model not found.
     """
     try:

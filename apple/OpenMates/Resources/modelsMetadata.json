@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "sourceDigest": "67be3a81d4a053bdb76dc215d1cd2f294074da5ce9ffb28e60c4c44b1707e6b8",
+  "sourceDigest": "06cbdf5f8e291a94fe21c895f7df0682df69c5bc077273036d7706321895fb2c",
   "providers": [
     {
       "id": "openai",
@@ -85,6 +85,13 @@
       "companyName": "Recraft",
       "order": 9007199254740991,
       "logoSvg": "icons/recraft.svg"
+    },
+    {
+      "id": "typesafe",
+      "brandName": "TypeSafe",
+      "companyName": "TypeSafe",
+      "order": 9007199254740991,
+      "logoSvg": "icons/typesafe.svg"
     }
   ],
   "models": [
@@ -709,7 +716,7 @@
     {
       "id": "eleven_v3",
       "name": "Eleven v3",
-      "description": "Highest-quality expressive multilingual text-to-speech model used as the default by audio.speak.",
+      "description": "Expressive multilingual text-to-speech model used as the default by audio.speak.",
       "provider_id": "elevenlabs",
       "provider_name": "ElevenLabs",
       "logo_svg": "icons/elevenlabs.svg",
@@ -739,7 +746,7 @@
     {
       "id": "eleven_v3_conversational",
       "name": "Eleven v3 Conversational",
-      "description": "Lower-latency Eleven v3 variant used only for progressive assistant-response speech.",
+      "description": "Previous-generation low-latency Eleven v3 variant for assistant-response speech.",
       "provider_id": "elevenlabs",
       "provider_name": "ElevenLabs",
       "logo_svg": "icons/elevenlabs.svg",
@@ -751,6 +758,66 @@
         "audio"
       ],
       "for_app_skill": "assistant_response_speech.segment",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": null,
+      "servers": [
+        {
+          "id": "elevenlabs",
+          "name": "ElevenLabs",
+          "region": "US"
+        }
+      ],
+      "default_server": "elevenlabs",
+      "pricing": {
+        "per_second": 2
+      }
+    },
+    {
+      "id": "eleven_v4",
+      "name": "Eleven v4",
+      "description": "Highest-quality expressive speech model available when explicitly selected by audio.speak.",
+      "provider_id": "elevenlabs",
+      "provider_name": "ElevenLabs",
+      "logo_svg": "icons/elevenlabs.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "audio"
+      ],
+      "for_app_skill": "audio.speak",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": null,
+      "servers": [
+        {
+          "id": "elevenlabs",
+          "name": "ElevenLabs",
+          "region": "US"
+        }
+      ],
+      "default_server": "elevenlabs",
+      "pricing": {
+        "per_second": 4
+      }
+    },
+    {
+      "id": "eleven_v4_turbo",
+      "name": "Eleven v4 Turbo",
+      "description": "Expressive low-latency speech model selectable by audio.speak and the default for assistant-response speech.",
+      "provider_id": "elevenlabs",
+      "provider_name": "ElevenLabs",
+      "logo_svg": "icons/elevenlabs.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "audio"
+      ],
+      "for_app_skill": "audio.speak",
       "tier": "standard",
       "capability_level": null,
       "release_date": null,
@@ -1365,50 +1432,9 @@
       }
     },
     {
-      "id": "devstral-2512",
-      "name": "Devstral 2",
-      "description": "Our frontier code agents model for solving software engineering tasks; excels at using tools to explore codebases, editing multiple files and power software engineering agents.",
-      "provider_id": "mistral",
-      "provider_name": "Mistral AI",
-      "logo_svg": "icons/mistral.svg",
-      "country_origin": "FR",
-      "input_types": [
-        "text"
-      ],
-      "output_types": [
-        "text"
-      ],
-      "for_app_skill": "ai.ask",
-      "tier": "standard",
-      "capability_level": "medium",
-      "release_date": "2025-12-01",
-      "servers": [
-        {
-          "id": "aws_bedrock",
-          "name": "AWS Bedrock",
-          "region": "EU"
-        },
-        {
-          "id": "mistral",
-          "name": "Mistral",
-          "region": "EU"
-        },
-        {
-          "id": "openrouter",
-          "name": "OpenRouter",
-          "region": "US"
-        }
-      ],
-      "default_server": "aws_bedrock",
-      "pricing": {
-        "input_tokens_per_credit": 850,
-        "output_tokens_per_credit": 170
-      }
-    },
-    {
-      "id": "ministral-8b-2512",
-      "name": "Ministral 3 8B",
-      "description": "A powerful and efficient model offering best-in-class text generation with excellent speed. Ideal for preprocessing and postprocessing tasks.",
+      "id": "mistral-large-4",
+      "name": "Mistral Large 4",
+      "description": "Mistral AI's public-preview flagship for reasoning, coding, agentic workflows, and multimodal understanding, with a one-million-token context.",
       "provider_id": "mistral",
       "provider_name": "Mistral AI",
       "logo_svg": "icons/mistral.svg",
@@ -1421,26 +1447,27 @@
         "text"
       ],
       "for_app_skill": "ai.ask",
-      "tier": "economy",
-      "capability_level": "low",
-      "release_date": "2025-12-01",
+      "tier": "standard",
+      "capability_level": "max",
+      "release_date": "2026-10-06",
       "servers": [
         {
           "id": "mistral",
           "name": "Mistral",
           "region": "EU"
-        },
-        {
-          "id": "openrouter",
-          "name": "OpenRouter",
-          "region": "US"
         }
       ],
       "default_server": "mistral",
       "pricing": {
-        "input_tokens_per_credit": 2222,
-        "output_tokens_per_credit": 2222
-      }
+        "input_tokens_per_credit": 490,
+        "output_tokens_per_credit": 155
+      },
+      "reasoning": true,
+      "search_aliases": [
+        "mistral large 4",
+        "ml4",
+        "le chonk"
+      ]
     },
     {
       "id": "mistral-medium-latest",
@@ -1459,7 +1486,7 @@
       ],
       "for_app_skill": "ai.ask",
       "tier": "standard",
-      "capability_level": "high",
+      "capability_level": "medium",
       "release_date": "2026-04-28",
       "servers": [
         {
@@ -1480,9 +1507,9 @@
       }
     },
     {
-      "id": "mistral-small-2506",
-      "name": "Mistral Small 3.2",
-      "description": "Mistral AI's fast and cost-effective model, optimized for low latency. Pinned version of Mistral Small 3.2 (24B params). Used for preprocessing and postprocessing tasks where mistral-small-latest now points to Small 4.",
+      "id": "mistral-small-latest",
+      "name": "Mistral Small 4",
+      "description": "Mistral AI's efficient hybrid model for everyday chat, coding, vision, and tool use. The direct latest alias currently resolves to Small 4.",
       "provider_id": "mistral",
       "provider_name": "Mistral AI",
       "logo_svg": "icons/mistral.svg",
@@ -1497,7 +1524,7 @@
       "for_app_skill": "ai.ask",
       "tier": "economy",
       "capability_level": "low",
-      "release_date": "2025-06-01",
+      "release_date": "2026-03-16",
       "servers": [
         {
           "id": "mistral",
@@ -1512,46 +1539,10 @@
       ],
       "default_server": "mistral",
       "pricing": {
-        "input_tokens_per_credit": 3300,
-        "output_tokens_per_credit": 1100
-      }
-    },
-    {
-      "id": "mistral-small-latest",
-      "name": "Mistral Small 4",
-      "description": "Mistral AI's latest Small model (Small 4). As of June 2025, mistral-small-latest resolves to Mistral Small 4 (not Small 3.2). Twice the cost of Small 3.2. For preprocessing use mistral-small-2506 (pinned Small 3.2) instead.",
-      "provider_id": "mistral",
-      "provider_name": "Mistral AI",
-      "logo_svg": "icons/mistral.svg",
-      "country_origin": "FR",
-      "input_types": [
-        "text",
-        "image"
-      ],
-      "output_types": [
-        "text"
-      ],
-      "for_app_skill": "ai.ask",
-      "tier": "economy",
-      "capability_level": "medium",
-      "release_date": "2025-06-01",
-      "servers": [
-        {
-          "id": "mistral",
-          "name": "Mistral",
-          "region": "EU"
-        },
-        {
-          "id": "openrouter",
-          "name": "OpenRouter",
-          "region": "US"
-        }
-      ],
-      "default_server": "mistral",
-      "pricing": {
-        "input_tokens_per_credit": 1650,
+        "input_tokens_per_credit": 2200,
         "output_tokens_per_credit": 550
-      }
+      },
+      "reasoning": true
     },
     {
       "id": "voxtral-mini-2602",
@@ -2337,6 +2328,41 @@
           "credits": 15,
           "unit_name": "image"
         }
+      }
+    },
+    {
+      "id": "jev-1.13",
+      "name": "Jev 1.13",
+      "description": "Workflow authoring capability and target selection.",
+      "provider_id": "typesafe",
+      "provider_name": "TypeSafe",
+      "logo_svg": "icons/typesafe.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "workflows.create-or-modify",
+      "tier": "economy",
+      "capability_level": null,
+      "release_date": null,
+      "servers": [
+        {
+          "id": "typesafe",
+          "name": "TypeSafe",
+          "region": "US"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter",
+          "region": "global"
+        }
+      ],
+      "default_server": "typesafe",
+      "pricing": {
+        "input_tokens_per_credit": 7900
       }
     },
     {

@@ -9,7 +9,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { email, password, otpKey } = getTestAccount();
 
 // contract-test: direct surface=gui.web assertions=ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.catalog.capability-recommendation-variants
-test('Mistral Large 4 is selectable with High capability', async ({ page }: { page: any }) => {
+test('Mistral selector reflects curated capabilities and visibility', async ({ page }: { page: any }) => {
 	test.setTimeout(120000);
 	skipWithoutCredentials(test, email, password, otpKey);
 
@@ -28,10 +28,21 @@ test('Mistral Large 4 is selectable with High capability', async ({ page }: { pa
 	await selector.click();
 	const menu = composer.getByTestId('composer-model-selector-menu');
 	await menu.getByTestId('composer-model-provider-mistral').click();
+	for (const hiddenName of ['Ministral 3 8B', 'Mistral Small 3.2', 'Devstral 2']) {
+		await expect(menu.getByTestId('composer-model-name').locator('strong').filter({ hasText: hiddenName })).toHaveCount(0);
+	}
+	for (const [name, level] of [
+		[/^Mistral Large 4$/, 'max'],
+		[/^Mistral Medium 3\.5$/, 'medium'],
+		[/^Mistral Small 4$/, 'low'],
+	] as const) {
+		const row = menu.getByTestId('composer-model-row').filter({ has: page.getByTestId('composer-model-name').locator('strong').filter({ hasText: name }) });
+		await expect(row.getByTestId('composer-model-capability')).toHaveAttribute('data-level', level);
+	}
 
 	const model = menu.getByTestId('composer-model-row').filter({ has: page.getByTestId('composer-model-name').locator('strong').filter({ hasText: /^Mistral Large 4$/ }) });
 	await expect(model).toHaveCount(1);
-	await expect(model.getByTestId('composer-model-capability')).toHaveAttribute('data-level', 'high');
+	await expect(model.getByTestId('composer-model-capability')).toHaveAttribute('data-level', 'max');
 	await model.getByTestId('composer-model-toggle').click();
 	await expect(selector).toHaveAttribute('aria-label', /Model selection: Mistral Large 4/i);
 });

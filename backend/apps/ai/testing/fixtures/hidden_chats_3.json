@@ -11,8 +11,8 @@
       "flask",
       "leaf"
     ],
-    "selected_model_id": "mistral/mistral-small-2506",
-    "selected_model_name": "Mistral Small 3.2",
+    "selected_model_id": "mistral/mistral-small-latest",
+    "selected_model_name": "Mistral Small 4",
     "mate_id": "scarlett",
     "chat_summary": "User asks about photosynthesis.",
     "chat_tags": [
@@ -27,7 +27,7 @@
   },
   "typing_started": {
     "category": "science",
-    "model_name": "Mistral Small 3.2",
+    "model_name": "Mistral Small 4",
     "provider_name": "Mistral",
     "server_region": "EU",
     "icon_names": [
@@ -42,6 +42,6 @@
     "prompt_tokens": null,
     "completion_tokens": null,
     "total_credits": null,
-    "model_name": "Mistral Small 3.2"
+    "model_name": "Mistral Small 4"
   }
 }

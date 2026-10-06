@@ -9172,7 +9172,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["interface", "language", "set"], description: "Set interface language", examples: ["openmates settings interface language set en"] },
   { path: ["interface", "dark-mode", "set"], description: "Set dark mode on or off", examples: ["openmates settings interface dark-mode set on"] },
   { path: ["interface", "font", "set"], description: "Set interface font", examples: ["openmates settings interface font set lexend"] },
-  { path: ["ai", "models", "set-defaults"], description: "Set default AI models", examples: ["openmates settings ai models set-defaults --simple mistral/mistral-small-2506 --complex auto --most-demanding google/gemini-3.7-flash-high", "openmates settings ai models set-defaults --simple auto --complex auto --most-demanding auto"] },
+  { path: ["ai", "models", "set-defaults"], description: "Set default AI models", examples: ["openmates settings ai models set-defaults --simple mistral/mistral-small-latest --complex auto --most-demanding google/gemini-3.7-flash-high", "openmates settings ai models set-defaults --simple auto --complex auto --most-demanding auto"] },
   { path: ["privacy", "auto-delete", "chats", "set"], description: "Set chat auto-deletion period", examples: ["openmates settings privacy auto-delete chats set 90d"] },
   { path: ["privacy", "debug-logs", "share"], description: "Create a debug log sharing session", examples: ["openmates settings privacy debug-logs share --duration 1h --confirm"] },
   { path: ["billing", "overview"], description: "Show billing overview", examples: ["openmates settings billing overview"] },

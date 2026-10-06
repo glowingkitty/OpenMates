@@ -3,7 +3,7 @@ status: active
 last_verified: 2026-03-24
 key_files:
 - backend/apps/ai/app.yml
-- backend/tests/test_model_comparison_mistral_vs_ministral.py
+- backend/apps/ai/utils/utility_model_fallbacks.py
 - backend/providers/mistral.yml
 claims:
 - id: arch-ai-preprocessing-model-comparison-behavior
@@ -11,7 +11,7 @@ claims:
   claim: Preprocessing Model Comparison Report is grounded in current source-of-truth files that parse or resolve successfully.
   source:
   - backend/apps/ai/app.yml
-  - backend/tests/test_model_comparison_mistral_vs_ministral.py
+  - backend/apps/ai/utils/utility_model_fallbacks.py
   - backend/providers/mistral.yml
   test:
     file: scripts/tests/test_architecture_behavioral_claims.py
@@ -38,7 +38,7 @@ claims:
   assertion: arch-ai-preprocessing-model-comparison-source-3
   anchors:
   - type: file_exists
-    path: backend/tests/test_model_comparison_mistral_vs_ministral.py
+    path: backend/apps/ai/utils/utility_model_fallbacks.py
 ---
 
 # Preprocessing Model Comparison Report
@@ -54,7 +54,7 @@ The preprocessing and postprocessing stages run a lightweight LLM call on every 
 **Test date**: 2026-02-02
 **Test suite**: 23 test cases (20 preprocessing, 3 postprocessing) covering factual queries, complex reasoning, code, safety/moderation, skill selection, follow-up detection, user unhappiness, edge cases, and multilingual input.
 
-**Run command**: `docker exec api python /app/backend/tests/test_model_comparison_mistral_vs_ministral.py --iterations 1`
+**Historical evaluation**: the retired-model benchmark script was removed with the obsolete catalog entries. The measurements below describe the February 2026 models, not current Small 4 performance.
 
 ## Results
 
@@ -87,14 +87,13 @@ The preprocessing and postprocessing stages run a lightweight LLM call on every 
 | Ministral 8B | $544.53 (+45%) |
 | Ministral 3B | $343.45 (-8%) |
 
-## Recommendation
+## Current utility route
 
-**Continue using Mistral Small** (currently `mistral/mistral-small-2506` in [`app.yml`](../../backend/apps/ai/app.yml)).
-
-- 100% validation accuracy on all critical checks
-- Faster and cheaper than Ministral 8B
-- Only 8% more expensive than 3B, but without skill selection and sentiment detection failures
-- ~1.5-1.8s average latency is acceptable for preprocessing
+Small 3.2 and Ministral 3 8B have been removed from the provider catalog.
+Utility calls now use `mistral/mistral-small-latest` (Small 4), with
+`openrouter/mistralai/mistral-small-2603` as its configured server fallback.
+Small 4 runs with `reasoning_effort: none` to preserve short utility responses.
+The historical results above do not establish Small 4 latency or quality.
 
 ## Related Docs
 

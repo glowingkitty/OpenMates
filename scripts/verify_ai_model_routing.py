@@ -65,7 +65,7 @@ FORBIDDEN_PLAINTEXT_RECORD_KEYS = {
     "selection",
     "mode",
 }
-SDK_TEST_MODEL = "mistral/mistral-small-2506"
+SDK_TEST_MODEL = "mistral/mistral-small-latest"
 SDK_TEST_MODEL_NAME_FRAGMENT = "mistral small"
 REPO_ROOT = SCRIPTS_DIR.parent
 CLI_PACKAGE_DIR = REPO_ROOT / "frontend" / "packages" / "openmates-cli"

@@ -100,12 +100,12 @@ def test_exact_chat_model_bypasses_only_model_tier_selection() -> None:
 # contract-test: direct surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto
 def test_explicit_api_model_parameter_becomes_preprocessor_override() -> None:
     resolved = _routing_module().explicit_api_model_override(
-        {"model": "mistral/mistral-small-2506"},
+        {"model": "mistral/mistral-small-latest"},
         None,
     )
-    assert resolved == ("mistral/mistral-small-2506", None)
+    assert resolved == ("mistral/mistral-small-latest", None)
     assert _routing_module().explicit_api_model_override(
-        {"model": "mistral/mistral-small-2506"},
+        {"model": "mistral/mistral-small-latest"},
         "anthropic/claude-opus",
     ) is None
 

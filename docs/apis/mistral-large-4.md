@@ -9,12 +9,24 @@ existing direct Mistral API integration. It supports text and image input, text
 output, function calling, streaming, and a 1M-token context. Its weights have not
 yet been released; Mistral plans to release them later in October.
 
-The selector assigns **High**, provisionally. Mistral reports strong coding,
+The selector assigns **Max**, provisionally, as the strongest curated Mistral
+option. Mistral reports strong coding,
 agentic, legal, financial, and visual-grounding results. Many comparisons concern
 other open-weight models, and some Artificial Analysis coding scores were
 evaluated privately ahead of public harness release. These results do not establish
 broad quality parity with OpenMates' Max models (GPT-6 Astra and Claude Fable 5.1).
 Price, parameter count, and context size alone do not determine capability.
+
+The current selector has four bars: Low 1/4, Medium 2/4, High 3/4, and Max 4/4.
+The curated Mistral choices are Large 4 (Max), Medium 3.5 (Medium), and Small 4
+(Low). Small 3.2 and Devstral 2 have been deleted from the provider catalog because
+Mistral marks them deprecated. Ministral 3 8B is still GA upstream but has also
+been deleted by product choice. Internal Small 3.2 calls now use Small 4, with
+the matching OpenRouter Small 4 fallback. Its current rates are $0.15 input and
+$0.60 output per million tokens, with a 262,144-token context and a March 16,
+2026 release date. [Small 4](https://docs.mistral.ai/models/mistral-small-4-0-26-03),
+[Small 3.2 lifecycle](https://docs.mistral.ai/models/mistral-small-3-2-25-06),
+[Devstral 2 lifecycle](https://docs.mistral.ai/models/devstral-2-25-12).
 
 ## Pricing
 
@@ -55,11 +67,12 @@ separately, so the comparisons above use uncached prices.
 ## Native reasoning and speed
 
 The model catalog sets Mistral's `reasoning_effort` to `high`; this is independent
-of the selector's High capability label. The client handles thinking-only and
+of the selector's Max capability label. The client handles thinking-only and
 mixed thinking/text stream deltas, sends thinking through the existing thinking
 channel, and keeps the final answer separate. Native thinking from tool turns is
 replayed in the next inference iteration using private tool transport state.
-Other Mistral models retain their existing unspecified reasoning setting.
+Small 4 explicitly uses `none` to preserve fast utility calls. Other Mistral
+models retain their existing unspecified reasoning setting.
 
 Neither the announcement nor the model card publishes quantified throughput,
 time to first token, or end-to-end latency. Large 3 measurements and third-party
@@ -82,7 +95,7 @@ All three calls finished normally and reported zero cached tokens. These timings
 exclude the OpenMates pipeline. Reproduce with
 `backend/scripts/test_mistral_large4_latency.py` inside the API container.
 
-To reassess Max, compare the model against Astra and Fable on the same OpenMates
+To validate the provisional Max rating, compare it against Astra and Fable on the same OpenMates
 tasks: multi-step tool use, code correctness, image/document understanding,
 multilingual answers, and long-context synthesis. Record task success, first
 visible answer latency, total duration, and total billed tokens (including

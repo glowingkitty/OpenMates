@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_WORKFLOW_CATEGORY = "general_knowledge"
 DEFAULT_WORKFLOW_ICON = "help-circle"
-WORKFLOW_IDENTITY_MODEL_ID = "mistral/mistral-small-2506"
+WORKFLOW_IDENTITY_MODEL_ID = "mistral/mistral-small-latest"
 WORKFLOW_IDENTITY_CONFIG_PATH = Path(__file__).resolve().parents[4] / "shared/config/workflow_identity.json"
 
 WorkflowIdentityClassifier = Callable[[dict[str, Any]], Awaitable[dict[str, Any] | None]]

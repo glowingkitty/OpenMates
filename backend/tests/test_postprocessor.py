@@ -360,7 +360,7 @@ async def test_postprocessing_batches_metadata_translation_when_output_language_
     assert len(provider_calls) == 1
     assert provider_calls[0]["model_id"] == "google/gemini-3.5-flash-lite"
     assert provider_calls[0]["fallback_models"] == [
-        "mistral/mistral-small-2506", "google/gemini-3.5-flash-lite",
+        "mistral/mistral-small-latest", "google/gemini-3.5-flash-lite",
     ]
     assert len(translation_calls) == 1
     assert translation_calls[0]["target_language"] == "en"

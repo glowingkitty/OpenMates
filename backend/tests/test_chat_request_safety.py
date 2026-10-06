@@ -94,7 +94,7 @@ async def test_confirmation_uses_zero_temperature_and_allows_provider_failure(mo
     result = await safety.confirm_chat_request_safety(
         message_history=[_message("user", "ambiguous request")],
         task_id="test-safety",
-        model_id="mistral/mistral-small-2506",
+        model_id="mistral/mistral-small-latest",
         secrets_manager=None,
     )
 
@@ -137,7 +137,7 @@ async def test_full_corpus_outcomes_with_structured_provider(
     result = await safety.confirm_chat_request_safety(
         message_history=history,
         task_id=f"test-{case['id']}",
-        model_id="mistral/mistral-small-2506",
+        model_id="mistral/mistral-small-latest",
         secrets_manager=None,
     )
     assert result.final_outcome == expected
@@ -166,7 +166,7 @@ async def test_jev_safe_decision_skips_generative_fallback(monkeypatch: pytest.M
     result = await safety.confirm_chat_request_safety(
         message_history=[_message("user", "Explain ransomware for employee training.")],
         task_id="jev-safe",
-        model_id="mistral/mistral-small-2506",
+        model_id="mistral/mistral-small-latest",
         decision_model_id="typesafe/jev-1.13",
         secrets_manager=None,
     )
@@ -195,7 +195,7 @@ async def test_jev_block_uses_exact_candidate_evidence(monkeypatch: pytest.Monke
     result = await safety.confirm_chat_request_safety(
         message_history=[_message("user", current)],
         task_id="jev-block",
-        model_id="mistral/mistral-small-2506",
+        model_id="mistral/mistral-small-latest",
         decision_model_id="typesafe/jev-1.13",
         secrets_manager=None,
     )
@@ -225,7 +225,7 @@ async def test_jev_outage_uses_existing_safety_model(monkeypatch: pytest.MonkeyP
     result = await safety.confirm_chat_request_safety(
         message_history=[_message("user", "An ambiguous security request")],
         task_id="jev-outage",
-        model_id="mistral/mistral-small-2506",
+        model_id="mistral/mistral-small-latest",
         decision_model_id="typesafe/jev-1.13",
         secrets_manager=None,
     )

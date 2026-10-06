@@ -14,8 +14,8 @@ const { test, expect } = require('./console-monitor');
 const { withMockMarker } = require('./signup-flow-helpers');
 const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
 
-const MISTRAL_MODEL_ID = 'mistral/mistral-small-2506';
-const MISTRAL_MODEL_NAME = 'Mistral Small 3.2';
+const MISTRAL_MODEL_ID = 'mistral/mistral-small-latest';
+const MISTRAL_MODEL_NAME = 'Mistral Small 4';
 
 test.describe('CLI default model settings contract', () => {
 	test.setTimeout(180_000);
@@ -26,6 +26,7 @@ test.describe('CLI default model settings contract', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
+	// contract-test: supporting surface=cli assertions=ai-model-routing.preferences.exclusive-tier-defaults,ai-model-routing.precedence.chat-over-tier-over-auto
 	test('settings ai models set-defaults controls chat model routing', async () => {
 		test.skip(
 			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,

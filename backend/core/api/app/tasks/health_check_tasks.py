@@ -571,11 +571,11 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
                     logger.debug(f"Using first Haiku model '{provider_id}/{model_id}' for Anthropic health check")
                     return f"{provider_id}/{model_id}"
         
-        # For OpenRouter, use Mistral Small 3.2 — avoids upstream rate limits from models
+        # For OpenRouter, use Mistral Small 4 — avoids upstream rate limits from models
         # that OpenRouter routes through other providers (e.g., OSS safeguard → Groq)
         if server_id == "openrouter":
-            logger.debug("Using 'mistralai/mistral-small-3.2-24b-instruct' for OpenRouter health check")
-            return "mistral/mistral-small-3.2-24b-instruct"
+            logger.debug("Using 'mistralai/mistral-small-2603' for OpenRouter health check")
+            return "mistral/mistral-small-latest"
 
         # For other servers, find the cheapest model by comparing input costs
         cheapest_candidate = None
@@ -767,10 +767,10 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
                 return False, str(e), response_time_ms
         
         # Special case: For OpenRouter health checks, call the OpenRouter client directly
-        # with Mistral Small 3.2 to avoid upstream rate limits from models that OpenRouter
+        # with Mistral Small 4 to avoid upstream rate limits from models that OpenRouter
         # routes through other providers (e.g., gpt-oss-safeguard-20b → Groq → 429)
         if provider_id == "openrouter":
-            logger.debug("Using direct OpenRouter API call for health check with model 'mistralai/mistral-small-3.2-24b-instruct'")
+            logger.debug("Using direct OpenRouter API call for health check with model 'mistralai/mistral-small-2603'")
             provider_client = _get_provider_client("openrouter")
             if not provider_client:
                 return False, "OpenRouter provider client not found", None
@@ -785,7 +785,7 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
                 response = await asyncio.wait_for(
                     provider_client(
                         task_id="health_check",
-                        model_id="mistralai/mistral-small-3.2-24b-instruct",
+                        model_id="mistralai/mistral-small-2603",
                         messages=test_messages,
                         secrets_manager=secrets_manager,
                         tools=None,

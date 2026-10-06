@@ -14,15 +14,15 @@ from backend.apps.ai.llm_providers.openai_shared import (
 def test_google_recovery_keeps_vertex_without_adding_a_fourth_attempt():
     model = "google/gemini-3.5-flash-lite"
     assert utility_model_fallbacks(model, [model]) == [
-        "mistral/mistral-small-2506", model,
+        "mistral/mistral-small-latest", model,
     ]
 
 
 def test_mistral_primary_retains_existing_independent_recovery():
     assert utility_model_fallbacks(
-        "mistral/mistral-small-2506", ["openrouter/mistralai/mistral-small-3.2-24b-instruct"]
+        "mistral/mistral-small-latest", ["openrouter/mistralai/mistral-small-2603"]
     ) == [
-        "openrouter/mistralai/mistral-small-3.2-24b-instruct", "deepseek/deepseek-v4-flash",
+        "openrouter/mistralai/mistral-small-2603", "deepseek/deepseek-v4-flash",
     ]
 
 

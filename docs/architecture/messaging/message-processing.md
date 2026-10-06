@@ -111,7 +111,7 @@ Two caches, different encryption, different purposes:
 
 ## Pre-Processing
 
-- **Model:** `mistral-small-2506` (Mistral Small) — see [preprocessing model comparison](../ai/preprocessing-model-comparison.md) for why
+- **Model:** `mistral-small-latest` (Mistral Small 4) — see [preprocessing model comparison](../ai/preprocessing-model-comparison.md) for why
 - **Implementation:** [preprocessor.py](../../backend/apps/ai/processing/preprocessor.py)
 - **Config:** [base_instructions.yml](../../backend/apps/ai/base_instructions.yml)
 - **Outputs:**

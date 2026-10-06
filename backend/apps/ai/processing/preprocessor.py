@@ -62,7 +62,7 @@ from backend.apps.ai.processing.routing_ledger import (
     build_preprocessing_history_projection,
     load_skill_ledger,
 )
-from backend.apps.ai.utils.utility_model_fallbacks import utility_model_fallbacks
+from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL, utility_model_fallbacks
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -1045,7 +1045,7 @@ async def translate_chat_title(
         {"role": "user", "content": user_message},
     ]
 
-    model_id = "mistral/mistral-small-2506"
+    model_id = MISTRAL_UTILITY_MODEL
 
     try:
         from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
@@ -1171,7 +1171,7 @@ async def translate_chat_summary(
         {"role": "user", "content": f"Translate this chat summary to {language_name}:\n\n{summary}"},
     ]
 
-    model_id = "mistral/mistral-small-2506"
+    model_id = MISTRAL_UTILITY_MODEL
 
     try:
         from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config

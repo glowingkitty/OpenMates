@@ -35,7 +35,7 @@ def test_catalog_routes_preview_with_authoritative_discounted_costs():
     model = _model()
     assert model["name"] == "Mistral Large 4"
     assert model["release_date"] == "2026-10-06"
-    assert model["capability_level"] == "high"
+    assert model["capability_level"] == "max"
     assert model["reasoning"] is True
     assert model["reasoning_effort"] == "high"
     assert model["input_types"] == ["text", "image"]
@@ -51,7 +51,7 @@ def test_catalog_routes_preview_with_authoritative_discounted_costs():
 
 def test_reasoning_setting_preserves_legacy_models_and_rejects_invalid_values(monkeypatch):
     monkeypatch.setattr(mistral_client.config_manager, "get_model_pricing", lambda *_: {})
-    assert mistral_client._get_mistral_reasoning_effort("mistral-small-2506") is None
+    assert mistral_client._get_mistral_reasoning_effort("mistral-small-latest") is None
     monkeypatch.setattr(mistral_client.config_manager, "get_model_pricing", lambda *_: {"reasoning_effort": "none"})
     assert mistral_client._get_mistral_reasoning_effort("mistral-large-4") == "none"
     monkeypatch.setattr(mistral_client.config_manager, "get_model_pricing", lambda *_: {"reasoning_effort": "max"})

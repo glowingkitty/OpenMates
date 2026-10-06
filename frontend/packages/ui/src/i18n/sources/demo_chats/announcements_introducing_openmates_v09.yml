@@ -120,7 +120,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` and `@fast` model aliases — type `@best` to auto-route to the strongest model, `@fast` to use the fastest model available on OpenMates.
     
     ## 6. 💡 Daily Inspirations & Wikipedia links
@@ -203,7 +203,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` und `@fast` Modell-Aliase — tippe `@best`, um automatisch das stärkste Modell zu verwenden, oder `@fast` für das schnellste verfügbare Modell auf OpenMates.
     
     ## 6. 💡 Tägliche Inspirationen & Wikipedia-Links
@@ -286,7 +286,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) 和 [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` 和 `@fast` 模型别名 —— 输入 `@best` 自动路由到最强大的模型，输入 `@fast` 使用 OpenMates 上可用的最快模型。
     
     ## 6. 💡 每日灵感与维基百科链接
@@ -369,7 +369,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) y [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - Alias de modelos `@best` y `@fast`: escribe `@best` para dirigirte automáticamente al modelo más potente, o `@fast` para usar el modelo más rápido disponible en OpenMates.
     
     ## 6. 💡 Inspiraciones diarias y enlaces de Wikipedia
@@ -452,7 +452,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - Les alias de modèles `@best` et `@fast` — tape `@best` pour utiliser automatiquement le modèle le plus puissant, ou `@fast` pour le modèle le plus rapide disponible sur OpenMates.
     
     ## 6. 💡 Inspirations quotidiennes & liens Wikipédia
@@ -712,7 +712,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) 및 [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` 및 `@fast` 모델 별칭 — 가장 강력한 모델을 사용하려면 `@best`를, 가장 빠른 모델을 사용하려면 `@fast`를 입력하세요.
     
     ## 6. 💡 일일 영감 및 위키백과 링크
@@ -795,7 +795,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) e [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - Alias dei modelli `@best` e `@fast` — digita `@best` per indirizzare automaticamente al modello più potente, `@fast` per usare il modello più veloce disponibile su OpenMates.
     
     ## 6. 💡 Ispirazioni quotidiane e link a Wikipedia
@@ -937,7 +937,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - Các bí danh mô hình `@best` và `@fast` — gõ `@best` để tự động chuyển đến mô hình mạnh nhất, `@fast` để sử dụng mô hình nhanh nhất hiện có trên OpenMates.
     
     ## 6. 💡 Cảm hứng hàng ngày & liên kết Wikipedia
@@ -1020,7 +1020,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - Alias model `@best` dan `@fast` — ketik `@best` untuk merutekan otomatis ke model terkuat, `@fast` untuk menggunakan model tercepat yang tersedia di OpenMates.
     
     ## 6. 💡 Inspirasi Harian & tautan Wikipedia
@@ -1103,7 +1103,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) i [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - aliasy modeli `@best` i `@fast` — wpisz `@best`, aby automatycznie skorzystać z najsilniejszego modelu, lub `@fast`, aby użyć najszybszego modelu dostępnego w OpenMates.
     
     ## 6. 💡 Codzienne inspiracje i linki do Wikipedii
@@ -1304,7 +1304,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) और [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` और `@fast` मॉडल उपनाम (aliases) — सबसे मजबूत मॉडल पर ऑटो-रूट करने के लिए `@best` टाइप करें, OpenMates पर उपलब्ध सबसे तेज़ मॉडल का उपयोग करने के लिए `@fast` टाइप करें।
     
     ## 6. 💡 डेली इंस्पिरेशन और विकिपीडिया लिंक्स
@@ -1387,7 +1387,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) และ [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - ชื่อเรียกโมเดล `@best` และ `@fast` — พิมพ์ `@best` เพื่อเลือกโมเดลที่แข็งแกร่งที่สุดโดยอัตโนมัติ หรือ `@fast` เพื่อใช้โมเดลที่เร็วที่สุดที่มีใน OpenMates
     
     ## 6. 💡 แรงบันดาลใจรายวันและลิงก์ Wikipedia
@@ -1470,7 +1470,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - aliasy modelů `@best` a `@fast` – napiš `@best` pro automatické směrování na nejsilnější model, `@fast` pro použití nejrychlejšího modelu dostupného v OpenMates.
     
     ## 6. 💡 Denní inspirace a odkazy na Wikipedii
@@ -1553,7 +1553,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` och `@fast` modellalias — skriv `@best` för att automatiskt styra till den starkaste modellen, `@fast` för att använda den snabbaste modellen som finns tillgänglig på OpenMates.
     
     ## 6. 💡 Daglig inspiration & Wikipedia-länkar
@@ -1636,7 +1636,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) ו-[Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - כינויי מודל `@best` ו-`@fast` — הקלידו `@best` כדי לנתב אוטומטית למודל החזק ביותר, `@fast` כדי להשתמש במודל המהיר ביותר הזמין ב-OpenMates.
     
     ## 6. 💡 השראות יומיות וקישורי ויקיפדיה
@@ -1724,7 +1724,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` and `@fast` model aliases — type `@best` to auto-route to the strongest model, `@fast` to use the fastest model available on OpenMates.
     
     ## 6. 💡 Daily Inspirations & Wikipedia links
@@ -1811,7 +1811,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` und `@fast` Modell-Aliase — tippe `@best`, um automatisch das stärkste Modell zu verwenden, oder `@fast` für das schnellste verfügbare Modell auf OpenMates.
     
     ## 6. 💡 Tägliche Inspirationen & Wikipedia-Links
@@ -1898,7 +1898,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` 和 `@fast` 模型别名 —— 输入 `@best` 自动路由到最强模型，输入 `@fast` 使用 OpenMates 上可用的最快模型。
     
     ## 6. 💡 每日灵感与维基百科链接
@@ -2107,7 +2107,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) e [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - aliases de modelos `@best` e `@fast` — escreve `@best` para encaminhar automaticamente para o modelo mais forte, `@fast` para usar o modelo mais rápido disponível no OpenMates.
     
     ## 6. 💡 Inspirações Diárias e links da Wikipédia
@@ -2255,7 +2255,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` と `@fast` のモデルエイリアス — `@best` と入力すると最強のモデルに、`@fast` と入力するとOpenMatesで利用可能な最速のモデルに自動ルーティングされます。
     
     ## 6. 💡 今日のインスピレーションとWikipediaリンク
@@ -2342,7 +2342,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) 및 [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` 및 `@fast` 모델 별칭 — `@best`를 입력하면 가장 강력한 모델로, `@fast`를 입력하면 OpenMates에서 사용 가능한 가장 빠른 모델로 자동 연결됩니다.
     
     ## 6. 💡 일일 영감 (Daily Inspirations) 및 위키백과 링크
@@ -2429,7 +2429,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) e [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - Alias dei modelli `@best` e `@fast` — scrivi `@best` per indirizzare automaticamente al modello più potente, `@fast` per usare il modello più veloce disponibile su OpenMates.
     
     ## 6. 💡 Ispirazioni quotidiane e link a Wikipedia
@@ -2577,7 +2577,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - Các bí danh mô hình `@best` và `@fast` — nhập `@best` để tự động điều hướng đến mô hình mạnh nhất, `@fast` để sử dụng mô hình nhanh nhất hiện có trên OpenMates.
     
     ## 6. 💡 Cảm hứng hàng ngày & Liên kết Wikipedia
@@ -2664,7 +2664,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - alias model `@best` dan `@fast` — ketik `@best` untuk merutekan otomatis ke model terkuat, `@fast` untuk menggunakan model tercepat yang tersedia di OpenMates.
     
     ## 6. 💡 Inspirasi Harian & tautan Wikipedia
@@ -2812,7 +2812,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` en `@fast` model-aliassen — typ `@best` om automatisch naar het sterkste model te routeren, `@fast` om het snelste model te gebruiken dat beschikbaar is op OpenMates.
     
     ## 6. 💡 Dagelijkse inspiratie & Wikipedia-links
@@ -2899,7 +2899,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) و [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - الأسماء المستعارة للنماذج `@best` و `@fast` — اكتب `@best` للتوجيه التلقائي إلى أقوى نموذج، و `@fast` لاستخدام أسرع نموذج متاح على OpenMates.
     
     ## 6. 💡 إلهامات يومية وروابط ويكيبيديا
@@ -2986,7 +2986,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) और [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` और `@fast` मॉडल एलियास — सबसे मजबूत मॉडल पर ऑटो-रूट करने के लिए `@best` टाइप करें, OpenMates पर उपलब्ध सबसे तेज़ मॉडल का उपयोग करने के लिए `@fast` टाइप करें।
     
     ## 6. 💡 डेली इंस्पिरेशन और विकिपीडिया लिंक
@@ -3073,7 +3073,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) และ [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - นามแฝงโมเดล `@best` และ `@fast` — พิมพ์ `@best` เพื่อเลือกโมเดลที่แข็งแกร่งที่สุดโดยอัตโนมัติ หรือ `@fast` เพื่อใช้โมเดลที่เร็วที่สุดที่มีบน OpenMates
     
     ## 6. 💡 แรงบันดาลใจรายวัน (Daily Inspirations) และลิงก์ Wikipedia
@@ -3160,7 +3160,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) a [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - Aliasy modelů `@best` a `@fast` – napiš `@best` pro automatické směrování na nejsilnější model, `@fast` pro použití nejrychlejšího modelu dostupného v OpenMates.
     
     ## 6. 💡 Denní inspirace a odkazy na Wikipedii
@@ -3247,7 +3247,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - `@best` och `@fast` modell-alias — skriv `@best` för att automatiskt styra till den starkaste modellen, `@fast` för att använda den snabbaste modellen som finns tillgänglig på OpenMates.
     
     ## 6. 💡 Daglig inspiration & Wikipedia-länkar
@@ -3334,7 +3334,7 @@ email_body:
     - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) ו-[Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Devstral 2
     - כינויי מודל `@best` ו-`@fast` — הקלד `@best` כדי לנתב אוטומטית למודל החזק ביותר, ו-`@fast` כדי להשתמש במודל המהיר ביותר הזמין ב-OpenMates.
     
     ## 6. 💡 השראות יומיות וקישורי ויקיפדיה

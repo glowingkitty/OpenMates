@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 import datetime
 
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult, resolve_fallback_servers_from_provider_config
-from backend.apps.ai.utils.utility_model_fallbacks import utility_model_fallbacks
+from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL, utility_model_fallbacks
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
@@ -1014,7 +1014,7 @@ async def translate_chat_summary(
         {"role": "user", "content": user_message},
     ]
 
-    model_id = "mistral/mistral-small-2506"
+    model_id = MISTRAL_UTILITY_MODEL
     translation_fallbacks = _with_deepseek_utility_fallback(
         resolve_fallback_servers_from_provider_config(model_id)
     )
@@ -1088,7 +1088,7 @@ async def translate_new_chat_suggestions(
     - No conversation history (avoids language bleed)
     - Tight system prompt focused purely on translation
     - Function calling with a simple schema: { translated_suggestions: string[] }
-    - Same cheap model as the rest of post-processing (mistral-small-2506)
+    - Mistral Small 4 utility model (mistral-small-latest)
     - Token cost: ~130 input + ~50 output tokens per message — negligible
 
     Args:
@@ -1174,7 +1174,7 @@ async def translate_new_chat_suggestions(
         {"role": "user", "content": user_message},
     ]
 
-    model_id = "mistral/mistral-small-2506"
+    model_id = MISTRAL_UTILITY_MODEL
     translation_fallbacks = _with_deepseek_utility_fallback(
         resolve_fallback_servers_from_provider_config(model_id)
     )
