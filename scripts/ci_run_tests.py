@@ -27,7 +27,7 @@ import urllib.request
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from ci_environment import COMPOSE_PATH, SOURCE, compose, require_runner
+from ci_environment import COMPOSE_PATH, SOURCE, compose, require_runner, has_team_storage_billing_schema
 try:
     from scripts.ci_pytest_targets import validate_pytest_targets
 except ModuleNotFoundError:
@@ -858,7 +858,18 @@ def prepare_storage_billing_fixture(account: dict, profile_name: str) -> tuple[d
         page = summary["page_bytes"]
         total = summary["full_total_bytes"]
         expiry = summary.get("expiry")
-        if (summary.get("prepared") is not True or summary.get("team_unrated") is not True
+        team_capable = has_team_storage_billing_schema(ROOT)
+        if team_capable:
+            team_id = summary["team_id"]
+            team_bytes = summary["team_total_bytes"]
+            if (summary.get("team_rated") is not True
+                    or (profile_name == "logical" and summary.get("team_contact_crypto") is not True)
+                    or type(team_bytes) is not int or team_bytes <= 0
+                    or not isinstance(team_id, str) or not re.fullmatch(r"[0-9a-f-]{36}", team_id)):
+                raise ValueError("incomplete Team billing")
+        elif summary.get("team_unrated") is not True:
+            raise ValueError("incomplete legacy Team exclusion")
+        if (summary.get("prepared") is not True
                 or summary.get("dedup") is not True or summary.get("conflict_failed_closed") is not True
                 or any(type(value) is not int or value <= 0 for value in (legacy, page, total))
                 or total != legacy + page or not receipt_path.is_file()):
@@ -882,7 +893,10 @@ def prepare_storage_billing_fixture(account: dict, profile_name: str) -> tuple[d
         "E2E_STORAGE_BILLING_EXPECTED_LEGACY_BYTES": str(legacy),
         "E2E_STORAGE_BILLING_EXPECTED_PAGE_BYTES": str(page),
         "E2E_STORAGE_BILLING_EXPECTED_TOTAL_BYTES": str(total),
-        "E2E_STORAGE_BILLING_TEAM_UNRATED": "1",
+        **({"E2E_STORAGE_BILLING_TEAM_RATED": "1",
+            "E2E_STORAGE_BILLING_TEAM_ID": team_id,
+            "E2E_STORAGE_BILLING_TEAM_BYTES": str(team_bytes)} if team_capable else
+           {"E2E_STORAGE_BILLING_TEAM_UNRATED": "1"}),
         "E2E_STORAGE_BILLING_CONFLICT_REJECTED": "1",
         "E2E_STORAGE_BILLING_LEGACY_PROFILE": "1" if profile_name == "legacy" else "0",
         "E2E_STORAGE_BILLING_LOGICAL_PROFILE": "1" if profile_name == "logical" else "0",

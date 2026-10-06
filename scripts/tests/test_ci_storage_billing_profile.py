@@ -67,12 +67,18 @@ def test_billing_profile_limits_flag_and_private_bind_to_api(mode, flag):
     assert profile["networks"]["default"]["internal"] is True
 
 
+@pytest.mark.parametrize("team_case", ["old", "rated", "unrated", "missing_crypto", "missing_team_id", "missing_team_bytes"])
 @pytest.mark.parametrize("profile_mode,invalid_expiry", [
     ("logical", None), ("logical", "missing"), ("logical", "large_object"),
     ("logical", "ledger_changed"), ("legacy", None),
 ])
-def test_billing_probe_uses_private_selector_and_only_public_totals(tmp_path, monkeypatch, profile_mode, invalid_expiry):
+def test_billing_probe_uses_private_selector_and_only_public_totals(tmp_path, monkeypatch, profile_mode, invalid_expiry, team_case):
     runner = _runner(monkeypatch)
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    if team_case != "old":
+        schema = tmp_path / "backend/core/directus/schemas/team_storage_billing.yml"
+        schema.parent.mkdir(parents=True)
+        schema.write_text("team_storage_billing_periods: {}\n")
     profile = ci_environment.compose_profile(
         "a" * 40, billing_profile=profile_mode, account_emails=["ci-one@example.com"]
     )
@@ -111,6 +117,15 @@ def test_billing_probe_uses_private_selector_and_only_public_totals(tmp_path, mo
                            "ledger_unchanged": True, "warned_only_waived": True,
                            "physical_object_bytes": 224},
             }
+            if team_case != "old":
+                summary.update(team_id="5cd17363-d30c-40c4-ac66-a3eeaa98fca9", team_total_bytes=227,
+                               team_rated=team_case != "unrated", team_contact_crypto=True)
+                if team_case == "missing_crypto":
+                    summary.pop("team_contact_crypto")
+                elif team_case == "missing_team_id":
+                    summary.pop("team_id")
+                elif team_case == "missing_team_bytes":
+                    summary.pop("team_total_bytes")
             if profile_mode == "legacy":
                 summary["expiry"] = None
             if invalid_expiry == "missing":
@@ -123,16 +138,26 @@ def test_billing_probe_uses_private_selector_and_only_public_totals(tmp_path, mo
         return SimpleNamespace(stdout='{"cleaned": true}')
 
     monkeypatch.setattr(runner, "compose", fake_compose)
-    if invalid_expiry:
+    team_invalid = team_case in {"unrated", "missing_team_id", "missing_team_bytes"} or (
+        team_case == "missing_crypto" and profile_mode == "logical"
+    )
+    if invalid_expiry or team_invalid:
         with pytest.raises(RuntimeError, match="complete bounded receipt"):
             runner.prepare_storage_billing_fixture(
-                {"OPENMATES_TEST_ACCOUNT_EMAIL": "ci-one@example.com"}, "logical"
+                {"OPENMATES_TEST_ACCOUNT_EMAIL": "ci-one@example.com"}, profile_mode
             )
         assert "cleanup" in calls[-1]
         return
     env, paths = runner.prepare_storage_billing_fixture(
         {"OPENMATES_TEST_ACCOUNT_EMAIL": "ci-one@example.com"}, profile_mode
     )
+    if team_case == "old":
+        assert env["E2E_STORAGE_BILLING_TEAM_UNRATED"] == "1"
+        assert "E2E_STORAGE_BILLING_TEAM_RATED" not in env
+    else:
+        assert env["E2E_STORAGE_BILLING_TEAM_RATED"] == "1"
+        assert env["E2E_STORAGE_BILLING_TEAM_BYTES"] == "227"
+        assert "E2E_STORAGE_BILLING_TEAM_UNRATED" not in env
     selector, receipt = paths
     assert stat.S_IMODE(selector.stat().st_mode) == 0o600
     private_value = json.loads(selector.read_text())
@@ -143,7 +168,10 @@ def test_billing_probe_uses_private_selector_and_only_public_totals(tmp_path, mo
         "E2E_STORAGE_BILLING_EXPECTED_LEGACY_BYTES": "96",
         "E2E_STORAGE_BILLING_EXPECTED_PAGE_BYTES": "321",
         "E2E_STORAGE_BILLING_EXPECTED_TOTAL_BYTES": "417",
-        "E2E_STORAGE_BILLING_TEAM_UNRATED": "1",
+        **({"E2E_STORAGE_BILLING_TEAM_UNRATED": "1"} if team_case == "old" else
+           {"E2E_STORAGE_BILLING_TEAM_RATED": "1",
+            "E2E_STORAGE_BILLING_TEAM_ID": "5cd17363-d30c-40c4-ac66-a3eeaa98fca9",
+            "E2E_STORAGE_BILLING_TEAM_BYTES": "227"}),
         "E2E_STORAGE_BILLING_CONFLICT_REJECTED": "1",
         "E2E_STORAGE_BILLING_LEGACY_PROFILE": "1" if profile_mode == "legacy" else "0",
         "E2E_STORAGE_BILLING_LOGICAL_PROFILE": "1" if profile_mode == "logical" else "0",

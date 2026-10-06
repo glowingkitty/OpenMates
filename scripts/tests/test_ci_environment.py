@@ -636,3 +636,22 @@ def test_schema_setup_loads_candidate_policy_instead_of_cached_image(tmp_path, m
     assert policy_mounts == [[str(candidate_policy), "/usr/src/app/accountability_policy.py", "ro"]]
     mounted_policy = runpy.run_path(policy_mounts[0][0])
     assert mounted_policy["configured_accountability"](collection, config) == (True, None)
+
+
+@pytest.mark.parametrize("team_source", [False, True])
+@pytest.mark.parametrize("billing_profile", [None, "legacy", "logical"])
+def test_team_billing_readiness_uses_frozen_source_capability(tmp_path, monkeypatch, team_source, billing_profile):
+    from scripts import ci_environment
+    monkeypatch.setattr(ci_environment, "SOURCE", str(tmp_path))
+    if team_source:
+        schema = tmp_path / "backend/core/directus/schemas/team_storage_billing.yml"
+        schema.parent.mkdir(parents=True)
+        schema.write_text("team_storage_billing_periods: {}\n")
+    profile = compose_profile("a" * 40, storage_capacity=True, billing_profile=billing_profile)
+    expected = ("0" if billing_profile == "legacy" else "1") if team_source else None
+    for service in ("api", "core-worker", "ai-worker", "cms"):
+        assert profile["services"][service]["environment"].get("TEAM_STORAGE_BILLING_ENABLED") == expected
+    assert profile["networks"]["default"]["internal"] is True
+    ordinary = compose_profile("a" * 40)
+    for service in ("api", "core-worker", "cms"):
+        assert "TEAM_STORAGE_BILLING_ENABLED" not in ordinary["services"][service]["environment"]

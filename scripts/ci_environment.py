@@ -519,6 +519,11 @@ def require_target_admission(source_commit: str) -> dict:
     )
 
 
+def has_team_storage_billing_schema(source_root: str | Path) -> bool:
+    """Select Team fixture capability from the verified frozen subject source."""
+    return (Path(source_root) / "backend/core/directus/schemas/team_storage_billing.yml").is_file()
+
+
 def compose_profile(
     source_hash: str,
     *,
@@ -617,6 +622,10 @@ def compose_profile(
         common.update(OPENMATES_CI_ISOLATED="1", OPENMATES_STORAGE_CAPACITY_FIXTURES="true",
                       OPENMATES_CAPACITY_RECEIPT_ROOT="/app/capacity-receipts",
                       CHAT_MESSAGE_ARCHIVE_COPY_ENABLED="1", CHAT_MESSAGE_ARCHIVE_READS_ENABLED="1")
+    team_billing_flag = None
+    if storage_capacity and has_team_storage_billing_schema(SOURCE):
+        team_billing_flag = "0" if billing_profile == "legacy" else "1"
+        common["TEAM_STORAGE_BILLING_ENABLED"] = team_billing_flag
     source_mounts = [
         f"{SOURCE}/backend:/app/backend:ro",
         f"{SOURCE}/shared:/shared:ro",
@@ -744,6 +753,8 @@ def compose_profile(
                 "DB_USER": "openmates",
                 "DB_PASSWORD": credentials["database"],
                 "INTERNAL_API_SHARED_TOKEN": credentials["internal"],
+                **({"TEAM_STORAGE_BILLING_ENABLED": team_billing_flag}
+                   if team_billing_flag is not None else {}),
                 "PUBLIC_URL": "http://localhost:8055",
                 "CACHE_ENABLED": "false",
                 "TELEMETRY": "false",
