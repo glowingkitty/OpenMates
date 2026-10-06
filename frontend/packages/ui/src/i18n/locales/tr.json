@@ -11155,17 +11155,6 @@
           "openrouter": {
             "heading": {
               "text": "OpenRouter (ABD, yönlendirme toplayıcı)"
-            },
-            "description": {
-              "text": "OpenRouter, Cerebras tarafından barındırılan modeller de dahil olmak üzere çeşitli üçüncü taraf modeller için bir yönlendirme toplayıcı olarak kullanılır. OpenRouter, sohbet mesajlarını PII yer tutucuları istemci tarafında değiştirilmiş olarak görür ve bunları ilgili model ana bilgisayarına iletir."
-            }
-          },
-          "typesafe": {
-            "heading": {
-              "text": "TypeSafe Jev (OpenRouter aracılığıyla)"
-            },
-            "description": {
-              "text": "TypeSafe Jev, dahili yönlendirme, model katmanı, beceri, odak modu, dil ve güvenlik kararları için OpenRouter üzerinden sınırlı yakın sohbet bağlamı ve aday meta verileri alır. Harici metinleri komut enjeksiyonuna karşı da denetler. İsteğe bağlı arama alaka sıralaması için belirtilen alaka ölçütlerini, arama parametrelerini ve desteklenen herkese açık aramalardan küçültülmüş aday verilerini alır. OpenMates kullanıcı tanımlayıcıları göndermez ve Jev oluşturulmuş sohbet metni yerine türlendirilmiş kararlar döndürür."
             }
           },
           "cerebras": {

@@ -25,4 +25,10 @@ test('logged-out privacy policy distinguishes deleted records from retained data
 	await expect(policy).toContainText('60 days via S3 lifecycle');
 	await expect(policy).not.toContainText('BSI §34 BDSG');
 	await expect(policy).not.toContainText('audit logs retained 2 years');
+	await expect(policy).toContainText('TypeSafe Jev (US)');
+	await expect(policy).toContainText('primarily sends bounded decision requests directly to TypeSafe Jev');
+	await expect(policy).toContainText('OpenRouter is used only as a fallback');
+	const typesafePolicyLink = policy.getByRole('link', { name: 'https://typesafe.ai/legal/privacy-policy', exact: true });
+	await expect(typesafePolicyLink).toBeVisible();
+	await expect(typesafePolicyLink).toHaveAttribute('href', 'https://typesafe.ai/legal/privacy-policy');
 });

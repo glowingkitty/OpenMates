@@ -32,7 +32,8 @@ from backend.core.api.app.services.workflow_gemini_authoring import (
 )
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.typesafe.client import (
-    OPENROUTER_SECRET_KEY, OPENROUTER_SECRET_PATH, DecisionProviderError, JevDecisionClient,
+    OPENROUTER_SECRET_KEY, OPENROUTER_SECRET_PATH, TYPESAFE_SECRET_KEY,
+    TYPESAFE_SECRET_PATH, DecisionProviderError, JevDecisionClient,
 )
 from backend.shared.providers.typesafe.models import NoulAnswer
 from backend.shared.providers.typesafe.batching import candidate_batches, evaluate_batches
@@ -41,7 +42,11 @@ MAX_WORKFLOWS = 8
 CLARIFICATION = "I could not build a valid workflow for every part of this request. Let's clarify the details in chat."
 PARTIAL_FAILURE = "The AI could not finish this workflow after a correction attempt. Your validated changes were saved and the workflow is disabled. Ask for a specific update or edit it manually."
 PARTIAL_STOPPED = "Generation stopped. Your validated changes were saved and the workflow is disabled."
-_PROVIDER_CACHE_KEYS = (f"{GOOGLE_SECRET_PATH}/api_key", f"{OPENROUTER_SECRET_PATH}/{OPENROUTER_SECRET_KEY}")
+_PROVIDER_CACHE_KEYS = (
+    f"{GOOGLE_SECRET_PATH}/api_key",
+    f"{TYPESAFE_SECRET_PATH}/{TYPESAFE_SECRET_KEY}",
+    f"{OPENROUTER_SECRET_PATH}/{OPENROUTER_SECRET_KEY}",
+)
 _VALIDATION_KEYWORDS = frozenset({
     "type", "enum", "required", "additionalProperties", "anyOf", "oneOf", "allOf",
     "format", "pattern", "minimum", "maximum", "minItems", "maxItems", "minLength", "maxLength",

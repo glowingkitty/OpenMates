@@ -146,7 +146,7 @@ openmates server env check
 openmates server env doctor
 ```
 
-The CLI redacts secret values in output, writes `.env` with restricted permissions, and creates a backup before changes. Docker and the CLI use one runtime `.env`; provider setup guidance should come from provider metadata rather than extra env files.
+The CLI redacts secret values in output and replaces `.env` atomically with owner-only permissions. `env set`, `env unset`, and `env edit` do not retain per-change plaintext backups. To keep a recovery copy, run the explicit `openmates server backup` command before changing settings. Docker and the CLI use one runtime `.env`; provider setup guidance should come from provider metadata rather than extra env files.
 
 Alternatively, self-hosted servers can add a local Ollama, LM Studio, or custom OpenAI-compatible model:
 

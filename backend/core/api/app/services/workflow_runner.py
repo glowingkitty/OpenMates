@@ -1153,8 +1153,10 @@ async def _charge_workflow_ai_check(
                 "source": source,
                 "units_processed": 1,
                 "model_used": "typesafe/jev-1.13",
-                "server_provider": "OpenRouter",
-                "server_region": "global",
+                # This unit is prepaid, before the successful transport is known.
+                "server_provider": "Jev",
+                "server_region": "unknown",
+                "provider_route": ["typesafe", "openrouter"],
                 "decision_path": billing_purpose,
                 "operation_id": operation_id,
             },

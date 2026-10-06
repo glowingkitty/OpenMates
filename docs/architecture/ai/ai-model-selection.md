@@ -60,7 +60,7 @@ A single model cannot optimally serve all request types. Simple factual question
 graph TB
     A["User message"] --> B{User override?<br/>@ai-model:...}
     B -->|Yes| C["Use specified model"]
-    B -->|No| D["Bounded decisions<br/>Jev via OpenRouter"]
+    B -->|No| D["Bounded decisions<br/>Jev via TypeSafeAI<br/>OpenRouter fallback"]
     D -->|unavailable / invalid| DF["Gemini preprocessing fallback"]
     DF --> E
     D -->|complexity, task_area<br/>china_sensitive| E["Model Selector"]
@@ -156,7 +156,7 @@ Three tiers of fallback ensure reliability:
 
 Each model tries its configured servers in order (e.g., Bedrock then direct API) before moving to the next tier.
 
-Foreground decision processing has a separate availability boundary: Jev/OpenRouter is primary, while Gemini preprocessing remains an independently hosted fallback. Request safety similarly falls back to Mistral, and ambiguous prompt-injection decisions fall back to GPT-OSS Safeguard for exact-span redaction.
+Foreground decision processing has a separate availability boundary: Jev runs primarily through TypeSafeAI, with OpenRouter as a transport fallback, while Gemini preprocessing remains an independently hosted fallback. Request safety similarly falls back to Mistral, and ambiguous prompt-injection decisions fall back to GPT-OSS Safeguard for exact-span redaction.
 
 ## Edge Cases
 

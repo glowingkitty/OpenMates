@@ -1,18 +1,41 @@
 # TypeSafe Jev decision API
 
-OpenMates uses `typesafe/jev-1.13` through OpenRouter for internal, bounded decisions. Jev is not a chat-completions model: it evaluates a supplied text or structured `state` against named questions and returns typed `choice`, `noul` (yes/no probability), or `score` answers. It does not generate titles, suggestions, summaries, translations, arbitrary JSON, or answer prose.
+OpenMates uses Jev 1.13 directly through TypeSafe AI as the primary provider for internal, bounded decisions, with OpenRouter as an availability fallback. The internal catalogue and billing ID remains `typesafe/jev-1.13`. Jev evaluates text or structured `state` against named questions and returns typed `choice`, `noul` (yes/no probability), or `score` answers. It does not generate titles, suggestions, summaries, translations, arbitrary JSON, or answer prose.
 
 ## Current transport
 
-- Endpoint: `POST https://openrouter.ai/api/alpha/decisions`
-- Model: `typesafe/jev-1.13`
-- Authentication: existing OpenRouter key at `kv/data/providers/openrouter` / `api_key`, with `SECRET__OPENROUTER__API_KEY` as the self-hosted environment fallback
+- Primary: `POST https://api.typesafe.ai/v1/systemone`, pinned model `jev-1.13.0`. Authentication: Vault `kv/data/providers/typesafe` / `api_key`, then environment `SECRET__TYPESAFE__API_KEY`.
+- Availability fallback: `POST https://openrouter.ai/api/alpha/decisions`, model `typesafe/jev-1.13`. Authentication: Vault `kv/data/providers/openrouter` / `api_key`, then environment `SECRET__OPENROUTER__API_KEY`.
+- Both transports use Bearer authentication and never reuse another provider's key. TypeSafe receives no OpenRouter attribution headers. Pinning the version preserves the current decision thresholds rather than following `jev-latest`.
 - Request data: a bounded recent-message projection, an optional fresh chat summary carried as a separate `conversation_summary` state object labeled conversation data (never instructions), and only the minimized candidate catalogues required by the named decisions. Optional search ranking sends the user-stated relevance criteria, ranking-relevant search parameters, and minimized public result fields without account identifiers, chat identifiers, credentials, private-repository data, or private catalog data.
 - Modalities: text or JSON-compatible structured state; no image, audio, video, or PDF input
 - OpenRouter advertises a 32,000-token context limit. The client enforces a 30,000 estimated-input-token working budget, including state, question IDs, instructions, criteria and framing, plus the existing 80,000 state-character, 120,000 request-character and 160-question limits. TikToken's `cl100k_base` and `o200k_base` are proxies: the larger estimate and 2,000-token headroom (6.25 percent) reduce risk but cannot guarantee the undocumented native tokenizer's count. Encoding operations use bounded text fragments to avoid long repeated-string stalls. Provider context errors are typed as oversized input and never retried.
-- Price observed for OpenRouter: $0.042 per million input tokens and no output-token charge
+- Published TypeSafe Jev 1.13 price: $0.042 per million input tokens and no output-token charge (verified 2026-10-06), matching the existing OpenRouter rate. TypeSafe documents 100,000 tokens/second and 80 requests/second, subject to change. Its context limits are 64,000 tokens overall and 32,000 for state plus the longest question; the common conservative budget remains unchanged for fallback compatibility.
 
-The provider client lives in `backend/shared/providers/typesafe/`. AI-pipeline code calls the decision helper in `backend/apps/ai/processing/jev_decisions.py`, while app skills use the shared bounded search-ranking helper in `backend/shared/python_utils/search_relevance.py`; neither path uses the normal chat-completions client. This boundary is intentional so a direct TypeSafe transport (`POST https://api.typesafe.ai/v1/systemone`, model alias `jev-latest`) can be added later without changing preprocessing, search ranking, or safety policy.
+The provider client lives in `backend/shared/providers/typesafe/`. AI-pipeline code calls the decision helper in `backend/apps/ai/processing/jev_decisions.py`, while app skills use the shared bounded search-ranking helper in `backend/shared/python_utils/search_relevance.py`; neither path uses the normal chat-completions client. The transport switch preserves the public API/client contracts and decision shapes.
+
+Missing or rejected credentials (401/403), transport timeouts, and exhausted transient failures (408/425/429/500/502/503/504/529) try OpenRouter after TypeSafe. Each provider retains bounded retries with exponential backoff capped at 0.5 seconds and bounded `Retry-After`; HTTP requests honor the configured timeout even with an injected client. Request-size errors, other rejected requests, invalid schemas, and missing answers do not resend to OpenRouter: callers keep their independent non-Jev fallback. Existing aggregate batch/caller deadlines remain in force. Logs retain counts and provider names, never private input or provider error bodies. Explicit provider probes disable failover so a missing TypeSafe key cannot produce a false direct-provider pass.
+
+## Configure the API key
+
+Run on the target server; the first command prompts without displaying the key:
+
+```bash
+openmates server env set SECRET__TYPESAFE__API_KEY --path /home/superdev/projects/OpenMates
+openmates server start --services vault-setup --path /home/superdev/projects/OpenMates
+```
+
+For another installation, replace `--path` with its canonical installation directory. Vault setup imports the value into `kv/data/providers/typesafe` as `api_key` and replaces the inline `.env` value with its existing import marker. API/worker secret loading reads that Vault path; OpenRouter remains usable until the TypeSafe key is supplied. Do not pass the key as a command-line argument.
+
+## Direct-provider contract
+
+Request: `{"model":"jev-1.13.0","state":"A harmless greeting","questions":{"safe":{"type":"noul","instructions":"Is this harmless?"}}}`.
+
+A compatible response is `{"model":"jev-1.13.0","answers":{"safe":{"type":"noul","noul":0.95}},"usage":{"input_tokens":40,"output_tokens":8}}`, parsed into `DecisionResponse` with `NoulAnswer` and nonnegative usage counts. Choice and Score retain their existing typed schemas. Incomplete or malformed answers are rejected. No additional skill/client fields are introduced.
+
+## Privacy
+
+TypeSafe AI, Inc. hosts its services in the US and states it does not train or fine-tune models on submitted input. Zero data retention is a separate enterprise offering, not an assumption for this integration. The [TypeSafe privacy policy](https://typesafe.ai/legal/privacy-policy) was verified on 2026-10-06. OpenMates discloses direct TypeSafe processing and conditional OpenRouter fallback with the same minimized data categories.
 
 ## Production uses and fallbacks
 

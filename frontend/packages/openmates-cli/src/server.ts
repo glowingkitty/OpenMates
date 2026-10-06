@@ -12,7 +12,7 @@ import { evaluateNotificationDestinationConfiguration, resolveHostNotificationDe
 
 import { execFileSync, execSync, spawn as nodeSpawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { appendFileSync, chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { createInterface as createPromptInterface } from "node:readline/promises";
 import { homedir, tmpdir } from "node:os";
@@ -110,6 +110,7 @@ import {
 } from "./serverQuickTest.js";
 import { resolveStableImageTag } from "./releaseChannel.js";
 import { ensureRuntimeMetricsDirectory } from "./serverRuntimePaths.js";
+import { editServerEnvFile, writeServerEnvFile } from "./serverEnvFile.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -145,8 +146,6 @@ const UPDATE_HEALTH_TIMEOUT_MS = 120_000;
 const UPDATE_HEALTH_INTERVAL_MS = 5_000;
 const HEALTH_REQUEST_TIMEOUT_MS = 5_000;
 const CHECKSUM_BUFFER_BYTES = 1024 * 1024;
-const ENV_BACKUP_PREFIX = ".env.openmates-backup-";
-const ENV_BACKUP_RETENTION_COUNT = 5;
 const BACKUP_FORMAT_VERSION = 2;
 const IMAGE_CHANNEL_TAGS = {
   stable: "stable",
@@ -267,6 +266,7 @@ SECRET__GROQ__API_KEY=
 SECRET__OPENAI__API_KEY=
 SECRET__ANTHROPIC__API_KEY=
 SECRET__GOOGLE_AI_STUDIO__API_KEY=
+SECRET__TYPESAFE__API_KEY=
 SECRET__OPENROUTER__API_KEY=
 SECRET__TOGETHER__API_KEY=
 SECRET__BRAVE__API_KEY=
@@ -762,12 +762,12 @@ function ensureGitWorkDirEnv(installPath: string): void {
 
   if (lineRegex.test(content)) {
     const next = content.replace(lineRegex, value);
-    if (next !== content) writeFileSync(envPath, next);
+    if (next !== content) writeServerEnvFile(envPath, next);
     return;
   }
 
   const separator = content.endsWith("\n") ? "" : "\n";
-  writeFileSync(envPath, `${content}${separator}${value}\n`);
+  writeServerEnvFile(envPath, `${content}${separator}${value}\n`);
 }
 
 /** Check that docker is installed and the daemon is running. */
@@ -1038,7 +1038,7 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string,
   envContent = setEnvVar(envContent, "OPENMATES_IMAGE_TAG", imageTag);
   envContent = setEnvVar(envContent, "OPENMATES_IMAGE_REGISTRY", DEFAULT_IMAGE_REGISTRY);
   envContent = setEnvVar(envContent, "GIT_WORK_DIR", installPath);
-  writeFileSync(envPath, envContent.endsWith("\n") ? envContent : `${envContent}\n`);
+  writeServerEnvFile(envPath, envContent.endsWith("\n") ? envContent : `${envContent}\n`);
 }
 
 function getImageTagFromEnv(installPath: string, config: ServerConfig | null): string {
@@ -1599,31 +1599,9 @@ function readEnvContent(installPath: string): string {
   return existsSync(envPath) ? readFileSync(envPath, "utf-8") : "";
 }
 
-function pruneEnvBackups(installPath: string): void {
-  const backups = readdirSync(installPath, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.startsWith(ENV_BACKUP_PREFIX))
-    .map((entry) => entry.name)
-    .sort();
-  for (const backup of backups.slice(0, Math.max(0, backups.length - ENV_BACKUP_RETENTION_COUNT))) {
-    rmSync(join(installPath, backup), { force: true });
-  }
-}
-
-function backupEnvFile(installPath: string): string | null {
-  const envPath = envPathForInstall(installPath);
-  if (!existsSync(envPath)) return null;
-  const backupPath = join(installPath, `${ENV_BACKUP_PREFIX}${nowStamp()}`);
-  copyFileSync(envPath, backupPath);
-  chmodSync(backupPath, 0o600);
-  pruneEnvBackups(installPath);
-  return backupPath;
-}
-
 function writeEnvContent(installPath: string, content: string): void {
   const envPath = envPathForInstall(installPath);
-  mkdirSync(dirname(envPath), { recursive: true });
-  writeFileSync(envPath, content, { mode: 0o600 });
-  chmodSync(envPath, 0o600);
+  writeServerEnvFile(envPath, content);
 }
 
 function writeDeploymentModeEnv(
@@ -2516,7 +2494,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       if (!existsSync(envSource)) {
         throw new Error(`Env file not found: ${envSource}`);
       }
-      copyFileSync(envSource, join(installPath, ".env"));
+      writeServerEnvFile(join(installPath, ".env"), readFileSync(envSource, "utf8"));
       console.error(`Copied ${envSource} to ${installPath}/.env`);
     }
 
@@ -2602,7 +2580,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     if (!existsSync(envSource)) {
       throw new Error(`Env file not found: ${envSource}`);
     }
-    copyFileSync(envSource, join(installPath, ".env"));
+    writeServerEnvFile(join(installPath, ".env"), readFileSync(envSource, "utf8"));
     console.error(`Copied ${envSource} to ${installPath}/.env`);
   }
 
@@ -4724,13 +4702,12 @@ async function serverEnv(rest: string[], flags: Record<string, string | boolean>
   if (action === "set") {
     const key = assertEnvKey(rest[1]);
     const value = typeof flags.value === "string" ? flags.value : await promptHiddenValue(`Value for ${key}: `);
-    const backupPath = backupEnvFile(installPath);
     writeEnvContent(installPath, upsertEnvValue(content, key, value));
     if (flags.json === true) {
-      printJson({ command: "env set", status: "success", key, backupPath });
+      printJson({ command: "env set", status: "success", key });
       return;
     }
-    console.log(`Updated ${key} in ${envPathForInstall(installPath)}.${backupPath ? ` Backup: ${backupPath}` : ""}`);
+    console.log(`Updated ${key} in ${envPathForInstall(installPath)}.`);
     return;
   }
 
@@ -4743,13 +4720,12 @@ async function serverEnv(rest: string[], flags: Record<string, string | boolean>
         return;
       }
     }
-    const backupPath = backupEnvFile(installPath);
     writeEnvContent(installPath, unsetEnvValue(content, key));
     if (flags.json === true) {
-      printJson({ command: "env unset", status: "success", key, backupPath });
+      printJson({ command: "env unset", status: "success", key });
       return;
     }
-    console.log(`Removed ${key} from ${envPathForInstall(installPath)}.${backupPath ? ` Backup: ${backupPath}` : ""}`);
+    console.log(`Removed ${key} from ${envPathForInstall(installPath)}.`);
     return;
   }
 
@@ -4779,10 +4755,8 @@ async function serverEnv(rest: string[], flags: Record<string, string | boolean>
       const keys = entries.filter((entry) => entry.category === category).map((entry) => entry.key);
       console.error(keys.length ? `Focused ${category} keys: ${keys.join(", ")}` : `No existing ${category} keys found; opening canonical .env.`);
     }
-    const backupPath = backupEnvFile(installPath);
-    if (backupPath) console.error(`Backup: ${backupPath}`);
     const editor = process.env.EDITOR || "nano";
-    const code = await runInteractive(editor, [envPathForInstall(installPath)], installPath);
+    const code = await editServerEnvFile(envPathForInstall(installPath), (temporary) => runInteractive(editor, [temporary], installPath));
     if (code !== 0) process.exit(code);
     return;
   }

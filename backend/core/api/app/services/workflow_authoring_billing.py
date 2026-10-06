@@ -84,7 +84,7 @@ class WorkflowAuthoringBilling:
             raise WorkflowAuthoringBillingError("INSUFFICIENT_CREDITS") from exc
 
     async def settle(self, *, model: str, provider_step: str,
-                     usage: Any) -> int:
+                     usage: Any, provider: str | None = None) -> int:
         """Charge only usage returned by a provider, even on a failed plan."""
         if not isinstance(usage, dict):
             usage = {
@@ -109,12 +109,24 @@ class WorkflowAuthoringBilling:
         if credits <= 0:
             raise WorkflowAuthoringBillingError("WORKFLOW_AUTHORING_PRICING_UNAVAILABLE")
         operation_id = self.operation_id(provider_step=provider_step)
+        jev_servers = {
+            "typesafe": ("TypeSafe", "US"),
+            "openrouter": ("OpenRouter", "global"),
+        }
+        # Older injected clients do not report the transport and historically
+        # used OpenRouter; an unfamiliar transport must not be mislabeled.
+        jev_server = (jev_servers[provider] if provider in jev_servers else
+                      ("OpenRouter", "global") if provider is None else
+                      ("Unknown", "unknown"))
+        server_provider, server_region = (
+            jev_server if model == JEV_MODEL else ("Google AI Studio", "US")
+        )
         details = {
             "source": "direct",
             "operation_id": operation_id,
             "model_used": model,
-            "server_provider": "OpenRouter" if model == JEV_MODEL else "Google AI Studio",
-            "server_region": "global" if model == JEV_MODEL else "US",
+            "server_provider": server_provider,
+            "server_region": server_region,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "provider_step": provider_step,
@@ -164,8 +176,10 @@ class MeteredJevClient:
             # A rejected or interrupted transport may not expose usage. Do
             # not infer tokens from the request or the USD cost estimate.
             await self.billing.settle(model=JEV_MODEL, provider_step=step,
-                                      usage=getattr(exc, "usage", None))
+                                      usage=getattr(exc, "usage", None),
+                                      provider=getattr(exc, "provider", None))
             raise
         await self.billing.settle(model=JEV_MODEL, provider_step=step,
-                                  usage=getattr(response, "usage", None))
+                                  usage=getattr(response, "usage", None),
+                                  provider=getattr(response, "provider", None))
         return response

@@ -81,7 +81,7 @@ async def test_candidate_partition_complete_stable_and_usage_summed():
         assert estimate_request_tokens(batch.state, batch.questions) <= MAX_ESTIMATED_INPUT_TOKENS
 
     async def evaluate(*, state, questions):
-        return DecisionResponse(model="jev", answers={
+        return DecisionResponse(model="jev", provider="typesafe", answers={
             key: {"type": "noul", "noul": .9} for key in questions
         }, usage={"input_tokens": 100, "output_tokens": 2})
 
@@ -89,6 +89,21 @@ async def test_candidate_partition_complete_stable_and_usage_summed():
     assert list(result.answers) == list(questions)
     assert result.usage.input_tokens == 100 * len(batches)
     assert result.usage.output_tokens == 2 * len(batches)
+    assert result.provider == "typesafe"
+
+
+@pytest.mark.asyncio
+async def test_mixed_batch_provider_is_not_guessed():
+    batches = question_batches("hello", {f"q{i}": QUESTION for i in range(161)})
+
+    async def evaluate(*, state, questions):
+        provider = "openrouter" if "q160" in questions else "typesafe"
+        return DecisionResponse(model="jev", provider=provider, answers={
+            key: {"type": "noul", "noul": .9} for key in questions
+        })
+
+    result = await evaluate_batches(batches, evaluate)
+    assert result.provider is None
 
 
 @pytest.mark.asyncio

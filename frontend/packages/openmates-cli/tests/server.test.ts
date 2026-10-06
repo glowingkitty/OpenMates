@@ -859,17 +859,11 @@ describe("composeArgs", () => {
     assert.match(composeSource, /planDockerComposeArgs/);
   });
 
-  it("caps generated env backups so secret-bearing copies do not accumulate", () => {
+  it("routes env changes through private atomic file writes without per-edit backups", () => {
     const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
-    const pruneSource = source.slice(source.indexOf("function pruneEnvBackups"), source.indexOf("function backupEnvFile"));
-    const backupSource = source.slice(source.indexOf("function backupEnvFile"), source.indexOf("function writeEnvContent"));
-
-    assert.match(source, /const ENV_BACKUP_PREFIX = "\.env\.openmates-backup-"/);
-    assert.match(source, /const ENV_BACKUP_RETENTION_COUNT = 5/);
-    assert.match(pruneSource, /entry\.isFile\(\) && entry\.name\.startsWith\(ENV_BACKUP_PREFIX\)/);
-    assert.match(pruneSource, /backups\.slice\(0, Math\.max\(0, backups\.length - ENV_BACKUP_RETENTION_COUNT\)\)/);
-    assert.match(pruneSource, /rmSync\(join\(installPath, backup\), \{ force: true \}\)/);
-    assert.match(backupSource, /pruneEnvBackups\(installPath\)/);
+    assert.doesNotMatch(source, /backupEnvFile|ENV_BACKUP_PREFIX|backupPath.*env set|backupPath.*env unset/);
+    assert.match(source, /writeServerEnvFile\(envPath, content\)/);
+    assert.match(source, /editServerEnvFile\(envPathForInstall\(installPath\)/);
   });
 });
 

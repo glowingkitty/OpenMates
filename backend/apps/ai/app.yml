@@ -90,7 +90,7 @@ skills:
       # When true, uses intelligent auto-selection based on leaderboard rankings.
       enable_auto_model_selection: true
       default_llms:
-        # Jev handles bounded decisions through OpenRouter. Existing generative
+        # Jev handles bounded decisions directly through TypeSafe (OpenRouter fallback). Existing generative
         # models remain independent fallbacks for availability and free-form text.
         decision_model: typesafe/jev-1.13
         # Latency-sensitive routing primary. Recovery uses Mistral before the

@@ -11155,17 +11155,6 @@
           "openrouter": {
             "heading": {
               "text": "OpenRouter (États-Unis, agrégateur de routage)"
-            },
-            "description": {
-              "text": "OpenRouter est utilisé comme agrégateur de routage pour plusieurs modèles tiers, y compris les modèles hébergés par Cerebras. OpenRouter voit tes messages de chat avec les espaces réservés PII substitués côté client et les transmet à l'hôte du modèle sous-jacent."
-            }
-          },
-          "typesafe": {
-            "heading": {
-              "text": "TypeSafe Jev (via OpenRouter)"
-            },
-            "description": {
-              "text": "TypeSafe Jev reçoit via OpenRouter un contexte récent limité de la conversation et des métadonnées de candidats afin de prendre des décisions internes de routage, de niveau de modèle, de compétences, de modes de concentration, de langue et de sécurité. Il vérifie aussi les textes externes pour détecter les injections de prompt. Pour le classement facultatif de pertinence des recherches, il reçoit les critères de pertinence indiqués, les paramètres de recherche et des données minimisées sur les candidats provenant des recherches publiques prises en charge. OpenMates n'envoie aucun identifiant utilisateur et Jev renvoie des décisions typées plutôt que du texte de chat généré."
             }
           },
           "cerebras": {

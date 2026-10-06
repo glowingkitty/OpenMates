@@ -428,18 +428,17 @@ provider_groups:
         location: US
         used_for:
           - routing LLM requests to Cerebras and other third-party model hosts
-          - routing bounded preprocessing and safety decisions to TypeSafe Jev
+          - fallback routing to TypeSafe Jev when direct TypeSafe credentials are unavailable or direct authentication, transport, or transient service failures occur
         data_shared:
           - Chat messages with PII placeholders substituted client-side
-          - Bounded recent-message context and candidate metadata needed for internal routing and safety decisions
-          - Optional search relevance criteria, search parameters, and minimized public search-result candidate data
+          - On TypeSafe Jev fallback, the same minimized recent-message context, decision candidate metadata, and optional public-search relevance data sent on the direct path
       typesafe:
-        privacy_policy: https://typesafe.ai/legal/privacy-policy
-        location: See provider privacy policy
+        privacy_policy: https://typesafe.ai/legal/privacy-policy  # verified 2026-10-06
+        location: US
         used_for:
-          - bounded request routing, model-tier, skill, focus-mode, language, and metadata decisions via OpenRouter
-          - request-safety, response-safety, and prompt-injection classification via OpenRouter
-          - optional relevance ranking for supported public search results via OpenRouter
+          - direct bounded request routing, model-tier, skill, focus-mode, language, and metadata decisions
+          - direct request-safety, response-safety, and prompt-injection classification
+          - direct optional relevance ranking for supported public search results
         data_shared:
           - Bounded recent chat context with PII placeholders substituted client-side
           - External text being checked for prompt injection, without OpenMates user identifiers

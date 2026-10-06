@@ -91,10 +91,12 @@ providers:
     source_document: "TypeSafe Privacy Policy"
     mechanism: Contractual prohibition for submitted input
     notes: >
-      Jev is currently reached through OpenRouter. TypeSafe also offers zero
-      data retention separately for enterprise customers.
+      Jev uses TypeSafe directly as its primary route. OpenRouter is a fallback
+      if direct credentials are unavailable or direct authentication, transport,
+      or transient service failures occur. TypeSafe offers zero data retention
+      separately for enterprise customers; the standard route does not imply it.
     action_required: none
-    last_verified: "2026-09-22T00:00:00Z"
+    last_verified: "2026-10-06T00:00:00Z"
 
   mistral:
     status: no_training

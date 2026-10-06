@@ -11155,17 +11155,6 @@
           "openrouter": {
             "heading": {
               "text": "OpenRouter (미국, 라우팅 애그리게이터)"
-            },
-            "description": {
-              "text": "OpenRouter는 Cerebras 호스팅 모델을 포함한 여러 서드파티 모델의 라우팅 애그리게이터로 사용됩니다. OpenRouter는 클라이언트 측에서 PII 자리표시자가 대체된 채팅 메시지를 확인하고 이를 기본 모델 호스트로 전달합니다."
-            }
-          },
-          "typesafe": {
-            "heading": {
-              "text": "TypeSafe Jev (OpenRouter 경유)"
-            },
-            "description": {
-              "text": "TypeSafe Jev는 내부 라우팅, 모델 등급, 스킬, 포커스 모드, 언어 및 안전 결정을 위해 OpenRouter를 통해 제한된 최근 채팅 문맥과 후보 메타데이터를 받습니다. 외부 텍스트의 프롬프트 인젝션도 검사합니다. 선택적 검색 관련성 순위에서는 명시된 관련성 기준, 검색 매개변수, 지원되는 공개 검색의 최소화된 후보 데이터를 받습니다. OpenMates는 사용자 식별자를 보내지 않으며 Jev는 생성된 채팅 텍스트가 아닌 형식화된 결정을 반환합니다."
             }
           },
           "cerebras": {

@@ -11155,17 +11155,6 @@
           "openrouter": {
             "heading": {
               "text": "OpenRouter (美国，路由聚合器)"
-            },
-            "description": {
-              "text": "OpenRouter 作为多个第三方模型（包括 Cerebras 托管的模型）的路由聚合器。OpenRouter 会看到 PII 占位符已在客户端替换后的聊天消息，并将其转发给底层的模型托管商。"
-            }
-          },
-          "typesafe": {
-            "heading": {
-              "text": "TypeSafe Jev（通过 OpenRouter）"
-            },
-            "description": {
-              "text": "TypeSafe Jev 通过 OpenRouter 接收有限的近期聊天上下文和候选元数据，用于内部路由、模型级别、技能、专注模式、语言和安全决策。它还会检查外部文本中的提示注入。对于可选的搜索相关性排序，它会接收所述相关性标准、搜索参数以及经过最小化处理的受支持公开搜索候选数据。OpenMates 不会发送用户标识符，Jev 返回的是类型化决策，而不是生成的聊天文本。"
             }
           },
           "cerebras": {

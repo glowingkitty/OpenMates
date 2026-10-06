@@ -133,9 +133,12 @@ async def evaluate_batches(
         return response
 
     responses = await run_bounded_batches(batches, call, timeout_seconds=timeout_seconds)
+    providers = {response.provider for response in responses}
+    provider = providers.pop() if len(providers) == 1 else None
     logger.info("Jev decision batches completed: batches=%d questions=%d input_tokens=%d",
                 len(batches), len(expected), sum(row.usage.input_tokens for row in responses))
     return DecisionResponse(
+        provider=provider,
         model=responses[0].model,
         answers={key: answer for response in responses for key, answer in response.answers.items()},
         usage={"input_tokens": sum(row.usage.input_tokens for row in responses),

@@ -11155,17 +11155,6 @@
           "openrouter": {
             "heading": {
               "text": "OpenRouter (USA, agregátor směrování)"
-            },
-            "description": {
-              "text": "OpenRouter se používá jako agregátor směrování pro několik modelů třetích stran, včetně modelů hostovaných společností Cerebras. OpenRouter vidí tvé zprávy s osobními údaji (PII) nahrazenými na straně klienta a předává je hostiteli daného modelu."
-            }
-          },
-          "typesafe": {
-            "heading": {
-              "text": "TypeSafe Jev (přes OpenRouter)"
-            },
-            "description": {
-              "text": "TypeSafe Jev přijímá přes OpenRouter omezený kontext nedávné konverzace a metadata kandidátů pro interní rozhodování o směrování, úrovni modelu, dovednostech, režimech soustředění, jazyku a bezpečnosti. Kontroluje také externí text na prompt injection. Pro volitelné řazení relevance vyhledávání přijímá uvedená kritéria relevance, parametry vyhledávání a minimalizovaná data kandidátů z podporovaných veřejných vyhledávání. OpenMates neposílá identifikátory uživatelů a Jev vrací typovaná rozhodnutí místo generovaného textu chatu."
             }
           },
           "cerebras": {

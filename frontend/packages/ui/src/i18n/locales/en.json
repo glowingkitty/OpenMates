@@ -12180,15 +12180,15 @@
               "text": "OpenRouter (US, routing aggregator)"
             },
             "description": {
-              "text": "OpenRouter is used as a routing aggregator for several third-party models, including Cerebras-hosted models. OpenRouter sees your chat messages with PII placeholders substituted client-side and forwards them to the underlying model host."
+              "text": "OpenRouter routes requests to several third-party models, including Cerebras-hosted models. It sees chat messages with PII placeholders substituted client-side and forwards them to the model host. If direct TypeSafe credentials are unavailable, or direct authentication, transport, or transient service failures occur, OpenRouter may also route TypeSafe Jev decisions using the same minimized decision inputs described below."
             }
           },
           "typesafe": {
             "heading": {
-              "text": "TypeSafe Jev (via OpenRouter)"
+              "text": "TypeSafe Jev (US)"
             },
             "description": {
-              "text": "TypeSafe Jev receives bounded recent chat context and candidate metadata through OpenRouter to make internal routing, model-tier, skill, focus-mode, language, and safety decisions. It also checks external text for prompt injection. For optional search relevance ranking, it receives the stated relevance criteria, search parameters, and minimized candidate data from supported public searches. OpenMates does not send user identifiers, and Jev returns typed decisions rather than generated chat text."
+              "text": "OpenMates primarily sends bounded decision requests directly to TypeSafe Jev on US-hosted services. Jev receives bounded recent chat context and candidate metadata to make internal routing, model-tier, skill, focus-mode, language, and safety decisions. It also checks external text for prompt injection. For optional search relevance ranking, it receives the stated relevance criteria, search parameters, and minimized candidate data from supported public searches. OpenMates does not send user identifiers, and Jev returns typed decisions rather than generated chat text. OpenRouter is used only as a fallback when direct credentials are unavailable, or direct authentication, transport, or transient service failures occur; it receives the same minimized decision inputs and forwards them to TypeSafe Jev."
             }
           },
           "cerebras": {

@@ -11155,17 +11155,6 @@
           "openrouter": {
             "heading": {
               "text": "OpenRouter (AS, agregator perutean)"
-            },
-            "description": {
-              "text": "OpenRouter digunakan sebagai agregator perutean untuk beberapa model pihak ketiga, termasuk model yang dihosting Cerebras. OpenRouter melihat pesan obrolanmu dengan placeholder PII yang diganti di sisi klien dan meneruskannya ke host model yang mendasarinya."
-            }
-          },
-          "typesafe": {
-            "heading": {
-              "text": "TypeSafe Jev (melalui OpenRouter)"
-            },
-            "description": {
-              "text": "TypeSafe Jev menerima konteks chat terbaru yang dibatasi dan metadata kandidat melalui OpenRouter untuk keputusan internal tentang perutean, tingkat model, skill, mode fokus, bahasa, dan keamanan. Layanan ini juga memeriksa teks eksternal untuk prompt injection. Untuk pemeringkatan relevansi pencarian opsional, layanan menerima kriteria relevansi yang dinyatakan, parameter pencarian, serta data kandidat yang diminimalkan dari pencarian publik yang didukung. OpenMates tidak mengirim pengenal pengguna dan Jev mengembalikan keputusan bertipe, bukan teks chat buatan."
             }
           },
           "cerebras": {

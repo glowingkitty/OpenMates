@@ -11155,17 +11155,6 @@
           "openrouter": {
             "heading": {
               "text": "OpenRouter (Hoa Kỳ, bộ tổng hợp định tuyến)"
-            },
-            "description": {
-              "text": "OpenRouter được sử dụng làm bộ tổng hợp định tuyến cho một số mô hình bên thứ ba, bao gồm các mô hình do Cerebras lưu trữ. OpenRouter thấy tin nhắn trò chuyện của bạn với các trình giữ chỗ PII đã được thay thế ở phía máy khách và chuyển tiếp chúng đến máy chủ lưu trữ mô hình cơ sở."
-            }
-          },
-          "typesafe": {
-            "heading": {
-              "text": "TypeSafe Jev (qua OpenRouter)"
-            },
-            "description": {
-              "text": "TypeSafe Jev nhận ngữ cảnh trò chuyện gần đây có giới hạn và siêu dữ liệu ứng viên qua OpenRouter để đưa ra các quyết định nội bộ về định tuyến, cấp mô hình, kỹ năng, chế độ tập trung, ngôn ngữ và an toàn. Dịch vụ cũng kiểm tra văn bản bên ngoài để phát hiện prompt injection. Khi dùng xếp hạng mức độ liên quan tùy chọn, dịch vụ nhận tiêu chí liên quan đã nêu, tham số tìm kiếm và dữ liệu ứng viên đã được tối giản từ các tìm kiếm công khai được hỗ trợ. OpenMates không gửi mã định danh người dùng và Jev trả về quyết định có kiểu thay vì văn bản trò chuyện được tạo."
             }
           },
           "cerebras": {
