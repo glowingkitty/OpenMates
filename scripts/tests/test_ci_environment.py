@@ -440,10 +440,11 @@ def test_only_isolated_ai_profile_advertises_fixture_model_readiness():
 def test_schema_setup_mounts_exact_candidate_and_enables_ci_fast_settle():
     setup = compose_profile("a" * 40)["services"]["cms-setup"]
     assert setup["environment"]["CI_FAST_SCHEMA_SETUP"] == "1"
-    assert any(
-        "/setup/setup_schemas.py:/usr/src/app/setup_schemas.py:ro" in str(mount)
-        for mount in setup["volumes"]
-    )
+    for filename in ("setup_schemas.py", "accountability_policy.py"):
+        assert any(
+            f"/setup/{filename}:/usr/src/app/{filename}:ro" in str(mount)
+            for mount in setup["volumes"]
+        )
 
 
 def test_compatible_prepared_schema_keeps_fresh_state_but_skips_full_initializer():
@@ -597,3 +598,41 @@ def test_startup_service_timings_retain_gates_without_health_logs(tmp_path, monk
     assert result["execution_seconds"] == 22
     assert result["started_after_stack_seconds"] == 10
     assert result["finished_after_stack_seconds"] == 32
+
+
+@pytest.mark.parametrize("collection", [
+    "team_storage_billing_periods",
+    "team_storage_billing_owner_state",
+    "team_storage_billing_warning_units",
+])
+def test_schema_setup_loads_candidate_policy_instead_of_cached_image(tmp_path, monkeypatch, collection):
+    import runpy
+    from scripts import ci_environment
+
+    # A cached dependency image predates candidate collection policy additions.
+    cached_policy = tmp_path / "cached-image/accountability_policy.py"
+    cached_policy.parent.mkdir()
+    cached_policy.write_text(
+        "REDUCED_ACCOUNTABILITY = {}\n"
+        "def configured_accountability(name, config):\n"
+        "    value = config['meta']['accountability']\n"
+        "    if name not in REDUCED_ACCOUNTABILITY or value != REDUCED_ACCOUNTABILITY[name]:\n"
+        "        raise ValueError('Unreviewed Directus accountability override')\n"
+        "    return True, value\n"
+    )
+    candidate_root = tmp_path / "candidate"
+    candidate_policy = candidate_root / "backend/core/directus/setup/accountability_policy.py"
+    candidate_policy.parent.mkdir(parents=True)
+    candidate_policy.write_text(
+        cached_policy.read_text() + f"\nREDUCED_ACCOUNTABILITY[{collection!r}] = None\n"
+    )
+    config = {"meta": {"accountability": None}}
+    with pytest.raises(ValueError, match="Unreviewed Directus accountability override"):
+        runpy.run_path(str(cached_policy))["configured_accountability"](collection, config)
+    monkeypatch.setattr(ci_environment, "SOURCE", str(candidate_root))
+    setup = compose_profile("a" * 40)["services"]["cms-setup"]
+    policy_mounts = [mount.split(":") for mount in setup["volumes"]
+                     if isinstance(mount, str) and ":/usr/src/app/accountability_policy.py:" in mount]
+    assert policy_mounts == [[str(candidate_policy), "/usr/src/app/accountability_policy.py", "ro"]]
+    mounted_policy = runpy.run_path(policy_mounts[0][0])
+    assert mounted_policy["configured_accountability"](collection, config) == (True, None)

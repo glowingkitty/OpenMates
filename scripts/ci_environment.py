@@ -774,6 +774,7 @@ def compose_profile(
                 f"{SOURCE}/backend/core/directus/schemas:/usr/src/app/schemas:ro",
                 f"{SOURCE}/backend/core/directus/setup:/usr/src/app/migrations:ro",
                 f"{SOURCE}/backend/core/directus/setup/setup_schemas.py:/usr/src/app/setup_schemas.py:ro",
+                f"{SOURCE}/backend/core/directus/setup/accountability_policy.py:/usr/src/app/accountability_policy.py:ro",
             ],
             "depends_on": {"cms": {"condition": "service_started"}},
         },
