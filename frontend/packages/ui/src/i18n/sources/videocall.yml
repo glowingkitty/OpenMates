@@ -1,0 +1,295 @@
+# User-facing labels for the isolated video call experiment.
+# English is the fallback for languages without this trial's translations.
+# German text is included for the currently tested second language.
+# Keep billing labels aligned with the server's minute-rate wire values.
+# Actual accrued credits are still calculated from measured usage.
+experiment:
+  context: Badge on the isolated video call trial page
+  en: Experiment
+  de: Experiment
+  verified_by_human: []
+close:
+  context: Leave the video call page
+  en: Close
+  de: Schließen
+  verified_by_human: []
+provider:
+  context: Voice call provider label
+  en: Via Google Gemini
+  de: Über Google Gemini
+  verified_by_human: []
+title:
+  context: Isolated video call page heading
+  en: Live video call
+  de: Live-Videoanruf
+  verified_by_human: []
+subtitle:
+  context: Explains optional generated visuals
+  en: Talk naturally. Gemini can add short generated visuals when they help.
+  de: Sprich ganz natürlich. Gemini kann bei Bedarf kurze generierte Videos zeigen.
+  verified_by_human: []
+elapsed:
+  context: Call timer elapsed time
+  en: '{time} elapsed'
+  de: '{time} vergangen'
+  verified_by_human: []
+remaining:
+  context: Call timer remaining time
+  en: '{time} left'
+  de: 'Noch {time}'
+  verified_by_human: []
+visual:
+  context: Accessibility label for generated video stage
+  en: Call visual
+  de: Anrufvideo
+  verified_by_human: []
+generated_visual:
+  context: Disclosure on AI generated visuals
+  en: AI generated visual
+  de: KI-generiertes Video
+  verified_by_human: []
+next_visual:
+  context: Pending next video clip while a clip plays
+  en: Next visual is rendering…
+  de: Das nächste Video wird erstellt…
+  verified_by_human: []
+waiting_visual:
+  context: Last video frame is held while the next clip renders
+  en: Waiting for next visual…
+  de: Warte auf das nächste Video…
+  verified_by_human: []
+creating_visual:
+  context: First visual is rendering
+  en: Creating a visual…
+  de: Video wird erstellt…
+  verified_by_human: []
+voice_call:
+  context: Portrait while a call is audio-only
+  en: Voice call
+  de: Sprachanruf
+  verified_by_human: []
+play_visual:
+  context: Recover from blocked video autoplay
+  en: Play visual
+  de: Video abspielen
+  verified_by_human: []
+stop_video:
+  context: Stop visuals while continuing voice
+  en: Stop video
+  de: Video stoppen
+  verified_by_human: []
+allow_video:
+  context: Permit visuals again during a voice call
+  en: Allow video
+  de: Video erlauben
+  verified_by_human: []
+hangup:
+  context: End and release the live call
+  en: Hang up
+  de: Auflegen
+  verified_by_human: []
+transcript:
+  context: Open transcript drawer on a small screen
+  en: Transcript
+  de: Transkript
+  verified_by_human: []
+conversation:
+  context: Transcript panel heading
+  en: Conversation
+  de: Unterhaltung
+  verified_by_human: []
+close_transcript:
+  context: Close transcript drawer
+  en: Close transcript
+  de: Transkript schließen
+  verified_by_human: []
+transcript_empty:
+  context: Empty live transcript panel
+  en: Your live transcript appears here.
+  de: Dein Live-Transkript erscheint hier.
+  verified_by_human: []
+you:
+  context: Role label in call transcript
+  en: You
+  de: Du
+  verified_by_human: []
+live_cost:
+  context: Actual call usage section title
+  en: Live cost
+  de: Laufende Kosten
+  verified_by_human: []
+audio_only:
+  context: Active call rate when visuals are off
+  en: Audio only
+  de: Nur Audio
+  verified_by_human: []
+audio_video:
+  context: Active call rate when visuals are on
+  en: Audio + video
+  de: Audio + Video
+  verified_by_human: []
+credits_per_minute:
+  context: Credit rate per minute rounded to a whole estimate
+  en: '{count} credits/min'
+  de: '{count} Credits/Min.'
+  verified_by_human: []
+billing_note:
+  context: Explain that the visible rate is an estimate and actual billable usage has a minimum
+  en: 'Estimated rate. Actual credits include transcript and context usage. Billed per second, minimum 1 credit.'
+  de: 'Geschätzter Tarif. Tatsächliche Credits enthalten auch Transkript- und Kontextnutzung. Sekundengenaue Abrechnung, mindestens 1 Credit.'
+  verified_by_human: []
+credits_accrued:
+  context: Fractional accrued credits shown during live call
+  en: Credits accrued
+  de: Aufgelaufene Credits
+  verified_by_human: []
+credits_charged:
+  context: Settled integer credits charged
+  en: Credits charged
+  de: Berechnete Credits
+  verified_by_human: []
+gemini_audio:
+  context: Gemini audio billing line
+  en: Gemini audio
+  de: Gemini-Audio
+  verified_by_human: []
+generated_visuals:
+  context: Video billing line
+  en: Generated visuals
+  de: Generierte Videos
+  verified_by_human: []
+credits:
+  context: Credits unit in usage lines
+  en: '{count} credits'
+  de: '{count} Credits'
+  verified_by_human: []
+token_usage:
+  context: Expand token and context billing detail
+  en: Token and context usage
+  de: Token- und Kontextnutzung
+  verified_by_human: []
+billed_context:
+  context: Billed input and repeated context token label
+  en: Billed input/context
+  de: Berechnete Eingabe/Kontext
+  verified_by_human: []
+input:
+  context: Gemini input token count
+  en: Input
+  de: Eingabe
+  verified_by_human: []
+output:
+  context: Gemini output token count
+  en: Output
+  de: Ausgabe
+  verified_by_human: []
+audio_rate:
+  context: Gemini audio credit rate
+  en: Audio rate
+  de: Audio-Tarif
+  verified_by_human: []
+video_rate:
+  context: Video credit rate
+  en: Video rate
+  de: Video-Tarif
+  verified_by_human: []
+ended:
+  context: Call ended status and resource cleanup notice
+  en: Call ended. Your audio and visuals were released.
+  de: Anruf beendet. Audio und Video wurden freigegeben.
+  verified_by_human: []
+start:
+  context: Start first call button
+  en: Start call
+  de: Anruf starten
+  verified_by_human: []
+restart:
+  context: Start another call button
+  en: Start another call
+  de: Weiteren Anruf starten
+  verified_by_human: []
+privacy:
+  context: Experiment has no recording or call storage
+  en: Your microphone is used only during the call. This experiment does not record or save the call.
+  de: Dein Mikrofon wird nur während des Anrufs verwendet. Dieses Experiment zeichnet den Anruf nicht auf und speichert ihn nicht.
+  verified_by_human: []
+connecting:
+  context: Status while establishing microphone and Gemini connection
+  en: Connecting your microphone and Gemini…
+  de: Mikrofon und Gemini werden verbunden…
+  verified_by_human: []
+auth_loading:
+  context: Check user session before allowing call
+  en: Checking your session…
+  de: Sitzung wird geprüft…
+  verified_by_human: []
+auth_title:
+  context: Login required heading
+  en: Log in to start a call
+  de: Melde dich an, um einen Anruf zu starten
+  verified_by_human: []
+auth_detail:
+  context: Login required explanation
+  en: This experiment uses your OpenMates account.
+  de: Dieses Experiment verwendet dein OpenMates-Konto.
+  verified_by_human: []
+auth_link:
+  context: Return to existing login page
+  en: Go to login
+  de: Zur Anmeldung
+  verified_by_human: []
+session_expired:
+  context: Call cannot start because account session expired
+  en: Your session has expired. Please log in again.
+  de: Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.
+  verified_by_human: []
+auth_unavailable:
+  context: Call cannot authenticate with current browser session
+  en: Call authentication is unavailable.
+  de: Die Anrufanmeldung ist derzeit nicht verfügbar.
+  verified_by_human: []
+microphone_denied:
+  context: Browser denied microphone permission
+  en: Microphone access was denied. Allow access in your browser and try again.
+  de: Der Mikrofonzugriff wurde verweigert. Erlaube den Zugriff im Browser und versuche es erneut.
+  verified_by_human: []
+microphone_missing:
+  context: Browser found no available microphone
+  en: No microphone was found. Connect one and try again.
+  de: Es wurde kein Mikrofon gefunden. Schließe eines an und versuche es erneut.
+  verified_by_human: []
+microphone_failed:
+  context: Browser could not start microphone capture
+  en: Your microphone could not start. Check your browser settings and try again.
+  de: Dein Mikrofon konnte nicht gestartet werden. Prüfe die Browsereinstellungen und versuche es erneut.
+  verified_by_human: []
+connection_lost:
+  context: Call websocket disconnected unexpectedly
+  en: The call connection was lost.
+  de: Die Anrufverbindung wurde unterbrochen.
+  verified_by_human: []
+connection_failed:
+  context: Call websocket closed before ready
+  en: The call could not connect. Please try again.
+  de: Der Anruf konnte nicht verbunden werden. Bitte versuche es erneut.
+  verified_by_human: []
+invalid_response:
+  context: Call received an invalid server response
+  en: The call received an invalid response.
+  de: Der Anruf erhielt eine ungültige Antwort.
+  verified_by_human: []
+could_not_start:
+  context: Generic call start failure
+  en: The call could not start. Please try again.
+  de: Der Anruf konnte nicht gestartet werden. Bitte versuche es erneut.
+  verified_by_human: []
+visual_unavailable:
+  context: Video generation failed while voice continues
+  en: A visual is unavailable. Voice continues.
+  de: Ein Video ist nicht verfügbar. Der Sprachanruf läuft weiter.
+  verified_by_human: []
+call_unavailable:
+  context: Fatal call service failure without exposing provider details
+  en: The call is unavailable right now. Please try again.
+  de: Der Anruf ist gerade nicht verfügbar. Bitte versuche es erneut.
+  verified_by_human: []

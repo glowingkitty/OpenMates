@@ -5,6 +5,7 @@
       "execution": "e2e",
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts.",
       "specs": [
+        "video-call-experiment.spec.ts",
         "upload-metadata-privacy.spec.ts",
         "cli-privacy.spec.ts",
         "a11y-keyboard-nav.spec.ts",
@@ -226,6 +227,8 @@
       "execution": "e2e",
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "specs": [
+        "components/video-call-panel.spec.ts",
+        "components/video-call-panel-responsive.spec.ts",
         "api-key-scopes-settings.spec.ts",
         "apps-workspace.spec.ts",
         "header-mobile-layout.spec.ts",

@@ -1,0 +1,114 @@
+schema_version: 2
+profile: concise
+id: video-call-experiment
+title: Gemini Voice And H3 Turbo Experiment
+status: implementing
+goal: >
+  Implement a first test to see how well such a system can actually work, before
+  spending more time on it: a basic /experiment/videocall page for Gemini voice
+  calling where Gemini can trigger video generation, the user can close video
+  or end generation, and audio/video use is charged as usual.
+
+scope:
+  in:
+    - Authenticated first-party experiment with native Gemini 3.8 Live speech and transient transcript.
+    - Gemini-only visual tool driving sequential five-second H3 Max Turbo 480p clips.
+    - Ten-second visual-instruction inactivity timeout and independent video/hangup controls.
+    - Clearly audible Gemini speech, quieter video ambience/effects and automatic ducking.
+    - Wide side-by-side transcript/video and narrow fullscreen video with transcript access.
+    - Authoritative proportional billing, 1.2 multiplier, visible rates/time/credits and bounded spend.
+    - Two-minute experimental session limit, one pending video job and deterministic cleanup.
+    - Focused backend and frontend checks plus component and route evidence in isolated CI.
+  out:
+    - Normal chat/sidebar integration, ordinary app skills, app-skill result rendering and native clients.
+    - S3 recording, replay and download, including whole-call recording composition.
+    - Automatic paid reconnect, unlimited sessions and production deployment.
+
+decisions:
+  - User approved the limited experiment after five sequential clarification answers.
+  - User approved committing both reviewed Specification bundles as drafts; the full chat-bound mode remains future scope.
+  - Full-mode calls stay attached to their starting chat; sidebar selection opens another tab while a call is active.
+  - Future full mode saves one whole-call encrypted recording at hangup; audio-only calls use audio files.
+  - Future mixed calls use video recordings with mate portrait/animated AI-icon backgrounds in audio-only intervals.
+  - Recording composition technology, including Remotion, is deferred until the live experiment is evaluated.
+  - The experiment does not require CLI/SDK parity because its private live voice capture surface is web-only.
+  - The route uses session authentication and origin protection, never developer API-key or anonymous paid access.
+  - Video rate is 0.015 USD/generated second through the researched October 15 promotion, then 0.025; credits use 0.001 USD accounting basis.
+  - Gemini is billed from modality usage including reprocessed history, not only elapsed call time.
+  - UI prices stay in rounded whole credits per minute; proportional per-second usage settles with a one-credit minimum for positive billable usage.
+
+draft_contract:
+  path: specifications/features/video-call/specification.yml
+  id: feature.video-call
+  status: draft
+  closest_existing_contracts:
+    - feature.chats defines encrypted chat persistence but does not define live call lifecycle or recording.
+    - feature.chat-navigation defines ordinary chat switching, not a call-bound new-tab override.
+    - feature.billing supplies existing settlement boundaries but does not define live provider usage metering.
+    - feature.assistant-response-speech covers response TTS, not native bidirectional Gemini conversation.
+
+experimental_contract:
+  path: specifications/features/video-call-experiment/specification.yml
+  id: feature.video-call-experiment
+  status: draft
+  approval: Both exact draft bundles were explicitly approved and committed to dev as 7b8ab00b10a375bb6df89d4dd12a0d73a98804ff.
+
+acceptance_criteria:
+  - id: AC-1
+    text: Start with permitted microphone and session; receive native Gemini audio and live transcript.
+    coverage_status: covered
+  - id: AC-2
+    text: Gemini can request an initial visual and redirect upcoming clips without invoking other app skills.
+    coverage_status: covered
+  - id: AC-3
+    text: User stop and ten-second visual inactivity return to audio; late clip events cannot reopen video.
+    coverage_status: covered
+  - id: AC-4
+    text: Gemini remains audible over video sound and interruptions flush queued speech.
+    coverage_status: covered
+  - id: AC-5
+    text: Auth/origin, balance failure, packet limits and concurrent admission reject paid work safely.
+    coverage_status: covered
+  - id: AC-6
+    text: Browser unmount, hangup and session expiry stop tracks, sources, provider jobs and future paid work.
+    coverage_status: covered
+  - id: AC-7
+    text: Usage settlement is proportional, bounded and idempotent; current rates and accrued credits are visible.
+    coverage_status: covered
+  - id: AC-8
+    text: Both screen layouts retain usable controls; no recording or ordinary chat persistence occurs.
+    coverage_status: covered
+
+verification:
+  execution_waivers:
+    - User explicitly requested immediate experiment deployment on 2026-10-06 after completed desktop and unit checks; the in-flight authenticated route run is retained as supplementary evidence and is not a deployment gate.
+    - User explicitly requested desktop-only testing on 2026-10-06; responsive test execution and phone smoke are waived for this experiment delivery. Responsive implementation and focused coverage remain available.
+  required:
+    - Specification and Plan validation.
+    - Focused backend tests for auth, usage, inactivity, admission and accepted-job cleanup.
+    - Focused frontend checks for transport and media lifecycle.
+    - Isolated component-preview Playwright before experiment route Playwright.
+    - Download/upload all existing CI recordings and include returned video links in chat.
+  live_inference:
+    - Only on an authorized scoped dev runtime after candidate checks and deployment, never paid-provider CI.
+    - Record actual provider/session failures or unavailable credentials; do not claim mocked runs prove latency or quality.
+  deployment:
+    - Commit the two approved draft Specification bundles before publishing the experimental implementation.
+    - Run focused candidate component proof before authenticated route proof, then deploy the scoped experimental code to dev.
+    - Keep the full-mode contract as a draft; chat binding, recordings and other app skills remain outside this implementation.
+    - Never issue real fal/H3 requests in automated verification; a bounded Gemini-only provider probe is authorized.
+
+verification_evidence:
+  backend: 20 focused mocked route/provider/billing tests passed; Ruff passed.
+  frontend: Five focused microphone/PCM/controller tests passed; changed-path ESLint and compilation passed.
+  component:
+    source: 6a51e056842c6c6bbd6f72a4cfe5c016da7dbee7
+    request: 098ad10bc7b2368ca59f32d9c2d415c213ff1553bb2d918fef5049a249d43bdc
+    run: 37491657808
+    result: Three desktop cases passed; captures reviewed; all recordings uploaded.
+  responsive: Execution waived by the user; the separate responsive spec remains available.
+  provider_limits: No real fal requests were made. Further automated verification is not a deployment gate; the user will evaluate the deployed experiment.
+  route:
+    source: 32dbc1abbe46725d6b5243f14fad9e6253f015ac
+    request: 161d14ea435eb0176f723f0058d13e28b05763f8b6df92879a3983e0d32880ae
+    result: In flight; user waived waiting for this run before deployment.
