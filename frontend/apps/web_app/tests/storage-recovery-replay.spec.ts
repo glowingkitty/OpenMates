@@ -103,8 +103,81 @@ test('saved child message and summary replay through sealed output records after
 	}
 });
 
+// contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+test('sealed output waits for foreground acknowledgement and fresh discovery', async ({ browser }: { browser: any }, testInfo: any) => {
+	requireSignedRecoveryProfile();
+	test.setTimeout(240_000);
+	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
+	const sourceContext = await browser.newContext({ baseURL });
+	const destinationContext = await browser.newContext({ baseURL, recordVideo: { dir: testInfo.outputDir } });
+	const source = await sourceContext.newPage();
+	const destination = await destinationContext.newPage();
+	const log = createSignupLogger('storage-recovery-foreground');
+	const screenshot = createStepScreenshotter(log);
+	const frames: Array<{ direction: string; type: string; payload: Record<string, any> }> = [];
+	destination.on('websocket', (socket: any) => {
+		for (const [direction, event] of [['sent', 'framesent'], ['received', 'framereceived']]) {
+			socket.on(event, (frame: any) => {
+				try {
+					const parsed = JSON.parse(String(frame.payload));
+					frames.push({ direction, type: parsed.type, payload: parsed.payload ?? {} });
+				} catch { /* Ignore binary frames. */ }
+			});
+		}
+	});
+	try {
+		await disconnectCanonicalWrites(source);
+		await installE2EServerContentOverrideGate(source, 'storage-recovery-replay');
+		await loginToTestAccount(source, log, screenshot);
+		await startNewChat(source, log);
+		await sendMessage(source,
+			'Synthetic child recovery. STORAGE_CAPACITY_SCENARIO:child <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
+			log, screenshot, 'storage-recovery-foreground-source');
+		const chatId = source.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
+		expect(chatId).toBeTruthy();
+		await sourceContext.close();
+		await destination.addInitScript(() => {
+			(window as any).__recoveryFocused = false;
+			Object.defineProperty(document, 'hasFocus', {
+				configurable: true,
+				value: () => (window as any).__recoveryFocused,
+			});
+		});
+		await loginToTestAccount(destination, log, screenshot);
+		await destination.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`));
+		await expect.poll(() => frames.some((frame) => frame.direction === 'sent'
+			&& frame.type === 'native_client_lifecycle' && frame.payload.is_foreground === false),
+		{ timeout: 60_000 }).toBe(true);
+		await expect.poll(() => frames.some((frame) => frame.direction === 'received'
+			&& frame.type === 'native_client_lifecycle_ack' && frame.payload.is_foreground === false), { timeout: 120_000 }).toBe(true);
+		expect(frames.some((frame) => frame.direction === 'sent'
+			&& frame.type.startsWith('recovery_output_'))).toBe(false);
+		await destination.evaluate(() => {
+			(window as any).__recoveryFocused = true;
+			window.dispatchEvent(new Event('focus'));
+		});
+		await expect.poll(() => frames.some((frame) => frame.direction === 'received'
+			&& frame.type === 'native_client_lifecycle_ack' && frame.payload.is_foreground === true),
+		{ timeout: 60_000 }).toBe(true);
+		await expect.poll(() => frames.some((frame) => frame.direction === 'received'
+			&& frame.type === 'recovery_output_persisted' && frame.payload.state === 'ACKNOWLEDGED'),
+		{ timeout: 120_000 }).toBe(true);
+		const foregroundAck = frames.findIndex((frame) => frame.direction === 'received'
+			&& frame.type === 'native_client_lifecycle_ack' && frame.payload.is_foreground === true);
+		const discovery = frames.findIndex((frame, index) => index > foregroundAck
+			&& frame.direction === 'received' && frame.type === 'recovery_outputs_available');
+		const firstWrite = frames.findIndex((frame) => frame.direction === 'sent'
+			&& frame.type.startsWith('recovery_output_'));
+		expect(discovery).toBeGreaterThan(foregroundAck);
+		expect(firstWrite).toBeGreaterThan(discovery);
+	} finally {
+		await destinationContext.close();
+		await sourceContext.close().catch(() => undefined);
+	}
+});
+
 // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery,code-run.artifacts.chat-bound-versioned
-test('saved code embed and version diff replay with canonical ciphertext acknowledgements', async ({ browser }: { browser: any }) => {
+test('saved code embed and version diff replay with canonical ciphertext acknowledgements', async ({ browser }: { browser: any }, testInfo: any) => {
 	requireSignedRecoveryProfile();
 	test.setTimeout(360_000);
 	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
@@ -112,7 +185,7 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 	const screenshot = createStepScreenshotter(log);
 	const first = await browser.newContext({ baseURL });
 	const firstPage = await first.newPage();
-	const restored = await browser.newContext({ baseURL });
+	const restored = await browser.newContext({ baseURL, recordVideo: { dir: testInfo.outputDir } });
 	const restoredPage = await restored.newPage();
 	const frames: Array<{ direction: string; type: string; payload: Record<string, any> }> = [];
 	restoredPage.on('websocket', (socket: any) => {
@@ -159,7 +232,8 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 		expect(initialDiff).toBeTruthy();
 		const missingVersion = await restoredPage.request.get(
 			`${deriveApiUrl(baseURL)}/v1/embeds/${encodeURIComponent(initialDiff.subject_id)}/versions/${initialDiff.output_version + 1}`
-			+ `?capability=bounded-v1&chat_id=${encodeURIComponent(chatId)}`
+			+ `?capability=bounded-v1&chat_id=${encodeURIComponent(chatId)}`,
+			{ headers: { 'X-OpenMates-Client-Capabilities': 'agentic-storage-v2' } }
 		);
 		expect(missingVersion.status()).toBe(404);
 		const update = await browser.newContext({ baseURL });
@@ -175,7 +249,15 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 		} finally {
 			await update.close();
 		}
+		await restoredPage.bringToFront();
+		await expect.poll(() => restoredPage.evaluate(() =>
+			document.visibilityState === 'visible' && document.hasFocus()
+		), { timeout: 10_000 }).toBe(true);
+		const framesBeforeReload = frames.length;
 		await restoredPage.reload();
+		await expect.poll(() => frames.slice(framesBeforeReload).some((frame) => frame.direction === 'received'
+			&& frame.type === 'native_client_lifecycle_ack' && frame.payload.is_foreground === true),
+		{ timeout: 60_000 }).toBe(true);
 		await expect.poll(() => frames.filter((frame) => frame.type === 'recovery_outputs_available')
 			.flatMap((frame) => frame.payload.outputs ?? [])
 			.some((output: any) => output.root_chat_id === chatId

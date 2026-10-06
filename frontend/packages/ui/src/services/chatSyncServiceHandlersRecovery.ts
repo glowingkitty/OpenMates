@@ -73,6 +73,141 @@ function buildRecoveryMessagePreview(content: string): string {
 class RecoveryEventTimeoutError extends Error {}
 
 class RecoveryStaleJobError extends Error {}
+class RecoveryForegroundDeferredError extends Error {}
+class RecoverySessionEndedError extends Error {}
+
+let recoveryLifecycleGeneration = 0;
+let recoveryAwaitingForegroundDiscovery = false;
+let recoveryForegroundAcknowledged = false;
+const deferredRecoveryJobs = new Map<string, AvailableRecoveryJob>();
+const deferredRecoveryOutputs = new Map<string, AvailableRecoveryOutput>();
+const foregroundDiscoveryJobs = new Map<string, AvailableRecoveryJob>();
+const foregroundDiscoveryOutputs = new Map<string, AvailableRecoveryOutput>();
+let recoveryLifecycleListenersInstalled = false;
+let recoveryServiceInstance: ChatSynchronizationService | null = null;
+let recoveryLifecycleTeardown: (() => void) | null = null;
+const pendingForegroundWaiters = new Set<{ resolve: () => void; reject: (error: Error) => void }>();
+const pendingRecoveryRequests = new Set<(error: unknown) => void>();
+
+function waitForForegroundDiscovery(): Promise<void> {
+  if (canRunRecovery()) return Promise.resolve();
+  return new Promise((resolve, reject) => pendingForegroundWaiters.add({ resolve, reject }));
+}
+
+function assertRecoverySession(generation: number): void {
+  if (generation !== recoveryLifecycleGeneration) throw new RecoverySessionEndedError("Recovery session ended.");
+}
+
+export function resetRecoveryLifecycleImpl(): void {
+  recoveryLifecycleGeneration += 1;
+  recoveryLifecycleTeardown?.();
+  recoveryLifecycleTeardown = null;
+  recoveryLifecycleListenersInstalled = false;
+  recoveryServiceInstance = null;
+  recoveryAwaitingForegroundDiscovery = false;
+  recoveryForegroundAcknowledged = false;
+  deferredRecoveryJobs.clear();
+  deferredRecoveryOutputs.clear();
+  foregroundDiscoveryJobs.clear();
+  foregroundDiscoveryOutputs.clear();
+  const ended = new RecoverySessionEndedError("Recovery session ended.");
+  for (const cancel of [...pendingRecoveryRequests]) cancel(ended);
+  for (const waiter of pendingForegroundWaiters) waiter.reject(ended);
+  pendingForegroundWaiters.clear();
+  recoveryJobsInProgress.clear();
+  recoveryOutputsInProgress.clear();
+  recoveryOutputPageQueue = Promise.resolve();
+}
+
+function recoveryPageIsVisible(): boolean {
+  return typeof document === "undefined" || (
+    document.visibilityState === "visible" &&
+    (typeof document.hasFocus !== "function" || document.hasFocus())
+  );
+}
+
+function sameRecoveryJob(a: AvailableRecoveryJob, b: AvailableRecoveryJob): boolean {
+  return a.job_id === b.job_id && a.chat_id === b.chat_id && a.turn_id === b.turn_id
+    && a.assistant_message_id === b.assistant_message_id && a.chat_key_version === b.chat_key_version;
+}
+
+function sameRecoveryOutput(a: AvailableRecoveryOutput, b: AvailableRecoveryOutput): boolean {
+  return a.record_id === b.record_id && a.root_chat_id === b.root_chat_id
+    && (a.root_hashed_team_id ?? null) === (b.root_hashed_team_id ?? null)
+    && a.target_chat_id === b.target_chat_id && a.turn_id === b.turn_id
+    && a.subject_id === b.subject_id && a.output_kind === b.output_kind
+    && a.output_version === b.output_version && a.chat_key_version === b.chat_key_version
+    && (a.message_role ?? null) === (b.message_role ?? null);
+}
+
+function canRunRecovery(): boolean {
+  return recoveryPageIsVisible() && !recoveryAwaitingForegroundDiscovery;
+}
+
+export function prepareRecoveryLifecycleImpl(serviceInstance: ChatSynchronizationService): void {
+  recoveryServiceInstance = serviceInstance;
+  if (recoveryLifecycleListenersInstalled || typeof document === "undefined") return;
+  recoveryLifecycleListenersInstalled = true;
+  if (!recoveryPageIsVisible()) recoveryAwaitingForegroundDiscovery = true;
+  const handleBackground = () => {
+    if (!recoveryPageIsVisible()) {
+      recoveryAwaitingForegroundDiscovery = true;
+      recoveryForegroundAcknowledged = false;
+      foregroundDiscoveryJobs.clear();
+      foregroundDiscoveryOutputs.clear();
+    }
+  };
+  document.addEventListener("visibilitychange", handleBackground);
+  window.addEventListener("blur", handleBackground);
+  const handleForegroundAck = (raw: unknown) => {
+    const payload = raw as { is_foreground?: boolean };
+    if (!recoveryAwaitingForegroundDiscovery || payload.is_foreground !== true || !recoveryPageIsVisible()) return;
+    if (recoveryForegroundAcknowledged) return;
+    recoveryForegroundAcknowledged = true;
+    foregroundDiscoveryJobs.clear();
+    foregroundDiscoveryOutputs.clear();
+  };
+  const handleDiscoveryComplete = (raw: unknown) => {
+    const payload = raw as { status?: string };
+    if (!recoveryAwaitingForegroundDiscovery || !recoveryForegroundAcknowledged
+      || !recoveryPageIsVisible() || payload.status !== "completed") return;
+    // The server's complete discovery is the authority for records that survived
+    // a background transition. Keep the exact old identities only for matching.
+    const jobs = [...foregroundDiscoveryJobs.values()].filter((job) =>
+      !deferredRecoveryJobs.has(job.job_id) ||
+      sameRecoveryJob(deferredRecoveryJobs.get(job.job_id)!, job));
+    const outputs = [...foregroundDiscoveryOutputs.values()].filter((output) =>
+      !deferredRecoveryOutputs.has(output.record_id) ||
+      sameRecoveryOutput(deferredRecoveryOutputs.get(output.record_id)!, output));
+    deferredRecoveryJobs.clear();
+    deferredRecoveryOutputs.clear();
+    foregroundDiscoveryJobs.clear();
+    foregroundDiscoveryOutputs.clear();
+    recoveryAwaitingForegroundDiscovery = false;
+    recoveryForegroundAcknowledged = false;
+    for (const cancel of pendingRecoveryRequests) cancel(
+      new RecoveryForegroundDeferredError("Recovery request needs fresh authoritative discovery."),
+    );
+    for (const waiter of pendingForegroundWaiters) waiter.resolve();
+    pendingForegroundWaiters.clear();
+    // Let canceled in-flight requests release their in-progress identities first.
+    const generation = recoveryLifecycleGeneration;
+    const serviceInstance = recoveryServiceInstance;
+    window.setTimeout(() => {
+      if (generation !== recoveryLifecycleGeneration || !serviceInstance || !canRunRecovery()) return;
+      void handleRecoveryJobsAvailableImpl(serviceInstance, { jobs });
+      void handleRecoveryOutputsAvailableImpl(serviceInstance, { outputs });
+    }, 0);
+  };
+  webSocketService.on("native_client_lifecycle_ack", handleForegroundAck);
+  webSocketService.on("recovery_outputs_discovery_complete", handleDiscoveryComplete);
+  recoveryLifecycleTeardown = () => {
+    document.removeEventListener("visibilitychange", handleBackground);
+    window.removeEventListener("blur", handleBackground);
+    webSocketService.off("native_client_lifecycle_ack", handleForegroundAck);
+    webSocketService.off("recovery_outputs_discovery_complete", handleDiscoveryComplete);
+  };
+}
 
 class RecoveryProtocolError extends Error {
   constructor(
@@ -551,6 +686,14 @@ function waitForRecoveryEvent(
         ));
         return;
       }
+      if (event.code === "recovery_requires_foreground") {
+        cleanup();
+        recoveryAwaitingForegroundDiscovery = true;
+        recoveryForegroundAcknowledged = false;
+        if (recoveryPageIsVisible()) webSocketService.requestForegroundRecoveryDiscovery();
+        reject(new RecoveryForegroundDeferredError("Recovery paused until foreground discovery."));
+        return;
+      }
       if (RECOVERY_RETRYABLE_ERROR_CODES.has(event.code)) return;
       cleanup();
       reject(new RecoveryProtocolError(
@@ -558,17 +701,26 @@ function waitForRecoveryEvent(
         typeof event.message === "string" ? event.message : `${type} was rejected.`,
       ));
     };
+    const handleVisibility = () => {
+      if (!recoveryPageIsVisible()) window.clearTimeout(timeout);
+    };
     const cleanup = () => {
       window.clearTimeout(timeout);
       webSocketService.off(type, handleEvent);
       webSocketService.off("error", handleError);
+      pendingRecoveryRequests.delete(cancel);
+      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", handleVisibility);
+      if (typeof window !== "undefined") window.removeEventListener("blur", handleVisibility);
     };
     cancel = (error: unknown) => {
       cleanup();
       reject(error);
     };
+    pendingRecoveryRequests.add(cancel);
     webSocketService.on(type, handleEvent);
     webSocketService.on("error", handleError);
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", handleVisibility);
+    if (typeof window !== "undefined") window.addEventListener("blur", handleVisibility);
   });
   return { promise, cancel };
 }
@@ -637,30 +789,51 @@ async function requestRecoveryEvent(
   jobId: string,
   payload: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  const generation = recoveryLifecycleGeneration;
   let lastTimeout: RecoveryEventTimeoutError | null = null;
   for (let retry = 0; retry <= CHAT_RECOVERY_EVENT_MAX_RETRIES; retry += 1) {
-    const requestId = crypto.randomUUID();
-    const waiter = waitForRecoveryEvent(
-      responseType,
-      jobId,
-      requestId,
-      CHAT_RECOVERY_EVENT_TIMEOUT_MS + (retry * CHAT_RECOVERY_RETRY_DELAY_MS),
-    );
+    assertRecoverySession(generation);
+    if (!canRunRecovery()) throw new RecoveryForegroundDeferredError("Recovery paused until foreground discovery.");
+    assertRecoverySession(generation);
     if (retry > 0) {
-      await new Promise((resolve) => {
-        window.setTimeout(resolve, CHAT_RECOVERY_RETRY_DELAY_MS);
+      await new Promise<void>((resolve, reject) => {
+        const stop = () => {
+          window.clearTimeout(timer);
+          document.removeEventListener("visibilitychange", onBackground);
+          window.removeEventListener("blur", onBackground);
+        };
+        const onBackground = () => {
+          if (recoveryPageIsVisible()) return;
+          stop();
+          reject(new RecoveryForegroundDeferredError("Recovery retry paused while unfocused."));
+        };
+        const timer = window.setTimeout(() => { stop(); resolve(); }, CHAT_RECOVERY_RETRY_DELAY_MS);
+        document.addEventListener("visibilitychange", onBackground);
+        window.addEventListener("blur", onBackground);
       });
     }
+    if (!canRunRecovery()) throw new RecoveryForegroundDeferredError("Recovery paused until foreground discovery.");
+    assertRecoverySession(generation);
+    const requestId = crypto.randomUUID();
+    const waiter = waitForRecoveryEvent(
+      responseType, jobId, requestId,
+      CHAT_RECOVERY_EVENT_TIMEOUT_MS + (retry * CHAT_RECOVERY_RETRY_DELAY_MS),
+    );
     try {
-      await webSocketService.sendMessage(requestType, {
-        ...payload,
-        request_id: requestId,
-      });
+      if (canRunRecovery()) {
+        await webSocketService.sendMessage(requestType, {
+          ...payload,
+          request_id: requestId,
+        });
+      } else waiter.cancel(new RecoveryForegroundDeferredError("Recovery paused until foreground discovery."));
     } catch (error) {
       waiter.cancel(error);
     }
     try {
-      return await waiter.promise;
+      const response = await waiter.promise;
+      await waitForForegroundDiscovery();
+      assertRecoverySession(generation);
+      return response;
     } catch (error) {
       if (!(error instanceof RecoveryEventTimeoutError)) throw error;
       lastTimeout = error;
@@ -674,16 +847,28 @@ export async function handleRecoveryJobsAvailableImpl(
   serviceInstance: ChatSynchronizationService,
   payload: { jobs?: AvailableRecoveryJob[] },
 ): Promise<void> {
+  prepareRecoveryLifecycleImpl(serviceInstance);
+  const generation = recoveryLifecycleGeneration;
+  if (!canRunRecovery()) {
+    for (const job of payload.jobs ?? []) if (job.job_id) {
+      if (recoveryForegroundAcknowledged) foregroundDiscoveryJobs.set(job.job_id, job);
+      else deferredRecoveryJobs.set(job.job_id, job);
+    }
+    return;
+  }
   await waitForInitialSync(serviceInstance);
+  if (generation !== recoveryLifecycleGeneration) return;
   await Promise.allSettled((payload.jobs ?? []).map(async (job) => {
     if (!job.job_id || recoveryJobsInProgress.has(job.job_id)) return;
     recoveryJobsInProgress.add(job.job_id);
     try {
+      assertRecoverySession(generation);
       // A local synced/delivered row can still be browser-only if the user logs out
       // before sealed recovery reaches terminal persistence. The server job is the
       // durable idempotency boundary, so do not skip an available job based on IDB.
       await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([job.chat_id]);
       const prerequisites = await waitForRecoveryPrerequisites(job);
+      assertRecoverySession(generation);
       if (!prerequisites) {
         console.warn(
           `[ChatSyncService:Recovery] Recovery job ${job.job_id} prerequisites did not hydrate in time.`,
@@ -706,6 +891,7 @@ export async function handleRecoveryJobsAvailableImpl(
           job_id: job.job_id,
         },
       );
+      assertRecoverySession(generation);
 
       const claimMatchesJob =
         claim.chat_id === job.chat_id &&
@@ -789,6 +975,7 @@ export async function handleRecoveryJobsAvailableImpl(
         created_at: now,
       } as Message;
       const encryptedFields = await chatDB.getEncryptedFields(aiMessage, job.chat_id);
+      assertRecoverySession(generation);
       const persistRecoveredMessage = (expectedMessagesV: number) => requestRecoveryEvent(
         "recovery_job_persisted",
         "recovery_job_persist",
@@ -832,6 +1019,7 @@ export async function handleRecoveryJobsAvailableImpl(
       ) {
         throw new Error(`Recovery job ${job.job_id} persistence acknowledgement was invalid.`);
       }
+      assertRecoverySession(generation);
 
       await chatDB.saveMessage(aiMessage);
       const updatedChat = {
@@ -882,6 +1070,11 @@ export async function handleRecoveryJobsAvailableImpl(
         }),
       );
     } catch (error) {
+      if (error instanceof RecoverySessionEndedError) return;
+      if (error instanceof RecoveryForegroundDeferredError) {
+        deferredRecoveryJobs.set(job.job_id, job);
+        return;
+      }
       if (error instanceof RecoveryStaleJobError) {
         console.debug(
           `[ChatSyncService:Recovery] Ignoring stale recovery job ${job.job_id}:`,
@@ -902,7 +1095,19 @@ export function handleRecoveryOutputsAvailableImpl(
   serviceInstance: ChatSynchronizationService,
   payload: { outputs?: AvailableRecoveryOutput[] },
 ): Promise<void> {
-  const pending = recoveryOutputPageQueue.then(() => processRecoveryOutputsAvailable(serviceInstance, payload));
+  prepareRecoveryLifecycleImpl(serviceInstance);
+  const generation = recoveryLifecycleGeneration;
+  if (!canRunRecovery()) {
+    for (const output of payload.outputs ?? []) if (output.record_id) {
+      if (recoveryForegroundAcknowledged) foregroundDiscoveryOutputs.set(output.record_id, output);
+      else deferredRecoveryOutputs.set(output.record_id, output);
+    }
+    return Promise.resolve();
+  }
+  const pending = recoveryOutputPageQueue.then(() => {
+    if (generation !== recoveryLifecycleGeneration) return;
+    return processRecoveryOutputsAvailable(serviceInstance, payload, generation);
+  });
   recoveryOutputPageQueue = pending.catch((error) => {
     console.error("[ChatSyncService:Recovery] Output discovery page failed:", error);
   });
@@ -912,8 +1117,11 @@ export function handleRecoveryOutputsAvailableImpl(
 async function processRecoveryOutputsAvailable(
   serviceInstance: ChatSynchronizationService,
   payload: { outputs?: AvailableRecoveryOutput[] },
+  generation: number,
 ): Promise<void> {
+  assertRecoverySession(generation);
   await waitForInitialSync(serviceInstance);
+  if (generation !== recoveryLifecycleGeneration) return;
   const outputOrder: Record<RecoveryOutputKind, number> = {
     message: 0, embed: 1, diff: 2, summary: 3, checkpoint: 4,
   };
@@ -926,6 +1134,7 @@ async function processRecoveryOutputsAvailable(
     if (!output.record_id || recoveryOutputsInProgress.has(output.record_id)) return;
     recoveryOutputsInProgress.add(output.record_id);
     try {
+      assertRecoverySession(generation);
       const rootChat = await chatDB.getChat(output.root_chat_id);
       const rootKey = await chatKeyManager.getKey(output.root_chat_id);
       if (!rootChat || !rootKey) return;
@@ -939,6 +1148,7 @@ async function processRecoveryOutputsAvailable(
         "recovery_output_ready", "recovery_output_get", output.record_id,
         { protocol_version: CHAT_RECOVERY_PROTOCOL_VERSION, record_id: output.record_id },
       );
+      assertRecoverySession(generation);
       if (result.record_id !== output.record_id || result.root_chat_id !== output.root_chat_id
         || (result.root_hashed_team_id ?? null) !== (output.root_hashed_team_id ?? null)
         || result.target_chat_id !== output.target_chat_id || result.turn_id !== output.turn_id
@@ -986,6 +1196,7 @@ async function processRecoveryOutputsAvailable(
         await chatDB.addChat(childChat);
       }
       if (!await ensureChatKeySafeForWrite(output.target_chat_id, rootKey, "child output recovery", { reportFailure: false })) return;
+      assertRecoverySession(generation);
       if (output.output_kind === "embed" || output.output_kind === "diff") {
         await withCanonicalEmbedWrite(output.subject_id, async (lease) => {
           const canonicalReceipt = await persistRecoveredEmbed(output, content, rootKey, ownerId);
@@ -1093,6 +1304,11 @@ async function processRecoveryOutputsAvailable(
         detail: { chat_id: output.target_chat_id, newMessage: aiMessage, type: "recovery_output_persisted", messagesUpdated: true },
       }));
     } catch (error) {
+      if (error instanceof RecoverySessionEndedError) return;
+      if (error instanceof RecoveryForegroundDeferredError) {
+        deferredRecoveryOutputs.set(output.record_id, output);
+        return;
+      }
       if (!(error instanceof RecoveryStaleJobError)) console.error("[ChatSyncService:Recovery] Output recovery failed:", error);
     } finally {
       recoveryOutputsInProgress.delete(output.record_id);

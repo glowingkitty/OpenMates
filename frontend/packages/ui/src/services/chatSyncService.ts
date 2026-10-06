@@ -74,7 +74,10 @@ import * as aiHandlers from "./chatSyncServiceHandlersAI";
 import * as chatUpdateHandlers from "./chatSyncServiceHandlersChatUpdates";
 import * as coreSyncHandlers from "./chatSyncServiceHandlersCoreSync";
 import * as phasedSyncHandlers from "./chatSyncServiceHandlersPhasedSync";
-import { handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl } from "./chatSyncServiceHandlersRecovery";
+import {
+  handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl,
+  prepareRecoveryLifecycleImpl, resetRecoveryLifecycleImpl,
+} from "./chatSyncServiceHandlersRecovery";
 import * as senders from "./chatSyncServiceSenders";
 import { flushPendingEmbedOperations } from "./embedSenders";
 import { sendOfflineChangesImpl } from "./chatSyncServiceSenders";
@@ -405,6 +408,7 @@ export class ChatSynchronizationService extends EventTarget {
     // Listen for handlers being cleared (e.g., during logout)
     // and reset the registration flag so they can be re-registered on next login
     webSocketService.addEventListener("handlers_cleared", () => {
+      resetRecoveryLifecycleImpl();
       console.warn(
         "[ChatSyncService] WebSocket handlers were cleared. Resetting registration flag.",
       );
@@ -1119,6 +1123,8 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     this.handlersRegistered = true;
+    // Lifecycle ACK must be observed before the first recovery discovery page.
+    prepareRecoveryLifecycleImpl(this);
 
     webSocketService.on("project_file_operation_available", (payload) => {
       void this.forwardProjectFileExecutorEvent("available", payload);

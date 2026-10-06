@@ -65,6 +65,13 @@ def permits_canonical_embed_write(
     return supports_receipts and (not recovery_record_id or supports_typed_outputs)
 
 
+def should_rediscover_recovery_on_lifecycle(
+    *, is_foreground: bool, was_foreground: bool, lifecycle_seen: bool,
+) -> bool:
+    """Reconnects need one ACK-first scan even when the socket defaulted foreground."""
+    return is_foreground and (not lifecycle_seen or not was_foreground)
+
+
 def _safe_message_summary(message: object) -> str:
     """Return metadata-only message summary for logs."""
     if isinstance(message, dict):
@@ -597,11 +604,19 @@ class ConnectionManager:
             return False
         return self.canonical_embed_receipt_capability.get(connection_key, False)
 
+    def negotiated_canonical_embed_receipts(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        """Recovery protocol negotiation, independent of current foreground state."""
+        return self.canonical_embed_receipt_capability.get((user_id, device_fingerprint_hash), False)
+
     def supports_typed_recovery_outputs(self, user_id: str, device_fingerprint_hash: str) -> bool:
         connection_key = (user_id, device_fingerprint_hash)
         if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
             return False
         return self.typed_recovery_output_capability.get(connection_key, False)
+
+    def negotiated_typed_recovery_outputs(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        """Recovery protocol negotiation, independent of current foreground state."""
+        return self.typed_recovery_output_capability.get((user_id, device_fingerprint_hash), False)
 
     def supports_project_file_jobs(self, user_id: str, device_fingerprint_hash: str) -> bool:
         """True for a foreground connection that advertises Project execution."""

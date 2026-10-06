@@ -14,7 +14,9 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import os
+import re
 import secrets
+import sys
 import time
 import uuid
 
@@ -81,6 +83,34 @@ async def _probe_official_billing_copy_hold(archive, *, chat_id: str, checkpoint
             Bucket=resolve_regional_bucket_name(bucket, region), Prefix=prefix, MaxKeys=1)
         if not isinstance(result, dict) or result.get("Contents") or result.get("IsTruncated"):
             raise RuntimeError("Official billing hold produced a synthetic S3 copy")
+
+
+def read_lifecycle_ciphertext_fixture(stream) -> list[str]:
+    """Admit only twenty bounded client ciphertexts in the isolated CI profile."""
+    require_isolated_storage()
+    if os.getenv("OPENMATES_CI_ARCHIVE_LIFECYCLE_PROBE") != "1" or not re.fullmatch(
+        r"[0-9a-f]{40}", os.getenv("BUILD_COMMIT_SHA", "")
+    ):
+        raise RuntimeError("Archive lifecycle fixture requires a pinned isolated CI source")
+    raw = stream.read(8193)
+    if len(raw) > 8192:
+        raise RuntimeError("Archive lifecycle fixture exceeds its input budget")
+    try:
+        payload = json.loads(raw)
+    except (TypeError, ValueError) as error:
+        raise RuntimeError("Archive lifecycle fixture is invalid JSON") from error
+    if not isinstance(payload, list) or len(payload) != 20:
+        raise RuntimeError("Archive lifecycle fixture requires exactly twenty ciphertexts")
+    for value in payload:
+        if not isinstance(value, str) or len(value) > 512 or not value:
+            raise RuntimeError("Archive lifecycle ciphertext has invalid shape")
+        try:
+            decoded = base64.b64decode(value, validate=True)
+        except ValueError as error:
+            raise RuntimeError("Archive lifecycle ciphertext is not canonical base64") from error
+        if len(decoded) < 29 or base64.b64encode(decoded).decode() != value:
+            raise RuntimeError("Archive lifecycle ciphertext is not canonical AES-GCM shape")
+    return payload
 
 
 async def _write(directus, collection: str, payload: dict) -> dict:
@@ -1768,7 +1798,7 @@ async def _probe_hot_message_window(directus, archive, now: int) -> dict:
             "fixture_messages": len(fixtures), "cleanup_verified": True}
 
 
-async def probe() -> dict:
+async def probe(*, lifecycle_ciphertexts: list[str] | None = None) -> dict:
     require_isolated_storage()
     from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
 
@@ -1782,7 +1812,8 @@ async def probe() -> dict:
         owner_hash = hashlib.sha256(chat_id.encode()).hexdigest()
         await _probe_legacy_embed_json_columns(directus, owner_hash)
         checkpoint_id = str(uuid.uuid4())
-        synthetic_ciphertexts = [base64.b64encode(secrets.token_bytes(96)).decode() for _ in range(20)]
+        synthetic_ciphertexts = (lifecycle_ciphertexts if lifecycle_ciphertexts is not None else
+                                 [base64.b64encode(secrets.token_bytes(96)).decode() for _ in range(20)])
         message_ids = [str(uuid.uuid4()) for _ in range(20)]
         source_row_ids = [str(uuid.uuid4()) for _ in range(20)]
         await _write(directus, "chats", {
@@ -1923,6 +1954,12 @@ async def probe() -> dict:
                                              admin_required=True, no_cache=True, raise_on_error=True)
         if int(chat_rows[0].get("archived_message_count") or 0) != 20 or [row["client_message_id"] for row in remaining] != [late_message_id]:
             raise RuntimeError("Prune removed a late arrival or missed covered source rows")
+        after_prune = await archive.read_before(chat_id=chat_id, before=None, limit=20)
+        after_rows = after_prune["messages"]
+        if (len(after_rows) != 20 or after_prune["archive_page_ids"] != [page_id] or
+                [row["client_message_id"] for row in after_rows] != message_ids or
+                [row["encrypted_content"] for row in after_rows] != synthetic_ciphertexts):
+            raise RuntimeError("Personal archive S3 read changed after source prune")
         # The real SQL locator must expand positions from overlapping page
         # ranges. These temporary rows test metadata selection only; the
         # verified page above is the independent S3 ciphertext read proof.
@@ -1990,13 +2027,14 @@ async def probe() -> dict:
             directus, owner_hash=owner_hash, now=now,
         )
         recovery_races = await _probe_recovery_sql_races(directus, now)
-        return {"passed": True, "degraded_storage_regressions": True, "fixture_ciphertext_digest": hashlib.sha256(
+        result = {"passed": True, "degraded_storage_regressions": True, "fixture_ciphertext_digest": hashlib.sha256(
             "".join(synthetic_ciphertexts).encode()).hexdigest(),
             "source_messages": 20, "verified_pages": 1, "pruned_messages": 20,
             "official_billing_copy_prune_hold_existing_reads_available": True,
             "initial_cohort_buffer_seconds": 86400, "concurrent_prune_idempotent": True,
             "pending_recovery_fence": True, "source_mutation_fence": True,
             "late_arrival_retained": True, "reader_verified_before_activation": True,
+            "personal_archive_read_after_prune": True,
             "sparse_overlap_sql_locators": True,
             "hot_message_window_sql": hot_window_sql,
             "legacy_embed_json_readback": True,
@@ -2009,6 +2047,11 @@ async def probe() -> dict:
             "recovery_producer_team_account_sql_races": True,
             "recovery_sql_race_outcomes": recovery_races,
             "deletion_fence": True}
+        if lifecycle_ciphertexts is not None:
+            # Ciphertext only; the client-held key and plaintext never enter this process.
+            result["source_commit"] = os.environ["BUILD_COMMIT_SHA"]
+            result["client_ciphertexts_after_prune"] = [row["encrypted_content"] for row in after_rows]
+        return result
     finally:
         await directus.close()
         await secrets_manager.aclose()
@@ -2019,5 +2062,9 @@ if __name__ == "__main__":
         result = asyncio.run(_team_portability_cli_result())
         print(json.dumps(result, sort_keys=True))
         raise SystemExit(0 if result.get("passed") is True else 1)
-    selected = probe_legacy_claims if os.getenv("OPENMATES_CI_LEGACY_CLAIM_PROBE") == "1" else probe
-    print(json.dumps(asyncio.run(selected()), sort_keys=True))
+    if os.getenv("OPENMATES_CI_ARCHIVE_LIFECYCLE_PROBE") == "1":
+        fixture = read_lifecycle_ciphertext_fixture(sys.stdin.buffer)
+        print(json.dumps(asyncio.run(probe(lifecycle_ciphertexts=fixture)), sort_keys=True))
+    else:
+        selected = probe_legacy_claims if os.getenv("OPENMATES_CI_LEGACY_CLAIM_PROBE") == "1" else probe
+        print(json.dumps(asyncio.run(selected()), sort_keys=True))

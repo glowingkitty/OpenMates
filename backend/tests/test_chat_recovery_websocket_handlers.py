@@ -6,26 +6,40 @@ persistence sends only client ciphertext and acknowledges after the Directus
 transaction commits with the current lease fencing generation.
 """
 
+import asyncio
 import pytest
 
-from backend.core.api.app.routes.connection_manager import permits_canonical_embed_write
+from backend.core.api.app.routes.connection_manager import (
+    ConnectionManager, permits_canonical_embed_write,
+    should_rediscover_recovery_on_lifecycle,
+)
 from backend.core.api.app.routes.handlers.websocket_handlers import chat_recovery_job_handlers
 
 
 class FakeManager:
-    def __init__(self, *, typed: bool = False, receipts: bool = False) -> None:
+    def __init__(self, *, typed: bool = False, receipts: bool = False, foreground: bool = True) -> None:
         self.messages: list[dict] = []
         self.typed = typed
         self.receipts = receipts
+        self.foreground = foreground
 
     async def send_personal_message(self, message: dict, user_id: str, device_hash: str) -> None:
         self.messages.append(message)
 
     def supports_typed_recovery_outputs(self, _user_id: str, _device_hash: str) -> bool:
-        return self.typed
+        return self.foreground and self.typed
 
     def supports_canonical_embed_receipts(self, _user_id: str, _device_hash: str) -> bool:
+        return self.foreground and self.receipts
+
+    def negotiated_typed_recovery_outputs(self, _user_id: str, _device_hash: str) -> bool:
+        return self.typed
+
+    def negotiated_canonical_embed_receipts(self, _user_id: str, _device_hash: str) -> bool:
         return self.receipts
+
+    def is_connection_completion_capable(self, _user_id: str, _device_hash: str) -> bool:
+        return self.foreground
 
 
 @pytest.mark.parametrize(("receipts", "typed", "record_id", "allowed"), [
@@ -227,3 +241,152 @@ async def test_typed_embed_ack_requires_both_explicit_capabilities(monkeypatch) 
 
     assert FakeRecoveryService.calls == []
     assert manager.messages[0]["payload"]["code"] == "client_capability_required"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,storage.background.complete-sealed-recovery
+def test_recovery_negotiation_survives_background_without_weakening_execution_guards() -> None:
+    manager = ConnectionManager()
+    manager.active_connections["user-1"] = {"device-hash": object()}
+    manager.typed_recovery_output_capability[("user-1", "device-hash")] = True
+    manager.canonical_embed_receipt_capability[("user-1", "device-hash")] = True
+    manager.set_connection_foreground("user-1", "device-hash", False)
+
+    assert manager.negotiated_typed_recovery_outputs("user-1", "device-hash")
+    assert manager.negotiated_canonical_embed_receipts("user-1", "device-hash")
+    assert not manager.supports_typed_recovery_outputs("user-1", "device-hash")
+    assert not manager.supports_canonical_embed_receipts("user-1", "device-hash")
+    assert not manager.is_connection_completion_capable("user-1", "device-hash")
+    manager.set_connection_foreground("user-1", "device-hash", True)
+    assert manager.supports_typed_recovery_outputs("user-1", "device-hash")
+
+
+@pytest.mark.parametrize(("is_foreground", "was_foreground", "lifecycle_seen", "expected"), [
+    (True, True, False, True),   # reconnect default foreground needs ACK-first scan
+    (True, True, True, False),   # repeated foreground is quiet
+    (False, True, False, False), # blur never discovers
+    (True, False, True, True),   # real resume discovers
+])
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,storage.background.complete-sealed-recovery
+def test_recovery_discovery_lifecycle_transition(
+    is_foreground: bool, was_foreground: bool, lifecycle_seen: bool, expected: bool,
+) -> None:
+    assert should_rediscover_recovery_on_lifecycle(
+        is_foreground=is_foreground, was_foreground=was_foreground,
+        lifecycle_seen=lifecycle_seen,
+    ) is expected
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,storage.background.complete-sealed-recovery
+async def test_typed_connection_delays_all_initial_recovery_discovery_until_lifecycle(monkeypatch) -> None:
+    monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService", FakeRecoveryService)
+    FakeRecoveryService.calls = []
+    manager = FakeManager(typed=True)
+    epoch_calls = 0
+
+    async def get_epoch() -> int:
+        nonlocal epoch_calls
+        epoch_calls += 1
+        return 1
+
+    tasks = await chat_recovery_job_handlers.begin_initial_recovery_discovery(
+        manager=manager, directus_service=object(), user_id="user-1",
+        user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        supports_typed_recovery_outputs=True, get_epoch=get_epoch,
+    )
+    await asyncio.sleep(0)
+
+    assert tasks == []
+    assert epoch_calls == 0
+    assert FakeRecoveryService.calls == []
+    assert manager.messages == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("handler_name", [
+    "handle_recovery_output_get",
+    "handle_recovery_output_persist_message",
+    "handle_recovery_output_persist_summary",
+    "handle_recovery_output_ack_checkpoint",
+    "handle_recovery_output_ack_embed",
+])
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,storage.background.complete-sealed-recovery
+async def test_background_capable_client_cannot_read_mutate_or_ack_typed_outputs(
+    monkeypatch, handler_name: str,
+) -> None:
+    monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService", FakeRecoveryService)
+    FakeRecoveryService.calls = []
+    manager = FakeManager(typed=True, receipts=True, foreground=False)
+    arguments = {
+        "manager": manager, "directus_service": object(), "user_id": "user-1",
+        "user_id_hash": "owner-hash", "device_fingerprint_hash": "device-hash",
+        "payload": {"protocol_version": 1, "record_id": "record-1", "request_id": "request-1"},
+    }
+    if handler_name == "handle_recovery_output_get":
+        arguments["s3_service"] = None
+
+    await getattr(chat_recovery_job_handlers, handler_name)(**arguments)
+
+    assert FakeRecoveryService.calls == []
+    assert manager.messages[0]["payload"] == {
+        "code": "recovery_requires_foreground",
+        "message": "Encrypted recovery requires a foreground client.",
+        "job_id": "record-1", "request_id": "request-1",
+    }
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("handler_name", [
+    "handle_recovery_job_claim", "handle_recovery_job_renew", "handle_recovery_job_persist",
+])
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
+async def test_background_client_cannot_claim_renew_or_persist_recovery_job(
+    monkeypatch, handler_name: str,
+) -> None:
+    monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService", FakeRecoveryService)
+    FakeRecoveryService.calls = []
+    manager = FakeManager(foreground=False)
+
+    await getattr(chat_recovery_job_handlers, handler_name)(
+        manager=manager, directus_service=object(), user_id="user-1",
+        user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload={"protocol_version": 1, "job_id": "job-1", "request_id": "request-1"},
+    )
+
+    assert FakeRecoveryService.calls == []
+    assert manager.messages[0]["payload"]["code"] == "recovery_requires_foreground"
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+async def test_foreground_discovery_emits_completion_barrier_for_zero_outputs(monkeypatch) -> None:
+    class EmptyRecovery:
+        calls = 0
+
+        def __init__(self, _directus_service) -> None:
+            pass
+
+        async def execute(self, operation: str, _data: dict) -> dict:
+            assert operation == "list_pending_outputs"
+            self.calls += 1
+            return {"outputs": [], "next_cursor": None}
+
+    monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService", EmptyRecovery)
+    manager = FakeManager(typed=True)
+
+    await chat_recovery_job_handlers.send_available_recovery_outputs(
+        manager=manager, directus_service=object(), user_id="user-1",
+        user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+    )
+
+    assert manager.messages == [{
+        "type": "recovery_outputs_discovery_complete", "payload": {"status": "completed"},
+    }]
+
+    manager.foreground = False
+    manager.messages.clear()
+    await chat_recovery_job_handlers.send_available_recovery_outputs(
+        manager=manager, directus_service=object(), user_id="user-1",
+        user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+    )
+    assert manager.messages == []

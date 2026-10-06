@@ -3,6 +3,8 @@
 
 import pytest
 import asyncio
+import base64
+import io
 import sys
 from types import ModuleType
 
@@ -280,3 +282,30 @@ def test_hot_window_probe_is_bounded_checks_sql_and_adapter_and_cleans_up(monkey
     assert len(collections["messages"]) == int(failure == "cleanup")
     assert deletes[-1] == "chats"
     assert deletes.count("messages") == (2 if failure == "partial_seed" else 6)
+
+
+def test_lifecycle_stdin_fixture_is_bounded_and_profile_fenced(monkeypatch) -> None:
+    from scripts.storage_archive_integration import read_lifecycle_ciphertext_fixture
+
+    fixture = [base64.b64encode(bytes([index]) * 29).decode() for index in range(20)]
+    for key, value in {
+        "OPENMATES_CI_ISOLATED": "1", "OPENMATES_STORAGE_CAPACITY_FIXTURES": "true",
+        "CHAT_MESSAGE_ARCHIVE_READS_ENABLED": "1", "S3_ENDPOINT_URL": "http://storage.ci.test:9000",
+        "SERVER_ENVIRONMENT": "development", "INTERNAL_API_SHARED_TOKEN": "disposable-token",
+        "OPENMATES_CI_ARCHIVE_LIFECYCLE_PROBE": "1", "BUILD_COMMIT_SHA": "a" * 40,
+    }.items():
+        monkeypatch.setenv(key, value)
+    import json
+    payload = json.dumps(fixture).encode()
+    assert read_lifecycle_ciphertext_fixture(io.BytesIO(payload)) == fixture
+    with pytest.raises(RuntimeError, match="exactly twenty"):
+        read_lifecycle_ciphertext_fixture(io.BytesIO(json.dumps(fixture[:-1]).encode()))
+    with pytest.raises(RuntimeError, match="input budget"):
+        read_lifecycle_ciphertext_fixture(io.BytesIO(b" " * 8193))
+    monkeypatch.setenv("BUILD_COMMIT_SHA", "stale")
+    with pytest.raises(RuntimeError, match="pinned isolated CI source"):
+        read_lifecycle_ciphertext_fixture(io.BytesIO(payload))
+    monkeypatch.setenv("BUILD_COMMIT_SHA", "a" * 40)
+    monkeypatch.setenv("S3_ENDPOINT_URL", "https://storage.example.com")
+    with pytest.raises(RuntimeError, match="exact isolated"):
+        read_lifecycle_ciphertext_fixture(io.BytesIO(payload))

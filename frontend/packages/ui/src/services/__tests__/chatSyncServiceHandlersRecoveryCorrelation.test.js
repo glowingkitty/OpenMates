@@ -30,6 +30,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../db", () => ({ chatDB: mocks.chatDB }));
+vi.mock("../userDB", () => ({ userDB: { getUserProfile: vi.fn() } }));
+vi.mock("../../stores/notificationStore", () => ({ notificationStore: { chatMessage: vi.fn() } }));
+vi.mock("../../stores/unreadMessagesStore", () => ({ unreadMessagesStore: { incrementUnread: vi.fn() } }));
+vi.mock("../chatNotificationVisibility", () => ({ isChatVisiblyActive: vi.fn(() => true) }));
+vi.mock("../embedDiffStore", () => ({ reconstructEncryptedVersionRows: vi.fn() }));
+vi.mock("../recoveryEmbedSource", () => ({ historySourceFromSealedEmbed: vi.fn() }));
 vi.mock("../encryption/ChatKeyManager", () => ({
   chatKeyManager: mocks.chatKeyManager,
 }));
@@ -44,7 +50,10 @@ vi.mock("../../utils/chatCompletionRecovery", () => ({
   openChatCompletionRecoveryEnvelope: mocks.openChatCompletionRecoveryEnvelope,
 }));
 
-const { handleRecoveryJobsAvailableImpl } = await import("../chatSyncServiceHandlersRecovery.ts");
+const {
+  handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl,
+  prepareRecoveryLifecycleImpl, resetRecoveryLifecycleImpl,
+} = await import("../chatSyncServiceHandlersRecovery.ts");
 
 describe("recovery job request correlation", () => {
   beforeEach(() => {
@@ -54,6 +63,7 @@ describe("recovery job request correlation", () => {
     vi.spyOn(globalThis.crypto, "randomUUID").mockImplementation(
       () => `recovery-request-${requestCounter += 1}`,
     );
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
     globalThis.window = globalThis;
     mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
     mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
@@ -65,9 +75,112 @@ describe("recovery job request correlation", () => {
     });
   });
 
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.completion.lease-fenced
+  it("stops an in-flight claim on blur and retries once after duplicate ACK and fresh discovery", async () => {
+    const handlers = new Map();
+    const originalVisibility = Object.getOwnPropertyDescriptor(document, "visibilityState");
+    let focused = true;
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true, get: () => "visible",
+    });
+    vi.mocked(document.hasFocus).mockImplementation(() => focused);
+    mocks.webSocketService.on.mockImplementation((type, handler) => handlers.set(type, handler));
+    mocks.webSocketService.off.mockImplementation((type) => handlers.delete(type));
+    const service = {
+      hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn().mockResolvedValue(undefined),
+      dispatchEvent: vi.fn(),
+    };
+    const job = {
+      job_id: "foreground-job", chat_id: "chat-1", turn_id: "turn-1",
+      assistant_message_id: "assistant-1", chat_key_version: 1,
+    };
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "chat-1", user_id: "user-1", messages_v: 2 });
+    try {
+      const firstAttempt = handleRecoveryJobsAvailableImpl(service, { jobs: [job] });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+        "recovery_job_claim", expect.objectContaining({ job_id: job.job_id }),
+      );
+      focused = false;
+      window.dispatchEvent(new Event("blur"));
+      expect(mocks.webSocketService.sendMessage).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(mocks.webSocketService.sendMessage).toHaveBeenCalledTimes(1);
+      focused = true;
+      window.dispatchEvent(new Event("focus"));
+      await handleRecoveryJobsAvailableImpl(service, { jobs: [job] });
+      expect(mocks.webSocketService.sendMessage).toHaveBeenCalledTimes(1);
+      handlers.get("native_client_lifecycle_ack")?.({ is_foreground: true });
+      await handleRecoveryJobsAvailableImpl(service, { jobs: [job] });
+      handlers.get("native_client_lifecycle_ack")?.({ is_foreground: true });
+      handlers.get("recovery_outputs_discovery_complete")?.({ status: "failed" });
+      expect(mocks.webSocketService.sendMessage).toHaveBeenCalledTimes(1);
+      handlers.get("recovery_outputs_discovery_complete")?.({ status: "completed" });
+      await firstAttempt;
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mocks.webSocketService.sendMessage).toHaveBeenCalledTimes(2);
+    } finally {
+      if (originalVisibility) Object.defineProperty(document, "visibilityState", originalVisibility);
+    }
+  });
+
   afterEach(() => {
+    resetRecoveryLifecycleImpl();
     vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery
+  it("re-registers the first foreground barrier after logout without retaining prior jobs", async () => {
+    const handlers = new Map();
+    let focused = false;
+    vi.mocked(document.hasFocus).mockImplementation(() => focused);
+    mocks.webSocketService.on.mockImplementation((type, handler) => handlers.set(type, handler));
+    mocks.webSocketService.off.mockImplementation((type) => handlers.delete(type));
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "chat-new", user_id: "user-new", messages_v: 2 });
+    const service = {
+      hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn().mockResolvedValue(undefined),
+      dispatchEvent: vi.fn(),
+    };
+    const oldJob = {
+      job_id: "old-account-job", chat_id: "chat-old", turn_id: "turn-old",
+      assistant_message_id: "assistant-old", chat_key_version: 1,
+    };
+    const newJob = {
+      job_id: "new-account-job", chat_id: "chat-new", turn_id: "turn-new",
+      assistant_message_id: "assistant-new", chat_key_version: 1,
+    };
+    prepareRecoveryLifecycleImpl(service);
+    handlers.get("native_client_lifecycle_ack")?.({ is_foreground: false });
+    await handleRecoveryJobsAvailableImpl(service, { jobs: [oldJob] });
+    focused = true;
+    handlers.get("native_client_lifecycle_ack")?.({ is_foreground: true });
+    await handleRecoveryJobsAvailableImpl(service, { jobs: [oldJob] });
+    handlers.get("recovery_outputs_discovery_complete")?.({ status: "completed" });
+    void handleRecoveryOutputsAvailableImpl(service, { outputs: [{
+      record_id: "old-output", root_chat_id: "chat-old", target_chat_id: "chat-old",
+      turn_id: "turn-old", subject_id: "assistant-old", output_kind: "message",
+      output_version: 1, chat_key_version: 1, message_role: "assistant",
+    }] });
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalled();
+    resetRecoveryLifecycleImpl();
+    expect(handlers.has("native_client_lifecycle_ack")).toBe(false);
+    expect(handlers.has("recovery_outputs_discovery_complete")).toBe(false);
+    focused = false;
+    prepareRecoveryLifecycleImpl(service);
+    focused = true;
+    window.dispatchEvent(new Event("focus"));
+    handlers.get("native_client_lifecycle_ack")?.({ is_foreground: true });
+    await handleRecoveryJobsAvailableImpl(service, { jobs: [newJob] });
+    handlers.get("recovery_outputs_discovery_complete")?.({ status: "completed" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mocks.webSocketService.sendMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      "recovery_job_claim", expect.objectContaining({ job_id: newJob.job_id }),
+    );
+    expect(mocks.chatDB.getChat).not.toHaveBeenCalledWith("chat-old");
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced

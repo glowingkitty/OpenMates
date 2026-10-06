@@ -8,8 +8,9 @@ terminal acknowledgement only after encrypted assistant persistence commits.
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from typing import Any
+from typing import Any, Awaitable, Callable
 from uuid import UUID
 
 from backend.core.api.app.services.chat_recovery_service import (
@@ -25,6 +26,42 @@ from backend.shared.python_utils.chat_failure_notifications import (
 logger = logging.getLogger(__name__)
 _DIRECT_COMPLETION_CURSOR_KEY = "chat_recovery:direct_completion_reconcile_cursor:v1"
 _DIRECT_COMPLETION_RECONCILE_LIMIT = 100
+
+
+async def begin_initial_recovery_discovery(
+    *, manager: Any, directus_service: Any, user_id: str,
+    user_id_hash: str, device_fingerprint_hash: str,
+    supports_typed_recovery_outputs: bool,
+    get_epoch: Callable[[], Awaitable[int]],
+    user_otel_attrs: dict | None = None,
+) -> list[asyncio.Task]:
+    """Keep typed recovery dormant until the first foreground lifecycle ACK."""
+    if supports_typed_recovery_outputs:
+        return []
+    try:
+        recovery_epoch = await get_epoch()
+    except Exception:
+        logger.exception("Authoritative recovery discovery epoch read failed")
+        recovery_epoch = None
+    if recovery_epoch is not None and recovery_epoch >= 1:
+        task = asyncio.create_task(send_available_recovery_jobs(
+            manager=manager, directus_service=directus_service,
+            user_id=user_id, user_id_hash=user_id_hash,
+            device_fingerprint_hash=device_fingerprint_hash,
+            user_otel_attrs=user_otel_attrs,
+        ))
+        await manager.send_personal_message(
+            {"type": "recovery_outputs_discovery_complete", "payload": {"status": "disabled"}},
+            user_id, device_fingerprint_hash,
+        )
+        return [task]
+    await manager.send_personal_message(
+        {"type": "recovery_outputs_discovery_complete", "payload": {
+            "status": "failed" if recovery_epoch is None else "disabled",
+        }},
+        user_id, device_fingerprint_hash,
+    )
+    return []
 
 
 def _start_ws_span(event_type: str, user_id: str, payload: dict[str, Any] | None, user_otel_attrs: dict | None):
@@ -300,6 +337,8 @@ async def send_available_recovery_jobs(
     device_fingerprint_hash: str,
     user_otel_attrs: dict | None = None,
 ) -> None:
+    if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+        return
     _otel_span, _otel_token = _start_ws_span(
         "send_available_recovery_jobs",
         user_id,
@@ -316,7 +355,7 @@ async def send_available_recovery_jobs(
             },
         )
         jobs = result.get("jobs")
-        if jobs:
+        if jobs and manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
             await manager.send_personal_message(
                 {"type": "recovery_jobs_available", "payload": {"jobs": jobs}},
                 user_id,
@@ -345,10 +384,14 @@ async def send_available_recovery_outputs(
     cursor: dict[str, str] | None = None
     try:
         while True:
+            if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+                return
             result = await recovery.execute("list_pending_outputs", {
                 "protocol_version": 1, "hashed_user_id": user_id_hash,
                 "device_hash": device_fingerprint_hash, **(cursor or {}),
             })
+            if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+                return
             if result.get("outputs"):
                 await manager.send_personal_message(
                     {"type": "recovery_outputs_available", "payload": {"outputs": result["outputs"]}},
@@ -369,6 +412,8 @@ async def send_available_recovery_outputs(
         except Exception:
             pass
         raise
+    if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+        return
     await manager.send_personal_message(
         {"type": "recovery_outputs_discovery_complete", "payload": {"status": "completed"}},
         user_id, device_fingerprint_hash,
@@ -561,15 +606,17 @@ async def _require_typed_output_capability(
     *,
     require_canonical_embed_receipts: bool = False,
 ) -> bool:
-    supports_typed = getattr(manager, "supports_typed_recovery_outputs", None)
-    supports_receipts = getattr(manager, "supports_canonical_embed_receipts", None)
+    supports_typed = getattr(manager, "negotiated_typed_recovery_outputs", None)
+    supports_receipts = getattr(manager, "negotiated_canonical_embed_receipts", None)
     allowed = callable(supports_typed) and supports_typed(user_id, device_fingerprint_hash)
     if require_canonical_embed_receipts:
         allowed = allowed and callable(supports_receipts) and supports_receipts(
             user_id, device_fingerprint_hash
         )
     if allowed:
-        return True
+        return await _require_recovery_foreground(
+            manager, user_id, device_fingerprint_hash, request_id, record_id,
+        )
     await manager.send_personal_message(
         {"type": "error", "payload": {
             "code": "client_capability_required",
@@ -579,6 +626,24 @@ async def _require_typed_output_capability(
         }},
         user_id,
         device_fingerprint_hash,
+    )
+    return False
+
+
+async def _require_recovery_foreground(
+    manager: Any, user_id: str, device_fingerprint_hash: str,
+    request_id: str | None, job_id: Any,
+) -> bool:
+    if manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+        return True
+    await manager.send_personal_message(
+        {"type": "error", "payload": {
+            "code": "recovery_requires_foreground",
+            "message": "Encrypted recovery requires a foreground client.",
+            "job_id": job_id,
+            "request_id": request_id,
+        }},
+        user_id, device_fingerprint_hash,
     )
     return False
 
@@ -624,6 +689,10 @@ async def handle_recovery_job_claim(
     )
     request_id = _request_id(payload)
     try:
+        if not await _require_recovery_foreground(
+            manager, user_id, device_fingerprint_hash, request_id, payload.get("job_id")
+        ):
+            return
         result = await ChatRecoveryService(directus_service).execute(
             "lease_job",
             {
@@ -672,6 +741,10 @@ async def handle_recovery_job_renew(
     )
     request_id = _request_id(payload)
     try:
+        if not await _require_recovery_foreground(
+            manager, user_id, device_fingerprint_hash, request_id, payload.get("job_id")
+        ):
+            return
         result = await ChatRecoveryService(directus_service).execute(
             "renew_lease",
             {
@@ -722,6 +795,10 @@ async def handle_recovery_job_persist(
     )
     request_id = _request_id(payload)
     try:
+        if not await _require_recovery_foreground(
+            manager, user_id, device_fingerprint_hash, request_id, payload.get("job_id")
+        ):
+            return
         encrypted_message = dict(payload.get("encrypted_assistant_message") or {})
         encrypted_message["hashed_user_id"] = user_id_hash
         result = await ChatRecoveryService(directus_service).execute(

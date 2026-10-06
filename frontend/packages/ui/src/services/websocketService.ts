@@ -185,7 +185,8 @@ function isRetryableRecoveryProtocolError(payload: unknown): boolean {
   return (
     ((payload.code === "version_conflict" ||
       payload.code === "lease_conflict" ||
-      payload.code === "recovery_job_not_found") &&
+      payload.code === "recovery_job_not_found" ||
+      payload.code === "recovery_requires_foreground") &&
       typeof payload.job_id === "string" &&
       typeof payload.request_id === "string") ||
     payload.code === "recovery_persistence_required"
@@ -1459,6 +1460,13 @@ class WebSocketService extends EventTarget {
 
   public isConnected(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+  }
+
+  public requestForegroundRecoveryDiscovery(): void {
+    if (typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus()) {
+      this.sendClientLifecycle(true, "recovery_requires_foreground");
+      this.ws?.send(JSON.stringify({ type: "request_recovery_discovery", payload: {} }));
+    }
   }
 
   private sendClientLifecycle(isForeground: boolean, source: string): void {

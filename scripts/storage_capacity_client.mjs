@@ -105,6 +105,7 @@ async function oneUser(user) {
   let chatId;
   const embedIds = [];
   let archiveSamples = 0;
+  const expectedUserMessages = new Set();
   workerPhase = 'project_create';
   const project = await createCapacityProject(client, user);
   for (let round = 0; round < plan.rounds_per_user; round++) {
@@ -139,6 +140,7 @@ async function oneUser(user) {
         throw new Error('Full application turn did not complete with persisted response');
       }
       chatId = response.chatId;
+      expectedUserMessages.add(`${text}\nSTORAGE_CAPACITY_SCENARIO:${scenario}`);
       if (scenario === 'child' && (!response.subChatEvents?.some(event => event.type === 'spawn_sub_chats') ||
           !response.subChatEvents?.some(event => event.type === 'sub_chat_completed'))) {
         throw new Error('Synthetic child was not dispatched and completed through the full path');
@@ -156,7 +158,7 @@ async function oneUser(user) {
       }
       if (round % 20 === 19) {
         workerPhase = 'archive_readback';
-        const page = await readArchivedPage({ client, chatId, user, round, cache: 'cold' });
+        const page = await readArchivedPage({ client, chatId, expectedUserMessages });
         if (page.archived) {
           archiveSamples++;
           await emit({ kind: 'archive_page', cache: page.cache, ready_ms: page.readyMs,
@@ -181,7 +183,7 @@ async function oneUser(user) {
     for (let attempt = 0; attempt < 10 && archiveSamples === 0; attempt++) {
       await new Promise(resolve => setTimeout(resolve, 3000));
       workerPhase = 'archive_readback';
-      const page = await readArchivedPage({ client, chatId, user, round: plan.rounds_per_user, cache: 'cold' });
+      const page = await readArchivedPage({ client, chatId, expectedUserMessages });
       if (page.archived) {
         archiveSamples++;
         await emit({ kind: 'archive_page', cache: page.cache, ready_ms: page.readyMs,

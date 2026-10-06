@@ -18,6 +18,9 @@ class Manager:
     async def send_personal_message(self, message: dict, *_args) -> None:
         self.messages.append(message)
 
+    def is_connection_completion_capable(self, _user_id: str, _device_hash: str) -> bool:
+        return True
+
 
 class RejectingService:
     def __init__(self, _directus_service) -> None:
@@ -27,6 +30,7 @@ class RejectingService:
         raise ChatRecoveryProtocolError(404, "recovery_job_not_found")
 
 
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery,storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "handler_name",
@@ -65,6 +69,7 @@ async def test_rejected_job_request_discloses_no_payload_or_chat_metadata(monkey
     assert "sensitive" not in repr(manager.messages)
 
 
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.asyncio
 async def test_lease_renewal_uses_authenticated_owner_and_device(monkeypatch) -> None:
     calls: list[tuple[str, dict]] = []
@@ -108,6 +113,7 @@ async def test_lease_renewal_uses_authenticated_owner_and_device(monkeypatch) ->
     assert manager.messages[0]["payload"]["request_id"] == "renew-request-1"
 
 
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.parametrize(
     "handler_name",
     ["handle_recovery_job_renew", "handle_recovery_job_persist"],
@@ -118,6 +124,7 @@ def test_all_mutating_recovery_operations_have_authenticated_handlers(handler_na
     )
 
 
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.asyncio
 async def test_device_revocation_immediately_invalidates_authenticated_device_lease(monkeypatch) -> None:
     calls: list[tuple[str, dict]] = []

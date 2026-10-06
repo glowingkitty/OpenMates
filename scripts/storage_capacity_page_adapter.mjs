@@ -1,7 +1,10 @@
 /** Locate and time a first read of a real archived chat page via CLI decryption. */
 const observedPages = new Set();
 
-export async function readArchivedPage({ client, chatId }) {
+export async function readArchivedPage({ client, chatId, expectedUserMessages }) {
+  if (!(expectedUserMessages instanceof Set) || expectedUserMessages.size === 0) {
+    throw new Error('Archived read requires the plaintext message ledger');
+  }
   let cursor = null;
   for (let pageNumber = 0; pageNumber < 100; pageNumber++) {
     const options = { direction: cursor ? 'before' : 'latest', limit: 20,
@@ -18,10 +21,13 @@ export async function readArchivedPage({ client, chatId }) {
     const validIds = archiveIds.filter(id => typeof id === 'string' && id.length > 0);
     const firstRead = validIds.length > 0 && validIds.length === archiveIds.length &&
       validIds.every(id => !observedPages.has(id));
-    for (const id of validIds) observedPages.add(id);
-    if ((page.storageTier === 'archive' || page.storageTier === 'mixed') && firstRead) {
-      return { archived: true, authorized: true, decrypted: page.messages.every(
-        message => typeof message.content === 'string' && message.content.length > 0),
+    if (page.storageTier === 'archive' && firstRead) {
+      for (const id of validIds) observedPages.add(id);
+      const userMessages = page.messages.filter(message => message.role === 'user');
+      const decrypted = page.messages.every(message =>
+        typeof message.content === 'string' && message.content.length > 0) &&
+        userMessages.length > 0 && userMessages.every(message => expectedUserMessages.has(message.content));
+      return { archived: true, authorized: true, decrypted,
         cache: page.archivePayloadCache === 'disabled' ? 'cold' : 'warm', readyMs, archivePageIds: validIds };
     }
     if (!page.hasMoreBefore || !page.startCursor) return { archived: false };

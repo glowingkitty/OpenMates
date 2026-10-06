@@ -91,6 +91,9 @@ async def test_discovery_scans_inaccessible_page_before_sending_later_output(mon
             assert (user_id, device_hash) == ("user-1", "device-hash")
             return True
 
+        def is_connection_completion_capable(self, _user_id: str, _device_hash: str) -> bool:
+            return True
+
         async def send_personal_message(self, message: dict, _user_id: str, _device_hash: str) -> None:
             self.messages.append(message)
 
@@ -125,6 +128,9 @@ async def test_discovery_failure_emits_failed_fence_instead_of_false_completion(
 
         def supports_typed_recovery_outputs(self, user_id: str, device_hash: str) -> bool:
             assert (user_id, device_hash) == ("user-1", "device-hash")
+            return True
+
+        def is_connection_completion_capable(self, _user_id: str, _device_hash: str) -> bool:
             return True
 
         async def send_personal_message(self, message: dict, _user_id: str, _device_hash: str) -> None:
