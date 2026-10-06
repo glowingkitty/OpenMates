@@ -16,6 +16,7 @@ See docs/architecture/notifications.md for the full notification flow.
 
 import json
 import logging
+import re
 import os
 import time
 import base64
@@ -36,6 +37,23 @@ APNS_CHAT_MESSAGE_TITLE = "OpenMates"
 APNS_CHAT_MESSAGE_BODY = "New message received"
 APNS_ENCRYPTION_VERSION = "x25519-aesgcm-v1"
 APNS_ENCRYPTION_INFO = b"openmates-apns-notification-v1"
+
+
+def notification_preview_text(content: str) -> str:
+    """Project assistant Markdown to bounded prose without protocol/code fences.
+
+    Strip complete or trailing unfinished fences before truncation: a leading
+    embed block may exceed the preview budget while useful prose follows it.
+    Never interpret protocol JSON fields as notification text.
+    """
+    text = re.sub(r"(?s)```.*?(?:```|$)|~~~.*?(?:~~~|$)", " ", content or "")
+    text = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", text)
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    text = re.sub(r"(?m)^\s{0,3}(?:#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)", "", text)
+    text = re.sub(r"(\*\*|__)(.+?)\1", r"\2", text)
+    text = re.sub(r"(?<!\w)(\*|_)(.+?)\1(?!\w)", r"\2", text)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    return re.sub(r"\s+", " ", text).strip()[:200]
 
 
 def apns_topic_for_platform(platform: str) -> str:
@@ -415,6 +433,7 @@ class PushNotificationService:
 
     def _build_encrypted_apns_payload(self, subscription_info: dict, preview_text: str) -> Optional[dict]:
         """Encrypt optional Apple notification preview text to the device public key."""
+        preview_text = notification_preview_text(preview_text)
         public_key_b64 = (subscription_info.get("notification_public_key") or "").strip()
         encryption_version = (subscription_info.get("encryption_version") or APNS_ENCRYPTION_VERSION).strip()
         if not public_key_b64 or encryption_version != APNS_ENCRYPTION_VERSION or not preview_text:

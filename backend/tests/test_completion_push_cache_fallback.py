@@ -45,13 +45,14 @@ def dispatch(monkeypatch):
 
 
 # contract-test: supporting surface=gui.apple assertions=apple-notifications.registration.lifecycle,apple-notifications.delivery.idempotent-visible,apple-notifications.payload.privacy-safe
-def test_watch_registration_eviction_then_background_completion_dispatches(monkeypatch, dispatch, caplog):
+def test_watch_registration_cache_miss_then_background_completion_dispatches(monkeypatch, dispatch, caplog):
     durable = {"push_notification_enabled": False, "push_notification_preferences": {"aiResponses": True}}
     cache = SimpleNamespace(get_user_by_id=AsyncMock(return_value=dict(durable)),
-                            delete_user_cache=AsyncMock(), add_pending_reminder_delivery=AsyncMock())
+                            delete_user_cache=AsyncMock(), update_user=AsyncMock(),
+                            add_pending_reminder_delivery=AsyncMock())
 
-    async def invalidate(user_id):
-        cache.get_user_by_id.return_value = None
+    async def update_cache(user_id, values):
+        cache.get_user_by_id.return_value.update(values)
 
     async def read_fields(user_id, fields):
         return {key: durable.get(key) for key in fields}
@@ -60,7 +61,7 @@ def test_watch_registration_eviction_then_background_completion_dispatches(monke
         durable.update(values)
         return True
 
-    cache.delete_user_cache.side_effect = invalidate
+    cache.update_user.side_effect = update_cache
     directus = SimpleNamespace(get_user_fields_direct=AsyncMock(side_effect=read_fields),
                                update_user=AsyncMock(side_effect=save))
 
@@ -90,11 +91,19 @@ def test_watch_registration_eviction_then_background_completion_dispatches(monke
     async def exercise():
         response = await register(target, SimpleNamespace(id="synthetic-user"), directus, cache)
         assert response.success is True
-        assert cache.get_user_by_id.return_value is None
+        assert cache.get_user_by_id.return_value["push_notification_enabled"] is True
+        assert cache.get_user_by_id.return_value["push_notification_preferences"] == {"aiResponses": True}
+        # Independent expiry still exercises the durable fallback; registration
+        # itself must preserve authenticated-session and chat cache state.
+        cache.get_user_by_id.return_value = None
         await notify(app, manager, "synthetic-user", "synthetic-chat", "synthetic-private-preview", max_attempts=1)
 
     asyncio.run(exercise())
-    cache.delete_user_cache.assert_awaited_once_with("synthetic-user")
+    cache.delete_user_cache.assert_not_awaited()
+    cache.update_user.assert_awaited_once_with("synthetic-user", {
+        "push_notification_enabled": True,
+        "push_notification_subscription": durable["push_notification_subscription"],
+    })
     directus.get_user_fields_direct.assert_awaited_with("synthetic-user", [
         "push_notification_enabled", "push_notification_subscription", "push_notification_preferences"])
     celery.send_task.assert_called_once()

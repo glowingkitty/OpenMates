@@ -379,7 +379,9 @@ async def _send_push_notification_if_enabled(
         return False
 
     # Build notification content
-    preview_text = (response_preview or "")[:200]
+    from backend.core.api.app.services.push_notification_service import notification_preview_text
+
+    preview_text = notification_preview_text(response_preview)
     push_title = "OpenMates"
     push_body = preview_text if preview_text else "Your AI assistant has responded."
     push_url = f"/?chat={chat_id}"
