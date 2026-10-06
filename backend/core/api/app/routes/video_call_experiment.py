@@ -90,6 +90,8 @@ class UsageLedger:
         self.charged = 0
         self.checkpoint = 0
         self.pending_usage: dict[str, Any] | None = None
+        self.turn_has_tool_output = False
+        self.turn_has_audio_output = False
 
     @property
     def cost(self) -> Decimal:
@@ -105,9 +107,22 @@ class UsageLedger:
         if not self.pending_usage or int(usage.get("totalTokenCount") or 0) >= int(self.pending_usage.get("totalTokenCount") or 0):
             self.pending_usage = usage
 
+    def observe_gemini_output(self, event: dict[str, Any]) -> None:
+        """Retain output kinds, never content, for sparse tool-turn usage."""
+        if (event.get("toolCall") or {}).get("functionCalls"):
+            self.turn_has_tool_output = True
+        content = event.get("serverContent") or {}
+        for part in (content.get("modelTurn") or {}).get("parts") or []:
+            inline = part.get("inlineData") if isinstance(part, dict) else None
+            if isinstance(inline, dict) and str(inline.get("mimeType") or "").startswith("audio/") and inline.get("data"):
+                self.turn_has_audio_output = True
+
     def commit_gemini_turn(self) -> bool:
         usage = self.pending_usage
         self.pending_usage = None
+        text_only_tool_turn = self.turn_has_tool_output and not self.turn_has_audio_output
+        self.turn_has_tool_output = False
+        self.turn_has_audio_output = False
         if not usage:
             return False
         prompt_details = usage.get("promptTokensDetails")
@@ -118,14 +133,17 @@ class UsageLedger:
         thoughts = int(usage.get("thoughtsTokenCount") or 0)
         if min(prompt_tokens, response_tokens, tool_use_prompt_tokens, thoughts) < 0:
             raise ValueError("Gemini reported negative usage")
-        # Proto JSON omits empty repeated fields. Tool-only turns can have no
-        # output tokens and therefore no responseTokensDetails at all. Only a
-        # zero-token side may omit its breakdown; positive usage must remain
-        # attributable to its modality before we can charge it correctly.
+        # Gemini can omit responseTokensDetails for a function-call-only turn
+        # even with positive responseTokenCount (observed on the live API).
+        # Function calls are text output. Infer that rate only when this turn
+        # emitted a tool call and no audio; mixed/unknown output still needs
+        # the provider breakdown to avoid charging speech at the text rate.
         if prompt_details is None and prompt_tokens == 0:
             prompt_details = []
         if response_details is None and response_tokens == 0:
             response_details = []
+        elif (response_details is None or response_details == []) and text_only_tool_turn:
+            response_details = [{"modality": "TEXT", "tokenCount": response_tokens}]
         if (
             not isinstance(prompt_details, list) or not isinstance(response_details, list)
             or (prompt_tokens > 0 and not prompt_details)
@@ -688,6 +706,7 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                             if provider_receive in done:
                                 msg = provider_receive.result()
                                 event = _decode_gemini_event(msg)
+                                ledger.observe_gemini_output(event)
                                 usage = event.get("usageMetadata")
                                 if isinstance(usage, dict):
                                     ledger.stage_gemini(usage)

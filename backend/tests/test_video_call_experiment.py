@@ -373,9 +373,46 @@ def test_positive_output_usage_still_requires_modalities(details) -> None:
     assert ledger.gemini_cost == 0
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.billing
+@pytest.mark.parametrize("details", [None, []])
+def test_live_tool_only_output_without_modality_details_is_billed_as_text(details) -> None:
+    ledger = call.UsageLedger()
+    ledger.observe_gemini_output(_visual_instruction())
+    # Sanitized shape from a real Gemini-only spoken tool probe.
+    ledger.stage_gemini({
+        "totalTokenCount": 857, "promptTokenCount": 793, "responseTokenCount": 64,
+        "promptTokensDetails": [
+            {"modality": "TEXT", "tokenCount": 455},
+            {"modality": "AUDIO", "tokenCount": 283},
+        ],
+        "responseTokensDetails": details,
+    })
+    assert ledger.commit_gemini_turn()
+    assert ledger.gemini_cost == Decimal("0.00147825")
+    assert ledger.response_tokens == 64
+    # A previous tool call cannot classify the following unknown turn.
+    ledger.stage_gemini({"responseTokenCount": 10})
+    with pytest.raises(ValueError, match="modality-level usage"):
+        ledger.commit_gemini_turn()
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.billing
+def test_mixed_tool_and_audio_output_still_requires_modality_details() -> None:
+    ledger = call.UsageLedger()
+    ledger.observe_gemini_output(_visual_instruction())
+    ledger.observe_gemini_output({"serverContent": {"modelTurn": {"parts": [
+        {"inlineData": {"mimeType": "audio/pcm;rate=24000", "data": "AAAA"}},
+    ]}}})
+    ledger.stage_gemini({"responseTokenCount": 10})
+    with pytest.raises(ValueError, match="modality-level usage"):
+        ledger.commit_gemini_turn()
+    assert ledger.gemini_cost == 0
+
+
 # contract-test: supporting surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.generated-visuals,video-call.experiment.billing
 @pytest.mark.asyncio
-async def test_tool_only_usage_does_not_cancel_an_accepted_video(route_harness, monkeypatch) -> None:
+@pytest.mark.parametrize("response_tokens", [0, 64])
+async def test_tool_only_usage_does_not_cancel_an_accepted_video(route_harness, monkeypatch, response_tokens) -> None:
     accepted = asyncio.Event()
     released = asyncio.Event()
     cancellations = []
@@ -403,7 +440,7 @@ async def test_tool_only_usage_does_not_cancel_an_accepted_video(route_harness, 
         provider.send(_visual_instruction())
         await asyncio.wait_for(accepted.wait(), timeout=2)
         provider.send({"serverContent": {"turnComplete": True}, "usageMetadata": {
-            "totalTokenCount": 100, "promptTokenCount": 100, "responseTokenCount": 0,
+            "totalTokenCount": 100 + response_tokens, "promptTokenCount": 100, "responseTokenCount": response_tokens,
             "promptTokensDetails": [{"modality": "TEXT", "tokenCount": 100}],
         }})
         await socket.expect("usage")
