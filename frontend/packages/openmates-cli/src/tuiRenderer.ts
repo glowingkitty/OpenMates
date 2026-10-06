@@ -262,7 +262,7 @@ export function rankExamples(
 export function renderTuiFrame(state: TuiState, width: number, height: number, options: { colorMode?: TuiColorMode; ascii?: boolean } = {}): string {
   if (state.startup || state.privacyOffer) return renderStartupFrame(state, width, height, options.colorMode ?? "none");
   const bodyWidth = workspaceGeometry(state, width).contentWidth;
-  const stickyRows=state.screen==="project"&&state.activeProject?renderProjectIdentity(state.activeProject,{width:bodyWidth}).length+renderProjectTabs(state.projectTab,bodyWidth).length:
+  const stickyRows=state.screen==="embed"?3:state.screen==="project"&&state.activeProject?renderProjectIdentity(state.activeProject,{width:bodyWidth}).length+renderProjectTabs(state.projectTab,bodyWidth).length:
     state.screen==="app"&&state.activeApp?renderTuiAppIdentity(state.activeApp,bodyWidth).length+renderTuiAppTabs(state.appTab,bodyWidth).length:
     state.screen==="app-skill"&&state.activeAppSkill?renderTuiAppsSkillIdentity(state.activeAppSkill,bodyWidth).length+renderTuiAppsSkillTabs(state.appSkillTab,bodyWidth).length:
     state.screen==="workflow"&&state.activeWorkflow?renderWorkflowIdentity(state.activeWorkflow,{width:bodyWidth,run:state.workflowTab==="runs"?state.workflowRuns[state.selectedWorkflowRunIndex]:undefined}).length+(bodyWidth<36?7:4):0;
@@ -360,7 +360,7 @@ function renderScreenBody(state: TuiState, width: number,height:number): TuiLine
       const app=state.detailEmbed?.appId ?? "", gradient=APP_GRADIENTS[app] ?? PRIMARY_GRADIENT;
       const title=state.detailTitle || "Embed";
       const header=[title, state.detailEmbed ? `${state.detailEmbed.type?.replaceAll("-"," ") ?? "Saved item"} · ${state.detailEmbed.embedId.slice(0,8)}` : "Saved embeds"];
-      return [...coloredHero(header,header.length,gradient),"",...(state.embedChoices.length ? state.embedChoices.map((id,index)=>`${index===state.selectedIndex?">":" "} Embed ${index+1} · ${id.slice(0,8)} · Enter open`) : state.detailLines).flatMap(line=>wrap(line,width)),"","↑/↓ scroll · PgUp/PgDn page · Esc back"];
+      return [...coloredHero(header,header.length,gradient),"",...(state.embedChoices.length ? state.embedChoices.map((id,index)=>`${index===state.selectedIndex?">":" "} Embed ${index+1} · ${id.slice(0,8)} · Enter open`) : state.detailLines).flatMap(line=>wrap(line,width))];
     }
     case "workflows":
       return [...homeHeader(state,width,height),...homeCards(state.workflows.filter((w)=>w.title.toLowerCase().includes(state.filter.toLowerCase())).flatMap((w,i)=>[...renderWorkflowPreviewCard(w,{width:Math.min(width,88),selected:state.focus==="content"&&i===state.selectedIndex}),""]),width,[]),"Show my workflows  ·  /search Search"];

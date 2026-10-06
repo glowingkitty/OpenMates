@@ -59,7 +59,8 @@ test.describe('CLI TUI workflows', () => {
 		expect(result.stdout).toContain('opening a cached chat renders messages before slow draft lookup');
 		expect(result.stdout).toContain('cached chat opening and drafts bypass full sync');
 		expect(result.stdout).toContain('metadata-only chat opening reads canonical history without saved-output recovery');
-		expect(result.stdout).toContain('batched command text precedes Enter and Escape interrupts pending fullscreen loading');
+		expect(result.stdout).toContain('fullscreen commands keep controls visible and Escape interrupts pending loading');
+		expect(result.stdout).toContain('long fullscreen embeds retain their header and visible keyboard controls above background status');
 	});
 });
 

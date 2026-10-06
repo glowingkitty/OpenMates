@@ -44,6 +44,7 @@ export function workspaceHint(state: TuiState): string {
   if (state.screen === "start" || state.screen === "chats") return state.focus === "composer"
     ? "Enter send   Shift+Tab chats   Ctrl+N new   Ctrl+B sidebar"
     : "←/→ chat   Enter open   Tab write   ↑/↓ scroll   Ctrl+B sidebar";
+  if (state.screen === "embed") return state.embedChoices.length ? "↑/↓ choose   Enter open   Esc back" : "↑/↓ scroll   PgUp/PgDn page   Esc back";
   if (state.workflowEdit) return "Enter save title   Esc cancel edit";
   if (state.screen === "workflow") return "g template   r runs   ↑/↓ select   Enter expand   e title   E config   x run   c cancel";
   if (state.screen === "task") return "e edit   m status   a activity   s start   d done   b block   Esc back";
@@ -166,7 +167,7 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     : state.workspace === "projects" ? "Name a new project  ·  /search to browse"
     : state.workspace === "workflows" ? "Describe new workflow  ·  /search to browse"
     : state.workspace === "tasks" ? "Add or update tasks  ·  /search to browse" : "Search apps or type / for actions";
-  const hint = state.status && state.screen !== "status" ? `${state.status}  ·  ${workspaceHint(state)}` : workspaceHint(state);
+  const hint = state.status && state.screen !== "status" && state.screen !== "embed" ? `${state.status}  ·  ${workspaceHint(state)}` : workspaceHint(state);
   const hintColor = state.focus === "composer" ? "#a0a0a0" : "#ff553b";
   const composer: string[] = [];
   if (showComposer) {

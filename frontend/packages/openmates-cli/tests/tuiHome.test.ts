@@ -426,7 +426,7 @@ test("saved item ciphertext warms in the background with bounded concurrency",as
 });
 
 // contract-test: supporting surface=cli assertions=chats.rendering.inline-entity-interaction,cli.surface.semantic-parity
-test("batched command text precedes Enter and Escape interrupts pending fullscreen loading",async()=>{
+test("fullscreen commands keep controls visible and Escape interrupts pending loading",async()=>{
   const {runTui}=await import("../src/tui.js");
   let key!:(chunk:string,key:{name?:string;ctrl?:boolean})=>void;
   let lastFrame="",ready=false,opened=false,resolveEmbed!:(embed:unknown)=>void;
@@ -439,9 +439,22 @@ test("batched command text precedes Enter and Escape interrupts pending fullscre
   try {
     await wait(()=>ready);
     for(const character of "/embed fixture")key(character,{name:character});key("\r",{name:"return"});
-    await wait(()=>opened);assert.match(lastFrame,/Loading saved embed|DAILY INSPIRATION/);
+    await wait(()=>opened && lastFrame.includes("Loading saved embed"));assert.match(lastFrame,/Esc back/);assert.match(lastFrame,/PgUp\/PgDn/);
     key("\x1b",{name:"escape"});await wait(()=>lastFrame.includes("DAILY INSPIRATION"));
     resolveEmbed({id:"fixture",embedId:"fixture",type:"code",content:{code:"const answer = 42;"},textPreview:null,createdAt:null,appId:"code",skillId:"code"});
     await new Promise(resolve=>setTimeout(resolve,25));assert.match(lastFrame,/DAILY INSPIRATION/);assert.doesNotMatch(lastFrame,/const answer/);
   } finally {key("\x03",{name:"c",ctrl:true});await result;}
+});
+
+// contract-test: supporting surface=cli assertions=chats.rendering.inline-entity-interaction,cli.surface.semantic-parity
+test("long fullscreen embeds retain their header and visible keyboard controls above background status",()=>{
+  for(const width of [60,100]){
+    const state=createInitialTuiState();state.screen="embed";state.focus="content";state.status="Showing cached chats. Sync failed; /refresh to retry.";
+    state.detailTitle="Code fixture";state.detailEmbed={id:"fixture",embedId:"fixture",type:"code",appId:"code",skillId:"code",textPreview:null,createdAt:null,content:{code:"source"}};
+    state.detailLines=Array.from({length:120},(_,i)=>`Source line ${i}`);
+    for(const offset of [0,60,110]){
+      state.scrollOffset=offset;const frame=stripAnsi(renderTuiFrame(state,width,24));
+      assert.match(frame,/Code fixture/);assert.match(frame,/Esc back/);assert.match(frame,/PgUp\/PgDn/);assert.doesNotMatch(frame,/Enter send/);
+    }
+  }
 });

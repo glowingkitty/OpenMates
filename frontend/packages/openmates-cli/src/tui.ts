@@ -119,31 +119,15 @@ export async function runTui(
   });
   terminal.enter();
   terminal.onResize(render);
-  let keyQueue: Promise<void> = Promise.resolve();
-  let inputEpoch = 0;
-  const keyError = (error: unknown) => {
-    state.status = error instanceof Error ? error.message : String(error);
-    render();
-  };
-  const dispatchKey = async (chunk: string, key: TerminalKey, epoch: number) => {
-    if (closed || epoch !== inputEpoch) return;
-    if (await startup.handleKey(chunk, key)) return;
-    const action = handleKey({ chunk, key, state, client, terminal, render, finish });
-    // Enter starts asynchronous navigation or sending after earlier text is
-    // applied. Continue accepting input while its remote work is pending.
-    if (key.name === "return" && !key.meta) void action.catch(keyError);
-    else await action;
-  };
   terminal.onKey((chunk, key) => {
     if (key.ctrl && key.name === "c") { finish({ action: "exit" }); return; }
-    if (key.name === "escape") {
-      ++inputEpoch;
-      keyQueue = Promise.resolve();
-      void dispatchKey(chunk, key, inputEpoch).catch(keyError);
-      return;
-    }
-    const epoch = inputEpoch;
-    keyQueue = keyQueue.then(() => dispatchKey(chunk, key, epoch)).catch(keyError);
+    void (async () => {
+      if (await startup.handleKey(chunk, key)) return;
+      await handleKey({ chunk, key, state, client, terminal, render, finish });
+    })().catch((error) => {
+      state.status = error instanceof Error ? error.message : String(error);
+      render();
+    });
   });
   void startup.start();
   return result;
