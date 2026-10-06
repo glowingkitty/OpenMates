@@ -7,6 +7,13 @@ argument-hint: "<spec.ts | CLI command> [visible claim]"
 
 # Create Demo Video
 
+Existing web/CLI E2E recording delivery is always required by
+`.claude/rules/testing.md`: download the run artifact, run its
+`codex_evidence_command` and paste the returned video links in the final chat,
+including failures/retries. That delivery needs no new contract or caption/render
+workflow. Use this skill when the accepted scope requires additional edited or
+captioned proof; do not delay existing recording links while preparing it.
+
 Use this skill for engineering proof, not marketing video production. Start with
 one command:
 

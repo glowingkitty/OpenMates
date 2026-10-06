@@ -60,7 +60,10 @@ not require a new preview fixture or spec. If Figma is involved, run
   mounting. It is not a product assertion or proof checkpoint.
 - Use phone and laptop profiles only when responsive behavior differs.
 - Retain the focused component artifact before moving to full-flow verification.
-  Publish a proof video only when the accepted scope explicitly requires one.
+  Always download/upload its existing recordings and link them in the final chat
+  using the receipt's `codex_evidence_command`, including failures and retries.
+  Report missing recordings/upload failures explicitly. Extra edited/captioned
+  proof production follows the accepted scope; recording delivery is mandatory.
 
 ## Stop Conditions
 

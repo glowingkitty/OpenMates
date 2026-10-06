@@ -57,16 +57,56 @@ An execution waiver does not waive updating the relevant E2E coverage unless the
 user says so. Ask if the user instruction itself leaves that distinction unclear.
 Do not claim a pass from a queued, cancelled, unrelated or stale run.
 
-Return useful existing CI artifacts and failure evidence using the current
-client's supported links. Proof-video captions, extra profiles and visual-smoke
-production are required only by the accepted task/Plan or an explicit request.
-Do not rerun a passing test solely to repair an upload; retry the upload itself.
-Never publish private production evidence or unredacted personal data.
+## Required E2E recording delivery
+
+For every web/browser, component and OpenMates CLI E2E run used in this chat,
+always download its existing recordings, upload them and include clickable video
+links in the final response. This applies to successful and failed runs, retries
+and every recorded profile. Include available failure recordings when reporting
+a blocker. A passing test, GitHub run link, artifact archive or local file path
+alone does not fulfill video delivery. This is required by default; it does not
+depend on a Plan, a separate request or `--require-proof-video`. Honor an explicit
+user waiver of recording delivery.
+
+1. Wait with `python3 scripts/ci_coordinator.py wait <request-id>`. A successful
+   wait downloads and validates the artifact under `test-results/ci-runs/<id>`.
+   For failed/cancelled runs with a GitHub run ID, run
+   `python3 scripts/ci_coordinator.py result <request-id>` to retrieve available
+   artifacts; `wait` does not download those automatically. Reuse cached receipts
+   instead of downloading them through a second path.
+2. Run the receipt's `codex_evidence_command`, normally
+   `python3 scripts/codex_evidence.py <directory> --upload`. It enumerates browser
+   attachments and real CLI terminal recordings, including attempts/profiles,
+   and uses the existing private, expiring response-media transport. Paste all
+   returned video links in the final chat response, with the test/profile and
+   result. Keep source/run identity attached to the evidence. Unit/lint/tooling
+   checks do not need invented recordings.
+3. If capture never started, a recording is missing, an artifact expired, or an
+   upload fails, report the affected test and concrete reason beside its test
+   result. Link available recordings and retain local artifacts for upload retry.
+   Report verification and delivery separately; never claim video was delivered
+   from a download/upload alone. Use `--ack` only with an actual delivered chat
+   message ID; leave delivery pending when the client does not expose one.
+4. Keep Playwright video capture enabled for E2E, including passing attempts.
+   CLI E2E must retain actual terminal-screen recordings using the existing
+   `cli-tui-proof-helpers.ts` / `cli_video_capture.py` helpers. A blank browser
+   video from a headless CLI test or replayed stdout is not CLI video proof.
+   For authorized dev-host real-inference runs, deliver their retained recordings
+   with `response_media.py <video-path> --output markdown`; the CI requirement
+   does not move these tests into CI.
+
+Extra proof-video editing, captions, additional device profiles, frame review and
+visual-smoke production follow the accepted task/Plan or explicit request through
+`create-demo-video`. They do not make delivery of existing E2E recordings optional.
+Do not rerun a test solely to repair an upload or refresh an expired media link;
+retry/re-upload the retained artifact. Never publish private production evidence
+or unredacted personal data; report withheld evidence with its reason.
 
 The explicitly authorized real signup-email smoke remains a dev-host check with
 isolated CLI state. It is separate from CI signup and must not replace the global
 engineering Tasks login. Runtime restarts for deployment use the scoped session
 helper and preserve shared-resource leases.
 
-Record an explicitly requested video deliverable with `sessions.py update
---require-proof-video` (or the same flag on `start`).
+Record an explicitly requested edited/captioned proof-video deliverable with
+`sessions.py update --require-proof-video` (or the same flag on `start`). Ordinary
+E2E recording delivery remains mandatory without this additional workflow gate.

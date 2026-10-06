@@ -851,7 +851,7 @@ def print_receipt(value, *, as_json=False):
         identity = row.get("id", row.get("request_id", "CI"))
         state = row.get("state", row.get("conclusion", row.get("status", "recorded")))
         print(f"{identity}: {state}")
-        for key in ("phase", "phase_updated", "queue_seconds", "preparation_wait_seconds", "preparation_id", "prepared_run_id", "source_commit", "source", "run_id", "url", "run_url", "artifact_url", "reason", "error", "receipt_path", "result_command"):
+        for key in ("phase", "phase_updated", "queue_seconds", "preparation_wait_seconds", "preparation_id", "prepared_run_id", "source_commit", "source", "run_id", "url", "run_url", "artifact_url", "reason", "error", "receipt_path", "result_command", "directory", "codex_evidence", "codex_evidence_command"):
             if row.get(key):
                 print(f"  {key}: {str(row[key])[:500]}")
         if not any(key in row for key in ("id", "request_id", "state", "status", "conclusion")):
@@ -1025,6 +1025,10 @@ def main():
             from ci_results import fetch
             # A green workflow is not sufficient: validate exact-source artifacts once.
             row = queue.result(GitHub(root), args.id, root, fetch)
+        elif row["state"] in ("failure", "cancelled") and row.get("run_id"):
+            # Failed attempts can also have useful recordings. Keep the verdict
+            # and expose retrieval without making an absent artifact hide it.
+            row = {**row, "result_command": f"python3 scripts/ci_coordinator.py result {args.id}"}
         print_receipt(row, as_json=args.json)
         return 0 if row["state"] == "success" else 1
     elif args.action == "result":

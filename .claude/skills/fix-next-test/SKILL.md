@@ -14,5 +14,9 @@ Run focused local checks and the relevant isolated CI selection with
 or require coordinator approval for already-authorized work. Reassess after two
 unsuccessful attempts with the same approach. Ask before unrelated infrastructure
 repair, uncertain behavior changes, or expanding the original task. Preserve
-useful evidence and keep the OpenMates Task status accurate. Shared policy:
+useful evidence and keep the OpenMates Task status accurate. Always retrieve
+web/CLI E2E recordings (use `result <id>` after a failed wait), run the receipt's
+`codex_evidence_command`, and include all returned video links in the final chat,
+including failure/retry recordings. Report missing capture/upload failures
+explicitly; retry media delivery without rerunning passing tests. Shared policy:
 `.claude/rules/testing.md` and `AGENTS.md`.

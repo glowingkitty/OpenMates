@@ -66,6 +66,11 @@ integration point only.
 4. Inspect the source-bound result and component artifact. A queued, running,
    stale, skipped or cleanup-incomplete job is not a pass. Fix objective defects
    and republish the candidate before continuing.
+   Always download and upload existing recordings, including failures, retries
+   and each recorded profile. Successful `wait` retrieves the artifact; use
+   `ci_coordinator.py result <request-id>` for failed/cancelled runs with a run ID.
+   Run the receipt's `codex_evidence_command` and retain its returned video links
+   for the final response. Report missing capture or upload failures explicitly.
 
 5. After isolated CI is green, perform the scoped deploy for assigned
    implementation work.
@@ -137,6 +142,7 @@ Return a concise verification note:
 Source: <candidate sha>
 Spec: <name>.spec.ts
 Isolated CI: <request id and GitHub Actions run id>
+Recordings: <all returned video links, or explicit per-test missing/upload reason>
 Deployed commit: <sha or not required>
 Visual smoke: <summary path/screenshot paths or skipped reason>
 Result: <passed|failed|blocked>

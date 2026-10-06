@@ -248,6 +248,48 @@ def test_candidate_identity_is_persisted_and_dispatched_from_base(tmp_path, monk
     assert inputs["candidate_patch_sha256"] == "e" * 64
 
 
+def test_text_receipts_expose_retained_evidence_and_upload_action(tmp_path, capsys):
+    from scripts.ci_coordinator import print_receipt
+    from scripts.ci_results import attach_visual_evidence
+
+    receipt = attach_visual_evidence({
+        "id": "check", "state": "success", "source_commit": "a" * 40,
+        "run_id": 9, "selected_specs": ["chat.spec.ts"],
+        "directory": str(tmp_path),
+        "candidate_patch_url": "https://private.example.test/source",
+    }, tmp_path)
+    print_receipt(receipt)
+    output = capsys.readouterr().out
+    assert f"directory: {tmp_path}" in output
+    assert f"codex_evidence: {tmp_path / 'codex-evidence.json'}" in output
+    assert f"codex_evidence_command: python3 scripts/codex_evidence.py {tmp_path} --upload" in output
+    assert "private.example.test" not in output
+
+
+def test_failed_wait_exposes_recording_retrieval_without_changing_verdict(tmp_path, monkeypatch, capsys):
+    import sys
+    from scripts import ci_coordinator as coordinator
+
+    queue = Queue(tmp_path / "queue.db")
+    job = queue.enqueue("owner", "a" * 40, ["chat.spec.ts"])
+    monkeypatch.setattr(coordinator, "canonical_root", lambda path: tmp_path)
+    monkeypatch.setattr(coordinator, "Queue", lambda path: queue)
+    # Evidence retrieval stays explicit, so missing artifacts cannot hide the
+    # original failure and waiting does not consume extra GitHub calls.
+    monkeypatch.setattr(coordinator, "GitHub", lambda root: (_ for _ in ()).throw(AssertionError("unexpected network access")))
+    for state in ("failure", "cancelled"):
+        monkeypatch.setattr(coordinator, "wait_for_job", lambda *a, **kw: {**job, "state": state, "run_id": 9})
+        monkeypatch.setattr(sys, "argv", ["ci_coordinator.py", "wait", job["id"]])
+        assert coordinator.main() == 1
+        output = capsys.readouterr().out
+        assert f"{job['id']}: {state}" in output
+        assert f"result_command: python3 scripts/ci_coordinator.py result {job['id']}" in output
+
+    monkeypatch.setattr(coordinator, "wait_for_job", lambda *a, **kw: {**job, "state": "cancelled", "run_id": None})
+    assert coordinator.main() == 1
+    assert "result_command:" not in capsys.readouterr().out
+
+
 def test_json_receipts_redact_presigned_candidate_url(capsys):
     from scripts.ci_coordinator import print_receipt
 

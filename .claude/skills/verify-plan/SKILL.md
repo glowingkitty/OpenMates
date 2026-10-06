@@ -43,9 +43,11 @@ Pass only when:
 - Only surfaces, environments, and ordering explicitly required by the accepted
   Plan are completion gates. Choose evidence appropriate to each affected surface;
   do not add a universal API/CLI/SDK/web/Apple ladder or a generic dev-API check.
-- Visual smoke, user confirmation, and demonstration/video evidence are gates only
-  when the accepted Plan explicitly marks them required. Preserve explicit user
-  waivers and their scoped decision receipts.
+- Visual smoke, user confirmation, and extra edited/captioned demonstrations are
+  gates only when the accepted Plan explicitly marks them required. Existing
+  web/CLI E2E recordings must still be downloaded/uploaded and linked in the final
+  chat under `.claude/rules/testing.md`, even without a Plan video requirement.
+  Preserve explicit user waivers and their scoped decision receipts.
 - Privacy/security criteria, documentation impact, assumptions, open questions,
   and explicitly required proof evidence are resolved or explicitly accepted.
 
