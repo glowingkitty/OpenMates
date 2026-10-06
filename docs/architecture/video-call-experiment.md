@@ -21,8 +21,10 @@ Provider keys come from the existing Vault entries for Google AI Studio and fal.
 Microphone audio is PCM16 at 16 kHz. Gemini supplies native PCM speech at 24 kHz,
 user/model transcription and one non-blocking `generate_visual_clip` function.
 There is no separate speech synthesis service or ordinary app-skill dispatcher.
-Audio sources are scheduled continuously and flushed on interruption. Video
-ambience is quieter and ducks further while either participant speaks.
+Gemini speech and the generated MP4 use independent, concurrent browser playback
+streams: Web Audio for speech and the video element for visuals and ambience.
+Audio sources are scheduled continuously and flushed on interruption; this does
+not interrupt video. Video ambience ducks while either participant speaks.
 
 H3 Max Turbo returns completed MP4 clips. Five-second 480p requests use disabled
 prompt expansion. The first request can start from text; following requests use
@@ -31,8 +33,15 @@ displayed video for Gemini at up to one frame per second. These feedback frames
 do not refresh the visual-instruction timer.
 
 Only one generation request can be outstanding. New Gemini visual instructions
-steer the next request; they cannot rewrite frames already generated. Ten seconds
-without a new instruction closes the visual segment and leaves voice running.
+steer the next request; they cannot rewrite frames already generated. Requests
+such as "show me how" or "visualize" direct Gemini to use the visual tool without
+requiring the caller to say "video". Cancellation of an acknowledged Gemini tool
+turn does not cancel the accepted visual scene.
+
+Ten seconds without a new instruction stops new generation. Already accepted
+clips finish processing and play fully before the video panel closes, so provider
+latency does not consume their playback time. Gemini voice keeps running during
+generation, playback and this final drain.
 User Close video, hangup, expiry and disconnect fence late results and stop new
 paid requests. The experiment ends after two minutes and does not reconnect
 automatically. Wide screens show transcript and video together; narrow screens

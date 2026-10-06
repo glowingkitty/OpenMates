@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: video-call-experiment
 title: Gemini Voice And H3 Turbo Experiment
-status: verified
+status: implementing
 goal: >
   Implement a first test to see how well such a system can actually work, before
   spending more time on it: a basic /experiment/videocall page for Gemini voice
@@ -13,7 +13,7 @@ scope:
   in:
     - Authenticated first-party experiment with native Gemini 3.8 Live speech and transient transcript.
     - Gemini-only visual tool driving sequential five-second H3 Max Turbo 480p clips.
-    - Ten-second visual-instruction inactivity timeout and independent video/hangup controls.
+    - Ten-second generation inactivity timeout with complete playback of accepted clips and independent video/hangup controls.
     - Clearly audible Gemini speech, quieter video ambience/effects and automatic ducking.
     - Wide side-by-side transcript/video and narrow fullscreen video with transcript access.
     - Authoritative proportional billing, 1.2 multiplier, visible rates/time/credits and bounded spend.
@@ -36,6 +36,9 @@ decisions:
   - Video rate is 0.015 USD/generated second through the researched October 15 promotion, then 0.025; credits use 0.001 USD accounting basis.
   - Gemini is billed from modality usage including reprocessed history, not only elapsed call time.
   - UI prices stay in rounded whole credits per minute; proportional per-second usage settles with a one-credit minimum for positive billable usage.
+  - Requests such as show me how or visualize must trigger the visual tool without requiring the word video.
+  - Gemini speech interruption or cancellation of an acknowledged tool turn never interrupts accepted video playback.
+  - After ten seconds without a visual instruction, stop new generation and finish accepted clips before closing video; explicit user stop and hangup remain immediate.
 
 draft_contract:
   path: specifications/features/video-call/specification.yml
@@ -61,7 +64,7 @@ acceptance_criteria:
     text: Gemini can request an initial visual and redirect upcoming clips without invoking other app skills.
     coverage_status: covered
   - id: AC-3
-    text: User stop and ten-second visual inactivity return to audio; late clip events cannot reopen video.
+    text: User stop returns to audio immediately and fences late clips; ten-second visual inactivity stops generation, finishes accepted clips and then returns to audio.
     coverage_status: covered
   - id: AC-4
     text: Gemini remains audible over video sound and interruptions flush queued speech.
@@ -99,13 +102,14 @@ verification:
     - Never issue real fal/H3 requests in automated verification; a bounded Gemini-only provider probe is authorized.
 
 verification_evidence:
-  backend: 29 focused mocked route/provider/billing tests passed, including binary speech forwarding, sparse tool-only usage accounting and video delivery without cancellation; deployment lint passed.
-  frontend: Five focused microphone/PCM/controller tests passed; changed-path ESLint and compilation passed.
+  backend: 33 focused mocked route/provider/billing tests passed, including accepted clips arriving after the idle deadline, speech/tool cancellation independence and stop/re-enable during pending drain settlement; Ruff passed.
+  frontend: Four focused controller tests passed, including idle drain, speech interruption and explicit-stop late-clip fencing; changed-path ESLint and panel compilation passed.
   component:
-    source: 6a51e056842c6c6bbd6f72a4cfe5c016da7dbee7
-    request: 098ad10bc7b2368ca59f32d9c2d415c213ff1553bb2d918fef5049a249d43bdc
-    run: 37491657808
-    result: Three desktop cases passed; captures reviewed; all recordings uploaded.
+    source: d3055576339a88bbaa0d64b261ca525d4f48c5dd
+    request: cb1f1df676311b2f27697ea325d5738295ec3bc63d2c14f123ef115670feb33c
+    run: 37521112579
+    result: Four desktop cases passed with synthetic clips, including simultaneous speech, idle drain and explicit close during drain.
+    source_scope: Panel, preview and desktop spec stayed frozen after this candidate; later bounded frame-feedback guards and backend drain cleanup passed focused unit checks.
   responsive: Execution waived by the user; the separate responsive spec remains available.
   provider_limits: No automated real fal requests were made. Further automated verification is not a deployment gate; the user will evaluate the deployed experiment.
   route:
@@ -131,3 +135,8 @@ verification_evidence:
     bounds: Two Google connections for synthetic speech and one spoken tool request, at most 45 seconds; tool response mocked, no fal request, no saved media or transcripts.
     diagnostics: Future route failures report exception type and origin function/line without provider payloads or user content.
     limitation: The original user attempts lacked a stack trace; actual fal playback and perceived browser behavior remain for the user's manual trial.
+  gemini_visual_intent_probe:
+    result: The exact candidate setup triggered generate_visual_clip from the spoken request Show me how black holes work.
+    bounds: Two Google connections for synthetic speech and one live spoken request, at most 45 seconds; mocked visual tool response, zero fal requests, no saved media or transcripts.
+    tool_turn_provider_cost_usd: "0.00166425"
+    limitation: This cost covers the live tool turn only. Synthetic speech preparation is separate; actual fal latency and output quality remain for manual evaluation.

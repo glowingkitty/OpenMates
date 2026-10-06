@@ -389,7 +389,9 @@ def _gemini_setup() -> dict[str, Any]:
             "generationConfig": {"responseModalities": ["AUDIO"], "mediaResolution": "MEDIA_RESOLUTION_LOW"},
             "systemInstruction": {"parts": [{"text": (
                 "You are a warm live voice companion. Speak naturally and concisely. "
-                "Use generate_visual_clip only for a concrete visual scene the user wants to see. "
+                "Use generate_visual_clip when the user asks to see, show, visualize, or demonstrate "
+                "something that can be explained by a concrete visual scene, including requests like "
+                "'show me how black holes work'. The user need not say 'video'. "
                 "You may issue that visual tool while speaking; do not wait for it. "
                 "The video prompt must describe visual motion and ambient sound only: no spoken "
                 "dialogue, lip sync, voiceover, captions, or music. Your own live voice supplies speech. "
@@ -397,7 +399,7 @@ def _gemini_setup() -> dict[str, Any]:
             )}]},
             "tools": [{"functionDeclarations": [{
                 "name": "generate_visual_clip",
-                "description": "Asynchronously create one 5-second scene matching the user's current visual request; voice continues.",
+                "description": "Asynchronously show a concrete scene when the user asks to see, show how, visualize, or demonstrate something; voice continues.",
                 "behavior": "NON_BLOCKING",
                 "parameters": {"type": "OBJECT", "properties": {"prompt": {"type": "STRING", "description": "Visual action and ambience only. No speech or dialogue."}}, "required": ["prompt"]},
             }]}],
@@ -451,9 +453,9 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     visuals_allowed = True
     billing_fault = False
     active_video: asyncio.Task[None] | None = None
+    drain_notification: asyncio.Task[None] | None = None
     active_job: FalJob | None = None
     visual_prompt: str | None = None
-    latest_tool_call_id: str | None = None
     segment_epoch = 0
     continuation_jpeg: bytes | None = None
     continuation_for_clip: str | None = None
@@ -487,6 +489,13 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         pending = max(0, _credits_for(ledger.cost) - ledger.charged)
         if is_payment_enabled() and await _authoritative_credits(websocket, user_id) < credits + pending:
             raise RuntimeError("Insufficient credits")
+
+    async def cancel_drain_notification() -> None:
+        nonlocal drain_notification
+        if drain_notification is not None:
+            drain_notification.cancel()
+            await asyncio.gather(drain_notification, return_exceptions=True)
+            drain_notification = None
 
     try:
         google_key, fal_key = await asyncio.gather(
@@ -542,10 +551,11 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 safe_prompt = "Visual motion and ambient scene sound only. No dialogue, speech, lip sync, captions, voiceover, or music. " + prompt
                                 job = await submit_clip(fal_client, key=fal_key, prompt=safe_prompt, image_jpeg=image)
                                 active_job = job
-                                if epoch != segment_epoch or not visuals_allowed:
+                                if epoch != segment_epoch:
                                     await cancel_clip(fal_client, key=fal_key, job=job)
                                 else:
                                     await send({"type": "video.queued", "clip_id": clip_id})
+                                    logger.info("Video call visual queued elapsed=%.1fs", time.monotonic() - started)
                                 clip = await await_clip(fal_client, key=fal_key, job=job)
                                 # Failed/cancelled jobs have no reported generated
                                 # seconds. Completed output is billed once, even
@@ -558,9 +568,7 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 except Exception:
                                     billing_fault = True
                                     raise
-                                if epoch != segment_epoch or not visuals_allowed or time.monotonic() - started >= MAX_SECONDS:
-                                    return
-                                if last_visual_instruction is None or time.monotonic() - last_visual_instruction >= IDLE_VIDEO_SECONDS:
+                                if epoch != segment_epoch or time.monotonic() - started >= MAX_SECONDS:
                                     return
                                 latest_clip_id = clip_id
                                 # This is the generated last frame, not the
@@ -573,6 +581,9 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                     "duration_seconds": float(duration),
                                     "duration_estimated": measured is None,
                                 })
+                                logger.info("Video call visual delivered elapsed=%.1fs duration=%.1fs", time.monotonic() - started, float(duration))
+                                if not visuals_allowed:
+                                    return
                                 if continuation_jpeg is None:
                                     # Browser extracts this same clip's final
                                     # frame before playback finishes.
@@ -633,12 +644,23 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 break
                             if visuals_allowed and last_visual_instruction is not None and now - last_visual_instruction >= IDLE_VIDEO_SECONDS:
                                 visuals_allowed = False
-                                segment_epoch += 1
                                 visual_prompt = None
-                                latest_tool_call_id = None
-                                if active_job is not None:
-                                    await cancel_clip(fal_client, key=fal_key, job=active_job)
-                                await send({"type": "video.stopped", "reason": "idle"})
+                                pending_clip = active_video is not None and not active_video.done()
+                                await send({"type": "video.stopped", "reason": "idle", "finish_playback": True, "pending_clip": pending_clip})
+                                logger.info("Video call visuals idle elapsed=%.1fs pending_clip=%s", now - started, pending_clip)
+                                if pending_clip:
+                                    async def signal_drain_complete(draining_video: asyncio.Task[None], draining_epoch: int) -> None:
+                                        # Canceling this notifier must not cancel
+                                        # the accepted, spend-bearing fal job.
+                                        await asyncio.gather(asyncio.shield(draining_video), return_exceptions=True)
+                                        if draining_epoch == segment_epoch and not visuals_allowed:
+                                            await send({"type": "video.drain_complete"})
+                                            logger.info("Video call visual drain complete elapsed=%.1fs", time.monotonic() - started)
+
+                                    drain_notification = asyncio.create_task(signal_drain_complete(active_video, segment_epoch))
+                                else:
+                                    await send({"type": "video.drain_complete"})
+                                    logger.info("Video call visual drain complete elapsed=%.1fs", time.monotonic() - started)
                             if visuals_allowed and visual_prompt and (active_video is None or active_video.done()):
                                 # A stopped segment may still be settling when
                                 # the user explicitly re-enables visuals.
@@ -664,7 +686,10 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                         raise ValueError("Audio stream exceeds real-time rate")
                                     await send_provider(gemini, {"realtimeInput": {"audio": {"data": incoming["data"], "mimeType": "audio/pcm;rate=16000"}}})
                                 elif event_type == "video_frame":
-                                    if not visuals_allowed or latest_clip_id is None:
+                                    # Idle stops new generation, but frames from
+                                    # an accepted playing clip still inform Gemini.
+                                    # Explicit stop/re-enable clear the clip ID.
+                                    if latest_clip_id is None:
                                         client_receive = asyncio.create_task(websocket.receive_text())
                                         continue
                                     frame_at = time.monotonic()
@@ -680,20 +705,21 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 elif event_type == "stop_visuals":
                                     visuals_allowed = False
                                     segment_epoch += 1
+                                    await cancel_drain_notification()
                                     visual_prompt = None
-                                    latest_tool_call_id = None
                                     continuation_jpeg = None
                                     continuation_for_clip = None
                                     latest_clip_id = None
                                     if active_job is not None:
                                         await cancel_clip(fal_client, key=fal_key, job=active_job)
                                     await send({"type": "video.stopped", "reason": "user"})
+                                    logger.info("Video call visuals stopped reason=user elapsed=%.1fs", time.monotonic() - started)
                                 elif event_type == "allow_visuals":
                                     visuals_allowed = True
                                     last_visual_instruction = None
                                     segment_epoch += 1
+                                    await cancel_drain_notification()
                                     visual_prompt = None
-                                    latest_tool_call_id = None
                                     continuation_jpeg = None
                                     continuation_for_clip = None
                                     latest_clip_id = None
@@ -728,18 +754,11 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                         await settle()
                                     if content.get("turnComplete"):
                                         await send({"type": "transcript", "role": "model", "text": "", "final": True})
-                                cancelled_calls = (event.get("toolCallCancellation") or {}).get("ids") or []
-                                if latest_tool_call_id and latest_tool_call_id in cancelled_calls:
-                                    segment_epoch += 1
-                                    visual_prompt = None
-                                    last_visual_instruction = None
-                                    latest_tool_call_id = None
-                                    continuation_jpeg = None
-                                    continuation_for_clip = None
-                                    latest_clip_id = None
-                                    if active_job is not None:
-                                        await cancel_clip(fal_client, key=fal_key, job=active_job)
-                                    await send({"type": "video.stopped", "reason": "model"})
+                                # Gemini may cancel an acknowledged non-blocking
+                                # tool call when speech is interrupted. The visual
+                                # request is already accepted independently.
+                                if (event.get("toolCallCancellation") or {}).get("ids"):
+                                    logger.info("Video call provider tool cancellation ignored elapsed=%.1fs", time.monotonic() - started)
                                 for call in (event.get("toolCall") or {}).get("functionCalls") or []:
                                     if not isinstance(call, dict) or call.get("name") != "generate_visual_clip":
                                         continue
@@ -752,7 +771,6 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                     else:
                                         last_visual_instruction = time.monotonic()
                                         visual_prompt = prompt.strip()
-                                        latest_tool_call_id = str(call.get("id")) if call.get("id") is not None else None
                                         await send_provider(gemini, _tool_response(call, "visual direction accepted; voice may continue"))
                                         if active_video is None or active_video.done():
                                             active_video = asyncio.create_task(visual_chain(segment_epoch))
@@ -764,6 +782,7 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                         segment_epoch += 1
                         visual_prompt = None
                         disconnected = True
+                        await cancel_drain_notification()
                         client_receive.cancel()
                         provider_receive.cancel()
                         await asyncio.gather(client_receive, provider_receive, return_exceptions=True)

@@ -37,6 +37,7 @@ export interface CallState {
   visualsAllowed: boolean;
   videoStatus: 'off' | 'queued' | 'playing';
   videoPending: boolean;
+  videoDraining: boolean;
   clips: CallClip[];
   transcripts: CallTranscript[];
   usage: CallUsage | null;
@@ -50,12 +51,13 @@ export interface CallControllerLike extends Readable<CallState> {
   hangup(): void;
   sendVideoFrame(data: string): void;
   sendContinuationFrame(clipId: string, data: string): void;
+  videoPlaybackEnded(clipId: string): void;
   dispose(): void;
 }
 
 export const initialCallState: CallState = {
   status: 'idle', error: null, elapsedSeconds: 0, maxDurationSeconds: 120,
-  visualsAllowed: true, videoStatus: 'off', videoPending: false, clips: [], transcripts: [], usage: null,
+  visualsAllowed: true, videoStatus: 'off', videoPending: false, videoDraining: false, clips: [], transcripts: [], usage: null,
   userSpeaking: false, modelSpeaking: false,
 };
 
@@ -84,6 +86,9 @@ export class VideoCallController implements CallControllerLike {
   private startedAt = 0;
   private generation = 0;
   private lastVideoFrameAt = 0;
+  private videoDrainComplete = false;
+  private playedClipIds = new Set<string>();
+  private visualsStoppedExplicitly = false;
 
   private update(patch: Partial<CallState>): void {
     this.state = { ...this.state, ...patch };
@@ -98,6 +103,7 @@ export class VideoCallController implements CallControllerLike {
     if (this.state.status === 'connecting' || this.state.status === 'live') return;
     this.hangup();
     const generation = ++this.generation;
+    this.visualsStoppedExplicitly = false;
     this.update({ ...initialCallState, status: 'connecting' });
     const audio = new CallAudio(
       (data) => this.send({ type: 'mic_audio', data }),
@@ -182,7 +188,7 @@ export class VideoCallController implements CallControllerLike {
         if (this.state.visualsAllowed) this.update({ videoStatus: this.state.clips.length ? 'playing' : 'queued', videoPending: true });
         break;
       case 'video.ready': {
-        if (!this.state.visualsAllowed || typeof message.data !== 'string' || message.data.length > 28_000_000 || typeof message.clip_id !== 'string') break;
+        if (this.state.status !== 'live' || this.visualsStoppedExplicitly || (!this.state.visualsAllowed && (!this.state.videoDraining || this.videoDrainComplete)) || typeof message.data !== 'string' || message.data.length > 28_000_000 || typeof message.clip_id !== 'string') break;
         const binary = atob(message.data);
         const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
         const url = URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }));
@@ -192,8 +198,20 @@ export class VideoCallController implements CallControllerLike {
         break;
       }
       case 'video.stopped':
-        this.clearVisuals();
-        this.update({ visualsAllowed: false });
+        if (message.reason === 'idle' && message.finish_playback === true && !this.visualsStoppedExplicitly) {
+          this.videoDrainComplete = false;
+          this.update({ visualsAllowed: false, videoDraining: true, videoPending: message.pending_clip === true, videoStatus: this.state.clips.length ? 'playing' : message.pending_clip === true ? 'queued' : 'off' });
+        } else {
+          this.visualsStoppedExplicitly = true;
+          this.clearVisuals();
+          this.update({ visualsAllowed: false });
+        }
+        break;
+      case 'video.drain_complete':
+        if (!this.state.videoDraining) break;
+        this.videoDrainComplete = true;
+        this.update({ videoPending: false });
+        this.finishVideoDrain();
         break;
       case 'usage': {
         const usage = { ...EMPTY_USAGE };
@@ -219,7 +237,7 @@ export class VideoCallController implements CallControllerLike {
   }
 
   sendVideoFrame(data: string): void {
-    if (this.state.status !== 'live' || !this.state.visualsAllowed) return;
+    if (this.state.status !== 'live' || this.visualsStoppedExplicitly || (!this.state.visualsAllowed && !this.state.videoDraining)) return;
     const now = Date.now();
     if (now - this.lastVideoFrameAt < 1_000) return;
     this.lastVideoFrameAt = now;
@@ -230,19 +248,34 @@ export class VideoCallController implements CallControllerLike {
     if (this.state.status === 'live' && this.state.visualsAllowed) this.send({ type: 'continuation_frame', clip_id: clipId, data, source: 'continuation' });
   }
 
+  videoPlaybackEnded(clipId: string): void {
+    if (!this.state.clips.some((clip) => clip.id === clipId)) return;
+    this.playedClipIds.add(clipId);
+    this.finishVideoDrain();
+  }
+
+  private finishVideoDrain(): void {
+    if (this.state.videoDraining && this.videoDrainComplete && this.state.clips.every((clip) => this.playedClipIds.has(clip.id))) this.clearVisuals();
+  }
+
   private clearVisuals(): void {
     this.state.clips.forEach((clip) => URL.revokeObjectURL(clip.url));
-    this.update({ clips: [], videoStatus: 'off', videoPending: false });
+    this.playedClipIds.clear();
+    this.videoDrainComplete = false;
+    this.update({ clips: [], videoStatus: 'off', videoPending: false, videoDraining: false });
   }
 
   stopVisuals(): void {
+    this.visualsStoppedExplicitly = true;
     this.update({ visualsAllowed: false });
     this.clearVisuals();
     this.send({ type: 'stop_visuals' });
   }
 
   allowVisuals(): void {
-    this.update({ visualsAllowed: true });
+    this.visualsStoppedExplicitly = false;
+    this.videoDrainComplete = false;
+    this.update({ visualsAllowed: true, videoDraining: false });
     this.send({ type: 'allow_visuals' });
   }
 

@@ -29,7 +29,7 @@
   let nextClip = $derived(state.clips[state.clips.findIndex((clip) => clip.id === activeClip?.id) + 1] ?? null);
   let audioRate = $derived(state.usage?.audio_credits_per_minute ?? 27.6);
   let videoRate = $derived(state.usage?.video_credits_per_minute ?? fallbackVideoRate);
-  let activeRate = $derived(audioRate + (state.videoStatus === 'off' ? 0 : videoRate));
+  let activeRate = $derived(audioRate + (!state.visualsAllowed || state.videoStatus === 'off' ? 0 : videoRate));
   let remaining = $derived(Math.max(0, state.maxDurationSeconds - state.elapsedSeconds));
 
   function takeFrame(video: HTMLVideoElement): string | null {
@@ -98,6 +98,7 @@
     lastPlayedClipId = activeClip?.id ?? null;
     if (following) activeClipId = following.id;
     else activeClipId = null;
+    if (lastPlayedClipId) controller.videoPlaybackEnded(lastPlayedClipId);
   }
 
   onMount(() => {
@@ -173,7 +174,7 @@
         <span class="visual-badge">{$text('videocall.generated_visual')}</span>
         {#if state.videoPending}<span class="pending-badge">{$text('videocall.next_visual')}</span>{/if}
         {#if playbackBlocked}<button class="resume-button" type="button" onclick={() => void resumeVideo()} data-testid="call-resume-video">{$text('videocall.play_visual')}</button>{/if}
-      {:else if heldFrame && state.visualsAllowed}
+      {:else if heldFrame && (state.visualsAllowed || state.videoDraining)}
         <img class="held-frame" src={`data:image/jpeg;base64,${heldFrame}`} alt={$text('videocall.waiting_visual')} />
         <span class="visual-badge">{$text('videocall.waiting_visual')}</span>
       {:else}
@@ -181,7 +182,7 @@
       {/if}
       <div class="stage-controls">
         {#if state.status === 'live' || state.status === 'connecting'}
-          {#if state.visualsAllowed}
+          {#if state.visualsAllowed || state.videoDraining}
             <button class="secondary-button" type="button" onclick={() => controller.stopVisuals()} data-testid="call-stop-video">{$text('videocall.stop_video')}</button>
           {:else}
             <button class="secondary-button" type="button" onclick={() => controller.allowVisuals()} data-testid="call-allow-video">{$text('videocall.allow_video')}</button>
@@ -202,7 +203,7 @@
       </div>
       <div class="usage" data-testid="call-usage">
         <h3>{$text('videocall.live_cost')}</h3>
-        <div class="rate" data-testid="call-active-rate"><span>{state.videoStatus === 'off' ? $text('videocall.audio_only') : $text('videocall.audio_video')}</span><strong>{$text('videocall.credits_per_minute', { values: { count: roundedRate(activeRate) } })}</strong></div>
+        <div class="rate" data-testid="call-active-rate"><span>{!state.visualsAllowed || state.videoStatus === 'off' ? $text('videocall.audio_only') : $text('videocall.audio_video')}</span><strong>{$text('videocall.credits_per_minute', { values: { count: roundedRate(activeRate) } })}</strong></div>
         <p class="billing-note" data-testid="call-billing-note">{$text('videocall.billing_note')}</p>
         <div class="usage-row"><span>{$text('videocall.credits_accrued')}</span><strong>{number(state.usage?.credits_accrued ?? 0)}</strong></div>
         <div class="usage-row"><span>{$text('videocall.credits_charged')}</span><strong>{number(state.usage?.credits_charged ?? 0)}</strong></div>
