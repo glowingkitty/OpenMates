@@ -393,7 +393,7 @@ def _gemini_setup() -> dict[str, Any]:
 def _tool_response(call: dict[str, Any], result: str) -> dict[str, Any]:
     return {"toolResponse": {"functionResponses": [{
         "id": call.get("id"), "name": "generate_visual_clip",
-        "response": {"result": result, "scheduling": "SILENT"},
+        "response": {"result": result}, "scheduling": "SILENT",
     }]}}
 
 

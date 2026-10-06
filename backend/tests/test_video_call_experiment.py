@@ -411,6 +411,9 @@ async def test_tool_only_usage_does_not_cancel_an_accepted_video(route_harness, 
         await socket.expect("video.ready")
         assert not cancellations
         assert not any(event.get("type") == "error" for event in socket.sent)
+        reply = next(event["toolResponse"]["functionResponses"][0] for event in provider.sent if "toolResponse" in event)
+        assert reply["scheduling"] == "SILENT"
+        assert "scheduling" not in reply["response"]
     finally:
         released.set()
         socket.send({"type": "hangup"})

@@ -90593,12 +90593,12 @@ assertions:
       surface: gui.web
     - &id11331
       path: backend/tests/test_video_call_experiment.py
-      line: 492
+      line: 495
       name: test_gemini_setup_has_only_nonblocking_visual_tool_and_context_limit
       surface: gui.web
     - &id11332
       path: backend/tests/test_video_call_experiment.py
-      line: 530
+      line: 533
       name: test_fal_submission_omits_optional_first_frame_and_fixes_model_settings
       surface: gui.web
     tests:
@@ -90673,7 +90673,7 @@ assertions:
       surface: gui.web
     - &id11338
       path: backend/tests/test_video_call_experiment.py
-      line: 663
+      line: 666
       name: test_request_cancellation_waits_for_accepted_job_settlement
       surface: gui.web
     tests:
@@ -90792,42 +90792,42 @@ assertions:
       surface: gui.web
     - &id11353
       path: backend/tests/test_video_call_experiment.py
-      line: 422
+      line: 425
       name: test_gemini_modality_usage_bills_rebilled_context_and_text_output
       surface: gui.web
     - &id11354
       path: backend/tests/test_video_call_experiment.py
-      line: 453
+      line: 456
       name: test_invalid_gemini_usage_does_not_partially_change_ledger
       surface: gui.web
     - &id11355
       path: backend/tests/test_video_call_experiment.py
-      line: 473
+      line: 476
       name: test_fractional_cost_aggregates_before_one_credit_rounding
       surface: gui.web
     - &id11356
       path: backend/tests/test_video_call_experiment.py
-      line: 485
+      line: 488
       name: test_video_rate_switches_at_promo_boundary
       surface: gui.web
     - &id11357
       path: backend/tests/test_video_call_experiment.py
-      line: 558
+      line: 561
       name: test_completed_fal_job_is_billable_when_cdn_download_fails
       surface: gui.web
     - &id11358
       path: backend/tests/test_video_call_experiment.py
-      line: 592
+      line: 595
       name: test_completed_fal_job_deadline_bills_known_work_even_if_cdn_trickles
       surface: gui.web
     - &id11359
       path: backend/tests/test_video_call_experiment.py
-      line: 639
+      line: 642
       name: test_fal_result_provider_error_is_not_billed_as_completed_media
       surface: gui.web
     - &id11360
       path: backend/tests/test_video_call_experiment.py
-      line: 681
+      line: 684
       name: test_malformed_last_usage_does_not_drop_earlier_valid_charge
       surface: gui.web
     tests:
@@ -90921,17 +90921,17 @@ assertions:
       surface: gui.web
     - &id11367
       path: backend/tests/test_video_call_experiment.py
-      line: 502
+      line: 505
       name: test_fal_result_urls_are_restricted_to_its_cdn
       surface: gui.web
     - &id11368
       path: backend/tests/test_video_call_experiment.py
-      line: 515
+      line: 518
       name: test_fal_queue_urls_allow_stripped_endpoint_but_not_another_job
       surface: gui.web
     - &id11369
       path: backend/tests/test_video_call_experiment.py
-      line: 697
+      line: 700
       name: test_credit_admission_fails_closed_when_projection_and_fallback_are_missing
       surface: gui.web
     tests:
