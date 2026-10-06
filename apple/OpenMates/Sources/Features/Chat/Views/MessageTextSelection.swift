@@ -5,11 +5,58 @@
 // CSS: frontend/packages/ui/src/styles/chat.css, MessageSelectionToolbar.svelte
 // ────────────────────────────────────────────────────────────────────
 import SwiftUI
+import CoreText
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
 import AppKit
 #endif
+
+/// Resolve bundled weight before slant: Lexend Deca has a 600 face but no
+/// italic face. A font matrix works in TextKit 2, unlike NSObliquenessAttributeName.
+@MainActor
+enum NativeMarkdownEmphasisFont {
+    static let semiboldPostScriptName = "LexendDeca-SemiBold"
+    static let syntheticSlant: CGFloat = 0.2
+
+    #if os(iOS)
+    static func resolve(pointSize: CGFloat, monospace: Bool, bold: Bool = false, italic: Bool = false, regularMonospace: Bool = false) -> UIFont {
+        let font = monospace
+            ? UIFont.monospacedSystemFont(ofSize: pointSize, weight: bold ? .bold : (regularMonospace ? .regular : .medium))
+            : UIFont(name: bold ? semiboldPostScriptName : FontRegistration.mediumPostScriptName, size: pointSize)
+                ?? UIFont.systemFont(ofSize: pointSize, weight: bold ? .semibold : .medium)
+        guard italic else { return font }
+        if let descriptor = font.fontDescriptor.withSymbolicTraits(font.fontDescriptor.symbolicTraits.union(.traitItalic)) {
+            let candidate = UIFont(descriptor: descriptor, size: pointSize)
+            if candidate.fontDescriptor.symbolicTraits.contains(.traitItalic), candidate.familyName == font.familyName {
+                return candidate
+            }
+        }
+        // UIFont(descriptor:size:) may normalize away a descriptor-only matrix.
+        // UIFont and CTFont are toll-free bridged; keep the resolved glyph matrix.
+        let base = unsafeBitCast(font, to: CTFont.self)
+        var matrix = CGAffineTransform(a: 1, b: 0, c: syntheticSlant, d: 1, tx: 0, ty: 0)
+        let oblique = CTFontCreateCopyWithAttributes(base, pointSize, &matrix, nil)
+        return unsafeBitCast(oblique, to: UIFont.self)
+    }
+    #elseif os(macOS)
+    static func resolve(pointSize: CGFloat, monospace: Bool, bold: Bool = false, italic: Bool = false, regularMonospace: Bool = false) -> NSFont {
+        let font = monospace
+            ? NSFont.monospacedSystemFont(ofSize: pointSize, weight: bold ? .bold : (regularMonospace ? .regular : .medium))
+            : NSFont(name: bold ? semiboldPostScriptName : FontRegistration.mediumPostScriptName, size: pointSize)
+                ?? NSFont.systemFont(ofSize: pointSize, weight: bold ? .semibold : .medium)
+        guard italic else { return font }
+        let candidate = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
+        if candidate.fontDescriptor.symbolicTraits.contains(.italic), candidate.familyName == font.familyName {
+            return candidate
+        }
+        let base = unsafeBitCast(font, to: CTFont.self)
+        var matrix = CGAffineTransform(a: 1, b: 0, c: syntheticSlant, d: 1, tx: 0, ty: 0)
+        let oblique = CTFontCreateCopyWithAttributes(base, pointSize, &matrix, nil)
+        return unsafeBitCast(oblique, to: NSFont.self)
+    }
+    #endif
+}
 
 struct MessageTextSelectionSnapshot: Equatable {
     let messageID: String
@@ -115,13 +162,7 @@ struct MessageSelectableText: View {
         case .center: paragraph.alignment = .center
         case .trailing: paragraph.alignment = .right
         }
-        #if os(iOS)
-        let base = UIFont(name: FontRegistration.mediumPostScriptName, size: pointSize) ?? UIFont.systemFont(ofSize: pointSize, weight: .medium)
-        let font = monospace ? UIFont.monospacedSystemFont(ofSize: pointSize, weight: .medium) : base
-        #else
-        let base = NSFont(name: FontRegistration.mediumPostScriptName, size: pointSize) ?? NSFont.systemFont(ofSize: pointSize, weight: .medium)
-        let font = monospace ? NSFont.monospacedSystemFont(ofSize: pointSize, weight: .medium) : base
-        #endif
+        let font = NativeMarkdownEmphasisFont.resolve(pointSize: pointSize, monospace: monospace)
         result.addAttributes([.font: font, .paragraphStyle: paragraph], range: NSRange(location: 0, length: result.length))
         // AttributedString intents do not supply platform fonts automatically.
         for run in value.runs {
@@ -131,16 +172,8 @@ struct MessageSelectableText: View {
             let plain = String(value.characters)
             guard let lower = plain.index(plain.startIndex, offsetBy: start, limitedBy: plain.endIndex),
                   let upper = plain.index(plain.startIndex, offsetBy: end, limitedBy: plain.endIndex) else { continue }
-            var styled = font
-            #if os(iOS)
-            var traits: UIFontDescriptor.SymbolicTraits = []
-            if intent.contains(.stronglyEmphasized) { traits.insert(.traitBold) }
-            if intent.contains(.emphasized) { traits.insert(.traitItalic) }
-            if let descriptor = font.fontDescriptor.withSymbolicTraits(traits) { styled = UIFont(descriptor: descriptor, size: pointSize) }
-            #else
-            if intent.contains(.stronglyEmphasized) { styled = NSFontManager.shared.convert(styled, toHaveTrait: .boldFontMask) }
-            if intent.contains(.emphasized) { styled = NSFontManager.shared.convert(styled, toHaveTrait: .italicFontMask) }
-            #endif
+            let styled = NativeMarkdownEmphasisFont.resolve(pointSize: pointSize, monospace: monospace,
+                bold: intent.contains(.stronglyEmphasized), italic: intent.contains(.emphasized))
             result.addAttribute(.font, value: styled, range: NSRange(lower..<upper, in: plain))
         }
         for anchor in highlights {
@@ -168,6 +201,8 @@ final class NativeSelectableTextPreparation {
     private var input: Input?
     private var rendered: NSAttributedString?
     private var layouts: [LayoutKey: CGSize] = [:]
+    private var recentLayoutKeys: [LayoutKey] = []
+    private static let maximumLayouts = 8
     private(set) var preparationCount = 0
     private(set) var measurementCount = 0
 
@@ -180,16 +215,28 @@ final class NativeSelectableTextPreparation {
         input = next
         rendered = prepared
         layouts.removeAll(keepingCapacity: true)
+        recentLayoutKeys.removeAll(keepingCapacity: true)
         preparationCount += 1
         return prepared
     }
 
     func size(width: CGFloat?, wrapsText: Bool, measure: @MainActor () -> CGSize) -> CGSize {
         let key = LayoutKey(width: width, wrapsText: wrapsText)
-        if let cached = layouts[key] { return cached }
+        if let cached = layouts[key] {
+            recentLayoutKeys.removeAll { $0 == key }
+            recentLayoutKeys.append(key)
+            return cached
+        }
         let value = measure()
-        if layouts.count >= 3 { layouts.removeAll(keepingCapacity: true) }
+        // Intrinsic sizing, constrained sizing and resize proposals may alternate.
+        // Keep exact widths without throwing away every useful measurement when
+        // a fourth proposal arrives. Evict only the least recently used size.
+        if layouts.count >= Self.maximumLayouts, let oldest = recentLayoutKeys.first {
+            layouts.removeValue(forKey: oldest)
+            recentLayoutKeys.removeFirst()
+        }
         layouts[key] = value
+        recentLayoutKeys.append(key)
         measurementCount += 1
         return value
     }

@@ -769,7 +769,7 @@ actor APIClient {
                 let authorization = authorizeSessionResponse(httpResponse, data)
                 guard authorization.isCurrent, !Task.isCancelled else { throw CancellationError() }
                 if authorization.publishCookies {
-                    Self.publishResponseCookies(httpResponse, request: sentRequest,
+                    _ = Self.publishResponseCookies(httpResponse, request: sentRequest,
                         authenticationURL: cookieURL, cookieStorage: cookieStorage)
                 }
             }
@@ -778,8 +778,18 @@ actor APIClient {
                 try responseCookieAuthority()
                 try Task.checkCancellation()
                 try verifyCookieResponse?(httpResponse, data)
-                Self.publishResponseCookies(httpResponse, request: sentRequest,
+                let acceptedSuccessor = Self.publishResponseCookies(httpResponse, request: sentRequest,
                     authenticationURL: cookieURL, cookieStorage: cookieStorage)
+                #if os(iOS) || os(macOS)
+                // Ordinary REST can rotate the issuer credential while its old
+                // socket is still live. Validate the accepted successor once;
+                // the existing online transition reconnects with its ws_token.
+                // Session validation owns its own publication and must not recurse.
+                if acceptedSuccessor, (200...299).contains(httpResponse.statusCode),
+                   let context = recoveryContext {
+                    Task { @MainActor in await AuthManager.acceptRefreshSuccessor(context) }
+                }
+                #endif
             }
         } else if let explicitMutationProfile {
             await MainActor.run {
@@ -874,16 +884,18 @@ actor APIClient {
     /// for the installed successor is harmless; older responses cannot retire
     /// aliases or overwrite a newer credential. No HTTP write is replayed.
     @MainActor private static func publishResponseCookies(_ response: HTTPURLResponse, request: URLRequest,
-        authenticationURL: URL?, cookieStorage: HTTPCookieStorage) {
-        guard let url = request.url else { return }
+        authenticationURL: URL?, cookieStorage: HTTPCookieStorage) -> Bool {
+        guard let url = request.url else { return false }
         let authURL = authenticationURL ?? url
         let cookies = Self.responseCookies(response, url: url)
         let current = Self.authoritativeRefreshCookie(in: cookieStorage, for: authURL)?.value
             ?? Self.authoritativeRefreshCookie(in: cookieStorage, for: url)?.value
         let successor = cookies.first { $0.name == "auth_refresh_token" }?.value
-        guard current == refreshCredential(in: request) || (successor != nil && successor == current) else { return }
+        guard current == refreshCredential(in: request) || (successor != nil && successor == current) else { return false }
         Self.installRefreshResponse(cookies, responseURL: url, authenticationURL: authURL,
             scopeURLs: [authURL, url], cookieStorage: cookieStorage)
+        guard let successor, !successor.isEmpty, successor != current else { return false }
+        return Self.authoritativeRefreshCookie(in: cookieStorage, for: authURL)?.value == successor
     }
 
     /// Explicit login/logout already owns cookie creation/deletion. Reconcile

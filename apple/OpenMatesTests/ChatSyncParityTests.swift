@@ -10,6 +10,41 @@ import SwiftData
 
 @MainActor
 final class ChatSyncParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testDailyInspirationAPIKeepsWikipediaMetadataThroughBannerMapping() throws {
+        let payload = Data(#"{"inspirations":[{"inspiration_id":"synthetic-ipc","phrase":"How do programs exchange information?","title":"Programs talking","category":"software_development","content_type":"wiki","video":null,"wiki":{"title":"Inter-process communication","wiki_title":"Inter-process communication","description":"Communication between computer processes","thumbnail_url":"https://example.invalid/wiki.png","wikidata_id":"Q214466","extract":"Synthetic article summary"}}]}"#.utf8)
+        let item = try XCTUnwrap(DailyInspirationAPIResponse.decode(payload).inspirations.first)
+        let banner = item.bannerData(sourceLanguage: "en")
+        XCTAssertEqual(banner.contentType, "wiki")
+        XCTAssertNil(banner.video)
+        let wiki = try XCTUnwrap(banner.wiki)
+        XCTAssertEqual(wiki.title, "Inter-process communication")
+        XCTAssertEqual(wiki.wikiTitle, "Inter-process communication")
+        XCTAssertEqual(wiki.thumbnailUrl, "https://example.invalid/wiki.png")
+        XCTAssertEqual(wiki.wikidataId, "Q214466")
+        XCTAssertEqual(wiki.extract, "Synthetic article summary")
+        let preview = wiki.previewEmbed
+        XCTAssertEqual(preview.type, EmbedType.wiki.rawValue)
+        XCTAssertEqual(preview.rawData?["wiki_title"]?.value as? String, wiki.wikiTitle)
+        XCTAssertEqual(preview.rawData?["thumbnail_url"]?.value as? String, wiki.thumbnailUrl)
+        XCTAssertEqual(preview.rawData?["description"]?.value as? String, wiki.description)
+        let identity = WikiArticleIdentity(data: preview.rawData ?? [:], fallbackLanguage: "de")
+        XCTAssertEqual(identity.language, "en", "The requested article language must override the UI locale")
+        XCTAssertEqual(identity.title, "Inter-process communication")
+        XCTAssertEqual(identity.pageURL?.absoluteString, "https://en.wikipedia.org/wiki/Inter-process_communication")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testDailyInspirationKeepsExplicitWikipediaLanguage() throws {
+        let payload = Data(#"{"inspirations":[{"inspiration_id":"synthetic-ipc","phrase":"Synthetic phrase","title":"Programs talking","category":"software_development","content_type":"wiki","video":null,"wiki":{"title":"Display title","wiki_title":"Canonical_article","language":"ja"}}]}"#.utf8)
+        let item = try XCTUnwrap(DailyInspirationAPIResponse.decode(payload).inspirations.first)
+        let wiki = try XCTUnwrap(item.bannerData(sourceLanguage: "en").wiki)
+        let identity = WikiArticleIdentity(data: wiki.previewEmbed.rawData ?? [:], fallbackLanguage: "de")
+        XCTAssertEqual(identity.language, "ja")
+        XCTAssertEqual(identity.title, "Canonical article")
+        XCTAssertEqual(identity.pageURL?.host, "ja.wikipedia.org")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,apple-offline.snapshot-integrity
     func testOfflineSearchReadsAwayFromUIAndRetainsOlderHitsOnlyInAllowedCorpus() async throws {
         let (offline, _) = try makeRecentOfflineStore()

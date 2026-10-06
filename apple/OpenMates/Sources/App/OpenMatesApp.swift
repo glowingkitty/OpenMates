@@ -4,7 +4,7 @@
 // Universal app targeting iOS, iPadOS, and macOS via SwiftUI multiplatform.
 // Wires up auth, push notifications, font registration, and WebSocket lifecycle.
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.persistence.client-encrypted, chats.streaming.progressive-presentation
+// Assertions: chats.persistence.client-encrypted, chats.streaming.progressive-presentation, chats.layout.responsive-history
 // Specification: specifications/features/chat-navigation/specification.yml
 // Assertions: chat-navigation.open.local-first-coherent
 // Specification: specifications/features/message-input/specification.yml
@@ -398,6 +398,7 @@ struct OpenMatesApp: App {
         }
         #if os(macOS)
         .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentMinSize)
         .defaultSize(width: 1200, height: 800)
         .commands {
             CommandGroup(replacing: .newItem) {
@@ -449,6 +450,9 @@ struct OpenMatesApp: App {
 // Pure window-selection policy is shared so the iOS unit target also verifies it.
 enum MacMainWindowPolicy {
     static let identifier = "openmates.main-window"
+    // iPhone 4's logical viewport, shared by scene sizing and AppKit chrome.
+    static let minimumContentWidth: CGFloat = 320
+    static let minimumContentHeight: CGFloat = 320
     static func canRestore(identifier: String?, visible: Bool, miniaturized: Bool) -> Bool {
         identifier == Self.identifier && (visible || miniaturized)
     }

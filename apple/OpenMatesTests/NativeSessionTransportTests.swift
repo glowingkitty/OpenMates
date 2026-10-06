@@ -620,6 +620,88 @@ import XCTest
 
     @MainActor private final class WatchFixtureClock { var now = 20 }
 
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.isolation
+    func testAcceptedRESTSuccessorRenewsSocketAuthorityOnceAndDuplicateDoesNotRevalidate() async throws {
+        var validations = 0
+        let renewal = expectation(description: "Accepted REST successor validates socket authority")
+        let initial = try JSONDecoder().decode(SessionResponse.self,
+            from: response(account: "account-A", token: "predecessor-socket"))
+        let successor = try JSONDecoder().decode(SessionResponse.self,
+            from: response(account: "account-A", token: "successor-socket"))
+        let manager = try await makeOnlineAuth { _, _ in
+            validations += 1
+            if validations == 2 { renewal.fulfill() }
+            return validations == 1 ? initial : successor
+        }
+        let context = try XCTUnwrap(manager.sessionRecoveryContext)
+        XCTAssertEqual(manager.webSocketToken, "predecessor-socket")
+        NativeSessionURLProtocol.setHandler { _ in
+            .init(status: 200, body: Data(), cookie: "accepted-refresh-successor")
+        }
+        let _: Data = try await api.request(.get, path: "/v1/renewal", serverProfile: profile)
+        await fulfillment(of: [renewal], timeout: 2)
+        if validations == 2 { await manager.recoverSession(expected: context) }
+        XCTAssertEqual(validations, 2)
+        XCTAssertEqual(manager.webSocketToken, "successor-socket")
+        XCTAssertEqual(manager.sessionValidationState, .onlineAuthenticated)
+        let _: Data = try await api.request(.get, path: "/v1/duplicate", serverProfile: profile)
+        await Task.yield()
+        XCTAssertEqual(validations, 2)
+        XCTAssertEqual(refreshCookie, "accepted-refresh-successor")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.isolation
+    func testDelayedRESTSuccessorCannotRenewAReplacementAccount() async throws {
+        var validations = 0
+        let valid = try JSONDecoder().decode(SessionResponse.self,
+            from: response(account: "account-A", token: "account-A-socket"))
+        let manager = try await makeOnlineAuth { _, _ in validations += 1; return valid }
+        let gate = NativeSessionResponseGate()
+        NativeSessionURLProtocol.setHandler { _ in
+            .init(status: 200, body: Data(), cookie: "stale-account-successor", gate: gate)
+        }
+        let pending = Task { try await api.request(.get, path: "/v1/delayed", serverProfile: profile) as Data }
+        await gate.waitUntilHeld()
+        manager.currentUser = try JSONDecoder().decode(UserProfile.self,
+            from: Data(#"{"id":"account-B","username":"Replacement"}"#.utf8))
+        cookieStorage.setCookie(try cookie("account-B-refresh"))
+        gate.release()
+        do { _ = try await pending.value; XCTFail("Replaced account must reject delayed response") }
+        catch is CancellationError {}
+        await Task.yield()
+        XCTAssertEqual(validations, 1)
+        XCTAssertEqual(manager.currentUser?.id, "account-B")
+        XCTAssertEqual(refreshCookie, "account-B-refresh")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.authoritative-enforcement
+    func testFailedRESTResponseCookieDoesNotAuthorizeSuccessorRenewal() async throws {
+        var validations = 0
+        let valid = try JSONDecoder().decode(SessionResponse.self,
+            from: response(account: "account-A", token: "current-socket"))
+        let manager = try await makeOnlineAuth { _, _ in validations += 1; return valid }
+        NativeSessionURLProtocol.setHandler { _ in
+            .init(status: 503, body: Data(), cookie: "unverified-refresh")
+        }
+        do { let _: Data = try await api.request(.get, path: "/v1/unavailable", serverProfile: profile); XCTFail("503 must fail") }
+        catch APIError.httpError(status: 503, message: _) {}
+        await Task.yield()
+        XCTAssertEqual(validations, 1)
+        XCTAssertEqual(manager.webSocketToken, "current-socket")
+    }
+
+    private func makeOnlineAuth(validator: @escaping AuthManager.SessionValidator) async throws -> AuthManager {
+        let manager = AuthManager(api: api, sessionValidator: validator,
+            profileCacheWriter: { _ in }, sessionMasterKeyAvailable: { _ in true }, sessionScopeActivator: { _ in })
+        manager.currentUser = try JSONDecoder().decode(UserProfile.self,
+            from: Data(#"{"id":"account-A","username":"Fixture"}"#.utf8))
+        manager.state = .authenticated
+        auth = manager
+        await manager.validateSessionAfterOfflineBootstrap()
+        XCTAssertEqual(manager.sessionValidationState, .onlineAuthenticated)
+        return manager
+    }
+
     private func authenticate() throws {
         let manager = AuthManager(profileCacheWriter: { _ in })
         manager.currentUser = try JSONDecoder().decode(UserProfile.self,

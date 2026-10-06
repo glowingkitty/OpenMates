@@ -2,6 +2,15 @@ import XCTest
 @testable import OpenMates
 
 final class WorkspaceSwitcherLayoutTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,workflows-ui.responsive-accessible-reachable,projects.surface.semantic-parity,apps.presentation.shared-detail-and-recency
+    func testCardHoverOnlyScalesEnabledCardAndReducedMotionDisablesAnimation() {
+        XCTAssertEqual(OMCardHoverPolicy.scale(hovered: false, enabled: true), 1)
+        XCTAssertEqual(OMCardHoverPolicy.scale(hovered: true, enabled: false), 1)
+        XCTAssertEqual(OMCardHoverPolicy.scale(hovered: true, enabled: true), 1.05, accuracy: 0.001)
+        XCTAssertNil(OMCardHoverPolicy.animationDuration(reduceMotion: true))
+        XCTAssertEqual(OMCardHoverPolicy.animationDuration(reduceMotion: false), 0.15)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=workspace-shell.nav.released-surfaces-visible
     func testTabsFitTheMeasuredCenterLaneAtTheExactBoundary() {
         let inset = 2 * (CGFloat(90) + .spacing10 + .spacing4)

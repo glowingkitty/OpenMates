@@ -11,6 +11,40 @@ import AppKit
 
 @MainActor
 final class MessageTextSelectionTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.layout.responsive-history,chats.surface.semantic-parity
+    func testAlternatingIntrinsicAndResizeProposalsReuseExactTextMeasurements() {
+        let preparation = NativeSelectableTextPreparation()
+        let text = AttributedString(String(repeating: "Readable selectable text wraps at the requested width. ", count: 6))
+        let rendered = preparation.prepare(content: text, raw: nil, monospace: false, highlights: [], scheme: .dark)
+        let widths: [CGFloat?] = [nil, 220, 360, 480, 640]
+        var expected: [CGSize] = []
+        for width in widths {
+            let size = preparation.size(width: width, wrapsText: true) {
+                #if os(macOS)
+                PlatformMessageSelectableText.measuredSize(rendered, width: width, wrapsText: true)
+                #else
+                let view = PlatformMessageSelectableText.makeTextView()
+                PlatformMessageSelectableText.update(rendered, in: view, colorScheme: .dark, colorsResolved: true)
+                return view.sizeThatFits(CGSize(width: width ?? 10_000, height: .greatestFiniteMagnitude))
+                #endif
+            }
+            expected.append(size)
+        }
+        for _ in 0..<5 {
+            for (index, width) in widths.enumerated() {
+                XCTAssertEqual(preparation.size(width: width, wrapsText: true) {
+                    XCTFail("Unchanged text must reuse its exact proposal measurement")
+                    return .zero
+                }, expected[index])
+            }
+        }
+        XCTAssertEqual(preparation.measurementCount, widths.count)
+        _ = preparation.prepare(content: AttributedString("Updated text"), raw: nil, monospace: false, highlights: [], scheme: .dark)
+        let changed = preparation.size(width: 220, wrapsText: true) { CGSize(width: 220, height: 20) }
+        XCTAssertEqual(changed.height, 20)
+        XCTAssertEqual(preparation.measurementCount, widths.count + 1)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
     func testToolbarKeepsDarkSurfaceAndReadableForegroundInBothActualSchemes() throws {
         for scheme in [ColorScheme.light, .dark] {

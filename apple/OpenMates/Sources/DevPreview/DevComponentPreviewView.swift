@@ -585,6 +585,8 @@ private struct DevComponentPreviewCanvas: View {
                         subChatFixtureStore.upsertChats(Self.subChatFixtureChildren)
                     }
                 }
+            } else if configuration.variant == "markdown-nested-emphasis" {
+                DevAssistantMarkdownRepairFixture()
             } else if ["results-visual", "results-berlin-map"].contains(configuration.variant) {
                 // Match EmbedsMapView.preview.ts: show the virtual results node
                 // at the 390-point phone viewport without message-bubble chrome.

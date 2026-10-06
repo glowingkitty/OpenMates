@@ -537,6 +537,7 @@ struct ProjectsWorkspaceView: View {
         .frame(width: 300, height: compact ? 44 : 200)
         .contentShape(RoundedRectangle(cornerRadius: compact ? 32 : 30))
         .accessibilityIdentifier("project-card-\(project.id)")
+        .omCardHoverFeedback()
     }
 
     private func projectDetail(_ project: ProjectWorkspaceProject) -> some View {

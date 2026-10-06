@@ -237,7 +237,7 @@ final class AssistantFollowUpLinkParityTests: XCTestCase {
         let markdown = links.map { "[\($0.0)](\($0.1))" }.joined(separator: "\n")
         let tokens = InlineMarkdownTokenizer.parse(markdown)
         let parsed = tokens.compactMap { token -> (String, String, Bool)? in
-            guard case .link(let label, let url, let internalLink, _) = token else { return nil }
+            guard case .link(let label, let url, let internalLink, _, _) = token else { return nil }
             return (label, url, internalLink)
         }
         XCTAssertEqual(parsed.count, links.count)

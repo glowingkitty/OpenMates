@@ -69,5 +69,60 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>checklist</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>New task</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>org.openmates.new-task</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>square.and.pencil</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Ask</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>org.openmates.ask</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>mic</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Record request</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>org.openmates.record-request</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>camera</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Ask About Photo</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>org.openmates.ask-about-photo</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>magnifyingglass</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Search</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>org.openmates.search</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>eye.slash</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Incognito Ask</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>org.openmates.incognito-ask</string>
+		</dict>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>OpenMates uses the camera when you choose to attach a photo to a chat.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OpenMates uses your photo library when you choose an image to attach to a chat.</string>
 </dict>
 </plist>

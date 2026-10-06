@@ -1743,6 +1743,20 @@ struct MainAppView: View {
     }
 
     private func closeChatToWorkspaceLanding() {
+        #if os(macOS)
+        // A close previously inherited both shell route animations. AppKit
+        // flushed and remeasured the outgoing selectable transcript inside the
+        // button action, delaying the landing view. Commit this route directly;
+        // card/button hover animations remain scoped to their own controls.
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { resetClosedChatToWorkspaceLanding() }
+        #else
+        resetClosedChatToWorkspaceLanding()
+        #endif
+    }
+
+    private func resetClosedChatToWorkspaceLanding() {
         // A focus request from an earlier New Chat window must not replay when
         // the welcome view is mounted again after closing an existing chat.
         newChatFocusRequest = 0
@@ -4433,66 +4447,16 @@ struct MainAppView: View {
     /// to the App Group container so the WidgetKit extension can display it.
     private func syncInspirationToWidget() async {
         let baseURL = await ServerProfile.current().apiBaseURL.absoluteString
-        guard let url = URL(string: "\(baseURL)/v1/default-inspirations?lang=en") else { return }
+        let sourceLanguage = "en"
+        guard let url = URL(string: "\(baseURL)/v1/default-inspirations?lang=\(sourceLanguage)") else { return }
 
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
 
-            struct Response: Decodable {
-                let inspirations: [Item]
-                struct Item: Decodable {
-                    let inspirationId: String
-                    let phrase: String
-                    let title: String
-                    let category: String
-                    let video: Video?
-                    struct Video: Decodable {
-                        let youtubeId: String?
-                        let title: String?
-                        let channelName: String?
-                        let thumbnailUrl: String?
-                        let durationSeconds: Int?
-                        let viewCount: Int?
-                        let publishedAt: String?
-                        enum CodingKeys: String, CodingKey {
-                            case youtubeId = "youtube_id"
-                            case title
-                            case channelName = "channel_name"
-                            case thumbnailUrl = "thumbnail_url"
-                            case durationSeconds = "duration_seconds"
-                            case viewCount = "view_count"
-                            case publishedAt = "published_at"
-                        }
-                    }
-                    enum CodingKeys: String, CodingKey {
-                        case inspirationId = "inspiration_id", phrase, title, category, video
-                    }
-                }
-            }
-
-            let response = try JSONDecoder().decode(Response.self, from: data)
+            let response = try DailyInspirationAPIResponse.decode(data)
             if let first = response.inspirations.first {
                 // Populate the daily inspiration state for the welcome screen
-                dailyInspirations = response.inspirations.map { item in
-                    DailyInspirationBanner.DailyInspiration(
-                        inspirationId: item.inspirationId,
-                        text: item.phrase,
-                        title: item.title,
-                        category: item.category,
-                        iconName: nil,
-                        video: item.video.map {
-                            DailyInspirationVideo(
-                                youtubeId: $0.youtubeId,
-                                title: $0.title,
-                                channelName: $0.channelName,
-                                thumbnailUrl: $0.thumbnailUrl,
-                                durationSeconds: $0.durationSeconds,
-                                viewCount: $0.viewCount,
-                                publishedAt: $0.publishedAt
-                            )
-                        }
-                    )
-                }
+                dailyInspirations = response.inspirations.map { $0.bannerData(sourceLanguage: sourceLanguage) }
 
                 // Encode as WidgetInspirationData and write to shared App Group container
                 let widgetData = WidgetInspirationData(
@@ -9396,7 +9360,8 @@ struct NewChatWelcomeView: View {
             InspirationCard(
                 inspiration: activeInspiration,
                 containerSize: containerSize,
-                heightOverride: bannerHeight
+                heightOverride: bannerHeight,
+                onOpenWiki: { composerSearchPreview = $0 }
             ) {
                 createChatWith(message: activeInspiration.text)
             }
@@ -9536,7 +9501,7 @@ struct NewChatWelcomeView: View {
                 .frame(width: 40, height: height)
                 .background(.white.opacity(0.001))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(OMInspirationNavigationButtonStyle())
         .help(Text(label))
         .accessibilityLabel(label)
         .accessibilityIdentifier(identifier)
@@ -10920,6 +10885,7 @@ struct WelcomeResumeCard: View {
         .accessibilityAction(named: Text(AppStrings.openChat), onTap)
         .help(Text(card.title))
         .accessibilityLabel([card.title, card.summary].compactMap { $0 }.joined(separator: ". "))
+        .omCardHoverFeedback()
     }
 
     private func handleTap() {

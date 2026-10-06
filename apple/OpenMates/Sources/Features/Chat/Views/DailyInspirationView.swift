@@ -41,6 +41,8 @@ struct DailyInspirationData: Decodable {
     let video: DailyInspirationVideo?
     let startedChatId: String?
     let feature: DailyInspirationFeature?
+    let contentType: String?
+    let wiki: DailyInspirationWiki?
 
     init(
         inspirationId: String? = nil,
@@ -50,7 +52,9 @@ struct DailyInspirationData: Decodable {
         iconName: String? = nil,
         video: DailyInspirationVideo? = nil,
         startedChatId: String? = nil,
-        feature: DailyInspirationFeature? = nil
+        feature: DailyInspirationFeature? = nil,
+        contentType: String? = nil,
+        wiki: DailyInspirationWiki? = nil
     ) {
         self.inspirationId = inspirationId
         self.text = text
@@ -60,6 +64,60 @@ struct DailyInspirationData: Decodable {
         self.video = video
         self.startedChatId = startedChatId
         self.feature = feature
+        self.contentType = contentType
+        self.wiki = wiki
+    }
+}
+
+struct DailyInspirationWiki: Decodable {
+    let title: String
+    let wikiTitle: String?
+    let description: String?
+    let thumbnailUrl: String?
+    let wikidataId: String?
+    let extract: String?
+    var language: String? = nil
+
+    var previewEmbed: EmbedRecord {
+        var data: [String: AnyCodable] = ["title": AnyCodable(title),
+            "wiki_title": AnyCodable(wikiTitle ?? title)]
+        if let language { data["language"] = AnyCodable(language) }
+        for (key, value) in [("description", description), ("thumbnail_url", thumbnailUrl),
+                             ("wikidata_id", wikidataId), ("extract", extract)] {
+            if let value { data[key] = AnyCodable(value) }
+        }
+        return EmbedRecord(id: "inspiration-wiki-" + (wikiTitle ?? title), type: EmbedType.wiki.rawValue,
+            status: .finished, data: .raw(data), parentEmbedId: nil, appId: EmbedType.wiki.appId,
+            skillId: nil, embedIds: nil, createdAt: nil)
+    }
+}
+
+/// Shared public API mapping keeps the banner and its widget on one payload.
+struct DailyInspirationAPIResponse: Decodable {
+    let inspirations: [Item]
+    struct Item: Decodable {
+        let inspirationId: String
+        let phrase: String
+        let title: String
+        let category: String
+        let contentType: String?
+        let video: DailyInspirationVideo?
+        let wiki: DailyInspirationWiki?
+
+        func bannerData(sourceLanguage: String) -> DailyInspirationData {
+            var article = wiki
+            if article?.language?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
+                article?.language = sourceLanguage
+            }
+            return DailyInspirationData(inspirationId: inspirationId, text: phrase, title: title,
+                category: category, video: video, contentType: contentType, wiki: article)
+        }
+    }
+
+    static func decode(_ data: Data) throws -> Self {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(Self.self, from: data)
     }
 }
 
@@ -154,6 +212,7 @@ struct InspirationCard: View {
     var ctaTitle: String? = nil
     var tapHint: String? = nil
     var isInteractive = true
+    var onOpenWiki: ((EmbedRecord) -> Void)? = nil
     let onTap: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -182,11 +241,12 @@ struct InspirationCard: View {
         return CategoryMapping.isKnownCategory(requested) ? requested : "general_knowledge"
     }
     private var hasVideo: Bool { inspiration.video?.thumbnailUrl != nil || inspiration.video?.youtubeId != nil }
-    private var hasMobileCard: Bool { hasVideo || inspiration.feature != nil }
+    private var hasWiki: Bool { inspiration.wiki != nil && (inspiration.contentType == nil || inspiration.contentType == "wiki") }
+    private var hasMobileCard: Bool { hasVideo || hasWiki || inspiration.feature != nil }
     private var mobileCardTaskIdentity: String {
         [inspiration.inspirationId ?? inspiration.text,
          isCompact ? "compact" : "wide",
-         hasVideo ? "video" : inspiration.feature == nil ? "none" : "feature",
+         hasVideo ? "video" : hasWiki ? "wiki" : inspiration.feature == nil ? "none" : "feature",
          reduceMotion ? "reduced" : "animated"].joined(separator: "\u{1F}")
     }
     private var accessibilitySummary: String {
@@ -261,7 +321,7 @@ struct InspirationCard: View {
         .accessibilityRemoveTraits(isInteractive ? [] : .isButton)
         .accessibilityHint(isInteractive ? (tapHint ?? "Starts a new chat with this inspiration") : "")
         .accessibilityValue(showMobileCard && isCompact
-            ? (inspiration.feature?.title ?? inspiration.video?.title ?? inspiration.text)
+            ? (inspiration.feature?.title ?? inspiration.video?.title ?? inspiration.wiki?.title ?? inspiration.text)
             : inspiration.text)
     }
 
@@ -340,7 +400,7 @@ struct InspirationCard: View {
             // Web .banner-left and .banner-embed-wrapper each use flex:1 and
             // min-width:0. Explicit columns prevent a thumbnail's intrinsic
             // size from expanding across the phrase's layout allocation.
-            let hasSideCard = !isCompact && (shouldShowSideBySideVideo || inspiration.feature != nil)
+            let hasSideCard = !isCompact && (shouldShowSideBySideVideo || hasWiki || inspiration.feature != nil)
             let columnWidth = hasSideCard ? max(0, (viewport.size.width - 14) / 2) : viewport.size.width
             ZStack {
                 HStack(alignment: .center, spacing: 14) {
@@ -363,6 +423,10 @@ struct InspirationCard: View {
                         videoPreviewLayer(size: CGSize(width: columnWidth, height: viewport.size.height + 27))
                             .offset(y: -1.5) // web wrapper margins: -15px top, -12px bottom
                             .frame(width: columnWidth, height: viewport.size.height, alignment: .trailing)
+                    } else if !isCompact, hasWiki, let wiki = inspiration.wiki {
+                        wikiPreviewLayer(wiki, size: CGSize(width: columnWidth, height: viewport.size.height + 27))
+                            .offset(y: -1.5)
+                            .frame(width: columnWidth, height: viewport.size.height, alignment: .trailing)
                     } else if !isCompact, let feature = inspiration.feature {
                         featurePreviewLayer(feature)
                             .frame(width: columnWidth, height: viewport.size.height)
@@ -375,6 +439,8 @@ struct InspirationCard: View {
                     ZStack {
                         if hasVideo {
                             videoPreviewLayer(size: viewport.size)
+                        } else if hasWiki, let wiki = inspiration.wiki {
+                            wikiPreviewLayer(wiki, size: viewport.size)
                         } else if let feature = inspiration.feature {
                             featurePreviewLayer(feature, mobile: true)
                                 .frame(width: viewport.size.width, height: viewport.size.height)
@@ -457,6 +523,15 @@ struct InspirationCard: View {
                 .accessibilityIdentifier("daily-inspiration-phrase")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func wikiPreviewLayer(_ wiki: DailyInspirationWiki, size: CGSize) -> some View {
+        let scale = min(1, max(0, size.width) / 300, max(0, size.height) / 200)
+        return EmbedPreviewCard(embed: wiki.previewEmbed, onTap: { onOpenWiki?(wiki.previewEmbed) })
+            .frame(width: 300, height: 200)
+            .scaleEffect(scale)
+            .frame(width: 300 * scale, height: 200 * scale)
+            .accessibilityIdentifier("daily-inspiration-wiki-preview")
     }
 
     private func videoPreviewLayer(size: CGSize) -> some View {

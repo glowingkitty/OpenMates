@@ -60,6 +60,7 @@ struct NativeHeaderActionPill: View {
             .accessibilityHidden(true)
         }
         .buttonStyle(.plain)
+        .omClickablePointer()
         .help(Text(label))
         .accessibilityLabel(label)
         .accessibilityIdentifier(accessibilityIdentifier)
@@ -97,6 +98,7 @@ struct NativeHeaderMenuActionPill: View {
             .fixedSize(horizontal: true, vertical: false)
         }
         .buttonStyle(.plain)
+        .omClickablePointer()
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 }
@@ -412,6 +414,7 @@ struct OMToggle: View {
             }
         }
         .buttonStyle(.plain)
+        .omClickablePointer(enabled: !disabled)
         .opacity(disabled ? 0.5 : 1)
         .allowsHitTesting(!disabled)
         .accessibilityAddTraits(.isToggle)
@@ -561,6 +564,7 @@ struct OMDropdown: View {
             .accessibilityLabel(title)
             .accessibilityValue(selectedLabel)
             .buttonStyle(.plain)
+            .omClickablePointer()
             .disabled(disabled)
             .opacity(disabled ? 0.5 : 1)
 
@@ -594,6 +598,7 @@ struct OMDropdown: View {
                         .accessibilityLabel(option.label)
                         .accessibilityAddTraits(option.id == selection ? .isSelected : [])
                         .buttonStyle(.plain)
+                        .omClickablePointer()
                     }
                 }
                 .background(Color.grey0)
@@ -727,6 +732,7 @@ struct OMConfirmDialog: View {
                             )
                     }
                     .buttonStyle(.plain)
+                    .omClickablePointer()
 
                     Button(action: onConfirm) {
                         Text(confirmTitle)
@@ -739,6 +745,7 @@ struct OMConfirmDialog: View {
                             .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }
                     .buttonStyle(.plain)
+                    .omClickablePointer()
                 }
             }
             .padding(.spacing8)
@@ -864,6 +871,7 @@ struct OMIconButton: View {
                 .contentShape(RoundedRectangle(cornerRadius: .radius7))
         }
         .buttonStyle(.plain)
+        .omClickablePointer()
         .help(Text(label))
         .accessibilityLabel(label)
     }
@@ -1068,6 +1076,7 @@ struct OMSettingsFooter: View {
                 .padding(.vertical, .spacing3)
         }
         .buttonStyle(.plain)
+        .omClickablePointer()
     }
 }
 
@@ -1158,6 +1167,7 @@ struct OMSettingsRow: View {
             rowContent
         }
         .buttonStyle(.plain)
+        .omClickablePointer()
         .clipShape(RoundedRectangle(cornerRadius: .radius3)) // border-radius: var(--radius-3)
         .accessibilityLabel([subtitleTop, title, subtitleBottom].compactMap { $0 }.joined(separator: "\n"))
         .help(Text(title))
@@ -1294,6 +1304,7 @@ struct OMSegmentedControl<Option: Hashable>: View {
                         .clipShape(RoundedRectangle(cornerRadius: .radius5))
                 }
                 .buttonStyle(.plain)
+                .omClickablePointer()
             }
         }
         .padding(.spacing2)

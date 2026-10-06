@@ -1019,7 +1019,7 @@ struct RichMarkdownView: View {
         case .paragraph:
             inlineText(block.text ?? "")
         case .heading:
-            HeaderView(level: block.headingLevel ?? 1, text: block.text ?? "", isUserMessage: isUserMessage, searchHighlightQuery: searchHighlightQuery)
+            HeaderView(level: block.headingLevel ?? 1, text: block.text ?? "", isUserMessage: isUserMessage, searchHighlightQuery: searchHighlightQuery, allEmbedRecords: allEmbedRecords, onEmbedTap: onEmbedTap)
         case .codeBlock:
             CodeBlockView(language: block.language, code: block.text ?? "", searchHighlightQuery: searchHighlightQuery)
         case .blockquote:
@@ -1148,7 +1148,7 @@ struct RichMarkdownView: View {
             )
 
         case .header(let level, let text):
-            HeaderView(level: level, text: text, isUserMessage: isUserMessage, searchHighlightQuery: searchHighlightQuery)
+            HeaderView(level: level, text: text, isUserMessage: isUserMessage, searchHighlightQuery: searchHighlightQuery, allEmbedRecords: allEmbedRecords, onEmbedTap: onEmbedTap)
 
         case .horizontalRule:
             Divider()
@@ -3113,6 +3113,9 @@ final class InlineMarkdownPreparationModel: ObservableObject {
 
 struct InlineMarkdownText: View {
     let content: String
+    let textFont: Font
+    let textPointSize: CGFloat
+    let isHeading: Bool
     let isUserMessage: Bool
     let allEmbedRecords: [String: EmbedRecord]
     let onEmbedTap: ((EmbedRecord) -> Void)?
@@ -3132,9 +3135,15 @@ struct InlineMarkdownText: View {
         isUserMessage: Bool,
         allEmbedRecords: [String: EmbedRecord] = [:],
         onEmbedTap: ((EmbedRecord) -> Void)? = nil,
-        searchHighlightQuery: String? = nil
+        searchHighlightQuery: String? = nil,
+        textFont: Font = .omP,
+        textPointSize: CGFloat = 16,
+        isHeading: Bool = false
     ) {
         self.content = content
+        self.textFont = textFont
+        self.textPointSize = textPointSize
+        self.isHeading = isHeading
         self.isUserMessage = isUserMessage
         self.allEmbedRecords = allEmbedRecords
         self.onEmbedTap = onEmbedTap
@@ -3173,10 +3182,10 @@ struct InlineMarkdownText: View {
                             if group.isProse {
                                 if let selectionContext {
                                     MessageSelectableText(content: selectableProse(group.tokens), context: selectionContext)
-                                        .multilineTextAlignment(isUserMessage ? .trailing : .leading)
+                                        .multilineTextAlignment(.leading)
                                         .fixedSize(horizontal: false, vertical: true)
                                 } else {
-                                    ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(selectableProse(group.tokens)),
+                                    ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(selectableProse(group.tokens), pointSize: textPointSize, bold: isHeading),
                                         identifier: "embed-markdown-prose-\(group.id)")
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
@@ -3193,7 +3202,7 @@ struct InlineMarkdownText: View {
                 .textSelection(.disabled)
             } else {
                 standardText
-                    .multilineTextAlignment(isUserMessage ? .trailing : .leading)
+                    .multilineTextAlignment(.leading)
             }
         }
         .onChange(of: InlineMarkdownPreparationInput(content: content, searchHighlightQuery: searchHighlightQuery)) { _, input in
@@ -3205,19 +3214,22 @@ struct InlineMarkdownText: View {
         if let selectionContext {
             MessageSelectableText(content: styledAttributedContent, context: selectionContext)
         } else if readOnlySelection {
-            ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(styledAttributedContent),
+            ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(styledAttributedContent, pointSize: textPointSize, bold: isHeading),
                 identifier: "embed-markdown-text")
         } else {
             Text(styledAttributedContent)
-                .font(.omP).fontWeight(.medium).lineSpacing(2).textSelection(.enabled)
+                .font(textFont).fontWeight(.medium).lineSpacing(2).textSelection(.enabled)
         }
     }
     private func selectableProse(_ tokens: [InlineMarkdownToken]) -> AttributedString {
         var result = AttributedString()
         for token in tokens {
-            guard case .text(let text, let bold) = token else { continue }
+            guard case .text(let text, let bold, let italic) = token else { continue }
             var run = AttributedString(text); run.foregroundColor = textColor(isBold: bold)
-            if bold { run.inlinePresentationIntent = .stronglyEmphasized }
+            var intent: InlinePresentationIntent = []
+            if bold { intent.insert(.stronglyEmphasized) }
+            if italic { intent.insert(.emphasized) }
+            run.inlinePresentationIntent = intent
             result.append(run)
         }
         SearchTextHighlighter.highlightMatches(in: &result, query: searchHighlightQuery)
@@ -3240,9 +3252,13 @@ struct InlineMarkdownText: View {
     @ViewBuilder
     private func tokenView(_ token: InlineMarkdownToken, highlightRanges: [NSRange]) -> some View {
         switch token {
-        case .text(let text, let isBold):
-            Text(highlightedText(text, isBold: isBold, highlightRanges: highlightRanges))
-                .font(.omP)
+        case .lineBreak:
+            Color.clear.frame(width: 0, height: 0)
+                .layoutValue(key: InlineMarkdownHardBreakKey.self, value: true)
+                .accessibilityHidden(true)
+        case .text(let text, let isBold, let isItalic):
+            Text(highlightedText(text, isBold: isBold, isItalic: isItalic, highlightRanges: highlightRanges))
+                .font(textFont)
                 .fontWeight(isBold ? .semibold : .medium)
                 .fixedSize(horizontal: false, vertical: true)
         case .inlineCode(let text):
@@ -3272,38 +3288,49 @@ struct InlineMarkdownText: View {
         case .math(let latex, let display):
             MarkdownFormulaText(latex: latex, display: display, isUserMessage: isUserMessage)
                 .fixedSize(horizontal: false, vertical: true)
-        case .wiki(let displayText, let wikiTitle, let isBold):
+        case .wiki(let displayText, let wikiTitle, let isBold, let isItalic):
             WikiInlineChip(
                 displayText: displayText,
                 wikiTitle: wikiTitle,
                 isBold: isBold,
+                isItalic: isItalic,
+                textFont: textFont,
                 highlightRanges: highlightRanges
             ) { embed in
                 onEmbedTap?(embed)
             }
-        case .embed(let displayText, let embedRef, let isBold):
+        case .embed(let displayText, let embedRef, let isBold, let isItalic):
             EmbedInlineChip(
-                displayText: displayText,
+                displayText: displayText.isEmpty ? AppStrings.localized("common.view") : displayText,
                 embed: resolveEmbed(ref: embedRef),
                 fallbackAppId: nil,
                 isBold: isBold,
+                isItalic: isItalic,
+                textFont: textFont,
                 highlightRanges: highlightRanges
             ) { embed in
                 onEmbedTap?(embed)
             }
-        case .link(let displayText, let url, let isInternal, let isBold):
+        case .link(let displayText, let url, let isInternal, let isBold, let isItalic):
             MarkdownLinkChip(
                 displayText: displayText,
                 urlString: url,
                 isInternal: isInternal,
                 isBold: isBold,
+                isItalic: isItalic,
+                textFont: textFont,
                 highlightRanges: highlightRanges
             )
         }
     }
 
-    private func highlightedText(_ text: String, isBold: Bool, highlightRanges: [NSRange]) -> AttributedString {
-        SearchTextHighlighter.attributed(text, ranges: highlightRanges, foregroundColor: textColor(isBold: isBold))
+    private func highlightedText(_ text: String, isBold: Bool, isItalic: Bool = false, highlightRanges: [NSRange]) -> AttributedString {
+        var result = SearchTextHighlighter.attributed(text, ranges: highlightRanges, foregroundColor: textColor(isBold: isBold))
+        var intent: InlinePresentationIntent = []
+        if isBold { intent.insert(.stronglyEmphasized) }
+        if isItalic { intent.insert(.emphasized) }
+        result.inlinePresentationIntent = intent
+        return result
     }
 
     private func highlightRanges(forTokenAt index: Int) -> [NSRange] {
@@ -3546,24 +3573,27 @@ enum MarkdownMathParser {
 
 enum InlineMarkdownToken: Equatable {
     case mention(NativeMentionPresentation)
-    case text(String, isBold: Bool)
+    case text(String, isBold: Bool, isItalic: Bool = false)
+    case lineBreak
     case inlineCode(String)
     case math(String, display: Bool)
-    case wiki(displayText: String, wikiTitle: String, isBold: Bool)
-    case embed(displayText: String, embedRef: String, isBold: Bool)
-    case link(displayText: String, url: String, isInternal: Bool, isBold: Bool)
+    case wiki(displayText: String, wikiTitle: String, isBold: Bool, isItalic: Bool = false)
+    case embed(displayText: String, embedRef: String, isBold: Bool, isItalic: Bool = false)
+    case link(displayText: String, url: String, isInternal: Bool, isBold: Bool, isItalic: Bool = false)
 
     @MainActor var searchText: String {
         switch self {
         case .mention(let mention):
             return mention.label
-        case .text(let text, _), .inlineCode(let text):
+        case .text(let text, _, _), .inlineCode(let text):
             return text
         case .math(let latex, _):
             return MarkdownMathParser.displayText(for: latex)
-        case .wiki(let displayText, _, _),
-             .embed(let displayText, _, _),
-             .link(let displayText, _, _, _):
+        case .lineBreak:
+            return "\n"
+        case .wiki(let displayText, _, _, _),
+             .embed(let displayText, _, _, _),
+             .link(let displayText, _, _, _, _):
             return displayText
         }
     }
@@ -3571,74 +3601,142 @@ enum InlineMarkdownToken: Equatable {
 
 enum InlineMarkdownTokenizer {
     static func parse(_ source: String) -> [InlineMarkdownToken] {
+        parse(source, isBold: false, isItalic: false)
+    }
+
+    /// Parse only paired delimiters; malformed markup stays readable instead of
+    /// toggling the style of every subsequent word. Recursive scopes allow an
+    /// entity inside emphasis without exposing its markdown destination.
+    private static func parse(_ source: String, isBold: Bool, isItalic: Bool) -> [InlineMarkdownToken] {
         var tokens: [InlineMarkdownToken] = []
         var index = source.startIndex
-        var isBold = false
-
         while index < source.endIndex {
-            if source[index...].hasPrefix("**") {
-                isBold.toggle()
-                index = source.index(index, offsetBy: 2)
+            if source[index] == "\\" {
+                let next = source.index(after: index)
+                if next < source.endIndex, source[next] == "\n" {
+                    trimTrailingSpaces(in: &tokens)
+                    tokens.append(.lineBreak); index = source.index(after: next)
+                    while index < source.endIndex, source[index] == " " || source[index] == "\t" { index = source.index(after: index) }
+                    continue
+                }
+                if next < source.endIndex, #"\`*_{}[]()#+-.!"#.contains(source[next]) {
+                    appendText(String(source[next]), isBold: isBold, isItalic: isItalic, to: &tokens)
+                    index = source.index(after: next); continue
+                }
+            }
+            if source[index] == "\n" {
+                let prefix = source[..<index]
+                if prefix.hasSuffix("  ") {
+                    trimTrailingSpaces(in: &tokens); tokens.append(.lineBreak)
+                } else {
+                    appendText(" ", isBold: isBold, isItalic: isItalic, to: &tokens)
+                }
+                index = source.index(after: index)
+                while index < source.endIndex, source[index] == " " || source[index] == "\t" { index = source.index(after: index) }
                 continue
             }
-
-            if source[index] == "`",
-               let code = parseInlineCode(in: source, from: index) {
-                tokens.append(.inlineCode(code.text))
-                index = code.endIndex
-                continue
+            if let emphasis = parseEmphasis(in: source, from: index) {
+                tokens += parse(emphasis.text, isBold: isBold || emphasis.bold,
+                                isItalic: isItalic || emphasis.italic)
+                index = emphasis.endIndex; continue
             }
-
-            if source[index] == "$",
-               let formula = MarkdownMathParser.formula(in: source, from: index) {
-                tokens.append(.math(formula.latex, display: formula.display))
-                index = formula.endIndex
-                continue
+            if source[index] == "`", let code = parseInlineCode(in: source, from: index) {
+                tokens.append(.inlineCode(code.text)); index = code.endIndex; continue
             }
-
+            if source[index] == "$", let formula = MarkdownMathParser.formula(in: source, from: index) {
+                tokens.append(.math(formula.latex, display: formula.display)); index = formula.endIndex; continue
+            }
             if source[index] == "@",
                (index == source.startIndex || source[source.index(before: index)].isWhitespace),
                let mention = parseMention(in: source, from: index) {
-                tokens.append(.mention(mention.value))
-                index = mention.endIndex
-                continue
+                tokens.append(.mention(mention.value)); index = mention.endIndex; continue
             }
-
             if source[index] == "[", let link = parseSpecialLink(in: source, from: index) {
+                let label = linkLabel(link.displayText)
+                let bold = isBold || label.isBold, italic = isItalic || label.isItalic
                 switch link.kind {
                 case .wiki:
-                    tokens.append(.wiki(displayText: link.displayText, wikiTitle: link.target, isBold: isBold))
+                    tokens.append(.wiki(displayText: label.text, wikiTitle: link.target, isBold: bold, isItalic: italic))
                 case .embed:
-                    if link.displayText == "!" {
-                        appendText(link.displayText, isBold: isBold, to: &tokens)
+                    if label.text == "!" {
+                        appendText(label.text, isBold: bold, isItalic: italic, to: &tokens)
                     } else {
-                        tokens.append(.embed(
-                            displayText: displayText(for: link.displayText, embedRef: link.target),
-                            embedRef: link.target,
-                            isBold: isBold
-                        ))
+                        tokens.append(.embed(displayText: displayText(for: label.text, embedRef: link.target),
+                            embedRef: link.target, isBold: bold, isItalic: italic))
                     }
                 case .link:
-                    tokens.append(.link(
-                        displayText: link.displayText,
-                        url: link.target,
-                        isInternal: isInternalLink(link.target),
-                        isBold: isBold
-                    ))
+                    tokens.append(.link(displayText: label.text, url: link.target,
+                        isInternal: isInternalLink(link.target), isBold: bold, isItalic: italic))
                 }
-                index = link.endIndex
+                index = link.endIndex; continue
+            }
+            // Always consume the literal character before searching again.
+            // Unmatched markers must not spin or consume a later entity.
+            let next = nextSpecialIndex(in: source, from: source.index(after: index)) ?? source.endIndex
+            appendText(String(source[index..<next]), isBold: isBold, isItalic: isItalic, to: &tokens)
+            index = next
+        }
+        return tokens
+    }
+
+    static func linkLabel(_ source: String) -> (text: String, isBold: Bool, isItalic: Bool) {
+        guard let parsed = try? AttributedString(markdown: source,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) else {
+            return (source, false, false)
+        }
+        return (String(parsed.characters),
+            parsed.runs.contains { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true },
+            parsed.runs.contains { $0.inlinePresentationIntent?.contains(.emphasized) == true })
+    }
+
+    @MainActor static func attributedLabel(_ text: String, isBold: Bool, isItalic: Bool,
+                                           highlightRanges: [NSRange]) -> AttributedString {
+        var result = SearchTextHighlighter.highlighted(text, ranges: highlightRanges)
+        var intent: InlinePresentationIntent = []
+        if isBold { intent.insert(.stronglyEmphasized) }
+        if isItalic { intent.insert(.emphasized) }
+        result.inlinePresentationIntent = intent
+        return result
+    }
+
+    private static func parseEmphasis(in source: String, from start: String.Index)
+        -> (text: String, bold: Bool, italic: Bool, endIndex: String.Index)? {
+        let marker = source[start]
+        guard marker == "*" || marker == "_" else { return nil }
+        if marker == "_", start > source.startIndex,
+           source[source.index(before: start)].isLetter || source[source.index(before: start)].isNumber { return nil }
+        var bodyStart = start
+        while bodyStart < source.endIndex, source[bodyStart] == marker { bodyStart = source.index(after: bodyStart) }
+        let count = source.distance(from: start, to: bodyStart)
+        guard (1...3).contains(count), bodyStart < source.endIndex, !source[bodyStart].isWhitespace else { return nil }
+        var cursor = bodyStart
+        while cursor < source.endIndex {
+            if source[cursor] == "\\" {
+                cursor = source.index(after: cursor)
+                if cursor < source.endIndex { cursor = source.index(after: cursor) }
                 continue
             }
-
-            // An unrecognised '[' or unmatched backtick is literal text.
-            // Starting the fallback scan at the same character would return
-            // that index again forever and hang the UI thread on stored chats.
-            let nextSpecial = nextSpecialIndex(in: source, from: source.index(after: index)) ?? source.endIndex
-            appendText(String(source[index..<nextSpecial]), isBold: isBold, to: &tokens)
-            index = nextSpecial
+            if source[cursor] == marker {
+                let close = cursor
+                while cursor < source.endIndex, source[cursor] == marker { cursor = source.index(after: cursor) }
+                let runCount = source.distance(from: close, to: cursor)
+                let contentEnd = runCount > count ? source.index(cursor, offsetBy: -count) : close
+                if (runCount == count || (runCount == 3 && count < 3)),
+                   close > bodyStart, !source[source.index(before: close)].isWhitespace,
+                   marker != "_" || cursor == source.endIndex || (!source[cursor].isLetter && !source[cursor].isNumber) {
+                    return (String(source[bodyStart..<contentEnd]), count >= 2, count != 2, cursor)
+                }
+            } else { cursor = source.index(after: cursor) }
         }
+        return nil
+    }
 
-        return tokens
+    private static func trimTrailingSpaces(in tokens: inout [InlineMarkdownToken]) {
+        while let last = tokens.last, case .text(let text, let bold, let italic) = last {
+            let trimmed = text.replacingOccurrences(of: #"[ \t]+$"#, with: "", options: .regularExpression)
+            tokens.removeLast()
+            if !trimmed.isEmpty { tokens.append(.text(trimmed, isBold: bold, isItalic: italic)); break }
+        }
     }
 
     private static func parseMention(in source: String, from start: String.Index) -> (value: NativeMentionPresentation, endIndex: String.Index)? {
@@ -3738,17 +3836,24 @@ enum InlineMarkdownTokenizer {
     }
 
     private static func displayText(for text: String, embedRef: String) -> String {
-        guard text.count <= 3 else { return text }
+        let label = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let suffix = embedRef.range(of: #"-[a-zA-Z0-9]{2,4}$"#, options: .regularExpression)
+        let base = suffix.map { String(embedRef[..<$0.lowerBound]) } ?? embedRef
+        let structuredReference = embedRef.contains("-") || embedRef.contains("_") || embedRef.contains(".")
+        let technicalLabel = label.isEmpty || (structuredReference && (label == embedRef || label == base))
+            || suffix.map { label == String(embedRef[$0].dropFirst()) } == true
+        guard technicalLabel else { return text }
         if let match = embedRef.range(of: #"^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?"#, options: .regularExpression) {
             return String(embedRef[match])
         }
-        return embedRef
+        let words = base.split(whereSeparator: { $0 == "-" || $0 == "_" }).prefix(4)
+        return words.isEmpty ? "" : words.map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined(separator: " ")
     }
 
     private static func nextSpecialIndex(in source: String, from start: String.Index) -> String.Index? {
         var index = start
         while index < source.endIndex {
-            if source[index...].hasPrefix("**") || source[index] == "[" || source[index] == "`" || source[index] == "$" || source[index] == "@" {
+            if "*_\\\n[`$@".contains(source[index]) {
                 return index
             }
             index = source.index(after: index)
@@ -3756,18 +3861,18 @@ enum InlineMarkdownTokenizer {
         return nil
     }
 
-    private static func appendText(_ text: String, isBold: Bool, to tokens: inout [InlineMarkdownToken]) {
+    private static func appendText(_ text: String, isBold: Bool, isItalic: Bool = false, to tokens: inout [InlineMarkdownToken]) {
         guard !text.isEmpty else { return }
         var current = ""
         for character in text {
             current.append(character)
             if character.isWhitespace {
-                tokens.append(.text(current, isBold: isBold))
+                tokens.append(.text(current, isBold: isBold, isItalic: isItalic))
                 current = ""
             }
         }
         if !current.isEmpty {
-            tokens.append(.text(current, isBold: isBold))
+            tokens.append(.text(current, isBold: isBold, isItalic: isItalic))
         }
     }
 }
@@ -3776,6 +3881,8 @@ private struct WikiInlineChip: View {
     let displayText: String
     let wikiTitle: String
     let isBold: Bool
+    let isItalic: Bool
+    let textFont: Font
     let highlightRanges: [NSRange]
     let onTap: (EmbedRecord) -> Void
     @Environment(\.colorScheme) private var colorScheme
@@ -3788,18 +3895,12 @@ private struct WikiInlineChip: View {
             chipContent
         }
         .buttonStyle(.plain)
+        .omClickablePointer()
         .fixedSize(horizontal: false, vertical: true)
         .opacity(isHovering ? 0.82 : 1)
         .contentShape(Rectangle())
         .onHover { hovering in
             isHovering = hovering
-            #if os(macOS)
-            if hovering {
-                NSCursor.pointingHand.push()
-            } else {
-                NSCursor.pop()
-            }
-            #endif
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(displayText)
@@ -3816,8 +3917,8 @@ private struct WikiInlineChip: View {
                         .foregroundStyle(Color.fontButton)
                 }
 
-            Text(SearchTextHighlighter.highlighted(displayText, ranges: highlightRanges))
-                .font(.omP)
+            Text(InlineMarkdownTokenizer.attributedLabel(displayText, isBold: isBold, isItalic: isItalic, highlightRanges: highlightRanges))
+                .font(textFont)
                 .fontWeight(isBold ? .semibold : .medium)
                 .foregroundStyle(Color.wikiInlineText(for: colorScheme))
                 .underline(isHovering)
@@ -3835,6 +3936,8 @@ private struct EmbedInlineChip: View {
     let embed: EmbedRecord?
     let fallbackAppId: String?
     let isBold: Bool
+    let isItalic: Bool
+    let textFont: Font
     let highlightRanges: [NSRange]
     let onTap: (EmbedRecord) -> Void
     @Environment(\.colorScheme) private var colorScheme
@@ -3852,6 +3955,7 @@ private struct EmbedInlineChip: View {
                 chipContent
             }
             .buttonStyle(.plain)
+            .omClickablePointer()
             .fixedSize(horizontal: false, vertical: true)
             .opacity(isHovering ? 0.82 : 1)
             .contentShape(Rectangle())
@@ -3881,8 +3985,8 @@ private struct EmbedInlineChip: View {
                         .foregroundStyle(Color.fontButton)
                 }
 
-            Text(SearchTextHighlighter.highlighted(displayText, ranges: highlightRanges))
-                .font(.omP)
+            Text(InlineMarkdownTokenizer.attributedLabel(displayText, isBold: isBold, isItalic: isItalic, highlightRanges: highlightRanges))
+                .font(textFont)
                 .fontWeight(isBold ? .semibold : .medium)
                 .foregroundStyle(Color.wikiInlineText(for: colorScheme))
                 .underline(isHovering && embed != nil)
@@ -3891,14 +3995,6 @@ private struct EmbedInlineChip: View {
 
     private func updateHover(_ hovering: Bool, isClickable: Bool) {
         isHovering = hovering
-        #if os(macOS)
-        guard isClickable else { return }
-        if hovering {
-            NSCursor.pointingHand.push()
-        } else {
-            NSCursor.pop()
-        }
-        #endif
     }
 }
 
@@ -3907,6 +4003,8 @@ private struct MarkdownLinkChip: View {
     let urlString: String
     let isInternal: Bool
     let isBold: Bool
+    let isItalic: Bool
+    let textFont: Font
     let highlightRanges: [NSRange]
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
@@ -3922,6 +4020,7 @@ private struct MarkdownLinkChip: View {
                 chipContent
             }
             .buttonStyle(.plain)
+            .omClickablePointer()
             .fixedSize(horizontal: false, vertical: true)
             .opacity(isHovering ? 0.82 : 1)
             .contentShape(Rectangle())
@@ -3953,8 +4052,8 @@ private struct MarkdownLinkChip: View {
                     }
             }
 
-            Text(SearchTextHighlighter.highlighted(displayText, ranges: highlightRanges))
-                .font(.omP)
+            Text(InlineMarkdownTokenizer.attributedLabel(displayText, isBold: isBold, isItalic: isItalic, highlightRanges: highlightRanges))
+                .font(textFont)
                 .fontWeight(isBold ? .semibold : .medium)
                 .foregroundStyle(LinearGradient.markdownLinkText(for: colorScheme))
                 .underline(isHovering)
@@ -3963,13 +4062,6 @@ private struct MarkdownLinkChip: View {
 
     private func updateHover(_ hovering: Bool) {
         isHovering = hovering
-        #if os(macOS)
-        if hovering {
-            NSCursor.pointingHand.push()
-        } else {
-            NSCursor.pop()
-        }
-        #endif
     }
 
     private var destinationURL: URL? {
@@ -4004,11 +4096,13 @@ struct InlineMarkdownFlowMeasurements {
     }
 
     let idealSizes: [CGSize]
+    let hardBreakIndices: Set<Int>
     private var arrangements: [Proposal: Arrangement] = [:]
     private static let maximumCachedWidths = 3
 
-    init(idealSizes: [CGSize]) {
+    init(idealSizes: [CGSize], hardBreakIndices: Set<Int> = []) {
         self.idealSizes = idealSizes
+        self.hardBreakIndices = hardBreakIndices
     }
 
     mutating func arrangement(
@@ -4031,6 +4125,11 @@ struct InlineMarkdownFlowMeasurements {
         var measuredWidth: CGFloat = 0
 
         for (index, idealSize) in idealSizes.enumerated() {
+            if hardBreakIndices.contains(index) {
+                origins.append(cursor); sizes.append(.zero); proposedWidths.append(nil)
+                cursor.x = 0; cursor.y += lineHeight + lineSpacing; lineHeight = 0
+                continue
+            }
             if cursor.x > 0, cursor.x + idealSize.width > maxWidth {
                 cursor.x = 0
                 cursor.y += lineHeight + lineSpacing
@@ -4065,12 +4164,17 @@ struct InlineMarkdownFlowMeasurements {
     }
 }
 
+private struct InlineMarkdownHardBreakKey: LayoutValueKey {
+    static let defaultValue = false
+}
+
 private struct InlineMarkdownFlowLayout: Layout {
     let spacing: CGFloat
     let lineSpacing: CGFloat
 
     func makeCache(subviews: Subviews) -> InlineMarkdownFlowMeasurements {
-        InlineMarkdownFlowMeasurements(idealSizes: subviews.map { $0.sizeThatFits(.unspecified) })
+        InlineMarkdownFlowMeasurements(idealSizes: subviews.map { $0.sizeThatFits(.unspecified) },
+            hardBreakIndices: Set(subviews.indices.filter { subviews[$0][InlineMarkdownHardBreakKey.self] }))
     }
 
     func updateCache(_ cache: inout InlineMarkdownFlowMeasurements, subviews: Subviews) {
@@ -4443,17 +4547,30 @@ struct HeaderView: View {
     let text: String
     let isUserMessage: Bool
     let searchHighlightQuery: String?
+    var allEmbedRecords: [String: EmbedRecord] = [:]
+    var onEmbedTap: ((EmbedRecord) -> Void)? = nil
 
     var body: some View {
-        Text(SearchTextHighlighter.attributed(
-            text,
-            query: searchHighlightQuery,
-            foregroundColor: isUserMessage ? Color.fontPrimary : Color.grey100
-        ))
-            .font(headerFont)
-            .fontWeight(.semibold)
+        InlineMarkdownText(content: text, isUserMessage: isUserMessage,
+            allEmbedRecords: allEmbedRecords, onEmbedTap: onEmbedTap, searchHighlightQuery: searchHighlightQuery,
+            textFont: headerFont, textPointSize: headerPointSize, isHeading: true)
+            // Headings previously used platform text selection rather than the
+            // message action toolbar. Retain selection in their prose runs;
+            // references remain distinct buttons with their own destinations.
+            .environment(\.messageTextSelection, nil)
+            .environment(\.readOnlyTextSelection, true)
             .padding(.top, level <= 2 ? .spacing3 : .spacing2)
             .textSelection(.enabled)
+    }
+
+    // Native selectable fonts mirror TypographyTokens.generated.swift.
+    private var headerPointSize: CGFloat {
+        switch level {
+        case 1: return 22 // omXl
+        case 2: return 20 // omH3
+        case 3: return 17 // omLg
+        default: return 14 // omSmall
+        }
     }
 
     private var headerFont: Font {
@@ -4813,3 +4930,37 @@ private struct DemoRichCard: View {
         }
     }
 }
+
+
+#if DEBUG
+/// Synthetic parser regression state; excluded from release/TestFlight.
+struct DevAssistantMarkdownRepairFixture: View {
+    static let recommendations = """
+    ### **Opal** *(Best overall for strict focus)*
+    * **How...:** Blocks distractions during a focus session.
+    * **Best for:** Strict focus.
+
+    ### **[ScreenZen](embed:apps.apple.com-JJi)** *(Best customizable & free option)*
+    * **How...:** Customize each pause before opening an app.
+    * **Best for:** A free customizable option.
+    """
+    @State private var openedReference = ""
+    private static let references = ["apps.apple.com-JJi": "ScreenZen", "events-JJi": "Events"].mapValues { title in
+        EmbedRecord(id: title == "ScreenZen" ? "apps.apple.com-JJi" : "events-JJi", type: "website", status: .finished,
+            data: .raw(["title": AnyCodable(title), "url": AnyCodable("https://example.com/result")]),
+            parentEmbedId: nil, appId: title == "Events" ? "events" : "web", skillId: "search", embedIds: nil,
+            createdAt: "2026-01-01T00:00:00Z")
+    }
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: .spacing5) {
+                RichMarkdownView(content: Self.recommendations,
+                    isUserMessage: false, allEmbedRecords: Self.references, onEmbedTap: { openedReference = $0.id })
+                RichMarkdownView(content: "Before  \n    [Events](embed:events-JJi) after.",
+                    isUserMessage: false, allEmbedRecords: Self.references, onEmbedTap: { openedReference = $0.id })
+                Text(openedReference).accessibilityIdentifier("markdown-repair-opened-reference")
+            }.padding(.spacing5)
+        }.accessibilityIdentifier("markdown-repair-fixture")
+    }
+}
+#endif

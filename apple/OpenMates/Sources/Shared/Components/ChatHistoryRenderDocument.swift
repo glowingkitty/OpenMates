@@ -18,7 +18,7 @@
 import Foundation
 
 struct ChatHistoryRenderDocument: Codable, Equatable, Sendable {
-    static let schemaVersion = 3
+    static let schemaVersion = 4
 
     let version: Int
     let messageId: String
@@ -274,7 +274,8 @@ struct ChatHistoryInlineEntity: Codable, Equatable, Identifiable, Sendable {
             for match in expression.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
                 guard Range(match.range, in: text) != nil,
                       let displayRange = Range(match.range(at: 1), in: text) else { continue }
-                let displayText = String(text[displayRange])
+                let displayText = kind == .mention ? String(text[displayRange])
+                    : InlineMarkdownTokenizer.linkLabel(String(text[displayRange])).text
                 let target: String
                 if match.numberOfRanges > 2,
                    let targetRange = Range(match.range(at: 2), in: text) {

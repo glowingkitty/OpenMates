@@ -416,8 +416,20 @@ struct EmbedPreviewCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
                 .overlay(alignment: .bottom) {
                     if variant == .compact {
-                        statusBar
-                            .fixedSize(horizontal: false, vertical: true)
+                        if embedType == .videosVideo {
+                            // A long video title must truncate within the card.
+                            // Bind the overlay to the primary surface's width so
+                            // its intrinsic footer cannot center beyond the clip
+                            // and cut the app circle in half at the leading edge.
+                            GeometryReader { viewport in
+                                statusBar
+                                    .frame(width: viewport.size.width, height: EmbedPreviewFooterLayout.height)
+                                    .frame(maxHeight: .infinity, alignment: .bottom)
+                            }
+                        } else {
+                            statusBar
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                 }
         } else {

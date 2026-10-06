@@ -102,6 +102,7 @@ struct AppsWorkspaceView: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 223, maximum: 223), spacing: .spacing6)], spacing: .spacing6) {
                     ForEach(store.showingAll ? store.visibleApps : store.homeApps) { app in
                         AppStoreCardNative(app: app) { withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { store.selectApp(app) } }
+                            .omCardHoverFeedback()
                             .accessibilityIdentifier(store.showingAll ? "apps-all-item-\(app.id)" : "apps-app-card-\(app.id)")
                     }
                 }

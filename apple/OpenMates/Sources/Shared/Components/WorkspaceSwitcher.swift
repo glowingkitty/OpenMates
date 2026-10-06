@@ -38,6 +38,7 @@ private struct WorkspaceTabButtonStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed && !reduceMotion ? Self.pressedScale : 1)
             .animation(reduceMotion ? nil : .easeInOut(duration: Self.animationDuration),
                 value: configuration.isPressed)
+            .omClickablePointer()
     }
 }
 
@@ -300,6 +301,7 @@ struct CompactWorkspacePicker: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .omClickablePointer()
                         // The trigger is a fixed-height sibling of the options,
                         // independent of the expanding panel's decorative shape.
                         .frame(width: expanded ? panelWidth : triggerWidth, height: 44)
@@ -337,6 +339,7 @@ struct CompactWorkspacePicker: View {
                                         .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
+                                    .omClickablePointer()
                                     .accessibilityIdentifier(workspace.testId)
                                     .accessibilityLabel(workspace.label)
                                     .accessibilityAddTraits(workspace == selectedWorkspace ? .isSelected : [])

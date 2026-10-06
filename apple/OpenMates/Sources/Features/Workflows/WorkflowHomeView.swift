@@ -424,6 +424,7 @@ struct WorkflowHomeView: View {
         .accessibilityLabel(card.title)
         .accessibilityValue(card.badge)
         .accessibilityIdentifier("workflow-landing-card")
+        .omCardHoverFeedback()
     }
 
     private func cardGradient(for category: String, tall: Bool) -> LinearGradient {

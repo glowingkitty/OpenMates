@@ -267,6 +267,16 @@ final class AuthManager: ObservableObject {
         await _shared?.recoverSession(expected: expected)
     }
 
+    /// A cookie successor is only a renewal signal for the captured online
+    /// identity, never evidence for changing accounts or reviving rejected auth.
+    /// Duplicate/stale responses join the existing generation fence instead of
+    /// starting a second validation or replaying the original HTTP operation.
+    static func acceptRefreshSuccessor(_ expected: AuthSessionRecoveryContext) async {
+        guard let manager = _shared, manager.sessionValidationState == .onlineAuthenticated,
+              manager.sessionRecoveryContext == expected else { return }
+        await manager.recoverSession(expected: expected)
+    }
+
     /// All callers await one validation for the same identity. Stale HTTP 401s
     /// join their pending validation, but cannot start another after it completes.
     func recoverSession(expected: AuthSessionRecoveryContext) async {

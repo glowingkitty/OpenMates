@@ -47,7 +47,10 @@ final class NativeComposerMentionPIITests: XCTestCase {
         }
         XCTAssertEqual(mentions.map(\.syntax), ["@focus:workflows:clarify_workflows", "@skill:web:search", "@best-model:best"])
         XCTAssertTrue(tokens.contains(.inlineCode("@mate:software_development")))
-        XCTAssertTrue(tokens.contains { if case .text(let text, _) = $0 { return text.contains("@unknown:x") }; return false })
+        XCTAssertTrue(tokens.contains { token in
+            guard case .text(let text, _, _) = token else { return false }
+            return text.contains("@unknown:x")
+        })
         XCTAssertFalse(mentions.contains { $0.kind == "mate" })
     }
 

@@ -1907,12 +1907,21 @@ struct ChatView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    private static var chatHistoryUserBubbleFixtureText: String {
+        switch ProcessInfo.processInfo.environment["UI_TEST_USER_BUBBLE_VARIANT"] {
+        case "short": return "Short reply"
+        case "wrapped": return String(repeating: "A saved user paragraph wraps naturally and keeps every line at the leading edge. ", count: 4)
+        case "newlines": return "First explicit line is longer\nShort line\nThird line"
+        default: return "Synthetic user history fixture"
+        }
+    }
+
     private static let chatHistoryFullParityMessages = [
         Message(
             id: "ui-test-history-user",
             chatId: "ui-test-chat-history",
             role: .user,
-            content: "Synthetic user history fixture",
+            content: chatHistoryUserBubbleFixtureText,
             encryptedContent: nil,
             createdAt: "2026-01-01T00:00:00Z",
             updatedAt: nil,
@@ -5156,6 +5165,23 @@ struct ChatMessageRenderPresentation {
     }
 }
 
+// Web .message-align-right keeps the bubble intrinsic until its available
+// transcript lane is exhausted. Paragraphs retain their own leading alignment.
+private struct UserMessageTextLayout: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let content = subviews.first else { return .zero }
+        let ideal = content.sizeThatFits(.unspecified)
+        let available = proposal.width.flatMap { $0.isFinite ? max(0, $0) : nil } ?? ideal.width
+        let width = min(ideal.width, available)
+        return content.sizeThatFits(ProposedViewSize(width: width, height: nil))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, anchor: .topLeading,
+            proposal: ProposedViewSize(width: bounds.width, height: bounds.height))
+    }
+}
+
 struct MessageBubble: View {
     let message: Message
     let chatId: String
@@ -5496,15 +5522,17 @@ struct MessageBubble: View {
         let recordingOnly = !embeds.isEmpty && embeds.allSatisfy { EmbedType.normalized(rawValue: $0.type) == .recording }
         return VStack(alignment: .trailing, spacing: .spacing3) {
             if hasVisibleText || hasThinking {
-                RichMarkdownView(
-                    content: presentation.displayContent,
-                    renderDocument: presentation.stableRenderDocument,
-                    isUserMessage: true,
-                    allEmbedRecords: allEmbedRecords,
-                    onEmbedTap: onEmbedTap,
-                    searchHighlightQuery: searchHighlightQuery
-                )
-                    .multilineTextAlignment(.trailing)
+                UserMessageTextLayout {
+                    RichMarkdownView(
+                        content: presentation.displayContent,
+                        renderDocument: presentation.stableRenderDocument,
+                        isUserMessage: true,
+                        allEmbedRecords: allEmbedRecords,
+                        onEmbedTap: onEmbedTap,
+                        searchHighlightQuery: searchHighlightQuery
+                    )
+                    .multilineTextAlignment(.leading)
+                }
                     .foregroundStyle(Color.fontPrimary)
                     .padding(.spacing6)
                     .background(Color.greyBlue)
@@ -5515,6 +5543,8 @@ struct MessageBubble: View {
                     }
                     .searchTargetOutline(isSearchTarget)
                     .modifier(MessageActionsHoldModifier(nativeSelection: selectionContext != nil, action: onShowActions))
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("user-message-content")
             } else if !embeds.isEmpty {
                 VStack(alignment: .trailing, spacing: .spacing3) {
                     ForEach(EmbedGrouper.groupForInlineDisplay(embeds)) { group in

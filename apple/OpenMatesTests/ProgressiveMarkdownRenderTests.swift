@@ -131,7 +131,7 @@ final class ProgressiveMarkdownRenderTests: XCTestCase {
         })
         let complete = partial + ")."
         XCTAssertTrue(InlineMarkdownTokenizer.parse(complete).contains { token in
-            if case .embed(_, let id, _) = token { return id == "source-1" }; return false
+            if case .embed(_, let id, _, _) = token { return id == "source-1" }; return false
         })
         var projection = ProgressiveMarkdownRenderProjection()
         projection.update(request("Stable paragraph.\n\n" + partial))
@@ -179,7 +179,7 @@ final class ProgressiveMarkdownRenderTests: XCTestCase {
         let preparation = InlineMarkdownPreparationModel(input: input)
         XCTAssertTrue(preparation.value.customLayout)
         XCTAssertTrue(preparation.value.tokens.contains { token in
-            if case .embed(_, let id, _) = token { return id == "source-1" }; return false
+            if case .embed(_, let id, _, _) = token { return id == "source-1" }; return false
         })
         for _ in 0..<200 { preparation.update(input) }
         XCTAssertEqual(preparation.parseCount, 1)

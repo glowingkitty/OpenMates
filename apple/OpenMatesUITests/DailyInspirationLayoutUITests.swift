@@ -5,8 +5,35 @@ import XCTest
 final class DailyInspirationLayoutUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
+    func testWikipediaInspirationShowsPreviewAndOpensArticleWithoutStartingChat() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "daily-inspiration", "--dev-preview-variant", "wiki",
+            "--dev-preview-theme", "light", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let banner = element(app, "daily-inspiration-card")
+        XCTAssertTrue(banner.waitForExistence(timeout: 10))
+        let wiki = element(app, "daily-inspiration-wiki-preview")
+        XCTAssertTrue(wiki.waitForExistence(timeout: 15), "Wikipedia cards must join the real compact preview phase")
+        XCTAssertTrue(wiki.isHittable)
+        XCTAssertTrue(banner.frame.contains(wiki.frame))
+        let snapshot = XCTAttachment(screenshot: app.screenshot())
+        snapshot.name = "Wikipedia daily inspiration preview"
+        snapshot.lifetime = .keepAlways
+        add(snapshot)
+        wiki.tap()
+        XCTAssertTrue(element(app, "embed-fullscreen-header").waitForExistence(timeout: 5))
+        XCTAssertEqual(element(app, "dev-preview-local-action").label, "ready",
+            "Opening the Wikipedia preview must not start an inspiration chat")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
     func testWideInspirationKeepsPhraseSeparateAndVideoFooterVisible() {
         checkLayout(variant: "wide", expectsSideBySide: true)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
+    func testLongVideoTitleKeepsEntireAppBadgeInsidePreview() {
+        checkLayout(variant: "long-title", expectsSideBySide: true)
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
@@ -99,6 +126,29 @@ final class DailyInspirationLayoutUITests: XCTestCase {
         XCTAssertEqual(result.label, "ready")
     }
 
+    private func previewBounds(_ app: XCUIApplication, _ key: String) -> CGRect? {
+        let probe = element(app, "inspiration-preview-\(key)-bounds")
+        guard probe.exists else { return nil }
+        let values = probe.label.split(separator: ",").compactMap { Double($0) }
+        guard values.count == 4 else { return nil }
+        return CGRect(x: values[0], y: values[1], width: values[2], height: values[3])
+    }
+
+    private func assertVideoBadgeContainedInCard(_ app: XCUIApplication) {
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            (self.previewBounds(app, "card")?.width ?? 0) > 0
+                && (self.previewBounds(app, "circle")?.width ?? 0) > 0
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed)
+        guard let card = previewBounds(app, "card"), let circle = previewBounds(app, "circle") else {
+            XCTFail("Production card and badge geometry must be available")
+            return
+        }
+        XCTAssertGreaterThan(circle.width, 20, "Verify the full app circle, not only its inner glyph")
+        XCTAssertTrue(card.insetBy(dx: -1, dy: -1).contains(circle),
+            "The entire video app badge must fit inside its card: card=\(card), circle=\(circle)")
+    }
+
     private func checkLayout(variant: String, expectsSideBySide: Bool) {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "daily-inspiration", "--dev-preview-variant", variant,
@@ -110,6 +160,9 @@ final class DailyInspirationLayoutUITests: XCTestCase {
         let cta = element(app, "daily-inspiration-cta-text")
         let video = element(app, "daily-inspiration-video-preview")
         let sideBySide = expectsSideBySide && banner.frame.width > 730
+        let videoTitle = variant == "long-title"
+            ? "Mentorship in Software Engineering: Finding the Right Mentor for Your Next Project"
+            : "How to Build a Great Developer Experience"
         if !sideBySide {
             // App launch/idling may span several real production phases.
             // Observe the next phrase phase, then prove its actual transition.
@@ -136,7 +189,7 @@ final class DailyInspirationLayoutUITests: XCTestCase {
             // Existence alone previously returned for an invisible retained
             // preview. Wait for the real production phase and both AX branches.
             let previewPhase = NSPredicate { _, _ in
-                (banner.value as? String) == "How to Build a Great Developer Experience"
+                (banner.value as? String) == videoTitle
                     && video.exists && !phrase.exists && !cta.exists
             }
             expectation(for: previewPhase, evaluatedWith: banner)
@@ -148,6 +201,7 @@ final class DailyInspirationLayoutUITests: XCTestCase {
         XCTAssertTrue(footerTitle.exists)
         XCTAssertTrue(banner.frame.contains(footerTitle.frame), "Video footer title must remain inside the visible banner")
         XCTAssertTrue(banner.frame.contains(video.frame), "Entire preview must fit the banner")
+        assertVideoBadgeContainedInCard(app)
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Daily inspiration \(variant) layout"
         attachment.lifetime = .keepAlways

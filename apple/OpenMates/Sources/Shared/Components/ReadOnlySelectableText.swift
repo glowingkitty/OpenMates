@@ -84,21 +84,8 @@ struct ReadOnlySelectableText: View {
             paragraph.minimumLineHeight = lineHeight
             paragraph.maximumLineHeight = lineHeight
         }
-        #if os(iOS)
-        let base = UIFont(name: FontRegistration.mediumPostScriptName, size: pointSize)
-            ?? UIFont.systemFont(ofSize: pointSize, weight: .medium)
-        var font = monospace ? UIFont.monospacedSystemFont(ofSize: pointSize, weight: bold ? .bold : .regular) : base
-        if italic, let descriptor = font.fontDescriptor.withSymbolicTraits(.traitItalic) {
-            font = UIFont(descriptor: descriptor, size: pointSize)
-        }
+        let font = NativeMarkdownEmphasisFont.resolve(pointSize: pointSize, monospace: monospace, bold: bold, italic: italic, regularMonospace: true)
         let foreground = NativeSelectableTextColors.color(color)
-        #else
-        let base = NSFont(name: FontRegistration.mediumPostScriptName, size: pointSize)
-            ?? NSFont.systemFont(ofSize: pointSize, weight: .medium)
-        var font = monospace ? NSFont.monospacedSystemFont(ofSize: pointSize, weight: bold ? .bold : .regular) : base
-        if italic { font = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask) }
-        let foreground = NativeSelectableTextColors.color(color)
-        #endif
         let result = NSMutableAttributedString(string: plain, attributes: [
             .font: font, .foregroundColor: foreground, NativeSelectableTextColors.foregroundSource: color, .paragraphStyle: paragraph
         ])
@@ -122,16 +109,8 @@ struct ReadOnlySelectableText: View {
                 if intent.contains(.strikethrough) {
                     result.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range)
                 }
-                var styled = font
-                #if os(iOS)
-                var traits = font.fontDescriptor.symbolicTraits
-                if intent.contains(.stronglyEmphasized) { traits.insert(.traitBold) }
-                if intent.contains(.emphasized) { traits.insert(.traitItalic) }
-                if let descriptor = font.fontDescriptor.withSymbolicTraits(traits) { styled = UIFont(descriptor: descriptor, size: pointSize) }
-                #else
-                if intent.contains(.stronglyEmphasized) { styled = NSFontManager.shared.convert(styled, toHaveTrait: .boldFontMask) }
-                if intent.contains(.emphasized) { styled = NSFontManager.shared.convert(styled, toHaveTrait: .italicFontMask) }
-                #endif
+                let styled = NativeMarkdownEmphasisFont.resolve(pointSize: pointSize, monospace: monospace,
+                    bold: bold || intent.contains(.stronglyEmphasized), italic: italic || intent.contains(.emphasized), regularMonospace: true)
                 result.addAttribute(.font, value: styled, range: range)
             }
         }

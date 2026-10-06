@@ -18,6 +18,41 @@ final class ChatFlowParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
+    func testAssistantNestedMarkdownKeepsReferenceLabelsAndExplicitBreak() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "component", "--dev-preview-component", "message",
+                               "--dev-preview-variant", "markdown-nested-emphasis", "--dev-preview-theme", "light",
+                               "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let fixture = app.descendants(matching: .any)["markdown-repair-fixture"].firstMatch
+        XCTAssertTrue(fixture.waitForExistence(timeout: 10))
+        let screenZen = app.buttons["ScreenZen"]
+        XCTAssertTrue(screenZen.waitForExistence(timeout: 5))
+        XCTAssertTrue(screenZen.isHittable)
+        let opal = fixture.descendants(matching: .any).matching(NSPredicate(format: "label == %@ OR value == %@", "Opal (Best overall for strict focus)", "Opal (Best overall for strict focus)")).firstMatch
+        XCTAssertTrue(opal.exists, "The actual heading block must parse emphasis rather than render raw header text")
+        XCTAssertGreaterThanOrEqual(fixture.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "How...:", "How...:")).count, 2,
+                                    "Recommendation headings must retain their following parsed bullet rows")
+        XCTAssertEqual(fixture.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@ OR label CONTAINS %@", "embed:", "**")).count, 0,
+                       "The assistant must render emphasis and references instead of raw Markdown destinations")
+        let before = app.staticTexts["Before"]
+        let events = app.buttons["Events"]
+        XCTAssertTrue(before.exists)
+        XCTAssertTrue(events.exists)
+        XCTAssertGreaterThan(events.frame.minY, before.frame.minY + before.frame.height * 0.8,
+                             "The explicit hard break must start the inline Events reference on the next line")
+        XCTAssertEqual(events.frame.minX, before.frame.minX, accuracy: 2,
+                       "Continuation indentation must not push the inline reference away from the paragraph edge")
+        XCTAssertLessThan(events.frame.width, fixture.frame.width * 0.6,
+                          "An inline reference must hug its icon and label, not stretch across the paragraph")
+        screenZen.tap()
+        XCTAssertEqual(app.staticTexts["markdown-repair-opened-reference"].label, "apps.apple.com-JJi")
+        events.tap()
+        XCTAssertEqual(app.staticTexts["markdown-repair-opened-reference"].label, "events-JJi")
+        attachScreenshot(name: "Assistant nested Markdown and explicit Events break")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=landing-onboarding.uses-real-chat-shell,workspace-shell.nav.released-surfaces-visible
     func testUnauthenticatedColdBootShowsNewChatParitySurface() throws {
         let app = XCUIApplication()

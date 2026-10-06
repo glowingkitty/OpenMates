@@ -113,6 +113,7 @@ struct OMSettingsButtonStyle: ButtonStyle {
             .shadow(color: .black.opacity(secondary ? 0 : 0.1), radius: 4, x: 0, y: 4)
             .opacity(enabled ? 1 : 0.5)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .omClickablePointer()
     }
 }
 

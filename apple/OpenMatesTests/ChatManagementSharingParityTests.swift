@@ -6,6 +6,10 @@
 
 import CryptoKit
 import XCTest
+#if os(macOS)
+import SwiftUI
+import AppKit
+#endif
 #if os(iOS)
 import UIKit
 #endif
@@ -14,6 +18,23 @@ import UIKit
 @MainActor
 final class ChatManagementSharingParityTests: XCTestCase {
     #if os(macOS)
+    // contract-test: supporting surface=gui.apple assertions=chats.layout.responsive-history
+    func testMacRootContentRetainsCompactViewportMinimumAcrossUpdates() async throws {
+        let host = NSHostingView(rootView: Color.clear.modifier(MacWindowChromeModifier()))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        window.contentView = host
+        defer { window.contentView = nil }
+        for _ in 0..<3 {
+            host.rootView = Color.clear.modifier(MacWindowChromeModifier())
+            host.layoutSubtreeIfNeeded()
+            await Task.yield()
+            host.layoutSubtreeIfNeeded()
+            XCTAssertGreaterThanOrEqual(host.fittingSize.width, 320)
+            XCTAssertGreaterThanOrEqual(window.contentMinSize.width, 320)
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send
     func testQuickCaptureDismissesOnlyAfterSuccessfulSendAndKeepsFailedDraft() async throws {
         var resumeSend: CheckedContinuation<Void, Error>?
@@ -60,7 +81,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         XCTAssertNotEqual(MainAppQuickActionRoute.route(for: .askAboutPhoto), .focusedNewChat)
     }
 
-    // contract-test: direct surface=gui.apple assertions=workspace-shell.start.shared-affordances
+    // contract-test: supporting surface=gui.apple assertions=workspace-shell.start.shared-affordances,apple-task-board.new-task-shortcuts
     func testHomeScreenQuickActionDefinitionsMatchChatActions() {
         #if os(iOS)
         let items = AppQuickAction.shortcutItems
@@ -69,6 +90,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         XCTAssertEqual(
             typesAndTitles,
             [
+                "org.openmates.new-task|\(AppStrings.tasksNew)",
                 "org.openmates.ask|\(AppStrings.quickActionAsk)",
                 "org.openmates.record-request|\(AppStrings.quickActionRecordRequest)",
                 "org.openmates.ask-about-photo|\(AppStrings.quickActionAskAboutPhoto)",
@@ -78,15 +100,16 @@ final class ChatManagementSharingParityTests: XCTestCase {
         )
 
         XCTAssertEqual(AppQuickAction(shortcutItem: UIApplicationShortcutItem(type: "org.openmates.newchat", localizedTitle: "New Chat")), .ask)
-        XCTAssertEqual(AppQuickAction(shortcutItem: items[0]), .ask)
-        XCTAssertEqual(AppQuickAction(shortcutItem: items[1]), .recordRequest)
-        XCTAssertEqual(AppQuickAction(shortcutItem: items[2]), .askAboutPhoto)
-        XCTAssertEqual(AppQuickAction(shortcutItem: items[3]), .search)
-        XCTAssertEqual(AppQuickAction(shortcutItem: items[4]), .incognitoAsk)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[0]), .newTask)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[1]), .ask)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[2]), .recordRequest)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[3]), .askAboutPhoto)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[4]), .search)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[5]), .incognitoAsk)
         #endif
     }
 
-    // contract-test: supporting surface=gui.apple assertions=workspace-shell.start.shared-affordances
+    // contract-test: supporting surface=gui.apple assertions=workspace-shell.start.shared-affordances,apple-task-board.new-task-shortcuts
     func testInfoPlistRegistersInstallTimeHomeScreenQuickActions() throws {
         #if os(iOS)
         let bundle = Bundle(for: AppDelegate.self)
@@ -102,6 +125,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         XCTAssertEqual(
             typesAndTitles,
             [
+                "org.openmates.new-task|New task",
                 "org.openmates.ask|Ask",
                 "org.openmates.record-request|Record request",
                 "org.openmates.ask-about-photo|Ask About Photo",

@@ -6,6 +6,8 @@
 //          (top-level routing: unauthenticated → landing, authenticated → app)
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.layout.responsive-history
 
 import SwiftUI
 #if os(iOS)
@@ -122,10 +124,15 @@ extension EnvironmentValues {
 }
 #endif
 
-private struct MacWindowChromeModifier: ViewModifier {
+struct MacWindowChromeModifier: ViewModifier {
     func body(content: Content) -> some View {
         #if os(macOS)
         content
+            // SwiftUI derives its scene resize limits from the root content.
+            // Setting only NSWindow.contentMinSize can be overwritten by that
+            // scene layout after the representable's asynchronous update.
+            .frame(minWidth: MacMainWindowPolicy.minimumContentWidth,
+                   minHeight: MacMainWindowPolicy.minimumContentHeight)
             .background {
                 MacWindowChromeConfigurator()
                     .frame(width: 0, height: 0)
@@ -161,7 +168,8 @@ private struct MacWindowChromeConfigurator: NSViewRepresentable {
         window.backgroundColor = NSColor(named: "grey-0", bundle: .main) ?? .black
         // Keep regular app windows usable at the requested compact viewport.
         // This is the content minimum; AppKit accounts for window chrome.
-        window.contentMinSize = NSSize(width: 320, height: 320)
+        window.contentMinSize = NSSize(width: MacMainWindowPolicy.minimumContentWidth,
+                                       height: MacMainWindowPolicy.minimumContentHeight)
         // Product content includes selectable text and frameless editors. A
         // background window-drag region can consume their pointer gestures.
         window.isMovableByWindowBackground = false

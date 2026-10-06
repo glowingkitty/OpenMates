@@ -5,13 +5,141 @@
 // Guards message-scoped parsing from moving back into SwiftUI body evaluation.
 
 import CryptoKit
+import CoreText
 import MapKit
 import SwiftData
 import XCTest
+#if os(macOS)
+import AppKit
+#elseif os(iOS)
+import UIKit
+#endif
 @testable import OpenMates
 
 @MainActor
 final class ChatHistoryRenderDocumentTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
+    func testRecommendationHeadersUseInlineSemanticsBeforeParsedBullets() throws {
+        let source = """
+        ### **Opal** *(Best overall for strict focus)*
+        * **How...:** Blocks distractions during a focus session.
+        * **Best for:** Strict focus.
+
+        ### **[ScreenZen](embed:apps.apple.com-JJi)** *(Best customizable & free option)*
+        * **How...:** Customize each pause before opening an app.
+        * **Best for:** A free customizable option.
+        """
+        let document = try XCTUnwrap(ChatHistoryRenderDocument.build(for: presentationMessage(content: source)))
+        XCTAssertEqual(document.blocks.map(\.kind), [.heading, .unorderedList, .heading, .unorderedList])
+        XCTAssertEqual(document.blocks[0].headingLevel, 3)
+        XCTAssertEqual(InlineMarkdownTokenizer.parse(try XCTUnwrap(document.blocks[0].text)).map(\.searchText).joined(), "Opal (Best overall for strict focus)")
+        let header = InlineMarkdownPreparationModel(input: .init(content: try XCTUnwrap(document.blocks[2].text), searchHighlightQuery: "ScreenZen"))
+        XCTAssertTrue(header.value.customLayout)
+        XCTAssertEqual(header.value.tokens.map(\.searchText).joined(), "ScreenZen (Best customizable & free option)")
+        XCTAssertTrue(header.value.tokens.contains(.embed(displayText: "ScreenZen", embedRef: "apps.apple.com-JJi", isBold: true)))
+        XCTAssertTrue(header.value.highlightRanges.contains { $0.contains(NSRange(location: 0, length: 9)) })
+        XCTAssertEqual(document.blocks[2].inlineEntities.map(\.displayText), ["ScreenZen"])
+        for index in [1, 3] {
+            XCTAssertEqual(document.blocks[index].items.count, 2)
+            XCTAssertTrue(InlineMarkdownTokenizer.parse(document.blocks[index].items[0]).contains(.text("How...:", isBold: true)))
+            XCTAssertTrue(InlineMarkdownTokenizer.parse(document.blocks[index].items[1]).contains(.text("Best ", isBold: true)))
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
+    func testAssistantRecommendationEmphasisKeepsEmbedLinkInteractive() throws {
+        let source = "**Opal** *(Best overall...)*  \n**[ScreenZen](embed:apps.apple.com-JJi)** *(...)*"
+        let tokens = InlineMarkdownTokenizer.parse(source)
+        XCTAssertEqual(tokens.map(\.searchText).joined(), "Opal (Best overall...)\nScreenZen (...)")
+        XCTAssertTrue(tokens.contains(.text("Opal", isBold: true)))
+        XCTAssertTrue(tokens.contains(.text("(Best ", isBold: false, isItalic: true)))
+        XCTAssertTrue(tokens.contains(.embed(displayText: "ScreenZen", embedRef: "apps.apple.com-JJi", isBold: true)))
+        XCTAssertEqual(tokens.filter { $0 == .lineBreak }.count, 1)
+        XCTAssertFalse(tokens.map(\.searchText).joined().contains("embed:"))
+        let document = try XCTUnwrap(ChatHistoryRenderDocument.build(for: presentationMessage(content: source)))
+        XCTAssertEqual(document.version, ChatHistoryRenderDocument.schemaVersion)
+        XCTAssertEqual(document.blocks.first?.inlineEntities.map(\.displayText), ["ScreenZen"])
+        XCTAssertEqual(document.blocks.first?.inlineEntities.map(\.target), ["apps.apple.com-JJi"])
+        let restored = try JSONDecoder().decode(ChatHistoryRenderDocument.self, from: JSONEncoder().encode(document))
+        XCTAssertEqual(restored, document)
+
+        let nested = InlineMarkdownTokenizer.parse("***[ScreenZen](embed:apps.apple.com-JJi)*** and **Opal *best overall***")
+        XCTAssertTrue(nested.contains(.embed(displayText: "ScreenZen", embedRef: "apps.apple.com-JJi", isBold: true, isItalic: true)))
+        XCTAssertTrue(nested.contains(.text("overall", isBold: true, isItalic: true)))
+        XCTAssertEqual(nested.map(\.searchText).joined(), "ScreenZen and Opal best overall")
+        let groups = MessageSelectableInlineGroup.group(tokens)
+        XCTAssertTrue(groups.contains { $0.isProse && $0.tokens.contains(.text("(Best ", isBold: false, isItalic: true)) })
+        XCTAssertTrue(groups.contains { !$0.isProse && $0.tokens.first == .embed(displayText: "ScreenZen", embedRef: "apps.apple.com-JJi", isBold: true) })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
+    func testInlineHardBreaksKeepEventsReferenceOnNextLineWithoutIndent() {
+        let spaces = InlineMarkdownTokenizer.parse("Before  \n    [Events](embed:events-JJi) after.")
+        let slash = InlineMarkdownTokenizer.parse("Before\\\n    [Events](embed:events-JJi) after.")
+        XCTAssertEqual(spaces, slash)
+        XCTAssertEqual(spaces.map(\.searchText).joined(), "Before\nEvents after.")
+        XCTAssertEqual(InlineMarkdownTokenizer.parse("Before\n    [Events](embed:events-JJi)").map(\.searchText).joined(), "Before Events")
+        XCTAssertTrue(spaces.contains(.embed(displayText: "Events", embedRef: "events-JJi", isBold: false)))
+        var flow = InlineMarkdownFlowMeasurements(idealSizes: [CGSize(width: 40, height: 20), .zero, CGSize(width: 50, height: 20)], hardBreakIndices: [1])
+        let placed = flow.arrangement(width: 300, spacing: 0, lineSpacing: 2) { _, _ in XCTFail("Short inline links retain intrinsic sizing"); return .zero }
+        XCTAssertEqual(placed.origins[2], CGPoint(x: 0, y: 22))
+        XCTAssertEqual(placed.size, CGSize(width: 50, height: 42))
+        XCTAssertEqual(placed.proposedWidths, [nil, nil, nil])
+        XCTAssertEqual(flow.arrangement(width: 300, spacing: 0, lineSpacing: 2) { _, _ in .zero }, placed)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.inline-entity-interaction
+    func testNestedEmphasisPreservesAttributedSelectionAndSearchHighlight() {
+        let range = NSRange(location: 0, length: 9)
+        let attributed = InlineMarkdownTokenizer.attributedLabel("ScreenZen", isBold: true, isItalic: true, highlightRanges: [range])
+        let intent = attributed.runs.first?.inlinePresentationIntent
+        XCTAssertTrue(intent?.contains(.stronglyEmphasized) == true)
+        XCTAssertTrue(intent?.contains(.emphasized) == true)
+        XCTAssertNotNil(attributed.runs.first?.backgroundColor)
+        let native = MessageSelectableText.attributed(attributed, monospace: false, highlights: [])
+        XCTAssertEqual(native.string, "ScreenZen")
+        let readOnly = ReadOnlySelectableText.attributed(attributed)
+        XCTAssertEqual(readOnly.string, native.string)
+        // Bundled SemiBold is weight 600 (web strong); the family has no italic
+        // face, so TextKit 2 receives a resolved Core Text slant matrix instead.
+        for content in [native, readOnly] {
+            XCTAssertNotNil(content.attribute(.backgroundColor, at: 0, effectiveRange: nil))
+            #if os(macOS)
+            let font = content.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+            XCTAssertEqual(font?.fontName, NativeMarkdownEmphasisFont.semiboldPostScriptName)
+            XCTAssertEqual(font?.pointSize, 16)
+            if let font {
+                XCTAssertEqual(CTFontGetMatrix(unsafeBitCast(font, to: CTFont.self)).c, NativeMarkdownEmphasisFont.syntheticSlant, accuracy: 0.001)
+            } else { XCTFail("Missing native emphasis font") }
+            #elseif os(iOS)
+            let font = content.attribute(.font, at: 0, effectiveRange: nil) as? UIFont
+            XCTAssertEqual(font?.fontName, NativeMarkdownEmphasisFont.semiboldPostScriptName)
+            XCTAssertEqual(font?.pointSize, 16)
+            if let font {
+                XCTAssertEqual(CTFontGetMatrix(unsafeBitCast(font, to: CTFont.self)).c, NativeMarkdownEmphasisFont.syntheticSlant, accuracy: 0.001)
+            } else { XCTFail("Missing native emphasis font") }
+            #endif
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.inline-entity-interaction
+    func testEntityLabelMarkupAndMalformedEmphasisDoNotLeakDestination() throws {
+        let source = "[**ScreenZen**](embed:apps.apple.com-JJi) and [*Events*](embed:events-JJi)"
+        let tokens = InlineMarkdownTokenizer.parse(source)
+        XCTAssertTrue(tokens.contains(.embed(displayText: "ScreenZen", embedRef: "apps.apple.com-JJi", isBold: true)))
+        XCTAssertTrue(tokens.contains(.embed(displayText: "Events", embedRef: "events-JJi", isBold: false, isItalic: true)))
+        let entities = ChatHistoryInlineEntity.parse(source)
+        XCTAssertEqual(entities.map(\.displayText), ["ScreenZen", "Events"])
+        XCTAssertEqual(entities.map(\.target), ["apps.apple.com-JJi", "events-JJi"])
+        XCTAssertEqual(InlineMarkdownTokenizer.parse("**unfinished [Events](embed:events-JJi)").map(\.searchText).joined(), "**unfinished Events")
+        XCTAssertEqual(InlineMarkdownTokenizer.parse(#"\*literal\* [Events](embed:events-JJi)"#).map(\.searchText).joined(), "*literal* Events")
+        XCTAssertEqual(InlineMarkdownTokenizer.parse("[](embed:private-result-JJi)").map(\.searchText).joined(), "Private Result")
+        XCTAssertFalse(InlineMarkdownTokenizer.parse("[](embed:private-result-JJi)").map(\.searchText).joined().contains("JJi"))
+        XCTAssertTrue(InlineMarkdownTokenizer.parse("[source](embed:source)").contains(.embed(displayText: "source", embedRef: "source", isBold: false)))
+        XCTAssertTrue(InlineMarkdownTokenizer.parse("[AI](embed:technical-result-JJi)").contains(.embed(displayText: "AI", embedRef: "technical-result-JJi", isBold: false)))
+        XCTAssertEqual(InlineMarkdownTokenizer.parse("[technical-result-JJi](embed:technical-result-JJi)").map(\.searchText).joined(), "Technical Result")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testBareAssistantCodeReferenceUsesLargePreviewBeforeAndAfterHydrationExtraction() throws {
         let embedID = UUID().uuidString.lowercased()
