@@ -111,4 +111,10 @@ verification_evidence:
   route:
     source: 32dbc1abbe46725d6b5243f14fad9e6253f015ac
     request: 161d14ea435eb0176f723f0058d13e28b05763f8b6df92879a3983e0d32880ae
-    result: In flight; user waived waiting for this run before deployment.
+    result: Failed during test collection in the existing module loader; no route tests or recordings ran. The user waived this run as a deployment gate.
+    retrieval: Artifact download hit the host disk-budget limit; the GitHub failure log confirms no tests executed.
+  deployment:
+    code_commit: a9a7b128894bd8ada9ba368f4a63b30f8c4f8765
+    backend: Dev API and dependent workers refreshed together; all services healthy.
+    frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall is published.
+    connection_route: Managed Caddy update needs the operator to authenticate sudo on the dev host.
