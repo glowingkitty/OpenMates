@@ -17,6 +17,7 @@ import json
 import logging
 import re
 import time
+import traceback
 import uuid
 from typing import Any
 
@@ -111,14 +112,26 @@ class UsageLedger:
             return False
         prompt_details = usage.get("promptTokensDetails")
         response_details = usage.get("responseTokensDetails")
-        if not isinstance(prompt_details, list) or not isinstance(response_details, list):
-            raise ValueError("Gemini did not provide modality-level usage")
         prompt_tokens = int(usage.get("promptTokenCount") or 0)
         response_tokens = int(usage.get("responseTokenCount") or 0)
         tool_use_prompt_tokens = int(usage.get("toolUsePromptTokenCount") or 0)
         thoughts = int(usage.get("thoughtsTokenCount") or 0)
         if min(prompt_tokens, response_tokens, tool_use_prompt_tokens, thoughts) < 0:
             raise ValueError("Gemini reported negative usage")
+        # Proto JSON omits empty repeated fields. Tool-only turns can have no
+        # output tokens and therefore no responseTokensDetails at all. Only a
+        # zero-token side may omit its breakdown; positive usage must remain
+        # attributable to its modality before we can charge it correctly.
+        if prompt_details is None and prompt_tokens == 0:
+            prompt_details = []
+        if response_details is None and response_tokens == 0:
+            response_details = []
+        if (
+            not isinstance(prompt_details, list) or not isinstance(response_details, list)
+            or (prompt_tokens > 0 and not prompt_details)
+            or (response_tokens > 0 and not response_details)
+        ):
+            raise ValueError("Gemini did not provide modality-level usage")
         turn_modalities: dict[str, int] = {}
         turn_cost = Decimal(0)
         # Google exposes tool-use prompt tokens separately but does not state
@@ -747,7 +760,11 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         disconnected = True
         raise
     except Exception as exc:
-        logger.warning("Video call ended with %s", type(exc).__name__)
+        frames = traceback.extract_tb(exc.__traceback__)
+        origin = frames[-1] if frames else None
+        # Function/line identify the validation branch without logging the
+        # exception text, provider payload, transcript or captured media.
+        logger.warning("Video call ended with %s at %s:%s", type(exc).__name__, origin.name if origin else "unknown", origin.lineno if origin else 0)
         try:
             # Media cleanup fences background sends before this handler. A
             # connected caller must still receive the terminal call error.

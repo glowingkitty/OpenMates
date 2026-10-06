@@ -349,6 +349,76 @@ async def test_late_completed_clip_is_fenced_after_stop_hangup_or_expiry(route_h
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.experiment.billing
+def test_zero_output_tool_usage_can_omit_response_modalities() -> None:
+    ledger = call.UsageLedger()
+    ledger.stage_gemini({
+        "totalTokenCount": 100, "promptTokenCount": 100, "responseTokenCount": 0,
+        "promptTokensDetails": [{"modality": "TEXT", "tokenCount": 100}],
+    })
+    assert ledger.commit_gemini_turn()
+    assert ledger.gemini_cost == Decimal("0.000075")
+    assert ledger.response_tokens == 0
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.billing
+@pytest.mark.parametrize("details", [None, []])
+def test_positive_output_usage_still_requires_modalities(details) -> None:
+    ledger = call.UsageLedger()
+    ledger.stage_gemini({
+        "totalTokenCount": 10, "responseTokenCount": 10,
+        "responseTokensDetails": details,
+    })
+    with pytest.raises(ValueError, match="modality-level usage"):
+        ledger.commit_gemini_turn()
+    assert ledger.gemini_cost == 0
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.generated-visuals,video-call.experiment.billing
+@pytest.mark.asyncio
+async def test_tool_only_usage_does_not_cancel_an_accepted_video(route_harness, monkeypatch) -> None:
+    accepted = asyncio.Event()
+    released = asyncio.Event()
+    cancellations = []
+
+    async def submit(*args, **kwargs):
+        accepted.set()
+        return h3_turbo.FalJob("clip-1", "status", "result", "cancel")
+
+    async def complete(*args, **kwargs):
+        await released.wait()
+        return h3_turbo.FalClip(b"mp4", 1.5, 1.5, "clip-1", b"\xff\xd8x\xff\xd9")
+
+    async def cancel(*args, **kwargs):
+        cancellations.append(True)
+        return True
+
+    monkeypatch.setattr(call, "submit_clip", submit)
+    monkeypatch.setattr(call, "await_clip", complete)
+    monkeypatch.setattr(call, "cancel_clip", cancel)
+    socket = route_harness.socket()
+    task = asyncio.create_task(call.video_call(socket, auth_data={"user_id": "user-1"}))
+    try:
+        await socket.expect("ready")
+        provider = route_harness.providers[0]
+        provider.send(_visual_instruction())
+        await asyncio.wait_for(accepted.wait(), timeout=2)
+        provider.send({"serverContent": {"turnComplete": True}, "usageMetadata": {
+            "totalTokenCount": 100, "promptTokenCount": 100, "responseTokenCount": 0,
+            "promptTokensDetails": [{"modality": "TEXT", "tokenCount": 100}],
+        }})
+        await socket.expect("usage")
+        released.set()
+        await socket.expect("video.ready")
+        assert not cancellations
+        assert not any(event.get("type") == "error" for event in socket.sent)
+    finally:
+        released.set()
+        socket.send({"type": "hangup"})
+        await asyncio.wait_for(task, timeout=2)
+    assert not route_harness.redis.values
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.billing
 def test_gemini_modality_usage_bills_rebilled_context_and_text_output() -> None:
     ledger = call.UsageLedger()
     usage = {
