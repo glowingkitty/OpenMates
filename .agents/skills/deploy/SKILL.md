@@ -13,8 +13,11 @@ operations retain their specific approval boundaries.
 
 Update relevant E2E coverage and run the checks appropriate to the change, subject
 to explicit user waivers. Follow `.claude/rules/testing.md` for bounded debugging
-and isolated CI. Do not impose extra Specification/Plan/video gates on a routine
-fix; preserve explicitly required product-contract checks.
+and isolated CI. Always download, upload and link existing web/CLI E2E recordings
+in the final chat response as required by the testing rule, including failures
+and retries. Run the receipt's `codex_evidence_command`; report missing capture or
+upload failure explicitly. Extra edited/captioned proof production follows the
+accepted scope. Preserve explicitly required product-contract checks.
 
 For frontend readiness use `sessions.py wait-deploy --commit <sha>` and wait on
 the process, not a model-driven polling loop. Report the outcome, commit and
