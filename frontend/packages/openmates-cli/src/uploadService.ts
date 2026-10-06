@@ -12,6 +12,7 @@
 
 import { readFileSync } from "node:fs";
 import { basename, extname } from "node:path";
+import { sanitizeUploadBytes } from "@repo/upload-privacy";
 import type { OpenMatesSession } from "./storage.js";
 
 const UPLOAD_MAX_ATTEMPTS = 3;
@@ -165,6 +166,43 @@ function getUploadMimeType(filename: string): string {
   }
 }
 
+async function prepareUpload(fileBytes: Uint8Array, filename: string, mimeType: string): Promise<{
+  bytes: Uint8Array;
+  filename: string;
+  mimeType: string;
+}> {
+  // The sanitizer normally returns a failed result itself. Keep this boundary
+  // best effort too, so an unexpected cleanup error cannot block an upload.
+  try {
+    const result = await sanitizeUploadBytes(fileBytes, mimeType, filename);
+    if (result.status === "sanitized") {
+      return { bytes: result.bytes, filename, mimeType: result.mimeType };
+    }
+    if (result.status === "unsupported" && ["image/tiff", "image/heic", "image/heif", "image/bmp"].includes(result.mimeType)) {
+      try {
+        const { default: sharp } = await import("sharp");
+        const image = sharp(fileBytes);
+        const metadata = await image.metadata();
+        if ((metadata.pages ?? 1) !== 1) throw new Error("Multiple image pages");
+        // Re-encoding removes embedded metadata. Rotate first so EXIF orientation
+        // is reflected in the pixels before the source metadata is discarded.
+        const bytes = await image.rotate().png().toBuffer();
+        if (bytes.byteLength && bytes.byteLength <= 100 * 1024 * 1024) {
+          return { bytes, filename, mimeType: "image/png" };
+        }
+      } catch {
+        // Decoder support varies by platform. Preserve upload availability.
+      }
+    }
+    console.error("Warning: Could not remove embedded file metadata; uploading the original file.");
+    return { bytes: fileBytes, filename, mimeType: result.mimeType };
+  } catch {
+    // Use the original bytes below, without exposing the local path or error.
+  }
+  console.error("Warning: Could not remove embedded file metadata; uploading the original file.");
+  return { bytes: fileBytes, filename, mimeType };
+}
+
 // ── Upload function ────────────────────────────────────────────────────
 
 /**
@@ -186,6 +224,7 @@ export async function uploadFile(
 ): Promise<UploadFileResponse> {
   const filename = basename(filePath);
   const fileBytes = readFileSync(filePath);
+  const prepared = await prepareUpload(fileBytes, filename, getUploadMimeType(filename));
 
   const uploadUrl = `${getUploadUrl(session.apiUrl)}/v1/upload/file`;
   const origin = getUploadOrigin(session.apiUrl);
@@ -203,9 +242,9 @@ export async function uploadFile(
     try {
       // Build multipart form data for each attempt because request bodies may
       // be consumed even when the transport fails.
-      const blob = new Blob([fileBytes], { type: getUploadMimeType(filename) });
+      const blob = new Blob([Buffer.from(prepared.bytes)], { type: prepared.mimeType });
       const formData = new FormData();
-      formData.append("file", blob, filename);
+      formData.append("file", blob, prepared.filename);
 
       response = await fetch(uploadUrl, {
         method: "POST",
@@ -379,6 +418,7 @@ async function uploadProfileImageForm(
   if (fileBytes.byteLength > PROFILE_IMAGE_MAX_SIZE_BYTES) {
     throw new Error("Profile image must be 300 KB or smaller. Resize/compress the image and try again.");
   }
+  const prepared = await prepareUpload(fileBytes, filename, contentType);
   const uploadUrl = `${getUploadUrl(session.apiUrl)}${uploadPath}`;
   const origin = getUploadOrigin(session.apiUrl);
 
@@ -391,7 +431,7 @@ async function uploadProfileImageForm(
   for (const [key, value] of Object.entries(fields)) {
     formData.append(key, value);
   }
-  formData.append("file", new Blob([fileBytes], { type: contentType }), filename);
+  formData.append("file", new Blob([Buffer.from(prepared.bytes)], { type: prepared.mimeType }), prepared.filename);
   const response = await fetch(uploadUrl, {
     method: "POST",
     body: formData,

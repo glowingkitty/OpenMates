@@ -170,7 +170,8 @@
     "tweetnacl": "^1.0.3",
     "uuid": "^13.0.1",
     "vite": "^7.3.6",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "@repo/upload-privacy": "workspace:*"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

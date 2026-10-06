@@ -7,7 +7,10 @@
 import { webcrypto } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../config/api", () => ({ getApiEndpoint: (path: string) => `https://api.test${path}` }));
+vi.mock("../../config/api", () => ({
+  getApiEndpoint: (path: string) => `https://api.test${path}`,
+  storageArchiveFetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
+}));
 vi.mock("../cryptoService", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../cryptoService")>()),
   wrapEmbedKeyWithMasterKey: vi.fn(async () => "owner-wrapped-key"),
@@ -111,6 +114,19 @@ describe("Project root README upload", () => {
     await uploadFileToProject(project, new File([mindMap], "plan.ommindmap", { type: "application/json" }), {}, { folderId: "folder-1" });
 
     expect(bodies).toHaveLength(3);
+    const uploaded = bodies[0] as {
+      embed: { encrypted_content: string; encrypted_text_preview: string };
+      embed_keys: Array<{ key_type: string; encrypted_embed_key: string }>;
+      item: { encrypted_display_name: string };
+    };
+    expect(await decryptWithEmbedKey(uploaded.item.encrypted_display_name, projectKey)).toBe("diagram.png");
+    const projectWrap = uploaded.embed_keys.find((key) => key.key_type === "project");
+    expect(projectWrap).toBeDefined();
+    const embedKey = await unwrapEmbedKeyWithChatKey(projectWrap!.encrypted_embed_key, projectKey);
+    expect(embedKey).not.toBeNull();
+    expect(await decryptWithEmbedKey(uploaded.embed.encrypted_text_preview, embedKey!)).toBe("diagram.png");
+    const embedContent = await decryptWithEmbedKey(uploaded.embed.encrypted_content, embedKey!);
+    expect(JSON.parse(embedContent ?? "{}").filename).toBe("diagram.png");
     for (const body of bodies) {
       const savedItem = body.item as { folder_id: string; encrypted_metadata: string };
       expect(savedItem.folder_id).toBe("folder-1");

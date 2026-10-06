@@ -76,6 +76,27 @@ graph TB
 
 Client sends multipart POST to `/api/uploads/v1/upload/file`. Processing steps:
 
+Before sending, web, CLI and TUI run `@repo/upload-privacy` locally. Supported
+image containers lose EXIF/GPS, XMP/IPTC, comments and private chunks; rendering
+instructions such as orientation and animation remain. PDFs are rewritten with
+document properties, XMP and unreachable metadata objects removed, preserving
+pages and selectable text. Audio containers lose identifying tags while keeping
+encoded audio. Office/EPUB/ZIP preparation removes supported author/date properties,
+archive comments and timestamps, and cleans supported embedded images. Chat Office
+documents are already converted locally to content embeds rather than uploaded raw.
+
+The upload boundary covers chat and Project uploads. Avatars use local canvas
+re-encoding or upload preparation; issue screenshots use local preparation.
+Filenames and folder paths retain their existing behavior in uploads, processing
+requests and client records. Cleanup targets embedded properties rather than
+file identity. CLI retries reuse prepared bytes instead of re-reading the original.
+
+Cleanup is deliberately best effort: unsupported variants, encrypted/signed
+documents and parser failures retain the original bytes so a valid upload can
+continue. Cleanup failures use generic diagnostics that exclude file contents,
+properties and local paths. This does not guarantee removal of every possible
+metadata field, embedded format or information visible in the content itself.
+
 1. **Auth** -- session cookie validated via core API `/internal/validate-token`
 2. **Validation** -- 100 MB max, MIME whitelist
 3. **Dedup** -- per-user SHA-256 hash check via core API proxy (instant return on match)

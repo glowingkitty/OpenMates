@@ -1,0 +1,33 @@
+schema_version: 2
+profile: concise
+id: client-upload-metadata-privacy
+title: Remove embedded file metadata before client uploads
+status: implementing
+goal: >
+  Double check / ensure we remove all metadata client side before uploading an
+  image to our server for processing - both for the web app, cli, tui. And same
+  with other file metadata. Since our software is privacy focused and must
+  therefore prioritize protecting users privacy. It shouldn’t fail upload, but
+  we must ensure we give our best to remove the metadata and test the flow properly.
+  File name is the one info we can’t allow to remove; we still need the file name
+  and, if used, folder path. Other metadata, especially image geo coordinates
+  and camera model, must be removed.
+scope:
+  in:
+    - Best-effort local embedded metadata sanitization at web and CLI/TUI upload boundaries.
+    - Image, PDF, audio, Office and EPUB upload metadata; avatars and issue screenshots.
+    - Preserve filenames and folder paths wherever they are used.
+    - Preserve upload success and original content when cleanup is unsupported or fails.
+  out:
+    - Rewriting existing server files or Apple clients.
+    - Removing identifying information deliberately present in visible or audible content.
+    - Rasterizing PDFs or transcoding audio with loss of original content or functionality.
+decisions:
+  - User explicitly requires cleanup failure never to block a valid upload.
+  - User explicitly requires original filenames and any used folder paths to remain available.
+  - No claim of complete metadata removal for unsupported or malformed formats.
+verification:
+  required:
+    - Focused shared sanitizer and upload transport unit checks.
+    - Web and CLI/TUI outgoing payload assertions in isolated GitHub CI.
+    - Successful upload fallback and original source preservation assertions.

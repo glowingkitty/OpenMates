@@ -5,6 +5,7 @@
       "execution": "e2e",
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts.",
       "specs": [
+        "upload-metadata-privacy.spec.ts",
         "cli-privacy.spec.ts",
         "a11y-keyboard-nav.spec.ts",
         "a11y-modal-dialogs.spec.ts",
