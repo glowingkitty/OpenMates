@@ -33,7 +33,9 @@ STORAGE_CAPACITY_SPECS = frozenset({
     "storage-capacity-calibration.spec.ts",
     "storage-message-embed-bundle.spec.ts",
     "storage-team-portability.spec.ts",
+    "storage-archive-lifecycle.spec.ts",
     "storage-capacity-target.spec.ts",
+    "storage-capacity-target-smoke.spec.ts",
     "storage-recovery-replay.spec.ts",
     "storage-recovery-canonical-receipts.spec.ts",
     "storage-detached-producer.spec.ts",
@@ -47,6 +49,7 @@ BILLING_STORAGE_PROFILES = {
 CAPACITY_WORKLOAD_SPECS = frozenset({
     "storage-capacity-replay.spec.ts", "storage-capacity-calibration.spec.ts",
     "storage-capacity-target.spec.ts",
+    "storage-capacity-target-smoke.spec.ts",
 })
 SOURCE = os.environ.get(
     "OPENMATES_CI_SOURCE_ROOT", str(Path(__file__).resolve().parent.parent)
@@ -558,6 +561,7 @@ def compose_profile(
     storage_accountability: bool = False,
     capacity_concurrency: int = 2,
     capacity_target: bool = False,
+    capacity_run_id: str | None = None,
     billing_profile: str | None = None,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
@@ -639,6 +643,10 @@ def compose_profile(
         common.update(OPENMATES_CI_ISOLATED="1", OPENMATES_STORAGE_CAPACITY_FIXTURES="true",
                       OPENMATES_CAPACITY_RECEIPT_ROOT="/app/capacity-receipts",
                       CHAT_MESSAGE_ARCHIVE_COPY_ENABLED="1", CHAT_MESSAGE_ARCHIVE_READS_ENABLED="1")
+        if capacity_run_id is not None:
+            if not re.fullmatch(r"[1-9][0-9]{0,19}:[1-9][0-9]{0,5}", capacity_run_id):
+                raise ValueError("Capacity run identity invalid")
+            common["OPENMATES_CAPACITY_RUN_ID"] = capacity_run_id
     team_billing_flag = None
     if storage_capacity and has_team_storage_billing_schema(SOURCE):
         team_billing_flag = "0" if billing_profile == "legacy" else "1"
@@ -1215,26 +1223,37 @@ def main():
         if storage_accountability and selected != [ACCOUNTABILITY_SPEC]:
             raise RuntimeError("Storage accountability requires its exact standalone selector")
         capacity_target = "storage-capacity-target.spec.ts" in selected
+        target_smoke = "storage-capacity-target-smoke.spec.ts" in selected
+        full_target = capacity_target
         capacity_calibration = "storage-capacity-calibration.spec.ts" in selected
         if capacity_calibration and selected != ["storage-capacity-calibration.spec.ts"]:
             raise RuntimeError("Capacity calibration requires its exact standalone selector")
+        if (capacity_target or target_smoke) and (len(selected) != 1):
+            raise RuntimeError("Capacity target and target smoke require separate isolated batches")
         if capacity_target and "storage-capacity-replay.spec.ts" in selected:
             raise RuntimeError("Capacity pilot and target require separate isolated batches")
-        target_admission = require_target_admission(source) if capacity_target else None
-        requested_capacity_slots = int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if capacity_target else "4" if capacity_calibration else "2"))
+        target_admission = require_target_admission(source) if full_target else None
+        requested_capacity_slots = int(os.environ.get(
+            "CI_STORAGE_CAPACITY_TARGET_SMOKE_CONCURRENCY", "2")) if target_smoke else int(os.environ.get(
+                "CI_STORAGE_CAPACITY_CONCURRENCY", "500" if full_target else "4" if capacity_calibration else "2"))
         if capacity_calibration and requested_capacity_slots != 4:
             raise RuntimeError("Capacity calibration requires exactly four worker slots")
-        if capacity_target and requested_capacity_slots != TARGET_SLOTS:
+        if full_target and requested_capacity_slots != TARGET_SLOTS:
             raise RuntimeError("Full capacity target must request exactly 500 worker slots")
-        if not capacity_target and storage_capacity and not 1 <= requested_capacity_slots <= 4:
+        if not full_target and storage_capacity and not 1 <= requested_capacity_slots <= 4:
             raise RuntimeError("Pilot/recovery capacity profile supports only 1..4 worker slots")
         capacity_workload = bool(CAPACITY_WORKLOAD_SPECS.intersection(selected))
-        capacity_users = int(os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if capacity_target else "8" if capacity_calibration else "2")) if capacity_workload else 0
+        capacity_users = (int(os.environ.get("CI_STORAGE_CAPACITY_TARGET_SMOKE_USERS", "2")) if target_smoke
+                          else int(os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if full_target else "8" if capacity_calibration else "2"))) if capacity_workload else 0
+        if target_smoke and not 1 <= capacity_users <= 8:
+            raise RuntimeError("Target-path smoke supports only 1..8 disposable users")
+        if target_smoke and requested_capacity_slots > capacity_users:
+            raise RuntimeError("Target-path smoke slots exceed disposable users")
         if capacity_calibration and capacity_users != 8:
             raise RuntimeError("Capacity calibration requires exactly eight disposable users")
         if capacity_workload and not 1 <= capacity_users <= 1000:
             raise RuntimeError("Capacity user count must be 1..1000")
-        account_count = 0 if storage_accountability else 2 * len(selected) + capacity_users
+        account_count = 0 if storage_accountability else capacity_users if target_smoke else 2 * len(selected) + capacity_users
         account_emails = [] if offline_preview else [f"ci-{secrets.token_hex(16)}@example.com" for _ in range(account_count)]
         storage_specs = set(manifest["groups"].get("object_storage", {}).get("specs", []))
         upload_specs = set(manifest["groups"].get("uploads", {}).get("specs", []))
@@ -1251,7 +1270,9 @@ def main():
             for relative in ("backend/core/api/app/services/s3/service.py", "backend/upload/services/s3_upload.py"):
                 if "S3_ENDPOINT_URL" not in (Path(SOURCE) / relative).read_text():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=capacity_target, billing_profile=billing_profile)
+        capacity_run_id = (f"{os.environ['GITHUB_RUN_ID']}:{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+                           if capacity_target or target_smoke else None)
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile)
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")

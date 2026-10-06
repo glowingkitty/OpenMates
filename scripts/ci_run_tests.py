@@ -14,6 +14,7 @@ import hmac
 import re
 import ast
 import hashlib
+import importlib.util
 import os
 from pathlib import Path
 import secrets
@@ -47,6 +48,7 @@ CAPACITY_EPOCH_SPECS = frozenset({
     "storage-capacity-calibration.spec.ts",
     "storage-message-embed-bundle.spec.ts",
     "storage-capacity-target.spec.ts",
+    "storage-capacity-target-smoke.spec.ts",
     "storage-recovery-replay.spec.ts",
     "storage-recovery-canonical-receipts.spec.ts",
     "storage-detached-producer.spec.ts",
@@ -54,10 +56,12 @@ CAPACITY_EPOCH_SPECS = frozenset({
 })
 CAPACITY_WORKLOAD_SPECS = frozenset({
     "storage-capacity-replay.spec.ts", "storage-capacity-calibration.spec.ts",
-    "storage-capacity-target.spec.ts",
+    "storage-capacity-target.spec.ts", "storage-capacity-target-smoke.spec.ts",
 })
+TARGET_SMOKE_SPEC = "storage-capacity-target-smoke.spec.ts"
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 TEAM_PORTABILITY_SPEC = "storage-team-portability.spec.ts"
+ARCHIVE_LIFECYCLE_SPEC = "storage-archive-lifecycle.spec.ts"
 MARKER_CHAT_EPOCH_SPECS = frozenset({
     "maps-discovery-chat.spec.ts",
     "audio-recording-deferred-send.spec.ts",
@@ -67,6 +71,16 @@ BILLING_STORAGE_PROFILES = {
     "billing-storage-legacy.spec.ts": "legacy",
     "billing-storage-logical.spec.ts": "logical",
 }
+
+
+def capacity_selector_environment(name: str) -> dict[str, str]:
+    if name not in CAPACITY_EPOCH_SPECS:
+        return {}
+    return {
+        "E2E_STORAGE_CAPACITY": "1",
+        "E2E_STORAGE_CAPACITY_TARGET": "1" if name == "storage-capacity-target.spec.ts" else "0",
+        "E2E_STORAGE_CAPACITY_TARGET_SMOKE": "1" if name == TARGET_SMOKE_SPEC else "0",
+    }
 
 VITEST_TARGET_ROOTS = {
     "ui": ("frontend", "packages", "ui", "src"),
@@ -1179,11 +1193,15 @@ def run_e2e(
     if not specs:
         raise ValueError("An explicit nonempty spec batch is required")
     accountability_only = specs == [ACCOUNTABILITY_SPEC] and not (artifact or component or visual_smoke)
-    node_probe_only = accountability_only or specs == [TEAM_PORTABILITY_SPEC]
+    node_probe_only = accountability_only or specs in ([TEAM_PORTABILITY_SPEC], [ARCHIVE_LIFECYCLE_SPEC], [TARGET_SMOKE_SPEC])
     if TEAM_PORTABILITY_SPEC in specs and specs != [TEAM_PORTABILITY_SPEC]:
         raise ValueError("Team portability requires its exact standalone E2E selector")
     if ACCOUNTABILITY_SPEC in specs and not accountability_only:
         raise ValueError("Accountability probe requires its exact standalone E2E selector")
+    if ARCHIVE_LIFECYCLE_SPEC in specs and specs != [ARCHIVE_LIFECYCLE_SPEC]:
+        raise ValueError("Archive lifecycle requires its exact standalone E2E selector")
+    if TARGET_SMOKE_SPEC in specs and specs != [TARGET_SMOKE_SPEC]:
+        raise ValueError("Target-path smoke requires its exact standalone E2E selector")
     if visual_smoke:
         from ci_visual_smoke import validate_targets
         validate_targets(specs)
@@ -1260,10 +1278,8 @@ def run_e2e(
                         env["OPENMATES_CI_MAILPIT_URL"] = "http://127.0.0.1:8025"
                         env["OPENMATES_CI_MAIL_TEST_ADDRESS"] = "ci-inbox@example.com"
                         env["SIGNUP_TEST_EMAIL_DOMAINS"] = profile["services"]["api"]["environment"]["SIGNUP_TEST_EMAIL_DOMAINS"]
-                if name in CAPACITY_EPOCH_SPECS:
-                    env["E2E_STORAGE_CAPACITY"] = "1"
-                    env["E2E_STORAGE_CAPACITY_TARGET"] = "1" if name == "storage-capacity-target.spec.ts" else "0"
-                if name == TEAM_PORTABILITY_SPEC:
+                env.update(capacity_selector_environment(name))
+                if name in {TEAM_PORTABILITY_SPEC, ARCHIVE_LIFECYCLE_SPEC}:
                     env["E2E_STORAGE_CAPACITY"] = "1"
                     env["E2E_STORAGE_TEAM_COMPOSE_FILE"] = str(COMPOSE_PATH)
                     env["E2E_STORAGE_TEAM_SOURCE_COMMIT"] = json.loads(
@@ -1275,12 +1291,16 @@ def run_e2e(
                         COMPOSE_PATH.read_text()
                     )["services"]["api"]["environment"]["BUILD_COMMIT_SHA"]
                 local_signup_assertion = not (component or artifact) and name == "signup-skip-2fa-flow.spec.ts" and "mailpit" in profile["services"]
-                account_free = component or artifact or name in {ACCOUNTABILITY_SPEC, TEAM_PORTABILITY_SPEC} or (
+                account_free = component or artifact or name in {ACCOUNTABILITY_SPEC, TEAM_PORTABILITY_SPEC, ARCHIVE_LIFECYCLE_SPEC, TARGET_SMOKE_SPEC} or (
                     "// playwright-account: not_required reason=isolated_component_preview"
                     in source
                 )
                 if name == ACCOUNTABILITY_SPEC:
                     env.update(prepare_storage_accountability_selector())
+                if name == TARGET_SMOKE_SPEC:
+                    run_isolated_legacy_claim_probe()
+                    capacity_epoch_receipt = activate_isolated_recovery_epoch()
+                    recovery_epoch_receipt = capacity_epoch_receipt
                 if not account_free:
                     primary = provision_account(14, identity_index=2 * index)
                     if "OPENMATES_TEST_ACCOUNT_API_KEY" in source and not local_signup_assertion:
@@ -1424,8 +1444,9 @@ def run_e2e(
                         spec_result["diagnostic_error"] = str(exc)
                 if name in CAPACITY_WORKLOAD_SPECS and spec_result["exit_code"] == 0:
                     try:
-                        results.append(run_storage_capacity(identity_start=2 * len(specs),
+                        results.append(run_storage_capacity(identity_start=0 if name == TARGET_SMOKE_SPEC else 2 * len(specs),
                                                             full=name == "storage-capacity-target.spec.ts",
+                                                            target_smoke=name == TARGET_SMOKE_SPEC,
                                                             calibration=name == "storage-capacity-calibration.spec.ts"))
                     except Exception as exc:
                         results.append({"suite": "storage-capacity", "exit_code": 1,
@@ -1660,7 +1681,21 @@ def verify_capacity_admission(full: bool, environment: dict) -> None:
         raise RuntimeError("Full capacity target lacks measured 500-slot isolated admission")
 
 
-def run_storage_capacity(*, identity_start: int, full: bool, calibration: bool = False) -> dict:
+def load_subject_capacity_target():
+    """Load the reconstructed subject module, never a pinned tooling package."""
+    source = ROOT / "backend/shared/testing/capacity_target.py"
+    if source.is_symlink() or not source.is_file() or not source.resolve().is_relative_to(ROOT.resolve()):
+        raise RuntimeError("Capacity target subject source unavailable")
+    spec = importlib.util.spec_from_file_location("openmates_ci_subject_capacity_target", source)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Capacity target subject source cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def run_storage_capacity(*, identity_start: int, full: bool, calibration: bool = False,
+                         target_smoke: bool = False) -> dict:
     """Run a small pilot or explicit full target on the disposable isolated stack."""
     private = RESULTS / "ci-private"
     version_adapter = ROOT / "scripts/storage_capacity_version_adapter.mjs"
@@ -1706,20 +1741,52 @@ def run_storage_capacity(*, identity_start: int, full: bool, calibration: bool =
     capacity = environment.get("storage_capacity") or {}
     if capacity.get("provider_network") != "internal" or capacity.get("provider_credentials") != "absent":
         raise RuntimeError("Capacity run lacks independent zero-inference network proof")
-    users = int(os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if full else "8" if calibration else "2"))
-    concurrency = int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if full else "4" if calibration else "2"))
+    if full and target_smoke:
+        raise RuntimeError("Full capacity target and target smoke are distinct selectors")
+    target_mode = full or target_smoke
+    users = int(os.environ.get("CI_STORAGE_CAPACITY_TARGET_SMOKE_USERS", "2")) if target_smoke else int(
+        os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if full else "8" if calibration else "2"))
+    concurrency = int(os.environ.get("CI_STORAGE_CAPACITY_TARGET_SMOKE_CONCURRENCY", "2")) if target_smoke else int(
+        os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if full else "4" if calibration else "2"))
     if calibration and (full or users != 8 or concurrency != 4):
         raise RuntimeError("Capacity calibration requires exact eight-user, four-slot pilot")
     if full and (users != 1000 or concurrency != 500):
         raise RuntimeError("Full capacity mode requires 1000 users and 500 worker slots")
+    if target_smoke and (not 1 <= users <= 8 or not 1 <= concurrency <= min(users, 4)):
+        raise RuntimeError("Target-path smoke dimensions exceed bounded CI scope")
+    if target_smoke and capacity.get("worker_slots") != concurrency:
+        raise RuntimeError("Target-path smoke lacks its declared isolated worker slots")
     verify_capacity_admission(full, environment)
     profile = os.environ.get("CI_STORAGE_CAPACITY_PROFILE", "accelerated")
     if profile not in {"accelerated", "burst", "sustained"}:
         raise RuntimeError("Unsupported capacity rate profile")
     states = []
+    target_owners = {}
+    target_profile = json.loads(COMPOSE_PATH.read_text()) if target_mode else None
+    target_cms_token = cms_admin_token(target_profile) if target_mode else None
     for index in range(users):
         account = provision_account(100 + index, identity_index=identity_start + index, cli_slot=14)
         states.append({"state_dir": account["OPENMATES_STATE_DIR"], "allowlisted": True})
+        if target_mode:
+            email = account.get("OPENMATES_TEST_ACCOUNT_EMAIL", "")
+            if not isinstance(email, str) or not email.startswith("ci-") or not email.endswith("@example.com"):
+                raise RuntimeError("Capacity target account identity unavailable")
+            hashed = base64.b64encode(hashlib.sha256(email.strip().lower().encode()).digest()).decode()
+            query = urllib.parse.urlencode({"filter[hashed_email][_eq]": hashed,
+                                           "fields": "id,email,hashed_email", "limit": "2"})
+            matches = request("http://localhost:8055/users?" + query, token=target_cms_token).get("data", [])
+            if (len(matches) != 1 or matches[0].get("hashed_email") != hashed
+                    or matches[0].get("email") != hashed[:64] + "@example.com"):
+                raise RuntimeError("Capacity target account did not resolve uniquely")
+            owner = matches[0].get("id")
+            try:
+                if str(uuid.UUID(owner, version=4)) != owner:
+                    raise ValueError("noncanonical UUID")
+            except (ValueError, TypeError, AttributeError) as exc:
+                raise RuntimeError("Capacity target account ID invalid") from exc
+            if owner in target_owners:
+                raise RuntimeError("Capacity target account was reused")
+            target_owners[owner] = index
     states_path = private / "capacity-states.json"
     states_path.write_text(json.dumps(states), encoding="utf-8")
     states_path.chmod(0o600)
@@ -1735,7 +1802,7 @@ def run_storage_capacity(*, identity_start: int, full: bool, calibration: bool =
         if not 1 <= duration <= 86400:
             raise RuntimeError("Capacity paced duration must be 1..86400 seconds")
         plan_cmd.extend(["--duration-seconds", str(duration)])
-    if not full:
+    if not target_mode:
         pilot_rounds = int(os.environ.get("CI_STORAGE_CAPACITY_PILOT_ROUNDS", "30"))
         if calibration and pilot_rounds != 30:
             raise RuntimeError("Capacity calibration requires 30 replay rounds per user")
@@ -1744,7 +1811,38 @@ def run_storage_capacity(*, identity_start: int, full: bool, calibration: bool =
         pilot_artifacts = min(pilot_rounds, 4)
         plan_cmd.extend(["--rounds", str(pilot_rounds), "--embeds", str(pilot_artifacts),
                          "--versions", str(pilot_artifacts), "--round-bytes", "20000", "--pilot"])
+    elif target_smoke:
+        smoke_rounds = int(os.environ.get("CI_STORAGE_CAPACITY_TARGET_SMOKE_ROUNDS", "3"))
+        smoke_versions = int(os.environ.get("CI_STORAGE_CAPACITY_TARGET_SMOKE_VERSIONS", "3"))
+        if not 2 <= smoke_rounds <= 10 or not 1 <= smoke_versions <= 10:
+            raise RuntimeError("Target-path smoke workload exceeds bounded CI scope")
+        plan_cmd.extend(["--rounds", str(smoke_rounds), "--embeds", str(min(smoke_rounds, 4)),
+                         "--versions", str(smoke_versions), "--target-smoke"])
     subprocess.run(plan_cmd, cwd=ROOT, check=True, capture_output=True, text=True)
+    if target_mode:
+        capacity_target = load_subject_capacity_target()
+        plan = json.loads(plan_path.read_text())
+        environment = target_profile["services"]["api"]["environment"]
+        run_id = environment.get("OPENMATES_CAPACITY_RUN_ID")
+        expected_run_id = f"{os.environ['GITHUB_RUN_ID']}:{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+        if run_id != expected_run_id:
+            raise RuntimeError("Capacity target descriptor run identity unavailable")
+        descriptor = capacity_target.sign_descriptor(
+            plan, target_owners, environment["BUILD_COMMIT_SHA"], run_id,
+            secret=environment["DRAGONFLY_PASSWORD"].encode(), ttl=capacity_target.MAX_TTL,
+        )
+        # The isolated runner installs the signed descriptor directly into its
+        # private cache. The API exposes no registration endpoint.
+        command = ["docker", "compose", "-f", str(COMPOSE_PATH), "exec", "-T",
+                   "-e", "REDISCLI_AUTH", "cache", "redis-cli", "-x", "EVAL",
+                   "return redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[1])",
+                   "1", capacity_target.CACHE_KEY, str(capacity_target.MAX_TTL)]
+        installed = subprocess.run(command, cwd=ROOT, env={**os.environ,
+                                   "REDISCLI_AUTH": environment["DRAGONFLY_PASSWORD"]},
+                                   input=json.dumps(descriptor, separators=(",", ":")),
+                                   text=True, capture_output=True, timeout=30)
+        if installed.returncode or installed.stdout.strip() != "OK":
+            raise RuntimeError("Capacity target descriptor installation failed")
     run_env = {**os.environ,
                "OPENMATES_CAPACITY_STATES_JSON": str(states_path),
                "OPENMATES_CAPACITY_VERSION_ADAPTER": str(version_adapter),
@@ -1771,13 +1869,18 @@ def run_storage_capacity(*, identity_start: int, full: bool, calibration: bool =
         report["passed"] = False
         report["target_achieved"] = False
         report.setdefault("failures", []).append("raw object-store operation counters unavailable")
+    report["target_achieved"] = bool(
+        full and result.returncode == 0 and report.get("passed") is True
+        and report.get("workload_target_met") is True
+        and report["infrastructure"].get("object_store_operations") is not None
+    )
     report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     if calibration:
         _write_capacity_calibration_receipt(
             environment, report, report_path, calibration_before, calibration_after,
             succeeded=result.returncode == 0,
         )
-    return {"suite": "storage-capacity-target" if full else "storage-capacity-pilot",
+    return {"suite": "storage-capacity-target-smoke" if target_smoke else "storage-capacity-target" if full else "storage-capacity-pilot",
             "exit_code": 0 if result.returncode == 0 and report.get("passed") else 1, "report": report}
 
 

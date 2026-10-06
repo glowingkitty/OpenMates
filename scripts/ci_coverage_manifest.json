@@ -494,6 +494,7 @@
         "storage-message-embed-bundle.spec.ts",
         "storage-team-portability.spec.ts",
         "storage-capacity-target.spec.ts",
+        "storage-capacity-target-smoke.spec.ts",
         "storage-recovery-replay.spec.ts",
         "storage-recovery-canonical-receipts.spec.ts",
         "storage-detached-producer.spec.ts",
@@ -579,6 +580,13 @@
       "specs": [
         "billing-storage-legacy.spec.ts",
         "billing-storage-logical.spec.ts"
+      ]
+    },
+    "storage_archive_lifecycle": {
+      "execution": "e2e",
+      "enabling_work": "Standalone account-free, zero-inference encrypted archive lifecycle: genuine isolated PostgreSQL and S3 plus client AES-GCM ciphertext round-trip and exact decryption after safe pruning. Uses the existing isolated storage profile; no capacity workload, providers or shared dev endpoints.",
+      "specs": [
+        "storage-archive-lifecycle.spec.ts"
       ]
     }
   },

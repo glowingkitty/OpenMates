@@ -745,3 +745,47 @@ def test_capacity_archive_eligibility_proof_is_readonly_and_all_runtime_sources_
         assert service["environment"]["BUILD_COMMIT_SHA"] == source
         assert any(isinstance(mount, str) and mount.endswith("/storage-isolation:/app/ci-storage-isolation:ro")
                    for mount in service["volumes"])
+
+
+def test_archive_lifecycle_selector_requires_pinned_storage_harness(monkeypatch, tmp_path) -> None:
+    runner = _load_bound_runner(monkeypatch)
+    selector = "storage-archive-lifecycle.spec.ts"
+    assert selector in ci_environment.STORAGE_CAPACITY_SPECS
+    assert selector not in ci_environment.CAPACITY_WORKLOAD_SPECS
+    assert selector not in runner.CAPACITY_WORKLOAD_SPECS
+    assert runner.ARCHIVE_LIFECYCLE_SPEC == selector
+
+    tree = ast.parse(Path(runner.__file__).read_text())
+    run_e2e = next(node for node in tree.body
+                   if isinstance(node, ast.FunctionDef) and node.name == "run_e2e")
+    symbols = dict(vars(runner), accountability_only=False, component=False,
+                   artifact=False, source="", name=selector, specs=[selector])
+    for target in ("node_probe_only", "account_free"):
+        assignment = next(node for node in ast.walk(run_e2e) if isinstance(node, ast.Assign)
+                          and any(isinstance(name, ast.Name) and name.id == target
+                                  for name in node.targets))
+        expression = ast.Expression(assignment.value)
+        assert eval(compile(expression, "<selector-expression>", "eval"), symbols) is True
+        if target == "node_probe_only":
+            symbols["specs"] = ["storage-recovery-replay.spec.ts"]
+            assert eval(compile(expression, "<selector-expression>", "eval"), symbols) is False
+            symbols["specs"] = [selector]
+    with pytest.raises(ValueError, match="exact standalone"):
+        runner.run_e2e([selector, runner.TEAM_PORTABILITY_SPEC])
+
+    compose_file = tmp_path / "compose.json"
+    expected_source = "a" * 40
+    compose_file.write_text(json.dumps({"services": {"api": {
+        "environment": {"BUILD_COMMIT_SHA": expected_source}}}}))
+    marker_branch = next(node for node in ast.walk(run_e2e) if isinstance(node, ast.If)
+                         and "ARCHIVE_LIFECYCLE_SPEC" in ast.unparse(node.test)
+                         and "TEAM_PORTABILITY_SPEC" in ast.unparse(node.test)
+                         and "E2E_STORAGE_TEAM_SOURCE_COMMIT" in ast.unparse(node))
+    symbols.update(COMPOSE_PATH=compose_file, env={})
+    exec(compile(ast.Module(body=[marker_branch], type_ignores=[]),
+                 "<archive-selector-env>", "exec"), symbols)
+    assert symbols["env"] == {
+        "E2E_STORAGE_CAPACITY": "1",
+        "E2E_STORAGE_TEAM_COMPOSE_FILE": str(compose_file),
+        "E2E_STORAGE_TEAM_SOURCE_COMMIT": expected_source,
+    }
