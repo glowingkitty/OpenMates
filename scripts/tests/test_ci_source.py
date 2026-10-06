@@ -6,7 +6,11 @@ No Git branch or network resource is created.
 See docs/plans/isolated-github-tests/plan.yml.
 """
 
+import datetime as dt
+import json
 import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import pytest
 from scripts.ci_source import candidate_preflight, reviewed_paths, fingerprint
@@ -195,3 +199,116 @@ def test_candidate_reservation_covers_private_upload(tmp_path, monkeypatch):
     result = ci_source.publish(root, "fixture", ["selected.py"], artifact_uploader=upload)
     assert result["source"]
     assert active == []
+
+
+def test_reuses_valid_candidate_without_uploading_again(tmp_path, monkeypatch):
+    from scripts import ci_source
+
+    root = repository(tmp_path)
+    (root / "selected.py").write_text("value = 1\n")
+    monkeypatch.setattr(ci_source, "DISK_RESERVE", 0)
+    uploads = []
+
+    def upload(path, *, source, sha256):
+        uploads.append((path.read_bytes(), source, sha256))
+        return {
+            "url": f"https://nbg1.your-objectstorage.com/private?signature={len(uploads)}",
+            "bucket": "private",
+            "key": f"candidate/{source}-{len(uploads)}.patch",
+            "expires_at": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=2)).isoformat(),
+        }
+
+    first = ci_source.publish(root, "fixture", ["selected.py"], artifact_uploader=upload)
+    second = ci_source.publish(root, "fixture", ["selected.py"], artifact_uploader=upload)
+    assert len(uploads) == 1
+    assert second == first
+    assert uploads[0][1:] == (first["source"], first["patch_sha256"])
+
+    (root / "selected.py").write_text("value = 2\n")
+    changed = ci_source.publish(root, "fixture", ["selected.py"], artifact_uploader=upload)
+    assert changed["source"] != first["source"]
+    assert len(uploads) == 2
+
+
+def test_concurrent_identical_publications_share_one_upload(tmp_path, monkeypatch):
+    from scripts import ci_source
+
+    root = repository(tmp_path)
+    (root / "selected.py").write_text("value = 1\n")
+    monkeypatch.setattr(ci_source, "DISK_RESERVE", 0)
+    captured = threading.Barrier(2)
+    real_git_bytes = ci_source.git_bytes
+
+    def capture_together(*args, **kwargs):
+        result = real_git_bytes(*args, **kwargs)
+        captured.wait(timeout=5)
+        return result
+
+    monkeypatch.setattr(ci_source, "git_bytes", capture_together)
+    uploads = []
+    second_upload = threading.Event()
+
+    def upload(_path, *, source, sha256):
+        uploads.append((source, sha256))
+        if len(uploads) == 1:
+            second_upload.wait(timeout=0.3)
+        else:
+            second_upload.set()
+        return {
+            "url": f"https://nbg1.your-objectstorage.com/private?signature={len(uploads)}",
+            "bucket": "private",
+            "key": f"candidate/{source}-{len(uploads)}.patch",
+            "expires_at": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=2)).isoformat(),
+        }
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        calls = [pool.submit(ci_source.publish, root, "fixture", ["selected.py"],
+                             artifact_uploader=upload) for _ in range(2)]
+        first, second = (call.result(timeout=10) for call in calls)
+    assert len(uploads) == 1
+    assert first == second
+    candidate_dir = root / "logs/ci-candidates" / first["source"]
+    assert {path.name for path in candidate_dir.iterdir()} == {
+        "candidate.patch", "manifest.json"
+    }
+    assert json.loads((candidate_dir / "manifest.json").read_text())[
+        "patch_url"
+    ] == first["patch_url"]
+
+
+@pytest.mark.parametrize("invalid", ["near_expiry", "corrupt_manifest", "corrupt_patch"])
+def test_republishes_when_retained_candidate_is_invalid(tmp_path, monkeypatch, invalid):
+    from scripts import ci_source
+
+    root = repository(tmp_path)
+    (root / "selected.py").write_text("value = 1\n")
+    monkeypatch.setattr(ci_source, "DISK_RESERVE", 0)
+    uploads = []
+
+    def upload(_path, *, source, sha256):
+        uploads.append((source, sha256))
+        return {
+            "url": f"https://nbg1.your-objectstorage.com/private?signature={len(uploads)}",
+            "bucket": "private",
+            "key": f"candidate/{source}-{len(uploads)}.patch",
+            "expires_at": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=2)).isoformat(),
+        }
+
+    first = ci_source.publish(root, "fixture", ["selected.py"], artifact_uploader=upload)
+    manifest = root / "logs/ci-candidates" / first["source"] / "manifest.json"
+    if invalid == "near_expiry":
+        data = json.loads(manifest.read_text())
+        data["artifact_expires_at"] = (
+            dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=5)
+        ).isoformat()
+        manifest.write_text(json.dumps(data))
+    elif invalid == "corrupt_manifest":
+        manifest.write_text("not JSON")
+    else:
+        (root / "logs/ci-candidates" / first["source"] / "candidate.patch").write_text(
+            "corrupted patch"
+        )
+    second = ci_source.publish(root, "fixture", ["selected.py"], artifact_uploader=upload)
+    assert len(uploads) == 2
+    assert second["source"] == first["source"]
+    assert second["patch_url"] != first["patch_url"]

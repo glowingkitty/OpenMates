@@ -9,6 +9,8 @@ See docs/plans/isolated-github-tests/plan.yml.
 
 from __future__ import annotations
 
+import datetime as dt
+import fcntl
 import hashlib
 import json
 import os
@@ -25,6 +27,7 @@ except ModuleNotFoundError:
 
 DISK_RESERVE = 30 * 1024**3
 MAX_CHANGED_BYTES = 100 * 1024**2
+MIN_REUSE_LIFETIME = dt.timedelta(minutes=30)
 
 
 def _specifications_module():
@@ -329,36 +332,70 @@ def _publish_reserved(
     common_dir = Path(git(root, "rev-parse", "--path-format=absolute", "--git-common-dir"))
     canonical = common_dir.resolve().parent
     candidate_dir = canonical / "logs/ci-candidates" / source
-    candidate_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-    local_patch = candidate_dir / "candidate.patch"
-    temporary_patch = candidate_dir / ".candidate.patch.tmp"
-    temporary_patch.write_bytes(candidate_bytes)
-    temporary_patch.chmod(0o600)
-    temporary_patch.replace(local_patch)
-    artifact = artifact_uploader(
-        local_patch,
-        source=source,
-        sha256=candidate_sha256,
-    )
-    result = {
-        "source": source,
-        "tree": tree,
-        "session": session_id,
-        "changed_paths": paths,
-        "base": parent,
-        "resolved_patch_sha256": patch_sha256,
-        "patch_sha256": candidate_sha256,
-        "patch_url": artifact["url"],
-        "artifact_bucket": artifact["bucket"],
-        "artifact_key": artifact["key"],
-        "artifact_expires_at": artifact["expires_at"],
-        "local_patch": str(local_patch),
-        "preflight": preflight,
-    }
-    manifest = candidate_dir / "manifest.json"
-    temporary_manifest = candidate_dir / ".manifest.json.tmp"
-    temporary_manifest.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
-    temporary_manifest.chmod(0o600)
-    temporary_manifest.replace(manifest)
-    result["manifest"] = str(manifest)
-    return result
+    lock_dir = canonical / "logs/ci-candidate-publication-locks"
+    lock_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    lock_path = lock_dir / f"{source}.lock"
+    with lock_path.open("a+") as lock:
+        lock_path.chmod(0o600)
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            # Recheck inside the per-source lock: another publisher may have
+            # completed the upload while this caller captured the same source.
+            try:
+                try:
+                    from scripts.ci_candidate import load as load_candidate
+                except ModuleNotFoundError:
+                    from ci_candidate import load as load_candidate
+                retained = load_candidate(root, source, require_fresh=True)
+            except (OSError, ValueError, RuntimeError):
+                retained = {}
+            if retained:
+                expires = dt.datetime.fromisoformat(retained["artifact_expires_at"])
+                if (
+                    retained.get("base") == parent
+                    and retained.get("tree") == tree
+                    and retained.get("session") == session_id
+                    and retained.get("patch_sha256") == candidate_sha256
+                    and retained.get("resolved_patch_sha256", "") == patch_sha256
+                    and retained.get("changed_paths") == paths
+                    and retained.get("artifact_bucket")
+                    and retained.get("artifact_key")
+                    and expires > dt.datetime.now(dt.timezone.utc) + MIN_REUSE_LIFETIME
+                ):
+                    return {**retained, "preflight": preflight,
+                            "manifest": str(candidate_dir / "manifest.json")}
+            candidate_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+            local_patch = candidate_dir / "candidate.patch"
+            temporary_patch = candidate_dir / ".candidate.patch.tmp"
+            temporary_patch.write_bytes(candidate_bytes)
+            temporary_patch.chmod(0o600)
+            temporary_patch.replace(local_patch)
+            artifact = artifact_uploader(
+                local_patch,
+                source=source,
+                sha256=candidate_sha256,
+            )
+            result = {
+                "source": source,
+                "tree": tree,
+                "session": session_id,
+                "changed_paths": paths,
+                "base": parent,
+                "resolved_patch_sha256": patch_sha256,
+                "patch_sha256": candidate_sha256,
+                "patch_url": artifact["url"],
+                "artifact_bucket": artifact["bucket"],
+                "artifact_key": artifact["key"],
+                "artifact_expires_at": artifact["expires_at"],
+                "local_patch": str(local_patch),
+                "preflight": preflight,
+            }
+            manifest = candidate_dir / "manifest.json"
+            temporary_manifest = candidate_dir / ".manifest.json.tmp"
+            temporary_manifest.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
+            temporary_manifest.chmod(0o600)
+            temporary_manifest.replace(manifest)
+            result["manifest"] = str(manifest)
+            return result
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)

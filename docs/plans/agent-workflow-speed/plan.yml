@@ -1,17 +1,19 @@
 schema_version: 2
 profile: concise
 id: agent-workflow-speed
-title: Implement approved workflow speed improvements R1 R2 R4
+title: Implement approved workflow speed improvements R1 R2 R4 R5
 status: verified
-goal: Reduce approved CI bootstrap, storage admission, and hosted-job capacity bottlenecks.
-approval: User approved R1, R2 and R4 on 2026-10-05; confirmed GitHub Free with 20 hosted jobs.
-task: e3ac5482-44c2-42ed-909e-e97afc7476be
+goal: Reduce approved CI bootstrap, storage admission, capacity and duplicate preparation bottlenecks.
+approval: User approved R1, R2 and R4 on 2026-10-05; confirmed GitHub Free with 20 hosted jobs. User approved R5 on 2026-10-06 after reviewing W2026-10-06-next-r2 and its concrete example.
+task: a354d00a-b17e-43a6-88dd-9b621c8c782f
 scope:
   - R1: Restore compatible schema runtimes using content keys, repair producer metadata, and measure bootstrap phases.
   - R2: Budget managed resources and reclaim only proven disposable payloads under existing ownership and retention rules.
   - R4: Admit work within the confirmed owner-wide 20 hosted-job limit, with separate dedicated-runner capacity and a work-conserving quick-job reserve.
+  - R5: Reuse valid unchanged candidate publication and exact preparation across attempts while retaining independent tests and fresh isolated runtimes.
 out_of_scope:
   - R3 communication redesign and automatic remote workers.
+  - R6 image metadata optimization and R7 model/effort changes.
   - Production changes, weakening isolation or disk guards, and deletion of uncertain source or recovery data.
 verification:
   - Focused tooling unit tests cover immutable runtime discovery, schema invalidation and corruption, safe resource retention, concurrent admission, external job occupancy, runner classes and dispatch recovery.
@@ -19,15 +21,24 @@ verification:
   - Review a dry-run resource manifest before enabling newly introduced cleanup.
   - Deploy through the session coordinator, then use isolated CI for a cold and two warm executions of one passing browser spec and a bounded admission burst.
   - Compare bootstrap timings and reuse evidence; reassess if warm backend startup does not improve.
+  - R5 tooling checks cover simultaneous candidate publication, preparation claims, stable identity changes, expired/corrupt retention, dispatch uncertainty, cancellation and rollback.
+  - R5 isolated CI executes two independent attempts of the same candidate using one producer; compare producer IDs and source/harness-bound receipts, and deliver both recordings.
 rollout:
   - Publish only the scoped diff using session 0e70.
   - Preserve the durable CI queue and safely restart only its current reconciler.
   - Discover content-keyed schema images first; retain verified legacy discovery only for the transition release.
   - Record measured outcomes and any remaining work in the linked Tasks.
 decisions:
+  - R1/R2/R4 are complete under original Task e3ac5482-44c2-42ed-909e-e97afc7476be; the current follow-up Task owns only R5.
+  - R5 shares producer state in the existing queue transaction and serializes candidate publication by source; it adds no scheduler or cache service.
+  - Completed preparation requires a validated private ticket with at least one hour remaining; invalid retention creates a new producer without altering historical results.
+  - OPENMATES_CI_REUSE_PREPARATION=0 restores per-attempt producers while existing shared references finish normally.
   - The transition release d902d69 completed its cold browser canary; consumers now stop legacy mutable discovery.
   - Schema cache publication runs independently of the self-host image workflow that cancels on every dev push, serialized by schema compatibility key.
 evidence:
+  - R5 passed 126 focused tooling checks, including concurrent publication/reuse, expiry, source/harness/capability invalidation, cancellation and resource retention.
+  - R5 candidate 7693eb41b80a5cd6525168d49196f739b11d8116 reused its existing private patch URL on repeated publication. Independent browser runs 37458178544 and 37458182921 passed using producer 37457424157, which took 340 seconds; both used distinct fresh accounts and verified cleanup.
+  - A later exact-input producer lookup returned that same completed producer and left its private ticket unchanged. Details and rollback are recorded in results.md.
   - Cold composer-workspace-layout.spec.ts passed in isolated run 37356953151; bootstrap 487.334 seconds, cms-setup 461.665 seconds.
   - Coordinator restart preserved all 5261 durable queue jobs; all 12 bounded canary checks passed, with peak 11 simultaneous executions.
   - Independent schema publisher run 37360392442 found a compatible content-keyed image in six seconds.

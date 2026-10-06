@@ -292,6 +292,7 @@ class Queue:
                     except sqlite3.OperationalError:
                         if name not in {row[1] for row in db.execute("PRAGMA table_info(jobs)")}:
                             raise
+            db.execute("CREATE INDEX IF NOT EXISTS preparation_reuse ON jobs(owner,source,mode,preparation_key,preparation_harness_commit,prepare_cli,prepare_upload)")
         path.chmod(0o600)
 
     def connect(self):
@@ -329,7 +330,6 @@ class Queue:
             "candidate_expires": 0.0,
         }
         if candidate:
-            from datetime import datetime
             try:
                 from scripts.ci_candidate_artifact import validate_url
             except ModuleNotFoundError:
@@ -423,6 +423,40 @@ class Queue:
         key = hashlib.sha256(json.dumps(identity).encode()).hexdigest()
         now = time.time()
         with self.connect() as db:
+            if mode == "prepare" and preparation and os.environ.get("OPENMATES_CI_REUSE_PREPARATION", "1") != "0":
+                # One transaction owns lookup and creation across submitters.
+                # Attempt identity belongs to consumers, not reusable builds.
+                db.execute("BEGIN IMMEDIATE")
+                matches = db.execute(
+                    "SELECT * FROM jobs WHERE mode='prepare' AND owner=? AND source=? AND preparation_key=? AND preparation_harness_commit=? AND prepare_cli=? AND prepare_upload=? AND candidate_base=? AND candidate_tree=? AND candidate_owner=? AND candidate_patch_sha256=? AND state NOT IN ('failure','cancelled') ORDER BY (state='success') DESC,created DESC,id",
+                    (owner, source, preparation["key"], preparation["harness_commit"],
+                     bool(preparation.get("cli")), bool(preparation.get("upload")),
+                     candidate_values["candidate_base"], candidate_values["candidate_tree"],
+                     candidate_values["candidate_owner"], candidate_values["candidate_patch_sha256"]),
+                ).fetchall()
+                for row in matches:
+                    producer = dict(row)
+                    reusable = producer["state"] == "queued" or producer["state"] in ACTIVE
+                    if producer["state"] == "success" and producer["run_id"]:
+                        try:
+                            from scripts.ci_preparation_transport import reusable_ticket
+                        except ModuleNotFoundError:
+                            from ci_preparation_transport import reusable_ticket
+                        reusable = reusable_ticket(
+                            self.path.parent / "preparations" / f"{producer['id']}.json",
+                            producer, now=datetime.fromtimestamp(now, timezone.utc),
+                        )
+                    if not reusable:
+                        continue
+                    if candidate and producer["state"] == "queued" and producer["sent"] is None:
+                        db.execute("UPDATE jobs SET candidate_patch_url=?,candidate_expires=? WHERE id=?",
+                                   (candidate_values["candidate_patch_url"], candidate_values["candidate_expires"], producer["id"]))
+                    return dict(db.execute("SELECT * FROM jobs WHERE id=?", (producer["id"],)).fetchone())
+                # Failed/expired preparation needs a new object namespace even
+                # when the caller repeats the same attempt nonce. Never mutate
+                # terminal history or re-send an uncertain dispatch.
+                if db.execute("SELECT 1 FROM jobs WHERE id=?", (key,)).fetchone():
+                    key = hashlib.sha256(f"{key}:{uuid.uuid4().hex}".encode()).hexdigest()
             db.execute(
                 "INSERT OR IGNORE INTO jobs(id,owner,source,specs,mode,token,state,created,updated,proof_profile,candidate_base,candidate_tree,candidate_owner,candidate_patch_sha256,candidate_patch_url,candidate_expires) VALUES(?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?,?)",
                 (

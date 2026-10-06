@@ -100,6 +100,14 @@ flowchart LR
 E2E and visual-smoke submissions attach to one preparation for the exact source,
 harness and capabilities by default. `submit --no-prepared-builds` is available
 for a deliberate cold-path diagnostic.
+Unchanged candidate publication retains its validated patch and private URL
+while sufficient validity remains. Independent attempt IDs share preparation
+only for the same owner, source, candidate identity, harness and capabilities.
+Queued/running producers are shared; completed producers require a validated
+private ticket with more than one hour remaining. Expired, failed or corrupt
+retention creates a new producer without rewriting history. Set
+`OPENMATES_CI_REUSE_PREPARATION=0` on submitters to restore per-attempt producers;
+existing shared consumers still finish normally. Test attempts remain separate.
 Consumers download only that successful producer run's artifact;
 they verify the manifest, source/tree, harness, build contract and content hashes.
 Published compatible images use immutable digests. Cache misses build once and

@@ -1,8 +1,54 @@
-# Approved workflow improvements R1, R2 and R4
+# Approved workflow improvements R1, R2, R4 and R5
 
 The approved changes are published to `dev` through session `0e70`. The tracked
 outcome is TASK-2804, with R1 TASK-2749, R2 TASK-2153 and R4 TASK-6707. R3 and
-automatic remote workers remain outside this rollout.
+automatic remote workers remain outside this rollout. R5 was approved separately
+on October 6 under Task `a354d00a-b17e-43a6-88dd-9b621c8c782f`; R6 and R7 remain
+outside the approved scope.
+
+## Unchanged candidate and preparation reuse (R5)
+
+Repeated publication captures and validates the current source, then retains the
+same private patch artifact when source, owner, base/tree, patch digest and inputs
+match and more than 30 minutes of URL validity remain. A per-source publication
+lock prevents concurrent identical uploads. Lock files live outside candidate
+payload directories so R2's exact-shape reclamation remains valid.
+
+The existing queue transaction now shares preparation across attempt nonces for
+the same owner, source, stable candidate identity, harness and capabilities.
+Queued producers refresh their patch URL when necessary; dispatched producers
+keep their original send intent. Completed producers require a validated private
+ticket with more than one hour remaining. Failed, cancelled, expired or invalid
+retention creates a new producer namespace and preserves terminal history.
+An uncertain dispatch is shared rather than blindly resubmitted. Test requests
+remain independent and receive fresh runtime volumes, credentials and accounts.
+Consumers still verify source/tree, harness, producer run and artifact hashes.
+
+All 126 focused tooling checks passed. The live candidate was
+`7693eb41b80a5cd6525168d49196f739b11d8116`, with harness
+`102a5310b5339b262d5ea89864bc5912fdf739a5`. Repeated publication retained the
+same patch URL and artifact key. Two independent `test-account-preflight.spec.ts`
+attempts passed with one successful preparation:
+
+| Check | Run | Result |
+| --- | --- | --- |
+| Shared preparation | [37457424157](https://github.com/glowingkitty/OpenMates/actions/runs/37457424157) | Success; 340 seconds from run start to completion |
+| First test attempt | [37458178544](https://github.com/glowingkitty/OpenMates/actions/runs/37458178544) | Passed; one expected test, no skips or flakes |
+| Second test attempt | [37458182921](https://github.com/glowingkitty/OpenMates/actions/runs/37458182921) | Passed; one expected test, no skips or flakes |
+
+Both receipts verify exact source/harness, disjoint account identity hashes,
+zero remaining containers/volumes and private account-file removal. A later
+exact-input producer lookup returned the same completed producer without
+renewing its ticket or creating another build. Both browser recordings were
+uploaded for delivery in the Codex response. This demonstrates avoided duplicate
+preparation, not a measured whole-chat percentage improvement.
+
+Rollback: set `OPENMATES_CI_REUSE_PREPARATION=0` for submitters to restore
+per-attempt producer creation; existing shared consumers retain their references
+and finish normally. Source publication can be reverted separately through the
+scoped deployment helper; preserve lock files while waiters may hold their inodes.
+The queue format remains compatible with the existing reconciler, so R5 requires
+no coordinator or product-runtime restart.
 
 ## Backend preparation (R1)
 

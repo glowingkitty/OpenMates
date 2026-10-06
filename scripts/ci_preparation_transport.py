@@ -66,6 +66,7 @@ CHUNK_BYTES = 1024**2
 HTTP_TIMEOUT_SECONDS = 120
 PRESIGN_TIMEOUT_SECONDS = 120
 MAX_RESPONSE_BYTES = 64 * 1024
+MIN_REUSE_SECONDS = 60 * 60
 
 
 class PreparationTransportError(RuntimeError):
@@ -278,6 +279,27 @@ def _write_ticket(path: Path, ticket: Mapping[str, Any]) -> None:
         path.chmod(0o600)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def reusable_ticket(path: Path, producer: Mapping[str, Any], *, now: dt.datetime) -> bool:
+    """Check retained capabilities locally; never renew a completed producer.
+
+    Renewing URLs cannot prove that lifecycle-managed objects still exist. Leave
+    enough time for admission and the consumer's initial downloads, and retain
+    all manifest/run/digest checks at the actual consumer restore.
+    """
+    try:
+        ticket = _validate_ticket(
+            _read_ticket(path),
+            producer_id=str(producer["id"]),
+            source=str(producer["source"]),
+            preparation_key=str(producer["preparation_key"]),
+            now=now + dt.timedelta(seconds=MIN_REUSE_SECONDS),
+        )
+        # The ticket is atomically replaced; no writer or network call is needed.
+        return bool(ticket)
+    except (PreparationTransportError, OSError, KeyError, TypeError, ValueError):
+        return False
 
 
 def _presign_objects(
