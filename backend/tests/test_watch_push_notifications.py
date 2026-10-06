@@ -131,3 +131,85 @@ def test_legacy_processing_tokens_retire_without_losing_completion_targets():
     assert "obsolete" not in refreshed
     remaining, enabled = remove_push_subscription_target(refreshed, phone)
     assert enabled and normalize_push_subscription_targets(remaining) == [browser]
+
+
+# contract-test: supporting surface=rest assertions=auth.session.lifecycle,auth.session.isolation
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.registration.lifecycle
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["native_register", "native_unregister", "browser_subscribe", "browser_unsubscribe"])
+async def test_push_changes_preserve_live_auth_sessions_and_profile(monkeypatch, operation):
+    from contextlib import asynccontextmanager
+    from copy import deepcopy
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from backend.core.api.app.routes import push
+    from backend.core.api.app.services.cache_user_mixin import UserCacheMixin
+
+    user_id = "fixture-account"
+    old_targets = json.dumps({"type": "multi", "targets": [
+        {"type": "apns", "token": "fixture-native", "platform": "macos", "device_id": "fixture-installation"},
+        {"type": "web", "endpoint": "https://push.example/fixture", "keys": {"p256dh": "fixture", "auth": "fixture"}},
+    ]})
+
+    class Cache(UserCacheMixin):
+        USER_KEY_PREFIX = "user_profile:"
+        USER_TTL = 86400
+
+        def __init__(self):
+            self.values = {
+                "user_profile:" + user_id: {"id": user_id, "user_id": user_id,
+                    "vault_key_id": "fixture-vault", "username": "fixture-name",
+                    "push_notification_enabled": True, "push_notification_subscription": old_targets},
+                "session:active-native": {"user_id": user_id, "token_expiry": 9999999999},
+                "session:active-cli": {"user_id": user_id, "token_expiry": 9999999999},
+                "chat:fixture": {"version": 7},
+            }
+            self.ttls = {key: 7200 for key in self.values}
+
+        async def get(self, key):
+            return deepcopy(self.values.get(key))
+
+        async def get_key_ttl(self, key):
+            return self.ttls.get(key, -2)
+
+        async def set(self, key, value, ttl=None):
+            self.values[key] = deepcopy(value)
+            self.ttls[key] = ttl
+            return True
+
+        async def delete_user_cache(self, user_id):
+            pytest.fail("Push updates must not delete authenticated sessions or chat caches")
+
+    cache = Cache()
+    before = deepcopy(cache.values)
+    directus = SimpleNamespace(update_user=AsyncMock(return_value=True))
+
+    @asynccontextmanager
+    async def lock(*args):
+        yield object()
+
+    monkeypatch.setattr(push, "push_subscription_write_lock", lock)
+    monkeypatch.setattr(push, "require_push_subscription_lock", AsyncMock())
+    monkeypatch.delenv("APNS_BUNDLE_ID", raising=False)
+    current_user = SimpleNamespace(id=user_id)
+    kwargs = dict(current_user=current_user, directus_service=directus, cache_service=cache)
+    if operation == "native_register":
+        result = await push.register_native_device(push.NativeDeviceRegisterRequest(
+            token="fixture-rotated", platform="macos", device_id="fixture-installation"), **kwargs)
+    elif operation == "native_unregister":
+        result = await push.unregister_native_device(push.NativeDeviceUnregisterRequest(
+            token="fixture-native", device_id="fixture-installation"), **kwargs)
+    elif operation == "browser_subscribe":
+        result = await push.subscribe_push(None, push.PushSubscribeRequest(
+            endpoint="https://push.example/new", keys={"p256dh": "fixture", "auth": "fixture"}), **kwargs)
+    else:
+        result = await push.unsubscribe_push(**kwargs)
+
+    assert result.success is True
+    changed_fields = directus.update_user.await_args.args[1]
+    profile_key = "user_profile:" + user_id
+    assert cache.values[profile_key] == {**before[profile_key], **changed_fields}
+    assert cache.ttls[profile_key] == 7200
+    for key in ("session:active-native", "session:active-cli", "chat:fixture"):
+        assert cache.values[key] == before[key]
+        assert cache.ttls[key] == 7200

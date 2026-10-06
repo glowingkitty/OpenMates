@@ -152,7 +152,11 @@ async def subscribe_push(
             if not updated:
                 raise HTTPException(status_code=500, detail="Failed to save subscription")
 
-            await cache_service.delete_user_cache(user_id)
+            # Notification updates must not invalidate authenticated sessions or chat caches.
+            await cache_service.update_user(user_id, {
+                "push_notification_enabled": True,
+                "push_notification_subscription": subscription_json,
+            })
         logger.info(f"[PushRoutes] Saved push subscription for user {user_id[:6]}...")
         return PushSubscribeResponse(success=True, message="Subscription saved")
     except HTTPException:
@@ -196,7 +200,11 @@ async def unregister_native_device(
             })
             if not updated:
                 raise HTTPException(status_code=500, detail="Failed to remove device token")
-            await cache_service.delete_user_cache(user_id)
+            # Notification updates must not invalidate authenticated sessions or chat caches.
+            await cache_service.update_user(user_id, {
+                "push_notification_enabled": push_enabled,
+                "push_notification_subscription": subscription_json,
+            })
         logger.info("[PushRoutes] Removed one native APNs installation for user %s...", user_id[:6])
         return PushSubscribeResponse(success=True, message="Device unregistered")
     except HTTPException:
@@ -237,7 +245,11 @@ async def unsubscribe_push(
             if not updated:
                 raise HTTPException(status_code=500, detail="Failed to remove subscription")
 
-            await cache_service.delete_user_cache(user_id)
+            # Notification updates must not invalidate authenticated sessions or chat caches.
+            await cache_service.update_user(user_id, {
+                "push_notification_enabled": push_enabled,
+                "push_notification_subscription": subscription_json,
+            })
         logger.info(f"[PushRoutes] Removed push subscription for user {user_id[:6]}...")
         return PushSubscribeResponse(success=True, message="Subscription removed")
     except HTTPException:
@@ -307,7 +319,11 @@ async def register_native_device(
             if not updated:
                 raise HTTPException(status_code=500, detail="Failed to save device token")
 
-            await cache_service.delete_user_cache(user_id)
+            # Notification updates must not invalidate authenticated sessions or chat caches.
+            await cache_service.update_user(user_id, {
+                "push_notification_enabled": True,
+                "push_notification_subscription": subscription_json,
+            })
         logger.info(f"[PushRoutes] Saved native APNs token for user {user_id[:6]}...")
         return PushSubscribeResponse(success=True, message="Device registered")
     except HTTPException:
