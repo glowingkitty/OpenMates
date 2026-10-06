@@ -1,11 +1,31 @@
 import logging
 import hashlib
 import time
+from enum import Enum
 from typing import Any, Optional, Dict
 
 from backend.shared.python_utils.app_memory_policy import is_removed_app_memory
 
 logger = logging.getLogger(__name__)
+
+
+class SessionCacheMissReason(str, Enum):
+    CREDENTIAL_ABSENT = "credential_absent"
+    LINK_ABSENT = "link_absent"
+    LINK_INVALID = "link_invalid"
+    PROFILE_UNAVAILABLE = "profile_unavailable"
+    PROFILE_IDENTITY_REJECTED = "profile_identity_rejected"
+    LOOKUP_FAILURE = "lookup_failure"
+
+
+def _log_session_cache_miss(reason: SessionCacheMissReason) -> None:
+    # Existing structured logging supplies request correlation. Include no
+    # credentials, hashes, identity/profile fields or exception text.
+    try:
+        logger.warning("[SESSION_CACHE_LOOKUP_MISS] reason=%s", reason.value,
+                       extra={"event_type": "session_cache_lookup_miss", "miss_reason": reason.value})
+    except Exception:
+        pass  # Diagnostics cannot change an authentication decision.
 
 
 def canonical_session_user_id(session_data: object) -> Optional[str]:
@@ -118,6 +138,7 @@ class UserCacheMixin:
         try:
             if not refresh_token:
                 logger.debug("Attempted cache GET by token: No token provided.")
+                _log_session_cache_miss(SessionCacheMissReason.CREDENTIAL_ABSENT)
                 return None
 
             token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
@@ -130,14 +151,18 @@ class UserCacheMixin:
 
             if not user_id:
                 logger.debug(f"Cache MISS for user_id associated with token hash {token_hash[:8]}...")
+                _log_session_cache_miss(SessionCacheMissReason.LINK_ABSENT if user_id_data is None
+                                        else SessionCacheMissReason.LINK_INVALID)
                 return None
 
             logger.debug(f"Cache HIT for user_id '{user_id}' associated with token hash {token_hash[:8]}...")
             user_data = await self.get_user_by_id(user_id)
             if not isinstance(user_data, dict):
+                _log_session_cache_miss(SessionCacheMissReason.PROFILE_UNAVAILABLE)
                 return user_data
             if user_data.get("user_id") != user_id or user_data.get("id") != user_id:
                 logger.error("Cached profile identity did not match its canonical session link; rejecting cached profile")
+                _log_session_cache_miss(SessionCacheMissReason.PROFILE_IDENTITY_REJECTED)
                 return None
             # Expiry belongs to this refresh-token chain, never to the account.
             # Legacy links deliberately refresh once instead of borrowing a sibling's
@@ -150,6 +175,7 @@ class UserCacheMixin:
             return user_data
         except Exception as e:
             logger.error(f"Error getting user from cache by token hash {token_hash[:8]}...: {str(e)}")
+            _log_session_cache_miss(SessionCacheMissReason.LOOKUP_FAILURE)
             return None
 
     # Auth-critical fields that must never be silently clobbered by a partial cache write.

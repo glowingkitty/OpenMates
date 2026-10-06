@@ -140,3 +140,74 @@ async def test_stale_session_write_preserves_new_profile_image_url():
     await cache.set_user({"user_id": "alice", "profile_image_url": None}, refresh_token="older-session")
 
     assert (await cache.get_user_by_token("older-session"))["profile_image_url"] == image_url
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("case,expected", [
+    ("credential_absent", "credential_absent"),
+    ("link_absent", "link_absent"),
+    ("link_invalid", "link_invalid"),
+    ("profile_unavailable", "profile_unavailable"),
+    ("profile_identity_rejected", "profile_identity_rejected"),
+    ("lookup_failure", "lookup_failure"),
+    ("healthy", None),
+])
+# contract-test: supporting surface=rest_api assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+async def test_session_cache_miss_diagnostic_keeps_existing_decisions_and_omits_private_values(case, expected, caplog):
+    import logging
+    credential = "private-credential-canary"
+    identity = "private-user-canary"
+
+    class LookupCache(UserCacheMixin):
+        SESSION_KEY_PREFIX = "session:"
+
+        async def get(self, key):
+            if case == "lookup_failure":
+                raise RuntimeError("private-exception-canary")
+            if case == "link_absent":
+                return None
+            if case == "link_invalid":
+                return {"id": identity}
+            return {"user_id": identity, "token_expiry": 123}
+
+        async def get_user_by_id(self, user_id):
+            assert user_id == identity
+            if case == "profile_unavailable":
+                return None
+            if case == "profile_identity_rejected":
+                return {"id": "other-private-user", "user_id": "other-private-user"}
+            return {"id": identity, "user_id": identity, "private": "private-profile-canary"}
+
+    with caplog.at_level(logging.WARNING):
+        result = await LookupCache().get_user_by_token("" if case == "credential_absent" else credential)
+    events = [r for r in caplog.records if getattr(r, "event_type", None) == "session_cache_lookup_miss"]
+    assert len(events) == (0 if expected is None else 1)
+    if expected is None:
+        assert result["user_id"] == identity
+        assert result["token_expiry"] == 123
+    else:
+        assert result is None
+        event = events[0]
+        assert event.miss_reason == expected
+        message = event.getMessage()
+        assert credential not in message and identity not in message
+        assert "private-profile-canary" not in message
+        assert "private-exception-canary" not in message
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=auth.session.authoritative-enforcement
+async def test_session_cache_miss_logging_failure_preserves_link_rejection(monkeypatch):
+    from backend.core.api.app.services import cache_user_mixin
+
+    class MissingCache(UserCacheMixin):
+        SESSION_KEY_PREFIX = "session:"
+
+        async def get(self, key):
+            return None
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("diagnostic sink unavailable")
+
+    monkeypatch.setattr(cache_user_mixin.logger, "warning", fail)
+    assert await MissingCache().get_user_by_token("credential") is None
