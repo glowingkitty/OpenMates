@@ -62,16 +62,16 @@ def test_focused_pytest_runs_only_exact_targets(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("targets", "expects_sdk_install"),
+    ("targets", "expects_sdk_install", "expects_backend_install"),
     [
-        (["backend/tests/test_one.py::test_one", "backend/tests/test_two.py"], False),
-        (["packages/openmates-python/tests/test_sdk.py::test_one"], True),
-        (["backend/tests/test_one.py", "packages/openmates-python/tests/test_sdk.py"], True),
-        ([], True),
+        (["backend/tests/test_one.py::test_one", "backend/tests/test_two.py"], False, True),
+        (["packages/openmates-python/tests/test_sdk.py::test_one"], True, False),
+        (["backend/tests/test_one.py", "packages/openmates-python/tests/test_sdk.py"], True, True),
+        ([], True, True),
     ],
 )
-def test_pytest_install_omits_sdk_only_for_focused_backend_targets(
-    tmp_path, monkeypatch, targets, expects_sdk_install,
+def test_pytest_install_respects_focused_dependency_family(
+    tmp_path, monkeypatch, targets, expects_sdk_install, expects_backend_install,
 ):
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
@@ -98,7 +98,7 @@ def test_pytest_install_omits_sdk_only_for_focused_backend_targets(
     assert runner.main() == 0
     pip_command = next(command for command in calls if "pip" in command)
     assert "backend/requirements-dev.txt" in pip_command
-    assert "backend/core/api/requirements.txt" in pip_command
+    assert ("backend/core/api/requirements.txt" in pip_command) is expects_backend_install
     assert ("packages/openmates-python" in pip_command) is expects_sdk_install
     first_pytest_command = next(command for command in calls if "pytest" in command)
     if targets:

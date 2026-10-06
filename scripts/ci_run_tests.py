@@ -1981,9 +1981,14 @@ def main():
                 "install",
                 "-r",
                 "backend/requirements-dev.txt",
-                "-r",
-                "backend/core/api/requirements.txt",
             ]
+            # SDK-only selections use the SDK's declared dependencies. Installing
+            # backend API requirements here would introduce its conflicting TOON pin.
+            sdk_only = bool(selection) and all(
+                target.startswith("packages/openmates-python/tests/") for target in selection
+            )
+            if not sdk_only:
+                install_command.extend(["-r", "backend/core/api/requirements.txt"])
             # Backend-only focused tests do not import the Python SDK. Its
             # separate TOON pin conflicts with the backend's declared Git
             # dependency when both are resolved in one pip transaction.

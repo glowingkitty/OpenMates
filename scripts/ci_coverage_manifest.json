@@ -344,6 +344,7 @@
         "unauthenticated-chat-navigation.spec.ts",
         "workflow-template-sharing.spec.ts",
         "components/settings-teams-icons.spec.ts",
+        "components/settings-teams-storage.spec.ts",
         "components/image-result-fullscreen-proxy.spec.ts",
         "components/music-fullscreen-responsive.spec.ts",
         "components/workflow-send-delivery-status.spec.ts",
