@@ -36,8 +36,12 @@ with zero real provider calls, but failed the strict fixture-miss gate
 (run `37534922128`). The diagnostic replay
 (run `37539404866`) confirms the same strict failure: 30 cache misses and zero
 real calls. The rejection labels do not yet establish a safe fixture correction;
-no acceptance guard was relaxed. A final small diagnostic refinement is restricted
-to content-free first-failing predicates. This is not full capacity qualification.
+no acceptance guard was relaxed. The final diagnostic (`37544185386`) identifies
+22 unbound Project-focus comparisons, four large async-completion comparisons
+and four resulting missing phase bindings. Its source, isolation and cleanup
+are verified. The simulator needs verified commitments to the assembled Project
+focus and canonical async completion before those inputs can be admitted;
+blind acceptance is not an authorized fix. This is not full capacity qualification.
 Apple typed recovery and bounded readers, a successful strict workload, separate
 runner capacity, native proof and signed exact-release eligibility remain
 required before real payload pruning.
@@ -60,7 +64,9 @@ the approved completion scope. See [progress.md](progress.md) for evidence and
 
 1. Finish the separately owned Apple typed recovery, compression-boundary, bounded
    archive readers and version-history qualification using the published contract.
-2. Resolve only the proven simulator fixture mismatches, then freeze the combined
+2. Extend signed simulator bindings for verified Project-focus context and
+   canonical async completions; cover the resulting version completion phases
+   without relaxing authority or zero-miss checks. Then freeze the combined
    release candidate. On an approved separate runner, pass its zero-inference
    pilot, measured calibration and 1000-heavy-user-day / 500-concurrent-execution
    workload. Qualify uncached page opens, including authorization, transfer and

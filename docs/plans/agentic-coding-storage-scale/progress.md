@@ -42,8 +42,17 @@ calls, but the strict gate remains failed (30 cache misses). Twenty-two
 rejections share an over-broad direction-contract label; four async preprocessing
 length bindings and four downstream phase bindings also reject. Version fixture
 rejections do not yet prove an authorized no-tools completion. No safe acceptance
-change is established. A final small diagnostic refinement separates fixed
-first-failing predicates; no product behavior is changed.
+change is established. The final four-file diagnostic refinement passed five focused cases; no
+product behavior changed. Run `37544185386` on `bc187a7b` retained the same
+6/6/6 successes and 30 cache misses with zero real calls. It identifies exactly
+22 `utility_scope_direction_focus` rejections, four
+`pre_state_invalid_async_prefix_16_64k_request_diff` rejections and four
+downstream absent phases. Source/isolation/cleanup are verified. Source review
+confirms that assembled Project focus includes an ID and server metadata absent
+from the signed episode; no safe focus acceptance patch was made. Next work is
+a verified commitment from the builder/emitter boundaries into the simulator
+episode, followed by completion-phase fixture coverage and a strict replay.
+No further CI run was submitted in this focused pass.
 No guard, counter or zero-miss criterion was relaxed. The last earlier strict
 pilot `37515533987` remains failed (60/60 rounds, 8/8 embeds, 7/8 versions);
 neither run establishes full capacity or uncached-page latency. Separate runner
