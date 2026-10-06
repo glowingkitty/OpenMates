@@ -152,6 +152,7 @@ skills:
       relevance_criteria only for a neutral class search; never invent preferences.
     tool_schema:
       type: object
+      required: [requests]
       properties:
         requests:
           x-ui:
@@ -235,6 +236,7 @@ skills:
                 x-ui:
                   basic: false
                 type: string
+                description: Urban Sports activity name (for example Dance or Yoga) or numeric provider ID.
               venue_id:
                 x-ui:
                   basic: false

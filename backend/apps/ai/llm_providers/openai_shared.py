@@ -253,6 +253,9 @@ def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]
     # fields after the model call, so removing it only relaxes provider-side
     # schema strictness.
     sanitized.pop("additionalProperties", None)
+    # Gemini's declaration schema also rejects this array validation keyword.
+    # Keep it in the original app schema for execution-time validation.
+    sanitized.pop("uniqueItems", None)
 
     # If this is a property definition with type 'integer' or 'number':
     # 1. Remove minimum/maximum fields (Cerebras and other providers reject them)

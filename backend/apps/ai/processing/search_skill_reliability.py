@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
@@ -205,6 +206,20 @@ def expand_companion_skills(
                     companions_to_add.add(companion)
 
     return preselected_skills | companions_to_add
+
+
+def normalize_json_request_array(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Recover a JSON-encoded request list without changing invalid payloads."""
+    value = arguments.get("requests")
+    if not isinstance(value, str):
+        return arguments
+    try:
+        decoded = json.loads(value)
+    except (ValueError, TypeError):
+        return arguments
+    if not isinstance(decoded, list) or not all(isinstance(item, dict) for item in decoded):
+        return arguments
+    return {**arguments, "requests": decoded}
 
 
 def normalize_string_query_request_items(

@@ -39,12 +39,14 @@ test.describe('App: Fitness / Skills: Urban Sports Club search', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.surface.semantic-parity
 	test('Phase 1: embed preview renders at /dev/preview/embeds/fitness', async ({ page }: { page: any }) => {
 		const log = (msg: string) => console.log(`[P1] ${msg}`);
 		await verifyEmbedPreviewPage(page, 'fitness', log);
 		await expect(page.getByTestId('fitness-search-preview').first()).toBeVisible();
 	});
 
+	// contract-test: supporting surface=gui.web assertions=apps.discovery.public-catalog
 	test('Phase 1b: Fitness app card renders the official Urban Sports favicon', async ({ page }: { page: any }) => {
 		test.setTimeout(60_000);
 
@@ -82,6 +84,7 @@ test.describe('App: Fitness / Skills: Urban Sports Club search', () => {
 		expect(dimensions.naturalWidth).toBe(dimensions.naturalHeight);
 	});
 
+	// contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.execution.registered-validated
 	test('Phase 2: CLI apps fitness skills return Urban Sports results', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
@@ -107,7 +110,7 @@ test.describe('App: Fitness / Skills: Urban Sports Club search', () => {
 			[
 				'apps', 'fitness', 'search_classes',
 				'--input', JSON.stringify({
-					requests: [{ query: 'Yoga', address: 'Sorauer Str. 12, Berlin', radius_km: 3, attendance_mode: 'onsite', days: 7, limit: 5 }]
+					requests: [{ query: 'Yoga, Pilates', category: 'Yoga', address: 'Sorauer Str. 12, Berlin', radius_km: 3, attendance_mode: 'onsite', days: 7, limit: 5 }]
 				}),
 				'--json'
 			],
@@ -117,10 +120,12 @@ test.describe('App: Fitness / Skills: Urban Sports Club search', () => {
 		const classParsed = parseCliJson(classResult);
 		expect(classParsed.success).toBe(true);
 		expect(classParsed.data?.provider).toBe('Urban Sports Club');
+		expect(classParsed.data?.results?.[0]?.error).toBeUndefined();
 		expect(classParsed.data?.results?.[0]?.filters?.attendance_mode).toBe('onsite');
 		expect(classParsed.data?.results?.[0]?.results?.length).toBeGreaterThan(0);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.surface.semantic-parity
 	test('Phase 3: Web chat triggers Fitness class search with preview and fullscreen state', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);

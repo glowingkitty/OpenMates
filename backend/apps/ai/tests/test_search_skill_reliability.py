@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
+    normalize_json_request_array,
     normalize_string_query_request_items,
     omit_unstated_generic_repository_criteria,
 )
@@ -40,6 +41,25 @@ def test_search_request_string_items_normalize_to_query_objects() -> None:
         ],
         "_placeholder_embed_ids": ["embed-1"],
     }
+
+
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity,app-skills.execution.registered-validated
+def test_json_request_array_preserves_groups_and_metadata():
+    arguments = {
+        "requests": '[{"id":"dance","category":"Dance"},{"id":"yoga","query":"Yoga"}]',
+        "_placeholder_embed_ids": ["dance-embed", "yoga-embed"],
+    }
+    normalized = normalize_json_request_array(arguments)
+    assert normalized["requests"] == [{"id": "dance", "category": "Dance"}, {"id": "yoga", "query": "Yoga"}]
+    assert normalized["_placeholder_embed_ids"] == arguments["_placeholder_embed_ids"]
+    assert isinstance(arguments["requests"], str)
+
+
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity,app-skills.execution.registered-validated
+def test_json_request_array_leaves_invalid_inputs_for_validation():
+    for value in ('not JSON', '{"query":"Yoga"}', '["Yoga"]', 'null', 42):
+        arguments = {"requests": value}
+        assert normalize_json_request_array(arguments) is arguments
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.search-relevance.optional-and-inferred

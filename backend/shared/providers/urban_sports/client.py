@@ -22,6 +22,7 @@ from backend.shared.providers.urban_sports.parsers import (
     filter_by_plan,
     haversine_km,
     matches_query,
+    parse_activity_categories,
     parse_activity_cards,
     parse_venue_cards,
     parse_venue_detail,
@@ -49,6 +50,7 @@ class UrbanSportsClient:
         self.language = language.strip("/") or DEFAULT_LANGUAGE
         self.timeout = timeout
         self._venue_detail_cache: dict[str, dict[str, Any]] = {}
+        self._category_id_cache: dict[tuple[str, str], str] = {}
 
     async def search_locations(
         self,
@@ -214,6 +216,19 @@ class UrbanSportsClient:
 
     async def _fetch_search_page(self, endpoint: str, **params: Any) -> str:
         language = params.pop("language", None) or self.language
+        category = str(params.get("category") or "").strip()
+        if category and not category.isdecimal():
+            cache_key = (language, category.casefold())
+            category_id = self._category_id_cache.get(cache_key)
+            if category_id is None:
+                discovery_params = {key: value for key, value in params.items() if key != "category"}
+                discovery_url = self._build_search_url(endpoint, language=language, params=discovery_params)
+                categories = parse_activity_categories(await self._fetch_url(discovery_url))
+                category_id = categories.get(category.casefold())
+                if category_id is None:
+                    raise ValueError(f"Unknown Urban Sports activity category: {category}")
+                self._category_id_cache[cache_key] = category_id
+            params["category"] = category_id
         url = self._build_search_url(endpoint, language=language, params=params)
         return await self._fetch_url(url)
 

@@ -1026,6 +1026,21 @@ def test_skill_execution_uses_placeholder_normalized_args() -> None:
     ) is placeholder_args
 
 
+def test_fitness_json_request_array_is_normalized_before_placeholder_dispatch() -> None:
+    import yaml
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/fitness/app.yml").read_text())
+    skill = next(item for item in app["skills"] if item["id"] == "search_classes")
+    metadata = {"fitness": SimpleNamespace(skills=[SimpleNamespace(id="search_classes", tool_schema=skill["tool_schema"])])}
+    requests = [{"id": "dance", "category": "Dance"}, {"id": "yoga", "query": "Yoga"}]
+    normalized = main_processor._normalize_skill_arguments(
+        {"requests": json.dumps(requests), "_placeholder_embed_ids": ["first", "second"]},
+        "fitness", "search_classes", metadata, "fitness-regression",
+    )
+    assert normalized["requests"] == requests
+    assert normalized["_placeholder_embed_ids"] == ["first", "second"]
+
+
 def test_skill_execution_falls_back_to_fresh_args_without_placeholder_args() -> None:
     parsed_args = {"requests": [{"id": "search_aethos", "query": "aethos"}]}
 

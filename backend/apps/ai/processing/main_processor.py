@@ -33,6 +33,7 @@ from backend.apps.ai.processing.preprocessor import (
 from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
+    normalize_json_request_array,
     normalize_string_query_request_items,
     omit_unstated_generic_repository_criteria,
 )
@@ -10035,6 +10036,15 @@ def _normalize_skill_arguments(
     schema = skill_def.tool_schema
     schema_properties = schema.get("properties", {})
     schema_required = schema.get("required", [])
+
+    requests_schema = schema_properties.get("requests", {})
+    if requests_schema.get("type") == "array":
+        normalized = normalize_json_request_array(arguments)
+        if normalized is not arguments:
+            logger.warning(
+                f"{log_prefix} [NORMALIZE] Decoded JSON request array for '{app_id}.{skill_id}'."
+            )
+            arguments = normalized
     
     schema_expects_requests = (
         "requests" in schema_properties

@@ -64,6 +64,7 @@ class FailingUrbanSportsClient:
         raise RuntimeError("provider unavailable")
 
 
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity,app-skills.execution.registered-validated
 @pytest.mark.asyncio
 async def test_search_locations_returns_grouped_radius_results() -> None:
     skill = SearchLocationsSkill(None, "fitness", "search_locations", "Search locations", "Search locations")
@@ -81,6 +82,7 @@ async def test_search_locations_returns_grouped_radius_results() -> None:
     assert group["results"][0]["name"] == "BEAT81 - Paul-Lincke-Ufer"
 
 
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity,app-skills.execution.registered-validated
 @pytest.mark.asyncio
 async def test_search_classes_defaults_to_all_plans_and_onsite_for_radius_search() -> None:
     skill = SearchClassesSkill(None, "fitness", "search_classes", "Search classes", "Search classes")
@@ -97,6 +99,7 @@ async def test_search_classes_defaults_to_all_plans_and_onsite_for_radius_search
     assert group["results"][0]["plans_required"] == ["Classic", "Premium", "Max"]
 
 
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity,app-skills.execution.registered-validated
 @pytest.mark.asyncio
 async def test_search_classes_accepts_flat_runtime_args() -> None:
     skill = SearchClassesSkill(None, "fitness", "search_classes", "Search classes", "Search classes")
@@ -110,6 +113,7 @@ async def test_search_classes_accepts_flat_runtime_args() -> None:
     assert group["results"][0]["name"] == "HIIT Strength"
 
 
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity,app-skills.execution.registered-validated
 @pytest.mark.asyncio
 async def test_search_classes_explicit_plan_filter_is_visible_in_summary() -> None:
     skill = SearchClassesSkill(None, "fitness", "search_classes", "Search classes", "Search classes")
@@ -125,6 +129,20 @@ async def test_search_classes_explicit_plan_filter_is_visible_in_summary() -> No
     assert group["results"][0]["name"] == "Morning Yoga"
 
 
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity,app-skills.execution.registered-validated
+@pytest.mark.asyncio
+async def test_search_classes_preserves_batch_when_dispatched_as_kwargs() -> None:
+    skill = SearchClassesSkill(None, "fitness", "search_classes", "Search classes", "Search classes")
+    skill.client = FakeUrbanSportsClient()
+    response = await skill.execute(requests=[
+        {"id": "all-plans", "address": "Sorauer Str. 12", "radius_km": 1},
+        {"id": "essential", "address": "Sorauer Str. 12", "radius_km": 1, "plan": "essential"},
+    ])
+    assert [group["id"] for group in response["results"]] == ["all-plans", "essential"]
+    assert [group["results"][0]["name"] for group in response["results"]] == ["HIIT Strength", "Morning Yoga"]
+
+
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity,app-skills.execution.registered-validated
 @pytest.mark.asyncio
 async def test_provider_failures_are_visible_errors() -> None:
     skill = SearchLocationsSkill(None, "fitness", "search_locations", "Search locations", "Search locations")

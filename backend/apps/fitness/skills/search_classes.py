@@ -36,7 +36,7 @@ class FitnessClassSearchRequestItem(BaseModel):
     plan: str | None = Field(default=None, description="Optional plan filter: essential, classic, premium, or max. Omit for all plans.")
     attendance_mode: str | None = Field(default=None, description="onsite, online, or all. Address/radius searches default to onsite.")
     min_spots: int = Field(default=1, ge=0, description="Minimum available spots.")
-    category: str | None = Field(default=None, description="Optional Urban Sports category filter ID.")
+    category: str | None = Field(default=None, description="Optional Urban Sports activity name or numeric category ID.")
     venue_id: str | None = Field(default=None, description="Optional Urban Sports venue filter ID.")
     limit: int = Field(default=10, ge=1, le=50, description="Maximum number of classes to return.")
     relevance_criteria: str | None = Field(
@@ -92,8 +92,16 @@ class SearchClassesSkill(BaseSkill):
             "attendance_mode": attendance_mode,
         }
 
-    async def execute(self, input_data: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
-        request = FitnessClassSearchRequest.model_validate(_normalize_request_payload(input_data or kwargs))
+    async def execute(
+        self,
+        input_data: dict[str, Any] | None = None,
+        requests: list[dict[str, Any]] | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        # Declaring requests preserves grouped input through BaseApp dispatch,
+        # which otherwise unwraps the first item for flat-signature skills.
+        payload = input_data if input_data is not None else ({"requests": requests} if requests is not None else kwargs)
+        request = FitnessClassSearchRequest.model_validate(_normalize_request_payload(payload))
         groups = []
         for index, item in enumerate(request.requests):
             req = item.model_dump(exclude_none=True)
