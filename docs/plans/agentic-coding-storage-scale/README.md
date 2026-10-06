@@ -2,6 +2,34 @@
 
 ## Current status — 2026-10-06
 
+Team storage settlement is published as `a5ad0627a99a105a75bcb45ea0abf4a0002351e4`.
+All eight required isolated Team gates and the mandatory publication checks
+passed, including the exact 221-case backend gate. Authenticated, create-only
+recovery closed the local offline dependency cache blocker. Coordinated additive
+schema setup, coherent restart and flag activation passed. Readback confirms
+three Team tables, five valid/ready indexes and 17 healthy services with Team
+billing/expiry enabled. Matching Vercel deployment succeeded. Personal billing
+remains active; all six archive
+copy/read/prune flags remain off. Production is unchanged.
+
+Strict zero-inference pilot `37478841402` failed on frozen source `f299c3cb`
+and harness `b971d533`. It includes the reviewed version/privacy fixture repairs,
+bounded branch diagnostics, stream context cleanup and actual warm-window SQL.
+It reached 46/60 rounds and 4/8 versions, with zero real calls and verified
+cleanup. New bounded diagnostics support causal fixes to the privacy-read and
+request-budget fixtures; other unattributed rows remain unresolved. No full
+processing or capacity pass is claimed. Calibration, the dedicated-host
+1000-heavy-user-day/500-execution target, native reader/recovery evidence and
+signed pruning eligibility remain open. The two real CLI/web canaries already
+passed; do not repeat real inference for architecture testing.
+
+No retained evidence attributes the previous pilot failure to workflow chat
+`01a10cd6…`. Its earlier tooling changes were included; the proven failures were
+in deterministic version/privacy fixtures. See [progress.md](progress.md) for
+the exact evidence and current rollout status.
+
+## Historical checkpoint — earlier 2026-10-06
+
 Public dev is `6aa4e63a` (including the TypeSafe changes from `f6f5fdc1`). Storage prerequisites include the personal billing
 admission guard, automatic schema-before-writer migration, frozen-source schema
 policy binding, and exact capability-specific PostgreSQL proof validation.
@@ -95,44 +123,22 @@ This approved plan keeps the current PostgreSQL, Directus, Redis/Dragonfly, and 
 
 > “what i care about is having a proper reliable efficient and scalable solution that is still reasonable to implement in terms of effort and minimal migration risk.”
 
-## Latest verified change — 2026-10-04
+## Latest checkpoint — 2026-10-06
 
-The bounded storage, recovery, archive and artifact-version foundation is now
-published and active on development at commit
-`1e7b84c33ea33734ec53c85deda27b90aad3124d`. Existing high-write Directus
-tracking policies, filtered scalar message counts and all nine nonunique access
-indexes remain live; historical audit rows were retained.
+The storage foundation, personal weekly billing and automatic migration are
+published on dev. Exactly two real CLI/web canaries passed (58 credits total).
+All eight required Team checks and 221 publication unit cases passed. The
+accepted Team implementation is reconciled with the current Apple publication;
+publication awaits repair of authenticated offline dependency cache material,
+then additive schema setup and coordinated dev activation.
 
-The coordinated schema operation completed successfully in 361.35 seconds. The
-following coordinated restart, operation `docker-867b0631`, completed in 295.41
-seconds with all 17 services running and healthy. Independent catalog readback
-found all 17 recovery indexes present, unique where required, valid and ready.
-All seven archive and expanded-billing switches are off across all 17 services.
-The matching Vercel web deployment `2w3u56hwciegHBEV9p8N4CjtvCut` succeeded.
-
-Release evidence includes the exact 120-file backend gate with 1,408 passing
-tests and the focused recovery CI source `33e0f616`, whose two selected cases
-passed after one synthetic fixture setup retry. These results verify the scoped
-release paths; they are not the accepted full-scale capacity proof. Full P-7 is
-deferred and remains the first-real-prune gate. Native typed readers and writers,
-cross-client concurrency, reference-safe expanded-billing expiry and Team billing
-policy remain incomplete. Archive/prune and expanded billing remain disabled.
-
-Missing-version recovery guard `9f42f3f23c5550c1166d0fdab792c3b113c0c82d`
-is also published and active. Coordinated operation `docker-2ca18e8b` restarted
-16 API/worker services in 84.36 seconds; all are healthy and CMS schema was
-unchanged. Exact-source isolated CI run `37233294260` passed the bounded 404 case
-1/1 in 0.50 seconds, and the focused local route suite passed 15/15.
-
-The two authorized real turns completed once each with no inference retry: CLI
-used 25 credits and web used 33, 58 total. SQL and fresh-client reads verify one
-canonical user/assistant pair for each. CLI also has the exact saved `add_one`
-code embed, one bounded v1 snapshot row, an acknowledged sealed diff, one
-canonical v1 row and no duplicate charge. The web stored answer renders with
-synced status. The corrected exact-client-ID browser readback passed at 20:57:23
-UTC with zero new inference: the rendered answer hash remained identical after
-reload and login from a second empty browser context. Production is unchanged. [Current progress](progress.md) records the detailed
-receipts and remaining gates.
+The latest zero-inference capacity pilot passed browser encryption and the
+PostgreSQL/S3 archive probe, but failed version processing (46/60 rounds and
+4/8 versions). Two proven fixture repairs passed focused tests and review;
+precise rejection attribution precedes the next pilot. Full target capacity,
+native typed readers and release eligibility remain open. All six archive
+copy/read/prune flags remain off; production is unchanged.
+[Current progress](progress.md) records evidence and remaining gates.
 
 ## Why this work exists
 

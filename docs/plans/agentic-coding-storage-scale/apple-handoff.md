@@ -1,30 +1,68 @@
-# Additional archive reader requirement (2026-10-05)
+# Current Mac handoff — 2026-10-06
 
-Pull `dev` including `8d50ac6555faff1f44a447c8b3600fa1e95080d8` or newer into
-the existing Mac workspace using its session workflow. On a clean canonical
-checkout already on `dev`, use `git pull --ff-only origin dev`. Complete
-archive-aware readers before advertising
-`agentic-storage-v2` in the WebSocket `client_capabilities` list and in the HTTP
-`X-OpenMates-Client-Capabilities` header. The capability means the full native
-reader can page mixed PostgreSQL/S3 chat history, fetch exact oversized messages,
-load child history on demand, decrypt and reconstruct historical artifact
-versions, and preserve Personal/Team/Project/share scope and revocation.
+Backend, web, CLI and SDK Team storage settlement is published and active on
+development commit `a5ad0627a99a105a75bcb45ea0abf4a0002351e4`. Additive setup,
+all three tables/five ready indexes, 17 healthy services and matching web
+deployment are verified. Personal and Team finance flags are on; all six
+archive flags remain off. Production is unchanged.
 
-Treat HTTP 426 and WebSocket `update_required` as an explicit update requirement;
-never report a hot-only transcript or a failed persistence acknowledgement as a
-complete saved result. Exact Project version reads and checkpoint writes carry
-`project_id` and, for a Team Project, its authorized `team_id`; never infer that
-association from an unrelated currently open Project. Preserve the existing
-canonical writer and typed-output recovery requirements below.
+Reuse the Mac Task/workspace. Pull current `dev` through that workspace's
+integration workflow; use `git pull --ff-only origin dev` only for the clean
+canonical `dev` checkout. Preserve the strict main/Watch canonical writers
+already published in `25fdf752`; their rollout document explicitly leaves typed
+recovery and archive-reader qualification open. Complete those readers and
+return native source/test receipts before claiming pruning eligibility.
 
-Return the published native source commit, supported iOS/macOS/Watch platforms,
-focused reader/writer results and bounded evidence for release review. Include
-HTTP and WebSocket reconnect capability tests, bounded cold scrollback and
-exact-version Personal/Team/Project authorization and decryption. The release
-issuer consumes reviewed native evidence; a claimed capability alone is not proof. Native compatibility remains a
-required migration gate. There is no request to run large real inference tests.
+## Team storage and wallet surfaces
 
-# Immediate Mac action for the active development storage API
+1. Owner/admin storage settings use `GET /v1/teams/{team_id}/storage`. Read
+   `total_bytes`, `legacy_upload_bytes`, `logical_s3_bytes`, `categories`,
+   `measurement_at`, `metering_source_version`, `metering_policy_version`,
+   `free_bytes`, `credits_per_started_excess_gib_per_week`, `billable_gib`,
+   `weekly_cost_credits`, `billing_status` and the bounded `billing` state.
+   Status is `disabled_pending_validation`, `current`, `unpaid` or
+   `manual_review`; a disabled estimate must not imply a paid invoice.
+2. Show `billing.warning_count`, `deadline_at`, `expiry_due`, `expiry_enabled`,
+   `outstanding_credits`, bounded `invoices`/`has_more_invoices` and
+   `affected_units`/`has_more_affected_units` where relevant. Dates are Unix UTC
+   seconds. Present friendly localized status and resource labels; do not expose
+   internal hold reasons or imply that a listed unit has already been deleted.
+3. Load affected units with
+   `GET /v1/teams/{team_id}/storage/notice?limit=50&after_unit_id=<cursor>`.
+   Limit is 1–100; `after_unit_id` is an exclusive lowercase 64-hex cursor.
+   Use `episode_id`, `warning_count`, `deadline_at`, `manual_review`,
+   `unit_selection_hash`, `units`, `has_more` and `next_after_unit_id`.
+   Unit kinds are `upload`, `cold_chat`, `artifact_history`, with `unit_id`,
+   `resource_id`, `oldest_at`, `bytes` and `fingerprint`. Refresh on Team/role
+   changes and discard responses belonging to an older Team selection.
+4. `GET /v1/teams/{team_id}/billing` returns the authoritative numeric Team
+   balance and version. Use `balance_credits` and `version`; any encrypted
+   snapshot is advisory and cannot replace newer authoritative state. Keep the
+   existing credit update/version protocol and paid-action checks intact.
+5. Every Team has its own **1 GiB** allowance, separate from personal storage.
+   Excess costs **3 credits per started GiB each week**, charged Sunday 03:00
+   UTC. After nonpayment, the owner and all admins must receive four complete
+   provider-confirmed weekly warning rounds. Earliest expiry is 28 days after
+   the first and seven days after the fourth. Only enough specifically warned,
+   complete safe units may expire; active work, outside references, sole
+   recovery copies and later-paid data stay protected. Invoice waiver applies
+   only to the warned episode after verified return to the allowance.
+6. Handle the notification destination `/#settings/teams/{team_id}`. Verify
+   owner/admin/member permissions, allowance/quote, disabled/unpaid/manual-review
+   states, pagination, UTC dates, stale-Team responses and numeric-wallet
+   precedence with synthetic zero-inference native fixtures. Return the actual
+   iOS/macOS/Watch commit and focused test results. Backend email delivery and
+   expiry decisions stay on the server.
+
+See `frontend/packages/ui/src/services/teamService.ts`,
+`frontend/packages/ui/src/components/settings/SettingsTeams.svelte`, and
+`backend/core/api/app/routes/teams.py` on the pulled source for exact contracts.
+Full native bounded history/version readers, typed canonical persistence and
+ACK recovery remain the separate storage eligibility work described below.
+
+---
+
+# Existing canonical and typed storage contract
 
 Development backend commits
 `1e7b84c33ea33734ec53c85deda27b90aad3124d` and recovery guard
@@ -72,7 +110,7 @@ this handoff.
 
 # Apple storage compatibility handoff
 
-The Mac Task reports on 2026-10-04 that strict main and Watch writers are paired
+Historical 2026-10-04 checkpoint: the Mac Task reports that strict main and Watch writers are paired
 with the exact development profile, with focused verification still running.
 That activity is not a published commit or a completed test result. Finish and
 publish that work rather than reimplementing it. Typed v2 remains unadvertised.

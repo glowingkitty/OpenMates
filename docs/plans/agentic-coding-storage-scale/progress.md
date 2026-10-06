@@ -4,57 +4,87 @@ Snapshot: 2026-10-06. OpenMates Tasks owns work status and dependencies.
 
 ## Latest checkpoint — 2026-10-06
 
-Public dev is `6aa4e63a` (including the TypeSafe changes from `f6f5fdc1`). Storage prerequisites include the personal billing
-admission guard, automatic schema-before-writer migration, frozen-source schema
-policy binding, and exact capability-specific PostgreSQL proof validation.
-The last verified runtime generation was `97da9047` at 09:56 UTC; personal
-billing was active and all six archive copy/read/prune flags were off. Runtime
-source will be checked again before Team activation. The two real CLI/web
-canaries already passed; architecture tests use zero real inference.
+Public dev is `a5ad0627a99a105a75bcb45ea0abf4a0002351e4`, including Team
+storage settlement and the Apple publication `25fdf752`. The storage foundation,
+personal billing, two real CLI/web canaries (58 credits total), and automatic
+schema-before-writer migration are already published. The verified storage
+runtime is `a5ad0627`: personal and Team billing/expiry on and all
+six archive copy/read/prune flags off. Production is unchanged.
 
-Team candidate `614440ce` passed strict GitHub logical-storage integration
-(run `37453710810`): cold schema setup, all 17 PostgreSQL proof fields, the real
-Vault owner-contact encrypt/decrypt and current-email-hash checks, and one
-browser case with no skips or flaky results. Cleanup verified zero containers,
-zero volumes and removal of disposable account files. Backend, service,
-CLI, Python SDK and Team component gates already passed. The final Team creation
-flow (`37456069796`) also passed one expected case with no skips/flakes and
-verified cleanup. The personal legacy check (`37456065370`) stopped in setup:
-it correctly disabled Team finance, then its fixture incorrectly attempted a
-new Team archive. The revised fixture now proves the exact rejected CMS claim
-and absence of archive rows. It preserves all personal assertions and the
-already-tested logical Team proof. Independent review closed; 48 fixture and
-95 runner/profile/proof checks passed. The scoped prerequisite is public as
-`6aa4e63a`; one corrected legacy consumer follows. API/workers retain valid
-self-host mode; this rejection proof explicitly covers the CMS guard only.
-Team finance stays disabled until that result and the schema-before-writer
-rollout are verified. Each Team has
-its own 1 GiB allowance and numeric Team wallet; see
-[billing-extension.md](billing-extension.md).
+All eight required Team GitHub gates passed: backend, web service, CLI, Python
+SDK, component preview, actual PostgreSQL/S3/Vault logical billing, Team
+creation and personal legacy compatibility. The exact ordered publication
+unit gate passed 221 cases after three test-only fixture/import repairs.
+The reviewed 62 source paths were published with normal Specification artifact
+regeneration, preserving concurrent Apple and workflow changes. Required lint,
+Specification and the 20-file/221-case pytest publication gate passed. Locked
+cache recovery runs `37475279594` and `37479516969` authenticated every archive
+and exported content file; create-only restoration preserved existing bytes and
+the final selected-package audit found no missing or invalid entries. No dev
+download or cache overwrite was needed. Coordinated additive Team setup
+`docker-0572a336`, coherent 17-service restart `docker-c285502e`, and same-source
+Team activation `docker-aca9f1f7` all completed. Read-only PostgreSQL catalog
+verification found all three Team tables, five valid/ready indexes (three
+unique), and generic tracking disabled. All 17 services are healthy with both
+Team flags on, both personal flags preserved on and all six archive flags off.
+Matching Vercel deployment `DgtXuzYZ5VHM5WZT1RptMzmMxmSu` succeeded. P-9's
+backend/web/CLI/SDK dev rollout is complete; Apple work remains separately owned.
+No real inference, charge, email or deletion is used in Team verification.
 
-The P-7 pilot on `e8bf612b` (`37451643830`) passed browser persistence/reload
-and disposable PostgreSQL/S3 archive checks, but failed processing: 30/60
-rounds and 2/8 versions, with 182 fixture hits, 171 misses and 263 blocked
-attempts. Actual provider calls remained zero and strict cleanup passed.
-A causal reproduction through actual client privacy redaction and the configured
-scanner found the synthetic fixture compared raw file bytes against the
-model-visible placeholder text. A narrow fixture correction must preserve the
-signed episode and independently seeded raw-file commitment. The correction
-and reconciliation with current direct TypeSafe transport passed 74 affected
-checks and two bounded reviews. Combined source `fbbdae39` preserves the tested
-Team implementation and current provider code. One strict pilot is running
-(`37458636329`); no passing processing result is claimed yet. Calibration and
-full-target testing have not run.
+The previous P-7 pilot, run `37466140278` on exact source `52daf9e7`, passed the
+browser encryption/reload case and the PostgreSQL/S3 archive probe. Processing
+failed at a version callback: 46/60 rounds, 8/8 embeds, 4/8 versions and both
+children completed. It recorded 272 fixture hits, 281 misses, 429 blocked
+attempts and zero real inference calls. Cleanup passed. Hot-window PostgreSQL
+and cold-read latency qualification were not reached; the archive probe does
+not establish those results.
 
-The Oct 5 jobs acquired no runner and executed zero steps. October 6 failures
-have retained causes in our storage test setup and deterministic fixtures;
-no evidence attributes them to the other workflow chat. Its published workflow
-speed commit changed only two documentation files.
+Actual client privacy and signed ledger probes prove two fixture defects:
+complete version prompts exceed the synthetic 8000-character limit, and
+privacy-transformed OLD/NEW diffs differ from raw seeded bytes. Narrow patch
+`60597bda` preserves signed episode/actor/successor bindings and ordinary
+request limits. It passed 77 focused cases; original source fails the four new
+regression cases, and independent review closed. Other actual signed pre/post
+scenario probes pass. The retained logs do not identify the predicates behind
+54 preprocessing and 48 postprocessing rejections. Reviewed bounded sanitized
+branch attribution and stream context cleanup are now in strict pilot
+`37478841402`, frozen source `f299c3cb`, harness `b971d533`. That run failed at
+revision 3 with 46/60 rounds, 8/8 embeds, 4/8 versions and 2/2 children; it
+recorded 301 hits, 261 misses, 411 blocks and zero real calls. Browser and the
+actual PostgreSQL/S3 archive probe passed; strict cleanup verified zero
+containers/volumes and disposable account removal. No warm/cold page samples
+were reached, so query/latency qualification remains open.
 
-Remaining gates: final Team flows and dev activation, successful P-7 pilot and
-calibration, dedicated-host target measurement, native reader/writer evidence,
-and signed release eligibility before any real archival pruning. Production
-is unchanged. No skipped assertions or increased timeouts count as a pass.
+The complete fixed histogram identifies 48 decision-token bounds, 50 invalid
+preprocessing states, two Project-read rejects, 67 unrecognized nonstream
+branches, 14 unmatched no-tool branches, six version-read rejects, six version
+ack rejects, 68 phase mismatches and 150 raw HTTP blocks. Exact inner causes of
+the phase and HTTP rows were not retained; their counts are not attribution.
+Actual separate message/Project privacy flows reproduce the legitimate
+revision-3 read rejection: independently bound views of the same fixed raw
+ledger have different placeholder IDs. A narrow fixture patch has old-fail/
+new-pass proof for both actors and preserves invalid-read rejections. Actual
+20k pilot requests also exceed the artificial 8k latest-request allowance, and
+a signed post request of 31,643 bytes fits the unchanged 30k token budget at
+15,690 tokens. Faithful bound fixture corrections and offline tokenizer setup
+are being prepared; no retry or calibration has been submitted.
+Calibration and the dedicated-host 1000-user-day/500-execution target have not run.
+
+There is no evidence that workflow chat `01a10cd6…` caused this CI failure.
+Its `971af2c5` publication changes only two workflow planning documents. Earlier
+schema, admission, disk-budget and preparation-reuse commits linked to its
+session `0e70` are present in the failed snapshots, but none touched the proven
+fixture/privacy failure boundaries. The failed pilot requested no prepared
+builds and passed source binding, archive probes and cleanup. Earlier unknown
+rejection predicates remain unknown; timing does not establish causation.
+The removed shared dependency cache has no established actor attribution.
+
+Remaining gates: successful strict P-7
+pilot and calibration, provisioned dedicated capacity runner, native typed
+reader/recovery evidence, and signed release eligibility before real archival
+pruning. The Apple canonical-writer publication explicitly keeps typed recovery
+and archive-reader qualification separate. No skipped assertions or raised
+timeouts count as a pass.
 
 ## Historical release status — 2026-10-05
 
@@ -170,7 +200,7 @@ production and real-data pruning remain behind their existing safety gates.
 | Artifact versions | Paginated metadata, S3 history, client snapshots and bounded patches | Complete processing benchmark and account-wide growth of current-head SQL payloads |
 | Directus | High-write policies and checkpoint/archive/recovery policies active; intentional product history preserved | Historical audit cleanup and any narrower routine user-state writer change require their own scope |
 | Personal billing | Metering, fixed invoices, four delivered warnings, protected expiry, warned-only write-off and matching notices active on dev | Production rollout is separate; coarse expiry locks need a future scaling review |
-| Team billing | Protected and unrated | User payer/allowance decision |
+| Team billing | Separate allowance, wallet settlement, confirmed recipient rounds and safe expiry implemented; all eight CI gates passed | Publication cache repair and schema-before-writer dev activation |
 | Legal | Matching storage, encryption, deletion, costs and conditional rollout copy published | Production release remains separate |
 
 ## Earlier release and verification history

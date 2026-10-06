@@ -4,65 +4,18 @@ Task: TASK-9893. Added at the user's request on 2026-10-03. This extension is
 implemented alongside the approved storage architecture; it does not
 change the approval fingerprint for `architecture.storage-lifecycle@2`.
 
-## Team decisions — 2026-10-06
+## Current rollout — 2026-10-06
 
-The user confirmed every Team has its own **1 GiB** free allowance and accepted
-the recommended separate Team wallet. The rate remains **3 credits per started
-excess GiB per week**, Sunday 03:00 UTC. Team usage never consumes a personal
-allowance or personal wallet. Existing uploaded-file payer attribution remains
-unchanged for this migration; replicas and multiple references are not billed twice.
-
-The user selected **“Notify owner/admins; expire enough safe warned data.”** A
-Team warning round counts only after provider-confirmed delivery to its current
-owner and every admin. Four rounds must be at least seven days apart, with
-expiry no earlier than day 28 or seven days after the fourth round. Changed or
-unresolved recipient history holds expiry. Only complete, specifically warned,
-independently removable Team units are candidates, oldest first and only enough
-to restore the Team allowance. Active work, sole recovery copies, required
-references outside selected units and later-paid data remain protected. No safe
-sufficient subset means no removal or waiver. Verified removal may waive only
-the warned unpaid episode, never later debt or paid periods.
-
-Reuse the existing authoritative numeric Team wallet and version with an atomic
-SYSTEM ledger debit; preserve the optional client-encrypted snapshot as advisory.
-This does not require Team content-key migration. Add distinct Team invoice and
-warning tables, owner/admin quote and affected-unit screens, CLI/SDK readers,
-emails and conditional legal disclosures. Financial flags remain off until the
-focused PostgreSQL/S3 and client gates pass. Official-cloud new Team archive
-copies and pruning require Team billing readiness; self-host archival remains
-independent of cloud charging, and existing cold reads remain available.
-
-These decisions are transcribed in `feature.billing@7` and P-9. Current artifact
-heads remain in PostgreSQL under D-9; optional Q-8 is not a completion gate.
-
-## Apple client handoff for P-9
-
-Update the existing Mac workspace to the published dev storage commit before
-implementing this contract. Preserve the separate native writer work already
-assigned; no Team content-key migration is required.
-
-- Owner/admin storage quote: `GET /v1/teams/{id}/storage`, response root `storage`.
-  Show `total_bytes`, `free_bytes`, `billable_gib`, `weekly_cost_credits` and
-  `billing_status`. Supported status values are `disabled_pending_validation`,
-  `current`, `unpaid` and `manual_review`. A disabled quote is an estimate.
-- Affected units: `GET /v1/teams/{id}/storage/notice?limit=50&after_unit_id=<cursor>`.
-  Limit is 1–100; the exclusive cursor is 64 lowercase hexadecimal characters.
-  Use `has_more` and `next_after_unit_id` to paginate. Units have kinds `upload`,
-  `cold_chat` and `artifact_history`; listing them does not mean deletion occurred.
-- `measurement_at`, `deadline_at` and `oldest_at` are Unix seconds in UTC.
-  Show the notified deadline and a readable manual-review message, without
-  exposing internal hold codes. Optional `billing.notice_held` indicates delayed
-  notices and held expiry; retain that state without treating it as deletion.
-  Members without the owner/admin role cannot
-  load or display billing notices.
-- `GET /v1/teams/{id}/billing` returns authoritative `balance_credits` and
-  `version`. Use that version for balance mutations; `encrypted_balance` and
-  older local ciphertext are advisory and cannot replace a valid numeric balance.
-- Explain the independent 1 GiB Team allowance and 3 Team credits per started
-  excess GiB per week, Sunday 03:00 UTC, and the approved four delivered warning
-  rounds and protected subset expiry described above.
-- Native canonical writer, typed v2 persistence acknowledgements and archive
-  reader proof remain prerequisites for real archival pruning.
+Personal and Team weekly settlement, delivered warnings and safe warned-unit
+expiry are published and active on development source
+`a5ad0627a99a105a75bcb45ea0abf4a0002351e4`. All eight isolated Team gates and
+the exact 221-case publication gate passed. Coordinated setup, coherent restart,
+read-only verification of three Team tables/five ready indexes and activation
+passed; all 17 healthy services have personal and Team flags on. The matching
+web deployment succeeded. All six archive copy/read/prune flags remain off,
+and production is unchanged. Tiny encrypted objects and simulated declared
+sizes were used: no real inference, delivered test email, charge or user-data
+deletion. Native Team billing surfaces remain with the Mac chat.
 
 ## Accepted requirements
 
@@ -101,9 +54,13 @@ personal uploader attribution. This avoids silently changing the legacy bill
 while introducing archive billing. The settings quote and weekly charge must use
 the same authoritative usage policy and expose the measured categories.
 
-**Approved 2026-10-06:** charge new Team-owned storage once to the Team wallet
-with its own separate 1 GiB allowance. Team warning recipients and safe warned
-expiry are approved as described above; activation still requires focused proof.
+**Approved Team policy:** every Team has a separate 1 GiB allowance. New
+Team-owned logical storage is charged once to its authoritative numeric Team
+wallet, with compare-and-set versioning. Personal and Team usage, invoices and
+allowances remain distinct. The owner and all current admins must receive each
+complete warning round; the four-round timing and safe sufficient warned-unit
+expiry rules below apply to Teams too. Client-encrypted wallet snapshots are
+advisory and cannot overwrite concurrent authoritative debits.
 
 Examples:
 
@@ -248,12 +205,6 @@ charges, email sends or deletions; no real-user manual expiry was run. The
 configured support sender is active, confirmed by read-only provider lookup.
 Actual notification delivery uses the existing provider; no real test email was
 sent. Production is unchanged and its billing defaults remain off.
-Official-cloud archive copy and pruning now require the logical S3 billing flag
-to be exactly `1`; otherwise they report `storage_billing_disabled` while
-retained archive reads remain available. The first production rollout must
-reconcile the meter, customer notices and legal terms, persist approved billing
-flags through the registered installation, and then use the standard server
-update. No financial default or Team price is changed by the migration guard.
 
 Operational receipts are retained under session 2f80's ignored
 `logs/storage-integration-2f80/billing-expiry-release/`, including
