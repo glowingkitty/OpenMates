@@ -562,7 +562,7 @@ export async function handleSend(
     return;
   }
   sendInProgress = true;
-  const submittedEditorDocument = JSON.stringify(editor.getJSON());
+  const submittedEditorDoc = editor.state.doc;
   recordSendDebugStep("send_guard_acquired", { currentChatId });
 
   // OTel instrumentation: root span covering the entire send pipeline
@@ -1421,10 +1421,13 @@ export async function handleSend(
         },
       });
       sendAccepted = true;
-      if (!options.preserveDraft && JSON.stringify(editor.getJSON()) === submittedEditorDocument) {
+      if (!options.preserveDraft && editor.state.doc === submittedEditorDoc) {
         setHasContent(false);
         resetEditorContent(editor, false);
-        await clearCurrentDraft();
+        const anonymousDraftChatId = get(draftEditorUIState).currentChatId;
+        await clearCurrentDraft(anonymousDraftChatId
+          ? { editor, document: editor.state.doc, chatId: anonymousDraftChatId }
+          : undefined);
       }
       void refreshAnonymousFreeUsageStatus();
       return true;
@@ -2140,7 +2143,7 @@ export async function handleSend(
 
     wsSpan.end();
 
-    const composerStillContainsSentDocument = JSON.stringify(editor.getJSON()) === submittedEditorDocument;
+    const composerStillContainsSentDocument = editor.state.doc === submittedEditorDoc;
     if (!options.preserveDraft && !wasCancelledAfterSend && composerStillContainsSentDocument) {
       setHasContent(false);
       resetEditorContent(editor, false);
@@ -2155,7 +2158,7 @@ export async function handleSend(
       console.info(
         `[handleSend] Message sent for chat ${chatIdToUse}, clearing its draft.`,
       );
-      await clearCurrentDraft();
+      await clearCurrentDraft({ editor, document: editor.state.doc, chatId: chatIdToUse });
     } else {
       // This case might happen if a message is sent for a chat that isn't the one
       // currently active in the MessageInput's draft context (e.g., programmatic send).

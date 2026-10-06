@@ -9,6 +9,7 @@
     Preview: /dev/preview/settings
 -->
 <script lang="ts">
+    import { resolveIconName } from '../../../utils/iconNameResolver';
     /** Shape of each checkbox option */
     type CheckboxOption = {
         id: string;
@@ -65,7 +66,7 @@
                     onchange={() => handleToggle(option)}
                 />
                 {#if option.icon}
-                    <span class="checkbox-icon clickable-icon {option.icon}"></span>
+                    <span class="checkbox-icon" aria-hidden="true" style:mask-image={`var(--icon-url-${resolveIconName(option.icon.replace(/^icon_/, ''))})`}></span>
                 {/if}
                 <div class="checkbox-content">
                     <span class="checkbox-label">{option.label}</span>
@@ -138,6 +139,9 @@
         height: 1.125rem;
         background-color: var(--color-font-secondary);
         flex-shrink: 0;
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        mask-position: center;
     }
 
     /* ── Content ───────────────────────────────────────────────── */

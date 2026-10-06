@@ -5999,6 +5999,8 @@ class OpenMatesBilling:
         self._client = client
 
     def overview(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing")
+    def buyer_address(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/buyer-address")
+    def save_buyer_address(self, address: dict[str, Any] | None) -> dict[str, Any]: return self._client._put("/v1/sdk/billing/buyer-address", {"buyer_address": address})
     def usage(self, **query: Any) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage", **query))
     def usage_overview(self, **query: Any) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage/overview", **query))
     def usage_details(self, *, type: str, identifier: str, year_month: str) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage/details", type=type, identifier=identifier, year_month=year_month))
@@ -6006,7 +6008,7 @@ class OpenMatesBilling:
     def usage_summaries(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/summaries")
     def usage_daily(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/daily")
     def usage_export(self, *, months: int | None = None) -> dict[str, Any]: return self._client._get_raw(_with_query("/v1/sdk/billing/usage/export", months=months))
-    def create_bank_transfer_order(self, credits: int, *, email_encryption_key: str | None = None) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key})
+    def create_bank_transfer_order(self, credits: int, *, email_encryption_key: str | None = None, buyer_address: dict[str, Any] | None = None) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key, **({"buyer_address": buyer_address} if buyer_address is not None else {})})
     def bank_transfer_status(self, order_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/billing/bank-transfer-orders/{_quote(order_id)}")
     def list_bank_transfer_orders(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/bank-transfer-orders")
     def list_invoices(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/invoices")
@@ -6017,7 +6019,7 @@ class OpenMatesBilling:
         return self._client._post("/v1/sdk/billing/refund", {"invoice_id": invoice_id, "email_encryption_key": email_encryption_key})
     def redeem_gift_card(self, code: str) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/gift-cards/redeem", {"code": code})
     def list_redeemed_gift_cards(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/gift-cards/redeemed")
-    def create_gift_card_bank_transfer_order(self, credits: int, *, email_encryption_key: str | None = None) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/gift-cards/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key})
+    def create_gift_card_bank_transfer_order(self, credits: int, *, email_encryption_key: str | None = None, buyer_address: dict[str, Any] | None = None) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/gift-cards/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key, **({"buyer_address": buyer_address} if buyer_address is not None else {})})
     def gift_card_purchase_status(self, order_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/billing/gift-cards/purchases/{_quote(order_id)}")
     def list_purchased_gift_cards(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/gift-cards/purchased")
     def set_low_balance_auto_topup(self, input_data: dict[str, Any]) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/auto-topup/low-balance", input_data)
@@ -6244,12 +6246,18 @@ class OpenMatesTeams:
         result = self._client._post("/v1/teams", payload)
         return dict(result.get("team") or result)
 
+    def approve_name(self, name: str) -> dict[str, Any]:
+        return self._client._post("/v1/teams/name-approval", {"name": name.strip().lower()})
+
     def create_plain(self, payload: dict[str, Any] | None = None, *, team_id: str | None = None, **kwargs: Any) -> dict[str, Any]:
         input_payload = {**(payload or {}), **kwargs}
         if team_id is not None:
             input_payload["team_id"] = team_id
         profile = _generated_team_profile_image_metadata(input_payload.get("profile") if isinstance(input_payload.get("profile"), dict) else None)
-        result = self._client._post("/v1/teams", _build_team_plain_create_payload(self._client, input_payload))
+        approval = self.approve_name(str(input_payload.get("name") or ""))
+        encrypted_payload = _build_team_plain_create_payload(self._client, input_payload)
+        encrypted_payload["name_approval_token"] = approval["approval_token"]
+        result = self._client._post("/v1/teams", encrypted_payload)
         return {**dict(result.get("team") or result), "profile_image_metadata": profile}
 
     def update(self, team_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -6277,10 +6285,35 @@ class OpenMatesTeams:
         return dict(result.get("invite") or result)
 
     def accept_invite(self, invite_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self._client._post(f"/v1/team-invites/{_quote(invite_id)}/accept", payload or {})
+        return self._client._post(f"/v1/teams/invites/{_quote(invite_id)}/accept", payload or {})
+
+    def preview_invite(self, invite_id: str, verified_email: str) -> dict[str, Any]:
+        result = self._client._post(f"/v1/teams/invites/{_quote(invite_id)}/preview", {"verified_email": verified_email.strip().lower()})
+        return dict(result["invite"])
 
     def decline_invite(self, invite_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self._client._post(f"/v1/team-invites/{_quote(invite_id)}/decline", payload or {})
+        return self._client._post(f"/v1/teams/invites/{_quote(invite_id)}/decline", payload or {})
+
+    def security(self, team_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/teams/{_quote(team_id)}/security")
+
+    def update_security(self, team_id: str, policy: dict[str, Any]) -> dict[str, Any]:
+        return self._client._patch(f"/v1/teams/{_quote(team_id)}/security", policy)
+
+    def members(self, team_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/teams/{_quote(team_id)}/members")
+
+    def invites(self, team_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/teams/{_quote(team_id)}/invites")
+
+    def revoke_invite(self, team_id: str, invite_id: str) -> dict[str, Any]:
+        return self._client._post(f"/v1/teams/{_quote(team_id)}/invites/{_quote(invite_id)}/revoke", {})
+
+    def buyer_address(self, team_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/teams/{_quote(team_id)}/billing/buyer-address")
+
+    def save_buyer_address(self, team_id: str, address: dict[str, Any] | None) -> dict[str, Any]:
+        return self._client._put(f"/v1/teams/{_quote(team_id)}/billing/buyer-address", {"buyer_address": address})
 
     def access_requests(self, team_id: str, *, status: str | None = None) -> list[dict[str, Any]]:
         result = self._client._get(_with_query(f"/v1/teams/{_quote(team_id)}/access-requests", status=status))
@@ -6313,8 +6346,8 @@ class OpenMatesTeams:
         result = self._client._get(_with_query(f"/v1/teams/{_quote(team_id)}/billing/usage", member_user_id=member_user_id))
         return list(result.get("usage") or [])
 
-    def create_bank_transfer_order(self, team_id: str, credits: int, *, email_encryption_key: str | None = None) -> dict[str, Any]:
-        return self._client._post(f"/v1/teams/{_quote(team_id)}/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key})
+    def create_bank_transfer_order(self, team_id: str, credits: int, *, email_encryption_key: str | None = None, buyer_address: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/teams/{_quote(team_id)}/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key, **({"buyer_address": buyer_address} if buyer_address is not None else {})})
 
     def bank_transfer_status(self, team_id: str, order_id: str) -> dict[str, Any]:
         return self._client._get(f"/v1/teams/{_quote(team_id)}/billing/bank-transfer-orders/{_quote(order_id)}")

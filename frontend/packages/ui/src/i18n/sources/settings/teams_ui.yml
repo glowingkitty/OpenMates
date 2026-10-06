@@ -1,0 +1,652 @@
+# Teams settings copy. Keys are exposed as settings.teams_ui.*.
+description:
+  context: Teams overview description
+  en: Collaborate on projects, chats, workflows and more.
+  de: Arbeite gemeinsam an Projekten, Chats, Workflows und mehr.
+new_team:
+  context: Action to create a team
+  en: New team
+  de: Neues Team
+create_title:
+  context: Team creation title
+  en: Create new team
+  de: Neues Team erstellen
+create_description:
+  context: Team creation description
+  en: Collaborate with others on projects, chats, workflows and more.
+  de: Arbeite mit anderen an Projekten, Chats, Workflows und mehr zusammen.
+team_name:
+  context: Team name field label
+  en: Team name
+  de: Teamname
+name_placeholder:
+  context: Team name input placeholder
+  en: Enter a team name
+  de: Teamnamen eingeben
+continue:
+  context: Advance to team avatar step
+  en: Continue
+  de: Weiter
+profile_image:
+  context: Team avatar title
+  en: Profile image
+  de: Profilbild
+profile_description:
+  context: Team avatar description
+  en: You and your collaborators will see this team profile image.
+  de: Du und deine Teammitglieder seht dieses Teamprofilbild.
+generated_avatar:
+  context: Generated team avatar option
+  en: Generated avatar
+  de: Generierter Avatar
+team_icon:
+  context: Team avatar icon selector
+  en: Team icon
+  de: Team-Symbol
+team_color:
+  context: Team avatar color selector
+  en: Team color
+  de: Teamfarbe
+select_image:
+  context: Team image file upload
+  en: Select .JPG or .PNG
+  de: .JPG oder .PNG auswählen
+use_generated:
+  context: Use generated team avatar instead of uploaded file
+  en: Use generated avatar
+  de: Generierten Avatar verwenden
+create_action:
+  context: Submit team creation
+  en: Create team
+  de: Team erstellen
+retry_upload:
+  context: Retry image upload after team creation
+  en: Retry image upload
+  de: Bildupload erneut versuchen
+members:
+  context: Team member page title
+  en: Members
+  de: Mitglieder
+members_description:
+  context: Team members page description
+  en: Manage your team members and their permissions.
+  de: Verwalte deine Teammitglieder und ihre Berechtigungen.
+admins:
+  context: Team administrator heading
+  en: Admins
+  de: Admins
+invite_members:
+  context: Team invite heading
+  en: Invite members
+  de: Mitglieder einladen
+invite_email:
+  context: Team invite email placeholder
+  en: Enter an email address
+  de: E-Mail-Adresse eingeben
+invite_action:
+  context: Team invite action
+  en: Invite member
+  de: Mitglied einladen
+copy_link:
+  context: Team invite link action
+  en: Copy invite link
+  de: Einladungslink kopieren
+pending_invites:
+  context: Team pending invite heading
+  en: Pending invites
+  de: Ausstehende Einladungen
+revoke_invite:
+  context: Team invite revoke action
+  en: Revoke invite
+  de: Einladung widerrufen
+security:
+  context: Team security page title
+  en: Security
+  de: Sicherheit
+security_description:
+  context: Team security page description
+  en: How do you want to protect your team?
+  de: Wie möchtest du dein Team schützen?
+domain_restriction:
+  context: Team allowed email domain toggle
+  en: Domain restriction
+  de: Domain-Beschränkung
+domain_placeholder:
+  context: Allowed email domain input placeholder
+  en: Enter an email domain
+  de: E-Mail-Domain eingeben
+allow_domain:
+  context: Add an allowed team email domain
+  en: Allow domain
+  de: Domain erlauben
+signup_approval:
+  context: Team invite link approval toggle
+  en: Signup approval
+  de: Beitrittsfreigabe
+strong_auth:
+  context: Team strong authentication toggle
+  en: Passkey/2FA required
+  de: Passkey/2FA erforderlich
+open_link_warning:
+  context: Security warning for unrestricted unapproved invite links
+  en: Anyone with an invite link can join. Links expire after 24 hours.
+  de: Alle mit einem Einladungslink können beitreten. Links laufen nach 24 Stunden ab.
+billing:
+  context: Team billing navigation item
+  en: Billing & usage
+  de: Abrechnung & Nutzung
+name:
+  context: Team rename navigation item
+  en: Name
+  de: Name
+save_name:
+  context: Team rename save action
+  en: Save name
+  de: Namen speichern
+save_profile:
+  context: Team image save action
+  en: Save profile image
+  de: Profilbild speichern
+setup_title:
+  context: Team setup checklist title
+  en: Team created
+  de: Team erstellt
+next_steps:
+  context: Team setup checklist heading
+  en: Next steps
+  de: Nächste Schritte
+buy_credits:
+  context: Team setup checklist billing step
+  en: Buy credits
+  de: Guthaben kaufen
+confirm_security:
+  context: Team setup checklist security step
+  en: Confirm security settings
+  de: Sicherheitseinstellungen prüfen
+invite_step:
+  context: Team setup checklist member step
+  en: Invite team members
+  de: Teammitglieder einladen
+dismiss_checklist:
+  context: Dismiss team setup checklist
+  en: Don't show again
+  de: Nicht mehr anzeigen
+
+loading_teams:
+  context: Teams settings interface
+  en: 'Loading teams'
+  de: 'Teams werden geladen'
+
+retry:
+  context: Teams settings interface
+  en: 'Retry'
+  de: 'Erneut versuchen'
+
+load_failed:
+  context: Teams settings interface
+  en: 'Teams could not be loaded. Please try again.'
+  de: 'Teams konnten nicht geladen werden. Bitte versuche es erneut.'
+
+blocked_name:
+  context: Teams settings interface
+  en: 'Choose another team name. This name is not allowed.'
+  de: 'Wähle einen anderen Teamnamen. Dieser Name ist nicht erlaubt.'
+
+name_check_failed:
+  context: Teams settings interface
+  en: 'The team name could not be checked. Please try again.'
+  de: 'Der Teamname konnte nicht geprüft werden. Bitte versuche es erneut.'
+
+jpg_png_only:
+  context: Teams settings interface
+  en: 'Select a JPG or PNG image.'
+  de: 'Wähle ein JPG- oder PNG-Bild.'
+
+image_too_large:
+  context: Teams settings interface
+  en: 'Image must be smaller than 20 MB.'
+  de: 'Das Bild muss kleiner als 20 MB sein.'
+
+image_open_failed:
+  context: Teams settings interface
+  en: 'This image could not be opened. Try another JPG or PNG.'
+  de: 'Dieses Bild konnte nicht geöffnet werden. Versuche ein anderes JPG oder PNG.'
+
+image_rejected:
+  context: Teams settings interface
+  en: 'Image not allowed. Choose another image or use the generated avatar.'
+  de: 'Bild nicht erlaubt. Wähle ein anderes Bild oder den generierten Avatar.'
+
+upload_failed:
+  context: Teams settings interface
+  en: 'Image upload failed. Retry or use the generated avatar.'
+  de: 'Bildupload fehlgeschlagen. Versuche es erneut oder verwende den generierten Avatar.'
+
+create_failed:
+  context: Teams settings interface
+  en: 'Team could not be created. Please try again.'
+  de: 'Team konnte nicht erstellt werden. Bitte versuche es erneut.'
+
+image_final_warning:
+  context: Teams settings interface
+  en: ' Another rejected image may block your account.'
+  de: ' Ein weiteres abgelehntes Bild kann dein Konto sperren.'
+
+name_save_failed:
+  context: Teams settings interface
+  en: 'Name could not be saved.'
+  de: 'Name konnte nicht gespeichert werden.'
+
+image_rejected_edit:
+  context: Teams settings interface
+  en: 'Image not allowed. Choose another image.'
+  de: 'Bild nicht erlaubt. Wähle ein anderes Bild.'
+
+image_save_failed:
+  context: Teams settings interface
+  en: 'Profile image could not be saved.'
+  de: 'Profilbild konnte nicht gespeichert werden.'
+
+invalid_email:
+  context: Teams settings interface
+  en: 'Enter a valid email address.'
+  de: 'Gib eine gültige E-Mail-Adresse ein.'
+
+domain_disallowed:
+  context: Teams settings interface
+  en: 'This email domain is not allowed.'
+  de: 'Diese E-Mail-Domain ist nicht erlaubt.'
+
+invite_ready:
+  context: Teams settings interface
+  en: 'Invite ready. Open your email app to send the secure link.'
+  de: 'Einladung bereit. Öffne deine E-Mail-App, um den sicheren Link zu senden.'
+
+invite_failed:
+  context: Teams settings interface
+  en: 'Invite could not be prepared. Please try again.'
+  de: 'Einladung konnte nicht vorbereitet werden. Bitte versuche es erneut.'
+
+link_copied_24h:
+  context: Teams settings interface
+  en: 'Invite link copied. It expires in 24 hours.'
+  de: 'Einladungslink kopiert. Er läuft nach 24 Stunden ab.'
+
+link_failed:
+  context: Teams settings interface
+  en: 'Invite link could not be created or copied.'
+  de: 'Einladungslink konnte nicht erstellt oder kopiert werden.'
+
+mail_subject:
+  context: Teams settings interface
+  en: 'Join my OpenMates team'
+  de: 'Tritt meinem OpenMates-Team bei'
+
+link_copied:
+  context: Teams settings interface
+  en: 'Secure invite link copied.'
+  de: 'Sicherer Einladungslink kopiert.'
+
+invite_revoked:
+  context: Teams settings interface
+  en: 'Invite revoked.'
+  de: 'Einladung widerrufen.'
+
+invite_revoke_failed:
+  context: Teams settings interface
+  en: 'Invite could not be revoked.'
+  de: 'Einladung konnte nicht widerrufen werden.'
+
+role_updated:
+  context: Teams settings interface
+  en: 'Member role updated.'
+  de: 'Mitgliedsrolle aktualisiert.'
+
+role_update_failed:
+  context: Teams settings interface
+  en: 'Member role could not be updated.'
+  de: 'Mitgliedsrolle konnte nicht aktualisiert werden.'
+
+you:
+  context: Teams settings interface
+  en: 'You'
+  de: 'Du'
+
+team_member:
+  context: Teams settings interface
+  en: 'Team member'
+  de: 'Teammitglied'
+
+member_remove_failed:
+  context: Teams settings interface
+  en: 'Member could not be removed.'
+  de: 'Mitglied konnte nicht entfernt werden.'
+
+security_save_failed:
+  context: Teams settings interface
+  en: 'Security settings could not be saved.'
+  de: 'Sicherheitseinstellungen konnten nicht gespeichert werden.'
+
+invalid_domain:
+  context: Teams settings interface
+  en: 'Enter a valid email domain.'
+  de: 'Gib eine gültige E-Mail-Domain ein.'
+
+duplicate_domain:
+  context: Teams settings interface
+  en: 'Domain already allowed.'
+  de: 'Domain ist bereits erlaubt.'
+
+icon_team:
+  context: Teams settings interface
+  en: 'Team'
+  de: 'Team'
+
+icon_project:
+  context: Teams settings interface
+  en: 'Project'
+  de: 'Projekt'
+
+icon_design:
+  context: Teams settings interface
+  en: 'Design'
+  de: 'Design'
+
+icon_code:
+  context: Teams settings interface
+  en: 'Code'
+  de: 'Code'
+
+icon_heart:
+  context: Teams settings interface
+  en: 'Heart'
+  de: 'Herz'
+
+icon_travel:
+  context: Teams settings interface
+  en: 'Travel'
+  de: 'Reisen'
+
+color_blue:
+  context: Teams settings interface
+  en: 'Blue'
+  de: 'Blau'
+
+color_red:
+  context: Teams settings interface
+  en: 'Red'
+  de: 'Rot'
+
+color_green:
+  context: Teams settings interface
+  en: 'Green'
+  de: 'Grün'
+
+color_purple:
+  context: Teams settings interface
+  en: 'Purple'
+  de: 'Lila'
+
+color_orange:
+  context: Teams settings interface
+  en: 'Orange'
+  de: 'Orange'
+
+role_admin:
+  context: Teams settings interface
+  en: 'Admin'
+  de: 'Admin'
+
+role_member:
+  context: Teams settings interface
+  en: 'Member'
+  de: 'Mitglied'
+
+role_viewer:
+  context: Teams settings interface
+  en: 'Viewer'
+  de: 'Betrachter'
+
+role_suffix:
+  context: Teams settings interface
+  en: 'role'
+  de: 'Rolle'
+
+empty_teams:
+  context: Teams settings interface
+  en: 'No teams yet. Create one to collaborate securely.'
+  de: 'Noch keine Teams. Erstelle eines, um sicher zusammenzuarbeiten.'
+
+create_info:
+  context: Teams settings interface
+  en: 'Create or join multiple teams. No subscription or monthly minimum is required.'
+  de: 'Erstelle mehrere Teams oder tritt ihnen bei. Es ist weder ein Abo noch ein monatlicher Mindestbetrag erforderlich.'
+
+image_preview:
+  context: Teams settings interface
+  en: 'Team image preview'
+  de: 'Vorschau des Teambilds'
+
+member_detail_description:
+  context: Teams settings interface
+  en: 'Team membership and permissions.'
+  de: 'Teammitgliedschaft und Berechtigungen.'
+
+role_label:
+  context: Teams settings interface
+  en: 'Role'
+  de: 'Rolle'
+
+status_label:
+  context: Teams settings interface
+  en: 'Status'
+  de: 'Status'
+
+member_role:
+  context: Teams settings interface
+  en: 'Member role'
+  de: 'Mitgliedsrolle'
+
+remove_member:
+  context: Teams settings interface
+  en: 'Remove member'
+  de: 'Mitglied entfernen'
+
+remove_warning:
+  context: Teams settings interface
+  en: 'This member will lose access to the team and its shared data.'
+  de: 'Dieses Mitglied verliert den Zugriff auf das Team und seine gemeinsamen Daten.'
+
+remove_confirm:
+  context: Teams settings interface
+  en: 'I understand this member will lose access'
+  de: 'Ich verstehe, dass dieses Mitglied den Zugriff verliert.'
+
+legacy_member_info:
+  context: Teams settings interface
+  en: 'This member cannot be managed here yet.'
+  de: 'Dieses Mitglied kann hier noch nicht verwaltet werden.'
+
+member_not_found:
+  context: Teams settings interface
+  en: 'Member not found.'
+  de: 'Mitglied nicht gefunden.'
+
+management_only:
+  context: Teams settings interface
+  en: 'Only team owners and admins can manage members and invitations.'
+  de: 'Nur Teambesitzer und Admins können Mitglieder und Einladungen verwalten.'
+
+open_security:
+  context: Teams settings interface
+  en: 'Change allowed domains in Security'
+  de: 'Sicherheit öffnen'
+
+open_email_draft:
+  context: Teams settings interface
+  en: 'Open email draft'
+  de: 'E-Mail-Entwurf öffnen'
+
+copy_secure_link:
+  context: Teams settings interface
+  en: 'Copy secure invite link'
+  de: 'Sicheren Einladungslink kopieren'
+
+share_link_info:
+  context: Teams settings interface
+  en: 'Share this link within 24 hours. New members may need admin approval.'
+  de: 'Teile diesen Link innerhalb von 24 Stunden. Neue Mitglieder benötigen möglicherweise eine Freigabe durch einen Admin.'
+
+invite_link:
+  context: Teams settings interface
+  en: 'Invite link'
+  de: 'Einladungslink'
+
+domain_all_joins:
+  context: Teams settings interface
+  en: 'Allowed for all new joins'
+  de: 'Für alle neuen Beitritte erlaubt'
+
+remove:
+  context: Teams settings interface
+  en: 'Remove'
+  de: 'Entfernen'
+
+approval_info:
+  context: Teams settings interface
+  en: 'Direct email invites join immediately. Invite links require admin approval when this is on.'
+  de: 'Direkte E-Mail-Einladungen führen sofort zum Beitritt. Einladungslinks benötigen bei aktivierter Option die Freigabe durch einen Admin.'
+
+name_description:
+  context: Teams settings interface
+  en: 'This name is visible to team members.'
+  de: 'Dieser Name ist für Teammitglieder sichtbar.'
+
+avatar_edit_description:
+  context: Teams settings interface
+  en: 'Choose an icon and color, or upload JPG or PNG.'
+  de: 'Wähle ein Symbol und eine Farbe oder lade ein JPG oder PNG hoch.'
+
+detail_description:
+  context: Teams settings interface
+  en: "Manage your team\nand its settings."
+  de: "Verwalte dein Team\nund seine Einstellungen."
+
+team_credits:
+  context: Teams settings interface
+  en: 'Team credits'
+  de: 'Teamguthaben'
+
+personal_scope_info:
+  context: Teams settings interface
+  en: 'Personal memories and connected accounts stay outside team context.'
+  de: 'Persönliche Erinnerungen und verbundene Konten bleiben außerhalb des Teamkontexts.'
+
+team_not_found:
+  context: Teams settings interface
+  en: 'Team not found or unavailable on this device.'
+  de: 'Team nicht gefunden oder auf diesem Gerät nicht verfügbar.'
+
+mail_body_intro:
+  context: Teams settings interface
+  en: 'Join my team with this secure link:'
+  de: 'Tritt meinem Team mit diesem sicheren Link bei:'
+
+mail_body_privacy:
+  context: Teams settings interface
+  en: 'The link contains your invite key. Keep it private.'
+  de: 'Der Link enthält deinen Einladungsschlüssel. Behandle ihn vertraulich.'
+
+delete_team:
+  context: Owner-only team deletion action and page title
+  en: Delete team
+  de: Team löschen
+
+delete_description:
+  context: Owner-only team deletion page description
+  en: Permanently delete this team and its shared resources.
+  de: Dieses Team und seine gemeinsamen Ressourcen dauerhaft löschen.
+
+delete_warning:
+  context: Team deletion confirmation warning
+  en: Team members will lose access to this team, its projects, and its shared data. This cannot be undone.
+  de: Teammitglieder verlieren den Zugriff auf dieses Team, seine Projekte und seine gemeinsamen Daten. Dies kann nicht rückgängig gemacht werden.
+
+delete_confirm:
+  context: Explicit checkbox for owner team deletion
+  en: I understand this team will be permanently deleted
+  de: Ich verstehe, dass dieses Team dauerhaft gelöscht wird
+
+delete_failed:
+  context: Team deletion error
+  en: Team could not be deleted. Please try again.
+  de: Team konnte nicht gelöscht werden. Bitte versuche es erneut.
+
+owner_only_delete:
+  context: Direct team deletion route opened by someone who is not owner
+  en: Only the team owner can delete this team.
+  de: Nur der Teambesitzer kann dieses Team löschen.
+
+benefit_multiple_teams:
+  context: Team settings design copy
+  en: "Create or join multiple teams"
+  de: "Erstelle mehrere Teams oder tritt ihnen bei"
+
+benefit_no_subscription:
+  context: Team settings design copy
+  en: "No subscription required"
+  de: "Kein Abo erforderlich"
+
+benefit_no_minimum:
+  context: Team settings design copy
+  en: "No monthly minimum costs"
+  de: "Keine monatlichen Mindestkosten"
+
+benefit_workspaces:
+  context: Team settings design copy
+  en: "Collaborate on chats, projects, tasks and workflows"
+  de: "Arbeite gemeinsam an Chats, Projekten, Aufgaben und Workflows"
+
+benefit_encryption:
+  context: Team settings design copy
+  en: "Encrypted team chat"
+  de: "Verschlüsselter Teamchat"
+
+change_generated_avatar:
+  context: Team settings design copy
+  en: "Change generated avatar"
+  de: "Generierten Avatar ändern"
+
+invite_members_guidance:
+  context: Team settings design copy
+  en: "Make full use of teams by inviting other members!"
+  de: "Nutze Teams vollständig, indem du weitere Mitglieder einlädst!"
+
+invite_sharing_guidance:
+  context: Team settings design copy
+  en: "Invite a user via email, or share an invite link. Signup approval applies to shared links when enabled."
+  de: "Lade Nutzer per E-Mail ein oder teile einen Einladungslink. Bei aktivierter Beitrittsfreigabe müssen geteilte Links genehmigt werden."
+
+strong_auth_info:
+  context: Team settings design copy
+  en: "Requires either a passkey or a 2FA app for login. This improves protection against scammers and hackers."
+  de: "Erfordert einen Passkey oder eine 2FA-App zur Anmeldung. Dies verbessert den Schutz vor Betrügern und Hackern."
+
+credit_purpose:
+  context: Team settings design copy
+  en: "for AI chats & app skill use"
+  de: "Für KI-Chats und App-Funktionen"
+
+invite_ready_pending:
+  context: Direct secure invite prepared for sharing, recipient has not accepted
+  en: Invite ready; awaiting acceptance
+  de: Einladung bereit; Annahme ausstehend
+invite_waiting:
+  context: Pending invitation status
+  en: Awaiting acceptance
+  de: Annahme ausstehend
+
+untitled_team:
+  context: Fallback label when a team name is unavailable
+  en: Untitled team
+  de: Unbenanntes Team

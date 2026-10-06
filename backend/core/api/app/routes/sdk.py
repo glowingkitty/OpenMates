@@ -472,6 +472,7 @@ def _is_cloud_payment_sdk_path(path: str, method: str) -> bool:
     method = method.upper()
     return (
         (path == "auto-topup/low-balance" and method == "POST")
+        or path == "buyer-address"
         or path == "bank-transfer-orders"
         or path.startswith("bank-transfer-orders/")
         or path.startswith("gift-cards/")
@@ -1366,6 +1367,13 @@ async def _dispatch_sdk_surface(
             from backend.core.api.app.schemas.settings import AutoTopUpLowBalanceRequest
 
             return _jsonable(await _sdk_route_handler(settings_routes.update_low_balance_auto_topup)(request, AutoTopUpLowBalanceRequest(**(body or {})), user, directus_service, cache_service, encryption_service))
+        if path == "buyer-address" and request.method == "GET":
+            payments_routes = _sdk_route_module("payments")
+            return _jsonable(await _sdk_route_handler(payments_routes.get_personal_buyer_address)(request, Response(), user, directus_service, encryption_service))
+        if path == "buyer-address" and request.method == "PUT":
+            payments_routes = _sdk_route_module("payments")
+            from backend.core.api.app.schemas.billing_address import BuyerAddressRequest
+            return _jsonable(await _sdk_route_handler(payments_routes.set_personal_buyer_address)(request, Response(), BuyerAddressRequest(**(body or {})), user, directus_service, encryption_service))
         if path == "bank-transfer-orders" and request.method == "POST":
             payments_routes = _sdk_route_module("payments")
 

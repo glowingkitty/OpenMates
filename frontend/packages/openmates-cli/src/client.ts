@@ -1,3 +1,4 @@
+import type { BuyerAddress } from "./billingAddress.js";
 import { prepareCliMessagePrivacy } from "./privacyScan.js";
 /*
  * OpenMates CLI SDK client.
@@ -665,6 +666,7 @@ interface ParsedImportChat {
 }
 
 export interface TeamCreateInput {
+  nameApprovalToken?: string;
   name?: string;
   description?: string | null;
   slug?: string | null;
@@ -3546,15 +3548,34 @@ export class OpenMatesClient {
     return teams;
   }
 
+  async approveTeamName(name: string): Promise<string> {
+    this.requireSession();
+    const normalized = name.trim().toLowerCase();
+    if (!normalized) throw new Error("Team name is required.");
+    const response = await this.http.post<{ approval_token?: string }>(
+      "/v1/teams/name-approval", { name: normalized }, this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.approval_token) {
+      throw new Error(`Team name could not be approved (HTTP ${response.status}).`);
+    }
+    return response.data.approval_token;
+  }
+
   async createTeam(input: TeamCreateInput): Promise<TeamRecord> {
     this.requireSession();
+    const name = input.name?.trim() || "Untitled team";
+    if (input.encryptedName && !input.name && !input.nameApprovalToken) {
+      throw new Error("Encrypted team creation requires a name approval token.");
+    }
+    const approvalToken = input.nameApprovalToken ?? await this.approveTeamName(name);
     const now = Math.floor(Date.now() / 1000);
     const teamKeyBytes = randomBytes(32);
     const teamId = input.teamId ?? randomUUID();
     const payload: Record<string, unknown> = {
       team_id: teamId,
+      name_approval_token: approvalToken,
       slug: input.slug ?? undefined,
-      encrypted_name: input.encryptedName ?? await encryptWithAesGcmCombined(input.name ?? "Untitled team", teamKeyBytes),
+      encrypted_name: input.encryptedName ?? await encryptWithAesGcmCombined(name, teamKeyBytes),
       encrypted_description: input.encryptedDescription ?? (input.description ? await encryptWithAesGcmCombined(input.description, teamKeyBytes) : undefined),
       encrypted_profile_image_metadata: input.encryptedProfileImageMetadata ?? await encryptWithAesGcmCombined(
         JSON.stringify(input.profileImageMetadata ?? generatedTeamProfileImageMetadata()),
@@ -3602,7 +3623,8 @@ export class OpenMatesClient {
       : null;
     if (typeof input.name === "string") {
       if (!teamKey) throw new Error("Unable to load local team key for encrypted team update.");
-      payload.encrypted_name = await encryptWithAesGcmCombined(input.name, teamKey);
+      payload.name_approval_token = await this.approveTeamName(input.name);
+      payload.encrypted_name = await encryptWithAesGcmCombined(input.name.trim(), teamKey);
       delete payload.name;
     }
     if (typeof input.description === "string") {
@@ -3690,14 +3712,12 @@ export class OpenMatesClient {
     };
     const recipientEmail = typeof input.recipient_email === "string" ? input.recipient_email.trim().toLowerCase() : null;
     const explicitInviteSecret = typeof input.invite_secret === "string" ? input.invite_secret : null;
-    const cachedTeamKey = loadLocalTeamKey(this.requireSession().hashedEmail, teamId);
-    const inviteSecret = explicitInviteSecret ?? (recipientEmail && cachedTeamKey ? bytesToBase64Url(randomBytes(32)) : null);
-    if (recipientEmail && inviteSecret) {
-      const teamKey = cachedTeamKey ? base64ToBytes(cachedTeamKey) : await this.loadTeamKeyBytes(teamId);
-      if (!teamKey && explicitInviteSecret) throw new Error("Unable to load local team key for encrypted invite.");
-      if (teamKey) {
+    const inviteSecret = explicitInviteSecret ?? bytesToBase64Url(randomBytes(32));
+    const teamKey = await this.loadTeamKeyBytes(teamId);
+    if (!teamKey) throw new Error("Unable to load team key for encrypted invite.");
+    {
         const origin = deriveAppUrl(this.apiUrl);
-        const inviteKey = await deriveTeamInviteKey({ recipientEmail, inviteSecret, inviteId, teamId, origin });
+        const inviteKey = await deriveTeamInviteKey({ recipientEmail: recipientEmail ?? "", inviteSecret, inviteId, teamId, origin });
         payload.encrypted_invite_team_key = await encryptBytesWithAesGcm(teamKey, inviteKey);
         payload.invite_key_kdf_context = {
           v: 1,
@@ -3707,7 +3727,6 @@ export class OpenMatesClient {
           invite_id: inviteId,
           origin,
         };
-      }
     }
     const response = await this.http.post<{ invite?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/invites`, {
       ...payload,
@@ -3717,39 +3736,40 @@ export class OpenMatesClient {
     return inviteSecret ? { ...response.data.invite, invite_secret: inviteSecret, invite_url: `${deriveAppUrl(this.apiUrl)}/teams/invites/${inviteId}#key=${inviteSecret}` } : response.data.invite;
   }
 
-  async getTeamInvite(inviteId: string): Promise<Record<string, unknown>> {
+  async getTeamInvite(inviteId: string, verifiedEmail?: string): Promise<Record<string, unknown>> {
     this.requireSession();
-    const response = await this.http.get<{ invite?: Record<string, unknown> }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}`, this.getCliRequestHeaders());
+    const response = verifiedEmail
+      ? await this.http.post<{ invite?: Record<string, unknown> }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/preview`, { verified_email: verifiedEmail.trim().toLowerCase() }, this.getCliRequestHeaders())
+      : await this.http.get<{ invite?: Record<string, unknown> }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}`, this.getCliRequestHeaders());
     if (!response.ok || !response.data.invite) throw new Error(`Team invite get failed with HTTP ${response.status}`);
     return response.data.invite;
   }
 
   async acceptTeamInvite(inviteId: string, input: TeamInviteAcceptInput = {}): Promise<Record<string, unknown>> {
     this.requireSession();
-    const payload: Record<string, unknown> = { accepted_at: Math.floor(Date.now() / 1000) };
+    const payload: Record<string, unknown> = { accepted_at: Math.floor(Date.now() / 1000), ...(input.recipientEmail ? { verified_email: input.recipientEmail.trim().toLowerCase() } : {}) };
     if (input.inviteSecret) {
-      const invite = await this.getTeamInvite(inviteId);
+      if (!input.recipientEmail) throw new Error("Accepting an encrypted team invite requires --email <recipient-email>.");
+      const invite = await this.getTeamInvite(inviteId, input.recipientEmail);
       const context = invite.invite_key_kdf_context as Record<string, unknown> | undefined;
       const teamId = typeof context?.team_id === "string" ? context.team_id : null;
       const origin = typeof context?.origin === "string" ? context.origin : deriveAppUrl(this.apiUrl);
       const encryptedInviteTeamKey = typeof invite.encrypted_invite_team_key === "string" ? invite.encrypted_invite_team_key : null;
       if (!teamId || !encryptedInviteTeamKey) throw new Error("Team invite is missing encrypted key material.");
-      if (!input.recipientEmail) throw new Error("Accepting an encrypted team invite requires --email <recipient-email>.");
-      const recipientEmail = input.recipientEmail;
+      const recipientEmail = invite.kind === "link" || !invite.hashed_recipient_email ? "" : input.recipientEmail;
       const inviteKey = await deriveTeamInviteKey({ recipientEmail, inviteSecret: input.inviteSecret, inviteId, teamId, origin });
       const teamKey = await decryptBytesWithAesGcm(encryptedInviteTeamKey, inviteKey);
       if (!teamKey) throw new Error("Unable to decrypt team invite key.");
       payload.encrypted_team_key = await encryptBytesWithAesGcm(teamKey, this.getMasterKeyBytes());
-      saveLocalTeamKey(this.requireSession().hashedEmail, teamId, bytesToBase64(teamKey));
     }
     const response = await this.http.post<{ access_request?: Record<string, unknown>; membership?: Record<string, unknown>; status?: string; status_label?: string }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/accept`, payload, this.getCliRequestHeaders());
     if (!response.ok || (!response.data.access_request && !response.data.membership)) throw new Error(`Team invite accept failed with HTTP ${response.status}`);
     return { access_request: response.data.access_request, membership: response.data.membership, status: response.data.status, status_label: response.data.status_label };
   }
 
-  async declineTeamInvite(inviteId: string): Promise<{ success: boolean }> {
+  async declineTeamInvite(inviteId: string, verifiedEmail?: string): Promise<{ success: boolean }> {
     this.requireSession();
-    const response = await this.http.post<{ success?: boolean }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/decline`, { declined_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    const response = await this.http.post<{ success?: boolean }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/decline`, { declined_at: Math.floor(Date.now() / 1000), ...(verifiedEmail ? { verified_email: verifiedEmail.trim().toLowerCase() } : {}) }, this.getCliRequestHeaders());
     if (!response.ok) throw new Error(`Team invite decline failed with HTTP ${response.status}`);
     return { success: response.data.success === true };
   }
@@ -3857,7 +3877,22 @@ export class OpenMatesClient {
     return response.data.usage ?? [];
   }
 
-  async createTeamBankTransferOrder(teamId: string, creditsAmount: number): Promise<BankTransferOrderDetails> {
+  async getBuyerAddress(teamId?: string): Promise<BuyerAddress | null> {
+    this.requireSession();
+    const path = teamId ? `/v1/teams/${encodeURIComponent(teamId)}/billing/buyer-address` : "/v1/payments/buyer-address";
+    const response = await this.http.get<{ buyer_address: BuyerAddress | null }>(path, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Billing address could not be loaded (HTTP ${response.status}).`);
+    return response.data.buyer_address;
+  }
+
+  async saveBuyerAddress(buyerAddress: BuyerAddress | null, teamId?: string): Promise<void> {
+    this.requireSession();
+    const path = teamId ? `/v1/teams/${encodeURIComponent(teamId)}/billing/buyer-address` : "/v1/payments/buyer-address";
+    const response = await this.http.put(path, { buyer_address: buyerAddress }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Billing address could not be saved (HTTP ${response.status}).`);
+  }
+
+  async createTeamBankTransferOrder(teamId: string, creditsAmount: number, buyerAddress?: BuyerAddress): Promise<BankTransferOrderDetails> {
     const session = this.requireSession();
     const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
     const response = await this.http.post<BankTransferOrderDetails>(
@@ -3865,6 +3900,7 @@ export class OpenMatesClient {
       {
         credits_amount: creditsAmount,
         currency: "eur",
+        ...(buyerAddress ? { buyer_address: buyerAddress } : {}),
         email_encryption_key: emailEncryptionKey,
       },
       this.getCliRequestHeaders(),
@@ -12759,7 +12795,7 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async createBankTransferOrder(creditsAmount: number): Promise<BankTransferOrderDetails> {
+  async createBankTransferOrder(creditsAmount: number, buyerAddress?: BuyerAddress): Promise<BankTransferOrderDetails> {
     const session = this.requireSession();
     const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
     const response = await this.http.post<BankTransferOrderDetails>(
@@ -12767,6 +12803,7 @@ export class OpenMatesClient {
       {
         credits_amount: creditsAmount,
         currency: "eur",
+        ...(buyerAddress ? { buyer_address: buyerAddress } : {}),
         email_encryption_key: emailEncryptionKey,
       },
       this.getCliRequestHeaders(),

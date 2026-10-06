@@ -370,7 +370,23 @@ function generateDraftPreview(
  * Deletes the draft for the current chat and, if the chat becomes empty (no messages),
  * deletes the chat as well. Handles local DB operations and server communication.
  */
-export async function clearCurrentDraft() {
+export async function clearCurrentDraft(expected?: {
+  editor: Editor;
+  document: Editor["state"]["doc"];
+  chatId: string;
+}) {
+  const editor = getEditorInstance();
+  const draftStateAtStart = get(draftEditorUIState);
+  const currentChatId = draftStateAtStart.currentChatId;
+  let expectedLiveDraftVersion = draftStateAtStart.currentUserDraftVersion;
+  // A sent message may finish after the user has already begun another draft.
+  // ProseMirror documents are immutable, so identity also catches retyped text
+  // whose JSON happens to match the earlier submitted document.
+  if (expected && (
+    editor !== expected.editor || editor?.state.doc !== expected.document ||
+    currentChatId !== expected.chatId
+  )) return;
+
   draftLifecycleRevision += 1;
   resaveNeeded = false;
   if (deferredEmptyDraftFlushTimer) {
@@ -379,7 +395,15 @@ export async function clearCurrentDraft() {
   }
   saveDraftDebounced.cancel();
   // Export this function
-  const editor = getEditorInstance(); // Keep reference to editor for the finally block
+  const editorDocumentAtStart = editor && !editor.isDestroyed ? editor.state.doc : null;
+  const stillOwnsInitialDocument = () => {
+    const liveEditor = getEditorInstance();
+    const liveDraftState = get(draftEditorUIState);
+    return !!editor && liveEditor === editor && !editor.isDestroyed &&
+      liveDraftState.currentChatId === currentChatId &&
+      liveDraftState.currentUserDraftVersion === expectedLiveDraftVersion &&
+      editorDocumentAtStart === editor.state.doc;
+  };
   if (!getEditorInstance()) {
     // Check against the live getter in case it's cleared elsewhere
     console.error(
@@ -389,8 +413,6 @@ export async function clearCurrentDraft() {
   }
 
   const isAuthenticated = get(authStore).isAuthenticated;
-  const currentState = get(draftEditorUIState);
-  const currentChatId = currentState.currentChatId;
 
   if (!currentChatId) {
     console.info(
@@ -446,8 +468,9 @@ export async function clearCurrentDraft() {
     // If chat remains, its draft is gone. If chat is deleted, context is cleared.
     // hasUnsavedChanges should be false.
     draftEditorUIState.update((s) => {
-      if (s.currentChatId === currentChatId) {
+      if (s.currentChatId === currentChatId && stillOwnsInitialDocument()) {
         // If the current chat context is still the one whose draft was deleted
+        expectedLiveDraftVersion = 0;
         return {
           ...s,
           currentUserDraftVersion: 0,
@@ -466,10 +489,19 @@ export async function clearCurrentDraft() {
       }),
     );
 
+    // A newer same-chat edit may have been saved while the delete receipt was
+    // pending. Leave its chat and draft state alone; the new save owns them.
+    if (get(draftEditorUIState).currentChatId === currentChatId && !stillOwnsInitialDocument()) {
+      return;
+    }
+
     // Check if the chat itself should be deleted
     const chat = await chatDB.getChat(currentChatId); // Re-fetch chat state
     // Check if the chat has any messages by fetching them
     const messages = await chatDB.getMessagesForChat(currentChatId);
+    // Those reads can finish after a new draft was entered or persisted.
+    // Never delete its chat based on the earlier empty-draft snapshot.
+    if (!stillOwnsInitialDocument()) return;
     if (chat && (!messages || messages.length === 0)) {
       console.info(
         `[DraftService] Chat ${currentChatId} has no messages after draft deletion. Attempting to delete chat.`,
@@ -504,7 +536,7 @@ export async function clearCurrentDraft() {
       // When chat is deleted, draft state (including currentChatId) should be fully reset.
       // The 'chatDeleted' event handler in UI (e.g., Chats.svelte) should manage selecting a new chat.
       // clearEditorAndResetDraftState will set currentChatId to null.
-      if (get(draftEditorUIState).currentChatId === currentChatId) {
+      if (get(draftEditorUIState).currentChatId === currentChatId && stillOwnsInitialDocument()) {
         clearEditorAndResetDraftState(false);
       } else {
         console.debug(
@@ -515,7 +547,7 @@ export async function clearCurrentDraft() {
       console.warn(
         `[DraftService] Chat ${currentChatId} was not found after deleting its draft. Ensuring UI is reset.`,
       );
-      if (get(draftEditorUIState).currentChatId === currentChatId) {
+      if (get(draftEditorUIState).currentChatId === currentChatId && stillOwnsInitialDocument()) {
         clearEditorAndResetDraftState(false); // Reset editor and draft UI state
       } else {
         console.debug(
@@ -536,7 +568,7 @@ export async function clearCurrentDraft() {
     const finalEditorState = get(draftEditorUIState);
     const liveEditorInstance = getEditorInstance(); // Get current editor instance
 
-    if (finalEditorState.currentChatId === currentChatId) {
+    if (finalEditorState.currentChatId === currentChatId && stillOwnsInitialDocument()) {
       // If the context is still the (now draft-less) chat
       if (liveEditorInstance) {
         console.debug(
@@ -545,16 +577,6 @@ export async function clearCurrentDraft() {
         liveEditorInstance.chain().clearContent(false).run(); // Clear content
         // Optionally set to an initial placeholder if desired, but clearContent is usually enough
         // liveEditorInstance.chain().setContent(getInitialContent(), false).run();
-      }
-    } else if (!finalEditorState.currentChatId) {
-      // If currentChatId became null (e.g., chat deleted and state reset by clearEditorAndResetDraftState)
-      // The editor should have been cleared by clearEditorAndResetDraftState.
-      // If liveEditorInstance still exists and is not empty, clear it.
-      if (liveEditorInstance && !liveEditorInstance.isEmpty) {
-        console.debug(
-          "[DraftService] Chat context cleared, ensuring editor is empty.",
-        );
-        liveEditorInstance.chain().clearContent(false).run();
       }
     }
     // If currentChatId changed to something else, that context switch (setCurrentChatContext) would handle editor content.

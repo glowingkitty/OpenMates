@@ -1,3 +1,4 @@
+import type { BuyerAddress } from "./billingAddress.js";
 /*
  * OpenMates npm SDK facade.
  *
@@ -297,6 +298,7 @@ export interface ConfirmedMutationOptions {
 }
 
 export interface BankTransferOrderOptions {
+  buyerAddress?: BuyerAddress;
   emailEncryptionKey?: string;
 }
 
@@ -3418,6 +3420,8 @@ export class OpenMatesBilling {
   }
 
   async overview(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing"); }
+  async buyerAddress(): Promise<{ buyer_address: BuyerAddress | null }> { return this.client.get("/v1/sdk/billing/buyer-address"); }
+  async saveBuyerAddress(address: BuyerAddress | null): Promise<Record<string, unknown>> { return this.client.put("/v1/sdk/billing/buyer-address", { buyer_address: address }); }
   async usage(options: RequestOptions = {}): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/billing/usage", options.query)); }
   async usageOverview(options: RequestOptions = {}): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/billing/usage/overview", options.query)); }
   async usageDetails(options: { type: "chat" | "app" | "api_key"; identifier: string; yearMonth: string }): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/billing/usage/details", { type: options.type, identifier: options.identifier, year_month: options.yearMonth })); }
@@ -3425,7 +3429,7 @@ export class OpenMatesBilling {
   async usageSummaries(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/summaries"); }
   async usageDaily(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/daily"); }
   async usageExport(options: { months?: number } = {}): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> { return this.client.getRaw(withQuery("/v1/sdk/billing/usage/export", { months: options.months })); }
-  async createBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey }); }
+  async createBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey, ...(options.buyerAddress ? { buyer_address: options.buyerAddress } : {}) }); }
   async bankTransferStatus(orderId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/billing/bank-transfer-orders/${encodeURIComponent(orderId)}`); }
   async listBankTransferOrders(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders"); }
   async listInvoices(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/invoices"); }
@@ -3434,7 +3438,7 @@ export class OpenMatesBilling {
   async requestRefund(invoiceId: string, options: ConfirmedMutationOptions & { emailEncryptionKey?: string }): Promise<Record<string, unknown>> { requireConfirmed(options, "Requesting an invoice refund"); return this.client.request<Record<string, unknown>>("/v1/sdk/billing/refund", { invoice_id: invoiceId, email_encryption_key: options.emailEncryptionKey }); }
   async redeemGiftCard(code: string): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/redeem", { code }); }
   async listRedeemedGiftCards(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/gift-cards/redeemed"); }
-  async createGiftCardBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey }); }
+  async createGiftCardBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey, ...(options.buyerAddress ? { buyer_address: options.buyerAddress } : {}) }); }
   async giftCardPurchaseStatus(orderId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/billing/gift-cards/purchases/${encodeURIComponent(orderId)}`); }
   async listPurchasedGiftCards(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/gift-cards/purchased"); }
   async setLowBalanceAutoTopup(input: Record<string, unknown>): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/auto-topup/low-balance", input); }
@@ -5284,10 +5288,15 @@ export class OpenMatesTeams {
     return result.team ?? result;
   }
 
+  async approveName(name: string): Promise<{ approval_token: string; expires_at: number }> {
+    return this.client.request("/v1/teams/name-approval", { name: name.trim().toLowerCase() });
+  }
+
   async createPlain(input: TeamPlainCreateOptions): Promise<Record<string, unknown>> {
+    const approval = await this.approveName(input.name);
     const generatedProfile = generatedTeamProfileImageMetadata(input.profile);
     const created = await buildTeamPlainCreatePayload(this.client, input);
-    const result = await this.client.request<{ team?: Record<string, unknown> }>("/v1/teams", created);
+    const result = await this.client.request<{ team?: Record<string, unknown> }>("/v1/teams", { ...created, name_approval_token: approval.approval_token });
     return { ...(result.team ?? result), profile_image_metadata: generatedProfile };
   }
 
@@ -5316,12 +5325,45 @@ export class OpenMatesTeams {
     return result.invite ?? result;
   }
 
+  async previewInvite(inviteId: string, verifiedEmail: string): Promise<Record<string, unknown>> {
+    const result = await this.client.request<{ invite: Record<string, unknown> }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/preview`, { verified_email: verifiedEmail.trim().toLowerCase() });
+    return result.invite;
+  }
+
   async acceptInvite(inviteId: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
-    return this.client.request<Record<string, unknown>>(`/v1/team-invites/${encodeURIComponent(inviteId)}/accept`, input);
+    return this.client.request<Record<string, unknown>>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/accept`, input);
   }
 
   async declineInvite(inviteId: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
-    return this.client.request<Record<string, unknown>>(`/v1/team-invites/${encodeURIComponent(inviteId)}/decline`, input);
+    return this.client.request<Record<string, unknown>>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/decline`, input);
+  }
+
+  async security(teamId: string): Promise<Record<string, unknown>> {
+    return this.client.get(`/v1/teams/${encodeURIComponent(teamId)}/security`);
+  }
+
+  async updateSecurity(teamId: string, policy: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.client.patch(`/v1/teams/${encodeURIComponent(teamId)}/security`, policy);
+  }
+
+  async members(teamId: string): Promise<Record<string, unknown>> {
+    return this.client.get(`/v1/teams/${encodeURIComponent(teamId)}/members`);
+  }
+
+  async invites(teamId: string): Promise<Record<string, unknown>> {
+    return this.client.get(`/v1/teams/${encodeURIComponent(teamId)}/invites`);
+  }
+
+  async revokeInvite(teamId: string, inviteId: string): Promise<Record<string, unknown>> {
+    return this.client.request(`/v1/teams/${encodeURIComponent(teamId)}/invites/${encodeURIComponent(inviteId)}/revoke`, {});
+  }
+
+  async buyerAddress(teamId: string): Promise<{ buyer_address: BuyerAddress | null }> {
+    return this.client.get(`/v1/teams/${encodeURIComponent(teamId)}/billing/buyer-address`);
+  }
+
+  async saveBuyerAddress(teamId: string, address: BuyerAddress | null): Promise<Record<string, unknown>> {
+    return this.client.put(`/v1/teams/${encodeURIComponent(teamId)}/billing/buyer-address`, { buyer_address: address });
   }
 
   async accessRequests(teamId: string, status?: string): Promise<Record<string, unknown>[]> {
@@ -5368,7 +5410,7 @@ export class OpenMatesTeams {
   async createBankTransferOrder(teamId: string, credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> {
     return this.client.request<Record<string, unknown>>(
       `/v1/teams/${encodeURIComponent(teamId)}/billing/bank-transfer-orders`,
-      { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey },
+      { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey, ...(options.buyerAddress ? { buyer_address: options.buyerAddress } : {}) },
     );
   }
 

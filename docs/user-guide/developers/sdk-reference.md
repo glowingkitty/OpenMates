@@ -70,9 +70,10 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | npm | pip | npm inputs | pip inputs | Return |
 | --- | --- | --- | --- | --- |
 | `om.billing.bankTransferStatus()` | `om.billing.bank_transfer_status()` | `order_id` | `order_id` | `object` |
+| `om.billing.buyerAddress()` | `om.billing.buyer_address()` | `none` | `none` | `object` |
 | `om.billing.chatTotal()` | `om.billing.chat_total()` | `chat_id` | `chat_id` | `object` |
-| `om.billing.createBankTransferOrder()` | `om.billing.create_bank_transfer_order()` | `credits, email_encryption_key` | `credits, email_encryption_key` | `object` |
-| `om.billing.createGiftCardBankTransferOrder()` | `om.billing.create_gift_card_bank_transfer_order()` | `credits, email_encryption_key` | `credits, email_encryption_key` | `object` |
+| `om.billing.createBankTransferOrder()` | `om.billing.create_bank_transfer_order()` | `credits, buyer_address, email_encryption_key` | `credits, email_encryption_key, buyer_address` | `object` |
+| `om.billing.createGiftCardBankTransferOrder()` | `om.billing.create_gift_card_bank_transfer_order()` | `credits, buyer_address, email_encryption_key` | `credits, email_encryption_key, buyer_address` | `object` |
 | `om.billing.downloadCreditNote()` | `om.billing.download_credit_note()` | `invoice_id` | `invoice_id` | `object` |
 | `om.billing.downloadInvoice()` | `om.billing.download_invoice()` | `invoice_id` | `invoice_id` | `object` |
 | `om.billing.giftCardPurchaseStatus()` | `om.billing.gift_card_purchase_status()` | `order_id` | `order_id` | `object` |
@@ -83,6 +84,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.billing.overview()` | `om.billing.overview()` | `none` | `none` | `object` |
 | `om.billing.redeemGiftCard()` | `om.billing.redeem_gift_card()` | `code` | `code` | `object` |
 | `om.billing.requestRefund()` | `om.billing.request_refund()` | `invoice_id, confirmed, email_encryption_key` | `invoice_id, confirmed, email_encryption_key` | `object` |
+| `om.billing.saveBuyerAddress()` | `om.billing.save_buyer_address()` | `address` | `address` | `object` |
 | `om.billing.setLowBalanceAutoTopup()` | `om.billing.set_low_balance_auto_topup()` | `input` | `input` | `object` |
 | `om.billing.usage()` | `om.billing.usage()` | `input` | `input` | `object` |
 | `om.billing.usageDaily()` | `om.billing.usage_daily()` | `none` | `none` | `object` |
@@ -335,10 +337,12 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.teams.acceptInvite()` | `om.teams.accept_invite()` | `invite_id, input` | `invite_id, input` | `object` |
 | `om.teams.accessRequests()` | `om.teams.access_requests()` | `id, status` | `id, status` | `list` |
 | `om.teams.approveAccess()` | `om.teams.approve_access()` | `id, access_request_id, input` | `id, access_request_id, input` | `object` |
+| `om.teams.approveName()` | `om.teams.approve_name()` | `name` | `name` | `object` |
 | `om.teams.bankTransferStatus()` | `om.teams.bank_transfer_status()` | `id, order_id` | `id, order_id` | `object` |
 | `om.teams.billing()` | `om.teams.billing()` | `id` | `id` | `object` |
+| `om.teams.buyerAddress()` | `om.teams.buyer_address()` | `id` | `id` | `object` |
 | `om.teams.create()` | `om.teams.create()` | `input` | `input` | `object` |
-| `om.teams.createBankTransferOrder()` | `om.teams.create_bank_transfer_order()` | `id, credits, email_encryption_key` | `id, credits, email_encryption_key` | `object` |
+| `om.teams.createBankTransferOrder()` | `om.teams.create_bank_transfer_order()` | `id, credits, buyer_address, email_encryption_key` | `id, credits, email_encryption_key, buyer_address` | `object` |
 | `om.teams.createPlain()` | `om.teams.create_plain()` | `name, description, slug, id, profile, created_at` | `input, id, input` | `object` |
 | `om.teams.declineInvite()` | `om.teams.decline_invite()` | `invite_id, input` | `invite_id, input` | `object` |
 | `om.teams.export()` | `om.teams.export()` | `id, input` | `id, input` | `object` |
@@ -346,15 +350,22 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.teams.getProfileImage()` | `om.teams.get_profile_image()` | `id` | `id` | `object` |
 | `om.teams.import()` | `om.teams.import_team()` | `input` | `input` | `object` |
 | `om.teams.invite()` | `om.teams.invite()` | `id, input` | `id, input` | `object` |
+| `om.teams.invites()` | `om.teams.invites()` | `id` | `id` | `object` |
 | `om.teams.list()` | `om.teams.list()` | `none` | `none` | `list` |
 | `om.teams.listBankTransferOrders()` | `om.teams.list_bank_transfer_orders()` | `id` | `id` | `object` |
+| `om.teams.members()` | `om.teams.members()` | `id` | `id` | `object` |
 | `om.teams.memories()` | `om.teams.memories()` | `id` | `id` | `list` |
+| `om.teams.previewInvite()` | `om.teams.preview_invite()` | `invite_id, verified_email` | `invite_id, verified_email` | `object` |
 | `om.teams.rejectAccess()` | `om.teams.reject_access()` | `id, access_request_id, input` | `id, access_request_id, input` | `object` |
 | `om.teams.removeMember()` | `om.teams.remove_member()` | `id, member_user_id, input` | `id, member_user_id, input` | `object` |
+| `om.teams.revokeInvite()` | `om.teams.revoke_invite()` | `id, invite_id` | `id, invite_id` | `object` |
+| `om.teams.saveBuyerAddress()` | `om.teams.save_buyer_address()` | `id, address` | `id, address` | `object` |
+| `om.teams.security()` | `om.teams.security()` | `id` | `id` | `object` |
 | `om.teams.storage()` | `om.teams.storage()` | `id` | `id` | `object` |
 | `om.teams.storageNotice()` | `om.teams.storage_notice()` | `id, limit, after_unit_id` | `id, limit, after_unit_id` | `object` |
 | `om.teams.update()` | `om.teams.update()` | `id, input` | `id, input` | `object` |
 | `om.teams.updateGeneratedProfileImage()` | `om.teams.update_generated_profile_image()` | `id, icon_name, background_color` | `id, input, input` | `object` |
+| `om.teams.updateSecurity()` | `om.teams.update_security()` | `id, policy` | `id, policy` | `object` |
 | `om.teams.usage()` | `om.teams.usage()` | `id, member_user_id` | `id, member_user_id` | `list` |
 
 ## `wikipedia`

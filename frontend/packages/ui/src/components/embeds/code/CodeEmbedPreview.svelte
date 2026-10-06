@@ -59,6 +59,8 @@
     skillIconName?: string;
     /** Local-only anonymous file preview that cannot upload until signup. */
     needsSignup?: boolean;
+    /** Inline editor preview with no persisted embed record yet. */
+    presentationOnly?: boolean;
   }
   
   let {
@@ -74,7 +76,8 @@
     appId = 'code',
     skillId = 'code',
     skillIconName = 'coding',
-    needsSignup = false
+    needsSignup = false,
+    presentationOnly = false
   }: Props = $props();
   
   // Local reactive state for embed data - these can be updated when embed data changes
@@ -129,7 +132,7 @@
   const MAX_OUTPUT_PREVIEW_LINES_LARGE = 18;
 
   async function loadSavedRunOutput() {
-    if (!id) return;
+    if (!id || presentationOnly) return;
     try {
       const output = await getCodeRunOutputForEmbed(chatDB, id);
       if (!output) return;
@@ -354,6 +357,7 @@
 
 <UnifiedEmbedPreview
   {id}
+  {presentationOnly}
   {appId}
   {skillId}
   {skillIconName}

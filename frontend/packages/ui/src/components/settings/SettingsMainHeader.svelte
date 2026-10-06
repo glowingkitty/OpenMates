@@ -30,7 +30,7 @@
 <script lang="ts">
     import { text } from '@repo/ui';
     import type { TeamViewModel } from '../../services/teamService';
-    import { getTeamAvatarBackground } from '../../utils/teamAvatar';
+    import TeamContextPicker from './TeamContextPicker.svelte';
 
     // ─── Props ────────────────────────────────────────────────────────────────
 
@@ -51,6 +51,7 @@
         teamContextLoading?: boolean;
         teamContextError?: string;
         onTeamContextChange: (contextId: string) => void;
+        onCreateTeam: () => void;
         animationsActive?: boolean;
     }
 
@@ -69,6 +70,7 @@
         teamContextLoading = false,
         teamContextError = '',
         onTeamContextChange,
+        onCreateTeam,
         animationsActive = false,
     }: Props = $props();
 
@@ -114,13 +116,7 @@
         credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
     );
 
-    let activeTeam = $derived(teams.find((team) => team.team_id === activeTeamId) ?? null);
     let showTeamContextSwitcher = $derived(isAuthenticated && teams.length > 0);
-
-    function handleTeamContextChange(event: Event): void {
-        const target = event.currentTarget as HTMLSelectElement;
-        onTeamContextChange(target.value);
-    }
 </script>
 
 <div
@@ -232,32 +228,7 @@
                     class:team-context-switcher-collapsed={isCollapsed}
                     data-testid="profile-team-context-switcher"
                 >
-                    {#if activeTeam}
-                        <span
-                            class="open-team-avatar"
-                            data-testid="profile-open-active-team-avatar"
-                            aria-hidden="true"
-                            style:background={getTeamAvatarBackground(activeTeam)}
-                        >
-                            <span class="open-team-avatar-icon"></span>
-                        </span>
-                    {/if}
-                    <label class="team-context-select-label">
-                        <span class="sr-only">Team context</span>
-                        <select
-                            class="team-context-select"
-                            data-testid="team-context-dropdown"
-                            aria-label="Switch team context"
-                            value={activeTeamId ?? 'personal'}
-                            disabled={teamContextLoading}
-                            onchange={handleTeamContextChange}
-                        >
-                            <option value="personal">Personal</option>
-                            {#each teams as team (team.team_id)}
-                                <option value={team.team_id}>{team.name || 'Untitled team'}</option>
-                            {/each}
-                        </select>
-                    </label>
+                    <TeamContextPicker {teams} {activeTeamId} disabled={teamContextLoading} {onTeamContextChange} {onCreateTeam} />
                     {#if teamContextError}
                         <small class="team-context-error" data-testid="team-context-load-error">{teamContextError}</small>
                     {/if}
@@ -620,76 +591,10 @@
         margin-top: 0;
     }
 
-    .open-team-avatar {
-        display: inline-flex;
-        width: 1.625rem;
-        height: 1.625rem;
-        flex-shrink: 0;
-        align-items: center;
-        justify-content: center;
-        border: 0.125rem solid color-mix(in srgb, var(--color-font-button) 90%, transparent);
-        border-radius: var(--radius-full);
-        box-shadow: var(--shadow-xs);
-    }
-
-    .open-team-avatar-icon {
-        width: 0.875rem;
-        height: 0.875rem;
-        background: var(--color-font-button);
-        -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
-        mask-image: url('@openmates/ui/static/icons/team.svg');
-        -webkit-mask-size: contain;
-        mask-size: contain;
-        -webkit-mask-position: center;
-        mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-    }
-
-    .team-context-select-label {
-        min-width: 0;
-        pointer-events: auto;
-    }
-
-    .team-context-select {
-        max-width: 12.5rem;
-        border: 0.0625rem solid color-mix(in srgb, var(--color-font-button) 42%, transparent);
-        border-radius: var(--radius-full);
-        padding: 0.3125rem 1.75rem 0.3125rem 0.75rem;
-        background: color-mix(in srgb, var(--color-font-button) 16%, transparent);
-        color: var(--color-font-button);
-        font: inherit;
-        font-size: var(--font-size-xs);
-        font-weight: 700;
-        outline: none;
-        cursor: pointer;
-    }
-
-    .team-context-select option {
-        color: var(--color-font-primary);
-        background: var(--color-grey-0);
-    }
-
-    .team-context-select:focus-visible {
-        box-shadow: 0 0 0 0.125rem color-mix(in srgb, var(--color-font-button) 80%, transparent);
-    }
-
     .team-context-error {
         color: var(--color-font-button);
         font-size: var(--font-size-xxs);
         opacity: 0.85;
-    }
-
-    .sr-only {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
     }
 
     /* ─── Mobile adjustments ─────────────────────────────────────────────────── */

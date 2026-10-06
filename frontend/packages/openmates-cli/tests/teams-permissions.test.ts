@@ -142,11 +142,15 @@ describe("OpenMatesClient Teams V1", () => {
     );
   });
 
-  // contract-test: direct surface=cli assertions=cli.surface.semantic-parity
+  // contract-test: direct surface=cli assertions=cli.surface.semantic-parity,teams.name.transient-policy,teams.billing.context-parity
   it("calls team lifecycle, membership, and billing endpoints", async () => {
     await withServer(
       (request, body) => {
         if (request.url === "/v1/teams" && request.method === "GET") return { teams: [{ team_id: "team-1" }] };
+        if (request.url === "/v1/teams/name-approval" && request.method === "POST") {
+          assert.deepEqual(body, { name: 'acme' });
+          return { approval_token: 'approved-acme', expires_at: 1000 };
+        }
         if (request.url === "/v1/teams" && request.method === "POST") return { team: { team_id: (body as Record<string, unknown>).team_id, ...(body as Record<string, unknown>) } };
         if (request.url === "/v1/teams/team-1/invites") return { invite: { invite_id: "invite-1", ...(body as Record<string, unknown>) } };
         if (request.url === "/v1/teams/invites/invite-1/accept") return { access_request: { access_request_id: "access-1", status: "pending_access_approval" }, status_label: "Waiting for team access approval" };
@@ -171,7 +175,7 @@ describe("OpenMatesClient Teams V1", () => {
         assert.equal((await client.listTeamAccessRequests("team-1"))[0]?.access_request_id, "access-1");
         assert.equal((await client.approveTeamAccessRequest("team-1", "access-1", "cipher-team-key")).role, "member");
         assert.equal((await client.rejectTeamAccessRequest("team-1", "access-1")).success, true);
-        assert.equal((await client.declineTeamInvite("invite-1")).success, true);
+        assert.equal((await client.declineTeamInvite("invite-1", "Bob@Example.com")).success, true);
         assert.equal((await client.exportTeamData("team-1")).artifact_hash, "hash-1");
         assert.equal((await client.importTeamData("team-1", { schema: "openmates.team_export.v1", rewrapped_with_destination_team_key: true })).success, true);
         assert.equal((await client.updateTeamMemberRole("team-1", "user-1", "admin")).role, "admin");
@@ -180,6 +184,7 @@ describe("OpenMatesClient Teams V1", () => {
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
           ["GET", "/v1/teams"],
+          ["POST", "/v1/teams/name-approval"],
           ["POST", "/v1/teams"],
           ["POST", "/v1/teams/team-1/invites"],
           ["POST", "/v1/teams/invites/invite-1/accept"],
@@ -193,31 +198,39 @@ describe("OpenMatesClient Teams V1", () => {
           ["GET", "/v1/teams/team-1/billing"],
           ["POST", "/v1/teams/team-1/billing/bank-transfer-orders"],
         ]);
-        const createBody = seen[1]?.body as Record<string, unknown>;
+        // contract-test: direct surface=cli assertions=teams.name.transient-policy
+        const createBody = seen[2]?.body as Record<string, unknown>;
+        assert.equal(createBody.name_approval_token, 'approved-acme');
+        assert.equal('name' in createBody, false);
         assert.equal(typeof createBody.team_id, "string");
         assert.equal(typeof createBody.encrypted_name, "string");
         assert.equal(typeof createBody.encrypted_team_key, "string");
         assert.equal(typeof createBody.encrypted_zero_balance, "string");
         assert.equal(typeof createBody.created_at, "number");
-        assert.equal(typeof (seen[2]?.body as Record<string, unknown>).invite_id, "string");
-        assert.equal(typeof (seen[2]?.body as Record<string, unknown>).created_at, "number");
-        assert.equal((seen[2]?.body as Record<string, unknown>).recipient_email, "bob@example.com");
-        assert.equal(typeof (seen[2]?.body as Record<string, unknown>).encrypted_invite_team_key, "string");
-        assert.equal(typeof (seen[2]?.body as Record<string, unknown>).invite_key_kdf_context, "object");
-        assert.equal((seen[5]?.body as Record<string, unknown>).encrypted_team_key, "cipher-team-key");
-        assert.equal((seen[12]?.body as Record<string, unknown>).credits_amount, 110000);
-        assert.equal(typeof (seen[12]?.body as Record<string, unknown>).email_encryption_key, "string");
+        assert.equal(typeof (seen[3]?.body as Record<string, unknown>).invite_id, "string");
+        assert.equal(typeof (seen[3]?.body as Record<string, unknown>).created_at, "number");
+        assert.equal((seen[3]?.body as Record<string, unknown>).recipient_email, "bob@example.com");
+        assert.equal(typeof (seen[3]?.body as Record<string, unknown>).encrypted_invite_team_key, "string");
+        assert.equal(typeof (seen[3]?.body as Record<string, unknown>).invite_key_kdf_context, "object");
+        assert.equal((seen[6]?.body as Record<string, unknown>).encrypted_team_key, "cipher-team-key");
+        assert.equal((seen[8]?.body as Record<string, unknown>).verified_email, "bob@example.com");
+        assert.equal((seen[13]?.body as Record<string, unknown>).credits_amount, 110000);
+        assert.equal(typeof (seen[13]?.body as Record<string, unknown>).email_encryption_key, "string");
       },
     );
   });
 
-  // contract-test: direct surface=cli assertions=cli.surface.semantic-parity
+  // contract-test: direct surface=cli assertions=cli.surface.semantic-parity,teams.name.transient-policy,teams.invites.fragment-key-web-flow
   it("encrypts invite team keys and uploads recipient wrappers on accept", async () => {
     let encryptedInviteTeamKey = "";
     let inviteKeyKdfContext: Record<string, unknown> | undefined;
 
     await withServer(
       (request, body) => {
+        if (request.url === "/v1/teams/name-approval" && request.method === "POST") {
+          assert.deepEqual(body, { name: 'secret team' });
+          return { approval_token: 'approved-secret-team', expires_at: 1000 };
+        }
         if (request.url === "/v1/teams" && request.method === "POST") return { team: { team_id: (body as Record<string, unknown>).team_id, ...(body as Record<string, unknown>) } };
         if (request.url === "/v1/teams/team-secret/invites") {
           const payload = body as Record<string, unknown>;
@@ -225,7 +238,10 @@ describe("OpenMatesClient Teams V1", () => {
           inviteKeyKdfContext = payload.invite_key_kdf_context as Record<string, unknown> | undefined;
           return { invite: { invite_id: payload.invite_id, encrypted_invite_team_key: encryptedInviteTeamKey, invite_key_kdf_context: inviteKeyKdfContext } };
         }
-        if (request.url === "/v1/teams/invites/invite-secret") return { invite: { invite_id: "invite-secret", encrypted_invite_team_key: encryptedInviteTeamKey, invite_key_kdf_context: inviteKeyKdfContext } };
+        if (request.url === "/v1/teams/invites/invite-secret/preview") {
+          assert.deepEqual(body, { verified_email: 'bob@example.com' });
+          return { invite: { invite_id: "invite-secret", encrypted_invite_team_key: encryptedInviteTeamKey, invite_key_kdf_context: inviteKeyKdfContext, hashed_recipient_email: 'synthetic-hash' } };
+        }
         if (request.url === "/v1/teams/invites/invite-secret/accept") return { access_request: { access_request_id: "access-secret", status: "pending_access_approval", ...(body as Record<string, unknown>) }, status_label: "Waiting for team access approval" };
         if (request.url === "/v1/teams/team-secret/access-requests/access-secret/approve") return { membership: { status: "active", role: "member" } };
         return { success: true };
@@ -244,16 +260,70 @@ describe("OpenMatesClient Teams V1", () => {
         assert.equal(accessRequest.status, "pending_access_approval");
         assert.equal(approved.status, "active");
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
+          ["POST", "/v1/teams/name-approval"],
           ["POST", "/v1/teams"],
           ["POST", "/v1/teams/team-secret/invites"],
-          ["GET", "/v1/teams/invites/invite-secret"],
+          ["POST", "/v1/teams/invites/invite-secret/preview"],
           ["POST", "/v1/teams/invites/invite-secret/accept"],
           ["POST", "/v1/teams/team-secret/access-requests/access-secret/approve"],
         ]);
-        assert.equal(typeof (seen[1]?.body as Record<string, unknown>).encrypted_invite_team_key, "string");
-        assert.equal(typeof (seen[1]?.body as Record<string, unknown>).invite_key_kdf_context, "object");
-        assert.equal(typeof (seen[3]?.body as Record<string, unknown>).encrypted_team_key, "string");
-        assert.equal((seen[4]?.body as Record<string, unknown>).encrypted_team_key, undefined);
+        assert.equal((seen[1]?.body as Record<string, unknown>).name_approval_token, 'approved-secret-team');
+        assert.equal(typeof (seen[2]?.body as Record<string, unknown>).encrypted_invite_team_key, "string");
+        assert.equal(typeof (seen[2]?.body as Record<string, unknown>).invite_key_kdf_context, "object");
+        assert.equal(typeof (seen[4]?.body as Record<string, unknown>).encrypted_team_key, "string");
+        assert.equal((seen[4]?.body as Record<string, unknown>).verified_email, 'bob@example.com');
+        assert.equal((seen[5]?.body as Record<string, unknown>).encrypted_team_key, undefined);
+      },
+    );
+  });
+
+  // contract-test: direct surface=cli assertions=teams.invites.fragment-key-web-flow,teams.name.transient-policy
+  it("encrypts a link invite without a recipient and requires verified email to accept", async () => {
+    const inviteState: { payload?: Record<string, unknown> } = {};
+    await withServer(
+      (request, body) => {
+        if (request.url === '/v1/teams/name-approval') return { approval_token: 'approved-link-team', expires_at: 1000 };
+        if (request.url === '/v1/teams' && request.method === 'POST') return { team: { team_id: 'team-link', ...(body as Record<string, unknown>) } };
+        if (request.url === '/v1/teams/team-link/invites') {
+          inviteState.payload = body as Record<string, unknown>;
+          return { invite: { invite_id: 'invite-link' } };
+        }
+        if (request.url === '/v1/teams/invites/invite-link/preview') {
+          assert.deepEqual(body, { verified_email: 'joiner@example.com' });
+          return { invite: {
+            invite_id: 'invite-link', kind: 'link',
+            encrypted_invite_team_key: inviteState.payload?.encrypted_invite_team_key,
+            invite_key_kdf_context: inviteState.payload?.invite_key_kdf_context,
+          } };
+        }
+        if (request.url === '/v1/teams/invites/invite-link/accept') {
+          const payload = body as Record<string, unknown>;
+          assert.equal(payload.verified_email, 'joiner@example.com');
+          assert.equal(typeof payload.encrypted_team_key, 'string');
+          return { access_request: { access_request_id: 'link-access', status: 'pending_access_approval' } };
+        }
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        await client.createTeam({ teamId: 'team-link', name: 'Link Team' });
+        const invite = await client.createTeamInvite('team-link', { invite_id: 'invite-link', role: 'member' });
+        assert.equal(typeof invite.invite_secret, 'string');
+        assert.match(String(invite.invite_url), /#key=/);
+        assert.equal(typeof inviteState.payload?.encrypted_invite_team_key, 'string');
+        assert.equal(typeof inviteState.payload?.invite_key_kdf_context, 'object');
+        assert.equal('invite_secret' in (inviteState.payload ?? {}), false);
+        const accepted = await client.acceptTeamInvite('invite-link', {
+          inviteSecret: String(invite.invite_secret), recipientEmail: 'Joiner@Example.com',
+        });
+        assert.equal((accepted.access_request as Record<string, unknown>).status, 'pending_access_approval');
+        assert.deepEqual(seen.map(request => [request.method, request.url]), [
+          ['POST', '/v1/teams/name-approval'],
+          ['POST', '/v1/teams'],
+          ['POST', '/v1/teams/team-link/invites'],
+          ['POST', '/v1/teams/invites/invite-link/preview'],
+          ['POST', '/v1/teams/invites/invite-link/accept'],
+        ]);
       },
     );
   });

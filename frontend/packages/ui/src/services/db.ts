@@ -35,6 +35,8 @@ import * as messageOps from "./db/messageOperations";
 import * as chatCrudOps from "./db/chatCrudOperations";
 import * as offlineOps from "./db/offlineChangesAndUpdates";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { notificationStore } from "../stores/notificationStore";
+import { writeWithQuotaRetry } from "./db/quotaRecovery";
 
 // Import logout state to prevent database re-initialization during logout
 import { get } from "svelte/store";
@@ -93,6 +95,14 @@ export interface PendingEmbedOperation {
 }
 
 class ChatDatabase {
+  private async writeWithQuotaRecovery<T>(write: () => Promise<T>, canRetry = true): Promise<T> {
+    return writeWithQuotaRetry(write, () => messageOps.enforceOfflineCacheBudget(this, true), () => {
+      notificationStore.error(
+        "Browser storage is full. This change was not saved for offline use. Free space and try again.",
+        undefined, true, "offline-save-unavailable",
+      );
+    }, canRetry);
+  }
   // Database instance - public for extracted modules to access
   public db: IDBDatabase | null = null;
 
@@ -1955,7 +1965,10 @@ class ChatDatabase {
     transaction?: IDBTransaction,
     options?: { isFromSync?: boolean; forceIncomingEncryptedChatKey?: boolean; writeGuard?: () => void },
   ): Promise<void> {
-    return chatCrudOps.addChat(this, chat, transaction, options);
+    return this.writeWithQuotaRecovery(
+      () => chatCrudOps.addChat(this, chat, transaction, options),
+      !transaction,
+    );
   }
 
   async getAllChats(
@@ -2131,7 +2144,7 @@ class ChatDatabase {
   }
 
   async batchSaveMessages(messages: Message[]): Promise<void> {
-    return messageOps.batchSaveMessages(this, messages);
+    return this.writeWithQuotaRecovery(() => messageOps.batchSaveMessages(this, messages));
   }
 
   async getMessageCountForChat(
@@ -2430,7 +2443,10 @@ class ChatDatabase {
     change: OfflineChange,
     transaction?: IDBTransaction,
   ): Promise<void> {
-    return offlineOps.addOfflineChange(this, change, transaction);
+    return this.writeWithQuotaRecovery(
+      () => offlineOps.addOfflineChange(this, change, transaction),
+      !transaction,
+    );
   }
 
   async getOfflineChanges(

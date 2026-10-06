@@ -22,8 +22,9 @@ class FakeInviteEmailSender:
         return True
 
 
+# contract-test: supporting surface=rest_api assertions=teams.invites.fragment-key-web-flow,teams.security.join-policy
 @pytest.mark.anyio
-async def test_email_invite_stores_hashes_sends_safe_link_and_does_not_disclose_account_existence() -> None:
+async def test_email_invite_stores_hashes_and_requires_client_fragment_handoff() -> None:
     directus = FakeDirectus()
     methods = TeamMethods(directus)
     sender = FakeInviteEmailSender()
@@ -44,19 +45,18 @@ async def test_email_invite_stores_hashes_sends_safe_link_and_does_not_disclose_
         "invite_id": "invite-1",
         "role": "member",
         "status": "pending",
-        "delivery_status": "sent",
+        "delivery_status": "client_share_required",
         "domain": "https://app.selfhost.example",
         "domain_reminder": "Recipient must accept with an OpenMates account on https://app.selfhost.example.",
     }
     invite = directus.rows["team_invites"][0]
     assert invite["hashed_recipient_email"] == hash_invite_email("bob@example.com")
-    assert invite["one_time_token_hash"]
+    assert invite["one_time_token_hash"] is None
     assert "Bob@Example.COM" not in repr(invite)
-    assert sender.sent[0]["to_email"] == "Bob@Example.COM"
-    assert "invite_token=" in sender.sent[0]["accept_url"]
-    assert "cipher-team-key" not in repr(sender.sent[0])
+    assert sender.sent == []
 
 
+# contract-test: supporting surface=rest_api assertions=teams.invites.fragment-key-web-flow,teams.security.join-policy
 @pytest.mark.anyio
 async def test_accept_invite_waits_for_team_access_approval_before_membership_wrapper() -> None:
     directus = FakeDirectus()
@@ -83,8 +83,9 @@ async def test_accept_invite_waits_for_team_access_approval_before_membership_wr
     assert directus.rows["team_invites"][0]["status"] == "accepted"
 
 
+# contract-test: supporting surface=rest_api assertions=teams.invites.fragment-key-web-flow,teams.security.join-policy
 @pytest.mark.anyio
-async def test_accept_invite_stores_recipient_wrapper_for_owner_approval() -> None:
+async def test_direct_email_invite_activates_verified_recipient_without_admin_approval() -> None:
     directus = FakeDirectus()
     methods = TeamMethods(directus)
     await methods.create_team("alice", team_payload())
@@ -101,7 +102,7 @@ async def test_accept_invite_stores_recipient_wrapper_for_owner_approval() -> No
         },
     )
 
-    request = await methods.accept_invite(
+    result = await methods.accept_invite(
         "invite-1",
         "bob",
         accepted_at=120,
@@ -109,13 +110,8 @@ async def test_accept_invite_stores_recipient_wrapper_for_owner_approval() -> No
         recipient_email_hash=hash_invite_email("bob@example.com"),
     )
 
-    assert request is not None
-    assert request["status"] == "pending_access_approval"
-    assert request["encrypted_team_key"] == "cipher-team-key-for-bob"
-    assert [row for row in directus.rows["team_memberships"] if row["hashed_user_id"] == hash_id("bob")] == []
-
-    approved = await methods.approve_access_request("team-1", "alice", request["access_request_id"], approved_at=130)
-
-    assert approved is not None
+    assert result is not None
+    assert result["membership"]["user_id"] == "bob"
+    assert directus.rows["team_access_requests"] == []
     wrapper = [row for row in directus.rows["team_key_wrappers"] if row["hashed_user_id"] == hash_id("bob")][0]
     assert wrapper["encrypted_team_key"] == "cipher-team-key-for-bob"

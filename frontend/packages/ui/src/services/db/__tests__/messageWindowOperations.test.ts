@@ -9,9 +9,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { Message } from "../../../types/chat";
 import {
   evictStaleMessageWindowPages,
+  enforceOfflineCacheBudget,
   getMessageWindowPagesForChat,
   getMessageWindowForChat,
   isContentDuplicate,
+  isSafeToEvictMessage,
   recordMessageWindowPage,
   shouldUpdateMessage,
   type MessageWindowResult,
@@ -155,6 +157,13 @@ function makePageCacheDb(messages: Message[]) {
   };
 
   const pageStore = {
+    getAll(_query?: unknown, count?: number) {
+      const request = new TestRequest<Record<string, unknown>[]>(
+        Array.from(pagesById.values()).slice(0, count),
+      );
+      queueMicrotask(() => request.onsuccess?.());
+      return request;
+    },
     get(pageId: string) {
       const request = new TestRequest<Record<string, unknown> | undefined>(pagesById.get(pageId));
       queueMicrotask(() => request.onsuccess?.());
@@ -192,10 +201,27 @@ function makePageCacheDb(messages: Message[]) {
     pagesById,
     db: {
       init: vi.fn(async () => undefined),
-      getTransaction: vi.fn(async () => ({
-        objectStore: (storeName: string) =>
-          storeName === "message_window_pages" ? pageStore : messageStore,
-      })),
+      getTransaction: vi.fn(async (storeName: string, mode: string) => {
+        const transaction = {
+          oncomplete: null as (() => void) | null,
+          onerror: null as (() => void) | null,
+          onabort: null as (() => void) | null,
+          error: null,
+          objectStore: (name: string) => {
+            if (name === "message_window_pages") return pageStore;
+            if (storeName !== "messages" || mode !== "readwrite") return messageStore;
+            return {
+              ...messageStore,
+              get(messageId: string) {
+                const request = messageStore.get(messageId);
+                queueMicrotask(() => queueMicrotask(() => transaction.oncomplete?.()));
+                return request;
+              },
+            };
+          },
+        };
+        return transaction;
+      }),
       encryptMessageFields: vi.fn(async (message: Message) => message),
       decryptMessageFields: vi.fn(async (message: Message) => message),
     },
@@ -203,6 +229,7 @@ function makePageCacheDb(messages: Message[]) {
 }
 
 describe("isContentDuplicate", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
   it("does not treat two decrypted messages with missing encrypted content as duplicates", () => {
     const existing = {
       message_id: "message-1",
@@ -226,6 +253,7 @@ describe("isContentDuplicate", () => {
     expect(isContentDuplicate(existing, incoming)).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
   it("matches decrypted duplicate content when encrypted content is unavailable", () => {
     const existing = {
       message_id: "message-1",
@@ -249,6 +277,7 @@ describe("isContentDuplicate", () => {
 });
 
 describe("shouldUpdateMessage", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.local-state.precedence
   it("updates an interrupted streaming assistant message when batch sync delivers it", () => {
     const existing = {
       message_id: "ai-task-1",
@@ -267,6 +296,7 @@ describe("shouldUpdateMessage", () => {
     expect(shouldUpdateMessage(existing, incoming)).toBe(true);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
   it("does not update a same-id synced assistant message just because plaintext differs", () => {
     const existing = {
       message_id: "ai-task-1",
@@ -285,6 +315,7 @@ describe("shouldUpdateMessage", () => {
     expect(shouldUpdateMessage(existing, incoming)).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
   it("does not update a same-id user message just because plaintext differs", () => {
     const existing = {
       message_id: "user-message-1",
@@ -302,6 +333,7 @@ describe("shouldUpdateMessage", () => {
     expect(shouldUpdateMessage(existing, incoming)).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.local-state.precedence
   it("preserves waiting_for_user even when sync delivers completed content", () => {
     const existing = {
       message_id: "ai-task-1",
@@ -320,6 +352,7 @@ describe("shouldUpdateMessage", () => {
     expect(shouldUpdateMessage(existing, incoming)).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
   it("does not update a completed duplicate when content already matches", () => {
     const existing = {
       message_id: "ai-task-1",
@@ -336,6 +369,7 @@ describe("shouldUpdateMessage", () => {
 });
 
 describe("getMessageWindowForChat", () => {
+  // contract-test: supporting surface=gui.web assertions=storage.cold.independent-message-pages
   it("uses the 30-message default for latest windows", async () => {
     vi.stubGlobal("IDBKeyRange", TestKeyRange);
     const db = makeDb(makeMessages(101));
@@ -350,6 +384,7 @@ describe("getMessageWindowForChat", () => {
     expect(db.decryptMessageFields).toHaveBeenCalledTimes(30);
   });
 
+  // contract-test: supporting surface=gui.web assertions=storage.cold.independent-message-pages
   it("returns a bounded latest window without decrypting the whole chat", async () => {
     vi.stubGlobal("IDBKeyRange", TestKeyRange);
     const db = makeDb(makeMessages(1000));
@@ -367,6 +402,7 @@ describe("getMessageWindowForChat", () => {
     expect(db.decryptMessageFields).toHaveBeenCalledTimes(40);
   });
 
+  // contract-test: supporting surface=gui.web assertions=storage.cold.independent-message-pages
   it("loads the next older active page behind an explicit cursor", async () => {
     vi.stubGlobal("IDBKeyRange", TestKeyRange);
     const db = makeDb(makeMessages(101));
@@ -387,6 +423,7 @@ describe("getMessageWindowForChat", () => {
     expect(older.messages.some((message) => message.created_at >= latest.startCursor!)).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=storage.cold.independent-message-pages
   it("returns a bounded target-message window around the anchor", async () => {
     vi.stubGlobal("IDBKeyRange", TestKeyRange);
     const db = makeDb(makeMessages(1000));
@@ -414,6 +451,7 @@ describe("getMessageWindowForChat", () => {
     expect(db.decryptMessageFields).toHaveBeenCalledTimes(11);
   });
 
+  // contract-test: supporting surface=gui.web assertions=storage.compression.incremental-archive
   it("excludes forgotten compressed messages from the latest window", async () => {
     vi.stubGlobal("IDBKeyRange", TestKeyRange);
     const db = makeDb(makeMessages(1000));
@@ -430,6 +468,7 @@ describe("getMessageWindowForChat", () => {
     expect(db.decryptMessageFields).toHaveBeenCalledTimes(20);
   });
 
+  // contract-test: supporting surface=gui.web assertions=storage.cold.independent-message-pages
   it("uses message id as a tie breaker when loading older duplicate timestamps", async () => {
     vi.stubGlobal("IDBKeyRange", TestKeyRange);
     const messages: Message[] = [
@@ -452,6 +491,7 @@ describe("getMessageWindowForChat", () => {
 });
 
 describe("message window page cache metadata", () => {
+  // contract-test: supporting surface=gui.web assertions=storage.cold.independent-message-pages
   it("records viewed encrypted page ranges separately from message rows", async () => {
     vi.stubGlobal("IDBKeyRange", TestKeyRange);
     const messages = makeMessages(30);
@@ -479,7 +519,8 @@ describe("message window page cache metadata", () => {
     expect(pagesById.size).toBe(1);
   });
 
-  it("evicts least-recent normal pages while preserving unsafe and protected messages", async () => {
+  // contract-test: supporting surface=gui.web assertions=teams.cache.bounded-isolated,storage.cold.independent-message-pages
+  it("evicts only confirmed pages while preserving unsafe and protected messages", async () => {
     vi.stubGlobal("IDBKeyRange", TestKeyRange);
     const messages = makeMessages(90);
     messages[1] = { ...messages[1], status: "streaming" };
@@ -506,12 +547,48 @@ describe("message window page cache metadata", () => {
 
     expect(result.deletedPageIds).toHaveLength(1);
     expect(remainingPages).toHaveLength(2);
-    expect(messagesById.has("msg-1")).toBe(false);
+    expect(messagesById.has("msg-1")).toBe(true);
     expect(messagesById.has("msg-2")).toBe(true);
     expect(messagesById.has("msg-3")).toBe(true);
-    expect(messagesById.has("msg-31")).toBe(true);
+    expect(messagesById.has("msg-31")).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=teams.cache.bounded-isolated
+  it("never treats pending journals or unconfirmed rows as safe eviction candidates", () => {
+    const synced = makeMessages(1)[0];
+    expect(isSafeToEvictMessage(synced)).toBe(true);
+    expect(isSafeToEvictMessage({ ...synced, status: "delivered" })).toBe(false);
+    expect(isSafeToEvictMessage({ ...synced, pending_encrypted_embed_bundle_v1: "sealed" } as Message)).toBe(false);
+    expect(isSafeToEvictMessage({ ...synced, pending_encrypted_turn_preflight_v1: "sealed" } as Message)).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.cache.bounded-isolated
+  it("trims confirmed pages across personal and team chats against whole-origin pressure", async () => {
+    vi.stubGlobal("IDBKeyRange", TestKeyRange);
+    const personal = makeMessages(60, "personal");
+    const team = makeMessages(60, "team").map((message, index) => ({
+      ...message, message_id: `team-${index}`,
+    }));
+    const { db, messagesById } = makePageCacheDb([...personal, ...team]);
+    await recordMessageWindowPage(db as never, "personal", makeWindowResult(personal.slice(0, 30)), { now: 1000 });
+    await recordMessageWindowPage(db as never, "personal", makeWindowResult(personal.slice(30)), { now: 3000 });
+    await recordMessageWindowPage(db as never, "team", makeWindowResult(team.slice(0, 30)), { now: 2000 });
+    await recordMessageWindowPage(db as never, "team", makeWindowResult(team.slice(30)), { now: 4000 });
+    Object.defineProperty(navigator, "storage", {
+      configurable: true,
+      value: { estimate: vi.fn(async () => ({ usage: 200 * 1024 * 1024, quota: 300 * 1024 * 1024 })) },
+    });
+
+    expect(await enforceOfflineCacheBudget(db as never, true)).toBe(2);
+    expect((await getMessageWindowPagesForChat(db as never, "personal"))).toHaveLength(1);
+    expect((await getMessageWindowPagesForChat(db as never, "team"))).toHaveLength(1);
+    expect(messagesById.has("msg-1")).toBe(false);
+    expect(messagesById.has("team-0")).toBe(false);
+    expect(new Set(vi.mocked(db.getTransaction).mock.calls.map(([storeName]) => storeName)))
+      .toEqual(new Set(["messages", "message_window_pages"]));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=storage.compression.incremental-archive
   it("does not evict explicitly revealed forgotten pages", async () => {
     vi.stubGlobal("IDBKeyRange", TestKeyRange);
     const messages = makeMessages(60);

@@ -43,7 +43,7 @@
 
     // Props using Svelte 5 runes
     let { 
-        icon,
+        icon = '',
         type = 'heading',
         title = undefined,
         subtitleTop = undefined,
@@ -59,7 +59,10 @@
         checked = false,
         disabled = false,
         onClick = undefined,
+        onToggleClick = undefined,
         onModifyClick = undefined,
+        rightContent = undefined,
+        leftContent = undefined,
         hasNestedItems = false,
         iconColor = undefined,
         iconBackground = undefined,
@@ -69,7 +72,7 @@
         children
     }: {
         /** Icon name — resolved to --icon-url-{name} CSS variable. See ICON_NAME_MAP for aliases. */
-        icon: string;
+        icon?: string;
         type?: SettingsItemType;
         title?: string | undefined;
         subtitleTop?: string;
@@ -85,7 +88,11 @@
         checked?: boolean;
         disabled?: boolean;
         onClick?: (() => void) | undefined;
+        onToggleClick?: (() => void) | undefined;
         onModifyClick?: (() => void) | undefined;
+        rightContent?: Snippet | undefined;
+        /** Custom content in place of the standard icon slot, such as a Team avatar. */
+        leftContent?: Snippet | undefined;
         hasNestedItems?: boolean;
         /**
          * CSS gradient/color for the SVG icon itself.
@@ -172,15 +179,8 @@
     function handleToggleClick(event: Event) {
         event.stopPropagation();
         event.preventDefault();
-        if (!disabled && isClickable && onClick) {
-            onClick();
-        }
-    }
-
-    function handleModifyClick(event: Event) {
-        event.stopPropagation();
-        if (onModifyClick) {
-            onModifyClick();
+        if (!disabled && isClickable && (onToggleClick || onClick)) {
+            (onToggleClick ?? onClick)?.();
         }
     }
 
@@ -197,25 +197,31 @@
 {#snippet menuItemContent()}
     <div class="menu-item-content">
         <div class="menu-item-left">
-            <!-- Unified icon rendering — single element, two CSS modes via .has-bg -->
-            <div class="icon-container">
-                {#if lucideIcon}
-                    {@const LucideComp = lucideIcon}
-                    <div
-                        class="settings-icon lucide-icon"
-                        class:has-bg={hasIconBg}
-                        style={lucideIconStyle}
-                    >
-                        <LucideComp size={hasIconBg ? 20 : 22} color={hasIconBg ? 'white' : resolvedColor} />
-                    </div>
-                {:else}
-                    <div
-                        class="settings-icon"
-                        class:has-bg={hasIconBg}
-                        style={iconStyle}
-                    ></div>
-                {/if}
-            </div>
+            {#if leftContent}
+                <div class="left-content">
+                    {@render leftContent()}
+                </div>
+            {:else}
+                <!-- Unified icon rendering — single element, two CSS modes via .has-bg -->
+                <div class="icon-container">
+                    {#if lucideIcon}
+                        {@const LucideComp = lucideIcon}
+                        <div
+                            class="settings-icon lucide-icon"
+                            class:has-bg={hasIconBg}
+                            style={lucideIconStyle}
+                        >
+                            <LucideComp size={hasIconBg ? 20 : 22} color={hasIconBg ? 'white' : resolvedColor} />
+                        </div>
+                    {:else}
+                        <div
+                            class="settings-icon"
+                            class:has-bg={hasIconBg}
+                            style={iconStyle}
+                        ></div>
+                    {/if}
+                </div>
+            {/if}
             
             <div class="text-and-nested-container">
                 <div class="text-container" class:has-title={!!title} class:has-subtitle={hasAnySubtitle} class:heading-text={type === 'heading'}>
@@ -258,6 +264,9 @@
         </div>
         
         <div class="menu-item-right">
+            {#if rightContent}
+                {@render rightContent()}
+            {/if}
             <!-- App icons if present -->
             {#if appIcons && appIcons.length > 0}
                 <div class="app-icons-container">
@@ -277,7 +286,7 @@
                 <div 
                     onmousedown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                     onclick={handleToggleClick}
-                    onkeydown={(e) => handleKeydown(e, () => onClick?.())}
+                    onkeydown={(e) => handleKeydown(e, () => (onToggleClick ?? onClick)?.())}
                     role="button" 
                     tabindex="0"
                     class="toggle-container"
@@ -295,14 +304,10 @@
             <!-- Modify button if explicitly enabled -->
             {#if hasModifyButton}
                 <div
-                    onclick={handleModifyClick}
-                    onkeydown={(e) => handleKeydown(e, () => onModifyClick?.())}
-                    role="button"
-                    tabindex="0"
                     class="modify-button-container"
                     data-testid={`${testid}-modify-button`}
                 >
-                    <ModifyButton />
+                    <ModifyButton onClick={onModifyClick} />
                 </div>
             {/if}
 
@@ -416,6 +421,13 @@
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+
+    .left-content {
+        display: flex;
+        align-items: center;
+        margin-inline-end: 12px;
+        flex-shrink: 0;
     }
 
     /*

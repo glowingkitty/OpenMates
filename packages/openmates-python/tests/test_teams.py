@@ -65,9 +65,9 @@ def test_pip_sdk_teams_methods_use_shared_teams_api(monkeypatch):
             return FakeResponse({"team": {"team_id": "team-1", **(payload or {})}})
         if method == "POST" and url.endswith("/v1/teams/team-1/invites"):
             return FakeResponse({"invite": {"invite_id": "invite-1"}})
-        if method == "POST" and url.endswith("/v1/team-invites/invite-1/accept"):
+        if method == "POST" and url.endswith("/v1/teams/invites/invite-1/accept"):
             return FakeResponse({"status": "pending_access_approval"})
-        if method == "POST" and url.endswith("/v1/team-invites/invite-1/decline"):
+        if method == "POST" and url.endswith("/v1/teams/invites/invite-1/decline"):
             return FakeResponse({"success": True})
         if method == "GET" and url.endswith("/v1/teams/team-1/access-requests?status=pending"):
             return FakeResponse({"access_requests": [{"id": "request-1"}]})
@@ -129,13 +129,18 @@ def test_pip_sdk_teams_methods_use_shared_teams_api(monkeypatch):
     assert client.teams.reject_access("team-1", "request-1")["success"] is True
     assert client.teams.remove_member("team-1", "user-1")["success"] is True
     assert client.teams.billing("team-1")["credits"] == 1
-    assert client.teams.create_bank_transfer_order("team-1", 110000, email_encryption_key="email-key")["order_id"] == "bt_1"
+    buyer_address = {"name": "Pip Team", "street_line_1": "Example Street 3", "postal_code": "10115", "city": "Berlin", "country": "DE"}
+    assert client.teams.create_bank_transfer_order("team-1", 110000, email_encryption_key="email-key", buyer_address=buyer_address)["order_id"] == "bt_1"
     assert client.teams.bank_transfer_status("team-1", "bt_1")["status"] == "pending"
     assert client.teams.list_bank_transfer_orders("team-1")["orders"][0]["order_id"] == "bt_1"
     assert client.teams.usage("team-1", member_user_id="user-1")[0]["credits"] == 1
     assert client.teams.memories("team-1")[0]["id"] == "memory-1"
     assert client.teams.export("team-1")["export_id"] == "export-1"
     assert client.teams.import_team({"destination_team_id": "team-2", "artifact": {}})["imported"] is True
+
+    # contract-test: direct surface=sdks.pip assertions=teams.billing.context-parity
+    order = next(entry for entry in requests_seen if entry["url"].endswith("/v1/teams/team-1/billing/bank-transfer-orders"))
+    assert order["json"] == {"credits_amount": 110000, "currency": "eur", "email_encryption_key": "email-key", "buyer_address": buyer_address}
 
     assert [entry["method"] for entry in requests_seen] == [
         "GET", "GET", "POST", "PATCH", "POST", "POST", "POST",
@@ -144,7 +149,7 @@ def test_pip_sdk_teams_methods_use_shared_teams_api(monkeypatch):
     ]
 
 
-# contract-test: direct surface=sdks.pip assertions=teams.lifecycle.encrypted-profiled,teams.profile-image.safe-parity,teams.workspace.surface-parity
+# contract-test: direct surface=sdks.pip assertions=teams.lifecycle.encrypted-profiled,teams.profile-image.safe-parity,teams.workspace.surface-parity,teams.name.transient-policy
 def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypatch):
     master_key = bytes([11]) * 32
     api_key, material = _create_api_key_material("pip teams profile", master_key)
@@ -182,6 +187,9 @@ def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypat
         assert headers["X-OpenMates-SDK"] == "pip"
         if url.endswith("/v1/sdk/session"):
             return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})
+        if url.endswith("/v1/teams/name-approval"):
+            assert json == {"name": "pip team"}
+            return FakeResponse({"approval_token": "approved-pip-team", "expires_at": 1000})
         if url.endswith("/v1/teams"):
             stored_team = {"team_id": "team-1", **json}
             return FakeResponse({"team": stored_team})
@@ -217,7 +225,10 @@ def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypat
     assert image["filename"] == "team.png"
     assert image["data"] == b"\x89PNG"
 
-    create_body = requests_seen[1]["json"]
+    # contract-test: direct surface=sdks.pip assertions=teams.name.transient-policy
+    assert requests_seen[0]["json"] == {"name": "pip team"}
+    create_body = requests_seen[2]["json"]
+    assert create_body["name_approval_token"] == "approved-pip-team"
     team_key = _decrypt_aes_gcm_bytes(create_body["encrypted_team_key"], master_key)
     assert team_key is not None
     create_profile = json.loads(_decrypt_aes_gcm_text(create_body["encrypted_profile_image_metadata"], team_key))
@@ -227,13 +238,14 @@ def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypat
     assert "name" not in create_body
     assert "profile" not in create_body
 
-    update_body = requests_seen[3]["json"]
+    update_body = requests_seen[4]["json"]
     update_profile = json.loads(_decrypt_aes_gcm_text(update_body["encrypted_profile_image_metadata"], team_key))
     assert update_profile["mode"] == "generated"
     assert update_profile["icon_name"] == "sparkles"
     assert update_profile["background_color"] == "#445566"
     assert "profile" not in update_body
     assert [(entry["method"], entry["url"].replace("https://api.openmates.org", "")) for entry in requests_seen] == [
+        ("POST", "/v1/teams/name-approval"),
         ("POST", "/v1/sdk/session"),
         ("POST", "/v1/teams"),
         ("GET", "/v1/teams/team-1"),

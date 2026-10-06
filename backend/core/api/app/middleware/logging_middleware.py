@@ -209,7 +209,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 metrics_service.track_api_request(method, path, status_code)
                 metrics_service.track_request_duration(method, path, duration)
 
-            if status_code >= 400:
+            # Validation errors can echo the submitted plaintext Team name.
+            # This check is transient: never persist its response body in logs.
+            if status_code >= 400 and path.rstrip("/") != "/v1/teams/name-approval":
                 error_detail_str = None
                 response_body_preview = None # For non-JSON or unparseable bodies
 

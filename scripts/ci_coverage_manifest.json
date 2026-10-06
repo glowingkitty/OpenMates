@@ -1,155 +1,69 @@
 {
   "source_commit": "703e3f9494bb21d2c94d387acfd32a692f7168a9",
   "groups": {
-    "core_authenticated": {
+    "ai_fixture_pending": {
+      "execution": null,
+      "enabling_work": "Mixed live sends or actual application execution remain: chat-flow sends an unmarked second request; explain-in-new-chat and follow-up-suggestions trigger unmarked continuation requests; application-preview and code-generation-multiturn require real preview/E2B execution. Preserve those original behaviors and provision approved dedicated provider/runtime capabilities.",
+      "specs": [
+        "application-preview.spec.ts",
+        "chat-flow.spec.ts",
+        "code-generation-multiturn.spec.ts",
+        "explain-in-new-chat.spec.ts",
+        "follow-up-suggestions-flow.spec.ts"
+      ]
+    },
+    "operational_health": {
       "execution": "e2e",
-      "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts.",
+      "enabling_work": "Core API and Celery health checks only; no signup, external provider, billing operation or real AI inference.",
       "specs": [
-        "video-call-experiment.spec.ts",
-        "upload-metadata-privacy.spec.ts",
-        "cli-privacy.spec.ts",
-        "a11y-keyboard-nav.spec.ts",
-        "a11y-modal-dialogs.spec.ts",
-        "a11y-pages.spec.ts",
-        "account-interests-settings.spec.ts",
-        "ai-model-settings.spec.ts",
-        "ai-settings-breadcrumb.spec.ts",
-        "api-keys-flow.spec.ts",
-        "apple-chat-ui-contracts.spec.ts",
-        "apple-proof-credential-broker.spec.ts",
-        "apple-settings-ui-contracts.spec.ts",
-        "auth-session-rotation.spec.ts",
-        "backup-code-login-flow.spec.ts",
-        "backup-codes-settings.spec.ts",
-        "audio-recording-deferred-send.spec.ts",
-        "components/audio-recording-realtime.spec.ts",
-        "calendar-connected-accounts.spec.ts",
-        "calendar-permission-flow.spec.ts",
-        "chat-error-report-consent.spec.ts",
-        "chat-header-navigation-order.spec.ts",
-        "chat-metadata-recovery.spec.ts",
-        "chat-rendering-parity-oracle.spec.ts",
-        "chat-search-flow.spec.ts",
-        "chat-sync-empty-indexeddb-recovery.spec.ts",
-        "cli-created-account-login.spec.ts",
-        "cli-memories.spec.ts",
-        "cli-session-cookie-rotation.spec.ts",
-        "wikipedia-learning-api.spec.ts",
-        "cli-pair-login.spec.ts",
-        "cli-tui-chat-sidebar-proof.spec.ts",
-        "cli-tui-startup.spec.ts",
-        "cli-tui-centered-carousels-proof.spec.ts",
-        "cli-tui-chat-previews-proof.spec.ts",
-        "cli-tui-interactive-questions-proof.spec.ts",
-        "cli-tui-workspace-proof.spec.ts",
-        "cli-tui-workspace-details-proof.spec.ts",
-        "cli-workflow-data-branches.spec.ts",
-        "cli-workflow-skill-safety.spec.ts",
-        "cli-workflow-files.spec.ts",
-        "cli-workflows-natural-language-guards.spec.ts",
-        "code-notebook-flow.spec.ts",
-        "composer-workspace-layout.spec.ts",
-        "connected-account-calendar-settings.spec.ts",
-        "content-embed-settings.spec.ts",
-        "debug-logging-settings.spec.ts",
-        "draft-embed-preview.spec.ts",
-        "export-account-flow.spec.ts",
-        "focus-mode-mention.spec.ts",
-        "focus-mode-settings.spec.ts",
-        "gpt61-sol-model-picker.spec.ts",
-        "import-account-dedupe.spec.ts",
-        "import-account-limits.spec.ts",
-        "import-account-v1.spec.ts",
-        "import-chats.spec.ts",
-        "interface-font-settings.spec.ts",
-        "language-settings-flow.spec.ts",
-        "learning-mode.spec.ts",
-        "location-security-flow.spec.ts",
-        "long-chat-history.spec.ts",
-        "logout-blocked-userdb-relogin.spec.ts",
-        "model-toggle-settings.spec.ts",
-        "mistral-large4-model-picker.spec.ts",
-        "newsletter-categories.spec.ts",
-        "passkey-login-alternatives.spec.ts",
-        "persisted-draft-discovery.spec.ts",
-        "plan-acceptance-checks-flow.spec.ts",
-        "plan-assumptions-flow.spec.ts",
-        "plans-flow.spec.ts",
-        "project-plans-flow.spec.ts",
-        "project-task-sync.spec.ts",
-        "projects-flow.spec.ts",
-        "projects-remote-sources.spec.ts",
-        "teams-settings-context.spec.ts",
-        "workflow-files.spec.ts",
-        "proton-local-connector-settings.spec.ts",
-        "recent-chats-dedup.spec.ts",
-        "recovery-key-login-flow.spec.ts",
-        "recovery-key-settings.spec.ts",
-        "session-503-inspiration-recovery.spec.ts",
-        "session-revoke-flow.spec.ts",
-        "settings-privacy-pii-deep-link.spec.ts",
-        "settings-translation-coverage.spec.ts",
-        "share-embed-flow.spec.ts",
-        "shared-chat-open.spec.ts",
-        "shared-chat-bounded-history.spec.ts",
-        "show-more-chats-flow.spec.ts",
-        "skill-mail-search.spec.ts",
-        "startup-sync-contract.spec.ts",
-        "sub-chats-flow.spec.ts",
-        "tasks-flow.spec.ts",
-        "tasks-plans-workspace.spec.ts",
-        "tasks-web-app-parity.spec.ts",
-        "teams-flow.spec.ts",
-        "unified-detail-header.spec.ts",
-        "unified-detail-pages.spec.ts",
-        "web-lifecycle-notification-suppression.spec.ts",
-        "workflows-definition-history.spec.ts",
-        "workflows-ai-authoring.spec.ts",
-        "workflows-authoring-transaction.spec.ts",
-        "workflows-editor.spec.ts",
-        "workflows-website-changes.spec.ts",
-        "workflows-input.spec.ts",
-        "workflows-input-stream.spec.ts",
-        "workflows-reorder-inputs.spec.ts",
-        "workspace-hash-routing.spec.ts",
-        "workspace-sidebar.spec.ts",
-        "components/chat-settings-preview.spec.ts",
-        "components/sheet-fullscreen.spec.ts",
-        "notification-email-preferences.spec.ts",
-        "notification-email-links.spec.ts",
-        "chat-sidebar-projects.spec.ts",
-        "maps-discovery-sdk.spec.ts",
-        "cli-project-focus-settings.spec.ts",
-        "jev-project-context-api.spec.ts",
-        "cli-tui-rich-chat-proof.spec.ts"
+        "development-service-health.spec.ts"
       ]
     },
-    "external_integration": {
-      "execution": null,
-      "enabling_work": "Real mail delivery/reader, OAuth/Proton/device credentials, or production-origin monitoring contract. Supply isolated real service and dedicated account; production-origin checks require explicit coverage disposition, not a localhost success claim.",
+    "storage_capacity_replay": {
+      "execution": "e2e",
+      "enabling_work": "Run the dedicated signed synthetic full pipeline on isolated internal-network API, AI, PostgreSQL, and S3 with fresh allowlisted users. The pilot and target run actual client encryption, compression, Project versions, and archived page reads; provider credentials and fallback are forbidden.",
       "specs": [
-        "account-recovery-flow.spec.ts",
-        "cli-provision-auth-accounts.spec.ts",
-        "connected-account-calendar-live-oauth.spec.ts",
-        "dev-smoke/dev-smoke-reachability.spec.ts",
-        "newsletter-flow.spec.ts",
-        "prod-smoke/prod-smoke-reachability.spec.ts",
-        "proton-bridge-live.spec.ts",
-        "reminder-email.spec.ts",
-        "settings-change-email.spec.ts",
-        "test-account-preflight.spec.ts"
+        "storage-capacity-replay.spec.ts",
+        "storage-capacity-calibration.spec.ts",
+        "storage-message-embed-bundle.spec.ts",
+        "storage-team-portability.spec.ts",
+        "storage-capacity-target.spec.ts",
+        "storage-capacity-target-smoke.spec.ts",
+        "storage-recovery-replay.spec.ts",
+        "storage-recovery-canonical-receipts.spec.ts",
+        "storage-detached-producer.spec.ts",
+        "wiki-learning-flow.spec.ts"
       ]
     },
-    "upload_audio_services": {
+    "private_cloud": {
       "execution": null,
-      "enabling_work": "Add runner-local upload/object-storage/media or workflow/reminder/app services used by the spec; preserve its committed media and scheduled/CLI fixtures. Per-spec signals are in the dependency inventory.",
+      "enabling_work": "Cloud eligibility/billing services with private code; real payment/inference credentials and explicit caps for live cases. Browser-mocked cases are separate coverage, not cloud proof.",
       "specs": [
-        "cli-workflows-search-controls-real.spec.ts",
-        "proof-video-cli.spec.ts",
-        "shared-chat-embed-assets.spec.ts",
-        "task-activity.spec.ts",
-        "task-blocked-reason.spec.ts",
-        "task-detail-fullscreen.spec.ts"
+        "anonymous-cli-skill.spec.ts",
+        "anonymous-free-chat.spec.ts",
+        "anonymous-free-usage-status.spec.ts",
+        "anonymous-production-repair.spec.ts",
+        "billing-settlement-recovery.spec.ts",
+        "buy-credits-flow.spec.ts",
+        "create-test-account.spec.ts",
+        "prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts",
+        "referral-signup-purchase.spec.ts",
+        "saved-payment-invoice-flow.spec.ts",
+        "settings-buy-credits-stripe-eu.spec.ts",
+        "settings-buy-credits-stripe-managed.spec.ts",
+        "settings-gift-card-redemption.spec.ts",
+        "settings-support-stripe.spec.ts",
+        "signup-flow-bank-transfer.spec.ts",
+        "signup-flow-stripe-eu.spec.ts",
+        "signup-flow-stripe-managed.spec.ts",
+        "signup-free-testing-credits.spec.ts"
+      ]
+    },
+    "object_storage": {
+      "execution": "e2e",
+      "enabling_work": "Use genuine disposable S3-compatible storage with fresh Vault credentials and preserved original persistence/auth assertions; no real mail delivery or Hetzner region failover claim.",
+      "specs": [
+        "report-issue-flow.spec.ts"
       ]
     },
     "ai_provider": {
@@ -200,33 +114,40 @@
         "projects-chat-file-executor.spec.ts"
       ]
     },
-    "private_cloud": {
+    "ai_cached_pipeline_pending": {
       "execution": null,
-      "enabling_work": "Cloud eligibility/billing services with private code; real payment/inference credentials and explicit caps for live cases. Browser-mocked cases are separate coverage, not cloud proof.",
+      "enabling_work": "Original withLiveMockMarker pipeline replay requires the isolated AI/app workers, committed API-cache group, model/provider configuration fixtures and valid test-context signing. Cache misses must fail with no recording or paid fallback. Existing HPFSL completed evidence must not be rerun.",
       "specs": [
-        "anonymous-cli-skill.spec.ts",
-        "anonymous-free-chat.spec.ts",
-        "anonymous-free-usage-status.spec.ts",
-        "anonymous-production-repair.spec.ts",
-        "billing-settlement-recovery.spec.ts",
-        "buy-credits-flow.spec.ts",
-        "create-test-account.spec.ts",
-        "prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts",
-        "referral-signup-purchase.spec.ts",
-        "saved-payment-invoice-flow.spec.ts",
-        "settings-buy-credits-stripe-eu.spec.ts",
-        "settings-buy-credits-stripe-managed.spec.ts",
-        "settings-gift-card-redemption.spec.ts",
-        "settings-support-stripe.spec.ts",
-        "signup-flow-bank-transfer.spec.ts",
-        "signup-flow-stripe-eu.spec.ts",
-        "signup-flow-stripe-managed.spec.ts",
-        "signup-free-testing-credits.spec.ts"
+        "application-preview-share.spec.ts",
+        "audio-recording-and-speech.spec.ts",
+        "hpfsl-acknowledgement-timing.spec.ts",
+        "skill-code-search-repos.spec.ts",
+        "skill-events-search.spec.ts",
+        "skill-fitness-urban-sports.spec.ts",
+        "skill-health-appointments.spec.ts",
+        "skill-home-search.spec.ts",
+        "skill-images-search.spec.ts",
+        "skill-maps-search.spec.ts",
+        "skill-music-generate.spec.ts",
+        "skill-shopping-search.spec.ts",
+        "skill-social-media.spec.ts",
+        "skill-travel-connections.spec.ts",
+        "skill-travel-stays.spec.ts",
+        "skill-travel-train-connections.spec.ts",
+        "skill-videos-search.spec.ts",
+        "skill-videos-transcript.spec.ts",
+        "skill-weather-forecast.spec.ts"
+      ]
+    },
+    "storage_billing_metering": {
+      "execution": "e2e",
+      "enabling_work": "Use separate isolated disposable accounts and exact private metering fixtures to verify legacy and logical S3 storage quotes without provider calls. The logical profile additionally runs real SQL expiry and regional S3 purge for a separate owner, using sub-KiB encrypted objects with explicitly SIMULATED legacy logical sizes, four canned delivered receipts, a frozen oldest-unit list, warned-only debt waiver, surviving object checks, and an unchanged credit ledger.",
+      "specs": [
+        "billing-storage-legacy.spec.ts",
+        "billing-storage-logical.spec.ts"
       ]
     },
     "browser_component_contract": {
-      "execution": "e2e",
-      "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "specs": [
         "components/video-call-panel.spec.ts",
         "components/video-call-panel-responsive.spec.ts",
@@ -371,14 +292,36 @@
         "components/published-memories.spec.ts",
         "components/memory-mention-dropdown.spec.ts",
         "components/memory-card.spec.ts",
-        "memories-public-catalog.spec.ts"
+        "memories-public-catalog.spec.ts",
+        "components/settings-teams.spec.ts",
+        "components/team-context-picker-preview.spec.ts",
+        "components/billing-context-preview.spec.ts",
+        "components/teams-invite-form.spec.ts",
+        "components/settings-avatar.spec.ts"
+      ],
+      "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
+      "execution": "e2e"
+    },
+    "selfhost_installer": {
+      "execution": "selfhost",
+      "enabling_work": "Run original source-mode and image-mode installation checks, fresh signup and admin promotion on the GitHub runner, inside the same four-job queue. No provider keys or shared accounts. Verify cleanup and exact image/source evidence.",
+      "specs": [
+        "selfhost-smoke.spec.ts"
       ]
     },
-    "synthetic_artifact": {
-      "execution": null,
-      "enabling_work": "Verified artifact browser profile; no application backend or accounts required. Visual approval remains separate.",
+    "uploads": {
+      "execution": "e2e",
+      "enabling_work": "Use real runner-local upload service, ClamAV, S3, Vault and fresh authenticated users. AI detection/transcription/provider assertions remain separately gated; no scan or upload mocks.",
       "specs": [
-        "security-reporting-email-proof.spec.ts"
+        "apple-ui-contracts.spec.ts",
+        "profile-image-recovery.spec.ts"
+      ]
+    },
+    "credential_free_domains": {
+      "execution": "e2e",
+      "enabling_work": "Fresh runner-local core accounts and normal REST/CLI/SDK device approval; bounded real HTTPS calls only to the anonymous Gandi shop endpoint. No AI worker, inference, provider credentials or shared dev endpoint. Direct transport is exercised here; existing Webshare fallback has separate dev probe and focused unit evidence.",
+      "specs": [
+        "skill-hosting-search-api.spec.ts"
       ]
     },
     "ai_committed_fixtures": {
@@ -420,54 +363,51 @@
         "maps-discovery-chat.spec.ts"
       ]
     },
-    "ai_fixture_pending": {
+    "external_integration": {
       "execution": null,
-      "enabling_work": "Mixed live sends or actual application execution remain: chat-flow sends an unmarked second request; explain-in-new-chat and follow-up-suggestions trigger unmarked continuation requests; application-preview and code-generation-multiturn require real preview/E2B execution. Preserve those original behaviors and provision approved dedicated provider/runtime capabilities.",
+      "enabling_work": "Real mail delivery/reader, OAuth/Proton/device credentials, or production-origin monitoring contract. Supply isolated real service and dedicated account; production-origin checks require explicit coverage disposition, not a localhost success claim.",
       "specs": [
-        "application-preview.spec.ts",
-        "chat-flow.spec.ts",
-        "code-generation-multiturn.spec.ts",
-        "explain-in-new-chat.spec.ts",
-        "follow-up-suggestions-flow.spec.ts"
+        "account-recovery-flow.spec.ts",
+        "cli-provision-auth-accounts.spec.ts",
+        "connected-account-calendar-live-oauth.spec.ts",
+        "dev-smoke/dev-smoke-reachability.spec.ts",
+        "newsletter-flow.spec.ts",
+        "prod-smoke/prod-smoke-reachability.spec.ts",
+        "proton-bridge-live.spec.ts",
+        "reminder-email.spec.ts",
+        "settings-change-email.spec.ts",
+        "test-account-preflight.spec.ts"
       ]
     },
-    "original_browser_billing_fixtures": {
+    "storage_archive_lifecycle": {
       "execution": "e2e",
-      "enabling_work": "Preserve the existing browser payment/admin endpoint fixtures and genuine newly provisioned login. This is browser-only coverage, not real private billing/eligibility/provider verification; unmocked runtime dependencies must still fail visibly.",
+      "enabling_work": "Standalone account-free, zero-inference encrypted archive lifecycle: genuine isolated PostgreSQL and S3 plus client AES-GCM ciphertext round-trip and exact decryption after safe pruning. Uses the existing isolated storage profile; no capacity workload, providers or shared dev endpoints.",
       "specs": [
-        "server-anonymous-free-usage-budget.spec.ts",
-        "server-free-testing-budget.spec.ts",
-        "settings-buy-credits-bank-transfer.spec.ts",
-        "settings-gift-card-bank-transfer.spec.ts",
-        "settings-support-bank-transfer.spec.ts",
-        "signup-flow-bank-transfer.spec.ts",
-        "signup-free-testing-credits.spec.ts",
-        "workflow-billing-usage.spec.ts"
+        "storage-archive-lifecycle.spec.ts"
       ]
     },
-    "ai_cached_pipeline_pending": {
-      "execution": null,
-      "enabling_work": "Original withLiveMockMarker pipeline replay requires the isolated AI/app workers, committed API-cache group, model/provider configuration fixtures and valid test-context signing. Cache misses must fail with no recording or paid fallback. Existing HPFSL completed evidence must not be rerun.",
+    "workflow_weather": {
+      "execution": "e2e",
+      "enabling_work": "Run real Workflow CLI/UI/scheduling assertions with dedicated workflow queue and only canonical workflow-trigger scanner. Bright Sky/DWD, Open-Meteo and bounded anonymous Gandi shop HTTPS calls need no credentials; no paid AI/provider keys, no generic periodic jobs. Keep this capability in its own batch.",
       "specs": [
-        "application-preview-share.spec.ts",
-        "audio-recording-and-speech.spec.ts",
-        "hpfsl-acknowledgement-timing.spec.ts",
-        "skill-code-search-repos.spec.ts",
-        "skill-events-search.spec.ts",
-        "skill-fitness-urban-sports.spec.ts",
-        "skill-health-appointments.spec.ts",
-        "skill-home-search.spec.ts",
-        "skill-images-search.spec.ts",
-        "skill-maps-search.spec.ts",
-        "skill-music-generate.spec.ts",
-        "skill-shopping-search.spec.ts",
-        "skill-social-media.spec.ts",
-        "skill-travel-connections.spec.ts",
-        "skill-travel-stays.spec.ts",
-        "skill-travel-train-connections.spec.ts",
-        "skill-videos-search.spec.ts",
-        "skill-videos-transcript.spec.ts",
-        "skill-weather-forecast.spec.ts"
+        "cli-workflows-rain-real.spec.ts",
+        "cli-workflows-schedule-real.spec.ts",
+        "workflows-ready-run-tasks.spec.ts",
+        "workflows-ui-contract.spec.ts",
+        "skill-hosting-search-workflow.spec.ts",
+        "workflows-composition.spec.ts"
+      ]
+    },
+    "upload_audio_services": {
+      "execution": null,
+      "enabling_work": "Add runner-local upload/object-storage/media or workflow/reminder/app services used by the spec; preserve its committed media and scheduled/CLI fixtures. Per-spec signals are in the dependency inventory.",
+      "specs": [
+        "cli-workflows-search-controls-real.spec.ts",
+        "proof-video-cli.spec.ts",
+        "shared-chat-embed-assets.spec.ts",
+        "task-activity.spec.ts",
+        "task-blocked-reason.spec.ts",
+        "task-detail-fullscreen.spec.ts"
       ]
     },
     "ai_cached_pipeline": {
@@ -485,20 +425,16 @@
         "skill-web-search.spec.ts"
       ]
     },
-    "storage_capacity_replay": {
+    "local_email_signup": {
       "execution": "e2e",
-      "enabling_work": "Run the dedicated signed synthetic full pipeline on isolated internal-network API, AI, PostgreSQL, and S3 with fresh allowlisted users. The pilot and target run actual client encryption, compression, Project versions, and archived page reads; provider credentials and fallback are forbidden.",
+      "enabling_work": "Run actual signup email tasks and rendered messages through isolated runner-local Mailpit; real Brevo-to-Gmail delivery is verified separately by the dev-host daily smoke.",
       "specs": [
-        "storage-capacity-replay.spec.ts",
-        "storage-capacity-calibration.spec.ts",
-        "storage-message-embed-bundle.spec.ts",
-        "storage-team-portability.spec.ts",
-        "storage-capacity-target.spec.ts",
-        "storage-capacity-target-smoke.spec.ts",
-        "storage-recovery-replay.spec.ts",
-        "storage-recovery-canonical-receipts.spec.ts",
-        "storage-detached-producer.spec.ts",
-        "wiki-learning-flow.spec.ts"
+        "signup-flow-passkey.spec.ts",
+        "signup-skip-2fa-flow.spec.ts",
+        "workflow-email-digest.spec.ts",
+        "chat-response-email.spec.ts",
+        "notification-email-migration.spec.ts",
+        "teams-invite-acceptance.spec.ts"
       ]
     },
     "storage_accountability_integration": {
@@ -508,45 +444,18 @@
         "storage-accountability-integration.spec.ts"
       ]
     },
-    "selfhost_installer": {
-      "execution": "selfhost",
-      "enabling_work": "Run original source-mode and image-mode installation checks, fresh signup and admin promotion on the GitHub runner, inside the same four-job queue. No provider keys or shared accounts. Verify cleanup and exact image/source evidence.",
-      "specs": [
-        "selfhost-smoke.spec.ts"
-      ]
-    },
-    "object_storage": {
+    "original_browser_billing_fixtures": {
       "execution": "e2e",
-      "enabling_work": "Use genuine disposable S3-compatible storage with fresh Vault credentials and preserved original persistence/auth assertions; no real mail delivery or Hetzner region failover claim.",
+      "enabling_work": "Preserve the existing browser payment/admin endpoint fixtures and genuine newly provisioned login. This is browser-only coverage, not real private billing/eligibility/provider verification; unmocked runtime dependencies must still fail visibly.",
       "specs": [
-        "report-issue-flow.spec.ts"
-      ]
-    },
-    "uploads": {
-      "execution": "e2e",
-      "enabling_work": "Use real runner-local upload service, ClamAV, S3, Vault and fresh authenticated users. AI detection/transcription/provider assertions remain separately gated; no scan or upload mocks.",
-      "specs": [
-        "apple-ui-contracts.spec.ts",
-        "profile-image-recovery.spec.ts"
-      ]
-    },
-    "workflow_weather": {
-      "execution": "e2e",
-      "enabling_work": "Run real Workflow CLI/UI/scheduling assertions with dedicated workflow queue and only canonical workflow-trigger scanner. Bright Sky/DWD, Open-Meteo and bounded anonymous Gandi shop HTTPS calls need no credentials; no paid AI/provider keys, no generic periodic jobs. Keep this capability in its own batch.",
-      "specs": [
-        "cli-workflows-rain-real.spec.ts",
-        "cli-workflows-schedule-real.spec.ts",
-        "workflows-ready-run-tasks.spec.ts",
-        "workflows-ui-contract.spec.ts",
-        "skill-hosting-search-workflow.spec.ts",
-        "workflows-composition.spec.ts"
-      ]
-    },
-    "credential_free_domains": {
-      "execution": "e2e",
-      "enabling_work": "Fresh runner-local core accounts and normal REST/CLI/SDK device approval; bounded real HTTPS calls only to the anonymous Gandi shop endpoint. No AI worker, inference, provider credentials or shared dev endpoint. Direct transport is exercised here; existing Webshare fallback has separate dev probe and focused unit evidence.",
-      "specs": [
-        "skill-hosting-search-api.spec.ts"
+        "server-anonymous-free-usage-budget.spec.ts",
+        "server-free-testing-budget.spec.ts",
+        "settings-buy-credits-bank-transfer.spec.ts",
+        "settings-gift-card-bank-transfer.spec.ts",
+        "settings-support-bank-transfer.spec.ts",
+        "signup-flow-bank-transfer.spec.ts",
+        "signup-free-testing-credits.spec.ts",
+        "workflow-billing-usage.spec.ts"
       ]
     },
     "ai_cached_public_provider": {
@@ -556,38 +465,138 @@
         "skill-electronics-search-components.spec.ts"
       ]
     },
-    "local_email_signup": {
-      "execution": "e2e",
-      "enabling_work": "Run actual signup email tasks and rendered messages through isolated runner-local Mailpit; real Brevo-to-Gmail delivery is verified separately by the dev-host daily smoke.",
+    "synthetic_artifact": {
+      "execution": null,
+      "enabling_work": "Verified artifact browser profile; no application backend or accounts required. Visual approval remains separate.",
       "specs": [
-        "signup-flow-passkey.spec.ts",
-        "signup-skip-2fa-flow.spec.ts",
-        "workflow-email-digest.spec.ts",
-        "chat-response-email.spec.ts",
-        "notification-email-migration.spec.ts"
+        "security-reporting-email-proof.spec.ts"
       ]
     },
-    "operational_health": {
+    "core_authenticated": {
       "execution": "e2e",
-      "enabling_work": "Core API and Celery health checks only; no signup, external provider, billing operation or real AI inference.",
       "specs": [
-        "development-service-health.spec.ts"
-      ]
-    },
-    "storage_billing_metering": {
-      "execution": "e2e",
-      "enabling_work": "Use separate isolated disposable accounts and exact private metering fixtures to verify legacy and logical S3 storage quotes without provider calls. The logical profile additionally runs real SQL expiry and regional S3 purge for a separate owner, using sub-KiB encrypted objects with explicitly SIMULATED legacy logical sizes, four canned delivered receipts, a frozen oldest-unit list, warned-only debt waiver, surviving object checks, and an unchanged credit ledger.",
-      "specs": [
-        "billing-storage-legacy.spec.ts",
-        "billing-storage-logical.spec.ts"
-      ]
-    },
-    "storage_archive_lifecycle": {
-      "execution": "e2e",
-      "enabling_work": "Standalone account-free, zero-inference encrypted archive lifecycle: genuine isolated PostgreSQL and S3 plus client AES-GCM ciphertext round-trip and exact decryption after safe pruning. Uses the existing isolated storage profile; no capacity workload, providers or shared dev endpoints.",
-      "specs": [
-        "storage-archive-lifecycle.spec.ts"
-      ]
+        "video-call-experiment.spec.ts",
+        "upload-metadata-privacy.spec.ts",
+        "cli-privacy.spec.ts",
+        "a11y-keyboard-nav.spec.ts",
+        "a11y-modal-dialogs.spec.ts",
+        "a11y-pages.spec.ts",
+        "account-interests-settings.spec.ts",
+        "ai-model-settings.spec.ts",
+        "ai-settings-breadcrumb.spec.ts",
+        "api-keys-flow.spec.ts",
+        "apple-chat-ui-contracts.spec.ts",
+        "apple-proof-credential-broker.spec.ts",
+        "apple-settings-ui-contracts.spec.ts",
+        "auth-session-rotation.spec.ts",
+        "backup-code-login-flow.spec.ts",
+        "backup-codes-settings.spec.ts",
+        "audio-recording-deferred-send.spec.ts",
+        "components/audio-recording-realtime.spec.ts",
+        "calendar-connected-accounts.spec.ts",
+        "calendar-permission-flow.spec.ts",
+        "chat-error-report-consent.spec.ts",
+        "chat-header-navigation-order.spec.ts",
+        "chat-metadata-recovery.spec.ts",
+        "chat-rendering-parity-oracle.spec.ts",
+        "chat-search-flow.spec.ts",
+        "chat-sync-empty-indexeddb-recovery.spec.ts",
+        "cli-created-account-login.spec.ts",
+        "cli-memories.spec.ts",
+        "cli-session-cookie-rotation.spec.ts",
+        "wikipedia-learning-api.spec.ts",
+        "cli-pair-login.spec.ts",
+        "cli-tui-chat-sidebar-proof.spec.ts",
+        "cli-tui-startup.spec.ts",
+        "cli-tui-centered-carousels-proof.spec.ts",
+        "cli-tui-chat-previews-proof.spec.ts",
+        "cli-tui-interactive-questions-proof.spec.ts",
+        "cli-tui-workspace-proof.spec.ts",
+        "cli-tui-workspace-details-proof.spec.ts",
+        "cli-workflow-data-branches.spec.ts",
+        "cli-workflow-skill-safety.spec.ts",
+        "cli-workflow-files.spec.ts",
+        "cli-workflows-natural-language-guards.spec.ts",
+        "code-notebook-flow.spec.ts",
+        "composer-workspace-layout.spec.ts",
+        "connected-account-calendar-settings.spec.ts",
+        "content-embed-settings.spec.ts",
+        "debug-logging-settings.spec.ts",
+        "draft-embed-preview.spec.ts",
+        "export-account-flow.spec.ts",
+        "focus-mode-mention.spec.ts",
+        "focus-mode-settings.spec.ts",
+        "gpt61-sol-model-picker.spec.ts",
+        "import-account-dedupe.spec.ts",
+        "import-account-limits.spec.ts",
+        "import-account-v1.spec.ts",
+        "import-chats.spec.ts",
+        "interface-font-settings.spec.ts",
+        "language-settings-flow.spec.ts",
+        "learning-mode.spec.ts",
+        "location-security-flow.spec.ts",
+        "long-chat-history.spec.ts",
+        "logout-blocked-userdb-relogin.spec.ts",
+        "model-toggle-settings.spec.ts",
+        "mistral-large4-model-picker.spec.ts",
+        "newsletter-categories.spec.ts",
+        "passkey-login-alternatives.spec.ts",
+        "persisted-draft-discovery.spec.ts",
+        "plan-acceptance-checks-flow.spec.ts",
+        "plan-assumptions-flow.spec.ts",
+        "plans-flow.spec.ts",
+        "project-plans-flow.spec.ts",
+        "project-task-sync.spec.ts",
+        "projects-flow.spec.ts",
+        "projects-remote-sources.spec.ts",
+        "teams-settings-context.spec.ts",
+        "workflow-files.spec.ts",
+        "proton-local-connector-settings.spec.ts",
+        "recent-chats-dedup.spec.ts",
+        "recovery-key-login-flow.spec.ts",
+        "recovery-key-settings.spec.ts",
+        "session-503-inspiration-recovery.spec.ts",
+        "session-revoke-flow.spec.ts",
+        "settings-privacy-pii-deep-link.spec.ts",
+        "settings-translation-coverage.spec.ts",
+        "share-embed-flow.spec.ts",
+        "shared-chat-open.spec.ts",
+        "shared-chat-bounded-history.spec.ts",
+        "show-more-chats-flow.spec.ts",
+        "skill-mail-search.spec.ts",
+        "startup-sync-contract.spec.ts",
+        "sub-chats-flow.spec.ts",
+        "tasks-flow.spec.ts",
+        "tasks-plans-workspace.spec.ts",
+        "tasks-web-app-parity.spec.ts",
+        "teams-flow.spec.ts",
+        "unified-detail-header.spec.ts",
+        "unified-detail-pages.spec.ts",
+        "web-lifecycle-notification-suppression.spec.ts",
+        "workflows-definition-history.spec.ts",
+        "workflows-ai-authoring.spec.ts",
+        "workflows-authoring-transaction.spec.ts",
+        "workflows-editor.spec.ts",
+        "workflows-website-changes.spec.ts",
+        "workflows-input.spec.ts",
+        "workflows-input-stream.spec.ts",
+        "workflows-reorder-inputs.spec.ts",
+        "workspace-hash-routing.spec.ts",
+        "workspace-sidebar.spec.ts",
+        "components/chat-settings-preview.spec.ts",
+        "components/sheet-fullscreen.spec.ts",
+        "notification-email-preferences.spec.ts",
+        "notification-email-links.spec.ts",
+        "chat-sidebar-projects.spec.ts",
+        "maps-discovery-sdk.spec.ts",
+        "cli-project-focus-settings.spec.ts",
+        "jev-project-context-api.spec.ts",
+        "cli-tui-rich-chat-proof.spec.ts",
+        "teams-management-flow.spec.ts",
+        "teams-billing-address.spec.ts",
+        "storage-offline-cache-logout.spec.ts"
+      ],
+      "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."
     }
   },
   "holds": {

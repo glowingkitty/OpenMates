@@ -10230,6 +10230,41 @@ ai_response_notification.open_chat_button:
   sv: Öppna chatt
   he: "פתיחת הצ'אט"
   verified_by_human: []
+team_role_changed_notification.subject:
+  context: Privacy-safe Team role change email subject; Team name is client encrypted
+  en: Your Team role changed
+  de: Deine Teamrolle wurde geändert
+  verified_by_human: []
+team_role_changed_notification.header:
+  context: Privacy-safe Team role change email header
+  en: Your Team role changed
+  de: Deine Teamrolle wurde geändert
+  verified_by_human: []
+team_role_changed_notification.description:
+  context: Team role change email body without Team name or private metadata
+  en: An administrator changed your role in a Team. Open OpenMates to see your current access.
+  de: Ein Administrator hat deine Rolle in einem Team geändert. Öffne OpenMates, um deinen aktuellen Zugriff zu sehen.
+  verified_by_human: []
+team_removed_notification.subject:
+  context: Privacy-safe Team removal email subject
+  en: Your Team access ended
+  de: Dein Teamzugriff wurde beendet
+  verified_by_human: []
+team_removed_notification.header:
+  context: Privacy-safe Team removal email header
+  en: Your Team access ended
+  de: Dein Teamzugriff wurde beendet
+  verified_by_human: []
+team_removed_notification.description:
+  context: Team removal email body without Team name or private metadata
+  en: An administrator removed you from a Team. Your access to its shared content has ended.
+  de: Ein Administrator hat dich aus einem Team entfernt. Dein Zugriff auf dessen gemeinsame Inhalte wurde beendet.
+  verified_by_human: []
+team_membership_notification.open_button:
+  context: Button in privacy-safe Team membership notification emails
+  en: Open OpenMates
+  de: OpenMates öffnen
+  verified_by_human: []
 team_member_mention_notification.subject:
   context: Email subject for a privacy-safe Team member mention notification
   en: You were mentioned in a Team chat

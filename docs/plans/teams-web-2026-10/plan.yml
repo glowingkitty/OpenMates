@@ -1,0 +1,39 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: teams-web-2026-10
+title: Teams web implementation from updated Figma
+goal: "Implement and test the teams web app implementation after reviewing the updated Figma, CLI and team specification and resolving the user’s clarifying questions."
+specification_refs:
+  - id: feature.teams
+    version: 2
+    role: primary
+scope:
+  - Updated Teams creation, avatar, overview, security, member and billing settings.
+  - MRU Team quick selector and Team identity in chats, projects, tasks and workflows.
+  - Transient backend block-policy name validation with expiring approval tokens, without uniqueness or JEV.
+  - Domain and strong-auth joining policy, invite states, role/removal notification emails.
+  - Personal and Team optional buyer addresses, CLI purchase support, Team invoices, cards and auto-top-up.
+  - Context-safe encrypted best-effort caching, configurable 100 MiB target, protected pending data and quota recovery.
+  - Logout plaintext staging purge and decrypted image/audio context-switch cleanup.
+decisions:
+  authorization: Seven sequential clarification answers and final explicit instruction to proceed authorize this scope; no repeat approval round.
+  figma: "PzgE78TVxG0eWuEeO6o8ve:6118:63631 and 6170:68021, inspected via Figma API on 2026-10-06."
+  invite_delivery: User subsequently approved email-app and copy-link delivery of complete encrypted invitation links, without server fragment-key disclosure or false sent status.
+  hidden_video: Leave a source TODO; do not render the placeholder.
+  validation_limit: Receipt does not cryptographically bind an arbitrary hostile encrypted-name payload.
+  billing: Normal qualifying small-invoice addresses optional for Personal and Teams; Team fields initially visible, Personal collapsed.
+  offline: Best-effort cached content; reliable cold-start offline shell and permanent retention are outside this implementation.
+  images: Reuse Personal cropping, resizing, Sightengine and account-safety consequences.
+verification:
+  required:
+    - Focused backend, web and CLI/SDK unit/lint checks.
+    - Isolated CI component previews before broader flows, with exact candidate source.
+    - Isolated Teams REST/client/browser coverage for creation, invites, roles, billing and cache boundaries.
+    - Inspect Figma/component visual differences and deployed laptop/mobile visual smoke after scoped dev deployment.
+    - Download and privately upload all existing E2E recordings, including failures and retries, and deliver links in the final chat.
+references:
+  task: TASK-2788
+  prior_plan: docs/plans/teams-v1/plan.yml
+  legal: https://www.gesetze-im-internet.de/ustdv_1980/__33.html
+  storage: https://webkit.org/blog/14403/updates-to-storage-policy/

@@ -8,6 +8,7 @@
     import { webSocketService } from '../services/websocketService'; // Import WebSocket service for payment completion notifications
     import { notificationStore } from '../stores/notificationStore'; // Import notification store
     import { text } from '@repo/ui'; // i18n text helper
+    import { billingPath, personalBillingContext, type BillingAddress, type BillingContext } from '../services/billingContext';
 
     import LimitedRefundConsent from './payment/LimitedRefundConsent.svelte';
     import PaymentForm from './payment/PaymentForm.svelte';
@@ -31,7 +32,9 @@
         supportEmail = null, // Email for supporter contributions (non-authenticated users)
         isRecurring = false, // When true, this is a recurring monthly subscription
         initialProviderOverride = null, // When set, forces a specific provider on first load (e.g. 'managed' when user clicked non-EU card)
-        isSignupFlow = false // When true: signup context → show "Continue to app" button and send reminder email
+        isSignupFlow = false, // When true: signup context → show "Continue to app" button and send reminder email
+        billingContext = personalBillingContext,
+        buyerAddress = undefined,
     }: {
         purchasePrice?: number;
         currency?: string;
@@ -47,6 +50,8 @@
         isRecurring?: boolean;
         initialProviderOverride?: 'stripe' | 'managed' | null;
         isSignupFlow?: boolean;
+        billingContext?: BillingContext;
+        buyerAddress?: BillingAddress | null;
     } = $props();
 
     let hasConsentedToLimitedRefund = $state(false);
@@ -71,6 +76,7 @@
     let validationErrors: string | null = $state(null);
     let userEmail: string | null = $state(null);
     let isInitializing = $state(false);
+    let disposed = false;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let paymentConfirmationTimeoutId: any = $state(null);
     let isWaitingForConfirmation = $state(false);
@@ -129,6 +135,7 @@
             const response = await fetch(configUrl, { credentials: 'include' });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const config = await response.json();
+            if (disposed) return;
 
             activeProvider = 'stripe';
             useManagedPayments = config.use_managed_payments ?? false;
@@ -136,6 +143,7 @@
 
             if (!config.public_key) throw new Error('Stripe Public Key not found in config response.');
             stripe = await loadStripe(config.public_key);
+            if (disposed) return;
             await createOrder();
         } catch (error) {
             errorMessage = `Failed to load payment configuration. ${error instanceof Error ? error.message : String(error)}`;
@@ -171,6 +179,9 @@
         errorMessage = null;
         hostedInvoiceUrl = null;
         try {
+            if (billingContext.kind === 'team' && (supportContribution || isGiftCard || !billingContext.teamId || buyerAddress === undefined)) {
+                throw new Error('Team billing context or address is unavailable');
+            }
             // Get email encryption key for server to decrypt email
             const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
 
@@ -215,7 +226,7 @@
                 returnUrl.searchParams.delete('redirect_pm_type');
                 returnUrl.searchParams.delete('session_id');
 
-                endpoint = apiEndpoints.payments.createOrder;
+                endpoint = billingContext.kind === 'team' ? billingPath(billingContext, 'cardOrder') : apiEndpoints.payments.createOrder;
                 requestBody = {
                     credits_amount: credits_amount,
                     currency: currency,
@@ -223,12 +234,13 @@
                     // return_url not needed: Checkout Session uses ui_mode="embedded"
                     // which fires onComplete in-page instead of redirecting.
                     return_url: returnUrl.toString(),
+                    ...(buyerAddress ? { buyer_address: buyerAddress } : {}),
                 };
                 // Keep order creation in the same EU/managed mode selected by config or switch buttons.
                 requestBody.provider = modeOverride || (useManagedPayments ? 'managed' : 'stripe');
             }
 
-            const response = await fetch(getApiEndpoint(endpoint), {
+            const response = await fetch(billingContext.kind === 'team' && !supportContribution && !isGiftCard ? endpoint : getApiEndpoint(endpoint), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -246,7 +258,9 @@
                 }
             }
             const order = await response.json();
+            if (disposed) return;
             lastOrderId = order.order_id;
+            dispatch('orderCreated', { orderId: lastOrderId });
             if (order.hosted_invoice_url) hostedInvoiceUrl = order.hosted_invoice_url;
 
             if (!order.client_secret) {
@@ -275,7 +289,7 @@
     }
 
     function initializePaymentElement() {
-        if (!stripe || !clientSecret) return;
+        if (disposed || !stripe || !clientSecret) return;
         
         // Destroy existing payment element if it exists to prevent re-mounting issues
         if (paymentElement) {
@@ -370,11 +384,12 @@
      * inline inside #checkout div, fires onComplete when done. No redirect.
      */
     async function mountEmbeddedCheckout() {
-        if (!stripe || !clientSecret) return;
+        if (disposed || !stripe || !clientSecret) return;
         if (embeddedCheckoutPage) { embeddedCheckoutPage.destroy(); embeddedCheckoutPage = null; }
 
         try {
             await tick();
+            if (disposed) return;
             if (!useManagedPayments || modeOverride === 'stripe') {
                 console.debug('[Payment][ManagedPayments] Skipping stale Embedded Checkout mount after switching payment mode');
                 return;
@@ -394,6 +409,7 @@
                     dispatch('paymentStateChange', { state: 'processing', provider: 'stripe' });
                     // 60-second fallback if WebSocket confirmation is delayed.
                     paymentConfirmationTimeoutId = setTimeout(() => {
+                        if (billingContext.kind === 'team') { showDelayedMessage = true; return; }
                         if (isWaitingForConfirmation) {
                             showDelayedMessage = true;
                             setTimeout(() => {
@@ -442,7 +458,7 @@
         try {
             console.log(`[Payment] Saving payment method with payment_intent_id: ${intentId}`);
             
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.savePaymentMethod), {
+            const response = await fetch(billingPath(billingContext, 'saveMethod'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -485,6 +501,7 @@
 
         // Non-EU: Stripe Embedded Checkout redirects back with ?session_id=cs_xxx
         if (checkoutSessionId && checkoutSessionId.startsWith('cs_')) {
+            if (billingContext.kind === 'team') dispatch('orderCreated', { orderId: checkoutSessionId });
             console.log(`[Payment][ManagedPayments] Detected Checkout Session redirect return: ${checkoutSessionId.slice(0, 8)}***`);
             const cleanUrl = new URL(window.location.href);
             cleanUrl.searchParams.delete('session_id');
@@ -495,6 +512,7 @@
             dispatch('paymentStateChange', { state: 'processing', provider: 'stripe' });
             // 60-second fallback in case WebSocket confirmation is delayed
             paymentConfirmationTimeoutId = setTimeout(() => {
+                if (billingContext.kind === 'team') { showDelayedMessage = true; return; }
                 if (isWaitingForConfirmation) {
                     showDelayedMessage = true;
                     setTimeout(() => {
@@ -557,6 +575,7 @@
 
             console.log(`[Payment] PaymentIntent status after redirect: ${paymentIntent.status}`);
             paymentIntentId = paymentIntent.id;
+            if (billingContext.kind === 'team') dispatch('orderCreated', { orderId: paymentIntent.id });
 
             if (paymentIntent.status === 'succeeded') {
                 // Payment confirmed — trigger the same success flow as inline confirmation
@@ -583,7 +602,7 @@
                         }
                     }, 20000);
                 } else {
-                    paymentState = 'success';
+                    paymentState = billingContext.kind === 'team' ? 'processing' : 'success';
                     if (supportContribution) {
                         notificationStore.success('Support payment successful!', 6000);
                     }
@@ -597,6 +616,7 @@
                 // Payment still processing (e.g., bank transfer in progress)
                 isWaitingForConfirmation = true;
                 paymentConfirmationTimeoutId = setTimeout(() => {
+                    if (billingContext.kind === 'team') { showDelayedMessage = true; return; }
                     if (isWaitingForConfirmation) {
                         showDelayedMessage = true;
                         setTimeout(() => {
@@ -741,7 +761,7 @@
                     }
                 }, 20000); // 20 seconds
             } else {
-                paymentState = 'success';
+                paymentState = billingContext.kind === 'team' ? 'processing' : 'success';
                 if (supportContribution) {
                     notificationStore.success('Support payment successful!', 6000);
                 }
@@ -763,6 +783,7 @@
             // Start 20-second timeout for payment confirmation from server
             // If no confirmation received, show delayed message and proceed as if successful
             paymentConfirmationTimeoutId = setTimeout(() => {
+                if (billingContext.kind === 'team') { showDelayedMessage = true; return; }
                 if (isWaitingForConfirmation) {
                     console.log('[Payment] Payment confirmation timeout after 20 seconds - showing delayed message and proceeding');
                     showDelayedMessage = true;
@@ -977,6 +998,7 @@
         // This is an async IIFE because onMount doesn't accept async directly for the cleanup return.
         const redirectReturnPromise = handlePaymentRedirectReturn();
         redirectReturnPromise.then((wasRedirectReturn) => {
+            if (disposed) return;
             if (wasRedirectReturn) {
                 console.log('[Payment] Handled redirect return — skipping normal init');
                 return;
@@ -1009,6 +1031,7 @@
         }
         
         return () => {
+            disposed = true;
             if (userProfileUnsubscribe) {
                 userProfileUnsubscribe();
             }
@@ -1054,6 +1077,8 @@
                 isSignup={isSignupFlow}
                 allowContinueWithoutPayment={isSignupFlow}
                 isGiftCard={isGiftCard}
+                {billingContext}
+                {buyerAddress}
                 on:paymentStateChange={handleBankTransferPaymentStateChange}
             />
         </div>

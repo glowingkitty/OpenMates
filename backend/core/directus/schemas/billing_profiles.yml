@@ -1,0 +1,174 @@
+billing_profiles:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+    owner_kind:
+      type: string
+      length: 16
+      note: "personal or team; part of the unique billing owner key."
+    owner_hash:
+      type: string
+      length: 64
+      note: "[Indexed, Unique with owner_kind] SHA256 user or team ID."
+    owner_id:
+      type: string
+      length: 64
+      nullable: true
+      note: "Internal Team UUID for subscription settlement; never a Team name."
+    encrypted_buyer_address:
+      type: text
+      nullable: true
+      note: "Vault encrypted invoice address JSON. Never persist decrypted buyer details."
+    address_vault_key_id:
+      type: string
+      nullable: true
+    billing_vault_key_id:
+      type: string
+      nullable: true
+      note: "Independent Team billing Vault key; never a payer account key."
+    stripe_customer_id:
+      type: string
+      nullable: true
+      note: "Separate Stripe customer for the billing context; Teams never use personal customer IDs."
+    auto_topup_enabled:
+      type: boolean
+      default: false
+    auto_topup_amount:
+      type: integer
+      nullable: true
+    auto_topup_currency:
+      type: string
+      length: 8
+      nullable: true
+    encrypted_auto_topup_payment_method:
+      type: text
+      nullable: true
+    auto_topup_vault_key_id:
+      type: string
+      nullable: true
+    encrypted_auto_topup_email:
+      type: text
+      nullable: true
+    auto_topup_payer_user_id:
+      type: string
+      length: 64
+      nullable: true
+    auto_topup_last_triggered_at:
+      type: datetime
+      nullable: true
+    monthly_subscription_id:
+      type: string
+      nullable: true
+      note: "[Indexed] Team-only Stripe monthly subscription identity."
+    monthly_setup_order_id:
+      type: string
+      nullable: true
+      note: "Original Team Checkout order for initial invoice address and status."
+    monthly_subscription_status:
+      type: string
+      nullable: true
+    monthly_subscription_credits:
+      type: integer
+      nullable: true
+    monthly_subscription_bonus_credits:
+      type: integer
+      nullable: true
+    monthly_subscription_currency:
+      type: string
+      length: 8
+      nullable: true
+    monthly_billing_day_preference:
+      type: string
+      nullable: true
+    monthly_next_billing_date:
+      type: datetime
+      nullable: true
+    monthly_payer_user_id:
+      type: string
+      length: 64
+      nullable: true
+    encrypted_monthly_email:
+      type: text
+      nullable: true
+    monthly_email_vault_key_id:
+      type: string
+      nullable: true
+    updated_at:
+      type: datetime
+  indexes:
+    - fields: [owner_kind, owner_hash]
+      unique: true
+
+billing_order_contexts:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+    order_id:
+      type: string
+      length: 255
+      unique: true
+      note: "[Indexed, Unique] Provider order or bank transfer ID."
+    owner_kind:
+      type: string
+      length: 16
+    owner_hash:
+      type: string
+      length: 64
+    owner_id:
+      type: string
+      length: 64
+      note: "Internal context ID for Team settlement; never a Team name."
+    actor_user_id:
+      type: string
+      length: 64
+      note: "Payer account ID needed for email and encrypted invoice storage."
+    encrypted_buyer_address:
+      type: text
+      nullable: true
+    address_vault_key_id:
+      type: string
+      nullable: true
+    encrypted_email_encryption_key:
+      type: text
+      nullable: true
+      note: "Vault-encrypted transient invoice-processing key; clear after invoice dispatch."
+    email_key_vault_key_id:
+      type: string
+      nullable: true
+    credits_amount:
+      type: integer
+    currency:
+      type: string
+      length: 8
+    provider:
+      type: string
+      length: 32
+    provider_subscription_id:
+      type: string
+      nullable: true
+      unique: true
+      note: "Stripe subscription bound to its original encrypted Team checkout context."
+    bonus_credits:
+      type: integer
+      nullable: true
+    encrypted_payer_email:
+      type: text
+      nullable: true
+    payer_email_vault_key_id:
+      type: string
+      nullable: true
+    is_gift_card:
+      type: boolean
+      default: false
+    invoice_dispatched_at:
+      type: datetime
+      nullable: true
+    invoice_dispatch_requested_at:
+      type: datetime
+      nullable: true
+    created_at:
+      type: datetime

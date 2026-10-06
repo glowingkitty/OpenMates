@@ -9,7 +9,7 @@ vi.mock('../projectService', () => ({
   },
 }));
 
-import { cleanupStaleConnectedProjectDownloads, downloadConnectedProjectFile } from '../projectRemoteDownload';
+import { cleanupStaleConnectedProjectDownloads, downloadConnectedProjectFile, purgeConnectedProjectDownloadStaging } from '../projectRemoteDownload';
 
 const project = {} as ProjectViewModel;
 const source = {} as ProjectSourceViewModel;
@@ -161,5 +161,94 @@ describe('connected project file download', () => {
     Object.defineProperty(navigator, 'storage', { configurable: true, value: { getDirectory: async () => root } });
     await cleanupStaleConnectedProjectDownloads();
     expect(root.removeEntry).toHaveBeenCalledExactlyOnceWith(old);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.cache.bounded-isolated
+  it('purges only app-owned plaintext OPFS staging on logout', async () => {
+    const old = `openmates-download-v2-${Date.now() - 1_000}-11111111-1111-4111-8111-111111111111`;
+    const unrelated = 'other-app-private-file';
+    const root = {
+      entries: async function* () {
+        yield [old, { kind: 'file' }];
+        yield [unrelated, { kind: 'file' }];
+      },
+      removeEntry: vi.fn().mockResolvedValue(undefined),
+    };
+    Object.defineProperty(navigator, 'storage', { configurable: true, value: { getDirectory: async () => root } });
+    await purgeConnectedProjectDownloadStaging();
+    expect(root.removeEntry).toHaveBeenCalledExactlyOnceWith(old);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.cache.bounded-isolated
+  it('aborts an in-flight staged download before logout purge completes', async () => {
+    let started!: () => void;
+    const requestStarted = new Promise<void>((resolve) => { started = resolve; });
+    mocks.requestProjectRemoteAccess.mockImplementation((_project, _source, _context, _op, _args, signal: AbortSignal) => {
+      started();
+      return new Promise((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(new DOMException('Cancelled', 'AbortError')), { once: true });
+      });
+    });
+    const download = downloadConnectedProjectFile(project, source, context, 'private.bin');
+    const rejected = expect(download).rejects.toMatchObject({ name: 'AbortError' });
+    await requestStarted;
+    await purgeConnectedProjectDownloadStaging();
+    await rejected;
+    expect(abort).toHaveBeenCalledOnce();
+    expect(removeEntry).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.cache.bounded-isolated
+  it('does not offer a staged file whose final OPFS read finishes after logout', async () => {
+    let fileReady!: () => void;
+    let resolveFile!: (file: Blob) => void;
+    const readingFile = new Promise<void>((resolve) => { fileReady = resolve; });
+    const file = new Promise<Blob>((resolve) => { resolveFile = resolve; });
+    const writable = { write: vi.fn().mockResolvedValue(undefined), close, abort };
+    const root = {
+      entries: async function* () {},
+      getFileHandle: vi.fn().mockResolvedValue({
+        createWritable: vi.fn().mockResolvedValue(writable),
+        getFile: vi.fn(() => { fileReady(); return file; }),
+      }),
+      removeEntry,
+    };
+    Object.defineProperty(navigator, 'storage', { configurable: true, value: { getDirectory: async () => root } });
+    mocks.requestProjectRemoteAccess.mockResolvedValue(await chunk(0, 1));
+    const download = downloadConnectedProjectFile(project, source, context, 'private.bin');
+    const rejected = expect(download).rejects.toMatchObject({ name: 'AbortError' });
+    await readingFile;
+    await purgeConnectedProjectDownloadStaging();
+    resolveFile(new Blob());
+    await rejected;
+    expect(clicked).not.toHaveBeenCalled();
+    expect(removeEntry).toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.cache.bounded-isolated
+  it('retains an already offered browser save until its OPFS handoff releases', async () => {
+    vi.useFakeTimers();
+    try {
+      let stagedName = '';
+      const writable = { write: vi.fn().mockResolvedValue(undefined), close, abort };
+      const root = {
+        entries: async function* () { yield [stagedName, { kind: 'file' }]; },
+        getFileHandle: vi.fn(async (name: string) => {
+          stagedName = name;
+          return { createWritable: async () => writable, getFile: async () => new Blob() };
+        }),
+        removeEntry,
+      };
+      Object.defineProperty(navigator, 'storage', { configurable: true, value: { getDirectory: async () => root } });
+      mocks.requestProjectRemoteAccess.mockResolvedValue(await chunk(0, 1));
+      await downloadConnectedProjectFile(project, source, context, 'offered.bin');
+      expect(clicked).toHaveBeenCalledOnce();
+      await purgeConnectedProjectDownloadStaging();
+      expect(removeEntry).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(60 * 60_000);
+      expect(removeEntry).toHaveBeenCalledExactlyOnceWith(stagedName);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

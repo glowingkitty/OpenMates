@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 import logging
 import os
@@ -19,7 +19,10 @@ from backend.core.api.app.services.directus.gift_card_methods import (
 )
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
-from backend.core.api.app.utils.payment_environment import should_enforce_eu_revenue_threshold
+from backend.core.api.app.utils.payment_environment import (
+    EU_REVENUE_CACHE_KEY, EU_REVENUE_CACHE_TTL, EU_REVENUE_THRESHOLD_EUR_CENTS,
+    should_enforce_eu_revenue_threshold,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
@@ -36,6 +39,8 @@ from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.payment_tier_service import PaymentTierService
+from backend.core.api.app.services.billing_profile_service import BillingProfileService
+from backend.core.api.app.schemas.billing_address import BuyerAddress, BuyerAddressRequest
 from backend.core.api.app.services.referral_service import ReferralService
 from backend.core.api.app.services.purchase_settlement_ledger import (
     begin_purchase_settlement,
@@ -119,9 +124,6 @@ class PaymentConfigResponse(BaseModel):
 
 # EU VAT OSS safety threshold — block EU payments once crossed to avoid
 # accidental VAT liability. 9,900 EUR triggers the block (10k is the hard limit).
-EU_REVENUE_THRESHOLD_EUR_CENTS = 990_000
-EU_REVENUE_CACHE_KEY = "stripe_eu_revenue_eur_cents_ytd"
-EU_REVENUE_CACHE_TTL = 3600  # refresh from Stripe every hour
 PAID_SIGNUP_COMPLETION_LAST_OPENED = "/chat/new"
 BANK_TRANSFER_PARTIAL_EXTENSION_DAYS = 7
 BANK_TRANSFER_AMOUNT_NOTICE_TASK = (
@@ -254,6 +256,7 @@ class CreateOrderRequest(BaseModel):
     provider: Optional[str] = None
     # Required for Stripe Embedded Checkout — the page Stripe redirects to after payment
     return_url: Optional[str] = None
+    buyer_address: Optional[BuyerAddress] = None
 
 class CreateSupportOrderRequest(BaseModel):
     currency: str
@@ -369,6 +372,7 @@ class BuyGiftCardRequest(BaseModel):
     payment_method_id: Optional[str] = None  # Optional saved payment method ID
     # Optional explicit provider override ("stripe" or "managed") — mirrors CreateOrderRequest
     provider: Optional[str] = None
+    buyer_address: Optional[BuyerAddress] = None
 
 class BuyGiftCardResponse(BaseModel):
     provider: str
@@ -426,6 +430,7 @@ class ProcessPaymentWithSavedMethodRequest(BaseModel):
     credits_amount: int
     currency: str
     email_encryption_key: Optional[str] = None
+    buyer_address: Optional[BuyerAddress] = None
 
 class ProcessPaymentWithSavedMethodResponse(BaseModel):
     success: bool
@@ -616,6 +621,42 @@ def get_tier_info(credits_amount: int, currency: str) -> Optional[Dict[str, Any]
         'price': price,
         'currency': currency.lower()
     }
+
+@router.get("/buyer-address", response_model=BuyerAddressRequest)
+@limiter.limit("30/minute")
+async def get_personal_buyer_address(
+    request: Request,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> BuyerAddressRequest:
+    """First-party billing profile; authenticated owner only, public API proxy allowed."""
+    response.headers["Cache-Control"] = "private, no-store"
+    address = await BillingProfileService(directus_service, encryption_service).get_address("personal", current_user.id)
+    return BuyerAddressRequest(buyer_address=address)
+
+
+@router.put("/buyer-address", response_model=BuyerAddressRequest)
+@limiter.limit("10/minute")
+async def set_personal_buyer_address(
+    request: Request,
+    response: Response,
+    body: BuyerAddressRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> BuyerAddressRequest:
+    """First-party billing profile; authenticated owner only, public API proxy allowed."""
+    response.headers["Cache-Control"] = "private, no-store"
+    if body.buyer_address and not current_user.vault_key_id:
+        raise HTTPException(status_code=503, detail="Billing encryption key unavailable")
+    address = body.buyer_address.model_dump(exclude_none=True) if body.buyer_address else None
+    await BillingProfileService(directus_service, encryption_service).save_address(
+        "personal", current_user.id, address, current_user.vault_key_id or ""
+    )
+    return BuyerAddressRequest(buyer_address=address)
+
 
 @router.get("/config", response_model=PaymentConfigResponse)
 @limiter.limit("60/minute")  # Public endpoint, allow higher rate
@@ -1165,6 +1206,19 @@ async def create_payment_order(
             currency=order_data.currency,
             provider=order_provider_name,
         )
+        await BillingProfileService(directus_service, encryption_service).save_order_context(
+            order_id=order_id,
+            owner_kind="personal",
+            owner_id=current_user.id,
+            actor_user_id=current_user.id,
+            credits_amount=order_data.credits_amount,
+            currency=order_data.currency,
+            provider=order_provider_name,
+            vault_key_id=current_user.vault_key_id,
+            email_encryption_key=order_data.email_encryption_key,
+            buyer_address=order_data.buyer_address.model_dump(exclude_none=True) if order_data.buyer_address else None,
+            use_saved_address="buyer_address" not in order_data.model_fields_set,
+        )
         
         if not cache_success:
             logger.error(f"CRITICAL: Failed to cache order {order_id} for user {current_user.id}. Webhook processing will fail!")
@@ -1285,6 +1339,7 @@ class CreateBankTransferOrderRequest(BaseModel):
     email_encryption_key: str  # Stored with the order; needed when transfer arrives 1-2 days later
     is_signup: bool = False    # True when called from the signup payment step → triggers reminder email
     is_gift_card: bool = False # True when the transfer should create a gift card instead of buyer credits
+    buyer_address: Optional[BuyerAddress] = None
 
 
 class CreateBankTransferOrderResponse(BaseModel):
@@ -1461,6 +1516,20 @@ async def create_bank_transfer_order(
             email_encryption_key=order_data.email_encryption_key,
             order_type=order_type,
             expires_at=expires_at,
+        )
+        await BillingProfileService(directus_service, encryption_service).save_order_context(
+            order_id=order_id,
+            owner_kind="personal",
+            owner_id=current_user.id,
+            actor_user_id=current_user.id,
+            credits_amount=order_data.credits_amount,
+            currency="eur",
+            provider="bank_transfer",
+            vault_key_id=current_user.vault_key_id,
+            email_encryption_key=order_data.email_encryption_key,
+            buyer_address=order_data.buyer_address.model_dump(exclude_none=True) if order_data.buyer_address else None,
+            use_saved_address="buyer_address" not in order_data.model_fields_set,
+            is_gift_card=order_data.is_gift_card,
         )
 
         bank_details = payment_service.get_bank_transfer_details()
@@ -1785,6 +1854,216 @@ async def get_pending_bank_transfers(
     ]
 
 
+async def _dispatch_purchase_invoice_from_context(
+    *,
+    order_id: str,
+    context: Dict[str, Any],
+    credits: int,
+    provider: str,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    secrets_manager: SecretsManager,
+    provider_order_id: str | None = None,
+) -> None:
+    """Retry-safe invoice dispatch after settlement; never changes credit balances."""
+    if context.get("invoice_dispatched_at"):
+        return
+    invoice_rows = await directus_service.get_items(
+        "invoices",
+        params={"filter": {"order_id": {"_eq": order_id}}, "limit": 1},
+        no_cache=True, admin_required=True,
+    )
+    profiles = BillingProfileService(directus_service, encryption_service)
+    if invoice_rows:
+        await profiles.mark_invoice_dispatched(context)
+        return
+    requested_at = context.get("invoice_dispatch_requested_at")
+    if requested_at:
+        try:
+            requested_time = datetime.fromisoformat(str(requested_at).replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) - requested_time < timedelta(minutes=30):
+                return
+        except ValueError:
+            pass
+    sender_path = "kv/data/providers/invoice_sender"
+    async def sender(key: str) -> str | None:
+        return await secrets_manager.get_secret(secret_path=sender_path, secret_key=key)
+    app.send_task(
+        name="app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email",
+        kwargs={
+            "order_id": order_id,
+            "user_id": context["actor_user_id"],
+            "credits_purchased": credits,
+            "sender_addressline1": await sender("addressline1"),
+            "sender_addressline2": await sender("addressline2"),
+            "sender_addressline3": await sender("addressline3"),
+            "sender_country": await sender("country"),
+            "sender_email": await sender("email") or "support@openmates.org",
+            "sender_vat": await sender("vat"),
+            "email_encryption_key": await profiles.get_order_email_key(context),
+            "is_auto_topup": provider in {"team_auto_topup", "team_monthly"},
+            "provider": ("stripe_invoice" if order_id.startswith("in_") else "stripe") if provider in {"team_auto_topup", "team_monthly"} else provider,
+            "provider_order_id": provider_order_id,
+        },
+        queue="email",
+    )
+    await profiles.mark_invoice_dispatch_requested(context)
+
+
+async def _settle_team_card_order(
+    *,
+    order_id: str,
+    context: Dict[str, Any],
+    credits: int,
+    provider: str,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    secrets_manager: SecretsManager,
+    cache_service: CacheService,
+    provider_order_id: str | None,
+) -> Dict[str, str]:
+    from backend.core.api.app.services.team_billing_service import TeamBillingService
+    from backend.core.api.app.services.directus.team_methods import hash_id
+
+    team_id = context["owner_id"]
+    if hash_id(team_id) != context["owner_hash"]:
+        raise RuntimeError("Team order owner mismatch")
+    settlement = await begin_purchase_settlement(
+        directus_service, settlement_key=f"stripe:{order_id}", provider=provider,
+        purchase_type="team_credit_purchase", credits_sold=credits,
+    )
+    event_id = f"stripe:{order_id}"
+    events = await directus_service.get_items(
+        "team_credit_events",
+        params={"filter": {"event_id": {"_eq": event_id}, "hashed_team_id": {"_eq": context["owner_hash"]}}, "limit": 1},
+        no_cache=True, admin_required=True,
+    )
+    newly_credited = not events
+    if newly_credited:
+        if settlement.get("state") == "completed":
+            raise RuntimeError("Team settlement completed without credit event")
+        await TeamBillingService(directus_service).add_credits(
+            team_id=team_id, actor_user_id=context["actor_user_id"],
+            event_id=event_id, credits=credits, event_type="purchase",
+            _verified_paid_settlement=True,
+        )
+    await complete_purchase_settlement(directus_service, settlement)
+    await cache_service.update_order_status(order_id, "completed")
+    if newly_credited:
+        await _publish_team_payment_event(cache_service, context, order_id, credits)
+    await _dispatch_purchase_invoice_from_context(
+        order_id=order_id, context=context, credits=credits, provider=provider,
+        directus_service=directus_service, encryption_service=encryption_service,
+        secrets_manager=secrets_manager, provider_order_id=provider_order_id,
+    )
+    return {"status": "team_payment_completed"}
+
+
+async def _settle_team_monthly_invoice(
+    *,
+    invoice: Dict[str, Any],
+    profile: Dict[str, Any],
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    secrets_manager: SecretsManager,
+    cache_service: CacheService,
+) -> Dict[str, str]:
+    """Settle one paid Stripe subscription invoice into its Team credit ledger."""
+    from backend.core.api.app.services.team_billing_service import TeamBillingService
+
+    invoice_id = str(invoice.get("id") or "")
+    if "amount_paid" in invoice and int(invoice.get("amount_paid") or 0) <= 0:
+        return {"status": "team_subscription_invoice_without_payment"}
+    team_id = profile.get("owner_id")
+    payer_id = profile.get("monthly_payer_user_id")
+    key_id = profile.get("monthly_email_vault_key_id")
+    credits = int(profile.get("monthly_subscription_credits") or 0) + int(profile.get("monthly_subscription_bonus_credits") or 0)
+    if not invoice_id or not team_id or not payer_id or not key_id or credits <= 0 or hashlib.sha256(team_id.encode()).hexdigest() != profile.get("owner_hash"):
+        raise HTTPException(status_code=500, detail="Team subscription profile incomplete")
+    payment_intent = invoice.get("payment_intent")
+    if not payment_intent:
+        for invoice_payment in (invoice.get("payments") or {}).get("data", []):
+            payment = invoice_payment.get("payment") or {}
+            if payment.get("type") == "payment_intent" and payment.get("payment_intent"):
+                payment_intent = payment["payment_intent"]
+                break
+    order_id = payment_intent.get("id") if isinstance(payment_intent, dict) else payment_intent
+    order_id = str(order_id or invoice_id)
+    settlement = await begin_purchase_settlement(
+        directus_service,
+        settlement_key=f"stripe_subscription:{invoice_id}",
+        provider="stripe",
+        purchase_type="team_subscription_renewal",
+        credits_sold=credits,
+    )
+    event_id = f"stripe-subscription:{invoice_id}"
+    events = await directus_service.get_items(
+        "team_credit_events",
+        params={"filter": {"event_id": {"_eq": event_id}, "hashed_team_id": {"_eq": profile["owner_hash"]}}, "limit": 1},
+        no_cache=True, admin_required=True,
+    )
+    newly_credited = not events
+    if newly_credited:
+        if settlement.get("state") == "completed":
+            raise RuntimeError("Team subscription settlement completed without credit event")
+        await TeamBillingService(directus_service).add_credits(
+            team_id=team_id, actor_user_id=payer_id, event_id=event_id,
+            credits=credits, event_type="purchase", _verified_paid_settlement=True,
+        )
+    await complete_purchase_settlement(directus_service, settlement)
+    if newly_credited:
+        await _publish_team_payment_event(cache_service, profile, order_id, credits)
+    profiles = BillingProfileService(directus_service, encryption_service)
+    context = await profiles.get_order_context(order_id)
+    if not context:
+        setup_context = profile.get("_subscription_setup_context") or (
+            await profiles.get_order_context(profile.get("monthly_setup_order_id") or "")
+        )
+        setup_address = await profiles.get_order_address(setup_context) if setup_context else None
+        setup_email = await profiles.get_order_payer_email(setup_context) if setup_context else None
+        await profiles.save_order_context(
+            order_id=order_id, owner_kind="team", owner_id=team_id, actor_user_id=payer_id,
+            credits_amount=credits, currency=profile.get("monthly_subscription_currency") or invoice.get("currency") or "eur",
+            provider="team_monthly", vault_key_id=key_id, email_encryption_key=None,
+            buyer_address=setup_address if invoice.get("billing_reason") == "subscription_create" else None,
+            use_saved_address=invoice.get("billing_reason") != "subscription_create" or not bool(setup_context),
+            payer_email=setup_email,
+        )
+        context = await profiles.get_order_context(order_id)
+    if context.get("owner_hash") != profile["owner_hash"]:
+        raise RuntimeError("Team subscription invoice context mismatch")
+    await _dispatch_purchase_invoice_from_context(
+        order_id=order_id, context=context, credits=credits, provider="team_monthly",
+        directus_service=directus_service, encryption_service=encryption_service,
+        secrets_manager=secrets_manager,
+    )
+    return {"status": "team_subscription_invoice_completed"}
+
+
+async def _publish_team_payment_event(
+    cache_service: CacheService, owner: Dict[str, Any], order_id: str, credits: int
+) -> None:
+    """Notify the payer with a Team-specific event that cannot update Personal credits."""
+    user_id = owner.get("actor_user_id") or owner.get("monthly_payer_user_id")
+    if not user_id:
+        return
+    payload = {
+        "billing_context": "team", "hashed_team_id": owner["owner_hash"],
+        "team_id": owner["owner_id"], "order_id": order_id,
+        "credits_purchased": credits,
+    }
+    try:
+        await cache_service.publish_event(
+            channel=f"user_updates::{user_id}",
+            event_data={"event_for_client": "team_payment_completed", "user_id_uuid": user_id, "payload": payload},
+        )
+        await manager.broadcast_to_user_specific_event(
+            user_id=user_id, event_name="team_payment_completed", payload=payload,
+        )
+    except Exception as exc:
+        logger.warning("Team payment event failed for %s: %s", order_id, exc)
+
+
 @router.post("/webhook", status_code=200)
 # Note: Webhook endpoint is called by payment providers (Stripe/Revolut Business)
 # Rate limiting is handled by signature verification - providers have their own rate limits
@@ -2034,6 +2313,19 @@ async def payment_webhook(
             
             cached_order_data = await cache_service.get_order(webhook_order_id)
             if not cached_order_data:
+                profiles = BillingProfileService(directus_service, encryption_service)
+                durable_context = await profiles.get_order_context(webhook_order_id)
+                if durable_context:
+                    cached_order_data = {
+                        "user_id": durable_context["actor_user_id"],
+                        "credits_amount": durable_context["credits_amount"],
+                        "currency": durable_context["currency"],
+                        "provider": durable_context["provider"],
+                        "email_encryption_key": await profiles.get_order_email_key(durable_context),
+                        "status": "created",
+                        "is_gift_card": bool(durable_context.get("is_gift_card")),
+                    }
+            if not cached_order_data:
                 logger.error(
                     f"CRITICAL: Order {webhook_order_id} not found in cache. "
                     f"Payment was successful but credits cannot be granted. "
@@ -2075,6 +2367,21 @@ async def payment_webhook(
 
             # Check if this order has already been processed
             order_status = cached_order_data.get("status")
+            billing_context = await BillingProfileService(directus_service, encryption_service).get_order_context(webhook_order_id)
+            if billing_context.get("owner_kind") == "team":
+                if billing_context.get("actor_user_id") != user_id or int(billing_context.get("credits_amount") or 0) != int(credits_purchased):
+                    raise HTTPException(status_code=409, detail="Team payment context mismatch")
+                return await _settle_team_card_order(
+                    order_id=webhook_order_id,
+                    context=billing_context,
+                    credits=int(credits_purchased),
+                    provider=effective_order_provider,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    secrets_manager=secrets_manager,
+                    cache_service=cache_service,
+                    provider_order_id=managed_payment_intent_id,
+                )
             if order_status == "completed":
                 logger.info(f"Order {webhook_order_id} already completed. Skipping duplicate webhook.")
                 return {"status": "already_completed"}
@@ -2646,6 +2953,39 @@ async def payment_webhook(
                 logger.warning(f"checkout.session.completed subscription mode but no subscription_id in session {session_id[:8]}***" if session_id else "checkout.session.completed subscription mode but no subscription_id (no session_id)")
                 return {"status": "no_subscription_id"}
 
+            billing_context = await BillingProfileService(directus_service, encryption_service).get_order_context(session_id) if session_id else {}
+            if billing_context.get("owner_kind") == "team" and billing_context.get("provider") == "team_subscription_setup":
+                team_id = billing_context["owner_id"]
+                if hashlib.sha256(team_id.encode()).hexdigest() != billing_context["owner_hash"] or session_metadata.get("team_id") != team_id:
+                    raise HTTPException(status_code=409, detail="Team subscription context mismatch")
+                next_billing_date = None
+                try:
+                    import stripe as _stripe_mod
+                    stripe_sub = _stripe_mod.Subscription.retrieve(subscription_id)
+                    period_end = stripe_sub.get("current_period_end")
+                    if period_end:
+                        next_billing_date = datetime.fromtimestamp(period_end, tz=timezone.utc).isoformat()
+                except Exception:
+                    logger.exception("Failed to read Team subscription period end")
+                await BillingProfileService(directus_service, encryption_service).update_profile("team", team_id, {
+                    "monthly_subscription_id": subscription_id,
+                    "monthly_setup_order_id": session_id,
+                    "monthly_subscription_status": "active",
+                    "monthly_subscription_credits": int(billing_context["credits_amount"]),
+                    "monthly_subscription_bonus_credits": int(session_metadata.get("bonus_credits") or 0),
+                    "monthly_subscription_currency": billing_context["currency"],
+                    "monthly_billing_day_preference": session_metadata.get("billing_day_preference") or "anniversary",
+                    "monthly_next_billing_date": next_billing_date,
+                    "monthly_payer_user_id": billing_context["actor_user_id"],
+                    "stripe_customer_id": session_customer_id,
+                })
+                await directus_service.update_item(
+                    "billing_order_contexts", billing_context["id"],
+                    {"provider_subscription_id": subscription_id}, admin_required=True,
+                )
+                await cache_service.update_order_status(session_id, "completed")
+                return {"status": "team_subscription_created"}
+
             # Resolve user from cache (set during create-subscription route) or metadata
             cached_sub_order = await cache_service.get_order(session_id) if session_id else None
             sub_user_id = (cached_sub_order or {}).get("user_id") or session_metadata.get("user_id")
@@ -2800,11 +3140,19 @@ async def payment_webhook(
         elif provider_name == "stripe" and event_type == "invoice.payment_succeeded":
             # Process monthly subscription renewal
             invoice_data = event_payload.get("data", {}).get("object", {})
-            subscription_id = invoice_data.get("subscription")
+            subscription_id = invoice_data.get("subscription") or ((invoice_data.get("parent") or {}).get("subscription_details") or {}).get("subscription")
             
             if not subscription_id:
                 logger.warning("Invoice payment succeeded but no subscription_id found")
                 return {"status": "received_no_subscription"}
+
+            team_profile = await BillingProfileService(directus_service, encryption_service).get_team_subscription_profile(subscription_id)
+            if team_profile:
+                return await _settle_team_monthly_invoice(
+                    invoice=invoice_data, profile=team_profile,
+                    directus_service=directus_service, encryption_service=encryption_service,
+                    secrets_manager=secrets_manager, cache_service=cache_service,
+                )
             
             # Get user by subscription_id
             user_data = await directus_service.get_user_by_subscription_id(subscription_id)
@@ -2908,6 +3256,16 @@ async def payment_webhook(
             subscription_id = subscription_data.get("id")
             
             if subscription_id:
+                team_profiles = await directus_service.get_items(
+                    "billing_profiles", params={"filter": {"owner_kind": {"_eq": "team"}, "monthly_subscription_id": {"_eq": subscription_id}}, "limit": 1},
+                    no_cache=True, admin_required=True,
+                )
+                if team_profiles:
+                    await BillingProfileService(directus_service, encryption_service).update_profile(
+                        "team", team_profiles[0]["owner_id"],
+                        {"monthly_subscription_status": "canceled"},
+                    )
+                    return {"status": "team_subscription_deleted"}
                 # Update user's subscription status to canceled
                 user_data = await directus_service.get_user_by_subscription_id(subscription_id)
                 if user_data:
@@ -2926,9 +3284,18 @@ async def payment_webhook(
         elif provider_name == "stripe" and event_type == "invoice.payment_failed":
             # Handle failed subscription payment
             invoice_data = event_payload.get("data", {}).get("object", {})
-            subscription_id = invoice_data.get("subscription")
+            subscription_id = invoice_data.get("subscription") or ((invoice_data.get("parent") or {}).get("subscription_details") or {}).get("subscription")
             
             if subscription_id:
+                team_profiles = await directus_service.get_items(
+                    "billing_profiles", params={"filter": {"owner_kind": {"_eq": "team"}, "monthly_subscription_id": {"_eq": subscription_id}}, "limit": 1},
+                    no_cache=True, admin_required=True,
+                )
+                if team_profiles:
+                    await BillingProfileService(directus_service, encryption_service).update_profile(
+                        "team", team_profiles[0]["owner_id"], {"monthly_subscription_status": "past_due"},
+                    )
+                    return {"status": "team_subscription_payment_failed"}
                 logger.warning(f"Subscription payment failed for subscription {subscription_id}")
                 user_data = await directus_service.get_user_by_subscription_id(subscription_id)
                 if user_data:
@@ -2947,6 +3314,17 @@ async def payment_webhook(
             current_period_end = subscription_data.get("current_period_end")
             
             if subscription_id:
+                team_profiles = await directus_service.get_items(
+                    "billing_profiles", params={"filter": {"owner_kind": {"_eq": "team"}, "monthly_subscription_id": {"_eq": subscription_id}}, "limit": 1},
+                    no_cache=True, admin_required=True,
+                )
+                if team_profiles:
+                    next_date = datetime.fromtimestamp(current_period_end, tz=timezone.utc).isoformat() if current_period_end else None
+                    await BillingProfileService(directus_service, encryption_service).update_profile(
+                        "team", team_profiles[0]["owner_id"],
+                        {"monthly_subscription_status": new_status, "monthly_next_billing_date": next_date},
+                    )
+                    return {"status": "team_subscription_updated"}
                 user_data = await directus_service.get_user_by_subscription_id(subscription_id)
                 if user_data:
                     user_id = user_data.get("id")
@@ -3560,13 +3938,18 @@ async def get_order_status(
     status_request: OrderStatusRequest,
     payment_service: PaymentService = Depends(get_payment_service),
     cache_service: CacheService = Depends(get_cache_service),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
 ):
     order_id = status_request.order_id
     logger.info(f"Fetching status for order {order_id} for user {current_user.id}")
     try:
         cached_order_data = await cache_service.get_order(order_id)
         if not cached_order_data or cached_order_data.get("user_id") != current_user.id:
+            raise HTTPException(status_code=404, detail="Order not found")
+        context = await BillingProfileService(directus_service, encryption_service).get_order_context(order_id)
+        if context.get("owner_kind") == "team":
             raise HTTPException(status_code=404, detail="Order not found")
 
         order_details = await payment_service.get_order(order_id)
@@ -4109,6 +4492,19 @@ async def process_payment_with_saved_method(
             email_encryption_key=payment_request.email_encryption_key,
             currency=payment_request.currency,
             provider="stripe",
+        )
+        await BillingProfileService(directus_service, encryption_service).save_order_context(
+            order_id=order_id,
+            owner_kind="personal",
+            owner_id=current_user.id,
+            actor_user_id=current_user.id,
+            credits_amount=payment_request.credits_amount,
+            currency=payment_request.currency,
+            provider="stripe",
+            vault_key_id=current_user.vault_key_id,
+            email_encryption_key=payment_request.email_encryption_key,
+            buyer_address=payment_request.buyer_address.model_dump(exclude_none=True) if payment_request.buyer_address else None,
+            use_saved_address="buyer_address" not in payment_request.model_fields_set,
         )
         
         if not cache_success:
@@ -4750,6 +5146,15 @@ async def buy_gift_card(
             is_gift_card=True,  # Flag to indicate this is a gift card purchase
             currency=gift_card_request.currency,  # Store currency for invoice processing
             provider=provider_name,  # Store provider so email task uses correct document type
+        )
+        await BillingProfileService(directus_service, encryption_service).save_order_context(
+            order_id=order_id, owner_kind="personal", owner_id=user_id, actor_user_id=user_id,
+            credits_amount=gift_card_request.credits_amount, currency=gift_card_request.currency,
+            provider=provider_name, vault_key_id=current_user.vault_key_id,
+            email_encryption_key=gift_card_request.email_encryption_key,
+            buyer_address=gift_card_request.buyer_address.model_dump(exclude_none=True) if gift_card_request.buyer_address else None,
+            use_saved_address="buyer_address" not in gift_card_request.model_fields_set,
+            is_gift_card=True,
         )
         
         if not cache_success:
@@ -6648,6 +7053,22 @@ async def _handle_revolut_business_webhook(
             source="duplicate_completed_reference",
         )
         if received_summary["duplicate"]:
+            if completed_order.get("order_type") == "team_credit_purchase" and order_id:
+                try:
+                    team_context = await BillingProfileService(directus_service, encryption_service).get_order_context(order_id)
+                except Exception as profile_err:
+                    raise HTTPException(status_code=503, detail="Team bank transfer invoice context unavailable") from profile_err
+                team_id = completed_order.get("team_id")
+                if not team_id or team_context.get("owner_kind") != "team" or team_context.get("owner_hash") != hashlib.sha256(str(team_id).encode()).hexdigest():
+                    raise HTTPException(status_code=503, detail="Team bank transfer invoice context unavailable")
+                try:
+                    await _dispatch_purchase_invoice_from_context(
+                        order_id=order_id, context=team_context, credits=credits_amount,
+                        provider="bank_transfer", directus_service=directus_service,
+                        encryption_service=encryption_service, secrets_manager=secrets_manager,
+                    )
+                except Exception as invoice_err:
+                    raise HTTPException(status_code=503, detail="Team bank transfer invoice dispatch unavailable") from invoice_err
             logger.info("Duplicate Revolut transaction %s for completed bank transfer %s ignored", transaction_id, order_id)
             return {"status": "duplicate_transaction_ignored"}
 
@@ -7140,6 +7561,7 @@ async def _handle_revolut_business_webhook(
             return {"status": "processing_error"}
 
         completed_at = datetime.now(timezone.utc).isoformat()
+        team_transfer_settled = False
         try:
             from backend.core.api.app.services.team_billing_service import TeamBillingService
 
@@ -7160,6 +7582,7 @@ async def _handle_revolut_business_webhook(
                 credits=int(credits_amount),
                 event_type="purchase",
                 encrypted_metadata=None,
+                _verified_paid_settlement=True,
             )
             await _update_bank_transfer(order_id, {
                 "status": "completed",
@@ -7176,6 +7599,7 @@ async def _handle_revolut_business_webhook(
                 },
             )
             await complete_purchase_settlement(directus_service, purchase_settlement)
+            team_transfer_settled = True
             try:
                 await cache_service.increment_stat("income_eur_cents", int(expected_amount_cents or 0))
                 await cache_service.record_credit_purchase(int(credits_amount))
@@ -7215,11 +7639,37 @@ async def _handle_revolut_business_webhook(
                     overpaid_amount_cents=overpaid_amount_cents,
                     expires_at=pending_order.get("expires_at"),
                 )
+            billing_context = await BillingProfileService(directus_service, encryption_service).get_order_context(order_id)
+            if billing_context.get("owner_kind") == "team" and billing_context.get("owner_hash") == hashlib.sha256(str(team_id).encode()).hexdigest():
+                try:
+                    await _dispatch_purchase_invoice_from_context(
+                        order_id=order_id, context=billing_context, credits=int(credits_amount),
+                        provider="bank_transfer", directus_service=directus_service,
+                        encryption_service=encryption_service, secrets_manager=secrets_manager,
+                    )
+                except Exception as invoice_err:
+                    logger.error("Team bank transfer invoice dispatch failed for %s: %s", order_id, invoice_err, exc_info=True)
+                    await _notify_admin_bank_transfer_processing_error(
+                        cache_service=cache_service, order_id=order_id, reference=reference,
+                        order_type=order_type, transaction_id=transaction_id, error="invoice_dispatch_failed",
+                    )
+                    raise HTTPException(status_code=503, detail="Team bank transfer invoice dispatch unavailable") from invoice_err
+            else:
+                logger.error("Team bank transfer %s settled without Team billing context; invoice requires repair", order_id)
+                await _notify_admin_bank_transfer_processing_error(
+                    cache_service=cache_service, order_id=order_id, reference=reference,
+                    order_type=order_type, transaction_id=transaction_id, error="invoice_context_missing",
+                )
+                raise HTTPException(status_code=503, detail="Team bank transfer invoice context unavailable")
             logger.info(
                 f"Team bank transfer {order_id} completed successfully. "
                 f"Granted {credits_amount} credits to team {team_id}. Revolut txn: {transaction_id}"
             )
             return {"status": "team_bank_transfer_completed"}
+        except HTTPException:
+            # The transfer is settled; let the provider replay the webhook so
+            # the completed-order path can retry only invoice dispatch.
+            raise
         except Exception as e:
             logger.error(f"Error processing team bank transfer {order_id}: {e}", exc_info=True)
             await _notify_admin_bank_transfer_processing_error(
@@ -7230,6 +7680,8 @@ async def _handle_revolut_business_webhook(
                 transaction_id=transaction_id,
                 error=e,
             )
+            if team_transfer_settled:
+                raise HTTPException(status_code=503, detail="Team bank transfer invoice unavailable") from e
             return {"status": "processing_error"}
 
     # ── Credit purchase path ─────────────────────────────────────────

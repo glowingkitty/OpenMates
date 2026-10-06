@@ -13,6 +13,7 @@
     import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { copyToClipboard } from '../../utils/clipboardUtils';
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
+    import { billingPath, personalBillingContext, type BillingAddress, type BillingContext } from '../../services/billingContext';
     import { webSocketService } from '../../services/websocketService';
     import {
         SettingsCard,
@@ -32,6 +33,8 @@
         allowContinueWithoutPayment = false,
         isSignup = false,
         isGiftCard = false,
+        billingContext = personalBillingContext,
+        buyerAddress = undefined,
     }: {
         credits_amount: number;
         price: number;
@@ -42,6 +45,8 @@
         allowContinueWithoutPayment?: boolean;
         isSignup?: boolean;
         isGiftCard?: boolean;
+        billingContext?: BillingContext;
+        buyerAddress?: BillingAddress | null;
     } = $props();
 
     let state: 'loading' | 'awaiting_transfer' | 'completed' | 'error' = $state('loading');
@@ -74,10 +79,12 @@
     let copiedField: string = $state('');
     let copyTimeout: ReturnType<typeof setTimeout> | null = null;
     let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let disposed = false;
 
     onMount(async () => { await createOrder(); });
 
     onDestroy(() => {
+        disposed = true;
         if (pollInterval) clearInterval(pollInterval);
         if (copyTimeout) clearTimeout(copyTimeout);
         webSocketService.off('payment_completed', handlePaymentCompleted);
@@ -86,13 +93,17 @@
     async function createOrder() {
         state = 'loading';
         try {
-            const endpoint = getApiEndpoint(isSupportContribution
+            if (billingContext.kind === 'team' && (isSupportContribution || isGiftCard || !billingContext.teamId || buyerAddress === undefined)) {
+                throw new Error('Team billing context or address is unavailable');
+            }
+            const endpoint = billingContext.kind === 'team' ? billingPath(billingContext, 'bankOrder') : getApiEndpoint(isSupportContribution
                 ? apiEndpoints.payments.createSupportBankTransferOrder
                 : apiEndpoints.payments.createBankTransferOrder);
 
             const body = isSupportContribution
                 ? { amount: price, currency: currency.toLowerCase(), support_email: supportEmail }
-                : { credits_amount, currency: currency.toLowerCase(), email_encryption_key: emailEncryptionKey, is_signup: isSignup, is_gift_card: isGiftCard };
+                : { credits_amount, currency: currency.toLowerCase(), email_encryption_key: emailEncryptionKey, is_signup: isSignup, is_gift_card: isGiftCard,
+                    ...(buyerAddress ? { buyer_address: buyerAddress } : {}) };
 
             const response = await fetch(endpoint, {
                 method: 'POST',
@@ -107,6 +118,7 @@
             }
 
             const data = await response.json();
+            if (disposed) return;
             orderId = data.order_id;
             reference = data.reference;
             iban = data.iban;
@@ -133,20 +145,20 @@
     }
 
     async function pollStatus() {
-        if (!orderId || state !== 'awaiting_transfer') return;
+        if (disposed || !orderId || state !== 'awaiting_transfer') return;
         try {
             const r = await fetch(
-                `${getApiEndpoint(apiEndpoints.payments.bankTransferStatus)}/${orderId}`,
+                `${billingContext.kind === 'team' ? billingPath(billingContext, 'bankStatus') : getApiEndpoint(apiEndpoints.payments.bankTransferStatus)}/${encodeURIComponent(orderId)}`,
                 { credentials: 'include' }
             );
             if (!r.ok) return;
             const data = await r.json();
-            if (data.status === 'completed') handleCompleted();
+            if (!disposed && data.status === 'completed') handleCompleted();
         } catch { /* silent */ }
     }
 
     function handlePaymentCompleted(payload: { order_id?: string }) {
-        if (payload?.order_id === orderId) handleCompleted();
+        if (!disposed && payload?.order_id === orderId) handleCompleted();
     }
 
     function handleCompleted() {

@@ -248,6 +248,11 @@ switch_team_context:
   en: Switch team context
   de: Teamkontext wechseln
   verified_by_human: []
+show_more_teams:
+  context: Expand the profile team selector beyond its five most recently used teams
+  en: Show more
+  de: Mehr anzeigen
+  verified_by_human: []
 team_context_load_error:
   context: Profile team selector error when the team list or detail cannot load
   en: Could not load teams

@@ -19,7 +19,10 @@ def read_repo(path: str) -> str:
 def test_teams_has_no_top_level_workspace_route_or_export() -> None:
     route_dir = PROJECT_ROOT / "frontend/apps/web_app/src/routes/teams"
     route_files = [path for path in route_dir.rglob("*") if path.is_file()] if route_dir.exists() else []
-    assert route_files == []
+    # An invitation handoff URL is not a Teams workspace. Management remains
+    # Settings-only; no index page or other top-level Teams route is allowed.
+    invitation_handoff = route_dir / "invites/[inviteId]/+page.svelte"
+    assert route_files == [invitation_handoff]
     assert not (
         PROJECT_ROOT / "frontend/packages/ui/src/components/teams/TeamsWorkspacePage.svelte"
     ).exists()

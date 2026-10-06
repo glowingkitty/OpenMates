@@ -180,3 +180,51 @@ team_surface_parity:
   - id: apple-deferred-until-web-confirmed
     input: {surface: gui.apple, web_user_confirmation: missing}
     expect: {apple_implementation_blocked: true, stale_personal_only_assumptions_allowed: false}
+
+team_name_policy:
+  - id: transient-policy-accepted
+    assertion_ids:
+    - teams.name.transient-policy
+    given: Mira creates a Team called Studio, a name another Team already uses.
+    when: She continues from the name step after the backend approves the name.
+    then: Creation succeeds with an encrypted name; the duplicate name does not cause an error and JEV receives nothing.
+
+team_join_policy:
+  - id: join-policy-accepted
+    assertion_ids:
+    - teams.security.join-policy
+    given: A Team permits example.com emails, requires a strong sign-in factor and uses link approval.
+    when: Its admin enters an outside-domain email or a recipient accepts without a configured passkey or 2FA.
+    then: The new membership is denied; the invite field explains the domain error and links to Security.
+
+team_member_change_emails:
+  - id: change-emails-accepted
+    assertion_ids:
+    - teams.membership.change-emails
+    given: An admin opens an existing member detail page.
+    when: The admin changes that member from member to viewer and later removes them.
+    then: Both successful changes notify the affected member by email; owner protections remain enforced.
+
+team_figma_context:
+  - id: figma-context-accepted
+    assertion_ids:
+    - teams.web.figma-context
+    given: Mira belongs to seven Teams and last used Studio, then Research.
+    when: She opens the quick Team selector and switches to Research.
+    then: The five most recent Teams appear with Show more; the overlay animates closed and Research avatar appears beside each workspace icon.
+
+team_billing_context_parity:
+  - id: context-parity-accepted
+    assertion_ids:
+    - teams.billing.context-parity
+    given: Mira buys a qualifying EUR100 credit package for Studio with an optional billing address.
+    when: The Team bank transfer settles, then the invoice worker retries.
+    then: Studio alone receives one credit grant and a Team invoice containing the address; Personal invoices and balance stay unchanged.
+
+team_offline_cache:
+  - id: bounded-isolated-accepted
+    assertion_ids:
+    - teams.cache.bounded-isolated
+    given: The browser cache is near its target and contains old synced chats plus an unsent draft.
+    when: A write exhausts the quota and Mira later switches Teams and logs out.
+    then: Only recoverable cached content is trimmed before one retry; the draft is protected, failed offline saving is visible, decrypted media is revoked and temporary plaintext downloads are purged.

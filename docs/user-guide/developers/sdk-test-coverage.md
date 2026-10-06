@@ -53,9 +53,10 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `benchmark` | `om.benchmark.estimate()` | `om.benchmark.estimate()` | direct | direct |
 | `benchmark` | `om.benchmark.run()` | `om.benchmark.run()` | direct | direct |
 | `billing` | `om.billing.bankTransferStatus()` | `om.billing.bank_transfer_status()` | direct | direct |
+| `billing` | `om.billing.buyerAddress()` | `om.billing.buyer_address()` | direct | direct |
 | `billing` | `om.billing.chatTotal()` | `om.billing.chat_total()` | direct | direct |
 | `billing` | `om.billing.createBankTransferOrder()` | `om.billing.create_bank_transfer_order()` | direct | direct |
-| `billing` | `om.billing.createGiftCardBankTransferOrder()` | `om.billing.create_gift_card_bank_transfer_order()` | direct | namespace smoke: test_sdk.py |
+| `billing` | `om.billing.createGiftCardBankTransferOrder()` | `om.billing.create_gift_card_bank_transfer_order()` | direct | direct |
 | `billing` | `om.billing.downloadCreditNote()` | `om.billing.download_credit_note()` | namespace smoke: sdk.test.ts, billing.test.ts | namespace smoke: test_sdk.py |
 | `billing` | `om.billing.downloadInvoice()` | `om.billing.download_invoice()` | namespace smoke: sdk.test.ts, billing.test.ts | namespace smoke: test_sdk.py |
 | `billing` | `om.billing.giftCardPurchaseStatus()` | `om.billing.gift_card_purchase_status()` | direct | namespace smoke: test_sdk.py |
@@ -66,6 +67,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `billing` | `om.billing.overview()` | `om.billing.overview()` | direct | direct |
 | `billing` | `om.billing.redeemGiftCard()` | `om.billing.redeem_gift_card()` | namespace smoke: sdk.test.ts, billing.test.ts | namespace smoke: test_sdk.py |
 | `billing` | `om.billing.requestRefund()` | `om.billing.request_refund()` | namespace smoke: sdk.test.ts, billing.test.ts | namespace smoke: test_sdk.py |
+| `billing` | `om.billing.saveBuyerAddress()` | `om.billing.save_buyer_address()` | namespace smoke: sdk.test.ts, billing.test.ts | namespace smoke: test_sdk.py |
 | `billing` | `om.billing.setLowBalanceAutoTopup()` | `om.billing.set_low_balance_auto_topup()` | namespace smoke: sdk.test.ts, billing.test.ts | namespace smoke: test_sdk.py |
 | `billing` | `om.billing.usage()` | `om.billing.usage()` | direct | direct |
 | `billing` | `om.billing.usageDaily()` | `om.billing.usage_daily()` | namespace smoke: sdk.test.ts, billing.test.ts | namespace smoke: test_sdk.py |
@@ -213,8 +215,10 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `teams` | `om.teams.acceptInvite()` | `om.teams.accept_invite()` | direct | direct |
 | `teams` | `om.teams.accessRequests()` | `om.teams.access_requests()` | direct | direct |
 | `teams` | `om.teams.approveAccess()` | `om.teams.approve_access()` | direct | direct |
+| `teams` | `om.teams.approveName()` | `om.teams.approve_name()` | namespace smoke: sdk-teams.test.ts | namespace smoke: test_teams.py |
 | `teams` | `om.teams.bankTransferStatus()` | `om.teams.bank_transfer_status()` | direct | direct |
 | `teams` | `om.teams.billing()` | `om.teams.billing()` | direct | direct |
+| `teams` | `om.teams.buyerAddress()` | `om.teams.buyer_address()` | direct | direct |
 | `teams` | `om.teams.create()` | `om.teams.create()` | direct | direct |
 | `teams` | `om.teams.createBankTransferOrder()` | `om.teams.create_bank_transfer_order()` | direct | direct |
 | `teams` | `om.teams.createPlain()` | `om.teams.create_plain()` | direct | direct |
@@ -224,15 +228,22 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `teams` | `om.teams.getProfileImage()` | `om.teams.get_profile_image()` | direct | direct |
 | `teams` | `om.teams.import()` | `om.teams.import_team()` | direct | direct |
 | `teams` | `om.teams.invite()` | `om.teams.invite()` | direct | direct |
+| `teams` | `om.teams.invites()` | `om.teams.invites()` | direct | direct |
 | `teams` | `om.teams.list()` | `om.teams.list()` | direct | direct |
 | `teams` | `om.teams.listBankTransferOrders()` | `om.teams.list_bank_transfer_orders()` | direct | direct |
+| `teams` | `om.teams.members()` | `om.teams.members()` | direct | direct |
 | `teams` | `om.teams.memories()` | `om.teams.memories()` | direct | direct |
+| `teams` | `om.teams.previewInvite()` | `om.teams.preview_invite()` | namespace smoke: sdk-teams.test.ts | namespace smoke: test_teams.py |
 | `teams` | `om.teams.rejectAccess()` | `om.teams.reject_access()` | direct | direct |
 | `teams` | `om.teams.removeMember()` | `om.teams.remove_member()` | direct | direct |
+| `teams` | `om.teams.revokeInvite()` | `om.teams.revoke_invite()` | namespace smoke: sdk-teams.test.ts | namespace smoke: test_teams.py |
+| `teams` | `om.teams.saveBuyerAddress()` | `om.teams.save_buyer_address()` | namespace smoke: sdk-teams.test.ts | namespace smoke: test_teams.py |
+| `teams` | `om.teams.security()` | `om.teams.security()` | direct | direct |
 | `teams` | `om.teams.storage()` | `om.teams.storage()` | direct | direct |
 | `teams` | `om.teams.storageNotice()` | `om.teams.storage_notice()` | direct | direct |
 | `teams` | `om.teams.update()` | `om.teams.update()` | direct | direct |
 | `teams` | `om.teams.updateGeneratedProfileImage()` | `om.teams.update_generated_profile_image()` | direct | direct |
+| `teams` | `om.teams.updateSecurity()` | `om.teams.update_security()` | namespace smoke: sdk-teams.test.ts | namespace smoke: test_teams.py |
 | `teams` | `om.teams.usage()` | `om.teams.usage()` | direct | direct |
 | `wikipedia` | `om.wikipedia.article()` | `om.wikipedia.article()` | direct | direct |
 | `wikipedia` | `om.wikipedia.learning()` | `om.wikipedia.learning()` | direct | direct |

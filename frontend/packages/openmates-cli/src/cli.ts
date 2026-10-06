@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import type { BuyerAddress } from "./billingAddress.js";
 import { runPrivacyCommand, PRIVACY_HELP } from "./privacyCommands.js";
 import { taskMutationStore, type TaskMutation } from "./taskMutationDelivery.js";
 /*
@@ -4001,6 +4002,24 @@ async function handleHistory(
 // Teams
 // ---------------------------------------------------------------------------
 
+function buyerAddressFromFlags(flags: Record<string, string | boolean>): BuyerAddress | undefined {
+  const file = flags["billing-address-file"];
+  if (file === undefined) return undefined;
+  if (typeof file !== "string" || !file) throw new Error("Provide --billing-address-file <json-file>.");
+  let value: unknown;
+  try { value = JSON.parse(readFileSync(file, "utf8")); }
+  catch { throw new Error("Could not read billing address JSON file."); }
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Billing address must be a JSON object.");
+  const address = value as Record<string, unknown>;
+  for (const key of ["name", "street_line_1", "postal_code", "city", "country"]) {
+    if (typeof address[key] !== "string" || !(address[key] as string).trim()) {
+      throw new Error(`Billing address requires ${key}.`);
+    }
+  }
+  if (!/^[a-zA-Z]{2}$/.test(String(address.country))) throw new Error("Billing address country must be a two-letter country code.");
+  return { ...address, country: String(address.country).toUpperCase() } as unknown as BuyerAddress;
+}
+
 async function handleTeams(
   client: OpenMatesClient,
   subcommand: string | undefined,
@@ -4149,7 +4168,7 @@ async function handleTeams(
 
   if (subcommand === "decline-invite") {
     const inviteId = requiredStringFlag(flags.invite ?? rest[0], "<invite-id>");
-    const result = await client.declineTeamInvite(inviteId);
+    const result = await client.declineTeamInvite(inviteId, typeof flags.email === "string" ? flags.email : undefined);
     if (flags.json === true) printJson(result);
     else console.log("Team invite declined.");
     return;
@@ -4203,12 +4222,27 @@ async function handleTeams(
   }
 
   if (subcommand === "billing") {
+    if (rest[0] === "address") {
+      const action = rest[1] ?? "show";
+      const teamId = requireTeamId(rest.slice(2), flags);
+      if (action === "show") printJson({ buyer_address: await client.getBuyerAddress(teamId) });
+      else if (action === "set") {
+        const address = buyerAddressFromFlags(flags);
+        if (!address) throw new Error("Provide --billing-address-file <json-file>.");
+        await client.saveBuyerAddress(address, teamId);
+        console.log("Team billing address saved.");
+      } else if (action === "clear") {
+        await client.saveBuyerAddress(null, teamId);
+        console.log("Team billing address cleared.");
+      } else throw new Error("Use teams billing address show, set or clear.");
+      return;
+    }
     if (rest[0] === "bank-transfer") {
       const action = rest[1];
       if (action === "create") {
         const teamId = requireTeamId(rest.slice(2), flags);
         const credits = requiredNumberFlag(flags.credits, "--credits <amount>");
-        const order = await client.createTeamBankTransferOrder(teamId, credits);
+        const order = await client.createTeamBankTransferOrder(teamId, credits, buyerAddressFromFlags(flags));
         if (flags.json === true) printJson(order);
         else printBankTransferOrder(order, false);
         return;
@@ -9184,6 +9218,9 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["billing", "usage", "daily"], description: "Show daily usage overview", examples: ["openmates settings billing usage daily"] },
   { path: ["billing", "usage", "export"], description: "Export usage data", examples: ["openmates settings billing usage export --json"] },
   { path: ["billing", "buy-credits", "bank-transfer"], description: "Buy credits by SEPA bank transfer", examples: ["openmates settings billing buy-credits bank-transfer --credits 110000"] },
+  { path: ["billing", "address", "show"], description: "Show your optional buyer address", examples: ["openmates settings billing address show --json"] },
+  { path: ["billing", "address", "set"], description: "Save your optional buyer address", examples: ["openmates settings billing address set --billing-address-file ./address.json"] },
+  { path: ["billing", "address", "clear"], description: "Clear your optional buyer address", examples: ["openmates settings billing address clear"] },
   { path: ["billing", "bank-transfer", "status"], description: "Show bank-transfer order status", examples: ["openmates settings billing bank-transfer status <order-id>"] },
   { path: ["billing", "bank-transfer", "list"], description: "List pending bank-transfer orders", examples: ["openmates settings billing bank-transfer list"] },
   { path: ["billing", "invoices", "list"], description: "List invoices", examples: ["openmates settings billing invoices list --json"] },
@@ -10987,9 +11024,24 @@ async function handleSettings(
     return;
   }
 
+  if (tokens[0] === "billing" && tokens[1] === "address") {
+    const action = tokens[2] ?? "show";
+    if (action === "show") printJson({ buyer_address: await client.getBuyerAddress() });
+    else if (action === "set") {
+      const address = buyerAddressFromFlags(flags);
+      if (!address) throw new Error("Provide --billing-address-file <json-file>.");
+      await client.saveBuyerAddress(address);
+      console.log("Personal billing address saved.");
+    } else if (action === "clear") {
+      await client.saveBuyerAddress(null);
+      console.log("Personal billing address cleared.");
+    } else throw new Error("Use settings billing address show, set or clear.");
+    return;
+  }
+
   if (matches(tokens, ["billing", "buy-credits", "bank-transfer"])) {
     const credits = parseRequiredNumber(flags.credits, "--credits");
-    const order = await client.createBankTransferOrder(credits);
+    const order = await client.createBankTransferOrder(credits, buyerAddressFromFlags(flags));
     if (flags.json === true) {
       printJson(order);
     } else {
@@ -14989,7 +15041,8 @@ function printTeamsHelp(): void {
   openmates teams billing <team-id> [--json]
   openmates teams storage <team-id> [--json]
   openmates teams storage notice <team-id> [--limit 1..100] [--after-unit-id <cursor>] [--json]
-  openmates teams billing bank-transfer create <team-id> --credits <amount> [--json]
+  openmates teams billing bank-transfer create <team-id> --credits <amount> [--billing-address-file <json-file>] [--json]
+  openmates teams billing address <show|set|clear> <team-id> [--billing-address-file <json-file>]
   openmates teams billing bank-transfer status <team-id> <order-id> [--json]
   openmates teams billing bank-transfer list <team-id> [--json]
   openmates teams usage <team-id> [--user <user-id>] [--json]

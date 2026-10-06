@@ -193,6 +193,7 @@ TASK_CONFIG = [
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks'},
     {'name': 'user_init',   'module': 'backend.core.api.app.tasks.user_cache_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.persistence_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.team_auto_topup_task'},
     {'name': 'app_ai',      'module': 'backend.apps.ai.tasks'},
     {'name': 'app_web',     'module': 'backend.apps.web.tasks'},  # Web app tasks (to be implemented)
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks

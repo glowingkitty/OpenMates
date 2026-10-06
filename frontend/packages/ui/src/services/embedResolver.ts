@@ -39,6 +39,13 @@ const knownErrorEmbeds = new Map<
 
 const EMBED_REQUEST_COOLDOWN_MS = 10_000;
 const SYNTHETIC_EMBED_PREFIXES = ["legacy-", "youtube-", "wiki-"];
+// These refs exist only in the editor while fenced code/doc content is being
+// upgraded to an EmbedStore entry. They are never server embed IDs.
+const LOCAL_CODE_DOC_PREVIEW_PREFIXES = [
+  "preview:code-code:",
+  "preview:code:",
+  "preview:docs-doc:",
+];
 
 const requestedEmbeds = new Map<
   string,
@@ -158,8 +165,16 @@ function normalizeEmbedId(embedId: string): string {
   return embedId.startsWith("embed:") ? embedId.slice("embed:".length) : embedId;
 }
 
+export function isLocalCodeDocPreviewRef(ref: string | null | undefined): boolean {
+  return typeof ref === "string" && LOCAL_CODE_DOC_PREVIEW_PREFIXES.some(
+    (prefix) => ref.startsWith(prefix),
+  );
+}
+
 function isSyntheticEmbedId(embedId: string): boolean {
-  return SYNTHETIC_EMBED_PREFIXES.some((prefix) => embedId.startsWith(prefix));
+  return isLocalCodeDocPreviewRef(embedId) || SYNTHETIC_EMBED_PREFIXES.some(
+    (prefix) => embedId.startsWith(prefix),
+  );
 }
 
 /**
@@ -414,6 +429,9 @@ export interface EmbedData {
 export async function resolveEmbed(
   embed_id: string,
 ): Promise<EmbedData | null> {
+  if (isLocalCodeDocPreviewRef(normalizeEmbedId(embed_id))) {
+    return null;
+  }
   try {
     // Initialize TOON decoder
     await initToonDecoder();

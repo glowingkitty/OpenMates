@@ -141,3 +141,5 @@ export type {
   CachedChat,
   CachedNewChatSuggestion,
 } from "./storage.js";
+
+export type { BuyerAddress } from "./billingAddress.js";

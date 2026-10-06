@@ -9,6 +9,8 @@
     import { isLearningModeAuthError, learningMode } from '../../stores/learningModeStore';
     import { notificationStore } from '../../stores/notificationStore';
     import SettingsItem from '../SettingsItem.svelte';
+    import TeamQuickAction from './TeamQuickAction.svelte';
+    import type { TeamViewModel } from '../../services/teamService';
     import { createEventDispatcher, onMount } from 'svelte';
     import type { SvelteComponent } from 'svelte';
 
@@ -37,6 +39,12 @@
         // so that auth-gated proxy paths work correctly. Falls back to the raw store value
         // for the legacy case where showProfileHeader=true is used standalone.
         resolvedProfileImageUrl = null,
+        teams,
+        activeTeamId,
+        teamContextLoading,
+        onTeamContextChange,
+        onCreateTeam,
+        onTeamToggle,
     }: {
         activeSettingsView?: string;
         direction?: string;
@@ -53,6 +61,12 @@
         isSelfHosted?: boolean;
         showProfileHeader?: boolean;
         resolvedProfileImageUrl?: string | null;
+        teams: TeamViewModel[];
+        activeTeamId: string | null;
+        teamContextLoading: boolean;
+        onTeamContextChange: (contextId: string) => void;
+        onCreateTeam: () => void;
+        onTeamToggle: () => void;
     } = $props();
     
     // State for docked profile visibility
@@ -273,6 +287,11 @@
             
             <!-- Incognito mode toggle - appears above Usage like language toggles -->
             <!-- Only show for authenticated users -->
+            {#if isAuthenticated && isVisibleTopLevelView('teams')}
+                <TeamQuickAction {teams} {activeTeamId} loading={teamContextLoading}
+                    {onTeamContextChange} {onCreateTeam} {onTeamToggle}
+                    onOpenTeams={() => showSettingsView('teams', null)} />
+            {/if}
             {#if isAuthenticated}
                 <div data-testid="incognito-toggle-wrapper">
                     <SettingsItem
@@ -357,12 +376,11 @@
             {/if}
 
             <!-- Regular Settings -->
-            {#each Object.entries(settingsViews).filter(([key]) => isVisibleTopLevelView(key) && (key !== 'logs' || isAdminUser)) as [key]}
+            {#each Object.entries(settingsViews).filter(([key]) => key !== 'teams' && isVisibleTopLevelView(key) && (key !== 'logs' || isAdminUser)) as [key]}
                 <SettingsItem
                     type="submenu"
                     icon={SETTINGS_VIEW_ICON_OVERRIDES[key] ?? (key === 'logs' ? 'server' : key)}
                     title={key === 'logs' ? 'Logs' : $text(`settings.${key}`)}
-                    data-testid={key === 'teams' ? 'settings-teams-item' : undefined}
                     onClick={() => showSettingsView(key, null)}
                 />
             {/each}
@@ -390,6 +408,7 @@
                 <ActiveSettingsComponent
                     activeSettingsView={activeSettingsView}
                     accountId={accountId}
+                    teamId={/^teams\/[^/]+\/billing(?:\/|$)/.test(activeSettingsView) ? activeSettingsView.split('/')[1] : undefined}
                     {isSelfHosted}
                     on:openSettings={(event: CustomEvent) => dispatch('openSettings', event.detail)}
                     on:navigateBack={() => dispatch('navigateBack')}

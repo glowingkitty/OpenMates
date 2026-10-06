@@ -7,6 +7,47 @@ import { getEmbedRenderer, embedRenderers } from "./embed_renderers";
 import { disposeEmbedTree, isEmbedTargetDisposed } from "./embed_renderers/mountedEmbedLifecycle";
 import { groupHandlerRegistry } from "../../../message_parsing/groupHandlers";
 import { cancelUpload, deleteDraftEmbed } from "../embedHandlers";
+import type { Editor } from "@tiptap/core";
+
+const pendingPreviewUpgrades = new WeakMap<Editor, Set<Promise<void>>>();
+const localCodePreviewPrefixes = [
+  "preview:code-code:",
+  "preview:code:",
+  "preview:docs-doc:",
+];
+
+function trackPreviewUpgrade(editor: Editor, upgrade: Promise<void>): void {
+  let pending = pendingPreviewUpgrades.get(editor);
+  if (!pending) {
+    pending = new Set();
+    pendingPreviewUpgrades.set(editor, pending);
+  }
+  pending.add(upgrade);
+  const finish = () => pending!.delete(upgrade);
+  void upgrade.then(finish, finish);
+}
+
+/** Wait for local code/document storage and reject a draft with temporary refs. */
+export async function waitForCodeDocPreviewUpgrades(editor: Editor): Promise<boolean> {
+  const pending = pendingPreviewUpgrades.get(editor);
+  while (pending?.size) {
+    await Promise.allSettled([...pending]);
+  }
+  let hasTemporaryRef = false;
+  editor.state.doc.descendants((node) => {
+    const ref = node.attrs.contentRef;
+    if (
+      node.type.name === "embed" &&
+      typeof ref === "string" &&
+      localCodePreviewPrefixes.some((prefix) => ref.startsWith(prefix))
+    ) {
+      hasTemporaryRef = true;
+      return false;
+    }
+    return true;
+  });
+  return !hasTemporaryRef;
+}
 
 /**
  * Extract the embed_id from a contentRef string.
@@ -798,17 +839,18 @@ export const Embed = Node.create<EmbedOptions>({
         }
 
         // Auto-upgrade preview: embeds to real EmbedStore entries for authenticated users.
-        // preview:code: and preview:docs-doc: nodes are created when the user pastes a code
-        // block or document block in write mode. They hold the content inline in attrs.code.
+        // The fenced-code parser creates preview:code-code: refs; pasted code can
+        // still use the older preview:code: form. Both hold code in attrs.code.
         // By immediately creating a real embed entry, we give the embed a stable embed_id so
         // it can be deep-linked and opened in fullscreen even before the message is sent.
         if (
-          currentAttrs.contentRef?.startsWith("preview:code:") &&
+          (currentAttrs.contentRef?.startsWith("preview:code-code:") ||
+            currentAttrs.contentRef?.startsWith("preview:code:")) &&
           currentAttrs.code != null &&
           typeof getPos === "function"
         ) {
           // Fire-and-forget: upgrade preview code embed to real embed
-          (async () => {
+          trackPreviewUpgrade(editor, (async () => {
             try {
               const { createCodeEmbed } =
                 await import("../services/codeEmbedService");
@@ -845,14 +887,14 @@ export const Embed = Node.create<EmbedOptions>({
                 error,
               );
             }
-          })();
+          })());
         } else if (
           currentAttrs.contentRef?.startsWith("preview:docs-doc:") &&
           currentAttrs.code != null &&
           typeof getPos === "function"
         ) {
           // Fire-and-forget: upgrade preview docs-doc embed to real embed
-          (async () => {
+          trackPreviewUpgrade(editor, (async () => {
             try {
               const { createDocEmbed } =
                 await import("../services/codeEmbedService");
@@ -887,7 +929,7 @@ export const Embed = Node.create<EmbedOptions>({
                 error,
               );
             }
-          })();
+          })());
         }
       } else {
         // No renderer found - show a graceful error instead of throwing.

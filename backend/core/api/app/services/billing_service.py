@@ -1114,6 +1114,12 @@ class BillingService:
 
             # Cache the order for webhook processing (critical for credit addition)
             payment_intent_id = order_result['id']
+            from backend.core.api.app.services.billing_profile_service import BillingProfileService
+            await BillingProfileService(self.directus_service, self.encryption_service).save_order_context(
+                order_id=payment_intent_id, owner_kind="personal", owner_id=user_id, actor_user_id=user_id,
+                credits_amount=credits_amount, currency=currency, provider="stripe",
+                vault_key_id=user["vault_key_id"], email_encryption_key=None, buyer_address=None,
+            )
             cache_success = await self.cache_service.set_order(
                 order_id=payment_intent_id,
                 user_id=user_id,

@@ -22,6 +22,7 @@ import { get } from "svelte/store";
 const cleanupCalls: string[] = [];
 let currentActiveChatId: string | null = "private-chat-1";
 let userDatabaseDeleteGate: Promise<void> | null = null;
+let downloadPurgeGate: Promise<void> | null = null;
 
 vi.mock("../../services/chatListCache", () => ({
   chatListCache: {
@@ -85,6 +86,13 @@ vi.mock("../../services/sharedChatKeyStorage", () => ({
   clearAllSharedChatKeys: vi.fn(async () =>
     cleanupCalls.push("clearAllSharedChatKeys"),
   ),
+}));
+
+vi.mock("../../services/projectRemoteDownload", () => ({
+  purgeConnectedProjectDownloadStaging: vi.fn(async () => {
+    cleanupCalls.push("purgeConnectedProjectDownloadStaging");
+    if (downloadPurgeGate) await downloadPurgeGate;
+  }),
 }));
 
 vi.mock("../phasedSyncStateStore", async () => {
@@ -303,10 +311,12 @@ describe("logout cleanup completeness", () => {
     cleanupCalls.length = 0;
     currentActiveChatId = "private-chat-1";
     userDatabaseDeleteGate = null;
+    downloadPurgeGate = null;
     vi.clearAllMocks();
     authStore.set({ isAuthenticated: true, isInitialized: true });
   });
 
+  // contract-test: supporting surface=gui.web assertions=auth.secrets.lifecycle
   it("calls all critical cleanup functions during logout", async () => {
     const result = await logout();
     expect(result).toBe(true);
@@ -333,6 +343,7 @@ describe("logout cleanup completeness", () => {
     expect(cleanupCalls).toContain("disconnectAndClearHandlers");
   });
 
+  // contract-test: supporting surface=gui.web assertions=auth.secrets.lifecycle
   it("starts chat and user database deletion together", async () => {
     let releaseUserDatabaseDelete = () => {};
     userDatabaseDeleteGate = new Promise<void>((resolve) => {
@@ -350,6 +361,29 @@ describe("logout cleanup completeness", () => {
     }
   });
 
+  // contract-test: supporting surface=gui.web assertions=teams.cache.bounded-isolated
+  it("resets the UI immediately but waits for plaintext download staging purge", async () => {
+    let releaseDownloadPurge = () => {};
+    downloadPurgeGate = new Promise<void>((resolve) => {
+      releaseDownloadPurge = resolve;
+    });
+    let returned = false;
+    const logoutResult = logout().then((result) => {
+      returned = true;
+      return result;
+    });
+
+    try {
+      await vi.waitFor(() => expect(get(authStore).isAuthenticated).toBe(false));
+      expect(cleanupCalls).toContain("purgeConnectedProjectDownloadStaging");
+      expect(returned).toBe(false);
+    } finally {
+      releaseDownloadPurge();
+    }
+    await expect(logoutResult).resolves.toBe(true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.secrets.lifecycle
   it("sets authStore to not authenticated but still initialized", async () => {
     await logout();
     const state = get(authStore);
@@ -357,6 +391,7 @@ describe("logout cleanup completeness", () => {
     expect(state.isInitialized).toBe(true);
   });
 
+  // contract-test: supporting surface=gui.web assertions=auth.secrets.lifecycle
   it("preserves an active static example chat during local logout cleanup", async () => {
     currentActiveChatId = "example-printable-benchy-phone-stand";
 
@@ -366,6 +401,7 @@ describe("logout cleanup completeness", () => {
     expect(currentActiveChatId).toBe("example-printable-benchy-phone-stand");
   });
 
+  // contract-test: supporting surface=gui.web assertions=auth.secrets.lifecycle
   it("cleanup order: crypto cleared BEFORE auth state reset", async () => {
     await logout();
     const cryptoIdx = cleanupCalls.indexOf("clearKeyFromStorage");
@@ -375,6 +411,7 @@ describe("logout cleanup completeness", () => {
     expect(cacheIdx).toBeGreaterThanOrEqual(0);
   });
 
+  // contract-test: supporting surface=gui.web assertions=auth.secrets.lifecycle
   it("fires callbacks in correct order", async () => {
     const callbackOrder: string[] = [];
 
@@ -397,6 +434,7 @@ describe("logout cleanup completeness", () => {
 });
 
 describe("deleteAllCookies", () => {
+  // contract-test: supporting surface=gui.web assertions=auth.secrets.lifecycle
   it("clears cookies by setting expiration to past", () => {
     document.cookie = "test_cookie=value; path=/";
     deleteAllCookies();

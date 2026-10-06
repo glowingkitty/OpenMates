@@ -56,8 +56,8 @@ changes to the documentation (to keep the documentation up to date).
     import { isMobileView } from '../stores/uiStateStore'; // Import global isMobileView store
     import { panelState } from '../stores/panelStateStore'; // Import panelState to sync with isSettingsOpen
     import { pendingMentionStore } from '../stores/pendingMentionStore';
-    import { activeTeam, activeTeamId, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../stores/teamStore';
-    import { listTeams, subscribeTeamListRefresh, TeamRequestCancelledError, type TeamViewModel } from '../services/teamService';
+    import { activeTeam, activeTeamId, orderTeamsByRecent, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../stores/teamStore';
+    import { listTeams, loadTeamBilling, subscribeTeamListRefresh, TeamRequestCancelledError, type TeamViewModel } from '../services/teamService';
     import { getTeamAvatarBackground } from '../utils/teamAvatar';
     // Admin status is now read directly from userProfile.is_admin (synced during login)
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
@@ -74,6 +74,10 @@ changes to the documentation (to keep the documentation up to date).
     import AppDetailsHeader from './settings/AppDetailsHeader.svelte';
     import ChatSettingsHeader from './settings/ChatSettingsHeader.svelte';
     import SettingsMainHeader from './settings/SettingsMainHeader.svelte';
+    import SettingsTeamBilling from './settings/billing/SettingsTeamBilling.svelte';
+    import SettingsTeamInvite from './settings/SettingsTeamInvite.svelte';
+    import TeamAvatar from './teams/TeamAvatar.svelte';
+    import TeamSettingsHeader from './settings/TeamSettingsHeader.svelte';
     
     // Import all settings route definitions and the dynamic wrapper components
     import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper, SettingsProjects, SettingsTeams } from './settings/settingsRoutes';
@@ -371,7 +375,11 @@ changes to the documentation (to keep the documentation up to date).
                 views[route] = ChatSettingsPage;
             } else if (/^projects\/[^/]+$/.test(route)) {
                 views[route] = SettingsProjects;
-            } else if (/^teams\/[^/]+$/.test(route)) {
+            } else if (/^teams\/invites\/[^/]+$/.test(route)) {
+                views[route] = SettingsTeamInvite;
+            } else if (/^teams\/[^/]+\/billing(?:\/.*)?$/.test(route)) {
+                views[route] = SettingsTeamBilling;
+            } else if (/^teams\/[^/]+(?:\/[^/]+)*$/.test(route)) {
                 views[route] = SettingsTeams;
             } else if (/^developers\/api-keys\/[^/]+$/.test(route)) {
                 views[route] = views['developers/api-keys'];
@@ -521,6 +529,7 @@ changes to the documentation (to keep the documentation up to date).
     let profileTeamsLoaded = $state(false);
     let profileTeamsLoadError = $state('');
     let profileTeamsRefreshGeneration = 0;
+    let profileTeamsAccountId: string | null = null;
     let sortedProfileTeams = $derived([...profileTeams].sort((a, b) => b.createdAt - a.createdAt));
     let teamsFeatureEnabled = $derived(
         $featureAvailabilityStore.initialized &&
@@ -922,6 +931,14 @@ changes to the documentation (to keep the documentation up to date).
                 }
                 const translationKey = `settings.${pathUpToSegment.map(segment => segment.replace(/-/g, '_')).join('.')}`;
                 pathLabels.push($text(translationKey));
+            } else if (pathUpToSegment[0] === 'teams') {
+                if (pathUpToSegment.length === 1) pathLabels.push($text('settings.teams'));
+                else if (pathUpToSegment.length === 2 && pathUpToSegment[1] !== 'new' && pathUpToSegment[1] !== 'invites') {
+                    pathLabels.push(profileTeams.find(team => team.team_id === pathUpToSegment[1])?.name ?? $text('settings.teams'));
+                } else if (pathUpToSegment.length === 3 && pathUpToSegment[1] !== 'invites') {
+                    const labelKey = ({ members: 'members', security: 'security', billing: 'billing', name: 'team_name', avatar: 'profile_image', delete: 'delete_team' } as Record<string, string>)[pathUpToSegment[2]];
+                    if (labelKey) pathLabels.push($text(`settings.teams_ui.${labelKey}`));
+                }
             } else if (pathString === 'chats') {
                 pathLabels.push('Chats');
             } else if (pathString.startsWith('chats/')) {
@@ -955,7 +972,22 @@ changes to the documentation (to keep the documentation up to date).
     
     let username = $derived($userProfile.username || '');
     let displayUsername = $derived($demoMode ? DEMO_MARKETING_USERNAME : username);
-    let displayCredits = $derived($demoMode ? DEMO_MARKETING_CREDITS : ($userProfile.credits ?? 0));
+    let activeTeamCredits = $state(0);
+    let canManageActiveTeamBilling = $derived(!$activeTeamId || $activeTeam?.role === 'owner' || $activeTeam?.role === 'admin');
+    let displayCredits = $derived($demoMode ? DEMO_MARKETING_CREDITS : ($activeTeamId ? activeTeamCredits : ($userProfile.credits ?? 0)));
+    $effect(() => {
+        const team = $activeTeam;
+        const accountId = $userProfile.user_id;
+        activeTeamCredits = 0;
+        if (!team || !accountId || !canManageActiveTeamBilling || !isMenuVisible || activeSettingsView !== 'main') return;
+        let cancelled = false;
+        void loadTeamBilling(team).then(summary => {
+            if (!cancelled && get(activeTeamId) === team.team_id && get(userProfile).user_id === accountId) {
+                activeTeamCredits = summary.balanceCredits;
+            }
+        }).catch(() => { /* Keep zero rather than display another context's balance. */ });
+        return () => { cancelled = true; };
+    });
     let isInSignupMode = $derived($isInSignupProcess);
     let visuallyAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
 
@@ -1544,6 +1576,9 @@ changes to the documentation (to keep the documentation up to date).
     async function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string; cameFromTitle?: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string; cameFromTitle?: string }>) {
         const detail = 'detail' in event ? event.detail : event;
         let { settingsPath, direction: newDirection, icon, cameFrom, cameFromTitle } = detail;
+        if (settingsPath === 'billing' && get(activeTeamId)) {
+            settingsPath = `teams/${get(activeTeamId)}/billing`;
+        }
         direction = newDirection;
 
         // --- AI app redirect ---
@@ -1662,7 +1697,7 @@ changes to the documentation (to keep the documentation up to date).
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
         }
 
-        const teamSettingsPattern = /^teams\/[^/]+$/;
+        const teamSettingsPattern = /^teams\/[^/]+(?:\/[^/]+)*$/;
         if (teamSettingsPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
             dynamicEntryRoutes.add(settingsPath);
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
@@ -1833,7 +1868,7 @@ changes to the documentation (to keep the documentation up to date).
             activeSubMenuProviderIconSvg = '';
             activeSubMenuTitleKey = '';
             activeSubMenuTitleRaw = detail.title ?? $text('settings.projects.project_settings');
-        } else if (/^teams\/[^/]+$/.test(settingsPath)) {
+        } else if (/^teams\/[^/]+(?:\/[^/]+)*$/.test(settingsPath)) {
             activeSubMenuIcon = 'team';
             activeSubMenuProviderIconSvg = '';
             activeSubMenuTitleKey = '';
@@ -2338,6 +2373,20 @@ changes to the documentation (to keep the documentation up to date).
         notificationStore.success('Team context switched');
     }
 
+    function handleCreateTeam(): void {
+        handleOpenSettings({ detail: { settingsPath: 'teams/new', direction: 'forward', icon: 'team', title: $text('settings.teams') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string }>);
+    }
+
+    function handleTeamToggle(): void {
+        if (get(activeTeamId)) {
+            handleProfileTeamContextChange('personal');
+            return;
+        }
+        const mostRecentTeam = orderTeamsByRecent(profileTeams)[0];
+        if (mostRecentTeam) handleProfileTeamContextChange(mostRecentTeam.team_id);
+        else handleCreateTeam();
+    }
+
     // No more docking/undocking - we use two separate containers instead
    
     // Handler for profile click to show menu
@@ -2464,9 +2513,13 @@ changes to the documentation (to keep the documentation up to date).
 	    const isClickInsideMenu = settingsMenu && settingsMenu.contains(event.target as Node);
 	    const isClickInsideProfile = profileWrapper && profileWrapper.contains(event.target as Node);
 	    const isClickInsideCloseButton = closeButton && closeButton.contains(event.target as Node);
+	    // The Team context picker portals its menu to <body> so it can escape the
+	    // settings panel. Selecting an option is still an inside-settings action.
+	    const isClickInsideTeamContextMenu = event.target instanceof Element &&
+	        Boolean(event.target.closest('[data-testid="team-context-menu"]'));
 
 	    // Mirror close button behavior so the same close/reset animation path is used.
-	    if (!isClickInsideMenu && !isClickInsideProfile && !isClickInsideCloseButton) {
+	    if (!isClickInsideMenu && !isClickInsideProfile && !isClickInsideCloseButton && !isClickInsideTeamContextMenu) {
 	    	toggleMenu();
 	    }
     }
@@ -2700,6 +2753,15 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     $effect(() => {
+        const accountId = $userProfile.user_id ?? null;
+        if (profileTeamsAccountId !== accountId) {
+            profileTeamsAccountId = accountId;
+            profileTeamsRefreshGeneration += 1;
+            profileTeams = [];
+            profileTeamsLoaded = false;
+            profileTeamsLoading = false;
+            profileTeamsLoadError = '';
+        }
         if (!$authStore.isAuthenticated || !teamsFeatureEnabled) {
             profileTeamsRefreshGeneration += 1;
             profileTeams = [];
@@ -3163,7 +3225,7 @@ changes to the documentation (to keep the documentation up to date).
                             title={`Active team: ${$activeTeam.name}`}
                             style:background={getTeamAvatarBackground($activeTeam)}
                         >
-                            <span class="profile-team-badge-icon"></span>
+                            <TeamAvatar team={$activeTeam} size={22} />
                             <span class="profile-team-badge-label">{$activeTeam.name}</span>
                         </span>
                     {/if}
@@ -3316,7 +3378,7 @@ changes to the documentation (to keep the documentation up to date).
                 profileImageUrl={resolvedProfileImageBlobUrl ?? ''}
                 isAuthenticated={visuallyAuthenticated}
                 credits={displayCredits}
-                paymentEnabled={$demoMode || paymentEnabled}
+                paymentEnabled={$demoMode || (paymentEnabled && canManageActiveTeamBilling)}
                 scrollTop={contentScrollTop}
                 teams={sortedProfileTeams}
                 activeTeamId={$activeTeamId}
@@ -3324,7 +3386,8 @@ changes to the documentation (to keep the documentation up to date).
                 animationsActive={isMenuVisible}
                 teamContextError={profileTeamsLoadError}
                 onTeamContextChange={handleProfileTeamContextChange}
-                onBillingClick={() => handleOpenSettings({ detail: { settingsPath: 'billing', direction: 'forward', icon: 'billing', title: $text('settings.billing') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
+                onCreateTeam={handleCreateTeam}
+                onBillingClick={() => handleOpenSettings({ detail: { settingsPath: $activeTeamId ? `teams/${$activeTeamId}/billing` : 'billing', direction: 'forward', icon: 'billing', title: $text('settings.billing') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
                 onAvatarClick={() => handleOpenSettings({ detail: { settingsPath: 'account/profile-picture', direction: 'forward', icon: 'profile-picture', title: $text('settings.account.profile_picture') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
                 onUsernameClick={() => handleOpenSettings({ detail: { settingsPath: 'account/username', direction: 'forward', icon: 'username', title: $text('settings.account.username') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
             />
@@ -3379,6 +3442,12 @@ changes to the documentation (to keep the documentation up to date).
          Placed outside the content-wrapper for the same sticky-positioning reason. -->
     {#if isStandardSubPage}
         <div class="settings-banner-shell" data-testid="settings-banner-shell">
+            {#if activeSettingsView === 'teams' || activeSettingsView.startsWith('teams/')}
+            <TeamSettingsHeader {activeSettingsView} scrollTop={contentScrollTop}
+                team={profileTeams.find(team => team.team_id === activeSettingsView.split('/')[1])}
+                memberName={activeSettingsView.split('/')[3] && activeSettingsView.split('/')[2] === 'members' ? activeSubMenuTitle : ''}
+                onBack={() => backToMainView()} />
+            {:else}
             <AppDetailsHeader
                 scrollTop={contentScrollTop}
                 breadcrumbLabel={breadcrumbLabel}
@@ -3391,6 +3460,7 @@ changes to the documentation (to keep the documentation up to date).
                     stats: appStoreHeaderStats,
                 }}
             />
+            {/if}
         </div>
     {/if}
 
@@ -3414,10 +3484,16 @@ changes to the documentation (to keep the documentation up to date).
             {isInSignupMode}
             {settingsViews}
             {isMenuVisible}
-            paymentEnabled={$demoMode || paymentEnabled}
+            paymentEnabled={$demoMode || (paymentEnabled && canManageActiveTeamBilling)}
             {isSelfHosted}
             showProfileHeader={false}
             resolvedProfileImageUrl={resolvedProfileImageBlobUrl}
+            teams={sortedProfileTeams}
+            activeTeamId={$activeTeamId}
+            teamContextLoading={profileTeamsLoading}
+            onTeamContextChange={handleProfileTeamContextChange}
+            onCreateTeam={handleCreateTeam}
+            onTeamToggle={handleTeamToggle}
             bind:isIncognitoEnabled
             bind:isGuestEnabled
             bind:isOfflineEnabled
@@ -3861,8 +3937,8 @@ changes to the documentation (to keep the documentation up to date).
 
     .settings-header,
     .settings-content-wrapper,
-    :global(.app-details-header),
-    :global(.chat-settings-header) {
+    .settings-menu :global(.app-details-header),
+    .settings-menu :global(.chat-settings-header) {
         opacity: 0;
         transition: opacity var(--duration-slow) var(--easing-default);
     }

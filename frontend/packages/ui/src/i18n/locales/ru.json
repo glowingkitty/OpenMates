@@ -6176,6 +6176,23 @@
     },
     "storage_billing_notice_waiver": {
       "text": "After verified removal brings usage within the free allowance, the warned unpaid storage charges are written off without taking credits. Paid charges and later charges outside this notice are preserved."
+    },
+    "team_storage_billing_notice": {
+      "subject": {
+        "text": "Team storage payment notice {warning_stage}: action needed"
+      },
+      "header": {
+        "text": "Team storage payment could not be collected"
+      },
+      "body": {
+        "text": "The Team {team_slug} has an unpaid weekly storage charge of {credits_needed} credits. Its outstanding storage charges total {outstanding_credits} credits. This period measured {storage_gb} GiB against the Team's own 1 GiB free allowance. This is warning {warning_stage} of 4. The listed complete Team storage units may be removed no earlier than {deadline_date} UTC if the debt remains unpaid after a final balance check."
+      },
+      "action": {
+        "text": "A Team owner or admin can add Team credits or export the affected Team data. Only the listed units may be removed, and the warned charges are waived only after verified reduction to the Team's free allowance. Personal storage and storage retained by another owner remain protected."
+      },
+      "open_team": {
+        "text": "Open Team settings"
+      }
     }
   },
   "embeds": {
@@ -11954,7 +11971,7 @@
           "text": "Compliance logs: Security and accountability records do not currently have an enforced automatic two-year expiry for historical database revision and activity records. Financial transaction records are configured for up to ten years, subject to the record-specific legal duties and holds described below."
         },
         "storage_expiry": {
-          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy."
+          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
         }
       },
       "legal_basis": {
@@ -12598,10 +12615,10 @@
           "text": "Политика возврата: вы можете запросить возврат средств за неиспользованные кредиты в течение 14 дней после покупки. Право на отзыв истекает после использования кредитов. Полные условия согласия на возврат средств см. в процессе регистрации."
         },
         "storage_billing": {
-          "text": "Where personal storage billing is enabled for your account, the first 1 GiB of eligible personal encrypted object storage is free. Above that allowance, each started additional GiB costs 3 credits per week, assessed on Sundays at 03:00 UTC. We count each logical encrypted S3 object once; regional replicas do not create additional charges. Legacy uploads are not retroactively enrolled or charged under this rollout. Team storage is not rated under this personal-storage policy; its pricing policy remains unresolved."
+          "text": "Where personal storage billing is enabled for your account, the first 1 GiB of eligible personal encrypted object storage is free. Above that allowance, each started additional GiB costs 3 credits per week, assessed on Sundays at 03:00 UTC. We count each logical encrypted S3 object once; regional replicas do not create additional charges. Legacy uploads are not retroactively enrolled or charged under this rollout. Where Team storage billing is enabled, each Team has its own separate 1 GiB free allowance and pays the same weekly rate from its Team credit wallet. Personal and Team allowances, balances and invoices are separate; an owner's personal balance is not charged for Team-owned storage under this policy."
         },
         "storage_expiry": {
-          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing."
+          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
         },
         "storage_invoice_waiver": {
           "text": "Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. The waived amount is written off without taking credits or recording a payment. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy."
@@ -15947,6 +15964,123 @@
       },
       "referral_copy_failed": {
         "text": "Не удалось скопировать реферальную ссылку."
+      },
+      "billing_address": {
+        "text": "Billing address"
+      },
+      "add_billing_address": {
+        "text": "Add billing address"
+      },
+      "address_optional_explainer": {
+        "text": "Optional for most purchases. Saved details appear on future invoices for this billing account."
+      },
+      "address_name": {
+        "text": "Name or company"
+      },
+      "address_street_line_1": {
+        "text": "Street address"
+      },
+      "address_street_line_2": {
+        "text": "Address line 2 (optional)"
+      },
+      "address_postal_code": {
+        "text": "Postal code"
+      },
+      "address_city": {
+        "text": "City"
+      },
+      "address_region": {
+        "text": "State or region (optional)"
+      },
+      "address_country": {
+        "text": "Country code (2 letters)"
+      },
+      "address_vat_id": {
+        "text": "VAT ID (optional)"
+      },
+      "address_validation": {
+        "text": "Complete the name, street, postal code, city, and two-letter country code, or leave every field blank."
+      },
+      "address_load_error": {
+        "text": "Could not load the billing address. Please try again."
+      },
+      "address_save_error": {
+        "text": "Could not save the billing address. Please try again."
+      },
+      "address_saved": {
+        "text": "Billing address saved."
+      },
+      "team_billing_title": {
+        "text": "Billing & usage"
+      },
+      "team_billing_description": {
+        "text": "Manage this Team's credits, payments, invoices, and usage."
+      },
+      "team_balance": {
+        "text": "Team credits"
+      },
+      "team_auto_topup": {
+        "text": "Team auto top-up"
+      },
+      "team_auto_topup_amount": {
+        "text": "Top-up amount in credits"
+      },
+      "team_auto_topup_method": {
+        "text": "Saved payment method ID"
+      },
+      "team_usage_export_csv": {
+        "text": "Download usage CSV"
+      },
+      "team_usage_export_pdf": {
+        "text": "Download usage PDF"
+      },
+      "team_billing_unavailable": {
+        "text": "Team billing could not be loaded. Please try again."
+      },
+      "team_billing_admin_only": {
+        "text": "Only Team owners and admins can manage Team billing."
+      },
+      "team_auto_topup_saved": {
+        "text": "Team auto top-up saved."
+      },
+      "team_auto_topup_error": {
+        "text": "Could not save Team auto top-up."
+      },
+      "team_usage_error": {
+        "text": "Could not load Team usage."
+      },
+      "team_monthly_auto_topup": {
+        "text": "Monthly Team auto top-up"
+      },
+      "team_monthly_create": {
+        "text": "Start monthly auto top-up"
+      },
+      "team_monthly_cancel": {
+        "text": "Cancel monthly auto top-up"
+      },
+      "team_monthly_saved": {
+        "text": "Monthly Team auto top-up updated."
+      },
+      "team_monthly_error": {
+        "text": "Could not update monthly Team auto top-up."
+      },
+      "team_monthly_card_required": {
+        "text": "Make a Team card purchase first to save a payment method."
+      },
+      "team_monthly_tier": {
+        "text": "Monthly credit package"
+      },
+      "team_monthly_billing_day": {
+        "text": "Billing day"
+      },
+      "team_monthly_anniversary": {
+        "text": "Every 30 days from activation"
+      },
+      "team_monthly_first": {
+        "text": "First day of each month"
+      },
+      "team_monthly_status": {
+        "text": "Subscription status"
       }
     },
     "chat": {
@@ -20640,6 +20774,7 @@
       "text": "Воспроизвести"
     }
   },
+  "videocall": {},
   "waiting_list": {
     "discord_members": {
       "text": "Участники нашего Discord получат"

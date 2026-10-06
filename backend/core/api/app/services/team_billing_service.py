@@ -7,6 +7,7 @@ snapshots for clients, and records per-member usage attribution.
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any, Literal
 
@@ -23,6 +24,7 @@ TEAM_USAGE_EVENT_COLLECTION = "team_usage_events"
 TEAM_BILLING_ROLES = {"owner", "admin"}
 TEAM_CREDIT_USER_ROLES = {"owner", "admin", "member"}
 MAX_TEAM_BALANCE_CAS_RETRIES = 3
+logger = logging.getLogger(__name__)
 
 TeamCreditAddEvent = Literal["purchase", "personal_transfer_in"]
 
@@ -36,7 +38,7 @@ class TeamBillingService:
         self.directus = directus_service
 
     async def get_billing_summary(self, team_id: str, actor_user_id: str) -> dict[str, Any]:
-        await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_CREDIT_USER_ROLES)
+        await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_BILLING_ROLES)
         return await self._require_credit_account(team_id)
 
     async def add_credits(
@@ -51,8 +53,12 @@ class TeamBillingService:
         encrypted_metadata: str | None = None,
         occurred_at: int | None = None,
         _cas_retry_count: int = 0,
+        _verified_paid_settlement: bool = False,
     ) -> dict[str, Any]:
-        await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_BILLING_ROLES)
+        # A provider-confirmed payment must still credit the Team if its payer
+        # loses membership between checkout and webhook delivery.
+        if not _verified_paid_settlement:
+            await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_BILLING_ROLES)
         if event_type not in {"purchase", "personal_transfer_in"}:
             raise ValueError("Invalid team credit add event type")
         credits = _require_positive_credits(credits)
@@ -87,6 +93,7 @@ class TeamBillingService:
                         encrypted_metadata=encrypted_metadata,
                         occurred_at=occurred_at,
                         _cas_retry_count=_cas_retry_count + 1,
+                        _verified_paid_settlement=_verified_paid_settlement,
                     )
                 raise
         updated_account = await self._update_account(
@@ -130,7 +137,7 @@ class TeamBillingService:
         now = int(occurred_at or time.time())
         if hasattr(self.directus, "_make_api_request"):
             try:
-                return await SubChatOrchestrationService(self.directus).execute(
+                result = await SubChatOrchestrationService(self.directus).execute(
                     "commit_team_charge",
                     {
                         "protocol_version": 1,
@@ -147,6 +154,8 @@ class TeamBillingService:
                         "occurred_at": now,
                     },
                 )
+                await self._queue_auto_topup_if_needed(team_id, event_id, result.get("account"))
+                return result
             except SubChatOrchestrationProtocolError as exc:
                 if exc.code == "insufficient_team_credits":
                     raise TeamInsufficientCreditsError("Insufficient team credits") from exc
@@ -197,7 +206,28 @@ class TeamBillingService:
         )
         if not success:
             raise RuntimeError("Failed to create team usage event")
+        await self._queue_auto_topup_if_needed(team_id, event_id, updated_account)
         return {"account": updated_account, "credit_event": credit_event, "usage_event": usage_event}
+
+    async def _queue_auto_topup_if_needed(self, team_id: str, event_id: str, account: dict[str, Any] | None) -> None:
+        if not account or _safe_int(account.get("balance_credits")) > 100:
+            return
+        try:
+            rows = await self.directus.get_items(
+                "billing_profiles",
+                params={"filter": {"owner_kind": {"_eq": "team"}, "owner_hash": {"_eq": hash_id(team_id)}}, "limit": 1},
+                no_cache=True, admin_required=True,
+            )
+            if rows and rows[0].get("auto_topup_enabled"):
+                from backend.core.api.app.tasks.celery_config import app
+
+                app.send_task(
+                    "billing.team_auto_topup",
+                    kwargs={"team_id": team_id, "charge_event_id": event_id},
+                    queue="persistence",
+                )
+        except Exception:
+            logger.exception("Failed to enqueue Team auto top-up after credit charge")
 
     async def list_usage(self, team_id: str, actor_user_id: str, member_user_id: str | None = None) -> list[dict[str, Any]]:
         membership = await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_CREDIT_USER_ROLES)

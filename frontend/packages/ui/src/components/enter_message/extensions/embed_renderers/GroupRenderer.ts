@@ -9,6 +9,7 @@ import { groupHandlerRegistry } from "../../../../message_parsing/groupHandlers"
 import {
   resolveEmbed,
   decodeToonContent,
+  isLocalCodeDocPreviewRef,
   type EmbedData,
 } from "../../../../services/embedResolver";
 import { resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
@@ -3661,6 +3662,7 @@ export class GroupRenderer implements EmbedRenderer {
           onFullscreen: handleFullscreen,
           codeContent, // Pass full code content - component handles preview extraction
           needsSignup: needsSignupForLocalPreview(item),
+          presentationOnly: isLocalCodeDocPreviewRef(item.contentRef),
         },
       });
       mountedComponents.set(target, component);
@@ -4322,6 +4324,7 @@ export class GroupRenderer implements EmbedRenderer {
           isMobile: false, // Default to desktop in message view
           onFullscreen: handleFullscreen,
           codeContent, // Pass full code content - component handles preview extraction
+          presentationOnly: isLocalCodeDocPreviewRef(item.contentRef),
         },
       });
 

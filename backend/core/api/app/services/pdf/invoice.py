@@ -225,22 +225,29 @@ class InvoiceTemplateService(BasePDFTemplateService):
         if invoice_data.get('receiver_account_id'):
             receiver_fields.append(f"Account ID: {invoice_data['receiver_account_id']}")
         
-        # For preview/dummy data, show receiver name and address if available
-        # TODO: For future "teams" functionality, we would show full name, address, and VAT for business accounts.
+        # Buyer details are optional for normal small invoices. Escape supplied
+        # text because ReportLab Paragraph interprets a subset of HTML markup.
+        from html import escape
         if invoice_data.get('receiver_name'):
-            receiver_fields.append(invoice_data['receiver_name'])
+            receiver_fields.append(escape(str(invoice_data['receiver_name'])))
             
         if invoice_data.get('receiver_address'):
-            receiver_fields.append(invoice_data['receiver_address'])
+            receiver_fields.append(escape(str(invoice_data['receiver_address'])))
+
+        if invoice_data.get('receiver_address_l2'):
+            receiver_fields.append(escape(str(invoice_data['receiver_address_l2'])))
             
         if invoice_data.get('receiver_city'):
-            receiver_fields.append(invoice_data['receiver_city'])
+            receiver_fields.append(escape(str(invoice_data['receiver_city'])))
+
+        if invoice_data.get('receiver_region'):
+            receiver_fields.append(escape(str(invoice_data['receiver_region'])))
             
         if translated_receiver_country:
-            receiver_fields.append(translated_receiver_country)
+            receiver_fields.append(escape(str(translated_receiver_country)))
             
         if invoice_data.get('receiver_vat'):
-            receiver_fields.append(f"{self.t['invoices_and_credit_notes']['vat']['text']}: {invoice_data['receiver_vat']}")
+            receiver_fields.append(f"{self.t['invoices_and_credit_notes']['vat']['text']}: {escape(str(invoice_data['receiver_vat']))}")
         
         # Join all non-empty fields with line breaks
         receiver_details_str = "<br/>".join(receiver_fields) if receiver_fields else ""

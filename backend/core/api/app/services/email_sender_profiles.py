@@ -40,6 +40,8 @@ NOTIFICATION_EMAIL_TEMPLATES = {
     "referral-reward",
     "reminder-notification",
     "team-member-mention-notification",
+    "team-role-changed-notification",
+    "team-removed-notification",
 }
 
 NEWSLETTER_EMAIL_TEMPLATES = {

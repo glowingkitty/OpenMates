@@ -50,11 +50,12 @@ export async function addOfflineChange(
   return new Promise((resolve, reject) => {
     const store = currentTransaction.objectStore(OFFLINE_CHANGES_STORE_NAME);
     const request = store.put(change);
-    request.onsuccess = () => resolve();
+    request.onsuccess = () => { if (transaction) resolve(); };
     request.onerror = () => reject(request.error);
     if (!transaction) {
       currentTransaction.oncomplete = () => resolve();
       currentTransaction.onerror = () => reject(currentTransaction.error);
+      currentTransaction.onabort = () => reject(currentTransaction.error ?? new Error("Offline change save aborted"));
     }
   });
 }

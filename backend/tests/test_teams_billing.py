@@ -6,10 +6,105 @@ and every deduction records the acting member for reporting.
 """
 
 import pytest
+from fastapi import HTTPException
 
 from backend.core.api.app.services.directus.team_methods import TeamMethods, TeamPermissionError, hash_id
 from backend.core.api.app.services.team_billing_service import TeamBillingService, TeamInsufficientCreditsError
 from backend.tests.test_teams_lifecycle import FakeDirectus, team_payload
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,billing.purchase.provider-routing
+async def test_team_bank_transfer_retries_invoice_without_granting_credits_twice(monkeypatch) -> None:
+    from backend.tests.test_bank_transfer import _fake_confirmed_payment_service, _make_transaction_created_event
+    from backend.core.api.app.routes import payments
+    from backend.core.api.app.services.billing_profile_service import BillingProfileService
+
+    team_id = "team-1"
+    order_id = "bt_team_invoice_retry"
+    reference = "OMT-team01-retry"
+    event = _make_transaction_created_event(amount=100.0, reference=reference, transaction_id="txn-team-retry")
+    order = {
+        "id": "pending-row", "order_id": order_id, "reference": reference,
+        "status": "pending", "amount_expected_cents": 10000,
+        "user_id": "payer-1", "team_id": team_id, "credits_amount": 110000,
+        "order_type": "team_credit_purchase",
+    }
+
+    class Cache:
+        async def get_bank_transfer_by_reference(self, requested_reference):
+            return order if requested_reference == reference else None
+
+        async def update_bank_transfer_status(self, **kwargs):
+            order.update({"status": kwargs["status"], **kwargs.get("extra_fields", {})})
+
+        async def increment_stat(self, *_args):
+            pass
+
+        async def record_credit_purchase(self, *_args):
+            pass
+
+        async def update_liability(self, *_args):
+            pass
+
+        async def increment_json_stat(self, *_args):
+            pass
+
+    class Directus:
+        async def get_items(self, collection, **_kwargs):
+            assert collection == "pending_bank_transfers"
+            return [order]
+
+        async def update_item(self, collection, item_id, changes, **_kwargs):
+            assert (collection, item_id) == ("pending_bank_transfers", order["id"])
+            order.update(changes)
+            return order
+
+    credited = []
+    dispatched = []
+
+    async def add_credits(_service, **kwargs):
+        credited.append(kwargs["event_id"])
+
+    async def dispatch(**kwargs):
+        dispatched.append(kwargs["order_id"])
+        if len(dispatched) == 1:
+            raise RuntimeError("invoice queue temporarily unavailable")
+
+    async def begin_settlement(*_args, **_kwargs):
+        return {"_created": True}
+
+    async def no_op(*_args, **_kwargs):
+        return None
+
+    async def get_context(_service, requested_order_id):
+        assert requested_order_id == order_id
+        return {"owner_kind": "team", "owner_hash": hash_id(team_id)}
+
+    monkeypatch.setattr(TeamBillingService, "add_credits", add_credits)
+    monkeypatch.setattr(BillingProfileService, "get_order_context", get_context)
+    monkeypatch.setattr(payments, "begin_purchase_settlement", begin_settlement)
+    monkeypatch.setattr(payments, "complete_purchase_settlement", no_op)
+    monkeypatch.setattr(payments, "_notify_admin_bank_transfer_processing_error", no_op)
+    monkeypatch.setattr(payments, "_dispatch_purchase_invoice_from_context", dispatch)
+    monkeypatch.setattr(payments.ComplianceService, "log_financial_transaction", lambda **_kwargs: None)
+
+    kwargs = {
+        "event_payload": event, "event_type": "TransactionCreated",
+        "payment_service": _fake_confirmed_payment_service(event),
+        "cache_service": Cache(), "directus_service": Directus(),
+        "encryption_service": object(), "secrets_manager": object(), "tier_service": object(),
+    }
+    with pytest.raises(HTTPException) as failure:
+        await payments._handle_revolut_business_webhook(**kwargs)
+    assert failure.value.status_code == 503
+    assert order["status"] == "completed"
+    assert credited == [f"bank-transfer:{order_id}"]
+
+    replay = await payments._handle_revolut_business_webhook(**kwargs)
+    assert replay == {"status": "duplicate_transaction_ignored"}
+    assert credited == [f"bank-transfer:{order_id}"]
+    assert dispatched == [order_id, order_id]
 
 
 async def _seed_team() -> tuple[FakeDirectus, TeamMethods, TeamBillingService]:
@@ -28,6 +123,7 @@ async def _approve_invited_member(methods: TeamMethods, invite_id: str, user_id:
     assert approved is not None
 
 
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary
 @pytest.mark.anyio
 async def test_team_creation_starts_with_zero_server_balance_and_encrypted_snapshot() -> None:
     directus, _methods, billing = await _seed_team()
@@ -39,6 +135,7 @@ async def test_team_creation_starts_with_zero_server_balance_and_encrypted_snaps
     assert directus.rows["team_credit_accounts"][0]["hashed_team_id"] == hash_id("team-1")
 
 
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary
 @pytest.mark.anyio
 async def test_owner_can_add_team_credits_without_touching_personal_credit_rows() -> None:
     directus, _methods, billing = await _seed_team()
@@ -62,6 +159,7 @@ async def test_owner_can_add_team_credits_without_touching_personal_credit_rows(
     assert "users" not in directus.rows
 
 
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary
 @pytest.mark.anyio
 async def test_member_charge_deducts_team_balance_and_records_usage_attribution() -> None:
     directus, methods, billing = await _seed_team()
@@ -96,6 +194,7 @@ async def test_member_charge_deducts_team_balance_and_records_usage_attribution(
     assert directus.rows["team_credit_accounts"][0]["balance_credits"] == 170
 
 
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary,teams.membership.role-gated
 @pytest.mark.anyio
 async def test_member_cannot_fund_team_credits_directly() -> None:
     _directus, methods, billing = await _seed_team()
@@ -112,6 +211,7 @@ async def test_member_cannot_fund_team_credits_directly() -> None:
         )
 
 
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary
 @pytest.mark.anyio
 async def test_internal_team_charge_can_preserve_existing_encrypted_balance_snapshot() -> None:
     directus, methods, billing = await _seed_team()
@@ -139,6 +239,7 @@ async def test_internal_team_charge_can_preserve_existing_encrypted_balance_snap
     assert result["account"]["encrypted_balance"] == "cipher-balance-100"
 
 
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary
 @pytest.mark.anyio
 async def test_insufficient_team_balance_rejects_charge_without_usage_event() -> None:
     directus, methods, billing = await _seed_team()
@@ -160,6 +261,7 @@ async def test_insufficient_team_balance_rejects_charge_without_usage_event() ->
     assert directus.rows["team_credit_accounts"][0]["balance_credits"] == 0
 
 
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary,teams.membership.role-gated
 @pytest.mark.anyio
 async def test_viewer_cannot_view_or_use_team_billing() -> None:
     _directus, methods, billing = await _seed_team()
@@ -187,6 +289,7 @@ async def test_viewer_cannot_view_or_use_team_billing() -> None:
         )
 
 
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary,teams.membership.role-gated
 @pytest.mark.anyio
 async def test_member_usage_report_is_self_scoped_owner_can_filter_any_member() -> None:
     _directus, methods, billing = await _seed_team()

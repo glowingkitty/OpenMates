@@ -58,8 +58,28 @@ from backend.core.api.app.services.storage_usage_metering import StorageUsageInc
 _TEST_CLIENT_COUNTER = count(1)
 
 
+async def _fake_encrypt(plaintext: str, _key_id: str):
+    return f"cipher:{plaintext}", _key_id
+
+
+async def _fake_team_billing_key():
+    return "vault-team-billing"
+
+
+async def _fake_decrypt(ciphertext: str, _key_id: str):
+    return ciphertext.removeprefix("cipher:")
+
+
+async def _fake_decrypt_email(_ciphertext: str, _email_key: str):
+    return "alice@example.com"
+
+
 def client_ciphertext(label: bytes = b"ciphertext-ok") -> str:
     return base64.b64encode(b"OM" + bytes.fromhex("1a5b3b7c") + (b"0" * 12) + label + (b"t" * 16)).decode("ascii")
+
+
+def invite_kdf_context(invite_id: str = "invite-1") -> dict:
+    return {"v": 1, "kdf": "HKDF-SHA256", "cipher": "AES-256-GCM", "team_id": "team-1", "invite_id": invite_id, "origin": "https://app.example.com"}
 
 
 class FakeTeamService:
@@ -67,6 +87,10 @@ class FakeTeamService:
         self.created_payload = None
         self.updated_payload = None
         self.events: list[str] = []
+
+    async def get_membership(self, team_id: str, user_id: str):
+        assert team_id == "team-1"
+        return {"id": f"membership-{user_id}", "role": "admin"} if user_id == "bob" else {"id": "membership-alice", "role": "owner"}
 
     async def list_teams(self, user_id: str):
         assert user_id == "alice"
@@ -82,6 +106,15 @@ class FakeTeamService:
         if team_id != "team-1":
             return None
         return {"team_id": team_id, "encrypted_name": "cipher-name", "role": "owner"}
+
+    async def list_members(self, team_id: str, user_id: str):
+        assert team_id == "team-1"
+        assert user_id == "alice"
+        return [{"user_id": "alice", "hashed_user_id": "hash-alice", "encrypted_member_profile": client_ciphertext(b"profile"), "role": "owner", "status": "active", "joined_at": 100}]
+
+    async def update_own_member_profile(self, team_id: str, user_id: str, encrypted_member_profile: str):
+        assert team_id == "team-1" and user_id == "alice"
+        return {"user_id": user_id, "encrypted_member_profile": encrypted_member_profile}
 
     async def update_team(self, team_id: str, user_id: str, patch: dict):
         assert team_id == "team-1"
@@ -100,7 +133,14 @@ class FakeTeamService:
         assert user_id == "alice"
         return {"invite_id": payload["invite_id"], "role": payload["role"]}
 
-    async def accept_invite(self, invite_id: str, user_id: str, accepted_at=None):
+    async def get_invite_join_context(self, invite_id: str):
+        return {"invite_id": invite_id, "hashed_team_id": "hash-team", "expires_at": None}
+
+    async def get_security_policy_by_hash(self, team_hash: str):
+        assert team_hash == "hash-team"
+        return {"restrict_email_domains": False, "allowed_email_domains": [], "require_invite_link_approval": True, "require_strong_auth": False}
+
+    async def accept_invite(self, invite_id: str, user_id: str, accepted_at=None, **_kwargs):
         assert invite_id == "invite-1"
         assert user_id == "alice"
         return {"access_request_id": "access-1", "status": "pending_access_approval", "role": "member", "requested_at": accepted_at}
@@ -191,6 +231,13 @@ class FakeTeamBillingService:
 class FakePaymentService:
     is_bank_transfer_available = True
 
+    def __init__(self):
+        self.card_customer_ids = []
+
+    async def create_order(self, **kwargs):
+        self.card_customer_ids.append(kwargs.get("customer_id"))
+        return {"id": f"pi_team_{len(self.card_customer_ids)}", "client_secret": "team-secret", "customer_id": "cus_team"}
+
     def get_bank_transfer_details(self):
         return {
             "iban": "DE02100100109307118603",
@@ -206,6 +253,10 @@ class FakeCacheService:
         self.values = {}
 
     async def set_bank_transfer_order(self, **kwargs):
+        self.cached_orders.append(kwargs)
+        return True
+
+    async def set_order(self, **kwargs):
         self.cached_orders.append(kwargs)
         return True
 
@@ -238,11 +289,19 @@ class FakeDirectusService(SimpleNamespace):
         self.project = self
         self.offlined_source_members = []
         self.bank_transfer_rows = []
+        self.billing_profiles = []
+        self.billing_order_contexts = []
+        self.signup_completed = True
 
     async def mark_team_member_sources_offline(self, team_id: str, member_user_id: str, *, updated_at: int):
         self.team.events.append("offline_member_sources")
         self.offlined_source_members.append((team_id, member_user_id, updated_at))
         return 1
+
+    async def get_user_fields_direct(self, user_id: str, fields: list[str], *, no_cache: bool = False):
+        del user_id, fields, no_cache
+        from backend.core.api.app.services.team_invite_email_service import hash_invite_email
+        return {"hashed_email": hash_invite_email("alice@example.com"), "signup_completed": self.signup_completed, "encrypted_tfa_secret": None}
 
     async def mark_team_sources_offline(self, team_id: str, *, updated_at: int):
         del team_id, updated_at
@@ -250,8 +309,16 @@ class FakeDirectusService(SimpleNamespace):
         return 1
 
     async def get_items(self, collection: str, params: dict, **_kwargs):
-        assert collection == "pending_bank_transfers"
-        rows = list(self.bank_transfer_rows)
+        assert collection in {"pending_bank_transfers", "billing_profiles", "billing_order_contexts"}
+        rows = list({
+            "pending_bank_transfers": self.bank_transfer_rows,
+            "billing_profiles": self.billing_profiles,
+            "billing_order_contexts": self.billing_order_contexts,
+        }[collection])
+        if "filter" in params:
+            for field, condition in params["filter"].items():
+                if isinstance(condition, dict) and "_eq" in condition:
+                    rows = [row for row in rows if row.get(field) == condition["_eq"]]
         for key, expected in params.items():
             if key.startswith("filter[") and "][_eq]" in key:
                 field = key.removeprefix("filter[").split("]", 1)[0]
@@ -260,11 +327,22 @@ class FakeDirectusService(SimpleNamespace):
         return rows if limit == -1 else rows[:limit]
 
     async def create_item(self, collection: str, record: dict, admin_required: bool = False):
-        assert collection == "pending_bank_transfers"
+        assert collection in {"pending_bank_transfers", "billing_profiles", "billing_order_contexts"}
         assert admin_required is True
-        row = {"id": f"pending-{len(self.bank_transfer_rows) + 1}", **record}
-        self.bank_transfer_rows.append(row)
+        rows = {
+            "pending_bank_transfers": self.bank_transfer_rows,
+            "billing_profiles": self.billing_profiles,
+            "billing_order_contexts": self.billing_order_contexts,
+        }[collection]
+        row = {"id": f"{collection}-{len(rows) + 1}", **record}
+        rows.append(row)
         return True, row
+
+    async def update_item(self, collection: str, item_id: str, record: dict, admin_required: bool = False):
+        assert collection == "billing_profiles" and admin_required
+        row = next(row for row in self.billing_profiles if row["id"] == item_id)
+        row.update(record)
+        return row
 
 
 class FakeConfigManager:
@@ -289,16 +367,29 @@ def build_client(
     if team_billing_service:
         app.state.team_billing_service = team_billing_service
     app.state.cache_service = FakeCacheService()
+    app.state.domain_security_service = SimpleNamespace(config_loaded=True, is_domain_restricted=lambda value: (value == "blocked.example", None))
     app.state.payment_service = FakePaymentService()
+    app.state.encryption_service = SimpleNamespace(
+        create_user_key=lambda: _fake_team_billing_key(),
+        encrypt_with_user_key=lambda plaintext, key_id: _fake_encrypt(plaintext, key_id),
+        decrypt_with_user_key=lambda ciphertext, key_id: _fake_decrypt(ciphertext, key_id),
+        decrypt_with_email_key=lambda ciphertext, email_key: _fake_decrypt_email(ciphertext, email_key),
+    )
 
     async def fake_current_user(_request=None, _response=None):
-        return User(id="alice", username="alice", vault_key_id="vault-alice")
+        return User(id="alice", username="alice", vault_key_id="vault-alice", encrypted_email_address="cipher-email", stripe_customer_id="cus_personal")
 
     app.dependency_overrides[teams._current_user] = fake_current_user
     if override_payment_service:
         app.dependency_overrides[teams.get_payment_service] = lambda: app.state.payment_service
     client_index = next(_TEST_CLIENT_COUNTER)
     return TestClient(app, client=(f"teams-test-{client_index}", 50000 + client_index))
+
+
+def name_approval_token(client: TestClient, name: str = "Acme") -> str:
+    response = client.post("/v1/teams/name-approval", json={"name": name})
+    assert response.status_code == 200
+    return response.json()["approval_token"]
 
 
 # contract-test: supporting surface=rest_api assertions=teams.workspace.surface-parity
@@ -322,6 +413,7 @@ def test_teams_routes_expose_lifecycle_contract() -> None:
         json={
             "team_id": "team-1",
             "encrypted_name": client_ciphertext(b"name"),
+            "name_approval_token": name_approval_token(client),
             "encrypted_profile_image_metadata": client_ciphertext(b"profile-image"),
             "encrypted_team_key": client_ciphertext(b"team-key-owner"),
             "encrypted_zero_balance": client_ciphertext(b"zero"),
@@ -334,20 +426,28 @@ def test_teams_routes_expose_lifecycle_contract() -> None:
 
     assert client.get("/v1/teams/team-1").json()["team"]["role"] == "owner"
     updated_name = client_ciphertext(b"updated-name")
-    assert client.patch("/v1/teams/team-1", json={"encrypted_name": updated_name, "updated_at": 110}).json()["team"]["encrypted_name"] == updated_name
+    assert client.patch("/v1/teams/team-1", json={"encrypted_name": updated_name, "name_approval_token": name_approval_token(client, "Renamed Acme"), "updated_at": 110}).json()["team"]["encrypted_name"] == updated_name
     assert client.delete("/v1/teams/team-1").json() == {"success": True}
 
 
 # contract-test: supporting surface=rest_api assertions=teams.invites.fragment-key-web-flow,teams.membership.role-gated,teams.workspace.surface-parity
-def test_teams_routes_expose_invite_and_member_contract() -> None:
+def test_teams_routes_expose_invite_and_member_contract(monkeypatch) -> None:
     service = FakeTeamService()
     client = build_client(service)
+    # CLI signup verifies email before account creation, while the separate
+    # signup-completion flag can lag after accepting the signup gift.
+    client.app.state.directus_service.signup_completed = False
+    notifications = []
+    monkeypatch.setattr(teams, "_queue_team_membership_email", lambda user_id, team_id, change: notifications.append((user_id, team_id, change)))
 
-    invite_response = client.post("/v1/teams/team-1/invites", json={"invite_id": "invite-1", "role": "viewer", "created_at": 100})
+    invite_response = client.post("/v1/teams/team-1/invites", json={"invite_id": "invite-1", "role": "viewer", "encrypted_invite_team_key": client_ciphertext(b"invite"), "invite_key_kdf_context": invite_kdf_context(), "created_at": 100})
     assert invite_response.status_code == 200
     assert invite_response.json()["invite"] == {"invite_id": "invite-1", "role": "viewer"}
 
-    accept_response = client.post("/v1/teams/invites/invite-1/accept", json={"accepted_at": 120})
+    mismatched_accept = client.post("/v1/teams/invites/invite-1/accept", json={"accepted_at": 119, "verified_email": "other@example.com", "encrypted_team_key": client_ciphertext(b"invite-key")})
+    assert mismatched_accept.status_code == 403
+    assert mismatched_accept.json()["detail"] == "TEAM_VERIFIED_EMAIL_REQUIRED"
+    accept_response = client.post("/v1/teams/invites/invite-1/accept", json={"accepted_at": 120, "verified_email": "alice@example.com", "encrypted_team_key": client_ciphertext(b"invite-key")})
     assert accept_response.status_code == 200
     assert accept_response.json()["access_request"]["status"] == "pending_access_approval"
 
@@ -369,6 +469,7 @@ def test_teams_routes_expose_invite_and_member_contract() -> None:
     role_response = client.patch("/v1/teams/team-1/members/bob", json={"role": "viewer", "updated_at": 210})
     assert role_response.status_code == 200
     assert role_response.json()["membership"]["role"] == "viewer"
+    assert notifications == [("bob", "team-1", "removed"), ("bob", "team-1", "role_changed")]
 
 
 # contract-test: direct surface=rest_api assertions=teams.lifecycle.encrypted-profiled,teams.membership.role-gated
@@ -380,6 +481,47 @@ def test_team_delete_offlines_sources_before_durable_team_deletion() -> None:
 
     assert response.status_code == 200
     assert service.events == ["offline_team_sources", "delete_team"]
+
+
+# contract-test: direct surface=rest_api assertions=teams.lifecycle.encrypted-profiled,teams.membership.role-gated
+@pytest.mark.parametrize("action", ["delete", "remove", "demote"])
+def test_team_lifecycle_works_without_cloud_payment_service(monkeypatch, action: str) -> None:
+    from backend.core.api.app.utils import server_mode
+
+    monkeypatch.setattr(server_mode, "is_cloud_billing_enabled", lambda: False)
+    service = FakeTeamService()
+    client = build_client(service, override_payment_service=False)
+    del client.app.state.payment_service
+    if action == "delete":
+        response = client.delete("/v1/teams/team-1")
+        assert "delete_team" in service.events
+    elif action == "remove":
+        response = client.post("/v1/teams/team-1/members/bob/remove", json={"removed_at": 200})
+        assert "deactivate_member" in service.events
+    else:
+        response = client.patch("/v1/teams/team-1/members/bob", json={"role": "viewer"})
+        assert response.json()["membership"]["role"] == "viewer"
+    assert response.status_code == 200
+
+
+# contract-test: direct surface=rest_api assertions=teams.lifecycle.encrypted-profiled
+def test_team_delete_requires_provider_when_subscription_is_active(monkeypatch) -> None:
+    from backend.core.api.app.services.directus.team_methods import hash_id
+    from backend.core.api.app.utils import server_mode
+
+    monkeypatch.setattr(server_mode, "is_cloud_billing_enabled", lambda: False)
+    service = FakeTeamService()
+    client = build_client(service, override_payment_service=False)
+    del client.app.state.payment_service
+    client.app.state.directus_service.billing_profiles.append({
+        "id": "billing-1", "owner_kind": "team", "owner_hash": hash_id("team-1"),
+        "owner_id": "team-1", "monthly_subscription_id": "sub_team",
+        "monthly_subscription_status": "active",
+    })
+    response = client.delete("/v1/teams/team-1")
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Team subscription cancellation unavailable"
+    assert "delete_team" not in service.events
 
 
 # contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.lifecycle.encrypted-profiled
@@ -398,7 +540,7 @@ def test_member_removal_stays_fail_closed_if_cache_revocation_fails() -> None:
 def test_team_permission_error_maps_to_403() -> None:
     client = build_client(DenyingTeamService())
 
-    response = client.patch("/v1/teams/team-1", json={"encrypted_name": client_ciphertext(b"updated-name"), "updated_at": 110})
+    response = client.patch("/v1/teams/team-1", json={"encrypted_name": client_ciphertext(b"updated-name"), "name_approval_token": name_approval_token(client), "updated_at": 110})
 
     assert response.status_code == 403
     assert response.json()["detail"] == "TEAM_PERMISSION_DENIED"
@@ -420,6 +562,9 @@ def test_teams_routes_expose_billing_contract(monkeypatch) -> None:
     assert cached_order["team_id"] == "team-1"
     assert cached_order["hashed_team_id"] == client.app.state.directus_service.bank_transfer_rows[0]["hashed_team_id"]
     assert cached_order["order_type"] == "team_credit_purchase"
+    bank_context = client.app.state.directus_service.billing_order_contexts[0]
+    assert bank_context["payer_email_vault_key_id"] == "vault-team-billing"
+    assert bank_context["encrypted_payer_email"] == "cipher:alice@example.com"
     assert client.get("/v1/teams/team-1/billing/bank-transfer-orders").json()["orders"][0]["credits_amount"] == 50
     assert client.get(f"/v1/teams/team-1/billing/bank-transfer-orders/{order_response.json()['order_id']}").json()["status"] == "pending"
 
@@ -569,6 +714,36 @@ def test_team_bank_transfer_status_is_scoped_to_team_id(monkeypatch) -> None:
     assert cross_team_list.json()["orders"] == []
 
 
+# contract-test: direct surface=rest_api assertions=teams.chat-billing.team-credit-boundary,teams.membership.role-gated
+def test_team_card_order_uses_separate_customer_and_encrypted_team_context(monkeypatch) -> None:
+    from backend.core.api.app.utils import device_fingerprint
+
+    monkeypatch.setattr(teams, "get_price_for_credits", lambda _credits, _currency: 500)
+    monkeypatch.setattr(device_fingerprint, "get_geo_data_from_ip", lambda _ip: {"country_code": "DE"})
+    client = build_client(RoleTeamService("owner"), FakeTeamBillingService())
+    payload = {"credits_amount": 50, "currency": "eur", "email_encryption_key": "email-key", "buyer_address": {
+        "name": "Team Buyer", "street_line_1": "Main 1", "postal_code": "10115", "city": "Berlin", "country": "DE",
+    }}
+
+    first = client.post("/v1/teams/team-1/billing/card-orders", json=payload)
+    second = client.post("/v1/teams/team-1/billing/card-orders", json=payload)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert client.app.state.payment_service.card_customer_ids == [None, "cus_team"]
+    contexts = client.app.state.directus_service.billing_order_contexts
+    assert len(contexts) == 2
+    assert all(row["owner_kind"] == "team" for row in contexts)
+    assert all(row["encrypted_buyer_address"].startswith("cipher:") for row in contexts)
+    assert all(row["address_vault_key_id"] == "vault-team-billing" for row in contexts)
+    assert all(row["payer_email_vault_key_id"] == "vault-team-billing" for row in contexts)
+    assert client.app.state.directus_service.billing_profiles[0]["stripe_customer_id"] == "cus_team"
+
+    member = build_client(RoleTeamService("member"), FakeTeamBillingService())
+    forbidden = member.post("/v1/teams/team-1/billing/card-orders", json=payload)
+    assert forbidden.status_code == 403
+
+
 # contract-test: direct surface=rest_api assertions=teams.lifecycle.encrypted-profiled
 def test_teams_routes_reject_cleartext_encrypted_fields() -> None:
     client = build_client(FakeTeamService())
@@ -578,6 +753,7 @@ def test_teams_routes_reject_cleartext_encrypted_fields() -> None:
         json={
             "team_id": "team-1",
             "encrypted_name": "Plain Team Name",
+            "name_approval_token": name_approval_token(client),
             "encrypted_profile_image_metadata": client_ciphertext(b"profile-image"),
             "encrypted_team_key": client_ciphertext(b"team-key"),
             "created_at": 100,
@@ -586,3 +762,180 @@ def test_teams_routes_reject_cleartext_encrypted_fields() -> None:
 
     assert response.status_code == 422
     assert response.json()["detail"] == {"error": "team_cleartext_rejected", "fields": ["encrypted_name"]}
+
+
+# contract-test: direct surface=rest_api assertions=teams.lifecycle.encrypted-profiled,teams.membership.role-gated
+def test_name_approval_blocks_policy_names_and_requires_single_use_token() -> None:
+    client = build_client(FakeTeamService())
+    assert client.post("/v1/teams/name-approval", json={"name": "Blocked.Example"}).json()["detail"] == "TEAM_NAME_BLOCKED"
+    payload = {
+        "team_id": "team-1", "encrypted_name": client_ciphertext(b"name"),
+        "encrypted_profile_image_metadata": client_ciphertext(b"image"),
+        "encrypted_team_key": client_ciphertext(b"key"), "created_at": 100,
+    }
+    assert client.post("/v1/teams", json=payload).json()["detail"][0]["type"] == "missing"
+    token = name_approval_token(client)
+    assert client.post("/v1/teams", json={**payload, "name_approval_token": token}).status_code == 200
+    assert client.post("/v1/teams", json={**payload, "name_approval_token": token}).json()["detail"] == "TEAM_NAME_APPROVAL_REQUIRED"
+
+
+# contract-test: direct surface=rest_api assertions=teams.invites.fragment-key-web-flow,teams.membership.role-gated
+def test_invite_preview_checks_verified_account_and_intended_email() -> None:
+    from backend.core.api.app.services.team_invite_email_service import hash_invite_email
+
+    class PreviewTeamService(FakeTeamService):
+        async def get_invite_for_recipient(self, invite_id: str, recipient_email_hash: str | None):
+            if invite_id == "invite-1" and recipient_email_hash == hash_invite_email("alice@example.com"):
+                return {"invite_id": invite_id, "hashed_team_id": "hash-team", "encrypted_invite_team_key": client_ciphertext(b"invite-key")}
+            return None
+
+    client = build_client(PreviewTeamService())
+    client.app.state.directus_service.signup_completed = False
+    assert client.post("/v1/teams/invites/invite-1/preview", json={"verified_email": "other@example.com"}).status_code == 403
+    valid = client.post("/v1/teams/invites/invite-1/preview", json={"verified_email": "alice@example.com"})
+    assert valid.status_code == 200
+    assert valid.json()["invite"]["encrypted_invite_team_key"] == client_ciphertext(b"invite-key")
+
+
+# contract-test: direct surface=rest_api assertions=teams.invites.fragment-key-web-flow
+def test_invite_create_rejects_missing_envelope_and_fragment_in_kdf_context() -> None:
+    client = build_client(FakeTeamService())
+    base = {"invite_id": "invite-1", "role": "member", "created_at": 100}
+    assert client.post("/v1/teams/team-1/invites", json=base).json()["detail"] == "TEAM_INVITE_KEY_REQUIRED"
+    response = client.post("/v1/teams/team-1/invites", json={
+        **base, "encrypted_invite_team_key": client_ciphertext(b"invite"),
+        "invite_key_kdf_context": {**invite_kdf_context(), "secret": "must-stay-client-side"},
+    })
+    assert response.status_code == 422
+    assert response.json()["detail"] == "TEAM_INVITE_KDF_INVALID"
+    for privileged_field in ("hashed_recipient_email", "one_time_token_hash", "sent_at", "fragment_secret"):
+        forged = client.post("/v1/teams/team-1/invites", json={
+            **base, "encrypted_invite_team_key": client_ciphertext(b"invite"),
+            "invite_key_kdf_context": invite_kdf_context(), privileged_field: "forged",
+        })
+        assert forged.status_code == 422
+
+
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated
+def test_team_security_settings_require_admin_and_restrict_direct_invite_domains() -> None:
+    class PolicyTeamService(FakeTeamService):
+        role = "owner"
+
+        async def get_team(self, team_id: str, user_id: str):
+            team = await super().get_team(team_id, user_id)
+            return {**team, "role": self.role, "security_policy": {
+                "restrict_email_domains": True, "allowed_email_domains": ["example.com"],
+                "require_invite_link_approval": True, "require_strong_auth": False,
+            }}
+
+        async def update_security_policy(self, team_id: str, user_id: str, policy: dict):
+            if self.role != "owner":
+                raise teams.TeamPermissionError("denied")
+            return policy
+
+    service = PolicyTeamService()
+    client = build_client(service)
+    blocked = client.post("/v1/teams/team-1/invites", json={"invite_id": "invite-1", "recipient_email": "bob@other.example", "encrypted_invite_team_key": client_ciphertext(b"invite"), "invite_key_kdf_context": invite_kdf_context(), "created_at": 100})
+    assert blocked.status_code == 400
+    assert blocked.json()["detail"] == "TEAM_EMAIL_DOMAIN_NOT_ALLOWED"
+    updated = client.patch("/v1/teams/team-1/security", json={"require_strong_auth": True})
+    assert updated.status_code == 200
+    assert updated.json()["security_policy"] == {"require_strong_auth": True}
+    service.role = "viewer"
+    assert client.patch("/v1/teams/team-1/security", json={"require_strong_auth": True}).status_code == 403
+
+
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.lifecycle.encrypted-profiled
+def test_member_list_detail_and_self_profile_keep_display_snapshot_encrypted() -> None:
+    client = build_client(FakeTeamService())
+    members = client.get("/v1/teams/team-1/members")
+    assert members.status_code == 200
+    assert members.headers["cache-control"] == "private, no-store"
+    member = members.json()["members"][0]
+    assert member["encrypted_member_profile"] == client_ciphertext(b"profile")
+    assert member["profile_image_url"] == "/v1/teams/team-1/members/alice/profile-image"
+    assert "display_name" not in member
+    detail = client.get("/v1/teams/team-1/members/alice")
+    assert detail.json()["member"] == member
+    assert client.get("/v1/teams/team-1/members/bob").status_code == 404
+    new_snapshot = client_ciphertext(b"new-profile")
+    update = client.patch("/v1/teams/team-1/members/me/profile", json={"encrypted_member_profile": new_snapshot})
+    assert update.json()["member"]["encrypted_member_profile"] == new_snapshot
+    assert client.patch("/v1/teams/team-1/members/me/profile", json={"encrypted_member_profile": "plain"}).status_code == 422
+
+
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated
+def test_team_member_avatar_proxy_refuses_nonmember_target() -> None:
+    class AvatarTeamService(FakeTeamService):
+        async def get_membership(self, team_id: str, user_id: str):
+            assert team_id == "team-1"
+            return None if user_id == "bob" else {"role": "owner"}
+
+    client = build_client(AvatarTeamService())
+    client.app.state.s3_service = object()
+    response = client.get("/v1/teams/team-1/members/bob/profile-image")
+    assert response.status_code == 404
+
+
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated
+def test_team_member_avatar_proxy_scopes_and_disables_plaintext_cache(monkeypatch) -> None:
+    from fastapi.responses import StreamingResponse
+
+    class AvatarTeamService(FakeTeamService):
+        async def get_membership(self, team_id: str, user_id: str):
+            assert team_id == "team-1" and user_id == "bob"
+            return {"role": "member"}
+
+    async def fake_profile_image(**kwargs):
+        assert kwargs["user_id"] == "bob"
+        return StreamingResponse(iter([b"jpeg-bytes"]), media_type="image/jpeg", headers={"Cache-Control": "private, max-age=300"})
+
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.profile_api", SimpleNamespace(
+        get_profile_image=SimpleNamespace(__wrapped__=fake_profile_image),
+    ))
+    client = build_client(AvatarTeamService())
+    client.app.state.s3_service = object()
+    response = client.get("/v1/teams/team-1/members/bob/profile-image")
+    assert response.status_code == 200
+    assert response.content == b"jpeg-bytes"
+    assert response.headers["cache-control"] == "private, no-store"
+
+
+# contract-test: supporting surface=rest_api assertions=teams.billing.context-parity,teams.membership.role-gated
+@pytest.mark.parametrize("action", ["delete", "remove", "demote"])
+def test_recurring_team_billing_stops_before_team_or_payer_offboarding(action: str) -> None:
+    from backend.core.api.app.services.directus.team_methods import hash_id
+
+    service = FakeTeamService()
+    client = build_client(service)
+    canceled: list[str] = []
+
+    async def cancel_subscription(subscription_id: str):
+        canceled.append(subscription_id)
+        return {"status": "canceled"}
+
+    client.app.state.payment_service._stripe_provider = SimpleNamespace(cancel_subscription=cancel_subscription)
+    directus = client.app.state.directus_service
+    directus.billing_profiles.append({
+        "id": "billing-1", "owner_kind": "team", "owner_hash": hash_id("team-1"), "owner_id": "team-1",
+        "monthly_subscription_id": "sub_team", "monthly_subscription_status": "active",
+        "monthly_payer_user_id": "bob", "auto_topup_enabled": True,
+        "auto_topup_payer_user_id": "bob", "encrypted_auto_topup_payment_method": "cipher:pm",
+        "encrypted_auto_topup_email": "cipher:email",
+    })
+
+    if action == "delete":
+        response = client.delete("/v1/teams/team-1")
+        assert service.events[-1] == "delete_team"
+    elif action == "remove":
+        response = client.post("/v1/teams/team-1/members/bob/remove", json={"removed_at": 200})
+        assert "deactivate_member" in service.events
+    else:
+        response = client.patch("/v1/teams/team-1/members/bob", json={"role": "viewer"})
+    assert response.status_code == 200
+    assert canceled == ["sub_team"]
+    profile = directus.billing_profiles[0]
+    assert profile["monthly_subscription_id"] == "sub_team"
+    assert profile["monthly_subscription_status"] == "canceled"
+    assert profile["auto_topup_enabled"] is False
+    assert profile["encrypted_auto_topup_payment_method"] is None

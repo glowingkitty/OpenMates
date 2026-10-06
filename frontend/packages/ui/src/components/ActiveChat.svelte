@@ -165,7 +165,8 @@ import { storageArchiveFetch } from "../config/api";
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
-    import { activeTeamId, TEAM_CONTEXT_CHANGED_EVENT } from '../stores/teamStore';
+    import { activeTeam, activeTeamId, TEAM_CONTEXT_CHANGED_EVENT } from '../stores/teamStore';
+    import TeamAvatar from './teams/TeamAvatar.svelte';
     import {
         getInterestSurfaceIds,
         rankDailyInspirationsByInterests,
@@ -13970,6 +13971,9 @@ import { storageArchiveFetch } from "../config/api";
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
 								<div class="welcome-text">
 									<div class="guest-workspace-icon" data-testid="guest-workspace-icon" data-surface={!$authStore.isAuthenticated ? activeGuestSurface : 'chats'} aria-hidden="true"></div>
+									{#if $authStore.isAuthenticated && $activeTeam}
+										<span class="chat-welcome-team-avatar" data-testid="chats-workspace-team-avatar"><TeamAvatar team={$activeTeam} size={46} /></span>
+									{/if}
 									{#if $authStore.isAuthenticated}
                                         <h2>
                                             {#each welcomeHeadingParts as part, index}
@@ -15785,6 +15789,17 @@ import { storageArchiveFetch } from "../config/api";
 	.welcome-text {
 		position: relative;
 		isolation: isolate;
+	}
+
+	.chat-welcome-team-avatar {
+		position: absolute;
+		left: calc(50% + 40px);
+		top: calc(50% - 54px);
+		z-index: 1;
+		display: inline-flex;
+		border: 2px solid var(--color-grey-0);
+		border-radius: var(--radius-full);
+		pointer-events: none;
 	}
 
 	.welcome-text h2 {

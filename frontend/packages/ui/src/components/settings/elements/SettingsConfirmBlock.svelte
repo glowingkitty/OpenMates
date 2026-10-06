@@ -56,7 +56,7 @@
         aria-label={confirmLabel}
         tabindex="0"
     >
-        <Toggle {checked} ariaLabel={confirmLabel} />
+        <Toggle {checked} presentationOnly />
         <span class="toggle-label">{confirmLabel}</span>
     </div>
 </div>

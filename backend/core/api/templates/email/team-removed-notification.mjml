@@ -1,0 +1,17 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ t.email.team_removed_notification.subject.text }}</mj-title>
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="light-mode">
+    <mj-include path="./components/header.mjml" />
+    <mj-wrapper css-class="content-box" padding="20px">
+      <mj-section><mj-column>
+        <mj-text font-size="24px">{{ t.email.team_removed_notification.header.text }}</mj-text>
+        <mj-text>{{ t.email.team_removed_notification.description.text }}</mj-text>
+        <mj-button href="{{ open_url }}" background-color="#6364FF" color="white">{{ t.email.team_membership_notification.open_button.text }}</mj-button>
+      </mj-column></mj-section>
+    </mj-wrapper>
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

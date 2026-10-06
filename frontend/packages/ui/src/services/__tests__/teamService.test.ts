@@ -7,6 +7,9 @@
 // Spec: docs/specs/teams-v1/spec.yml
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { webcrypto } from 'node:crypto';
+
+Object.defineProperty(globalThis, 'crypto', { configurable: true, value: webcrypto });
 
 const cryptoMocks = vi.hoisted(() => ({
 	decryptChatKeyWithMasterKey: vi.fn(async () => new Uint8Array([1, 2, 3, 4])),
@@ -23,14 +26,15 @@ vi.mock('../../config/api', () => ({
 }));
 
 vi.mock('../cryptoService', () => cryptoMocks);
+vi.mock('../uploadPrivacy', () => ({ prepareFileForUpload: vi.fn(async (file: File) => file) }));
 vi.mock('../../stores/userProfile', async () => {
 	const { writable } = await import('svelte/store');
-	return { userProfile: writable({ user_id: 'team-cache-test-user' }) };
+	return { userProfile: writable({ user_id: 'team-cache-test-user', username: 'Mira' }) };
 });
 
-import { createTeam, createTeamEmailInvite, getTeam, getTeamKey, listTeams, loadTeamBilling, TeamRequestCancelledError, type TeamViewModel } from '../teamService';
+import { createTeam, createTeamEmailInvite, deleteTeam, getTeam, getTeamKey, listTeams, loadTeamBilling, loadTeamMembers, TeamRequestCancelledError, type TeamViewModel } from '../teamService';
 import { invalidateWorkspaceCaches } from '../workspaceCacheLifecycle';
-import { TEAMS_UPDATED_EVENT } from '../../stores/teamStore';
+import { getActiveTeamContextSnapshot, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../../stores/teamStore';
 
 describe('teamService', () => {
 	beforeEach(() => {
@@ -64,6 +68,27 @@ describe('teamService', () => {
 		window.dispatchEvent(new CustomEvent(TEAMS_UPDATED_EVENT));
 		await listTeams();
 		expect(fetchMock).toHaveBeenCalledTimes(2);
+	});
+
+	// contract-test: direct surface=gui.web assertions=teams.lifecycle.encrypted-profiled,teams.context.full-switch-local
+	it('deletes an owned team and drops its active context and decrypted key', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+			const path = new URL(String(input)).pathname;
+			if (path === '/v1/teams' && !init?.method) return new Response(JSON.stringify({ teams: [{
+				team_id: 'team-1', encrypted_team_key: 'wrapped', encrypted_name: 'enc:Studio', role: 'owner'
+			}] }), { status: 200 });
+			if (path === '/v1/teams/team-1' && init?.method === 'DELETE') return new Response(JSON.stringify({ success: true }), { status: 200 });
+			throw new Error(`Unexpected request ${path}`);
+		});
+		const [team] = await listTeams();
+		setActiveTeamContext(team);
+		await deleteTeam(team.team_id);
+		expect(getActiveTeamContextSnapshot().teamId).toBeNull();
+		expect(fetchMock).toHaveBeenCalledWith('https://api.test/v1/teams/team-1', expect.objectContaining({
+			method: 'DELETE', credentials: 'include'
+		}));
+		await listTeams();
+		expect(fetchMock).toHaveBeenCalledTimes(3);
 	});
 
 	// contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
@@ -104,6 +129,7 @@ describe('teamService', () => {
 	// contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
 	it('decrypts Team billing and sends an encrypted invite for the active account', async () => {
 		let invitePayload: Record<string, unknown> | null = null;
+		cryptoMocks.decryptChatKeyWithMasterKey.mockResolvedValueOnce(new Uint8Array(32));
 		vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
 			const url = String(input);
 			if (url === 'https://api.test/v1/teams/team-1') {
@@ -131,16 +157,23 @@ describe('teamService', () => {
 			recipient_email: 'member@example.invalid',
 			encrypted_recipient_hint: 'enc:{"recipient_email":"member@example.invalid","role":"member"}'
 		});
+		expect(invitePayload).toHaveProperty('encrypted_invite_team_key');
+		expect(invitePayload).toHaveProperty('invite_key_kdf_context');
+		expect(JSON.stringify(invitePayload)).not.toContain(invite.inviteUrl?.split('#key=')[1]);
+		expect(invite.inviteUrl).toContain('#key=');
 	});
 
 	// contract-test: direct surface=gui.web assertions=teams.lifecycle.encrypted-profiled
 	it('keeps the submitted encrypted fields when create returns a sparse team row', async () => {
-		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-			new Response(JSON.stringify({ team: { team_id: 'team-server-id', encrypted_team_key: 'server-wrapper', role: 'owner' } }), {
-				status: 200,
-				headers: { 'Content-Type': 'application/json' }
-			})
-		);
+		let createPayload: Record<string, unknown> = {};
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+			if (String(input).endsWith('/name-approval')) {
+				expect(JSON.parse(String(init?.body))).toEqual({ name: 'launch team' });
+				return new Response(JSON.stringify({ approval_token: 'short-lived-token' }), { status: 200 });
+			}
+			createPayload = JSON.parse(String(init?.body));
+			return new Response(JSON.stringify({ team: { team_id: 'team-server-id', encrypted_team_key: 'server-wrapper', role: 'owner' } }), { status: 200 });
+		});
 
 		const team = await createTeam({
 			name: 'Launch team',
@@ -162,5 +195,25 @@ describe('teamService', () => {
 		expect(team.encrypted.encrypted_team_key).toBe('wrapped-team-key');
 		expect(team.encrypted.encrypted_name).toBe('enc:Launch team');
 		expect(team.encrypted.encrypted_description).toBe('enc:Encrypted browser team');
+		expect(createPayload.name_approval_token).toBe('short-lived-token');
+		expect(createPayload.encrypted_member_profile).toBe('enc:{"display_name":"Mira","avatar":{"mode":"generated","icon_name":"mate","background_color":"#4d73ff"}}');
+	});
+
+	// contract-test: direct surface=gui.web assertions=teams.membership.role-gated
+	it('decrypts team-scoped member names without relying on server plaintext profiles', async () => {
+		vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+			const path = new URL(String(input)).pathname;
+			if (path === '/v1/teams/team-1') return new Response(JSON.stringify({ team: {
+				team_id: 'team-1', encrypted_team_key: 'wrapped', encrypted_name: 'enc:Studio', role: 'owner'
+			} }), { status: 200 });
+			if (path === '/v1/teams/team-1/members') return new Response(JSON.stringify({ members: [{
+				user_id: 'member-1', role: 'member', status: 'active',
+				encrypted_member_profile: 'enc:{"display_name":"Alex","avatar":{"mode":"generated","icon_name":"mate","background_color":"#4d73ff"}}'
+			}] }), { status: 200 });
+			throw new Error(`Unexpected request ${path}`);
+		});
+		const members = await loadTeamMembers('team-1');
+		expect(members[0].profile?.display_name).toBe('Alex');
+		expect(members[0]).not.toHaveProperty('username');
 	});
 });

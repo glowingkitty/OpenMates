@@ -26,6 +26,7 @@ import { fetchWithPresignedUrl } from "../../../services/presignedUrlService";
 import {
   decryptMediaPayload,
 } from "../../../services/encryption/mediaEncryption";
+import { registerWorkspaceCacheClear } from "../../../services/workspaceCacheLifecycle";
 
 /**
  * In-memory cache: maps S3 key -> blob URL.
@@ -49,6 +50,7 @@ const REVOKE_GRACE_MS = 30_000;
 const MAX_CACHED_IMAGE_BYTES = 64 * 1024 * 1024;
 let cachedBytes = 0;
 let trimTimer: ReturnType<typeof setTimeout> | null = null;
+let cacheGeneration = 0;
 
 function evictImage(s3Key: string, entry: CachedImage): void {
   if (imageCache.get(s3Key) !== entry || entry.refCount > 0) return;
@@ -57,6 +59,22 @@ function evictImage(s3Key: string, entry: CachedImage): void {
   imageCache.delete(s3Key);
   cachedBytes -= entry.blob.size;
 }
+
+/** Revoke plaintext URLs at an account or workspace boundary. */
+export function clearCachedImages(): void {
+  cacheGeneration++;
+  if (trimTimer) clearTimeout(trimTimer);
+  trimTimer = null;
+  pendingImages.clear();
+  for (const entry of imageCache.values()) {
+    if (entry.revokeTimer) clearTimeout(entry.revokeTimer);
+    URL.revokeObjectURL(entry.blobUrl);
+  }
+  imageCache.clear();
+  cachedBytes = 0;
+}
+
+registerWorkspaceCacheClear(clearCachedImages);
 
 function trimUnusedImages(): void {
   trimTimer = null;
@@ -151,6 +169,7 @@ export async function fetchAndDecryptImage(
   const pending = pendingImages.get(s3Key);
   if (pending) return pending;
 
+  const generation = cacheGeneration;
   const request = (async () => {
     const encryptedData = await fetchWithPresignedUrl(s3Key);
     const decryptedData = await decryptMediaPayload({
@@ -159,6 +178,9 @@ export async function fetchAndDecryptImage(
       variant,
       legacyNonceBase64: nonceBase64,
     });
+    if (generation !== cacheGeneration) {
+      throw new DOMException("Image context changed", "AbortError");
+    }
     const mimeType = s3Key.endsWith(".png") ? "image/png" : "image/webp";
     const blob = new Blob([decryptedData], { type: mimeType });
     const entry: CachedImage = {
@@ -177,6 +199,6 @@ export async function fetchAndDecryptImage(
   try {
     return await request;
   } finally {
-    pendingImages.delete(s3Key);
+    if (pendingImages.get(s3Key) === request) pendingImages.delete(s3Key);
   }
 }

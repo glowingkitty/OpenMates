@@ -12,7 +12,7 @@
     import type { Snippet } from 'svelte';
 
     /** Button visual variant */
-    type ButtonVariant = 'primary' | 'danger' | 'secondary' | 'ghost';
+    type ButtonVariant = 'primary' | 'danger' | 'secondary' | 'ghost' | 'cta';
 
     /** Button size */
     type ButtonSize = 'sm' | 'md';
@@ -23,6 +23,7 @@
         loading = false,
         fullWidth = false,
         size = 'md' as ButtonSize,
+        iconOnly = false,
         ariaLabel = '',
         dataTestid = '',
         onClick = undefined,
@@ -33,6 +34,7 @@
         loading?: boolean;
         fullWidth?: boolean;
         size?: ButtonSize;
+        iconOnly?: boolean;
         ariaLabel?: string;
         dataTestid?: string;
         onClick?: (() => void) | undefined;
@@ -48,13 +50,14 @@
     }
 </script>
 
-<div class="settings-button-wrapper">
+<div class="settings-button-wrapper" class:icon-only={iconOnly}>
     <button
         type="button"
         class="settings-button {variant} {size}"
         class:full-width={fullWidth}
         class:loading
-        {disabled}
+        class:icon-only={iconOnly}
+        disabled={isDisabled}
         aria-label={ariaLabel || undefined}
         aria-busy={loading || undefined}
         data-testid={dataTestid || undefined}
@@ -75,6 +78,11 @@
     }
 
     .settings-button {
+        min-width: 0;
+        height: auto;
+        margin: 0;
+        filter: none;
+        scale: 1;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -92,6 +100,9 @@
             transform 80ms var(--easing-default);
         box-sizing: border-box;
     }
+
+    .settings-button-wrapper.icon-only { padding: 0; }
+    .settings-button.icon-only { width: 32px; height: 32px; padding: 0; border-radius: 50%; }
 
     /* Pressed state (applies to all variants) — button pushes in:
        scale down + tighter shadow so the click is visually confirmed.
@@ -136,6 +147,24 @@
 
     .settings-button.primary:hover:not(:disabled) {
         box-shadow: 0 0.375rem 0.5rem rgba(0, 0, 0, 0.15);
+    }
+
+    .settings-button.cta {
+        width: 100%;
+        min-height: 2.625rem;
+        padding: 0.625rem 1.5rem;
+        border-radius: 0.9375rem;
+        background: var(--color-button-primary);
+        color: var(--color-font-button);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .settings-button.cta:hover:not(:disabled) {
+        background: var(--color-button-primary-hover);
+    }
+
+    .settings-button.cta:active:not(:disabled) {
+        background: var(--color-button-primary-pressed);
     }
 
     .settings-button.danger {

@@ -12,6 +12,9 @@ Invoices Settings - View and download past invoices
     import { webSocketService } from '../../../services/websocketService';
     import { pendingInvoiceStore } from '../../../stores/pendingInvoiceStore';
     import { replaceState } from '$app/navigation';
+    import { billingPath, personalBillingContext, type BillingContext } from '../../../services/billingContext';
+
+    let { context = personalBillingContext }: { context?: BillingContext } = $props();
 
     // Invoice interface
     interface Invoice {
@@ -180,7 +183,7 @@ Invoices Settings - View and download past invoices
         errorMessage = null;
 
         try {
-            const endpoint = getApiEndpoint(apiEndpoints.payments.getInvoices);
+            const endpoint = billingPath(context, 'invoices');
             console.log('Fetching invoices from:', endpoint);
             
             const response = await fetch(endpoint, {
@@ -321,6 +324,7 @@ Invoices Settings - View and download past invoices
 
     // Request refund for invoice
     async function requestRefund(invoice: Invoice) {
+        if (context.kind === 'team') return;
         // Prevent multiple refund requests for the same invoice
         if (refundingInvoiceId === invoice.id) {
             return;
@@ -414,9 +418,9 @@ Invoices Settings - View and download past invoices
         try {
             notificationStore.info($text('settings.billing.invoices_downloading'));
 
-            const downloadUrl = getApiEndpoint(
-                apiEndpoints.payments.downloadInvoice.replace('{id}', invoice.id)
-            );
+            const downloadUrl = context.kind === 'team'
+                ? `${billingPath(context, 'invoices')}/${encodeURIComponent(invoice.id)}/download`
+                : getApiEndpoint(apiEndpoints.payments.downloadInvoice.replace('{id}', invoice.id));
 
             const response = await fetch(downloadUrl, {
                 credentials: 'include'
@@ -558,6 +562,7 @@ Invoices Settings - View and download past invoices
     // Handle deep link refund - format: #settings/billing/invoices/{invoice_id}/refund
     // Check URL for refund deep link when component mounts or when invoices are loaded
     $effect(() => {
+        if (context.kind !== 'personal') return;
         // Only process refund deep link if invoices are loaded
         if (invoices.length > 0 && !isLoading) {
             // Check for refund deep link in URL hash (e.g., #settings/billing/invoices/{invoice_id}/refund)
@@ -626,25 +631,25 @@ Invoices Settings - View and download past invoices
     onMount(() => {
         // Check if a payment just completed — if so, add an optimistic pending invoice
         // so the user sees it immediately while the Celery task generates the real one.
-        const unsubscribe = pendingInvoiceStore.subscribe((pending) => {
+        const unsubscribe = context.kind === 'personal' ? pendingInvoiceStore.subscribe((pending) => {
             if (pending) {
                 addPendingInvoice(pending.orderId, pending.creditsAmount, pending.amountSmallestUnit, pending.currency, pending.isGiftCard);
                 pendingInvoiceStore.set(null);  // Consume — only process once
             }
-        });
+        }) : () => {};
         unsubscribe();  // Synchronous read — unsubscribe immediately
 
         fetchInvoices();
         
         // Listen for credit note ready events
-        webSocketService.on('credit_note_ready', handleCreditNoteReady);
+        if (context.kind === 'personal') webSocketService.on('credit_note_ready', handleCreditNoteReady);
         // Listen for payment completed — auto-refresh invoices when a purchase finishes
         webSocketService.on('payment_completed', handlePaymentCompleted);
     });
 
     onDestroy(() => {
         // Clean up websocket listeners
-        webSocketService.off('credit_note_ready', handleCreditNoteReady);
+        if (context.kind === 'personal') webSocketService.off('credit_note_ready', handleCreditNoteReady);
         webSocketService.off('payment_completed', handlePaymentCompleted);
         stopPendingInvoiceRefresh();
     });
@@ -752,7 +757,7 @@ Invoices Settings - View and download past invoices
                             <span class="invoice-status-note" data-testid="invoice-bank-transfer-pending">
                                 {$text('settings.billing.bank_transfer_status_pending')}
                             </span>
-                        {:else if isInvoiceRefunded(invoice)}
+                        {:else if context.kind === 'personal' && isInvoiceRefunded(invoice)}
                             <!-- When refunded, show Download Invoice and Download Credit Note buttons -->
                             <button
                                 class="download-button"
@@ -809,7 +814,7 @@ Invoices Settings - View and download past invoices
                                     <span>{invoiceDownloadLabel(invoice)}</span>
                                 </button>
                             {/if}
-                            {#if isInvoiceEligibleForRefund(invoice)}
+                            {#if context.kind === 'personal' && isInvoiceEligibleForRefund(invoice)}
                                 <button
                                     class="refund-button"
                                     class:disabled={refundingInvoiceId === invoice.id}
@@ -938,7 +943,7 @@ Invoices Settings - View and download past invoices
     }
 
     .invoice-item:hover {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         border-color: var(--color-grey-30);
     }
 

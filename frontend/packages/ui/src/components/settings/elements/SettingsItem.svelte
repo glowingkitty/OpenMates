@@ -9,6 +9,7 @@
     Preview: /dev/preview/settings
 -->
 <script lang="ts">
+    import type { Snippet } from 'svelte';
     import Toggle from '../../Toggle.svelte';
     import type { AiCapabilityLevel } from '../../../utils/aiModelDisplay';
     import SettingsCapabilityScale from './SettingsCapabilityScale.svelte';
@@ -18,6 +19,7 @@
         icon = '',
         iconSrc = '',
         iconAlt = '',
+        leftContent = undefined,
         title,
         subtitleTop = '',
         subtitleBottom = '',
@@ -34,6 +36,7 @@
         icon?: string;
         iconSrc?: string;
         iconAlt?: string;
+        leftContent?: Snippet | undefined;
         title: string;
         subtitleTop?: string;
         subtitleBottom?: string;
@@ -78,7 +81,9 @@
 </script>
 
 {#snippet itemContent()}
-    {#if capability && capabilityLabel}
+    {#if leftContent}
+        {@render leftContent()}
+    {:else if capability && capabilityLabel}
         <SettingsCapabilityScale level={capability} label={capabilityLabel} compact={true} />
     {:else if iconSrc}
         <span class="item-image"><img src={iconSrc} alt={iconAlt} /></span>

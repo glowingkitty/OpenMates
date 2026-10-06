@@ -10,6 +10,7 @@
 // - Message status priority handling
 
 import type { Message } from "../../types/chat";
+import { writeWithQuotaRetry } from "./quotaRecovery";
 import { chatKeyManager } from "../encryption/ChatKeyManager";
 import { invalidateRecentChatWindow, invalidateRecentChatWindowForMessage } from "../recentChatWindowCache";
 
@@ -35,6 +36,13 @@ const DEFAULT_MESSAGE_WINDOW_LIMIT = 30;
 const MAX_MESSAGE_WINDOW_LIMIT = 100;
 const MESSAGE_WINDOW_PAGE_CACHE_GENERATION = 1;
 const DEFAULT_MESSAGE_WINDOW_PAGE_CACHE_LIMIT = 12;
+const DEFAULT_OFFLINE_CACHE_BUDGET_BYTES = 100 * 1024 * 1024;
+const MAX_BUDGET_SCAN_PAGES = 4096;
+const MAX_BUDGET_EVICTIONS = 32;
+let configuredOfflineCacheBudgetBytes = DEFAULT_OFFLINE_CACHE_BUDGET_BYTES;
+let lastBudgetCheckAt = 0;
+let budgetTrim: Promise<number> | null = null;
+let budgetTrimForced = false;
 
 const UNSAFE_TO_EVICT_MESSAGE_STATUSES = new Set<Message["status"]>([
   "sending",
@@ -220,9 +228,48 @@ function buildMessageWindowPageId(
   ].join("|");
 }
 
-function isSafeToEvictMessage(message: Message | undefined): boolean {
+export function isSafeToEvictMessage(message: Message | undefined): boolean {
   if (!message) return false;
-  return !UNSAFE_TO_EVICT_MESSAGE_STATUSES.has(message.status);
+  const raw = message as Message & Record<string, unknown>;
+  return message.status === "synced" &&
+    !UNSAFE_TO_EVICT_MESSAGE_STATUSES.has(message.status) &&
+    !raw.pending_turn_preflight_v1 &&
+    !raw.pending_encrypted_turn_preflight_v1 &&
+    !raw.pending_encrypted_embed_bundle_v1;
+}
+
+/** Configure the whole-origin cache target; protected data may exceed it. */
+export function configureOfflineCacheBudget(bytes: number): void {
+  if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error("Invalid offline cache budget");
+  configuredOfflineCacheBudgetBytes = bytes;
+  lastBudgetCheckAt = 0;
+}
+
+export function offlineCacheTargetBytes(quota?: number): number {
+  return quota && Number.isFinite(quota) && quota > 0
+    ? Math.min(configuredOfflineCacheBudgetBytes, Math.floor(quota / 2))
+    : configuredOfflineCacheBudgetBytes;
+}
+
+async function deleteConfirmedMessage(
+  dbInstance: ChatDatabaseInstance,
+  messageId: string,
+): Promise<boolean> {
+  const transaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readwrite");
+  return new Promise((resolve, reject) => {
+    const store = transaction.objectStore(MESSAGES_STORE_NAME);
+    let deleted = false;
+    const request = store.get(messageId);
+    request.onsuccess = () => {
+      if (!isSafeToEvictMessage(request.result as Message | undefined)) return;
+      store.delete(messageId);
+      deleted = true;
+    };
+    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => resolve(deleted);
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error ?? new Error("Cache eviction aborted"));
+  });
 }
 
 function pageRecordsForChatRange(chatId: string): IDBKeyRange {
@@ -712,6 +759,9 @@ export async function recordMessageWindowPage(
     "readwrite",
   );
   await requestToPromise(writeTransaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).put(record));
+  void enforceOfflineCacheBudget(dbInstance).catch((error) => {
+    console.warn("[ChatDatabase] Offline cache budget check failed:", error);
+  });
   return record;
 }
 
@@ -752,7 +802,23 @@ export async function evictStaleMessageWindowPages(
     .filter((page) => page.page_kind === "normal" && !protectedPageIds.has(page.id))
     .sort((a, b) => a.last_accessed_at - b.last_accessed_at);
   const deleteCount = Math.max(0, pages.filter((page) => page.page_kind === "normal").length - maxPagesPerChat);
-  const pagesToDelete = normalPages.slice(0, deleteCount);
+  const pagesToDelete: MessageWindowPageCacheRecord[] = [];
+  for (const page of normalPages) {
+    if (pagesToDelete.length >= deleteCount) break;
+    if (page.message_ids.some((id) => protectedMessageIds.has(id))) continue;
+    let confirmed = true;
+    for (const messageId of page.message_ids) {
+      const readTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
+      const message = await requestToPromise<Message | undefined>(
+        readTransaction.objectStore(MESSAGES_STORE_NAME).get(messageId),
+      );
+      if (!isSafeToEvictMessage(message)) {
+        confirmed = false;
+        break;
+      }
+    }
+    if (confirmed) pagesToDelete.push(page);
+  }
   if (pagesToDelete.length === 0) {
     return { deletedPageIds: [], deletedMessageIds: [] };
   }
@@ -777,19 +843,65 @@ export async function evictStaleMessageWindowPages(
 
     for (const messageId of page.message_ids) {
       if (retainedMessageIds.has(messageId) || protectedMessageIds.has(messageId)) continue;
-      const readTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
-      const message = await requestToPromise<Message | undefined>(
-        readTransaction.objectStore(MESSAGES_STORE_NAME).get(messageId),
-      );
-      if (!isSafeToEvictMessage(message)) continue;
-      const deleteTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readwrite");
-      await requestToPromise(deleteTransaction.objectStore(MESSAGES_STORE_NAME).delete(messageId));
-      deletedMessageIds.push(messageId);
+      if (await deleteConfirmedMessage(dbInstance, messageId)) deletedMessageIds.push(messageId);
     }
   }
 
   if (deletedMessageIds.length > 0) invalidateRecentChatWindow(chat_id);
   return { deletedPageIds, deletedMessageIds };
+}
+
+/**
+ * Trim only confirmed, reproducible message pages when whole-origin usage is
+ * over its target. The scan and deletion count are bounded so a large account
+ * cannot stall an ordinary chat save. `force` is used once after quota failure.
+ */
+export async function enforceOfflineCacheBudget(
+  dbInstance: ChatDatabaseInstance,
+  force = false,
+): Promise<number> {
+  if (!force && Date.now() - lastBudgetCheckAt < 30_000) return 0;
+  if (budgetTrim) {
+    if (!force || budgetTrimForced) return budgetTrim;
+    await budgetTrim.catch(() => 0);
+    return enforceOfflineCacheBudget(dbInstance, true);
+  }
+  lastBudgetCheckAt = Date.now();
+  budgetTrimForced = force;
+  budgetTrim = (async () => {
+    const storage = typeof navigator !== "undefined" ? navigator.storage : undefined;
+    const estimate = await storage?.estimate?.().catch(() => undefined);
+    const target = offlineCacheTargetBytes(estimate?.quota);
+    if (!force && (estimate?.usage === undefined || estimate.usage <= target)) return 0;
+
+    await dbInstance.init();
+    const transaction = await dbInstance.getTransaction(MESSAGE_WINDOW_PAGES_STORE_NAME, "readonly");
+    const pages = await requestToPromise<MessageWindowPageCacheRecord[]>(
+      transaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).getAll(undefined, MAX_BUDGET_SCAN_PAGES),
+    );
+    const normalPages = pages
+      .filter((page) => page.page_kind === "normal" &&
+        page.cache_generation === MESSAGE_WINDOW_PAGE_CACHE_GENERATION)
+      .sort((a, b) => a.last_accessed_at - b.last_accessed_at);
+    let removed = 0;
+    for (const page of normalPages) {
+      if (removed >= MAX_BUDGET_EVICTIONS) break;
+      const count = (await getMessageWindowPagesForChat(dbInstance, page.chat_id))
+        .filter((candidate) => candidate.page_kind === "normal").length;
+      if (count <= 1) continue;
+      const result = await evictStaleMessageWindowPages(dbInstance, page.chat_id, {
+        maxPagesPerChat: count - 1,
+      });
+      if (result.deletedPageIds.length === 0) continue;
+      removed += result.deletedPageIds.length;
+      if (!force && removed % 4 === 0) {
+        const current = await storage?.estimate?.().catch(() => undefined);
+        if (current?.usage !== undefined && current.usage <= target) break;
+      }
+    }
+    return removed;
+  })().finally(() => { budgetTrim = null; budgetTrimForced = false; });
+  return budgetTrim;
 }
 
 /**
@@ -1218,6 +1330,7 @@ export async function saveMessage(
           );
           reject(currentTransaction.error);
         };
+        currentTransaction.onabort = () => reject(currentTransaction.error ?? new Error("Message save aborted"));
       }
     });
   };
@@ -1333,7 +1446,30 @@ export async function saveMessage(
     }
   };
 
-  await saveWithRetry();
+  await writeWithQuotaRetry(
+    saveWithRetry,
+    () => enforceOfflineCacheBudget(dbInstance, true),
+    async () => {
+      const { notificationStore } = await import("../../stores/notificationStore");
+      notificationStore.error(
+        "Browser storage is full. This change was not saved for offline use. Free space and try again.",
+        undefined, true, "offline-save-unavailable",
+      );
+    },
+    !usesExternalTransaction,
+    async () => {
+      try {
+        const recheckTx = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
+        const current = await getMessage(dbInstance, message.message_id, recheckTx);
+        if (current && !shouldUpdateMessage(current, message) &&
+            !hasNewEncryptedFields(current, encryptedMessage)) return;
+      } catch (recheckError) {
+        console.debug("[ChatDatabase] Could not recheck message after quota trim:", recheckError);
+      }
+      const retryTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readwrite");
+      await putEncryptedMessage(retryTransaction, true);
+    },
+  );
   invalidateRecentChatWindow(message.chat_id);
 }
 
@@ -1633,7 +1769,7 @@ export async function batchSaveMessages(
 
     writeTransaction.onabort = () => {
       console.error(`[ChatDatabase] batchSaveMessages: Transaction aborted`);
-      reject(new Error("Transaction aborted"));
+      reject(writeTransaction.error ?? new Error("Transaction aborted"));
     };
 
   });

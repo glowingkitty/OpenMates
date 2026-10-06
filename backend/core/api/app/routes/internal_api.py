@@ -2893,18 +2893,24 @@ async def process_team_profile_image(
     log_prefix = f"[TeamProfileImageProcess] [team:{payload.team_id[:8]}...] [user:{payload.user_id[:8]}...]"
     logger.info(f"{log_prefix} Processing encrypted team profile image (s3_key={payload.s3_key})")
     try:
-        vault_key_id = await cache_service.get_user_vault_key_id(payload.user_id)
-        if not vault_key_id:
+        await directus_service.team.require_team_role(payload.team_id, payload.user_id, {"owner", "admin"})
+        personal_vault_key_id = await cache_service.get_user_vault_key_id(payload.user_id)
+        if not personal_vault_key_id:
             profile_success, user_data, profile_msg = await directus_service.get_user_profile(payload.user_id)
             if not profile_success or not user_data:
                 logger.error(f"{log_prefix} Could not fetch uploader profile: {profile_msg}")
                 raise HTTPException(status_code=404, detail="User not found")
-            vault_key_id = user_data.get("vault_key_id")
-            if not vault_key_id:
+            personal_vault_key_id = user_data.get("vault_key_id")
+            if not personal_vault_key_id:
                 raise HTTPException(status_code=500, detail="User account incomplete: missing encryption key")
-            await cache_service.update_user(payload.user_id, {"vault_key_id": vault_key_id})
+            await cache_service.update_user(payload.user_id, {"vault_key_id": personal_vault_key_id})
 
-        wrapped_aes_key, _key_version = await encryption_service.encrypt_with_user_key(payload.aes_key_b64, vault_key_id)
+        from backend.core.api.app.services.billing_profile_service import BillingProfileService
+        team_vault_key_id = await BillingProfileService(
+            directus_service, encryption_service
+        ).get_or_create_team_billing_key(payload.team_id)
+
+        wrapped_aes_key, _key_version = await encryption_service.encrypt_with_user_key(payload.aes_key_b64, team_vault_key_id)
         if not wrapped_aes_key:
             raise HTTPException(status_code=500, detail="AES key wrapping failed")
 
@@ -2915,7 +2921,7 @@ async def process_team_profile_image(
             s3_key=payload.s3_key,
             encrypted_profile_image_aes_key=wrapped_aes_key,
             profile_image_aes_nonce=payload.nonce_b64,
-            profile_image_vault_key_id=vault_key_id,
+            profile_image_vault_key_id=team_vault_key_id,
             updated_at=int(time.time()),
         )
         old_s3_key = result.get("old_s3_key")

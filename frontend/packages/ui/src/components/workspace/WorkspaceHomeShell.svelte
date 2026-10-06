@@ -20,6 +20,8 @@
   import { resolveIconName } from '../../utils/iconNameResolver';
   import { hasRoomForLargeContinueCards } from '../../utils/continueCardLayout';
   import { text } from '../../i18n/translations';
+  import { activeTeam } from '../../stores/teamStore';
+  import TeamAvatar from '../teams/TeamAvatar.svelte';
 
   // Vite resolves the same packaged SVGs used by app details into real asset URLs.
   // Keep the glyph independent of Icon.svelte's scoped pseudo-element CSS.
@@ -314,6 +316,11 @@
           <p class="workspace-eyebrow">{eyebrow}</p>
         {/if}
         <span class="workspace-surface-background-icon" data-testid={`${surface}-workspace-background-icon`} data-surface={surface} aria-hidden="true"></span>
+        {#if $activeTeam}
+          <span class="workspace-team-avatar" data-testid={`${surface}-workspace-team-avatar`}>
+            <TeamAvatar team={$activeTeam} size={46} />
+          </span>
+        {/if}
         <h2>{heading}</h2>
         {#if subtitle}
           <p class="workspace-subtitle">{subtitle}</p>
@@ -863,6 +870,17 @@
     pointer-events: none;
     -webkit-mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
     mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
+  }
+
+  .workspace-team-avatar {
+    position: absolute;
+    left: calc(50% + clamp(28px, 4vw, 48px));
+    top: calc(50% - clamp(38px, 5.5vw, 60px));
+    z-index: 1;
+    display: inline-flex;
+    border: 2px solid var(--color-grey-0);
+    border-radius: var(--radius-full);
+    pointer-events: none;
   }
 
   .workspace-surface-background-icon[data-surface='apps'] {

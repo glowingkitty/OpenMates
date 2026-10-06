@@ -78,6 +78,8 @@ async def test_create_team_creates_owner_membership_key_wrapper_and_zero_balance
         "id": "team_memberships-1",
         "hashed_team_id": hash_id("team-1"),
         "hashed_user_id": hash_id("alice"),
+        "user_id": "alice",
+        "encrypted_member_profile": None,
         "role": "owner",
         "status": "active",
         "invited_by_hash": None,

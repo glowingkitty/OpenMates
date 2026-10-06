@@ -4748,7 +4748,7 @@
         "text": "こんにちは、\n\nOpenMates v0.11をリリースしました。今回のアップデートはv0.10の改善をベースに、日々の作業に役立つ実用的な機能を追加しました：より充実した『今日のインスピレーション』、コード実行、リポジトリ調査、音楽生成、画像生成プロバイダーの改善、より分かりやすくなったアプリの結果表示、そしてローカルインターフェースフォントなどです。\n\n# まずは、v0.10の簡単な振り返り\n\nv0.10では、回答内へのWikipediaリンクの追加、メッセージのハイライトとコメント機能、公開アナウンス/サンプルページの改善、SEPA銀行振込への対応、アカウントメールアドレスの変更機能などが追加されました。\n\nこれらの変更により、OpenMatesは日々のワークスペースとしてより使いやすくなりました。学習や共有が容易になり、アカウントや支払いといった基本機能の安定性も向上しました。\n\n# ✨ v0.11の新機能\n\n## 1. 『今日のインスピレーション』の拡充\n\n『今日のインスピレーション』がより豊かで多彩になりました。公開動画や便利な機能のアイデア、OpenMatesでやりたいことの具体的な出発点などが表示されるようになります。\n\n目標は、OpenMatesを単なる空のチャットボットの入力欄ではなく、トピックの調査、動画の理解、タスクの計画、ツールの探索、あるいはサンプルからの継続など、役立つことを見つける手助けをする場所にすることです。\n\n## 2. コード実行とコード調査の改善\n\nコードアプリが大きく進化しました。OpenMatesでコードをサンドボックス内で実行し、出力を表示したり、リポジトリの検索を支援したり、コード関連のフォローアップアクションをより多く処理できるようになりました。\n\nこれはプロの開発者でなくても、一般のユーザーにとっても便利です。小さなスクリプトの作成、データのクリーンアップ、ドキュメント生成、ウェブサイトのプレビュー、ログの解説、技術的な質問などが、よりインタラクティブになります。\n\n## 3. 音楽生成と画像プロバイダーの改善\n\nv0.11では、音楽生成や画像生成プロバイダーに関する改善により、生成メディアのワークフローが拡張されました。これにより、短い音楽のアイデア作成、ビジュアルコンセプトの生成、プロンプトの推敲、あるいはラフなアイデアを実際に確認・再利用可能なメディアに変換するといったクリエイティブなタスクを、チャット内で直接サポートできるようになります。\n\nまた、生成されたメディアの表示方法も改善され、結果のプレビュー、展開、その後の作業への移行がよりスムーズになりました。\n\n## 4. アプリ結果とプロバイダー詳細の明確化\n\n多くのアプリカードや埋め込みプレビューで、より適切な実例、プロバイダーのロゴ、ソース情報、そして明確なメタデータが表示されるようになりました。これにより、何が起きたのか、結果がどこから来たのか、どのアプリのスキルが使われたのかを理解しやすくなります。\n\n日常的な利用において、推測に頼る必要が減ることを意味します。旅行の検索結果、ウェブの検索結果、生成されたファイル、メディア出力、コードの実行結果などが、より識別しやすく、アクションを起こしやすくなります。\n\n## 5. フォローアップ表示の改善\n\nフォローアップの提案機能は以前からありましたが、表示がよりすっきりと使いやすくなりました。自分で完璧な次のプロンプトを考えることなく、タスクを継続できるように設計されています。\n\n## 6. ローカルインターフェースフォント\n\nローカルインターフェースフォントの設定を選択できるようになりました。小さな設定ですが、OpenMatesで読み書きに多くの時間を費やす場合には重要なポイントです。\n\n## 7. 安定性とパフォーマンスの向上\n\nチャットの同期、埋め込み、ファイルのプレビュー、画像結果のプレビューにおいて、安定性とパフォーマンスの向上も行われました。\n\n# 今後の予定\n\n次のステップは、OpenMatesをさらに分かりやすく、使いやすくし続けることです。より良いサンプルの提供、アプリフローの明確化、クリエイティブツールや調査ツールのブラッシュアップ、そしてチャット体験における細かな不備の解消に取り組んでいきます。\n\nOpenMatesをご利用いただき、また、分かりにくい点や不具合についてのフィードバックをいただきありがとうございます。\n\nよろしくお願いいたします。\n\nMarco  \nOpenMates開発者"
       },
       "email_body": {
-        "text": "こんにちは。\nOpenMatesの開発者、Marco（別名 [glowingkitty](https://github.com/glowingkitty)）です。\nOpenMatesのことを忘れていたわけではありません。むしろその逆です。\n\n[video]\n\n# 🙏 まずは感謝の言葉を\n\n12月末、Chaos Communication Congressに関連して、ドイツのテレビ局ZDFから思いがけずインタビューを依頼されました（[大手テック企業のAIに代わる、プライバシー重視の選択肢の重要性についてのレポート](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html)）。それは素晴らしい経験でした。当時のOpenMatesはまだ荒削りな部分も多かったのですが、最初の方々が登録して使い始めてくれました。そして、私が自分のデバイスでテストしていた時には遭遇しなかったバグやエッジケースを見つけ、ありがたいことに報告してくれました。報告してくださった皆さんに心から感謝します。おかげで、OpenMatesをより洗練させ、安定させ、完成度を高めることができました！もちろん、OpenMatesを使っていて違和感や不具合を感じた場合は、引き続き遠慮なく報告してください。\n\nこれは私が作った最初のソフトウェアではありませんが、数人以上の人たちが自分の作ったソフトウェアを使い始めたのは初めてのことでした。現在、180人以上のアクティブユーザーがOpenMatesを利用しています！これは非常にエキサイティングなことであり、正直なところ、最初は少し圧倒される思いもありました。\n\nそれ以来、私はOpenMatesの改善とデバッグ、そして機能の充実とブラッシュアップに完全に集中し、コードに膨大な変更を加えました。バグ修正、新機能、ユーザーインターフェースの改善など、数多くの改良を行いました。\n\nそして今日、ここ数ヶ月の最もエキサイティングな変更点についてアップデートをお伝えできることを嬉しく思います！すべての変更について話すと1通のニュースレターでは長くなりすぎてしまうため、今回はハイライトに絞ってお伝えします。また、今後数週間にわたって、OpenMatesの様々な機能についての短い動画を以下のSNSで公開していく予定です：\n- [Instagram](https://instagram.com/openmates_official)\n- [Bluesky](https://bsky.app/profile/openmates.bsky.social)\n- [Mastodon](https://mastodon.social/@OpenMates)\n- [YouTube](https://www.youtube.com/@OpenMates)\n\n# ✨ ここ数ヶ月のハイライト\n\n## 1. 🧩 新しいアプリとアプリスキル\n\n既存のウェブ検索、ウェブサイトの閲覧・分析、YouTube動画の文字起こしを読み取って議論を開始する機能に加え、OpenMatesに多くの新しいアプリとアプリスキルが加わりました。以下はそのハイライトです：\n\n- 🏥 **[Health（健康）](https://openmates.org/#settings/apps/health/skills/search_appointments):** 医者の予約をお探しですか？HealthアプリでDoctolibやJamedaの空き状況を確認できるようになりました。\n- 🏠 **[Home（住まい）](https://openmates.org/#settings/apps/home/skills/search):** ImmoScout24、WG-Gesucht、Kleinanzeigenでアパートを検索できます。主要な詳細はOpenMates上で直接確認可能です。\n- 🎉 **[Events（イベント）](https://openmates.org/#settings/apps/events/skills/search):** Meetup、Luma、Resident Advisor、Googleでイベントを検索・フィルタリングできます。説明、画像、日時、場所などの詳細が表示され、RSVP（参加申し込み）や参加へのダイレクトリンクも含まれます。\n- ✈️ **[Travel（旅行）](https://openmates.org/#settings/apps/travel):** 新しい「[Search connection（乗り換え・便の検索）](https://openmates.org/#settings/apps/travel/skills/search_connections)」スキルでは、Google経由でフライトを検索できます。複数の日程の複数の便を同時に検索でき、フライトの詳細や予約リンクも表示されます。鉄道の検索も今後対応予定です。また、「[Price calendar（料金カレンダー）](https://openmates.org/#settings/apps/travel/skills/price_calendar)」スキルでは、1ヶ月間の価格推移を素早く確認できます。\n- ⏰ **[Reminders（リマインダー）](https://openmates.org/#settings/apps/reminder):** チャットにリマインダーを作成して、後で戻ってくることができます。また、特定のトピックに関する最新のデイリーニュースを検索して要約するようOpenMatesに設定することも可能です。\n- 🖼️ **[Images（画像）](https://openmates.org/#settings/apps/images):** ウェブ上の画像を[検索](https://openmates.org/#settings/apps/images/skills/search)したり、画像を[生成](https://openmates.org/#settings/apps/images/skills/generate)したり、[ベクターグラフィックス](https://openmates.org/#settings/apps/images/skills/vectorize)を作成したりできます。\n- 📄 **[PDFs](https://openmates.org/#settings/apps/pdf):** PDFをアップロードして、テキストや視覚的なレイアウトについて質問できます。OpenMatesはPDFの読み取りと表示の両方が可能です！\n- 💻 **[Code（コード）](https://openmates.org/#settings/apps/code):** OpenMatesは[最新のドキュメントを検索](https://openmates.org/#settings/apps/code/skills/get_docs)してコーディングに関する質問に答え、コードを書き、さらにウェブサイトのデザインやコードをブラウザで直接プレビューさせることもできます！これはコーディング機能のほんの始まりに過ぎません。\n- 🧮 **[Math（数学）](https://openmates.org/#settings/apps/math):** 式の計算やプロットの可視化を、すべてOpenMates内で行えます。\n- 📝 **[Docs（文書）](https://openmates.org/#settings/apps/docs):** Word文書の生成を依頼し、.docxファイルとしてダウンロードできます。\n- 📊 **[Sheets（スプレッドシート）](https://openmates.org/#settings/apps/sheets):** 表を作成し、.xlsxファイルとしてダウンロードできます。DocsとSheetsは今後数週間でさらに強力になる予定です。\n- 📧 **[Mail（メール）](https://openmates.org/#settings/apps/mail):** メールの下書きを作成できます。作成した下書きは、デバイスのデフォルトのメールプログラムで簡単に開いて送信できます。\n- 🎙️ **[Audio（オーディオ）](https://openmates.org/#settings/apps/audio):** 入力が面倒ですか？メッセージフィールドから直接、音声メッセージを録音してOpenMatesに送信できます。\n\nさらに多くのアプリスキルが追加されています。[OpenMatesアプリをチェックして探索](https://openmates.org/#settings/apps)してみてください。\n\n## 2. 🔒 個人データプレースホルダー\n\n大手テック企業や一般的なスタートアップのAIチャットボットとは異なり、OpenMatesはプライバシーを最優先事項として設計されています。すでに以下のような様々なプライバシー保護機能が備わっています：\n- 🔐 すべてのチャットは、あなたのデバイス上でのみ暗号化・復号されます。\n- 🖼️ すべての外部画像はOpenMatesサーバー経由で読み込まれます（外部サイトにあなたのIPアドレスやデバイス情報が知られることはありません）。\n- 📉 Googleアナリティクスなどの分析ソフトウェアは一切使用していません（OpenMatesにクッキーバナーが表示されないのはそのためです）。\n\n新機能：メールアドレス、電話番号、APIキーなどの機密データが自動的に検出され、メッセージを下書きしてOpenMatesに送信する際に、デバイス上でプレースホルダーに置き換えられるようになりました。ユーザーインターフェース上でいつでも元の値に戻すことができますし、検出されたデータをクリックして置換を無効にすることもできます。しかし、デフォルトではこの機能により、OpenMatesもメッセージを処理するAIプロバイダーも、機密データを最初から目にすることはありません。\n\n[自分で試してみる](https://openmates.org/#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.) — このリンクをクリックして、個人データプレースホルダーの動作を確認してください。AIに送信される前に、メールアドレスと電話番号が自動検出され、置き換えられます。\n\n## 3. 🧠 メモリ\n\nOpenMatesは、今後の旅行の予定やプロジェクトの詳細など、アプリ固有のメモリ（記憶）を保持できるようになりました。ただし、すべてのメモリはあなたのデバイス上でのみ暗号化・復号され、特定のチャットであなたが明示的に承認した場合にのみ、OpenMatesサーバーおよびAIプロバイダーと一時的に共有されます。これにより、プロジェクトの詳細を何度も繰り返すことなくパーソナライズされた回答を最大限に活用でき、同時に、どのデータをいつ、どのAIプロバイダーと共有するかを完全にコントロールできます。[OpenMatesアプリのメモリ](https://openmates.org/#settings/apps/all/memories)をチェックしてみてください。\n\n## 4. 🎯 フォーカスモード\n\nAIチャットボットに適切な指示を与える方法を知っているかどうかで、チャットボットの有用性や回答の質に大きな差が出ます。フォーカスモードを使えば、プロンプトエンジニアリングの専門家でなくても、優れた的を絞った指示を最大限に活用できます。例えば、OpenMatesにキャリアに関する洞察を求めると、「キャリアインサイト」フォーカスモードが自動的に有効になり、プロセスをガイドします。もちろん、これは始まりに過ぎません。今後数週間でさらに多くのフォーカスモードが追加され、既存のモードの質もさらに向上する予定です。[OpenMatesアプリのフォーカスモード](https://openmates.org/#settings/apps/all/focus-modes)をぜひご覧ください。\n\n## 5. 🤖 新しいモデル\n\nOpenMatesは、現在利用可能な最も効率的でパフォーマンスの高いAIモデルを幅広く取り揃えています。デフォルトでは、タスクに基づいて最適なモデルが自動選択されます。しかし、[AI設定](https://openmates.org/#settings/ai)でこの動作を永続的に変更したり、メッセージフィールドで `@{モデル名}` を使って特定のモデルを指定したりすることも可能です。現在、以下のような幅広いAIモデルから選択できます：\n\n- [Claude Opus 4.7](https://openmates.org/#settings/ai/model/claude-opus-4-7) & [Claude Sonnet 4.6](https://openmates.org/#settings/ai/model/claude-sonnet-4-6)\n- [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)\n- [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)\n- [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)\n- [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)\n- `@best` と `@fast` のモデルエイリアス — `@best` と入力すると最強のモデルに、`@fast` と入力するとOpenMatesで利用可能な最速のモデルに自動ルーティングされます。\n\n## 6. 💡 今日のインスピレーションとWikipediaリンク\n\nAIは、適切に使用すれば学習のための素晴らしいツールになります。OpenMatesは、人々が学び、探索し、インスピレーションを得ることを促進するように最適化されています。ログイン後のインターフェース上部に表示される「今日のインスピレーション」はそのためのものです。興味深い新しい動画や、将来的にはWikipediaの記事、OpenMatesの新機能、芸術作品の写真や詳細、重要な歴史的出来事などが表示されます。今日のインスピレーションはあなたのチャットに合わせてカスタマイズされ、あなただけが持つキーでデバイス上にロックされるため、プライバシーは守られます。\nさらに、OpenMatesはアシスタントの回答内でWikipediaの記事を自動的にハイライトします。オレンジ色にハイライトされた単語（横に学習アイコンがあるもの）をクリックするだけで、そのトピックについて簡単に詳しく学ぶことができます。\n\n# 🚀 今後の予定\n\n今後数週間にわたり、OpenMatesの多くの機能や便利な使い方を紹介する短いクリップを投稿するほか、ソフトウェアのさらなる改善、アプリ、プロバイダー、機能の追加を行っていきます。\n\n今後は、数週間ごとに発表やアップデートのためのニュースレターを、またそれとは別にOpenMatesの使い方のヒントやコツをお送りする予定です。ニュースレターの受信頻度を変更したい場合は、いつでも[ニュースレターの設定を確認](https://openmates.org/#settings/newsletter)してください。\n\nOpenMatesをぜひお楽しみください。今後のアップデートにもご期待ください！\n\n[cta]"
+        "text": "こんにちは。\nOpenMatesの開発者、Marco（別名 [glowingkitty](https://github.com/glowingkitty)）です。\nOpenMatesのことを忘れていたわけではありません。むしろその逆です。\n\n[video]\n\n# 🙏 まずは感謝の言葉を\n\n12月末、Chaos Communication Congressに関連して、ドイツのテレビ局ZDFから思いがけずインタビューを依頼されました（[大手テック企業のAIに代わる、プライバシー重視の選択肢の重要性についてのレポート](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html)）。それは素晴らしい経験でした。当時のOpenMatesはまだ荒削りな部分も多かったのですが、最初の方々が登録して使い始めてくれました。そして、私が自分のデバイスでテストしていた時には遭遇しなかったバグやエッジケースを見つけ、ありがたいことに報告してくれました。報告してくださった皆さんに心から感謝します。おかげで、OpenMatesをより洗練させ、安定させ、完成度を高めることができました！もちろん、OpenMatesを使っていて違和感や不具合を感じた場合は、引き続き遠慮なく報告してください。\n\nこれは私が作った最初のソフトウェアではありませんが、数人以上の人たちが自分の作ったソフトウェアを使い始めたのは初めてのことでした。現在、180人以上のアクティブユーザーがOpenMatesを利用しています！これは非常にエキサイティングなことであり、正直なところ、最初は少し圧倒される思いもありました。\n\nそれ以来、私はOpenMatesの改善とデバッグ、そして機能の充実とブラッシュアップに完全に集中し、コードに膨大な変更を加えました。バグ修正、新機能、ユーザーインターフェースの改善など、数多くの改良を行いました。\n\nそして今日、ここ数ヶ月の最もエキサイティングな変更点についてアップデートをお伝えできることを嬉しく思います！すべての変更について話すと1通のニュースレターでは長くなりすぎてしまうため、今回はハイライトに絞ってお伝えします。また、今後数週間にわたって、OpenMatesの様々な機能についての短い動画を以下のSNSで公開していく予定です：\n- [Instagram](https://instagram.com/openmates_official)\n- [Bluesky](https://bsky.app/profile/openmates.bsky.social)\n- [Mastodon](https://mastodon.social/@OpenMates)\n- [YouTube](https://www.youtube.com/@OpenMates)\n\n# ✨ ここ数ヶ月のハイライト\n\n## 1. 🧩 新しいアプリとアプリスキル\n\n既存のウェブ検索、ウェブサイトの閲覧・分析、YouTube動画の文字起こしを読み取って議論を開始する機能に加え、OpenMatesに多くの新しいアプリとアプリスキルが加わりました。以下はそのハイライトです：\n\n- 🏥 **[Health（健康）](https://openmates.org/#settings/apps/health/skills/search_appointments):** 医者の予約をお探しですか？HealthアプリでDoctolibやJamedaの空き状況を確認できるようになりました。\n- 🏠 **[Home（住まい）](https://openmates.org/#settings/apps/home/skills/search):** ImmoScout24、WG-Gesucht、Kleinanzeigenでアパートを検索できます。主要な詳細はOpenMates上で直接確認可能です。\n- 🎉 **[Events（イベント）](https://openmates.org/#settings/apps/events/skills/search):** Meetup、Luma、Resident Advisor、Googleでイベントを検索・フィルタリングできます。説明、画像、日時、場所などの詳細が表示され、RSVP（参加申し込み）や参加へのダイレクトリンクも含まれます。\n- ✈️ **[Travel（旅行）](https://openmates.org/#settings/apps/travel):** 新しい「[Search connection（乗り換え・便の検索）](https://openmates.org/#settings/apps/travel/skills/search_connections)」スキルでは、Google経由でフライトを検索できます。複数の日程の複数の便を同時に検索でき、フライトの詳細や予約リンクも表示されます。鉄道の検索も今後対応予定です。また、「[Price calendar（料金カレンダー）](https://openmates.org/#settings/apps/travel/skills/price_calendar)」スキルでは、1ヶ月間の価格推移を素早く確認できます。\n- ⏰ **[Reminders（リマインダー）](https://openmates.org/#settings/apps/reminder):** チャットにリマインダーを作成して、後で戻ってくることができます。また、特定のトピックに関する最新のデイリーニュースを検索して要約するようOpenMatesに設定することも可能です。\n- 🖼️ **[Images（画像）](https://openmates.org/#settings/apps/images):** ウェブ上の画像を[検索](https://openmates.org/#settings/apps/images/skills/search)したり、画像を[生成](https://openmates.org/#settings/apps/images/skills/generate)したり、[ベクターグラフィックス](https://openmates.org/#settings/apps/images/skills/vectorize)を作成したりできます。\n- 📄 **[PDFs](https://openmates.org/#settings/apps/pdf):** PDFをアップロードして、テキストや視覚的なレイアウトについて質問できます。OpenMatesはPDFの読み取りと表示の両方が可能です！\n- 💻 **[Code（コード）](https://openmates.org/#settings/apps/code):** OpenMatesは[最新のドキュメントを検索](https://openmates.org/#settings/apps/code/skills/get_docs)してコーディングに関する質問に答え、コードを書き、さらにウェブサイトのデザインやコードをブラウザで直接プレビューさせることもできます！これはコーディング機能のほんの始まりに過ぎません。\n- 🧮 **[Math（数学）](https://openmates.org/#settings/apps/math):** 式の計算やプロットの可視化を、すべてOpenMates内で行えます。\n- 📝 **[Docs（文書）](https://openmates.org/#settings/apps/docs):** Word文書の生成を依頼し、.docxファイルとしてダウンロードできます。\n- 📊 **[Sheets（スプレッドシート）](https://openmates.org/#settings/apps/sheets):** 表を作成し、.xlsxファイルとしてダウンロードできます。DocsとSheetsは今後数週間でさらに強力になる予定です。\n- 📧 **[Mail（メール）](https://openmates.org/#settings/apps/mail):** メールの下書きを作成できます。作成した下書きは、デバイスのデフォルトのメールプログラムで簡単に開いて送信できます。\n- 🎙️ **[Audio（オーディオ）](https://openmates.org/#settings/apps/audio):** 入力が面倒ですか？メッセージフィールドから直接、音声メッセージを録音してOpenMatesに送信できます。\n\nさらに多くのアプリスキルが追加されています。[OpenMatesアプリをチェックして探索](https://openmates.org/#settings/apps)してみてください。\n\n## 2. 🔒 個人データプレースホルダー\n\n大手テック企業や一般的なスタートアップのAIチャットボットとは異なり、OpenMatesはプライバシーを最優先事項として設計されています。すでに以下のような様々なプライバシー保護機能が備わっています：\n- 🔐 すべてのチャットは、あなたのデバイス上でのみ暗号化・復号されます。\n- 🖼️ すべての外部画像はOpenMatesサーバー経由で読み込まれます（外部サイトにあなたのIPアドレスやデバイス情報が知られることはありません）。\n- 📉 Googleアナリティクスなどの分析ソフトウェアは一切使用していません（OpenMatesにクッキーバナーが表示されないのはそのためです）。\n\n新機能：メールアドレス、電話番号、APIキーなどの機密データが自動的に検出され、メッセージを下書きしてOpenMatesに送信する際に、デバイス上でプレースホルダーに置き換えられるようになりました。ユーザーインターフェース上でいつでも元の値に戻すことができますし、検出されたデータをクリックして置換を無効にすることもできます。しかし、デフォルトではこの機能により、OpenMatesもメッセージを処理するAIプロバイダーも、機密データを最初から目にすることはありません。\n\n[自分で試してみる](https://openmates.org/#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.) — このリンクをクリックして、個人データプレースホルダーの動作を確認してください。AIに送信される前に、メールアドレスと電話番号が自動検出され、置き換えられます。\n\n## 3. 🧠 メモリ\n\nOpenMatesは、今後の旅行の予定やプロジェクトの詳細など、アプリ固有のメモリ（記憶）を保持できるようになりました。ただし、すべてのメモリはあなたのデバイス上でのみ暗号化・復号され、特定のチャットであなたが明示的に承認した場合にのみ、OpenMatesサーバーおよびAIプロバイダーと一時的に共有されます。これにより、プロジェクトの詳細を何度も繰り返すことなくパーソナライズされた回答を最大限に活用でき、同時に、どのデータをいつ、どのAIプロバイダーと共有するかを完全にコントロールできます。[OpenMatesアプリのメモリ](https://openmates.org/#settings/apps/all/memories)をチェックしてみてください。\n\n## 4. 🎯 フォーカスモード\n\nAIチャットボットに適切な指示を与える方法を知っているかどうかで、チャットボットの有用性や回答の質に大きな差が出ます。フォーカスモードを使えば、プロンプトエンジニアリングの専門家でなくても、優れた的を絞った指示を最大限に活用できます。例えば、OpenMatesにキャリアに関する洞察を求めると、「キャリアインサイト」フォーカスモードが自動的に有効になり、プロセスをガイドします。もちろん、これは始まりに過ぎません。今後数週間でさらに多くのフォーカスモードが追加され、既存のモードの質もさらに向上する予定です。[OpenMatesアプリのフォーカスモード](https://openmates.org/#settings/apps/all/focus-modes)をぜひご覧ください。\n\n## 5. 🤖 新しいモデル\n\nOpenMatesは、現在利用可能な最も効率的でパフォーマンスの高いAIモデルを幅広く取り揃えています。デフォルトでは、タスクに基づいて最適なモデルが自動選択されます。しかし、[AI設定](https://openmates.org/#settings/ai)でこの動作を永続的に変更したり、メッセージフィールドで `@{モデル名}` を使って特定のモデルを指定したりすることも可能です。現在、以下のような幅広いAIモデルから選択できます：\n\n- [Claude Opus 4.7](https://openmates.org/#settings/ai/model/claude-opus-4-7) & [Claude Sonnet 4.6](https://openmates.org/#settings/ai/model/claude-sonnet-4-6)\n- [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)\n- [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)\n- [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)\n- Devstral 2\n- `@best` と `@fast` のモデルエイリアス — `@best` と入力すると最強のモデルに、`@fast` と入力するとOpenMatesで利用可能な最速のモデルに自動ルーティングされます。\n\n## 6. 💡 今日のインスピレーションとWikipediaリンク\n\nAIは、適切に使用すれば学習のための素晴らしいツールになります。OpenMatesは、人々が学び、探索し、インスピレーションを得ることを促進するように最適化されています。ログイン後のインターフェース上部に表示される「今日のインスピレーション」はそのためのものです。興味深い新しい動画や、将来的にはWikipediaの記事、OpenMatesの新機能、芸術作品の写真や詳細、重要な歴史的出来事などが表示されます。今日のインスピレーションはあなたのチャットに合わせてカスタマイズされ、あなただけが持つキーでデバイス上にロックされるため、プライバシーは守られます。\nさらに、OpenMatesはアシスタントの回答内でWikipediaの記事を自動的にハイライトします。オレンジ色にハイライトされた単語（横に学習アイコンがあるもの）をクリックするだけで、そのトピックについて簡単に詳しく学ぶことができます。\n\n# 🚀 今後の予定\n\n今後数週間にわたり、OpenMatesの多くの機能や便利な使い方を紹介する短いクリップを投稿するほか、ソフトウェアのさらなる改善、アプリ、プロバイダー、機能の追加を行っていきます。\n\n今後は、数週間ごとに発表やアップデートのためのニュースレターを、またそれとは別にOpenMatesの使い方のヒントやコツをお送りする予定です。ニュースレターの受信頻度を変更したい場合は、いつでも[ニュースレターの設定を確認](https://openmates.org/#settings/newsletter)してください。\n\nOpenMatesをぜひお楽しみください。今後のアップデートにもご期待ください！\n\n[cta]"
       }
     },
     "announcements_openmates_meetup_may_19": {
@@ -6176,6 +6176,23 @@
     },
     "storage_billing_notice_waiver": {
       "text": "After verified removal brings usage within the free allowance, the warned unpaid storage charges are written off without taking credits. Paid charges and later charges outside this notice are preserved."
+    },
+    "team_storage_billing_notice": {
+      "subject": {
+        "text": "Team storage payment notice {warning_stage}: action needed"
+      },
+      "header": {
+        "text": "Team storage payment could not be collected"
+      },
+      "body": {
+        "text": "The Team {team_slug} has an unpaid weekly storage charge of {credits_needed} credits. Its outstanding storage charges total {outstanding_credits} credits. This period measured {storage_gb} GiB against the Team's own 1 GiB free allowance. This is warning {warning_stage} of 4. The listed complete Team storage units may be removed no earlier than {deadline_date} UTC if the debt remains unpaid after a final balance check."
+      },
+      "action": {
+        "text": "A Team owner or admin can add Team credits or export the affected Team data. Only the listed units may be removed, and the warned charges are waived only after verified reduction to the Team's free allowance. Personal storage and storage retained by another owner remain protected."
+      },
+      "open_team": {
+        "text": "Open Team settings"
+      }
     }
   },
   "embeds": {
@@ -11954,7 +11971,7 @@
           "text": "Compliance logs: Security and accountability records do not currently have an enforced automatic two-year expiry for historical database revision and activity records. Financial transaction records are configured for up to ten years, subject to the record-specific legal duties and holds described below."
         },
         "storage_expiry": {
-          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy."
+          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
         }
       },
       "legal_basis": {
@@ -12598,10 +12615,10 @@
           "text": "返金ポリシー：購入後14日以内に未使用クレジットの返金を申請できます。クレジットを使用した時点で撤回権は消滅します。返金同意の詳細についてはサインアッププロセスをご参照ください。"
         },
         "storage_billing": {
-          "text": "Where personal storage billing is enabled for your account, the first 1 GiB of eligible personal encrypted object storage is free. Above that allowance, each started additional GiB costs 3 credits per week, assessed on Sundays at 03:00 UTC. We count each logical encrypted S3 object once; regional replicas do not create additional charges. Legacy uploads are not retroactively enrolled or charged under this rollout. Team storage is not rated under this personal-storage policy; its pricing policy remains unresolved."
+          "text": "Where personal storage billing is enabled for your account, the first 1 GiB of eligible personal encrypted object storage is free. Above that allowance, each started additional GiB costs 3 credits per week, assessed on Sundays at 03:00 UTC. We count each logical encrypted S3 object once; regional replicas do not create additional charges. Legacy uploads are not retroactively enrolled or charged under this rollout. Where Team storage billing is enabled, each Team has its own separate 1 GiB free allowance and pays the same weekly rate from its Team credit wallet. Personal and Team allowances, balances and invoices are separate; an owner's personal balance is not charged for Team-owned storage under this policy."
         },
         "storage_expiry": {
-          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing."
+          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
         },
         "storage_invoice_waiver": {
           "text": "Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. The waived amount is written off without taking credits or recording a payment. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy."
@@ -15947,6 +15964,123 @@
       },
       "referral_copy_failed": {
         "text": "紹介リンクをコピーできませんでした。"
+      },
+      "billing_address": {
+        "text": "Billing address"
+      },
+      "add_billing_address": {
+        "text": "Add billing address"
+      },
+      "address_optional_explainer": {
+        "text": "Optional for most purchases. Saved details appear on future invoices for this billing account."
+      },
+      "address_name": {
+        "text": "Name or company"
+      },
+      "address_street_line_1": {
+        "text": "Street address"
+      },
+      "address_street_line_2": {
+        "text": "Address line 2 (optional)"
+      },
+      "address_postal_code": {
+        "text": "Postal code"
+      },
+      "address_city": {
+        "text": "City"
+      },
+      "address_region": {
+        "text": "State or region (optional)"
+      },
+      "address_country": {
+        "text": "Country code (2 letters)"
+      },
+      "address_vat_id": {
+        "text": "VAT ID (optional)"
+      },
+      "address_validation": {
+        "text": "Complete the name, street, postal code, city, and two-letter country code, or leave every field blank."
+      },
+      "address_load_error": {
+        "text": "Could not load the billing address. Please try again."
+      },
+      "address_save_error": {
+        "text": "Could not save the billing address. Please try again."
+      },
+      "address_saved": {
+        "text": "Billing address saved."
+      },
+      "team_billing_title": {
+        "text": "Billing & usage"
+      },
+      "team_billing_description": {
+        "text": "Manage this Team's credits, payments, invoices, and usage."
+      },
+      "team_balance": {
+        "text": "Team credits"
+      },
+      "team_auto_topup": {
+        "text": "Team auto top-up"
+      },
+      "team_auto_topup_amount": {
+        "text": "Top-up amount in credits"
+      },
+      "team_auto_topup_method": {
+        "text": "Saved payment method ID"
+      },
+      "team_usage_export_csv": {
+        "text": "Download usage CSV"
+      },
+      "team_usage_export_pdf": {
+        "text": "Download usage PDF"
+      },
+      "team_billing_unavailable": {
+        "text": "Team billing could not be loaded. Please try again."
+      },
+      "team_billing_admin_only": {
+        "text": "Only Team owners and admins can manage Team billing."
+      },
+      "team_auto_topup_saved": {
+        "text": "Team auto top-up saved."
+      },
+      "team_auto_topup_error": {
+        "text": "Could not save Team auto top-up."
+      },
+      "team_usage_error": {
+        "text": "Could not load Team usage."
+      },
+      "team_monthly_auto_topup": {
+        "text": "Monthly Team auto top-up"
+      },
+      "team_monthly_create": {
+        "text": "Start monthly auto top-up"
+      },
+      "team_monthly_cancel": {
+        "text": "Cancel monthly auto top-up"
+      },
+      "team_monthly_saved": {
+        "text": "Monthly Team auto top-up updated."
+      },
+      "team_monthly_error": {
+        "text": "Could not update monthly Team auto top-up."
+      },
+      "team_monthly_card_required": {
+        "text": "Make a Team card purchase first to save a payment method."
+      },
+      "team_monthly_tier": {
+        "text": "Monthly credit package"
+      },
+      "team_monthly_billing_day": {
+        "text": "Billing day"
+      },
+      "team_monthly_anniversary": {
+        "text": "Every 30 days from activation"
+      },
+      "team_monthly_first": {
+        "text": "First day of each month"
+      },
+      "team_monthly_status": {
+        "text": "Subscription status"
       }
     },
     "chat": {
@@ -20640,6 +20774,7 @@
       "text": "再生"
     }
   },
+  "videocall": {},
   "waiting_list": {
     "discord_members": {
       "text": "Discordのメンバーは"

@@ -527,27 +527,55 @@ async def _async_process_invoice_and_send_email(
         # 1. Initialize all necessary services using the base task class method
         await task.initialize_services()
         logger.info(f"Services initialized for invoice task {order_id}")
+        from backend.core.api.app.services.billing_profile_service import BillingProfileService
+
+        billing_profiles = BillingProfileService(task.directus_service, task.encryption_service)
+        billing_context = await billing_profiles.get_order_context(order_id)
+        is_team_invoice = billing_context.get("owner_kind") == "team"
+        if is_team_invoice:
+            existing = await task.directus_service.get_items(
+                "invoices",
+                params={"filter": {"order_id": {"_eq": order_id}, "hashed_team_id": {"_eq": billing_context["owner_hash"]}}, "limit": 1},
+                no_cache=True,
+                admin_required=True,
+            )
+            if existing:
+                logger.info("Team invoice for order %s already exists", order_id)
+                await billing_profiles.mark_invoice_dispatched(billing_context)
+                return True
 
         # Initialize CacheService separately (as it's not part of BaseServiceTask init)
         cache_service = CacheService()
 
         # 2. Fetch User Details (Email, Vault Key, Preferences) - Cache First
-        user_profile = await _get_purchase_confirmation_user_profile(
-            task=task,
-            cache_service=cache_service,
-            user_id=user_id,
-            order_id=order_id,
-        )
+        if is_team_invoice:
+            # The payer may have deleted their Personal account after Team checkout.
+            # An order snapshot carries the Team buyer and recipient details.
+            user_profile = await cache_service.get_user_by_id(user_id) or {}
+            if not user_profile:
+                try:
+                    user_profile = await task.directus_service.get_user_fields_direct(
+                        user_id, ["language", "country_code", "darkmode", "encrypted_email_address"]
+                    ) or {}
+                except Exception:
+                    user_profile = {}
+        else:
+            user_profile = await _get_purchase_confirmation_user_profile(
+                task=task, cache_service=cache_service, user_id=user_id, order_id=order_id,
+            )
 
         # --- Extract user details from profile (same as before) ---
         encrypted_email = user_profile.get("encrypted_email_address")
-        vault_key_id = user_profile.get("vault_key_id")
-        user_language = user_profile.get("language")
+        vault_key_id = (
+            await billing_profiles.get_or_create_team_billing_key(billing_context["owner_id"])
+            if is_team_invoice else user_profile.get("vault_key_id")
+        )
+        user_language = user_profile.get("language") or "en"
         country_code = user_profile.get("country_code")
         user_darkmode = user_profile.get("darkmode")
         current_invoice_counter = user_profile.get("invoice_counter")
 
-        if not encrypted_email or not vault_key_id:
+        if not vault_key_id or (not is_team_invoice and not encrypted_email):
             logger.error(f"Missing encrypted_email_address or vault_key_id for user in invoice task {order_id}.")
             raise Exception("Missing user encryption details")
         logger.info(f"User profile details extracted for {user_id}")
@@ -573,6 +601,15 @@ async def _async_process_invoice_and_send_email(
             except Exception as bt_err:
                 logger.warning(f"Could not fetch bank transfer amount for {order_id}: {bt_err}")
             logger.info(f"Bank transfer order details synthesised for {order_id}")
+        elif provider == "stripe_invoice":
+            import stripe
+            stripe_invoice = stripe.Invoice.retrieve(order_id)
+            payment_order_details = {
+                "amount": stripe_invoice.get("amount_paid"),
+                "currency": stripe_invoice.get("currency", "eur"),
+                "payments": [],
+                "created": stripe_invoice.get("created"),
+            }
         else:
             order_lookup_id = provider_order_id if provider == "stripe_managed" and provider_order_id else order_id
             payment_order_details = await task.payment_service.get_order(order_lookup_id)
@@ -652,7 +689,7 @@ async def _async_process_invoice_and_send_email(
 
         # 5. Generate Invoice Number using counter from user profile
         # Generate user_id_hash (deterministic)
-        user_id_hash = hashlib.sha256(user_id.encode('utf-8')).hexdigest()
+        user_id_hash = billing_context["owner_hash"] if is_team_invoice else hashlib.sha256(user_id.encode('utf-8')).hexdigest()
         logger.info("Generated user_id_hash for user")
 
         # Increment the counter for the new invoice, defaulting to 0 if None
@@ -662,13 +699,16 @@ async def _async_process_invoice_and_send_email(
         # Cache update will happen *after* successful Directus update below.
 
         # Use account ID instead of user_id_last_8 for invoice numbering
-        account_id = user_profile.get("account_id")
+        account_id = "TEAM-" + billing_context["owner_hash"][:12].upper() if is_team_invoice else user_profile.get("account_id")
         if not account_id:
             logger.error(f"Missing account_id for user in invoice task {order_id}.")
             raise Exception("Missing account_id for user")
         
         invoice_counter_str = str(new_invoice_counter) # Use the incremented counter
-        invoice_number = f"{account_id}-{invoice_counter_str}"
+        if is_team_invoice:
+            invoice_number = f"{account_id}-{hashlib.sha256(order_id.encode()).hexdigest()[:10].upper()}"
+        else:
+            invoice_number = f"{account_id}-{invoice_counter_str}"
         logger.info(f"Generated invoice number: {invoice_number}")
 
         # Get date components for filenames and invoice data. Historical
@@ -681,6 +721,15 @@ async def _async_process_invoice_and_send_email(
         # 6. Prepare Invoice Data Dictionary (using service from BaseTask)
         # Decrypt email - different approach for auto top-up vs manual purchases
         decrypted_email = None
+
+        async def team_snapshot_email() -> str | None:
+            try:
+                return await billing_profiles.get_order_payer_email(billing_context)
+            except Exception:
+                if billing_context.get("payer_email_vault_key_id") == vault_key_id:
+                    raise
+                logger.warning("Legacy Team invoice recipient unavailable for order %s", order_id)
+                return None
 
         invoice_data = {
             'invoice_number': invoice_number,
@@ -699,12 +748,21 @@ async def _async_process_invoice_and_send_email(
             logger.info(f"Auto top-up invoice task {order_id} - using server-side email decryption")
 
             # Try auto top-up specific email first
-            encrypted_email_auto_topup = user_profile.get("encrypted_email_auto_topup")
-            if encrypted_email_auto_topup:
+            team_profile = await billing_profiles.get_profile("team", billing_context["owner_id"]) if is_team_invoice else {}
+            if is_team_invoice:
+                decrypted_email = await team_snapshot_email()
+            encrypted_email_auto_topup = (
+                (team_profile.get("encrypted_monthly_email") if billing_context.get("provider") == "team_monthly" else team_profile.get("encrypted_auto_topup_email")) if is_team_invoice
+                else user_profile.get("encrypted_email_auto_topup")
+            )
+            auto_email_key_id = (
+                (team_profile.get("monthly_email_vault_key_id") if billing_context.get("provider") == "team_monthly" else team_profile.get("auto_topup_vault_key_id")) if is_team_invoice else vault_key_id
+            )
+            if encrypted_email_auto_topup and not decrypted_email:
                 try:
                     decrypted_email = await task.encryption_service.decrypt_with_user_key(
                         ciphertext=encrypted_email_auto_topup,
-                        key_id=vault_key_id
+                        key_id=auto_email_key_id
                     )
                     if decrypted_email:
                         logger.info(f"Successfully decrypted auto top-up email for invoice task {order_id}")
@@ -724,10 +782,12 @@ async def _async_process_invoice_and_send_email(
 
         else:
             # Manual purchase: use client-provided email key
-            if email_encryption_key:
+            if is_team_invoice:
+                decrypted_email = await team_snapshot_email()
+            if not is_team_invoice and email_encryption_key and encrypted_email:
                 logger.info(f"Decrypting email using client-provided email encryption key for invoice task {order_id}")
                 decrypted_email = await task.encryption_service.decrypt_with_email_key(encrypted_email, email_encryption_key)
-            elif send_email and provider != "bank_transfer":
+            elif not is_team_invoice and send_email and provider != "bank_transfer":
                 # Non-bank-transfer email sends require the client key. No-email
                 # backfills can still create the Directus row/PDF without it.
                 logger.error(f"Missing email_encryption_key for invoice task {order_id}. Cannot decrypt user email.")
@@ -737,7 +797,7 @@ async def _async_process_invoice_and_send_email(
             # try server-side Vault decryption via encrypted_email_auto_topup.
             # This covers users who enabled auto-topup (key stored server-side)
             # and edge cases where the client key was unavailable at order creation.
-            if not decrypted_email and provider == "bank_transfer":
+            if not is_team_invoice and not decrypted_email and provider == "bank_transfer":
                 logger.info(f"Bank transfer invoice {order_id}: trying server-side email fallback")
                 encrypted_email_auto_topup = user_profile.get("encrypted_email_auto_topup")
                 if encrypted_email_auto_topup:
@@ -750,6 +810,10 @@ async def _async_process_invoice_and_send_email(
                     except Exception as fallback_err:
                         logger.warning(f"Bank transfer invoice {order_id}: server-side fallback failed: {fallback_err}")
 
+        if is_team_invoice and not decrypted_email:
+            # A historical Team order may predate recipient snapshots. Keep its
+            # invoice downloadable without sending it to an inferred address.
+            send_email = False
         if not decrypted_email and send_email:
             logger.error(f"Failed to decrypt email for invoice task {order_id}. Auto top-up: {is_auto_topup}")
             raise Exception("Failed to decrypt user email")
@@ -833,7 +897,7 @@ async def _async_process_invoice_and_send_email(
             "date_of_issue": date_str_iso,  # Use formatted date
             "date_due": date_str_iso,       # Same as issue date
             "receiver_name": receiver_name_display, # Now an empty string
-            "receiver_account_id": user_profile.get("account_id"),  # Use account ID instead of email
+            "receiver_account_id": account_id,
             "credits": credits_purchased,
             "card_name": formatted_card_brand,
             "card_last4": card_last_four,
@@ -857,6 +921,26 @@ async def _async_process_invoice_and_send_email(
             "actual_net_amount": actual_net_amount,
             # Note: refund_link will be added after invoice is created and we have the UUID
         }
+        if billing_context:
+            try:
+                billing_address = await billing_profiles.get_order_address(billing_context)
+            except Exception:
+                if not is_team_invoice or billing_context.get("address_vault_key_id") == vault_key_id:
+                    raise
+                logger.warning("Legacy Team invoice buyer address unavailable for order %s", order_id)
+                billing_address = None
+            if billing_address:
+                invoice_data.update({
+                    "receiver_name": billing_address["name"],
+                    "receiver_address": billing_address["street_line_1"],
+                    "receiver_address_l2": billing_address.get("street_line_2"),
+                    "receiver_city": f"{billing_address['postal_code']} {billing_address['city']}",
+                    "receiver_region": billing_address.get("region"),
+                    "receiver_country": billing_address["country"],
+                    "receiver_vat": billing_address.get("vat_id"),
+                })
+            if is_team_invoice:
+                invoice_data["receiver_account_id"] = "TEAM-" + billing_context["owner_hash"][:12].upper()
 
         # Add billing address if available (cleaning up None values) - only for future business/teams functionality
         # if billing_address_dict:
@@ -1000,6 +1084,13 @@ async def _async_process_invoice_and_send_email(
             "provider": effective_provider,  # Payment provider/mode for routing refunds correctly
             "provider_order_id": provider_order_id,  # PaymentIntent for managed Stripe refunds
         }
+        if is_team_invoice:
+            directus_invoice_payload["user_id_hash"] = billing_context["owner_hash"]
+            directus_invoice_payload["hashed_team_id"] = billing_context["owner_hash"]
+            directus_invoice_payload["team_order_key"] = hashlib.sha256(
+                f"{billing_context['owner_hash']}:{order_id}".encode()
+            ).hexdigest()
+            directus_invoice_payload["invoice_vault_key_id"] = vault_key_id
 
         # Encrypt and store the currency code so the frontend can display amounts
         # in the correct currency (instead of hardcoding "EUR").
@@ -1026,6 +1117,8 @@ async def _async_process_invoice_and_send_email(
             # Consider cleanup? Maybe delete S3 object? For now, just raise.
             raise InvoiceRecordCreationError(INVOICE_RECORD_CREATE_ERROR_MESSAGE)
         logger.info(f"Created Directus invoice record for invoice {invoice_number}")
+        if is_team_invoice:
+            await billing_profiles.mark_invoice_dispatched(billing_context)
         
         # Extract invoice UUID from created item for deep link
         invoice_uuid = None
@@ -1039,47 +1132,28 @@ async def _async_process_invoice_and_send_email(
         else:
             logger.info(f"Extracted invoice UUID: {invoice_uuid} for invoice {invoice_number}")
 
-        # 10b. Update the invoice counter in Directus and Cache
-        try:
-            logger.info(f"Attempting to encrypt new invoice counter {new_invoice_counter} for user")
-            # Encrypt the new counter value
-            encrypted_new_counter, _ = await task.encryption_service.encrypt_with_user_key(
-                str(new_invoice_counter), vault_key_id
-            )
-            if encrypted_new_counter:
-                logger.info("Successfully encrypted new invoice counter for user.")
-                # Update Directus
-                update_payload = {"encrypted_invoice_counter": encrypted_new_counter}
-                logger.info("Attempting to update encrypted_invoice_counter in Directus for user with new encrypted value.")
-                directus_update_success = await task.directus_service.update_user(user_id, update_payload)
-
-                if directus_update_success:
-                    logger.info(f"Successfully updated encrypted_invoice_counter in Directus for user to {new_invoice_counter} (encrypted).")
-                    # Now, update the cache with the new *decrypted* value
-                    if cache_service:
-                        try:
-                            cache_update_payload = {"invoice_counter": new_invoice_counter} # Store the decrypted int
-                            cache_update_success = await cache_service.update_user(user_id, cache_update_payload)
-                            if cache_update_success:
-                                logger.info(f"Successfully updated cache for invoice_counter for user with value {new_invoice_counter}.")
-                            else:
-                                logger.warning("Failed to update cache for invoice_counter for user after Directus update.")
-                        except Exception as cache_err:
-                            logger.error(f"Error updating cache for invoice_counter for user after Directus update: {cache_err}", exc_info=True)
-                    else:
-                         logger.warning("Cache service not available, skipping cache update for invoice_counter for user after Directus update.")
-                else:
-                    logger.error("Failed to update encrypted_invoice_counter in Directus for user. Directus update call returned failure. Cache will not be updated.")
-            else:
-                 logger.error(f"Failed to encrypt new invoice counter {new_invoice_counter} for user. Encryption returned None. Directus and cache will not be updated.")
-        except Exception as counter_update_err:
-            logger.error(f"Exception occurred during invoice counter update process for user: {counter_update_err}", exc_info=True)
-            # Continue with email sending even if counter update fails, but log the error
+        # Team invoice numbers derive from Team and order identities, so Team
+        # purchases do not advance a payer's Personal invoice counter.
+        if not is_team_invoice:
+            try:
+                encrypted_new_counter, _ = await task.encryption_service.encrypt_with_user_key(
+                    str(new_invoice_counter), vault_key_id
+                )
+                if encrypted_new_counter:
+                    updated = await task.directus_service.update_user(
+                        user_id, {"encrypted_invoice_counter": encrypted_new_counter}
+                    )
+                    if updated and cache_service:
+                        await cache_service.update_user(user_id, {"invoice_counter": new_invoice_counter})
+                    elif not updated:
+                        logger.error("Failed to update Personal invoice counter for order %s", order_id)
+            except Exception:
+                logger.exception("Failed to update Personal invoice counter for order %s", order_id)
 
         # 11. Now that we have the invoice UUID, regenerate the PDFs with the refund link
         # Generate refund deep link URL if invoice UUID is available
         refund_deep_link_url = None
-        if invoice_uuid:
+        if invoice_uuid and not is_team_invoice:
             try:
                 # Load shared URLs configuration to get webapp URL
                 from backend.core.api.app.services.email.config_loader import load_shared_urls

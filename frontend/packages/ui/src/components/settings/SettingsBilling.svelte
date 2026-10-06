@@ -56,6 +56,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
             'buy-credits': 'coins',
             'auto-topup': 'reload',
             'invoices': 'document',
+            'address': 'location',
             'referral-code': 'icon_gift'
         };
         const iconName = iconMap[path.split('/')[0]] || path.split('/')[0];
@@ -105,6 +106,14 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     icon="subsetting_icon document"
     title={$text('common.invoices')}
     onClick={() => navigateToSubview('invoices')}
+/>
+
+<SettingsItem
+    type="submenu"
+    icon="subsetting_icon pin"
+    title={$text('settings.billing.billing_address')}
+    onClick={() => navigateToSubview('address')}
+    data-testid="personal-billing-address"
 />
 
 <!-- Gift Cards Menu Item -->

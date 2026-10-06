@@ -15,6 +15,23 @@ invoices:
       length: 512
       note: "Hash of the user ID who made the purchase"
 
+    hashed_team_id:
+      type: string
+      length: 64
+      nullable: true
+      note: "[Indexed] Team billing owner. Team invoice rows do not enter Personal invoice lists."
+    team_order_key:
+      type: string
+      length: 64
+      nullable: true
+      unique: true
+      note: "Unique Team invoice order hash; null for Personal invoices."
+
+    invoice_vault_key_id:
+      type: string
+      nullable: true
+      note: "Vault key for server-authorized Team invoice decryption; belongs to original payer."
+
     date:
       type: datetime
 

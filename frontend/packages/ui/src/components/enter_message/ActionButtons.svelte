@@ -17,6 +17,7 @@
 
     interface Props {
         showSendButton?: boolean;
+        sendInProgress?: boolean;
         isRecordButtonPressed?: boolean;
         isAuthenticated?: boolean;
         allowAnonymousTextSend?: boolean;
@@ -36,6 +37,7 @@
 
     let {
         showSendButton = false,
+        sendInProgress = false,
         isRecordButtonPressed = false,
         blockedMicAttempt = 0,
         isAuthenticated = true,
@@ -232,7 +234,7 @@
                 </button>
             {:else if canSendMessage && !forceUnauthenticatedCta}
                 <!-- Keep the composer expanded between pointer-down and click, including during autosave. -->
-                <button type="button" class="send-button" data-testid="composer-send-button" data-preserve-composer-focus="true" data-action="send-message" onclick={handleSendMessageClick} aria-label={$text('enter_message.send')} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
+                <button type="button" class="send-button" data-testid="composer-send-button" data-preserve-composer-focus="true" data-action="send-message" onclick={handleSendMessageClick} aria-label={$text('enter_message.send')} disabled={sendInProgress} aria-busy={sendInProgress} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
                     {$text('enter_message.send')}
                 </button>
             {:else}

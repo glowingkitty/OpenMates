@@ -5378,10 +5378,10 @@
         "text": "OpenMates v0.9: Neue Apps & Skills, KI-Modelle, Datei-Upload & mehr"
       },
       "message": {
-        "text": "Hallo,\nMarco (aka [glowingkitty](https://github.com/glowingkitty)) hier — der Entwickler von OpenMates.\nIch habe OpenMates nicht vergessen — ganz im Gegenteil.\n\n# 🙏 Zunächst ein paar dankende Worte\n\nEnde Dezember wurde ich im Rahmen des Chaos Communication Congress unerwartet für ein Interview beim ZDF angefragt [(ein Bericht über die Wichtigkeit datenschutzfreundlicher Alternativen zu KI-Produkten großer Tech-Konzerne)](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html). Und wow, was für eine Erfahrung. Obwohl OpenMates zu diesem Zeitpunkt noch deutlich unfertiger war, haben sich die ersten Nutzer angemeldet und es genutzt — dabei auch Fehler und Grenzfälle entdeckt, die mir beim Testen auf meinen eigenen Geräten nicht aufgefallen waren, und diese dankenswerterweise gemeldet. Vielen Dank an alle, die das getan haben — das hat enorm dabei geholfen, OpenMates ausgereifter, stabiler und vollständiger zu machen! Und natürlich seid ihr herzlich eingeladen, weiterhin Probleme zu melden, wenn euch etwas falsch oder kaputt vorkommt.\n\nDas war zwar nicht die erste Software die ich entwickelt habe, aber es war das erste Mal, dass mehr als eine Handvoll Leute Software von mir genutzt haben — über 180 aktive Nutzer:innen verwenden OpenMates inzwischen! Das war super aufregend und zugegebenermaßen anfangs auch etwas überwältigend.\n\nSeitdem habe ich mich voll darauf konzentriert OpenMates zu verbessern, zu debuggen und funktional vollständiger und ausgereifter zu machen — und dabei eine Menge am Code verändert. Fehlerbehebungen, neue Funktionen, eine verbesserte Benutzeroberfläche und viele weitere Verbesserungen.\n\nUnd heute freue ich mich, euch ein Update mit den spannendsten Änderungen der letzten Monate zu geben! Alle Änderungen zu besprechen wäre für einen einzelnen Newsletter zu viel — deshalb konzentriere ich mich auf die Highlights und werde in den kommenden Wochen außerdem mehrere kurze Videos zu verschiedenen Funktionen von OpenMates veröffentlichen, auf:\n- [Instagram](https://instagram.com/openmates_official)\n- [Bluesky](https://bsky.app/profile/openmates.bsky.social)\n- [Mastodon](https://mastodon.social/@OpenMates)\n- [YouTube](https://www.youtube.com/@OpenMates).\n\n# ✨ Die Highlights der letzten Monate\n\n## 1. 🧩 Neue Apps & App-Skills\n\nNeben den bestehenden Fähigkeiten wie Websuche, dem Lesen & Analysieren von Websites und dem Lesen von YouTube-Video-Transkripten für Diskussionen — hat OpenMates eine Menge neuer Apps und App-Skills bekommen. Hier sind einige Highlights:\n\n- 🏥 **[Gesundheit](#settings/apps/health/skills/search_appointments):** Auf der Suche nach Arztterminen? Die Gesundheits-App kann jetzt Doctolib und Jameda nach freien Terminen durchsuchen.\n- 🏠 **[Wohnung](#settings/apps/home/skills/search):** Wohnungen auf ImmoScout24, WG-Gesucht und Kleinanzeigen suchen — mit den wichtigsten Details direkt auf OpenMates sichtbar.\n- 🎉 **[Veranstaltungen](#settings/apps/events/skills/search):** Veranstaltungen auf Meetup, Luma, Resident Advisor und Google suchen & filtern — mit Details wie Beschreibungen, Bildern, wann und wo die Veranstaltungen stattfinden, und direkten Links zum Anmelden.\n- ✈️ **[Reisen](#settings/apps/travel):** Der neue Skill '[Verbindung suchen](#settings/apps/travel/skills/search_connections)' ermöglicht die Suche nach Flügen über Google, an verschiedenen Tagen gleichzeitig — inkl. vollständiger Flugdetails und Buchungslinks. Zugverbindungen folgen. Und der Skill '[Preiskalender](#settings/apps/travel/skills/price_calendar)' zeigt einen schnellen Überblick über die Preisentwicklung über einen Monat.\n- ⏰ **[Erinnerung](#settings/apps/reminder):** Erstelle eine Erinnerung für einen Chat, um später darauf zurückzukommen — oder starte zum Beispiel eine automatische Suche & Zusammenfassung der neuesten Nachrichten zu einem bestimmten Thema.\n- 🖼️ **[Bilder](#settings/apps/images):** [Suche](#settings/apps/images/skills/search) nach Bildern im Web, [generiere](#settings/apps/images/skills/generate) Bilder und [Vektorgrafiken](#settings/apps/images/skills/vectorize).\n- 📄 **[PDFs](#settings/apps/pdf):** Lade PDFs hoch und stelle Fragen zum Text oder sogar zum visuellen Layout — OpenMates kann PDFs sowohl lesen als auch anschauen!\n- 💻 **[Code](#settings/apps/code):** OpenMates kann [die neueste Dokumentation durchsuchen](#settings/apps/code/skills/get_docs), um Programmierfragen zu beantworten, dann Code schreiben — und sogar Code von Website-Designs direkt im Browser als Vorschau anzeigen! Und das ist erst der Anfang der Coding-Fähigkeiten.\n- 🧮 **[Mathe](#settings/apps/math):** Ausdrücke berechnen und sogar Diagramme visualisieren — alles direkt in OpenMates.\n- 📝 **[Dokumente](#settings/apps/docs):** Lass dir Word-Dokumente generieren — und lade sie als .docx-Dateien herunter.\n- 📊 **[Tabellen](#settings/apps/sheets):** OpenMates kann auch Tabellen erstellen und als .xlsx-Dateien zum Download anbieten. Und sowohl Dokumente als auch Tabellen werden in den kommenden Wochen noch besser und leistungsfähiger.\n- 📧 **[Post](#settings/apps/mail):** OpenMates kann E-Mails für dich entwerfen, die du dann ganz einfach über dein Standard-E-Mail-Programm auf deinem Gerät öffnen & senden kannst.\n- 🎙️ **[Audio](#settings/apps/audio):** Keine Lust zu tippen? Nimm eine Sprachnachricht auf und sende sie direkt aus dem Nachrichtenfeld an OpenMates.\n\nUnd noch einige weitere App-Skills wurden hinzugefügt. Schau einfach in den [OpenMates Apps](#settings/apps) vorbei.\n\n## 2. 🔒 Persönliche Daten-Platzhalter\n\nAnders als KI-Chatbots von großen Tech-Konzernen und typischen Startups priorisiert OpenMates Datenschutz. Es hatte bereits verschiedene Datenschutzmaßnahmen:\n- 🔐 alle deine Chats werden ausschließlich auf deinem Gerät verschlüsselt & entschlüsselt\n- 🖼️ alle externen Bilder werden über unseren OpenMates-Server geladen (sodass externe Websites weder deine IP-Adresse noch Geräteinformationen sehen)\n- 📉 kein Google Analytics oder sonstige Analyse-Software wird auf OpenMates verwendet (weshalb du auch kein Cookie-Banner auf OpenMates siehst)\n\nWas neu ist: Sensible Daten wie E-Mail-Adressen, Telefonnummern, API-Schlüssel und mehr werden automatisch erkannt und auf deinem Gerät durch Platzhalter ersetzt, wenn du eine Nachricht an OpenMates verfasst und sendest. Du kannst jederzeit in der Benutzeroberfläche zum Originalwert zurückwechseln und erkannte Daten anklicken, um die Ersetzung zu verhindern. Standardmäßig stellt diese Funktion aber sicher, dass weder OpenMates noch die KI-Anbieter, die deine Nachrichten verarbeiten, jemals die sensiblen Daten zu sehen bekommen.\n\n[Probier es selbst aus](#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.) — klicke auf diesen Link, um die Persönlichen Daten-Platzhalter in Aktion zu sehen: deine E-Mail-Adresse und Telefonnummer werden automatisch erkannt und ersetzt, bevor sie versendet werden.\n\n## 3. 🧠 Erinnerungen\n\nOpenMates kann sich jetzt app-spezifische Erinnerungen merken, wie deine anstehenden Reisen oder Projektdetails. ABER: Alle Erinnerungen werden ausschließlich auf deinem Gerät verschlüsselt & entschlüsselt und nur dann vorübergehend mit dem OpenMates-Server und dem KI-Anbieter geteilt, wenn du dies für den jeweiligen Chat ausdrücklich bestätigst. So kannst du personalisierte Antworten voll nutzen, ohne ständig deine Projektdetails zu wiederholen — und behältst dabei die volle Kontrolle darüber, welche Daten du wann und mit welchem KI-Anbieter teilst. Entdecke die [Erinnerungen in OpenMates Apps](#settings/apps/all/memories).\n\n## 4. 🎯 Fokus-Modi\n\nDie richtigen Anweisungen an einen KI-Chatbot zu geben, macht einen enormen Unterschied in Bezug darauf, wie hilfreich der Chatbot ist und wie gut die Antworten ausfallen. Mit Fokus-Modi musst du kein Experte im Prompt Engineering sein, um großartige, zielgerichtete Anweisungen voll zu nutzen. Frag OpenMates zum Beispiel einfach nach Karriere-Einschätzungen, und der Fokus-Modus „Karriere-Einschätzungen\" sollte automatisch aktiviert werden, um dich durch den Prozess zu führen. Und natürlich: Das ist erst der Anfang. Viele weitere Fokus-Modi werden folgen, und die Qualität der bestehenden wird in den kommenden Wochen weiter verbessert. Schau dir die [Fokus-Modi in OpenMates Apps](#settings/apps/all/focus-modes) an.\n\n## 5. 🤖 Neue Modelle\n\nOpenMates bietet eine breite Auswahl der effizientesten und leistungsstärksten KI-Modelle. Standardmäßig wird automatisch das richtige Modell basierend auf der Aufgabe ausgewählt. Du kannst dieses Verhalten aber jederzeit [in den KI-Einstellungen](#settings/ai) dauerhaft ändern oder bei Bedarf ein bestimmtes Modell im Nachrichtenfeld über `@{Modellname}` auswählen. Du kannst jetzt aus einer breiten Palette von KI-Modellen wählen, zum Beispiel:\n\n- [Claude Opus 4.7](#settings/ai/model/claude-opus-4-7) & [Claude Sonnet 4.6](#settings/ai/model/claude-sonnet-4-6)\n- [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)\n- [GPT-5.4](#settings/ai/model/gpt-5.4)\n- [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)\n- [Devstral 2](#settings/ai/model/devstral-2512)\n- `@best` und `@fast` Modell-Aliase — tippe `@best`, um automatisch das stärkste Modell zu verwenden, oder `@fast` für das schnellste verfügbare Modell auf OpenMates.\n\n## 6. 💡 Tägliche Inspirationen & Wikipedia-Links\n\nKI kann, richtig eingesetzt, ein großartiges Werkzeug zum Lernen sein. Und OpenMates ist darauf optimiert, Menschen zum Lernen und Entdecken zu ermutigen und zu inspirieren. Dafür gibt es die Täglichen Inspirationen, die du oben in der Oberfläche siehst, nachdem du dich eingeloggt hast. Sie zeigen interessante neue Videos — und bald auch andere Inhalte wie Wikipedia-Artikel, neue OpenMates-Funktionen, Fotos und Details von Kunstwerken, wichtige historische Ereignisse und mehr. Tägliche Inspirationen sind auf deine Chats abgestimmt und werden auf deinem Gerät mit einem Schlüssel gesperrt, den nur du hast — sie bleiben also privat.\nAußerdem hebt OpenMates automatisch Wikipedia-Artikel in den Antworten der Assistenten-Nachrichten hervor. Das macht es super einfach, mehr über ein Thema zu erfahren, indem du einfach auf das orange hervorgehobene Wort mit dem Lern-Symbol daneben klickst.\n\n# 🚀 Was als Nächstes kommt\n\nIn den kommenden Wochen werde ich verschiedene kurze Clips veröffentlichen, die die vielen Funktionen von OpenMates und die nützlichen Dinge zeigen, die man damit machen kann, und gleichzeitig die Software weiter verbessern und weitere Apps, Anbieter und Funktionen hinzufügen.\n\nAb jetzt plane ich, alle paar Wochen Newsletter-E-Mails für Ankündigungen & Updates zu senden, und separat auch Tipps & Tricks zur Nutzung von OpenMates. Du kannst jederzeit [deine Newsletter-Einstellungen überprüfen](#settings/newsletter), wenn du mehr oder weniger Newsletter-E-Mails erhalten möchtest.\n\nViel Spaß mit OpenMates, und bleib gespannt auf weitere Updates!"
+        "text": "Hallo,\nMarco (aka [glowingkitty](https://github.com/glowingkitty)) hier — der Entwickler von OpenMates.\nIch habe OpenMates nicht vergessen — ganz im Gegenteil.\n\n# 🙏 Zunächst ein paar dankende Worte\n\nEnde Dezember wurde ich im Rahmen des Chaos Communication Congress unerwartet für ein Interview beim ZDF angefragt [(ein Bericht über die Wichtigkeit datenschutzfreundlicher Alternativen zu KI-Produkten großer Tech-Konzerne)](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html). Und wow, was für eine Erfahrung. Obwohl OpenMates zu diesem Zeitpunkt noch deutlich unfertiger war, haben sich die ersten Nutzer angemeldet und es genutzt — dabei auch Fehler und Grenzfälle entdeckt, die mir beim Testen auf meinen eigenen Geräten nicht aufgefallen waren, und diese dankenswerterweise gemeldet. Vielen Dank an alle, die das getan haben — das hat enorm dabei geholfen, OpenMates ausgereifter, stabiler und vollständiger zu machen! Und natürlich seid ihr herzlich eingeladen, weiterhin Probleme zu melden, wenn euch etwas falsch oder kaputt vorkommt.\n\nDas war zwar nicht die erste Software die ich entwickelt habe, aber es war das erste Mal, dass mehr als eine Handvoll Leute Software von mir genutzt haben — über 180 aktive Nutzer:innen verwenden OpenMates inzwischen! Das war super aufregend und zugegebenermaßen anfangs auch etwas überwältigend.\n\nSeitdem habe ich mich voll darauf konzentriert OpenMates zu verbessern, zu debuggen und funktional vollständiger und ausgereifter zu machen — und dabei eine Menge am Code verändert. Fehlerbehebungen, neue Funktionen, eine verbesserte Benutzeroberfläche und viele weitere Verbesserungen.\n\nUnd heute freue ich mich, euch ein Update mit den spannendsten Änderungen der letzten Monate zu geben! Alle Änderungen zu besprechen wäre für einen einzelnen Newsletter zu viel — deshalb konzentriere ich mich auf die Highlights und werde in den kommenden Wochen außerdem mehrere kurze Videos zu verschiedenen Funktionen von OpenMates veröffentlichen, auf:\n- [Instagram](https://instagram.com/openmates_official)\n- [Bluesky](https://bsky.app/profile/openmates.bsky.social)\n- [Mastodon](https://mastodon.social/@OpenMates)\n- [YouTube](https://www.youtube.com/@OpenMates).\n\n# ✨ Die Highlights der letzten Monate\n\n## 1. 🧩 Neue Apps & App-Skills\n\nNeben den bestehenden Fähigkeiten wie Websuche, dem Lesen & Analysieren von Websites und dem Lesen von YouTube-Video-Transkripten für Diskussionen — hat OpenMates eine Menge neuer Apps und App-Skills bekommen. Hier sind einige Highlights:\n\n- 🏥 **[Gesundheit](#settings/apps/health/skills/search_appointments):** Auf der Suche nach Arztterminen? Die Gesundheits-App kann jetzt Doctolib und Jameda nach freien Terminen durchsuchen.\n- 🏠 **[Wohnung](#settings/apps/home/skills/search):** Wohnungen auf ImmoScout24, WG-Gesucht und Kleinanzeigen suchen — mit den wichtigsten Details direkt auf OpenMates sichtbar.\n- 🎉 **[Veranstaltungen](#settings/apps/events/skills/search):** Veranstaltungen auf Meetup, Luma, Resident Advisor und Google suchen & filtern — mit Details wie Beschreibungen, Bildern, wann und wo die Veranstaltungen stattfinden, und direkten Links zum Anmelden.\n- ✈️ **[Reisen](#settings/apps/travel):** Der neue Skill '[Verbindung suchen](#settings/apps/travel/skills/search_connections)' ermöglicht die Suche nach Flügen über Google, an verschiedenen Tagen gleichzeitig — inkl. vollständiger Flugdetails und Buchungslinks. Zugverbindungen folgen. Und der Skill '[Preiskalender](#settings/apps/travel/skills/price_calendar)' zeigt einen schnellen Überblick über die Preisentwicklung über einen Monat.\n- ⏰ **[Erinnerung](#settings/apps/reminder):** Erstelle eine Erinnerung für einen Chat, um später darauf zurückzukommen — oder starte zum Beispiel eine automatische Suche & Zusammenfassung der neuesten Nachrichten zu einem bestimmten Thema.\n- 🖼️ **[Bilder](#settings/apps/images):** [Suche](#settings/apps/images/skills/search) nach Bildern im Web, [generiere](#settings/apps/images/skills/generate) Bilder und [Vektorgrafiken](#settings/apps/images/skills/vectorize).\n- 📄 **[PDFs](#settings/apps/pdf):** Lade PDFs hoch und stelle Fragen zum Text oder sogar zum visuellen Layout — OpenMates kann PDFs sowohl lesen als auch anschauen!\n- 💻 **[Code](#settings/apps/code):** OpenMates kann [die neueste Dokumentation durchsuchen](#settings/apps/code/skills/get_docs), um Programmierfragen zu beantworten, dann Code schreiben — und sogar Code von Website-Designs direkt im Browser als Vorschau anzeigen! Und das ist erst der Anfang der Coding-Fähigkeiten.\n- 🧮 **[Mathe](#settings/apps/math):** Ausdrücke berechnen und sogar Diagramme visualisieren — alles direkt in OpenMates.\n- 📝 **[Dokumente](#settings/apps/docs):** Lass dir Word-Dokumente generieren — und lade sie als .docx-Dateien herunter.\n- 📊 **[Tabellen](#settings/apps/sheets):** OpenMates kann auch Tabellen erstellen und als .xlsx-Dateien zum Download anbieten. Und sowohl Dokumente als auch Tabellen werden in den kommenden Wochen noch besser und leistungsfähiger.\n- 📧 **[Post](#settings/apps/mail):** OpenMates kann E-Mails für dich entwerfen, die du dann ganz einfach über dein Standard-E-Mail-Programm auf deinem Gerät öffnen & senden kannst.\n- 🎙️ **[Audio](#settings/apps/audio):** Keine Lust zu tippen? Nimm eine Sprachnachricht auf und sende sie direkt aus dem Nachrichtenfeld an OpenMates.\n\nUnd noch einige weitere App-Skills wurden hinzugefügt. Schau einfach in den [OpenMates Apps](#settings/apps) vorbei.\n\n## 2. 🔒 Persönliche Daten-Platzhalter\n\nAnders als KI-Chatbots von großen Tech-Konzernen und typischen Startups priorisiert OpenMates Datenschutz. Es hatte bereits verschiedene Datenschutzmaßnahmen:\n- 🔐 alle deine Chats werden ausschließlich auf deinem Gerät verschlüsselt & entschlüsselt\n- 🖼️ alle externen Bilder werden über unseren OpenMates-Server geladen (sodass externe Websites weder deine IP-Adresse noch Geräteinformationen sehen)\n- 📉 kein Google Analytics oder sonstige Analyse-Software wird auf OpenMates verwendet (weshalb du auch kein Cookie-Banner auf OpenMates siehst)\n\nWas neu ist: Sensible Daten wie E-Mail-Adressen, Telefonnummern, API-Schlüssel und mehr werden automatisch erkannt und auf deinem Gerät durch Platzhalter ersetzt, wenn du eine Nachricht an OpenMates verfasst und sendest. Du kannst jederzeit in der Benutzeroberfläche zum Originalwert zurückwechseln und erkannte Daten anklicken, um die Ersetzung zu verhindern. Standardmäßig stellt diese Funktion aber sicher, dass weder OpenMates noch die KI-Anbieter, die deine Nachrichten verarbeiten, jemals die sensiblen Daten zu sehen bekommen.\n\n[Probier es selbst aus](#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.) — klicke auf diesen Link, um die Persönlichen Daten-Platzhalter in Aktion zu sehen: deine E-Mail-Adresse und Telefonnummer werden automatisch erkannt und ersetzt, bevor sie versendet werden.\n\n## 3. 🧠 Erinnerungen\n\nOpenMates kann sich jetzt app-spezifische Erinnerungen merken, wie deine anstehenden Reisen oder Projektdetails. ABER: Alle Erinnerungen werden ausschließlich auf deinem Gerät verschlüsselt & entschlüsselt und nur dann vorübergehend mit dem OpenMates-Server und dem KI-Anbieter geteilt, wenn du dies für den jeweiligen Chat ausdrücklich bestätigst. So kannst du personalisierte Antworten voll nutzen, ohne ständig deine Projektdetails zu wiederholen — und behältst dabei die volle Kontrolle darüber, welche Daten du wann und mit welchem KI-Anbieter teilst. Entdecke die [Erinnerungen in OpenMates Apps](#settings/apps/all/memories).\n\n## 4. 🎯 Fokus-Modi\n\nDie richtigen Anweisungen an einen KI-Chatbot zu geben, macht einen enormen Unterschied in Bezug darauf, wie hilfreich der Chatbot ist und wie gut die Antworten ausfallen. Mit Fokus-Modi musst du kein Experte im Prompt Engineering sein, um großartige, zielgerichtete Anweisungen voll zu nutzen. Frag OpenMates zum Beispiel einfach nach Karriere-Einschätzungen, und der Fokus-Modus „Karriere-Einschätzungen\" sollte automatisch aktiviert werden, um dich durch den Prozess zu führen. Und natürlich: Das ist erst der Anfang. Viele weitere Fokus-Modi werden folgen, und die Qualität der bestehenden wird in den kommenden Wochen weiter verbessert. Schau dir die [Fokus-Modi in OpenMates Apps](#settings/apps/all/focus-modes) an.\n\n## 5. 🤖 Neue Modelle\n\nOpenMates bietet eine breite Auswahl der effizientesten und leistungsstärksten KI-Modelle. Standardmäßig wird automatisch das richtige Modell basierend auf der Aufgabe ausgewählt. Du kannst dieses Verhalten aber jederzeit [in den KI-Einstellungen](#settings/ai) dauerhaft ändern oder bei Bedarf ein bestimmtes Modell im Nachrichtenfeld über `@{Modellname}` auswählen. Du kannst jetzt aus einer breiten Palette von KI-Modellen wählen, zum Beispiel:\n\n- [Claude Opus 4.7](#settings/ai/model/claude-opus-4-7) & [Claude Sonnet 4.6](#settings/ai/model/claude-sonnet-4-6)\n- [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)\n- [GPT-5.4](#settings/ai/model/gpt-5.4)\n- [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)\n- Devstral 2\n- `@best` und `@fast` Modell-Aliase — tippe `@best`, um automatisch das stärkste Modell zu verwenden, oder `@fast` für das schnellste verfügbare Modell auf OpenMates.\n\n## 6. 💡 Tägliche Inspirationen & Wikipedia-Links\n\nKI kann, richtig eingesetzt, ein großartiges Werkzeug zum Lernen sein. Und OpenMates ist darauf optimiert, Menschen zum Lernen und Entdecken zu ermutigen und zu inspirieren. Dafür gibt es die Täglichen Inspirationen, die du oben in der Oberfläche siehst, nachdem du dich eingeloggt hast. Sie zeigen interessante neue Videos — und bald auch andere Inhalte wie Wikipedia-Artikel, neue OpenMates-Funktionen, Fotos und Details von Kunstwerken, wichtige historische Ereignisse und mehr. Tägliche Inspirationen sind auf deine Chats abgestimmt und werden auf deinem Gerät mit einem Schlüssel gesperrt, den nur du hast — sie bleiben also privat.\nAußerdem hebt OpenMates automatisch Wikipedia-Artikel in den Antworten der Assistenten-Nachrichten hervor. Das macht es super einfach, mehr über ein Thema zu erfahren, indem du einfach auf das orange hervorgehobene Wort mit dem Lern-Symbol daneben klickst.\n\n# 🚀 Was als Nächstes kommt\n\nIn den kommenden Wochen werde ich verschiedene kurze Clips veröffentlichen, die die vielen Funktionen von OpenMates und die nützlichen Dinge zeigen, die man damit machen kann, und gleichzeitig die Software weiter verbessern und weitere Apps, Anbieter und Funktionen hinzufügen.\n\nAb jetzt plane ich, alle paar Wochen Newsletter-E-Mails für Ankündigungen & Updates zu senden, und separat auch Tipps & Tricks zur Nutzung von OpenMates. Du kannst jederzeit [deine Newsletter-Einstellungen überprüfen](#settings/newsletter), wenn du mehr oder weniger Newsletter-E-Mails erhalten möchtest.\n\nViel Spaß mit OpenMates, und bleib gespannt auf weitere Updates!"
       },
       "email_body": {
-        "text": "Hallo,\nMarco (aka [glowingkitty](https://github.com/glowingkitty)) hier — der Entwickler von OpenMates.\nIch habe OpenMates nicht vergessen — ganz im Gegenteil.\n\n[video]\n\n# 🙏 Zunächst ein paar dankende Worte\n\nEnde Dezember wurde ich im Rahmen des Chaos Communication Congress unerwartet für ein Interview beim ZDF angefragt [(ein Bericht über die Wichtigkeit datenschutzfreundlicher Alternativen zu KI-Produkten großer Tech-Konzerne)](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html). Und wow, was für eine Erfahrung. Obwohl OpenMates zu diesem Zeitpunkt noch deutlich unfertiger war, haben sich die ersten Nutzer angemeldet und es genutzt — dabei auch Fehler und Grenzfälle entdeckt, die mir beim Testen auf meinen eigenen Geräten nicht aufgefallen waren, und diese dankenswerterweise gemeldet. Vielen Dank an alle, die das getan haben — das hat enorm dabei geholfen, OpenMates ausgereifter, stabiler und vollständiger zu machen! Und natürlich seid ihr herzlich eingeladen, weiterhin Probleme zu melden, wenn euch etwas falsch oder kaputt vorkommt.\n\nDas war zwar nicht die erste Software die ich entwickelt habe, aber es war das erste Mal, dass mehr als eine Handvoll Leute Software von mir genutzt haben — über 180 aktive Nutzer:innen verwenden OpenMates inzwischen! Das war super aufregend und zugegebenermaßen anfangs auch etwas überwältigend.\n\nSeitdem habe ich mich voll darauf konzentriert OpenMates zu verbessern, zu debuggen und funktional vollständiger und ausgereifter zu machen — und dabei eine Menge am Code verändert. Fehlerbehebungen, neue Funktionen, eine verbesserte Benutzeroberfläche und viele weitere Verbesserungen.\n\nUnd heute freue ich mich, euch ein Update mit den spannendsten Änderungen der letzten Monate zu geben! Alle Änderungen zu besprechen wäre für einen einzelnen Newsletter zu viel — deshalb konzentriere ich mich auf die Highlights und werde in den kommenden Wochen außerdem mehrere kurze Videos zu verschiedenen Funktionen von OpenMates veröffentlichen, auf:\n- [Instagram](https://instagram.com/openmates_official)\n- [Bluesky](https://bsky.app/profile/openmates.bsky.social)\n- [Mastodon](https://mastodon.social/@OpenMates)\n- [YouTube](https://www.youtube.com/@OpenMates).\n\n# ✨ Die Highlights der letzten Monate\n\n## 1. 🧩 Neue Apps & App-Skills\n\nNeben den bestehenden Fähigkeiten wie Websuche, dem Lesen & Analysieren von Websites und dem Lesen von YouTube-Video-Transkripten für Diskussionen — hat OpenMates eine Menge neuer Apps und App-Skills bekommen. Hier sind einige Highlights:\n\n- 🏥 **[Gesundheit](https://openmates.org/#settings/apps/health/skills/search_appointments):** Auf der Suche nach Arztterminen? Die Gesundheits-App kann jetzt Doctolib und Jameda nach freien Terminen durchsuchen.\n- 🏠 **[Wohnung](https://openmates.org/#settings/apps/home/skills/search):** Wohnungen auf ImmoScout24, WG-Gesucht und Kleinanzeigen suchen — mit den wichtigsten Details direkt auf OpenMates sichtbar.\n- 🎉 **[Veranstaltungen](https://openmates.org/#settings/apps/events/skills/search):** Veranstaltungen auf Meetup, Luma, Resident Advisor und Google suchen & filtern — mit Details wie Beschreibungen, Bildern, wann und wo die Veranstaltungen stattfinden, und direkten Links zum Anmelden.\n- ✈️ **[Reisen](https://openmates.org/#settings/apps/travel):** Der neue Skill '[Verbindung suchen](https://openmates.org/#settings/apps/travel/skills/search_connections)' ermöglicht die Suche nach Flügen über Google, an verschiedenen Tagen gleichzeitig — inkl. vollständiger Flugdetails und Buchungslinks. Zugverbindungen folgen. Und der Skill '[Preiskalender](https://openmates.org/#settings/apps/travel/skills/price_calendar)' zeigt einen schnellen Überblick über die Preisentwicklung über einen Monat.\n- ⏰ **[Erinnerung](https://openmates.org/#settings/apps/reminder):** Erstelle eine Erinnerung für einen Chat, um später darauf zurückzukommen — oder starte zum Beispiel eine automatische Suche & Zusammenfassung der neuesten Nachrichten zu einem bestimmten Thema.\n- 🖼️ **[Bilder](https://openmates.org/#settings/apps/images):** [Suche](https://openmates.org/#settings/apps/images/skills/search) nach Bildern im Web, [generiere](https://openmates.org/#settings/apps/images/skills/generate) Bilder und [Vektorgrafiken](https://openmates.org/#settings/apps/images/skills/vectorize).\n- 📄 **[PDFs](https://openmates.org/#settings/apps/pdf):** Lade PDFs hoch und stelle Fragen zum Text oder sogar zum visuellen Layout — OpenMates kann PDFs sowohl lesen als auch anschauen!\n- 💻 **[Code](https://openmates.org/#settings/apps/code):** OpenMates kann [die neueste Dokumentation durchsuchen](https://openmates.org/#settings/apps/code/skills/get_docs), um Programmierfragen zu beantworten, dann Code schreiben — und sogar Code von Website-Designs direkt im Browser als Vorschau anzeigen! Und das ist erst der Anfang der Coding-Fähigkeiten.\n- 🧮 **[Mathe](https://openmates.org/#settings/apps/math):** Ausdrücke berechnen und sogar Diagramme visualisieren — alles direkt in OpenMates.\n- 📝 **[Dokumente](https://openmates.org/#settings/apps/docs):** Lass dir Word-Dokumente generieren — und lade sie als .docx-Dateien herunter.\n- 📊 **[Tabellen](https://openmates.org/#settings/apps/sheets):** OpenMates kann auch Tabellen erstellen und als .xlsx-Dateien zum Download anbieten. Und sowohl Dokumente als auch Tabellen werden in den kommenden Wochen noch besser und leistungsfähiger.\n- 📧 **[Post](https://openmates.org/#settings/apps/mail):** OpenMates kann E-Mails für dich entwerfen, die du dann ganz einfach über dein Standard-E-Mail-Programm auf deinem Gerät öffnen & senden kannst.\n- 🎙️ **[Audio](https://openmates.org/#settings/apps/audio):** Keine Lust zu tippen? Nimm eine Sprachnachricht auf und sende sie direkt aus dem Nachrichtenfeld an OpenMates.\n\nUnd noch einige weitere App-Skills wurden hinzugefügt. Schau einfach in den [OpenMates Apps](https://openmates.org/#settings/apps) vorbei.\n\n## 2. 🔒 Persönliche Daten-Platzhalter\n\nAnders als KI-Chatbots von großen Tech-Konzernen und typischen Startups priorisiert OpenMates Datenschutz. Es hatte bereits verschiedene Datenschutzmaßnahmen:\n- 🔐 alle deine Chats werden ausschließlich auf deinem Gerät verschlüsselt & entschlüsselt\n- 🖼️ alle externen Bilder werden über unseren OpenMates-Server geladen (sodass externe Websites weder deine IP-Adresse noch Geräteinformationen sehen)\n- 📉 kein Google Analytics oder sonstige Analyse-Software wird auf OpenMates verwendet (weshalb du auch kein Cookie-Banner auf OpenMates siehst)\n\nWas neu ist: Sensible Daten wie E-Mail-Adressen, Telefonnummern, API-Schlüssel und mehr werden automatisch erkannt und auf deinem Gerät durch Platzhalter ersetzt, wenn du eine Nachricht an OpenMates verfasst und sendest. Du kannst jederzeit in der Benutzeroberfläche zum Originalwert zurückwechseln und erkannte Daten anklicken, um die Ersetzung zu verhindern. Standardmäßig stellt diese Funktion aber sicher, dass weder OpenMates noch die KI-Anbieter, die deine Nachrichten verarbeiten, jemals die sensiblen Daten zu sehen bekommen.\n\n[Probier es selbst aus](https://openmates.org/#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.) — klicke auf diesen Link, um die Persönlichen Daten-Platzhalter in Aktion zu sehen: deine E-Mail-Adresse und Telefonnummer werden automatisch erkannt und ersetzt, bevor sie versendet werden.\n\n## 3. 🧠 Erinnerungen\n\nOpenMates kann sich jetzt app-spezifische Erinnerungen merken, wie deine anstehenden Reisen oder Projektdetails. ABER: Alle Erinnerungen werden ausschließlich auf deinem Gerät verschlüsselt & entschlüsselt und nur dann vorübergehend mit dem OpenMates-Server und dem KI-Anbieter geteilt, wenn du dies für den jeweiligen Chat ausdrücklich bestätigst. So kannst du personalisierte Antworten voll nutzen, ohne ständig deine Projektdetails zu wiederholen — und behältst dabei die volle Kontrolle darüber, welche Daten du wann und mit welchem KI-Anbieter teilst. Entdecke die [Erinnerungen in OpenMates Apps](https://openmates.org/#settings/apps/all/memories).\n\n## 4. 🎯 Fokus-Modi\n\nDie richtigen Anweisungen an einen KI-Chatbot zu geben, macht einen enormen Unterschied in Bezug darauf, wie hilfreich der Chatbot ist und wie gut die Antworten ausfallen. Mit Fokus-Modi musst du kein Experte im Prompt Engineering sein, um großartige, zielgerichtete Anweisungen voll zu nutzen. Frag OpenMates zum Beispiel einfach nach Karriere-Einschätzungen, und der Fokus-Modus „Karriere-Einschätzungen\" sollte automatisch aktiviert werden, um dich durch den Prozess zu führen. Und natürlich: Das ist erst der Anfang. Viele weitere Fokus-Modi werden folgen, und die Qualität der bestehenden wird in den kommenden Wochen weiter verbessert. Schau dir die [Fokus-Modi in OpenMates Apps](https://openmates.org/#settings/apps/all/focus-modes) an.\n\n## 5. 🤖 Neue Modelle\n\nOpenMates bietet eine breite Auswahl der effizientesten und leistungsstärksten KI-Modelle. Standardmäßig wird automatisch das richtige Modell basierend auf der Aufgabe ausgewählt. Du kannst dieses Verhalten aber jederzeit [in den KI-Einstellungen](https://openmates.org/#settings/ai) dauerhaft ändern oder bei Bedarf ein bestimmtes Modell im Nachrichtenfeld über `@{Modellname}` auswählen. Du kannst jetzt aus einer breiten Palette von KI-Modellen wählen, zum Beispiel:\n\n- [Claude Opus 4.7](https://openmates.org/#settings/ai/model/claude-opus-4-7) & [Claude Sonnet 4.6](https://openmates.org/#settings/ai/model/claude-sonnet-4-6)\n- [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)\n- [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)\n- [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)\n- [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)\n- `@best` und `@fast` Modell-Aliase — tippe `@best`, um automatisch das stärkste Modell zu verwenden, oder `@fast` für das schnellste verfügbare Modell auf OpenMates.\n\n## 6. 💡 Tägliche Inspirationen & Wikipedia-Links\n\nKI kann, richtig eingesetzt, ein großartiges Werkzeug zum Lernen sein. Und OpenMates ist darauf optimiert, Menschen zum Lernen und Entdecken zu ermutigen und zu inspirieren. Dafür gibt es die Täglichen Inspirationen, die du oben in der Oberfläche siehst, nachdem du dich eingeloggt hast. Sie zeigen interessante neue Videos — und bald auch andere Inhalte wie Wikipedia-Artikel, neue OpenMates-Funktionen, Fotos und Details von Kunstwerken, wichtige historische Ereignisse und mehr. Tägliche Inspirationen sind auf deine Chats abgestimmt und werden auf deinem Gerät mit einem Schlüssel gesperrt, den nur du hast — sie bleiben also privat.\nAußerdem hebt OpenMates automatisch Wikipedia-Artikel in den Antworten der Assistenten-Nachrichten hervor. Das macht es super einfach, mehr über ein Thema zu erfahren, indem du einfach auf das orange hervorgehobene Wort mit dem Lern-Symbol daneben klickst.\n\n# 🚀 Was als Nächstes kommt\n\nIn den kommenden Wochen werde ich verschiedene kurze Clips veröffentlichen, die die vielen Funktionen von OpenMates und die nützlichen Dinge zeigen, die man damit machen kann, und gleichzeitig die Software weiter verbessern und weitere Apps, Anbieter und Funktionen hinzufügen.\n\nAb jetzt plane ich, alle paar Wochen Newsletter-E-Mails für Ankündigungen & Updates zu senden, und separat auch Tipps & Tricks zur Nutzung von OpenMates. Du kannst jederzeit [deine Newsletter-Einstellungen überprüfen](https://openmates.org/#settings/newsletter), wenn du mehr oder weniger Newsletter-E-Mails erhalten möchtest.\n\nViel Spaß mit OpenMates, und bleib gespannt auf weitere Updates!\n\n[cta]"
+        "text": "Hallo,\nMarco (aka [glowingkitty](https://github.com/glowingkitty)) hier — der Entwickler von OpenMates.\nIch habe OpenMates nicht vergessen — ganz im Gegenteil.\n\n[video]\n\n# 🙏 Zunächst ein paar dankende Worte\n\nEnde Dezember wurde ich im Rahmen des Chaos Communication Congress unerwartet für ein Interview beim ZDF angefragt [(ein Bericht über die Wichtigkeit datenschutzfreundlicher Alternativen zu KI-Produkten großer Tech-Konzerne)](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html). Und wow, was für eine Erfahrung. Obwohl OpenMates zu diesem Zeitpunkt noch deutlich unfertiger war, haben sich die ersten Nutzer angemeldet und es genutzt — dabei auch Fehler und Grenzfälle entdeckt, die mir beim Testen auf meinen eigenen Geräten nicht aufgefallen waren, und diese dankenswerterweise gemeldet. Vielen Dank an alle, die das getan haben — das hat enorm dabei geholfen, OpenMates ausgereifter, stabiler und vollständiger zu machen! Und natürlich seid ihr herzlich eingeladen, weiterhin Probleme zu melden, wenn euch etwas falsch oder kaputt vorkommt.\n\nDas war zwar nicht die erste Software die ich entwickelt habe, aber es war das erste Mal, dass mehr als eine Handvoll Leute Software von mir genutzt haben — über 180 aktive Nutzer:innen verwenden OpenMates inzwischen! Das war super aufregend und zugegebenermaßen anfangs auch etwas überwältigend.\n\nSeitdem habe ich mich voll darauf konzentriert OpenMates zu verbessern, zu debuggen und funktional vollständiger und ausgereifter zu machen — und dabei eine Menge am Code verändert. Fehlerbehebungen, neue Funktionen, eine verbesserte Benutzeroberfläche und viele weitere Verbesserungen.\n\nUnd heute freue ich mich, euch ein Update mit den spannendsten Änderungen der letzten Monate zu geben! Alle Änderungen zu besprechen wäre für einen einzelnen Newsletter zu viel — deshalb konzentriere ich mich auf die Highlights und werde in den kommenden Wochen außerdem mehrere kurze Videos zu verschiedenen Funktionen von OpenMates veröffentlichen, auf:\n- [Instagram](https://instagram.com/openmates_official)\n- [Bluesky](https://bsky.app/profile/openmates.bsky.social)\n- [Mastodon](https://mastodon.social/@OpenMates)\n- [YouTube](https://www.youtube.com/@OpenMates).\n\n# ✨ Die Highlights der letzten Monate\n\n## 1. 🧩 Neue Apps & App-Skills\n\nNeben den bestehenden Fähigkeiten wie Websuche, dem Lesen & Analysieren von Websites und dem Lesen von YouTube-Video-Transkripten für Diskussionen — hat OpenMates eine Menge neuer Apps und App-Skills bekommen. Hier sind einige Highlights:\n\n- 🏥 **[Gesundheit](https://openmates.org/#settings/apps/health/skills/search_appointments):** Auf der Suche nach Arztterminen? Die Gesundheits-App kann jetzt Doctolib und Jameda nach freien Terminen durchsuchen.\n- 🏠 **[Wohnung](https://openmates.org/#settings/apps/home/skills/search):** Wohnungen auf ImmoScout24, WG-Gesucht und Kleinanzeigen suchen — mit den wichtigsten Details direkt auf OpenMates sichtbar.\n- 🎉 **[Veranstaltungen](https://openmates.org/#settings/apps/events/skills/search):** Veranstaltungen auf Meetup, Luma, Resident Advisor und Google suchen & filtern — mit Details wie Beschreibungen, Bildern, wann und wo die Veranstaltungen stattfinden, und direkten Links zum Anmelden.\n- ✈️ **[Reisen](https://openmates.org/#settings/apps/travel):** Der neue Skill '[Verbindung suchen](https://openmates.org/#settings/apps/travel/skills/search_connections)' ermöglicht die Suche nach Flügen über Google, an verschiedenen Tagen gleichzeitig — inkl. vollständiger Flugdetails und Buchungslinks. Zugverbindungen folgen. Und der Skill '[Preiskalender](https://openmates.org/#settings/apps/travel/skills/price_calendar)' zeigt einen schnellen Überblick über die Preisentwicklung über einen Monat.\n- ⏰ **[Erinnerung](https://openmates.org/#settings/apps/reminder):** Erstelle eine Erinnerung für einen Chat, um später darauf zurückzukommen — oder starte zum Beispiel eine automatische Suche & Zusammenfassung der neuesten Nachrichten zu einem bestimmten Thema.\n- 🖼️ **[Bilder](https://openmates.org/#settings/apps/images):** [Suche](https://openmates.org/#settings/apps/images/skills/search) nach Bildern im Web, [generiere](https://openmates.org/#settings/apps/images/skills/generate) Bilder und [Vektorgrafiken](https://openmates.org/#settings/apps/images/skills/vectorize).\n- 📄 **[PDFs](https://openmates.org/#settings/apps/pdf):** Lade PDFs hoch und stelle Fragen zum Text oder sogar zum visuellen Layout — OpenMates kann PDFs sowohl lesen als auch anschauen!\n- 💻 **[Code](https://openmates.org/#settings/apps/code):** OpenMates kann [die neueste Dokumentation durchsuchen](https://openmates.org/#settings/apps/code/skills/get_docs), um Programmierfragen zu beantworten, dann Code schreiben — und sogar Code von Website-Designs direkt im Browser als Vorschau anzeigen! Und das ist erst der Anfang der Coding-Fähigkeiten.\n- 🧮 **[Mathe](https://openmates.org/#settings/apps/math):** Ausdrücke berechnen und sogar Diagramme visualisieren — alles direkt in OpenMates.\n- 📝 **[Dokumente](https://openmates.org/#settings/apps/docs):** Lass dir Word-Dokumente generieren — und lade sie als .docx-Dateien herunter.\n- 📊 **[Tabellen](https://openmates.org/#settings/apps/sheets):** OpenMates kann auch Tabellen erstellen und als .xlsx-Dateien zum Download anbieten. Und sowohl Dokumente als auch Tabellen werden in den kommenden Wochen noch besser und leistungsfähiger.\n- 📧 **[Post](https://openmates.org/#settings/apps/mail):** OpenMates kann E-Mails für dich entwerfen, die du dann ganz einfach über dein Standard-E-Mail-Programm auf deinem Gerät öffnen & senden kannst.\n- 🎙️ **[Audio](https://openmates.org/#settings/apps/audio):** Keine Lust zu tippen? Nimm eine Sprachnachricht auf und sende sie direkt aus dem Nachrichtenfeld an OpenMates.\n\nUnd noch einige weitere App-Skills wurden hinzugefügt. Schau einfach in den [OpenMates Apps](https://openmates.org/#settings/apps) vorbei.\n\n## 2. 🔒 Persönliche Daten-Platzhalter\n\nAnders als KI-Chatbots von großen Tech-Konzernen und typischen Startups priorisiert OpenMates Datenschutz. Es hatte bereits verschiedene Datenschutzmaßnahmen:\n- 🔐 alle deine Chats werden ausschließlich auf deinem Gerät verschlüsselt & entschlüsselt\n- 🖼️ alle externen Bilder werden über unseren OpenMates-Server geladen (sodass externe Websites weder deine IP-Adresse noch Geräteinformationen sehen)\n- 📉 kein Google Analytics oder sonstige Analyse-Software wird auf OpenMates verwendet (weshalb du auch kein Cookie-Banner auf OpenMates siehst)\n\nWas neu ist: Sensible Daten wie E-Mail-Adressen, Telefonnummern, API-Schlüssel und mehr werden automatisch erkannt und auf deinem Gerät durch Platzhalter ersetzt, wenn du eine Nachricht an OpenMates verfasst und sendest. Du kannst jederzeit in der Benutzeroberfläche zum Originalwert zurückwechseln und erkannte Daten anklicken, um die Ersetzung zu verhindern. Standardmäßig stellt diese Funktion aber sicher, dass weder OpenMates noch die KI-Anbieter, die deine Nachrichten verarbeiten, jemals die sensiblen Daten zu sehen bekommen.\n\n[Probier es selbst aus](https://openmates.org/#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.) — klicke auf diesen Link, um die Persönlichen Daten-Platzhalter in Aktion zu sehen: deine E-Mail-Adresse und Telefonnummer werden automatisch erkannt und ersetzt, bevor sie versendet werden.\n\n## 3. 🧠 Erinnerungen\n\nOpenMates kann sich jetzt app-spezifische Erinnerungen merken, wie deine anstehenden Reisen oder Projektdetails. ABER: Alle Erinnerungen werden ausschließlich auf deinem Gerät verschlüsselt & entschlüsselt und nur dann vorübergehend mit dem OpenMates-Server und dem KI-Anbieter geteilt, wenn du dies für den jeweiligen Chat ausdrücklich bestätigst. So kannst du personalisierte Antworten voll nutzen, ohne ständig deine Projektdetails zu wiederholen — und behältst dabei die volle Kontrolle darüber, welche Daten du wann und mit welchem KI-Anbieter teilst. Entdecke die [Erinnerungen in OpenMates Apps](https://openmates.org/#settings/apps/all/memories).\n\n## 4. 🎯 Fokus-Modi\n\nDie richtigen Anweisungen an einen KI-Chatbot zu geben, macht einen enormen Unterschied in Bezug darauf, wie hilfreich der Chatbot ist und wie gut die Antworten ausfallen. Mit Fokus-Modi musst du kein Experte im Prompt Engineering sein, um großartige, zielgerichtete Anweisungen voll zu nutzen. Frag OpenMates zum Beispiel einfach nach Karriere-Einschätzungen, und der Fokus-Modus „Karriere-Einschätzungen\" sollte automatisch aktiviert werden, um dich durch den Prozess zu führen. Und natürlich: Das ist erst der Anfang. Viele weitere Fokus-Modi werden folgen, und die Qualität der bestehenden wird in den kommenden Wochen weiter verbessert. Schau dir die [Fokus-Modi in OpenMates Apps](https://openmates.org/#settings/apps/all/focus-modes) an.\n\n## 5. 🤖 Neue Modelle\n\nOpenMates bietet eine breite Auswahl der effizientesten und leistungsstärksten KI-Modelle. Standardmäßig wird automatisch das richtige Modell basierend auf der Aufgabe ausgewählt. Du kannst dieses Verhalten aber jederzeit [in den KI-Einstellungen](https://openmates.org/#settings/ai) dauerhaft ändern oder bei Bedarf ein bestimmtes Modell im Nachrichtenfeld über `@{Modellname}` auswählen. Du kannst jetzt aus einer breiten Palette von KI-Modellen wählen, zum Beispiel:\n\n- [Claude Opus 4.7](https://openmates.org/#settings/ai/model/claude-opus-4-7) & [Claude Sonnet 4.6](https://openmates.org/#settings/ai/model/claude-sonnet-4-6)\n- [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)\n- [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)\n- [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)\n- Devstral 2\n- `@best` und `@fast` Modell-Aliase — tippe `@best`, um automatisch das stärkste Modell zu verwenden, oder `@fast` für das schnellste verfügbare Modell auf OpenMates.\n\n## 6. 💡 Tägliche Inspirationen & Wikipedia-Links\n\nKI kann, richtig eingesetzt, ein großartiges Werkzeug zum Lernen sein. Und OpenMates ist darauf optimiert, Menschen zum Lernen und Entdecken zu ermutigen und zu inspirieren. Dafür gibt es die Täglichen Inspirationen, die du oben in der Oberfläche siehst, nachdem du dich eingeloggt hast. Sie zeigen interessante neue Videos — und bald auch andere Inhalte wie Wikipedia-Artikel, neue OpenMates-Funktionen, Fotos und Details von Kunstwerken, wichtige historische Ereignisse und mehr. Tägliche Inspirationen sind auf deine Chats abgestimmt und werden auf deinem Gerät mit einem Schlüssel gesperrt, den nur du hast — sie bleiben also privat.\nAußerdem hebt OpenMates automatisch Wikipedia-Artikel in den Antworten der Assistenten-Nachrichten hervor. Das macht es super einfach, mehr über ein Thema zu erfahren, indem du einfach auf das orange hervorgehobene Wort mit dem Lern-Symbol daneben klickst.\n\n# 🚀 Was als Nächstes kommt\n\nIn den kommenden Wochen werde ich verschiedene kurze Clips veröffentlichen, die die vielen Funktionen von OpenMates und die nützlichen Dinge zeigen, die man damit machen kann, und gleichzeitig die Software weiter verbessern und weitere Apps, Anbieter und Funktionen hinzufügen.\n\nAb jetzt plane ich, alle paar Wochen Newsletter-E-Mails für Ankündigungen & Updates zu senden, und separat auch Tipps & Tricks zur Nutzung von OpenMates. Du kannst jederzeit [deine Newsletter-Einstellungen überprüfen](https://openmates.org/#settings/newsletter), wenn du mehr oder weniger Newsletter-E-Mails erhalten möchtest.\n\nViel Spaß mit OpenMates, und bleib gespannt auf weitere Updates!\n\n[cta]"
       }
     },
     "announcements_openmates_meetup_may_19": {
@@ -6586,6 +6586,33 @@
         "text": "Chat öffnen"
       }
     },
+    "team_role_changed_notification": {
+      "subject": {
+        "text": "Deine Teamrolle wurde geändert"
+      },
+      "header": {
+        "text": "Deine Teamrolle wurde geändert"
+      },
+      "description": {
+        "text": "Ein Administrator hat deine Rolle in einem Team geändert. Öffne OpenMates, um deinen aktuellen Zugriff zu sehen."
+      }
+    },
+    "team_removed_notification": {
+      "subject": {
+        "text": "Dein Teamzugriff wurde beendet"
+      },
+      "header": {
+        "text": "Dein Teamzugriff wurde beendet"
+      },
+      "description": {
+        "text": "Ein Administrator hat dich aus einem Team entfernt. Dein Zugriff auf dessen gemeinsame Inhalte wurde beendet."
+      }
+    },
+    "team_membership_notification": {
+      "open_button": {
+        "text": "OpenMates öffnen"
+      }
+    },
     "team_member_mention_notification": {
       "subject": {
         "text": "Du wurdest in einem Team-Chat erwähnt"
@@ -6898,6 +6925,23 @@
     },
     "storage_billing_notice_waiver": {
       "text": "After verified removal brings usage within the free allowance, the warned unpaid storage charges are written off without taking credits. Paid charges and later charges outside this notice are preserved."
+    },
+    "team_storage_billing_notice": {
+      "subject": {
+        "text": "Team storage payment notice {warning_stage}: action needed"
+      },
+      "header": {
+        "text": "Team storage payment could not be collected"
+      },
+      "body": {
+        "text": "The Team {team_slug} has an unpaid weekly storage charge of {credits_needed} credits. Its outstanding storage charges total {outstanding_credits} credits. This period measured {storage_gb} GiB against the Team's own 1 GiB free allowance. This is warning {warning_stage} of 4. The listed complete Team storage units may be removed no earlier than {deadline_date} UTC if the debt remains unpaid after a final balance check."
+      },
+      "action": {
+        "text": "A Team owner or admin can add Team credits or export the affected Team data. Only the listed units may be removed, and the warned charges are waived only after verified reduction to the Team's free allowance. Personal storage and storage retained by another owner remain protected."
+      },
+      "open_team": {
+        "text": "Open Team settings"
+      }
     }
   },
   "embeds": {
@@ -8530,6 +8574,15 @@
     },
     "travel_connection": {
       "text": "Reiseverbindung"
+    },
+    "watch_audio_metadata_unavailable": {
+      "text": "Details zur Audiowiedergabe sind nicht verfügbar"
+    },
+    "watch_audio_playback_failed": {
+      "text": "Audio konnte nicht wiedergegeben werden"
+    },
+    "watch_audio_loading": {
+      "text": "Audio wird geladen…"
     }
   },
   "enter_message": {
@@ -12905,7 +12958,7 @@
           "text": "Compliance-Protokolle: Für historische Datenbank-Änderungs- und Aktivitätsdatensätze gibt es derzeit keinen durchgesetzten automatischen Ablauf nach zwei Jahren. Finanztransaktionsdaten sind vorbehaltlich der unten beschriebenen, datensatzspezifischen gesetzlichen Pflichten und Aufbewahrungsanordnungen für bis zu zehn Jahre konfiguriert."
         },
         "storage_expiry": {
-          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy."
+          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
         }
       },
       "legal_basis": {
@@ -13559,10 +13612,10 @@
           "text": "Rückgaberecht: Sie können innerhalb von 14 Tagen nach dem Kauf eine Rückerstattung für ungenutzte Credits beantragen. Ihr Widerrufsrecht erlischt, sobald Credits verbraucht sind. Weitere Details zu den Rückgabebedingungen finden Sie in unserem Anmeldeprozess."
         },
         "storage_billing": {
-          "text": "Where personal storage billing is enabled for your account, the first 1 GiB of eligible personal encrypted object storage is free. Above that allowance, each started additional GiB costs 3 credits per week, assessed on Sundays at 03:00 UTC. We count each logical encrypted S3 object once; regional replicas do not create additional charges. Legacy uploads are not retroactively enrolled or charged under this rollout. Team storage is not rated under this personal-storage policy; its pricing policy remains unresolved."
+          "text": "Where personal storage billing is enabled for your account, the first 1 GiB of eligible personal encrypted object storage is free. Above that allowance, each started additional GiB costs 3 credits per week, assessed on Sundays at 03:00 UTC. We count each logical encrypted S3 object once; regional replicas do not create additional charges. Legacy uploads are not retroactively enrolled or charged under this rollout. Where Team storage billing is enabled, each Team has its own separate 1 GiB free allowance and pays the same weekly rate from its Team credit wallet. Personal and Team allowances, balances and invoices are separate; an owner's personal balance is not charged for Team-owned storage under this policy."
         },
         "storage_expiry": {
-          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing."
+          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
         },
         "storage_invoice_waiver": {
           "text": "Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. The waived amount is written off without taking credits or recording a payment. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy."
@@ -17301,6 +17354,153 @@
       },
       "referral_copy_failed": {
         "text": "Empfehlungslink konnte nicht kopiert werden."
+      },
+      "billing_address": {
+        "text": "Billing address"
+      },
+      "add_billing_address": {
+        "text": "Add billing address"
+      },
+      "address_optional_explainer": {
+        "text": "Optional for most purchases. Saved details appear on future invoices for this billing account."
+      },
+      "address_name": {
+        "text": "Name or company"
+      },
+      "address_street_line_1": {
+        "text": "Street address"
+      },
+      "address_street_line_2": {
+        "text": "Address line 2 (optional)"
+      },
+      "address_postal_code": {
+        "text": "Postal code"
+      },
+      "address_city": {
+        "text": "City"
+      },
+      "address_region": {
+        "text": "State or region (optional)"
+      },
+      "address_country": {
+        "text": "Country code (2 letters)"
+      },
+      "address_vat_id": {
+        "text": "VAT ID (optional)"
+      },
+      "address_validation": {
+        "text": "Complete the name, street, postal code, city, and two-letter country code, or leave every field blank."
+      },
+      "address_load_error": {
+        "text": "Could not load the billing address. Please try again."
+      },
+      "address_save_error": {
+        "text": "Could not save the billing address. Please try again."
+      },
+      "address_saved": {
+        "text": "Billing address saved."
+      },
+      "team_billing_title": {
+        "text": "Billing & usage"
+      },
+      "team_billing_description": {
+        "text": "Manage this Team's credits, payments, invoices, and usage."
+      },
+      "team_balance": {
+        "text": "Team credits"
+      },
+      "team_auto_topup": {
+        "text": "Team auto top-up"
+      },
+      "team_auto_topup_amount": {
+        "text": "Top-up amount in credits"
+      },
+      "team_auto_topup_method": {
+        "text": "Saved payment method ID"
+      },
+      "team_usage_export_csv": {
+        "text": "Download usage CSV"
+      },
+      "team_usage_export_pdf": {
+        "text": "Download usage PDF"
+      },
+      "team_billing_unavailable": {
+        "text": "Team billing could not be loaded. Please try again."
+      },
+      "team_billing_admin_only": {
+        "text": "Only Team owners and admins can manage Team billing."
+      },
+      "team_auto_topup_saved": {
+        "text": "Team auto top-up saved."
+      },
+      "team_auto_topup_error": {
+        "text": "Could not save Team auto top-up."
+      },
+      "team_usage_error": {
+        "text": "Could not load Team usage."
+      },
+      "team_monthly_auto_topup": {
+        "text": "Monthly Team auto top-up"
+      },
+      "team_monthly_create": {
+        "text": "Start monthly auto top-up"
+      },
+      "team_monthly_cancel": {
+        "text": "Cancel monthly auto top-up"
+      },
+      "team_monthly_saved": {
+        "text": "Monthly Team auto top-up updated."
+      },
+      "team_monthly_error": {
+        "text": "Could not update monthly Team auto top-up."
+      },
+      "team_monthly_card_required": {
+        "text": "Make a Team card purchase first to save a payment method."
+      },
+      "team_monthly_tier": {
+        "text": "Monthly credit package"
+      },
+      "team_monthly_billing_day": {
+        "text": "Billing day"
+      },
+      "team_monthly_anniversary": {
+        "text": "Every 30 days from activation"
+      },
+      "team_monthly_first": {
+        "text": "First day of each month"
+      },
+      "team_monthly_status": {
+        "text": "Subscription status"
+      },
+      "team_balance_remaining": {
+        "text": "verbleibend"
+      },
+      "team_zero_balance_warning": {
+        "text": "Ohne Guthaben kannst du weder chatten noch Apps nutzen."
+      },
+      "team_usage_download": {
+        "text": "Nutzungsdaten herunterladen"
+      },
+      "team_usage_tab_work": {
+        "text": "Arbeit"
+      },
+      "team_usage_workflow": {
+        "text": "Workflows"
+      },
+      "team_usage_task": {
+        "text": "Aufgaben"
+      },
+      "team_usage_plan": {
+        "text": "Pläne"
+      },
+      "team_usage_project": {
+        "text": "Projekte"
+      },
+      "team_usage_other": {
+        "text": "Weitere Nutzung"
+      },
+      "card_fallback": {
+        "text": "Karte"
       }
     },
     "chat": {
@@ -17611,7 +17811,7 @@
         "text": "Lokales Modelllabor"
       },
       "description": {
-        "text": "Optionale Tests auf diesem Gerät. Installierte Systemstimmen verwenden oder Modelle einmal herunterladen, dann ohne Netzwerk testen. Es werden keine Credits berechnet."
+        "text": "Optionale Tests auf diesem Gerät. Modelle einmal herunterladen, dann ohne Netzwerk testen. Es werden keine Credits berechnet."
       },
       "toggle": {
         "text": "Lokale Modelle in diesem Labor verwenden"
@@ -17772,35 +17972,35 @@
       "retrying_download": {
         "text": "Unterbrochener Download wird erneut versucht · {percent}% heruntergeladen"
       },
-      "pocket_tts": {
-        "text": "Pocket TTS · Englisch"
+      "supertonic": {
+        "text": "Supertonic 3 (experimentell)"
       },
-      "pocket_description": {
-        "text": "Entwicklertest: Englische Sprache mit Alba, nach dem Download vollständig auf diesem Gerät. Die Sprachausgabe im Chat bleibt unverändert. Mehrsprachige Modelle werden von dieser Laufzeit nicht unterstützt."
+      "synthesis_input": {
+        "text": "Privater Testtext (maximal 2.000 Zeichen)"
       },
-      "pocket_voice": {
+      "synthesis_voice": {
         "text": "Stimme"
       },
-      "pocket_attribution": {
-        "text": "Alba MacKenna: Quellenangabe und Lizenz"
+      "synthesis_language": {
+        "text": "Sprache"
       },
-      "pocket_input": {
-        "text": "Text für Sprachausgabe"
+      "synthesis_steps": {
+        "text": "Qualitätsschritte"
       },
-      "pocket_input_limit": {
-        "text": "Bis zu 600 UTF-8-Bytes und 4 kurze Sätze. Jeder Satz ist auf 160 Bytes und 64 Modell-Tokens begrenzt. Längere Eingaben werden abgelehnt."
+      "play": {
+        "text": "Lokales Ergebnis abspielen"
       },
-      "pocket_synthesis": {
-        "text": "Sprache wird auf diesem Gerät erzeugt…"
+      "stop_playback": {
+        "text": "Wiedergabe stoppen"
       },
-      "pocket_cancelling": {
-        "text": "Abbruch nach Abschluss des aktuellen Satzes und Entladen des Modells…"
+      "speech_unavailable": {
+        "text": "Diese neuronale Sprachausgabe ist auf dieser Version oder Plattform nicht verfügbar."
       },
-      "pocket_play": {
-        "text": "Erzeugtes Audio abspielen"
+      "phase_speech_synthesis": {
+        "text": "Sprache wird erzeugt …"
       },
-      "pocket_stop": {
-        "text": "Audio stoppen"
+      "phase_audio_encoding": {
+        "text": "Audiowiedergabe wird vorbereitet …"
       }
     },
     "open_settings_menu": {
@@ -17839,11 +18039,50 @@
     "switch_team_context": {
       "text": "Teamkontext wechseln"
     },
+    "show_more_teams": {
+      "text": "Mehr anzeigen"
+    },
     "team_context_load_error": {
       "text": "Teams konnten nicht geladen werden"
     },
     "teams": {
       "text": "Teams"
+    },
+    "team_storage_title": {
+      "text": "Teamspeicher"
+    },
+    "team_storage_policy": {
+      "text": "Das Team hat 1 GiB kostenlosen Speicher, getrennt vom persönlichen Speicher. Jedes angefangene GiB darüber kostet 3 Team-Credits pro Woche; die Abrechnung erfolgt sonntags um 03:00 UTC. Die Schätzung basiert auf der zuletzt gemessenen Nutzung."
+    },
+    "team_storage_free_tier": {
+      "text": "Kostenloser Teamspeicher"
+    },
+    "team_storage_billable": {
+      "text": "Angefangene GiB über Freigrenze"
+    },
+    "team_storage_preview": {
+      "text": "Die Abrechnung von Teamspeicher ist noch nicht aktiviert. Dies ist eine Preisvorschau, keine Rechnung."
+    },
+    "team_storage_payment_due": {
+      "text": "Die Zahlung für Teamspeicher ist fällig. Eigentümer und Administratoren erhalten Warn-E-Mails, wenn die Zustellung erfolgreich ist."
+    },
+    "team_storage_review": {
+      "text": "Ein Teil des Teamspeichers muss manuell geprüft werden und wird nicht automatisch entfernt."
+    },
+    "team_storage_notice_title": {
+      "text": "Hinweis zur Teamspeicherzahlung"
+    },
+    "team_storage_notice_policy": {
+      "text": "Diese Liste zeigt die vom Hinweis betroffenen Teamspeichereinheiten. Erst nach vier zugestellten wöchentlichen Warnrunden und Ablauf der Frist, mindestens 28 Tage nach der ersten und 7 Tage nach der vierten Warnung, dürfen die ältesten geeigneten Einheiten entfernt werden, bis die Nutzung unter 1 GiB liegt. Geschützte Daten und später bezahlte Einheiten bleiben erhalten. Von der Frist betroffene Gebühren werden erlassen, nicht als bezahlt markiert."
+    },
+    "team_storage_notice_empty": {
+      "text": "Kein aktiver Hinweis zur Teamspeicherzahlung."
+    },
+    "team_storage_notice_error": {
+      "text": "Betroffener Teamspeicher konnte nicht geladen werden. Bitte versuche es erneut."
+    },
+    "team_storage_error": {
+      "text": "Teamspeichernutzung konnte nicht geladen werden. Bitte versuche es erneut."
     },
     "projects": {
       "text": "Projekte",
@@ -21600,6 +21839,457 @@
         "text": "Die betroffenen Speichereinheiten konnten nicht geladen werden. Bitte versuche es erneut."
       }
     },
+    "team_invitation": {
+      "title": {
+        "text": "Teameinladung"
+      },
+      "description": {
+        "text": "Nimm die Einladung mit der verifizierten E-Mail-Adresse deines OpenMates-Kontos an."
+      },
+      "email": {
+        "text": "Deine verifizierte Konto-E-Mail-Adresse"
+      },
+      "missing_key": {
+        "text": "Diesem Link fehlt der sichere Schlüssel. Bitte die einladende Person um den vollständigen Einladungslink."
+      },
+      "accept": {
+        "text": "Einladung annehmen"
+      },
+      "decline": {
+        "text": "Ablehnen"
+      },
+      "joined": {
+        "text": "Du bist dem Team beigetreten. Öffne Teams, um es auszuwählen."
+      },
+      "pending": {
+        "text": "Deine Anfrage wurde den Teamadmins zur Genehmigung gesendet."
+      },
+      "declined": {
+        "text": "Einladung abgelehnt."
+      },
+      "failed": {
+        "text": "Die Einladung konnte nicht verarbeitet werden."
+      }
+    },
+    "teams_ui": {
+      "description": {
+        "text": "Arbeite gemeinsam an Projekten, Chats, Workflows und mehr."
+      },
+      "new_team": {
+        "text": "Neues Team"
+      },
+      "create_title": {
+        "text": "Neues Team erstellen"
+      },
+      "create_description": {
+        "text": "Arbeite mit anderen an Projekten, Chats, Workflows und mehr zusammen."
+      },
+      "team_name": {
+        "text": "Teamname"
+      },
+      "name_placeholder": {
+        "text": "Teamnamen eingeben"
+      },
+      "continue": {
+        "text": "Weiter"
+      },
+      "profile_image": {
+        "text": "Profilbild"
+      },
+      "profile_description": {
+        "text": "Du und deine Teammitglieder seht dieses Teamprofilbild."
+      },
+      "generated_avatar": {
+        "text": "Generierter Avatar"
+      },
+      "team_icon": {
+        "text": "Team-Symbol"
+      },
+      "team_color": {
+        "text": "Teamfarbe"
+      },
+      "select_image": {
+        "text": ".JPG oder .PNG auswählen"
+      },
+      "use_generated": {
+        "text": "Generierten Avatar verwenden"
+      },
+      "create_action": {
+        "text": "Team erstellen"
+      },
+      "retry_upload": {
+        "text": "Bildupload erneut versuchen"
+      },
+      "members": {
+        "text": "Mitglieder"
+      },
+      "members_description": {
+        "text": "Verwalte deine Teammitglieder und ihre Berechtigungen."
+      },
+      "admins": {
+        "text": "Admins"
+      },
+      "invite_members": {
+        "text": "Mitglieder einladen"
+      },
+      "invite_email": {
+        "text": "E-Mail-Adresse eingeben"
+      },
+      "invite_action": {
+        "text": "Mitglied einladen"
+      },
+      "copy_link": {
+        "text": "Einladungslink kopieren"
+      },
+      "pending_invites": {
+        "text": "Ausstehende Einladungen"
+      },
+      "revoke_invite": {
+        "text": "Einladung widerrufen"
+      },
+      "security": {
+        "text": "Sicherheit"
+      },
+      "security_description": {
+        "text": "Wie möchtest du dein Team schützen?"
+      },
+      "domain_restriction": {
+        "text": "Domain-Beschränkung"
+      },
+      "domain_placeholder": {
+        "text": "E-Mail-Domain eingeben"
+      },
+      "allow_domain": {
+        "text": "Domain erlauben"
+      },
+      "signup_approval": {
+        "text": "Beitrittsfreigabe"
+      },
+      "strong_auth": {
+        "text": "Passkey/2FA erforderlich"
+      },
+      "open_link_warning": {
+        "text": "Alle mit einem Einladungslink können beitreten. Links laufen nach 24 Stunden ab."
+      },
+      "billing": {
+        "text": "Abrechnung & Nutzung"
+      },
+      "name": {
+        "text": "Name"
+      },
+      "save_name": {
+        "text": "Namen speichern"
+      },
+      "save_profile": {
+        "text": "Profilbild speichern"
+      },
+      "setup_title": {
+        "text": "Team erstellt"
+      },
+      "next_steps": {
+        "text": "Nächste Schritte"
+      },
+      "buy_credits": {
+        "text": "Guthaben kaufen"
+      },
+      "confirm_security": {
+        "text": "Sicherheitseinstellungen prüfen"
+      },
+      "invite_step": {
+        "text": "Teammitglieder einladen"
+      },
+      "dismiss_checklist": {
+        "text": "Nicht mehr anzeigen"
+      },
+      "loading_teams": {
+        "text": "Teams werden geladen"
+      },
+      "retry": {
+        "text": "Erneut versuchen"
+      },
+      "load_failed": {
+        "text": "Teams konnten nicht geladen werden. Bitte versuche es erneut."
+      },
+      "blocked_name": {
+        "text": "Wähle einen anderen Teamnamen. Dieser Name ist nicht erlaubt."
+      },
+      "name_check_failed": {
+        "text": "Der Teamname konnte nicht geprüft werden. Bitte versuche es erneut."
+      },
+      "jpg_png_only": {
+        "text": "Wähle ein JPG- oder PNG-Bild."
+      },
+      "image_too_large": {
+        "text": "Das Bild muss kleiner als 20 MB sein."
+      },
+      "image_open_failed": {
+        "text": "Dieses Bild konnte nicht geöffnet werden. Versuche ein anderes JPG oder PNG."
+      },
+      "image_rejected": {
+        "text": "Bild nicht erlaubt. Wähle ein anderes Bild oder den generierten Avatar."
+      },
+      "upload_failed": {
+        "text": "Bildupload fehlgeschlagen. Versuche es erneut oder verwende den generierten Avatar."
+      },
+      "create_failed": {
+        "text": "Team konnte nicht erstellt werden. Bitte versuche es erneut."
+      },
+      "image_final_warning": {
+        "text": " Ein weiteres abgelehntes Bild kann dein Konto sperren."
+      },
+      "name_save_failed": {
+        "text": "Name konnte nicht gespeichert werden."
+      },
+      "image_rejected_edit": {
+        "text": "Bild nicht erlaubt. Wähle ein anderes Bild."
+      },
+      "image_save_failed": {
+        "text": "Profilbild konnte nicht gespeichert werden."
+      },
+      "invalid_email": {
+        "text": "Gib eine gültige E-Mail-Adresse ein."
+      },
+      "domain_disallowed": {
+        "text": "Diese E-Mail-Domain ist nicht erlaubt."
+      },
+      "invite_ready": {
+        "text": "Einladung bereit. Öffne deine E-Mail-App, um den sicheren Link zu senden."
+      },
+      "invite_failed": {
+        "text": "Einladung konnte nicht vorbereitet werden. Bitte versuche es erneut."
+      },
+      "link_copied_24h": {
+        "text": "Einladungslink kopiert. Er läuft nach 24 Stunden ab."
+      },
+      "link_failed": {
+        "text": "Einladungslink konnte nicht erstellt oder kopiert werden."
+      },
+      "mail_subject": {
+        "text": "Tritt meinem OpenMates-Team bei"
+      },
+      "link_copied": {
+        "text": "Sicherer Einladungslink kopiert."
+      },
+      "invite_revoked": {
+        "text": "Einladung widerrufen."
+      },
+      "invite_revoke_failed": {
+        "text": "Einladung konnte nicht widerrufen werden."
+      },
+      "role_updated": {
+        "text": "Mitgliedsrolle aktualisiert."
+      },
+      "role_update_failed": {
+        "text": "Mitgliedsrolle konnte nicht aktualisiert werden."
+      },
+      "you": {
+        "text": "Du"
+      },
+      "team_member": {
+        "text": "Teammitglied"
+      },
+      "member_remove_failed": {
+        "text": "Mitglied konnte nicht entfernt werden."
+      },
+      "security_save_failed": {
+        "text": "Sicherheitseinstellungen konnten nicht gespeichert werden."
+      },
+      "invalid_domain": {
+        "text": "Gib eine gültige E-Mail-Domain ein."
+      },
+      "duplicate_domain": {
+        "text": "Domain ist bereits erlaubt."
+      },
+      "icon_team": {
+        "text": "Team"
+      },
+      "icon_project": {
+        "text": "Projekt"
+      },
+      "icon_design": {
+        "text": "Design"
+      },
+      "icon_code": {
+        "text": "Code"
+      },
+      "icon_heart": {
+        "text": "Herz"
+      },
+      "icon_travel": {
+        "text": "Reisen"
+      },
+      "color_blue": {
+        "text": "Blau"
+      },
+      "color_red": {
+        "text": "Rot"
+      },
+      "color_green": {
+        "text": "Grün"
+      },
+      "color_purple": {
+        "text": "Lila"
+      },
+      "color_orange": {
+        "text": "Orange"
+      },
+      "role_admin": {
+        "text": "Admin"
+      },
+      "role_member": {
+        "text": "Mitglied"
+      },
+      "role_viewer": {
+        "text": "Betrachter"
+      },
+      "role_suffix": {
+        "text": "Rolle"
+      },
+      "empty_teams": {
+        "text": "Noch keine Teams. Erstelle eines, um sicher zusammenzuarbeiten."
+      },
+      "create_info": {
+        "text": "Erstelle mehrere Teams oder tritt ihnen bei. Es ist weder ein Abo noch ein monatlicher Mindestbetrag erforderlich."
+      },
+      "image_preview": {
+        "text": "Vorschau des Teambilds"
+      },
+      "member_detail_description": {
+        "text": "Teammitgliedschaft und Berechtigungen."
+      },
+      "role_label": {
+        "text": "Rolle"
+      },
+      "status_label": {
+        "text": "Status"
+      },
+      "member_role": {
+        "text": "Mitgliedsrolle"
+      },
+      "remove_member": {
+        "text": "Mitglied entfernen"
+      },
+      "remove_warning": {
+        "text": "Dieses Mitglied verliert den Zugriff auf das Team und seine gemeinsamen Daten."
+      },
+      "remove_confirm": {
+        "text": "Ich verstehe, dass dieses Mitglied den Zugriff verliert."
+      },
+      "legacy_member_info": {
+        "text": "Dieses Mitglied kann hier noch nicht verwaltet werden."
+      },
+      "member_not_found": {
+        "text": "Mitglied nicht gefunden."
+      },
+      "management_only": {
+        "text": "Nur Teambesitzer und Admins können Mitglieder und Einladungen verwalten."
+      },
+      "open_security": {
+        "text": "Sicherheit öffnen"
+      },
+      "open_email_draft": {
+        "text": "E-Mail-Entwurf öffnen"
+      },
+      "copy_secure_link": {
+        "text": "Sicheren Einladungslink kopieren"
+      },
+      "share_link_info": {
+        "text": "Teile diesen Link innerhalb von 24 Stunden. Neue Mitglieder benötigen möglicherweise eine Freigabe durch einen Admin."
+      },
+      "invite_link": {
+        "text": "Einladungslink"
+      },
+      "domain_all_joins": {
+        "text": "Für alle neuen Beitritte erlaubt"
+      },
+      "remove": {
+        "text": "Entfernen"
+      },
+      "approval_info": {
+        "text": "Direkte E-Mail-Einladungen führen sofort zum Beitritt. Einladungslinks benötigen bei aktivierter Option die Freigabe durch einen Admin."
+      },
+      "name_description": {
+        "text": "Dieser Name ist für Teammitglieder sichtbar."
+      },
+      "avatar_edit_description": {
+        "text": "Wähle ein Symbol und eine Farbe oder lade ein JPG oder PNG hoch."
+      },
+      "detail_description": {
+        "text": "Verwalte dein Team\nund seine Einstellungen."
+      },
+      "team_credits": {
+        "text": "Teamguthaben"
+      },
+      "personal_scope_info": {
+        "text": "Persönliche Erinnerungen und verbundene Konten bleiben außerhalb des Teamkontexts."
+      },
+      "team_not_found": {
+        "text": "Team nicht gefunden oder auf diesem Gerät nicht verfügbar."
+      },
+      "mail_body_intro": {
+        "text": "Tritt meinem Team mit diesem sicheren Link bei:"
+      },
+      "mail_body_privacy": {
+        "text": "Der Link enthält deinen Einladungsschlüssel. Behandle ihn vertraulich."
+      },
+      "delete_team": {
+        "text": "Team löschen"
+      },
+      "delete_description": {
+        "text": "Dieses Team und seine gemeinsamen Ressourcen dauerhaft löschen."
+      },
+      "delete_warning": {
+        "text": "Teammitglieder verlieren den Zugriff auf dieses Team, seine Projekte und seine gemeinsamen Daten. Dies kann nicht rückgängig gemacht werden."
+      },
+      "delete_confirm": {
+        "text": "Ich verstehe, dass dieses Team dauerhaft gelöscht wird"
+      },
+      "delete_failed": {
+        "text": "Team konnte nicht gelöscht werden. Bitte versuche es erneut."
+      },
+      "owner_only_delete": {
+        "text": "Nur der Teambesitzer kann dieses Team löschen."
+      },
+      "benefit_multiple_teams": {
+        "text": "Erstelle mehrere Teams oder tritt ihnen bei"
+      },
+      "benefit_no_subscription": {
+        "text": "Kein Abo erforderlich"
+      },
+      "benefit_no_minimum": {
+        "text": "Keine monatlichen Mindestkosten"
+      },
+      "benefit_workspaces": {
+        "text": "Arbeite gemeinsam an Chats, Projekten, Aufgaben und Workflows"
+      },
+      "benefit_encryption": {
+        "text": "Verschlüsselter Teamchat"
+      },
+      "change_generated_avatar": {
+        "text": "Generierten Avatar ändern"
+      },
+      "invite_members_guidance": {
+        "text": "Nutze Teams vollständig, indem du weitere Mitglieder einlädst!"
+      },
+      "invite_sharing_guidance": {
+        "text": "Lade Nutzer per E-Mail ein oder teile einen Einladungslink. Bei aktivierter Beitrittsfreigabe müssen geteilte Links genehmigt werden."
+      },
+      "strong_auth_info": {
+        "text": "Erfordert einen Passkey oder eine 2FA-App zur Anmeldung. Dies verbessert den Schutz vor Betrügern und Hackern."
+      },
+      "credit_purpose": {
+        "text": "Für KI-Chats und App-Funktionen"
+      },
+      "invite_ready_pending": {
+        "text": "Einladung bereit; Annahme ausstehend"
+      },
+      "invite_waiting": {
+        "text": "Annahme ausstehend"
+      },
+      "untitled_team": {
+        "text": "Unbenanntes Team"
+      }
+    },
     "watch_whisper": {
       "title": {
         "text": "Watch-Labor für tiny Whisper"
@@ -22841,6 +23531,182 @@
     },
     "play": {
       "text": "Abspielen"
+    }
+  },
+  "videocall": {
+    "experiment": {
+      "text": "Experiment"
+    },
+    "close": {
+      "text": "Schließen"
+    },
+    "provider": {
+      "text": "Über Google Gemini"
+    },
+    "title": {
+      "text": "Live-Videoanruf"
+    },
+    "subtitle": {
+      "text": "Sprich ganz natürlich. Gemini kann bei Bedarf kurze generierte Videos zeigen."
+    },
+    "elapsed": {
+      "text": "{time} vergangen"
+    },
+    "remaining": {
+      "text": "Noch {time}"
+    },
+    "visual": {
+      "text": "Anrufvideo"
+    },
+    "generated_visual": {
+      "text": "KI-generiertes Video"
+    },
+    "next_visual": {
+      "text": "Das nächste Video wird erstellt…"
+    },
+    "waiting_visual": {
+      "text": "Warte auf das nächste Video…"
+    },
+    "creating_visual": {
+      "text": "Video wird erstellt…"
+    },
+    "voice_call": {
+      "text": "Sprachanruf"
+    },
+    "play_visual": {
+      "text": "Video abspielen"
+    },
+    "stop_video": {
+      "text": "Video stoppen"
+    },
+    "allow_video": {
+      "text": "Video erlauben"
+    },
+    "hangup": {
+      "text": "Auflegen"
+    },
+    "transcript": {
+      "text": "Transkript"
+    },
+    "conversation": {
+      "text": "Unterhaltung"
+    },
+    "close_transcript": {
+      "text": "Transkript schließen"
+    },
+    "transcript_empty": {
+      "text": "Dein Live-Transkript erscheint hier."
+    },
+    "you": {
+      "text": "Du"
+    },
+    "live_cost": {
+      "text": "Laufende Kosten"
+    },
+    "audio_only": {
+      "text": "Nur Audio"
+    },
+    "audio_video": {
+      "text": "Audio + Video"
+    },
+    "credits_per_minute": {
+      "text": "{count} Credits/Min."
+    },
+    "billing_note": {
+      "text": "Geschätzter Tarif. Tatsächliche Credits enthalten auch Transkript- und Kontextnutzung. Sekundengenaue Abrechnung, mindestens 1 Credit."
+    },
+    "credits_accrued": {
+      "text": "Aufgelaufene Credits"
+    },
+    "credits_charged": {
+      "text": "Berechnete Credits"
+    },
+    "gemini_audio": {
+      "text": "Gemini-Audio"
+    },
+    "generated_visuals": {
+      "text": "Generierte Videos"
+    },
+    "credits": {
+      "text": "{count} Credits"
+    },
+    "token_usage": {
+      "text": "Token- und Kontextnutzung"
+    },
+    "billed_context": {
+      "text": "Berechnete Eingabe/Kontext"
+    },
+    "input": {
+      "text": "Eingabe"
+    },
+    "output": {
+      "text": "Ausgabe"
+    },
+    "audio_rate": {
+      "text": "Audio-Tarif"
+    },
+    "video_rate": {
+      "text": "Video-Tarif"
+    },
+    "ended": {
+      "text": "Anruf beendet. Audio und Video wurden freigegeben."
+    },
+    "start": {
+      "text": "Anruf starten"
+    },
+    "restart": {
+      "text": "Weiteren Anruf starten"
+    },
+    "privacy": {
+      "text": "Dein Mikrofon wird nur während des Anrufs verwendet. Dieses Experiment zeichnet den Anruf nicht auf und speichert ihn nicht."
+    },
+    "connecting": {
+      "text": "Mikrofon und Gemini werden verbunden…"
+    },
+    "auth_loading": {
+      "text": "Sitzung wird geprüft…"
+    },
+    "auth_title": {
+      "text": "Melde dich an, um einen Anruf zu starten"
+    },
+    "auth_detail": {
+      "text": "Dieses Experiment verwendet dein OpenMates-Konto."
+    },
+    "auth_link": {
+      "text": "Zur Anmeldung"
+    },
+    "session_expired": {
+      "text": "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an."
+    },
+    "auth_unavailable": {
+      "text": "Die Anrufanmeldung ist derzeit nicht verfügbar."
+    },
+    "microphone_denied": {
+      "text": "Der Mikrofonzugriff wurde verweigert. Erlaube den Zugriff im Browser und versuche es erneut."
+    },
+    "microphone_missing": {
+      "text": "Es wurde kein Mikrofon gefunden. Schließe eines an und versuche es erneut."
+    },
+    "microphone_failed": {
+      "text": "Dein Mikrofon konnte nicht gestartet werden. Prüfe die Browsereinstellungen und versuche es erneut."
+    },
+    "connection_lost": {
+      "text": "Die Anrufverbindung wurde unterbrochen."
+    },
+    "connection_failed": {
+      "text": "Der Anruf konnte nicht verbunden werden. Bitte versuche es erneut."
+    },
+    "invalid_response": {
+      "text": "Der Anruf erhielt eine ungültige Antwort."
+    },
+    "could_not_start": {
+      "text": "Der Anruf konnte nicht gestartet werden. Bitte versuche es erneut."
+    },
+    "visual_unavailable": {
+      "text": "Ein Video ist nicht verfügbar. Der Sprachanruf läuft weiter."
+    },
+    "call_unavailable": {
+      "text": "Der Anruf ist gerade nicht verfügbar. Bitte versuche es erneut."
     }
   },
   "waiting_list": {

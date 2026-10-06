@@ -1,0 +1,40 @@
+title:
+  context: Team invitation title
+  en: Team invitation
+  de: Teameinladung
+description:
+  context: Team invitation description
+  en: Accept with the verified email address of your OpenMates account.
+  de: Nimm die Einladung mit der verifizierten E-Mail-Adresse deines OpenMates-Kontos an.
+email:
+  context: Team invitation email
+  en: Your verified account email
+  de: Deine verifizierte Konto-E-Mail-Adresse
+missing_key:
+  context: Team invitation missing_key
+  en: This link is missing its secure key. Ask the inviter for the complete invitation link.
+  de: Diesem Link fehlt der sichere Schlüssel. Bitte die einladende Person um den vollständigen Einladungslink.
+accept:
+  context: Team invitation accept
+  en: Accept invitation
+  de: Einladung annehmen
+decline:
+  context: Team invitation decline
+  en: Decline
+  de: Ablehnen
+joined:
+  context: Team invitation joined
+  en: You joined the team. Open Teams to select it.
+  de: Du bist dem Team beigetreten. Öffne Teams, um es auszuwählen.
+pending:
+  context: Team invitation pending
+  en: Your request was sent to the team admins for approval.
+  de: Deine Anfrage wurde den Teamadmins zur Genehmigung gesendet.
+declined:
+  context: Team invitation declined
+  en: Invitation declined.
+  de: Einladung abgelehnt.
+failed:
+  context: Team invitation failed
+  en: The invitation could not be processed.
+  de: Die Einladung konnte nicht verarbeitet werden.

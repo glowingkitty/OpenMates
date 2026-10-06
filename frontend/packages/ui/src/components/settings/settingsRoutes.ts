@@ -66,6 +66,7 @@ import SettingsPricing from "./SettingsPricing.svelte";
 
 // Billing
 import SettingsBilling from "./SettingsBilling.svelte";
+import SettingsBillingAddress from "./billing/SettingsBillingAddress.svelte";
 import SettingsBuyCredits from "./billing/SettingsBuyCredits.svelte";
 import SettingsBuyCreditsPayment from "./billing/SettingsBuyCreditsPayment.svelte";
 import SettingsBuyCreditsConfirmation from "./billing/SettingsBuyCreditsConfirmation.svelte";
@@ -170,6 +171,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   mates: SettingsMates,
   // Billing & Usage
   billing: SettingsBilling,
+  "billing/address": SettingsBillingAddress,
   "billing/buy-credits": SettingsBuyCredits,
   "billing/buy-credits/payment": SettingsBuyCreditsPayment,
   "billing/buy-credits/confirmation": SettingsBuyCreditsConfirmation,

@@ -16,7 +16,25 @@
     let activeSettingsView = $state('teams/first-team');
 </script>
 
+<div class="team-race-preview">
+<div class="preview-actions">
 <SettingsButton dataTestid="team-preview-switch" onClick={() => activeSettingsView = 'teams/second-team'}>
     Switch team
 </SettingsButton>
-<SettingsTeams {activeSettingsView} previewData={{ teams: [first, second], billing }} />
+<SettingsButton dataTestid="team-preview-delete" onClick={() => activeSettingsView = 'teams/first-team/delete'}>
+    Open delete confirmation
+</SettingsButton>
+</div>
+<div data-testid="team-preview-active-route" data-active-view={activeSettingsView}>
+    <SettingsTeams
+        {activeSettingsView}
+        previewData={{ teams: [first, second], billing, loadStorage: true }}
+        on:openSettings={(event) => activeSettingsView = event.detail.settingsPath}
+    />
+</div>
+
+</div>
+<style>
+  .team-race-preview { width: 100%; max-width: 323px; min-width: 0; }
+  .preview-actions { display: flex; flex-wrap: wrap; gap: var(--spacing-4); margin-bottom: var(--spacing-6); }
+</style>

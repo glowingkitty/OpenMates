@@ -947,8 +947,11 @@ function createSignupEmailClient(): ReturnType<typeof createEmailClient> | {
 		provider: 'mailpit',
 		async waitForMessage({ sentTo, subjectContains, receivedAfter, timeoutMs = 120000, pollIntervalMs = 1000 }) {
 			const address = sentTo.toLowerCase();
-			if (!/^ci-inbox\+[a-z0-9]+@example\.com$/.test(address)) {
-				throw new Error('Signup recipient must be a run-scoped CI inbox alias.');
+			if (
+				!/^ci-inbox\+[a-z0-9]+@example\.com$/.test(address) &&
+				!/^ci-[a-f0-9]{32}@example\.com$/.test(address)
+			) {
+				throw new Error('Signup recipient must be a run-scoped CI inbox alias or fixture account.');
 			}
 			const after = new Date(receivedAfter).getTime() - GMAIL_RECEIVED_AFTER_TOLERANCE_MS;
 			const deadline = Date.now() + timeoutMs;

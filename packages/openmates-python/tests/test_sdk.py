@@ -2088,6 +2088,40 @@ def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch
     ]
 
 
+def test_gift_card_bank_transfer_order_preserves_optional_buyer_address(monkeypatch):
+    requests_seen = []
+
+    def fake_post(url, *, json, headers, timeout):
+        requests_seen.append({"url": url, "json": json})
+        return SimpleNamespace(status_code=200, json=lambda: {"order_id": "gift-order-1"})
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    client = OpenMates(api_key="sk-api-test")
+    buyer_address = {
+        "name": "Gift recipient", "street_line_1": "Example Street 4",
+        "postal_code": "10115", "city": "Berlin", "country": "DE",
+    }
+
+    # contract-test: direct surface=sdks.pip assertions=teams.billing.context-parity
+    assert client.billing.create_gift_card_bank_transfer_order(
+        110000, email_encryption_key="email-key", buyer_address=buyer_address,
+    )["order_id"] == "gift-order-1"
+    assert client.billing.create_gift_card_bank_transfer_order(120000)["order_id"] == "gift-order-1"
+    assert requests_seen == [
+        {
+            "url": "https://api.openmates.org/v1/sdk/billing/gift-cards/bank-transfer-orders",
+            "json": {
+                "credits_amount": 110000, "currency": "eur", "email_encryption_key": "email-key",
+                "buyer_address": buyer_address,
+            },
+        },
+        {
+            "url": "https://api.openmates.org/v1/sdk/billing/gift-cards/bank-transfer-orders",
+            "json": {"credits_amount": 120000, "currency": "eur", "email_encryption_key": None},
+        },
+    ]
+
+
 def test_destructive_sdk_operations_require_confirmation():
     client = OpenMates(api_key="sk-api-test")
 

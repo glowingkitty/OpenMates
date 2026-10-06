@@ -110,6 +110,7 @@ class PaymentService:
         email: str,
         credits_amount: int,
         customer_id: Optional[str] = None,
+        customer_idempotency_key: Optional[str] = None,
         provider_override: Optional[str] = None,
         is_eu: bool = True,
         success_url: Optional[str] = None,
@@ -144,12 +145,14 @@ class PaymentService:
             # Non-EU: Stripe Managed Payments via Checkout Session, global prices
             return await provider.create_order(
                 amount, currency, email, credits_amount, customer_id,
+                customer_idempotency_key=customer_idempotency_key,
                 return_url=return_url, use_global_pricing=True,
             )
         else:
             # EU27: regular Stripe PaymentIntent, standard EU prices, no VAT
             return await provider.create_order_eu(
                 amount, currency, email, credits_amount, customer_id,
+                customer_idempotency_key=customer_idempotency_key,
             )
 
     async def create_support_order(

@@ -56,6 +56,9 @@ teams:
       type: text
       nullable: true
       note: "[Client-encrypted] Optional team billing profile fields."
+    security_policy:
+      type: json
+      note: "Server-enforced Team join policy. Contains only normalized allowed email domains and policy flags, never Team names or email addresses."
     created_by_user_hash:
       type: string
       note: "[Indexed] SHA256(user_id) of the team creator."
@@ -80,6 +83,14 @@ team_memberships:
     hashed_user_id:
       type: string
       note: "[Indexed] SHA256(user_id)."
+    user_id:
+      type: string
+      nullable: true
+      note: "Member account id for owner/admin management; legacy rows retain only hashed_user_id."
+    encrypted_member_profile:
+      type: text
+      nullable: true
+      note: "[Client-encrypted under Team key] Member display snapshot for authorized Team peers; no plaintext username or avatar metadata."
     role:
       type: string
       note: "Role: owner, admin, member, or viewer."
@@ -118,6 +129,9 @@ team_invites:
       type: string
       nullable: true
       note: "[Indexed] Base64 SHA256(normalized email) for invite delivery matching; never used for account-existence disclosure."
+    kind:
+      type: string
+      note: "direct_email or share_link; direct email joins require intended verified recipient."
     encrypted_recipient_hint:
       type: text
       nullable: true
@@ -181,6 +195,18 @@ team_access_requests:
     hashed_user_id:
       type: string
       note: "[Indexed] SHA256(user_id) of recipient requesting access."
+    user_id:
+      type: string
+      nullable: true
+      note: "Recipient account id for membership management after approval."
+    verified_email_domain:
+      type: string
+      nullable: true
+      note: "Recipient's verified email domain at access request time; rechecked against current Team policy before approval."
+    encrypted_member_profile:
+      type: text
+      nullable: true
+      note: "[Client-encrypted under Team key] Pending member display snapshot, copied to membership upon approval."
     role:
       type: string
       note: "Role requested from invite: admin, member, or viewer."

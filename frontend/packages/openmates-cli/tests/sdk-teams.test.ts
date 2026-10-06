@@ -115,8 +115,8 @@ describe("OpenMates SDK Teams", () => {
         if (request.method === "POST" && request.url === "/v1/teams") return { team: { team_id: "team-1", ...(body as Record<string, unknown>) } };
         if (request.method === "PATCH" && request.url === "/v1/teams/team-1") return { team: { team_id: "team-1", ...(body as Record<string, unknown>) } };
         if (request.method === "POST" && request.url === "/v1/teams/team-1/invites") return { invite: { invite_id: "invite-1" } };
-        if (request.method === "POST" && request.url === "/v1/team-invites/invite-1/accept") return { status: "pending_access_approval" };
-        if (request.method === "POST" && request.url === "/v1/team-invites/invite-1/decline") return { success: true };
+        if (request.method === "POST" && request.url === "/v1/teams/invites/invite-1/accept") return { status: "pending_access_approval" };
+        if (request.method === "POST" && request.url === "/v1/teams/invites/invite-1/decline") return { success: true };
         if (request.method === "GET" && request.url === "/v1/teams/team-1/access-requests?status=pending") return { access_requests: [{ id: "request-1" }] };
         if (request.method === "POST" && request.url === "/v1/teams/team-1/access-requests/request-1/approve") return { membership: { role: "member" } };
         if (request.method === "POST" && request.url === "/v1/teams/team-1/access-requests/request-1/reject") return { success: true };
@@ -145,7 +145,8 @@ describe("OpenMates SDK Teams", () => {
         assert.equal((await client.teams.rejectAccess("team-1", "request-1")).success, true);
         assert.equal((await client.teams.removeMember("team-1", "user-1")).success, true);
         assert.equal((await client.teams.billing("team-1")).credits, 1);
-        assert.equal((await client.teams.createBankTransferOrder("team-1", 110000, { emailEncryptionKey: "email-key" })).order_id, "bt_1");
+        const buyerAddress = { name: 'SDK Team', street_line_1: 'Example Street 1', postal_code: '10115', city: 'Berlin', country: 'DE' };
+        assert.equal((await client.teams.createBankTransferOrder("team-1", 110000, { emailEncryptionKey: "email-key", buyerAddress })).order_id, "bt_1");
         assert.equal((await client.teams.bankTransferStatus("team-1", "bt_1")).status, "pending");
         const orders = (await client.teams.listBankTransferOrders("team-1")).orders as Array<Record<string, unknown>>;
         assert.equal(orders[0]?.order_id, "bt_1");
@@ -160,8 +161,8 @@ describe("OpenMates SDK Teams", () => {
           ["POST", "/v1/teams"],
           ["PATCH", "/v1/teams/team-1"],
           ["POST", "/v1/teams/team-1/invites"],
-          ["POST", "/v1/team-invites/invite-1/accept"],
-          ["POST", "/v1/team-invites/invite-1/decline"],
+          ["POST", "/v1/teams/invites/invite-1/accept"],
+          ["POST", "/v1/teams/invites/invite-1/decline"],
           ["GET", "/v1/teams/team-1/access-requests?status=pending"],
           ["POST", "/v1/teams/team-1/access-requests/request-1/approve"],
           ["POST", "/v1/teams/team-1/access-requests/request-1/reject"],
@@ -175,11 +176,15 @@ describe("OpenMates SDK Teams", () => {
           ["POST", "/v1/teams/team-1/export"],
           ["POST", "/v1/teams/import"],
         ]);
+        // contract-test: direct surface=sdks.npm assertions=teams.billing.context-parity
+        assert.deepEqual(seen.find(request => request.url === '/v1/teams/team-1/billing/bank-transfer-orders')?.body, {
+          credits_amount: 110000, currency: 'eur', email_encryption_key: 'email-key', buyer_address: buyerAddress,
+        });
       },
     );
   });
 
-  // contract-test: direct surface=sdks.npm assertions=teams.lifecycle.encrypted-profiled,teams.profile-image.safe-parity,teams.workspace.surface-parity
+  // contract-test: direct surface=sdks.npm assertions=teams.lifecycle.encrypted-profiled,teams.profile-image.safe-parity,teams.workspace.surface-parity,teams.name.transient-policy
   it("creates and updates generated team profile-image metadata client-side encrypted", async () => {
     const masterKey = Buffer.alloc(32, 6);
     const material = await createApiKeyCryptoMaterial("sdk teams profile", bytesToBase64(masterKey));
@@ -189,6 +194,10 @@ describe("OpenMates SDK Teams", () => {
       (request, body) => {
         if (request.method === "POST" && request.url === "/v1/sdk/session") {
           return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        }
+        if (request.method === "POST" && request.url === "/v1/teams/name-approval") {
+          assert.deepEqual(body, { name: 'sdk team' });
+          return { approval_token: 'approved-sdk-team', expires_at: 1000 };
         }
         if (request.method === "POST" && request.url === "/v1/teams") {
           storedTeam = { team_id: "team-1", ...(body as Record<string, unknown>) };
@@ -225,7 +234,10 @@ describe("OpenMates SDK Teams", () => {
         assert.equal(image.filename, "team.png");
         assert.deepEqual([...new Uint8Array(image.data)], [137, 80, 78, 71]);
 
-        const createBody = seen[1]?.body as Record<string, unknown>;
+        // contract-test: direct surface=sdks.npm assertions=teams.name.transient-policy
+        assert.deepEqual(seen[0]?.body, { name: 'sdk team' });
+        const createBody = seen[2]?.body as Record<string, unknown>;
+        assert.equal(createBody.name_approval_token, 'approved-sdk-team');
         const teamKey = await decryptBytesWithAesGcm(String(createBody.encrypted_team_key), masterKey);
         assert.ok(teamKey);
         const createProfile = JSON.parse(String(await decryptWithAesGcmCombined(String(createBody.encrypted_profile_image_metadata), teamKey)));
@@ -235,13 +247,14 @@ describe("OpenMates SDK Teams", () => {
         assert.equal("name" in createBody, false);
         assert.equal("profile" in createBody, false);
 
-        const updateBody = seen[3]?.body as Record<string, unknown>;
+        const updateBody = seen[4]?.body as Record<string, unknown>;
         const updateProfile = JSON.parse(String(await decryptWithAesGcmCombined(String(updateBody.encrypted_profile_image_metadata), teamKey)));
         assert.equal(updateProfile.mode, "generated");
         assert.equal(updateProfile.icon_name, "sparkles");
         assert.equal(updateProfile.background_color, "#405060");
         assert.equal("profile" in updateBody, false);
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
+          ["POST", "/v1/teams/name-approval"],
           ["POST", "/v1/sdk/session"],
           ["POST", "/v1/teams"],
           ["GET", "/v1/teams/team-1"],

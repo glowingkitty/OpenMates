@@ -52,6 +52,7 @@
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
     import { messageInputPlaceholderOverride, messageInputPlaceholderVariant } from './extensions/Placeholder';
+    import { waitForCodeDocPreviewUpgrades } from './extensions/Embed';
 
     // Components
     import CameraView from './CameraView.svelte';
@@ -5107,6 +5108,35 @@
             return;
         }
 
+        // Parsing can create local code/document previews synchronously. Wait for
+        // their EmbedStore entries and node refs before handleSend snapshots the
+        // editor; a failed upgrade must leave the draft available for retry.
+        const editorAtPreviewWait = editor;
+        const chatIdAtPreviewWait = currentChatId;
+        let previewsReady = false;
+        try {
+            if (editorAtPreviewWait && !editorAtPreviewWait.isDestroyed) {
+                flushHeavyParsing(editorAtPreviewWait);
+                previewsReady = await waitForCodeDocPreviewUpgrades(editorAtPreviewWait);
+            }
+        } catch (error) {
+            console.error('[MessageInput] Failed to prepare code/document preview for send:', error);
+        }
+        if (editor !== editorAtPreviewWait || currentChatId !== chatIdAtPreviewWait) {
+            sendClickInProgress = false;
+            return;
+        }
+        if (!previewsReady || !editorAtPreviewWait || editorAtPreviewWait.isDestroyed) {
+            console.error('[MessageInput] Code/document preview is not stored; keeping draft unsent');
+            notificationStore.error($text('common.try_again'));
+            sendClickInProgress = false;
+            hasContent = !isContentEmptyExceptMention(editor);
+            refreshDraftPreviewState(editor);
+            triggerSaveDraft(currentChatId, editor);
+            vibrateMessageField();
+            return;
+        }
+
         // Hide the send button immediately on first press — this is the primary
         // mechanism preventing double-sends. The button disappears before any async
         // work begins, so subsequent taps have no button to press. Keep the
@@ -5114,10 +5144,7 @@
         hasContent = false;
         draftPreviewParts = EMPTY_DRAFT_PREVIEW_PARTS;
 
-        // Flush any debounced heavy parsing so originalMarkdown is fully up-to-date
-        if (editor && !editor.isDestroyed) {
-            flushHeavyParsing(editor);
-        }
+        // Heavy parsing was flushed before waiting for preview persistence.
         const draftStateBeforeSend = get(draftEditorUIState);
         const pendingNewChatId = currentChatId ?? draftStateBeforeSend.currentChatId ?? null;
         if (pendingNewChatId) {
@@ -6651,6 +6678,7 @@
             <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
                 <ActionButtons
                     showSendButton={hasSendableDraft}
+                    sendInProgress={sendClickInProgress}
                     isAuthenticated={anonymousFileAttachmentPending ? false : demoVisualAuthenticated}
                     allowAnonymousTextSend={anonymousTextSendEnabled}
                     {hasNoCredits}
