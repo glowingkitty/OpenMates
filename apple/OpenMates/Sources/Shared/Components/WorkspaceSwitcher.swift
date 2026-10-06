@@ -262,7 +262,8 @@ struct CompactWorkspacePicker: View {
     let onSelectWorkspace: (WorkspaceDestination) -> Void
     let onNewChat: () -> Void
 
-    private var animation: Animation? { reduceMotion ? nil : .easeInOut(duration: 0.28) }
+    private var openAnimation: Animation? { reduceMotion ? nil : .easeInOut(duration: 0.18) }
+    private var closeAnimation: Animation? { reduceMotion ? nil : .easeInOut(duration: 0.14) }
     private var triggerWidth: CGFloat { WorkspaceSwitcherLayoutPolicy.compactTriggerWidth(availableCenterWidth: availableCenterWidth) }
     private var panelHeight: CGFloat { WorkspaceSwitcherLayoutPolicy.panelHeight(viewportHeight: viewportSize.height) }
     private var panelWidth: CGFloat { min(280, max(120, viewportSize.width - 2 * CGFloat.spacing10)) }
@@ -365,12 +366,12 @@ struct CompactWorkspacePicker: View {
     }
 
     private func togglePicker() {
-        withAnimation(animation) { expanded.toggle() }
+        withAnimation(expanded ? closeAnimation : openAnimation) { expanded.toggle() }
         focusedWorkspace = selectedWorkspace
     }
 
     private func close() {
-        withAnimation(animation) { expanded = false }
+        withAnimation(closeAnimation) { expanded = false }
         focusedWorkspace = selectedWorkspace
     }
 }

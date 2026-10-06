@@ -5,10 +5,258 @@
 // Payload assertions cover only existing backend WebSocket contracts.
 
 import XCTest
+import SwiftData
 @testable import OpenMates
 
 @MainActor
 final class ChatStreamingLifecycleParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.message.identity-idempotent
+    func testSavedTerminalMatchesTaskBeforeTypingAndPrefersKnownAssistantIdentity() throws {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.taskInitiated(chatId: "chat", taskId: "task", userMessageId: "user"))
+        state.apply(.preprocessingStep(chatId: "chat", step: "model_selected", data: nil))
+        let saved = terminalRow(id: "task", chatID: "chat")
+        XCTAssertEqual(ChatStreamingSyncCompletionPolicy.matchingMessage(in: [saved], lifecycle: state,
+            chatID: "chat", pendingMessageIDs: [])?.id, saved.id)
+        XCTAssertTrue(state.completeFromAuthoritativeSync(messageId: saved.id))
+        XCTAssertFalse(state.isActive)
+
+        state.apply(.taskInitiated(chatId: "chat", taskId: "task", userMessageId: "user"))
+        state.apply(.typingStarted(chatId: "chat", messageId: "assistant-new", metadata: nil))
+        XCTAssertNil(ChatStreamingSyncCompletionPolicy.matchingMessage(in: [saved], lifecycle: state,
+            chatID: "chat", pendingMessageIDs: []), "An older task row cannot finish a newer known assistant")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.message.identity-idempotent,chats.persistence.client-encrypted
+    func testTerminalSyncRejectsUnrelatedOptimisticStreamingAndPendingRows() {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.taskInitiated(chatId: "chat", taskId: "task", userMessageId: "user"))
+        let invalid = [terminalRow(id: "other", chatID: "chat"),
+                       terminalRow(id: "task", chatID: "other-chat"),
+                       terminalRow(id: "task", chatID: "chat", role: .user),
+                       terminalRow(id: "task", chatID: "chat", cipher: nil),
+                       terminalRow(id: "task", chatID: "chat", cipher: ""),
+                       terminalRow(id: "task", chatID: "chat", streaming: true)]
+        for row in invalid {
+            XCTAssertNil(ChatStreamingSyncCompletionPolicy.matchingMessage(in: [row], lifecycle: state,
+                chatID: "chat", pendingMessageIDs: []))
+        }
+        let alias = terminalRow(id: "canonical", chatID: "chat", alias: "task")
+        XCTAssertEqual(ChatStreamingSyncCompletionPolicy.matchingMessage(in: [alias], lifecycle: state,
+            chatID: "chat", pendingMessageIDs: [])?.id, alias.id)
+        for pendingID in ["canonical", "task"] {
+            XCTAssertNil(ChatStreamingSyncCompletionPolicy.matchingMessage(in: [alias], lifecycle: state,
+                chatID: "chat", pendingMessageIDs: [pendingID]))
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.surface.semantic-parity
+    func testForegroundSyncClearsProcessingBeforeFirstTypingFrame() async throws {
+        let fixture = try terminalSyncFixture()
+        fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "task", userMessageId: "user"))
+        fixture.model.handleStreamEvent(.preprocessingStep(chatId: fixture.chat.id, step: "model_selected", data: nil))
+        XCTAssertTrue(fixture.model.isStreaming)
+        XCTAssertNil(fixture.model.streamingMessageId)
+        let saved = terminalRow(id: "task", chatID: fixture.chat.id)
+        await fixture.model.applySynced(chat: fixture.chat, messages: [saved])
+        XCTAssertEqual(fixture.model.streamingLifecycle.phase, .completed)
+        XCTAssertFalse(fixture.model.isStreaming)
+        XCTAssertNil(fixture.model.streamingMessageId)
+        XCTAssertEqual(fixture.model.messages.first?.encryptedContent, saved.encryptedContent)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.local-state.precedence,chats.persistence.client-encrypted
+    func testBufferedProcessingAndPartialReplayCannotReopenSavedCompletion() throws {
+        let fixture = try terminalSyncFixture()
+        let saved = terminalRow(id: "task", chatID: fixture.chat.id)
+        fixture.model.seedIsolatedHistory(chat: fixture.chat, messages: [saved], embeds: [])
+        fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "task", userMessageId: "user"))
+        fixture.model.handleStreamEvent(.preprocessingStep(chatId: fixture.chat.id, step: "model_selected", data: nil))
+        fixture.model.handleStreamEvent(.typingStarted(chatId: fixture.chat.id, messageId: "task", metadata: nil))
+        fixture.model.handleStreamEvent(.chunk(chatId: fixture.chat.id, messageId: "task", sequence: 1,
+            content: "Stale partial", isFinal: false, userMessageId: "user", category: nil, modelName: nil, rejectionReason: nil))
+        XCTAssertFalse(fixture.model.isStreaming)
+        XCTAssertEqual(fixture.model.streamingLifecycle.phase, .completed)
+        XCTAssertEqual(fixture.model.messages.first?.content, saved.content)
+        XCTAssertEqual(fixture.model.messages.first?.encryptedContent, saved.encryptedContent)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.message.identity-idempotent
+    func testForegroundCompletionDuringDecryptionPreservesNewerProcessingTask() async throws {
+        weak var model: ChatViewModel?
+        let fixture = try terminalSyncFixture(decrypt: { rows, chatID in
+            model?.handleStreamEvent(.taskInitiated(chatId: chatID, taskId: "new-task", userMessageId: "new-user"))
+            model?.handleStreamEvent(.preprocessingStep(chatId: chatID, step: "model_selected", data: nil))
+            return rows
+        })
+        model = fixture.model
+        fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "old-task", userMessageId: "old-user"))
+        await fixture.model.applySynced(chat: fixture.chat, messages: [terminalRow(id: "old-task", chatID: fixture.chat.id)])
+        XCTAssertTrue(fixture.model.isStreaming)
+        XCTAssertEqual(fixture.model.streamingLifecycle.taskId, "new-task")
+        XCTAssertEqual(fixture.model.streamingLifecycle.phase, .processing)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.local-state.precedence
+    func testPendingRecoveryRowCannotClearForegroundProcessing() async throws {
+        let fixture = try terminalSyncFixture()
+        let store = ChatStore()
+        store.setPendingAssistantRecoveryLookup { _ in ["task"] }
+        fixture.model.configure(wsManager: nil, chatStore: store)
+        fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "task", userMessageId: "user"))
+        await fixture.model.applySynced(chat: fixture.chat, messages: [terminalRow(id: "task", chatID: fixture.chat.id)])
+        XCTAssertTrue(fixture.model.isStreaming)
+        XCTAssertEqual(fixture.model.streamingLifecycle.phase, .sending)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.surface.semantic-parity
+    func testPostprocessingCompletionClearsProcessingAndMessageReadyMatchesTaskBeforeTyping() throws {
+        let fixture = try terminalSyncFixture()
+        fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "task", userMessageId: "user"))
+        fixture.model.handleStreamEvent(.postProcessingCompleted(chatId: fixture.chat.id, taskId: "task",
+            followUpSuggestions: [], newChatSuggestions: [], chatSummary: nil, chatTags: [], updatedTitle: nil,
+            sourceTitleVersion: nil, sourceMetadataVersion: nil))
+        XCTAssertFalse(fixture.model.isStreaming)
+        XCTAssertFalse(fixture.model.streamingLifecycle.isActive)
+        var state = ChatStreamingLifecycleState()
+        state.apply(.taskInitiated(chatId: "chat", taskId: "task", userMessageId: "user"))
+        XCTAssertFalse(state.apply(.messageReady(chatId: "chat", messageId: "older-task")))
+        XCTAssertTrue(state.apply(.messageReady(chatId: "chat", messageId: "task")))
+        XCTAssertFalse(state.isActive)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.message.identity-idempotent
+    func testForegroundMergeAdmitsExactTerminalAndRetainsOtherStreamingRows() {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.taskInitiated(chatId: "chat", taskId: "task", userMessageId: "user"))
+        let partial = terminalRow(id: "task", chatID: "chat", cipher: nil, streaming: true)
+        let newer = terminalRow(id: "newer", chatID: "chat", cipher: nil, streaming: true)
+        let saved = terminalRow(id: "canonical", chatID: "chat", alias: "task")
+        let retained = ChatStreamingSyncCompletionPolicy.retainedForegroundMessages([partial, newer],
+            incoming: [saved], lifecycle: state, chatID: "chat", pendingMessageIDs: [])
+        let merged = ChatMessageWindowPage.merge([saved], preserving: retained)
+        XCTAssertEqual(Set(merged.map(\.id)), [saved.id, newer.id])
+        XCTAssertEqual(merged.first(where: { $0.id == saved.id })?.encryptedContent, saved.encryptedContent)
+        XCTAssertTrue(merged.first(where: { $0.id == newer.id })?.isStreaming == true)
+        XCTAssertEqual(ChatStreamingSyncCompletionPolicy.retainedForegroundMessages([partial, newer],
+            incoming: [saved], lifecycle: state, chatID: "chat", pendingMessageIDs: ["task"]).count, 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,apple-offline.interruption-isolation
+    func testSavedHistoryCannotCompleteProcessingAfterScopeChanges() throws {
+        var scope = UUID()
+        let fixture = try terminalSyncFixture(scopeProvider: { scope })
+        fixture.model.seedIsolatedHistory(chat: fixture.chat,
+            messages: [terminalRow(id: "task", chatID: fixture.chat.id)], embeds: [])
+        scope = UUID()
+        fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "task", userMessageId: "user"))
+        XCTAssertTrue(fixture.model.isStreaming)
+        XCTAssertEqual(fixture.model.streamingLifecycle.phase, .sending)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,apple-offline.interruption-isolation
+    func testForegroundCompletionRejectsScopeChangedDuringDecryption() async throws {
+        var scope = UUID()
+        let fixture = try terminalSyncFixture(decrypt: { rows, _ in scope = UUID(); return rows }, scopeProvider: { scope })
+        fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "task", userMessageId: "user"))
+        await fixture.model.applySynced(chat: fixture.chat, messages: [terminalRow(id: "task", chatID: fixture.chat.id)])
+        XCTAssertTrue(fixture.model.isStreaming)
+        XCTAssertEqual(fixture.model.streamingLifecycle.phase, .sending)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.message.identity-idempotent
+    func testForegroundCompletionRejectsMessageDeletedDuringDecryption() async throws {
+        weak var model: ChatViewModel?
+        let fixture = try terminalSyncFixture(decrypt: { rows, chatID in
+            model?.consumeForegroundMessageDeletion(chatId: chatID, messageId: "task")
+            return rows
+        })
+        model = fixture.model
+        fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "task", userMessageId: "user"))
+        await fixture.model.applySynced(chat: fixture.chat, messages: [terminalRow(id: "task", chatID: fixture.chat.id)])
+        XCTAssertTrue(fixture.model.isStreaming)
+        XCTAssertEqual(fixture.model.streamingLifecycle.phase, .sending)
+        XCTAssertFalse(fixture.model.messages.contains { $0.id == "task" })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,apple-live-activities.processing.widget,apple-live-activities.lifecycle.isolation
+    func testForegroundCompletionFinishesOnlyMatchingWidgetTurn() async throws {
+        let fixture = try terminalSyncFixture()
+        let scope = try XCTUnwrap(fixture.coordinator.currentScope)
+        fixture.coordinator.started(chatID: fixture.chat.id, turnID: "user", scope: scope)
+        fixture.coordinator.adoptServerTurn(chatID: fixture.chat.id, provisionalTurnID: "user", serverTurnID: "task", scope: scope)
+        fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "task", userMessageId: "user"))
+        await fixture.model.applySynced(chat: fixture.chat, messages: [terminalRow(id: "task", chatID: fixture.chat.id)])
+        XCTAssertNil(fixture.coordinator.policy.items[fixture.chat.id])
+        XCTAssertTrue(fixture.coordinator.policy.hasCompleted(chatID: fixture.chat.id, turnID: "user"))
+        XCTAssertTrue(fixture.coordinator.policy.hasCompleted(chatID: fixture.chat.id, turnID: "task"))
+
+        fixture.coordinator.started(chatID: fixture.chat.id, turnID: "new-user", scope: scope)
+        fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "task", userMessageId: "user"))
+        XCTAssertFalse(fixture.model.isStreaming, "Old buffered processing still stays completed")
+        XCTAssertEqual(fixture.coordinator.policy.items[fixture.chat.id]?.turnID, "new-user",
+                       "Finishing an exact older alias must retain the widget's newer turn")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testChildCompletionRoutesByParentAndPreservesChildIdentity() async throws {
+        let fixture = try terminalSyncFixture()
+        let store = ChatStore()
+        let child = Chat(id: "synthetic-child", title: "Synthetic child", lastMessageAt: nil,
+            createdAt: "2026-01-01T00:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
+            appId: nil, encryptedTitle: nil, encryptedChatKey: nil, parentId: fixture.chat.id, isSubChat: true)
+        store.upsertChat(child)
+        fixture.model.configure(wsManager: nil, chatStore: store)
+        func frame(parent: String) throws -> Data {
+            try JSONSerialization.data(withJSONObject: ["payload": ["chat_id": child.id, "parent_id": parent, "summary": ""]])
+        }
+        let unrelatedFrame = try frame(parent: "unrelated-parent")
+        await fixture.model.handleChatLifecycleEvent(type: "sub_chat_completed", raw: unrelatedFrame, activeChatId: fixture.chat.id)
+        XCTAssertFalse(fixture.model.completedSubChatIDs.contains(child.id))
+        let matchingFrame = try frame(parent: fixture.chat.id)
+        await fixture.model.handleChatLifecycleEvent(type: "sub_chat_completed", raw: matchingFrame, activeChatId: fixture.chat.id)
+        XCTAssertTrue(fixture.model.completedSubChatIDs.contains(child.id))
+        XCTAssertFalse(fixture.model.completedSubChatIDs.contains(fixture.chat.id))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.send.ownership
+    func testSendWithoutCurrentChatReportsRejection() async {
+        let model = ChatViewModel()
+        let accepted = await model.sendMessage("Synthetic draft")
+        XCTAssertFalse(accepted)
+        XCTAssertNil(model.error, "A guard rejection does not imply acceptance merely because there is no error")
+    }
+
+    private func terminalRow(id: String, chatID: String, role: MessageRole = .assistant,
+                             cipher: String? = "synthetic-saved-ciphertext", streaming: Bool = false,
+                             alias: String? = nil) -> Message {
+        Message(id: id, chatId: chatID, role: role, content: "Synthetic completed response",
+            encryptedContent: cipher, createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            appId: nil, isStreaming: streaming, embedRefs: nil, serverMessageId: alias)
+    }
+
+    private func terminalSyncFixture(decrypt: @escaping @MainActor ([Message], String) async -> [Message] = { rows, _ in rows },
+                                     scopeProvider: (@MainActor () -> UUID)? = nil)
+        throws -> (model: ChatViewModel, chat: Chat, coordinator: ActiveChatsCoordinator) {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self, PersistedEmbed.self,
+            PersistedEmbedKey.self, PersistedCodeRunOutput.self, PendingOfflineAction.self])
+        let configuration = ModelConfiguration("TerminalSync-\(UUID().uuidString)", schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let offline = OfflineStore(modelContainer: container)
+        let chat = Chat(id: "synthetic-terminal-\(UUID().uuidString)", title: "Synthetic chat", lastMessageAt: nil,
+            createdAt: "2026-01-01T00:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
+            appId: nil, encryptedTitle: nil, encryptedChatKey: nil, messagesV: 1, titleV: 0)
+        let coordinator = ActiveChatsCoordinator(publishWidgetSnapshot: { _, _, _ in })
+        let team = TeamWorkspaceContext.shared.snapshot
+        coordinator.configure(accountID: "synthetic-owner", server: ServerProfile.current(),
+            scope: scopeProvider?() ?? offline.scopeGeneration,
+            team: .init(epoch: team.epoch, teamID: team.teamID), authenticated: true)
+        let model = ChatViewModel(messageDecryptor: decrypt, accountScopeGeneration: { scopeProvider?() ?? offline.scopeGeneration },
+            offlineStore: offline, processingCoordinator: coordinator)
+        model.chat = chat
+        return (model, chat, coordinator)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.surface.semantic-parity
     func testTypingStatusUsesTheCurrentTurnMateAndClearsItForTheNextTurn() throws {
         var state = ChatStreamingLifecycleState()
@@ -96,7 +344,9 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
             "A tall iPhone should use the same full continuation card as a tall iPad"
         )
         XCTAssertTrue(WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 1024, height: 420)))
-        XCTAssertFalse(WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 390, height: 419)))
+        XCTAssertTrue(WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 390, height: 404)))
+        XCTAssertTrue(WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 390, height: 360)))
+        XCTAssertFalse(WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 390, height: 359)))
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity

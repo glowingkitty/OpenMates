@@ -42,6 +42,82 @@ final class ChatSendPipelineParityTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,chats.persistence.client-encrypted
+    func testFreshRestoredReferenceUsesReadyReceiptWithoutBuildingNewCiphertext() async throws {
+        let scope = ComposerEmbedReferenceScope(accountScope: UUID(), server: ServerProfile.development.apiBaseURL.absoluteString,
+            teamID: nil, teamEpoch: 0)
+        let source = storageEmbed(content: nil, disposition: .existingStoredReference(scope))
+        // Origin chat differs: the server's personal master wrapper authorization,
+        // not local source-chat equality, decides whether this reference is usable.
+        let record = EmbedRecord(id: source.id, type: source.type, status: source.record.status, data: source.record.data,
+            parentEmbedId: nil, appId: nil, skillId: nil, embedIds: nil,
+            hashedChatId: "another-owned-chat", createdAt: nil)
+        let restored = ComposerPendingEmbed(id: source.id, type: source.type, referenceType: source.referenceType,
+            status: source.status, content: nil, textPreview: nil, record: record, localData: nil,
+            filename: source.filename, size: 0, piiMappings: [], storageDisposition: source.storageDisposition)
+        var probes = 0
+        try await ChatSendPipeline.validateFreshStoredReferences([restored], referenceScope: scope,
+            serverProfile: .development, validate: {}) { ids in
+                probes += 1
+                XCTAssertEqual(ids, [restored.id])
+                return [restored.id: .ready]
+            }
+        XCTAssertEqual(probes, 1)
+        XCTAssertTrue(try ChatSendPipeline.requiredEncryptedBundles([restored], referenceScope: scope).isEmpty)
+        XCTAssertNil(restored.content)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,chats.persistence.client-encrypted
+    func testFreshReferenceMissingUnusableMalformedAndUnavailableBlockSend() async throws {
+        let scope = ComposerEmbedReferenceScope(accountScope: UUID(), server: ServerProfile.development.apiBaseURL.absoluteString,
+            teamID: "team-a", teamEpoch: 4)
+        let ref = storageEmbed(content: nil, disposition: .existingStoredReference(scope))
+        for state in [EmbedReferenceAvailabilityState.missing, .unusable] {
+            do {
+                try await ChatSendPipeline.validateFreshStoredReferences([ref], referenceScope: scope,
+                    serverProfile: .development, validate: {}) { _ in [ref.id: state] }
+                XCTFail("Unavailable reference must not authorize send")
+            } catch let error as ComposerEmbedStorageError {
+                XCTAssertEqual(error.reason, state == .missing ? .missingContent : .staleReference)
+            }
+        }
+        let malformedResponses: [[String: EmbedReferenceAvailabilityState]] = [[:], [ref.id: .ready, "unexpected": .ready]]
+        for response in malformedResponses {
+            do {
+                try await ChatSendPipeline.validateFreshStoredReferences([ref], referenceScope: scope,
+                    serverProfile: .development, validate: {}) { _ in response }
+                XCTFail("Exact reference result set is required")
+            } catch { XCTAssertTrue(error is APIError) }
+        }
+        do {
+            try await ChatSendPipeline.validateFreshStoredReferences([ref], referenceScope: scope,
+                serverProfile: .development, validate: {}) { _ in throw URLError(.notConnectedToInternet) }
+            XCTFail("No receipt must block send")
+        } catch { XCTAssertEqual((error as? URLError)?.code, .notConnectedToInternet) }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,auth.session.isolation
+    func testFreshReferenceRejectsTeamRevocationAfterProbeAndPreservesLegacyProfiles() async throws {
+        let scope = ComposerEmbedReferenceScope(accountScope: UUID(), server: ServerProfile.development.apiBaseURL.absoluteString,
+            teamID: "team-a", teamEpoch: 4)
+        let ref = storageEmbed(content: nil, disposition: .existingStoredReference(scope))
+        var epoch = scope.teamEpoch
+        do {
+            try await ChatSendPipeline.validateFreshStoredReferences([ref], referenceScope: scope,
+                serverProfile: .development, validate: {
+                    guard epoch == scope.teamEpoch else { throw CancellationError() }
+                }) { _ in epoch += 1; return [ref.id: .ready] }
+            XCTFail("A revoked Team response must not authorize send")
+        } catch { XCTAssertTrue(error is CancellationError) }
+        for profile in [ServerProfile.production, .custom(domain: "legacy.example.invalid")] {
+            try await ChatSendPipeline.validateFreshStoredReferences([ref], referenceScope: scope,
+                serverProfile: profile, validate: {}) { _ in
+                    XCTFail("Unverified profiles must not use the dev-only endpoint")
+                    throw APIError.invalidResponse
+                }
+        }
+    }
+
     private func retryFence(process: UUID, accountScope: UUID, keyGeneration: UUID, accountID: String = "synthetic-owner",
                             server: String = "https://synthetic.invalid", teamID: String? = nil,
                             teamEpoch: UInt64 = 0, deletion: Int = 0, keyDigest: String = "synthetic-key-digest") -> ChatSendRetryFence {

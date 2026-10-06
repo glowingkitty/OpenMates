@@ -19,6 +19,138 @@ final class WorkflowsParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity,workflows.surface.semantic-parity
+    func testPendingWorkflowSubmitDisablesMicAndLateAcceptancePreservesNewDraft() {
+        for fixture in ["home", "editor"] {
+            let app = launchWorkflowFixture(fixture, extraArguments:
+                ["--ui-test-workflow-prompt-submit", "--ui-test-workflow-prompt-held"])
+            let prefix = fixture == "home" ? "workflow-input" : "workflow-ai-edit"
+            let composerID = fixture == "home" ? "workflow-input-composer" : "workflow-ai-editor-composer"
+            let editor = app.textViews["\(prefix)-textarea"]
+            XCTAssertTrue(editor.waitForExistence(timeout: 8))
+            editor.tap(); editor.typeText("Original synthetic workflow draft")
+            app.buttons["\(prefix)-submit"].tap()
+            let replace = app.buttons["workflow-held-replace-draft"]
+            XCTAssertTrue(replace.waitForExistence(timeout: 3))
+            XCTAssertFalse(app.buttons["\(prefix)-mic"].isEnabled)
+            XCTAssertFalse(app.buttons["\(prefix)-submit"].isEnabled)
+            replace.tap()
+            XCTAssertEqual(editor.value as? String, "Replacement synthetic workflow draft")
+            app.buttons["workflow-held-complete-submit"].tap()
+            XCTAssertTrue(replace.waitForNonExistence(timeout: 3))
+            XCTAssertEqual(editor.value as? String, "Replacement synthetic workflow draft")
+            XCTAssertTrue(app.buttons["\(composerID)-cancel"].exists)
+            XCTAssertTrue(app.buttons["\(prefix)-mic"].isEnabled)
+            // A center tap chooses a mid-document caret in the wrapped editor.
+            // Select the visible draft end before testing an exact appended edit.
+            editor.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.95)).tap()
+            editor.typeText(" preserved")
+            XCTAssertEqual(editor.value as? String, "Replacement synthetic workflow draft preserved")
+            attachScreenshot("\(fixture) late acceptance preserves newer editable native draft")
+            app.terminate()
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity,workflows.surface.semantic-parity,message-input.focus.workspace-suppression
+    func testWorkflowHomeAndAIEditorShareNativeExpansionDismissalAndSendAcceptance() {
+        for fixture in ["home", "editor"] {
+            for rejected in [false, true] {
+                let app = launchWorkflowFixture(fixture, extraArguments: ["--ui-test-workflow-prompt-submit"]
+                    + (rejected ? ["--ui-test-workflow-prompt-reject"] : []))
+                let prefix = fixture == "home" ? "workflow-input" : "workflow-ai-edit"
+                let composerID = fixture == "home" ? "workflow-input-composer" : "workflow-ai-editor-composer"
+                let backdropID = fixture == "home" ? "workflow-home-prompt-backdrop" : "workflow-editor-prompt-backdrop"
+                let composer = app.descendants(matching: .any)[composerID].firstMatch
+                let editor = app.textViews["\(prefix)-textarea"]
+                XCTAssertTrue(editor.waitForExistence(timeout: 8))
+                let idleHeight = composer.frame.height
+                let backgroundAction = app.buttons[fixture == "home" ? "workflows-home-report-issue" : "workflow-detail-back"]
+                XCTAssertTrue(backgroundAction.exists); XCTAssertTrue(backgroundAction.isEnabled)
+                editor.tap()
+                let cancel = app.buttons["\(composerID)-cancel"]
+                XCTAssertTrue(cancel.waitForExistence(timeout: 3))
+                let focusedMic = app.buttons["\(prefix)-mic"]
+                XCTAssertTrue(focusedMic.waitForExistence(timeout: 3))
+                XCTAssertGreaterThan(focusedMic.frame.midX, composer.frame.midX, "Empty focused microphone must stay on the right")
+                let focusedField = composer.descendants(matching: .any)["message-field"].firstMatch
+                XCTAssertEqual(cancel.frame.width, focusedField.frame.width, accuracy: 1)
+                XCTAssertEqual(cancel.frame.minX, focusedField.frame.minX, accuracy: 1)
+                XCTAssertGreaterThan(focusedMic.frame.midY, focusedField.frame.midY, "Microphone must stay in the bottom action row")
+                let focusBackdrop = app.buttons[backdropID]
+                XCTAssertTrue(focusBackdrop.waitForExistence(timeout: 3))
+                XCTAssertEqual(focusBackdrop.value as? String, "background-opacity=0;background-interactive=false")
+                XCTAssertTrue(!backgroundAction.exists || !backgroundAction.isEnabled)
+                let expand = app.buttons["\(composerID)-expand"]
+                XCTAssertFalse(expand.exists, "An empty focused editor has no overflow action")
+                let shortDraft = "Synthetic workflow instruction\nSecond line\nThird line"
+                editor.typeText(shortDraft)
+                XCTAssertFalse(expand.exists, "Three short native lines fit without Expand")
+                let continuation = "\nFourth line\nFifth line"
+                let draft = shortDraft + continuation
+                editor.typeText(continuation)
+                XCTAssertEqual(editor.value as? String, draft)
+                XCTAssertTrue(expand.waitForExistence(timeout: 5)); XCTAssertTrue(expand.isHittable)
+                XCTAssertGreaterThan(composer.frame.height, idleHeight)
+                let typedMic = app.buttons["\(prefix)-mic"]
+                let typedSubmit = app.buttons["\(prefix)-submit"]
+                XCTAssertTrue(typedMic.exists); XCTAssertTrue(typedSubmit.exists)
+                XCTAssertLessThan(typedSubmit.frame.midX, typedMic.frame.midX, "Microphone must be the rightmost bottom action")
+                let editingHeight = composer.frame.height
+                let editingEditorHeight = editor.frame.height
+                NativeComposerRenderedLayoutAssertions.assertBeside(expand, field: focusedField, editor: editor)
+                NativeComposerRenderedLayoutAssertions.assertSelectedCaretClears(expand, field: focusedField, editor: editor)
+                expand.tap()
+                attachScreenshot("\(fixture) native composer immediately after fullscreen tap")
+                let field = composer.descendants(matching: .any).matching(identifier: "message-field").firstMatch
+                let bounds = XCTAttachment(string: "idleHeight=\(idleHeight) editingHeight=\(editingHeight) expandedComposer=\(composer.frame) nativeEditor=\(editor.frame) field=\(field.frame) expandLabel=\(expand.label)\n\(app.debugDescription)")
+                bounds.name = "\(fixture) fullscreen native bounds and accessibility"
+                bounds.lifetime = .keepAlways
+                add(bounds)
+                expectation(for: NSPredicate { _, _ in composer.frame.height > editingHeight && editor.frame.height > editingEditorHeight }, evaluatedWith: composer)
+                waitForExpectations(timeout: 3)
+                NativeComposerRenderedLayoutAssertions.assertBeside(expand, field: focusedField, editor: editor)
+                NativeComposerRenderedLayoutAssertions.assertSelectedCaretClears(expand, field: focusedField, editor: editor, requiresScroll: false)
+                XCTAssertEqual(cancel.frame.width, focusedField.frame.width, accuracy: 1)
+                XCTAssertEqual(cancel.frame.minX, focusedField.frame.minX, accuracy: 1)
+                cancel.tap()
+                XCTAssertTrue(cancel.waitForNonExistence(timeout: 3))
+                XCTAssertTrue(focusBackdrop.waitForNonExistence(timeout: 3))
+                XCTAssertTrue(backgroundAction.exists); XCTAssertTrue(backgroundAction.isEnabled)
+                XCTAssertFalse(app.keyboards.firstMatch.exists)
+                XCTAssertEqual(editor.value as? String, draft)
+                editor.tap()
+                let backdrop = app.descendants(matching: .any)[backdropID].firstMatch
+                XCTAssertTrue(backdrop.isHittable)
+                backdrop.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
+                XCTAssertTrue(cancel.waitForNonExistence(timeout: 3))
+                XCTAssertTrue(focusBackdrop.waitForNonExistence(timeout: 3))
+                XCTAssertTrue(backgroundAction.exists); XCTAssertTrue(backgroundAction.isEnabled)
+                XCTAssertFalse(app.keyboards.firstMatch.exists)
+                XCTAssertEqual(editor.value as? String, draft)
+                editor.tap()
+                app.buttons["\(prefix)-submit"].tap()
+                if rejected {
+                    if fixture == "home" {
+                        XCTAssertTrue(app.descendants(matching: .any)["workflows-error"].waitForExistence(timeout: 3),
+                            "Rejected Home sends must show their error while focus and draft remain active")
+                    }
+                    XCTAssertTrue(cancel.exists)
+                    XCTAssertEqual(editor.value as? String, draft)
+                    // Rejection retains the user's tapped insertion point. Request
+                    // the draft end explicitly for this append-edit assertion.
+                    editor.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.95)).tap()
+                    editor.typeText(" revised")
+                    XCTAssertEqual(editor.value as? String, draft + " revised")
+                } else {
+                    XCTAssertTrue(cancel.waitForNonExistence(timeout: 3))
+                    XCTAssertEqual(editor.value as? String, "")
+                }
+                attachScreenshot("\(fixture) native composer \(rejected ? "rejected" : "accepted") send")
+                app.terminate()
+            }
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=workflows-ui.workspace.recommendation-led-composition
     func testWorkflowHomeRendersComposerAndRecommendations() throws {
         let app = launchWorkflowFixture("home")
@@ -277,6 +409,19 @@ final class WorkflowsParityUITests: XCTestCase {
                               "The inserted chip must expose its readable output label.")
                 XCTAssertFalse((instruction.value as? String ?? "").contains("{{steps."),
                                "The live editor must render the reference instead of raw storage syntax.")
+                let storedBeforeAccessibilityReads = editor.value as? String
+                for _ in 0..<5 {
+                    XCTAssertTrue((instruction.value as? String ?? "").contains("Rain Probability"))
+                }
+                XCTAssertEqual(editor.value as? String, storedBeforeAccessibilityReads,
+                               "Repeated accessibility reads must preserve the actual canonical instruction draft.")
+                instruction.tap()
+                instruction.typeText(" Synthetic workflow instruction")
+                XCTAssertTrue((instruction.value as? String ?? "").contains("Synthetic workflow instruction"))
+                XCTAssertTrue((instruction.value as? String ?? "").contains("Rain Probability"),
+                              "Native editing after insertion must retain the typed reference chip.")
+                XCTAssertTrue((editor.value as? String ?? "").contains("{{steps.weather.rain_probability}}"),
+                              "The edited draft must keep canonical reference storage.")
             } else if name == "Ask AI" || name == "Send message" {
                 let variables = app.descendants(matching: .any)["workflow-variable-picker"]
                 let input = app.descendants(matching: .any)["workflow-message-template"]
@@ -419,6 +564,32 @@ final class WorkflowsParityUITests: XCTestCase {
         attachScreenshot("Workflow Runs panel and selected history timeline")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
+    func testRunNodeBadgesShowIndividualTerminalAndUnknownOutcomesAtTopLeft() throws {
+        let app = launchWorkflowFixture("runs-statuses")
+        app.descendants(matching: .any)["workflow-tab-runs"].tap()
+        let statuses = ["completed", "failed", "skipped", "cancelled", "future_status"]
+        let scroll = app.scrollViews["workflow-management"]
+        for status in statuses {
+            let badge = app.descendants(matching: .any).matching(identifier: "workflow-run-node-status")
+                .matching(NSPredicate(format: "value == %@", status)).firstMatch
+            for _ in 0..<8 where !badge.isHittable { scroll.swipeUp() }
+            XCTAssertTrue(badge.exists, "Each retained node outcome must have its own badge: \(status)")
+            XCTAssertTrue(badge.isHittable)
+            XCTAssertFalse(badge.label.isEmpty, "Every status icon needs localized accessible copy.")
+            if status == "completed" {
+                let card = app.buttons["workflow-node-summary"].firstMatch
+                XCTAssertLessThan(badge.frame.minX - card.frame.minX, 10)
+                XCTAssertLessThan(badge.frame.minY - card.frame.minY, 10)
+                XCTAssertEqual(badge.frame.width, 24, accuracy: 1)
+                XCTAssertEqual(badge.frame.height, 24, accuracy: 1)
+            }
+        }
+        XCTAssertFalse(app.buttons["workflow-run-cancel"].exists,
+                       "A completed run must not expose cancellation even when some nodes failed or skipped.")
+        attachScreenshot("Workflow run node badges preserve terminal and unknown outcomes")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=workflows.control.typed-data,workflows.actions.skill-contract
     func testWorkflowOutputExamplesShowTypedFieldsAndDeclaredListDetails() throws {
         let app = launchWorkflowFixture("editor")
@@ -475,6 +646,101 @@ final class WorkflowsParityUITests: XCTestCase {
         XCTAssertTrue(app.buttons["workflow-result-previous"].isEnabled)
         attachScreenshot("Workflow completed output news result carousel")
     }
+
+    // Local rendering fixture only; paging never executes a skill or workflow.
+    // contract-test: supporting surface=gui.apple assertions=workflows.results.selective-embeds,workflows.control.typed-data
+    func testWorkflowSevenEventOutputPagerUpdatesPreviewAndFields() throws {
+        #if os(iOS)
+        defer { XCUIDevice.shared.orientation = .portrait }
+        #endif
+        let app = launchWorkflowFixture("editor", extraArguments: ["--ui-test-workflow-event-output-fixture"])
+        let scroll = app.scrollViews["workflow-management"]
+        let news = app.buttons.matching(identifier: "workflow-node-summary")
+            .matching(NSPredicate(format: "label CONTAINS[c] %@", "News")).firstMatch
+        XCTAssertTrue(news.waitForExistence(timeout: 8))
+        for _ in 0..<12 where !news.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(news.isHittable); news.tap()
+        let toggle = app.buttons["workflow-show-output-fields"]
+        for _ in 0..<12 where !toggle.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(toggle.isHittable); toggle.tap()
+
+        let position = app.staticTexts["workflow-result-position"]
+        let previous = app.buttons["workflow-result-previous"]
+        let next = app.buttons["workflow-result-next"]
+        let preview = app.buttons["workflow-result-card"]
+        let fields = app.descendants(matching: .any)["workflow-result-fields"].firstMatch
+        XCTAssertTrue(position.waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["workflow-output-example-heading"].label, "Test output")
+        for _ in 0..<8 where !next.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(next.isHittable)
+        XCTAssertGreaterThanOrEqual(previous.frame.width, 40)
+        XCTAssertGreaterThanOrEqual(next.frame.height, 40)
+
+        func assertPage(_ index: Int) {
+            let positionChanged = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "label == %@", "\(index) of 7"), object: position)
+            XCTAssertEqual(XCTWaiter.wait(for: [positionChanged], timeout: 3), .completed)
+            // Preview location is independent of the retained title/description fields.
+            XCTAssertTrue(preview.label.contains("Fixture city \(index)"))
+            XCTAssertTrue(fields.staticTexts["Synthetic event \(index)"].exists)
+            XCTAssertTrue(fields.staticTexts["Event \(index) output details"].exists)
+            for other in 1...7 where other != index {
+                XCTAssertFalse(fields.staticTexts["Synthetic event \(other)"].exists)
+            }
+            XCTAssertEqual(previous.isEnabled, index > 1)
+            XCTAssertEqual(next.isEnabled, index < 7)
+        }
+
+        assertPage(1)
+        #if os(iOS)
+        assertPagerArrowIsPainted(previous)
+        assertPagerArrowIsPainted(next)
+        #endif
+        attachScreenshot("Workflow seven-event output first result")
+        for index in 2...7 {
+            XCTAssertTrue(next.isHittable)
+            // Tap inside the circle but outside the centered icon's bounds.
+            next.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5)).tap()
+            assertPage(index)
+        }
+        #if os(iOS)
+        assertPagerArrowIsPainted(previous)
+        assertPagerArrowIsPainted(next)
+        #endif
+        attachScreenshot("Workflow seven-event output final result")
+        for index in stride(from: 6, through: 1, by: -1) {
+            XCTAssertTrue(previous.isHittable)
+            previous.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)).tap()
+            assertPage(index)
+        }
+    }
+
+    #if os(iOS)
+    private func assertPagerArrowIsPainted(_ button: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        guard let image = button.screenshot().image.cgImage,
+              let center = image.cropping(to: CGRect(x: CGFloat(image.width) / 4, y: CGFloat(image.height) / 4,
+                                                    width: CGFloat(image.width) / 2, height: CGFloat(image.height) / 2))
+        else { XCTFail("Pager screenshot must include its central arrow.", file: file, line: line); return }
+        // Sample only the central square: a blank circle has a uniform fill here.
+        var pixels = [UInt8](repeating: 0, count: center.width * center.height * 4)
+        let contrast: Int? = pixels.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(data: buffer.baseAddress, width: center.width, height: center.height,
+                                          bitsPerComponent: 8, bytesPerRow: center.width * 4,
+                                          space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue)
+            else { return nil }
+            context.draw(center, in: CGRect(x: 0, y: 0, width: center.width, height: center.height))
+            let values = stride(from: 0, to: buffer.count, by: 4).map { offset in
+                let red = Int(buffer[offset])
+                let green = Int(buffer[offset + 1])
+                let blue = Int(buffer[offset + 2])
+                return (red + green + blue) / 3
+            }
+            return (values.max() ?? 0) - (values.min() ?? 0)
+        }
+        XCTAssertGreaterThan(contrast ?? 0, 24, "Both enabled and disabled circles must paint their arrow.", file: file, line: line)
+    }
+    #endif
 
     // contract-test: supporting surface=gui.apple assertions=workflows-ui.mvp.ask-ai
     func testAskAIAppInvocationHintBlocksStepSave() throws {

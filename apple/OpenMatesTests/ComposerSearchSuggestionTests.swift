@@ -57,7 +57,7 @@ final class ComposerSearchSuggestionTests: XCTestCase {
         let personal = Chat(id: "retained-owner", title: "OpenMates private plans", lastMessageAt: nil,
             createdAt: "2026-09-29T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
             appId: "ai", encryptedTitle: nil, encryptedChatKey: nil)
-        let publicChat = try XCTUnwrap(PublicChatContent.chat(for: "demo-who-develops-openmates"))
+        let publicChat = try XCTUnwrap(PublicChatContent.chat(for: "announcements-introducing-openmates-v09"))
         store.performWithoutPersistence { store.upsertChats([personal, publicChat.chat]) }
         controller.schedule(text: "OpenMates", store: store, authenticated: false, accountID: nil)
         try? await Task.sleep(for: .milliseconds(500))

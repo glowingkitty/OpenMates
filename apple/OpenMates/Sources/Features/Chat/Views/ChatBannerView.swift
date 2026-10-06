@@ -152,6 +152,8 @@ struct ChatBannerView: View {
                     // 1. Gradient background
                     gradientBackground
                         .frame(width: geo.size.width, height: bannerHeight)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
 
                     TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil, paused: !motionEnabled)) { timeline in
                         let now = timeline.date.timeIntervalSinceReferenceDate
@@ -163,6 +165,7 @@ struct ChatBannerView: View {
                         .clipped()
                     }
                     .allowsHitTesting(false)
+                    .accessibilityHidden(true)
 
                     // 4. Center content
                     centerContent
@@ -172,6 +175,10 @@ struct ChatBannerView: View {
                     navArrows
                         .frame(width: geo.size.width, height: bannerHeight)
                 }
+                // Web overflow:hidden bounds the banner's pointer region.
+                // Rotated decorations must not cover history links below it.
+                .frame(width: geo.size.width, height: bannerHeight)
+                .contentShape(BottomRoundedRect(radius: 14))
                 .clipShape(BottomRoundedRect(radius: 14))
                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
                 // Swipe gesture: left swipe → previous/older chat, right swipe → next/newer chat.

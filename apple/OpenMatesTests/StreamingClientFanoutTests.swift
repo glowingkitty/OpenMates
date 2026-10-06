@@ -916,6 +916,97 @@ final class StreamingClientFanoutTests: XCTestCase {
         fixture.coordinator.reset()
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,storage.surface.semantic-parity
+    func testMainSocketCanonicalAdvertisementAndWriterPolicyShareExactProfileConfiguration() async throws {
+        let profile = ServerProfile.current()
+        let config = CanonicalEmbedStorageConfiguration(verifiedServerProfile: profile)
+        let manager = WebSocketManager(canonicalStorageConfiguration: config)
+        XCTAssertEqual(manager.canonicalEmbedReceiptPolicy, .requireCanonicalDigest)
+        XCTAssertEqual(manager.advertisedClientCapabilities, ["canonical_embed_receipts_v1"])
+        for sessionID in ["synthetic-first", "synthetic-reconnect"] {
+            let url = try XCTUnwrap(manager.connectionURL(profile: profile, sessionID: sessionID, token: nil))
+            XCTAssertEqual(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first {
+                $0.name == "client_capabilities"
+            }?.value, "canonical_embed_receipts_v1")
+        }
+        let transport = ChatEmbedRecordingTransport()
+        transport.receiptTransform = { type, fields in
+            var result = fields
+            if type == "store_embed_confirmed" { result.removeValue(forKey: "canonical_digest") }
+            return result
+        }
+        let fixture = liveEmbedFixture(policy: manager.canonicalEmbedReceiptPolicy, transport: transport)
+        await fixture.coordinator.handleEmbedData(fixture.fields)
+        XCTAssertEqual(transport.sentTypes, ["store_embed"], "The advertised strict construction cannot accept a legacy head")
+        transport.receiptTransform = nil
+        await fixture.coordinator.retryPendingPersistence()
+        XCTAssertEqual(transport.sentTypes, ["store_embed", "store_embed", "store_embed_keys"])
+        fixture.coordinator.reset()
+        let legacyManager = WebSocketManager(canonicalStorageConfiguration: .init())
+        XCTAssertEqual(legacyManager.canonicalEmbedReceiptPolicy, .allowLegacyReceipt)
+        XCTAssertFalse(legacyManager.advertisedClientCapabilities.contains("canonical_embed_receipts_v1"))
+        let other = ServerProfile.custom(domain: "unverified-synthetic.example")
+        let otherURL = try XCTUnwrap(manager.connectionURL(profile: other, sessionID: "other", token: nil))
+        XCTAssertNil(URLComponents(url: otherURL, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "client_capabilities" })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,storage.surface.semantic-parity
+    func testDeployedMainCanonicalStorageEnablesOnlyExactDevelopmentProfileAndReconnect() async throws {
+        let config = CanonicalEmbedStorageConfiguration.deployed
+        XCTAssertEqual(ServerProfile.from(configuration: ServerProfile.development.endpointConfiguration), .development)
+        let manager = WebSocketManager(canonicalStorageConfiguration: config)
+        XCTAssertEqual(manager.canonicalEmbedReceiptPolicy, config.receiptPolicy(for: .current()))
+        XCTAssertEqual(manager.advertisedClientCapabilities, config.capabilities(for: .current()))
+        let altered = try XCTUnwrap(ServerProfile.fromPayload(id: ServerProfile.development.id,
+            webBaseURLString: ServerProfile.development.webBaseURL.absoluteString,
+            apiBaseURLString: "https://unverified-synthetic.example",
+            uploadBaseURLString: ServerProfile.development.uploadBaseURL.absoluteString))
+        for profile in [ServerProfile.development, .production,
+                        .custom(domain: ServerProfile.development.displayDomain), altered] {
+            let verified = profile == .development
+            XCTAssertEqual(config.receiptPolicy(for: profile), verified ? .requireCanonicalDigest : .allowLegacyReceipt)
+            for sessionID in ["synthetic-first", "synthetic-reconnect"] {
+                let url = try XCTUnwrap(manager.connectionURL(profile: profile, sessionID: sessionID, token: nil))
+                let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+                XCTAssertEqual(query?.first { $0.name == "client_capabilities" }?.value,
+                               verified ? "canonical_embed_receipts_v1" : nil)
+                XCTAssertEqual(query?.first { $0.name == "sessionId" }?.value, sessionID)
+                XCTAssertFalse(url.absoluteString.contains("typed_recovery_outputs_v2"))
+            }
+        }
+        let transport = ChatEmbedRecordingTransport()
+        transport.receiptTransform = { type, fields in
+            var receipt = fields
+            if type == "store_embed_confirmed" { receipt.removeValue(forKey: "canonical_digest") }
+            return receipt
+        }
+        let fixture = liveEmbedFixture(policy: config.receiptPolicy(for: .development), transport: transport)
+        await fixture.coordinator.handleEmbedData(fixture.fields)
+        XCTAssertEqual(transport.sentTypes, ["store_embed"])
+        let original = try XCTUnwrap(transport.payload(for: "store_embed")?["encrypted_content"] as? String)
+        transport.receiptTransform = nil
+        await fixture.coordinator.retryPendingPersistence()
+        XCTAssertEqual(transport.sentTypes, ["store_embed", "store_embed", "store_embed_keys"])
+        XCTAssertEqual(transport.sentPayloads[1]["encrypted_content"] as? String, original)
+        fixture.coordinator.reset()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,storage.privacy.ciphertext-boundary
+    func testMainCapabilityRejectionRetainsCiphertextAndSendsNoWrappers() async throws {
+        let fixture = liveEmbedFixture()
+        fixture.transport.receiptTransform = { type, fields in
+            type == "store_embed_confirmed" ? fields.merging(["code": "client_capability_required"]) { _, new in new } : fields
+        }
+        await fixture.coordinator.handleEmbedData(fixture.fields)
+        XCTAssertEqual(fixture.transport.sentTypes, ["store_embed"])
+        let original = try XCTUnwrap(fixture.transport.payload(for: "store_embed")?["encrypted_content"] as? String)
+        fixture.transport.receiptTransform = nil
+        await fixture.coordinator.retryPendingPersistence()
+        XCTAssertEqual(fixture.transport.sentTypes, ["store_embed", "store_embed", "store_embed_keys"])
+        XCTAssertEqual(fixture.transport.sentPayloads[1]["encrypted_content"] as? String, original)
+        fixture.coordinator.reset()
+    }
+
     private func liveEmbedFixture(
         policy: ChatEmbedStreamCoordinator.HeadReceiptPolicy = .requireCanonicalDigest,
         transport: ChatEmbedRecordingTransport = ChatEmbedRecordingTransport(),

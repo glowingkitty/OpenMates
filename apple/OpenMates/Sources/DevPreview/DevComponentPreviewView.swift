@@ -91,6 +91,8 @@ private struct DevComponentPreviewCanvas: View {
     @State private var removedSecondFixtureResult = false
     @StateObject private var subChatFixtureStore = ChatStore()
     @StateObject private var tasksFixtureStore = TasksWorkspaceStore()
+    @StateObject private var taskWidgetFixtureRouter = DeepLinkHandler()
+    private let widgetFixtureTaskID = "00000000-0000-4000-8000-000000000001"
     @StateObject private var projectsFixtureStore = ProjectsWorkspaceStore()
     @StateObject private var projectTasksFixtureStore = TasksWorkspaceStore()
     @StateObject private var workflowFixtureStore = WorkflowStore()
@@ -293,6 +295,15 @@ private struct DevComponentPreviewCanvas: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
+                // Keep the independent viewport leaf behind the component.
+                // A frontmost accessibility element occludes XCTest hit tests
+                // even when SwiftUI touch hit testing is disabled.
+                Color.clear
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Preview viewport bounds")
+                    .accessibilityIdentifier("dev-component-preview-bounds")
+                    .allowsHitTesting(false)
                 component(viewport: proxy.size)
                     .frame(maxWidth: .infinity, maxHeight: .infinity,
                            alignment: configuration.component == .chatHeader ? .top : .center)
@@ -317,9 +328,6 @@ private struct DevComponentPreviewCanvas: View {
                         .background(Color.grey0)
                     }
                 }
-                // A separate leaf survives SwiftUI collapsing the root/canvas
-                // containers into one accessibility element. It changes no
-                // visible chrome and cannot intercept component interactions.
                 Color.clear
                     .frame(width: 1, height: 1)
                     .accessibilityElement()
@@ -412,7 +420,17 @@ private struct DevComponentPreviewCanvas: View {
                                onOpenChat: { lastAction = "opened-chat-\($0)" },
                                onOpenWorkflowRun: { lastAction = "opened-workflow-\($0)-run-\($1 ?? "none")" })
                 .onAppear {
-                    tasksFixtureStore.installPreview(manyBacklog: configuration.variant == "manyBacklog")
+                    let widgetLinkFixture = ProcessInfo.processInfo.arguments.contains("--ui-test-task-widget-links")
+                    if widgetLinkFixture, let issuedURL = WidgetTasksLinks.task(widgetFixtureTaskID) {
+                        // Cold URL precedes the disposable inventory, as it can
+                        // precede authentication/board loading in the real app.
+                        taskWidgetFixtureRouter.handle(url: issuedURL)
+                    }
+                    tasksFixtureStore.installPreview(manyBacklog: configuration.variant == "manyBacklog",
+                        widgetTaskID: widgetLinkFixture ? widgetFixtureTaskID : nil)
+                    if let request = taskWidgetFixtureRouter.pendingTaskRequest {
+                        tasksFixtureStore.openTaskWhenAvailable(request.taskID)
+                    }
                     if configuration.variant == "task-load-failure" {
                         let failure = NSError(domain: "SyntheticTasksPreview", code: 1,
                             userInfo: [NSLocalizedDescriptionKey: "Synthetic task data is unavailable."])
@@ -425,6 +443,23 @@ private struct DevComponentPreviewCanvas: View {
                         let generation = tasksFixtureStore.debugLoadGeneration
                         tasksFixtureStore.debugApplyLoadFailure(failure, stage: "plans", generation: generation)
                         tasksFixtureStore.debugApplyLoadFailure(failure, stage: "project_names", generation: generation)
+                    }
+                }
+                .onChange(of: tasksFixtureStore.presentedTaskID) { _, id in
+                    if id == taskWidgetFixtureRouter.pendingTaskRequest?.taskID {
+                        taskWidgetFixtureRouter.pendingTaskID = nil
+                    }
+                }
+                .safeAreaInset(edge: .bottom) {
+                    if ProcessInfo.processInfo.arguments.contains("--ui-test-task-widget-links") {
+                        Button("Open synthetic widget Task") {
+                            guard let issuedURL = WidgetTasksLinks.task(widgetFixtureTaskID) else { return }
+                            taskWidgetFixtureRouter.handle(url: issuedURL)
+                            if let request = taskWidgetFixtureRouter.pendingTaskRequest {
+                                tasksFixtureStore.openTaskWhenAvailable(request.taskID)
+                            }
+                        }
+                        .accessibilityIdentifier("task-widget-issued-link")
                     }
                 }
         case .projects:
@@ -460,6 +495,25 @@ private struct DevComponentPreviewCanvas: View {
                             }
                         }
                         projectTasksFixtureStore.installPreview(projectID: "preview-project")
+                        if configuration.variant == "tasks", ProcessInfo.processInfo.arguments.contains("--ui-test-project-many-tasks") {
+                            // Every extra card belongs to this disposable Project;
+                            // generic manyBacklog rows are intentionally unlinked.
+                            let decoder = JSONDecoder()
+                            decoder.keyDecodingStrategy = .convertFromSnakeCase
+                            let extra: [TaskBoardItem] = (0..<28).compactMap { index in
+                                let row: [String: Any] = ["task_id": "project-scroll-task-\(index)",
+                                    "encrypted_title": "synthetic-ciphertext", "status": "backlog",
+                                    "assignee_type": "openmates", "created_at": 1_788_883_200,
+                                    "updated_at": 1_788_883_200, "position": index + 10, "version": 1, "priority": 0]
+                                guard let data = try? JSONSerialization.data(withJSONObject: row),
+                                      let record = try? decoder.decode(EncryptedUserTaskRecord.self, from: data) else { return nil }
+                                return .task(UserTaskItem(record: record, title: "Synthetic linked task \(index + 1)",
+                                    description: "", latestInstruction: "", tags: [], linkedProjectIds: ["preview-project"],
+                                    blockedReason: "", externalChat: nil))
+                            }
+                            projectTasksFixtureStore.debugCompleteWidgetInventory(projectTasksFixtureStore.boardItems + extra,
+                                generation: projectTasksFixtureStore.debugLoadGeneration)
+                        }
                     }
             }
         case .notification:
@@ -979,7 +1033,6 @@ private struct DevNativeJSONExportDocument: FileDocument {
     }
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
-#endif
 
 /// Public, disconnected fixtures exercise the production receipt and click controls.
 private enum DevAgentContextFixture {
@@ -1043,3 +1096,4 @@ private struct DevProjectFocusCommitFixture: View {
         .onDisappear { acknowledgment?.resume(); acknowledgment = nil; store.reset() }
     }
 }
+#endif

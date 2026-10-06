@@ -153,6 +153,7 @@ struct InspirationCard: View {
     var heightOverride: CGFloat? = nil
     var ctaTitle: String? = nil
     var tapHint: String? = nil
+    var isInteractive = true
     let onTap: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -195,66 +196,70 @@ struct InspirationCard: View {
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil)) { timeline in
-            let now = timeline.date.timeIntervalSinceReferenceDate
-            ZStack(alignment: .topLeading) {
-                // 1. Category gradient background
-                GeometryReader { geometry in
-                    bannerGradient(in: geometry.size)
-                }
-                .frame(height: bannerHeight)
-
-                // 2. Living gradient orbs
-                orbLayer(time: now)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: bannerHeight)
-                    .clipped()
-
-                // 3. Decorative category icons at edges
-                decoIcons(time: now)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: bannerHeight)
-                    .clipped()
-
-                // 4. Content: label, phrase row with mate profile, CTA, and optional video
-                contentLayer
-                    .frame(height: bannerHeight)
+        ZStack(alignment: .topLeading) {
+            // 1. Category gradient background
+            GeometryReader { geometry in
+                bannerGradient(in: geometry.size)
             }
-            .task(id: mobileCardTaskIdentity) {
-                // Web alternates the phrase and preview at 55% of its 20-second
-                // inspiration interval, including feature-only cards. Ordinary
-                // cards still switch with Reduce Motion enabled, without motion.
-                guard isCompact, hasMobileCard else { return }
-                while !Task.isCancelled {
-                    do { try await Task.sleep(for: .seconds(11)) }
-                    catch { return }
-                    await MainActor.run {
-                        if reduceMotion {
+            .frame(height: bannerHeight)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+
+            // Only decorative layers depend on the animation clock. Keep
+            // the content, actions and phase task outside frame updates.
+            TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil)) { timeline in
+                let now = timeline.date.timeIntervalSinceReferenceDate
+                ZStack {
+                    orbLayer(time: now)
+                    decoIcons(time: now)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: bannerHeight)
+                .clipped()
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+
+            // 4. Content: label, phrase row with mate profile, CTA, and optional video
+            contentLayer
+                .frame(height: bannerHeight)
+        }
+        .task(id: mobileCardTaskIdentity) {
+            // Web alternates the phrase and preview at 55% of its 20-second
+            // inspiration interval, including feature-only cards. Ordinary
+            // cards still switch with Reduce Motion enabled, without motion.
+            guard isCompact, hasMobileCard else { return }
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(11)) }
+                catch { return }
+                await MainActor.run {
+                    if reduceMotion {
+                        showMobileCard.toggle()
+                    } else {
+                        withAnimation(.easeInOut(duration: 0.42)) {
                             showMobileCard.toggle()
-                        } else {
-                            withAnimation(.easeInOut(duration: 0.42)) {
-                                showMobileCard.toggle()
-                            }
                         }
                     }
                 }
             }
-            .onChange(of: mobileCardTaskIdentity) { _, _ in
-                showMobileCard = false
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: bannerHeight)
-            .clipShape(RoundedRectangle(cornerRadius: .radius6))
-            .shadow(color: .black.opacity(0.15), radius: .spacing4, x: 0, y: .spacing2)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onTap)
         }
+        .onChange(of: mobileCardTaskIdentity) { _, _ in
+            showMobileCard = false
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: bannerHeight)
+        .clipShape(RoundedRectangle(cornerRadius: .radius6))
+        .shadow(color: .black.opacity(0.15), radius: .spacing4, x: 0, y: .spacing2)
+        .contentShape(Rectangle())
+        .onTapGesture { if isInteractive { onTap() } }
+        .disabled(!isInteractive)
+        .allowsHitTesting(isInteractive)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("daily-inspiration-card")
-        .accessibleButton(
-            accessibilitySummary,
-            hint: tapHint ?? "Starts a new chat with this inspiration"
-        )
+        .accessibilityLabel(accessibilitySummary)
+        .accessibilityAddTraits(isInteractive ? .isButton : [])
+        .accessibilityRemoveTraits(isInteractive ? [] : .isButton)
+        .accessibilityHint(isInteractive ? (tapHint ?? "Starts a new chat with this inspiration") : "")
         .accessibilityValue(showMobileCard && isCompact
             ? (inspiration.feature?.title ?? inspiration.video?.title ?? inspiration.text)
             : inspiration.text)
@@ -390,15 +395,21 @@ struct InspirationCard: View {
 
             // CTA: create icon + "Click to start chat"
             // Web: .banner-cta { font-size: xxs, white 0.85 }
-            HStack(spacing: .spacing3) {
-                Icon(inspiration.feature == nil ? "create" : "lucide-link", size: 13)
-                    .foregroundStyle(.white.opacity(0.85))
-                Text(ctaTitle ?? AppStrings.dailyInspirationCTA)
-                    .font(.custom("Lexend Deca", size: 12).weight(.medium))
-                    .fontWeight(.medium)
-                    .foregroundStyle(.white.opacity(0.85))
+            Button(action: onTap) {
+                HStack(spacing: .spacing3) {
+                    Icon(inspiration.feature == nil ? "create" : "lucide-link", size: 13)
+                        .foregroundStyle(.white.opacity(0.85))
+                        .accessibilityHidden(true)
+                    Text(ctaTitle ?? AppStrings.dailyInspirationCTA)
+                        .font(.custom("Lexend Deca", size: 12).weight(.medium))
+                        .fontWeight(.medium)
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .contentShape(Rectangle())
             }
-            .fixedSize(horizontal: false, vertical: true)
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
             .accessibilityIdentifier("daily-inspiration-cta-text")
             .padding(.bottom, 10)
         }
@@ -456,7 +467,20 @@ struct InspirationCard: View {
             .frame(width: 300, height: 200)
             .scaleEffect(scale)
             .frame(width: 300 * scale, height: 200 * scale)
-            .accessibilityIdentifier("daily-inspiration-video-preview")
+            // This banner owns the preview action. Keep its hit region in the
+            // final visible coordinates instead of inside the transformed
+            // shared card's button and context-menu gesture hierarchy.
+            .allowsHitTesting(false)
+            .overlay {
+                Button(action: onTap) {
+                    Color.clear
+                        .frame(width: 300 * scale, height: 200 * scale)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(inspiration.video?.title ?? inspiration.title ?? inspiration.text)
+                .accessibilityIdentifier("daily-inspiration-video-preview")
+            }
     }
 
     private var videoEmbed: EmbedRecord {

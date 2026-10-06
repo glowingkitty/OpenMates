@@ -406,6 +406,94 @@ final class ChatFlowParityUITests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chat-navigation.open.local-first-coherent
+    func testEncryptedWelcomeGridHydratesPagesSearchAndDelayedKeysWithoutDiscardingMetadata() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-encrypted-welcome-grid", "--ui-test-nav-callback-diagnostics",
+            "--ui-test-fresh-new-chat", "-AppleLanguages", "(en)"]
+        app.launch()
+        let receipt = app.staticTexts["welcome-grid-fixture-metadata"]
+        XCTAssertTrue(receipt.waitForExistence(timeout: 15))
+        let seeded = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            receipt.exists && receipt.label.contains("records=65;preserved=true")
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [seeded], timeout: 15), .completed)
+        XCTAssertFalse(receipt.label.contains("ui-test-grid-45"), "An older page should remain encrypted until requested")
+        let showAll = app.buttons["welcome-show-all-chats"]
+        XCTAssertTrue(showAll.waitForExistence(timeout: 10))
+        XCTAssertTrue(showAll.isHittable)
+        let interactions = app.staticTexts["welcome-grid-interaction-metrics"]
+        let interactionBeforeTap = interactions.exists ? interactions.label : "missing"
+        showAll.tap()
+        let grid = app.descendants(matching: .any)["welcome-chat-grid"].firstMatch
+        let gridAppeared = grid.waitForExistence(timeout: 5)
+        if !gridAppeared {
+            let diagnostic = XCTAttachment(string: "Before Show all: " + interactionBeforeTap + "\n" + app.debugDescription)
+            diagnostic.name = "Encrypted welcome Show all callback and hierarchy"
+            diagnostic.lifetime = .keepAlways
+            add(diagnostic)
+            attachScreenshot(name: "Encrypted welcome Show all transition failure")
+        }
+        XCTAssertTrue(gridAppeared)
+        let back = app.buttons["welcome-back-to-recent"]
+        XCTAssertTrue(back.isHittable)
+        XCTAssertEqual(back.frame.midX, grid.frame.midX, accuracy: 2, "Back to recent should be centered")
+        func waitForHydration(_ index: Int) {
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                receipt.exists && receipt.label.components(separatedBy: ";").first?.dropFirst("hydrated=".count)
+                    .split(separator: ",").contains(Substring("ui-test-grid-\(index)")) == true
+                    && receipt.label.contains("records=65;preserved=true")
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed,
+                "Production grid demand and key-arrival retry must hydrate title, category, icon and summary")
+        }
+        waitForHydration(25)
+        XCTAssertFalse(receipt.label.contains("ui-test-grid-45"))
+        let scroll = app.scrollViews["welcome-chat-grid-list"]
+        let more = app.buttons["welcome-browse-load-more"]
+        for _ in 0..<35 where !more.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(more.isHittable)
+        more.tap()
+        waitForHydration(45)
+        XCTAssertFalse(receipt.label.contains("ui-test-grid-64"))
+        let search = app.textFields["welcome-browse-search"]
+        XCTAssertTrue(search.isHittable)
+        search.tap()
+        search.typeText("Encrypted Grid Chat 64")
+        waitForHydration(64)
+        let result = app.buttons["welcome-chat-card-ui-test-grid-64"]
+        let titled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            result.exists && result.label.contains("Encrypted Grid Chat 64")
+                && result.label.contains("Preserved grid summary 64")
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [titled], timeout: 10), .completed)
+        search.typeText("\n")
+        for _ in 0..<5 where !result.isHittable { scroll.swipeDown() }
+        XCTAssertTrue(result.isHittable)
+        attachScreenshot(name: "Encrypted older welcome grid card after delayed key and search")
+        result.tap()
+        let navigation = app.descendants(matching: .any)["chat-navigation-order-metrics"].firstMatch
+        let opened = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            navigation.exists && navigation.label.contains("selected-chat-id=ui-test-grid-64;")
+                && navigation.label.contains("show-new-chat=false")
+        }, object: nil)
+        let routeResult = XCTWaiter.wait(for: [opened], timeout: 10)
+        attachScreenshot(name: "Encrypted grid card production route after tap")
+        let routeHierarchy = XCTAttachment(string: navigation.label + "\n" + app.debugDescription)
+        routeHierarchy.name = "Encrypted grid card post-tap route and hierarchy"
+        routeHierarchy.lifetime = .keepAlways
+        add(routeHierarchy)
+        XCTAssertEqual(routeResult, .completed,
+            "Opening a saved grid card must select its production chat route")
+        let question = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND label CONTAINS %@", "message-user", "Synthetic saved grid question ui-test-grid-64"
+        )).firstMatch
+        XCTAssertTrue(question.waitForExistence(timeout: 10))
+        let header = app.staticTexts["chat-header-title"]
+        XCTAssertTrue(header.waitForExistence(timeout: 10))
+        XCTAssertEqual(header.label, "Encrypted Grid Chat 64")
+    }
+
     private func tapVisibleInterestTags(count: Int, in app: XCUIApplication) {
         let tagContainer = app.scrollViews["guest-interest-rail"]
         XCTAssertTrue(tagContainer.waitForExistence(timeout: 5), "Expected guest interest tags")

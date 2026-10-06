@@ -4,7 +4,7 @@
 // Web source: frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
 // Specification: specifications/features/workflows/specification.yml
 // Assertions: workflows.mvp.list, workflows.mvp.editor, workflows.mvp.run-history,
-//             workflows.privacy.owner-scope
+//             workflows.privacy.owner-scope, workflows.execution.lifecycle-visible
 
 import Foundation
 import SwiftUI
@@ -25,10 +25,37 @@ final class WorkflowStore: ObservableObject {
 
     let authoring = WorkflowAIAuthoringController()
 
+    #if DEBUG
+    private var isPreview = false
+    @Published private(set) var previewPromptSubmitting = false
+    private var heldPreviewPrompt: CheckedContinuation<Bool, Never>?
+
+    func completeHeldPreviewPrompt() {
+        let continuation = heldPreviewPrompt
+        heldPreviewPrompt = nil
+        continuation?.resume(returning: true)
+    }
+
+    func cancelHeldPreviewPrompt() {
+        let continuation = heldPreviewPrompt
+        heldPreviewPrompt = nil
+        previewPromptSubmitting = false
+        continuation?.resume(returning: false)
+    }
+    #endif
+
+    var isSubmittingInstruction: Bool {
+        #if DEBUG
+        return authoring.isSubmitting || previewPromptSubmitting
+        #else
+        return authoring.isSubmitting
+        #endif
+    }
     private let api: WorkflowAPI
     private let createWorkflowRequest: (@MainActor (WorkflowCreateRequest, WorkflowAPIOperationScope) async throws -> WorkflowDetail)?
     private let detailRequest: (@MainActor (String, WorkflowAPIOperationScope) async throws -> WorkflowDetail)?
     private let runsRequest: (@MainActor (String, WorkflowAPIOperationScope) async throws -> [WorkflowRunSummary])?
+    private let runDetailRequest: (@MainActor (String, String, WorkflowAPIOperationScope) async throws -> WorkflowRunDetail)?
     private(set) var accountId: String?
     private var generation = 0
     private var selectionGeneration = 0
@@ -38,16 +65,25 @@ final class WorkflowStore: ObservableObject {
     init(api: WorkflowAPI = WorkflowAPI(),
          createWorkflowRequest: (@MainActor (WorkflowCreateRequest, WorkflowAPIOperationScope) async throws -> WorkflowDetail)? = nil,
          detailRequest: (@MainActor (String, WorkflowAPIOperationScope) async throws -> WorkflowDetail)? = nil,
-         runsRequest: (@MainActor (String, WorkflowAPIOperationScope) async throws -> [WorkflowRunSummary])? = nil) {
+         runsRequest: (@MainActor (String, WorkflowAPIOperationScope) async throws -> [WorkflowRunSummary])? = nil,
+         runDetailRequest: (@MainActor (String, String, WorkflowAPIOperationScope) async throws -> WorkflowRunDetail)? = nil) {
         self.api = api
         self.createWorkflowRequest = createWorkflowRequest
         self.detailRequest = detailRequest
         self.runsRequest = runsRequest
+        self.runDetailRequest = runDetailRequest
     }
 
     func reset(accountId newAccountId: String?) {
         generation += 1
         selectionGeneration += 1
+        #if DEBUG
+        isPreview = false
+        let continuation = heldPreviewPrompt
+        heldPreviewPrompt = nil
+        previewPromptSubmitting = false
+        continuation?.resume(returning: false)
+        #endif
         accountId = newAccountId
         selectedWorkflowId = nil
         selectedRunId = nil
@@ -261,6 +297,20 @@ final class WorkflowStore: ObservableObject {
 
     @discardableResult
     func submitInstruction(_ text: String, selectedWorkflowId targetId: String? = nil) async -> Bool {
+        #if DEBUG
+        if isPreview, ProcessInfo.processInfo.arguments.contains("--ui-test-workflow-prompt-submit") {
+            guard !previewPromptSubmitting else { return false }
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-workflow-prompt-held") {
+                previewPromptSubmitting = true
+                let accepted = await withCheckedContinuation { continuation in heldPreviewPrompt = continuation }
+                previewPromptSubmitting = false
+                return accepted
+            }
+            let accepted = !ProcessInfo.processInfo.arguments.contains("--ui-test-workflow-prompt-reject")
+            errorMessage = accepted ? nil : "Synthetic workflow prompt rejected"
+            return accepted
+        }
+        #endif
         guard let owner = accountId else { return false }
         let requestGeneration = generation
         let scope = operationScope(for: owner)
@@ -412,13 +462,35 @@ final class WorkflowStore: ObservableObject {
         let requestGeneration = generation
         let scope = operationScope(for: owner)
         do {
-            let loaded = try await api.listRuns(workflowId: workflowId, scope: scope)
+            let loaded: [WorkflowRunSummary]
+            if let runsRequest { loaded = try await runsRequest(workflowId, scope) }
+            else { loaded = try await api.listRuns(workflowId: workflowId, scope: scope) }
             guard isCurrent(requestGeneration, account: owner, scope: scope), selectedWorkflowId == workflowId else { return }
             runs = loaded
+            if let runId = selectedRunId, let detail = selectedRunDetail,
+               let summary = loaded.first(where: { $0.id == runId }), detail.needsRefresh(comparedTo: summary) {
+                // Retain the visible graph during polling; selectRun clears it
+                // and is reserved for a user's actual selection change.
+                let refreshed = try await readRunDetail(workflowId: workflowId, runId: runId, scope: scope)
+                guard isCurrent(requestGeneration, account: owner, scope: scope), selectedWorkflowId == workflowId,
+                      selectedRunId == runId, refreshed.id == runId, refreshed.workflowId == workflowId,
+                      refreshed.versionId == detail.versionId else { return }
+                selectedRunDetail = refreshed
+                if (!WorkflowRunSummary.terminalStatuses.contains(summary.status)
+                    || WorkflowRunSummary.terminalStatuses.contains(refreshed.status)),
+                   let index = runs.firstIndex(where: { $0.id == runId }) {
+                    runs[index] = WorkflowRunSummary(detail: refreshed)
+                }
+            }
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return }
             NativeDiagnostics.warning("request_failed", category: "workflow_runs_failed")
         }
+    }
+
+    private func readRunDetail(workflowId: String, runId: String, scope: WorkflowAPIOperationScope) async throws -> WorkflowRunDetail {
+        if let runDetailRequest { return try await runDetailRequest(workflowId, runId, scope) }
+        return try await api.runDetail(workflowId: workflowId, runId: runId, scope: scope)
     }
 
     func selectRun(_ runId: String?) async {
@@ -431,9 +503,9 @@ final class WorkflowStore: ObservableObject {
         let scope = operationScope(for: owner)
         isLoadingRun = true
         do {
-            let detail = try await api.runDetail(workflowId: workflowId, runId: runId, scope: scope)
+            let detail = try await readRunDetail(workflowId: workflowId, runId: runId, scope: scope)
             guard isCurrent(requestGeneration, account: owner, scope: scope), selectedWorkflowId == workflowId,
-                  selectedRunId == runId else { return }
+                  selectedRunId == runId, detail.id == runId, detail.workflowId == workflowId else { return }
             selectedRunDetail = detail
             if detail.versionId == selectedWorkflow?.currentVersionId {
                 pinnedRunGraph = selectedWorkflow?.graph
@@ -484,6 +556,9 @@ final class WorkflowStore: ObservableObject {
 
     func showFixture(_ kind: String) {
         reset(accountId: "workflow-preview")
+        #if DEBUG
+        isPreview = true
+        #endif
         let now = Int(Date().timeIntervalSince1970)
         // Match deployed WorkflowGraphRenderer.preview.ts capability fixtures so
         // screenshots exercise the production schema/date controls.
@@ -570,9 +645,17 @@ final class WorkflowStore: ObservableObject {
         detail.icon = "calendar-days"
         workflows = [summary(from: detail)]
         if kind != "home" { selectedWorkflowId = detail.id; selectedWorkflow = detail }
-        if kind == "runs" {
+        if kind == "runs" || kind == "runs-statuses" {
             let payload = Data(#"{"id":"run-fixture","workflow_id":"workflow-fixture","version_id":"fixture-version","trigger_type":"schedule","status":"completed","started_at":1696075200,"finished_at":1696075260,"content_available":true,"node_runs":[{"id":"node-run-fixture","run_id":"run-fixture","workflow_id":"workflow-fixture","node_id":"trigger","node_type":"schedule_trigger","status":"completed"}]}"#.utf8)
-            if let run = try? JSONDecoder().decode(WorkflowRunDetail.self, from: payload) {
+            var fixturePayload = payload
+            if kind == "runs-statuses", var object = try? JSONSerialization.jsonObject(with: payload) as? [String: Any] {
+                object["node_runs"] = zip(graph.nodes, ["completed", "failed", "skipped", "cancelled", "future_status"]).map { node, status in
+                    ["id": "run-\(node.id)", "run_id": "run-fixture", "workflow_id": "workflow-fixture",
+                     "node_id": node.id, "node_type": node.type.rawValue, "status": status]
+                }
+                fixturePayload = (try? JSONSerialization.data(withJSONObject: object)) ?? payload
+            }
+            if let run = try? JSONDecoder().decode(WorkflowRunDetail.self, from: fixturePayload) {
                 runs = [WorkflowRunSummary(detail: run)]
                 selectedRunId = run.id
                 selectedRunDetail = run

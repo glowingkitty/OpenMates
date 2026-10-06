@@ -13,7 +13,6 @@
 // Assertions: sync.surface.semantic-parity
 
 import CryptoKit
-import CoreFoundation
 import Foundation
 import Network
 #if os(iOS)
@@ -32,7 +31,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var socketTimings = WebSocketTimingWindow()
     private var connectionObservation: WebSocketConnectionObservation?
     private var observationGeneration = 0
-    private let decoder = JSONDecoder()
+    private let decoder = WebSocketInboundDecoder()
     private var connectTask: Task<Void, Never>?
     private var reconnectTask: Task<Void, Never>?
     private var reconnectAttempts = 0
@@ -44,6 +43,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private(set) var recoveryCoordinator: ChatCompletionRecoveryCoordinator?
     private var metadataRecoveryCoordinator: ChatMetadataRecoveryCoordinator?
     private var embedStreamCoordinator: ChatEmbedStreamCoordinator?
+    private let canonicalStorageConfiguration: CanonicalEmbedStorageConfiguration
+    private var canonicalStorageProfile: ServerProfile?
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
         config.httpCookieAcceptPolicy = .always
@@ -87,7 +88,22 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     #endif
 
     override init() {
+        canonicalStorageConfiguration = .deployed
         super.init()
+    }
+
+    init(canonicalStorageConfiguration: CanonicalEmbedStorageConfiguration) {
+        self.canonicalStorageConfiguration = canonicalStorageConfiguration
+        super.init()
+    }
+
+    var canonicalEmbedReceiptPolicy: CanonicalEmbedReceiptPolicy {
+        canonicalStorageConfiguration.receiptPolicy(for: canonicalStorageProfile ?? ServerProfile.current())
+    }
+
+    func connectionURL(profile: ServerProfile, sessionID: String, token: String?) -> URL? {
+        canonicalStorageConfiguration.socketURL(profile: profile, sessionID: sessionID, token: token,
+            additionalCapabilities: metadataRecoveryCoordinator == nil ? [] : ["chat_metadata_recovery"])
     }
 
     func configureSyncStateProvider(_ provider: @escaping () -> SyncClientState) {
@@ -135,6 +151,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             metadataRecoveryCoordinator?.disconnected()
         }
         let generation = connectionGeneration
+        let connectingProfile = ServerProfile.current()
+        canonicalStorageProfile = connectingProfile
         connectTask?.cancel()
         pingTimer?.invalidate()
         pingTimer = nil
@@ -168,19 +186,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 currentGeneration: connectionGeneration,
                 isCancelled: Task.isCancelled
             ) else { return }
-            guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else { return }
-            components.scheme = components.scheme == "https" ? "wss" : "ws"
-            components.path = "/v1/ws"
-            var queryItems = [URLQueryItem(name: "sessionId", value: sessionId)]
-            if !advertisedClientCapabilities.isEmpty {
-                queryItems.append(URLQueryItem(name: "client_capabilities", value: advertisedClientCapabilities.joined(separator: ",")))
-            }
-            if let token, !token.isEmpty {
-                queryItems.append(URLQueryItem(name: "token", value: token))
-            }
-            components.queryItems = queryItems
-
-            guard let url = components.url else { return }
+            guard ServerProfile.current() == connectingProfile, baseURL == connectingProfile.apiBaseURL,
+                  let url = connectionURL(profile: connectingProfile, sessionID: sessionId, token: token) else { return }
 
             var request = URLRequest(url: url)
             request.timeoutInterval = 30
@@ -271,7 +278,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     func send(_ message: WSOutboundMessage) async throws {
         guard let webSocketTask else { throw WebSocketError.notConnected }
-        let data = try JSONEncoder().encode(message)
+        let data = try message.encodedData()
         guard let json = String(data: data, encoding: .utf8) else {
             throw WebSocketError.encodingFailed
         }
@@ -301,7 +308,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     }
 
     var advertisedClientCapabilities: [String] {
-        metadataRecoveryCoordinator == nil ? [] : ["chat_metadata_recovery"]
+        (metadataRecoveryCoordinator == nil ? [] : ["chat_metadata_recovery"])
+            + canonicalStorageConfiguration.capabilities(for: canonicalStorageProfile ?? ServerProfile.current())
     }
 
     func configureMetadataRecovery(chatStore: ChatStore) {
@@ -374,7 +382,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             // Final synchronous fence runs inside the queued sender, after all
             // awaits and immediately before encryption payload reaches the socket.
             try preSendValidation?()
-            let data = try JSONEncoder().encode(message)
+            let data = try message.encodedData()
             guard let json = String(data: data, encoding: .utf8) else { throw WebSocketError.encodingFailed }
             try await boundSocket.send(.string(json))
         }
@@ -532,10 +540,16 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     // MARK: - Receive loop
 
     private func receiveMessages(from receivingTask: URLSessionWebSocketTask?) {
+        let generation = connectionGeneration
         receivingTask?.receive { [weak self, weak receivingTask] result in
             let callbackUptime = ProcessInfo.processInfo.systemUptime
+            // Foundation may deliver receive failure before didClose/didComplete.
+            // Capture terminal evidence before MainActor teardown cancels the task.
+            let closeCode = receivingTask?.closeCode
+            let httpStatus = (receivingTask?.response as? HTTPURLResponse)?.statusCode
             Task { @MainActor in
                 guard let self, let receivingTask,
+                      generation == self.connectionGeneration,
                       Self.isCurrentSocket(
                           callbackTaskIdentifier: receivingTask.taskIdentifier,
                           currentTaskIdentifier: self.webSocketTask?.taskIdentifier
@@ -544,31 +558,48 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 switch result {
                 case .success(let message):
                     let routeStart = ProcessInfo.processInfo.systemUptime
-                    self.handleRawMessage(message)
+                    let generation = self.connectionGeneration
+                    await self.handleRawMessage(message, taskIdentifier: receivingTask.taskIdentifier, generation: generation)
+                    guard generation == self.connectionGeneration,
+                          Self.isCurrentSocket(callbackTaskIdentifier: receivingTask.taskIdentifier,
+                                               currentTaskIdentifier: self.webSocketTask?.taskIdentifier) else { return }
                     self.socketTimings.recordReceive(routingMilliseconds: WebSocketTimingWindow.milliseconds(since: routeStart))
                     self.receiveMessages(from: receivingTask)
                 case .failure(let error):
-                    Self.recordSocketFailure("socket_receive_failed", error: error)
-                    self.handleDisconnect()
+                    self.handleReceiveFailure(error, taskIdentifier: receivingTask.taskIdentifier,
+                        generation: generation, closeCode: closeCode, httpStatus: httpStatus)
                 }
             }
         }
     }
 
-    private func handleRawMessage(_ message: URLSessionWebSocketTask.Message) {
-        let data: Data
-        switch message {
-        case .string(let text):
-            guard let d = text.data(using: .utf8) else { return }
-            data = d
-        case .data(let d):
-            data = d
-        @unknown default:
-            return
-        }
+    private func handleReceiveFailure(
+        _ error: Error, taskIdentifier: Int, generation: Int,
+        closeCode: URLSessionWebSocketTask.CloseCode?, httpStatus: Int?
+    ) {
+        guard generation == connectionGeneration,
+              Self.isCurrentSocket(callbackTaskIdentifier: taskIdentifier,
+                                   currentTaskIdentifier: webSocketTask?.taskIdentifier) else { return }
+        let authenticationRejected = Self.isAuthenticationRejection(closeCode: closeCode, httpStatus: httpStatus)
+        Self.recordSocketFailure("socket_receive_failed", error: error,
+            extraCounts: ["close_code": closeCode?.rawValue ?? 0, "http_status": httpStatus ?? 0])
+        handleDisconnect(authenticationRejected: authenticationRejected)
+    }
 
-        guard let parsed = try? decoder.decode(WSInboundParsed.self, from: data) else { return }
-        routeMessage(parsed, raw: data)
+    nonisolated static func isAuthenticationRejection(
+        closeCode: URLSessionWebSocketTask.CloseCode?, httpStatus: Int?
+    ) -> Bool {
+        closeCode == .policyViolation || httpStatus == 401 || httpStatus == 403
+    }
+
+    private func handleRawMessage(_ message: URLSessionWebSocketTask.Message, taskIdentifier: Int, generation: Int) async {
+        // Await one actor decode before receiving the next frame: keep socket
+        // ordering while large offline-sync payloads leave the UI executor free.
+        guard let decoded = try? await decoder.decode(message),
+              generation == connectionGeneration,
+              Self.isCurrentSocket(callbackTaskIdentifier: taskIdentifier,
+                                   currentTaskIdentifier: webSocketTask?.taskIdentifier) else { return }
+        routeMessage(decoded.parsed, raw: decoded.raw)
     }
 
     // MARK: - Message routing
@@ -636,7 +667,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             )
             NotificationCenter.default.post(
                 name: .wsMessageReceived, object: nil,
-                userInfo: ["type": msg.type, "raw": raw,
+                userInfo: ["type": msg.type, "raw": raw, "decoded": WebSocketResponse(fields: msg.fields, type: msg.type),
                            "accountScope": OfflineStore.shared.scopeGeneration,
                            "transportGeneration": connectionGeneration]
             )
@@ -798,7 +829,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             recoveryCoordinator?.handleTerminalStream(msg.fields)
             NotificationCenter.default.post(
                 name: .wsMessageReceived, object: nil,
-                userInfo: ["type": msg.type, "raw": raw,
+                userInfo: ["type": msg.type, "raw": raw, "decoded": WebSocketResponse(fields: msg.fields, type: msg.type),
                            "accountScope": OfflineStore.shared.scopeGeneration,
                            "transportGeneration": connectionGeneration]
             )
@@ -816,7 +847,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             traceNativeStartupSync("phase=syncEventReceived type=\(msg.type)")
             NotificationCenter.default.post(
                 name: .wsSyncEvent, object: nil,
-                userInfo: ["type": msg.type, "raw": raw,
+                userInfo: ["type": msg.type, "raw": raw, "decoded": WebSocketResponse(fields: msg.fields, type: msg.type),
                            "accountScope": OfflineStore.shared.scopeGeneration,
                            "transportGeneration": connectionGeneration]
             )
@@ -999,13 +1030,16 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         NativeDiagnostics.event(name, category: "network", level: level, flags: flags, counts: counts)
     }
 
-    nonisolated private static func recordSocketFailure(_ name: String, error: Error) {
+    nonisolated private static func recordSocketFailure(
+        _ name: String, error: Error, extraCounts: [String: Int] = [:]
+    ) {
         // Unknown domains are intentionally represented as zero: arbitrary NSError
         // domains and descriptions can contain private endpoint or payload details.
         let nsError = error as NSError
-        NativeDiagnostics.event(name, category: "network", level: .warning,
-            counts: ["error_domain_class": WebSocketTimingWindow.errorDomainClass(nsError.domain),
-                     "error_code": nsError.code])
+        var counts = ["error_domain_class": WebSocketTimingWindow.errorDomainClass(nsError.domain),
+                      "error_code": nsError.code]
+        counts.merge(extraCounts) { _, new in new }
+        NativeDiagnostics.event(name, category: "network", level: .warning, counts: counts)
     }
 
     private func startConnectionObservationIfNeeded() {
@@ -1117,6 +1151,17 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     func debugStartPingTimer(interval: TimeInterval) {
         connectionState = .connected
         startPingTimer(interval: interval)
+    }
+    // Unresumed fixture tasks exercise terminal callbacks without network I/O.
+    func debugBindCurrentSocket(_ task: URLSessionWebSocketTask) {
+        webSocketTask = task
+    }
+    func debugReceiveFailure(
+        _ error: Error, from task: URLSessionWebSocketTask, generation: Int,
+        closeCode: URLSessionWebSocketTask.CloseCode?, httpStatus: Int?
+    ) {
+        handleReceiveFailure(error, taskIdentifier: task.taskIdentifier, generation: generation,
+                             closeCode: closeCode, httpStatus: httpStatus)
     }
     var debugCurrentAuthToken: String? { authToken }
     #endif
@@ -1325,12 +1370,7 @@ private final class WebSocketConnectionObservation: @unchecked Sendable {
 /// `send_embed_data` payloads before any durable local write.
 @MainActor
 final class ChatEmbedStreamCoordinator {
-    enum HeadReceiptPolicy: Equatable {
-        case requireCanonicalDigest
-        // Current dev predates digest/source/requested-count receipts. This staged mode must
-        // never count as verification for activating the new storage guard.
-        case allowLegacyReceipt
-    }
+    typealias HeadReceiptPolicy = CanonicalEmbedReceiptPolicy
     private let transport: ChatWebSocketTransport
     private let chatStore: ChatStore
     private let authenticatedOwnerId: () async -> String?
@@ -1342,6 +1382,7 @@ final class ChatEmbedStreamCoordinator {
     private let accountScopeGeneration: () -> UUID
     private let retryDelay: (Int) -> Duration
     private let headReceiptPolicy: HeadReceiptPolicy
+    private let headReceiptPolicyProvider: (() -> HeadReceiptPolicy)?
     private var transportPaused = false
     private var preparedWrites: [String: PreparedEmbedWrite] = [:]
     private var latestPayloadByEmbed: [String: String] = [:]
@@ -1373,6 +1414,7 @@ final class ChatEmbedStreamCoordinator {
         accountScopeGeneration: @escaping () -> UUID = { OfflineStore.shared.scopeGeneration },
         chatDeletionVersion: @escaping (String) -> Int = { OfflineStore.shared.chatDeletionVersion($0) },
         headReceiptPolicy: HeadReceiptPolicy = .requireCanonicalDigest,
+        headReceiptPolicyProvider: (() -> HeadReceiptPolicy)? = nil,
         retryDelay: @escaping (Int) -> Duration = { attempt in
             switch attempt {
             case 1: return .milliseconds(350)
@@ -1392,6 +1434,7 @@ final class ChatEmbedStreamCoordinator {
         self.accountScopeGeneration = accountScopeGeneration
         self.retryDelay = retryDelay
         self.headReceiptPolicy = headReceiptPolicy
+        self.headReceiptPolicyProvider = headReceiptPolicyProvider
     }
 
     convenience init(transport: ChatWebSocketTransport, chatStore: ChatStore) {
@@ -1405,7 +1448,8 @@ final class ChatEmbedStreamCoordinator {
                 EmbedKeyManager.shared.store(entries, source: "liveEmbedStream")
                 OfflineStore.shared.persistEmbedKeys(entries)
             },
-            headReceiptPolicy: .allowLegacyReceipt
+            headReceiptPolicy: .allowLegacyReceipt,
+            headReceiptPolicyProvider: { (transport as? WebSocketManager)?.canonicalEmbedReceiptPolicy ?? .allowLegacyReceipt }
         )
     }
 
@@ -1770,9 +1814,11 @@ final class ChatEmbedStreamCoordinator {
         expectedGeneration: UUID,
         expectedScope: UUID
     ) async throws {
+        let server = ServerProfile.current()
         await acquireWriter(embedId)
         defer { releaseWriter(embedId) }
-        guard isCurrent(expectedGeneration, expectedScope), latestPayloadByEmbed[embedId] == payloadKey else {
+        guard isCurrent(expectedGeneration, expectedScope), latestPayloadByEmbed[embedId] == payloadKey,
+              server == ServerProfile.current() else {
             throw LiveEmbedError.staleContext
         }
         if let prepared = preparedWrites[payloadKey] {
@@ -1898,7 +1944,7 @@ final class ChatEmbedStreamCoordinator {
         let prepared = PreparedEmbedWrite(
             payloadKey: payloadKey, embedId: embedId, chatId: rawChatId,
             deletionVersion: deletionVersion, generation: expectedGeneration, scope: expectedScope,
-            head: storePayload, keys: keyPayloads, digest: Self.sha256Hex(encryptedContent)
+            head: storePayload, keys: keyPayloads, server: server
         )
         preparedWrites[payloadKey] = prepared
         try await persistPrepared(prepared)
@@ -1906,7 +1952,8 @@ final class ChatEmbedStreamCoordinator {
 
     private func persistPrepared(_ prepared: PreparedEmbedWrite) async throws {
         try validatePrepared(prepared)
-        if !prepared.headConfirmed {
+        let policy = headReceiptPolicyProvider?() ?? headReceiptPolicy
+        if prepared.confirmedHeadPolicy != policy {
             let requestId = UUID().uuidString
             var payload = prepared.head
             payload["request_id"] = requestId
@@ -1915,28 +1962,14 @@ final class ChatEmbedStreamCoordinator {
                 WSOutboundMessage(type: "store_embed", payload: payload),
                 responseType: "store_embed_confirmed",
                 matching: { fields in
-                    fields["request_id"] as? String == requestId && fields["embed_id"] as? String == prepared.embedId
+                    fields["request_id"] as? String == requestId
+                        && (fields["embed_id"] as? String == prepared.embedId || fields["code"] != nil)
                 }, beforeSend: { try self.validatePrepared(prepared) }
             )
             try validatePrepared(prepared)
-            guard receipt.fields["request_id"] as? String == requestId,
-                  receipt.fields["embed_id"] as? String == prepared.embedId else {
-                throw LiveEmbedError.invalidHeadReceipt
-            }
-            if let digest = receipt.fields["canonical_digest"] as? String {
-                guard digest == prepared.digest else { throw LiveEmbedError.invalidHeadReceipt }
-            } else {
-                guard receipt.fields["canonical_digest"] == nil,
-                      headReceiptPolicy == .allowLegacyReceipt else { throw LiveEmbedError.invalidHeadReceipt }
-                NativeDiagnostics.event("live_embed_legacy_head_receipt", category: "chat_stream")
-            }
-            if let source = receipt.fields["canonical_source"] {
-                guard source as? String == "head" else { throw LiveEmbedError.invalidHeadReceipt }
-            } else {
-                guard headReceiptPolicy == .allowLegacyReceipt else { throw LiveEmbedError.invalidHeadReceipt }
-                NativeDiagnostics.event("live_embed_legacy_head_source_receipt", category: "chat_stream")
-            }
-            prepared.headConfirmed = true
+            try CanonicalEmbedStorageReceipts.validateHead(payload: prepared.head, receipt: receipt.fields,
+                requestID: requestId, policy: policy)
+            prepared.confirmedHeadPolicy = policy
         }
         try validatePrepared(prepared)
         guard !prepared.keys.isEmpty else { return }
@@ -1948,36 +1981,18 @@ final class ChatEmbedStreamCoordinator {
             beforeSend: { try self.validatePrepared(prepared) }
         )
         try validatePrepared(prepared)
-        guard receipt.fields["request_id"] as? String == requestId,
-              Self.receiptCount(receipt.fields["failed_count"]) == 0,
-              Self.receiptCount(receipt.fields["created_count"]) == prepared.keys.count else {
-            throw LiveEmbedError.invalidKeyReceipt
-        }
-        if let requestedCount = receipt.fields["requested_count"] {
-            guard Self.receiptCount(requestedCount) == prepared.keys.count else {
-                throw LiveEmbedError.invalidKeyReceipt
-            }
-        } else {
-            guard headReceiptPolicy == .allowLegacyReceipt else { throw LiveEmbedError.invalidKeyReceipt }
-            NativeDiagnostics.event("live_embed_legacy_key_count_receipt", category: "chat_stream")
-        }
+        try CanonicalEmbedStorageReceipts.validateKeys(payload: ["keys": prepared.keys], receipt: receipt.fields,
+            requestID: requestId, policy: policy)
     }
 
     private func validatePrepared(_ prepared: PreparedEmbedWrite) throws {
         guard isCurrent(prepared.generation, prepared.scope),
               latestPayloadByEmbed[prepared.embedId] == prepared.payloadKey,
               chatDeletionVersion(prepared.chatId) == prepared.deletionVersion,
-              chatStore.chat(for: prepared.chatId) != nil else {
+              chatStore.chat(for: prepared.chatId) != nil,
+              prepared.server == ServerProfile.current() else {
             throw LiveEmbedError.staleContext
         }
-    }
-
-    private static func receiptCount(_ value: Any?) -> Int? {
-        guard let number = value as? NSNumber,
-              CFGetTypeID(number) != CFBooleanGetTypeID(),
-              !["f", "d"].contains(String(cString: number.objCType)),
-              let count = value as? Int, count >= 0 else { return nil }
-        return count
     }
 
     private func acquireWriter(_ embedId: String) async {
@@ -2183,8 +2198,6 @@ final class ChatEmbedStreamCoordinator {
         case missingEncryptionContext
         case staleContext
         case invalidOwnerPIIPayload
-        case invalidHeadReceipt
-        case invalidKeyReceipt
     }
 
     // Ciphertext and wrapped-key identity are retained across socket retries;
@@ -2198,11 +2211,11 @@ final class ChatEmbedStreamCoordinator {
         let scope: UUID
         let head: [String: Any]
         let keys: [[String: Any]]
-        let digest: String
-        var headConfirmed = false
+        let server: ServerProfile
+        var confirmedHeadPolicy: HeadReceiptPolicy?
 
         init(payloadKey: String, embedId: String, chatId: String, deletionVersion: Int,
-             generation: UUID, scope: UUID, head: [String: Any], keys: [[String: Any]], digest: String) {
+             generation: UUID, scope: UUID, head: [String: Any], keys: [[String: Any]], server: ServerProfile) {
             self.payloadKey = payloadKey
             self.embedId = embedId
             self.chatId = chatId
@@ -2211,7 +2224,7 @@ final class ChatEmbedStreamCoordinator {
             self.scope = scope
             self.head = head
             self.keys = keys
-            self.digest = digest
+            self.server = server
         }
     }
 
@@ -2321,7 +2334,82 @@ private struct ConnectionKey: Equatable {
 
 // MARK: - Parsed inbound message with field accessors
 
-private struct WSInboundParsed: Decodable {
+// Only fresh decoder-owned values cross this boundary; callers never share
+// mutable models or JSONDecoder instances with the worker actor.
+struct NativeDecodedSyncValue<Value>: @unchecked Sendable {
+    let value: Value
+    let decodedOnMainThread: Bool
+}
+
+actor NativeSyncPayloadDecoder {
+    static let shared = NativeSyncPayloadDecoder()
+
+    func decode<Value: Decodable>(_ type: Value.Type, from raw: Data) throws -> NativeDecodedSyncValue<Value> {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return NativeDecodedSyncValue(value: try decoder.decode(type, from: raw),
+                                      decodedOnMainThread: Thread.isMainThread)
+    }
+
+    func legacyFields(from raw: Data) throws -> WebSocketResponse {
+        let envelope = try JSONSerialization.jsonObject(with: raw) as? [String: Any] ?? [:]
+        return WebSocketResponse(fields: envelope["payload"] as? [String: Any]
+            ?? envelope["data"] as? [String: Any] ?? envelope)
+    }
+
+    func decodeFields<Value: Decodable>(_ type: Value.Type, response: WebSocketResponse) throws -> NativeDecodedSyncValue<Value> {
+        try decode(type, from: JSONSerialization.data(withJSONObject: response.fields))
+    }
+}
+
+struct ChatCompressionNotificationReceipt: Sendable {
+    let accountScope: UUID
+    let transportGeneration: Int?
+    let decoded: WebSocketResponse?
+    let raw: Data?
+
+    init?(_ notification: Notification) {
+        guard let scope = notification.userInfo?["accountScope"] as? UUID else { return nil }
+        accountScope = scope
+        transportGeneration = notification.userInfo?["transportGeneration"] as? Int
+        decoded = notification.userInfo?["decoded"] as? WebSocketResponse
+        raw = notification.userInfo?["raw"] as? Data
+        guard decoded != nil || raw != nil else { return nil }
+    }
+
+    func matches(scope: UUID, transport: Int) -> Bool {
+        accountScope == scope && (transportGeneration == nil || transportGeneration == transport)
+    }
+
+    func fields() async throws -> WebSocketResponse {
+        if let decoded { return decoded }
+        guard let raw else { throw CocoaError(.coderReadCorrupt) }
+        return try await NativeSyncPayloadDecoder.shared.legacyFields(from: raw)
+    }
+}
+
+actor WebSocketInboundDecoder {
+    struct Frame: Sendable {
+        let parsed: WSInboundParsed
+        let raw: Data
+        let decodedOnMainThread: Bool
+    }
+
+    func decode(_ message: URLSessionWebSocketTask.Message) throws -> Frame {
+        let data: Data
+        switch message {
+        case .string(let text): data = Data(text.utf8)
+        case .data(let value): data = value
+        @unknown default: throw CocoaError(.coderReadCorrupt)
+        }
+        return Frame(parsed: try JSONDecoder().decode(WSInboundParsed.self, from: data), raw: data,
+                     decodedOnMainThread: Thread.isMainThread)
+    }
+}
+
+// JSONDecoder creates immutable scalar/array/dictionary values owned by this
+// frame. They are never mutated after decoding and may cross the decode actor.
+struct WSInboundParsed: Decodable, @unchecked Sendable {
     let type: String
     let data: [String: AnyCodable]?
     let payload: [String: AnyCodable]?
@@ -2395,6 +2483,28 @@ struct WSOutboundMessage: Encodable {
         self.type = type
         self.data = data?.mapValues { AnyCodable($0) }
         self.payload = payload?.mapValues { AnyCodable($0) }
+    }
+
+    /// Retained turns reopen Foundation JSON numbers. Preserve their numeric
+    /// identity rather than passing NSNumber(0/1) through a Bool-first encoder.
+    /// Optional envelope fields stay omitted; explicitly empty fields stay empty.
+    func encodedData() throws -> Data {
+        var envelope: [String: Any] = ["type": type]
+        if let data { envelope["data"] = data.mapValues(\.value) }
+        if let payload { envelope["payload"] = payload.mapValues(\.value) }
+        guard JSONSerialization.isValidJSONObject(envelope) else {
+            throw WebSocketError.encodingFailed
+        }
+        return try JSONSerialization.data(withJSONObject: envelope)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        // Preserve the existing Encodable API used by recording transports.
+        // JSONDecoder produces Swift scalars, avoiding Foundation Bool bridging
+        // when these validated values pass through AnyCodable's encoder.
+        let values = try JSONDecoder().decode([String: AnyCodable].self, from: encodedData())
+        var container = encoder.singleValueContainer()
+        try container.encode(values)
     }
 }
 

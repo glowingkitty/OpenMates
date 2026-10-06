@@ -1804,6 +1804,67 @@ async def store_upload_record(
         raise HTTPException(status_code=500, detail=f"Failed to store upload record: {str(e)}")
 
 
+class UploadResolveImageRequest(BaseModel):
+    """Internal authenticated inference context, never model-supplied arguments."""
+    embed_id: str = Field(..., min_length=1, max_length=128)
+    user_id: str = Field(..., min_length=1, max_length=128)
+
+
+@router.post("/uploads/resolve-image")
+async def resolve_fresh_upload_image(
+    payload: UploadResolveImageRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Recover fresh upload metadata for an authenticated internal skill call.
+
+    Internal-only: VerifiedInternalRequest on the router authenticates the
+    service; user_id comes from the authenticated first-party inference context.
+    This repeats the storage-download owner filter and does not expose raw AES
+    keys or decrypted media. No paid/provider work occurs on this metadata read.
+    A cache reread cannot extend the original upload's 24-hour inference window.
+    """
+    embed_id, user_id = payload.embed_id, payload.user_id
+    records = await directus_service.get_items(
+        "upload_files",
+        params={
+            "filter": {"embed_id": {"_eq": embed_id}, "user_id": {"_eq": user_id}},
+            "fields": "embed_id,user_id,created_at,original_filename,content_type,files_metadata,s3_base_url,aes_nonce,vault_wrapped_aes_key",
+            "limit": 1,
+        },
+        no_cache=True,
+    )
+    unavailable = HTTPException(status_code=404, detail="Image upload is not available in the current processing window")
+    if not isinstance(records, list) or len(records) != 1 or not isinstance(records[0], dict):
+        raise unavailable
+    record = records[0]
+    created_at = record.get("created_at")
+    now = int(time.time())
+    if (record.get("embed_id") != embed_id or record.get("user_id") != user_id
+        or isinstance(created_at, bool) or not isinstance(created_at, int)
+        or not 0 <= now - created_at < 86400):
+        raise unavailable
+    files = record.get("files_metadata")
+    wrapped_key = record.get("vault_wrapped_aes_key")
+    content_type = record.get("content_type")
+    if (not isinstance(files, dict) or not 1 <= len(files) <= 16
+        or not isinstance(wrapped_key, str) or not wrapped_key
+        or not isinstance(content_type, str) or not content_type.startswith("image/")):
+        raise unavailable
+    content = {
+        "embed_id": embed_id, "user_id": user_id, "type": "image", "status": "finished",
+        "created_at": created_at, "expires_at": created_at + 86400,
+        "filename": record.get("original_filename"), "content_type": content_type,
+        "files": files, "s3_base_url": record.get("s3_base_url") or "",
+        "aes_nonce": record.get("aes_nonce"), "vault_wrapped_aes_key": wrapped_key,
+    }
+    # Bound metadata only; the existing view skill enforces media/decryption
+    # handling. Do not return the legacy plaintext aes_key from upload_files.
+    import json as json_lib
+    if len(json_lib.dumps(content).encode("utf-8")) > 65536:
+        raise unavailable
+    return {"status": "success", "content": content}
+
+
 class UploadCacheEmbedRequest(BaseModel):
     """
     Request model for caching an upload embed in Redis so that app skills
@@ -1897,7 +1958,10 @@ async def cache_upload_embed(
         if payload.content_type == "application/pdf":
             embed_data["type"] = "pdf"
 
-        await client.set(cache_key, json_lib.dumps(embed_data), ex=259200)  # 72 hours
+        cached = await client.set(cache_key, json_lib.dumps(embed_data), ex=259200)  # 72 hours
+        if not cached:
+            logger.warning("%s Redis did not acknowledge upload embed write", log_prefix)
+            return {"status": "skipped", "reason": "cache_write_unacknowledged"}
 
         logger.info(f"{log_prefix} Upload embed cached at key '{cache_key}' (72h TTL)")
         return {"status": "success", "embed_id": payload.embed_id}

@@ -28,7 +28,8 @@ enum WorkflowsWidgetBridge {
         let nextIdentity = next.map(WidgetWorkflowsPublicationScope.init)
         let languageChanged = WidgetWorkflowsStorage.shared.setLanguage(LocalizationManager.shared.currentLanguage.code)
         guard !isConfigured || previousIdentity != nextIdentity else {
-            if languageChanged { WidgetCenter.shared.reloadTimelines(ofKind: WidgetWorkflowsStorage.kind) }
+            if languageChanged { WidgetCenter.shared.reloadTimelines(ofKind: WidgetWorkflowsStorage.kind)
+        if #available(iOS 18.0, macOS 26.0, *) { ControlCenter.shared.reloadControls(ofKind: "org.openmates.control.workflow") } }
             return
         }
         isConfigured = true
@@ -41,6 +42,7 @@ enum WorkflowsWidgetBridge {
         // identity. Live key/scope/Team epoch transitions always invalidate it.
         WidgetWorkflowsStorage.shared.activate(owner: next.map { WidgetWorkflowsOwner.identity(accountID: $0.accountID, apiBaseURL: $0.profile.apiBaseURL, teamID: $0.teamContext.teamID) })
         WidgetCenter.shared.reloadTimelines(ofKind: WidgetWorkflowsStorage.kind)
+        if #available(iOS 18.0, macOS 26.0, *) { ControlCenter.shared.reloadControls(ofKind: "org.openmates.control.workflow") }
         if accountID != nil { Task { await refresh() } }
     }
     static func refresh() async {
@@ -66,6 +68,7 @@ enum WorkflowsWidgetBridge {
             guard previous?.owner != owner || previous?.workflows != items || languageChanged else { return }
             try WidgetWorkflowsStorage.shared.save(.init(owner: owner, teamID: scope.teamContext.teamID, updatedAt: Date(), workflows: items))
             WidgetCenter.shared.reloadTimelines(ofKind: WidgetWorkflowsStorage.kind)
+        if #available(iOS 18.0, macOS 26.0, *) { ControlCenter.shared.reloadControls(ofKind: "org.openmates.control.workflow") }
         } catch {
             NativeDiagnostics.warning("snapshot_unavailable", category: "workflows_widget")
         }

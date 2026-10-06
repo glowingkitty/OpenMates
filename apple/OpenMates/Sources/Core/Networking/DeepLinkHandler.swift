@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-controls/specification.yml
+// Assertions: apple-controls.availability, apple-controls.quick-actions, apple-controls.workflow, apple-controls.project, apple-controls.private-cache
 // Deep link handler — processes openmates:// URLs and universal links.
 // Supports: chat-id, message-id, share links, settings deep links, app links.
 // Specification: specifications/features/apple-task-board-interactions/specification.yml
@@ -16,6 +18,11 @@ struct WorkflowTemplateLink: Equatable, Identifiable {
     let fragmentKey: String
     let webDomain: String
     var id: String { templateID }
+}
+
+struct TaskDetailDeepLinkRequest: Equatable, Identifiable {
+    let taskID: String
+    let id = UUID()
 }
 
 struct ShortShareLink: Equatable {
@@ -70,12 +77,17 @@ final class DeepLinkHandler: ObservableObject {
     @Published var pendingInspirationId: String?
     @Published var pendingMessageText: String?
     @Published var pendingWorkflowTemplate: WorkflowTemplateLink?
+    @Published var pendingControlProject: ControlProjectRoute?
+    @Published var pendingProjectsWorkspace = false
     @Published var pendingWorkflowWidgetRun: WidgetWorkflowRunRoute?
     @Published var pendingProjectID: String?
     @Published var pendingWorkflowID: String?
     @Published var pendingWorkflowsWorkspace = false
     @Published var pendingTasksWorkspace = false
-    @Published var pendingTaskID: String?
+    @Published var pendingTaskID: String? {
+        didSet { pendingTaskRequest = pendingTaskID.map { TaskDetailDeepLinkRequest(taskID: $0) } }
+    }
+    @Published private(set) var pendingTaskRequest: TaskDetailDeepLinkRequest?
     @Published var pendingNewTask = false
     @Published var pendingAppsPath: String?
     @Published var pendingNewChat = false
@@ -93,9 +105,14 @@ final class DeepLinkHandler: ObservableObject {
         pendingWorkflowTemplate = nil
         pendingWorkflowWidgetRun = nil
         pendingWorkflowsWorkspace = false
+        pendingControlProject = nil
+        pendingProjectsWorkspace = false
         pendingProjectID = nil
         pendingWorkflowID = nil
         pendingActiveChatsWidgetLink = nil
+        pendingTaskID = nil
+        pendingTasksWorkspace = false
+        pendingNewTask = false
         // Public recipient decryption is independent of the signed-in account
         // and selected server. Keep the full fragment inside the native viewer.
         if Self.isNativeChatShareURL(url) {
@@ -111,6 +128,10 @@ final class DeepLinkHandler: ObservableObject {
 
     private func handleCustomScheme(_ url: URL) {
         guard let host = url.host else { return }
+        if host == "control-project" {
+            pendingControlProject = ControlProjectRoute.parse(url)
+            return
+        }
         if host == "run-workflow" {
             pendingWorkflowWidgetRun = WidgetWorkflowsLinks.route(url)
             return
@@ -132,6 +153,7 @@ final class DeepLinkHandler: ObservableObject {
             pendingTasksWorkspace = true
         case "projects":
             if url.pathComponents.count == 2, let id = url.pathComponents.last, UUID(uuidString: id) != nil { pendingProjectID = id }
+            else { pendingProjectsWorkspace = true }
         case "workflows":
             if url.pathComponents.count == 2, let id = url.pathComponents.last, UUID(uuidString: id) != nil { pendingWorkflowID = id }
             else { pendingWorkflowsWorkspace = true }
@@ -385,7 +407,7 @@ final class DeepLinkHandler: ObservableObject {
     static func shouldInterceptAppURL(_ url: URL, selectedDomain: String) -> Bool {
         if shouldInterceptShareURL(url, selectedDomain: selectedDomain) { return true }
         if url.scheme == "openmates" {
-            return ["new-chat", "newchat", "new-task", "newtask", "tasks", "task", "apps", "search", "chat", "active-chats", "share", "settings", "app", "inspiration"]
+            return ["new-chat", "newchat", "new-task", "newtask", "tasks", "task", "apps", "search", "chat", "active-chats", "control-project", "projects", "run-workflow", "workflows", "share", "settings", "app", "inspiration"]
                 .contains(url.host ?? "")
         }
         guard isSelectedWebURL(url, selectedDomain: selectedDomain) else { return false }
@@ -448,7 +470,11 @@ final class DeepLinkHandler: ObservableObject {
         pendingMessageText = nil
         pendingWorkflowTemplate = nil
         pendingWorkflowWidgetRun = nil
+        pendingProjectID = nil
+        pendingWorkflowID = nil
         pendingWorkflowsWorkspace = false
+        pendingControlProject = nil
+        pendingProjectsWorkspace = false
         pendingTasksWorkspace = false
         pendingTaskID = nil
         pendingNewTask = false

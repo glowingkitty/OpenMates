@@ -8,6 +8,8 @@
 // in the app entitlement and in the domain's apple-app-site-association file.
 
 import Foundation
+import CryptoKit
+import CoreFoundation
 
 struct ServerProfile: Equatable, Codable, Sendable {
     let id: String
@@ -311,5 +313,93 @@ enum ServerConfiguration {
         defaults.set(migratedDomains, forKey: customDomainsKey)
         defaults.set(true, forKey: debugDefaultMigrationKey)
         #endif
+    }
+}
+
+// Ordinary canonical storage is enabled only for an explicitly verified full
+// server profile. Development storage API activation is recorded in the Apple
+// handoff (1e7b84c33ea33734ec53c85deda27b90aad3124d +
+// 9f42f3f23c5550c1166d0fdab792c3b113c0c82d). Production remains legacy.
+// Epoch 1, incoming frames and recovery keys cannot enable this policy.
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.privacy.ciphertext-boundary, storage.surface.semantic-parity
+enum CanonicalEmbedReceiptPolicy: Equatable {
+    case requireCanonicalDigest
+    case allowLegacyReceipt
+}
+
+struct CanonicalEmbedStorageConfiguration: Equatable {
+    static let deployed = Self(verifiedServerProfile: .development)
+    private let verifiedServerProfile: ServerProfile?
+
+    init(verifiedServerProfile: ServerProfile? = nil) {
+        self.verifiedServerProfile = verifiedServerProfile
+    }
+
+    func receiptPolicy(for profile: ServerProfile) -> CanonicalEmbedReceiptPolicy {
+        verifiedServerProfile == profile ? .requireCanonicalDigest : .allowLegacyReceipt
+    }
+
+    func capabilities(for profile: ServerProfile) -> [String] {
+        receiptPolicy(for: profile) == .requireCanonicalDigest ? ["canonical_embed_receipts_v1"] : []
+    }
+
+    func socketURL(profile: ServerProfile, sessionID: String, token: String?, additionalCapabilities: [String] = []) -> URL? {
+        guard var components = URLComponents(url: profile.webSocketBaseURL, resolvingAgainstBaseURL: false) else { return nil }
+        var query = [URLQueryItem(name: "sessionId", value: sessionID)]
+        let capabilities = additionalCapabilities + capabilities(for: profile)
+        if !capabilities.isEmpty { query.append(.init(name: "client_capabilities", value: capabilities.joined(separator: ","))) }
+        if let token, !token.isEmpty { query.append(.init(name: "token", value: token)) }
+        components.queryItems = query
+        return components.url
+    }
+}
+
+enum CanonicalEmbedStorageReceiptError: Error {
+    case invalidHead
+    case invalidKeys
+    case updateRequired
+}
+
+enum CanonicalEmbedStorageReceipts {
+    static func digest(_ ciphertext: String) -> String {
+        SHA256.hash(data: Data(ciphertext.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func validateHead(payload: [String: Any], receipt: [String: Any], requestID: String,
+                             policy: CanonicalEmbedReceiptPolicy) throws {
+        if receipt["code"] as? String == "client_capability_required" { throw CanonicalEmbedStorageReceiptError.updateRequired }
+        guard receipt["code"] == nil, receipt["request_id"] as? String == requestID,
+              let embedID = payload["embed_id"] as? String, !embedID.isEmpty,
+              receipt["embed_id"] as? String == embedID,
+              let ciphertext = payload["encrypted_content"] as? String, !ciphertext.isEmpty else {
+            throw CanonicalEmbedStorageReceiptError.invalidHead
+        }
+        if let supplied = receipt["canonical_digest"] {
+            guard supplied as? String == digest(ciphertext) else { throw CanonicalEmbedStorageReceiptError.invalidHead }
+        } else if policy != .allowLegacyReceipt { throw CanonicalEmbedStorageReceiptError.invalidHead }
+        if let source = receipt["canonical_source"] {
+            guard source as? String == "head" else { throw CanonicalEmbedStorageReceiptError.invalidHead }
+        } else if policy != .allowLegacyReceipt { throw CanonicalEmbedStorageReceiptError.invalidHead }
+    }
+
+    static func validateKeys(payload: [String: Any], receipt: [String: Any], requestID: String,
+                             policy: CanonicalEmbedReceiptPolicy) throws {
+        if receipt["code"] as? String == "client_capability_required" { throw CanonicalEmbedStorageReceiptError.updateRequired }
+        guard receipt["code"] == nil, receipt["request_id"] as? String == requestID,
+              let keys = payload["keys"] as? [[String: Any]], !keys.isEmpty,
+              count(receipt["created_count"]) == keys.count, count(receipt["failed_count"]) == 0 else {
+            throw CanonicalEmbedStorageReceiptError.invalidKeys
+        }
+        if let requested = receipt["requested_count"] {
+            guard count(requested) == keys.count else { throw CanonicalEmbedStorageReceiptError.invalidKeys }
+        } else if policy != .allowLegacyReceipt { throw CanonicalEmbedStorageReceiptError.invalidKeys }
+    }
+
+    private static func count(_ value: Any?) -> Int? {
+        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+              !["f", "d"].contains(String(cString: number.objCType)), number.int64Value >= 0,
+              number.uint64Value <= UInt64(Int.max) else { return nil }
+        return number.intValue
     }
 }

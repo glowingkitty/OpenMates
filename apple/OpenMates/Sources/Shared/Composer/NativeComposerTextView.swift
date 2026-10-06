@@ -57,6 +57,7 @@ final class NativeComposerTextView: NSObject {
     private var actionsByEmbedID: [String: [AccessibilityAction]] = [:]
     private var isSynchronizing = false
     #if canImport(UIKit)
+    var onScroll: @MainActor (UIScrollView) -> Void = { _ in }
     private var isAwaitingUIKitEdit = false
     private weak var piiTapRecognizer: UITapGestureRecognizer?
     private weak var lastPIIDecorationStorage: NSTextStorage?
@@ -64,6 +65,7 @@ final class NativeComposerTextView: NSObject {
     private var lastPIIDecorationText: String?
     #endif
     private var lastSynchronizedRevision: Int?
+    var synchronizedRevision: Int? { lastSynchronizedRevision }
     private var lastProjectedEmbedNodes: [ComposerNodeV1] = []
     private var lastAccessibilityNodes: [ComposerNodeV1] = []
     private var piiDecorations: [NativeComposerPIIDecoration] = []
@@ -398,6 +400,8 @@ extension NativeComposerTextView: UIGestureRecognizerDelegate {
 
 #if canImport(UIKit)
 extension NativeComposerTextView: UITextViewDelegate {
+    func scrollViewDidScroll(_ scrollView: UIScrollView) { onScroll(scrollView) }
+
     static func shouldUseTextViewInteraction(for attachment: NSTextAttachment) -> Bool {
         !(attachment is ComposerTextAttachment)
     }
@@ -440,8 +444,14 @@ extension NativeComposerTextView: UITextViewDelegate {
         // UIKit owns the edit transaction, including autocorrection and its cursor.
         // Mutating textStorage here and returning false cancels that transaction
         // while the keyboard still has an outstanding replacement range.
+        #if DEBUG && os(iOS) && !OPENMATES_SHARE_EXTENSION
+        let reaction = NativeComposerReactionMetrics.shared.begin(editorID: textView.accessibilityIdentifier)
+        #endif
         _ = applyPlatformEdit(range: range, replacement: text)
         isAwaitingUIKitEdit = lastControllerError == nil
+        #if DEBUG && os(iOS) && !OPENMATES_SHARE_EXTENSION
+        if !isAwaitingUIKitEdit { NativeComposerReactionMetrics.shared.reject(reaction) }
+        #endif
         return isAwaitingUIKitEdit
     }
 

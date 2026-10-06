@@ -10,6 +10,100 @@ import SwiftData
 
 @MainActor
 final class ChatSyncParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,apple-offline.snapshot-integrity
+    func testOfflineSearchReadsAwayFromUIAndRetainsOlderHitsOnlyInAllowedCorpus() async throws {
+        let (offline, _) = try makeRecentOfflineStore()
+        let allowed = makeChat(id: "search-allowed", title: "Synthetic", messagesV: 260)
+        let excluded = makeChat(id: "search-excluded", title: "Synthetic", messagesV: 1)
+        offline.persistChats([allowed, excluded])
+        let messages = (0..<260).map { index in
+            Message(id: String(format: "search-%03d", index), chatId: allowed.id, role: .user,
+                content: index == 0 ? "olderuniquematch" : "Synthetic", encryptedContent: nil,
+                createdAt: allowed.createdAt, updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+        }
+        offline.persistMessages(messages, chatId: allowed.id)
+        offline.persistMessages([Message(id: "excluded-message", chatId: excluded.id, role: .user,
+            content: "olderuniquematch", encryptedContent: nil, createdAt: excluded.createdAt,
+            updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)], chatId: excluded.id)
+        let content = try await offline.loadSearchContent(chatID: allowed.id, includeMessages: true, includeEmbeds: true)
+        XCTAssertFalse(content.readOnMainThread)
+        XCTAssertEqual(content.messages.map(\.id), messages.map(\.id))
+        let store = ChatStore()
+        store.upsertChats([allowed, excluded])
+        let results = try await ChatSearchEngine.searchAsync(query: "olderuniquematch", chats: store.chats,
+            chatStore: store, offlineStore: offline, offlineContentChatIds: [allowed.id])
+        XCTAssertEqual(results.groups.flatMap(\.items).map(\.id), [allowed.id])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,apple-offline.snapshot-integrity
+    func testOfflineSearchRejectsDeletedAndReplacedAccountReadFences() async throws {
+        let (offline, _) = try makeRecentOfflineStore()
+        let chat = makeChat(id: "search-fence", title: "Synthetic", messagesV: 0)
+        offline.persistChats([chat])
+        let optionalWriter = await offline.makeRecentChatCacheWriter()
+        let writer = try XCTUnwrap(optionalWriter)
+        let deletionFence = offline.recentContentWriteFence(for: chat.id)
+        offline.deleteChat(chat.id)
+        do {
+            _ = try await writer.loadSearchContent(chatID: chat.id, includeMessages: true, includeEmbeds: true, fence: deletionFence)
+            XCTFail("Deleted cached content must not enter a search snapshot")
+        } catch is CancellationError {}
+        let accountFence = offline.recentContentWriteFence(for: chat.id)
+        offline.deactivate()
+        do {
+            _ = try await writer.loadSearchContent(chatID: chat.id, includeMessages: true, includeEmbeds: true, fence: accountFence)
+            XCTFail("The old account worker must reject reads after replacement")
+        } catch is CancellationError {}
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,apple-offline.snapshot-integrity
+    func testComposerEmbedSearchMergesActorCacheWithNewerMemoryRecord() async throws {
+        let (offline, _) = try makeRecentOfflineStore()
+        let chat = makeChat(id: "search-embed-merge", title: "Synthetic", messagesV: 0)
+        offline.persistChats([chat])
+        let cached = (0..<130).map { index in
+            EmbedRecord(id: String(format: "embed-%03d", index), type: "audio-recording", status: .finished,
+                data: .raw(["filename": AnyCodable("cached.m4a")]), parentEmbedId: nil,
+                appId: "audio", skillId: nil, embedIds: nil, createdAt: nil)
+        }
+        offline.persistEmbeds(cached, chatId: chat.id)
+        let memory = EmbedRecord(id: cached[0].id, type: "audio-recording", status: .finished,
+            data: .raw(["filename": AnyCodable("current.m4a")]), parentEmbedId: nil,
+            appId: "audio", skillId: nil, embedIds: nil, createdAt: nil)
+        let store = ChatStore()
+        store.upsertEmbeds([memory], for: chat.id)
+        let merged = try await ComposerSearchSuggestionsController.localEmbeds(chat: chat, store: store, offline: offline)
+        XCTAssertEqual(merged.count, cached.count)
+        XCTAssertEqual(merged.first { $0.id == memory.id }?.rawData?["filename"]?.value as? String, "current.m4a")
+        let content = try await offline.loadSearchContent(chatID: chat.id, includeMessages: false, includeEmbeds: true)
+        XCTAssertFalse(content.readOnMainThread)
+        XCTAssertEqual(content.embeds.count, cached.count)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testWelcomeMetadataDemandSkipsHydratedRecordsButRetainsEncryptedFields() {
+        var chat = Chat(id: "synthetic-grid", title: nil, lastMessageAt: nil,
+            createdAt: "2026-10-01T12:00:00Z", updatedAt: nil, isArchived: false,
+            isPinned: false, appId: nil, encryptedTitle: "cipher-title",
+            encryptedCategory: "cipher-category", encryptedIcon: "cipher-icon",
+            encryptedChatSummary: "cipher-summary", encryptedChatKey: nil,
+            messagesV: 2, titleV: 3, metadataV: 7)
+        XCTAssertTrue(WelcomeScreenState.needsMetadataDecryption(chat))
+        chat.title = "Older title"
+        XCTAssertTrue(WelcomeScreenState.needsMetadataDecryption(chat), "Title hydration must still request the missing summary/category/icon")
+        chat.category = "science"
+        chat.icon = "search"
+        chat.chatSummary = "Older summary"
+        XCTAssertFalse(WelcomeScreenState.needsMetadataDecryption(chat), "A hydrated grid page must not repeat crypto work")
+        XCTAssertEqual(chat.encryptedTitle, "cipher-title")
+        XCTAssertEqual(chat.encryptedCategory, "cipher-category")
+        XCTAssertEqual(chat.encryptedIcon, "cipher-icon")
+        XCTAssertEqual(chat.encryptedChatSummary, "cipher-summary")
+        XCTAssertEqual(chat.messagesV, 2)
+        XCTAssertEqual(chat.titleV, 3)
+        XCTAssertEqual(chat.metadataV, 7)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testWelcomeDraftCardsWaitForDecryptedPreviewButKeepAttachmentPlaceholders() {
         let draft = DevHistoryWelcomeData.chat("synthetic-draft", messages: 0, draft: 7)
@@ -66,8 +160,11 @@ final class ChatSyncParityTests: XCTestCase {
         let bridge = OfflineSyncBridge(chatStore: store, offlineStore: offline,
             contentFetcher: { id in requested.append(id); return try self.recentOfflineBatch(chatID: id) },
             prefetchEligibility: { true }, keyValidator: { _, _ in "validated-wrapper" })
+        XCTAssertFalse(bridge.isPrefetching)
         bridge.startOfflinePrefetchIfEligible(reason: "startupSyncComplete")
+        XCTAssertTrue(bridge.isPrefetching)
         await bridge.waitForOfflinePrefetch()
+        XCTAssertFalse(bridge.isPrefetching)
         XCTAssertEqual(requested, chats.prefix(20).map(\.id))
         let reloaded = OfflineStore(modelContainer: container)
         for chat in chats.prefix(20) {
@@ -108,7 +205,9 @@ final class ChatSyncParityTests: XCTestCase {
         offline.persistChats(store.chats)
         let stoppedTask = stopped.startOfflinePrefetchIfEligible(reason: "startupSyncComplete")
         await gate.waitUntilStarted(1)
+        XCTAssertTrue(stopped.isPrefetching)
         stopped.stopSession()
+        XCTAssertFalse(stopped.isPrefetching)
         gate.release(1, data: try recentOfflineBatch(chatID: chat.id, version: 3, prefix: "stale"))
         await stoppedTask?.value
         XCTAssertFalse(offline.loadMessages(chatId: chat.id).contains { $0.id.contains("-stale-") })
@@ -116,13 +215,17 @@ final class ChatSyncParityTests: XCTestCase {
         let cancelledRun = bridge.startOfflinePrefetchIfEligible(reason: "changedRevision")
         await gate.waitUntilStarted(2)
         bridge.setForegroundActive(false)
+        XCTAssertFalse(bridge.isPrefetching)
         bridge.setForegroundActive(true)
+        XCTAssertTrue(bridge.isPrefetching)
         await gate.waitUntilStarted(3)
         gate.release(2, data: try recentOfflineBatch(chatID: chat.id, version: 3, prefix: "cancelled"))
         await cancelledRun?.value
+        XCTAssertTrue(bridge.isPrefetching, "A cancelled run must not hide its active replacement")
         let replacement = bridge.startOfflinePrefetchIfEligible(reason: "coalescedReplacement")
         gate.release(3, data: try recentOfflineBatch(chatID: chat.id, version: 3, prefix: "replacement"))
         await replacement?.value
+        XCTAssertFalse(bridge.isPrefetching)
         XCTAssertEqual(gate.calls, 4, "A cancelled run's defer must not clear the replacement task")
         XCTAssertFalse(offline.loadMessages(chatId: chat.id).contains { $0.id.contains("-cancelled-") })
         XCTAssertTrue(offline.loadMessages(chatId: chat.id).contains { $0.id.contains("-replacement-") })
@@ -229,18 +332,25 @@ final class ChatSyncParityTests: XCTestCase {
         offline.persistChats([chat])
         let optionalWriter = await offline.makeRecentChatCacheWriter()
         let writer = try XCTUnwrap(optionalWriter)
-        let snapshot = try await writer.decode(recentOfflineBatch(chatID: chat.id), chatId: chat.id)
+        let fields = try XCTUnwrap(JSONSerialization.jsonObject(with: recentOfflineBatch(chatID: chat.id)) as? [String: Any])
+        let snapshot = try await writer.decode(WebSocketResponse(fields: fields), chatId: chat.id)
         try await writer.persist(snapshot, chat: chat, validatedWrapper: nil, preserving: [])
+        let complete = await writer.hasCompleteSnapshot(for: chat)
+        XCTAssertTrue(complete)
         XCTAssertTrue(OfflineStore(modelContainer: container).hasCompleteOfflineSnapshot(for: chat))
         let corruption = ModelContext(container)
         let target = snapshot.messages[0].id
         let descriptor = FetchDescriptor<PersistedMessage>(predicate: #Predicate { $0.id == target })
         corruption.delete(try XCTUnwrap(corruption.fetch(descriptor).first))
         try corruption.save()
+        let completeAfterCorruption = await writer.hasCompleteSnapshot(for: chat)
+        XCTAssertFalse(completeAfterCorruption)
         XCTAssertFalse(OfflineStore(modelContainer: container).hasCompleteOfflineSnapshot(for: chat), "A valid version alone cannot prove the saved record count")
         try await writer.persist(snapshot, chat: chat, validatedWrapper: nil, preserving: [])
         XCTAssertTrue(OfflineStore(modelContainer: container).hasCompleteOfflineSnapshot(for: chat))
         offline.persistMessages([snapshot.messages[0]], chatId: chat.id)
+        let completeAfterInvalidation = await writer.hasCompleteSnapshot(for: chat)
+        XCTAssertFalse(completeAfterInvalidation)
         XCTAssertFalse(OfflineStore(modelContainer: container).hasCompleteOfflineSnapshot(for: chat), "A partial update must durably invalidate the prior receipt before a restart")
     }
 

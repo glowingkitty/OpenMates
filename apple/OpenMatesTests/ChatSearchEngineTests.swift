@@ -5,6 +5,68 @@ import XCTest
 
 @MainActor
 final class ChatSearchEngineTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.suggestions.contextual,message-input.privacy-context
+    func testSettledSameQueryRefreshKeepsRowsButReplacementQueryClearsThemAndRejectsLateRefresh() async throws {
+        let controller = ChatSearchController()
+        defer { controller.cancel() }
+        func results(_ ids: [String]) -> ChatSearchResults {
+            let items = ids.map { id in
+                let chat = Chat(id: id, title: "Berlin", lastMessageAt: nil, createdAt: "2026-09-29T12:00:00Z",
+                    updatedAt: nil, isArchived: false, isPinned: false, appId: "ai", encryptedTitle: nil, encryptedChatKey: nil)
+                return ChatSearchResult(id: id, chat: chat, decryptedTitle: chat.title, titleMatch: true,
+                    messageSnippets: [], metadataSnippets: [], sortDate: .distantPast)
+            }
+            return .init(groups: [.init(id: "synthetic", title: "Synthetic", items: items)], totalCount: items.count)
+        }
+        controller.retainResults(for: ["retained", "deleted", "new-query"])
+        controller.schedule(query: "Berlin", immediately: true) { _ in results(["retained", "deleted"]) }
+        try await waitUntil { controller.results.totalCount == 2 && !controller.isSearching }
+        var refresh: CheckedContinuation<ChatSearchResults, Never>?
+        controller.schedule(query: "Berlin", storeChanged: true, immediately: true) { _ in
+            await withCheckedContinuation { refresh = $0 }
+        }
+        try await waitUntil { refresh != nil }
+        XCTAssertEqual(controller.results.groups.flatMap(\.items).map(\.id), ["retained", "deleted"],
+            "A settled same-query refresh must leave tappable rows mounted")
+        controller.retainResults(for: ["retained", "new-query"])
+        XCTAssertEqual(controller.results.groups.flatMap(\.items).map(\.id), ["retained"],
+            "Deletion removes a retained row before background refresh completes")
+        var replacement: CheckedContinuation<ChatSearchResults, Never>?
+        controller.schedule(query: "Paris", immediately: true) { _ in
+            await withCheckedContinuation { replacement = $0 }
+        }
+        XCTAssertEqual(controller.results.totalCount, 0, "Changed query must clear mismatching old rows immediately")
+        try await waitUntil { replacement != nil }
+        refresh?.resume(returning: results(["deleted", "retained"]))
+        replacement?.resume(returning: results(["new-query"]))
+        try await waitUntil { controller.results.totalCount == 1 && !controller.isSearching }
+        XCTAssertEqual(controller.results.groups.flatMap(\.items).map(\.id), ["new-query"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=landing-onboarding.legacy-intros-retired,public-example-chats.catalog.discoverable
+    func testRetiredIntroVisibilityKeepsExamplesAndSameTitlePersonalChats() throws {
+        for id in RetiredIntroChatPolicy.ids {
+            XCTAssertTrue(RetiredIntroChatPolicy.excludes(id))
+            XCTAssertFalse(PublicChatContent.isPublicChat(id))
+            XCTAssertNil(PublicChatContent.chat(for: id))
+        }
+        let example = try XCTUnwrap(PublicChatContent.chat(for: "example-gigantic-airplanes")?.chat)
+        let personal = Chat(id: "personal-copy", title: "Who develops OpenMates?", lastMessageAt: nil,
+            createdAt: "2026-09-29T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
+            appId: "ai", encryptedTitle: nil, encryptedChatKey: nil)
+        let retired = Chat(id: "demo-who-develops-openmates", title: personal.title, lastMessageAt: nil,
+            createdAt: personal.createdAt, updatedAt: nil, isArchived: false, isPinned: false,
+            appId: "ai", encryptedTitle: nil, encryptedChatKey: nil)
+        let rows = [retired, example, personal]
+        XCTAssertEqual(ComposerSearchSuggestionsController.eligibleChats(rows).map(\.id), [example.id, personal.id])
+        XCTAssertEqual(ChatSearchMetadata.missingCachedChats(rows, loaded: []).map(\.id), [example.id, personal.id])
+        let store = ChatStore()
+        store.performWithoutPersistence { store.upsertChats(rows) }
+        XCTAssertEqual(ChatSearchEngine.search(query: "Who develops", chats: rows, chatStore: store,
+            offlineStore: nil, offlineContentChatIds: []).groups.flatMap(\.items).map(\.id), [personal.id])
+        XCTAssertNotNil(store.chat(for: retired.id), "Visibility retirement must not delete cached records")
+    }
+
     private func waitUntil(_ predicate: () -> Bool) async throws {
         for _ in 0..<250 {
             if predicate() { return }
@@ -31,7 +93,7 @@ final class ChatSearchEngineTests: XCTestCase {
         XCTAssertEqual(builds, 3)
         XCTAssertFalse(PublicChatContent.isPublicChat("account-chat"))
         XCTAssertNil(PublicChatContent.chat(for: "account-chat"))
-        for id in ["demo-who-develops-openmates", "announcements-introducing-openmates-v09",
+        for id in ["announcements-introducing-openmates-v09",
                    "legal-privacy", "legal-terms", "legal-imprint", "example-gigantic-airplanes",
                    "example-artemis-ii-mission", "example-beautiful-single-page-html",
                    "example-eu-chat-control-law", "example-flights-berlin-bangkok",
@@ -148,7 +210,7 @@ final class ChatSearchEngineTests: XCTestCase {
         XCTAssertEqual(result.groups.flatMap(\.items).map(\.id), reference.groups.flatMap(\.items).map(\.id))
         XCTAssertEqual(result.groups.flatMap(\.items).first(where: { $0.id == "message" })?.messageSnippets.first?.text,
                        "Berlin travel plan")
-        let publicRow = try XCTUnwrap(PublicChatContent.chat(for: "demo-who-develops-openmates")?.chat)
+        let publicRow = try XCTUnwrap(PublicChatContent.chat(for: "announcements-introducing-openmates-v09")?.chat)
         let publicResult = try await ChatSearchEngine.searchAsync(query: "OpenMates", chats: [publicRow],
             chatStore: store, offlineStore: nil, offlineContentChatIds: [publicRow.id])
         XCTAssertEqual(publicResult.totalCount, 1)

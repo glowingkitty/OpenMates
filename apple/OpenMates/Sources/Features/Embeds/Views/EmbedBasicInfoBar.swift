@@ -27,6 +27,7 @@ struct EmbedBasicInfoBar: View {
     let skillIconName: String
     let title: String
     let subtitle: String?
+    let isProcessing: Bool
     let faviconURL: String?
     let faviconIsCircular: Bool
     let showSkillIcon: Bool
@@ -40,6 +41,7 @@ struct EmbedBasicInfoBar: View {
         skillIconName: String,
         title: String,
         subtitle: String?,
+        isProcessing: Bool = false,
         faviconURL: String?,
         faviconIsCircular: Bool = false,
         showSkillIcon: Bool,
@@ -52,6 +54,7 @@ struct EmbedBasicInfoBar: View {
         self.skillIconName = skillIconName
         self.title = title
         self.subtitle = subtitle
+        self.isProcessing = isProcessing
         self.faviconURL = faviconURL
         self.faviconIsCircular = faviconIsCircular
         self.showSkillIcon = showSkillIcon
@@ -68,18 +71,37 @@ struct EmbedBasicInfoBar: View {
                 .overlay {
                     // BasicInfosBar uses a 26pt wrapper and 25pt CSS glyph.
                     Icon(appIconName ?? AppIconView.iconName(forAppId: appId), size: 25)
+                        #if DEBUG
+                        .accessibilityIdentifier("embed-primary-app-icon-\(Icon(appIconName ?? AppIconView.iconName(forAppId: appId)).name)")
+                        #endif
                         .foregroundStyle(.white)
+                        #if DEBUG
+                        .background(EmbedPreviewGeometryProbe(name: "primary-app-icon-\(Icon(appIconName ?? AppIconView.iconName(forAppId: appId)).name)"))
+                        #endif
                         .frame(width: 26, height: 26)
                 }
+                #if DEBUG
+                .accessibilityElement(children: .contain)
+                .accessibilityHidden(!ProcessInfo.processInfo.arguments.contains("--dev-runtime-skill-icon-preview"))
+                #else
                 .accessibilityHidden(true)
+                #endif
                 #if DEBUG
                 .background(EmbedPreviewGeometryProbe(name: "circle"))
                 #endif
 
             if showSkillIcon {
                 Icon(skillIconName, size: Constants.skillIconSize)
-                    .foregroundStyle(Color.grey70)
+                    #if DEBUG
+                    .accessibilityIdentifier("embed-secondary-skill-icon-\(Icon(skillIconName).name)")
+                    .accessibilityHidden(!ProcessInfo.processInfo.arguments.contains("--dev-runtime-skill-icon-preview"))
+                    #else
                     .accessibilityHidden(true)
+                    #endif
+                    .foregroundStyle(Color.grey70)
+                    #if DEBUG
+                    .background(EmbedPreviewGeometryProbe(name: "secondary-skill-icon-\(Icon(skillIconName).name)"))
+                    #endif
             }
 
             VStack(alignment: .leading, spacing: subtitle == nil ? 0 : 2) {
@@ -103,7 +125,8 @@ struct EmbedBasicInfoBar: View {
                     Text(subtitle)
                         .font(.omP)
                         .fontWeight(.medium)
-                        .foregroundStyle(Color.grey70)
+                        .modifier(EmbedProcessingTextShimmer(isProcessing: isProcessing))
+                        .accessibilityIdentifier("embed-basic-info-status")
                         .lineLimit(1)
                 }
             }

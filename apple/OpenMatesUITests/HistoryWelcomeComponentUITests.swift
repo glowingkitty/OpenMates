@@ -9,12 +9,46 @@ final class HistoryWelcomeComponentUITests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=chat-navigation.projects.organize,chat-navigation.projects.nested-readable
     func testActualSidebarDragCreatesProjectAndOpensGroupedChats() {
         let app = launchSidebar("organization")
+        defer {
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Sidebar real drag final state"; screenshot.lifetime = .keepAlways; add(screenshot)
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "Sidebar real drag accessibility and delivery receipt"; hierarchy.lifetime = .keepAlways; add(hierarchy)
+        }
+        let readiness = app.staticTexts["sidebar-fixture-project-ready"]
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "ready"), object: readiness)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed,
+            "The synthetic Project account and inventory must be ready before the real drag")
+        let transferContract = app.staticTexts["sidebar-fixture-project-state"].label
+        XCTAssertTrue(transferContract.contains("dragTypeDeclared=true"), transferContract)
+        XCTAssertTrue(transferContract.contains("dragTypeData=true"), transferContract)
+        XCTAssertTrue(transferContract.contains("dragTypeBundleDeclared=true"),
+                      "The installed app must declare its owned Codable drag type: \(transferContract)")
         let source = sidebarRow("sidebar-pinned", app: app), target = sidebarRow("sidebar-draft", app: app)
         XCTAssertTrue(source.waitForExistence(timeout: 5)); XCTAssertTrue(target.waitForExistence(timeout: 5))
         XCTAssertTrue(source.isHittable); XCTAssertTrue(target.isHittable)
-        source.press(forDuration: 0.7, thenDragTo: target)
+        XCTAssertFalse(app.buttons["chat-project-root-preview-project"].exists,
+            "A Project without a recent organized member must not occupy the chat sidebar")
+        // Complete the native lift/target handoff before release. This short
+        // row-to-row travel otherwise ends while UIKit is still lifting.
+        source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.7, thenDragTo: target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)),
+                   withVelocity: .default, thenHoldForDuration: 0.35)
         let project = app.buttons["chat-project-root-preview-project"]
-        XCTAssertTrue(project.waitForExistence(timeout: 8), "The real transferable drop must run production Project creation and link both chats")
+        let appeared = project.waitForExistence(timeout: 8)
+        let receipt = app.staticTexts["sidebar-fixture-project-state"].label
+        if !appeared {
+            let metrics = XCTAttachment(string: String(describing: app.descendants(matching: .any)
+                .matching(identifier: "native-drag-diagnostics").firstMatch.value) + "\n" + app.debugDescription)
+            metrics.name = "Sidebar real drag lifecycle and geometry"; metrics.lifetime = .keepAlways; add(metrics)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Sidebar real drag failure viewport"; screenshot.lifetime = .keepAlways; add(screenshot)
+        }
+        XCTAssertTrue(appeared, "Linking recent chats must make their Project eligible before top-level organization removes those rows. Synthetic receipt: \(receipt)")
+        let creation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@",
+            "drop=1;accepted=1;creation=created"), object: app.staticTexts["sidebar-fixture-project-state"])
+        XCTAssertEqual(XCTWaiter.wait(for: [creation], timeout: 5), .completed,
+            "The whole-card drag must deliver exactly one accepted grouping operation")
         XCTAssertTrue(project.isHittable)
         XCTAssertEqual(app.staticTexts["sidebar-fixture-action-count"].label, "0", "The production drag gesture must not invoke the non-nil action callback")
         XCTAssertFalse(app.staticTexts["sidebar-fixture-action-chat"].exists, "Drag must leave the action overlay closed")
@@ -35,7 +69,15 @@ final class HistoryWelcomeComponentUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 5)); XCTAssertTrue(row.isHittable)
         row.press(forDuration: 1.1)
         let action = app.staticTexts["sidebar-fixture-action-chat"]
-        XCTAssertTrue(action.waitForExistence(timeout: 5), "A stationary hold must still open the custom action callback")
+        let opened = action.waitForExistence(timeout: 5)
+        if !opened {
+            let metrics = XCTAttachment(string: String(describing: app.descendants(matching: .any)
+                .matching(identifier: "native-drag-diagnostics").firstMatch.value) + "\n" + app.debugDescription)
+            metrics.name = "Sidebar stationary hold lifecycle"; metrics.lifetime = .keepAlways; add(metrics)
+            let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "Sidebar stationary hold failure viewport"
+            shot.lifetime = .keepAlways; add(shot)
+        }
+        XCTAssertTrue(opened, "A stationary hold must still open the custom action callback")
         XCTAssertEqual(action.label, "sidebar-pinned")
         XCTAssertEqual(app.staticTexts["sidebar-fixture-action-count"].label, "1")
         XCTAssertFalse(app.staticTexts["sidebar-fixture-selected-id"].exists, "The hold must not also select its Button")
@@ -230,8 +272,8 @@ final class HistoryWelcomeComponentUITests: XCTestCase {
         app.buttons["search-close-button"].tap()
         XCTAssertTrue(app.otherElements["chat-history-panel"].waitForExistence(timeout: 5))
         XCTAssertFalse(input.exists)
-        let intro = app.staticTexts["chat-sidebar-section-intro"]
-        XCTAssertTrue(intro.exists)
+        XCTAssertFalse(app.staticTexts["chat-sidebar-section-intro"].exists)
+        XCTAssertTrue(app.staticTexts["chat-sidebar-section-examples"].exists)
         app.buttons["chat-sidebar-show-hidden"].tap()
         XCTAssertTrue(app.staticTexts["sidebar-fixture-hidden-boundary"].waitForExistence(timeout: 5))
         app.buttons["sidebar-fixture-hidden-return"].tap()
@@ -290,9 +332,25 @@ final class HistoryWelcomeComponentUITests: XCTestCase {
             "identifier == 'chat-item-wrapper' AND value == %@", "user-chat:\(id)")).firstMatch
     }
 
+    // contract-test: supporting surface=gui.apple assertions=landing-onboarding.legacy-intros-retired,public-example-chats.catalog.discoverable
+    func testGuestSidebarKeepsClickableExamplesAfterRetiringIntroSeeds() {
+        let app = launchSidebar("guest")
+        XCTAssertFalse(app.staticTexts["chat-sidebar-section-intro"].exists)
+        XCTAssertFalse(app.staticTexts["Who develops OpenMates?"].exists)
+        XCTAssertTrue(app.staticTexts["chat-sidebar-section-examples"].exists)
+        let row = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND value == %@", "chat-item-wrapper", "public-chat")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.isHittable)
+        row.tap()
+        let selection = app.staticTexts["sidebar-fixture-selected-id"]
+        XCTAssertTrue(selection.waitForExistence(timeout: 5))
+        XCTAssertTrue(selection.label.hasPrefix("example-"), selection.label)
+    }
+
     private func launchSidebar(_ variant: String) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--dev-preview", "sidebar", "--dev-preview-variant", variant,
+        app.launchArguments = ["--dev-preview", "sidebar", "--ui-test-drag-diagnostics", "--dev-preview-variant", variant,
             "--dev-preview-width", "390", "--dev-preview-height", "844", "--ui-test-expose-chat-ids",
             "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()

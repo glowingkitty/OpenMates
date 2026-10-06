@@ -180,6 +180,7 @@ struct DevMessageSelectionFixture: View {
     let variant: String
     @StateObject private var model = DevMessageSelectionFixtureModel()
     @State private var selection: MessageTextSelectionSnapshot?
+    @State private var selectionTarget: MessageTextSelectionTarget?
     @State private var comment = ""
     @State private var commentID: String?
     @State private var route = ""
@@ -193,11 +194,34 @@ struct DevMessageSelectionFixture: View {
             InlineMarkdownText(content: "Svelte **runes** make state explicit. Select part of this sentence.", isUserMessage: false)
                 .environment(\.messageTextSelection, .init(messageID: "selection-fixture-message",
                     highlights: model.manager.anchors(chatID: "selection-fixture-chat", messageID: "selection-fixture-message"),
-                    onSelection: receive, onContextMenu: receive))
+                    onSelectTarget: { selectionTarget = $0 }, onSelection: receive, onContextMenu: receive))
                 .frame(maxWidth: .infinity, alignment: .leading)
             InlineMarkdownText(content: "Preserved `inline code` and [Citation](https://example.invalid/source).", isUserMessage: false)
                 .accessibilityIdentifier("selection-fixture-entities")
-            if let selection {
+            if showContext {
+                Text("Message actions").accessibilityIdentifier("selection-fixture-context")
+            }
+            if commentID != nil {
+                MessageHighlightCommentEditor(comment: $comment, onSave: {
+                    guard let id = commentID else { return }
+                    Task { try? await model.manager.updateComment(id: id, comment: comment); commentID = nil }
+                }, onCancel: { commentID = nil })
+            }
+            Text(model.selected).accessibilityIdentifier("selection-fixture-selected")
+            Text(model.receipt).accessibilityIdentifier("selection-fixture-transport")
+            Text(route).accessibilityIdentifier("selection-fixture-route")
+            Spacer()
+            Button("Underlying action") { route = "outside-action" }
+                .buttonStyle(.plain).accessibilityIdentifier("selection-fixture-underlying-action")
+            Spacer()
+        }.padding(.spacing5).frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay {
+                if let selection {
+                    MessageSelectionDismissBackdrop(selection: selection, onDismiss: dismissSelection)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if let selection {
                 MessageSelectionToolbar(canExplain: policy.canExplain, canHighlight: policy.canHighlight,
                     onCopy: {
                         #if os(iOS)
@@ -212,27 +236,19 @@ struct DevMessageSelectionFixture: View {
                     onHighlight: { save(selection, comment: false) }, onComment: { save(selection, comment: true) },
                     onExplain: { route = "Tell me more about: " + selection.explanationTerm })
             }
-            if showContext {
-                Text("Message actions").accessibilityIdentifier("selection-fixture-context")
             }
-            if commentID != nil {
-                MessageHighlightCommentEditor(comment: $comment, onSave: {
-                    guard let id = commentID else { return }
-                    Task { try? await model.manager.updateComment(id: id, comment: comment); commentID = nil }
-                }, onCancel: { commentID = nil })
-            }
-            Text(model.selected).accessibilityIdentifier("selection-fixture-selected")
-            Text(model.receipt).accessibilityIdentifier("selection-fixture-transport")
-            Text(route).accessibilityIdentifier("selection-fixture-route")
-            Spacer()
-        }.padding(.spacing5).frame(maxWidth: .infinity, maxHeight: .infinity)
             .task { await model.manager.configure(model.scope) }
     }
+    private func dismissSelection() {
+        selection = nil; showContext = false; model.selected = ""
+        selectionTarget?.dismiss(); selectionTarget = nil
+    }
     private func receive(_ value: MessageTextSelectionSnapshot?) {
-        guard let value else { return }
-        selection = value; model.selected = value.anchor.exact
+        selection = value
+        if let value { model.selected = value.anchor.exact }
     }
     private func save(_ value: MessageTextSelectionSnapshot, comment: Bool) {
+        selection = nil; selectionTarget?.dismiss(); selectionTarget = nil
         Task {
             if let id = try? await model.manager.add(chatID: "selection-fixture-chat", messageID: value.messageID, anchor: value.anchor), comment {
                 commentID = id

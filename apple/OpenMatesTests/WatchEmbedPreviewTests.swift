@@ -7,6 +7,211 @@ import CryptoKit
 @testable import OpenMates
 
 final class WatchEmbedPreviewTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testEveryRegisteredPreviewGlyphPolicyAcceptsCanonicalAndGenericWireIdentity() {
+        XCTAssertFalse(GeneratedWebEmbedPreviewIconPolicy.assets.isEmpty)
+        for (key, expected) in GeneratedWebEmbedPreviewIconPolicy.assets {
+            let canonical = EmbedRecord(id: "synthetic", type: key, status: .finished,
+                data: .raw([:]), parentEmbedId: nil, appId: nil, skillId: nil, embedIds: nil, createdAt: nil)
+            XCTAssertEqual(GeneratedWebEmbedPreviewIconPolicy.name(for: canonical), expected, key)
+            if !expected.isEmpty {
+                XCTAssertEqual(Icon(EmbedVisualSkillIcon.name(for: canonical)).name, expected, key)
+            }
+            let parts = key.split(separator: ":").map(String.init)
+            if parts.count == 3 && parts[0] == "app" {
+                for wire in ["app-skill-use", "app_skill_use"] {
+                    let generic = EmbedRecord(id: "synthetic", type: wire, status: .processing,
+                        data: .raw(["app_id": AnyCodable(parts[1]), "skill_id": AnyCodable(parts[2])]),
+                        parentEmbedId: nil, appId: nil, skillId: nil, embedIds: nil, createdAt: nil)
+                    XCTAssertEqual(GeneratedWebEmbedPreviewIconPolicy.name(for: generic), expected, key)
+                    let model = WatchEmbedPreviewMapper.makeModel(for: generic, chatId: nil)
+                    XCTAssertEqual(model.appId, parts[1], key)
+                    XCTAssertEqual(model.previewSymbolAssetName, expected, key)
+                    if !expected.isEmpty { XCTAssertEqual(model.previewSymbolIconName, expected, key) }
+                    let camelCase = EmbedRecord(id: "synthetic", type: wire, status: .processing,
+                        data: .raw(["appId": AnyCodable(parts[1]), "skillId": AnyCodable(parts[2])]),
+                        parentEmbedId: nil, appId: nil, skillId: nil, embedIds: nil, createdAt: nil)
+                    XCTAssertEqual(GeneratedWebEmbedPreviewIconPolicy.name(for: camelCase), expected, key)
+                    let camelModel = WatchEmbedPreviewMapper.makeModel(for: camelCase, chatId: nil)
+                    XCTAssertEqual(camelModel.appId, parts[1], key)
+                    XCTAssertEqual(camelModel.previewSymbolAssetName, expected, key)
+                    XCTAssertEqual(camelModel.previewSymbolIconName, model.previewSymbolIconName, key)
+                }
+            }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testWeatherAbsentGlyphDoesNotFallBackToPrimaryAppSymbol() {
+        for key in ["app:weather:forecast", "app:weather:rain_radar"] {
+            let embed = EmbedRecord(id: "synthetic-weather", type: key, status: .finished,
+                data: .raw(["location_name": AnyCodable("Synthetic city")]), parentEmbedId: nil,
+                appId: "weather", skillId: nil, embedIds: nil, createdAt: nil)
+            let model = WatchEmbedPreviewMapper.makeModel(for: embed, chatId: nil)
+            XCTAssertEqual(model.visual, .symbol)
+            XCTAssertEqual(model.previewSymbolAssetName, "")
+            XCTAssertNil(model.previewSymbolIconName)
+            XCTAssertFalse(model.hasPreviewVisual)
+            XCTAssertEqual(model.iconName, "weather")
+        }
+        let error = EmbedRecord(id: "synthetic-weather-error", type: "app:weather:forecast", status: .error,
+            data: .raw([:]), parentEmbedId: nil, appId: "weather", skillId: nil, embedIds: nil, createdAt: nil)
+        XCTAssertEqual(WatchEmbedPreviewMapper.makeModel(for: error, chatId: nil).previewSymbolIconName, "warning")
+        let processing = EmbedRecord(id: "synthetic-weather-processing", type: "app:weather:forecast", status: .processing,
+            data: .raw([:]), parentEmbedId: nil, appId: "weather", skillId: nil, embedIds: nil, createdAt: nil)
+        XCTAssertTrue(WatchEmbedPreviewMapper.makeModel(for: processing, chatId: nil).hasPreviewVisual)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testSearchSymbolKeepsAppBarAndSkillGlyphSeparate() {
+        for app in ["web", "news", "images", "videos", "maps"] {
+            let ref = WatchEmbedRef(id: "synthetic-search", type: "app-skill-use", status: "finished", data: [
+                "app_id": AnyCodable(app), "skill_id": AnyCodable("search"),
+                "query": AnyCodable("Synthetic query")])
+            let model = WatchEmbedPreviewMapper.makeModel(for: ref, chatId: "synthetic-chat")
+            XCTAssertEqual(model.family, .searchResults)
+            XCTAssertEqual(model.previewSymbolIconName, "search")
+            XCTAssertNotEqual(model.iconName, "search")
+        }
+        let hosting = WatchEmbedRef(id: "synthetic-hosting", type: "app-skill-use", status: "finished", data: [
+            "app_id": AnyCodable("hosting"), "skill_id": AnyCodable("search_domains"),
+            "query": AnyCodable("synthetic.example")])
+        XCTAssertEqual(WatchEmbedPreviewMapper.makeModel(for: hosting, chatId: nil).iconName, "server")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.embeds.read-only-fullscreen
+    func testProcessingRecordingRetainsLocalPlaybackWhenFinishedMetadataArrives() throws {
+        let processing = WatchEmbedRef(id: "local-recording", type: "audio-recording", status: "processing", data: nil)
+        let bytes = Data([1, 2, 3])
+        let message = WatchChatMessage(id: "synthetic", chatId: "synthetic-chat", role: .user,
+            content: "[!](embed:local-recording)", encryptedContent: nil, embedRefs: [processing], createdAt: "0", isPending: true)
+        let segments = WatchMessageRenderProjection.segments(message: message, localAudio: [processing.id: bytes])
+        guard let segment = segments.first, case .embeds(let models) = segment.content else { return XCTFail("Missing processing audio") }
+        let local = try XCTUnwrap(models.first)
+        XCTAssertEqual(local.state, .processing)
+        XCTAssertTrue(local.hasPlayableAudio)
+        XCTAssertTrue(local.canOpenReadOnlyPreview)
+        let finished = WatchEmbedRef(id: processing.id, type: processing.type, status: "finished", data: [
+            "filename": AnyCodable("watch.wav"), "duration": AnyCodable(65.0), "transcript": AnyCodable("Finished transcript")])
+        let updated = WatchEmbedPreviewMapper.refreshedModel(local, hydratedRefs: [finished.id: finished])
+        XCTAssertEqual(updated.state, .ready)
+        XCTAssertEqual(updated.detailContent.audioData, bytes)
+        XCTAssertEqual(updated.detailContent.text, "Finished transcript")
+        XCTAssertEqual(updated.subtitle, "1:05")
+        XCTAssertTrue(updated.canOpenReadOnlyPreview)
+        let unresolved = WatchEmbedPreviewMapper.makeModel(for: processing, chatId: message.chatId)
+        XCTAssertFalse(unresolved.hasPlayableAudio)
+        XCTAssertFalse(unresolved.canOpenReadOnlyPreview)
+        let other = WatchEmbedPreviewMapper.makeModel(for: WatchEmbedRef(id: "processing-code", type: "code-code", status: "processing", data: nil), chatId: message.chatId)
+        XCTAssertEqual(other.state, .processing)
+        XCTAssertFalse(other.canOpenReadOnlyPreview)
+        let sourceRef = WatchEmbedRef(id: "saved-processing", type: "audio-recording", status: "processing", data: [
+            "aes_key": AnyCodable(Data(repeating: 7, count: 32).base64EncodedString()),
+            "aes_nonce": AnyCodable(Data(repeating: 9, count: 12).base64EncodedString()),
+            "files": AnyCodable(["original": ["s3_key": "synthetic/audio"]])])
+        let sourceModel = WatchEmbedPreviewMapper.makeModel(for: sourceRef, chatId: message.chatId)
+        XCTAssertEqual(sourceModel.state, .processing)
+        XCTAssertTrue(sourceModel.canOpenReadOnlyPreview)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.embeds.read-only-fullscreen
+    func testRecordingProjectsNumericDurationCorrectedTranscriptAndTransientBytes() {
+        let ref = WatchEmbedRef(id: "audio-fixture", type: "audio-recording", status: "finished", data: [
+            "filename": AnyCodable("watch.wav"), "duration": AnyCodable(65.8),
+            "transcript_original": AnyCodable("original"), "transcript_corrected": AnyCodable("corrected"),
+            "use_corrected": AnyCodable(true)])
+        let message = WatchChatMessage(id: "synthetic", chatId: "synthetic-chat", role: .user,
+            content: "[!](embed:audio-fixture)", encryptedContent: nil, embedRefs: [ref],
+            createdAt: "2026-10-05T00:00:00Z", isPending: true)
+        let bytes = Data([1, 2, 3])
+        let segments = WatchMessageRenderProjection.segments(message: message, localAudio: [ref.id: bytes])
+        guard let segment = segments.first, case .embeds(let models) = segment.content, let model = models.first else { return XCTFail("Missing audio projection") }
+        XCTAssertEqual(model.subtitle, "1:05")
+        XCTAssertEqual(model.detailContent.text, "corrected")
+        XCTAssertEqual(model.detailContent.audioData, bytes)
+        XCTAssertNil(model.detailContent.audioSource)
+        XCTAssertFalse(model.continuation.universalLink?.contains("corrected") ?? true)
+        XCTAssertFalse(model.continuation.universalLink?.contains("aes_key") ?? true)
+        XCTAssertEqual(WatchEmbedPreviewMapper.refreshedModel(model, hydratedRefs: [ref.id: ref]).detailContent.audioData, bytes)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.embeds.read-only-fullscreen
+    func testRecordingMediaUsesAuthenticatedWebVariantNonceAndRejectsTampering() throws {
+        let key = Data(repeating: 7, count: 32), nonce = Data(repeating: 9, count: 12)
+        let clear = Data("synthetic WAV payload".utf8)
+        let sealed = try AES.GCM.seal(clear, using: SymmetricKey(data: key), nonce: AES.GCM.Nonce(data: nonce))
+        let raw: [String: AnyCodable] = ["aes_key": AnyCodable(key.base64EncodedString()),
+            "aes_nonce": AnyCodable(Data(repeating: 1, count: 12).base64EncodedString()),
+            "files": AnyCodable(["original": ["s3_key": "synthetic/audio", "size_bytes": 100,
+                "aes_nonce": nonce.base64EncodedString()]])]
+        let source = try XCTUnwrap(WatchAudioSource(raw: raw))
+        var ciphertext = sealed.ciphertext + sealed.tag
+        XCTAssertEqual(try source.decrypt(ciphertext), clear)
+        // CryptoKit exposes ciphertext as a slice of its combined buffer.
+        // Data indices need not start at zero, including after concatenation.
+        let shifted = (Data([0]) + ciphertext).dropFirst()
+        XCTAssertEqual(try source.decrypt(shifted), clear)
+        ciphertext[ciphertext.startIndex] ^= 1
+        XCTAssertThrowsError(try source.decrypt(ciphertext))
+        var prefixed = raw
+        prefixed["files"] = AnyCodable(["original": ["s3_key": "synthetic/audio", "encryption": "aes-gcm-nonce-prefixed-v1"]])
+        XCTAssertEqual(try XCTUnwrap(WatchAudioSource(raw: prefixed)).decrypt(try XCTUnwrap(sealed.combined)), clear)
+        var oversized = raw
+        oversized["files"] = AnyCodable(["original": ["s3_key": "synthetic/audio", "size_bytes": WatchAudioSource.maximumBytes + 1]])
+        XCTAssertNil(WatchAudioSource(raw: oversized))
+        var legacy = raw; legacy.removeValue(forKey: "aes_nonce")
+        legacy["files"] = AnyCodable(["original": ["s3_key": "synthetic/audio"]])
+        XCTAssertNil(WatchAudioSource(raw: legacy))
+        XCTAssertNil(WatchAudioSource(raw: [:]))
+        var team = raw; team["team_id"] = AnyCodable("synthetic-team")
+        XCTAssertNil(WatchAudioSource(raw: team))
+        let oversizedCiphertext = Data(repeating: 0, count: WatchAudioSource.maximumBytes + 1)
+        XCTAssertThrowsError(try source.decrypt(oversizedCiphertext))
+        var unknown = raw
+        unknown["files"] = AnyCodable(["original": ["s3_key": "synthetic/audio", "encryption": "unknown"]])
+        XCTAssertNil(WatchAudioSource(raw: unknown))
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.embeds.read-only-fullscreen
+    func testAudioPlaybackDiscardsHeldCompletionAfterChatScopeChanges() async throws {
+        let ref = WatchEmbedRef(id: "audio", type: "audio-recording", status: "finished", data: [
+            "aes_key": AnyCodable(Data(repeating: 7, count: 32).base64EncodedString()),
+            "aes_nonce": AnyCodable(Data(repeating: 9, count: 12).base64EncodedString()),
+            "files": AnyCodable(["original": ["s3_key": "synthetic/audio"]])])
+        let chat = WatchChatSummary(id: "current-chat", title: "Synthetic", lastMessageAt: nil, preview: nil,
+            isPinned: false, encryptedTitle: nil, encryptedPreview: nil, encryptedChatKey: nil)
+        let message = WatchChatMessage(id: "synthetic", chatId: chat.id, role: .user,
+            content: "[!](embed:audio)", encryptedContent: nil, embedRefs: [ref], createdAt: "0", isPending: true)
+        let started = expectation(description: "Synthetic fetch is held")
+        var held: CheckedContinuation<Data, Never>?
+        let runtime = WatchChatRuntime(uiTestSnapshot: WatchChatSnapshot(chats: [chat],
+            messagesByChatId: [chat.id: [message]], savedAt: .distantPast), selectedChatId: chat.id,
+            audioPlaybackFixtureLoader: { _ in
+                await withCheckedContinuation { continuation in held = continuation; started.fulfill() }
+            })
+        let model = WatchEmbedPreviewMapper.makeModel(for: ref, chatId: chat.id)
+        let pending = Task { try await runtime.audioPlaybackData(for: model) }
+        defer { held?.resume(returning: Data()); pending.cancel(); runtime.stopRealtimeSync() }
+        await fulfillment(of: [started], timeout: 2)
+        runtime.selectedChatId = "different-chat"
+        held?.resume(returning: Data([1, 2, 3])); held = nil
+        do { _ = try await pending.value; XCTFail("Stale plaintext audio escaped into the new chat") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        runtime.stopRealtimeSync()
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.embeds.read-only-fullscreen
+    func testAudioPlaybackRejectsDifferentChatScopeBeforeLoading() async {
+        let runtime = WatchChatRuntime(uiTestSnapshot: .empty, selectedChatId: "current-chat")
+        let model = WatchEmbedPreviewMapper.makeModel(for: WatchEmbedRef(id: "audio", type: "audio-recording", status: "finished", data: nil), chatId: "old-chat")
+        do { _ = try await runtime.audioPlaybackData(for: model); XCTFail("Cross-scope audio was accepted") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        runtime.stopRealtimeSync()
+        XCTAssertTrue(runtime.localAudioPreviews(for: "current-chat").isEmpty)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
     func testWatchPairLoginUIContractIdentifiersAreStable() {
         XCTAssertEqual(Set(WatchUIContract.pairLoginIdentifiers), [
@@ -610,5 +815,52 @@ extension WatchEmbedPreviewTests {
         XCTAssertEqual(valid.detailContent.latitude, 52.52)
         XCTAssertEqual(valid.detailContent.longitude, 13.405)
         XCTAssertEqual(valid.detailContent.imageURL?.host, "example.com")
+    }
+}
+
+
+extension WatchEmbedPreviewTests {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout,apple-watch.embeds.read-only-fullscreen
+    func testCodeEnvelopeProjectsFilenameExcerptAndFullReadOnlyBody() {
+        let body = "let device = \"Watch\"\nlet readable = true\nlet lastLine = 3"
+        let encoded = #"{"filename":"watch-preview.swift","language":"swift","code":"let device = \"Watch\"\nlet readable = true\nlet lastLine = 3"}"#
+        let model = WatchEmbedPreviewMapper.makeModel(for: WatchEmbedRef(id: "code-envelope",
+            type: EmbedType.codeCode.rawValue, status: "finished", data: ["content": AnyCodable(encoded)]), chatId: "fixture-chat")
+        XCTAssertEqual(model.family, .code)
+        XCTAssertEqual(model.state, .ready)
+        XCTAssertEqual(model.title, "watch-preview.swift")
+        XCTAssertEqual(model.detail, "3 lines")
+        XCTAssertEqual(model.visual, .code(body.components(separatedBy: .newlines)))
+        XCTAssertTrue(model.hasPreviewVisual)
+        XCTAssertEqual(model.detailContent.text, body)
+        XCTAssertTrue(model.detailContent.isCode)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout,apple-watch.embeds.read-only-fullscreen
+    func testOrdinaryJSONCodeBodyRemainsReadableSource() {
+        let body = #"{"answer":42}"#
+        let model = WatchEmbedPreviewMapper.makeModel(for: WatchEmbedRef(id: "json-code",
+            type: EmbedType.codeCode.rawValue, status: "finished",
+            data: ["language": AnyCodable("json"), "content": AnyCodable(body)]), chatId: "fixture-chat")
+        XCTAssertEqual(model.visual, .code([body]))
+        XCTAssertEqual(model.detailContent.text, body)
+        XCTAssertTrue(model.detailContent.isCode)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout,apple-watch.embeds.read-only-fullscreen
+    func testUnavailableCodeHasNoRepeatedVisualAndRefreshesAfterAuthorizedHydration() {
+        let unresolved = WatchEmbedPreviewMapper.makeModel(for: WatchEmbedRef(id: "late-code",
+            type: EmbedType.codeCode.rawValue, status: "finished", data: nil), chatId: "fixture-chat")
+        XCTAssertFalse(unresolved.hasPreviewVisual)
+        XCTAssertEqual(unresolved.state, .unavailable)
+        let ref = WatchEmbedRef(id: "late-code", type: EmbedType.codeCode.rawValue, status: "finished",
+                               data: ["filename": AnyCodable("late.swift"), "code": AnyCodable("let ready = true")])
+        let refreshed = WatchEmbedPreviewMapper.refreshedModel(unresolved, hydratedRefs: [ref.id: ref])
+        XCTAssertEqual(refreshed.state, .ready)
+        XCTAssertEqual(refreshed.title, "late.swift")
+        XCTAssertEqual(refreshed.detailContent.text, "let ready = true")
+        XCTAssertTrue(refreshed.hasPreviewVisual)
+        XCTAssertEqual(refreshed.continuation, unresolved.continuation)
+        XCTAssertEqual(WatchEmbedPreviewMapper.refreshedModel(unresolved, hydratedRefs: ["other": ref]), unresolved)
     }
 }

@@ -13,17 +13,20 @@ import Darwin
 enum LocalModelTestRequest: Sendable {
     case transcribe(URL)
     case detectPII(String)
+    case synthesize(LocalTTSSynthesisInput, destination: URL)
 }
 
 struct LocalModelTestOutput: Sendable {
     let text: String?
     let piiSpans: [PrivacyFilterModelSpan]
     let audioDurationSeconds: Double?
+    let audioURL: URL?
 
-    init(text: String? = nil, piiSpans: [PrivacyFilterModelSpan] = [], audioDurationSeconds: Double? = nil) {
+    init(text: String? = nil, piiSpans: [PrivacyFilterModelSpan] = [], audioDurationSeconds: Double? = nil, audioURL: URL? = nil) {
         self.text = text
         self.piiSpans = piiSpans
         self.audioDurationSeconds = audioDurationSeconds
+        self.audioURL = audioURL
     }
 }
 
@@ -41,13 +44,14 @@ extension LocalModelRuntime {
         switch request {
         case .transcribe: progress(.transcription)
         case .detectPII: progress(.inference)
+        case .synthesize: progress(.speechSynthesis)
         }
         return try await run(request, directory: directory)
     }
 }
 
 enum LocalModelRunPhase: Int, CaseIterable, Sendable {
-    case submission, tokenizerPreparation, modelLoading, transcription, inference, cleanup, completion
+    case submission, tokenizerPreparation, modelLoading, transcription, inference, speechSynthesis, audioEncoding, cleanup, completion
 }
 
 struct LocalModelPhaseTiming: Equatable, Sendable {

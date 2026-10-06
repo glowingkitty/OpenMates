@@ -137,19 +137,25 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
         proposedLineFragment: CGRect,
         position: CGPoint
     ) -> CGRect {
-        CGRect(
-            x: 0,
-            y: 0,
-            width: attachmentWidth(proposedLineFragment.width),
-            height: attachmentHeight
-        )
+        let node = (textAttachment as? ComposerTextAttachment)?.nodeSnapshot
+        return MainActor.assumeIsolated {
+            Self.measurementBounds(forNode: node, availableWidth: proposedLineFragment.width)
+        }
     }
 
-    private func attachmentWidth(_ available: CGFloat) -> CGFloat {
-        guard let node = (textAttachment as? ComposerTextAttachment)?.nodeSnapshot,
-              node.kind == "mention" else { return available }
+    @MainActor
+    static func measurementBounds(for attachment: NSTextAttachment?, availableWidth: CGFloat) -> CGRect {
+        measurementBounds(forNode: (attachment as? ComposerTextAttachment)?.nodeSnapshot,
+                          availableWidth: availableWidth)
+    }
+
+    @MainActor
+    private static func measurementBounds(forNode node: ComposerNodeV1?, availableWidth: CGFloat) -> CGRect {
+        let available = availableWidth
+        let height = node?.kind == "mention" ? Self.mentionHeight : Self.embedHeight
+        guard let node, node.kind == "mention" else { return CGRect(x: 0, y: 0, width: available, height: height) }
         let syntax = node.canonicalSyntax ?? ""
-        let label = MainActor.assumeIsolated { NativeMentionPresentation.parse(syntax)?.label ?? node.displayLabel ?? syntax }
+        let label = NativeMentionPresentation.parse(syntax)?.label ?? node.displayLabel ?? syntax
         #if canImport(UIKit)
         let font = UIFont(name: syntax.hasPrefix("@best-model:") ? "LexendDeca-SemiBold" : FontRegistration.mediumPostScriptName, size: 16)
             ?? UIFont.systemFont(ofSize: 16, weight: .medium)
@@ -157,14 +163,9 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
         let font = NSFont(name: syntax.hasPrefix("@best-model:") ? "LexendDeca-SemiBold" : FontRegistration.mediumPostScriptName, size: 16)
             ?? NSFont.systemFont(ofSize: 16, weight: .medium)
         #endif
-        return min(available, ceil((label as NSString).size(withAttributes: [.font: font]).width) + 2)
+        return CGRect(x: 0, y: 0, width: min(available, ceil((label as NSString).size(withAttributes: [.font: font]).width) + 2), height: height)
     }
 
-    private var attachmentHeight: CGFloat {
-        (textAttachment as? ComposerTextAttachment)?.nodeSnapshot?.kind == "mention"
-            ? Self.mentionHeight
-            : Self.embedHeight
-    }
 }
 #elseif canImport(AppKit)
 import AppKit
@@ -217,19 +218,25 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
         proposedLineFragment: CGRect,
         position: CGPoint
     ) -> CGRect {
-        CGRect(
-            x: 0,
-            y: 0,
-            width: attachmentWidth(proposedLineFragment.width),
-            height: attachmentHeight
-        )
+        let node = (textAttachment as? ComposerTextAttachment)?.nodeSnapshot
+        return MainActor.assumeIsolated {
+            Self.measurementBounds(forNode: node, availableWidth: proposedLineFragment.width)
+        }
     }
 
-    private func attachmentWidth(_ available: CGFloat) -> CGFloat {
-        guard let node = (textAttachment as? ComposerTextAttachment)?.nodeSnapshot,
-              node.kind == "mention" else { return available }
+    @MainActor
+    static func measurementBounds(for attachment: NSTextAttachment?, availableWidth: CGFloat) -> CGRect {
+        measurementBounds(forNode: (attachment as? ComposerTextAttachment)?.nodeSnapshot,
+                          availableWidth: availableWidth)
+    }
+
+    @MainActor
+    private static func measurementBounds(forNode node: ComposerNodeV1?, availableWidth: CGFloat) -> CGRect {
+        let available = availableWidth
+        let height = node?.kind == "mention" ? Self.mentionHeight : Self.embedHeight
+        guard let node, node.kind == "mention" else { return CGRect(x: 0, y: 0, width: available, height: height) }
         let syntax = node.canonicalSyntax ?? ""
-        let label = MainActor.assumeIsolated { NativeMentionPresentation.parse(syntax)?.label ?? node.displayLabel ?? syntax }
+        let label = NativeMentionPresentation.parse(syntax)?.label ?? node.displayLabel ?? syntax
         #if canImport(UIKit)
         let font = UIFont(name: syntax.hasPrefix("@best-model:") ? "LexendDeca-SemiBold" : FontRegistration.mediumPostScriptName, size: 16)
             ?? UIFont.systemFont(ofSize: 16, weight: .medium)
@@ -237,14 +244,9 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
         let font = NSFont(name: syntax.hasPrefix("@best-model:") ? "LexendDeca-SemiBold" : FontRegistration.mediumPostScriptName, size: 16)
             ?? NSFont.systemFont(ofSize: 16, weight: .medium)
         #endif
-        return min(available, ceil((label as NSString).size(withAttributes: [.font: font]).width) + 2)
+        return CGRect(x: 0, y: 0, width: min(available, ceil((label as NSString).size(withAttributes: [.font: font]).width) + 2), height: height)
     }
 
-    private var attachmentHeight: CGFloat {
-        (textAttachment as? ComposerTextAttachment)?.nodeSnapshot?.kind == "mention"
-            ? Self.mentionHeight
-            : Self.embedHeight
-    }
 }
 #endif
 

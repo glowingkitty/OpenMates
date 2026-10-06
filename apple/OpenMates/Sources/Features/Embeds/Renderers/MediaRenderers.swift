@@ -763,11 +763,11 @@ struct EncryptedImageView: View {
 
     #if os(iOS)
     private func platformImage(from data: Data) -> CGImage? {
-        UIImage(data: data)?.cgImage
+        NativeImageRaster.uprightImage(from: data)
     }
     #elseif os(macOS)
     private func platformImage(from data: Data) -> CGImage? {
-        NSImage(data: data)?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        NativeImageRaster.uprightImage(from: data)
     }
     #endif
 }
@@ -1041,11 +1041,11 @@ struct TappableEncryptedImageView: View {
 
     #if os(iOS)
     private func platformImage(from data: Data) -> CGImage? {
-        UIImage(data: data)?.cgImage
+        NativeImageRaster.uprightImage(from: data)
     }
     #elseif os(macOS)
     private func platformImage(from data: Data) -> CGImage? {
-        NSImage(data: data)?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        NativeImageRaster.uprightImage(from: data)
     }
     #endif
 }
@@ -1800,6 +1800,39 @@ private enum GeneratedMediaText {
     static var generatedMusic: String { LocalizationManager.shared.text("app_skills.music.generate") }
 }
 
+// RecordingEmbedPreview.svelte .play-icon/.pause-icon: 12×14 triangle,
+// optical spacing-1 offset, and two 3×14 bars separated by 3pt.
+private struct RecordingPlaybackGlyph: View {
+    let isPlaying: Bool
+
+    var body: some View {
+        Group {
+            if isPlaying {
+                HStack(spacing: 3) {
+                    RoundedRectangle(cornerRadius: 2).frame(width: 3, height: 14)
+                    RoundedRectangle(cornerRadius: 2).frame(width: 3, height: 14)
+                }
+            } else {
+                RecordingPlayTriangle()
+                    .frame(width: 12, height: 14)
+                    .offset(x: .spacing1)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private struct RecordingPlayTriangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            path.closeSubpath()
+        }
+    }
+}
+
 // MARK: - Recording (encrypted audio on S3)
 
 struct RecordingRenderer: View {
@@ -1891,6 +1924,7 @@ struct RecordingRenderer: View {
             .padding(.horizontal, .spacing8)
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("recording-preview")
 
             EmbedBasicInfoBar(
@@ -1902,6 +1936,7 @@ struct RecordingRenderer: View {
                 showSkillIcon: false,
                 trailingAction: hasPlayableMetadata ? AnyView(recordingPreviewPlayButton) : nil
             )
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("recording-preview-info-bar")
         }
     }
@@ -1915,7 +1950,7 @@ struct RecordingRenderer: View {
                     if isLoading {
                         ProgressView().tint(Color.grey0)
                     } else {
-                        Icon(isPlaying ? "pause" : "play", size: 16)
+                        RecordingPlaybackGlyph(isPlaying: isPlaying)
                             .foregroundStyle(Color.grey0)
                     }
                 }
@@ -1924,6 +1959,7 @@ struct RecordingRenderer: View {
         .disabled(isLoading || !hasPlayableMetadata)
         .accessibilityLabel(isPlaying ? AppStrings.pause : AppStrings.play)
         .accessibilityIdentifier("recording-playback-toggle")
+        .accessibilityValue(isPlaying ? "pause-bars" : "play-triangle")
     }
 
     private var waveformSamples: [Double]? {
@@ -2004,7 +2040,7 @@ struct RecordingRenderer: View {
                         if isLoading {
                             ProgressView().tint(Color.grey0)
                         } else {
-                            Icon(isPlaying ? "pause" : "play", size: compact ? 16 : 20)
+                            RecordingPlaybackGlyph(isPlaying: isPlaying)
                                 .foregroundStyle(Color.grey0)
                         }
                     }
@@ -2013,6 +2049,7 @@ struct RecordingRenderer: View {
             .disabled(isLoading || !hasPlayableMetadata)
             .accessibilityLabel(isPlaying ? AppStrings.pause : AppStrings.play)
             .accessibilityIdentifier(compact ? "recording-playback-toggle" : "recording-fullscreen-playback-toggle")
+            .accessibilityValue(isPlaying ? "pause-bars" : "play-triangle")
 
             VStack(alignment: .leading, spacing: .spacing3) {
                 RecordingSeekBar(

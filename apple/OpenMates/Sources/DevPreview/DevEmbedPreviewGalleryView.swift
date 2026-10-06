@@ -17,7 +17,11 @@
 
 #if DEBUG
 import CryptoKit
+import ImageIO
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct DevPreviewRootView: View {
     let configuration: DevPreviewLaunchConfiguration
@@ -119,8 +123,86 @@ struct DevPreviewRootView: View {
     }
 }
 
+
+#if os(iOS)
+/// DEBUG-only UIKit values read at accessibility-query time, without polling,
+/// changing interface orientation, or intercepting the preview's gestures.
+private struct DevComposerFooterOrientationProbe: UIViewRepresentable {
+    func makeUIView(context: Context) -> ProbeView { ProbeView() }
+    func updateUIView(_ uiView: ProbeView, context: Context) {}
+    static func dismantleUIView(_ uiView: ProbeView, coordinator: ()) {
+        uiView.stopMonitoringOrientation()
+    }
+
+    final class ProbeView: UIView {
+        private var monitorsOrientation = false
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            if window != nil, !monitorsOrientation {
+                UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+                monitorsOrientation = true
+            } else if window == nil {
+                stopMonitoringOrientation()
+            }
+        }
+
+        func stopMonitoringOrientation() {
+            guard monitorsOrientation else { return }
+            UIDevice.current.endGeneratingDeviceOrientationNotifications()
+            monitorsOrientation = false
+        }
+
+        init() {
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+            isAccessibilityElement = true
+            accessibilityIdentifier = "dev-composer-footer-orientation-probe"
+            accessibilityLabel = "Synthetic footer orientation"
+            backgroundColor = .clear
+        }
+
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+        override var accessibilityValue: String? {
+            get {
+                guard let window, let scene = window.windowScene else {
+                    return "device=\(UIDevice.current.orientation.rawValue);window=unattached"
+                }
+                let root = window.rootViewController
+                var topmost = root
+                while let presented = topmost?.presentedViewController { topmost = presented }
+                return [
+                    "device=\(UIDevice.current.orientation.rawValue)",
+                    "generating=\(UIDevice.current.isGeneratingDeviceOrientationNotifications)",
+                    "applicationMask=\(UIApplication.shared.supportedInterfaceOrientations(for: window).rawValue)",
+                    "topmost=\(topmost.map { String(describing: type(of: $0)) } ?? "none")",
+                    "topmostSupported=\(topmost?.supportedInterfaceOrientations.rawValue ?? 0)",
+                    "topmostAutorotate=\(topmost?.shouldAutorotate ?? false)",
+                    "sizeMinimum=\(String(describing: scene.sizeRestrictions?.minimumSize))",
+                    "sizeMaximum=\(String(describing: scene.sizeRestrictions?.maximumSize))",
+                    "interface=\(scene.interfaceOrientation.rawValue)",
+                    "activation=\(scene.activationState.rawValue)",
+                    "root=\(root.map { String(describing: type(of: $0)) } ?? "none")",
+                    "supported=\(root?.supportedInterfaceOrientations.rawValue ?? 0)",
+                    "autorotate=\(root?.shouldAutorotate ?? false)",
+                    "sceneBounds=\(String(describing: scene.coordinateSpace.bounds))",
+                    "windowBounds=\(String(describing: window.bounds))",
+                    "windowFrame=\(String(describing: window.frame))",
+                    "rootBounds=\(String(describing: root?.viewIfLoaded?.bounds ?? .zero))"
+                ].joined(separator: ";")
+            }
+            set {}
+        }
+    }
+}
+#endif
+
 struct DevNativeComposerEmbedGalleryView: View {
     private let registry = AppleComposerRendererRegistry.shared
+    @StateObject private var footerSession = NativeComposerSession()
+    @State private var footerSeeded = false
+    @State private var footerFocused = false
     private let actions = AppleComposerEmbedActions(
         onOpen: { _ in },
         onRetry: { _ in },
@@ -128,6 +210,22 @@ struct DevNativeComposerEmbedGalleryView: View {
     )
 
     var body: some View {
+        if let scenario = footerScenario {
+            MessageComposerView(session: footerSession, isFocused: $footerFocused, compact: false,
+                                placeholder: AppStrings.typeMessage, maxWidth: nil, onSubmit: {}) {
+                EmptyView()
+            }
+            .padding(.spacing8)
+            #if os(iOS)
+            .background(alignment: .topLeading) {
+                // Only the explicitly selected synthetic footer fixture mounts this
+                // noninteractive probe. Values contain geometry/orientation only.
+                DevComposerFooterOrientationProbe()
+                    .frame(width: 1, height: 1)
+            }
+            #endif
+            .onAppear { seedFooterFixture(scenario) }
+        } else {
         ScrollView {
             LazyVStack(spacing: .spacing10) {
                 Color.clear
@@ -153,6 +251,56 @@ struct DevNativeComposerEmbedGalleryView: View {
             .padding(.spacing12)
         }
         .background(Color.grey0)
+        }
+    }
+
+    private var footerScenario: String? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "--ui-test-composer-media-footer"),
+              arguments.indices.contains(index + 1) else { return nil }
+        return arguments[index + 1]
+    }
+
+    private func seedFooterFixture(_ scenario: String) {
+        guard !footerSeeded else { return }
+        footerSeeded = true
+        let image = scenario.hasPrefix("image-")
+        let embedType = image ? "image" : "recording"
+        let state: AppleComposerEmbedLifecycleState = scenario.hasSuffix("uploading") ? .uploading
+            : scenario.hasSuffix("transcribing") ? .transcribing : .finished
+        let id = "media-footer"
+        do {
+            try footerSession.insertPendingEmbed(nodeID: id, embedType: embedType,
+                title: image ? "synthetic-portrait-or-landscape-image.jpg" : AppStrings.audioRecording,
+                localPreviewData: image ? Self.footerImage(portrait: scenario.contains("portrait")) : nil)
+            if let record = fixtureRecord(embedType: embedType, state: state) {
+                try footerSession.resolveEmbed(nodeID: id, durableEmbedID: record.id,
+                    referenceType: embedType, status: state.rawValue, embedRecord: record)
+            } else {
+                try footerSession.updateEmbed(nodeID: id, status: state.rawValue)
+            }
+            try footerSession.configureEmbedActions(nodeID: id, onOpen: { _ in }, onRetry: { _ in }, onRemove: { _ in })
+        } catch {
+            // A failed fixture remains visibly empty and fails its UI assertions.
+        }
+    }
+
+    private static func footerImage(portrait: Bool) -> Data? {
+        let width = portrait ? 64 : 128, height = portrait ? 128 : 64
+        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
+            bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        // Public synthetic source pixels, independent of product theme colors.
+        context.setFillColor(CGColor(red: 0.1, green: 0.4, blue: 0.8, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        context.setFillColor(CGColor(red: 0.9, green: 0.7, blue: 0.1, alpha: 1))
+        context.fill(CGRect(x: width / 3, y: 0, width: width / 3, height: height))
+        let data = NSMutableData()
+        guard let image = context.makeImage(),
+              let destination = CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return data as Data
     }
 
     private var lifecycleShowcase: some View {
@@ -371,6 +519,8 @@ struct DevEmbedPreviewGalleryView: View {
     @State private var openedSkill: DevEmbedPreviewSkill?
     @State private var openedQuote: String?
     @State private var canonicalFullscreenOpen = true
+    @State private var runtimeProcessingCompleted = false
+    @State private var runtimeIconBounds: [String: CGRect] = [:]
 
     private var canonicalRequest: DevEmbedPreviewRequest? {
         DevEmbedPreviewRequest.parse(arguments: ProcessInfo.processInfo.arguments)
@@ -449,6 +599,22 @@ struct DevEmbedPreviewGalleryView: View {
         }
     }
 
+    private var usesRuntimeSkillIconFixture: Bool {
+        ProcessInfo.processInfo.arguments.contains("--dev-runtime-skill-icon-preview")
+    }
+
+    private func runtimeSkillIconRecord(_ source: EmbedRecord) -> EmbedRecord {
+        // Replay the real generic wire shape, retaining the selected fixture state
+        // and child graph. App/skill identity exists only in raw payload fields.
+        var raw = source.rawData ?? [:]
+        raw["app_id"] = AnyCodable("web")
+        raw["skill_id"] = AnyCodable("search")
+        raw["type"] = AnyCodable("app_skill_use")
+        return EmbedRecord(id: source.id, type: "app-skill-use", status: runtimeProcessingCompleted ? .finished : source.status,
+            data: .raw(raw), parentEmbedId: source.parentEmbedId, appId: nil,
+            skillId: nil, embedIds: source.embedIds, createdAt: source.createdAt)
+    }
+
     @ViewBuilder
     private func canonicalSurface(_ request: DevEmbedPreviewRequest) -> some View {
         if let skill = DevEmbedPreviewFixtures.fixture(for: request) {
@@ -459,10 +625,11 @@ struct DevEmbedPreviewGalleryView: View {
                         FocusModeRenderer(data: skill.primaryEmbed.rawData, mode: .preview)
                             .frame(maxWidth: 326)
                     } else {
-                        EmbedPreviewCard(embed: skill.primaryEmbed, allEmbedRecords: skill.allRecords, variant: .compact) {
+                        EmbedPreviewCard(embed: usesRuntimeSkillIconFixture ? runtimeSkillIconRecord(skill.primaryEmbed) : skill.primaryEmbed, allEmbedRecords: skill.allRecords, variant: .compact) {
                             open(skill)
                         }
                         .frame(width: 300, height: 200)
+                        .embedProcessingReducedMotionFixture(usesRuntimeSkillIconFixture && ProcessInfo.processInfo.arguments.contains("--dev-processing-reduced-motion"))
                     }
                 case .fullscreen:
                     if canonicalFullscreenOpen {
@@ -497,6 +664,28 @@ struct DevEmbedPreviewGalleryView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .coordinateSpace(name: "responsive-preview-fixture")
+            .onPreferenceChange(EmbedPreviewGeometryKey.self) { runtimeIconBounds = $0 }
+            .overlay(alignment: .bottomLeading) {
+                if usesRuntimeSkillIconFixture {
+                    VStack(alignment: .leading) {
+                        ForEach(runtimeIconBounds.keys.sorted(), id: \.self) { name in
+                            if let bounds = runtimeIconBounds[name] {
+                                Text(verbatim: "\(bounds.minX),\(bounds.minY),\(bounds.width),\(bounds.height)")
+                                    .font(.omXs)
+                                    .accessibilityIdentifier("runtime-embed-\(name)-bounds")
+                            }
+                        }
+                        if skill.primaryEmbed.status == .processing && !runtimeProcessingCompleted {
+                            Button("Finish fixture processing") { runtimeProcessingCompleted = true }
+                                .accessibilityIdentifier("runtime-finish-processing")
+                        }
+                        Text("app-skill-use|raw:web:search|\(runtimeProcessingCompleted ? "finished" : skill.primaryEmbed.status.rawValue)")
+                            .font(.omXs)
+                            .accessibilityIdentifier("runtime-embed-wire-contract")
+                    }
+                }
+            }
             .overlay(alignment: .topLeading) {
                 Color.clear
                     .frame(width: 1, height: 1)

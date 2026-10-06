@@ -10,6 +10,7 @@ struct DevWorkspaceSwitcherFixture: View {
     @State private var selected: WorkspaceDestination = .chat
     @State private var narrow = true
     @State private var action = "ready"
+    @State private var syncActive = false
 
     init(viewport: CGSize, reducedMotion: Bool, shortViewport: Bool = false, startsWide: Bool = false) {
         self.viewport = viewport
@@ -31,10 +32,20 @@ struct DevWorkspaceSwitcherFixture: View {
                 },
                 onNewChat: { action = "new-chat" }, showWorkspaceSwitcher: true,
                 onShareChat: {}, canShareChat: false, onOpenSettings: { action = "settings" },
-                onOpenReferral: { action = "referral" }, onOpenAuth: {})
+                onOpenReferral: { action = "referral" }, onOpenAuth: {}, isSyncing: syncActive)
                 .zIndex(2)
+            HStack {
+                Button { syncActive.toggle() } label: {
+                    Icon("lucide-repeat", size: 18).frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Toggle sync activity")
+                .accessibilityIdentifier("workspace-picker-fixture-toggle-sync")
+                Text(action).font(.omSmall).accessibilityIdentifier("workspace-picker-fixture-action")
+                Spacer()
+            }
+            .padding(.horizontal, .spacing8)
             Spacer()
-            Text(action).font(.omSmall).accessibilityIdentifier("workspace-picker-fixture-action")
             HStack {
                 Button("Resize workspace") { narrow.toggle() }.accessibilityIdentifier("workspace-picker-fixture-resize")
                 Button("Open Tasks externally") { selected = .tasks; action = "external-tasks" }

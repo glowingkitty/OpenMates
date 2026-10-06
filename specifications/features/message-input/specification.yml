@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 1
+version: 2
 status: draft
 title: Message Input
 summary: >
@@ -14,6 +14,7 @@ scope:
     - First-party chat composer behavior in the web ActiveChat and MessageInput surfaces.
     - Focus, blur, content, map-open, height, and anonymous-file pending state propagated from MessageInput to its parent shell.
     - Logged-out welcome composer behavior, including suppression of guest welcome cards/prompts while the composer or recording overlay is active.
+    - Focus and expansion suppression of surrounding Chat, Project, Task and Workflow creation/editor workspace content, with Cancel and outside-tap restoration.
     - Text, mention, paste, file, camera, sketch, map, audio-recording, draft-preview, and send handoff behavior owned by the composer.
     - Focus-mode, incognito, IdeaBucket, PII warning, anonymous terms, and credit/signup UI context rendered inside or next to the composer.
     - Responsive composer hierarchy, chat-container bounds, transcript clearance, and control reachability across compact and regular first-party GUI layouts.
@@ -167,6 +168,10 @@ assertions:
     type: behavior
     must: In the logged-out new-chat welcome surface, focusing the composer, pressing/holding record, or showing the recording overlay hides and disables the surrounding active-chat welcome UI, including Daily Inspiration, top buttons, welcome prompts, guest interest tags, example cards, and example links, while keeping the message input mounted and usable.
     depends_on: [models.WelcomeSuppressionState, models.RecordingState.overlay, examples.focus_visibility]
+  - id: message-input.focus.workspace-suppression
+    type: behavior
+    must: Focusing or expanding a new-chat, Project, Task or Workflow creation/editor composer fully fades out and disables surrounding workspace content while the composer remains usable. In an existing chat with history, focus or expansion dims the transcript while keeping it visually present and disabling background interaction. Cancel or an outside tap collapses expansion, dismisses keyboard focus and restores the default workspace layout without discarding text or attachment drafts. Whenever shown, the microphone remains in the bottom right action group in empty, focused and expanded composer states.
+    depends_on: [models.ComposerState, examples.focus_visibility]
   - id: message-input.actions.visibility
     type: behavior
     must: Expanded composer action controls remain hidden in the empty unfocused inline state, become visible for focus/content/fullscreen/embed/recording states, and stay mounted throughout record-button press and release so pointer/touch completion events cannot be lost.
@@ -197,7 +202,7 @@ assertions:
     depends_on: [models.ComposerContextPills, models.EmbedInputState.anonymous_signup_required, examples.privacy_context]
   - id: message-input.layout.responsive-parity
     type: parity
-    must: The rendered web composer is the visual source of truth across compact and regular widths; the input remains within the active-chat container, preserves text, embeds, focus, action buttons, recording, expansion, and stop controls through responsive transitions, avoids horizontal clipping, and reserves enough transcript clearance that the latest visible message is not covered. Apple preserves the same hierarchy, relative geometry, state, control reachability, and clearance at corresponding iPhone, iPad, and macOS sizes.
+    must: The rendered web composer is the visual source of truth across compact and regular widths; the input remains within the active-chat container, preserves text, embeds, focus, action buttons, recording, expansion, and stop controls through responsive transitions, avoids horizontal clipping, and reserves enough transcript clearance that the latest visible message is not covered. Apple preserves the same hierarchy, relative geometry, state, control reachability, and clearance at corresponding iPhone, iPad, and macOS sizes. In Apple Chat, Project, Task and Workflow composers, Expand appears only when the actual content exceeds the maximum inline height visible without scrolling; empty, short and fully visible boundary content has no Expand control. Fullscreen keeps Collapse reachable, and reducing or clearing inline content removes Expand without discarding focus or drafts.
     depends_on: [models.ResponsiveComposerLayout, models.ComposerState, models.ActionControlState, examples.responsive_layout, applies_to.gui]
 
 applies_to:

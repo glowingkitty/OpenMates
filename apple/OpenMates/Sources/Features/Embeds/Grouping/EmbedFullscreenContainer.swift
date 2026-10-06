@@ -478,13 +478,20 @@ struct EmbedFullscreenContainer: View {
             topContentInset: topInset,
             viewportWidth: viewportWidth,
             responsiveViewportWidth: responsiveViewportWidth,
-            presentation: headerPresentation,
+            presentation: headerPresentation ?? travelHeaderPresentation(for: embed),
             contentUnderlapsCTA: healthMapHeaderUnderlap(for: embed) > 0,
             mailPIIMappings: currentPIIMappings,
             mailPIIRevealed: isPIIRevealed
         )
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("embed-fullscreen-coordinate")) } action: { headerFrame = $0 }
         .zIndex(2)
+    }
+
+    /// Travel parents need the same hydrated child graph as their results renderer.
+    private func travelHeaderPresentation(for embed: EmbedRecord) -> EmbedFullscreenHeaderPresentation? {
+        guard TravelSearchPresentation.isSearch(embed) else { return nil }
+        let model = TravelSearchPresentation(embed: embed, allEmbedRecords: allEmbedRecords)
+        return .init(title: model.fullscreenTitle, subtitle: model.fullscreenSubtitle, icon: "search")
     }
 
     private var hostingViewBinding: Binding<HostingDomainView> {
@@ -1449,8 +1456,11 @@ struct EmbedFullscreenHeader: View {
     }
     private var embedType: EmbedType? { EmbedType.normalized(rawValue: embed.type) }
     private var appId: String {
+        if embedType == .focusModeActivation {
+            return FocusModeRenderer.iconAppID(data: embed.rawData, appID: embed.appId, fullscreen: true)
+        }
         if embedType == .fileFile { return "files" }
-        return embed.appId ?? embedType?.appId ?? "web"
+        return embed.appId ?? embed.rawData?["app_id"]?.value as? String ?? embedType?.appId ?? "web"
     }
     private var headerHeight: CGFloat {
         EmbedFullscreenHeaderLayout.height(
@@ -1468,6 +1478,13 @@ struct EmbedFullscreenHeader: View {
     private var ctaOffsetY: CGFloat {
         headerHeight - 22
     }
+    var centerIconSize: CGFloat {
+        // MindMapEmbedFullscreen passes an empty skill glyph and a workflow app
+        // mask: EmbedHeader paints that app SVG at 20px inside the icon wrapper.
+        if presentation == nil && embed.type == "mindmaps-mindmap" { return 20 }
+        return isNarrow ? 32 : 38
+    }
+
     var skillIconName: String {
         if let presentation { return presentation.icon }
         return EmbedVisualSkillIcon.name(for: embed, fullscreen: true)
@@ -1513,7 +1530,8 @@ struct EmbedFullscreenHeader: View {
                 if let eyebrow = presentation?.eyebrow, !eyebrow.isEmpty {
                     Text(eyebrow).font(.omSmall).foregroundStyle(Color.fontButton.opacity(0.85))
                 }
-                Icon(skillIconName, size: isNarrow ? 32 : 38)
+                Icon(skillIconName, size: centerIconSize)
+                    .frame(width: isNarrow ? 32 : 38, height: isNarrow ? 32 : 38)
                     .foregroundStyle(.white)
 
                 Text(headerTitle)
@@ -1711,9 +1729,7 @@ struct EmbedFullscreenHeader: View {
         if let connection = travelConnection {
             return connection.priceHeader ?? EmbedType.travelConnection.displayName
         }
-        if embedType == .travelConnections, let first = travelSearchConnections.first {
-            return [first.routeFull, first.departureDateText].compactMap { $0 }.joined(separator: " · ")
-        }
+        if let travelSearch { return travelSearch.fullscreenTitle }
         guard let data = embed.data, case .raw(let dict) = data else {
             return embedType?.displayName ?? embed.type
         }
@@ -1861,15 +1877,7 @@ struct EmbedFullscreenHeader: View {
         if let connection = travelConnection {
             return [connection.routeFull, connection.metaLine].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n")
         }
-        if embedType == .travelConnections {
-            let count = travelSearchConnections.count
-            let minPrice = travelSearchConnections.compactMap(\.priceNumber).min()
-            let currency = travelSearchConnections.first?.currency ?? "EUR"
-            var parts: [String] = []
-            if count > 0 { parts.append("\(count) \(count == 1 ? "connection" : "connections")") }
-            if let minPrice { parts.append("from \(currency) \(String(format: "%.0f", minPrice))") }
-            return parts.joined(separator: " · ")
-        }
+        if let travelSearch { return travelSearch.fullscreenSubtitle }
         guard let data = embed.data, case .raw(let dict) = data else { return nil }
         if embedType == .eventsEvent {
             let event = EventResultSummary(embedId: embed.id, data: dict)
@@ -1897,9 +1905,9 @@ struct EmbedFullscreenHeader: View {
         return TravelConnectionSummary(embedId: embed.id, data: data)
     }
 
-    private var travelSearchConnections: [TravelConnectionSummary] {
-        guard embedType == .travelConnections else { return [] }
-        return TravelConnectionSummary.list(from: embed.rawData)
+    private var travelSearch: TravelSearchPresentation? {
+        guard TravelSearchPresentation.isSearch(embed) else { return nil }
+        return TravelSearchPresentation(embed: embed)
     }
 }
 

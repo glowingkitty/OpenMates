@@ -33,6 +33,7 @@ export const csr = true;
 export const entries: EntryGenerator = () => {
 	return [
 		{ slug: 'for-everyone' },
-		{ slug: 'for-developers' }
+		{ slug: 'for-developers' },
+		{ slug: 'who-develops-openmates' }
 	];
 };

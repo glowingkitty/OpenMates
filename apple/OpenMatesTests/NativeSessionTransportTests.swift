@@ -32,6 +32,101 @@ import XCTest
         cookieStorage = nil
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,storage.privacy.ciphertext-boundary
+    func testEmbedReferenceAvailabilityBoundsAndExactMetadataBijection() throws {
+        let ids = (0..<45).map { "fixture-\($0)" }
+        let batches = try APIClient.embedReferenceAvailabilityBatches(ids)
+        XCTAssertEqual(batches.map(\.count), [20, 20, 5])
+        XCTAssertEqual(batches.flatMap { $0 }, ids)
+        let longIDs = (0..<20).map { "\($0)-" + String(repeating: "x", count: 480) }
+        let byteBatches = try APIClient.embedReferenceAvailabilityBatches(longIDs)
+        XCTAssertGreaterThan(byteBatches.count, 1)
+        for batch in byteBatches { XCTAssertLessThanOrEqual(try APIClient.embedReferenceAvailabilityBody(batch).count, 4096) }
+        let unicodeIDs = (0..<20).map { "\($0)-" + String(repeating: "é", count: 200) }
+        for batch in try APIClient.embedReferenceAvailabilityBatches(unicodeIDs) {
+            let body = try APIClient.embedReferenceAvailabilityBody(batch)
+            XCTAssertTrue(body.allSatisfy { $0 < 128 })
+            XCTAssertLessThanOrEqual(body.count, 4096)
+            let decoded = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: [String]])
+            XCTAssertEqual(decoded["embed_ids"], batch)
+        }
+        XCTAssertThrowsError(try APIClient.embedReferenceAvailabilityBatches(["same", "same"]))
+        XCTAssertThrowsError(try APIClient.embedReferenceAvailabilityBatches([String(repeating: "x", count: 513)]))
+        let valid = Data(#"{"results":[{"embed_id":"b","state":"unusable"},{"embed_id":"a","state":"ready"}]}"#.utf8)
+        XCTAssertEqual(try APIClient.decodeEmbedReferenceAvailability(valid, requestedIDs: ["a", "b"]),
+            ["a": .ready, "b": .unusable])
+        for invalid in [
+            #"{"results":[]}"#,
+            #"{"results":[{"embed_id":"a","state":"ready"},{"embed_id":"a","state":"ready"}]}"#,
+            #"{"results":[{"embed_id":"a","state":"ready"},{"embed_id":"other","state":"ready"}]}"#,
+            #"{"results":[{"embed_id":"a","state":"unknown"},{"embed_id":"b","state":"missing"}]}"#,
+            #"{"results":[{"embed_id":"a","state":"ready","encrypted_content":"forbidden"},{"embed_id":"b","state":"missing"}]}"#
+        ] { XCTAssertThrowsError(try APIClient.decodeEmbedReferenceAvailability(Data(invalid.utf8), requestedIDs: ["a", "b"])) }
+        XCTAssertThrowsError(try APIClient.decodeEmbedReferenceAvailability(Data(repeating: 32, count: 8193), requestedIDs: ["a"]))
+        let teamPath = try APIClient.embedReferenceAvailabilityPath(chatID: "fixture-chat", teamID: "team+a&b")
+        let teamURL = try XCTUnwrap(URLComponents(string: "https://example.invalid" + teamPath))
+        XCTAssertEqual(teamURL.path, "/v1/embeds/chats/fixture-chat/references/availability")
+        XCTAssertEqual(teamURL.queryItems, [URLQueryItem(name: "team_id", value: "team+a&b")])
+        XCTAssertThrowsError(try APIClient.embedReferenceAvailabilityPath(chatID: "fixture/other", teamID: nil))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,auth.session.isolation
+    func testEmbedReferenceAvailabilityUsesPinnedPersonalRequestAndRejectsDelayedAccountChange() async throws {
+        try authenticate()
+        let scope = OfflineStore.shared.scopeGeneration
+        let team = TeamWorkspaceContext.shared.snapshot
+        let origin = profile.webBaseURL.absoluteString
+        NativeSessionURLProtocol.setHandler { request in
+            XCTAssertEqual(request.url?.path, "/v1/embeds/chats/fixture-chat/references/availability")
+            XCTAssertEqual(request.httpMethod, "POST")
+            XCTAssertFalse(request.httpShouldHandleCookies)
+            return .init(status: 200, body: Data(#"{"results":[{"embed_id":"fixture-embed","state":"ready"}]}"#.utf8))
+        }
+        let ready = try await api.embedReferenceAvailability(chatID: "fixture-chat", embedIDs: ["fixture-embed"],
+            serverProfile: profile, expectedAccountID: "account-A", expectedScope: scope,
+            expectedTeamContext: APIRequestTeamContext(epoch: team.epoch, teamID: team.teamID))
+        XCTAssertEqual(ready, ["fixture-embed": .ready])
+        let gate = NativeSessionResponseGate()
+        NativeSessionURLProtocol.setHandler { request in
+            XCTAssertEqual(request.url?.path, "/v1/embeds/chats/fixture-chat/references/availability")
+            XCTAssertEqual(request.httpMethod, "POST")
+            XCTAssertFalse(request.httpShouldHandleCookies)
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Origin"), origin)
+            return .init(status: 200, body: Data(#"{"results":[{"embed_id":"fixture-embed","state":"ready"}]}"#.utf8), gate: gate)
+        }
+        let operation = Task {
+            try await api.embedReferenceAvailability(chatID: "fixture-chat", embedIDs: ["fixture-embed"],
+                serverProfile: profile, expectedAccountID: "account-A", expectedScope: scope,
+                expectedTeamContext: APIRequestTeamContext(epoch: team.epoch, teamID: team.teamID))
+        }
+        await gate.waitUntilHeld()
+        auth?.currentUser = nil
+        auth?.state = .unauthenticated
+        gate.release()
+        do { _ = try await operation.value; XCTFail("An old account receipt must be rejected") }
+        catch { XCTAssertTrue(error is CancellationError) }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.audio-reply,apple-watch.pairing.private-session
+    func testWatchAudioTranscriptionUsesVersionedServiceWithVerifiedCookieAndOrigin() async throws {
+        let context = WatchChatRequestContext(accountID: "account-A", profile: profile,
+            accountGeneration: WatchChatAccountLifecycle.generation, deadline: { _ in 100 }, now: { 1 })
+        let origin = profile.webBaseURL.absoluteString
+        NativeSessionURLProtocol.setHandler { request in
+            XCTAssertEqual(request.url?.path, "/v1/apps/audio/skills/transcribe")
+            XCTAssertEqual(request.httpMethod, "POST")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Origin"), origin)
+            XCTAssertFalse(request.httpShouldHandleCookies)
+            XCTAssertTrue(request.value(forHTTPHeaderField: "Cookie")?.contains("retained-refresh") == true)
+            return .init(status: 200, body: Data(#"{"data":{"results":[{"results":[]}]}}"#.utf8), cookie: nil)
+        }
+        let upload = WatchUploadedAudio(embedId: "fixture-audio", filename: "fixture.m4a", contentType: "audio/mp4",
+            contentHash: nil, files: ["original": .init(s3Key: "fixture-original", sizeBytes: 3, width: nil, height: nil, format: "m4a")],
+            s3BaseUrl: "https://files.example.invalid", aesKey: "fixture-key", aesNonce: "fixture-nonce", vaultWrappedAesKey: "fixture-wrapped")
+        let result = try await api.transcribeAudioRecording(upload, chatId: "fixture-chat", context: context)
+        XCTAssertNil(result)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.isolation
     func testSessionRequestRetainsRefreshCookieAndPublishesRotationForNextRequest() async throws {
         let body = response(account: "account-A", token: "rotated-socket-token")

@@ -80,6 +80,84 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertFalse(transport.isClosed)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testBackgroundPingRepeatedSuccessAndLateErrorCompleteOnce() async throws {
+        try await BackgroundWebSocketPing.wait { callback in
+            callback(nil)
+            callback(nil)
+            callback(NSError(domain: "SyntheticPing", code: 57))
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testBackgroundPingFirstErrorSurvivesLaterSuccessAndRepeatedError() async {
+        do {
+            try await BackgroundWebSocketPing.wait { callback in
+                callback(NSError(domain: "SyntheticPing", code: 57))
+                callback(nil)
+                callback(NSError(domain: "SyntheticPing", code: 999))
+            }
+            XCTFail("The first failure must remain the result")
+        } catch {
+            XCTAssertEqual((error as NSError).domain, "SyntheticPing")
+            XCTAssertEqual((error as NSError).code, 57)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testBackgroundPingConcurrentCallbacksConsumeContinuationOnce() async throws {
+        try await BackgroundWebSocketPing.wait { callback in
+            DispatchQueue.concurrentPerform(iterations: 32) { _ in callback(nil) }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testBackgroundPingCancellationCompletesWithoutCallbackAndIgnoresLateResults() async {
+        let probe = BackgroundPingProbe()
+        let started = expectation(description: "Production ping callback registered")
+        let operation = Task {
+            try await BackgroundWebSocketPing.wait { callback in
+                probe.start(callback)
+                started.fulfill()
+            }
+        }
+        await fulfillment(of: [started], timeout: 2)
+        operation.cancel()
+        do { try await operation.value; XCTFail("Cancellation must complete the suspended ping") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        probe.finish(nil)
+        probe.finish(NSError(domain: "SyntheticPing", code: 57))
+        probe.finish(NSError(domain: "SyntheticPing", code: 57))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testBackgroundPingDeadlineIgnoresRepeatedCancellationAndLateSuccess() async throws {
+        let probe = BackgroundPingProbe()
+        let result: Bool? = try await BackgroundChatDeadline.run(before: Date().addingTimeInterval(0.05), operation: {
+            try await BackgroundWebSocketPing.wait { probe.start($0) }
+            return true
+        }, cancel: {
+            probe.finish(CancellationError())
+            probe.finish(NSError(domain: "SyntheticPing", code: 57))
+        })
+        XCTAssertNil(result)
+        XCTAssertEqual(probe.starts, 1)
+        probe.finish(nil)
+        probe.finish(NSError(domain: "SyntheticPing", code: 57))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testBackgroundPingAlreadyCancelledDoesNotStartTransport() async {
+        let probe = BackgroundPingProbe()
+        let operation = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            try await BackgroundWebSocketPing.wait { probe.start($0) }
+        }
+        do { try await operation.value; XCTFail("Already cancelled ping must fail") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        XCTAssertEqual(probe.starts, 0)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.access.first-party-authenticated,sync.surface.semantic-parity
     func testBackgroundSocketIdentityCannotReplaceForegroundOrAnotherExtensionSocket() throws {
         let nativeSessionId = "logical-native-session"
@@ -651,6 +729,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         let appVersion: String
     }
 
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testBackgroundHTTPEncoderUsesBackendSnakeCaseContract() throws {
         let probe = SessionProbe(
             sessionId: "session-1",
@@ -667,6 +746,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertNil(deviceInfo["deviceModel"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
     func testEncryptedStoragePayloadContainsOnlyEncryptedDurableContentAndVersions() throws {
         let payload = BackgroundChatStoragePayload(
             chatId: "chat-1",
@@ -706,6 +786,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertEqual(versions["last_edited_overall_timestamp"], 1_780_000_000)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testBackgroundSendsRedactPII() throws {
         let openAIKey = "sk-proj-abcdefghijklmnopqrstuvwxyz1234567890"
         let result = try BackgroundChatSendContract.redactedContentForSend(
@@ -724,6 +805,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertTrue(result.piiMappings.contains { $0.original == openAIKey && $0.type == "OPENAI_KEY" })
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
     func testQueuedBackgroundEventTriggersEncryptedStoragePackage() {
         XCTAssertTrue(
             BackgroundChatStorageContract.shouldSendEncryptedStoragePackage(afterInboundEventType: "message_queued")
@@ -736,6 +818,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.message.identity-idempotent
     func testNewAuthenticatedBackgroundChatIdIsLowercaseUUID() {
         let chatId = BackgroundChatID.makeAuthenticatedChatId()
 
@@ -743,6 +826,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertNotNil(UUID(uuidString: chatId))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
     func testExistingBackgroundChatRequiresWrappedChatKey() throws {
         XCTAssertThrowsError(
             try BackgroundChatSendContract.chatKeyIntent(
@@ -771,6 +855,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.message.identity-idempotent
     func testQueuedStorageAcceptsBackendActiveTaskId() {
         let taskId = BackgroundChatStorageContract.storageTaskId(
             taskId: nil,
@@ -781,6 +866,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertEqual(taskId, "active-task-1")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
     func testNewChatMetadataRequiresTitleAndCategoryBeforeStorage() {
         XCTAssertTrue(BackgroundChatStorageContract.hasCompleteNewChatMetadata(
             title: "Trip plan",
@@ -800,6 +886,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         ))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testBackgroundAttachmentClassificationMatchesComposerSupportedTypes() {
         XCTAssertEqual(BackgroundAttachmentClassifier.classification(filename: "photo.png", contentType: "image/png")?.embedType, "images-image")
         XCTAssertEqual(BackgroundAttachmentClassifier.classification(filename: "brief.pdf", contentType: "application/pdf")?.embedType, "pdf")
@@ -808,6 +895,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertNil(BackgroundAttachmentClassifier.classification(filename: "archive.zip", contentType: "application/zip"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testBackgroundAudioEmbedPreservesFullTranscriptMetadata() throws {
         let upload = BackgroundUploadFileResponse.testFixture(
             embedId: "audio-embed-1",
@@ -837,6 +925,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertTrue(embed.markdownReference.contains("audio-embed-1"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,message-input.drafts.preview-persistence
     func testBackgroundSendContentAllowsEmbedOnlyMessages() throws {
         let upload = BackgroundUploadFileResponse.testFixture(
             embedId: "image-embed-1",
@@ -853,6 +942,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertThrowsError(try BackgroundChatSendContract.contentForSend(text: "", embeds: []))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testBackgroundPdfEmbedUsesProcessingUntilOcrDedupCompletes() throws {
         let processingUpload = BackgroundUploadFileResponse.testFixture(
             embedId: "pdf-embed-1",
@@ -1016,4 +1106,23 @@ private actor ShareAttachmentUploadProbe {
     }
 
     var state: (count: Int, ids: [String], chatIds: [String]) { (ids.count, ids, chatIds) }
+}
+
+private final class BackgroundPingProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private var callback: (@Sendable (Error?) -> Void)?
+    private var startCount = 0
+    var starts: Int { lock.withLock { startCount } }
+
+    func start(_ callback: @escaping @Sendable (Error?) -> Void) {
+        lock.withLock {
+            self.callback = callback
+            startCount += 1
+        }
+    }
+
+    func finish(_ error: Error?) {
+        let callback = lock.withLock { self.callback }
+        callback?(error)
+    }
 }

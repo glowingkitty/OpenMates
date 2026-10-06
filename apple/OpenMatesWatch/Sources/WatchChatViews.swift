@@ -165,11 +165,13 @@ struct WatchChatShellView: View {
     }
 
 #if DEBUG
-    init(uiTestSnapshot: WatchChatSnapshot, selectedChatId: String?, initialDraft: String? = nil, remoteDraftFixture: Bool = false, initialSearchText: String? = nil, showsRecordingFixture: Bool = false, currentUsername: String? = nil, onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil, fixtureNotificationChatID: String? = nil) {
-        _runtime = StateObject(wrappedValue: WatchChatRuntime(
+    init(uiTestSnapshot: WatchChatSnapshot, selectedChatId: String?, initialDraft: String? = nil, remoteDraftFixture: Bool = false, initialSearchText: String? = nil, showsRecordingFixture: Bool = false, currentUsername: String? = nil, onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil, fixtureNotificationChatID: String? = nil, audioFixtureData: Data? = nil) {
+        let fixtureRuntime = WatchChatRuntime(
             uiTestSnapshot: uiTestSnapshot,
             selectedChatId: selectedChatId, initialDraft: initialDraft
-        ))
+        )
+        if let audioFixtureData { fixtureRuntime.seedAudioPlaybackFixture(audioFixtureData, embedID: "watch-mobile-preview") }
+        _runtime = StateObject(wrappedValue: fixtureRuntime)
         startsNetworkTasks = false
         seedsRemoteDraftFixture = remoteDraftFixture
         self.onOpenHub = onOpenHub
@@ -268,8 +270,9 @@ private struct WatchChatListView: View {
 
     private var visibleChats: [WatchChatSummary] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return runtime.chats }
-        return runtime.chats.filter {
+        let visible = runtime.chats.filter { !RetiredIntroChatPolicy.excludes($0.id) }
+        guard !query.isEmpty else { return visible }
+        return visible.filter {
             ($0.title ?? "").localizedCaseInsensitiveContains(query)
                 || ($0.preview ?? "").localizedCaseInsensitiveContains(query)
         }
@@ -457,7 +460,7 @@ private struct WatchChatThreadView: View {
             if let sharingChat {
                 WatchChatShareView(chat: sharingChat, context: shareContext, dependencies: shareDependencies, onClose: { self.sharingChat = nil })
             } else if let continuationEmbed {
-                WatchEmbedFullscreenView(model: continuationEmbed, onOpenDevice: { model in
+                WatchEmbedFullscreenView(model: continuationEmbed, loadAudio: { try await runtime.audioPlaybackData(for: $0) }, onOpenDevice: { model in
                     sendEmbedOpenNotification(model)
                     closeEmbedFullscreen()
                 }, onClose: closeEmbedFullscreen)
@@ -489,6 +492,11 @@ private struct WatchChatThreadView: View {
         .onChange(of: runtime.composerDrafts) { _, drafts in
             if let chatId = runtime.selectedChatId, let restored = drafts[chatId], restored != draft {
                 draft = restored
+            }
+        }
+        .onChange(of: runtime.hydratedEmbedPreviews) { _, refs in
+            if let opened = continuationEmbed {
+                continuationEmbed = WatchEmbedPreviewMapper.refreshedModel(opened, hydratedRefs: refs)
             }
         }
         .onChange(of: runtime.selectedMessages) { _, _ in
@@ -573,9 +581,16 @@ private struct WatchChatThreadView: View {
                         ForEach(runtime.selectedMessages) { message in
                             WatchMessageBubble(message: runtime.messageWithHydratedEmbeds(message),
                                                hydratedChildren: runtime.hydratedChildRecords(for: message),
+                                               localAudio: runtime.localAudioPreviews(for: message.chatId),
+                                               loadAudio: { try await runtime.audioPlaybackData(for: $0) },
                                                onShowZoom: { showsMessageZoomControls = true }) { model in
                                 fullscreenReturnMessageID = transcriptScrollID ?? message.id
-                                continuationEmbed = model
+                                continuationEmbed = WatchEmbedPreviewMapper.refreshedModel(
+                                    model, hydratedRefs: runtime.hydratedEmbedPreviews)
+                                // An unavailable card remains actionable. Retry the existing
+                                // authorized request path, then update the exclusive detail
+                                // screen from the published hydration rather than a stale copy.
+                                Task { await runtime.requestSelectedEmbedPreviews() }
                             }
                             .background {
                                 GeometryReader { row in
@@ -948,42 +963,20 @@ private struct WatchChatRow: View {
     let chat: WatchChatSummary
 
     var body: some View {
-        HStack(alignment: .top, spacing: .spacing2) {
+        HStack(alignment: .center, spacing: .spacing2) {
             Icon(WatchChatIdentityPresentation.icon(for: chat), size: 16)
                 .foregroundStyle(Color.white)
                 .frame(width: 28, height: 28)
                 .background(WatchChatIdentityPresentation.gradient(for: chat.category), in: Circle())
-                .accessibilityLabel(WatchChatIdentityPresentation.categoryLabel(for: chat.category) ?? WatchChatCopy.chats)
+                .accessibilityLabel(WatchChatCopy.chats)
                 .accessibilityValue(WatchChatIdentityPresentation.icon(for: chat))
                 .accessibilityIdentifier("watch-chat-row-icon-\(chat.id)")
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: .spacing1) {
-                    Text(chat.title ?? WatchStrings.untitledChat)
-                        .font(.custom(FontRegistration.fontFamily, size: 14).weight(.bold))
-                        .foregroundStyle(WatchChatPalette.foreground)
-                        .lineLimit(3)
-                    if chat.isPinned {
-                        Circle()
-                            .fill(WatchChatPalette.blue)
-                            .frame(width: 5, height: 5)
-                            .accessibilityHidden(true)
-                    }
-                }
-                if let categoryLabel = WatchChatIdentityPresentation.categoryLabel(for: chat.category) {
-                    Text(categoryLabel)
-                        .font(.custom(FontRegistration.fontFamily, size: 14))
-                        .foregroundStyle(WatchChatPalette.muted)
-                        .lineLimit(1)
-                        .accessibilityIdentifier("watch-chat-row-category-\(chat.id)")
-                }
-                if let preview = chat.preview?.trimmingCharacters(in: .whitespacesAndNewlines), !preview.isEmpty {
-                    Text(preview)
-                        .font(.custom(FontRegistration.fontFamily, size: 14).weight(.bold))
-                        .foregroundStyle(WatchChatPalette.muted)
-                        .lineLimit(1)
-                        .multilineTextAlignment(.leading)
-                }
-            }
+            Text(chat.title ?? WatchStrings.untitledChat)
+                .font(.custom(FontRegistration.fontFamily, size: 14).weight(.bold))
+                .foregroundStyle(WatchChatPalette.foreground)
+                .lineLimit(3)
+                .multilineTextAlignment(.leading)
+                .accessibilityIdentifier("watch-chat-row-title-\(chat.id)")
         }
         .padding(.vertical, .spacing2)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -994,17 +987,20 @@ private struct WatchChatRow: View {
 private struct WatchMessageBubble: View {
     let message: WatchChatMessage
     let onOpenEmbed: (WatchEmbedPreviewModel) -> Void
+    let loadAudio: ((WatchEmbedPreviewModel) async throws -> Data)?
     let onShowZoom: () -> Void
     @AppStorage("watch.transcript.zoom") private var zoomLevel = 0
     private let segments: [WatchRenderedMessageSegment]
     private var isUser: Bool { message.role == .user }
 
-    init(message: WatchChatMessage, hydratedChildren: [EmbedRecord] = [],
+    init(message: WatchChatMessage, hydratedChildren: [EmbedRecord] = [], localAudio: [String: Data] = [:],
+         loadAudio: ((WatchEmbedPreviewModel) async throws -> Data)? = nil,
          onShowZoom: @escaping () -> Void, onOpenEmbed: @escaping (WatchEmbedPreviewModel) -> Void) {
         self.message = message
         self.onOpenEmbed = onOpenEmbed
+        self.loadAudio = loadAudio
         self.onShowZoom = onShowZoom
-        segments = WatchMessageRenderProjection.segments(message: message, hydratedChildren: hydratedChildren)
+        segments = WatchMessageRenderProjection.segments(message: message, hydratedChildren: hydratedChildren, localAudio: localAudio)
             .map(WatchRenderedMessageSegment.init)
     }
 
@@ -1020,12 +1016,12 @@ private struct WatchMessageBubble: View {
                         .accessibilityElement(children: .contain)
                 case .embeds(let previews):
                     if previews.count == 1, let preview = previews.first {
-                        WatchEmbedPreviewCard(model: preview) { onOpenEmbed(preview) }
+                        WatchEmbedPreviewCard(model: preview, onOpen: { onOpenEmbed(preview) }, loadAudio: loadAudio)
                     } else {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(alignment: .top, spacing: .spacing3) {
                                 ForEach(Array(previews.reversed())) { preview in
-                                    WatchEmbedPreviewCard(model: preview) { onOpenEmbed(preview) }
+                                    WatchEmbedPreviewCard(model: preview, onOpen: { onOpenEmbed(preview) }, loadAudio: loadAudio)
                                 }
                             }
                         }

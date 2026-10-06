@@ -433,7 +433,7 @@ final class DevComponentPreviewUITests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
-    func testTasksWorkspaceMountsThirtyThenTwentyItemsAndKeepsFullFilteredTotals() {
+    func testTasksWorkspaceMountsTwentyThenTwentyItemsAndKeepsFullFilteredTotals() {
         let app = launch(component: "tasks", variant: "manyBacklog")
         let backlog = element(app, "task-column-backlog")
         XCTAssertTrue(backlog.waitForExistence(timeout: 10))
@@ -442,9 +442,9 @@ final class DevComponentPreviewUITests: XCTestCase {
         let count = app.staticTexts["task-column-count-backlog"]
         let more = app.buttons["task-column-show-more-backlog"]
         XCTAssertEqual(count.label, "(56)")
-        XCTAssertEqual(tasks.count, 30)
+        XCTAssertEqual(tasks.count, 20)
         XCTAssertEqual(plans.count, 0)
-        for expected in [50, 55] {
+        for expected in [40, 55] {
             for _ in 0..<35 where !more.isHittable { app.swipeUp() }
             XCTAssertTrue(more.isHittable, "Show more must be reachable through the page scroll")
             more.tap()
@@ -455,7 +455,7 @@ final class DevComponentPreviewUITests: XCTestCase {
         }
         XCTAssertEqual(plans.count, 1)
         XCTAssertFalse(more.exists)
-        attachScreenshot("Tasks bounded mounting thirty then twenty with complete totals")
+        attachScreenshot("Tasks bounded mounting twenty then twenty with complete totals")
 
         let filter = app.buttons["task-filter-button"]
         for _ in 0..<65 where !filter.isHittable { app.swipeDown() }

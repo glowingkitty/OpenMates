@@ -50,6 +50,10 @@ struct ProjectsWorkspaceView: View {
     @State private var showDeleteConfirmation = false
     @State private var selectedRemoteFile: ProjectRemoteEntry?
     @State private var autoBrowsedProjectID: String?
+    @State private var homePromptActive = false
+    @State private var homePromptDismissID = UUID()
+    @State private var taskPromptActive = false
+    @State private var taskPromptDismissID = UUID()
     @State private var showsFileImporter = false
     @State private var showCreateMenu = false
     @State private var showProjectMenu = false
@@ -97,8 +101,31 @@ struct ProjectsWorkspaceView: View {
         }
         .animation(workspaceReduceMotion ? nil : .timingCurve(0.25, 0.1, 0.25, 1, duration: 0.3), value: store.selectedProjectID)
         .background(Color.grey10.ignoresSafeArea())
+        #if DEBUG
+        .overlay(alignment: .topLeading) {
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-read-only-performance") {
+                Text(readOnlyProjectDiagnosticLabel)
+                    .font(.system(size: 1)).opacity(0.01).allowsHitTesting(false)
+                    .accessibilityIdentifier("project-read-only-diagnostics")
+            }
+        }
+        #endif
         .buttonStyle(.plain)
     }
+
+    #if DEBUG
+    private var readOnlyProjectDiagnosticLabel: String {
+        let state: String
+        switch store.readme {
+        case .ready: state = "ready"
+        case .loading: state = "pending"
+        case .empty: state = "empty"
+        case .unavailable: state = "source_offline"
+        case .failed: state = store.readOnlyReadmeCategory == "pending" ? "failed" : store.readOnlyReadmeCategory
+        }
+        return "readme=\(state);files=\(store.readOnlyFilesCategory);file-count=\(store.remoteEntries.count);connected-count=\(store.sources.filter { $0.status == "connected" }.count)"
+    }
+    #endif
 
     private var workspaceWithEditingSheets: some View {
         workspaceContent
@@ -140,6 +167,8 @@ struct ProjectsWorkspaceView: View {
         workspaceWithFileActions
         .onChange(of: store.selectedProjectID) { _, _ in
             tasksStore?.closeDetail()
+            taskPromptActive = false
+            taskPromptDismissID = UUID()
             projectChatLimit = 24
             projectNameInput = ""
             selectedRemoteFile = nil
@@ -164,7 +193,11 @@ struct ProjectsWorkspaceView: View {
         .onChange(of: homeTeamContext.contextEpoch) { _, _ in resetHomeBrowse() }
         .onChange(of: projectBrowseQuery) { _, _ in projectBrowseLimit = 30 }
         .onChange(of: selectedTab) { _, tab in
-            if tab != .tasks { tasksStore?.closeDetail() }
+            if tab != .tasks {
+                tasksStore?.closeDetail()
+                taskPromptActive = false
+                taskPromptDismissID = UUID()
+            }
         }
         .onChange(of: currentFolderID) { _, _ in fileSearch = "" }
         .onChange(of: virtualPath) { _, _ in fileSearch = "" }
@@ -221,46 +254,51 @@ struct ProjectsWorkspaceView: View {
                 bannerBottom: browsingProjects ? 52 : homeBannerBottom ?? bannerHeight,
                 composerTop: homeComposerTop ?? max(0, geometry.size.height - 84 - keyboardOverlap))
             ZStack(alignment: .bottom) {
-                VStack(spacing: 0) {
-                    if !browsingProjects {
-                        projectInspirationBanner(width: geometry.size.width, height: geometry.size.height)
-                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("projects-home-layout")).maxY } action: {
-                                homeBannerBottom = $0
+                ZStack(alignment: .bottom) {
+                    VStack(spacing: 0) {
+                        if !browsingProjects {
+                            projectInspirationBanner(width: geometry.size.width, height: geometry.size.height)
+                                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("projects-home-layout")).maxY } action: {
+                                    homeBannerBottom = $0
+                                }
+                        }
+                        HStack {
+                            Button { onReportIssue("") } label: {
+                                Icon("bug", size: 23)
+                                    .foregroundStyle(LinearGradient.primary)
+                                    .frame(width: 42, height: 42)
+                                    .background(Color.grey10, in: Circle())
+                                    .shadow(color: .black.opacity(0.13), radius: 6, y: 3)
                             }
-                    }
-                    HStack {
-                        Button { onReportIssue("") } label: {
-                            Icon("bug", size: 23)
-                                .foregroundStyle(LinearGradient.primary)
-                                .frame(width: 42, height: 42)
-                                .background(Color.grey10, in: Circle())
-                                .shadow(color: .black.opacity(0.13), radius: 6, y: 3)
+                            .accessibilityLabel(AppStrings.settingsReportIssue)
+                            .accessibilityIdentifier("projects-home-report-issue")
+                            if browsingProjects {
+                                WorkspaceContinuationLink(title: AppStrings.welcomeBackToRecent, icon: "grid-2x2",
+                                    identifier: "projects-back-to-recent", action: resetHomeBrowse)
+                            }
+                            Spacer()
                         }
-                        .accessibilityLabel(AppStrings.settingsReportIssue)
-                        .accessibilityIdentifier("projects-home-report-issue")
+                        .padding(.horizontal, 15)
+                        .padding(.top, 10)
+                        Spacer(minLength: 0)
+                    }
+
+                    Group {
                         if browsingProjects {
-                            WorkspaceContinuationLink(title: AppStrings.welcomeBackToRecent, icon: "grid-2x2",
-                                identifier: "projects-back-to-recent", action: resetHomeBrowse)
+                            projectsBrowseView(width: geometry.size.width, height: continuation.availableHeight)
+                        } else {
+                            projectsHomeCenter(compact: !continuation.expanded, width: geometry.size.width)
                         }
-                        Spacer()
                     }
-                    .padding(.horizontal, 15)
-                    .padding(.top, 10)
-                    Spacer(minLength: 0)
-                }
+                    .frame(height: continuation.availableHeight)
+                    .clipped()
+                    .position(x: geometry.size.width / 2, y: continuation.centerY)
 
-                Group {
-                    if browsingProjects {
-                        projectsBrowseView(width: geometry.size.width, height: continuation.availableHeight)
-                    } else {
-                        projectsHomeCenter(compact: !continuation.expanded, width: geometry.size.width)
-                    }
                 }
-                .frame(height: continuation.availableHeight)
-                .clipped()
-                .position(x: geometry.size.width / 2, y: continuation.centerY)
+                .workspacePromptBackground(active: homePromptActive, identifier: "project-home-prompt-backdrop",
+                    onDismiss: { homePromptDismissID = UUID() })
 
-                projectHomeComposer
+                projectHomeComposer(availableHeight: max(118, geometry.size.height - keyboardOverlap))
                     .frame(maxWidth: narrow ? .infinity : 629)
                     .padding(.horizontal, narrow ? 0 : 15)
                     .padding(.bottom, (narrow ? 5 : 15) + keyboardOverlap)
@@ -374,7 +412,7 @@ struct ProjectsWorkspaceView: View {
         projectBrowseFocused = false
     }
 
-    private var projectHomeComposer: some View {
+    private func projectHomeComposer(availableHeight: CGFloat) -> some View {
         WorkspacePromptComposerView(
             text: $projectNameInput,
             placeholder: AppStrings.projectNamePrompt,
@@ -387,7 +425,9 @@ struct ProjectsWorkspaceView: View {
             submitIdentifier: "project-input-submit",
             micIdentifier: "project-input-mic",
             onSubmit: { _ in requestProjectCreation() },
-            onMic: { showVoiceUnavailable = true }
+            onMic: { showVoiceUnavailable = true },
+            onActiveChanged: { homePromptActive = $0 }, dismissRequestID: homePromptDismissID,
+            availableHeight: availableHeight
         )
     }
 
@@ -426,9 +466,8 @@ struct ProjectsWorkspaceView: View {
                 containerSize: CGSize(width: width, height: height),
                 heightOverride: width < 730 ? 190 : max(240, min(420, height * 0.35)),
                 ctaTitle: AppStrings.projectInspirationCTA,
-                tapHint: AppStrings.projectInspirationCTA) {
-                    projectNameInput = inspiration.text
-                }
+                tapHint: AppStrings.projectInspirationCTA,
+                isInteractive: false) { }
             HStack {
                 Button {
                     inspirationIndex = (inspirationIndex + projectInspirations.count - 1) % projectInspirations.count
@@ -467,18 +506,6 @@ struct ProjectsWorkspaceView: View {
                     .frame(height: 44)
                 } else {
                     ZStack(alignment: .bottom) {
-                        HStack {
-                            LucideNativeIcon(project.icon, size: 80)
-                                .rotationEffect(.degrees(-15))
-                                .offset(x: -10)
-                            Spacer()
-                            LucideNativeIcon(project.icon, size: 80)
-                                .rotationEffect(.degrees(15))
-                                .offset(x: 10)
-                        }
-                        .foregroundStyle(.white.opacity(0.3))
-                        .offset(y: 8)
-                        .accessibilityHidden(true)
                         VStack(spacing: 10) {
                             LucideNativeIcon(project.icon, size: 32)
                             Text(project.name).font(.omP).fontWeight(.bold).lineLimit(2)
@@ -486,6 +513,18 @@ struct ProjectsWorkspaceView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .frame(height: 200)
+                    .background(alignment: .bottom) {
+                        HStack {
+                            LucideNativeIcon(project.icon, size: 80)
+                                .rotationEffect(.degrees(-15)).offset(x: -10)
+                            Spacer()
+                            LucideNativeIcon(project.icon, size: 80)
+                                .rotationEffect(.degrees(15)).offset(x: 10)
+                        }
+                        .foregroundStyle(.white.opacity(0.3))
+                        .offset(y: 8)
+                        .accessibilityHidden(true)
+                    }
                 }
             }
             .foregroundStyle(.white)
@@ -495,6 +534,8 @@ struct ProjectsWorkspaceView: View {
             .shadow(color: .black.opacity(0.16), radius: 12, y: 8)
         }
         .buttonStyle(.plain)
+        .frame(width: 300, height: compact ? 44 : 200)
+        .contentShape(RoundedRectangle(cornerRadius: compact ? 32 : 30))
         .accessibilityIdentifier("project-card-\(project.id)")
     }
 
@@ -502,29 +543,38 @@ struct ProjectsWorkspaceView: View {
         GeometryReader { geometry in
             let compact = geometry.size.width <= 800
             let panelWidth = min(1024, max(0, geometry.size.width - (compact ? 8 : min(40, max(16, geometry.size.width * 0.05)))))
-            ScrollView {
-                VStack(spacing: 0) {
-                    header(project, width: geometry.size.width, height: geometry.size.height)
-                        .onGeometryChange(for: CGRect.self) { headerGeometry in
-                            headerGeometry.frame(in: .named("project-workspace"))
-                        } action: { projectHeaderFrame = $0 }
-                    tabs.padding(.top, .spacing10)
-                    Group {
-                        switch selectedTab {
-                        case .overview: overviewPanel(project, width: panelWidth)
-                        case .files: filesPanel(project, compact: compact)
-                        case .tasks: tasksPanel(project)
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        header(project, width: geometry.size.width, height: geometry.size.height)
+                            .onGeometryChange(for: CGRect.self) { headerGeometry in
+                                headerGeometry.frame(in: .named("project-workspace"))
+                            } action: { projectHeaderFrame = $0 }
+                        tabs.padding(.top, .spacing10)
+                        Group {
+                            switch selectedTab {
+                            case .overview: overviewPanel(project, width: panelWidth)
+                            case .files: filesPanel(project, compact: compact)
+                            case .tasks: tasksPanel(project)
+                            }
                         }
+                        .frame(width: panelWidth)
+                        .padding(.bottom, .spacing8)
+                        errorBanner.padding(.horizontal, .spacing8)
                     }
-                    .frame(width: panelWidth)
-                    .padding(.bottom, .spacing8)
-                    errorBanner.padding(.horizontal, .spacing8)
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
-            }
-            .accessibilityIdentifier("project-detail-scroll")
-            .overlay(alignment: .top) {
-                projectHeaderActions(project, width: geometry.size.width)
+                .accessibilityIdentifier("project-detail-scroll")
+                .overlay(alignment: .top) {
+                    projectHeaderActions(project, width: geometry.size.width)
+                }
+                .workspacePromptBackground(active: taskPromptActive, identifier: "project-task-workspace-backdrop",
+                onDismiss: { taskPromptDismissID = UUID() })
+                if selectedTab == .tasks, let tasksStore {
+                    TaskWorkspacePromptComposer(store: tasksStore, compactProjectBoard: true,
+                        onActiveChanged: { taskPromptActive = $0 }, dismissRequestID: taskPromptDismissID,
+                        availableHeight: geometry.size.height)
+                }
             }
         }
         .coordinateSpace(name: "project-workspace")
@@ -793,14 +843,18 @@ struct ProjectsWorkspaceView: View {
                 .frame(maxWidth: .infinity, minHeight: 270)
             case .unavailable:
                 VStack(spacing: 12) {
-                    Text(AppStrings.projectSourceNeeded)
+                    Text(AppStrings.projectError(ProjectsWorkspaceError.sourceOffline))
+                        .accessibilityIdentifier("project-readme-offline")
                     Button(AppStrings.retry) { Task { await store.reloadSelected() } }.buttonStyle(OMSecondaryButtonStyle())
+                        .accessibilityIdentifier("project-readme-retry")
                 }
                 .frame(maxWidth: .infinity, minHeight: 270)
             case .failed:
                 VStack(spacing: 12) {
                     Text(AppStrings.projectOverviewFailed)
+                        .accessibilityIdentifier("project-readme-error")
                     Button(AppStrings.retry) { Task { await store.reloadSelected() } }.buttonStyle(OMSecondaryButtonStyle())
+                        .accessibilityIdentifier("project-readme-retry")
                 }
                 .frame(maxWidth: .infinity, minHeight: 270)
             }
@@ -816,10 +870,10 @@ struct ProjectsWorkspaceView: View {
     private func tasksPanel(_ project: ProjectWorkspaceProject) -> some View {
         Group {
             if let tasksStore {
-                TasksWorkspaceView(store: tasksStore, compactProjectBoard: true, presentsDetail: false,
+                TasksWorkspaceView(store: tasksStore, compactProjectBoard: true, showsComposer: false, presentsDetail: false,
                     onOpenProject: { _ in },
                     onOpenChat: onOpenChat)
-                    .frame(height: 720)
+
             } else {
                 VStack(spacing: 14) {
                     Icon("projectmanagement", size: 38).foregroundStyle(Color.fontSecondary)

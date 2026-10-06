@@ -16,7 +16,7 @@ import { allAppsInitialFilter, type AllAppsFilterType } from "../stores/allAppsF
 import { buildSettingsHash, getSettingsPathFromHash, normalizeSettingsPath } from "../utils/settingsHashUtils";
 import { buildAppsWorkspaceHash } from "../utils/appsWorkspaceRoute";
 
-const RETIRED_INTRO_CHAT_IDS = new Set(["demo-for-everyone", "demo-for-developers"]);
+const RETIRED_INTRO_CHAT_IDS = new Set(["demo-for-everyone", "demo-for-developers", "demo-who-develops-openmates"]);
 
 export type DeepLinkType =
   | "chat"

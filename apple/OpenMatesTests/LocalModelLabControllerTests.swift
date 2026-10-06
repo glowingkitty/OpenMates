@@ -221,7 +221,61 @@ final class LocalModelLabControllerTests: XCTestCase {
         XCTAssertNotNil(fixture.controller.errorMessage)
     }
 
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.serialized-cancellation,apple-local-model-lab.ephemeral-state
+    func testNeuralSpeechCancellationDiscardsLateAudioAndKeepsNativeOwnership() async throws {
+        let fixture = try await fixture()
+        defer { fixture.cleanup() }
+        fixture.controller.synthesisText = "Disposable speech test"
+        fixture.controller.run(.supertonic3, enabled: true)
+        var started = fixture.runStarted.makeAsyncIterator(); _ = await started.next()
+        fixture.controller.cancel()
+        fixture.controller.run(.supertonic3, enabled: true)
+        XCTAssertEqual(fixture.controller.runningModel, .supertonic3)
+        await fixture.finish()
+        XCTAssertNil(fixture.controller.output)
+        let audio = await fixture.runtime.generatedAudioURL
+        XCTAssertNotNil(audio)
+        if let audio { XCTAssertFalse(FileManager.default.fileExists(atPath: audio.path)) }
+        XCTAssertFalse(fixture.controller.busy)
+    }
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.local-execution,apple-local-model-lab.ephemeral-state
+    func testNeuralSpeechSuccessfulResultAndPrivateTextAreRemovedOnLeave() async throws {
+        let fixture = try await fixture()
+        defer { fixture.cleanup() }
+        fixture.controller.synthesisText = "Disposable speech test"
+        fixture.controller.run(.supertonic3, enabled: true)
+        var started = fixture.runStarted.makeAsyncIterator(); _ = await started.next()
+        await fixture.finish()
+        XCTAssertEqual(fixture.controller.phaseTimings.map(\.phase), [.submission, .speechSynthesis, .cleanup])
+        XCTAssertFalse(fixture.controller.phaseTimings.contains { $0.phase == .inference })
+        let audio = try XCTUnwrap(fixture.controller.output?.audioURL)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: audio.path))
+        fixture.controller.leave()
+        XCTAssertEqual(fixture.controller.synthesisText, "")
+        XCTAssertNil(fixture.controller.output)
+        XCTAssertFalse(fixture.controller.isPlaying)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: audio.path))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.ephemeral-state,apple-local-model-lab.serialized-cancellation
+    func testNeuralSpeechOwnerChangeRejectsLateAudioAndClearsPrivateInput() async throws {
+        var owner = "account-a:server-a:scope-a"
+        let fixture = try await fixture(ownerIdentity: { owner })
+        defer { fixture.cleanup() }
+        fixture.controller.synthesisText = "Disposable private input"
+        fixture.controller.run(.supertonic3, enabled: true)
+        var started = fixture.runStarted.makeAsyncIterator(); _ = await started.next()
+        owner = "account-b:server-b:scope-b"
+        await fixture.finish()
+        XCTAssertNil(fixture.controller.output)
+        XCTAssertEqual(fixture.controller.synthesisText, "")
+        let audio = await fixture.runtime.generatedAudioURL
+        if let audio { XCTAssertFalse(FileManager.default.fileExists(atPath: audio.path)) }
+        XCTAssertFalse(fixture.controller.busy)
+    }
+
     private func fixture(available: Bool = true,
+                         ownerIdentity: @escaping @MainActor () -> String = { "disposable-owner" },
                          microphonePermission: @escaping @MainActor () async -> Bool = { false }) async throws -> LabControllerFixture {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("local-lab-test-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -244,7 +298,7 @@ final class LocalModelLabControllerTests: XCTestCase {
         let started = AsyncStream<Void>.makeStream()
         let unloading = AsyncStream<Void>.makeStream()
         let runtime = ControlledLabRuntime(started: started.continuation, unloading: unloading.continuation)
-        let controller = LocalModelLabController(store: store, temporaryRoot: root,
+        let controller = LocalModelLabController(store: store, temporaryRoot: root, ownerIdentity: ownerIdentity,
             microphonePermission: microphonePermission, availability: { _ in available ? nil : AppStrings.localLabArchitectureUnavailable },
             runtimeFactory: { _ in runtime })
         return LabControllerFixture(root: root, controller: controller, runtime: runtime,
@@ -268,6 +322,8 @@ private actor ControlledLabRuntime: LocalModelRuntime {
     private var runContinuation: CheckedContinuation<LocalModelTestOutput, Never>?
     private var unloadContinuation: CheckedContinuation<Void, Never>?
     private(set) var runCount = 0
+    private var destination: URL?
+    private(set) var generatedAudioURL: URL?
     private var progress: (@Sendable (LocalModelRunPhase) -> Void)?
     private var previousProgress: (@Sendable (LocalModelRunPhase) -> Void)?
     init(started: AsyncStream<Void>.Continuation, unloading: AsyncStream<Void>.Continuation) {
@@ -276,6 +332,7 @@ private actor ControlledLabRuntime: LocalModelRuntime {
     }
     func run(_ request: LocalModelTestRequest, directory: URL) async throws -> LocalModelTestOutput {
         runCount += 1
+        if case let .synthesize(_, destination) = request { self.destination = destination }
         return await withCheckedContinuation { continuation in
             runContinuation = continuation
             started.yield(())
@@ -285,7 +342,11 @@ private actor ControlledLabRuntime: LocalModelRuntime {
              progress: @escaping @Sendable (LocalModelRunPhase) -> Void) async throws -> LocalModelTestOutput {
         previousProgress = self.progress
         self.progress = progress
-        progress(.inference)
+        switch request {
+        case .synthesize: progress(.speechSynthesis)
+        case .detectPII: progress(.inference)
+        case .transcribe: progress(.transcription)
+        }
         return try await run(request, directory: directory)
     }
     func emitPreviousPhase(_ phase: LocalModelRunPhase) { previousProgress?(phase) }
@@ -296,7 +357,11 @@ private actor ControlledLabRuntime: LocalModelRuntime {
         }
     }
     func finishRun() {
-        runContinuation?.resume(returning: LocalModelTestOutput(text: "Disposable generated output"))
+        let result: LocalModelTestOutput
+        if let destination, let audio = try? LocalTTSWAV.write(samples: [Float](repeating: 0, count: 160), sampleRate: 16_000, to: destination) {
+            generatedAudioURL = destination; result = audio
+        } else { result = LocalModelTestOutput(text: "Disposable generated output") }
+        runContinuation?.resume(returning: result)
         runContinuation = nil
     }
     func finishUnload() {

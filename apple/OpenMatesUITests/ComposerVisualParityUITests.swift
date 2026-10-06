@@ -5,6 +5,7 @@
 // Screenshots are attached as review artifacts; assertions stay deterministic.
 
 import XCTest
+import UIKit
 
 @MainActor
 final class ComposerVisualParityUITests: XCTestCase {
@@ -79,31 +80,113 @@ final class ComposerVisualParityUITests: XCTestCase {
 
         XCTAssertLessThanOrEqual(editor.frame.width, maxComposerWidth + widthTolerance)
 
-        editor.tap()
+        let latest = app.textViews.matching(NSPredicate(format: "value CONTAINS %@",
+            "Latest assistant response visible after bounded open")).firstMatch
+        XCTAssertTrue(latest.waitForExistence(timeout: 12), "Wait for actual chat load/reset before focusing")
+        let currentEditor = try NativeUITestElementResolution.requireVisible(
+            app.textViews.matching(identifier: "message-editor"), in: app)
+        currentEditor.tap()
+        let focusedAfterSingleTap = app.buttons["chat-composer-cancel"].waitForExistence(timeout: 5)
+        if !focusedAfterSingleTap {
+            let field = element(in: app, identifier: "message-field")
+            let diagnostic = XCTAttachment(string: String(describing: field.value))
+            diagnostic.name = "Single native editor tap geometry"
+            diagnostic.lifetime = .keepAlways
+            add(diagnostic)
+        }
+        XCTAssertTrue(focusedAfterSingleTap,
+            "One real native-editor tap must focus the production composer")
+        // Prove the same compact host can be dismissed and focused again by
+        // exactly one native editor tap; no coordinate or shell-tap fallback.
+        app.buttons["chat-composer-cancel"].tap()
+        XCTAssertTrue(waitForAbsence(app.buttons["chat-composer-cancel"]),
+            "Cancel must return the production chat composer to its compact state")
+        let reopenedEditor = try NativeUITestElementResolution.requireVisible(
+            app.textViews.matching(identifier: "message-editor"), in: app)
+        reopenedEditor.tap()
+        XCTAssertTrue(app.buttons["chat-composer-cancel"].waitForExistence(timeout: 5),
+            "One real native-editor tap must refocus the retained production composer")
         let field = element(in: app, identifier: "message-field")
         let fullscreenButton = app.buttons["message-input-fullscreen-button"]
+        XCTAssertFalse(fullscreenButton.exists, "Empty focused text has no expand action")
+        currentEditor.typeText("First line")
+        XCTAssertFalse(fullscreenButton.exists, "Short text has no expand action")
+        currentEditor.typeText("\nSecond line\nThird line")
+        XCTAssertFalse(fullscreenButton.exists, "Three visible lines do not need fullscreen")
+        currentEditor.typeText("\nFourth line\nFifth line")
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         XCTAssertTrue(
             fullscreenButton.waitForExistence(timeout: 5),
             "Expected the focused production composer to expose fullscreen. Visible UI: \(app.debugDescription)"
         )
+        // The focused row animates out of the compact bottom bar. An existing
+        // expand element can still occupy its old presentation position mid-flight.
+        XCTAssertTrue(waitForFocusedChatComposer(app: app),
+            "Expected settled focused field/editor/control geometry before a real expand tap")
+        assertExpandControlBesideNativeText(fullscreenButton, editor: editor)
         let collapsedPortraitHeight = field.frame.height
+        let focusedEditorHeight = editor.frame.height
+        let focusedLabel = fullscreenButton.label
 
-        fullscreenButton.tap()
+        app.buttons["message-input-fullscreen-button"].tap()
+        let expanded = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.buttons["message-input-fullscreen-button"].label != focusedLabel
+        }, object: app)
+        let expansionResult = XCTWaiter.wait(for: [expanded], timeout: 5)
+        if expansionResult != .completed {
+            attachScreenshot(name: "Chat real expand action did not change presentation")
+            let dump = XCTAttachment(string: app.debugDescription); dump.lifetime = .keepAlways; add(dump)
+        }
+        XCTAssertEqual(expansionResult, .completed, "The real expand tap must enter fullscreen")
         XCTAssertTrue(waitForHeight(field, atLeast: collapsedPortraitHeight + 80))
+        XCTAssertTrue(waitForHeight(editor, atLeast: focusedEditorHeight + 80),
+            "Portrait fullscreen must grow the actual native editable viewport")
+        assertExpandControlBesideNativeText(fullscreenButton, editor: editor)
+        let cancel = app.buttons["chat-composer-cancel"]
+        XCTAssertTrue(cancel.isHittable)
+        assertDismissWidth(cancel, field: field)
+        XCTAssertGreaterThanOrEqual(cancel.frame.minY, field.frame.maxY)
+        XCTAssertLessThanOrEqual(cancel.frame.maxY, app.windows.firstMatch.frame.maxY)
+        XCTAssertGreaterThan(field.frame.minY, app.windows.firstMatch.frame.minY + 20,
+            "Fullscreen must leave a real outside dismissal gutter")
 
         XCUIDevice.shared.orientation = .landscapeLeft
+        let rotated = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height
+        }, object: app.windows.firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for: [rotated], timeout: 5), .completed)
         XCTAssertTrue(fullscreenButton.waitForExistence(timeout: 5))
         let window = app.windows.firstMatch.frame
         XCTAssertGreaterThanOrEqual(field.frame.minY, window.minY)
         XCTAssertLessThanOrEqual(field.frame.maxY, window.maxY)
+        assertExpandControlBesideNativeText(fullscreenButton, editor: editor)
         let expandedLandscapeHeight = field.frame.height
-
+        let expandedLandscapeEditorHeight = editor.frame.height
+        let expandedLabel = fullscreenButton.label
         fullscreenButton.tap()
-        XCTAssertLessThan(field.frame.height, expandedLandscapeHeight - 80)
+        expectation(for: NSPredicate { _, _ in fullscreenButton.label != expandedLabel
+            && editor.frame.height < expandedLandscapeEditorHeight }, evaluatedWith: fullscreenButton)
+        waitForExpectations(timeout: 3)
+        XCTAssertLessThan(field.frame.height, expandedLandscapeHeight)
+        XCTAssertLessThan(editor.frame.height, expandedLandscapeEditorHeight)
+        if expandedLandscapeHeight > collapsedPortraitHeight + 80 {
+            XCTAssertLessThan(field.frame.height, expandedLandscapeHeight - 80)
+        }
+        editor.tap()
+        editor.typeText("Synthetic microphone placement")
+        let typedMic = app.buttons["record-audio-button"]
+        let typedSend = app.buttons["send-button"]
+        XCTAssertTrue(typedMic.isHittable); XCTAssertTrue(typedSend.exists)
+        XCTAssertLessThan(typedSend.frame.midX, typedMic.frame.midX)
+        XCTAssertGreaterThan(typedMic.frame.midY, field.frame.midY)
         XCTAssertFalse(app.tables.firstMatch.exists, "Product composer UI must not render default List/table chrome")
 
         attachScreenshot(name: "Shared composer chat preview width cap")
+        let typed = editor.value as? String ?? ""
+        editor.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: typed.count))
+        XCTAssertTrue(waitForAbsence(fullscreenButton), "Cleared text removes expand without dismissing focus")
+        XCTAssertTrue(app.buttons["chat-composer-cancel"].exists)
+        XCTAssertEqual(editor.value as? String, "")
     }
 
     // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.layout.responsive-parity
@@ -191,6 +274,12 @@ final class ComposerVisualParityUITests: XCTestCase {
         )
         let sendButton = app.buttons["send-button"]
         XCTAssertTrue(sendButton.waitForExistence(timeout: 5))
+        let mic = app.buttons["record-audio-button"]
+        XCTAssertTrue(mic.exists)
+        XCTAssertLessThan(sendButton.frame.midX, mic.frame.midX,
+            "Typed Welcome microphone must stay to the right of Send")
+        XCTAssertFalse(app.buttons["message-input-fullscreen-button"].exists,
+            "The expand icon stays absent through the full three-line boundary")
         XCTAssertLessThanOrEqual(
             editor.frame.maxY,
             sendButton.frame.minY + 2,
@@ -198,6 +287,10 @@ final class ComposerVisualParityUITests: XCTestCase {
         )
 
         editor.typeText("\nFourth line\nFifth line")
+        XCTAssertTrue(app.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5))
+        assertExpandControlBesideNativeText(app.buttons["message-input-fullscreen-button"], editor: editor)
+        NativeComposerRenderedLayoutAssertions.assertSelectedCaretClears(
+            app.buttons["message-input-fullscreen-button"], field: field, editor: editor)
 
         XCTAssertEqual(
             field.frame.height,
@@ -265,59 +358,69 @@ final class ComposerVisualParityUITests: XCTestCase {
     func testSeededImageAndAudioPreviewsStayLeftAlignedAcrossRotation() throws {
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }
-
-        let app = launchFocusedWelcomeComposer(
-            extraArguments: ["--ui-test-welcome-seed-pending-content"]
-        )
+        let app = launchFocusedWelcomeComposer(extraArguments: ["--ui-test-welcome-seed-pending-content"])
+        let editor = app.textViews["message-editor"]
         let field = element(in: app, identifier: "message-field")
-        let image = element(in: app, identifier: "native-composer-image-content")
-        let imageInfoBar = element(in: app, identifier: "native-composer-image-info-bar")
-        let audio = element(in: app, identifier: "native-composer-audio-content")
-        let imageCard = element(in: app, identifier: "native-composer-preview-image-finished")
-        let audioCard = element(in: app, identifier: "native-composer-preview-recording-finished")
-        let actionRow = element(in: app, identifier: "action-buttons")
-
-        XCTAssertTrue(image.waitForExistence(timeout: 5), "Expected image-specific composer preview content")
-        XCTAssertTrue(imageInfoBar.waitForExistence(timeout: 5), "Expected the web-parity image metadata bar")
-        XCTAssertTrue(audio.waitForExistence(timeout: 5), "Expected audio-specific composer preview content")
-        XCTAssertTrue(imageCard.waitForExistence(timeout: 5))
-        XCTAssertTrue(audioCard.waitForExistence(timeout: 5))
-        XCTAssertTrue(actionRow.waitForExistence(timeout: 5))
-        assertEmbed(imageCard, isLeftAlignedIn: field)
-        assertEmbed(audioCard, isLeftAlignedIn: field)
-        XCTAssertEqual(imageCard.frame.width, 300, accuracy: 3)
-        XCTAssertEqual(imageCard.frame.height, 200, accuracy: 3)
-        // `scaledToFill` intentionally scales landscape/portrait source pixels
-        // beyond one card axis before the 300x200 rounded container clips them.
-        // XCUITest reports that pre-clip Image frame, so assert coverage rather
-        // than equality with the visible card bounds.
-        XCTAssertLessThanOrEqual(image.frame.minX, imageCard.frame.minX + 3)
-        XCTAssertLessThanOrEqual(image.frame.minY, imageCard.frame.minY + 3)
-        XCTAssertGreaterThanOrEqual(image.frame.maxX, imageCard.frame.maxX - 3)
-        XCTAssertGreaterThanOrEqual(image.frame.maxY, imageCard.frame.maxY - 3)
-        XCTAssertEqual(imageInfoBar.frame.height, 61, accuracy: 3)
-        XCTAssertEqual(imageInfoBar.frame.maxY, imageCard.frame.maxY, accuracy: 3)
-        XCTAssertLessThanOrEqual(
-            imageInfoBar.frame.maxY,
-            actionRow.frame.minY + 3,
-            "The image caption must remain entirely above the bottom composer controls"
-        )
-        XCTAssertTrue(app.buttons["composer-attachment-toggle"].isHittable)
-        XCTAssertTrue(app.buttons["record-audio-button"].isHittable)
-        XCTAssertFalse(
-            imageCard.buttons["native-composer-preview-action-close"].exists,
-            "Web image previews do not overlay a generic close button"
-        )
-        XCTAssertFalse(
-            imageCard.buttons["native-composer-preview-action-visible"].exists,
-            "The finished web image opens by tapping the card instead of an eye button"
-        )
-
+        let expand = try NativeUITestElementResolution.requireVisible(
+            app.buttons.matching(identifier: "message-input-fullscreen-button"), in: app)
+        XCTAssertTrue(expand.isHittable)
+        let compactLabel = expand.label
+        expand.tap()
+        expectation(for: NSPredicate { _, _ in expand.label != compactLabel }, evaluatedWith: expand)
+        waitForExpectations(timeout: 3)
+        func assertCard(_ type: String, _ orientation: String) throws {
+            let card = try revealComposerCard(type: type, app: app, editor: editor)
+            let info = card.descendants(matching: .any)["native-composer-\(type == "image" ? "image" : "audio")-info-bar"].firstMatch
+            assertEmbed(card, isLeftAlignedIn: field)
+            XCTAssertEqual(card.frame.width, 300, accuracy: 3)
+            XCTAssertEqual(card.frame.height, 200, accuracy: 3)
+            XCTAssertEqual(info.frame.height, 61, accuracy: 3)
+            XCTAssertEqual(info.frame.maxY, card.frame.maxY, accuracy: 3)
+            XCTAssertTrue(editor.frame.insetBy(dx: -3, dy: -3).contains(info.frame),
+                "Each real fixed footer must be wholly visible after native editor scrolling")
+            if type == "recording" {
+                XCTAssertTrue((field.value as? String)?.hasPrefix("native-top-fade=active;") == true,
+                    "The actual scrolled native editor must enable its transparent top mask")
+            }
+            if type == "image" && orientation == "landscape" {
+                XCTAssertTrue((field.value as? String)?.hasPrefix("native-top-fade=active;") == true)
+                assertActualScrolledImageFade(editor: editor, card: card)
+            }
+            let visibleCard = card.frame.intersection(editor.frame)
+            XCTAssertGreaterThan(visibleCard.height, 0)
+            XCTAssertFalse(visibleCard.intersects(expand.frame.insetBy(dx: -4, dy: -4)),
+                "Actual media may share a wide row but never intersect the expand hit target")
+            XCTAssertLessThanOrEqual(info.frame.maxY, element(in: app, identifier: "action-buttons").frame.minY + 3)
+            attachScreenshot(editor.screenshot(), name: "Actual \(orientation) \(type) native scroll fade viewport")
+            if type == "image" {
+                let pixels = card.descendants(matching: .any)["native-composer-image-content"].firstMatch
+                XCTAssertTrue(pixels.exists)
+                XCTAssertLessThanOrEqual(pixels.frame.minX, card.frame.minX + 3)
+                XCTAssertLessThanOrEqual(pixels.frame.minY, card.frame.minY + 3)
+                XCTAssertGreaterThanOrEqual(pixels.frame.maxX, card.frame.maxX - 3)
+                XCTAssertGreaterThanOrEqual(pixels.frame.maxY, card.frame.maxY - 3)
+                XCTAssertEqual(info.frame.width, card.frame.width, accuracy: 3)
+                XCTAssertEqual(info.frame.minX, card.frame.minX, accuracy: 3)
+                XCTAssertFalse(card.buttons["native-composer-preview-action-close"].exists)
+                XCTAssertFalse(card.buttons["native-composer-preview-action-visible"].exists)
+            }
+            XCTAssertTrue(app.buttons["composer-attachment-toggle"].isHittable)
+            let mic = app.buttons["record-audio-button"]
+            let submit = app.buttons["send-button"]
+            XCTAssertTrue(mic.isHittable); XCTAssertTrue(submit.isHittable)
+            XCTAssertLessThan(submit.frame.midX, mic.frame.midX)
+            XCTAssertGreaterThan(mic.frame.midY, field.frame.midY)
+            attachScreenshot(name: "\(orientation) native editor scrolled to complete \(type) footer")
+        }
+        try assertCard("image", "portrait")
+        try assertCard("recording", "portrait")
         XCUIDevice.shared.orientation = .landscapeLeft
-        XCTAssertTrue(image.waitForExistence(timeout: 5))
-        XCTAssertTrue(audio.waitForExistence(timeout: 5))
-        assertEmbed(imageCard, isLeftAlignedIn: field)
-        assertEmbed(audioCard, isLeftAlignedIn: field)
+        let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height
+        }, object: app.windows.firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for: [landscape], timeout: 5), .completed)
+        try assertCard("image", "landscape")
+        try assertCard("recording", "landscape")
     }
 
     // contract-test: direct surface=gui.apple assertions=message-input.layout.responsive-parity
@@ -326,8 +429,13 @@ final class ComposerVisualParityUITests: XCTestCase {
         defer { XCUIDevice.shared.orientation = .portrait }
 
         let app = launchFocusedWelcomeComposer()
+        let editor = waitForMessageEditor(in: app)
         let field = element(in: app, identifier: "message-field")
         let button = app.buttons["message-input-fullscreen-button"]
+        XCTAssertFalse(button.exists, "Empty Welcome has no expand affordance")
+        editor.typeText("First line\nSecond line\nThird line")
+        XCTAssertFalse(button.exists, "Boundary three-line text has no expand affordance")
+        editor.typeText("\nFourth line\nFifth line")
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         XCTAssertTrue(button.waitForExistence(timeout: 5))
         attachScreenshot(name: "Welcome composer fullscreen button hit testing")
@@ -337,11 +445,15 @@ final class ComposerVisualParityUITests: XCTestCase {
         )
 
         let collapsedPortraitHeight = field.frame.height
+        let focusedEditorHeight = editor.frame.height
+        assertExpandControlBesideNativeText(button, editor: editor)
         let expandLabel = button.label
         button.tap()
 
         XCTAssertNotEqual(button.label, expandLabel)
+        assertExpandControlBesideNativeText(button, editor: editor)
         XCTAssertTrue(waitForHeight(field, atLeast: collapsedPortraitHeight + 80))
+        XCTAssertTrue(waitForHeight(editor, atLeast: focusedEditorHeight + 80))
 
         button.tap()
         XCTAssertEqual(button.label, expandLabel)
@@ -349,16 +461,64 @@ final class ComposerVisualParityUITests: XCTestCase {
 
         button.tap()
         XCUIDevice.shared.orientation = .landscapeLeft
+        let rotated = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height
+        }, object: app.windows.firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for: [rotated], timeout: 5), .completed)
         XCTAssertTrue(button.waitForExistence(timeout: 5))
         XCTAssertTrue(button.isHittable)
         let window = app.windows.firstMatch.frame
         XCTAssertGreaterThanOrEqual(field.frame.minY, window.minY)
         XCTAssertLessThanOrEqual(field.frame.maxY, window.maxY)
+        assertExpandControlBesideNativeText(button, editor: editor)
+        let viewportReady = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard let payload = NativeComposerRenderedLayoutAssertions.payload(field),
+                  let bounds = NativeComposerRenderedLayoutAssertions.localRect("bounds", in: payload) else { return false }
+            return bounds.height > 0
+        }, object: field)
+        XCTAssertEqual(XCTWaiter.wait(for: [viewportReady], timeout: 3), .completed,
+            "Actual TextKit viewport must survive landscape rotation")
+        XCTAssertTrue(app.keyboards.firstMatch.exists, "Rotation must preserve the software keyboard")
+        let header = element(in: app, identifier: "main-app-web-header")
+        if UIDevice.current.userInterfaceIdiom == .phone {
+            // Retained generic AX groups may report hittable while transparent.
+            // Hidden production buttons must be absent or explicitly disabled.
+            for control in header.buttons.allElementsBoundByIndex {
+                XCTAssertFalse(control.isEnabled, "Hidden header control remains enabled: \(control.identifier)")
+            }
+            attachScreenshot(name: "Welcome landscape header hidden while keyboard and native editor remain active")
+        }
         let expandedLandscapeHeight = field.frame.height
-
+        let expandedLandscapeEditorHeight = editor.frame.height
         button.tap()
+        expectation(for: NSPredicate { _, _ in button.label == expandLabel
+            && editor.frame.height < expandedLandscapeEditorHeight }, evaluatedWith: button)
+        waitForExpectations(timeout: 3)
         XCTAssertEqual(button.label, expandLabel)
-        XCTAssertLessThan(field.frame.height, expandedLandscapeHeight - 80)
+        XCTAssertLessThan(field.frame.height, expandedLandscapeHeight)
+        XCTAssertLessThan(editor.frame.height, expandedLandscapeEditorHeight)
+        if expandedLandscapeHeight > collapsedPortraitHeight + 80 {
+            XCTAssertLessThan(field.frame.height, expandedLandscapeHeight - 80)
+        }
+        XCTAssertGreaterThan(editor.frame.height, 0)
+        XCTAssertLessThanOrEqual(field.frame.maxY, app.windows.firstMatch.frame.maxY)
+        let cancel = app.buttons["new-chat-draft-dismiss-button"]
+        XCTAssertTrue(cancel.isHittable)
+        assertDismissWidth(cancel, field: field)
+        XCTAssertLessThanOrEqual(cancel.frame.maxY, app.keyboards.firstMatch.frame.minY + 2,
+            "Full-width Save remains above the software keyboard")
+        editor.typeText("\nSixth line after rotation")
+        NativeComposerRenderedLayoutAssertions.assertSelectedCaretClears(button, field: field, editor: editor)
+        XCTAssertTrue((editor.value as? String)?.contains("Fifth line\nSixth line after rotation") == true,
+            "The retained editor keeps the draft and insertion point")
+        attachScreenshot(name: "Welcome landscape positive native viewport and selected caret")
+        cancel.tap()
+        let restored = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            header.exists && header.frame.height > 0 && !app.keyboards.firstMatch.exists
+        }, object: header)
+        XCTAssertEqual(XCTWaiter.wait(for: [restored], timeout: 5), .completed,
+            "Dismissal restores the existing header and closes the keyboard")
+        attachScreenshot(name: "Welcome landscape header restored after Save")
     }
 
     // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,message-input.layout.responsive-parity
@@ -533,10 +693,157 @@ final class ComposerVisualParityUITests: XCTestCase {
             skip.tap()
         }
 
-        let editor = waitForMessageEditor(in: app)
-        editor.tap()
-        XCTAssertTrue(app.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5))
+        let editor = try? NativeUITestElementResolution.requireVisible(
+            app.textViews.matching(identifier: "message-editor"), in: app)
+        editor?.tap()
         return app
+    }
+
+    private func assertActualScrolledImageFade(editor: XCUIElement, card: XCUIElement,
+                                                file: StaticString = #filePath, line: UInt = #line) {
+        // The seeded one-pixel image is opaque black. Landscape native scrolling
+        // clips its body above the viewport while preserving the real footer.
+        XCTAssertLessThan(card.frame.minY, editor.frame.minY, file: file, line: line)
+        XCTAssertGreaterThan(card.frame.maxY - 61, editor.frame.minY + 24, file: file, line: line)
+        guard let image = editor.screenshot().image.cgImage else {
+            XCTFail("Expected actual native viewport pixels", file: file, line: line); return
+        }
+        let scaleX = CGFloat(image.width) / editor.frame.width
+        let scaleY = CGFloat(image.height) / editor.frame.height
+        let x = (card.frame.midX - editor.frame.minX) * scaleX
+        func brightness(y: CGFloat) -> Int? {
+            guard let sample = image.cropping(to: CGRect(x: x, y: y * scaleY, width: 1, height: 1)) else { return nil }
+            var pixel = [UInt8](repeating: 0, count: 4)
+            guard let context = CGContext(data: &pixel, width: 1, height: 1, bitsPerComponent: 8,
+                bytesPerRow: 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+            context.draw(sample, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+            return Int(pixel[0]) + Int(pixel[1]) + Int(pixel[2])
+        }
+        guard let top = brightness(y: 1), let opaqueBody = brightness(y: 18) else {
+            XCTFail("Expected actual clipped image samples", file: file, line: line); return
+        }
+        XCTAssertGreaterThan(top, opaqueBody + 30,
+            "Transparent top fade must reveal the blue field instead of abruptly clipping the black image", file: file, line: line)
+    }
+
+    private func assertDismissWidth(_ dismiss: XCUIElement, field: XCUIElement,
+                                    file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertEqual(dismiss.frame.width, field.frame.width, accuracy: 1, file: file, line: line)
+        XCTAssertEqual(dismiss.frame.minX, field.frame.minX, accuracy: 1, file: file, line: line)
+    }
+
+    private func waitForFocusedChatComposer(app: XCUIApplication) -> Bool {
+        var previousFrames: [CGRect] = []
+        var stableSince: Date?
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            // Re-resolve every snapshot instead of tapping an animation-era element.
+            guard let field = NativeUITestElementResolution.visible(
+                app.descendants(matching: .any).matching(identifier: "message-field"), in: app, actionable: false),
+                  let editor = NativeUITestElementResolution.visible(
+                app.descendants(matching: .any).matching(identifier: "message-editor"), in: app, actionable: false),
+                  let control = NativeUITestElementResolution.visible(
+                app.buttons.matching(identifier: "message-input-fullscreen-button"), in: app, actionable: false),
+                  let cancel = NativeUITestElementResolution.visible(
+                app.buttons.matching(identifier: "chat-composer-cancel"), in: app, actionable: false) else {
+                previousFrames = []; stableSince = nil; return false
+            }
+            guard field.frame.width > 0, editor.frame.height > 0,
+                  control.frame.height > 0, cancel.frame.height > 0,
+                  field.frame.insetBy(dx: -2, dy: -2).contains(control.frame),
+                  control.frame.minY >= field.frame.minY + 8,
+                  NativeComposerRenderedLayoutAssertions.isBeside(control, field: field, editor: editor),
+                  field.frame.insetBy(dx: -2, dy: -2).contains(editor.frame),
+                  cancel.frame.minY >= field.frame.maxY,
+                  app.windows.firstMatch.frame.contains(cancel.frame),
+                  control.isHittable, cancel.isHittable else {
+                previousFrames = []; stableSince = nil; return false
+            }
+            // The compact inline New Chat target must have left this row's hit
+            // region; a separate top navigation target is outside this band.
+            let compactTargets = app.buttons.matching(identifier: "new-chat-button").allElementsBoundByIndex
+            guard !compactTargets.contains(where: { target in
+                target.exists && target.frame.height > 0
+                    && NativeUITestElementResolution.isOnScreen(target, in: app)
+                    && target.frame.maxY > field.frame.minY && target.frame.minY < field.frame.maxY
+                    && target.isEnabled && target.isHittable
+            }) else { previousFrames = []; stableSince = nil; return false }
+            let frames = [field.frame, editor.frame, control.frame, cancel.frame]
+            if frames != previousFrames {
+                previousFrames = frames; stableSince = Date(); return false
+            }
+            return stableSince.map { Date().timeIntervalSince($0) >= 0.3 } ?? false
+        }, object: app)
+        let result = XCTWaiter.wait(for: [ready], timeout: 5)
+        if result != .completed {
+            attachScreenshot(name: "Chat focus geometry did not settle")
+            let dump = XCTAttachment(string: app.debugDescription); dump.lifetime = .keepAlways; add(dump)
+            let geometry = XCTAttachment(string: String(describing: element(in: app, identifier: "message-field").value))
+            geometry.name = "Actual native composer geometry after real typing"
+            geometry.lifetime = .keepAlways
+            add(geometry)
+        }
+        return result == .completed
+    }
+
+    private func revealComposerCard(type: String, app: XCUIApplication, editor: XCUIElement) throws -> XCUIElement {
+        XCTAssertTrue(editor.exists)
+        XCTAssertGreaterThanOrEqual(editor.frame.height, 61,
+            "The bounded native viewport must fit a complete fixed media footer")
+        let identifier = "native-composer-preview-\(type)-finished"
+        let infoID = "native-composer-\(type == "image" ? "image" : "audio")-info-bar"
+        for _ in 0..<12 {
+            // Re-resolve after each real TextKit scroll; offscreen attachment views
+            // may be recycled rather than retaining an AX frame.
+            let card = editor.descendants(matching: .any)[identifier].firstMatch
+            let info = card.descendants(matching: .any)[infoID].firstMatch
+            if card.exists, card.frame.height > 100, info.exists, info.frame.height > 0,
+               editor.frame.insetBy(dx: -3, dy: -3).contains(info.frame) { return card }
+            let hasFooterFrame = info.exists && info.frame.height > 0
+            // Offscreen native attachment children can have a zero AX frame.
+            // Use the real raw card only to steer; completion still requires
+            // the actual visible fixed footer above, never a predicted frame.
+            let hasCardFrame = card.exists && card.frame.height > 100
+            let targetFooter = hasFooterFrame ? info.frame
+                : (hasCardFrame ? CGRect(x: card.frame.minX, y: card.frame.maxY - 61,
+                    width: card.frame.width, height: 61) : .zero)
+            let hasTarget = hasFooterFrame || hasCardFrame
+            let downward = hasTarget ? targetFooter.minY < editor.frame.minY : type == "image"
+            let remaining = hasTarget
+                ? (downward ? editor.frame.minY - targetFooter.minY : targetFooter.maxY - editor.frame.maxY)
+                : editor.frame.height * 0.4
+            // A 6pt footer overrun formerly produced a 9.5pt drag in landscape:
+            // below the native pan threshold. Cross that threshold with 28pt.
+            let distance = min(0.45, max(28 / max(1, editor.frame.height),
+                (remaining + 4) / max(1, editor.frame.height)))
+            editor.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: downward ? 0.25 : 0.75))
+                .press(forDuration: 0.05, thenDragTo: editor.coordinate(withNormalizedOffset:
+                    CGVector(dx: 0.85, dy: downward ? 0.25 + distance : 0.75 - distance)),
+                    withVelocity: .slow, thenHoldForDuration: 0.1)
+        }
+        attachScreenshot(name: "Missing actual \(type) footer after bounded native editor scroll")
+        let dump = XCTAttachment(string: app.debugDescription); dump.lifetime = .keepAlways; add(dump)
+        XCTFail("Native scrolling did not reveal full200pt \(type) card/fixed61pt footer")
+        return editor.descendants(matching: .any)[identifier].firstMatch
+    }
+
+    private func assertExpandControlAboveCard(_ control: XCUIElement, card: XCUIElement,
+                                             file: StaticString = #filePath, line: UInt = #line) {
+        let separate = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            control.exists && card.exists && control.frame.height > 0 && card.frame.height > 0
+                && card.frame.minY >= control.frame.maxY + 4
+        }, object: control)
+        XCTAssertEqual(XCTWaiter.wait(for: [separate], timeout: 3), .completed,
+            "The complete production inline card must start below the expand hit target. control=\(control.frame) card=\(card.frame)", file: file, line: line)
+        XCTAssertFalse(control.frame.intersects(card.frame), file: file, line: line)
+    }
+
+    private func assertExpandControlBesideNativeText(_ control: XCUIElement, editor: XCUIElement,
+                                               file: StaticString = #filePath, line: UInt = #line) {
+        let app = XCUIApplication()
+        let field = element(in: app, identifier: "message-field")
+        NativeComposerRenderedLayoutAssertions.assertBeside(control, field: field, editor: editor,
+            file: file, line: line)
     }
 
     private func assertSignedOutWelcomeActionShowsSignupCTA(
@@ -674,5 +981,70 @@ final class ComposerVisualParityUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+}
+
+// Actual retained native TextKit coordinates, rather than an empty SwiftUI box.
+// The DEBUG payload contains only rectangles/offset, never message text.
+enum NativeComposerRenderedLayoutAssertions {
+    static func payload(_ field: XCUIElement) -> [String: Any]? {
+        guard let value = field.value as? String,
+              let split = value.range(of: ";native-layout="),
+              let data = String(value[split.upperBound...]).data(using: .utf8) else { return nil }
+        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+    }
+    static func localRect(_ key: String, in payload: [String: Any]) -> CGRect? {
+        guard let values = payload[key] as? [NSNumber], values.count == 4 else { return nil }
+        return CGRect(x: values[0].doubleValue, y: values[1].doubleValue,
+            width: values[2].doubleValue, height: values[3].doubleValue)
+    }
+    static func viewport(_ payload: [String: Any]) -> CGRect? {
+        guard let rect = localRect("viewport", in: payload),
+              rect.minX.isFinite, rect.minY.isFinite, rect.width.isFinite, rect.height.isFinite,
+              rect.width > 0, rect.height > 0 else { return nil }
+        return rect
+    }
+    static func rect(_ key: String, in payload: [String: Any], editor: XCUIElement) -> CGRect? {
+        guard editor.exists, let local = localRect(key, in: payload),
+              let bounds = localRect("bounds", in: payload), let viewport = viewport(payload),
+              local.minX.isFinite, local.minY.isFinite, local.width.isFinite, local.height.isFinite,
+              bounds.minX.isFinite, bounds.minY.isFinite else { return nil }
+        return local.offsetBy(dx: viewport.minX - bounds.minX, dy: viewport.minY - bounds.minY)
+    }
+    static func rightEdge(_ payload: [String: Any], editor: XCUIElement) -> CGFloat? {
+        guard editor.exists, let right = payload["right"] as? NSNumber,
+              let bounds = localRect("bounds", in: payload), let viewport = viewport(payload),
+              right.doubleValue.isFinite, bounds.minX.isFinite else { return nil }
+        return viewport.minX + CGFloat(right.doubleValue) - bounds.minX
+    }
+    static func isBeside(_ control: XCUIElement, field: XCUIElement, editor: XCUIElement) -> Bool {
+        guard editor.exists, let data = payload(field), let viewport = viewport(data),
+              field.frame.contains(viewport), let first = rect("first", in: data, editor: editor),
+              let right = rightEdge(data, editor: editor), first.height > 0 else { return false }
+        return field.frame.contains(control.frame) && viewport.minY <= control.frame.minY
+            && first.minY < control.frame.maxY && first.maxY > control.frame.minY
+            && first.minY - viewport.minY < control.frame.height / 2
+            && first.maxX + 4 <= control.frame.minX && right + 4 <= control.frame.minX
+    }
+    static func assertBeside(_ control: XCUIElement, field: XCUIElement, editor: XCUIElement,
+                             file: StaticString = #filePath, line: UInt = #line) {
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            control.exists && field.exists && editor.exists && isBeside(control, field: field, editor: editor)
+        }, object: field)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 3), .completed,
+            "Actual first line must start at top-left beside the icon with a clear native right lane. field=\(field.frame) editor=\(editor.frame) control=\(control.frame) value=\(String(describing: field.value))", file: file, line: line)
+    }
+    static func assertSelectedCaretClears(_ control: XCUIElement, field: XCUIElement, editor: XCUIElement,
+                                          requiresScroll: Bool = true, file: StaticString = #filePath, line: UInt = #line) {
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard editor.exists, field.exists, let data = payload(field), let viewport = viewport(data),
+                  field.frame.contains(viewport), let selected = rect("selected", in: data, editor: editor),
+                  let offset = data["offset"] as? NSNumber, offset.doubleValue.isFinite,
+                  let right = rightEdge(data, editor: editor) else { return false }
+            return (!requiresScroll || offset.doubleValue > 0) && viewport.insetBy(dx: -2, dy: -2).contains(selected)
+                && selected.maxX + 4 <= control.frame.minX && right + 4 <= control.frame.minX
+        }, object: field)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 3), .completed,
+            "Real native multiline scrolling must keep the selected caret visible and outside the sticky icon lane", file: file, line: line)
     }
 }

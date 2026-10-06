@@ -395,3 +395,6 @@ workspace_entry_range:
   en: "{start}–{end} of {total} entries"
   de: "{start}–{end} von {total} Einträgen"
   verified_by_human: []
+
+workspace_error_source_offline: { context: Remote Project source confirmed disconnected by presence or backend source_offline code, en: "Remote machine is offline", verified_by_human: [] }
+workspace_error_source_timeout: { context: Remote Project read timed out without confirmed offline presence, en: "The remote machine did not respond. Retry the Project read.", verified_by_human: [] }

@@ -1,7 +1,13 @@
 // Timeline and pinned run detail for the Workflow workspace.
-// Web source: frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte: frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+// CSS: WorkflowRunHistory.svelte .run-marker, .status-pill, .run-detail
+// Logic: frontend/packages/ui/src/components/workflows/workflowRunTimeline.ts
+// Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//         TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/workflows/specification.yml
-// Assertions: workflows.mvp.run-history, workflows.privacy.run-retention
+// Assertions: workflows.mvp.run-history, workflows.privacy.run-retention, workflows.execution.lifecycle-visible
 
 import SwiftUI
 
@@ -23,7 +29,15 @@ struct WorkflowRunTimelineView: View {
     private let upcomingId = "__upcoming__"
 
     private var orderedRuns: [WorkflowRunSummary] {
-        runs.sorted { ($0.startedAt ?? 0) > ($1.startedAt ?? 0) }
+        runs.sorted { left, right in
+            let current: (WorkflowRunSummary) -> Bool = {
+                !WorkflowRunSummary.terminalStatuses.contains($0.status) || $0.deliveryState() == .pending
+            }
+            let leftCurrent = current(left), rightCurrent = current(right)
+            if leftCurrent != rightCurrent { return leftCurrent }
+            return (leftCurrent ? left.startedAt ?? 0 : left.finishedAt ?? left.startedAt ?? 0)
+                > (rightCurrent ? right.startedAt ?? 0 : right.finishedAt ?? right.startedAt ?? 0)
+        }
     }
 
     private var nextRunAt: Int? {
@@ -44,7 +58,15 @@ struct WorkflowRunTimelineView: View {
         nextRunAt != nil && (selectedRunId == upcomingId || orderedRuns.isEmpty)
     }
 
-    private var selectedStatus: String { detail?.id == selected?.id ? detail?.status ?? "" : selected?.status ?? "" }
+    private var selectedStatus: String {
+        guard let selected else { return "" }
+        guard let detail, detail.id == selected.id else { return selected.status }
+        // A later terminal summary must not revive cancellation while an older
+        // detail response is hydrating; individual node records stay untouched.
+        if WorkflowRunSummary.terminalStatuses.contains(selected.status),
+           !WorkflowRunSummary.terminalStatuses.contains(detail.status) { return selected.status }
+        return detail.status
+    }
     private var canCancel: Bool { !isUpcoming && ["queued", "running", "waiting"].contains(selectedStatus) }
     private var canDelete: Bool { !isUpcoming && ["completed", "failed", "cancelled", "skipped", "skipped_by_user"].contains(selectedStatus) }
 
@@ -141,7 +163,7 @@ struct WorkflowRunTimelineView: View {
                                    width: timeline.size.width <= 730 ? 96 : 112)
                         }
                         ForEach(orderedRuns) { run in
-                            marker(id: run.id, timestamp: run.startedAt, status: run.status,
+                            marker(id: run.id, timestamp: run.startedAt, status: run.displayStatus(detail: detail),
                                    selected: !isUpcoming && selected?.id == run.id,
                                    width: timeline.size.width <= 730 ? 96 : 112)
                         }
@@ -195,7 +217,7 @@ struct WorkflowRunTimelineView: View {
                     }
                     if let pinnedGraph {
                         VStack {
-                            WorkflowGraphView(graph: pinnedGraph, readOnly: true, nodeRuns: detail.nodeRuns)
+                            WorkflowGraphView(graph: pinnedGraph, readOnly: true, nodeRuns: detail.nodeRuns, executionStatus: selectedStatus)
                         }
                         .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("workflow-run-graph")
@@ -219,7 +241,7 @@ struct WorkflowRunTimelineView: View {
         Button { select(id) } label: {
             VStack(spacing: 2) {
                 HStack(spacing: 3) {
-                    Icon(status == "completed" ? "check" : status == "failed" ? "warning" : "lucide-clock", size: status == "completed" ? 18 : 13)
+                    Icon(status == "completed" ? "lucide-circle-check" : status == "failed" ? "lucide-triangle-alert" : status == "cancelled" ? "lucide-circle-x" : "lucide-clock", size: status == "completed" ? 18 : 13)
                     if status != "completed" {
                         Text(tr(status == "next" ? .next : statusText(status)))
                             .lineLimit(1)

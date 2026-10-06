@@ -2,6 +2,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 #if os(iOS)
 import UIKit
+#elseif os(macOS)
+import AppKit
 #endif
 
 /// The central Tasks surface follows TasksPage.svelte and TaskBoard.svelte. The
@@ -16,9 +18,11 @@ import UIKit
 // Assertions: apple-task-board.context-menu, apple-task-board.drag-move, apple-task-board.workflow-run, apple-task-board.new-task-shortcuts
 struct TasksWorkspaceView: View {
     @ObservedObject var store: TasksWorkspaceStore
+    @Environment(\.isEnabled) private var workspaceIsEnabled
     var composerFocusRequestID: UUID? = nil
     var showPlansOnly = false
     var compactProjectBoard = false
+    var showsComposer = true
     var presentsDetail = true
     var inspiration: DailyInspirationData? = nil
     var onStartInspiration: (String) -> Void = { _ in }
@@ -45,88 +49,91 @@ struct TasksWorkspaceView: View {
     @State private var targetedColumn: UserTaskStatus?
     @State private var cardFrames: [String: CGRect] = [:]
     @State private var keyboardFrame: CGRect?
+    @State private var compactWidth: CGFloat = 370
+    @State private var promptActive = false
+    @State private var promptDismissID: UUID?
+    @State private var promptAvailableHeight: CGFloat = 350
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var boardAnimation: Animation? { reduceMotion ? nil : .easeOut(duration: 0.18) }
 
     var body: some View {
-        GeometryReader { geometry in
-            // TasksPage.svelte measures the remaining workspace width after
-            // opening its 32% board / reader split, rather than window width.
-            let split = !compactProjectBoard && geometry.size.width >= 1100
-                && (store.selectedTaskID != nil || store.selectedWorkflowRunID != nil)
-            let workspaceWidth = split ? max(340, geometry.size.width * 0.32) : geometry.size.width
-            let narrow = workspaceWidth <= 900
-            let keyboardOverlap = TasksWorkspaceLayoutPolicy.keyboardOverlap(
-                container: geometry.frame(in: .global), keyboard: keyboardFrame)
-            let visibleHeight = max(0, geometry.size.height - keyboardOverlap)
-            // Keep the editor in its own lane. The board scrolls within the
-            // remaining space instead of sizing the workspace through the keyboard.
-            VStack(spacing: 0) {
-                ScrollView(.vertical) {
+        Group {
+            if compactProjectBoard {
+                VStack(spacing: 0) {
+                    workspaceContent(narrow: compactWidth <= 900, workspaceWidth: compactWidth, height: 0)
+                        .padding(.bottom, 12)
+                    if showsComposer { composer }
+                }
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { compactWidth = $0 }
+            } else {
+                GeometryReader { geometry in
+                    let split = geometry.size.width >= 1100
+                        && (store.selectedTaskID != nil || store.selectedWorkflowRunID != nil)
+                    let workspaceWidth = split ? max(340, geometry.size.width * 0.32) : geometry.size.width
+                    let keyboardOverlap = TasksWorkspaceLayoutPolicy.keyboardOverlap(
+                        container: geometry.frame(in: .global), keyboard: keyboardFrame)
                     VStack(spacing: 0) {
-                        if compactProjectBoard {
-                            compactProjectToolbar
-                        } else {
-                            banner(width: workspaceWidth, height: geometry.size.height)
-                            toolbar(narrow: narrow)
-                            greeting
+                        ScrollView(.vertical) {
+                            workspaceContent(narrow: workspaceWidth <= 900,
+                                workspaceWidth: workspaceWidth, height: geometry.size.height)
+                                .padding(.bottom, 12)
                         }
-                        if store.isLoading && store.boardItems.isEmpty && store.plans.isEmpty {
-                            ProgressView(AppStrings.loading)
-                                .frame(maxWidth: .infinity, minHeight: 180)
-                                .accessibilityIdentifier("tasks-loading")
-                        } else if store.errorMessage != nil {
-                            VStack(spacing: 10) {
-                                Text(AppStrings.tasksLoadError)
-                                Text(store.errorMessage ?? "").font(.omSmall)
-                                    .foregroundStyle(Color.fontSecondary)
-                                Button(AppStrings.retry) { Task { await store.retryLoad() } }
-                                    .buttonStyle(OMSecondaryButtonStyle())
-                                    .accessibilityIdentifier("tasks-retry-load")
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 160)
-                            .accessibilityElement(children: .contain)
-                            .accessibilityIdentifier("tasks-load-error")
-                        } else {
-                            if let error = store.plansLoadErrorMessage {
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .accessibilityIdentifier("tasks-workspace-scroll")
+                        .workspacePromptBackground(active: promptActive, identifier: "task-workspace-backdrop",
+                onDismiss: { promptDismissID = UUID() })
+                        if showsComposer {
+                            if promptActive, let error = store.errorMessage ?? store.interactionErrorMessage {
                                 Text(error).font(.omSmall).foregroundStyle(Color.error)
                                     .padding(.horizontal, .spacing6)
-                                    .accessibilityIdentifier("tasks-plans-load-error")
+                                    .accessibilityIdentifier(store.errorMessage != nil ? "tasks-load-error" : "task-move-error")
                             }
-                            if let error = store.projectNamesLoadErrorMessage {
-                                Text(error).font(.omSmall).foregroundStyle(Color.error)
-                                    .padding(.horizontal, .spacing6)
-                                    .accessibilityIdentifier("tasks-project-names-load-error")
-                            }
-                            if let error = store.interactionErrorMessage {
-                                Text(error).font(.omSmall).foregroundStyle(Color.error)
-                                    .padding(.horizontal, .spacing6)
-                                    .accessibilityIdentifier("task-move-error")
-                            }
-                            board(narrow: narrow, width: workspaceWidth)
+                            composer
                         }
                     }
-                    .padding(.bottom, 12)
+                    .frame(width: geometry.size.width,
+                        height: max(0, geometry.size.height - keyboardOverlap), alignment: .top)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { promptAvailableHeight = $0 }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .accessibilityIdentifier("tasks-workspace-scroll")
-                composer
             }
-            .frame(width: geometry.size.width, height: visibleHeight, alignment: .top)
+        }
             .background(Color.grey20.ignoresSafeArea())
             .coordinateSpace(name: "tasks-workspace")
             .onPreferenceChange(TaskCardFramesKey.self) { cardFrames = $0 }
+            #if os(iOS)
+            .background {
+                if !promptActive && workspaceIsEnabled {
+                    TaskTouchBoardReader(taskAtPoint: { point in
+                guard !promptActive, workspaceIsEnabled, !store.isSaving, pendingDelete == nil, !showingNewTask,
+                      store.selectedTaskID == nil, store.selectedWorkflowRunID == nil,
+                      let id = diagnosticCardID(at: point),
+                      let item = store.boardItems.first(where: { $0.id == id }), case .task(let task) = item
+                else { return nil }
+                return task
+            }, onBegin: beginDrag, onStationaryHold: { id in
+                dragToken = nil; dragGeneration = nil; draggedTaskID = nil; targetedColumn = nil; hoveredCardID = nil
+                cardActionsID = id
+            }, onCancelledDrag: {
+                dragToken = nil; dragGeneration = nil; draggedTaskID = nil; targetedColumn = nil; hoveredCardID = nil
+                    })
+                }
+            }
+            #endif
             #if os(macOS)
-            .background(TaskSecondaryClickReader { point in
-                guard pendingDelete == nil, !showingNewTask,
+            .background {
+                if !promptActive && workspaceIsEnabled {
+                    TaskSecondaryClickReader { point in
+                guard !promptActive, workspaceIsEnabled, pendingDelete == nil, !showingNewTask,
                       store.selectedTaskID == nil, store.selectedWorkflowRunID == nil,
                       let id = cardFrames.first(where: { $0.value.contains(point) })?.key,
                       store.boardItems.contains(where: { if case .task = $0 { return $0.id == id }; return false })
                 else { return false }
                 cardActionsID = id
                 return true
-            })
+                    }
+                }
+            }
             #endif
             .overlay { OMSheet(isPresented: $showingNewTask, title: showPlansOnly ? AppStrings.tasksNewPlan : AppStrings.tasksNew) { newTaskSheet } }
             .modifier(TasksDetailPresentation(selection: selectedDetailBinding,
@@ -134,9 +141,22 @@ struct TasksWorkspaceView: View {
                 onOpenProject: onOpenProject, onOpenChat: onOpenChat,
                 onReportIssue: onReportIssue))
             .overlay { taskActionsOverlay }
-            .onDisappear { dragToken = nil; dragGeneration = nil; draggedTaskID = nil; targetedColumn = nil; cardActionsID = nil }
+            #if DEBUG && os(iOS)
+            .background(alignment: .topLeading) {
+                if NativeDragDiagnostics.enabled { NativeDragDiagnosticProbe().frame(width: 1, height: 1) }
+            }
+            #endif
+            #if DEBUG
+            .task(id: store.boardItems.map(\.id)) { applyDropHoverFixture() }
+            #endif
+            .onDisappear { dragToken = nil; dragGeneration = nil; draggedTaskID = nil; targetedColumn = nil; hoveredCardID = nil; cardActionsID = nil }
+            .onChange(of: promptActive) { _, active in if active { hoveredCardID = nil } }
+            .onChange(of: workspaceIsEnabled) { _, enabled in if !enabled { hoveredCardID = nil } }
             .onChange(of: store.interactionGeneration) { _, _ in
-                dragToken = nil; dragGeneration = nil; draggedTaskID = nil; targetedColumn = nil; cardActionsID = nil
+                dragToken = nil; dragGeneration = nil; draggedTaskID = nil; targetedColumn = nil; hoveredCardID = nil; cardActionsID = nil
+                #if DEBUG
+                applyDropHoverFixture()
+                #endif
             }
             .overlay {
                 if let task = pendingDelete {
@@ -156,7 +176,6 @@ struct TasksWorkspaceView: View {
                     inspirationIndex = (inspirationIndex + 1) % 3
                 }
             }
-        }
         #if os(iOS)
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
             guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
@@ -168,6 +187,64 @@ struct TasksWorkspaceView: View {
             keyboardFrame = nil
         }
         #endif
+    }
+
+    #if DEBUG
+    private func applyDropHoverFixture() {
+        guard ProcessInfo.processInfo.arguments.contains("--ui-test-task-drop-hover"),
+              let item = store.boardItems.first(where: {
+                  if case .task(let task) = $0 { return task.status == .backlog }; return false
+              }) else { return }
+        draggedTaskID = item.id
+        targetedColumn = .todo
+    }
+    #endif
+
+    private func workspaceContent(narrow: Bool, workspaceWidth: CGFloat, height: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            if compactProjectBoard {
+                compactProjectToolbar
+            } else {
+                banner(width: workspaceWidth, height: height)
+                toolbar(narrow: narrow)
+                greeting
+            }
+            if store.isLoading && store.boardItems.isEmpty && store.plans.isEmpty {
+                ProgressView(AppStrings.loading)
+                    .frame(maxWidth: .infinity, minHeight: 180)
+                    .accessibilityIdentifier("tasks-loading")
+            } else if store.errorMessage != nil {
+                VStack(spacing: 10) {
+                    Text(AppStrings.tasksLoadError)
+                    Text(store.errorMessage ?? "").font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                    Button(AppStrings.retry) { Task { await store.retryLoad() } }
+                        .buttonStyle(OMSecondaryButtonStyle())
+                        .accessibilityIdentifier("tasks-retry-load")
+                }
+                .frame(maxWidth: .infinity, minHeight: 160)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("tasks-load-error")
+            } else {
+                if let error = store.plansLoadErrorMessage {
+                    Text(error).font(.omSmall).foregroundStyle(Color.error)
+                        .padding(.horizontal, .spacing6)
+                        .accessibilityIdentifier("tasks-plans-load-error")
+                }
+                if let error = store.projectNamesLoadErrorMessage {
+                    Text(error).font(.omSmall).foregroundStyle(Color.error)
+                        .padding(.horizontal, .spacing6)
+                        .accessibilityIdentifier("tasks-project-names-load-error")
+                }
+                if (!promptActive || compactProjectBoard), let error = store.interactionErrorMessage {
+                    Text(error).font(.omSmall).foregroundStyle(Color.error)
+                        .padding(.horizontal, .spacing6)
+                        .accessibilityIdentifier("task-move-error")
+                }
+                board(narrow: narrow, width: workspaceWidth)
+            }
+        }
+
     }
 
     private var selectedDetailBinding: Binding<TasksDetailSelection?> {
@@ -191,11 +268,8 @@ struct TasksWorkspaceView: View {
                                 containerSize: CGSize(width: width, height: height),
                                 heightOverride: TasksWorkspaceLayoutPolicy.bannerHeight(width: width, height: height),
                                 ctaTitle: showPlansOnly ? AppStrings.plansInspirationCTA : AppStrings.tasksInspirationCTA,
-                                tapHint: showPlansOnly ? AppStrings.plansInspirationCTA : AppStrings.tasksInspirationCTA) {
-                    store.promptDraft = value.text
-                    newTaskTitle = value.text
-                    onStartInspiration(value.text)
-                }
+                                tapHint: showPlansOnly ? AppStrings.plansInspirationCTA : AppStrings.tasksInspirationCTA,
+                                isInteractive: false) { }
                 if inspiration == nil && choices.count > 1 {
                     HStack {
                         Button { inspirationIndex = (inspirationIndex - 1 + choices.count) % choices.count } label: {
@@ -389,6 +463,7 @@ struct TasksWorkspaceView: View {
                 .padding(.trailing, narrow ? 14 : .spacing2)
             }
             .scrollIndicators(.hidden)
+            .fixedSize(horizontal: false, vertical: compactProjectBoard)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("task-board")
             if tasks.isEmpty && plans.isEmpty {
@@ -408,7 +483,7 @@ struct TasksWorkspaceView: View {
         let columnTasks = tasks.filter { $0.status == status }.sorted { $0.position < $1.position }
         let columnPlans = plans.filter { $0.status.boardColumn == status }.sorted { $0.updatedAt > $1.updatedAt }
         let count = columnTasks.count + columnPlans.count
-        let visible = visibleCounts[status] ?? 30
+        let visible = visibleCounts[status] ?? TaskBoardRenderWindow.initial
         return VStack(alignment: .leading, spacing: .spacing8) {
             HStack(spacing: .spacing3) {
                 RoundedRectangle(cornerRadius: 2).fill(status.accent).frame(width: 4, height: 28)
@@ -417,6 +492,22 @@ struct TasksWorkspaceView: View {
                     .accessibilityIdentifier("task-column-count-\(status.rawValue)")
             }
             .frame(height: 28)
+            if showsDropInsertion(in: status) {
+                Text(AppStrings.tasksDropToMark(status: status.localizedTitle))
+                    .font(.omP.weight(.bold)).foregroundStyle(Color.fontPrimary)
+                    .multilineTextAlignment(.center)
+                    .padding(.spacing4)
+                    .frame(maxWidth: .infinity, minHeight: 88)
+                    .background {
+                        RoundedRectangle(cornerRadius: .radius8).fill(Color.grey0)
+                            .overlay(RoundedRectangle(cornerRadius: .radius8).fill(status.accent.opacity(0.12)))
+                    }
+                    .overlay(RoundedRectangle(cornerRadius: .radius8)
+                        .stroke(status.accent, style: StrokeStyle(lineWidth: 2, dash: [6, 4])))
+                    .allowsHitTesting(false)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("task-column-drop-target-\(status.rawValue)")
+            }
             ForEach(Array(columnTasks.prefix(visible))) { item in
                 taskCard(item)
             }
@@ -424,7 +515,7 @@ struct TasksWorkspaceView: View {
                 planCard(plan)
             }
             if count > visible {
-                Button(AppStrings.tasksShowMore) { visibleCounts[status] = visible + 20 }
+                Button(AppStrings.tasksShowMore) { visibleCounts[status] = TaskBoardRenderWindow.expanded(visible) }
                     .font(.omSmall)
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("task-column-show-more-\(status.rawValue)")
@@ -436,33 +527,34 @@ struct TasksWorkspaceView: View {
         .background(status == .blocked ? Color.grey25 : Color.clear,
                     in: RoundedRectangle(cornerRadius: .radius8))
         .accessibilityElement(children: .contain)
-        .overlay {
-            if targetedColumn == status && draggedTaskID != nil {
-                RoundedRectangle(cornerRadius: .radius8)
-                    .fill(status.accent.opacity(0.12))
-                    .overlay(RoundedRectangle(cornerRadius: .radius8)
-                        .stroke(status.accent, style: StrokeStyle(lineWidth: 2, dash: [6, 4])))
-                    .overlay(alignment: .bottom) {
-                        Text(AppStrings.tasksDropToMark(status: status.localizedTitle))
-                            .font(.omSmall).foregroundStyle(Color.fontPrimary)
-                            .padding(.spacing3).background(Color.grey0, in: Capsule())
-                            .padding(.spacing3)
-                    }
-                    .allowsHitTesting(false)
-                    .accessibilityIdentifier("task-drop-target-\(status.rawValue)")
-            }
-        }
         .onDrop(of: [UTType.utf8PlainText], isTargeted: Binding(
             get: { targetedColumn == status },
-            set: { if $0 { targetedColumn = status } else if targetedColumn == status { targetedColumn = nil } }
+            set: { NativeDragDiagnostics.record("task.targeted=\($0)"); if $0 { targetedColumn = status } else if targetedColumn == status { targetedColumn = nil } }
         )) { providers in acceptDrop(providers, to: status) }
         .animation(boardAnimation, value: columnTasks.map { "\($0.id):\($0.position)" })
         .animation(boardAnimation, value: targetedColumn)
         .accessibilityIdentifier("task-column-\(status.rawValue)")
     }
 
+    private func showsDropInsertion(in status: UserTaskStatus) -> Bool {
+        guard targetedColumn == status, !store.isSaving, let draggedTaskID,
+              let item = store.boardItems.first(where: { $0.id == draggedTaskID }), case .task(let task) = item else { return false }
+        return task.status != status
+    }
+
     private func taskCard(_ item: TaskBoardItem) -> some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
+        let isDraggable: Bool = { if case .task = item { return true }; return false }()
+        #if os(macOS)
+        // A canceled SwiftUI drag can retain its session token. Actual pointer
+        // release ends the hover suppression without retiring an awaiting drop.
+        let pointerDragActive = draggedTaskID != nil && NSEvent.pressedMouseButtons != 0
+        #else
+        let pointerDragActive = draggedTaskID != nil
+        #endif
+        let hoverScale = TaskCardHoverPolicy.scale(isHovered: hoveredCardID == item.id,
+            isDraggable: isDraggable, isDragging: pointerDragActive,
+            isEnabled: workspaceIsEnabled && !promptActive && !store.isSaving)
+        return VStack(alignment: .leading, spacing: .spacing2) {
             Button {
                 guard cardActionsID != item.id else { return }
                 switch item {
@@ -476,7 +568,7 @@ struct TasksWorkspaceView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
-            .highPriorityGesture(cardActivationGesture(onSelect: {
+            .simultaneousGesture(cardActivationGesture(onSelect: {
                 cardActionsID = nil
                 switch item {
                 case .task: store.openTask(item.id)
@@ -510,12 +602,6 @@ struct TasksWorkspaceView: View {
                             .accessibilityIdentifier("task-card-due")
                     }
                     Spacer(minLength: 0)
-                    #if os(iOS)
-                    if UIDevice.current.userInterfaceIdiom == .phone {
-                        TaskDragHandle()
-                            .modifier(TaskCardDragSource(task: task, onBegin: beginDrag))
-                    }
-                    #endif
                     if task.assigneeType == .openmates || task.assigneeType == .externalAI {
                         Icon("ai", size: 12).foregroundStyle(.white)
                             .frame(width: 20, height: 20)
@@ -556,28 +642,39 @@ struct TasksWorkspaceView: View {
         }
         .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey25, lineWidth: 1))
         .shadow(color: .black.opacity(0.10), radius: 5, y: 2)
-        .onHover { hoveredCardID = $0 ? item.id : nil }
+        .onHover { hovering in
+            if hovering {
+                #if os(macOS)
+                // Read the current event state here, not the last body snapshot.
+                // Pending drop tokens/generations remain owned by acceptDrop.
+                hoveredCardID = NSEvent.pressedMouseButtons == 0 ? item.id : nil
+                #else
+                hoveredCardID = draggedTaskID == nil ? item.id : nil
+                #endif
+            } else if hoveredCardID == item.id {
+                hoveredCardID = nil
+            }
+        }
         .overlay(alignment: .topTrailing) {
             if case .task(let task) = item {
                 cardActions(task)
             }
         }
+        .scaleEffect(hoverScale)
+        .animation(boardAnimation, value: hoverScale)
+        // Geometry and drop ownership remain in the original, unscaled slot.
         .background(GeometryReader { proxy in
             Color.clear.preference(key: TaskCardFramesKey.self,
                                    value: [item.id: proxy.frame(in: .named("tasks-workspace"))])
         })
+        .contentShape(Rectangle())
         .modifier(TaskCardDragSource(task: {
-            #if os(iOS)
-            // Phone touch uses the dedicated handle above. A whole-card OS
-            // drag recognizer would also consume the title's menu long press.
-            if UIDevice.current.userInterfaceIdiom == .phone { return nil }
-            #endif
             if case .task(let task) = item { return task }; return nil
         }(), onBegin: beginDrag))
         .accessibilityAction(named: Text(AppStrings.tasksMoreActions)) {
             if case .task = item { cardActionsID = item.id }
         }
-        .zIndex(cardActionsID == item.id ? 9 : 0)
+        .zIndex(cardActionsID == item.id ? 9 : hoverScale > 1 ? 1 : 0)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("task-card")
     }
@@ -627,23 +724,27 @@ struct TasksWorkspaceView: View {
         .accessibilityIdentifier("task-board-plan-card")
     }
 
-    /// One exclusive recognizer owns touch activation. The semantic Button
-    /// action remains available for accessibility activation; long press never
-    /// reaches the tap branch or the underlying Button's touch handler.
+    /// Task title taps retain the semantic Button action. Stationary holds
+    /// open actions on release so the native card drag can own movement.
     private func cardActivationGesture(onSelect: @escaping () -> Void,
                                        onActions: @escaping () -> Void,
                                        allowsPointerDrag: Bool = false) -> AnyGesture<Void> {
         #if os(macOS)
         // Pointer dragging owns the whole card, including its title. Secondary
         // click opens actions through TaskSecondaryClickReader.
-        if allowsPointerDrag { return AnyGesture(TapGesture().onEnded { onSelect() }) }
+        if allowsPointerDrag { return AnyGesture(TapGesture().map { _ in () }) }
         #else
         if allowsPointerDrag && hoveredCardID != nil {
             // iPad trackpad/mouse uses the same full-card drag surface as Mac.
             // The visible More actions control retains menu access.
-            return AnyGesture(TapGesture().onEnded { onSelect() })
+            return AnyGesture(TapGesture().map { _ in () })
         }
         #endif
+        if allowsPointerDrag {
+            // UIKit observes stationary release and native drag completion for
+            // the whole card. The semantic title Button keeps normal taps.
+            return AnyGesture(TapGesture().map { _ in () })
+        }
         return AnyGesture(LongPressGesture(minimumDuration: 0.5)
             .exclusively(before: TapGesture())
             .onEnded { gesture in
@@ -732,8 +833,18 @@ struct TasksWorkspaceView: View {
         .accessibilityIdentifier(id)
     }
 
+    private func diagnosticCardID(at point: CGPoint) -> String? {
+        let match = cardFrames.first(where: { $0.value.contains(point) })
+        if let frame = match?.value {
+            NativeDragDiagnostics.record("task.frame=\(Int(frame.minX)),\(Int(frame.minY)),\(Int(frame.width)),\(Int(frame.height))")
+        } else { NativeDragDiagnostics.record("task.frame.none;count=\(cardFrames.count)") }
+        return match?.key
+    }
+
     private func beginDrag(_ task: UserTaskItem) -> NSItemProvider {
+        NativeDragDiagnostics.record("task.beginDrag")
         cardActionsID = nil
+        hoveredCardID = nil
         draggedTaskID = task.id
         let token = UUID().uuidString
         dragToken = token
@@ -742,18 +853,21 @@ struct TasksWorkspaceView: View {
     }
 
     private func acceptDrop(_ providers: [NSItemProvider], to status: UserTaskStatus) -> Bool {
+        NativeDragDiagnostics.record("task.drop.invoked;providers=\(providers.count)")
         guard !store.isSaving, dragGeneration == store.interactionGeneration,
               let id = draggedTaskID, let token = dragToken,
               let item = store.boardItems.first(where: { $0.id == id }),
               case .task(let task) = item, task.status != status,
               let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.utf8PlainText.identifier) })
-        else { return false }
+        else { NativeDragDiagnostics.record("task.drop.guardRejected"); return false }
+        NativeDragDiagnostics.record("task.drop.accepted")
         provider.loadDataRepresentation(forTypeIdentifier: UTType.utf8PlainText.identifier) { data, _ in
             guard let data, String(data: data, encoding: .utf8) == token else { return }
+            Task { @MainActor in NativeDragDiagnostics.record("task.drop.tokenDecoded") }
             Task { @MainActor in
                 guard dragToken == token, draggedTaskID == id,
                       dragGeneration == store.interactionGeneration else { return }
-                dragToken = nil; draggedTaskID = nil; targetedColumn = nil
+                dragToken = nil; draggedTaskID = nil; targetedColumn = nil; hoveredCardID = nil
                 withAnimation(boardAnimation) { cardActionsID = nil }
                 await store.moveTask(task, to: status)
             }
@@ -793,33 +907,25 @@ struct TasksWorkspaceView: View {
     }
 
     private var composer: some View {
-        WorkspacePromptComposerView(
-            text: $store.promptDraft,
-            placeholder: compactProjectBoard ? AppStrings.tasksPromptCompact : AppStrings.tasksPrompt,
-            submitLabel: AppStrings.tasksSend,
-            submittingLabel: AppStrings.tasksSaving,
-            disabled: store.isSaving,
-            submitting: store.isSaving,
-            identifier: compactProjectBoard ? "project-task-workspace-composer" : "task-workspace-composer",
-            inputIdentifier: compactProjectBoard ? "project-task-workspace-input" : "task-workspace-input",
-            submitIdentifier: compactProjectBoard ? "project-task-workspace-submit" : "task-workspace-submit",
-            micIdentifier: compactProjectBoard ? "project-task-workspace-mic" : "task-workspace-mic",
-            onSubmit: submitPrompt,
-            onMic: { ToastManager.shared.show(AppStrings.tasksMicUnavailable, type: .error) },
-            focusRequestID: composerFocusRequestID
-        )
-        .padding(.horizontal, compactProjectBoard ? 0 : 32).padding(.bottom, 12)
+        TaskWorkspacePromptComposer(store: store, compactProjectBoard: compactProjectBoard,
+            focusRequestID: composerFocusRequestID, onSubmit: submitPrompt,
+            onActiveChanged: { promptActive = $0 }, dismissRequestID: promptDismissID,
+            availableHeight: promptAvailableHeight)
     }
 
     private func submitPrompt(_ value: String) {
         let title = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
-        store.promptDraft = ""
         if showPlansOnly {
+            store.promptDraft = ""
             newTaskTitle = title
             showingNewTask = true
         } else {
-            Task { await store.createTask(UserTaskCreateInput(title: title)) }
+            Task {
+                if await store.createTask(UserTaskCreateInput(title: title)), store.promptDraft.trimmingCharacters(in: .whitespacesAndNewlines) == title {
+                    store.promptDraft = ""
+                }
+            }
         }
     }
 
@@ -902,6 +1008,43 @@ private enum TasksDetailSelection: Identifiable {
     }
 }
 
+/// Project Tasks mounts this same editor in its viewport bottom lane while its
+/// outer page owns vertical scrolling of the compact board.
+struct TaskWorkspacePromptComposer: View {
+    @ObservedObject var store: TasksWorkspaceStore
+    var compactProjectBoard = false
+    var focusRequestID: UUID? = nil
+    var onSubmit: ((String) -> Void)? = nil
+    var onActiveChanged: (Bool) -> Void = { _ in }
+    var dismissRequestID: UUID? = nil
+    var availableHeight: CGFloat = 350
+
+    var body: some View {
+        WorkspacePromptComposerView(text: $store.promptDraft,
+            placeholder: compactProjectBoard ? AppStrings.tasksPromptCompact : AppStrings.tasksPrompt,
+            submitLabel: AppStrings.tasksSend, submittingLabel: AppStrings.tasksSaving,
+            disabled: store.isSaving, submitting: store.isSaving,
+            identifier: compactProjectBoard ? "project-task-workspace-composer" : "task-workspace-composer",
+            inputIdentifier: compactProjectBoard ? "project-task-workspace-input" : "task-workspace-input",
+            submitIdentifier: compactProjectBoard ? "project-task-workspace-submit" : "task-workspace-submit",
+            micIdentifier: compactProjectBoard ? "project-task-workspace-mic" : "task-workspace-mic",
+            onSubmit: { value in
+                if let onSubmit { onSubmit(value); return }
+                let title = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !title.isEmpty else { return }
+                Task {
+                    if await store.createTask(UserTaskCreateInput(title: title)), store.promptDraft.trimmingCharacters(in: .whitespacesAndNewlines) == title {
+                        store.promptDraft = ""
+                    }
+                }
+            },
+            onMic: { ToastManager.shared.show(AppStrings.tasksMicUnavailable, type: .error) },
+            focusRequestID: focusRequestID, onActiveChanged: onActiveChanged,
+            dismissRequestID: dismissRequestID, availableHeight: availableHeight)
+            .padding(.horizontal, compactProjectBoard ? 0 : 32).padding(.bottom, 12)
+    }
+}
+
 private struct TasksDetailPresentation: ViewModifier {
     @Binding var selection: TasksDetailSelection?
     @ObservedObject var store: TasksWorkspaceStore
@@ -964,6 +1107,8 @@ struct TasksWorkspaceDetailView: View {
                 TaskDetailView(store: store, task: task,
                     onOpenProject: onOpenProject, onOpenChat: onOpenChat,
                     onReportIssue: onReportIssue)
+                    .id(task.id)
+                    .onAppear { store.taskDetailDidAppear(task.id) }
             } else if let plan = store.selectedPlan {
                 PlanDetailView(store: store, plan: plan,
                     onOpenProject: onOpenProject, onOpenChat: onOpenChat,
@@ -1006,17 +1151,14 @@ private struct WorkflowRunTaskDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(AppStrings.tasksWorkflowRunID)
+                        Text(AppStrings.workflowRun(.run))
                             .font(.omXs).fontWeight(.bold)
                             .foregroundStyle(Color.fontSecondary)
-                        Text(projection.workflowRunId ?? AppStrings.tasksNoWorkflowRunID)
-                            .font(.omSmall.monospaced())
-                            .textSelection(.enabled)
-                            .padding(8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.grey20, in: RoundedRectangle(cornerRadius: 6))
-                            .accessibilityIdentifier("workflow-run-detail-id")
-                        Text(displayedStatus.replacingOccurrences(of: "_", with: " ").capitalized)
+                        Text(Date(timeIntervalSince1970: TimeInterval(run?.startedAt ?? projection.scheduledAt ?? projection.createdAt))
+                            .formatted(.dateTime.month(.abbreviated).day().hour().minute()))
+                            .font(.omP)
+                            .accessibilityIdentifier("workflow-run-detail-started-at")
+                        Text(statusTitle(displayedStatus))
                             .font(.omP.weight(.semibold))
                             .foregroundStyle(displayedStatus == "completed" ? Color.chatRainbowGreen :
                                              displayedStatus == "failed" ? Color.error : Color.fontPrimary)
@@ -1026,17 +1168,23 @@ private struct WorkflowRunTaskDetailView: View {
                     .background(Color.grey10, in: RoundedRectangle(cornerRadius: 8))
                     if let errorMessage {
                         Text(errorMessage).foregroundStyle(Color.error)
-                    } else if run == nil && !store.usesPreviewData {
+                            .accessibilityIdentifier("workflow-run-detail-load-error")
+                    } else if run == nil {
                         ProgressView(AppStrings.loading)
                     }
                     if let run {
+                        if !run.contentAvailable {
+                            Text(AppStrings.workflowRun(.content_unavailable))
+                                .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                                .accessibilityIdentifier("workflow-run-content-unavailable")
+                        }
                         VStack(alignment: .leading, spacing: 12) {
                             Text(AppStrings.tasksWorkflowNodeStatus).font(.omH3).fontWeight(.bold)
                             ForEach(run.nodeRuns) { node in
                                 HStack {
-                                    Text(node.nodeId).lineLimit(2)
+                                    Text(nodeTitle(node)).lineLimit(2)
                                     Spacer()
-                                    Text(node.status.replacingOccurrences(of: "_", with: " ").capitalized)
+                                    Text(statusTitle(node.status))
                                         .fontWeight(.semibold)
                                 }
                                 .font(.omP)
@@ -1054,15 +1202,37 @@ private struct WorkflowRunTaskDetailView: View {
                 .padding(24)
             }
             .background(Color.grey0)
-            .task(id: projection.id) { await loadExactRun() }
+            .task(id: "\(projection.id):\(projection.workflowRunId ?? "")") { await loadExactRun() }
             .accessibilityIdentifier("workflow-run-projection-detail")
         }
     }
 
+    private func nodeTitle(_ run: WorkflowNodeRun) -> String {
+        graph?.nodes.first(where: { $0.id == run.nodeId })?.title ?? AppStrings.tasksWorkflowNodeStatus
+    }
+
+    private func statusTitle(_ status: String) -> String {
+        let key: AppStrings.WorkflowRunCopy
+        switch status {
+        case "completed": key = .status_completed
+        case "failed": key = .status_failed
+        case "cancelled": key = .status_cancelled
+        case "skipped", "skipped_by_user": key = .status_skipped
+        case "queued": key = .status_queued
+        case "running": key = .status_running
+        case "waiting": key = .status_waiting
+        case "cancellation_requested": key = .status_cancellation_requested
+        default: key = .status_unavailable
+        }
+        return AppStrings.workflowRun(key)
+    }
+
     private func loadExactRun() async {
-        guard !store.usesPreviewData else { return }
+        run = nil
+        graph = nil
+        errorMessage = nil
         guard projection.workflowRunId != nil else {
-            errorMessage = AppStrings.tasksNoWorkflowRunID
+            errorMessage = AppStrings.localized("workflows.runs.load_failed")
             return
         }
         for _ in 0..<90 {
@@ -1079,8 +1249,8 @@ private struct WorkflowRunTaskDetailView: View {
             } catch is CancellationError {
                 return
             } catch {
-                guard !Task.isCancelled else { return }
-                errorMessage = error.localizedDescription
+                guard !Task.isCancelled, store.selectedWorkflowRunID == projection.id else { return }
+                errorMessage = WorkflowRunTaskReader.loadErrorMessage(error)
                 return
             }
         }

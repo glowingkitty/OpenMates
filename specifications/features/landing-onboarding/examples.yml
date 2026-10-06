@@ -137,10 +137,10 @@ legacy_intro_retirement:
     expect: {hash_cleared: true, host_surface: new_chat_welcome, missing_chat_error: false}
   - id: retired-intros-absent-from-discovery
     given: {surface: guest_or_authenticated_public_chat_discovery}
-    expect: {absent_chat_ids: [demo-for-everyone, demo-for-developers], real_example_chats_visible: true}
+    expect: {absent_chat_ids: [demo-for-everyone, demo-for-developers, demo-who-develops-openmates], real_example_chats_visible: true}
   - id: auth-recovery-uses-neutral-chat-state
     given: {login_recovery_completed: true, previous_last_opened: /signup/verify}
-    expect: {last_opened_not_in: [demo-for-everyone, demo-for-developers], neutral_new_chat_state: true}
+    expect: {last_opened_not_in: [demo-for-everyone, demo-for-developers, demo-who-develops-openmates], neutral_new_chat_state: true}
 
 primary_slogan:
   - id: english-positioning-separates-headline-and-seo-description

@@ -11,12 +11,116 @@ import XCTest
 final class ChatNavigationParityUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
+        #if os(iOS)
+        XCUIDevice.shared.orientation = .portrait
+        #endif
+    }
+
+    // contract-test: direct surface=gui.apple assertions=workspace-shell.nav.released-surfaces-visible
+    func testCompactWorkspaceMenuOpensAboveRealChatAndNavigates() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-workspace-sidebar-fixture"]
+        app.launch()
+        try assertHeaderTitle("Current Chat", in: app)
+        let picker = app.buttons["workspace-switcher"]
+        guard picker.waitForExistence(timeout: 5) else { throw XCTSkip("Compact header required") }
+        picker.tap()
+        let tasks = app.buttons["tasks-nav-link"]
+        XCTAssertTrue(tasks.waitForExistence(timeout: 5))
+        XCTAssertTrue(tasks.isHittable, "The real chat shell must not clip or cover menu options")
+        XCTAssertGreaterThan(tasks.frame.minY, picker.frame.maxY)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "Workspace dropdown above real chat"; shot.lifetime = .keepAlways; add(shot)
+        tasks.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["tasks-workspace"].waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["workspace-switcher"].value as? String == "expanded")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send,drafts.draft-only.presentation
+    func testImageAndAudioDraftRestoreSurvivesSaveTypingAndReopenWithoutHeader() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-nav-draft-attachments", "--ui-test-nav-callback-diagnostics"]
+        app.launch()
+        try assertHeaderTitle("Current Chat", in: app)
+        let navigation = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "chat-navigation-order=")).firstMatch
+        XCTAssertTrue(navigation.waitForExistence(timeout: 12))
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard navigation.exists else { return false }
+            return navigation.label.contains("chat-navigation-order=ui-test-draft-chat,ui-test-newer-chat,ui-test-current-chat,ui-test-older-chat")
+                && navigation.label.contains("selected-chat-id=ui-test-current-chat")
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 12), .completed)
+        let next = try NativeUITestElementResolution.requireVisible(app.buttons.matching(identifier: "chat-header-next"), in: app)
+        next.tap()
+        XCTAssertEqual(try waitForMetric("selected-chat-id", equals: "ui-test-newer-chat", in: navigation), "ui-test-newer-chat")
+        try assertHeaderTitle("Newer Chat", in: app)
+        try NativeUITestElementResolution.requireVisible(app.buttons.matching(identifier: "chat-header-next"), in: app).tap()
+        XCTAssertEqual(try waitForMetric("selected-chat-id", equals: "ui-test-draft-chat", in: navigation), "ui-test-draft-chat")
+        let probe = app.staticTexts["composer-draft-attachment-probe"]
+        XCTAssertTrue(probe.waitForExistence(timeout: 10))
+        func fields() -> [String: String] {
+            Dictionary(probe.label.split(separator: ";").compactMap { item in
+                let pair = item.split(separator: "=", maxSplits: 1)
+                return pair.count == 2 ? (String(pair[0]), String(pair[1])) : nil
+            }, uniquingKeysWith: { _, last in last })
+        }
+        func assertHydrated() {
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let value = fields()
+                return value["nodes"] == "2" && value["resolved"] == "2" && value["cached"] == "2"
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
+            XCTAssertFalse(app.staticTexts["chat-header-title"].exists)
+            XCTAssertFalse(app.descendants(matching: .any)["chat-header-banner"].exists)
+            let atoms = app.descendants(matching: .any).matching(NSPredicate(format:
+                "identifier BEGINSWITH %@", "native-composer-embed-"))
+            XCTAssertGreaterThanOrEqual(atoms.count, 2, "Both image and audio must remain inline preview atoms")
+        }
+        assertHydrated()
+        let input = app.textViews["message-editor"].firstMatch
+        guard RealAccountUITestSupport.focusForTextEntry(input, in: app, identifier: "message-editor") else { return }
+        input.typeText(" Later synthetic draft text")
+        let saved = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let value = fields()
+            return value["saved"] == value["revision"] && value["saved"] != "-1"
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [saved], timeout: 10), .completed)
+        assertHydrated()
+        app.terminate(); app.launch()
+        // The deterministic navigation fixture starts on Current Chat every launch.
+        // Reopen the saved draft through the production route before checking its ciphertext.
+        try assertHeaderTitle("Current Chat", in: app)
+        XCTAssertTrue(navigation.waitForExistence(timeout: 12))
+        XCTAssertEqual(try waitForMetric("selected-chat-id", equals: "ui-test-current-chat", in: navigation), "ui-test-current-chat")
+        let beforeTapScreenshot = XCTAttachment(screenshot: app.screenshot())
+        let beforeTapHierarchy = XCTAttachment(string: navigation.label + "\n" + app.debugDescription)
+        try NativeUITestElementResolution.requireVisible(app.buttons.matching(identifier: "chat-header-next"), in: app).tap()
+        XCTAssertEqual(try waitForMetric("selected-chat-id", equals: "ui-test-newer-chat", in: navigation,
+            onTimeout: {
+                beforeTapScreenshot.name = "synthetic-relaunch-next-before-screen"
+                beforeTapScreenshot.lifetime = .keepAlways; self.add(beforeTapScreenshot)
+                beforeTapHierarchy.name = "synthetic-relaunch-next-before-AX"
+                beforeTapHierarchy.lifetime = .keepAlways; self.add(beforeTapHierarchy)
+                let afterScreenshot = XCTAttachment(screenshot: app.screenshot())
+                afterScreenshot.name = "synthetic-relaunch-next-after-screen"
+                afterScreenshot.lifetime = .keepAlways; self.add(afterScreenshot)
+                let afterHierarchy = XCTAttachment(string: navigation.label + "\n" + app.debugDescription)
+                afterHierarchy.name = "synthetic-relaunch-next-after-AX"
+                afterHierarchy.lifetime = .keepAlways; self.add(afterHierarchy)
+            }), "ui-test-newer-chat")
+        try assertHeaderTitle("Newer Chat", in: app)
+        try NativeUITestElementResolution.requireVisible(app.buttons.matching(identifier: "chat-header-next"), in: app).tap()
+        XCTAssertEqual(try waitForMetric("selected-chat-id", equals: "ui-test-draft-chat", in: navigation), "ui-test-draft-chat")
+        XCTAssertTrue(probe.waitForExistence(timeout: 12))
+        assertHydrated()
+        XCTAssertTrue((app.textViews["message-editor"].firstMatch.value as? String)?.contains("Later synthetic draft text") == true,
+            "Relaunch must restore later text from the saved encrypted attachment draft")
     }
 
     // contract-test: direct surface=gui.apple assertions=chat-navigation.draft-only.addressable,chat-navigation.order.sidebar-header-match,chat-navigation.empty-new-chat.excluded
     func testHeaderNavigationFollowsSidebarOrderIncludingDraftOnlyChat() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-authenticated-chat-navigation"]
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-shell-metrics"]
         app.launchEnvironment["UI_TEST_AUTHENTICATED_CHAT_NAVIGATION"] = "1"
         app.launch()
 
@@ -39,52 +143,89 @@ final class ChatNavigationParityUITests: XCTestCase {
         sidebarToggle.tap()
         XCTAssertTrue(app.descendants(matching: .any)["chat-history-panel"].waitForExistence(timeout: 5))
         try assertSidebarRowsInOrder(["Header navigation draft", "Newer Chat", "Current Chat", "Older Chat"], in: app)
+        let shell = app.descendants(matching: .any).matching(identifier: "shell-responsive-metrics").firstMatch
+        XCTAssertTrue(shell.waitForExistence(timeout: 5))
+        XCTAssertEqual(try waitForMetric("chat-panel-open", equals: "true", in: shell), "true")
+        let closeSidebar = try NativeUITestElementResolution.requireVisible(
+            app.buttons.matching(identifier: "chat-sidebar-close"), in: app)
+        closeSidebar.tap()
+        XCTAssertEqual(try waitForMetric("chat-panel-open", equals: "false", in: shell), "false")
         app.terminate()
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 12))
         try assertHeaderTitle("Current Chat", in: app)
 
-        let nextButton = app.buttons["chat-header-next"]
-        let previousButton = app.buttons["chat-header-previous"]
-        XCTAssertTrue(nextButton.waitForExistence(timeout: 5))
-        XCTAssertTrue(previousButton.waitForExistence(timeout: 5))
+        XCTAssertEqual(try waitForMetric("chat-panel-open", equals: "false", in: shell), "false",
+                       "Header navigation requires the sidebar to be closed after relaunch")
+        let nextButton = try NativeUITestElementResolution.requireVisible(
+            app.buttons.matching(identifier: "chat-header-next"), in: app)
+        let previousButton = try NativeUITestElementResolution.requireVisible(
+            app.buttons.matching(identifier: "chat-header-previous"), in: app)
         XCTAssertLessThan(nextButton.frame.midX, previousButton.frame.midX, "Next/newer control belongs on the left; previous/older belongs on the right.")
 
         previousButton.tap()
         try assertHeaderTitle("Older Chat", in: app)
         XCTAssertEqual(try waitForMetric("selected-chat-id", equals: "ui-test-older-chat", in: metrics), "ui-test-older-chat")
 
-        app.buttons["chat-header-next"].tap()
+        try NativeUITestElementResolution.requireVisible(
+            app.buttons.matching(identifier: "chat-header-next"), in: app).tap()
         try assertHeaderTitle("Current Chat", in: app)
         XCTAssertEqual(try waitForMetric("selected-chat-id", equals: "ui-test-current-chat", in: metrics), "ui-test-current-chat")
 
-        app.buttons["chat-header-next"].tap()
+        try NativeUITestElementResolution.requireVisible(
+            app.buttons.matching(identifier: "chat-header-next"), in: app).tap()
         try assertHeaderTitle("Newer Chat", in: app)
         XCTAssertEqual(try waitForMetric("selected-chat-id", equals: "ui-test-newer-chat", in: metrics), "ui-test-newer-chat")
 
-        app.buttons["chat-header-next"].tap()
-        try assertHeaderTitle("Header navigation draft", in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["draft-chat-badge"].waitForExistence(timeout: 5))
+        try NativeUITestElementResolution.requireVisible(
+            app.buttons.matching(identifier: "chat-header-next"), in: app).tap()
         XCTAssertEqual(try waitForMetric("selected-chat-id", equals: "ui-test-draft-chat", in: metrics), "ui-test-draft-chat")
+        let draftEditor = app.textViews["message-editor"].firstMatch
+        XCTAssertTrue(draftEditor.waitForExistence(timeout: 5))
+        let restoredDraft = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "Header navigation draft"),
+                                                     object: app.textViews["message-editor"].firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for: [restoredDraft], timeout: 10), .completed,
+                       "The selected draft must restore its encrypted composer content")
+        XCTAssertFalse(app.staticTexts["chat-header-title"].exists,
+                       "An unsent draft must not create generated chat header UI")
     }
 
     // contract-test: direct surface=gui.apple assertions=drafts.draft-only.lifecycle,chat-navigation.empty-new-chat.excluded
     func testClearingAdoptedDraftReturnsToUnfocusedWorkspaceLanding() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-window-drafts", "-AppleLanguages", "(en)"]
+        app.launchArguments = ["--ui-test-window-drafts", "--ui-test-nav-callback-diagnostics", "-AppleLanguages", "(en)"]
         app.launch()
         let editor = app.textViews["message-editor"].firstMatch
         XCTAssertTrue(editor.waitForExistence(timeout: 15))
-        editor.tap()
+        guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
         let draft = "Draft to clear"
         editor.typeText(draft)
-        try assertHeaderTitle(draft, in: app)
         let adopted = app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat-view-")).firstMatch
         XCTAssertTrue(adopted.waitForExistence(timeout: 10))
+        let adoptedChatID = String(adopted.identifier.dropFirst("chat-view-".count))
+        let restored = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            // Adoption replaces the welcome editor. Resolve the current native
+            // editor on every pass rather than retaining the pre-remount target.
+            let route = app.staticTexts["chat-draft-restore-probe"]
+            guard route.exists,
+                  route.label.contains("chat-id=\(adoptedChatID);loaded-route=\(adoptedChatID);") else { return false }
+            guard let currentEditor = NativeUITestElementResolution.visible(
+                app.textViews.matching(identifier: "message-editor"), in: app) else { return false }
+            return (currentEditor.value as? String) == draft
+        }, object: nil)
+        let restoreOutcome = XCTWaiter.wait(for: [restored], timeout: 10)
+        if restoreOutcome != .completed { attachSyntheticDraftNavigationReceipt(app, name: "Adopted draft restore failure") }
+        XCTAssertEqual(restoreOutcome, .completed,
+                       "Draft adoption must restore saved content before editing resumes")
+        let adoptedEditor = try XCTUnwrap(NativeUITestElementResolution.visible(
+            app.textViews.matching(identifier: "message-editor"), in: app))
+        XCTAssertEqual(adoptedEditor.value as? String, draft)
+        XCTAssertFalse(app.staticTexts["chat-header-title"].exists,
+                       "Saving an editor draft must not create a gradient header")
         let removedID = adopted.identifier
-        editor.tap()
-        editor.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: draft.count))
+        guard RealAccountUITestSupport.focusForTextEntry(adoptedEditor, in: app, identifier: "message-editor") else { return }
+        adoptedEditor.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: draft.count))
         let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
                                                object: app.descendants(matching: .any)[removedID])
         XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 12), .completed)
@@ -96,21 +237,80 @@ final class ChatNavigationParityUITests: XCTestCase {
         XCTAssertEqual(app.textViews["message-editor"].firstMatch.value as? String, "")
     }
 
-    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent,message-input.focus.workspace-suppression
     func testContinuationOpensPersistedChatWithoutReplayingComposerFocus() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-stale-composer-focus"]
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-stale-composer-focus", "--ui-test-nav-callback-diagnostics"]
         app.launch()
+        // The stale focus fixture intentionally opens its initial composer.
+        // Restore the suppressed workspace through the actual Cancel action.
+        let backdrop = app.buttons["chat-composer-workspace-backdrop"]
+        XCTAssertTrue(backdrop.waitForExistence(timeout: 12))
+        XCTAssertEqual(backdrop.value as? String, "background-opacity=0.35;background-interactive=false")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5),
+            "The fixture must establish the initial composer focus request")
+        XCTAssertFalse(app.staticTexts["chat-header-title"].exists,
+            "Focused composing suppresses the initial transcript header")
+        let initialEditor = app.textViews["message-editor"].firstMatch
+        let originalDraft = initialEditor.value as? String
+        try NativeUITestElementResolution.requireVisible(
+            app.buttons.matching(identifier: "chat-composer-cancel"), in: app, timeout: 5).tap()
+        XCTAssertTrue(backdrop.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(initialEditor.value as? String, originalDraft)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
         try assertHeaderTitle("Current Chat", in: app)
-        app.buttons["chat-close-button"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["chat-workspace-welcome"].waitForExistence(timeout: 5))
-        let card = app.descendants(matching: .any).matching(NSPredicate(format: "identifier IN %@",
-            ["welcome-chat-card-ui-test-current-chat", "welcome-chat-compact-card-ui-test-current-chat"])).firstMatch
-        XCTAssertTrue(card.waitForExistence(timeout: 8))
+        let close = try NativeUITestElementResolution.requireVisible(
+            app.buttons.matching(identifier: "chat-close-button"), in: app, timeout: 5)
+        close.tap()
+        let welcomeOpened = app.descendants(matching: .any)["chat-workspace-welcome"].waitForExistence(timeout: 5)
+        if !welcomeOpened { attachSyntheticDraftNavigationReceipt(app, name: "Actual close navigation failure") }
+        XCTAssertTrue(welcomeOpened)
+        let cardQuery = app.buttons.matching(NSPredicate(format: "identifier IN %@",
+            ["welcome-chat-card-ui-test-current-chat", "welcome-chat-compact-card-ui-test-current-chat"]))
+        let landingReady = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let navigation = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "chat-navigation-order=")).firstMatch
+            guard navigation.exists, navigation.label.contains("selected-chat-id=nil;"),
+                  navigation.label.contains("show-new-chat=true;"),
+                  navigation.label.contains("history-presentation-pending=nil"),
+                  !app.descendants(matching: .any)["chat-view-ui-test-current-chat"].exists,
+                  let currentCard = NativeUITestElementResolution.visible(cardQuery, in: app) else { return false }
+            return app.windows.firstMatch.frame.contains(currentCard.frame)
+        }, object: nil)
+        let landingOutcome = XCTWaiter.wait(for: [landingReady], timeout: 8)
+        if landingOutcome != .completed { attachSyntheticDraftNavigationReceipt(app, name: "Continuation card landing readiness failure") }
+        XCTAssertEqual(landingOutcome, .completed, "Tap the visible production Button after the old chat presentation is removed")
+        let card = try XCTUnwrap(NativeUITestElementResolution.visible(cardQuery, in: app))
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(card.frame))
         card.tap()
+        let routePresented = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let current = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "chat-navigation-order=")).firstMatch
+            return current.exists && current.label.contains("selected-chat-id=ui-test-current-chat;")
+                && current.label.contains("show-new-chat=false;")
+                && current.label.contains("history-presentation-pending=nil")
+        }, object: nil)
+        let routeOutcome = XCTWaiter.wait(for: [routePresented], timeout: 5)
+        if routeOutcome != .completed { attachSyntheticDraftNavigationReceipt(app, name: "Continuation actual route presentation failure") }
+        XCTAssertEqual(routeOutcome, .completed, "The actual card callback must select Current Chat and complete its presentation")
         try assertHeaderTitle("Current Chat", in: app)
         XCTAssertFalse(app.keyboards.firstMatch.exists, "A continuation card opens the transcript for reading")
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label == %@", "Current Chat")).firstMatch.exists)
+    }
+
+    private func attachSyntheticDraftNavigationReceipt(_ app: XCUIApplication, name: String) {
+        // This helper is called only by the two explicit synthetic fixtures.
+        // Read actual editor AX values in the failed UI, never log production drafts.
+        let editors = app.textViews.matching(identifier: "message-editor").allElementsBoundByIndex
+        let editorReceipt = editors.enumerated().map { index, editor in
+            "editor[\(index)];value=\(editor.value ?? "unavailable");bounds=\(editor.frame);hittable=\(editor.isHittable)"
+        }.joined(separator: "\n")
+        let receipt = XCTAttachment(string: editorReceipt + "\n" + app.debugDescription)
+        receipt.name = name + " synthetic AX and actual editor values"
+        receipt.lifetime = .keepAlways
+        add(receipt)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = name + " viewport"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
     }
 
     // contract-test: direct surface=gui.apple assertions=chat-navigation.open.local-first-coherent
@@ -122,8 +322,22 @@ final class ChatNavigationParityUITests: XCTestCase {
         let loading = app.descendants(matching: .any)["chat-initial-content-loading"].firstMatch
         let loaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: loading)
         XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 8), .completed)
-        app.buttons["chat-close-button"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["chat-workspace-welcome"].waitForExistence(timeout: 5))
+        let close = try NativeUITestElementResolution.requireVisible(
+            app.buttons.matching(identifier: "chat-close-button"), in: app, timeout: 5)
+        close.tap()
+        let welcome = app.descendants(matching: .any)["chat-workspace-welcome"]
+        let welcomeAppeared = welcome.waitForExistence(timeout: 5)
+        if !welcomeAppeared {
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Cached identity actual close missing welcome viewport"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "Cached identity actual close missing welcome synthetic accessibility"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+        }
+        XCTAssertTrue(welcomeAppeared)
         let card = app.descendants(matching: .any).matching(NSPredicate(format: "identifier IN %@",
             ["welcome-chat-card-ui-test-current-chat", "welcome-chat-compact-card-ui-test-current-chat"])).firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 8))
@@ -136,7 +350,28 @@ final class ChatNavigationParityUITests: XCTestCase {
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == false"), object: loading)], timeout: 8), .completed)
-        XCTAssertTrue(app.descendants(matching: .any)["message-user"].firstMatch.exists)
+        let history = app.scrollViews["chat-history-container"].firstMatch
+        XCTAssertTrue(history.waitForExistence(timeout: 5))
+        // The selectable user text exposes its stable message identity even when
+        // SwiftUI flattens the single row's containing accessibility element.
+        let selectedMessage = history.textViews.matching(NSPredicate(format:
+            "identifier == %@ AND label == %@ AND value == %@",
+            "message-selectable-text-message-ui-test-current-chat", "Current Chat", "Current Chat")).firstMatch
+        let selectedRowExists = selectedMessage.waitForExistence(timeout: 5)
+        if !selectedRowExists {
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "synthetic-selected-chat-missing-row-AX"; hierarchy.lifetime = .keepAlways; add(hierarchy)
+        }
+        XCTAssertTrue(selectedRowExists, "The actual selected Current Chat user row must exist")
+        let visibleSelectedMessage = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard selectedMessage.exists, !selectedMessage.frame.isEmpty else { return false }
+            let visibleTranscript = history.frame.intersection(app.windows.firstMatch.frame)
+            return visibleTranscript.contains(CGPoint(x: selectedMessage.frame.midX, y: selectedMessage.frame.midY))
+                && selectedMessage.label == "Current Chat"
+                && (selectedMessage.value as? String) == "Current Chat"
+        }, object: selectedMessage)
+        XCTAssertEqual(XCTWaiter.wait(for: [visibleSelectedMessage], timeout: 5), .completed,
+                       "The selected chat's actual user row must render inside the transcript viewport")
         XCTAssertEqual(title.label, "Current Chat")
     }
 
@@ -285,7 +520,7 @@ final class ChatNavigationParityUITests: XCTestCase {
         }
     }
 
-    private func waitForMetric(_ key: String, equals expected: String, in element: XCUIElement) throws -> String {
+    private func waitForMetric(_ key: String, equals expected: String, in element: XCUIElement, onTimeout: (() -> Void)? = nil) throws -> String {
         let deadline = Date().addingTimeInterval(5)
         while Date() < deadline {
             if let value = metric(key, in: element.label), value == expected {
@@ -293,6 +528,7 @@ final class ChatNavigationParityUITests: XCTestCase {
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
+        onTimeout?()
         XCTFail("Timed out waiting for \(key)=\(expected). Last metrics: \(element.label)")
         return try stringMetric(key, in: element.label)
     }

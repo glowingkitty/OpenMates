@@ -1340,16 +1340,19 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
                     # Store in cache
                     # Note: embed_data is already vault-encrypted above
-                    await cache_service.set_embed_in_cache(
+                    embed_cached = await cache_service.set_embed_in_cache(
                         embed_id=embed_id,
                         embed_data=embed_cache_data,
                         chat_id=chat_id
                     )
 
-                    # Add to chat embed index
-                    await cache_service.add_embed_id_to_chat_index(chat_id, embed_id)
-
-                    logger.debug(f"Cached embed {embed_id} (type: {embed_type}) for message {message_id}")
+                    if embed_cached:
+                        await cache_service.add_embed_id_to_chat_index(chat_id, embed_id)
+                        logger.debug("Embed cache registration acknowledged")
+                    else:
+                        # Durable upload persistence is independent of this cache.
+                        # Do not publish an index entry or claim a successful write.
+                        logger.warning("Embed cache registration was not acknowledged")
 
                     if embed_type == "pdf" and embed_status == "processing":
                         content = decoded_embed_content

@@ -1,103 +1,57 @@
 # Apple local model laboratory
 
-This engineering design records the directly approved experimental scope and accompanies
-`specifications/features/apple-local-model-lab/` (draft pending fingerprint review
-and approval). It does not promise production model routing or quality parity. Open **Settings → Developers → Local models lab**
-on iPhone, iPad or Mac. Each model is optional and its weights are absent from the
-application bundle. Enable the laboratory switch to run a downloaded model.
+The developer laboratory offers optional Whisper speech recognition plus the user-selected Supertonic3 neural speech experiment. Enhanced OpenAI Privacy Filter downloads belong
+in **Settings → Privacy**; its diagnostics are reachable there. Installed and
+enabled enhanced PII also runs in the active message composer.
 
-## Assets and app size
+## Execution and downloads
 
-| Model | Selected assets | Exact download bytes |
-|---|---|---:|
-| Transcription | WhisperKit compressed Whisper large-v3 turbo (four decoder layers) plus local tokenizer | 629,481,698 |
-| English speech | Kokoro seven-stage Core ML, af_heart voice, local lexicon and BART G2P | 94,821,034 |
-| PII | OpenAI Privacy Filter CPU ExecuTorch export, tokenizer and calibrated decoder config | 1,269,572,251 |
+| Test | Runtime | Availability |
+| --- | --- | --- |
+| Whisper | Pinned WhisperKit | Supported arm64 iOS/iPadOS/macOS; Watch tiny test is separate |
+| Supertonic3 | Pinned publisher Swift helper and CPU ONNX | Supported arm64 iOS/iPadOS/macOS; stock voices and explicit local files |
+| Enhanced PII | Same pinned OpenAI model through ExecuTorch/XNNPACK | Supported arm64 iOS/iPadOS/macOS |
 
-The complete optional set occupies about 1.99 GB (decimal) before filesystem and
-runtime cache overhead. Downloads use immutable Hugging Face commit URLs and
-per-file SHA-256 digests, with atomic promotion only after verification. The
-largest temporary download also needs space: installation checks reserve the
-asset total, largest individual file and 150 MB of headroom. Assets are excluded
-from device backups. Cancel discards partial files; interrupted downloads restart
-when requested. Reopening the lab verifies cached files without network access.
+KittenTTS Mini0.8, Pocket TTS, Apple system voice testing and Kokoro are removed at the user's request. Supertonic3 remains selected for developer testing. The existing production assistant speech media pipeline remains independent of the laboratory.
 
-Runtime libraries still increase the app binary. The selected ExecuTorch CPU
-static-library inputs are about 12.8 MB per iOS arm64 slice before stripping;
-WhisperKit and FluidAudio Swift code and the native tokenizer add further space.
-The unnecessary NeMo trait is disabled with Swift 6.2 or later. FluidAudio carries
-about 1 MB of unrelated upstream pronunciation resources. Measure the final
-stripped Release/TestFlight archive and App Store thinning report before stating
-an installed-app delta; package archive download sizes are not app sizes.
+Downloads use immutable publisher revisions, explicit consent, bounded transfer
+progress, resume/retry, streaming SHA-256 and atomic verified installation.
+Partial or corrupt assets are never offered as ready. The runtime never fetches
+weights or sends inference inputs to a server. Local download activities are
+independent of the user's chat push-notification preference.
 
-Only the main iOS/macOS app links the model runtimes. ExecuTorch's pinned SDK
-archives lack x86_64 slices and its SwiftPM product conflicts with TokenizersRust's
-flattened module-map output. All three supported arm64 platforms therefore use
-`apple/LocalModelBridge` to stage the exact six pinned libraries, original Clang
-headers/module map and Swift overlay in separate derived platform directories.
-Only arm64 SDK settings expose those search paths and force-load registrations.
-The Mac executable remains universal and Intel visibly unsupported without
-linking these arm64 libraries into its x86_64 slice. Archive checksums, generated
-output isolation and build source provenance remain enforced. The packaging's
-native compilation and deployed inference verification are pending. Watch and share extensions
-do not carry these dependencies or assets. The app's iOS 17/macOS 14 minimums
-remain; package resolution requires a Swift 6.2-or-newer toolchain for trait opt-out.
-The current adapter runs on arm64 Apple devices; Intel is visibly unsupported before installation; download and run controls are disabled. Kokoro also shows its OS restriction before installation and cannot download or run on OS 27 or later.
+## Privacy and ownership
 
-## Processing boundaries
+Laboratory input, recordings and generated audio/results stay temporary and are
+cleared on leaving the page; neural speech also clears on backgrounding, lab opt-out and account/server/Team/scope changes. One laboratory operation owns its
+native resources until cancellation drains the current kernel and cleanup.
+No rejected speech adapter is exposed and no cloud or system-voice replacement is
+added. Only numeric timing, phase and memory diagnostics are retained.
 
-Whisper uses its explicitly loaded local tokenizer and local Core ML models.
-Kokoro bypasses the library's global English download cache using a local lexicon
-and BART G2P frontend, then passes IPA to the real synthesis engine. This initial
-frontend supports simple English text; spell out prices, times and decimal
-numbers. It rejects unsupported text instead of silently dropping characters.
-Its pronunciation/normalization must be evaluated separately from Kokoro's model
-quality. The pinned FluidAudio release documents uncatchable native failures on
-OS 27, so this adapter refuses that OS until the upstream issue is resolved.
+Production PII warms one model for an eligible foreground composer, displays
+regex results immediately and debounces enhanced detection by 500 ms. Only one
+native scan and the newest pending snapshot are retained. Cold warming and
+preview scans use utility priority. Final send verifies the immutable document,
+settings and exclusions, waits for installed-model readiness, and rechecks
+account/route/settings/foreground immediately before dispatch. Missing,
+unsupported or failed models retain visible regex fallback. Cancellation,
+backgrounding, opt-out, model removal and memory pressure invalidate stale work.
 
-Privacy Filter uses the native Rust tokenizer and CPU ExecuTorch export. The
-export accepts 256 tokens, so centered overlapping windows assemble emissions
-before one global constrained, calibrated BIOES/Viterbi decode. UTF-8 byte-fragment
-boundaries map outward to UTF-16 spans for native highlighting. These spans are
-lab results and do not change production redaction.
+## Current testing selection
 
-Only one test runs at a time. Cancellation is cooperative between inference
-steps; a running native kernel may need to finish before resources unload. Page
-exit clears entered text, results and private temporary recordings after the
-active job has finished. Local tests do not call backend inference or credit
-endpoints. The laboratory switch affects only these tests; it is not yet a
-production server/local routing preference.
+The user retained Supertonic3 and rejected KittenTTS Mini0.8 on 2026-10-05. Asset bytes/SHA256 and source revisions are pinned; weights are optional downloads. Model loading measures voice-style loading and ONNX session initialization. Generating speech measures the engine's text frontend and synthesis kernels. Preparing audio playback measures mono WAV encoding and writing. These timings are processing wall-clock duration; generated audio duration measures playback length. Personal-data detection retains its own separate inference stage.
 
-## Evidence and release gate
+A rejected post-return WAV is removed using its request destination, even when no result is published. Fixed public English/German listening and physical-device runtime/memory evaluation remain required for a production-quality claim.
 
-Authored automated fixtures cover download success, corruption, cancellation, restoration,
-removal, PII grammar/Unicode/window boundaries and controller privacy/lifecycle.
-Authored native UI tests cover the settings route, three optional model controls and switch
-scope without downloading weights or consuming inference credits.
+The requested production playback follow-up is pending separately: use the normal web-style playback UI, prefer installed local Supertonic3, offer downloading when absent, and request ElevenLabs only after user choice or a failed local attempt. The current first-party WebSocket assistant-speech transport, encrypted generated-asset media resolution and player remain available for that explicit provider route; no REST TTS endpoint or local-to-provider fallback is added here.
 
-Swift syntax and catalog checks support review. They do not replace a native
-compile, simulator run or physical-device inference. At implementation time the
-Mac wrapper returned `MAC_NO_DELETE_STOP` (exit 77), so native build and tests are
-blocked. Controller fixtures added during integration cover one active run, cancellation through unloading, private-file cleanup on page exit, and suppression of late results; these fixtures also require native execution. No measured quality, latency, battery or device-memory claim is made.
+## Verification limits
 
-Before production routing, use the same labelled recordings with local raw ASR,
-web raw Voxtral and the web's final corrected transcript as separate outputs.
-Measure English/German word and character error rates, names/addresses/numbers,
-silence hallucinations, noise and long recordings, then warm/cold latency, real-time
-factor, peak memory, cancellation and sustained thermal behavior on iPhone 13 Pro
-and the current base iPad. Review English Kokoro pronunciation and listening quality,
-and labelled PII entity recall/precision including window seams and Unicode.
-
-## Upstream and attribution
-
-- [WhisperKit source](https://github.com/argmaxinc/argmax-oss-swift/tree/v1.1.0) (MIT)
-- [Whisper Core ML assets](https://huggingface.co/argmaxinc/whisperkit-coreml) and [OpenAI Whisper](https://github.com/openai/whisper)
-- [FluidAudio](https://github.com/FluidInference/FluidAudio/tree/v0.17.5) and [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) (Apache-2.0)
-- [OpenAI Privacy Filter](https://huggingface.co/openai/privacy-filter) (Apache-2.0)
-- [CPU export](https://huggingface.co/software-mansion/react-native-executorch-privacy-filter)
-- [ExecuTorch](https://github.com/pytorch/executorch/tree/swiftpm-1.5.0) (BSD-style)
-- [Native tokenizer](https://github.com/DePasqualeOrg/swift-tokenizers/tree/0.5.0) (Apache-2.0 and transitive Rust notices)
-
-Preserve upstream notices in release dependency acknowledgements and model
-attributions. The pinned catalog includes upstream license/attribution metadata;
-weights are distributed from their original immutable upstream locations.
+The exact PII engine on M1 measured 3.94 seconds to load, then 2.02–2.65 seconds
+for warm synthetic scans. Historically, before its removal and the user quality
+rejection, Pocket generated a real 3.12-second WAV in 2.413 seconds
+including model loading. These establish Mac execution, not iPhone speed,
+Neural Engine placement, subjective voice quality or physical Watch performance.
+The permanent contracts are
+`specifications/features/apple-local-model-lab/specification.yml` and
+`specifications/features/pii-protection/specification.yml`.

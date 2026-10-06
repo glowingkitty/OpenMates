@@ -652,11 +652,11 @@ async def _cache_embed_via_api(
     content_type: str,
     original_filename: str,
     ai_detection: Optional[Dict[str, Any]] = None,
-) -> None:
+) -> bool:
     """
     Cache an upload embed in Redis via the core API's /internal/uploads/cache-embed endpoint.
 
-    This is a non-fatal fire-and-forget call.  Without it, app skills such as
+    This is a non-fatal call whose acknowledged cache outcome is returned.  Without it, app skills such as
     images-view and pdf-read fail with "Embed not found in cache" because the
     upload pipeline never wrote the embed into Redis (only AI-generated embeds
     had Redis entries).  The core API's endpoint writes `embed:{embed_id}` with
@@ -681,16 +681,21 @@ async def _cache_embed_via_api(
                 headers={"X-Internal-Service-Token": internal_token},
             )
         if resp.status_code not in (200, 201):
-            logger.warning(
-                f"[Upload CacheEmbed] Failed to cache embed {embed_id[:8]}...: "
-                f"HTTP {resp.status_code} {resp.text[:200]}"
-            )
-        else:
-            logger.info(f"[Upload CacheEmbed] Embed {embed_id[:8]}... cached in Redis: OK")
+            logger.warning("[Upload CacheEmbed] Cache registration not acknowledged (HTTP %s)", resp.status_code)
+            return False
+        result = resp.json()
+        if not isinstance(result, dict) or result.get("status") not in {"success", "preserved"}:
+            logger.warning("[Upload CacheEmbed] Cache registration skipped or failed")
+            return False
+        if result.get("embed_id") != embed_id:
+            logger.warning("[Upload CacheEmbed] Cache registration identity mismatch")
+            return False
+        logger.info("[Upload CacheEmbed] Cache registration acknowledged")
+        return True
     except Exception as e:
-        # Non-fatal: upload succeeds; skills will just fail with "not found in cache"
-        # rather than the upload itself failing.
-        logger.warning(f"[Upload CacheEmbed] Failed to cache embed (non-fatal): {e}")
+        # Upload remains durable; inference can recover owner-scoped metadata.
+        logger.warning("[Upload CacheEmbed] Cache registration unavailable (%s)", type(e).__name__)
+        return False
 
 
 # ---------------------------------------------------------------------------

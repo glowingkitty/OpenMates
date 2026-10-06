@@ -2,7 +2,12 @@ import XCTest
 
 @MainActor
 final class WorkspaceSwitcherUITests: XCTestCase {
-    override func setUpWithError() throws { continueAfterFailure = false }
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        #if os(iOS)
+        XCUIDevice.shared.orientation = .portrait
+        #endif
+    }
 
     // contract-test: direct surface=gui.apple assertions=workspace-shell.nav.released-surfaces-visible
     func testCompactGradientPickerExpandsAndNavigatesEveryWorkspace() {
@@ -161,12 +166,59 @@ final class WorkspaceSwitcherUITests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testSyncActivityAppearsBesideProfileAndStopsWithoutBlockingHeader() {
+        let app = launch(variant: "reduced-motion")
+        let indicator = element(app, "header-sync-indicator")
+        XCTAssertFalse(indicator.exists)
+        let toggle = app.buttons["workspace-picker-fixture-toggle-sync"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertTrue(toggle.isHittable)
+        toggle.tap()
+        XCTAssertTrue(indicator.waitForExistence(timeout: 5))
+        let settings = app.buttons["settings-button"]
+        XCTAssertTrue(settings.isHittable)
+        XCTAssertLessThanOrEqual(indicator.frame.maxX, settings.frame.minX)
+        XCTAssertFalse(indicator.frame.intersects(settings.frame))
+        XCTAssertTrue(app.buttons["workspace-switcher"].isHittable)
+        attach(app, name: "Sync indicator beside profile with accessible header controls")
+        app.buttons["workspace-picker-fixture-toggle-sync"].tap()
+        let disappeared = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: indicator)
+        XCTAssertEqual(XCTWaiter.wait(for: [disappeared], timeout: 5), .completed)
+    }
+
     private func launch(variant: String = "default", fixedViewport: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--dev-preview", "workspace-switcher", "--dev-preview-variant", variant,
-            "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        if fixedViewport { app.launchArguments += ["--dev-preview-width", variant == "short-viewport" ? "320" : "390", "--dev-preview-height", variant == "short-viewport" ? "320" : "844"] }
+        // Match the parser's environment-first precedence for every option.
+        app.launchEnvironment = [
+            "DEV_PREVIEW": "workspace-switcher", "DEV_PREVIEW_COMPONENT": "workspace-switcher",
+            "DEV_PREVIEW_VARIANT": variant, "DEV_PREVIEW_THEME": "light"
+        ]
+        if fixedViewport {
+            app.launchEnvironment["DEV_PREVIEW_WIDTH"] = variant == "short-viewport" ? "320" : "390"
+            app.launchEnvironment["DEV_PREVIEW_HEIGHT"] = variant == "short-viewport" ? "320" : "844"
+        }
+        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
+        #if os(iOS)
+        XCUIDevice.shared.orientation = .portrait
+        #endif
+        let window = app.windows.firstMatch
+        let canvas = element(app, "dev-component-preview-bounds")
+        let viewportReady = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard window.exists, canvas.exists else { return false }
+            let bounds = window.frame, fixture = canvas.frame
+            #if os(iOS)
+            guard bounds.height > bounds.width else { return false }
+            #endif
+            if fixedViewport {
+                let expectedHeight: CGFloat = variant == "short-viewport" ? 320 : 844
+                guard abs(fixture.height - expectedHeight) <= 1 else { return false }
+            }
+            return fixture.width > 0 && fixture.height > 0 && bounds.contains(fixture)
+        }, object: canvas)
+        XCTAssertEqual(XCTWaiter.wait(for: [viewportReady], timeout: 10), .completed,
+                       "The header fixture must fit the actual portrait window before interaction")
         XCTAssertFalse(element(app, "dev-preview-error").exists)
         return app
     }

@@ -254,7 +254,7 @@ final class LocalModelLiveActivityCoordinator: ObservableObject {
     }
 
     private func modelTitle(_ model: LocalModelID) -> String {
-        switch model { case .whisper: AppStrings.localLabWhisper; case .privacyFilter: AppStrings.localLabPrivacyFilter; case .pocketTTS: AppStrings.localLabPocketTTS }
+        switch model { case .whisper: AppStrings.localLabWhisper; case .privacyFilter: AppStrings.localLabPrivacyFilter; case .supertonic3: AppStrings.localLabSupertonic }
     }
 
     private func rememberActivityOperations() {

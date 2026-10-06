@@ -364,6 +364,8 @@ struct Chat: Identifiable, Decodable, Sendable {
         return title
     }
 
+    var isRetiredBundledIntro: Bool { RetiredIntroChatPolicy.excludes(id) }
+
     var isHiddenFromNormalSurfaces: Bool {
         isHidden == true || isHiddenCandidate == true
     }

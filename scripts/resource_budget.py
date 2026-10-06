@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from datetime import datetime
+import ctypes
 import fcntl
 import hashlib
 import json
@@ -20,6 +21,7 @@ import shutil
 import sqlite3
 import stat
 import subprocess
+import sys
 import time
 import uuid
 
@@ -39,11 +41,63 @@ def _control(root: Path) -> Path:
     return root / ".claude" / "resource-budget"
 
 
+class _ProcBSDInfo(ctypes.Structure):
+    """Darwin proc_bsdinfo from sys/proc_info.h (PROC_PIDTBSDINFO)."""
+
+    _fields_ = [(name, ctypes.c_uint32) for name in (
+        "pbi_flags", "pbi_status", "pbi_xstatus", "pbi_pid", "pbi_ppid",
+        "pbi_uid", "pbi_gid", "pbi_ruid", "pbi_rgid", "pbi_svuid",
+        "pbi_svgid", "rfu_1",
+    )] + [
+        ("pbi_comm", ctypes.c_char * 16),
+        ("pbi_name", ctypes.c_char * 32),
+    ] + [(name, ctypes.c_uint32) for name in (
+        "pbi_nfiles", "pbi_pgid", "pbi_pjobc", "e_tdev", "e_tpgid",
+    )] + [
+        ("pbi_nice", ctypes.c_int32),
+        ("pbi_start_tvsec", ctypes.c_uint64),
+        ("pbi_start_tvusec", ctypes.c_uint64),
+    ]
+
+
+def _darwin_start_time(pid: int) -> str:
+    try:
+        libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+        query = libproc.proc_pidinfo
+        query.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint64,
+                          ctypes.c_void_p, ctypes.c_int]
+        query.restype = ctypes.c_int
+        info = _ProcBSDInfo()
+        # Full struct, matching PID and valid timeval are required. A failed or
+        # short query cannot establish a reservation owner.
+        if query(pid, 3, 0, ctypes.byref(info), ctypes.sizeof(info)) != ctypes.sizeof(info):
+            return ""
+        if info.pbi_pid != pid or not info.pbi_start_tvsec or info.pbi_start_tvusec >= 1_000_000:
+            return ""
+        return f"darwin:{info.pbi_start_tvsec}:{info.pbi_start_tvusec:06d}"
+    except (OSError, AttributeError):
+        return ""
+
+
 def _start_time(pid: int) -> str:
+    if pid <= 0:
+        return ""
+    if sys.platform == "darwin":
+        return _darwin_start_time(pid)
     try:
         return Path(f"/proc/{pid}/stat").read_text().rsplit(") ", 1)[1].split()[19]
     except (OSError, IndexError):
         return ""
+
+
+def _owner_is_dead(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return True
+    except OSError:
+        pass
+    return False
 
 
 @contextmanager
@@ -63,8 +117,11 @@ def _reservations(directory: Path) -> list[dict]:
     for path in directory.glob("reservation-*.json"):
         try:
             item = json.loads(path.read_text())
+            start = _start_time(item["pid"])
+            if item["pid"] > 0 and not start and not _owner_is_dead(item["pid"]):
+                raise RuntimeError(f"Cannot establish existing disk reservation owner: {path}")
             if (item["pid"] > 0 and item["start"]
-                    and _start_time(item["pid"]) == item["start"]
+                    and start == item["start"]
                     and type(item["bytes"]) is int and item["bytes"] >= 0):
                 live.append(item)
             else:
@@ -92,8 +149,8 @@ def reserve(root: Path, amount: int, *, min_free: int = MIN_FREE,
             max_used_percent: int = MAX_USED_PERCENT):
     """Reserve allocation headroom across local processes until owner exit.
 
-    A PID and Linux process start tick fence stale reservations, including a
-    crashed owner and PID reuse. All admission callers use the same root lock.
+    A PID and kernel process start identity fence stale reservations, including
+    a crashed owner and PID reuse. All callers use the same root lock.
     """
     if amount < 0:
         raise ValueError("Negative disk reservation")

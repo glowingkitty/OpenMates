@@ -216,6 +216,11 @@ enum DevEmbedPreviewFixtures {
                 data: ["title": "Scrollable sheet", "table": "| Name | Value |\n| --- | --- |\n" + rows])
             result.append(.init(name: "sticky-long", skill: self.skill(id: embed.id, label: "Sheet", primary: embed)))
         }
+        if TravelSearchPresentation.isSearch(skill.primaryEmbed) {
+            for name in ["zero-provider-empty", "zero-provider-grouped", "zero-provider-query"] {
+                result.append(.init(name: name, skill: travelZeroProvider(name)))
+            }
+        }
         return result
     }
 
@@ -1252,6 +1257,27 @@ enum DevEmbedPreviewFixtures {
     }
 
     // MARK: - Travel
+
+    /// Synthetic persisted parent shapes: no provider calls, account state or child cards.
+    private static func travelZeroProvider(_ variant: String) -> DevEmbedPreviewSkill {
+        var data: [String: Any] = ["result_count": 0, "providers": [], "results": []]
+        switch variant {
+        case "zero-provider-grouped":
+            data["results"] = [["query": "Oslo to Bergen", "result_count": 0, "providers": [],
+                "legs": [["origin": "Oslo", "destination": "Bergen", "date": "2026-10-08T09:00:00"]],
+                "results": []]]
+        case "zero-provider-query":
+            data["query"] = "Night train from Berlin to Prague"
+        default:
+            data["query"] = "Find a train for Monday morning"
+            data["legs_0_origin"] = "Berlin"
+            data["legs_0_destination"] = "Prague"
+            data["legs_0_date"] = "2026-10-05T09:00:00"
+        }
+        let parent = appSkill(id: "preview-travel-\(variant)", type: "app-skill-use",
+                              appId: "travel", skillId: "search_connections", data: data)
+        return skill(id: "travel-search-\(variant)", label: "Search connections", primary: parent)
+    }
 
     private static var travelSearch: DevEmbedPreviewSkill {
         let children = [

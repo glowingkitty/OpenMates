@@ -63,6 +63,36 @@ enum ChatSidebarDisplayPolicy {
         max(0, limit) > Int.max - increment ? Int.max : max(0, limit) + increment
     }
 
+    /// Membership comes from the scoped recent window before organized chats
+    /// are removed from the root list. Project workspace contents stay intact.
+    static func eligibleProjects(_ projects: [ChatSidebarProject], recentActiveChats: [Chat]) -> [ChatSidebarProject] {
+        let activeIDs = Set(recentActiveChats.map(\.id))
+        return projects.compactMap { project in
+            let foldersByHash = Dictionary(project.contents.folders.map {
+                (ChatSidebarProject.hash($0.id), $0)
+            }, uniquingKeysWith: { first, _ in first })
+            var eligibleFolderIDs: Set<String> = []
+            var hasEligibleMember = false
+            for item in project.contents.items where item.kind == "chat" && activeIDs.contains(item.targetID) {
+                var ancestry: Set<String> = []
+                var hash = item.folderHash
+                while let current = hash, let folder = foldersByHash[current], ancestry.insert(folder.id).inserted {
+                    hash = folder.parentHash
+                }
+                // Missing parents and cycles do not make an unreachable folder
+                // or its project eligible in the chat sidebar.
+                guard hash == nil else { continue }
+                hasEligibleMember = true
+                eligibleFolderIDs.formUnion(ancestry)
+            }
+            guard hasEligibleMember else { return nil }
+            let contents = ProjectWorkspaceContents(
+                folders: project.contents.folders.filter { eligibleFolderIDs.contains($0.id) },
+                items: project.contents.items, sources: project.contents.sources)
+            return ChatSidebarProject(project: project.project, contents: contents)
+        }
+    }
+
     static func groups(_ chats: [Chat], now: Date = Date(),
                        calendar: Calendar = gregorianCalendar) -> [Group] {
         var rows: [String: [Chat]] = [:]

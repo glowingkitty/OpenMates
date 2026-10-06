@@ -12,7 +12,8 @@ import UIKit
 #endif
 
 enum LocalModelID: String, Codable, CaseIterable, Identifiable, Sendable {
-    case whisper, privacyFilter, pocketTTS
+    case whisper, privacyFilter, supertonic3
+    var isSpeechSynthesis: Bool { self == .supertonic3 }
     var id: String { rawValue }
 }
 
@@ -397,7 +398,7 @@ enum LocalModelDisk {
 final class LocalModelStore: ObservableObject {
     static let shared: LocalModelStore = {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--ui-test-local-lab-progress-fixture") {
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-local-lab-progress-fixture") || ProcessInfo.processInfo.arguments.contains("--ui-test-neural-tts-fixture") {
             return LocalModelStore.makeProgressFixture()
         }
         #endif
@@ -639,11 +640,13 @@ final class LocalModelStore: ObservableObject {
             ])
         }
         do {
-            let privacy = models.first { $0.id == .privacyFilter }!
-            let directory = root.appendingPathComponent(LocalModelID.privacyFilter.rawValue)
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try bytes.write(to: directory.appendingPathComponent("fixture.bin"))
-            try JSONEncoder().encode(privacy).write(to: directory.appendingPathComponent(".installed.json"))
+            for installed in models where installed.id == .privacyFilter ||
+                (ProcessInfo.processInfo.arguments.contains("--ui-test-neural-tts-fixture") && installed.id.isSpeechSynthesis) {
+                let directory = root.appendingPathComponent(installed.id.rawValue)
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                try bytes.write(to: directory.appendingPathComponent("fixture.bin"))
+                try JSONEncoder().encode(installed).write(to: directory.appendingPathComponent(".installed.json"))
+            }
             let catalog = try JSONEncoder().encode(LocalModelCatalog(models: models))
             let hold = ProcessInfo.processInfo.arguments.contains("--ui-test-local-lab-hold-download")
             let interrupted = ProcessInfo.processInfo.arguments.contains("--ui-test-local-lab-interrupted-download")

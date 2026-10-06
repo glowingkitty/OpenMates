@@ -16,8 +16,10 @@ import os
 import plistlib
 import re
 import shutil
+import struct
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -48,15 +50,6 @@ SOURCE_INPUTS = (
     "apple/PairOpaqueBridge/build-apple.sh",
     "apple/PairOpaqueBridge/localize-runtime.sh",
     "apple/PairOpaqueBridge/local-runtime-symbols.txt",
-    "apple/PocketTTSBridge/Cargo.toml",
-    "apple/PocketTTSBridge/Cargo.lock",
-    "apple/PocketTTSBridge/src",
-    "apple/PocketTTSBridge/include",
-    "apple/PocketTTSBridge/build-apple.sh",
-    "apple/PocketTTSBridge/prepare.py",
-    "apple/PocketTTSBridge/local-runtime-symbols.txt",
-    "apple/PocketTTSBridge/ios-device.cmake",
-    "apple/PocketTTSBridge/ios-simulator.cmake",
     "frontend/packages/chatCategoryTheme.ts",
     "apple/OpenMates.xcodeproj",
     "apple/OpenMates",
@@ -762,6 +755,98 @@ def resolved_macos_entitlements(source: Path, team_id: str, bundle_id: str) -> d
     return entitlements
 
 
+def macho_section_identity(binary: Path) -> dict[str, object]:
+    """Hash arm64 compiled sections, excluding code signature/linkedit changes."""
+    data = binary.read_bytes()
+    if len(data) < 32 or struct.unpack_from("<I", data)[0] != 0xFEEDFACF:
+        raise ReleaseError("iOS packaging normalization requires a thin 64-bit Mach-O")
+    commands = struct.unpack_from("<I", data, 16)[0]
+    cursor = 32
+    digest = hashlib.sha256()
+    count = 0
+    for _ in range(commands):
+        if cursor + 8 > len(data):
+            raise ReleaseError("Truncated Mach-O load command")
+        command, length = struct.unpack_from("<II", data, cursor)
+        if length < 8 or cursor + length > len(data):
+            raise ReleaseError("Invalid Mach-O load command")
+        if command == 0x19:  # LC_SEGMENT_64
+            if length < 72:
+                raise ReleaseError("Truncated Mach-O segment")
+            nsections = struct.unpack_from("<I", data, cursor + 64)[0]
+            if 72 + nsections * 80 > length:
+                raise ReleaseError("Truncated Mach-O sections")
+            for index in range(nsections):
+                name, segment, address, size, offset, _, _, _, flags, *_ = struct.unpack_from(
+                    "<16s16sQQIIIIIIII", data, cursor + 72 + index * 80,
+                )
+                if flags & 0xFF in (1, 0xC, 0x12):  # zero-fill sections have no file bytes
+                    continue
+                if offset + size > len(data):
+                    raise ReleaseError("Mach-O section exceeds binary")
+                digest.update(name + segment + struct.pack("<QQ", address, size) + data[offset:offset + size])
+                count += 1
+        cursor += length
+    if not count:
+        raise ReleaseError("Mach-O compiled sections missing")
+    return {"sha256": digest.hexdigest(), "section_count": count}
+
+
+def normalize_ios_onnx_packaging(path: Path, log_path: Path) -> dict[str, object] | None:
+    """Repair ORT 1.20's missing plist minimum from its actual Mach-O, then seal it.
+
+    Only fresh archives pass here, before their source-bound receipt is written.
+    Resumed archives keep their historical identity and are never silently repaired.
+    """
+    app = path / "Products/Applications/OpenMates.app"
+    framework = app / "Frameworks/onnxruntime.framework"
+    info = framework / "Info.plist"
+    metadata = load_plist(info)
+    if metadata.get("MinimumOSVersion"):
+        return None
+    binary = framework / "onnxruntime"
+    result = subprocess.run(["xcrun", "vtool", "-show-build", str(binary)],
+                            capture_output=True, text=True, check=False)
+    minima = re.findall(r"(?m)^\s*minos ([0-9.]+)\s*$", result.stdout)
+    platforms = re.findall(r"(?m)^\s*platform (\S+)\s*$", result.stdout)
+    if result.returncode or platforms != ["IOS"] or minima != ["17.0"]:
+        raise ReleaseError("ONNX iOS packaging minimum is not the supported Mach-O iOS 17.0")
+    sections = {"runtime": macho_section_identity(binary), "app": macho_section_identity(app / "OpenMates")}
+    before_entitlements = signed_entitlements(app)
+    before_identity = archive_identity(path, "ios")
+    backup = Path(tempfile.mkdtemp(prefix="onnx-ios-packaging-", dir=log_path.parent))
+    shutil.copy2(info, backup / "framework-Info-original.plist")
+    for label, bundle in (("framework", framework), ("app", app)):
+        if (bundle / "_CodeSignature").is_dir():
+            shutil.copytree(bundle / "_CodeSignature", backup / f"{label}-CodeSignature")
+    (backup / "pre-repair-entitlements.plist").write_bytes(plistlib.dumps(before_entitlements))
+    prefix = str(backup / "certificate")
+    run_logged(["codesign", "-d", f"--extract-certificates={prefix}", str(app)],
+               backup / "certificate.log", timeout=120)
+    certificate = Path(prefix + "0")
+    if not certificate.is_file():
+        raise ReleaseError("Cannot preserve iOS archive signing identity without its certificate")
+    identity = hashlib.sha1(certificate.read_bytes()).hexdigest().upper()
+    metadata["MinimumOSVersion"] = minima[0]
+    info.write_bytes(plistlib.dumps(metadata, fmt=plistlib.FMT_BINARY))
+    for index, bundle in enumerate((framework, app), 1):
+        run_logged(["codesign", "--force", "--sign", identity,
+                    "--preserve-metadata=identifier,entitlements,requirements,flags,runtime",
+                    "--generate-entitlement-der", str(bundle)],
+                   backup / f"sign-{index}.log", timeout=120)
+    run_logged(["codesign", "--verify", "--deep", "--strict", str(app)], log_path, timeout=120)
+    if signed_entitlements(app) != before_entitlements:
+        raise ReleaseError("ONNX iOS normalization changed app entitlements")
+    if {"runtime": macho_section_identity(binary), "app": macho_section_identity(app / "OpenMates")} != sections:
+        raise ReleaseError("ONNX iOS normalization changed compiled sections")
+    receipt = {"minimum_os_version": minima[0], "derived_from": "Mach-O LC_BUILD_VERSION",
+               "release_helper_sha256": sha256_file(Path(__file__)),
+               "before_archive_identity": before_identity, "after_archive_identity": archive_identity(path, "ios"),
+               "compiled_sections": sections, "app_entitlements_unchanged": True, "deep_signature_verified": True}
+    (backup / "repair-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
+    return receipt
+
+
 def stamp_unsigned_macos_archive(path: Path, log_path: Path, team_id: str) -> None:
     app = path / "Products" / "Applications" / "OpenMates.app"
     plugins = app / "Contents" / "PlugIns"
@@ -778,10 +863,17 @@ def stamp_unsigned_macos_archive(path: Path, log_path: Path, team_id: str) -> No
         if load_plist(bundle / "Contents" / "Info.plist").get("CFBundleIdentifier") != bundle_id:
             raise ReleaseError(f"macOS archive bundle identifiers do not match the signing targets: {bundle.name}")
     commands = []
+    framework = app / "Contents" / "Frameworks" / "onnxruntime.framework"
     for bundle, bundle_id, source, destination_name in targets:
         destination = log_path.with_name(destination_name)
         with destination.open("wb") as handle:
             plistlib.dump(resolved_macos_entitlements(REPO_ROOT / source, team_id, bundle_id), handle)
+        if bundle == app and framework.is_dir():
+            # The embedding phase leaves this archive copy unsigned. Sign it
+            # before sealing the app; the SwiftPM source framework stays intact.
+            commands.append([
+                "codesign", "--force", "--sign", "-", "--timestamp=none", str(framework),
+            ])
         commands.append([
             "codesign", "--force", "--sign", "-", "--timestamp=none", "--entitlements",
             str(destination), str(bundle),
@@ -943,6 +1035,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 run_logged(archive_command(platform, release_dir, build_number, settings.team_id, credentials), release_dir / f"{platform}-archive.log")
                 if platform == "macos":
                     stamp_unsigned_macos_archive(path, release_dir / "macos-entitlements.log", settings.team_id)
+                else:
+                    normalize_ios_onnx_packaging(path, release_dir / "ios-onnx-packaging.log")
                 if source_identity()["content_sha256"] != source["content_sha256"]:
                     raise ReleaseError("Apple release source changed during archive creation")
                 identity = validate_archive(path, platform, version, build_number)

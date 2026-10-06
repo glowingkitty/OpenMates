@@ -1,4 +1,6 @@
 // ImageEmbedRenderer — native counterpart for uploaded image embeds.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
@@ -274,7 +276,7 @@ struct ImageEmbedRenderer: View {
             if renderedS3Url != nil && aesKey != nil {
                 EncryptedImageView(
                     s3Url: renderedS3Url, s3Key: renderedS3Key, aesKey: aesKey, aesNonce: aesNonce, encryption: encryption,
-                    contentMode: .fill
+                    contentMode: .fit
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
@@ -331,7 +333,27 @@ struct ImageViewSkillModel {
         let candidates = ["embed_id", "original_embed_id", "input_embed_id"]
             .compactMap { raw[$0]?.value as? String }
             .filter { !$0.isEmpty && $0 != embed.id }
-        originalEmbed = candidates.lazy.compactMap { allEmbedRecords[$0] }.first
+        let inputIDs = raw["input_embed_ids"]?.value as? [String] ?? []
+        let explicitIDs = candidates + inputIDs.filter { !$0.isEmpty && $0 != embed.id }
+        if !explicitIDs.isEmpty {
+            // An explicit reference must never fall back to a different upload.
+            let matches = Set(explicitIDs).compactMap { allEmbedRecords[$0] }
+                .filter { EmbedType(rawValue: $0.type) == .image }
+            originalEmbed = matches.count == 1 ? matches.first : nil
+        } else if let reference = raw["file_path"]?.value as? String, !reference.isEmpty {
+            // Error outputs may contain only the exact embed_ref/filename sent
+            // to images.view. Resolve within this chat's records, and refuse
+            // duplicate names; basename/path guessing can select another file.
+            let matches = allEmbedRecords.values.filter { candidate in
+                guard candidate.id != embed.id, EmbedType(rawValue: candidate.type) == .image else { return false }
+                return ["embed_ref", "filename"].contains { key in
+                    candidate.rawData?[key]?.value as? String == reference
+                }
+            }
+            originalEmbed = matches.count == 1 ? matches.first : nil
+        } else {
+            originalEmbed = nil
+        }
     }
 
     var resolvedData: [String: AnyCodable]? {

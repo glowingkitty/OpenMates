@@ -156,7 +156,8 @@ final class ComposerSearchSuggestionsController: ObservableObject {
                 // catalog must yield to navigation and a replacement query.
                 if index.isMultiple(of: 4) { await Task.yield() }
                 guard isCurrent() else { return }
-                let local = Self.localEmbeds(chat: chat, store: store, offline: offline)
+                guard let local = try? await Self.localEmbeds(chat: chat, store: store, offline: offline),
+                      isCurrent() else { return }
                 let decrypted = await Self.decryptLocalEmbeds(local, chatID: chat.id, isCurrent: isCurrent)
                 records.append(contentsOf: decrypted)
             }
@@ -184,14 +185,18 @@ final class ComposerSearchSuggestionsController: ObservableObject {
         return TeamWorkspaceContext.shared.isCurrent(snapshot)
     }
 
-    private static func localEmbeds(chat: Chat, store: ChatStore, offline: OfflineStore?) -> [EmbedRecord] {
-        let memory = store.embeds(for: chat.id)
+    static func localEmbeds(chat: Chat, store: ChatStore, offline: OfflineStore?) async throws -> [EmbedRecord] {
         if PublicChatContent.isPublicChat(chat.id), let publicChat = PublicChatContent.chat(for: chat.id) {
             return Array(publicChat.embedRecords.values)
         }
-        let cached = offline?.loadEmbeds(chatId: chat.id) ?? []
+        let cached: [EmbedRecord]
+        if let offline {
+            cached = try await offline.loadSearchContent(chatID: chat.id, includeMessages: false, includeEmbeds: true).embeds
+        } else {
+            cached = []
+        }
         var merged = EmbedRecord.dictionaryById(cached, context: "composerSearch.local")
-        for record in memory { merged[record.id] = record }
+        for record in store.embeds(for: chat.id) { merged[record.id] = record }
         return Array(merged.values)
     }
 
@@ -223,7 +228,7 @@ final class ComposerSearchSuggestionsController: ObservableObject {
 
     static func eligibleChats(_ chats: [Chat]) -> [Chat] {
         var seen = Set<String>()
-        return chats.filter { !$0.isHiddenFromNormalSurfaces && $0.parentId == nil && $0.isSubChat != true
+        return chats.filter { !$0.isRetiredBundledIntro && !$0.isHiddenFromNormalSurfaces && $0.parentId == nil && $0.isSubChat != true
             && !IncognitoChatSession.isIncognitoChatId($0.id) && seen.insert($0.id).inserted }
     }
 

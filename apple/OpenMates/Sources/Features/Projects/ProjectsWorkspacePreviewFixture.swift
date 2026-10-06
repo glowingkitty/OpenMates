@@ -152,7 +152,7 @@ enum ProjectsWorkspacePreviewFixture {
                 childFileSizeBytes: 2048),
                 entry("README.md", kind: "file", size: 1024)]
         }
-        let readme: ProjectsWorkspaceStore.ReadmeState = variant == "offlineConnectedSource" ? .unavailable : variant == "readme"
+        let readme: ProjectsWorkspaceStore.ReadmeState = ProcessInfo.processInfo.arguments.contains("--ui-test-project-readme-failed") ? .failed : variant == "offlineConnectedSource" ? .unavailable : variant == "readme"
             ? .ready(ProjectWorkspaceReadme(markdown: "# OpenMates\n\nA private workspace for planning, research, and shipping useful work.\n\n## What we are building\n\n- Calm collaboration\n- Useful project context\n- Clear next steps\n\n```swift\nlet project = \"OpenMates\"\n```\n\n![Project overview preview][project image]\n\n- Reference image: ![List preview][project image]\n\n| Feature | Status |\n| --- | --- |\n| Documentation | Ready |\n\n[project image]: assets/readme-preview.png",
                 truncated: false, origin: "stored")) : .empty
         let previews = sources.reduce(into: [String: [ProjectRemoteEntry]]()) { result, source in

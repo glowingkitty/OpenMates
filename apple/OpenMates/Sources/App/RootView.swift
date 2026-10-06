@@ -15,6 +15,17 @@ import UIKit
 import AppKit
 #endif
 
+/// Component testing pages are a Debug Simulator capability, never a device or macOS route.
+enum NativeComponentPreviewAvailability {
+    static var isEnabled: Bool {
+        #if DEBUG && targetEnvironment(simulator)
+        true
+        #else
+        false
+        #endif
+    }
+}
+
 struct RootView: View {
     let launchCommand: AppWindowLaunchCommand?
 
@@ -27,7 +38,7 @@ struct RootView: View {
     #if os(iOS)
     @StateObject private var externalDisplayCoordinator = ExternalDisplayCoordinator.shared
     #endif
-    #if DEBUG
+    #if DEBUG && targetEnvironment(simulator)
     @State private var devPreviewConfiguration = DevPreviewLaunchConfiguration.current
     #endif
 
@@ -37,7 +48,7 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            #if DEBUG
+            #if DEBUG && targetEnvironment(simulator)
             if let devPreviewConfiguration {
                 DevPreviewRootView(configuration: devPreviewConfiguration)
                     .id(devPreviewConfiguration)
@@ -64,7 +75,7 @@ struct RootView: View {
         #endif
         .animation(.easeInOut(duration: 0.3), value: authManager.state)
         .modifier(MacWindowChromeModifier())
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         .onOpenURL { url in
             // Fixture switching is only available in an isolated preview process.
             // A regular app has already started account services and must not be

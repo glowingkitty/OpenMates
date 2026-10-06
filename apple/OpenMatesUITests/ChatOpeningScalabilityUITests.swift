@@ -5,13 +5,49 @@
 // The live-dev seeded chat test can extend this target once the seed endpoint exists.
 
 import XCTest
+#if os(iOS)
+import UIKit
+#endif
 
+@MainActor
 final class ChatOpeningScalabilityUITests: XCTestCase {
     private let boundedLaunchLimit: TimeInterval = 20
     private let interactionLimit: TimeInterval = 5
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        #if os(iOS)
+        XCUIDevice.shared.orientation = .portrait
+        #endif
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,pii.composer.detect-redact-exclude
+    @MainActor
+    func testDarkChatHasReadableSelectableMessagesAndNoPIIFallbackParagraph() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "chat-opening", "--dev-preview-theme", "dark"]
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        // Environment configuration has precedence over launch arguments.
+        app.launchEnvironment["DEV_PREVIEW_THEME"] = "dark"
+        app.launch()
+        let latest = latestAssistantText(in: app)
+        XCTAssertTrue(latest.waitForExistence(timeout: 15), app.debugDescription)
+        XCTAssertEqual(latest.label, "Latest assistant response visible after bounded open")
+        XCTAssertTrue(latest.isHittable)
+        #if os(iOS)
+        let user = app.textViews.matching(NSPredicate(format: "label == %@", "Seeded user message 249")).firstMatch
+        XCTAssertTrue(user.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(user.isHittable)
+        try assertReadableDarkText(in: latest.frame)
+        try assertReadableDarkText(in: user.frame)
+        #endif
+        XCTAssertFalse(app.staticTexts["composer-pii-regex-fallback"].exists)
+        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Basic pattern detection")).firstMatch.exists)
+        XCTAssertTrue(app.textViews["message-editor"].firstMatch.exists)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "Dark selectable chat without fallback paragraph"
+        shot.lifetime = .keepAlways
+        add(shot)
     }
 
     @MainActor
@@ -31,9 +67,11 @@ final class ChatOpeningScalabilityUITests: XCTestCase {
         XCTAssertTrue(initialWindow.label.contains("initial-window-count=50"))
         XCTAssertTrue(initialWindow.label.contains("total-message-count=250"))
 
-        let latestMessage = app.staticTexts["Latest assistant response visible after bounded open"]
-        XCTAssertTrue(latestMessage.waitForExistence(timeout: 5))
-        XCTAssertFalse(app.staticTexts["Seeded user message 1"].exists)
+        let latestMessage = latestAssistantText(in: app)
+        XCTAssertTrue(latestMessage.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertEqual(latestMessage.label, "Latest assistant response visible after bounded open")
+        XCTAssertTrue(latestMessage.isHittable)
+        XCTAssertFalse(app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Seeded user message 1")).firstMatch.exists)
         XCTAssertLessThan(Date().timeIntervalSince(start), boundedLaunchLimit)
 
         let screenshot = XCUIScreen.main.screenshot()
@@ -55,9 +93,18 @@ final class ChatOpeningScalabilityUITests: XCTestCase {
         let launchStart = Date()
         app.launch()
 
-        let latestMessage = app.staticTexts["Latest assistant response visible after bounded open"]
-        XCTAssertTrue(latestMessage.waitForExistence(timeout: 16))
+        let latestMessage = latestAssistantText(in: app)
+        XCTAssertTrue(latestMessage.waitForExistence(timeout: 16), app.debugDescription)
+        XCTAssertEqual(latestMessage.label, "Latest assistant response visible after bounded open")
+        XCTAssertTrue(latestMessage.isHittable)
         let latestVisibleSeconds = Date().timeIntervalSince(launchStart)
+        if latestVisibleSeconds >= boundedLaunchLimit {
+            let probe = app.staticTexts
+                .containing(NSPredicate(format: "label CONTAINS %@", "performance-metrics=chat-opening"))
+                .firstMatch
+            attachText("latest-visible-seconds=\(formatSeconds(latestVisibleSeconds)); \(probe.exists ? probe.label : "metrics-unavailable")",
+                       name: "Over-budget chat launch diagnostics")
+        }
         XCTAssertLessThan(latestVisibleSeconds, boundedLaunchLimit)
 
         let metrics = app.staticTexts
@@ -66,6 +113,27 @@ final class ChatOpeningScalabilityUITests: XCTestCase {
         XCTAssertTrue(metrics.waitForExistence(timeout: 5))
         let metricsBeforeInput = metrics.label
         XCTAssertTrue(metricsBeforeInput.contains("total-messages=1000"))
+        XCTAssertNotNil(metricsBeforeInput.range(of: "frame-samples=[1-9][0-9]*", options: .regularExpression),
+                        "Performance proof requires real frame samples from the preview host")
+
+        // Capture a real bounded scroll phase separately from launch/input.
+        let history = app.scrollViews["chat-history-container"]
+        XCTAssertTrue(history.waitForExistence(timeout: interactionLimit))
+        XCTAssertTrue(history.isHittable)
+        let metricsBeforeSwipe = metrics.label
+        let framesBeforeSwipe = try frameSampleCount(metricsBeforeSwipe)
+        history.swipeDown()
+        XCTAssertTrue(waitUntil(timeout: interactionLimit) {
+            app.buttons["scroll-to-bottom-button"].exists
+        }, "The gesture must actually move away from the newest message")
+        XCTAssertTrue(waitUntil(timeout: interactionLimit) {
+            ((try? self.frameSampleCount(metrics.label)) ?? 0) > framesBeforeSwipe
+        }, "The real swipe phase must contribute additional sampled frames")
+        let metricsAfterSwipe = metrics.label
+        let framesAfterSwipe = try frameSampleCount(metricsAfterSwipe)
+        XCTAssertGreaterThan(framesAfterSwipe, framesBeforeSwipe)
+        attachText("before-swipe=\(metricsBeforeSwipe); after-swipe=\(metricsAfterSwipe)",
+                   name: "Chat opening actual swipe frame metrics")
 
         let editor = try waitForMessageEditor(in: app, timeout: 5)
         let inputStart = Date()
@@ -74,11 +142,21 @@ final class ChatOpeningScalabilityUITests: XCTestCase {
         let sendButton = app.buttons["send-button"]
         XCTAssertTrue(sendButton.waitForExistence(timeout: interactionLimit))
         XCTAssertTrue(waitUntil(timeout: interactionLimit) { sendButton.isEnabled && sendButton.isHittable })
-        let inputReactionSeconds = Date().timeIntervalSince(inputStart)
-        XCTAssertLessThan(inputReactionSeconds, interactionLimit)
+        let automationSeconds = Date().timeIntervalSince(inputStart)
+        XCTAssertEqual(editor.value as? String, "p", "Actual native input must reach the visible editor")
+        XCTAssertTrue(waitUntil(timeout: interactionLimit) { metrics.label.contains("input-render-status=presented") })
+        let metricsAfterInput = metrics.label
+        let elapsedField = metricsAfterInput.split(separator: ";")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .first { $0.hasPrefix("input-render-ms=") }
+        let renderMS = try XCTUnwrap(elapsedField.flatMap { Double($0.dropFirst("input-render-ms=".count)) })
+        XCTAssertTrue(renderMS.isFinite && renderMS >= 0)
+        let inputReactionSeconds = renderMS / 1000
+        XCTAssertLessThan(inputReactionSeconds, interactionLimit,
+                          "Accepted input event to displayed ready send button must remain below the same five-second bound")
 
         attachText(
-            "latest-visible-seconds=\(formatSeconds(latestVisibleSeconds)); input-reaction-seconds=\(formatSeconds(inputReactionSeconds)); \(metricsBeforeInput)",
+            "latest-visible-seconds=\(formatSeconds(latestVisibleSeconds)); automation-seconds=\(formatSeconds(automationSeconds)); input-reaction-seconds=\(formatSeconds(inputReactionSeconds)); \(metricsBeforeInput); \(metricsAfterInput)",
             name: "Chat opening performance metrics"
         )
     }
@@ -202,6 +280,43 @@ final class ChatOpeningScalabilityUITests: XCTestCase {
         )
     }
 
+    private func latestAssistantText(in app: XCUIApplication) -> XCUIElement {
+        app.textViews.matching(NSPredicate(format: "label == %@", "Latest assistant response visible after bounded open")).firstMatch
+    }
+
+    #if os(iOS)
+    /// Verify actual native text pixels; a dark launch flag or accessibility
+    /// label alone cannot prove that app theme or foreground conversion worked.
+    private func assertReadableDarkText(in frame: CGRect) throws {
+        let image = XCUIScreen.main.screenshot().image
+        let cgImage = try XCTUnwrap(image.cgImage)
+        let visible = frame.intersection(CGRect(origin: .zero, size: image.size))
+        XCTAssertFalse(visible.isEmpty)
+        let scale = CGFloat(cgImage.width) / image.size.width
+        let crop = try XCTUnwrap(cgImage.cropping(to: visible.applying(CGAffineTransform(scaleX: scale, y: scale))))
+        var bytes = [UInt8](repeating: 0, count: crop.width * crop.height * 4)
+        let counts = try bytes.withUnsafeMutableBytes { buffer -> (dark: Int, light: Int, total: Int) in
+            let context = try XCTUnwrap(CGContext(data: buffer.baseAddress, width: crop.width, height: crop.height,
+                bitsPerComponent: 8, bytesPerRow: crop.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(crop, in: CGRect(x: 0, y: 0, width: CGFloat(crop.width), height: CGFloat(crop.height)))
+            let pixels = buffer.bindMemory(to: UInt8.self)
+            var dark = 0, light = 0
+            for offset in stride(from: 0, to: pixels.count, by: 4) {
+                let maximum = max(pixels[offset], max(pixels[offset + 1], pixels[offset + 2]))
+                let minimum = min(pixels[offset], min(pixels[offset + 1], pixels[offset + 2]))
+                if maximum < 120 { dark += 1 }
+                if minimum > 180 { light += 1 }
+            }
+            return (dark, light, crop.width * crop.height)
+        }
+        XCTAssertGreaterThan(Double(counts.dark) / Double(counts.total), 0.6,
+            "The native message text region must have a dark background")
+        XCTAssertGreaterThan(counts.light, 20,
+            "The native message must render light, readable glyphs against its dark background")
+    }
+    #endif
+
     @MainActor
     private func waitForMessageEditor(in app: XCUIApplication, timeout: TimeInterval) throws -> XCUIElement {
         let deadline = Date().addingTimeInterval(timeout)
@@ -230,6 +345,13 @@ final class ChatOpeningScalabilityUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    private func frameSampleCount(_ label: String) throws -> Int {
+        let field = label.split(separator: ";")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .first { $0.hasPrefix("frame-total=") }
+        return try XCTUnwrap(field.flatMap { Int($0.dropFirst("frame-total=".count)) })
     }
 
     private func formatSeconds(_ value: TimeInterval) -> String {

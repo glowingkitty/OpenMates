@@ -1,0 +1,66 @@
+schema_version: 1
+id: feature.apple-controls
+version: 1
+status: draft
+title: Apple system Controls
+summary: User configured controls expose existing quick actions, explicit workflow runs, and exact Project opening.
+scope:
+  includes:
+  - Native iOS and iPadOS 18 or later Controls and macOS 26 or later Control Center and menu bar Controls.
+  - All existing icon quick actions, configurable eligible workflow and Project selections, and unconfigured section links.
+  excludes:
+  - New provider execution, credentials in extensions, app-owned replacement Control Center, and older OS Controls.
+relationships:
+  related_specifications:
+  - feature.apple-workflow-widget
+  - feature.projects
+assertions:
+- id: apple-controls.availability
+  type: behavior
+  must: Controls register only on iOS or iPadOS 18 and later and macOS 26 and later. Existing app and widget deployment targets and older OS widgets remain supported. Action intents have both containing app and extension target membership.
+  depends_on:
+  - examples.platform
+- id: apple-controls.quick-actions
+  type: behavior
+  must: New chat, new task, ask about photo, start recording, search and incognito each invoke the same existing application quick-action route, preserving cold-launch delivery and OS permission prompts.
+  depends_on:
+  - examples.actions
+- id: apple-controls.workflow
+  type: behavior
+  must: Each configurable workflow Control independently selects an eligible cached scheduled workflow and executes only after an explicit authenticated action through the existing bounded-expiry capability, readiness and idempotency safeguards. Rendering and configuration never run a workflow or poll providers. Missing or stale configured workflows fail closed; an unconfigured control opens Workflows.
+  depends_on:
+  - examples.selection
+- id: apple-controls.project
+  type: behavior
+  must: Each Project Control independently chooses a current account, server and authorized Team Project and opens that exact Project fullscreen after current inventory validation. Deleted or inaccessible Projects and foreign scope selections fail closed. An unconfigured control opens Projects. Late inventory results cannot change a replacement route or account context.
+  depends_on:
+  - examples.selection
+- id: apple-controls.private-cache
+  type: privacy
+  must: Project and workflow choice snapshots are encrypted with dedicated device-only unlocked keys; shared defaults contain no plaintext titles, vault keys or credentials. Logout, account, server, Team and runtime scope changes invalidate old choices; stale writes, corrupt ciphertext and locked keys fail closed. Controls require authentication and mark selected private labels privacy sensitive.
+  depends_on:
+  - examples.privacy
+applies_to:
+  rest_api:
+    required: false
+  cli:
+    required: false
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: false
+      apple:
+        required: true
+examples:
+  file: examples.yml
+  required_groups: [platform, actions, selection, privacy]
+approval_source:
+  instruction: Direct user approval in Codex chat 01a0eeac-16cd-7ff1-941a-5d1fb4908fae on 2026-10-05 authorizes all existing icon quick actions plus configurable specific workflow and Project Controls, with section fallback where configuration is unsupported. Implementation is authorized; no separate fingerprint approval is claimed.

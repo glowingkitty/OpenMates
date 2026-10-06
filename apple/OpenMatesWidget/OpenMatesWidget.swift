@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-controls/specification.yml
+// Assertions: apple-controls.availability, apple-controls.quick-actions, apple-controls.workflow, apple-controls.project, apple-controls.private-cache
 // Daily Inspiration home screen widget — shows the current daily inspiration phrase.
 // Tapping the widget opens the main app and starts a new chat with that inspiration.
 // Uses the public /v1/default-inspirations endpoint (no auth required).
@@ -428,6 +430,7 @@ struct OpenMatesWidgetBundle: WidgetBundle {
         TasksWidget()
         ActiveChatsWidget()
         WorkflowsWidget()
+        if #available(iOS 18.0, macOS 26.0, *) { OpenMatesControlsBundle().body }
         #if os(iOS)
         if #available(iOS 16.2, *) { OpenMatesLiveActivity() }
         #endif

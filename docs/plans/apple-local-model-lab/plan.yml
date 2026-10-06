@@ -1,12 +1,13 @@
 id: apple-local-model-lab
 title: Apple optional local model laboratory
 status: implementing
-goal: Evaluate optional Whisper and Pocket TTS speech downloads in Developers; provide Privacy-owned OpenAI Privacy
+goal: Evaluate optional Whisper transcription, Supertonic3 speech downloads in Developers; provide Privacy-owned OpenAI Privacy
   Filter diagnostics and measurements.
 scope:
   in:
   - Independent verified downloads, progress, cancellation, retry, removal and offline restoration.
-  - WhisperKit compressed large-v3 turbo and pinned Pocket TTS English CPU inference; Privacy-owned OpenAI Privacy
+  - Selected Supertonic3 CPU ONNX synthesis; removed KittenTTS Mini0.8 has no runtime, catalog, build or settings support.
+  - WhisperKit compressed large-v3 turbo inference; Privacy-owned OpenAI Privacy
     Filter diagnostics.
   - Native settings laboratory with audio import/record, text inputs and visible results.
   - Visible hardware and OS availability before downloads and tests; unsupported controls disabled.
@@ -23,7 +24,7 @@ scope:
 acceptance:
   LML-001: Downloaded assets use immutable revision URLs and streaming SHA-256 verification; incomplete assets never
     become ready.
-  LML-002: Separate local tests expose real transcription, synthesized audio and contextual PII spans without API
+  LML-002: Separate local tests expose real transcription and contextual PII spans without API
     calls or credits.
   LML-003: Existing production UI and processing remain unchanged; the local switch affects only this laboratory.
   LML-004: Downloads and tests can be cancelled; tests run one at a time and unload before another can start.
@@ -40,26 +41,29 @@ physical_evaluation:
   - iPhone 13 Pro
   - current entry-level iPad
   - physical Apple Watch supporting the pinned WhisperKit runtime
-  gate: Measure actual device reliability, memory, thermal behavior and English/German transcription. Pocket English
-    listening quality requires blind comparison; multilingual compatibility is not established. Enhanced production
+  gate: Measure actual device reliability, memory, thermal behavior and English/German transcription. Supertonic3 is selected only for developer testing; listened-quality and physical-device proof remain incomplete. Blind listening/device comparison remains required before any production routing. Enhanced production
     PII is explicitly authorized separately and retains regex fallback and latest-text send verification.
 approval:
+  neural_speech_testing: The user explicitly selected Supertonic3 and exact KittenTTS Mini0.8 for optional developer testing on2026-10-04. Kitten uses the official pure Swift BuiltinPhonemizer with explicit limited-vocabulary/pronunciation labeling; CE/eSpeak code and GPL data are excluded. Production chat routing is unchanged; no quality/device reliability claim or automatic download/fallback is approved.
+  kitten_removal: Direct user instruction on 2026-10-05 removes KittenTTS Mini0.8 completely and retains Supertonic3; this supersedes the previous Kitten testing selection. Speech generation and WAV preparation stages must have accurate timing labels.
+  pending_production_speech: Future separate scope records normal web-style playback with installed local Supertonic3, an explicit download offer when absent, and ElevenLabs only on user choice or failed-local fallback. It is not implemented by this laboratory removal.
   source: Direct user instruction in the current chat
   decision: Optional downloads and the separate testing subpage are approved.
-  updated: Direct user instruction rejects Apple voices and authorizes Pocket TTS developer testing. Enhanced PII
-    production use/download relocation is authorized in feature.pii-protection.
+  updated: Direct user instruction on 2026-10-04 rejects Pocket quality and authorizes complete removal with no
+    Apple voice fallback. Earlier Pocket testing approval is superseded. Enhanced PII production use/download
+    relocation remains authorized in feature.pii-protection.
 tracking:
   task_id: a026e180-c49a-434f-8626-e34ad21d13a0
   status_authority: OpenMates Tasks
 notes: docs/specifications/apple/local-model-lab.md
 verification_state:
-  static: Catalog preparation, Swift parsing, PBX lint, localization and focused Specifications pass.
-  native: Prior release90 Watch/controller/store and UI evidence is retained. Current Pocket/PII/shortcut/regression
+  static: Ignored draft integration and metadata only; native execution remains pending. Prior preparation evidence is historical. Pocket removal requires fresh project/localization generation and native checks.
+  native: Prior release90 Watch/controller/store and UI evidence is retained. Current removal/PII/shortcut/regression
     app build and focused native tests are pending. Pocket actual Mac CPU synthesis and arm64 simulator bridge compilation
     succeeded.
-  inference: Measured exact-engine M1 PII cold load3.94s, warm scans2.02–2.65s; Pocket generated3.12s real audio
+  inference: Historical before Pocket removal and user quality rejection — measured exact-engine M1 PII cold load3.94s, warm scans2.02–2.65s; Pocket generated3.12s real audio
     in2.413s. Physical iPhone/iPad/Watch performance and subjective voice quality remain unmeasured.
-specification: feature.apple-local-model-lab@4
+specification: feature.apple-local-model-lab@7
 specification_bundle: specifications/features/apple-local-model-lab
 specification_review: Root reviewed assertion/examples against the direct user-approved experimental Plan. This
   records the existing scope approval; no claim of a separate user fingerprint review.
@@ -69,7 +73,6 @@ acceptance_trace:
   LML-002:
   - apple-local-model-lab.local-execution
   - apple-local-model-lab.pii-spans
-  - apple-local-model-lab.pocket-tts
   LML-003:
   - apple-local-model-lab.isolated-scope
   - apple-local-model-lab.availability
@@ -85,3 +88,12 @@ approvals:
   plan:
     status: approved
     basis: Optional downloads and the separate testing subpage are approved.
+
+local_first_playback_followup:
+  status: pending
+  user_approved: true
+  model: Supertonic 3
+  preparation: Warm an already downloaded model after chat opening settles, outside navigation's critical path; reuse one resident runtime across chats.
+  eviction: Release on account/server changes, memory pressure and bounded inactivity.
+  latency: Measure time to first audio independently from model loading and full synthesis; investigate cancellable chunk playback.
+  provider_fallback: Offer a download when local assets are absent; preserve an explicit ElevenLabs fallback through the existing authenticated speech request path.

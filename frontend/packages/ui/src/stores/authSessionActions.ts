@@ -72,6 +72,7 @@ import type { SessionCheckResult } from "./authTypes";
 const RETIRED_INTRO_CHAT_HASHES = new Set([
   "#chat-id=demo-for-everyone",
   "#chat-id=demo-for-developers",
+  "#chat-id=demo-who-develops-openmates",
 ]);
 
 let activeAuthCheck: { generation: number; promise: Promise<boolean> } | null = null;

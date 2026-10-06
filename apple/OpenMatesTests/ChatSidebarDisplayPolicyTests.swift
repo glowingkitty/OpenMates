@@ -1,9 +1,22 @@
 // Production sidebar policy contract; no account, network or persisted data.
 // Reference: Chats.svelte chatsForDisplay and chatGroupUtils.ts groupChats.
 import XCTest
+import CryptoKit
 @testable import OpenMates
 
 final class ChatSidebarDisplayPolicyTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.projects.organize
+    func testSidebarStationaryHoldRejectsShortAndReturnedDragsAndResets() {
+        var hold = SidebarStationaryHoldTracking()
+        hold.begin(at: CGPoint(x: 20, y: 30), time: 100)
+        XCTAssertFalse(hold.opensActions(at: 100.49))
+        XCTAssertTrue(hold.opensActions(at: 100.5))
+        hold.record(CGPoint(x: 31, y: 30)); hold.record(CGPoint(x: 20, y: 30))
+        XCTAssertFalse(hold.opensActions(at: 101), "Returning a drag must not open stationary actions")
+        hold.begin(at: CGPoint(x: 40, y: 50), time: 102)
+        XCTAssertFalse(hold.moved); XCTAssertTrue(hold.opensActions(at: 102.5))
+    }
+
     private let now = Date(timeIntervalSince1970: 1_789_214_400)
     private var utc: Calendar {
         var value = Calendar(identifier: .gregorian)
@@ -129,6 +142,50 @@ final class ChatSidebarDisplayPolicyTests: XCTestCase {
         XCTAssertFalse(snapshot(total: 5, exhausted: false).shouldShowMore)
         XCTAssertTrue(snapshot(total: 5, exhausted: true, limit: 3).shouldShowMore)
         XCTAssertEqual(snapshot(total: 50, exhausted: false).filteredCount, 5)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.projects.nested-readable,chat-navigation.projects.organize,chats.surface.semantic-parity
+    func testProjectEligibilityUsesRecentWindowBeforeOrganizationRemoval() {
+        let chats = (0..<12).map { chat("chat-\($0)", age: $0) }
+        let recent = ChatSidebarDisplayPolicy.visibleChats(sortedUserChats: chats, limit: 11,
+            selectedChatID: nil, lastActiveChatID: nil)
+        let projects = [project("empty", members: []), project("old", members: ["chat-11"]),
+                        project("recent", members: ["chat-0"])]
+        XCTAssertEqual(ChatSidebarDisplayPolicy.eligibleProjects(projects, recentActiveChats: recent).map(\.id), ["recent"])
+        XCTAssertTrue(ChatSidebarDisplayPolicy.eligibleProjects(projects, recentActiveChats: []).isEmpty)
+        let expanded = ChatSidebarDisplayPolicy.visibleChats(sortedUserChats: chats, limit: 31,
+            selectedChatID: nil, lastActiveChatID: nil)
+        XCTAssertEqual(ChatSidebarDisplayPolicy.eligibleProjects(projects, recentActiveChats: expanded).map(\.id), ["old", "recent"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.projects.nested-readable,chat-navigation.projects.organize
+    func testFoldersTrackMemberMovesRemovalAndReachableAncestors() {
+        let folders = [ProjectWorkspaceFolder(id: "parent", name: "Parent", parentHash: nil, position: 0, createdAt: 0),
+            .init(id: "child", name: "Child", parentHash: ChatSidebarProject.hash("parent"), position: 1, createdAt: 0),
+            .init(id: "empty", name: "Empty", parentHash: nil, position: 2, createdAt: 0),
+            .init(id: "orphan", name: "Orphan", parentHash: "missing", position: 3, createdAt: 0)]
+        let recent = [chat("recent", age: 0)]
+        func eligible(_ folder: String?, members: [String] = ["recent"]) -> [ChatSidebarProject] {
+            ChatSidebarDisplayPolicy.eligibleProjects([project("project", members: members,
+                folders: folders, folder: folder)], recentActiveChats: recent)
+        }
+        XCTAssertEqual(eligible("child").first?.contents.folders.map(\.id), ["parent", "child"])
+        XCTAssertEqual(eligible("empty").first?.contents.folders.map(\.id), ["empty"])
+        XCTAssertEqual(eligible(nil).first?.contents.folders.map(\.id), [])
+        XCTAssertTrue(eligible("child", members: []).isEmpty)
+        XCTAssertTrue(eligible("child", members: ["old"]).isEmpty)
+        XCTAssertTrue(eligible("orphan").isEmpty)
+    }
+
+    private func project(_ id: String, members: [String], folders: [ProjectWorkspaceFolder] = [],
+                         folder: String? = nil) -> ChatSidebarProject {
+        .init(project: .init(id: id, name: id, description: "", icon: "", key: SymmetricKey(data: Data(repeating: 0, count: 32)),
+            version: 1, createdAt: 0, updatedAt: 0, isShared: false, itemCount: members.count,
+            teamId: nil, permissions: .denied),
+            contents: .init(folders: folders, items: members.map { member in
+                .init(id: member, kind: "chat", targetID: member, name: "", metadata: [:],
+                    folderHash: folder.map(ChatSidebarProject.hash), position: 0, createdAt: 0)
+            }, sources: []))
     }
 
     private func chat(_ id: String, age: Int, pinned: Bool = false) -> Chat {

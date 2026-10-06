@@ -84,6 +84,35 @@ final class MessageSelectionParityUITests: XCTestCase {
         screenshot("Read-only native selection Copy remains available")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testSelectionToolbarLightAndDarkOutsideTapDismissesWithoutAction() {
+        for theme in ["light", "dark"] {
+            let app = launch("selected-text", theme: theme)
+            selectNativeWord(in: app)
+            let toolbar = app.descendants(matching: .any)["message-selection-toolbar"].firstMatch
+            XCTAssertTrue(toolbar.waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["message-selection-copy"].isHittable)
+            XCTAssertTrue(app.buttons["message-selection-highlight"].isHittable)
+            screenshot("Selection toolbar " + theme)
+            let underlying = app.buttons["selection-fixture-underlying-action"]
+            XCTAssertTrue(underlying.exists)
+            underlying.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: toolbar)
+            XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+            let route = app.staticTexts["selection-fixture-route"]
+            let transport = app.staticTexts["selection-fixture-transport"]
+            XCTAssertFalse(route.exists && !route.label.isEmpty)
+            XCTAssertFalse(transport.exists && !transport.label.isEmpty)
+            XCTAssertFalse(app.staticTexts["selection-fixture-context"].exists)
+            underlying.tap()
+            XCTAssertEqual(app.staticTexts["selection-fixture-route"].label, "outside-action")
+            // A new native selection must still work after dismissing the old one.
+            selectNativeWord(in: app)
+            XCTAssertTrue(app.buttons["message-selection-explain-new-chat"].waitForExistence(timeout: 5))
+            app.terminate()
+        }
+    }
+
     private func selectNativeWord(in app: XCUIApplication) {
         let text = app.textViews.matching(NSPredicate(format: "label CONTAINS %@", "Svelte runes make state explicit")).firstMatch
         XCTAssertTrue(text.waitForExistence(timeout: 10)); XCTAssertTrue(text.isHittable)
@@ -95,9 +124,9 @@ final class MessageSelectionParityUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 5), .completed)
     }
 
-    private func launch(_ variant: String) -> XCUIApplication {
+    private func launch(_ variant: String, theme: String = "system") -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--dev-preview", "message", "--dev-preview-variant", variant, "--dev-preview-width", "390",
+        app.launchArguments = ["--dev-preview", "message", "--dev-preview-variant", variant, "--dev-preview-width", "390", "--dev-preview-theme", theme,
             "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
         return app

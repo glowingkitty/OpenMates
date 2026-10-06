@@ -132,9 +132,8 @@ struct AppsWorkspaceView: View {
         return ZStack {
             InspirationCard(inspiration: entries[index], containerSize: size,
                 heightOverride: size.width < 730 ? 190 : max(240, min(420, size.height * 0.35)),
-                ctaTitle: tr("inspiration_tap_to_use_skill"), tapHint: tr("quick_use_hint")) {
-                store.openRoute(entries[index].inspirationId == "hardcoded-apps-weather" ? "apps/weather/forecast" : "apps/web/search")
-            }
+                ctaTitle: tr("inspiration_tap_to_use_skill"), tapHint: tr("quick_use_hint"),
+                isInteractive: false) { }
             if entries.count > 1 {
                 HStack {
                     Button { inspirationIndex = (index + entries.count - 1) % entries.count } label: {

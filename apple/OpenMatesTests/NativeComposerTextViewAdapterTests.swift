@@ -17,6 +17,172 @@ import AppKit
 
 @MainActor
 final class NativeComposerTextViewAdapterTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
+    func testActualNativeScrollingEnablesAndRemovesTopMaskWithoutReplacingDelegateOrSelection() throws {
+        #if canImport(UIKit)
+        let session = NativeComposerSession()
+        session.replaceMarkdown(String(repeating: "Synthetic scroll line\n", count: 30))
+        let coordinator = NativeComposerEditorView.Coordinator(session: session, accessibilityHint: "Synthetic")
+        let view = coordinator.adapter.makePlatformView()
+        view.frame = CGRect(x: 0, y: 0, width: 300, height: 120)
+        view.isScrollEnabled = true
+        view.layoutIfNeeded()
+        view.selectedRange = NSRange(location: 2, length: 3)
+        let originalRevision = session.controller.revision
+        coordinator.installScrollFade(on: view)
+        view.setContentOffset(.zero, animated: false)
+        coordinator.updateScrollFade(view)
+        XCTAssertNil(view.layer.mask, "Unscrolled first line must remain fully opaque")
+        view.setContentOffset(CGPoint(x: 0, y: 100), animated: false)
+        coordinator.updateScrollFade(view)
+        let mask = try XCTUnwrap(view.layer.mask as? CAGradientLayer)
+        let colors = try XCTUnwrap(mask.colors as? [CGColor])
+        XCTAssertEqual(try XCTUnwrap(colors.first).alpha, 0)
+        XCTAssertEqual(try XCTUnwrap(colors.last).alpha, 1, "Bottom/footer must remain opaque")
+        XCTAssertTrue(view.delegate === coordinator.adapter)
+        XCTAssertEqual(view.selectedRange, NSRange(location: 2, length: 3))
+        XCTAssertEqual(session.controller.revision, originalRevision)
+        view.setContentOffset(.zero, animated: false)
+        coordinator.updateScrollFade(view)
+        XCTAssertNil(view.layer.mask)
+        NativeComposerEditorView.dismantleUIView(view, coordinator: coordinator)
+        XCTAssertNil(coordinator.boundsObservation)
+        #elseif canImport(AppKit)
+        let session = NativeComposerSession(canonicalMarkdown: String(repeating: "Synthetic scroll line\n", count: 30))
+        let coordinator = NativeComposerEditorView.Coordinator(session: session, accessibilityHint: "Synthetic")
+        let view = coordinator.adapter.makePlatformView()
+        view.setFrameSize(NSSize(width: 300, height: 1200))
+        view.setSelectedRange(NSRange(location: 2, length: 3))
+        let scrollView = NSScrollView(frame: CGRect(x: 0, y: 0, width: 300, height: 120))
+        scrollView.documentView = view
+        let originalRevision = session.controller.revision
+        coordinator.installScrollFade(on: scrollView)
+        scrollView.contentView.scroll(to: .zero)
+        coordinator.updateScrollFade(scrollView)
+        XCTAssertNil(scrollView.contentView.layer?.mask)
+        scrollView.contentView.scroll(to: CGPoint(x: 0, y: 100))
+        coordinator.updateScrollFade(scrollView)
+        let mask = try XCTUnwrap(scrollView.contentView.layer?.mask as? CAGradientLayer)
+        let colors = try XCTUnwrap(mask.colors as? [CGColor])
+        XCTAssertEqual(try XCTUnwrap(colors.first).alpha, 0)
+        XCTAssertEqual(try XCTUnwrap(colors.last).alpha, 1)
+        XCTAssertTrue(view.delegate === coordinator.adapter)
+        XCTAssertEqual(view.selectedRange(), NSRange(location: 2, length: 3))
+        XCTAssertEqual(session.controller.revision, originalRevision)
+        scrollView.contentView.scroll(to: .zero)
+        coordinator.updateScrollFade(scrollView)
+        XCTAssertNil(scrollView.contentView.layer?.mask)
+        NativeComposerEditorView.dismantleNSView(scrollView, coordinator: coordinator)
+        XCTAssertNil(coordinator.boundsObserver)
+        #endif
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
+    func testPlaintextControlLaneKeepsFirstLineAtTopAndStableThroughNativeScrolling() throws {
+        let session = NativeComposerSession(canonicalMarkdown: String(repeating: "Synthetic long line wraps around a stable right lane.\n", count: 20))
+        let coordinator = NativeComposerEditorView.Coordinator(session: session, accessibilityHint: "Synthetic")
+        let view = coordinator.adapter.makePlatformView()
+        coordinator.reservesControlLane = true
+        let revision = session.controller.revision
+        #if canImport(UIKit)
+        view.frame = CGRect(x: 0, y: 0, width: 362, height: 120)
+        view.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
+        coordinator.applyControlLane(to: view)
+        view.layoutIfNeeded()
+        let first = view.caretRect(for: view.beginningOfDocument)
+        XCTAssertLessThan(first.minY, 24, "Plain text must start at the top, without a blank control row")
+        let selection = view.textRange(from: view.beginningOfDocument,
+            to: try XCTUnwrap(view.position(from: view.beginningOfDocument, offset: 50)))
+        let rects = view.selectionRects(for: try XCTUnwrap(selection))
+        XCTAssertFalse(rects.isEmpty)
+        XCTAssertTrue(rects.allSatisfy { $0.rect.maxX <= 362 - 44 - 15 - 4 }, "Actual text never enters the icon hit lane")
+        let inset = view.textContainerInset
+        let selectionBeforeScroll = view.selectedRange
+        view.isScrollEnabled = true
+        view.setContentOffset(CGPoint(x: 0, y: 100), animated: false)
+        coordinator.applyControlLane(to: view)
+        XCTAssertEqual(view.textContainerInset, inset, "No moving exclusion/reflow on scroll")
+        XCTAssertEqual(view.selectedRange, selectionBeforeScroll)
+        XCTAssertTrue(view.delegate === coordinator.adapter)
+        #elseif canImport(AppKit)
+        view.setFrameSize(NSSize(width: 362, height: 1200))
+        view.textContainerInset = NSSize(width: 12, height: 14)
+        coordinator.applyControlLane(to: view, width: 362)
+        let container = try XCTUnwrap(view.textContainer)
+        let laneWidth = container.size.width
+        let selectionBeforeScroll = view.selectedRange()
+        XCTAssertLessThanOrEqual(laneWidth + view.textContainerInset.width, 362 - 44 - 15 - 4)
+        XCTAssertLessThan(view.textContainerInset.height, 24)
+        let scroll = NSScrollView(frame: CGRect(x: 0, y: 0, width: 362, height: 120))
+        scroll.documentView = view
+        scroll.contentView.scroll(to: CGPoint(x: 0, y: 100))
+        coordinator.applyControlLane(to: view, width: 362)
+        XCTAssertEqual(container.size.width, laneWidth)
+        XCTAssertEqual(view.selectedRange(), selectionBeforeScroll)
+        XCTAssertTrue(view.delegate === coordinator.adapter)
+        #endif
+        XCTAssertEqual(session.controller.revision, revision)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
+    func testNativeOverflowBoundaryClearRotationAndMeasurementPreserveLiveView() throws {
+        let session = NativeComposerSession()
+        let coordinator = NativeComposerEditorView.Coordinator(session: session, accessibilityHint: "Synthetic")
+        let view = coordinator.adapter.makePlatformView()
+        let limit = MessageComposerMetric.collapsedTextEditorMaxHeight
+        #if canImport(UIKit)
+        view.frame = CGRect(x: 0, y: 0, width: 362, height: limit)
+        view.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
+        #elseif canImport(AppKit)
+        view.setFrameSize(NSSize(width: 362, height: limit))
+        view.textContainerInset = NSSize(width: 12, height: 14)
+        #endif
+        func measure(_ text: String, width: CGFloat = 362) -> Bool {
+            session.replaceMarkdown(text); coordinator.adapter.synchronize(view)
+            return coordinator.measuredOverflow(view, width: width, limit: limit)
+        }
+        XCTAssertFalse(measure(""))
+        XCTAssertFalse(measure("Short text"))
+        XCTAssertFalse(measure("One\nTwo\nThree"), "Full three-line boundary remains visible")
+        XCTAssertTrue(measure("One\nTwo\nThree\nFour\nFive"))
+        XCTAssertFalse(measure(""), "Clearing removes overflow")
+        let long = String(repeating: "word ", count: 32)
+        XCTAssertTrue(measure(long, width: 200))
+        XCTAssertFalse(measure(long, width: 900), "Rotation/width change re-evaluates actual wrapping")
+        session.replaceMarkdown("One\nTwo\nThree"); coordinator.adapter.synchronize(view)
+        coordinator.reservesControlLane = true
+        #if canImport(UIKit)
+        coordinator.applyControlLane(to: view)
+        let bounds = view.bounds, inset = view.textContainerInset, selection = view.selectedRange, offset = view.contentOffset
+        #elseif canImport(AppKit)
+        coordinator.applyControlLane(to: view, width: 362)
+        let bounds = view.bounds, inset = view.textContainerInset, selection = view.selectedRange()
+        let container = try XCTUnwrap(view.textContainer); let size = container.size
+        #endif
+        let revision = session.controller.revision
+        XCTAssertFalse(coordinator.measuredOverflow(view, width: 362, limit: limit),
+            "Icon lane cannot make a full-width three-line baseline toggle overflow")
+        XCTAssertFalse(coordinator.measuredOverflow(view, width: 362, limit: limit))
+        XCTAssertEqual(view.bounds, bounds); XCTAssertEqual(view.textContainerInset, inset)
+        XCTAssertTrue(view.delegate === coordinator.adapter); XCTAssertEqual(session.controller.revision, revision)
+        #if canImport(UIKit)
+        XCTAssertEqual(view.selectedRange, selection); XCTAssertEqual(view.contentOffset, offset)
+        #elseif canImport(AppKit)
+        XCTAssertEqual(view.selectedRange(), selection); XCTAssertEqual(container.size, size)
+        #endif
+        session.replaceMarkdown("")
+        try session.insertPendingEmbed(nodeID: "synthetic-one", embedType: "image", title: "Synthetic image")
+        coordinator.adapter.synchronize(view)
+        XCTAssertFalse(coordinator.measuredOverflow(view, width: 362, limit: MessageComposerMetric.embedTextEditorMaxHeight),
+            "One actual200pt card fits the native collapsed media viewport")
+        try session.insertPendingEmbed(nodeID: "synthetic-two", embedType: "recording", title: "Synthetic recording")
+        coordinator.adapter.synchronize(view)
+        XCTAssertTrue(coordinator.measuredOverflow(view, width: 362, limit: MessageComposerMetric.embedTextEditorMaxHeight),
+            "Two real media rows overflow and expose expand")
+        XCTAssertFalse(coordinator.measuredOverflow(view, width: 362, limit: 900),
+            "Expanded native viewport updates overflow while host keeps collapse reachable")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.focus.parent-state
     func testCreatesTextKit2PlatformViewAndSynchronizesContentAndSelection() throws {
         let controller = try makeController()

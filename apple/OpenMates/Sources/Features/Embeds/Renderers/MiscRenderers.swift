@@ -1706,6 +1706,16 @@ final class PendingProjectFocusStore: ObservableObject {
 }
 
 struct FocusModeRenderer: View {
+    static func iconAppID(data: [String: AnyCodable]?, appID: String? = nil, fullscreen: Bool) -> String {
+        if let rawApp = data?["app_id"]?.value as? String { return rawApp }
+        if let appID { return appID }
+        // Preview renderer receives attrs.app_id || empty. Fullscreen additionally
+        // falls back to focus_id.split('-')[0], including the empty-string case.
+        guard fullscreen else { return "" }
+        let focusID = data?["focus_id"]?.value as? String ?? ""
+        return focusID.components(separatedBy: "-").first ?? "ai"
+    }
+
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
     var embedID: String = ""
@@ -1714,7 +1724,7 @@ struct FocusModeRenderer: View {
 
     private var focusID: String { data?["focus_id"]?.value as? String ?? "" }
     private var appID: String {
-        data?["app_id"]?.value as? String ?? String(focusID.split(separator: "-").first ?? "ai")
+        Self.iconAppID(data: data, fullscreen: false)
     }
     private var focusName: String {
         data?["focus_mode_name"]?.value as? String ?? focusID

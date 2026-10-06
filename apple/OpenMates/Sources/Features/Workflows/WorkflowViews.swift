@@ -151,6 +151,9 @@ private struct WorkflowEditorView: View {
     @State private var selectedVersionId: String?
     @State private var confirmDelete = false
     @State private var editorInstruction = ""
+    @State private var promptActive = false
+    @State private var promptDismissID: UUID?
+    @State private var promptAvailableHeight: CGFloat = 350
     @State private var showSharingSoon = false
     @State private var showingVoiceInput = false
     @State private var revealedEditorId: String?
@@ -298,6 +301,8 @@ private struct WorkflowEditorView: View {
             .padding(.top, 15) // WorkflowDetailPage sticky toolbar top.
         }
         .coordinateSpace(name: WorkflowDetailViewport.coordinateSpace)
+        .workspacePromptBackground(active: promptActive, identifier: "workflow-editor-prompt-backdrop",
+                onDismiss: { promptDismissID = UUID() })
         .clipShape(RoundedRectangle(cornerRadius: viewport.size.width <= 730 ? .spacing12 : .spacing16))
         .overlay {
             RoundedRectangle(cornerRadius: viewport.size.width <= 730 ? .spacing12 : .spacing16)
@@ -310,6 +315,13 @@ private struct WorkflowEditorView: View {
             if tab == .template { dockedComposer }
         }
         .background(Color.grey10)
+        #if DEBUG
+        .overlay(alignment: .top) {
+            WorkflowPromptHeldFixtureControls(store: store,
+                replaceDraft: { editorInstruction = "Replacement synthetic workflow draft" })
+        }
+        #endif
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { promptAvailableHeight = $0 }
         .task {
             guard !ProcessInfo.processInfo.arguments.contains("--ui-test-workflows-fixture") else { return }
             await store.loadCapabilities()
@@ -343,19 +355,23 @@ private struct WorkflowEditorView: View {
             submitLabel: AppStrings.workflowBuilder(.ai_edit_submit),
             submittingLabel: AppStrings.workflowBuilder(.ai_edit_submitting),
             disabled: store.isLoading || authoring.pendingSession != nil,
-            submitting: authoring.isSubmitting,
+            submitting: store.isSubmittingInstruction,
             identifier: "workflow-ai-editor-composer",
             inputIdentifier: "workflow-ai-edit-textarea",
             submitIdentifier: "workflow-ai-edit-submit",
             micIdentifier: "workflow-ai-edit-mic",
             onSubmit: { submitted in
+                let submittedDraft = editorInstruction
                 Task {
-                    if await store.submitInstruction(submitted, selectedWorkflowId: workflow.id) {
+                    if await store.submitInstruction(submitted, selectedWorkflowId: workflow.id),
+                       editorInstruction == submittedDraft {
                         editorInstruction = ""
                     }
                 }
             },
-            onMic: { showingVoiceInput = true }
+            onMic: { showingVoiceInput = true },
+            onActiveChanged: { promptActive = $0 }, dismissRequestID: promptDismissID,
+            availableHeight: promptAvailableHeight
         )
         .padding(.horizontal, .spacing8)
         .padding(.top, .spacing6)
@@ -365,8 +381,10 @@ private struct WorkflowEditorView: View {
             WorkflowVoiceInputView(
                 authManager: authManager, expectedAccountID: store.accountId,
                 onSubmit: { submitted in
+                    let submittedDraft = editorInstruction
                     Task {
-                        if await store.submitInstruction(submitted, selectedWorkflowId: workflow.id) {
+                        if await store.submitInstruction(submitted, selectedWorkflowId: workflow.id),
+                           editorInstruction == submittedDraft {
                             editorInstruction = ""
                         }
                     }

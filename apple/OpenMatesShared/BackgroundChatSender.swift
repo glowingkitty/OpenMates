@@ -1909,6 +1909,57 @@ actor BackgroundChatSender {
     }
 }
 
+// URLSession can deliver another ping completion while a failed/cancelled
+// socket drains. Consume the continuation once across callbacks and cancellation.
+private final class BackgroundWebSocketPingCompletion: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Void, Error>?
+    private var result: Result<Void, Error>?
+
+    func install(_ continuation: CheckedContinuation<Void, Error>) -> Bool {
+        let completed: Result<Void, Error>? = lock.withLock {
+            if let result { return result }
+            self.continuation = continuation
+            return nil as Result<Void, Error>?
+        }
+        if let completed {
+            continuation.resume(with: completed)
+            return false
+        }
+        return true
+    }
+
+    func resolve(_ result: Result<Void, Error>) {
+        let pending = lock.withLock {
+            guard self.result == nil else { return nil as CheckedContinuation<Void, Error>? }
+            self.result = result
+            let pending = continuation
+            continuation = nil
+            return pending
+        }
+        pending?.resume(with: result)
+    }
+}
+
+// Test the production callback bridge without creating an authenticated socket.
+enum BackgroundWebSocketPing {
+    static func wait(sendPing: @Sendable (@escaping @Sendable (Error?) -> Void) -> Void) async throws {
+        let completion = BackgroundWebSocketPingCompletion()
+        try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                guard completion.install(continuation) else { return }
+                sendPing { error in
+                    completion.resolve(error.map { .failure($0) } ?? .success(()))
+                }
+            }
+            try Task.checkCancellation()
+        } onCancel: {
+            completion.resolve(.failure(CancellationError()))
+        }
+    }
+}
+
 private final class BackgroundWebSocket: @unchecked Sendable {
     private let task: URLSessionWebSocketTask
 
@@ -1978,14 +2029,8 @@ private final class BackgroundWebSocket: @unchecked Sendable {
 
     private func waitForOpenSocket() async throws {
         try await Task.sleep(for: .milliseconds(650))
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            task.sendPing { error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume()
-                }
-            }
+        try await BackgroundWebSocketPing.wait { [task] completion in
+            task.sendPing(pongReceiveHandler: completion)
         }
     }
 }

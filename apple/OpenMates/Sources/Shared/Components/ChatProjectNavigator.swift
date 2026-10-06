@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
 import CryptoKit
 
 extension UTType {
-    static let openMatesChat = UTType(exportedAs: "org.openmates.chat-organization")
+    static let openMatesChat = UTType(exportedAs: "org.openmates.chat-organization", conformingTo: .data)
 }
 
 /// Only an opaque identity crosses the drag boundary; scope is checked again on drop.
@@ -156,9 +156,11 @@ struct ChatProjectDragModifier: ViewModifier {
     @ViewBuilder func body(content: Content) -> some View {
         if let payload, let onDrop {
             content.draggable(payload).dropDestination(for: ChatProjectDragPayload.self) { values, _ in
-                guard let source = values.first, source.chatID != payload.chatID else { return false }
+                NativeDragDiagnostics.record("sidebar.drop.invoked;values=\(values.count)")
+                guard let source = values.first, source.chatID != payload.chatID else { NativeDragDiagnostics.record("sidebar.drop.guardRejected"); return false }
+                NativeDragDiagnostics.record("sidebar.drop.accepted")
                 onDrop(source); return true
-            }
+            } isTargeted: { targeted in NativeDragDiagnostics.record("sidebar.targeted=\(targeted)") }
         } else { content }
     }
 }

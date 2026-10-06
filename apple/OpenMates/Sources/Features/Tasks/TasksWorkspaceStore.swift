@@ -23,6 +23,7 @@ final class TasksWorkspaceStore: ObservableObject {
     @Published private(set) var plansLoadErrorMessage: String?
     @Published private(set) var projectNamesLoadErrorMessage: String?
     @Published var selectedTaskID: String?
+    @Published private(set) var presentedTaskID: String?
     @Published var selectedPlanID: String?
     @Published var selectedWorkflowRunID: String?
     @Published var searchText = ""
@@ -41,6 +42,7 @@ final class TasksWorkspaceStore: ObservableObject {
     private var scope: UUID?
     private var serverProfile: ServerProfile?
     private var loadGeneration = UUID()
+    private var pendingTaskDetail: (id: String, generation: UUID)?
     private var hasLoaded = false
     private var isPreview = false
     #if DEBUG
@@ -151,12 +153,14 @@ final class TasksWorkspaceStore: ObservableObject {
         scope = OfflineStore.shared.scopeGeneration
         serverProfile = accountID == nil ? nil : ServerProfile.current()
         loadGeneration = UUID()
+        pendingTaskDetail = nil
         projectID = nil
         teamID = teamContext.teamID
         boardItems = []
         plans = []
         projectNames = [:]
         selectedTaskID = nil
+        presentedTaskID = nil
         selectedPlanID = nil
         selectedWorkflowRunID = nil
         searchText = ""
@@ -172,13 +176,14 @@ final class TasksWorkspaceStore: ObservableObject {
     }
 
     func load(accountID: String, projectID: String? = nil,
-              teamID: String? = nil, force: Bool = false) async {
+              teamID: String? = nil, force: Bool = false, requestedTaskID: String? = nil) async {
         reset(accountID: accountID)
         isPreview = false
         if self.projectID != projectID || self.teamID != teamID {
             self.projectID = projectID
             self.teamID = teamID
             loadGeneration = UUID()
+            pendingTaskDetail = nil
             hasLoaded = false
             // The previous request still owns its old generation. Its defer
             // must not keep this new filter context permanently loading.
@@ -187,10 +192,12 @@ final class TasksWorkspaceStore: ObservableObject {
             plans = []
             projectNames = [:]
             selectedTaskID = nil
+            presentedTaskID = nil
             selectedPlanID = nil
             selectedWorkflowRunID = nil
             promptDraft = ""
         }
+        if let requestedTaskID { openTaskWhenAvailable(requestedTaskID) }
         guard !isLoading, force || !hasLoaded else { return }
         let fence = UserTasksAccountFence(accountID: accountID, teamContext: teamContext)
         let generation = loadGeneration
@@ -207,7 +214,10 @@ final class TasksWorkspaceStore: ObservableObject {
         #endif
         if useCache {
             if let cached = try? await tasks.cachedBoard(filters: filters, fence: fence),
-               await acceptsLoadResult(generation: generation, fence: fence) { boardItems = cached }
+               await acceptsLoadResult(generation: generation, fence: fence) {
+                boardItems = cached
+                applyPendingTaskDetail()
+            }
             if let cached = try? await plansService.cachedPlans(projectID: projectID, teamID: teamID, fence: fence),
                await acceptsLoadResult(generation: generation, fence: fence) { plans = cached }
             if let cached = try? await projects.cachedProjects(accountID: accountID, teamID: teamID),
@@ -232,6 +242,7 @@ final class TasksWorkspaceStore: ObservableObject {
             try await fence.check()
             guard generation == loadGeneration else { return }
             boardItems = fetchedItems
+            applyPendingTaskDetail()
             boardLoaded = true
         } catch {
             guard await acceptsLoadResult(generation: generation, fence: fence) else { return }
@@ -288,6 +299,11 @@ final class TasksWorkspaceStore: ObservableObject {
     // Local fixture application exercises the production failure reducer. It
     // does not make requests, open keys, or bypass the real load/account fence.
     var debugLoadGeneration: UUID { loadGeneration }
+    func debugCompleteWidgetInventory(_ items: [TaskBoardItem], generation: UUID) {
+        guard isPreview, generation == loadGeneration else { return }
+        boardItems = items
+        applyPendingTaskDetail()
+    }
     func debugApplyLoadFailure(_ error: Error, stage: String, generation: UUID) {
         guard let stage = LoadStage(rawValue: stage) else { return }
         recordLoadFailure(error, stage: stage, generation: generation)
@@ -295,15 +311,45 @@ final class TasksWorkspaceStore: ObservableObject {
     #endif
 
     func openTask(_ id: String) {
+        pendingTaskDetail = nil
+        if selectedTaskID != id { presentedTaskID = nil }
         selectedPlanID = nil
         selectedWorkflowRunID = nil
         selectedTaskID = id
     }
 
+    /// A widget may arrive while the same scoped inventory is already loading.
+    /// Retain its destination until the actual Task is available, never an
+    /// empty fullscreen reader or a selection from a replaced load context.
+    func openTaskWhenAvailable(_ id: String) {
+        pendingTaskDetail = (id, loadGeneration)
+        applyPendingTaskDetail()
+    }
+
+    func cancelPendingTaskDetail() { pendingTaskDetail = nil }
+
+    func taskDetailDidAppear(_ id: String) {
+        guard selectedTask?.id == id,
+              isPreview || (scope == OfflineStore.shared.scopeGeneration &&
+                serverProfile == ServerProfile.current() && teamEpoch == teamContext.contextEpoch &&
+                contextTeamID == teamContext.teamID) else { return }
+        presentedTaskID = id
+    }
+
+    private func applyPendingTaskDetail() {
+        guard let pending = pendingTaskDetail, pending.generation == loadGeneration,
+              isPreview || (scope == OfflineStore.shared.scopeGeneration &&
+                serverProfile == ServerProfile.current() && teamEpoch == teamContext.contextEpoch &&
+                contextTeamID == teamContext.teamID),
+              boardItems.contains(where: { if case .task(let task) = $0 { return task.id == pending.id }; return false }) else { return }
+        openTask(pending.id)
+    }
+
     #if DEBUG
     /// In-memory mirror of TaskBoard.preview.ts for signed-out visual checks.
     /// Ciphertext records are synthetic and never sent to the API.
-    func installPreview(projectID: String? = nil, manyBacklog: Bool = false, accountID: String? = nil) {
+    func installPreview(projectID: String? = nil, manyBacklog: Bool = false, accountID: String? = nil,
+                        widgetTaskID: String? = nil) {
         reset(accountID: accountID)
         isPreview = true
         let timestamp = 1_788_883_200
@@ -330,7 +376,7 @@ final class TasksWorkspaceStore: ObservableObject {
                 blockedReason: blockedReason, externalChat: nil))
         }
         boardItems = [
-            task("preview-backlog-1", "Research how expensive hoverboard motors are to carry 2–3 people", .backlog, 0,
+            task(widgetTaskID ?? "preview-backlog-1", "Research how expensive hoverboard motors are to carry 2–3 people", .backlog, 0,
                  projects: ["project-ballpit"], tags: ["Self driving ballpit"], priority: 3),
             task("preview-backlog-2", "Teams feature", .backlog, 1, projects: ["project-openmates"]),
             task("preview-todo", "Design 3D model", .todo, 0, projects: ["project-ballpit"],
@@ -395,12 +441,16 @@ final class TasksWorkspaceStore: ObservableObject {
     #endif
 
     func openPlan(_ id: String) {
+        pendingTaskDetail = nil
+        presentedTaskID = nil
         selectedTaskID = nil
         selectedWorkflowRunID = nil
         selectedPlanID = id
     }
 
     func openWorkflowRun(_ id: String) {
+        pendingTaskDetail = nil
+        presentedTaskID = nil
         guard boardItems.contains(where: { item in
             if case .workflowRun(let run) = item { return run.id == id && run.workflowRunId != nil }
             return false
@@ -411,6 +461,8 @@ final class TasksWorkspaceStore: ObservableObject {
     }
 
     func closeDetail() {
+        pendingTaskDetail = nil
+        presentedTaskID = nil
         selectedTaskID = nil
         selectedPlanID = nil
         selectedWorkflowRunID = nil
@@ -418,42 +470,50 @@ final class TasksWorkspaceStore: ObservableObject {
 
     func workflowRunDetail(_ projection: WorkflowRunTaskProjection,
                            currentGraph: WorkflowGraph? = nil) async throws -> (WorkflowRunDetail, WorkflowGraph?) {
-        guard let runID = projection.workflowRunId,
-              let fence = currentFence() else { throw UserTasksError.accountChanged }
-        try await fence.check()
-        let response: WorkflowRunResponse = try await APIClient.shared.request(.get,
-            path: WorkflowAPIRequestFactory.runDetailPath(workflowId: projection.workflowId, runId: runID),
-            serverProfile: fence.serverProfile,
-            expectedAccountID: fence.accountID, expectedScope: fence.scope)
-        try await fence.check()
-        var graph = currentGraph
-        if graph == nil {
-            let workflowResponse: WorkflowResponse = try await APIClient.shared.request(.get,
-                path: WorkflowAPIRequestFactory.workflowPath(projection.workflowId),
-                serverProfile: fence.serverProfile,
-                expectedAccountID: fence.accountID, expectedScope: fence.scope)
-            try await fence.check()
-            let workflow = workflowResponse.workflow
-            if response.run.versionId == workflow.currentVersionId {
-                graph = workflow.graph
-            } else {
-                let versionResponse: WorkflowVersionResponse = try await APIClient.shared.request(.get,
-                    path: WorkflowAPIRequestFactory.versionPath(workflowId: projection.workflowId,
-                                                                versionId: response.run.versionId),
-                    serverProfile: fence.serverProfile,
-                    expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        #if DEBUG
+        if isPreview { return try await WorkflowRunTaskReader.preview(projection) }
+        #endif
+        guard let fence = currentFence() else { throw UserTasksError.accountChanged }
+        return try await WorkflowRunTaskReader.read(projection, currentGraph: currentGraph,
+            request: { path in
                 try await fence.check()
-                graph = versionResponse.version.graph
-            }
-        }
-        return (response.run, graph)
+                let data: Data = try await APIClient.shared.request(.get, path: path,
+                    serverProfile: fence.serverProfile,
+                    expectedAccountID: fence.accountID, expectedScope: fence.scope,
+                    expectedTeamContext: fence.requestTeamContext)
+                try await fence.check()
+                return data
+            }, validate: { try await fence.check() })
     }
 
-    func createTask(_ input: UserTaskCreateInput) async {
-        guard let fence = currentFence(), !isSaving else { return }
+    @discardableResult
+    func createTask(_ input: UserTaskCreateInput) async -> Bool {
+        #if DEBUG
+        if isPreview, ProcessInfo.processInfo.arguments.contains("--ui-test-task-prompt-submit") {
+            guard !isSaving else { return false }
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-task-create-failure") {
+                interactionErrorMessage = "Synthetic task creation rejected"
+                return false
+            }
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let id = "preview-created-\(UUID().uuidString)"
+            let json: [String: Any] = ["task_id": id, "encrypted_title": "preview-ciphertext",
+                "status": "backlog", "assignee_type": "openmates", "created_at": 1788883200,
+                "updated_at": 1788883200, "position": boardItems.count, "version": 1, "priority": 0]
+            guard let data = try? JSONSerialization.data(withJSONObject: json),
+                  let record = try? decoder.decode(EncryptedUserTaskRecord.self, from: data) else { return false }
+            boardItems.append(.task(UserTaskItem(record: record, title: input.title, description: "",
+                latestInstruction: "", tags: [], linkedProjectIds: projectID.map { [$0] } ?? [],
+                blockedReason: "", externalChat: nil)))
+            interactionErrorMessage = nil
+            return true
+        }
+        #endif
+        guard let fence = currentFence(), !isSaving else { return false }
         guard teamID == nil else {
             errorMessage = UserTasksError.unsupportedTeamMutation.localizedDescription
-            return
+            return false
         }
         isSaving = true
         defer { isSaving = false }
@@ -467,9 +527,11 @@ final class TasksWorkspaceStore: ObservableObject {
             boardItems.append(.task(item))
             selectedTaskID = item.id
             errorMessage = nil
+            return true
         } catch {
-            guard (try? await fence.check()) != nil else { return }
+            guard (try? await fence.check()) != nil else { return false }
             errorMessage = error.localizedDescription
+            return false
         }
     }
 
@@ -852,4 +914,77 @@ final class TasksWorkspaceStore: ObservableObject {
             plans[index] = plan
         }
     }
+}
+
+
+/// Tasks uses the Workflow wire decoder: APIClient's automatic camel-case
+/// conversion cannot decode the explicit snake_case graph and run CodingKeys.
+/// The injected read closure is shared by live requests and synthetic coverage.
+@MainActor
+enum WorkflowRunTaskReader {
+    typealias Request = @MainActor (String) async throws -> Data
+    enum ReadError: Error { case missingRun, invalidIdentity }
+
+    static func read(_ projection: WorkflowRunTaskProjection, currentGraph: WorkflowGraph? = nil,
+                     request: Request, validate: @MainActor () async throws -> Void) async throws -> (WorkflowRunDetail, WorkflowGraph?) {
+        guard let runID = projection.workflowRunId, !runID.isEmpty else { throw ReadError.missingRun }
+        try await validate()
+        let runData = try await request(WorkflowAPIRequestFactory.runDetailPath(workflowId: projection.workflowId, runId: runID))
+        try await validate()
+        let run = try decode(WorkflowRunResponse.self, from: runData).run
+        guard run.id == runID, run.workflowId == projection.workflowId else { throw ReadError.invalidIdentity }
+        var graph = currentGraph
+        if graph == nil {
+            let workflowData = try await request(WorkflowAPIRequestFactory.workflowPath(projection.workflowId))
+            try await validate()
+            let workflow = try decode(WorkflowResponse.self, from: workflowData).workflow
+            guard workflow.id == projection.workflowId else { throw ReadError.invalidIdentity }
+            if run.versionId == workflow.currentVersionId { graph = workflow.graph }
+            else {
+                let versionData = try await request(WorkflowAPIRequestFactory.versionPath(workflowId: projection.workflowId, versionId: run.versionId))
+                try await validate()
+                let version = try decode(WorkflowVersionResponse.self, from: versionData).version
+                guard version.versionId == run.versionId else { throw ReadError.invalidIdentity }
+                graph = version.graph
+            }
+        }
+        try await validate()
+        return (run, graph)
+    }
+
+    private static func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        do { return try WorkflowAPI.decodeResponse(type, from: data) }
+        catch {
+            APIResponseDecodingDiagnostics.record(error: error, responseType: type)
+            throw error
+        }
+    }
+
+    static func loadErrorMessage(_ error: Error) -> String {
+        // Server bodies, schema keys and record IDs belong in diagnostics, not
+        // the run UI. A retention miss is displayed separately after a valid read.
+        AppStrings.localized("workflows.runs.load_failed")
+    }
+
+    #if DEBUG
+    static func preview(_ projection: WorkflowRunTaskProjection) async throws -> (WorkflowRunDetail, WorkflowGraph?) {
+        let graph: [String: Any] = ["version": 1, "trigger_node_id": "schedule",
+            "nodes": [["id": "schedule", "type": "schedule_trigger", "title": "Daily schedule", "config": [:]],
+                      ["id": "end", "type": "end", "title": "Finished", "config": [:]]],
+            "edges": [["from": "schedule", "to": "end"]], "variables": [:], "limits": [:], "ui_layout": [:]]
+        let workflow: [String: Any] = ["id": projection.workflowId, "title": projection.displayTitle,
+            "status": "active", "enabled": false, "lifecycle": "persisted", "source": "manual",
+            "created_by_assistant": false, "run_content_retention": "last_5", "current_version_id": "preview-version",
+            "created_at": projection.createdAt, "updated_at": projection.updatedAt, "graph": graph]
+        let run: [String: Any] = ["id": projection.workflowRunId ?? "", "workflow_id": projection.workflowId,
+            "version_id": "preview-version", "status": projection.runStatus, "trigger_type": "scheduled",
+            "started_at": projection.createdAt, "finished_at": projection.updatedAt, "content_available": true,
+            "node_runs": [["id": "preview-node-run", "run_id": projection.workflowRunId ?? "",
+                "workflow_id": projection.workflowId, "node_id": "schedule", "node_type": "schedule_trigger", "status": "completed"]]]
+        return try await read(projection, request: { path in
+            let body: [String: Any] = path.contains("/runs/") ? ["run": run] : ["workflow": workflow]
+            return try JSONSerialization.data(withJSONObject: body)
+        }, validate: {})
+    }
+    #endif
 }

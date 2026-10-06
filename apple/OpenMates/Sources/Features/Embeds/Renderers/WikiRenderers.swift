@@ -65,7 +65,7 @@ struct WikiRenderer: View {
     }
     private var article: WikiArticleSummary? { loadState.article(for: identity) }
     private var resolvedTitle: String {
-        article?.title ?? data?["title"]?.value as? String ?? identity.title
+        article?.resolvedTitle ?? data?["title"]?.value as? String ?? identity.title
     }
     private var resolvedDescription: String? {
         article?.description ?? data?["description"]?.value as? String
@@ -202,7 +202,10 @@ struct WikiRenderer: View {
                 guard currentAccount == account, requested == fetchIdentity else { throw CancellationError() }
             }
             guard requested == fetchIdentity else { throw CancellationError() }
-            loadState.finish(try WikiArticleSummary.decode(bytes), request: request)
+            let summary = try WikiArticleSummary.decode(bytes)
+            try summary.validate(for: requested.article,
+                displayTitle: data?["title"]?.value as? String ?? requested.article.title)
+            loadState.finish(summary, request: request)
         } catch {
             guard !Task.isCancelled, requested == fetchIdentity else { return }
             if error is CancellationError { loadState.finish(nil, request: request); return }

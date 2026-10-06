@@ -291,7 +291,9 @@ tasks:
   - T-PHASE-4
   dependencies: []
   blockers:
-  - Approved native build/test runner unavailable.
+  - Real native eight-turn Career insights acceptance remains pending. Current TASK-8137 publication
+    permits synthetic Focus history/detail verification only, under the explicit zero-real-inference
+    release policy; it does not complete TASK-7858 or replace its required native conversation.
   follow_up_tasks: []
   ownership:
     files: *id003

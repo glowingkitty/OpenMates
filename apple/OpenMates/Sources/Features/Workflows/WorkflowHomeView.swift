@@ -1,5 +1,9 @@
 // Workflow landing surface mapped to WorkspaceHomeShell(surface="workflows").
 // The owner-scoped WorkflowStore supplies recent cards and all mutations.
+// Web source: frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte,
+// frontend/packages/ui/src/components/workspace/WorkspaceContinueCard.svelte.
+// Specification: specifications/features/workflows-ui/specification.yml
+// Assertions: workflows-ui.workspace.recommendation-led-composition, workflows-ui.responsive-accessible-reachable
 
 import SwiftUI
 
@@ -10,6 +14,8 @@ struct WorkflowHomeView: View {
     let onReportIssue: () -> Void
 
     @State private var instruction = ""
+    @State private var promptActive = false
+    @State private var promptDismissID: UUID?
     @State private var showingVoiceInput = false
     private enum BrowseMode { case recent, workflows, templates }
     @State private var browseMode = BrowseMode.recent
@@ -101,58 +107,70 @@ struct WorkflowHomeView: View {
             let placement = WorkspaceContinuationLayoutPolicy.resolve(
                 width: geometry.size.width, height: geometry.size.height,
                 bannerBottom: showingAll ? (measuredToolbarBottom ?? 52) : (measuredBannerBottom ?? bannerHeight),
-                composerTop: measuredComposerTop ?? max(0, geometry.size.height - 100 - keyboardOverlap)
+                composerTop: measuredComposerTop ?? max(0, geometry.size.height - 100 - keyboardOverlap),
+                // The NEW badge adds a second row above the real preview.
+                requiredExpandedHeight: landingCards.contains(where: \.isNew) ? 400 : 368
             )
             ZStack(alignment: .bottom) {
-                VStack(spacing: 0) {
-                    if !showingAll {
-                        InspirationCard(
-                            inspiration: workflowInspiration,
-                            containerSize: geometry.size,
-                            heightOverride: bannerHeight,
-                            ctaTitle: AppStrings.localized("daily_inspiration.click_to_open_settings"),
-                            tapHint: AppStrings.workflowInspirationPhrase
-                        ) {
-                            if store.accountId != nil { instruction = workflowInspiration.text }
+                ZStack(alignment: .bottom) {
+                    VStack(spacing: 0) {
+                        if !showingAll {
+                            InspirationCard(
+                                inspiration: workflowInspiration,
+                                containerSize: geometry.size,
+                                heightOverride: bannerHeight,
+                                ctaTitle: AppStrings.localized("daily_inspiration.click_to_open_settings"),
+                                tapHint: AppStrings.workflowInspirationPhrase,
+                                isInteractive: false
+                            ) { }
+                            .accessibilityIdentifier("workflows-daily-inspiration-area")
+                            .onGeometryChange(for: CGFloat.self) { proxy in
+                                proxy.frame(in: .named(continuationCoordinateSpace)).maxY
+                            } action: { measuredBannerBottom = $0 }
                         }
-                        .accessibilityIdentifier("workflows-daily-inspiration-area")
-                        .onGeometryChange(for: CGFloat.self) { proxy in
-                            proxy.frame(in: .named(continuationCoordinateSpace)).maxY
-                        } action: { measuredBannerBottom = $0 }
+                        topControls(showingAll: showingAll)
+                            .onGeometryChange(for: CGFloat.self) { proxy in
+                                proxy.frame(in: .named(continuationCoordinateSpace)).maxY
+                            } action: { measuredToolbarBottom = $0 }
+                        Spacer(minLength: 0)
                     }
-                    topControls(showingAll: showingAll)
-                        .onGeometryChange(for: CGFloat.self) { proxy in
-                            proxy.frame(in: .named(continuationCoordinateSpace)).maxY
-                        } action: { measuredToolbarBottom = $0 }
-                    Spacer(minLength: 0)
-                }
 
-                if showingAll {
-                    allWorkflowsView(width: geometry.size.width, height: placement.availableHeight)
-                        .frame(height: placement.availableHeight)
-                        .clipped()
-                        .position(x: geometry.size.width / 2, y: placement.centerY)
-                } else {
-                    homeCenter(width: geometry.size.width, tallCards: placement.expanded)
-                        .frame(height: placement.availableHeight)
-                        .clipped()
-                        .position(x: geometry.size.width / 2, y: placement.centerY)
+                    if showingAll {
+                        allWorkflowsView(width: geometry.size.width, height: placement.availableHeight)
+                            .frame(height: placement.availableHeight)
+                            .clipped()
+                            .position(x: geometry.size.width / 2, y: placement.centerY)
+                    } else {
+                        homeCenter(width: geometry.size.width, tallCards: placement.expanded)
+                            .frame(height: placement.availableHeight)
+                            .clipped()
+                            .position(x: geometry.size.width / 2, y: placement.centerY)
+                    }
+
                 }
+                .workspacePromptBackground(active: promptActive, identifier: "workflow-home-prompt-backdrop",
+                    onDismiss: { promptDismissID = UUID() })
 
                 VStack(spacing: 8) {
+                    if promptActive, let error = store.errorMessage {
+                        Text(error).font(.omSmall).foregroundStyle(Color.error)
+                            .accessibilityIdentifier("workflows-error")
+                    }
                     WorkflowPromptComposerView(
                         text: $instruction,
                         placeholder: AppStrings.workflowBuilder(.new_workflow_placeholder),
                         submitLabel: AppStrings.workflowBuilder(.ai_create_submit),
                         submittingLabel: AppStrings.workflowBuilder(.ai_create_submitting),
                         disabled: store.accountId == nil || store.isLoading || authoring.pendingSession != nil,
-                        submitting: authoring.isSubmitting,
+                        submitting: store.isSubmittingInstruction,
                         identifier: "workflow-input-composer",
                         inputIdentifier: "workflow-input-textarea",
                         submitIdentifier: "workflow-input-submit",
                         micIdentifier: "workflow-input-mic",
                         onSubmit: submitInstruction,
-                        onMic: { showingVoiceInput = true }
+                        onMic: { showingVoiceInput = true },
+                        onActiveChanged: { promptActive = $0 }, dismissRequestID: promptDismissID,
+                        availableHeight: max(118, geometry.size.height - keyboardOverlap)
                     )
                     WorkflowAIAuthoringStatusView(authoring: authoring, workflowId: nil) {
                         Task { await store.undoInstruction() }
@@ -189,6 +207,12 @@ struct WorkflowHomeView: View {
             }
         }
         .modifier(WorkspaceContinuationKeyboardTracking(minY: $keyboardMinY))
+        #if DEBUG
+        .overlay(alignment: .top) {
+            WorkflowPromptHeldFixtureControls(store: store,
+                replaceDraft: { instruction = "Replacement synthetic workflow draft" })
+        }
+        #endif
     }
 
     private func topControls(showingAll: Bool) -> some View {
@@ -290,7 +314,7 @@ struct WorkflowHomeView: View {
             .font(.omP.weight(.bold))
             .foregroundStyle(Color.grey60)
 
-            if let error = store.errorMessage {
+            if !promptActive, let error = store.errorMessage {
                 Text(error).font(.omSmall).foregroundStyle(Color.error)
                     .accessibilityIdentifier("workflows-error")
             }
@@ -349,16 +373,6 @@ struct WorkflowHomeView: View {
             Group {
                 if tall {
                     ZStack {
-                        WorkflowIconView(title: card.title, icon: card.icon, category: card.category, size: 80)
-                            .rotationEffect(.degrees(-15))
-                            .foregroundStyle(.white.opacity(0.3))
-                            .position(x: 30, y: 168)
-                            .accessibilityHidden(true)
-                        WorkflowIconView(title: card.title, icon: card.icon, category: card.category, size: 80)
-                            .rotationEffect(.degrees(15))
-                            .foregroundStyle(.white.opacity(0.3))
-                            .position(x: 270, y: 168)
-                            .accessibilityHidden(true)
                         VStack(spacing: 8) {
                             if !card.isNew {
                                 Text(card.badge).font(.omSmall.weight(.bold))
@@ -374,6 +388,20 @@ struct WorkflowHomeView: View {
                         .padding(.horizontal, 20)
                     }
                     .frame(width: 300, height: 200)
+                    // Decorative transforms must not enlarge the card's action
+                    // or accessibility bounds beyond its clipped 300x200 face.
+                    .background(alignment: .bottom) {
+                        HStack {
+                            WorkflowIconView(title: card.title, icon: card.icon, category: card.category, size: 80)
+                                .rotationEffect(.degrees(-15)).offset(x: -10)
+                            Spacer()
+                            WorkflowIconView(title: card.title, icon: card.icon, category: card.category, size: 80)
+                                .rotationEffect(.degrees(15)).offset(x: 10)
+                        }
+                        .foregroundStyle(.white.opacity(0.3))
+                        .offset(y: 8)
+                        .accessibilityHidden(true)
+                    }
                 } else {
                     HStack(spacing: 12) {
                         WorkflowIconView(title: card.title, icon: card.icon, category: card.category, size: 18)
@@ -391,6 +419,8 @@ struct WorkflowHomeView: View {
             .shadow(color: .black.opacity(tall ? 0.16 : 0.11), radius: tall ? 12 : 8, y: tall ? 8 : 5)
         }
         .buttonStyle(.plain)
+        .frame(width: 300, height: tall ? 200 : 44)
+        .contentShape(RoundedRectangle(cornerRadius: tall ? 30 : 32))
         .accessibilityLabel(card.title)
         .accessibilityValue(card.badge)
         .accessibilityIdentifier("workflow-landing-card")
@@ -453,8 +483,9 @@ struct WorkflowHomeView: View {
     }
 
     private func submitInstruction(_ submitted: String) {
+        let submittedDraft = instruction
         Task {
-            if await store.submitInstruction(submitted) { instruction = "" }
+            if await store.submitInstruction(submitted), instruction == submittedDraft { instruction = "" }
         }
     }
 

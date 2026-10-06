@@ -24,6 +24,11 @@ struct APIRequestTeamContext: Sendable {
     let teamID: String?
 }
 
+/// Metadata only. Never use a ciphertext GET to decide reference readiness.
+enum EmbedReferenceAvailabilityState: String, Sendable {
+    case ready, missing, unusable
+}
+
 actor APIClient {
     static let shared = APIClient()
 
@@ -53,6 +58,102 @@ actor APIClient {
 
         self.decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
+    }
+
+    /// The availability endpoint is verified on deployed dev 8addcd7 only.
+    /// Production/custom profiles retain their explicitly supported legacy path.
+    nonisolated static func supportsEmbedReferenceAvailability(_ profile: ServerProfile) -> Bool {
+        profile == .development
+    }
+
+    nonisolated static func embedReferenceAvailabilityPath(chatID: String, teamID: String?) throws -> String {
+        guard !chatID.isEmpty, chatID.utf8.count <= 512,
+              !chatID.contains(where: { "/?#%".contains($0) }) else { throw APIError.invalidResponse }
+        let path = "/v1/embeds/chats/\(chatID)/references/availability"
+        guard let teamID else { return path }
+        guard !teamID.isEmpty else { throw APIError.invalidResponse }
+        var query = URLComponents()
+        query.queryItems = [URLQueryItem(name: "team_id", value: teamID)]
+        guard let encoded = query.percentEncodedQuery else { throw APIError.invalidResponse }
+        return path + "?" + encoded.replacingOccurrences(of: "+", with: "%2B")
+    }
+
+    nonisolated static func embedReferenceAvailabilityBody(_ ids: [String]) throws -> Data {
+        guard !ids.isEmpty, ids.count <= 20, Set(ids).count == ids.count,
+              ids.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 512 }) else { throw APIError.invalidResponse }
+        let json = try JSONSerialization.data(withJSONObject: ["embed_ids": ids], options: [.sortedKeys])
+        // 8add measures Python's ASCII-escaped JSON, not just incoming UTF-8.
+        // Escape UTF-16 code units so Unicode IDs also honor that exact bound.
+        var escaped = ""
+        for unit in String(decoding: json, as: UTF8.self).utf16 {
+            if unit >= 127 { escaped += String(format: "\\u%04x", Int(unit)) }
+            else { escaped.unicodeScalars.append(UnicodeScalar(UInt32(unit))!) }
+        }
+        let body = Data(escaped.utf8)
+        guard body.count <= 4 * 1024 else { throw APIError.invalidResponse }
+        return body
+    }
+
+    nonisolated static func embedReferenceAvailabilityBatches(_ ids: [String]) throws -> [[String]] {
+        guard Set(ids).count == ids.count,
+              ids.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 512 }) else { throw APIError.invalidResponse }
+        var batches: [[String]] = []
+        var batch: [String] = []
+        for id in ids {
+            if (try? embedReferenceAvailabilityBody(batch + [id])) == nil {
+                guard !batch.isEmpty else { throw APIError.invalidResponse }
+                batches.append(batch)
+                batch = []
+            }
+            batch.append(id)
+            _ = try embedReferenceAvailabilityBody(batch)
+        }
+        if !batch.isEmpty { batches.append(batch) }
+        return batches
+    }
+
+    nonisolated static func decodeEmbedReferenceAvailability(_ data: Data, requestedIDs: [String]) throws
+        -> [String: EmbedReferenceAvailabilityState] {
+        _ = try embedReferenceAvailabilityBody(requestedIDs)
+        guard data.count <= 8 * 1024,
+              let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              Set(object.keys) == ["results"], let results = object["results"] as? [[String: Any]],
+              results.count == requestedIDs.count else { throw APIError.invalidResponse }
+        let requested = Set(requestedIDs)
+        var states: [String: EmbedReferenceAvailabilityState] = [:]
+        for result in results {
+            guard Set(result.keys) == ["embed_id", "state"],
+                  let id = result["embed_id"] as? String, requested.contains(id), states[id] == nil,
+                  let raw = result["state"] as? String, let state = EmbedReferenceAvailabilityState(rawValue: raw)
+            else { throw APIError.invalidResponse }
+            states[id] = state
+        }
+        guard Set(states.keys) == requested else { throw APIError.invalidResponse }
+        return states
+    }
+
+    func embedReferenceAvailability(chatID: String, embedIDs: [String], serverProfile: ServerProfile,
+                                   expectedAccountID: String, expectedScope: UUID,
+                                   expectedTeamContext: APIRequestTeamContext) async throws
+        -> [String: EmbedReferenceAvailabilityState] {
+        let path = try Self.embedReferenceAvailabilityPath(chatID: chatID, teamID: expectedTeamContext.teamID)
+        let batches = try Self.embedReferenceAvailabilityBatches(embedIDs)
+        var states: [String: EmbedReferenceAvailabilityState] = [:]
+        for batch in batches {
+            let response: Data = try await request(.post, path: path, serverProfile: serverProfile,
+                body: JSONRawBody(data: try Self.embedReferenceAvailabilityBody(batch)),
+                expectedAccountID: expectedAccountID, expectedScope: expectedScope,
+                expectedTeamContext: expectedTeamContext)
+            // A response from a revoked Team/account must not authorize a send.
+            try await checkUploadContext(accountID: expectedAccountID, scope: expectedScope, profile: serverProfile)
+            try await checkTeamContext(expectedTeamContext)
+            try Task.checkCancellation()
+            for (id, state) in try Self.decodeEmbedReferenceAvailability(response, requestedIDs: batch) {
+                guard states[id] == nil else { throw APIError.invalidResponse }
+                states[id] = state
+            }
+        }
+        return states
     }
 
     // MARK: - Configuration
@@ -101,8 +202,16 @@ actor APIClient {
         let scope = await MainActor.run { expectedScope ?? OfflineStore.shared.scopeGeneration }
         #endif
         let boundary = UUID().uuidString
+        #if os(iOS) || os(macOS)
+        // Strip source image metadata before constructing any outbound bytes.
+        // Filenames remain exact, including Project/workflow relative paths.
+        let prepared = try NativeImageRaster.prepareUpload(data: data, filename: filename, contentType: contentType)
+        let body = try Self.makeUploadBody(data: prepared.data, filename: prepared.filename,
+            contentType: prepared.contentType, chatID: optionalChatID, boundary: boundary)
+        #else
         let body = try Self.makeUploadBody(data: data, filename: filename,
             contentType: contentType, chatID: optionalChatID, boundary: boundary)
+        #endif
         // Check the account immediately before each attempt: a refreshed cookie
         // must never upload the previous account's private file bytes.
         let profile = serverProfile ?? ServerProfile.current()

@@ -4,6 +4,48 @@ import XCTest
 
 @MainActor
 final class TasksWorkspaceTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-task-board.drag-move,tasks.surface.semantic-parity
+    func testTaskPointerHighlightRequiresAnEnabledHoveredDraggableCard() {
+        XCTAssertEqual(TaskCardHoverPolicy.scale(isHovered: true, isDraggable: true, isDragging: false, isEnabled: true), 1.1)
+        XCTAssertEqual(TaskCardHoverPolicy.scale(isHovered: false, isDraggable: true, isDragging: false, isEnabled: true), 1)
+        XCTAssertEqual(TaskCardHoverPolicy.scale(isHovered: true, isDraggable: false, isDragging: false, isEnabled: true), 1,
+                       "Workflow projections do not advertise task dragging")
+        XCTAssertEqual(TaskCardHoverPolicy.scale(isHovered: true, isDraggable: true, isDragging: false, isEnabled: false), 1,
+                       "A suppressed workspace must not retain pointer emphasis")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-task-board.drag-move
+    func testTaskPointerHighlightReturnsToItsOriginalSlotDuringNativeDrag() {
+        XCTAssertEqual(TaskCardHoverPolicy.scale(isHovered: true, isDraggable: true, isDragging: true, isEnabled: true), 1)
+        XCTAssertEqual(TaskCardHoverPolicy.scale(isHovered: true, isDraggable: true, isDragging: false, isEnabled: true), 1.1,
+                       "A fresh hover after actual pointer release may highlight without retiring a pending drop")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-task-board.drag-move,apple-task-board.context-menu
+    func testNativeTaskHoldRejectsShortTapsAndReturnedDragAndResetsForNextTouch() {
+        var hold = TaskCardHoldTracking()
+        hold.begin(at: CGPoint(x: 20, y: 30), time: 100)
+        XCTAssertFalse(hold.opensActions(at: 100.49), "A normal tap must keep the title Button action")
+        XCTAssertTrue(hold.opensActions(at: 100.5))
+        hold.record(CGPoint(x: 29, y: 30))
+        hold.record(CGPoint(x: 20, y: 30))
+        XCTAssertFalse(hold.opensActions(at: 101), "Returning a moved drag to its source must not open actions")
+        hold.begin(at: CGPoint(x: 50, y: 60), time: 102)
+        hold.record(CGPoint(x: 56, y: 54))
+        XCTAssertTrue(hold.opensActions(at: 103), "A new stationary hold tolerates small finger jitter")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-task-board.drag-move,apple-task-board.context-menu
+    func testTaskHoldDistinguishesStationaryJitterFromMovementAndUsesTwentyCardWindows() {
+        XCTAssertTrue(TaskCardHoldIntent.opensActions(translation: .zero))
+        XCTAssertTrue(TaskCardHoldIntent.opensActions(translation: CGSize(width: -8, height: 8)))
+        XCTAssertFalse(TaskCardHoldIntent.opensActions(translation: CGSize(width: 9, height: 0)))
+        XCTAssertFalse(TaskCardHoldIntent.opensActions(translation: CGSize(width: 0, height: -9)))
+        XCTAssertEqual(TaskBoardRenderWindow.initial, 20)
+        XCTAssertEqual(TaskBoardRenderWindow.expanded(20), 40)
+        XCTAssertEqual(TaskBoardRenderWindow.expanded(40), 60)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-task-board.new-task-shortcuts
     func testTaskComposerViewportSubtractsOnlyUnconsumedDockedKeyboardOverlap() {
         let full = CGRect(x: 10, y: 120, width: 370, height: 700)

@@ -1,5 +1,6 @@
 #if DEBUG
 import SwiftUI
+import UniformTypeIdentifiers
 
 // Actual production sidebar, rows and search engine with a detached in-memory
 // store. Public fixtures reuse bundled production chats. Account rows are plainly
@@ -16,6 +17,10 @@ struct DevSidebarComponentFixture: View {
     @State private var hiddenBoundary = false
     @State private var actionChat: Chat?
     @State private var actionCallbackCount = 0
+    @State private var projectFixtureReady = false
+    @State private var groupDropDeliveryCount = 0
+    @State private var acceptedGroupDropCount = 0
+    @State private var groupCreationState = "idle"
     @State private var limit: Int
     @State private var lastActiveID: String?
     private let userChats: [Chat]
@@ -46,7 +51,10 @@ struct DevSidebarComponentFixture: View {
         }
         .overlay { actionSheet }
         .task {
-            if variant == "organization" { await projectStore.refreshChatNavigation(accountID: "synthetic-owner", teamID: nil) }
+            if variant == "organization" {
+                await projectStore.refreshChatNavigation(accountID: "synthetic-owner", teamID: nil)
+                projectFixtureReady = projectStore.loadedAccountID == "synthetic-owner" && projectStore.errorMessage == nil
+            }
         }
     }
 
@@ -62,6 +70,15 @@ struct DevSidebarComponentFixture: View {
             reopenControls
             if variant == "organization" {
                 Text(String(actionCallbackCount)).font(.omXs).accessibilityIdentifier("sidebar-fixture-action-count")
+                    .overlay(alignment: .bottomLeading) {
+                        VStack(spacing: 0) {
+                            Text(projectFixtureReady ? "ready" : "loading")
+                                .accessibilityIdentifier("sidebar-fixture-project-ready")
+                            Text(projectFixtureState)
+                                .accessibilityIdentifier("sidebar-fixture-project-state")
+                        }
+                        .font(.system(size: 1)).opacity(0.01).allowsHitTesting(false)
+                    }
             }
             Text("Local fixture; account/network/persistence disabled.")
                 .font(.omXs).accessibilityIdentifier("sidebar-fixture-boundary")
@@ -93,12 +110,19 @@ struct DevSidebarComponentFixture: View {
 
     private var sidebarContent: some View {
         ChatSidebarContent(projectNavigation: variant == "organization" ? projectNavigation : nil,
+            recentActiveChats: ChatSidebarDisplayPolicy.visibleChats(sortedUserChats: userChats, limit: limit,
+                selectedChatID: selected?.id, lastActiveChatID: lastActiveID),
             userSections: userSections, publicSections: publicSections,
             selectedChatID: selected?.id, draftPreviews: drafts, showSearch: showSearch,
             emptyMessage: variant == "empty" ? AppStrings.noChats : nil,
             loadMore: sidebarLoadMore, actions: sidebarActions, refresh: {}) {
                 sidebarSearch
             }
+            #if os(iOS)
+            .background(alignment: .topLeading) {
+                if NativeDragDiagnostics.enabled { NativeDragDiagnosticProbe().frame(width: 1, height: 1) }
+            }
+            #endif
     }
 
     private var sidebarLoadMore: ChatSidebarLoadMore? {
@@ -140,7 +164,7 @@ struct DevSidebarComponentFixture: View {
         OMSheet(isPresented: Binding(get: { actionChat != nil }, set: { if !$0 { actionChat = nil } }), title: actionChat?.displayTitle) {
             Text(actionChat?.id ?? "").accessibilityIdentifier("sidebar-fixture-action-chat")
             Button(AppStrings.close) { actionChat = nil }.accessibilityIdentifier("sidebar-fixture-action-close")
-        }.accessibilityIdentifier("sidebar-fixture-actions-overlay")
+        } // Keep the content selectors; a parent identifier propagates over them.
     }
     private var projectNavigation: ChatProjectNavigationContext {
         .init(projects: projectStore.chatNavigationProjects, location: projectLocation,
@@ -156,8 +180,24 @@ struct DevSidebarComponentFixture: View {
         payload.accountID == "synthetic-owner" && payload.scope == dragScope && payload.serverOrigin == "fixture.invalid" && payload.teamID == nil
     }
     private func group(_ payload: ChatProjectDragPayload, _ target: Chat) {
+        groupDropDeliveryCount += 1
         guard accepts(payload), payload.chatID != target.id, let source = store.chat(for: payload.chatID) else { return }
-        Task { _ = await projectStore.createChatOrganization(chats: [source, target]) }
+        acceptedGroupDropCount += 1
+        groupCreationState = "requested"
+        Task {
+            let projectID = await projectStore.createChatOrganization(chats: [source, target])
+            groupCreationState = projectID == nil ? "rejected" : "created"
+        }
+    }
+    private var projectFixtureState: String {
+        let recent = ChatSidebarDisplayPolicy.visibleChats(sortedUserChats: userChats, limit: limit,
+            selectedChatID: selected?.id, lastActiveChatID: lastActiveID)
+        let eligibleCount = ChatSidebarDisplayPolicy.eligibleProjects(projectStore.chatNavigationProjects,
+            recentActiveChats: recent).count
+        let type = UTType.openMatesChat
+        let declarations = Bundle.main.object(forInfoDictionaryKey: "UTExportedTypeDeclarations") as? [[String: Any]] ?? []
+        let bundleDeclared = declarations.contains { ($0["UTTypeIdentifier"] as? String) == type.identifier }
+        return "dragTypeDeclared=\(type.isDeclared);dragTypeData=\(type.conforms(to: .data));dragTypeBundleDeclared=\(bundleDeclared);ready=\(projectFixtureReady);drop=\(groupDropDeliveryCount);accepted=\(acceptedGroupDropCount);creation=\(groupCreationState);projects=\(projectStore.chatNavigationProjects.count);eligible=\(eligibleCount);actions=\(actionCallbackCount);error=\(projectStore.errorMessage != nil)"
     }
     private var userSections: [ChatSidebarSection] {
         let linked = Set(projectStore.chatNavigationProjects.flatMap { $0.contents.items.filter { $0.kind == "chat" }.map(\.targetID) })
@@ -204,7 +244,6 @@ struct DevSidebarComponentFixture: View {
     }
     private static var bundledPublicSections: [ChatSidebarSection] {
         let definitions: [(String, String, [String])] = [
-            ("intro", AppStrings.introSection, ["demo-who-develops-openmates"]),
             ("examples", AppStrings.exampleChatsSection, ["example-gigantic-airplanes", "example-artemis-ii-mission", "example-beautiful-single-page-html", "example-eu-chat-control-law", "example-flights-berlin-bangkok", "example-creativity-drawing-meetups-berlin"]),
             ("announcements", AppStrings.announcementsSection, ["announcements-introducing-openmates-v09"]),
             ("legal", AppStrings.legalSection, ["legal-privacy", "legal-terms", "legal-imprint"])

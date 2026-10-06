@@ -111,3 +111,8 @@ active_chats_widget.stale:
   en: Waiting for app update
   de: Warte auf Aktualisierung der App
   verified_by_human: []
+
+controls.action:
+  context: Parameter title for a system Control selecting an existing OpenMates quick action
+  en: Action
+  verified_by_human: []

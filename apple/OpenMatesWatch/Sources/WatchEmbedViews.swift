@@ -9,6 +9,8 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
@@ -21,15 +23,27 @@ import ImageIO
 struct WatchEmbedPreviewCard: View {
     let model: WatchEmbedPreviewModel
     let onOpen: () -> Void
+    var loadAudio: ((WatchEmbedPreviewModel) async throws -> Data)? = nil
 
     var body: some View {
-        Button(action: onOpen) {
-            cardContent
+        // Open and playback are sibling native actions. Putting a Button in an
+        // outer Button's overlay collapses/overwrites its Watch AX identity.
+        ZStack(alignment: .top) {
+            Button(action: onOpen) {
+                cardContent
+            }
+            .buttonStyle(.plain)
+            .disabled(!model.canOpenReadOnlyPreview)
+            .accessibilityIdentifier("watch-embed-preview-\(model.family.rawValue)")
+            if model.family == .audioRecording || model.family == .audio {
+                WatchAudioPlaybackControl(model: model, loadAudio: loadAudio, fullscreen: false)
+                    .frame(width: CGFloat(WatchEmbedPreviewModel.cardWidth) - 16, height: 104)
+                    .clipped()
+            }
         }
-        .buttonStyle(.plain)
         .frame(width: CGFloat(WatchEmbedPreviewModel.cardWidth))
-        .disabled(model.state == .processing)
-        .accessibilityIdentifier("watch-embed-preview-\(model.family.rawValue)")
+        .environment(\.colorScheme, .dark)
+        .accessibilityElement(children: .contain)
     }
 
     /// Watch always uses the user-approved mobile composition. The supplied
@@ -37,10 +51,21 @@ struct WatchEmbedPreviewCard: View {
     /// centers metadata beneath it; no desktop icon/footer carousel is used.
     private var cardContent: some View {
         VStack(spacing: 0) {
-            previewVisual
+            if model.hasPreviewVisual {
+                ZStack {
+                    // A real painted canvas provides its actual bounds. Keep
+                    // readable text/table descendant identifiers unchanged.
+                    Rectangle().fill(Color.grey10)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(model.typeLabel)
+                        .accessibilityIdentifier("watch-embed-visual-canvas-\(model.id)")
+                        .allowsHitTesting(false)
+                    previewVisual
+                        .accessibilityIdentifier("watch-embed-visual-\(model.id)")
+                }
                 .frame(width: CGFloat(WatchEmbedPreviewModel.cardWidth), height: 104)
                 .clipped()
-                .accessibilityIdentifier("watch-embed-visual-\(model.id)")
+            }
             Capsule().fill(gradient(forAppId: model.appId))
                 .overlay { Icon(model.iconName, size: 24).foregroundStyle(Color.fontButton) }
                 .frame(height: 38)
@@ -61,9 +86,10 @@ struct WatchEmbedPreviewCard: View {
             .frame(maxWidth: .infinity).padding(.spacing4)
         }
         .frame(width: CGFloat(WatchEmbedPreviewModel.cardWidth))
-        .frame(minHeight: CGFloat(WatchEmbedPreviewModel.cardHeight))
+        .frame(minHeight: model.hasPreviewVisual ? CGFloat(WatchEmbedPreviewModel.cardHeight) : nil)
         .background(Color.grey0)
         .clipShape(RoundedRectangle(cornerRadius: .radius6, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: .radius6, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: .radius6, style: .continuous)
             .stroke(model.state == .error ? Color.error : Color.grey25, lineWidth: 1))
     }
@@ -95,7 +121,7 @@ struct WatchEmbedPreviewCard: View {
             case .code(let lines):
                 VStack(alignment: .leading, spacing: .spacing2) {
                     ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                        Text(line).font(.system(size: 12, design: .monospaced))
+                        Text(line).font(.omXs.monospaced())
                             .foregroundStyle(Color.fontPrimary).lineLimit(1)
                     }
                     Spacer(minLength: 0)
@@ -108,11 +134,13 @@ struct WatchEmbedPreviewCard: View {
                     Spacer(minLength: 0)
                 }.padding(.spacing4).frame(maxWidth: .infinity, alignment: .leading)
             case .symbol:
-                Icon(model.state == .error ? "warning" : model.iconName, size: 36)
-                    .foregroundStyle(Color.fontSecondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.grey10)
-                    .accessibilityHidden(true)
+                if let iconName = model.previewSymbolIconName {
+                    Icon(iconName, size: 36)
+                        .foregroundStyle(Color.fontSecondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.grey10)
+                        .accessibilityHidden(true)
+                }
             }
         }
     }
@@ -212,7 +240,7 @@ private struct WatchEmbedStatePill: View {
     var body: some View {
         Text(label)
             .font(.omMicro)
-            .foregroundStyle(foreground)
+            .modifier(EmbedProcessingTextShimmer(isProcessing: state == .processing, staticColor: foreground))
             .padding(.horizontal, .spacing2)
             .padding(.vertical, 1)
             .background(background, in: Capsule())
@@ -317,8 +345,8 @@ private struct WatchEmbedThumbnail: View {
 
 }
 
-/// Fullscreen consumes hydrated content only. No editing, downloads, playback,
-/// navigation to arbitrary URLs, or workflow execution controls are introduced.
+/// Fullscreen displays hydrated content and plays recordings through the native
+/// audio player. Editing and workflow execution remain unavailable on Watch.
 struct WatchEmbedFullscreenView: View {
     let model: WatchEmbedPreviewModel
     let onOpenDevice: (WatchEmbedPreviewModel) -> Void
@@ -327,8 +355,10 @@ struct WatchEmbedFullscreenView: View {
     @AppStorage("watch.transcript.zoom") private var zoomLevel = 0
     private let markdown: [WatchRenderedMarkdownBlock]
 
-    init(model: WatchEmbedPreviewModel, onOpenDevice: @escaping (WatchEmbedPreviewModel) -> Void, onClose: @escaping () -> Void) {
-        self.model = model; self.onOpenDevice = onOpenDevice; self.onClose = onClose
+    var loadAudio: ((WatchEmbedPreviewModel) async throws -> Data)? = nil
+
+    init(model: WatchEmbedPreviewModel, loadAudio: ((WatchEmbedPreviewModel) async throws -> Data)? = nil, onOpenDevice: @escaping (WatchEmbedPreviewModel) -> Void, onClose: @escaping () -> Void) {
+        self.model = model; self.loadAudio = loadAudio; self.onOpenDevice = onOpenDevice; self.onClose = onClose
         markdown = WatchMarkdownParser.blocks(model.detailContent.text ?? "").map(WatchRenderedMarkdownBlock.init)
     }
 
@@ -363,10 +393,16 @@ struct WatchEmbedFullscreenView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(height: 34, alignment: .top)
-                .background(Color.grey100)
+                .background(Color.grey0)
                 .zIndex(1)
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: .spacing3) {
+                        if model.family == .audioRecording || model.family == .audio {
+                            WatchAudioPlaybackControl(model: model, loadAudio: loadAudio, fullscreen: true)
+                                // Keep the player clear of the pinned close
+                                // button's extended Watch status-area hit target.
+                                .frame(maxWidth: .infinity)
+                        }
                         if model.detailContent.imageData != nil || model.detailContent.imageURL != nil {
                             WatchEmbedThumbnail(content: model.detailContent).frame(maxWidth: .infinity, minHeight: 104)
                         }
@@ -380,7 +416,10 @@ struct WatchEmbedFullscreenView: View {
                             .accessibilityIdentifier("watch-embed-read-only-map")
                         }
                         if model.detailContent.isCode, let code = model.detailContent.text {
-                            ScrollView(.horizontal) { Text(code).modifier(WatchTranscriptType(monospaced: true, zoomLevel: zoomLevel)) }
+                            ScrollView(.horizontal) {
+                                Text(code).modifier(WatchTranscriptType(monospaced: true, zoomLevel: zoomLevel))
+                                    .accessibilityIdentifier("watch-embed-fullscreen-code-text")
+                            }
                                 .accessibilityIdentifier("watch-embed-fullscreen-code")
                         } else if !model.detailContent.tableHeaders.isEmpty {
                             ScrollView(.horizontal) {
@@ -396,9 +435,9 @@ struct WatchEmbedFullscreenView: View {
                                 .accessibilityIdentifier("watch-embed-fullscreen-text")
                         }
                         ForEach(model.detailContent.children) { preview in
-                            WatchEmbedPreviewCard(model: preview) { child = preview }
+                            WatchEmbedPreviewCard(model: preview, onOpen: { child = preview }, loadAudio: loadAudio)
                         }
-                        if model.detailContent == .empty || model.state == .unavailable {
+                        if (model.detailContent == .empty || model.state == .unavailable) && model.family != .audioRecording && model.family != .audio {
                             Text(WatchLocalization.text("embeds.watch_preview_unavailable")).font(.omSmall)
                                 .accessibilityIdentifier("watch-embed-fullscreen-unavailable")
                         }
@@ -413,13 +452,17 @@ struct WatchEmbedFullscreenView: View {
                 .clipped().contentShape(Rectangle())
                 .accessibilityIdentifier("watch-embed-fullscreen-scroll")
             }
-            .padding(.spacing3).background(Color.grey100).foregroundStyle(Color.grey0)
+            .padding(.spacing3).background(Color.grey0).foregroundStyle(Color.fontPrimary)
             .accessibilityHidden(child != nil).allowsHitTesting(child == nil)
             if let child {
-                WatchEmbedFullscreenView(model: child, onOpenDevice: onOpenDevice, onClose: { self.child = nil })
+                WatchEmbedFullscreenView(model: child, loadAudio: loadAudio, onOpenDevice: onOpenDevice, onClose: { self.child = nil })
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.grey100).ignoresSafeArea(edges: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.grey0).ignoresSafeArea(edges: .top)
+        .environment(\.colorScheme, .dark)
+        .onChange(of: model.detailContent.children) { _, updated in
+            if let id = child?.id, let refreshed = updated.first(where: { $0.id == id }) { child = refreshed }
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("watch-embed-continuation")
     }

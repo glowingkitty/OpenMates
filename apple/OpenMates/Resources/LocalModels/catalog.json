@@ -177,35 +177,118 @@
       "runtimeNotes": "CPU XNNPACK 8da4w export is model.pte. config.json is official OpenAI id2label/config; runtime_config.json is the export configuration. Tokenizer and Viterbi calibration are colocated."
     },
     {
-      "id": "pocketTTS",
-      "revision": "1e08e6a23401048648a9fdcfde2f89348215c2a7",
-      "estimatedSizeBytes": 236310159,
+      "id": "supertonic3",
+      "revision": "aafc6e32416a594460b32413efc49d7fe4ce6d46",
+      "estimatedSizeBytes": 401291751,
       "files": [
         {
-          "path": "model.safetensors",
-          "url": "https://huggingface.co/kyutai/pocket-tts-without-voice-cloning/resolve/1e08e6a23401048648a9fdcfde2f89348215c2a7/tts_b6369a24.safetensors",
-          "sha256": "58aa704a88faad35f22c34ea1cb55c4c5629de8b8e035c6e4936e2673dc07617",
-          "sizeBytes": 235738732
+          "path": "LICENSE",
+          "sizeBytes": 15007,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/LICENSE",
+          "sha256": "0d944a9110fed9a9602d60e0423a272903e7bd21ab060490774efc77c2275e9f"
         },
         {
-          "path": "tokenizer.model",
-          "url": "https://huggingface.co/kyutai/pocket-tts-without-voice-cloning/resolve/1e08e6a23401048648a9fdcfde2f89348215c2a7/tokenizer.model",
-          "sha256": "d461765ae179566678c93091c5fa6f2984c31bbe990bf1aa62d92c64d91bc3f6",
-          "sizeBytes": 59339
+          "path": "onnx/duration_predictor.onnx",
+          "sizeBytes": 3700147,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/onnx/duration_predictor.onnx",
+          "sha256": "c3eb91414d5ff8a7a239b7fe9e34e7e2bf8a8140d8375ffb14718b1c639325db"
         },
         {
-          "path": "voices/alba.safetensors",
-          "url": "https://huggingface.co/kyutai/pocket-tts-without-voice-cloning/resolve/1e08e6a23401048648a9fdcfde2f89348215c2a7/embeddings/alba.safetensors",
-          "sha256": "ad234695323e4030336b6afc8a050c97e3110603e11ecd8226d9562488300a50",
-          "sizeBytes": 512088
+          "path": "onnx/text_encoder.onnx",
+          "sizeBytes": 36416150,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/onnx/text_encoder.onnx",
+          "sha256": "c7befd5ea8c3119769e8a6c1486c4edc6a3bc8365c67621c881bbb774b9902ff"
+        },
+        {
+          "path": "onnx/tts.json",
+          "sizeBytes": 8253,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/onnx/tts.json",
+          "sha256": "42078d3aef1cd43ab43021f3c54f47d2d75ceb4e75f627f118890128b06a0d09"
+        },
+        {
+          "path": "onnx/unicode_indexer.json",
+          "sizeBytes": 277676,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/onnx/unicode_indexer.json",
+          "sha256": "9bf7346e43883a81f8645c81224f786d43c5b57f3641f6e7671a7d6c493cb24f"
+        },
+        {
+          "path": "onnx/vector_estimator.onnx",
+          "sizeBytes": 256534781,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/onnx/vector_estimator.onnx",
+          "sha256": "883ac868ea0275ef0e991524dc64f16b3c0376efd7c320af6b53f5b780d7c61c"
+        },
+        {
+          "path": "onnx/vocoder.onnx",
+          "sizeBytes": 101424195,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/onnx/vocoder.onnx",
+          "sha256": "085de76dd8e8d5836d6ca66826601f615939218f90e519f70ee8a36ed2a4c4ba"
+        },
+        {
+          "path": "voice_styles/F1.json",
+          "sizeBytes": 292046,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/voice_styles/F1.json",
+          "sha256": "bbdec6ee00231c2c742ad05483df5334cab3b52fda3ba38e6a07059c4563dbc2"
+        },
+        {
+          "path": "voice_styles/F2.json",
+          "sizeBytes": 292423,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/voice_styles/F2.json",
+          "sha256": "7c722c6a72707b1a77f035d67f0d1351ba187738e06f7683e8c72b1df3477fc6"
+        },
+        {
+          "path": "voice_styles/F3.json",
+          "sizeBytes": 290794,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/voice_styles/F3.json",
+          "sha256": "12f6ef2573baa2defa1128069cb59f203e3ab67c92af77b42df8a0e3a2f7c6ab"
+        },
+        {
+          "path": "voice_styles/F4.json",
+          "sizeBytes": 291808,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/voice_styles/F4.json",
+          "sha256": "c2fa764c1225a76dfc3e2c73e8aa4f70d9ee48793860eb34c295fff01c2e032b"
+        },
+        {
+          "path": "voice_styles/F5.json",
+          "sizeBytes": 291479,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/voice_styles/F5.json",
+          "sha256": "45966e73316415626cf41a7d1c6f3b4c70dbc1ba2bee5c1978ef0ce33244fc8d"
+        },
+        {
+          "path": "voice_styles/M1.json",
+          "sizeBytes": 291748,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/voice_styles/M1.json",
+          "sha256": "e35604687f5d23694b8e91593a93eec0e4eca6c0b02bb8ed69139ab2ea6b0a5b"
+        },
+        {
+          "path": "voice_styles/M2.json",
+          "sizeBytes": 292055,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/voice_styles/M2.json",
+          "sha256": "b76cbf62bac707c710cf0ae5aba5e31eea1a6339a9734bfae33ab98499534a50"
+        },
+        {
+          "path": "voice_styles/M3.json",
+          "sizeBytes": 290198,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/voice_styles/M3.json",
+          "sha256": "ea1ac35ccb91b0d7ecad533a2fbd0eec10c91513d8951e3b25fbba99954e159b"
+        },
+        {
+          "path": "voice_styles/M4.json",
+          "sizeBytes": 291522,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/voice_styles/M4.json",
+          "sha256": "ca8eefad4fcd989c9379032ff3e50738adc547eeb5e221b82593a6d7b3bac303"
+        },
+        {
+          "path": "voice_styles/M5.json",
+          "sizeBytes": 291469,
+          "url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/voice_styles/M5.json",
+          "sha256": "dd22b92740314321f8ae11c5e87f8dd60d060f15dd3a632b5adf77f471f77af2"
         }
       ],
-      "license": "CC-BY-4.0",
-      "attribution": "Kyutai Pocket TTS January English model; Alba MacKenna casual voice, CC BY 4.0; UnaMentis/babybirdprd Rust port, MIT",
-      "licenseURL": "https://creativecommons.org/licenses/by/4.0/",
-      "sourceURL": "https://huggingface.co/kyutai/pocket-tts-without-voice-cloning",
-      "voiceSourceURL": "https://huggingface.co/kyutai/tts-voices#alba-mackenna",
-      "runtimeNotes": "Developer lab only. Pinned January English model, SentencePiece tokenizer and licensed Alba embedding. CPU source runtime; multilingual compatibility unverified. No voice cloning, runtime downloads or production speech integration."
+      "license": "OpenRAIL-M",
+      "attribution": "Supertone Supertonic 3; MIT Swift helper",
+      "sourceURL": "https://huggingface.co/supertone-oss-archive/supertonic-3",
+      "licenseURL": "https://huggingface.co/supertone-oss-archive/supertonic-3/blob/aafc6e32416a594460b32413efc49d7fe4ce6d46/LICENSE",
+      "runtimeNotes": "CPU ONNX; explicit install only. Ten stock voice styles. No cloned voices or runtime download."
     }
   ]
 }

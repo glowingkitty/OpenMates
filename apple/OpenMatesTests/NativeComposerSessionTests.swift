@@ -9,6 +9,25 @@ import XCTest
 
 @MainActor
 final class NativeComposerSessionTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send
+    func testInitializingCanonicalReferencesUsesSemanticEndWithoutRawTextFallback() throws {
+        let markdown = "Before @mate:developer\n```json\n{\"type\":\"image\",\"embed_id\":\"synthetic-image\"}\n```\n\n```json\n{\"type\":\"audio-recording\",\"embed_id\":\"synthetic-audio\"}\n```"
+        let session = NativeComposerSession(canonicalMarkdown: markdown)
+        let nodes = session.controller.document.nodes
+        XCTAssertEqual(nodes.filter { $0.kind == "embed" }.count, 2)
+        XCTAssertEqual(nodes.filter { $0.kind == "mention" }.count, 1)
+        XCTAssertEqual(session.controller.selection.location, session.controller.attributedString.length)
+        XCTAssertEqual(session.controller.selection.length, 0)
+        XCTAssertEqual(session.revision, 0)
+        XCTAssertEqual(session.canonicalMarkdown, markdown)
+        XCTAssertEqual(try session.canonicalMarkdownForSend(), markdown)
+        XCTAssertEqual(nodes.filter { $0.kind == "embed" }.compactMap(\.contentRef),
+            ["embed:synthetic-image", "embed:synthetic-audio"])
+        try session.replaceSelection(with: " Later text")
+        XCTAssertEqual(session.controller.document.nodes.filter { $0.kind == "embed" }.count, 2)
+        XCTAssertTrue(session.canonicalMarkdown.hasSuffix(" Later text"))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
     func testCachedRecordingRestoresTranscriptAndDurableSendPayload() throws {
         let record = EmbedRecord(
@@ -53,8 +72,12 @@ final class NativeComposerSessionTests: XCTestCase {
             embedType: "image",
             title: "Fixture image"
         )
-        XCTAssertEqual(session.controller.document.nodes.last?.id, nodeID)
-        XCTAssertEqual(session.controller.document.nodes.last?.status, "draft")
+        let pending = try XCTUnwrap(session.controller.document.nodes.first { $0.id == nodeID && $0.kind == "embed" })
+        XCTAssertEqual(pending.id, nodeID)
+        XCTAssertEqual(pending.status, "draft")
+        XCTAssertNil(pending.contentRef)
+        XCTAssertEqual(session.controller.document.nodes.filter { $0.kind == "embed" }.count, 1)
+        XCTAssertEqual(session.controller.document.nodes.last?.id, "composer:break:\(nodeID)")
         XCTAssertTrue(session.hasBlockingEmbeds)
         XCTAssertFalse(session.canonicalMarkdown.contains("upload-1"))
 
@@ -65,8 +88,15 @@ final class NativeComposerSessionTests: XCTestCase {
             status: "finished"
         )
 
-        XCTAssertEqual(session.controller.document.nodes.last?.id, nodeID)
-        XCTAssertEqual(session.controller.document.nodes.last?.status, "finished")
+        let resolved = try XCTUnwrap(session.controller.document.nodes.first { $0.id == nodeID && $0.kind == "embed" })
+        XCTAssertEqual(resolved.id, nodeID)
+        XCTAssertEqual(resolved.status, "finished")
+        XCTAssertEqual(resolved.contentRef, "embed:durable-image-1")
+        XCTAssertTrue(resolved.referenceOnly == true)
+        XCTAssertEqual(resolved.canonicalSource, "```json\n{\"type\": \"image\", \"embed_id\": \"durable-image-1\"}\n```")
+        XCTAssertEqual(session.controller.document.nodes.filter { $0.kind == "embed" }.count, 1)
+        XCTAssertEqual(session.controller.document.nodes.last?.kind, "hardBreak")
+        XCTAssertEqual(session.controller.document.nodes.last?.id, "composer:break:\(nodeID)")
         XCTAssertFalse(session.hasBlockingEmbeds)
         XCTAssertTrue(session.canonicalMarkdown.contains("durable-image-1"))
     }

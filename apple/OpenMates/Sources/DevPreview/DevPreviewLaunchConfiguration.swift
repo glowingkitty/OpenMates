@@ -129,7 +129,7 @@ enum DevPreviewComponentRegistry {
         case .history:
             return .init(component: component, webComponentPath: "ChatHistory", nativeRendererNames: ["ChatView", "MessageBubble"], variants: ["default", "long", "mixed", "workspace"], hostSupport: .componentHost)
         case .dailyInspiration:
-            return .init(component: component, webComponentPath: "DailyInspirationBanner", nativeRendererNames: ["InspirationCard", "DevDailyInspirationFixture"], variants: ["default", "narrow", "wide", "short"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "DailyInspirationBanner", nativeRendererNames: ["InspirationCard", "DevDailyInspirationFixture"], variants: ["default", "narrow", "wide", "short", "read-only"], hostSupport: .componentHost)
         case .welcome:
             return .init(component: component, webComponentPath: "ActiveChat", nativeRendererNames: ["WelcomeContinuationCarousel", "WelcomeContinuationLayout", "DevChatContinuationLayoutFixture"], variants: ["default", "empty", "continuation"], hostSupport: .componentHost)
         case .login:
@@ -196,8 +196,13 @@ struct DevPreviewLaunchConfiguration: Hashable {
     }
 
     static var current: DevPreviewLaunchConfiguration? {
-        parse(environment: ProcessInfo.processInfo.environment)
-            ?? parse(arguments: ProcessInfo.processInfo.arguments)
+        launch(environment: ProcessInfo.processInfo.environment, arguments: ProcessInfo.processInfo.arguments)
+    }
+
+    static func launch(environment: [String: String], arguments: [String]) -> DevPreviewLaunchConfiguration? {
+        guard NativeComponentPreviewAvailability.isEnabled else { return nil }
+        return parse(environment: environment)
+            ?? parse(arguments: arguments)
     }
 
     private static let optionNames = ["app", "component", "variant", "theme", "width", "height", "props"]

@@ -4,14 +4,14 @@
 // Svelte:  frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
 //          frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
 // CSS:     WorkflowGraphRenderer.svelte .graph-panel, .node-stack,
-//          .node-summary, .branch-group, .editor
+//          .node-summary, .run-status, .branch-group, .editor
 //          WorkflowEditorHeader.svelte .editor-header, .header-control
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift, GradientTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/workflows/specification.yml
 // Assertions: workflows.mvp.steps, workflows.control.check,
-//             workflows.control.typed-data
+//             workflows.control.typed-data, workflows.execution.lifecycle-visible
 // Specification: specifications/features/workflows-ui/specification.yml
 // Assertions: workflows-ui.template.centered-in-place-editor,
 //             workflows-ui.responsive-accessible-reachable
@@ -80,6 +80,7 @@ struct WorkflowGraphView: View {
     let graph: WorkflowGraph
     var readOnly = false
     var nodeRuns: [WorkflowNodeRun] = []
+    var executionStatus: String? = nil
     var skills: [WorkflowSkillChoice] = []
     var workflowId: String? = nil
     var accountId: String? = nil
@@ -112,6 +113,16 @@ struct WorkflowGraphView: View {
         if let values = stepTest.outputsByNode[node.id] { return values }
         #if DEBUG
         // Rendering fixture only. It never executes Test or bypasses API scope capture.
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-workflows-fixture"),
+           ProcessInfo.processInfo.arguments.contains("--ui-test-workflow-event-output-fixture"), node.id == "news" {
+            let events: [[String: String]] = (1...7).map { index in
+                ["type": "event_result", "title": "Synthetic event \(index)",
+                 "description": "Event \(index) output details",
+                 "date_start": "2026-10-0\(index)T18:00:00Z",
+                 "venue_city": "Fixture city \(index)"]
+            }
+            return ["results": AnyCodable(events), "result_count": AnyCodable(events.count)]
+        }
         if ProcessInfo.processInfo.arguments.contains("--ui-test-workflows-fixture"),
            ProcessInfo.processInfo.arguments.contains("--ui-test-workflow-output-fixture"), node.id == "news" {
             return ["results": AnyCodable([
@@ -230,7 +241,7 @@ struct WorkflowGraphView: View {
                     }
                 }
             } label: {
-                WorkflowStepSummary(node: node, run: nodeRuns.first { $0.nodeId == node.id }, graph: graph, skills: skills)
+                WorkflowStepSummary(node: node, run: nodeRuns.first { $0.nodeId == node.id }, graph: graph, skills: skills, executionStatus: executionStatus)
                     .frame(maxWidth: editingNodeId == node.id ? 672 : 336)
                     // The entire rendered card is the activation target.
                     .contentShape(.interaction, RoundedRectangle(cornerRadius: .radius7))
@@ -1457,6 +1468,7 @@ private struct WorkflowStepSummary: View {
     let run: WorkflowNodeRun?
     var graph: WorkflowGraph? = nil
     var skills: [WorkflowSkillChoice] = []
+    var executionStatus: String? = nil
 
     private var appId: String {
         node.config["app_id"]?.value as? String ?? "workflows"
@@ -1486,19 +1498,21 @@ private struct WorkflowStepSummary: View {
                     .foregroundStyle(Color.fontButton.opacity(0.8))
                     .lineLimit(2)
             }
-            if let run {
-                Text(run.status.capitalized)
-                    .font(.omTiny.weight(.semibold))
-                    .foregroundStyle(Color.fontButton)
-            }
         }
         .padding(.horizontal, .spacing10)
         .padding(.vertical, .spacing6)
         .frame(maxWidth: .infinity, minHeight: 148)
         .background(Self.gradient(for: node))
         .clipShape(RoundedRectangle(cornerRadius: .radius7))
+        .overlay(alignment: .topLeading) {
+            if let run {
+                WorkflowNodeRunBadge(status: run.presentationStatus(executionStatus: executionStatus))
+                    // Web .run-status top/left:.4rem (6.4px at 16px root).
+                    .padding(6.4)
+            }
+        }
         .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: run == nil ? .combine : .contain)
     }
 
     static func gradient(for node: WorkflowNode) -> LinearGradient {
@@ -1607,5 +1621,40 @@ private struct WorkflowStepSummary: View {
             return AppIconView.iconName(forAppId: app)
         default: return "workflow"
         }
+    }
+}
+
+private struct WorkflowNodeRunBadge: View {
+    let status: String
+    private var presentation: WorkflowNodeRunPresentation { .init(status: status) }
+    private var copy: AppStrings.WorkflowRunCopy {
+        switch presentation {
+        case .completed: .status_completed
+        case .failed: .status_failed
+        case .cancelled: .status_cancelled
+        case .skipped: .status_skipped
+        case .queued: .status_queued
+        case .running: .status_running
+        case .cancellationRequested: .status_cancellation_requested
+        case .waiting: .status_waiting
+        }
+    }
+    var body: some View {
+        Group {
+            if presentation == .completed {
+                Icon("check", size: 16).frame(width: .spacing12, height: .spacing12)
+            } else {
+                Text(AppStrings.workflowRun(copy))
+                    .font(.omSmall)
+                    .padding(.horizontal, .spacing4)
+                    .frame(minHeight: .spacing12)
+            }
+        }
+        .foregroundStyle(presentation == .completed || presentation == .failed ? Color.fontButton : Color.fontPrimary)
+        .background(presentation == .completed ? Color.chatRainbowGreen : presentation == .failed ? Color.error : Color.grey20,
+                    in: Capsule())
+        .accessibilityLabel(AppStrings.workflowRun(copy))
+        .accessibilityValue(status)
+        .accessibilityIdentifier("workflow-run-node-status")
     }
 }

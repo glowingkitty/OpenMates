@@ -78,6 +78,8 @@ struct AppIconView: View {
     }
 
     static func iconName(forAppId appId: String) -> String {
+        // App badges use finance.svg; the finance chat category uses money.svg.
+        if appId == "finance" { return "finance" }
         if CategoryMapping.isKnownCategory(appId) {
             return CategoryMapping.iconName(for: appId)
         }

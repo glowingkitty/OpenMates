@@ -62,11 +62,16 @@ final class ChatShellResponsiveParityUITests: XCTestCase {
         let editor = app.textViews["message-editor"].firstMatch
         XCTAssertTrue(editor.waitForExistence(timeout: 5))
         editor.tap()
+        editor.typeText("iPad keyboard layout")
         let keyboard = app.keyboards.firstMatch
         XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
         XCTAssertTrue(waitUntil(timeout: 5) {
-            editor.frame.height > 0 && editor.frame.maxY <= keyboard.frame.minY + 2
-        }, "Ignoring the iPad container inset must retain keyboard avoidance")
+            let window = app.windows.firstMatch.frame
+            return keyboard.keys["q"].isHittable
+                && keyboard.frame.height > 100 && keyboard.frame.intersects(window)
+                && keyboard.frame.minY < window.maxY
+                && editor.frame.height > 0 && editor.frame.maxY <= keyboard.frame.minY + 2
+        }, "The iPad composer must remain above hittable software keys inside the actual window")
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "iPad composer above keyboard"
         attachment.lifetime = .keepAlways

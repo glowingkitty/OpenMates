@@ -177,18 +177,8 @@ private enum WidgetActiveChatsKeychain {
            !group.isEmpty, !group.contains("$(") { query[kSecAttrAccessGroup] = group }
         return query
     }
-    static func clear() { SecItemDelete(query() as CFDictionary) }
+    static func clear() { WidgetSnapshotKeychain(baseQuery: query()).clear() }
     static func load(_ create: Bool) throws -> SymmetricKey {
-        var query = query(); query[kSecReturnData] = true; query[kSecMatchLimit] = kSecMatchLimitOne
-        var value: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &value)
-        if status == errSecSuccess, let bytes = value as? Data, bytes.count == 32 { return SymmetricKey(data: bytes) }
-        guard create, status == errSecItemNotFound else { throw KeyError.unavailable }
-        let key = SymmetricKey(size: .bits256)
-        var insertion = self.query(); insertion[kSecValueData] = key.withUnsafeBytes { Data($0) }
-        insertion[kSecAttrAccessible] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        guard SecItemAdd(insertion as CFDictionary, nil) == errSecSuccess else { throw KeyError.unavailable }
-        return key
+        try WidgetSnapshotKeychain(baseQuery: query()).load(create: create)
     }
-    private enum KeyError: Error { case unavailable }
 }

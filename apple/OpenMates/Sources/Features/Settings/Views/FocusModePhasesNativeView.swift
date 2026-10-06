@@ -10,7 +10,7 @@ struct FocusModePhasesNativeView: View {
             VStack(alignment: .leading, spacing: .spacing5) {
                 ForEach(Array(phases.enumerated()), id: \.element.id) { index, phase in
                     VStack(alignment: .leading, spacing: .spacing2) {
-                        Text("\(index + 1). \(phase.title)").font(.omBody.weight(.semibold))
+                        Text("\(index + 1). \(phase.title)").font(.omP.weight(.semibold))
                         Text(phase.instructions).font(.omSmall).foregroundStyle(Color.fontSecondary)
                             .accessibilityIdentifier("focus-phase-instructions")
                         Text(L("focus_phases.requirements")).font(.omSmall.weight(.semibold))
@@ -20,9 +20,16 @@ struct FocusModePhasesNativeView: View {
                                 if requirement.type == "user_confirmation" { Text(L("focus_phases.confirmation")).font(.omSmall).foregroundStyle(Color.fontSecondary) }
                             }.accessibilityIdentifier("focus-phase-requirement")
                         }
-                    }.accessibilityIdentifier("focus-mode-phase")
+                    }.accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("focus-mode-phase")
                 }
             }.padding(.horizontal, .spacing5).padding(.vertical, .spacing3)
-        }.accessibilityIdentifier("focus-mode-phases")
+        }.accessibilityElement(children: .contain)
+            .accessibilityIdentifier("focus-mode-phases")
     }
+}
+
+@MainActor
+private func L(_ key: String) -> String {
+    LocalizationManager.shared.text(key)
 }

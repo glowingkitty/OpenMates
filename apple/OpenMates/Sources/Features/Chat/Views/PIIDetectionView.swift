@@ -1015,7 +1015,8 @@ final class EnhancedPIIModelDownloadController: ObservableObject {
     init(store: LocalModelStore, beforeRemoval: @escaping @MainActor () async -> Void = {}) {
         self.store = store; self.beforeRemoval = beforeRemoval
         synchronizeState()
-        observation = store.$states.sink { [weak self] states in self?.synchronizeState(states[.privacyFilter]) }
+        observation = store.$states.map { $0[.privacyFilter] }.removeDuplicates()
+            .sink { [weak self] state in self?.synchronizeState(state) }
     }
     var isDownloadConfigured: Bool { store.manifest(for: .privacyFilter) != nil }
     var installedDirectory: URL? { try? store.installedDirectory(.privacyFilter) }
@@ -1069,15 +1070,21 @@ final class EnhancedPIIModelDownloadController: ObservableObject {
     }
     private func synchronizeState(_ state: LocalModelInstallState? = nil) {
         guard !removing else { return }
+        let next: EnhancedPIIModelStatus
         switch state ?? store.state(for: .privacyFilter) {
-        case .notDownloaded: status = .notDownloaded
+        case .notDownloaded: next = .notDownloaded
         case .downloading(let progress), .verifying(let progress), .waitingForConnection(let progress), .retrying(let progress):
-            status = .downloading(progress: progress)
+            next = .downloading(progress: progress)
         case .ready:
-            guard let manifest = store.manifest(for: .privacyFilter) else { status = .failed(reason: .modelNotConfigured); return }
-            status = .ready(version: manifest.revision, sizeBytes: Int(manifest.estimatedSizeBytes))
-        case .failed: status = .failed(reason: .downloadFailed)
+            if let manifest = store.manifest(for: .privacyFilter) {
+                next = .ready(version: manifest.revision, sizeBytes: Int(manifest.estimatedSizeBytes))
+            } else {
+                next = .failed(reason: .modelNotConfigured)
+            }
+        case .failed: next = .failed(reason: .downloadFailed)
         }
+        guard next != status else { return }
+        status = next
     }
 }
 

@@ -22,7 +22,7 @@ import WatchKit
 struct OpenMatesWatchApp: App {
     @WKApplicationDelegateAdaptor(WatchPushAppDelegate.self) private var pushDelegate
     init() {
-#if DEBUG
+#if DEBUG && targetEnvironment(simulator)
         if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-reset-zoom") {
             UserDefaults.standard.removeObject(forKey: "watch.transcript.zoom")
         }
@@ -33,7 +33,7 @@ struct OpenMatesWatchApp: App {
 
     var body: some Scene {
         WindowGroup {
-            #if DEBUG
+            #if DEBUG && targetEnvironment(simulator)
             if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-workflow-save-failure") {
                 WatchWorkflowUITestFixtureView(failFirstSave: true)
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-workflow-retry") {
@@ -76,7 +76,8 @@ struct OpenMatesWatchApp: App {
             } else if ProcessInfo.processInfo.arguments.contains("--watch-whisper-lab-fixture") {
                 WatchWhisperLabView()
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-mobile-preview") {
-                WatchChatShellView(uiTestSnapshot: Self.uiTestMobilePreviewSnapshot, selectedChatId: Self.uiTestChatId)
+                WatchChatShellView(uiTestSnapshot: Self.uiTestMobilePreviewSnapshot, selectedChatId: Self.uiTestChatId,
+                    audioFixtureData: ProcessInfo.processInfo.arguments.contains("--ui-test-watch-local-audio") ? Self.uiTestAudioWAV : nil)
                     .environment(\.dynamicTypeSize, ProcessInfo.processInfo.arguments.contains("--ui-test-watch-large-text") ? .accessibility3 : .large)
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-markdown") {
                 WatchChatShellView(uiTestSnapshot: Self.uiTestMarkdownSnapshot, selectedChatId: Self.uiTestChatId)
@@ -126,7 +127,7 @@ struct OpenMatesWatchApp: App {
         }
     }
 
-#if DEBUG
+#if DEBUG && targetEnvironment(simulator)
     private static let uiTestChatId = "watch-ui-test-chat"
 
     private static let uiTestNewChatSnapshot = WatchChatSnapshot(
@@ -148,6 +149,24 @@ struct OpenMatesWatchApp: App {
 
     /// Local payloads exercise the production mobile composition without
     /// granting fixture launches account, network or persistence access.
+    private static var uiTestAudioWAV: Data {
+        // Actual mono PCM audio, ten seconds, exclusively in the accountless
+        // DEBUG fixture. No microphone or inference request is involved.
+        let rate = 16_000, frames = rate * 10
+        var wav = Data()
+        func text(_ value: String) { wav.append(contentsOf: value.utf8) }
+        func u16(_ value: UInt16) { var le = value.littleEndian; withUnsafeBytes(of: &le) { wav.append(contentsOf: $0) } }
+        func u32(_ value: UInt32) { var le = value.littleEndian; withUnsafeBytes(of: &le) { wav.append(contentsOf: $0) } }
+        text("RIFF"); u32(UInt32(36 + frames * 2)); text("WAVEfmt "); u32(16)
+        u16(1); u16(1); u32(UInt32(rate)); u32(UInt32(rate * 2)); u16(2); u16(16)
+        text("data"); u32(UInt32(frames * 2))
+        for frame in 0..<frames {
+            let sample = Int16(sin(Double(frame) * 2 * .pi * 440 / Double(rate)) * 1_000)
+            u16(UInt16(bitPattern: sample))
+        }
+        return wav
+    }
+
     private static var uiTestMobilePreviewSnapshot: WatchChatSnapshot {
         let args = ProcessInfo.processInfo.arguments
         let family = args.firstIndex(of: "--ui-test-watch-embed-family")
@@ -174,7 +193,7 @@ struct OpenMatesWatchApp: App {
         case "application": type = .mailEmail
         default: type = .sheetsSheet
         }
-        let data: [String: AnyCodable] = [
+        var data: [String: AnyCodable] = [
             "title": AnyCodable("devices.xls"), "query": AnyCodable("Public device comparison"),
             "table": AnyCodable("| Device | Type |\n| --- | --- |\n| Nexus Fold X | Phone |\n| Lumina Watch Pro | Watch |\n| AuraBook Air | Laptop |"),
             "row_count": AnyCodable(29), "col_count": AnyCodable(2),
@@ -184,10 +203,21 @@ struct OpenMatesWatchApp: App {
             "location_latitude": AnyCodable(52.52), "location_longitude": AnyCodable(13.405),
             "thumbnail_base64": AnyCodable(family == "image" ? "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPwL73xHwAFTwKctQraKwAAAABJRU5ErkJggg==" : ""),
         ]
+        if family == "audioRecording" || family == "audio" {
+            data = ["title": AnyCodable("Watch recording"), "filename": AnyCodable("watch-fixture.wav"),
+                "duration": AnyCodable(10.0), "transcript": AnyCodable("Synthetic recording for playback."),
+                "transcript_original": AnyCodable("Original synthetic recording."),
+                "transcript_corrected": AnyCodable("Synthetic recording for playback."), "use_corrected": AnyCodable(true)]
+        }
+        if family == "code", args.contains("--ui-test-watch-code-envelope") {
+            data = ["content": AnyCodable(#"{"filename":"watch-preview.swift","language":"swift","code":"let device = \"Watch\"\nlet readable = true\nlet lastLine = 3"}"#)]
+        }
         let missing = args.contains("--ui-test-watch-preview-missing-payload")
         let id = "watch-mobile-preview"
         let grouped = args.contains("--ui-test-watch-preview-group")
-        var refs = [WatchEmbedRef(id: id, type: type.rawValue, status: "finished", data: missing ? nil : data)]
+        let processingAudio = (family == "audioRecording" || family == "audio")
+            && args.contains("--ui-test-watch-audio-processing")
+        var refs = [WatchEmbedRef(id: id, type: type.rawValue, status: processingAudio ? "processing" : "finished", data: missing ? nil : data)]
         if grouped { refs.append(WatchEmbedRef(id: "watch-second-preview", type: type.rawValue,
             status: "finished", data: ["title": AnyCodable("second.xls"), "table": data["table"]!])) }
         let content = grouped ? "Before the previews\n\n[!](embed:\(id))\n\n[!](embed:watch-second-preview)\n\nAfter the previews" : "Hello Watch\n\n[!](embed:\(id))"
@@ -212,7 +242,8 @@ struct OpenMatesWatchApp: App {
 
     private static let uiTestSnapshot = WatchChatSnapshot(
         chats: [
-            WatchChatSummary(
+            {
+                var chat = WatchChatSummary(
                 id: uiTestChatId,
                 title: "Offline Whisper iOS Integration",
                 lastMessageAt: "2026-08-03T00:00:00Z",
@@ -221,7 +252,11 @@ struct OpenMatesWatchApp: App {
                 encryptedTitle: nil,
                 encryptedPreview: nil,
                 encryptedChatKey: nil
-            ),
+                )
+                chat.category = "software_development"
+                chat.icon = "code"
+                return chat
+            }(),
         ],
         messagesByChatId: [
             uiTestChatId: [
@@ -252,7 +287,7 @@ struct OpenMatesWatchApp: App {
 #endif
 }
 
-#if DEBUG
+#if DEBUG && targetEnvironment(simulator)
 /// Tooling only: separates Crown event delivery from automatic ScrollView focus.
 private struct WatchCrownBindingDiagnosticView: View {
     @State private var rotation = 0.0
@@ -283,7 +318,7 @@ private struct WatchCrownBindingDiagnosticView: View {
 }
 #endif
 
-#if DEBUG
+#if DEBUG && targetEnvironment(simulator)
 private struct WatchHubUITestFixtureView: View {
     @State private var openedItem: WatchItemOpenRequest?
     @StateObject private var chatRuntime = WatchChatRuntime(uiTestSnapshot: .empty, selectedChatId: nil)

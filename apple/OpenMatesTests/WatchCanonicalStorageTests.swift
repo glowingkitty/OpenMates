@@ -88,7 +88,7 @@ final class WatchCanonicalStorageTests: XCTestCase {
     func testEmbedStorageAcknowledgementCannotRetireWrongRequestOrPartialKeys() throws {
         let payload: [String: Any] = ["keys": [["encrypted_embed_key": "cipher"]]]
         XCTAssertNoThrow(try WatchCanonicalStorage.validateEmbedStorageAcknowledgement(type: "store_embed_keys", payload: payload,
-            acknowledgement: ["request_id": "request", "created_count": 1, "failed_count": 0], requestID: "request"))
+            acknowledgement: ["request_id": "request", "created_count": 1, "requested_count": 1, "failed_count": 0], requestID: "request"))
         for ack: [String: Any] in [["request_id": "other", "created_count": 1, "failed_count": 0],
                                   ["request_id": "request", "created_count": 0, "failed_count": 1]] {
             XCTAssertThrowsError(try WatchCanonicalStorage.validateEmbedStorageAcknowledgement(type: "store_embed_keys", payload: payload,
@@ -96,6 +96,244 @@ final class WatchCanonicalStorageTests: XCTestCase {
         }
         XCTAssertThrowsError(try WatchCanonicalStorage.validateEmbedStorageAcknowledgement(type: "store_embed", payload: ["embed_id": "embed"],
             acknowledgement: ["request_id": "request", "embed_id": "other"], requestID: "request"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,storage.surface.semantic-parity
+    func testCanonicalCapabilityAndStrictReceiptsArePairedOnlyForExactVerifiedProfileOnEverySocket() throws {
+        let profile = ServerProfile.custom(domain: "canonical-synthetic.example")
+        let paired = CanonicalEmbedStorageConfiguration(verifiedServerProfile: profile)
+        XCTAssertEqual(paired.receiptPolicy(for: profile), .requireCanonicalDigest)
+        for sessionID in ["first", "reconnected"] {
+            let url = try XCTUnwrap(paired.socketURL(profile: profile, sessionID: sessionID, token: "synthetic-token"))
+            let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+            XCTAssertEqual(query?.first { $0.name == "client_capabilities" }?.value, "canonical_embed_receipts_v1")
+            XCTAssertFalse(url.absoluteString.contains("typed_recovery_outputs_v2"))
+        }
+        for oldProfile in [ServerProfile.production, .development, .custom(domain: "other-synthetic.example")] {
+            XCTAssertEqual(paired.receiptPolicy(for: oldProfile), .allowLegacyReceipt)
+            XCTAssertTrue(paired.capabilities(for: oldProfile).isEmpty)
+        }
+        var headReceipt = bundleHeadReceipt()
+        headReceipt.removeValue(forKey: "canonical_digest")
+        XCTAssertThrowsError(try CanonicalEmbedStorageReceipts.validateHead(payload: bundleHead(), receipt: headReceipt,
+            requestID: "head-request", policy: paired.receiptPolicy(for: profile)))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,storage.surface.semantic-parity
+    func testDeployedWatchCanonicalStoragePairsExactDevelopmentProfileAndStrictReceipts() throws {
+        let config = CanonicalEmbedStorageConfiguration.deployed
+        XCTAssertEqual(ServerProfile.from(configuration: ServerProfile.development.endpointConfiguration), .development)
+        let altered = try XCTUnwrap(ServerProfile.fromPayload(id: ServerProfile.development.id,
+            webBaseURLString: ServerProfile.development.webBaseURL.absoluteString,
+            apiBaseURLString: "https://unverified-synthetic.example",
+            uploadBaseURLString: ServerProfile.development.uploadBaseURL.absoluteString))
+        for profile in [ServerProfile.development, .production,
+                        .custom(domain: ServerProfile.development.displayDomain), altered] {
+            let verified = profile == .development
+            XCTAssertEqual(config.receiptPolicy(for: profile), verified ? .requireCanonicalDigest : .allowLegacyReceipt)
+            XCTAssertEqual(config.capabilities(for: profile), verified ? ["canonical_embed_receipts_v1"] : [])
+            for sessionID in ["watch-first", "watch-reconnect"] {
+                let url = try XCTUnwrap(config.socketURL(profile: profile, sessionID: sessionID, token: nil))
+                let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+                XCTAssertEqual(query?.first { $0.name == "client_capabilities" }?.value,
+                               verified ? "canonical_embed_receipts_v1" : nil)
+                XCTAssertEqual(query?.first { $0.name == "sessionId" }?.value, sessionID)
+                XCTAssertFalse(url.absoluteString.contains("typed_recovery_outputs_v2"))
+            }
+        }
+        let policy = config.receiptPolicy(for: .development)
+        XCTAssertNoThrow(try WatchCanonicalStorage.validateEmbedStorageAcknowledgement(type: "store_embed",
+            payload: bundleHead(), acknowledgement: bundleHeadReceipt(), requestID: "head-request", policy: policy))
+        var legacyHead = bundleHeadReceipt()
+        legacyHead.removeValue(forKey: "canonical_digest")
+        XCTAssertThrowsError(try WatchCanonicalStorage.validateEmbedStorageAcknowledgement(type: "store_embed",
+            payload: bundleHead(), acknowledgement: legacyHead, requestID: "head-request", policy: policy))
+        let keys: [String: Any] = ["keys": [["encrypted_embed_key": "synthetic-wrapped-key"]]]
+        let legacyKeys: [String: Any] = ["request_id": "keys-request", "created_count": 1, "failed_count": 0]
+        XCTAssertThrowsError(try WatchCanonicalStorage.validateEmbedStorageAcknowledgement(type: "store_embed_keys",
+            payload: keys, acknowledgement: legacyKeys, requestID: "keys-request", policy: policy))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,storage.privacy.ciphertext-boundary
+    func testWatchBundleWritesHeadBeforeWrappersAndRetriesIdenticalCiphertextAfterLostReceipt() async throws {
+        for failure in ["store_embed", "store_embed_keys"] {
+            let bundle = try WatchCanonicalStorage.embedBundle(chatID: "chat", head: bundleHead(), keys: bundleKeys())
+            let retained = try JSONDecoder().decode(WatchPendingCompletion.self, from: JSONEncoder().encode(bundle))
+            XCTAssertEqual(retained.encryptedPayload, bundle.encryptedPayload, "Restart retains the exact encrypted attempt")
+            var failOnce = true
+            var calls: [(String, Data)] = []
+            let request: WatchCanonicalStorage.Request = { type, payload, _, matches in
+                calls.append((type, try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])))
+                if type == failure, failOnce { failOnce = false; throw WatchChatRuntimeError.socketUnavailable }
+                let receipt = type == "store_embed" ? self.bundleHeadReceipt() : self.bundleKeyReceipt()
+                XCTAssertTrue(matches(receipt))
+                return receipt
+            }
+            do {
+                try await WatchCanonicalStorage.persistEmbedBundle(retained, policy: .requireCanonicalDigest, request: request, validate: {})
+                XCTFail("The missing receipt cannot retire this bundle")
+            } catch WatchChatRuntimeError.socketUnavailable { }
+            if failure == "store_embed" { XCTAssertEqual(calls.map { $0.0 }, ["store_embed"]) }
+            try await WatchCanonicalStorage.persistEmbedBundle(retained, policy: .requireCanonicalDigest, request: request, validate: {})
+            XCTAssertEqual(Array(calls.suffix(2)).map { $0.0 }, ["store_embed", "store_embed_keys"])
+            XCTAssertEqual(calls.first?.1, calls.dropFirst().first { $0.0 == "store_embed" }?.1)
+            if failure == "store_embed_keys" {
+                XCTAssertEqual(calls.first { $0.0 == "store_embed_keys" }?.1, calls.last?.1)
+            }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,storage.surface.semantic-parity
+    func testWatchHeadRejectionSendsNoWrappersAndCapabilityRejectionRemainsUpdateRequired() async throws {
+        let changes: [[String: Any]] = [["request_id": "other"], ["embed_id": "other"],
+            ["canonical_digest": "wrong"], ["canonical_digest": (bundleHeadReceipt()["canonical_digest"] as! String).uppercased()],
+            ["canonical_source": "version_row"], ["canonical_digest": NSNull()], ["canonical_source": NSNull()],
+            ["code": "client_capability_required"]]
+        for change in changes {
+            var calls: [String] = []
+            let bundle = try WatchCanonicalStorage.embedBundle(chatID: "chat", head: bundleHead(), keys: bundleKeys())
+            do {
+                try await WatchCanonicalStorage.persistEmbedBundle(bundle, policy: .requireCanonicalDigest, request: { type, _, _, _ in
+                    calls.append(type)
+                    return self.bundleHeadReceipt().merging(change) { _, new in new }
+                }, validate: {})
+                XCTFail("Rejected head cannot count as saved")
+            } catch CanonicalEmbedStorageReceiptError.updateRequired {
+                XCTAssertEqual(change["code"] as? String, "client_capability_required")
+            } catch { XCTAssertNil(change["code"]) }
+            XCTAssertEqual(calls, ["store_embed"])
+            XCTAssertEqual(try WatchCanonicalStorage.object(bundle.encryptedPayload)["head"] as? NSDictionary, bundleHead() as NSDictionary)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,storage.surface.semantic-parity
+    func testWatchStrictWrapperReceiptsRejectMissingPartialBooleanAndFloatingCounts() throws {
+        for field in ["created_count", "failed_count", "requested_count"] {
+            var missing = bundleKeyReceipt(); missing.removeValue(forKey: field)
+            XCTAssertThrowsError(try WatchCanonicalStorage.validateEmbedStorageAcknowledgement(type: "store_embed_keys",
+                payload: bundleKeys(), acknowledgement: missing, requestID: "key-request"))
+            for value: Any in [true, 2.0, "2", NSNull(), -1, 1] {
+                var invalid = bundleKeyReceipt(); invalid[field] = value
+                XCTAssertThrowsError(try WatchCanonicalStorage.validateEmbedStorageAcknowledgement(type: "store_embed_keys",
+                    payload: bundleKeys(), acknowledgement: invalid, requestID: "key-request"))
+            }
+        }
+        var legacy = bundleKeyReceipt(); legacy.removeValue(forKey: "requested_count")
+        XCTAssertNoThrow(try WatchCanonicalStorage.validateEmbedStorageAcknowledgement(type: "store_embed_keys",
+            payload: bundleKeys(), acknowledgement: legacy, requestID: "key-request", policy: .allowLegacyReceipt))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,storage.privacy.ciphertext-boundary
+    func testWatchMigratesKeysFirstJournalIntoImmutableBundleAndRetainsOrphans() throws {
+        let head = WatchPendingCompletion(id: "head-request", chatId: "chat", eventType: "store_embed",
+            encryptedPayload: try JSONSerialization.data(withJSONObject: bundleHead()))
+        let keys = WatchPendingCompletion(id: "key-request", chatId: "chat", eventType: "store_embed_keys",
+            encryptedPayload: try JSONSerialization.data(withJSONObject: bundleKeys()))
+        let migrated = try WatchCanonicalStorage.migratedEmbedBundles([keys, head])
+        XCTAssertEqual(migrated.count, 1)
+        XCTAssertEqual(migrated.first?.eventType, "store_embed_bundle")
+        let object = try WatchCanonicalStorage.object(try XCTUnwrap(migrated.first?.encryptedPayload))
+        XCTAssertEqual(object["head"] as? NSDictionary, bundleHead() as NSDictionary)
+        XCTAssertEqual(object["keys"] as? NSDictionary, bundleKeys() as NSDictionary)
+        XCTAssertEqual(try WatchCanonicalStorage.migratedEmbedBundles([keys]), [keys])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,storage.privacy.ciphertext-boundary
+    func testMalformedLegacyEmbedRetainsCiphertextWithoutBlockingUnrelatedCompletions() throws {
+        let orphan = WatchPendingCompletion(id: "orphan", chatId: "chat", eventType: "store_embed",
+            encryptedPayload: Data("invalid encrypted journal envelope".utf8))
+        let message = WatchPendingCompletion(id: "message", chatId: "chat", eventType: "ai_response_completed",
+            encryptedPayload: Data("cipher-message".utf8))
+        let metadata = WatchPendingCompletion(id: "metadata", chatId: "other", eventType: "encrypted_chat_metadata",
+            encryptedPayload: Data("cipher-metadata".utf8))
+        let sameChatBundle = try WatchCanonicalStorage.embedBundle(chatID: "chat", head: bundleHead(), keys: bundleKeys())
+        let otherChatBundle = try WatchCanonicalStorage.embedBundle(chatID: "other", head: bundleHead(), keys: bundleKeys())
+        let entries = [orphan, message, sameChatBundle, metadata, otherChatBundle]
+        let migrated = try WatchCanonicalStorage.migratedEmbedBundles(entries)
+        XCTAssertEqual(migrated, entries, "Malformed legacy ciphertext stays retained unchanged")
+        XCTAssertEqual(WatchCanonicalStorage.completionDrainCandidates(migrated), [message, metadata, otherChatBundle])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testWatchBundleScopeInvalidationAfterHeadCannotWriteWrappers() async throws {
+        let bundle = try WatchCanonicalStorage.embedBundle(chatID: "chat", head: bundleHead(), keys: bundleKeys())
+        var current = true
+        var calls: [String] = []
+        do {
+            try await WatchCanonicalStorage.persistEmbedBundle(bundle, policy: .requireCanonicalDigest, request: { type, _, _, _ in
+                calls.append(type); current = false
+                return self.bundleHeadReceipt()
+            }, validate: { if !current { throw CancellationError() } })
+            XCTFail("Invalidated account/server/deletion context cannot send wrappers")
+        } catch is CancellationError { }
+        XCTAssertEqual(calls, ["store_embed"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testWatchCapabilityErrorIsCorrelatedAndNeverSuccessfulStorageReceipt() throws {
+        var inbox: [(type: String, payload: [String: Any])] = [("error", ["request_id": "other", "code": "client_capability_required"]),
+            ("error", ["request_id": "head-request", "code": "client_capability_required"])]
+        XCTAssertThrowsError(try WatchSocketResponses.takeMatchingResponse(from: &inbox, requestType: "store_embed",
+            responseTypes: ["store_embed_confirmed"], matching: { $0["request_id"] as? String == "head-request" })) { error in
+                guard case CanonicalEmbedStorageReceiptError.updateRequired = error else { return XCTFail("Must be update-required") }
+        }
+        XCTAssertEqual(inbox.count, 1)
+        XCTAssertEqual(inbox.first?.payload["request_id"] as? String, "other")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,storage.privacy.ciphertext-boundary
+    func testWatchBundleCreationRejectsEmptyMissingAndMalformedWrappers() {
+        let invalid: [Any?] = [nil, [[String: Any]](), "malformed", [NSNull()]]
+        for value in invalid {
+            var keys = bundleKeys()
+            if let value { keys["keys"] = value } else { keys.removeValue(forKey: "keys") }
+            XCTAssertThrowsError(try WatchCanonicalStorage.embedBundle(chatID: "chat", head: bundleHead(), keys: keys))
+        }
+        XCTAssertNoThrow(try WatchCanonicalStorage.embedBundle(chatID: "chat", head: bundleHead(), keys: bundleKeys()))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,storage.surface.semantic-parity
+    func testRestoredInvalidWrapperBundlesCannotWriteHeadOrRetireUnderEitherPolicy() async throws {
+        let invalid: [Any?] = [nil, [[String: Any]](), "malformed", [NSNull()]]
+        for policy in [CanonicalEmbedReceiptPolicy.requireCanonicalDigest, .allowLegacyReceipt] {
+            for value in invalid {
+                var keys = bundleKeys()
+                if let value { keys["keys"] = value } else { keys.removeValue(forKey: "keys") }
+                // Bypass the newly guarded factory to model a malformed older journal.
+                let bytes = try JSONSerialization.data(withJSONObject: ["head": bundleHead(), "keys": keys], options: [.sortedKeys])
+                let entry = WatchPendingCompletion(id: "head-request", chatId: "chat", eventType: "store_embed_bundle", encryptedPayload: bytes)
+                var requests: [String] = []
+                var retired = false
+                do {
+                    try await WatchCanonicalStorage.persistEmbedBundle(entry, policy: policy, request: { type, _, _, _ in
+                        requests.append(type)
+                        return type == "store_embed" ? self.bundleHeadReceipt() : self.bundleKeyReceipt()
+                    }, validate: {})
+                    retired = true
+                    XCTFail("A head receipt cannot authorize retirement of missing wrappers")
+                } catch WatchChatRuntimeError.invalidPendingTurn { }
+                XCTAssertTrue(requests.isEmpty, "Malformed retained wrappers must fail before any canonical head is written")
+                XCTAssertFalse(retired)
+                XCTAssertEqual(entry.encryptedPayload, bytes, "Rejected retry retains the original ciphertext and request identity")
+            }
+        }
+    }
+
+    private func bundleHead() -> [String: Any] {
+        ["request_id": "head-request", "embed_id": "synthetic-embed", "encrypted_content": "synthetic-cipher+/=",
+         "encrypted_type": "synthetic-type", "status": "finished", "version_number": 1]
+    }
+    private func bundleKeys() -> [String: Any] {
+        ["request_id": "key-request", "keys": [
+            ["hashed_embed_id": CanonicalEmbedStorageReceipts.digest("synthetic-embed"), "key_type": "master", "encrypted_embed_key": "master-cipher"],
+            ["hashed_embed_id": CanonicalEmbedStorageReceipts.digest("synthetic-embed"), "key_type": "chat", "encrypted_embed_key": "chat-cipher"]]]
+    }
+    private func bundleHeadReceipt() -> [String: Any] {
+        ["request_id": "head-request", "embed_id": "synthetic-embed", "canonical_source": "head",
+         "canonical_digest": CanonicalEmbedStorageReceipts.digest(bundleHead()["encrypted_content"] as! String)]
+    }
+    private func bundleKeyReceipt() -> [String: Any] {
+        ["request_id": "key-request", "created_count": 2, "requested_count": 2, "failed_count": 0]
     }
 
     private var job: WatchRecoveryJob { .init(id: "job", chatId: "chat", messageId: "assistant", turnId: "turn", keyVersion: 1) }

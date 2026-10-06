@@ -456,6 +456,7 @@ final class ProjectRemoteSourceClient {
                          userInitiated: Bool = false) async throws -> [String: Any] {
         let requiredCapability = writeContext != nil || userInitiated
             ? "write_request" : (operation == "search" ? "search" : "read")
+        if source.status == "offline" { throw ProjectsWorkspaceError.sourceOffline }
         guard source.status == "connected", source.capabilities.contains(requiredCapability) else {
             throw ProjectsWorkspaceError.unsupportedSource
         }
@@ -501,9 +502,12 @@ final class ProjectRemoteSourceClient {
         }
         if userInitiated { body["user_initiated"] = true }
         try await fence.check()
-        let created: Created = try await APIClient.shared.request(.post,
-            path: requestPath(project: project, source: source), serverProfile: fence.serverProfile, body: body,
-            expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        let created: Created
+        do {
+            created = try await APIClient.shared.request(.post,
+                path: requestPath(project: project, source: source), serverProfile: fence.serverProfile, body: body,
+                expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        } catch { throw Self.classifySourceError(error) }
         try await fence.check()
         guard created.sourceSessionId == nil || created.sourceSessionId == routing.sourceSessionID,
               created.keyEpoch == nil || created.keyEpoch == routing.keyEpoch else {
@@ -531,9 +535,12 @@ final class ProjectRemoteSourceClient {
         let body: [String: Any] = ["request_id": requestID, "requesting_client_id": clientID,
             "operation": "list", "key_epoch": 1, "encrypted_envelope": envelope]
         try await fence.check()
-        let created: Created = try await APIClient.shared.request(.post,
-            path: requestPath(project: project, source: source), serverProfile: fence.serverProfile, body: body,
-            expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        let created: Created
+        do {
+            created = try await APIClient.shared.request(.post,
+                path: requestPath(project: project, source: source), serverProfile: fence.serverProfile, body: body,
+                expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        } catch { throw Self.classifySourceError(error) }
         guard let routing = created.routingIdentity, routing.contextType == "team",
               let sourceSessionID = created.sourceSessionId,
               let keyEpoch = created.keyEpoch, keyEpoch > 0 else {
@@ -573,11 +580,22 @@ final class ProjectRemoteSourceClient {
                 try await fence.check()
                 guard !response.encryptedEnvelope.isEmpty else { throw ProjectsWorkspaceError.invalidResponse }
                 return response
-            } catch APIError.httpError(let status, _) where status == 404 {
+            } catch APIError.httpError(let status, let detail) where status == 404 {
+                // Pending encrypted results use 404 as well. Only the explicit
+                // backend presence code establishes an unavailable remote host.
+                if detail == "source_offline" { throw ProjectsWorkspaceError.sourceOffline }
+                guard detail == "request_not_found" else { throw APIError.httpError(status: status, message: detail) }
                 try await Task.sleep(for: .milliseconds(250))
             }
         }
-        throw ProjectsWorkspaceError.unsupportedSource
+        throw ProjectsWorkspaceError.sourceTimedOut
+    }
+
+    static func classifySourceError(_ error: Error) -> Error {
+        if case APIError.httpError(status: 404, message: "source_offline") = error {
+            return ProjectsWorkspaceError.sourceOffline
+        }
+        return error
     }
 
     private func encryptEnvelope(_ payload: [String: Any], key: SymmetricKey) async throws -> String {

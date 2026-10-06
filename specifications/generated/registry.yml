@@ -41,7 +41,7 @@ specifications:
     version: 1
     status: approved
     path: architecture/drafts
-    fingerprint: a73115c446c2b5ffbeaf64a65018c03684fa413099b7a5ffb26625dd1ba26bac
+    fingerprint: 0c32ac567e52e5bf810da928afa704928339bb046fad6ff0d276472468f0614a
     required_applies_to:
     - gui.web
     - gui.apple
@@ -291,6 +291,13 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.apple-controls:
+    version: 1
+    status: draft
+    path: features/apple-controls
+    fingerprint: 96afb2f3bc673180e2d2e9fe94690d272c66c23af15aa3df811ce9031ebfb14b
+    required_applies_to:
+    - gui.apple
   feature.apple-live-activities:
     version: 1
     status: draft
@@ -299,10 +306,10 @@ specifications:
     required_applies_to:
     - gui.apple
   feature.apple-local-model-lab:
-    version: 4
+    version: 7
     status: draft
     path: features/apple-local-model-lab
-    fingerprint: e5c6dd7fda2df8d58adda941059f7602fe9a12de65f5a8aed7d30a1a6f317a71
+    fingerprint: 6ac6c23843357104e0629c7233de389df319b19bef1ee47005c0cfdcf41ee3f3
     required_applies_to:
     - gui.apple
   feature.apple-notifications:
@@ -493,15 +500,15 @@ specifications:
     version: 4
     status: draft
     path: features/landing-onboarding
-    fingerprint: f49f2a4afa02c61b8d47b5542b6c86cde758505d625b9d97cd3f88d9fab570bc
+    fingerprint: 04ba8804767b48b77c19ce73eda37798b7db8bc2c24e1ca5a68bcd56f9caf6bb
     required_applies_to:
     - gui.web
     - gui.apple
   feature.message-input:
-    version: 1
+    version: 2
     status: draft
     path: features/message-input
-    fingerprint: c9a43b9e9c35680c2a11266a4122bed7a229de0d632a9f880856c79a5c00f277
+    fingerprint: 614b490277683df23080efb3208eab39bdbe10bd961f75ca6b866e513ec26fec
     required_applies_to:
     - gui.web
     - gui.apple
@@ -1122,7 +1129,7 @@ assertions:
     specification: architecture.drafts@1
     specification_id: architecture.drafts
     type: behavior
-    fingerprint: 74f36453c2bb0feab550be8ddf4ee60e23c7ebb5ddb85e8fd382e3d9f572ec0d
+    fingerprint: 125645fbf7b048bb86b874e6914d9bcc20c7e9f90313406bc19cdee3e82752e2
     required_applies_to:
     - gui.web
     - gui.apple
@@ -4010,6 +4017,41 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  apple-controls.availability:
+    specification: feature.apple-controls@1
+    specification_id: feature.apple-controls
+    type: behavior
+    fingerprint: a68dea1c02c3ad4a905a77d0df40ef2114c8581101d51d4a3e16a83dc6cd055b
+    required_applies_to:
+    - gui.apple
+  apple-controls.quick-actions:
+    specification: feature.apple-controls@1
+    specification_id: feature.apple-controls
+    type: behavior
+    fingerprint: 1762b7b7e9b4d4b34126d483f1cf960109682700d3242fed8c9f191e4825a9f4
+    required_applies_to:
+    - gui.apple
+  apple-controls.workflow:
+    specification: feature.apple-controls@1
+    specification_id: feature.apple-controls
+    type: behavior
+    fingerprint: 4fc25e7eaad3cf2b8a98c1bf09918d03b22fbec6c40eb156a9ae471f079dd610
+    required_applies_to:
+    - gui.apple
+  apple-controls.project:
+    specification: feature.apple-controls@1
+    specification_id: feature.apple-controls
+    type: behavior
+    fingerprint: f4a1aaff48633e2ed9d0547af48149e06f10b6c0a915e8a79749ec4a185e5362
+    required_applies_to:
+    - gui.apple
+  apple-controls.private-cache:
+    specification: feature.apple-controls@1
+    specification_id: feature.apple-controls
+    type: privacy
+    fingerprint: 14f64eafa3968b1287fee852a8931a3fd1799427588ec4e9603086940f83f724
+    required_applies_to:
+    - gui.apple
   apple-live-activities.download.progress:
     specification: feature.apple-live-activities@1
     specification_id: feature.apple-live-activities
@@ -4046,66 +4088,59 @@ assertions:
     required_applies_to:
     - gui.apple
   apple-local-model-lab.optional-downloads:
-    specification: feature.apple-local-model-lab@4
+    specification: feature.apple-local-model-lab@7
     specification_id: feature.apple-local-model-lab
     type: behavior
-    fingerprint: 65f7e79d62b3cc51ef38d455d6c53397300230ec4e9f6fa639b2196cb435bad5
+    fingerprint: 501544ba9e6577433a208080a0871cdd9d9fe742e7388b80d6ace5daa164312c
     required_applies_to:
     - gui.apple
   apple-local-model-lab.local-execution:
-    specification: feature.apple-local-model-lab@4
+    specification: feature.apple-local-model-lab@7
     specification_id: feature.apple-local-model-lab
     type: behavior
-    fingerprint: 8f92f2cdb728cb7407ab97a46f5c8710ba229feec704bd8e52e528cbf8003039
+    fingerprint: c0ae50aea6ceca472529150fecd0da313633c27f17735b196d1814362ba5dc5e
     required_applies_to:
     - gui.apple
   apple-local-model-lab.pii-spans:
-    specification: feature.apple-local-model-lab@4
+    specification: feature.apple-local-model-lab@7
     specification_id: feature.apple-local-model-lab
     type: invariant
     fingerprint: ef9fd3dc52459c3f978abea3ef421c93ba94e50fd1c775af9557551119d9f1f0
     required_applies_to:
     - gui.apple
   apple-local-model-lab.isolated-scope:
-    specification: feature.apple-local-model-lab@4
+    specification: feature.apple-local-model-lab@7
     specification_id: feature.apple-local-model-lab
     type: invariant
     fingerprint: 4ec74c439b5de1df841348eef3c7fe3779a1b8cec4b711129f1ea0891c45aae9
     required_applies_to:
     - gui.apple
   apple-local-model-lab.serialized-cancellation:
-    specification: feature.apple-local-model-lab@4
+    specification: feature.apple-local-model-lab@7
     specification_id: feature.apple-local-model-lab
     type: invariant
     fingerprint: cd7881de3bc2dd1058acb83153fe786d4017ab593d48eada0ba948220e7c1707
     required_applies_to:
     - gui.apple
   apple-local-model-lab.ephemeral-state:
-    specification: feature.apple-local-model-lab@4
+    specification: feature.apple-local-model-lab@7
     specification_id: feature.apple-local-model-lab
     type: invariant
-    fingerprint: 1c6dd9b7851112bcd59dbffd6f1171d7e2cc52866117bddc4606ab4a3f00d35c
+    fingerprint: bfd28d68c3aeadd3b46f2f8997ee08031cba5efe4a19a0f4acad1f2002dec071
     required_applies_to:
     - gui.apple
   apple-local-model-lab.availability:
-    specification: feature.apple-local-model-lab@4
+    specification: feature.apple-local-model-lab@7
     specification_id: feature.apple-local-model-lab
     type: behavior
-    fingerprint: 968a4083e38a01597048d3b0b1fb0410e4069077b3b1ef6bb73f252371eefd54
+    fingerprint: 731172182cdaae17305d8c9164d2af4f9b20f22d6a356b24dd1f957c0e52875a
     required_applies_to:
     - gui.apple
   apple-local-model-lab.watch-tiny:
-    specification: feature.apple-local-model-lab@4
+    specification: feature.apple-local-model-lab@7
     specification_id: feature.apple-local-model-lab
     type: behavior
     fingerprint: c85dea29c95be39b9656677b8c0bc1fd6a5bf4c7ff4360ed83e2fe0551369ea8
-    required_applies_to:
-    - gui.apple
-  apple-local-model-lab.pocket-tts:
-    specification: feature.apple-local-model-lab@4
-    specification_id: feature.apple-local-model-lab
-    type: behavior
-    fingerprint: 47016cc9d2cbc91b25990ec9f44e45cae0ffe55747b5c4e0f82340191cbb9bcf
     required_applies_to:
     - gui.apple
   apple-notifications.registration.lifecycle:
@@ -6261,7 +6296,7 @@ assertions:
     specification: feature.landing-onboarding@4
     specification_id: feature.landing-onboarding
     type: behavior
-    fingerprint: f84152ee0a9bbcf9469117cf8c166a5f1749f8833b3cee2784647e7ebb8bbca3
+    fingerprint: 65ba0a70d1b78ed5e4467bb0b030f8361d6cdc278751ed7db1d54337ab0a271e
     required_applies_to:
     - gui.web
     - gui.apple
@@ -6282,7 +6317,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.focus.parent-state:
-    specification: feature.message-input@1
+    specification: feature.message-input@2
     specification_id: feature.message-input
     type: behavior
     fingerprint: c9cd7e910c210b6e430cc4fe09f4a85755a5473346cc017e97991f63af76886b
@@ -6290,15 +6325,23 @@ assertions:
     - gui.web
     - gui.apple
   message-input.focus.guest-welcome-suppression:
-    specification: feature.message-input@1
+    specification: feature.message-input@2
     specification_id: feature.message-input
     type: behavior
     fingerprint: 805ecc548a7c652f4ef6f7f5451e17643d895b1be6dbebb34fa7759f77d12e1e
     required_applies_to:
     - gui.web
     - gui.apple
+  message-input.focus.workspace-suppression:
+    specification: feature.message-input@2
+    specification_id: feature.message-input
+    type: behavior
+    fingerprint: f9559fbcde2f3ad909ad2dc6cb6b46caeb53a3e13e75e0fdd699f0e9bad4cbf6
+    required_applies_to:
+    - gui.web
+    - gui.apple
   message-input.actions.visibility:
-    specification: feature.message-input@1
+    specification: feature.message-input@2
     specification_id: feature.message-input
     type: behavior
     fingerprint: 6cfe810216681b5e6ab4400a55aa7071f9111895a46f6d18093326212b72ff9b
@@ -6306,7 +6349,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.drafts.preview-persistence:
-    specification: feature.message-input@1
+    specification: feature.message-input@2
     specification_id: feature.message-input
     type: behavior
     fingerprint: 82f601769583d788ae63db0da4ea58d70a0b82f1ff5600918f8c2baf5453caed
@@ -6314,7 +6357,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.embeds.gated-send:
-    specification: feature.message-input@1
+    specification: feature.message-input@2
     specification_id: feature.message-input
     type: invariant
     fingerprint: f479841a1c94ae75b747896122ba4000cc4632edf4edcc4bb50f7e201657059c
@@ -6322,7 +6365,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.recording.lifecycle:
-    specification: feature.message-input@1
+    specification: feature.message-input@2
     specification_id: feature.message-input
     type: behavior
     fingerprint: 1105a6c36d5fef330fe936ecc11793be56da84c7887caeb6a35b714f3fdd9d6a
@@ -6330,7 +6373,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestions.contextual:
-    specification: feature.message-input@1
+    specification: feature.message-input@2
     specification_id: feature.message-input
     type: behavior
     fingerprint: 6b709d86954867371423b3d9bcffa3109e43e87a23f926e6d46e5cbfefec812a
@@ -6338,7 +6381,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.send.ownership:
-    specification: feature.message-input@1
+    specification: feature.message-input@2
     specification_id: feature.message-input
     type: behavior
     fingerprint: b4c1ba8664b6817ad70c02d25638ce7397bd294f8beee6731ecd993ef678d8cd
@@ -6346,7 +6389,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.privacy-context:
-    specification: feature.message-input@1
+    specification: feature.message-input@2
     specification_id: feature.message-input
     type: privacy
     fingerprint: a6363726e6972b6b724d69949955b29fa8102aee8078564594afad46372502f1
@@ -6354,10 +6397,10 @@ assertions:
     - gui.web
     - gui.apple
   message-input.layout.responsive-parity:
-    specification: feature.message-input@1
+    specification: feature.message-input@2
     specification_id: feature.message-input
     type: parity
-    fingerprint: e31addfd08e76cfa4ef0158e5d48b3309017312195d4448b1a67afcae300aebb
+    fingerprint: 117f6e729e0b3e86a1cc5e2913c1a4b7a27021ad306c19c983ca3fbd03e8d872
     required_applies_to:
     - gui.web
     - gui.apple

@@ -28,7 +28,7 @@ const LANDING_INTRO_REQUESTS = [
 ];
 const LANDING_INTRO_HEADLINE_TEXT = 'Your AI team\nfor getting things done';
 const LANDING_INTRO_HIGHLIGHTED_APPS = ['health', 'events', 'code', 'news'];
-const RETIRED_INTRO_CHAT_IDS = ['demo-for-everyone', 'demo-for-developers'];
+const RETIRED_INTRO_CHAT_IDS = ['demo-for-everyone', 'demo-for-developers', 'demo-who-develops-openmates'];
 const LANDING_INTRO_REQUEST_APP_IDS = new Map(
 	LANDING_INTRO_REQUESTS.map((request, index) => [request, LANDING_INTRO_HIGHLIGHTED_APPS[index]])
 );
@@ -373,6 +373,10 @@ test.describe('Guest interest smart selection', () => {
 	test('retired intro hashes clear to the neutral welcome state and stay out of discovery', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1280, height: 800 });
+
+		await page.goto(getE2EDebugUrl('/intro/who-develops-openmates'), { waitUntil: 'domcontentloaded' });
+		expect(new URL(page.url()).pathname).toBe('/');
+		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
 
 		for (const chatId of RETIRED_INTRO_CHAT_IDS) {
 			await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`), { waitUntil: 'domcontentloaded' });

@@ -1,0 +1,26 @@
+schema_version: 1
+specification: feature.apple-controls@1
+platform:
+- id: availability
+  given: Existing app deployment targets support versions below Controls availability.
+  when: The Widget bundle loads on iOS 17, iOS 18, macOS 14 and macOS 26.
+  then: Existing widgets remain available; Controls appear only on iOS 18 and macOS 26 or later.
+actions:
+- id: cold-quick-actions
+  given: The app is terminated or foregrounded.
+  when: Each of the six quick actions is tapped from a Control.
+  then: The existing corresponding composer, capture, task, search or incognito route receives that exact action.
+selection:
+- id: independent-project-and-workflow
+  given: Two Controls select different eligible workflow or Project entities in the current account and Team.
+  when: Each configured Control is tapped and an unconfigured Control is tapped.
+  then: The chosen workflow is manually run with existing safeguards or chosen Project opens fullscreen; the unconfigured control opens its section.
+- id: stale-or-replaced-selection
+  given: A configured Project or workflow was deleted, revoked or selected under another account, server or Team.
+  when: The control is tapped or an older inventory response arrives after replacement.
+  then: No foreign Project opens and no workflow run starts; replacement context is preserved.
+privacy:
+- id: cache-and-lock
+  given: The containing app has published encrypted choice snapshots.
+  when: Keys lock, ciphertext corrupts, or logout or scope replacement occurs.
+  then: Choices fail closed, private labels redact and old writes cannot republish private selections; defaults contain no plaintext titles or credentials.

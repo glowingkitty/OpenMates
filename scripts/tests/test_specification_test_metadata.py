@@ -17,6 +17,19 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = PROJECT_ROOT / "scripts" / "specifications.py"
 
 
+# contract-test: tooling
+def test_repository_inventory_excludes_private_runtime_copies(tmp_path):
+    module = load_module()
+    product = tmp_path / "apple/OpenMatesTests/FocusPhaseTests.swift"
+    product.parent.mkdir(parents=True)
+    product.write_text("// Production test source\n", encoding="utf-8")
+    for directory in (".runtime", ".tmp", ".openmates-agent-worktrees"):
+        copied = tmp_path / directory / "receipt/apple/OpenMatesTests/FocusPhaseTests.swift"
+        copied.parent.mkdir(parents=True)
+        copied.write_text("// Preserved historical test source\n", encoding="utf-8")
+    assert module._repository_test_files(tmp_path) == [product]
+
+
 def load_module():
     spec = importlib.util.spec_from_file_location("openmates_specification_metadata", MODULE_PATH)
     assert spec and spec.loader

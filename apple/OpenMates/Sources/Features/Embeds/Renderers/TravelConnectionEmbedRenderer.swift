@@ -1,4 +1,6 @@
 // TravelConnectionEmbedRenderer — native counterpart for travel connection embeds.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity, chats.rendering.assistant-document-convergence
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
@@ -819,12 +821,12 @@ enum TravelValue {
         return String(String.UnicodeScalarView(scalars))
     }
 
-    static func formatDate(_ value: String, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
+    static func formatDate(_ value: String, locale: Locale = .current, timeZone: TimeZone = .current, includesYear: Bool = false) -> String {
         guard let date = parseDate(value, timeZone: timeZone) else { return value }
         let out = DateFormatter()
         out.locale = locale
         out.timeZone = timeZone
-        out.setLocalizedDateFormatFromTemplate("EEE MMM d")
+        out.setLocalizedDateFormatFromTemplate(includesYear ? "EEE MMMM d yyyy" : "EEE MMM d")
         return out.string(from: date)
     }
 

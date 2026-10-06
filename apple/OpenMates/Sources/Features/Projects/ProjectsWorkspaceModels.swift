@@ -13,6 +13,8 @@ enum ProjectsWorkspaceError: LocalizedError {
     case invalidResponse
     case invalidContext
     case unsupportedSource
+    case sourceOffline
+    case sourceTimedOut
 
     var errorDescription: String? {
         switch self {
@@ -22,6 +24,8 @@ enum ProjectsWorkspaceError: LocalizedError {
         case .invalidResponse: return "The Project response could not be opened."
         case .invalidContext: return "Select an authorized Project context first."
         case .unsupportedSource: return "This connected source is unavailable on this device."
+        case .sourceOffline: return "Remote machine is offline"
+        case .sourceTimedOut: return "The remote machine did not respond. Retry the Project read."
         }
     }
 }
@@ -38,6 +42,8 @@ extension AppStrings {
         case .invalidResponse: return localized("projects.workspace_error_response")
         case .invalidContext: return localized("projects.workspace_error_context")
         case .unsupportedSource: return localized("projects.workspace_error_source")
+        case .sourceOffline: return localized("projects.workspace_error_source_offline")
+        case .sourceTimedOut: return localized("projects.workspace_error_source_timeout")
         }
     }
 }

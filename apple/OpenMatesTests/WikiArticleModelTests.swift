@@ -48,6 +48,50 @@ final class WikiArticleModelTests: XCTestCase {
         XCTAssertEqual(fallback.imageURL, "https://upload.wikimedia.org/thumb.png")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testFlatProxySummaryPreservesImageCanonicalIdentityAndHebrew() throws {
+        let bytes = Data(#"{"title":"ירושלים","canonical_title":"ירושלים","language":"he","description":"עיר","extract":"Article remains readable.","thumbnail_url":"https://upload.wikimedia.org/jerusalem.png","source_url":"https://he.wikipedia.org/wiki/ירושלים"}"#.utf8)
+        let summary = try WikiArticleSummary.decode(bytes)
+        let identity = WikiArticleIdentity(title: "ירושלים", language: "he-IL")
+        XCTAssertEqual(identity.language, "he")
+        XCTAssertEqual(summary.resolvedTitle, "ירושלים")
+        XCTAssertEqual(summary.imageURL, "https://upload.wikimedia.org/jerusalem.png")
+        XCTAssertEqual(summary.extract, "Article remains readable.")
+        XCTAssertEqual(summary.pageURL?.host, "he.wikipedia.org")
+        XCTAssertNoThrow(try summary.validate(for: identity, displayTitle: "ירושלים"))
+        let metadata = WikiArticleIdentity(data: ["title": AnyCodable("Displayed label"),
+            "canonical_title": AnyCodable("ירושלים"), "source_url": AnyCodable("https://he.wikipedia.org/wiki/ירושלים")])
+        XCTAssertEqual(metadata, identity)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testCanonicalComparisonAllowsOnlyMatchingNamesAndDisambiguation() throws {
+        XCTAssertTrue(WikiArticleIdentity.namesMatch("  Ｍercury\n", "Mercury_(planet)"))
+        XCTAssertFalse(WikiArticleIdentity.namesMatch("Einstein", "Albert Einstein"))
+        XCTAssertFalse(WikiArticleIdentity.namesMatch(" ", "Mercury"))
+        let summary = try WikiArticleSummary.decode(Data(#"{"title":"Mercury (planet)","canonical_title":"Mercury (planet)","language":"en","source_url":"https://en.wikipedia.org/wiki/Mercury_(planet)"}"#.utf8))
+        XCTAssertNoThrow(try summary.validate(for: .init(title: "Mercury (planet)"), displayTitle: "Mercury"))
+        XCTAssertEqual(summary.resolvedTitle, "Mercury (planet)")
+        XCTAssertEqual(summary.pageURL?.lastPathComponent, "Mercury_(planet)")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testRedirectAndWireIdentityMismatchesCannotPublishAnArticle() throws {
+        let identity = WikiArticleIdentity(title: "Berlin", language: "de")
+        for wire in [
+            #"{"title":"Berlin Wall","canonical_title":"Berlin Wall","language":"de"}"#,
+            #"{"title":"Berlin","canonical_title":"Berlin","language":"en"}"#,
+            #"{"title":"Berlin","canonical_title":"Berlin","language":"de","source_url":"https://en.wikipedia.org/wiki/Berlin"}"#,
+            #"{"title":"Berlin","canonical_title":"Berlin","language":"de","source_url":"https://de.wikipedia.org/wiki/Berlin_Wall"}"#,
+            #"{"title":"Berlin","canonical_title":"Berlin","language":"de","source_url":"https://evil.example/wiki/Berlin"}"#
+        ] {
+            let summary = try WikiArticleSummary.decode(Data(wire.utf8))
+            XCTAssertThrowsError(try summary.validate(for: identity, displayTitle: "Berlin"))
+        }
+        let article = try WikiArticleSummary.decode(Data(#"{"title":"Albert Einstein","canonical_title":"Albert Einstein","language":"en"}"#.utf8))
+        XCTAssertThrowsError(try article.validate(for: .init(title: "Albert Einstein"), displayTitle: "Einstein"))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testHeroUsesSharedImageProxyAndRejectsUnsafeImageSchemes() throws {
         let base = URL(string: "https://app.dev.openmates.org/")!

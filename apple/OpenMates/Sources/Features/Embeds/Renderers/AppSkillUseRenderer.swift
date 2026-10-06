@@ -677,7 +677,7 @@ struct AppSkillUseRenderer: View {
     private var skillPlaceholder: some View {
         ZStack {
             AppGradientBackground(appId: appId)
-            Icon(AppIconView.iconName(forAppId: appId), size: 38)
+            Icon(EmbedVisualSkillIcon.name(for: embed), size: 38)
                 .foregroundStyle(.white)
         }
         .frame(height: 54)

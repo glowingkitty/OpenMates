@@ -1,6 +1,7 @@
 // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction,chats.persistence.client-encrypted,message-input.send.ownership
 import CryptoKit
 import XCTest
+import SwiftUI
 @testable import OpenMates
 #if os(iOS)
 import UIKit
@@ -10,6 +11,313 @@ import AppKit
 
 @MainActor
 final class MessageTextSelectionTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testToolbarKeepsDarkSurfaceAndReadableForegroundInBothActualSchemes() throws {
+        for scheme in [ColorScheme.light, .dark] {
+            let colors = MessageSelectionToolbarColors(scheme: scheme)
+            let space = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+            let background = try XCTUnwrap(NativeSelectableTextColors.color(colors.background, scheme: scheme).cgColor
+                .converted(to: space, intent: .defaultIntent, options: nil)?.components)
+            let foreground = try XCTUnwrap(NativeSelectableTextColors.color(colors.foreground, scheme: scheme).cgColor
+                .converted(to: space, intent: .defaultIntent, options: nil)?.components)
+            XCTAssertLessThan(background[0], 0.3, "Toolbar must never become a white bar in dark mode")
+            XCTAssertGreaterThan(foreground[0], 0.8)
+            XCTAssertGreaterThan(foreground[0] - background[0], 0.5)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testOutsideDismissHitRegionPreservesTextHandlesAndConsumesUnderlyingControls() {
+        let shape = MessageSelectionDismissRegion(textRect: CGRect(x: 40, y: 100, width: 220, height: 80))
+        let path = shape.path(in: CGRect(x: 0, y: 0, width: 390, height: 800))
+        XCTAssertFalse(path.contains(CGPoint(x: 100, y: 140), eoFill: true))
+        XCTAssertFalse(path.contains(CGPoint(x: 30, y: 90), eoFill: true), "Native range handles remain interactive")
+        XCTAssertTrue(path.contains(CGPoint(x: 180, y: 450), eoFill: true), "Outside controls are covered by the dismissing tap")
+        XCTAssertTrue(MessageSelectionDismissRegion(textRect: CGRect(x: 900, y: 900, width: 100, height: 100))
+            .path(in: CGRect(x: 0, y: 0, width: 390, height: 800)).contains(CGPoint(x: 180, y: 450), eoFill: true))
+        XCTAssertTrue(MessageSelectionDismissRegion(textRect: nil).path(in: CGRect(x: 0, y: 0, width: 390, height: 800))
+            .contains(CGPoint(x: 180, y: 450), eoFill: true))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testUnrelatedNativeParagraphRefreshReusesAttributesAndWidthMeasurement() {
+        let preparation = NativeSelectableTextPreparation()
+        let text = AttributedString("A retained paragraph with selectable content.")
+        let first = preparation.prepare(content: text, raw: nil, monospace: false, highlights: [], scheme: .dark)
+        #if os(iOS)
+        let view = PlatformMessageSelectableText.makeTextView()
+        PlatformMessageSelectableText.update(first, in: view, colorScheme: .dark, colorsResolved: true)
+        view.selectedRange = NSRange(location: 2, length: 8)
+        @MainActor func measure() -> CGSize { view.sizeThatFits(CGSize(width: 220, height: CGFloat.greatestFiniteMagnitude)) }
+        #else
+        let view = PlatformMessageSelectableText.makeTextView()
+        PlatformMessageSelectableText.update(first, in: view, colorScheme: .dark, colorsResolved: true)
+        view.setSelectedRange(NSRange(location: 2, length: 8))
+        @MainActor func measure() -> CGSize {
+            PlatformMessageSelectableText.measuredSize(first, width: 220, wrapsText: true)
+        }
+        #endif
+        let size = preparation.size(width: 220, wrapsText: true, measure: measure)
+        for _ in 0..<10 {
+            let unchanged = preparation.prepare(content: text, raw: nil, monospace: false, highlights: [], scheme: .dark)
+            XCTAssertTrue(first === unchanged)
+            XCTAssertEqual(preparation.size(width: 220, wrapsText: true, measure: measure), size)
+            #if os(iOS)
+            PlatformMessageSelectableText.update(unchanged, in: view, colorScheme: .dark, colorsResolved: true)
+            XCTAssertEqual(view.selectedRange, NSRange(location: 2, length: 8))
+            #else
+            PlatformMessageSelectableText.update(unchanged, in: view, colorScheme: .dark, colorsResolved: true)
+            XCTAssertEqual(view.selectedRange(), NSRange(location: 2, length: 8))
+            #endif
+        }
+        XCTAssertEqual(preparation.preparationCount, 1)
+        XCTAssertEqual(preparation.measurementCount, 1)
+        _ = preparation.size(width: 300, wrapsText: true, measure: measure)
+        XCTAssertEqual(preparation.measurementCount, 2)
+        _ = preparation.prepare(content: text, raw: nil, monospace: false, highlights: [], scheme: .light)
+        _ = preparation.size(width: 220, wrapsText: true, measure: measure)
+        XCTAssertEqual(preparation.preparationCount, 2)
+        XCTAssertEqual(preparation.measurementCount, 3)
+        _ = preparation.prepare(content: text, raw: nil, monospace: true, highlights: [], scheme: .light)
+        XCTAssertEqual(preparation.preparationCount, 3)
+        _ = preparation.prepare(content: AttributedString("Changed content"), raw: nil, monospace: true, highlights: [], scheme: .light)
+        XCTAssertEqual(preparation.preparationCount, 4)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testMessageAlignmentInvalidatesPreparationAndPreservesRawAndCodeStyles() throws {
+        let preparation = NativeSelectableTextPreparation(), text = AttributedString("User text wraps and remains visible.")
+        let left = preparation.prepare(content: text, raw: nil, monospace: false, highlights: [], scheme: .light)
+        let right = preparation.prepare(content: text, raw: nil, monospace: false, highlights: [], scheme: .light, alignment: .trailing)
+        XCTAssertEqual((left.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)?.alignment, .left)
+        XCTAssertEqual((right.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)?.alignment, .right)
+        XCTAssertEqual(preparation.preparationCount, 2)
+        let cached = preparation.prepare(content: text, raw: nil, monospace: false, highlights: [], scheme: .light, alignment: .trailing)
+        XCTAssertTrue(cached === right)
+        for (content, scheme) in [(text, ColorScheme.dark), (AttributedString("Updated user text"), .dark)] {
+            let updated = preparation.prepare(content: content, raw: nil, monospace: false, highlights: [], scheme: scheme, alignment: .trailing)
+            XCTAssertEqual((updated.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)?.alignment, .right)
+        }
+        XCTAssertEqual(preparation.preparationCount, 4)
+        let code = preparation.prepare(content: text, raw: nil, monospace: true, highlights: [], scheme: .dark, alignment: .trailing)
+        XCTAssertEqual((code.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)?.alignment, .left)
+        let codeCached = preparation.prepare(content: text, raw: nil, monospace: true, highlights: [], scheme: .dark, alignment: .leading)
+        XCTAssertTrue(code === codeCached)
+        let style = NSMutableParagraphStyle(); style.alignment = .center
+        let raw = NSAttributedString(string: "Read-only table or code content", attributes: [.paragraphStyle: style])
+        let preserved = preparation.prepare(content: text, raw: raw, monospace: false, highlights: [], scheme: .dark, alignment: .trailing)
+        XCTAssertEqual((preserved.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)?.alignment, .center)
+        XCTAssertTrue(preserved === preparation.prepare(content: text, raw: raw, monospace: false, highlights: [], scheme: .dark, alignment: .leading))
+    }
+
+    #if os(macOS)
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testMacWidthProposalsNeverMutateDrawingLayoutOrSelection() throws {
+        let view = PlatformMessageSelectableText.makeTextView()
+        let content = MessageSelectableText.attributed(AttributedString(String(repeating: "Selectable paragraph text with several words. ", count: 8)),
+            monospace: false, highlights: [], colorScheme: .dark)
+        PlatformMessageSelectableText.update(content, in: view, colorScheme: .dark, colorsResolved: true)
+        let committed = PlatformMessageSelectableText.measuredSize(content, width: 240, wrapsText: true)
+        view.setFrameSize(committed)
+        view.setSelectedRange(NSRange(location: 11, length: 9))
+        let container = try XCTUnwrap(view.textContainer), layout = try XCTUnwrap(view.layoutManager)
+        layout.ensureLayout(for: container)
+        let drawingSize = container.containerSize
+        let preparation = NativeSelectableTextPreparation()
+        for width: CGFloat in [240, 480, 240] {
+            let measured = preparation.size(width: width, wrapsText: true) {
+                PlatformMessageSelectableText.measuredSize(content, width: width, wrapsText: true)
+            }
+            XCTAssertEqual(measured.width, width)
+            XCTAssertEqual(container.containerSize, drawingSize, "A proposal must not alter the committed drawing width")
+            XCTAssertEqual(view.frame.size, committed, "AppKit must not resize a SwiftUI row")
+            XCTAssertEqual(view.selectedRange(), NSRange(location: 11, length: 9))
+        }
+        XCTAssertEqual(preparation.measurementCount, 2)
+        XCTAssertTrue(container.widthTracksTextView)
+        XCTAssertFalse(view.isVerticallyResizable)
+        XCTAssertLessThanOrEqual(layout.usedRect(for: container).maxY, committed.height)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testMacTrailingUserGlyphsReachRightEdgeAndFitCachedWidthThemeAndContentUpdates() throws {
+        let preparation = NativeSelectableTextPreparation(), view = PlatformMessageSelectableText.makeTextView()
+        for (text, scheme, alignment) in [("A long user paragraph with enough words to wrap across the narrow window.\nEnd.", ColorScheme.light, TextAlignment.leading),
+                                          ("A long user paragraph with enough words to wrap across the narrow window.\nEnd.", .light, .trailing),
+                                          ("A long user paragraph with enough words to wrap across the narrow window.\nEnd.", .dark, .trailing),
+                                          ("Updated user paragraph with additional words that remain fully visible.\nEnd.", .dark, .trailing)] {
+            let rendered = preparation.prepare(content: AttributedString(text), raw: nil, monospace: false,
+                highlights: [], scheme: scheme, alignment: alignment)
+            PlatformMessageSelectableText.update(rendered, in: view, colorScheme: scheme, colorsResolved: true)
+            view.setSelectedRange(NSRange(location: 2, length: 5))
+            for width: CGFloat in [240, 480, 240] {
+                let size = preparation.size(width: width, wrapsText: true) {
+                    PlatformMessageSelectableText.measuredSize(rendered, width: width, wrapsText: true)
+                }
+                view.setFrameSize(size)
+                let layout = try XCTUnwrap(view.layoutManager), container = try XCTUnwrap(view.textContainer)
+                layout.ensureLayout(for: container)
+                let last = layout.glyphRange(forCharacterRange: (text as NSString).range(of: "End."), actualCharacterRange: nil)
+                let glyphs = layout.boundingRect(forGlyphRange: last, in: container)
+                if alignment == .trailing {
+                    XCTAssertGreaterThan(glyphs.minX, width / 2, "The actual final line must appear on the right")
+                    XCTAssertEqual(glyphs.maxX, width, accuracy: 1)
+                } else { XCTAssertEqual(glyphs.minX, 0, accuracy: 1) }
+                XCTAssertLessThanOrEqual(layout.usedRect(for: container).maxY, size.height + 1)
+                XCTAssertEqual(view.selectedRange(), NSRange(location: 2, length: 5))
+            }
+        }
+        XCTAssertEqual(preparation.preparationCount, 4)
+        XCTAssertEqual(preparation.measurementCount, 8, "Each content/theme/alignment prepares only two distinct widths")
+    }
+
+    private struct MacLayoutRows: View {
+        let width: CGFloat
+        let scheme: ColorScheme
+        let suffix: String
+        var body: some View {
+            VStack(alignment: .leading, spacing: 12) {
+                row("User bubble with enough selectable words to wrap at narrow widths. " + suffix, id: "user")
+                    .padding(12).background(Color.grey20)
+                row(String(repeating: "Assistant paragraph retains its full height as the window changes. ", count: 4) + suffix, id: "assistant")
+                HStack(alignment: .top, spacing: 8) {
+                    Text("1.")
+                    row(String(repeating: "List description with multiple lines and native selection. ", count: 3) + suffix, id: "list")
+                }
+                row("Linked prose: [reference](https://example.invalid) followed by " + String(repeating: "additional context words. ", count: 4) + suffix, id: "link")
+            }
+            .frame(width: width, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .environment(\.colorScheme, scheme)
+        }
+        private func row(_ text: String, id: String) -> some View {
+            PlatformMessageSelectableText(content: (try? AttributedString(markdown: text)) ?? AttributedString(text),
+                context: .init(messageID: id, onSelection: { _ in }, onContextMenu: { _ in }), monospace: false)
+                .multilineTextAlignment(id == "user" ? .trailing : .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testHostedMacUserAssistantListAndLinkRowsFitAfterWidthThemeAndTextChanges() async throws {
+        let host = NSHostingView(rootView: MacLayoutRows(width: 240, scheme: .light, suffix: ""))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 1800),
+            styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        defer { window.contentView = nil }
+        func textViews(_ parent: NSView) -> [PlatformMessageSelectableText.SelectionTextView] {
+            parent.subviews.flatMap { child in
+                if let text = child as? PlatformMessageSelectableText.SelectionTextView { return [text] }
+                return textViews(child)
+            }
+        }
+        var selectedView: PlatformMessageSelectableText.SelectionTextView?
+        let selection = NSRange(location: 2, length: 6)
+        for (width, scheme, suffix) in [(CGFloat(240), ColorScheme.light, ""), (480, .light, ""),
+                                      (240, .light, ""), (240, .dark, ""),
+                                      (480, .dark, "Updated content adds another wrapping line to every row.")] {
+            host.rootView = MacLayoutRows(width: width, scheme: scheme, suffix: suffix)
+            host.layoutSubtreeIfNeeded()
+            await Task.yield()
+            host.layoutSubtreeIfNeeded()
+            let views = textViews(host).sorted { $0.convert($0.bounds, to: host).minY < $1.convert($1.bounds, to: host).minY }
+            XCTAssertEqual(views.count, 4)
+            if suffix.isEmpty, let selectedView { XCTAssertEqual(selectedView.selectedRange(), selection) }
+            var previous: NSRect?
+            for view in views {
+                let layout = try XCTUnwrap(view.layoutManager), container = try XCTUnwrap(view.textContainer)
+                layout.ensureLayout(for: container)
+                let glyphs = layout.glyphRange(for: container)
+                let glyphRect = layout.boundingRect(forGlyphRange: glyphs, in: container)
+                XCTAssertLessThanOrEqual(glyphRect.maxY, view.bounds.height + 1, "Glyphs must fit the height SwiftUI reserved")
+                XCTAssertLessThanOrEqual(layout.usedRect(for: container).maxY, view.bounds.height + 1)
+                XCTAssertEqual(container.containerSize.width, view.bounds.width, accuracy: 1)
+                XCTAssertFalse(view.isVerticallyResizable)
+                let row = view.convert(view.bounds, to: host)
+                if let previous { XCTAssertGreaterThanOrEqual(row.minY, previous.maxY, "Adjacent prose rows must not overlap") }
+                previous = row
+            }
+            if selectedView == nil {
+                selectedView = try XCTUnwrap(views.first)
+                selectedView?.setSelectedRange(selection)
+            }
+            let linkView = try XCTUnwrap(views.first { $0.string.hasPrefix("Linked prose:") })
+            let linkRange = (linkView.string as NSString).range(of: "reference")
+            XCTAssertNotNil(linkView.textStorage?.attribute(.link, at: linkRange.location, effectiveRange: nil))
+            XCTAssertEqual(linkView.appearance?.name, scheme == .dark ? .darkAqua : .aqua)
+        }
+    }
+    #endif
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testNativeMessageForegroundRunAndLinkColorsRespectBothThemes() throws {
+        var prose = AttributedString("User text ")
+        prose.foregroundColor = .fontPrimary
+        var bold = AttributedString("bold")
+        bold.foregroundColor = .grey100
+        bold.inlinePresentationIntent = .stronglyEmphasized
+        var linked = AttributedString(" link")
+        linked.foregroundColor = .buttonPrimary
+        linked.link = URL(string: "https://example.invalid")
+        prose.append(bold)
+        prose.append(linked)
+        for scheme in [ColorScheme.light, .dark] {
+            let rendered = MessageSelectableText.attributed(prose, monospace: false, highlights: [], colorScheme: scheme)
+            #if os(iOS)
+            let user = try XCTUnwrap(rendered.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor)
+            let explicit = try XCTUnwrap(rendered.attribute(.foregroundColor, at: 10, effectiveRange: nil) as? UIColor)
+            let link = try XCTUnwrap(rendered.attribute(.foregroundColor, at: 14, effectiveRange: nil) as? UIColor)
+            #else
+            let user = try XCTUnwrap(rendered.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor)
+            let explicit = try XCTUnwrap(rendered.attribute(.foregroundColor, at: 10, effectiveRange: nil) as? NSColor)
+            let link = try XCTUnwrap(rendered.attribute(.foregroundColor, at: 14, effectiveRange: nil) as? NSColor)
+            #endif
+            XCTAssertEqual(user, NativeSelectableTextColors.color(.fontPrimary, scheme: scheme))
+            XCTAssertEqual(explicit, NativeSelectableTextColors.color(.grey100, scheme: scheme))
+            XCTAssertEqual(link, NativeSelectableTextColors.color(.buttonPrimary, scheme: scheme))
+            XCTAssertNotNil(rendered.attribute(.font, at: 0, effectiveRange: nil))
+            XCTAssertEqual(rendered.attribute(.link, at: 14, effectiveRange: nil) as? URL, URL(string: "https://example.invalid"))
+            let rgb = try XCTUnwrap(user.cgColor.converted(to: CGColorSpace(name: CGColorSpace.sRGB)!, intent: .defaultIntent, options: nil)?.components)
+            if scheme == .dark { XCTAssertGreaterThan(rgb[0], 0.75, "Dark-mode user text must remain visibly light") }
+            else { XCTAssertLessThan(rgb[0], 0.1) }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testNativeThemeChangeRecolorsMessageAndReadOnlyRunsWithoutLosingSelectedRange() throws {
+        var value = AttributedString("User selected text")
+        value.foregroundColor = .fontPrimary
+        let message = MessageSelectableText.attributed(value, monospace: false, highlights: [])
+        let readonly = ReadOnlySelectableText.attributed(value)
+        for rendered in [message, readonly] {
+            #if os(iOS)
+            let view = PlatformMessageSelectableText.makeTextView()
+            PlatformMessageSelectableText.update(rendered, in: view, colorScheme: .light)
+            view.selectedRange = NSRange(location: 5, length: 8)
+            let light = try XCTUnwrap(view.attributedText.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor)
+            PlatformMessageSelectableText.update(rendered, in: view, colorScheme: .dark)
+            let dark = try XCTUnwrap(view.attributedText.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor)
+            XCTAssertEqual(view.overrideUserInterfaceStyle, .dark)
+            XCTAssertEqual(view.selectedRange, NSRange(location: 5, length: 8))
+            XCTAssertEqual(view.linkTextAttributes[.foregroundColor] as? UIColor, NativeSelectableTextColors.color(.buttonPrimary, scheme: .dark))
+            #else
+            let view = PlatformMessageSelectableText.SelectionTextView()
+            PlatformMessageSelectableText.update(rendered, in: view, colorScheme: .light)
+            view.setSelectedRange(NSRange(location: 5, length: 8))
+            let light = try XCTUnwrap(view.textStorage?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor)
+            PlatformMessageSelectableText.update(rendered, in: view, colorScheme: .dark)
+            let dark = try XCTUnwrap(view.textStorage?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor)
+            XCTAssertEqual(view.appearance?.name, .darkAqua)
+            XCTAssertEqual(view.selectedRange(), NSRange(location: 5, length: 8))
+            XCTAssertEqual(view.linkTextAttributes?[.foregroundColor] as? NSColor, NativeSelectableTextColors.color(.buttonPrimary, scheme: .dark))
+            #endif
+            XCTAssertNotEqual(light, dark)
+            XCTAssertEqual(light, NativeSelectableTextColors.color(.fontPrimary, scheme: .light))
+            XCTAssertEqual(dark, NativeSelectableTextColors.color(.fontPrimary, scheme: .dark))
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction,chats.persistence.client-encrypted
     func testActualRangeKeepsUnicodeAndQuoteContextRatherThanWholeMessage() throws {
         let text = "Before 🦋 Svelte 5 runes after", range = (text as NSString).range(of: "Svelte 5 runes")
@@ -81,6 +389,8 @@ final class MessageTextSelectionTests: XCTestCase {
         XCTAssertEqual(contextSelection?.anchor.exact, "runes"); XCTAssertEqual(menu?.children.count, 0)
         XCTAssertEqual(select?.messageID, "m")
         view.selectedRange = NSRange(location: 0, length: 0); select?.select(); XCTAssertEqual(view.selectedRange, range)
+        select?.dismiss(); XCTAssertEqual(view.selectedRange.length, 0)
+        XCTAssertFalse(view.isFirstResponder)
     }
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
     func testEditMenuProposalCannotExpandAnActualNativeWordSelection() throws {

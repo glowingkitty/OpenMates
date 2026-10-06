@@ -585,15 +585,25 @@ private enum TOTP {
 // mounted duplicates; select the current on-screen candidate before an action.
 enum NativeUITestElementResolution {
     static func isOnScreen(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
-        guard element.exists, !element.frame.isEmpty else { return false }
+        guard element.exists else { return false }
+        let frame = element.frame
+        guard !frame.isEmpty else { return false }
         let viewport = app.windows.firstMatch.frame
-        return viewport.contains(CGPoint(x: element.frame.midX, y: element.frame.midY))
+        return viewport.contains(CGPoint(x: frame.midX, y: frame.midY))
     }
 
     static func visible(_ query: XCUIElementQuery, in app: XCUIApplication,
                         actionable: Bool = true) -> XCUIElement? {
-        query.allElementsBoundByIndex.first {
-            isOnScreen($0, in: app) && (!actionable || ($0.isEnabled && $0.isHittable))
+        let candidates = query.allElementsBoundByIndex
+        guard !candidates.isEmpty else { return nil }
+        // One resolution pass shares its viewport snapshot. Fetch each native
+        // candidate frame once while retaining midpoint and actionable checks.
+        let viewport = app.windows.firstMatch.frame
+        return candidates.first {
+            guard $0.exists else { return false }
+            let frame = $0.frame
+            return !frame.isEmpty && viewport.contains(CGPoint(x: frame.midX, y: frame.midY))
+                && (!actionable || ($0.isEnabled && $0.isHittable))
         }
     }
 

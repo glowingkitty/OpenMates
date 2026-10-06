@@ -6,7 +6,7 @@
 #   The LLM calls this skill with a file_path (original filename, e.g. "my_photo.jpg").
 #   The skill then:
 #     1. Resolves file_path → embed_id UUID via the _file_path_index injected by main_processor.py
-#     2. Looks up the embed's encrypted content from the Redis cache
+#     2. Looks up encrypted content from cache or fresh owner-scoped upload metadata
 #     3. Decrypts the embed content using the user's Vault Transit key
 #     4. Extracts vault_wrapped_aes_key, s3_key, s3_base_url, aes_nonce from
 #        the decrypted embed content (these fields are never exposed to the LLM)
@@ -30,6 +30,7 @@ import base64
 import json as json_lib
 import logging
 import os
+import time
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -143,10 +144,10 @@ class ViewSkill(BaseSkill):
         return token
 
     async def _lookup_embed_content(
-        self, embed_id: str, user_vault_key_id: str
+        self, embed_id: str, user_vault_key_id: str, user_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Look up an embed's decrypted content from the Redis cache.
+        Look up decrypted content from cache, recovering fresh owner-scoped uploads on a miss.
 
         The embed is stored in Redis at key ``embed:{embed_id}`` as a JSON dict
         with an ``encrypted_content`` field that holds a Vault Transit-encrypted
@@ -177,14 +178,22 @@ class ViewSkill(BaseSkill):
 
         try:
             cache_key = f"embed:{embed_id}"
-            embed_json = await redis_client.get(cache_key)
+            try:
+                embed_json = await redis_client.get(cache_key)
+            except Exception as exc:
+                logger.warning("Image embed cache read unavailable (%s)", type(exc).__name__)
+                embed_json = None
             if not embed_json:
-                raise RuntimeError(
-                    f"Embed {embed_id} not found in cache — it may have expired "
-                    f"(24h TTL). Please ask the user to re-upload the image."
-                )
+                return await self._lookup_fresh_upload_content(embed_id, user_id, redis_client)
 
             embed_data = json_lib.loads(embed_json)
+            if embed_data.get("user_id") and user_id and embed_data["user_id"] != user_id:
+                raise RuntimeError("Image upload is not available in the current processing context")
+            # Recovery records retain the original absolute deadline; never
+            # reopen the window merely because their Redis entry survives.
+            expires_at = embed_data.get("expires_at")
+            if expires_at is not None and (not isinstance(expires_at, int) or expires_at <= int(time.time())):
+                raise RuntimeError("Image upload is not available in the current processing window")
             encrypted_content = embed_data.get("encrypted_content")
             if not encrypted_content:
                 if isinstance(embed_data.get("files"), dict) and embed_data.get("vault_wrapped_aes_key"):
@@ -231,7 +240,47 @@ class ViewSkill(BaseSkill):
             return decoded
 
         finally:
-            await redis_client.aclose()
+            try:
+                await redis_client.aclose()
+            except Exception as exc:
+                logger.warning("Image embed cache close unavailable (%s)", type(exc).__name__)
+
+    async def _lookup_fresh_upload_content(
+        self, embed_id: str, user_id: Optional[str], redis_client: Any
+    ) -> Dict[str, Any]:
+        """Recover only fresh owner-scoped uploads through the internal API.
+
+        Wrapped keys still use the existing user-derived Vault unwrap and media
+        decryption below; this path never persists plaintext image bytes.
+        """
+        if not user_id or not self.app:
+            raise RuntimeError("Image upload metadata is unavailable; please re-upload the image")
+        try:
+            response = await self.app._make_internal_api_request(
+                "POST", "internal/uploads/resolve-image",
+                payload={"embed_id": embed_id, "user_id": user_id},
+            )
+        except Exception as exc:
+            logger.warning("Image upload metadata recovery unavailable (%s)", type(exc).__name__)
+            raise RuntimeError("Image upload metadata is unavailable; please re-upload the image") from exc
+        content = response.get("content") if isinstance(response, dict) and response.get("status") == "success" else None
+        if not isinstance(content, dict) or content.get("user_id") != user_id or content.get("embed_id") != embed_id:
+            raise RuntimeError("Image upload is not available in the current processing context")
+        now = int(time.time())
+        created_at, expires_at = content.get("created_at"), content.get("expires_at")
+        if (isinstance(created_at, bool) or not isinstance(created_at, int)
+            or not isinstance(expires_at, int) or expires_at != created_at + 86400
+            or not 0 <= now - created_at < 86400):
+            raise RuntimeError("Image upload is not available in the current processing window")
+        # Best effort: Redis absence must not block a durable fresh upload.
+        # Original age determines TTL, so recovery never extends retention.
+        try:
+            cached = await redis_client.set(f"embed:{embed_id}", json_lib.dumps(content), ex=expires_at - now)
+            if not cached:
+                logger.warning("Recovered image cache write was not acknowledged")
+        except Exception as exc:
+            logger.warning("Recovered image cache write unavailable (%s)", type(exc).__name__)
+        return content
 
     async def _unwrap_aes_key(self, vault_wrapped_aes_key: str, vault_key_id: str) -> bytes:
         """
@@ -385,7 +434,7 @@ class ViewSkill(BaseSkill):
         try:
             # --- Step 3: Look up embed content from Redis cache ---
             logger.info(f"{embed_log_prefix} Looking up embed content from cache")
-            embed_content = await self._lookup_embed_content(embed_id, user_vault_key_id)
+            embed_content = await self._lookup_embed_content(embed_id, user_vault_key_id, user_id=kwargs.get("user_id"))
 
             # --- Step 4: Extract required fields from embed content ---
             vault_wrapped_aes_key = embed_content.get("vault_wrapped_aes_key")

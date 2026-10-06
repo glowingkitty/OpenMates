@@ -32,10 +32,12 @@ struct DevWikiFullscreenFixture: View {
                     let isOpenAI = title == "OpenAI"
                     bytes = try JSONSerialization.data(withJSONObject: [
                         "title": isOpenAI ? "OpenAI" : "YouTube Shorts",
+                        "canonical_title": isOpenAI ? "OpenAI" : "YouTube Shorts",
+                        "language": "en",
                         "description": isOpenAI ? "Artificial intelligence research organization" : "Short-form video platform",
                         "extract": isOpenAI ? "OpenAI researches and develops artificial intelligence." : "YouTube Shorts is a short-form video platform.",
-                        "originalimage": ["source": "https://upload.wikimedia.org/wiki-fixture/\(isOpenAI ? "openai" : "shorts").png"],
-                        "content_urls": ["desktop": ["page": "https://en.wikipedia.org/wiki/\(isOpenAI ? "OpenAI" : "YouTube_Shorts")"]]
+                        "thumbnail_url": "https://upload.wikimedia.org/wiki-fixture/\(isOpenAI ? "openai" : "shorts").png",
+                        "source_url": "https://en.wikipedia.org/wiki/\(isOpenAI ? "OpenAI" : "YouTube_Shorts")"
                     ])
                 } else {
                     guard url.host == "preview.openmates.org", url.path == "/api/v1/image" else {

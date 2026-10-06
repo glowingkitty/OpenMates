@@ -7,6 +7,126 @@ import XCTest
 @testable import OpenMates
 
 final class WorkflowsParityTests: XCTestCase {
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
+    func testRunRefreshHydratesTerminalDetailAndPreservesIndividualNodeOutcomes() async throws {
+        let workflow = try JSONDecoder().decode(WorkflowDetail.self, from: workflowFixtureData())
+        var payload = try jsonObject(runFixtureData())
+        payload["status"] = "running"
+        payload["finished_at"] = NSNull()
+        var nodes = try XCTUnwrap(payload["node_runs"] as? [[String: Any]])
+        nodes[0]["status"] = "running"
+        payload["node_runs"] = nodes
+        let active = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        payload["status"] = "completed"
+        payload["finished_at"] = 1696075260
+        nodes[0]["status"] = "skipped"
+        nodes[0]["skipped_reason"] = "condition_false"
+        payload["node_runs"] = nodes
+        let finished = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        var current = active
+        var reads = 0
+        var invalidateDuringRead = false
+        weak var liveStore: WorkflowStore?
+        let store = WorkflowStore(detailRequest: { _, _ in workflow },
+            runsRequest: { _, _ in [WorkflowRunSummary(detail: current)] },
+            runDetailRequest: { _, _, _ in
+                reads += 1
+                if invalidateDuringRead { liveStore?.reset(accountId: "other-synthetic-owner") }
+                return current
+            })
+        liveStore = store
+        store.reset(accountId: "synthetic-owner")
+        await store.select(id: workflow.id)
+        await store.selectRun(active.id)
+        XCTAssertEqual(store.selectedRunDetail?.nodeRuns.first?.status, "running")
+        let pinnedVersion = store.pinnedRunGraph?.version
+        current = finished
+        await store.refreshRuns()
+        XCTAssertEqual(store.selectedRunDetail?.status, "completed")
+        XCTAssertEqual(store.runs.first?.status, "completed")
+        XCTAssertEqual(store.selectedRunDetail?.nodeRuns.first?.status, "skipped",
+                       "A terminal parent must never rewrite a skipped node to successful.")
+        XCTAssertEqual(store.selectedRunDetail?.nodeRuns.first?.outputSummary["rain_probability"]?.value as? Int, 70)
+        XCTAssertEqual(store.pinnedRunGraph?.version, pinnedVersion)
+        XCTAssertFalse(store.isLoadingRun)
+        XCTAssertEqual(reads, 2)
+        await store.refreshRuns()
+        XCTAssertEqual(reads, 2, "Unchanged terminal detail needs no repeated hydration.")
+        current = active
+        invalidateDuringRead = true
+        await store.refreshRuns()
+        XCTAssertNil(store.selectedRunDetail, "A late detail response cannot hydrate the new account.")
+        XCTAssertTrue(store.runs.isEmpty)
+        XCTAssertNil(store.pinnedRunGraph)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
+    func testRunRefreshPolicyKeepsStaleNodeAndPendingDeliveryLiveWithoutInventingSuccess() throws {
+        var payload = try jsonObject(runFixtureData())
+        var nodes = try XCTUnwrap(payload["node_runs"] as? [[String: Any]])
+        nodes[0]["status"] = "running"
+        payload["node_runs"] = nodes
+        let stale = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        XCTAssertFalse(stale.needsRefresh(comparedTo: WorkflowRunSummary(detail: stale)),
+                       "Terminal stale-node snapshots use the canonical failure badge without endless polling.")
+        XCTAssertEqual(stale.nodeRuns.first?.status, "running")
+        XCTAssertEqual(stale.nodeRuns.first?.presentationStatus(executionStatus: "completed"), "failed")
+        XCTAssertEqual(stale.nodeRuns.first?.presentationStatus(executionStatus: "cancelled"), "cancelled")
+        XCTAssertEqual(stale.nodeRuns.first?.presentationStatus(executionStatus: "running"), "running")
+        nodes[0]["status"] = "failed"
+        payload["node_runs"] = nodes
+        payload["output_summary"] = ["deliveries": ["message": ["status": "delivery_pending", "delivery_id": "synthetic-delivery"]]]
+        let pending = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        XCTAssertTrue(pending.needsLiveRefresh)
+        XCTAssertEqual(pending.nodeRuns.first?.status, "failed")
+        payload["output_summary"] = [:]
+        let terminal = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        XCTAssertFalse(terminal.needsLiveRefresh)
+        var changed = WorkflowRunSummary(detail: terminal)
+        changed.contentAvailable = false
+        XCTAssertTrue(terminal.needsRefresh(comparedTo: changed), "Retention changes also require fresh detail.")
+        let expected: [(String, WorkflowNodeRunPresentation)] = [
+            ("completed", .completed), ("acknowledged", .completed), ("no_new_results", .completed),
+            ("failed", .failed), ("expired", .failed), ("cancelled", .cancelled), ("skipped", .skipped),
+            ("queued", .queued), ("running", .running), ("cancellation_requested", .cancellationRequested),
+            ("waiting", .waiting), ("future_status", .waiting)
+        ]
+        for (raw, presentation) in expected { XCTAssertEqual(WorkflowNodeRunPresentation(status: raw), presentation) }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
+    func testChatDeliveryCompletionNeedsAcknowledgementAndTerminalDeliveryWinsOlderPendingDetail() throws {
+        var payload = try jsonObject(runFixtureData())
+        var nodes = try XCTUnwrap(payload["node_runs"] as? [[String: Any]])
+        nodes[0]["node_type"] = "send_chat_message"
+        nodes[0]["output_summary"] = ["status": "delivery_pending", "delivery_id": "synthetic-delivery"]
+        payload["node_runs"] = nodes
+        let pending = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        XCTAssertEqual(pending.nodeRuns[0].presentationStatus(executionStatus: "completed"), "delivery_pending")
+        XCTAssertTrue(pending.needsLiveRefresh)
+        XCTAssertEqual(WorkflowRunSummary(detail: pending).displayStatus(), "waiting")
+        nodes[0]["output_summary"] = ["status": "acknowledged", "delivery_id": "synthetic-delivery"]
+        payload["node_runs"] = nodes
+        let acknowledged = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        XCTAssertEqual(WorkflowNodeRunPresentation(status: acknowledged.nodeRuns[0].presentationStatus(executionStatus: "completed")), .completed)
+        XCTAssertEqual(WorkflowRunSummary(detail: acknowledged).displayStatus(detail: pending), "completed",
+                       "An older pending response cannot replace acknowledged delivery.")
+        XCTAssertEqual(WorkflowRunSummary(detail: pending).displayStatus(detail: acknowledged), "completed")
+        for delivery in ["expired", "cancelled", "failed"] {
+            nodes[0]["output_summary"] = ["status": delivery, "delivery_id": "synthetic-delivery"]
+            payload["node_runs"] = nodes
+            let failed = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+            XCTAssertEqual(WorkflowRunSummary(detail: failed).displayStatus(), "failed")
+            XCTAssertEqual(failed.nodeRuns[0].presentationStatus(executionStatus: "completed"), delivery)
+        }
+        nodes[0]["output_summary"] = ["status": "acknowledged"]
+        payload["node_runs"] = nodes
+        let missingDelivery = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        XCTAssertEqual(missingDelivery.nodeRuns[0].deliveryStatus, "failed")
+        XCTAssertEqual(WorkflowRunSummary(detail: missingDelivery).displayStatus(), "failed")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=workflows.actions.skill-contract,workflows.control.typed-data
     func testAppActionSingleRequestFieldsRoundTripWithoutExposingBatchEnvelope() throws {
         let node = try JSONDecoder().decode(WorkflowNode.self, from: Data(#"{"id":"news","type":"app_skill_action","config":{"app_id":"news","skill_id":"search","input":{"requests":[{"query":"Germany news","count":6,"retained_option":"keep"}],"provider":"example"}}}"#.utf8))
@@ -478,6 +598,102 @@ final class WorkflowsParityTests: XCTestCase {
         XCTAssertEqual(result.runs.count, 1)
         XCTAssertEqual(result.runs.first?.status, "queued")
         XCTAssertFalse(result.runs.first?.contentAvailable ?? true)
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-task-board.workflow-run,workflows.execution.lifecycle-visible
+    func testTasksRunReaderDecodesSnakeCaseRunAndPinnedGraphWithoutSharedKeyConversion() async throws {
+        let projection = taskRunProjection()
+        var paths: [String] = []
+        let run = try jsonObject(runFixtureData())
+        let workflow = try jsonObject(workflowFixtureData())
+        let (detail, graph) = try await WorkflowRunTaskReader.read(projection, request: { path in
+            paths.append(path)
+            return try JSONSerialization.data(withJSONObject: path.contains("/runs/") ? ["run": run] : ["workflow": workflow])
+        }, validate: {})
+        XCTAssertEqual(paths, ["/v1/workflows/wf-fixture/runs/run-fixture", "/v1/workflows/wf-fixture"])
+        XCTAssertEqual(detail.nodeRuns.first?.nodeId, "weather")
+        XCTAssertEqual(detail.nodeRuns.first?.outputSummary["rain_probability"]?.value as? Int, 70)
+        XCTAssertEqual(graph?.triggerNodeId, "trigger")
+        XCTAssertEqual(graph?.nodes.first?.title, "Every morning")
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-task-board.workflow-run,workflows.execution.lifecycle-visible
+    func testTasksRunReaderUsesExecutedVersionInsteadOfCurrentDefinition() async throws {
+        let projection = taskRunProjection()
+        let run = try jsonObject(runFixtureData())
+        var workflow = try jsonObject(workflowFixtureData())
+        workflow["current_version_id"] = "newer-version"
+        let pinnedGraph = try XCTUnwrap(workflow["graph"] as? [String: Any])
+        var currentGraph = pinnedGraph
+        currentGraph["nodes"] = [["id": "current-only", "type": "end", "title": "Wrong current definition"]]
+        workflow["graph"] = currentGraph
+        var paths: [String] = []
+        let (_, graph) = try await WorkflowRunTaskReader.read(projection, request: { path in
+            paths.append(path)
+            let response: [String: Any]
+            if path.contains("/runs/") { response = ["run": run] }
+            else if path.contains("/versions/") {
+                response = ["version": ["version_id": "version-fixture", "version_number": 1, "graph": pinnedGraph]]
+            } else { response = ["workflow": workflow] }
+            return try JSONSerialization.data(withJSONObject: response)
+        }, validate: {})
+        XCTAssertEqual(paths.last, "/v1/workflows/wf-fixture/versions/version-fixture")
+        XCTAssertEqual(graph?.nodes.first?.id, "trigger")
+        XCTAssertFalse(graph?.nodes.contains(where: { $0.id == "current-only" }) ?? true)
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-task-board.workflow-run,apple-workspaces.isolation
+    func testTasksRunReaderRejectsOtherRunAndInvalidatedScopeBeforeFurtherReads() async throws {
+        for failure in ["identity", "scope"] {
+            var run = try jsonObject(runFixtureData())
+            if failure == "identity" { run["id"] = "unrelated-run" }
+            var paths: [String] = []
+            var current = true
+            do {
+                _ = try await WorkflowRunTaskReader.read(taskRunProjection(), request: { path in
+                    paths.append(path)
+                    if failure == "scope" { current = false }
+                    return try JSONSerialization.data(withJSONObject: ["run": run])
+                }, validate: { if !current { throw UserTasksError.accountChanged } })
+                XCTFail("Wrong run or account/team/server/offline scope cannot enter Tasks detail")
+            } catch WorkflowRunTaskReader.ReadError.invalidIdentity { XCTAssertEqual(failure, "identity") }
+              catch UserTasksError.accountChanged { XCTAssertEqual(failure, "scope") }
+            XCTAssertEqual(paths, ["/v1/workflows/wf-fixture/runs/run-fixture"])
+        }
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=workflows.content.encrypted-retained,apple-task-board.workflow-run
+    func testTasksRunReaderAcceptsRetainedStatusWithoutContentAndKeepsErrorCopyReadable() async throws {
+        var run = try jsonObject(runFixtureData())
+        run["content_available"] = false
+        run["content_storage"] = "deleted"
+        run.removeValue(forKey: "output_summary")
+        run.removeValue(forKey: "cost_summary")
+        let workflow = try jsonObject(workflowFixtureData())
+        let (detail, graph) = try await WorkflowRunTaskReader.read(taskRunProjection(), request: { path in
+            try JSONSerialization.data(withJSONObject: path.contains("/runs/") ? ["run": run] : ["workflow": workflow])
+        }, validate: {})
+        XCTAssertFalse(detail.contentAvailable)
+        XCTAssertEqual(detail.contentStorage, .deleted)
+        XCTAssertTrue(detail.outputSummary.isEmpty)
+        XCTAssertEqual(detail.status, "completed")
+        XCTAssertNotNil(graph)
+        let copy = WorkflowRunTaskReader.loadErrorMessage(APIError.httpError(status: 500, message: "private raw run-id and JSON schema"))
+        XCTAssertEqual(copy, AppStrings.localized("workflows.runs.load_failed"))
+        XCTAssertFalse(copy.contains("run-id"))
+        XCTAssertFalse(copy.contains("JSON"))
+    }
+
+    private func taskRunProjection() -> WorkflowRunTaskProjection {
+        WorkflowRunTaskProjection(taskId: "projection", source: "workflow_run", projectionKind: "run",
+            workflowId: "wf-fixture", workflowRunId: "run-fixture", triggerId: nil,
+            label: "Synthetic execution", title: nil, status: .done, runStatus: "completed",
+            canCancel: false, canDelete: false, dueAt: nil, scheduledAt: nil,
+            blockedMessage: nil, readOnly: true, createdAt: 10, updatedAt: 20, position: 0)
     }
 
     private func workflowFixtureData() -> Data {

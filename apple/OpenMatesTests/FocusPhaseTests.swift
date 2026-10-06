@@ -1,4 +1,5 @@
 import XCTest
+import CryptoKit
 @testable import OpenMates
 final class FocusPhaseTests: XCTestCase {
     private let event = #"{"type":"focus_phase_changed","event_id":"11111111-1111-4111-8111-111111111111","chat_id":"22222222-2222-4222-8222-222222222222","focus_id":"jobs-career_insights","run_id":"33333333-3333-4333-8333-333333333333","version":2,"previous_phase_id":"confirm_profile","phase_id":"explore","phase_title":"Explore career directions","direction":"forward","created_at":1}"#
@@ -11,11 +12,18 @@ final class FocusPhaseTests: XCTestCase {
         XCTAssertNil(FocusPhaseEvent.parse("ordinary system notice"))
     }
     // contract-test: supporting surface=gui.apple assertions=focus-modes.phases
+    @MainActor
     func testPhaseCiphertextSurvivesChatDecodeAndCopy() throws {
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
         let chat = try decoder.decode(Chat.self, from: Data(#"{"id":"chat","created_at":1,"encrypted_focus_phase_state":"opaque","messages_v":2}"#.utf8))
         XCTAssertEqual(chat.encryptedFocusPhaseState, "opaque")
-        XCTAssertEqual(chat.withMessagesVersion(3).encryptedFocusPhaseState, "opaque")
+        let store = ChatStore()
+        store.performWithoutPersistence {
+            store.upsertChat(chat)
+            store.advanceMessagesVersion(chatId: chat.id, to: 3)
+        }
+        XCTAssertEqual(store.chat(for: chat.id)?.messagesV, 3)
+        XCTAssertEqual(store.chat(for: chat.id)?.encryptedFocusPhaseState, "opaque")
     }
     // contract-test: supporting surface=gui.apple assertions=focus-modes.phases
     func testProjectTextUsesPhasesAndNoQuestionCountGate() {
@@ -26,6 +34,115 @@ final class FocusPhaseTests: XCTestCase {
         XCTAssertEqual(phases.first?.requirements.first?.id, "enough")
         XCTAssertTrue(FocusPhaseDefinition.fromInstruction("Legacy instruction").isEmpty)
     }
+    private func state(version: Int = 2, chatID: String = "22222222-2222-4222-8222-222222222222",
+                       events: [FocusPhaseEvent] = []) -> FocusPhaseState {
+        FocusPhaseState(schemaVersion: 1, chatId: chatID, focusId: "jobs-career_insights",
+            revision: "fixture-v1", runId: "33333333-3333-4333-8333-333333333333",
+            version: version, phaseId: "explore", complete: false,
+            enteredAfterMessageId: nil, rewindTurn: nil, evaluatedBoundaries: [], transitions: events)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=focus-modes.phases,focus-modes.restoration
+    func testLiveDeliveryRetainsNewerVersionAndRejectsWrongChatOrFocus() {
+        let newest = state(version: 3)
+        let merged = FocusPhaseDeliveryPolicy.merged([newest.focusId: state(version: 1)],
+            saved: [newest.focusId: newest], chatID: newest.chatId)
+        XCTAssertEqual(merged?[newest.focusId]?.version, 3)
+        XCTAssertNil(FocusPhaseDeliveryPolicy.merged([newest.focusId: state(chatID: "other-chat")],
+            saved: [:], chatID: newest.chatId))
+        XCTAssertNil(FocusPhaseDeliveryPolicy.merged(["different-focus": newest], saved: [:], chatID: newest.chatId))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=focus-modes.history-events,focus-modes.history-side-effects
+    func testDeliveryDeduplicatesReceiptUUIDAcrossReplayAndSnapshot() throws {
+        let receipt = try XCTUnwrap(FocusPhaseEvent.parse(event))
+        let snapshot = state(events: [receipt, receipt])
+        let pending = FocusPhaseDeliveryPolicy.unseenTransitions(in: [snapshot.focusId: snapshot],
+            chatID: snapshot.chatId, existingIDs: [])
+        XCTAssertEqual(pending.map(\.id), [receipt.eventId])
+        XCTAssertTrue(FocusPhaseDeliveryPolicy.unseenTransitions(in: [snapshot.focusId: snapshot],
+            chatID: snapshot.chatId, existingIDs: [receipt.eventId]).isEmpty)
+        XCTAssertTrue(FocusPhaseDeliveryPolicy.unseenTransitions(in: [snapshot.focusId: snapshot],
+            chatID: "other-chat", existingIDs: []).isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=focus-modes.restoration,focus-modes.history-side-effects
+    func testAccountScopeChangeAndCancellationInvalidateDelivery() {
+        let scope = UUID()
+        func accepts(_ current: UUID, _ account: String?, _ authenticated: Bool = true,
+                     _ cancelled: Bool = false) -> Bool {
+            FocusPhaseDeliveryPolicy.isCurrentDelivery(scope: scope, currentScope: current,
+                accountID: "fixture-account", currentAccountID: account,
+                authenticated: authenticated, cancelled: cancelled)
+        }
+        XCTAssertTrue(accepts(scope, "fixture-account"))
+        XCTAssertFalse(accepts(UUID(), "fixture-account"))
+        XCTAssertFalse(accepts(scope, "other-account"))
+        XCTAssertFalse(accepts(scope, nil))
+        XCTAssertFalse(accepts(scope, "fixture-account", false))
+        XCTAssertFalse(accepts(scope, "fixture-account", true, true))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=focus-modes.restoration,focus-modes.phases
+    @MainActor
+    func testEncryptedSnapshotSurvivesOfflineModelAndDecryptsOnlyWithChatKey() async throws {
+        let snapshot = state(events: [try XCTUnwrap(FocusPhaseEvent.parse(event))])
+        let encoder = JSONEncoder(); encoder.keyEncodingStrategy = .convertToSnakeCase
+        let plaintext = String(decoding: try encoder.encode([snapshot.focusId: snapshot]), as: UTF8.self)
+        let key = SymmetricKey(data: Data(repeating: 0x36, count: 32))
+        let ciphertext = try await CryptoManager.shared.encryptContent(plaintext, key: key)
+        XCTAssertFalse(ciphertext.contains(snapshot.phaseId))
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("focus-phase-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let server = URL(string: "https://synthetic.invalid")!
+        let cache = try OfflineStore(directory: directory, userId: "phase-fixture-account", apiBaseURL: server)
+        cache.persistChats([Chat(id: snapshot.chatId, title: nil, lastMessageAt: nil,
+                                 createdAt: "2026-10-04T00:00:00Z", updatedAt: nil,
+                                 isArchived: false, isPinned: false, appId: nil,
+                                 encryptedTitle: nil, encryptedChatKey: nil,
+                                 encryptedFocusPhaseState: ciphertext)])
+        cache.deactivate()
+        let reopened = try OfflineStore(directory: directory, userId: "phase-fixture-account", apiBaseURL: server)
+        let restored = try XCTUnwrap(reopened.loadChat(id: snapshot.chatId))
+        let unrelated = try OfflineStore(directory: directory, userId: "other-fixture-account", apiBaseURL: server)
+        XCTAssertNil(unrelated.loadChat(id: snapshot.chatId), "A different account scope must not restore this chat")
+        unrelated.deactivate()
+        reopened.deactivate()
+        let decoded = try await CryptoManager.shared.decryptContent(base64String: XCTUnwrap(restored.encryptedFocusPhaseState), key: key)
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let states = try decoder.decode([String: FocusPhaseState].self, from: Data(decoded.utf8))
+        XCTAssertEqual(states[snapshot.focusId]?.phaseId, snapshot.phaseId)
+        XCTAssertEqual(states[snapshot.focusId]?.transitions.first?.eventId, snapshot.transitions.first?.eventId)
+        do {
+            _ = try await CryptoManager.shared.decryptContent(base64String: ciphertext,
+                key: SymmetricKey(data: Data(repeating: 0x37, count: 32)))
+            XCTFail("Another account's key must not decrypt the restored phase snapshot")
+        } catch { /* authenticated encryption rejected the unrelated key */ }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=focus-modes.history-events,focus-modes.phases
+    func testProjectHistoryRoutesToProjectDetailsAndRetainsBackwardDirection() throws {
+        let projectID = "44444444-4444-4444-8444-444444444444"
+        let changed = event.replacingOccurrences(of: "\"direction\":\"forward\"", with: "\"direction\":\"backward\"")
+        let text = String(changed.dropLast()) + ",\"project_id\":\"" + projectID + "\"}"
+        let parsed = try XCTUnwrap(FocusPhaseEvent.parse(String(text)))
+        XCTAssertEqual(parsed.detailPath, "projects/" + projectID)
+        XCTAssertEqual(parsed.direction, "backward")
+        let invalidProject = String(changed.dropLast()) + ",\"project_id\":\"../../foreign\"}"
+        XCTAssertEqual(FocusPhaseEvent.parse(invalidProject)?.detailPath, "apps/jobs/focus/career_insights",
+                       "A malformed Project ID must not become a native Project route")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=focus-modes.history-events,focus-modes.history-side-effects
+    func testMalformedTypedPhaseHistoryRemainsRecognizedWithoutProtocolFallback() {
+        let malformed = #"{"type":"focus_phase_changed","phase_id":"understand"}"#
+        XCTAssertTrue(FocusPhaseEvent.isTypedPayload(malformed))
+        XCTAssertNil(FocusPhaseEvent.parse(malformed))
+        XCTAssertTrue(FocusPhaseEvent.isTypedPayload(#"{"type":"focus_phase_changed","phase_id":"understand""#))
+        XCTAssertFalse(FocusPhaseEvent.isTypedPayload("Ordinary system notice"))
+        XCTAssertFalse(FocusPhaseEvent.isTypedPayload(#"{"type":"ordinary_notice"}"#))
+    }
+
 
     // contract-test: supporting surface=gui.apple assertions=focus-modes.countdown,projects.focus.inferred-consent
     @MainActor

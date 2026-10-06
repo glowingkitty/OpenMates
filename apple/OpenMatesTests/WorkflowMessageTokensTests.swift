@@ -55,12 +55,11 @@ final class WorkflowMessageTokensTests: XCTestCase {
                                            label: "Weather · Rain Probability", appId: "weather")
         let coordinator = WorkflowTemplateTextView.Coordinator(
             value: Binding(get: { question }, set: { question = $0 }), outputs: [output])
-        let view = WorkflowUndoTemplateView()
-        coordinator.textView = view
+        let view = makeTemplateView(coordinator: coordinator)
         setRendered(WorkflowAttributedTemplate.render(question, outputs: [output]), in: view)
-        view.templateUndoManager.beginUndoGrouping()
+        templateUndoManager(view).beginUndoGrouping()
         coordinator.insert(WorkflowMessageTokens.storageSyntax(for: output.reference))
-        view.templateUndoManager.endUndoGrouping()
+        templateUndoManager(view).endUndoGrouping()
 
         XCTAssertEqual(question, "{{steps.weather.rain_probability}}", "The actual draft binding must receive canonical storage.")
         let rendered = renderedText(view)
@@ -80,24 +79,113 @@ final class WorkflowMessageTokensTests: XCTestCase {
                                            label: "Weather · Rain Probability", appId: "weather")
         let coordinator = WorkflowTemplateTextView.Coordinator(
             value: Binding(get: { question }, set: { question = $0 }), outputs: [output])
-        let view = WorkflowUndoTemplateView()
-        coordinator.textView = view
+        let view = makeTemplateView(coordinator: coordinator)
         setRendered(WorkflowAttributedTemplate.render(question, outputs: [output]), in: view)
         let selection = NSRange(location: 7, length: 2)
         setSelection(selection, in: view)
-        view.templateUndoManager.beginUndoGrouping()
+        templateUndoManager(view).beginUndoGrouping()
         coordinator.insert(WorkflowMessageTokens.storageSyntax(for: output.reference))
-        view.templateUndoManager.endUndoGrouping()
+        templateUndoManager(view).endUndoGrouping()
 
         XCTAssertEqual(question, "Before {{steps.weather.rain_probability}} after")
         XCTAssertEqual(renderedText(view).string, "Before \u{FFFC} after")
         XCTAssertEqual(selectedRange(view), NSRange(location: 8, length: 0))
-        view.templateUndoManager.undo()
+        templateUndoManager(view).undo()
         XCTAssertEqual(question, original)
         XCTAssertEqual(selectedRange(view), selection)
-        view.templateUndoManager.redo()
+        templateUndoManager(view).redo()
         XCTAssertEqual(question, "Before {{steps.weather.rain_probability}} after")
         XCTAssertEqual(selectedRange(view), NSRange(location: 8, length: 0))
+    }
+
+    #if canImport(AppKit)
+    @MainActor private var templateWindow: NSWindow?
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.message.standard,workflows.control.typed-data
+    @MainActor
+    func testProductionAppKitDelegateEditingAndAccessibilityPreserveCanonicalAttachments() {
+        let output = WorkflowMessageOutput(reference: "$nodes.weather.output.rain_probability",
+                                           label: "Weather · Rain Probability", appId: "weather")
+        let syntax = WorkflowMessageTokens.storageSyntax(for: output.reference)
+        var question = syntax
+        var publications = 0
+        var coordinator: WorkflowTemplateTextView.Coordinator!
+        coordinator = WorkflowTemplateTextView.Coordinator(value: Binding(get: { question }, set: {
+            question = $0
+            publications += 1
+            // Binding observers can synchronously trigger another notification.
+            if let view = coordinator.textView {
+                coordinator.textDidChange(Notification(name: NSText.didChangeNotification, object: view))
+            }
+        }), outputs: [output])
+        let view = makeTemplateView(coordinator: coordinator)
+        coordinator.replaceRenderedText(WorkflowAttributedTemplate.render(question, outputs: [output]))
+        XCTAssertEqual(publications, 0, "Programmatic rendering must not publish an edit.")
+
+        templateUndoManager(view).beginUndoGrouping()
+        view.insertText("Edited ", replacementRange: NSRange(location: 0, length: 0))
+        templateUndoManager(view).endUndoGrouping()
+        XCTAssertEqual(publications, 1, "A delegate-wired native edit must publish once, with nested callbacks bounded.")
+        XCTAssertEqual(question, "Edited " + syntax)
+        let beforeAX = NSAttributedString(attributedString: view.attributedString())
+        let selectionBeforeAX = view.selectedRange()
+        let undoBeforeAX = view.undoManager?.canUndo
+        for _ in 0..<10 {
+            coordinator.updateAccessibility()
+            XCTAssertEqual(view.accessibilityValue() as? String, "Edited " + output.label)
+        }
+        XCTAssertTrue(view.attributedString().isEqual(to: beforeAX))
+        XCTAssertEqual(view.selectedRange(), selectionBeforeAX)
+        XCTAssertEqual(view.undoManager?.canUndo, undoBeforeAX)
+        XCTAssertEqual(publications, 1, "Reading AX value must never send text-change notifications.")
+        XCTAssertNotNil(view.attributedString().attribute(.attachment, at: 7, effectiveRange: nil))
+
+        let manager = templateUndoManager(view)
+        view.breakUndoCoalescing()
+        manager.removeAllActions()
+        view.setSelectedRange(NSRange(location: view.attributedString().length, length: 0))
+        let beforeInsertion = question
+        manager.beginUndoGrouping()
+        coordinator.insert(syntax)
+        manager.endUndoGrouping()
+        XCTAssertEqual(question, beforeInsertion + syntax)
+        XCTAssertEqual(publications, 2)
+        manager.undo()
+        XCTAssertEqual(question, beforeInsertion)
+        XCTAssertEqual(publications, 3)
+        manager.redo()
+        XCTAssertEqual(question, beforeInsertion + syntax)
+        XCTAssertEqual(publications, 4)
+        XCTAssertEqual(WorkflowAttributedTemplate.storage(view.attributedString()), question)
+        XCTAssertEqual(view.accessibilityValue() as? String, "Edited " + output.label + output.label)
+        XCTAssertNotNil(view.attributedString().attribute(.attachment, at: 7, effectiveRange: nil))
+        XCTAssertNotNil(view.attributedString().attribute(.attachment, at: 8, effectiveRange: nil))
+    }
+    #endif
+
+    @MainActor private func makeTemplateView(coordinator: WorkflowTemplateTextView.Coordinator) -> WorkflowUndoTemplateView {
+        #if canImport(UIKit)
+        let view = WorkflowUndoTemplateView()
+        #else
+        let view = WorkflowTemplateTextView.makeNativeTextView()
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 200),
+                              styleMask: [], backing: .buffered, defer: false)
+        window.contentView = view
+        templateWindow = window
+        XCTAssertNotNil(view.undoManager, "Use the production view's native window undo manager.")
+        view.undoManager?.groupsByEvent = false
+        #endif
+        view.delegate = coordinator
+        coordinator.textView = view
+        return view
+    }
+
+    @MainActor private func templateUndoManager(_ view: WorkflowUndoTemplateView) -> UndoManager {
+        #if canImport(UIKit)
+        return view.templateUndoManager
+        #else
+        return view.undoManager!
+        #endif
     }
 
     @MainActor private func setRendered(_ value: NSAttributedString, in view: WorkflowUndoTemplateView) {
@@ -138,10 +226,5 @@ final class WorkflowMessageTokensTests: XCTestCase {
     override var undoManager: UndoManager? { templateUndoManager }
 }
 #elseif canImport(AppKit)
-@MainActor private final class WorkflowUndoTemplateView: NSTextView {
-    let templateUndoManager: UndoManager = {
-        let manager = UndoManager(); manager.groupsByEvent = false; return manager
-    }()
-    override var undoManager: UndoManager? { templateUndoManager }
-}
+private typealias WorkflowUndoTemplateView = NSTextView
 #endif

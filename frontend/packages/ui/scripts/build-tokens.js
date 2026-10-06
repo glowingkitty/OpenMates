@@ -505,10 +505,26 @@ function generateSwiftColors() {
     "extension Color {",
   ];
 
+  // Watch is an intentionally dark shell. Its asset catalog resolves the
+  // universal default rather than the luminosity-dark variant, even when
+  // SwiftUI colorScheme is dark. Use the canonical dark YAML value there;
+  // iOS/macOS retain dynamic named assets and normal theme switching.
+  function emitThemedColor(property, asset, value) {
+    if (value.dark?.startsWith("#")) {
+      lines.push("    #if os(watchOS)");
+      lines.push(`    static let ${property} = Color(hex: 0x${value.dark.slice(1).toUpperCase()})`);
+      lines.push("    #else");
+      lines.push(`    static let ${property} = Color("${asset}")`);
+      lines.push("    #endif");
+    } else {
+      lines.push(`    static let ${property} = Color("${asset}")`);
+    }
+  }
+
   // Grey scale — theme-aware via asset catalog
   lines.push("    // Grey scale");
-  for (const [name] of Object.entries(colors.grey || {})) {
-    lines.push(`    static let grey${pascalCase(String(name))} = Color("grey-${name}")`);
+  for (const [name, val] of Object.entries(colors.grey || {})) {
+    emitThemedColor(`grey${pascalCase(String(name))}`, `grey-${name}`, val);
   }
   lines.push("");
 
@@ -516,7 +532,7 @@ function generateSwiftColors() {
   lines.push("    // Font colors");
   for (const [name, val] of Object.entries(colors.font || {})) {
     if (val.dark || val.light) {
-      lines.push(`    static let font${pascalCase(name)} = Color("font-${name}")`);
+      emitThemedColor(`font${pascalCase(name)}`, `font-${name}`, val);
     } else {
       lines.push(`    static let font${pascalCase(name)} = Color(hex: 0x${val.value.replace("#", "").toUpperCase()})`);
     }
@@ -527,7 +543,7 @@ function generateSwiftColors() {
   lines.push("    // Semantic colors");
   for (const [name, val] of Object.entries(colors.semantic || {})) {
     if (val.light && val.light.startsWith("#")) {
-      lines.push(`    static let ${camelCase(name)} = Color("${name}")`);
+      emitThemedColor(camelCase(name), name, val);
     }
   }
   lines.push("");

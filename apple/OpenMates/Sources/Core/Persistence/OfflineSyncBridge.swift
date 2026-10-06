@@ -16,6 +16,7 @@ import SwiftUI
 @MainActor
 final class OfflineSyncBridge: ObservableObject {
     @Published private(set) var networkStatus: NetworkStatus = .unknown
+    @Published private(set) var isPrefetching = false
 
     enum NetworkStatus: Equatable {
         case unknown
@@ -102,6 +103,7 @@ final class OfflineSyncBridge: ObservableObject {
         guard canRunOfflinePrefetch else { return nil }
         let runID = UUID()
         offlinePrefetchRunID = runID
+        isPrefetching = true
         offlinePrefetchTask = Task(priority: .utility) { @MainActor [weak self] in
             await self?.runOfflinePrefetch(runID: runID)
         }
@@ -112,6 +114,7 @@ final class OfflineSyncBridge: ObservableObject {
         offlinePrefetchRunID = nil
         offlinePrefetchTask?.cancel()
         offlinePrefetchTask = nil
+        isPrefetching = false
     }
 
     func waitForOfflinePrefetch() async {
@@ -163,6 +166,7 @@ final class OfflineSyncBridge: ObservableObject {
             if offlinePrefetchRunID == runID {
                 offlinePrefetchTask = nil
                 offlinePrefetchRunID = nil
+                isPrefetching = false
             }
         }
         guard let writer = await offlineStore.makeRecentChatCacheWriter(), isCurrentPrefetch(runID) else { return }
@@ -176,25 +180,32 @@ final class OfflineSyncBridge: ObservableObject {
             for chat in cohort {
                 guard isCurrentPrefetch(runID) else { return }
                 let revision = OfflineRecentChatPolicy.revision(of: chat)
-                if !invalidatedOfflineSnapshots.contains(chat.id),
-                   completedOfflineSnapshots[chat.id] == revision || offlineStore.hasCompleteOfflineSnapshot(for: chat) { continue }
                 let deletionVersion = offlineStore.chatDeletionVersion(chat.id)
                 let writeFence = offlineStore.recentContentWriteFence(for: chat.id)
+                if !invalidatedOfflineSnapshots.contains(chat.id) {
+                    if completedOfflineSnapshots[chat.id] == revision { continue }
+                    let complete = await writer.hasCompleteSnapshot(for: chat)
+                    guard isCurrentPrefetch(runID), offlineStore.chatDeletionVersion(chat.id) == deletionVersion else { return }
+                    guard writeFence.isCurrent, let current = chatStore.chat(for: chat.id),
+                          OfflineRecentChatPolicy.revision(of: current) == revision else { continue }
+                    if complete { continue }
+                }
                 do {
-                    let data: Data
-                    if let contentFetcher { data = try await contentFetcher(chat.id) }
-                    else {
+                    let snapshot: OfflineRecentChatSnapshot
+                    if let contentFetcher {
+                        let data = try await contentFetcher(chat.id)
+                        guard isCurrentPrefetch(runID) else { return }
+                        snapshot = try await writer.decode(data, chatId: chat.id)
+                    } else {
                         guard let wsManager else { throw OfflineDraftReplayError.transportUnavailable }
                         let response = try await wsManager.requestChatContentBatch(chatId: chat.id, beforeSend: { [weak self] in
                             guard let self, self.isCurrentPrefetch(runID) else { throw CancellationError() }
                         })
-                        data = try JSONSerialization.data(withJSONObject: response.fields)
+                        snapshot = try await writer.decode(response, chatId: chat.id)
                     }
                     guard isCurrentPrefetch(runID), offlineStore.chatDeletionVersion(chat.id) == deletionVersion,
                           let current = chatStore.chat(for: chat.id),
                           OfflineRecentChatPolicy.revision(of: current) == revision else { continue }
-                    let snapshot = try await writer.decode(data, chatId: chat.id)
-                    guard isCurrentPrefetch(runID), offlineStore.chatDeletionVersion(chat.id) == deletionVersion else { return }
                     let validatedWrapper = try await validateSnapshotKey(chat: chat, snapshot: snapshot)
                     guard isCurrentPrefetch(runID), offlineStore.chatDeletionVersion(chat.id) == deletionVersion else { return }
                     let pending = pendingUserMessageIds(in: chat.id).union(chatStore.pendingAssistantRecoveryMessageIds(in: chat.id))

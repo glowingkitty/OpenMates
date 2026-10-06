@@ -3,6 +3,7 @@ import XCTest
 
 @MainActor
 final class DailyInspirationLayoutUITests: XCTestCase {
+    override func setUpWithError() throws { continueAfterFailure = false }
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
     func testWideInspirationKeepsPhraseSeparateAndVideoFooterVisible() {
         checkLayout(variant: "wide", expectsSideBySide: true)
@@ -18,6 +19,86 @@ final class DailyInspirationLayoutUITests: XCTestCase {
         checkLayout(variant: "narrow", expectsSideBySide: false)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
+    func testReadOnlyInspirationKeepsLayoutAndDoesNotStartChatFromCTAOrVideo() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "daily-inspiration", "--dev-preview-variant", "read-only",
+            "--dev-preview-theme", "light", "--ui-test-embed-presentation", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let banner = element(app, "daily-inspiration-card")
+        XCTAssertTrue(banner.waitForExistence(timeout: 10))
+        let phrase = element(app, "daily-inspiration-phrase")
+        let cta = element(app, "daily-inspiration-cta-text")
+        let video = element(app, "daily-inspiration-video-preview")
+        let footer = element(app, "embed-basic-info-title")
+        let compact = banner.frame.width <= 730
+        if compact {
+            let phrasePhase = NSPredicate { _, _ in
+                phrase.exists && cta.exists && !video.exists && !footer.exists
+            }
+            expectation(for: phrasePhase, evaluatedWith: banner)
+            waitForExpectations(timeout: 15)
+        }
+        XCTAssertTrue(phrase.exists)
+        XCTAssertTrue(cta.exists)
+        XCTAssertTrue(banner.frame.contains(phrase.frame))
+        XCTAssertTrue(banner.frame.contains(cta.frame))
+        XCTAssertLessThanOrEqual(phrase.frame.maxY, cta.frame.minY + 1)
+        // A readable AX container remains enabled even when its child controls
+        // are disabled. It must not advertise a Button or deliver a tap action.
+        XCTAssertNotEqual(banner.elementType, .button, "Read-only inspiration must not advertise a start action")
+        XCTAssertFalse(cta.isEnabled, "The visible CTA must inherit the read-only state")
+        assertReadOnlyTapDoesNotStartChat(app, target: banner)
+        assertReadOnlyTapDoesNotStartChat(app, target: cta)
+
+        if compact {
+            let previewPhase = NSPredicate { _, _ in
+                (banner.value as? String) == "How to Build a Great Developer Experience"
+                    && video.exists && footer.exists && !phrase.exists && !cta.exists
+            }
+            expectation(for: previewPhase, evaluatedWith: banner)
+            waitForExpectations(timeout: 15)
+            XCTAssertFalse(phrase.exists)
+            XCTAssertFalse(cta.exists)
+        } else {
+            XCTAssertLessThanOrEqual(phrase.frame.maxX + 13, video.frame.minX)
+        }
+        XCTAssertTrue(video.exists)
+        XCTAssertTrue(footer.exists)
+        XCTAssertTrue(banner.frame.contains(video.frame), "Read-only preview must retain its normal visible size")
+        XCTAssertTrue(banner.frame.contains(footer.frame), "Read-only preview must retain the visible footer")
+        XCTAssertFalse(video.isEnabled, "The video start target must inherit the read-only state")
+        assertReadOnlyTapDoesNotStartChat(app, target: video)
+    }
+
+    private func assertReadOnlyTapDoesNotStartChat(_ app: XCUIApplication, target: XCUIElement) {
+        let result = element(app, "dev-preview-local-action")
+        XCTAssertTrue(result.waitForExistence(timeout: 5))
+        XCTAssertEqual(result.label, "ready")
+        // A disabled AX control may reject XCUIElement.tap(). Send a real
+        // coordinate tap to its visible bounds to prove the action is blocked.
+        let bounds = target.frame
+        XCTAssertFalse(bounds.isEmpty)
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(bounds))
+        target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let started = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", "inspiration-started"), object: result)
+        started.isInverted = true
+        let outcome = XCTWaiter.wait(for: [started], timeout: 2)
+        if outcome != .completed {
+            let diagnostics = XCTAttachment(string: "target=\(target.identifier);tap-bounds=\(bounds);result=\(result.label)\n" + app.debugDescription)
+            diagnostics.name = "Read-only inspiration unexpected action delivery"
+            diagnostics.lifetime = .keepAlways
+            add(diagnostics)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Read-only inspiration unexpected action viewport"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+        XCTAssertEqual(outcome, .completed, "An actual tap on read-only inspiration must not deliver its callback")
+        XCTAssertEqual(result.label, "ready")
+    }
+
     private func checkLayout(variant: String, expectsSideBySide: Bool) {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "daily-inspiration", "--dev-preview-variant", variant,
@@ -27,6 +108,18 @@ final class DailyInspirationLayoutUITests: XCTestCase {
         XCTAssertTrue(banner.waitForExistence(timeout: 10))
         let phrase = element(app, "daily-inspiration-phrase")
         let cta = element(app, "daily-inspiration-cta-text")
+        let video = element(app, "daily-inspiration-video-preview")
+        let sideBySide = expectsSideBySide && banner.frame.width > 730
+        if !sideBySide {
+            // App launch/idling may span several real production phases.
+            // Observe the next phrase phase, then prove its actual transition.
+            let phrasePhase = NSPredicate { _, _ in
+                phrase.exists && cta.exists && !video.exists
+                    && !self.element(app, "embed-basic-info-title").exists
+            }
+            expectation(for: phrasePhase, evaluatedWith: banner)
+            waitForExpectations(timeout: 15)
+        }
         XCTAssertTrue(phrase.exists)
         XCTAssertTrue(cta.exists)
         XCTAssertTrue(banner.frame.contains(phrase.frame))
@@ -34,8 +127,7 @@ final class DailyInspirationLayoutUITests: XCTestCase {
         XCTAssertLessThanOrEqual(phrase.frame.maxY, cta.frame.minY + 1)
         XCTAssertTrue(banner.isHittable)
 
-        let video = element(app, "daily-inspiration-video-preview")
-        if expectsSideBySide && banner.frame.width > 730 {
+        if sideBySide {
             XCTAssertTrue(video.exists)
             XCTAssertLessThanOrEqual(phrase.frame.maxX + 13, video.frame.minX)
         } else {
@@ -60,8 +152,27 @@ final class DailyInspirationLayoutUITests: XCTestCase {
         attachment.name = "Daily inspiration \(variant) layout"
         attachment.lifetime = .keepAlways
         add(attachment)
-        banner.tap()
-        XCTAssertEqual(element(app, "dev-preview-local-action").label, "inspiration-started")
+        // Exercise the real CTA Button when visible; the compact preview
+        // phase exposes the finished video as its explicit start target.
+        let startTarget = cta.exists ? cta : video
+        XCTAssertTrue(startTarget.isHittable)
+        let tapBounds = startTarget.frame, tapIdentifier = startTarget.identifier
+        startTarget.tap()
+        let result = element(app, "dev-preview-local-action")
+        let started = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "inspiration-started"), object: result)
+        let delivered = XCTWaiter.wait(for: [started], timeout: 5)
+        if delivered != .completed {
+            let diagnostics = XCTAttachment(string: "target=\(tapIdentifier);tap-bounds=\(tapBounds);banner=\(banner.frame);result=\(result.label)\n" + app.debugDescription)
+            diagnostics.name = "Daily inspiration actual start tap delivery"
+            diagnostics.lifetime = .keepAlways
+            add(diagnostics)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Daily inspiration missing start result viewport"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+        XCTAssertEqual(delivered, .completed)
+        XCTAssertEqual(result.label, "inspiration-started")
     }
 
     private func element(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {

@@ -6,6 +6,8 @@
 // Assertions: chats.surface.semantic-parity
 // Specification: specifications/features/settings-ui/specification.yml
 // Assertions: settings-ui.shell.lifecycle-and-routing, settings-ui.navigation.contextual-availability, settings-ui.navigation.parent-return, settings-ui.parity.web-apple-shell
+// Specification: specifications/features/focus-modes/specification.yml
+// Assertions: focus-modes.history-events, focus-modes.history-side-effects
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
@@ -246,6 +248,15 @@ struct SettingsDeepLinkRoute: Equatable {
     }
 
     var isMemoriesDiscovery: Bool { path == "apps/all" }
+    // Historical phase notices still open existing native catalog Focus details.
+    // This does not restore the retired top-level Apps settings menu.
+    var isCatalogFocusDetail: Bool {
+        let parts = path.split(separator: "/", omittingEmptySubsequences: false)
+        guard parts.count == 4, parts[0] == "apps", parts[2] == "focus" else { return false }
+        return [parts[1], parts[3]].allSatisfy {
+            $0.range(of: "^[a-z][a-z0-9_-]*$", options: .regularExpression) != nil
+        }
+    }
     var memoryRoute: SettingsMemoryRoute? {
         guard topLevel == "apps", hasMemoryChild else { return nil }
         return SettingsMemoryRoute(path: path)
@@ -280,7 +291,7 @@ struct SettingsDeepLinkRoute: Equatable {
     // Each child maps to an existing native page/control. Transient receipts
     // such as payment/confirmation need their originating action state.
     var hasNativeChild: Bool {
-        if topLevel == "apps" { return isMemoriesDiscovery || hasMemoryChild }
+        if topLevel == "apps" { return isMemoriesDiscovery || hasMemoryChild || isCatalogFocusDetail }
         if childPath.isEmpty { return true }
         let children: [String: Set<String>] = [
             "interface": ["language", "dark_mode"],
@@ -571,7 +582,8 @@ struct SettingsView: View {
         activeDeepLinkRoute = route
         activeDeepLinkRevision += 1
         showsMemoriesDiscovery = route.isMemoriesDiscovery
-        destination = route.memoryRoute != nil || route.isMemoriesDiscovery ? .memories : destinations[route.topLevel]
+        destination = route.memoryRoute != nil || route.isMemoriesDiscovery || route.isCatalogFocusDetail
+            ? .memories : destinations[route.topLevel]
     }
 
     // MARK: - Main settings menu
@@ -1038,7 +1050,9 @@ struct SettingsView: View {
                 onChildNavigationChanged: { aiChildNavigation = $0 }
             )
         case .memories:
-            if showsMemoriesDiscovery {
+            if let route = activeDeepLinkRoute, route.isCatalogFocusDetail {
+                SettingsAppsFullView(deepLinkPath: route.childPath, onOpenExampleChat: openMemoryExampleChat)
+            } else if showsMemoriesDiscovery {
                 SettingsAppsFullView(deepLinkPath: "all", onOpenExampleChat: openMemoryExampleChat,
                     memoriesDiscovery: true, onMemoryCategory: openMemoryCategory,
                     onChildNavigationChanged: { memoryChildNavigation = $0 }, onReturnToMemories: returnToMemoriesHub)

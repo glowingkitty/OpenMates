@@ -3173,6 +3173,7 @@ struct InlineMarkdownText: View {
                             if group.isProse {
                                 if let selectionContext {
                                     MessageSelectableText(content: selectableProse(group.tokens), context: selectionContext)
+                                        .multilineTextAlignment(isUserMessage ? .trailing : .leading)
                                         .fixedSize(horizontal: false, vertical: true)
                                 } else {
                                     ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(selectableProse(group.tokens)),
@@ -3192,6 +3193,7 @@ struct InlineMarkdownText: View {
                 .textSelection(.disabled)
             } else {
                 standardText
+                    .multilineTextAlignment(isUserMessage ? .trailing : .leading)
             }
         }
         .onChange(of: InlineMarkdownPreparationInput(content: content, searchHighlightQuery: searchHighlightQuery)) { _, input in

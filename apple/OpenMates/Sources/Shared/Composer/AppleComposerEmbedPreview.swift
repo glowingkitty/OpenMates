@@ -370,22 +370,17 @@ private struct ComposerLocalImagePreview: View {
     let lifecycleLabel: String?
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            image
-                .resizable()
-                .scaledToFill()
-                .frame(
-                    width: AppleComposerPreviewMetrics.width,
-                    height: AppleComposerPreviewMetrics.height
-                )
-                .clipped()
-                .accessibilityElement()
-                .accessibilityIdentifier("native-composer-image-content")
-
-            // Web's `.details-section.full-width-image` extends the image below
-            // this 61pt bar. Overlaying the bar keeps the fixed 300x200 card
-            // intact inside TextKit instead of letting the details view consume
-            // the metadata row and appear vertically clipped.
+        image
+            .resizable()
+            .scaledToFit()
+            .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
+            .clipped()
+            .accessibilityElement()
+            .accessibilityIdentifier("native-composer-image-content")
+            // Web's full-width image extends beneath BasicInfosBar. Attach the
+            // overlay after allocating the complete card surface so neither
+            // the image's aspect ratio nor metadata can position it mid-card.
+            .overlay(alignment: .bottom) {
             EmbedBasicInfoBar(
                 appId: "images",
                 skillIconName: AppIconView.iconName(forAppId: "images"),
@@ -398,13 +393,13 @@ private struct ComposerLocalImagePreview: View {
                 titleLineLimit: 1,
                 titleTruncationMode: .middle
             )
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("native-composer-image-info-bar")
-        }
-        .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
-        .background(Color.grey25)
-        .clipShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
-        .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
-        .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
+            }
+            .background(Color.grey25)
+            .clipShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
+            .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
+            .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
     }
 }
 
@@ -466,6 +461,7 @@ private struct ComposerAudioPreview: View {
             appId: "audio",
             title: content.title ?? AppStrings.audioRecording,
             subtitle: subtitle,
+            fixedFooterLayout: true,
             // A completed local recording remains playable after its upload fails.
             // Retry/removal govern the upload; playback uses the retained bytes.
             trailingAction: player.isAvailable && (lifecycle == .finished || lifecycle == .error)
@@ -822,6 +818,7 @@ private struct AppleComposerUnifiedCard<Details: View>: View {
     let appId: String
     let title: String
     let subtitle: String?
+    let fixedFooterLayout: Bool
     let trailingAction: AnyView?
     @ViewBuilder let details: () -> Details
 
@@ -829,36 +826,53 @@ private struct AppleComposerUnifiedCard<Details: View>: View {
         appId: String,
         title: String,
         subtitle: String?,
+        fixedFooterLayout: Bool = false,
         trailingAction: AnyView? = nil,
         @ViewBuilder details: @escaping () -> Details
     ) {
         self.appId = appId
         self.title = title
         self.subtitle = subtitle
+        self.fixedFooterLayout = fixedFooterLayout
         self.trailingAction = trailingAction
         self.details = details
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            details()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            EmbedBasicInfoBar(
-                appId: appId,
-                skillIconName: AppIconView.iconName(forAppId: appId),
-                title: title,
-                subtitle: subtitle,
-                faviconURL: nil,
-                showSkillIcon: false,
-                trailingAction: trailingAction
-            )
+        Group {
+            if fixedFooterLayout {
+                // Recording details can have tall intrinsic transcript/status
+                // content. Allocate the web flex area independently of the
+                // nonshrinking footer and anchor it to the complete surface.
+                details()
+                    .frame(width: AppleComposerPreviewMetrics.width,
+                           height: EmbedPreviewFooterLayout.detailsHeight(cardHeight: AppleComposerPreviewMetrics.height))
+                    .clipped()
+                    .frame(width: AppleComposerPreviewMetrics.width,
+                           height: AppleComposerPreviewMetrics.height, alignment: .top)
+                    .overlay(alignment: .bottom) {
+                        infoBar
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("native-composer-audio-info-bar")
+                    }
+            } else {
+                VStack(spacing: 0) {
+                    details().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    infoBar
+                }
+            }
         }
         .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
         .background(Color.grey25)
         .clipShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
         .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
         .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
+    }
+
+    private var infoBar: some View {
+        EmbedBasicInfoBar(appId: appId, skillIconName: AppIconView.iconName(forAppId: appId),
+                          title: title, subtitle: subtitle, faviconURL: nil,
+                          showSkillIcon: false, trailingAction: trailingAction)
     }
 }
 

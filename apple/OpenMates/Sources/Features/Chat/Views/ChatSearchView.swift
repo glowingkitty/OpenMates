@@ -17,7 +17,7 @@ enum ChatSearchMetadata {
     static func missingCachedChats(_ cached: [Chat], loaded: [Chat]) -> [Chat] {
         var seen = Set(loaded.map(\.id))
         return cached.filter {
-            !$0.isHiddenFromNormalSurfaces && $0.parentId == nil && $0.isSubChat != true &&
+            !$0.isRetiredBundledIntro && !$0.isHiddenFromNormalSurfaces && $0.parentId == nil && $0.isSubChat != true &&
                 !$0.id.hasPrefix("incognito-") && seen.insert($0.id).inserted
         }
     }
@@ -53,7 +53,7 @@ struct ChatSearchView: View {
         VStack(spacing: 0) {
             searchBar
 
-            if isSearching {
+            if isSearching && results.totalCount == 0 {
                 searchStatusRow(AppStrings.loading)
                     .accessibilityIdentifier("warming-up")
             } else if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -76,7 +76,10 @@ struct ChatSearchView: View {
                 scheduleSearch()
             }
         }
-        .onReceive(chatStore.$chats) { _ in scheduleSearch(storeChanged: true) }
+        .onReceive(chatStore.$chats) { currentChats in
+            searchController.retainResults(for: Set(currentChats.filter { !$0.isRetiredBundledIntro && !$0.isHiddenFromNormalSurfaces }.map(\.id)))
+            scheduleSearch(storeChanged: true)
+        }
         .onDisappear {
             searchController.cancel()
             metadataTask?.cancel()
@@ -314,6 +317,7 @@ final class ChatSearchController: ObservableObject {
     private var generation = UUID()
     private var activeQuery = ""
     private var pendingRefresh = false
+    private var allowedResultChatIDs: Set<String>?
     private var currentRunIsCurrent: @MainActor () -> Bool = { true }
 
     func cancel() {
@@ -327,6 +331,23 @@ final class ChatSearchController: ObservableObject {
         isSearching = false
     }
 
+    // Same-query refreshes keep rows mounted, but removed/hidden chats must stop
+    // being actionable immediately, including results from an in-flight pass.
+    func retainResults(for chatIDs: Set<String>) {
+        allowedResultChatIDs = chatIDs
+        let retained = retainingAllowedResults(results)
+        if retained.totalCount != results.totalCount { results = retained }
+    }
+
+    private func retainingAllowedResults(_ value: ChatSearchResults) -> ChatSearchResults {
+        guard let allowedResultChatIDs else { return value }
+        let groups = value.groups.compactMap { group -> ChatSearchResultGroup? in
+            let items = group.items.filter { allowedResultChatIDs.contains($0.id) }
+            return items.isEmpty ? nil : ChatSearchResultGroup(id: group.id, title: group.title, items: items)
+        }
+        return ChatSearchResults(groups: groups, totalCount: groups.reduce(0) { $0 + $1.items.count })
+    }
+
     func schedule(query: String, storeChanged: Bool = false, immediately: Bool = false,
                   isCurrent: @escaping @MainActor () -> Bool = { true },
                   search: @escaping @MainActor (String) async throws -> ChatSearchResults) {
@@ -338,6 +359,7 @@ final class ChatSearchController: ObservableObject {
             return
         }
         task?.cancel()
+        if normalized != activeQuery { results = .empty }
         let owner = UUID()
         generation = owner
         activeQuery = normalized
@@ -360,7 +382,7 @@ final class ChatSearchController: ObservableObject {
                     try Task.checkCancellation()
                     guard self.generation == owner else { return }
                     guard isCurrent() else { self.cancel(); return }
-                    self.results = next
+                    self.results = self.retainingAllowedResults(next)
                     self.isSearching = false
                 } while self.pendingRefresh
             } catch {
@@ -433,7 +455,7 @@ enum ChatSearchEngine {
         guard !normalized.isEmpty else { return .empty }
 
         let results = chats
-            .filter { !$0.isHiddenFromNormalSurfaces }
+            .filter { !$0.isRetiredBundledIntro && !$0.isHiddenFromNormalSurfaces }
             .compactMap { chat -> ChatSearchResult? in
                 searchChat(chat, query: normalized, chatStore: chatStore, offlineStore: offlineStore, allowOfflineContent: offlineContentChatIds.contains(chat.id))
             }
@@ -490,6 +512,27 @@ enum ChatSearchEngine {
             messageSnippets: snippets, metadataSnippets: snapshot.metadataSnippets, sortDate: snapshot.sortDate)
     }
 
+    @MainActor
+    private static func snapshotAsync(_ chat: Chat, query: String, chatStore: ChatStore,
+                                      offlineStore: OfflineStore?, allowOfflineContent: Bool) async throws -> Snapshot {
+        var messages = chatStore.messages(for: chat.id)
+        var embeds = chatStore.embeds(for: chat.id)
+        if allowOfflineContent {
+            let publicChat = PublicChatContent.chat(for: chat.id)
+            if let publicChat { messages = publicChat.messages }
+            let needsMessages = publicChat == nil && messages.isEmpty
+            if let offlineStore, needsMessages || embeds.isEmpty {
+                let content = try await offlineStore.loadSearchContent(chatID: chat.id,
+                    includeMessages: needsMessages, includeEmbeds: embeds.isEmpty)
+                if needsMessages { messages = content.messages }
+                if embeds.isEmpty { embeds = content.embeds }
+            }
+        }
+        return Snapshot(chat: chat, messages: messages, embeds: embeds,
+            metadataSnippets: metadataSnippets(in: chat, query: query),
+            sortDate: chat.lastMessageDate ?? chat.updatedDate ?? chat.createdDate ?? Date.distantPast)
+    }
+
     /// Local content reads remain actor-safe and yield between bounded batches.
     /// Regex stripping, embed traversal and message matching run off the UI actor.
     @MainActor
@@ -499,17 +542,22 @@ enum ChatSearchEngine {
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { return .empty }
         var matches: [ChatSearchResult] = []
-        let visible = chats.filter { !$0.isHiddenFromNormalSurfaces }
+        let visible = chats.filter { !$0.isRetiredBundledIntro && !$0.isHiddenFromNormalSurfaces }
         for start in stride(from: 0, to: visible.count, by: 4) {
             try Task.checkCancellation()
             guard isCurrent() else { throw CancellationError() }
-            let batch = visible[start..<min(start + 4, visible.count)].map {
-                snapshot($0, query: normalized, chatStore: chatStore, offlineStore: offlineStore,
-                    allowOfflineContent: offlineContentChatIds.contains($0.id))
+            var batch: [Snapshot] = []
+            for chat in visible[start..<min(start + 4, visible.count)] {
+                try Task.checkCancellation()
+                guard isCurrent() else { throw CancellationError() }
+                batch.append(try await snapshotAsync(chat, query: normalized, chatStore: chatStore, offlineStore: offlineStore,
+                    allowOfflineContent: offlineContentChatIds.contains(chat.id)))
+                guard isCurrent() else { throw CancellationError() }
             }
+            let snapshots = batch
             let matcher = Task.detached(priority: .userInitiated) {
                 try Task.checkCancellation()
-                return try batch.compactMap { item -> ChatSearchResult? in
+                return try snapshots.compactMap { item -> ChatSearchResult? in
                     try Task.checkCancellation()
                     return evaluate(item, query: normalized)
                 }

@@ -11,22 +11,45 @@ import SwiftUI
 
 struct FocusPhaseNoticeView: View {
     let event: FocusPhaseEvent
+    #if DEBUG
+    @State private var syntheticLinkCallbackCount = 0
+    private var usesSyntheticRouteProbe: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-focus-phase-fixture")
+    }
+    #endif
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: .spacing1) {
             Text(L(event.direction == "backward" ? "focus_phases.returned" : "focus_phases.switched"))
             if let path = event.detailPath {
                 Button {
                     if let url = URL(string: "openmates://settings/\(path)") {
+                        #if DEBUG
+                        // Observe the genuine callback only in the synthetic
+                        // fixture; retain the real notification and destination.
+                        if usesSyntheticRouteProbe { syntheticLinkCallbackCount += 1 }
+                        #endif
                         NotificationCenter.default.post(name: .deepLinkReceived, object: nil, userInfo: ["url": url])
                     }
                 } label: { Text(event.phaseTitle).underline().foregroundStyle(Color.buttonPrimary) }
                 .buttonStyle(.plain).accessibilityIdentifier("focus-phase-details-link")
+                #if DEBUG
+                .accessibilityValue(usesSyntheticRouteProbe
+                    ? "callback-count=\(syntheticLinkCallbackCount);url=openmates://settings/\(path)" : "")
+                #endif
             } else { Text(event.phaseTitle) }
         }
         .font(.omSmall).foregroundStyle(Color.fontSecondary)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("focus-phase-notice")
+        .accessibilityValue(event.eventId)
     }
 }
+
+@MainActor
+private func L(_ key: String) -> String {
+    LocalizationManager.shared.text(key)
+}
+
 
 
 /// Quiet, expandable receipts. Reading or expanding one performs no work.

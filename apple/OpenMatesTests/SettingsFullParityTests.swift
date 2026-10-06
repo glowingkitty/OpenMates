@@ -6,6 +6,7 @@
 import XCTest
 import CryptoKit
 import ImageIO
+import Combine
 @testable import OpenMates
 #if os(iOS)
 import UIKit
@@ -187,6 +188,49 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(failing.statusCopy.contains("huggingface.co"))
         let finalRequests = await downloader.requestCount
         XCTAssertEqual(finalRequests, 1, "Missing configuration must fail before requesting assets")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=pii.apple.enhanced-local-detection,settings-ui.composition.canonical-and-accessible
+    func testPrivacyStatusIgnoresOtherModelUpdatesAndDuplicateDerivedStates() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("privacy-publication-test-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let bytes = Data("synthetic model installation".utf8)
+        let revision = String(repeating: "b", count: 40)
+        let digest = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+        func manifest(_ id: LocalModelID) -> LocalModelManifest {
+            LocalModelManifest(id: id, revision: revision, estimatedSizeBytes: Int64(bytes.count), files: [
+                LocalModelFile(path: "model.pte", url: URL(string: "https://huggingface.co/fixture/resolve/\(revision)/model.pte")!,
+                    sha256: digest, sizeBytes: Int64(bytes.count))
+            ])
+        }
+        let catalog = try JSONEncoder().encode(LocalModelCatalog(models: [manifest(.privacyFilter), manifest(.supertonic3)]))
+        let store = LocalModelStore(catalog: catalog, root: root,
+            downloader: MockPrivacySettingsAssetDownloader(bytes: bytes), verifyExisting: false)
+        let controller = EnhancedPIIModelDownloadController(store: store)
+        var statuses: [EnhancedPIIModelStatus] = []
+        let observation = controller.$status.dropFirst().sink { statuses.append($0) }
+        defer { observation.cancel() }
+
+        await store.download(.supertonic3)
+        await Task.yield()
+        XCTAssertEqual(store.state(for: .supertonic3), .ready)
+        XCTAssertTrue(statuses.isEmpty, "Another model's download must not invalidate privacy controls in every chat")
+        await controller.refresh()
+        XCTAssertTrue(statuses.isEmpty, "Refreshing the same status must not publish it again")
+
+        await controller.download()
+        await Task.yield()
+        let ready = EnhancedPIIModelStatus.ready(version: revision, sizeBytes: bytes.count)
+        XCTAssertEqual(statuses.last, ready, "Completion must still be published immediately")
+        XCTAssertEqual(statuses.filter { $0 == ready }.count, 1)
+        for pair in zip(statuses, statuses.dropFirst()) {
+            XCTAssertNotEqual(pair.0, pair.1, "Transfer/verification changes with identical displayed progress are redundant")
+        }
+        let publishedCount = statuses.count
+        await controller.refresh()
+        XCTAssertEqual(statuses.count, publishedCount)
+        await controller.remove()
+        XCTAssertEqual(Array(statuses.suffix(2)), [.removing, .notDownloaded])
     }
 
     // contract-test: supporting surface=gui.apple assertions=app-skills.surface.semantic-parity,settings-ui.parity.web-apple-shell

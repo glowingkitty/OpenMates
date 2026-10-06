@@ -48,6 +48,11 @@ struct FocusPhaseEvent: Codable, Identifiable, Sendable {
         guard parts.count == 2, parts.allSatisfy({ $0.range(of: "^[a-z][a-z0-9_-]*$", options: .regularExpression) != nil }) else { return nil }
         return "apps/\(parts[0])/focus/\(parts[1])"
     }
+    static func isTypedPayload(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("{") else { return false }
+        return trimmed.range(of: #""type"\s*:\s*"focus_phase_changed""#, options: .regularExpression) != nil
+    }
     static func parse(_ text: String) -> FocusPhaseEvent? {
         guard text.utf8.count < 16_384, let data = text.data(using: .utf8) else { return nil }
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -74,6 +79,41 @@ struct FocusPhasesUpdatedPayload: Decodable {
     let chatId: String
     let states: [String: FocusPhaseState]
 }
+
+// Shared by live delivery and deterministic native verification. History remains
+// display data; only a scoped live payload supplies the current snapshot.
+enum FocusPhaseDeliveryPolicy {
+    static func merged(_ incoming: [String: FocusPhaseState],
+                       saved: [String: FocusPhaseState], chatID: String) -> [String: FocusPhaseState]? {
+        guard incoming.allSatisfy({ id, state in
+            state.schemaVersion == 1 && state.chatId == chatID && state.focusId == id
+                && state.version >= 0 && state.transitions.count <= 32
+        }) else { return nil }
+        var result = incoming
+        for (id, state) in incoming where saved[id]?.runId == state.runId
+            && (saved[id]?.version ?? -1) > state.version { result[id] = saved[id] }
+        return result
+    }
+
+    static func unseenTransitions(in states: [String: FocusPhaseState], chatID: String,
+                                  existingIDs: Set<String>) -> [FocusPhaseEvent] {
+        var seen = existingIDs
+        return states.values.sorted { $0.focusId < $1.focusId }.flatMap { state in
+            state.transitions.filter { event in
+                event.chatId == chatID && event.focusId == state.focusId
+                    && seen.insert(event.id).inserted
+            }
+        }
+    }
+
+    static func isCurrentDelivery(scope: UUID, currentScope: UUID,
+                                  accountID: String?, currentAccountID: String?,
+                                  authenticated: Bool, cancelled: Bool) -> Bool {
+        !cancelled && authenticated && accountID != nil
+            && scope == currentScope && accountID == currentAccountID
+    }
+}
+
 
 
 /// Parsing persisted receipts is inert: it grants no Focus or authoring authority.

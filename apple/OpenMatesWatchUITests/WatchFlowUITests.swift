@@ -3,6 +3,7 @@
 
 import XCTest
 import CoreGraphics
+import ImageIO
 
 final class WatchFlowUITests: XCTestCase {
     override func setUpWithError() throws {
@@ -314,6 +315,179 @@ final class WatchFlowUITests: XCTestCase {
         XCTAssertGreaterThan(Int(events.label) ?? 0, 0)
         XCTAssertNotEqual(rotation.label, initialRotation)
         XCTAssertEqual(focus.label, "true")
+    }
+
+    @MainActor
+    // contract-test: direct surface=gui.apple assertions=apple-watch.embeds.read-only-fullscreen
+    func testRecordedAudioPlaysFromMemoryInPreviewAndFullscreen() {
+        assertRecordedAudioPlayback(processing: false)
+    }
+
+    @MainActor
+    // contract-test: direct surface=gui.apple assertions=apple-watch.embeds.read-only-fullscreen
+    func testProcessingRecordedAudioCanPlayAndOpenFullscreen() {
+        assertRecordedAudioPlayback(processing: true)
+    }
+
+    @MainActor
+    private func assertRecordedAudioPlayback(processing: Bool) {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-chat-mobile-preview", "--ui-test-watch-embed-family", "audioRecording", "--ui-test-watch-local-audio"]
+        if processing { app.launchArguments.append("--ui-test-watch-audio-processing") }
+        app.launch()
+        let preview = app.buttons["watch-embed-preview-audioRecording"]
+        XCTAssertTrue(preview.waitForExistence(timeout: 12))
+        let play = app.buttons["watch-audio-preview-playback"]
+        revealRecordingElement(play, in: app)
+        if !play.exists || !play.isHittable {
+            keepScreenshot(processing ? "Processing recording before missing preview playback assertion" : "Ready recording before missing preview playback assertion")
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "Synthetic Watch recording playback AX hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+        }
+        XCTAssertTrue(play.isHittable)
+        let visual = app.descendants(matching: .any)["watch-embed-visual-canvas-watch-mobile-preview"].firstMatch
+        let title = app.staticTexts["watch-embed-title-watch-mobile-preview"]
+        XCTAssertTrue(visual.exists)
+        XCTAssertTrue(title.exists)
+        XCTAssertLessThanOrEqual(play.frame.maxY, visual.frame.maxY, "Playback stays inside the visual")
+        XCTAssertLessThanOrEqual(play.frame.maxY, title.frame.minY, "Playback must not cover recording metadata")
+        XCTAssertFalse(app.staticTexts["watch-embed-fullscreen-unavailable"].exists)
+        assertDarkRecordingSurface(visual, in: app)
+        keepScreenshot(processing ? "Processing Watch recording permits local playback" : "Dark Watch recording with native local playback control")
+        play.tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "playing"), object: play)], timeout: 3), .completed, "AVAudioPlayer must actually start")
+        play.tap()
+        XCTAssertEqual(play.value as? String, "stopped")
+        openRecordingThroughVisibleCard(in: app)
+        let full = app.buttons["watch-audio-fullscreen-playback"]
+        XCTAssertTrue(full.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["watch-embed-fullscreen-unavailable"].exists)
+        XCTAssertFalse(app.staticTexts["watch-audio-fullscreen-metadata-unavailable"].exists)
+        let close = app.buttons["watch-embed-continuation-close"]
+        XCTAssertFalse(full.frame.intersects(close.frame), "Fullscreen playback must remain clear of the pinned close button's hit target")
+        full.tap()
+        XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "playing"), object: full)], timeout: 3) == .completed)
+        keepScreenshot(processing ? "Processing Watch recording fullscreen plays actual WAV" : "Watch fullscreen recording playing actual synthetic WAV")
+        app.buttons["watch-embed-continuation-close"].tap()
+        XCTAssertTrue(play.waitForExistence(timeout: 5))
+        XCTAssertEqual(play.value as? String, "stopped", "Closing fullscreen releases its player")
+    }
+
+    @MainActor
+    // contract-test: direct surface=gui.apple assertions=apple-watch.embeds.read-only-fullscreen
+    func testLegacyRecordingWithoutFileMetadataOffersPreciseUnavailableState() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-chat-mobile-preview", "--ui-test-watch-embed-family", "audioRecording"]
+        app.launch()
+        let preview = app.buttons["watch-embed-preview-audioRecording"]
+        XCTAssertTrue(preview.waitForExistence(timeout: 12))
+        openRecordingThroughVisibleCard(in: app)
+        XCTAssertTrue(app.staticTexts["watch-audio-fullscreen-metadata-unavailable"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["watch-embed-fullscreen-unavailable"].exists)
+        XCTAssertFalse(app.buttons["watch-audio-fullscreen-playback"].exists)
+        XCTAssertTrue(app.buttons["watch-embed-open-device"].exists)
+        keepScreenshot("Legacy recording preserves transcript and explains missing audio metadata")
+    }
+
+    @MainActor
+    private func recordingViewport(in app: XCUIApplication) -> CGRect {
+        var frame = app.scrollViews["watch-chat-shell"].frame.intersection(app.frame)
+        let header = app.descendants(matching: .any)["watch-chat-thread"].firstMatch
+        // Pinned header/back and fixed composer can obscure descendants
+        // which XCUI nevertheless calls hittable.
+        if header.exists {
+            let top = max(frame.minY, header.frame.maxY)
+            frame = CGRect(x: frame.minX, y: top, width: frame.width, height: max(0, frame.maxY - top))
+        }
+        let composer = app.textFields["watch-message-input"]
+        if composer.exists { frame.size.height = max(0, min(frame.maxY, composer.frame.minY) - frame.minY) }
+        return frame.insetBy(dx: 2, dy: 2)
+    }
+
+    @MainActor
+    private func revealRecordingElement(_ element: XCUIElement, in app: XCUIApplication) {
+        for _ in 0..<16 {
+            guard element.exists else { return }
+            let viewport = recordingViewport(in: app)
+            if viewport.contains(element.frame) { return }
+            // Scroll with the native Crown away from sibling playback actions.
+            // Compare edges, not centers: a center can be visible while the
+            // bottom is still covered. Small steps avoid overshooting the narrow
+            // fully visible interval between the pinned header and composer.
+            if element.frame.maxY > viewport.maxY {
+                XCUIDevice.shared.rotateDigitalCrown(delta: -0.05)
+            } else if element.frame.minY < viewport.minY {
+                XCUIDevice.shared.rotateDigitalCrown(delta: 0.05)
+            } else { return }
+        }
+    }
+
+    @MainActor
+    private func openRecordingThroughVisibleCard(in app: XCUIApplication) {
+        let preview = app.buttons["watch-embed-preview-audioRecording"]
+        let visible = preview.frame.intersection(recordingViewport(in: app))
+        let playback = app.buttons["watch-audio-preview-playback"]
+        let candidates = [
+            CGPoint(x: visible.maxX - 8, y: visible.minY + 8),
+            CGPoint(x: visible.minX + 8, y: visible.minY + 8),
+            CGPoint(x: visible.minX + 8, y: visible.maxY - 8),
+        ]
+        let point = candidates.first { visible.contains($0) && (!playback.exists || !playback.frame.contains($0)) }
+        if visible.isNull || visible.width < 16 || visible.height < 16 || point == nil {
+            keepScreenshot("Recording open action before visible card assertion")
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "Synthetic recording visible open-action AX hierarchy"; hierarchy.lifetime = .keepAlways; add(hierarchy)
+        }
+        XCTAssertTrue(preview.exists)
+        XCTAssertFalse(visible.isNull)
+        XCTAssertGreaterThanOrEqual(visible.width, 16)
+        XCTAssertGreaterThanOrEqual(visible.height, 16)
+        guard let point else { return XCTFail("No visible recording card area outside playback") }
+        // Open the actual native Button through its visible card area. Its AX
+        // center and the lower app bar can be beneath the fixed composer.
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: point.x - app.frame.minX, dy: point.y - app.frame.minY)).tap()
+    }
+
+    @MainActor
+    private func assertDarkRecordingSurface(_ visual: XCUIElement, in app: XCUIApplication) {
+        let image = app.screenshot().image
+        guard let cgImage = image.cgImage else { return XCTFail("Missing Watch screenshot") }
+        // Crop first, then sample all pixels in that small crop. A full-image
+        // CGContext Y flip previously sampled an unrelated black region and
+        // allowed the visibly white recording card to pass.
+        let point = CGPoint(x: visual.frame.minX + 6, y: visual.frame.minY + 20)
+        let transcript = app.scrollViews["watch-chat-shell"].frame
+        XCTAssertTrue(transcript.contains(point), "Dark surface sample must be inside the visible visual")
+        XCTAssertTrue(app.frame.contains(point))
+        let scaleX = CGFloat(cgImage.width) / app.frame.width
+        let scaleY = CGFloat(cgImage.height) / app.frame.height
+        let cropRect = CGRect(x: (point.x - app.frame.minX) * scaleX,
+                              y: (point.y - app.frame.minY) * scaleY, width: 3, height: 3).integral
+        guard let crop = cgImage.cropping(to: cropRect) else { return XCTFail("Missing recording surface crop") }
+        let png = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(png, "public.png" as CFString, 1, nil) else {
+            return XCTFail("Cannot encode actual recording surface crop")
+        }
+        CGImageDestinationAddImage(destination, crop, nil)
+        XCTAssertTrue(CGImageDestinationFinalize(destination))
+        let evidence = XCTAttachment(data: png as Data, uniformTypeIdentifier: "public.png")
+        evidence.name = "Actual visible recording surface pixels"; evidence.lifetime = .keepAlways; add(evidence)
+        var rgba = [UInt8](repeating: 0, count: crop.width * crop.height * 4)
+        let rendered = rgba.withUnsafeMutableBytes { bytes -> Bool in
+            guard let context = CGContext(data: bytes.baseAddress, width: crop.width, height: crop.height,
+                bitsPerComponent: 8, bytesPerRow: crop.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(crop, in: CGRect(x: 0, y: 0, width: crop.width, height: crop.height)); return true
+        }
+        XCTAssertTrue(rendered)
+        guard rendered else { return }
+        for offset in stride(from: 0, to: rgba.count, by: 4) {
+            XCTAssertLessThan(max(rgba[offset], rgba[offset + 1], rgba[offset + 2]), 160,
+                              "Actual recording canvas must be dark, never a white fallback")
+        }
     }
 
     @MainActor

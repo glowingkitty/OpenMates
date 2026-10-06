@@ -12,7 +12,9 @@ import UIKit
 
 enum WorkspaceContinuationLayoutPolicy {
     static let expandedCardHeight: CGFloat = 200
-    static let minimumExpandedGap: CGFloat = 420
+    // 247pt chat carousel + greeting/subtitle, links and their spacing. The
+    // old 420pt cutoff rejected a complete stack on ordinary tall phones.
+    static let minimumExpandedGap: CGFloat = 360
     struct Placement: Equatable {
         let top: CGFloat
         let bottom: CGFloat
@@ -20,12 +22,12 @@ enum WorkspaceContinuationLayoutPolicy {
         var availableHeight: CGFloat { bottom - top }
         var centerY: CGFloat { (top + bottom) / 2 }
     }
-    static func resolve(width: CGFloat, height: CGFloat, bannerBottom: CGFloat, composerTop: CGFloat) -> Placement {
+    static func resolve(width: CGFloat, height: CGFloat, bannerBottom: CGFloat, composerTop: CGFloat, requiredExpandedHeight: CGFloat = minimumExpandedGap) -> Placement {
         let height = height.isFinite ? max(0, height) : 0
         let top = min(height, max(0, bannerBottom.isFinite ? bannerBottom : 0))
         let bottom = max(top, min(height, composerTop.isFinite ? composerTop : height))
         return .init(top: top, bottom: bottom,
-            expanded: width.isFinite && width >= 300 && bottom - top >= minimumExpandedGap)
+            expanded: width.isFinite && width >= 300 && bottom - top >= max(expandedCardHeight, requiredExpandedHeight))
     }
 }
 
@@ -44,6 +46,7 @@ struct WorkspaceContinuationLink: View {
             .font(.omP.weight(.bold))
             .foregroundStyle(Color.grey60)
             .padding(.vertical, .spacing2)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(identifier)

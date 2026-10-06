@@ -288,7 +288,8 @@ final class DraftSyncCoordinator {
     func handleSyncEvent(raw: Data) async throws {
         try validateSession()
         let decodeStart = NativeSyncPerfLog.now()
-        let envelope = try decoder.decode(AuthoritativeSyncEnvelope.self, from: raw)
+        let envelope = try await NativeSyncPayloadDecoder.shared.decode(AuthoritativeSyncEnvelope.self, from: raw).value
+        try validateSession()
         let decodeMs = NativeSyncPerfLog.ms(since: decodeStart)
         let applyStart = NativeSyncPerfLog.now()
         var attemptedDeletions = 0

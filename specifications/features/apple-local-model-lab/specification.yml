@@ -1,13 +1,13 @@
 schema_version: 1
 id: feature.apple-local-model-lab
-version: 4
+version: 7
 status: draft
 title: Apple optional local model laboratory
 summary: An explicitly enabled native settings laboratory evaluates optional downloaded speech models; Privacy settings
   owns Enhanced PII downloads and their diagnostic page.
 scope:
   includes:
-  - Native iPhone, iPad and Mac laboratory for Whisper transcription and Pocket TTS; Privacy-owned diagnostics for
+  - Native iPhone, iPad and Mac laboratory for Whisper transcription and selected Supertonic3 neural speech testing; Privacy-owned diagnostics for
     the downloaded OpenAI Privacy Filter.
   - Verified optional assets, local results, cancellation, private ephemeral state and visible device measurements.
   - Separate Apple Watch foreground multilingual tiny Whisper developer experiment with explicitly pinned assets,
@@ -24,7 +24,7 @@ relationships:
 assertions:
 - id: apple-local-model-lab.optional-downloads
   type: behavior
-  must: Whisper, Pocket TTS and the Privacy-owned OpenAI Privacy Filter each is an independent optional download
+  must: Whisper and the Privacy-owned OpenAI Privacy Filter each is an independent optional download
     with visible progress, cancellation, retry and removal. Weights are absent from the application bundle and never
     downloaded automatically. Assets use immutable revision URLs and per-file size and SHA-256 validation; incomplete
     or corrupt assets never become ready. Reopening verifies installed assets without network access. Transfer and
@@ -37,11 +37,11 @@ assertions:
   - examples.downloads
 - id: apple-local-model-lab.local-execution
   type: behavior
-  must: After explicit laboratory opt-in and verified installation, supported devices run audio transcription and
-    contextual personal-data detection locally. Tests show elapsed time, audio real-time factor where applicable,
+  must: After explicit laboratory opt-in and verified installation, supported devices run audio transcription, selected Supertonic3 speech synthesis, and
+    contextual personal-data detection locally. Speech output is a bounded temporary mono WAV, played only by an explicit local playback action. Tests show elapsed time, audio real-time factor where applicable,
     sampled per-run memory and device/thermal information. Inputs and outputs are never submitted to a server, no
     inference credits are charged, and failures never select a cloud fallback. Preparation, loading, inference and
-    cleanup phases remain visible while work is active; no-progress diagnostics do not falsely declare a native
+    cleanup phases remain visible while work is active; speech synthesis and WAV preparation use their own accurate stage labels, never personal-data detection labels; no-progress diagnostics do not falsely declare a native
     operation idle.
   depends_on:
   - examples.execution
@@ -69,7 +69,7 @@ assertions:
   - examples.cancellation
 - id: apple-local-model-lab.ephemeral-state
   type: invariant
-  must: Text, test results and lab-owned recordings or imported audio copies are temporary. Page exit clears visible
+  must: Text, test results and lab-owned recordings or imported audio copies are temporary. Page exit, neural speech backgrounding, account/server/Team/scope changes and lab opt-out clear visible
     inputs and results immediately, suppresses late completion, and removes private temporary files after any active
     operation has finished. The imported original and installed model assets are preserved. Logs and displayed errors
     omit private input/output text and raw runtime diagnostics.
@@ -78,9 +78,9 @@ assertions:
 - id: apple-local-model-lab.availability
   type: behavior
   must: 'Unavailable or unsafe adapters are absent from laboratory choices and cannot download or run. Platform
-    eligibility belongs to each adapter: the pinned Whisper and Privacy Filter runtimes require Apple silicon, while
-    Pocket TTS uses its supported compiled CPU targets. Apple Watch offers only the separate foreground tiny Whisper
-    experiment. Removed Kokoro and Apple system voice laboratory adapters have no runtime, catalog or UI dependency.'
+    eligibility belongs to each adapter: the pinned Whisper and Privacy Filter runtimes require Apple silicon.
+    Apple Watch offers only the separate foreground tiny Whisper experiment. Removed KittenTTS Mini0.8, Pocket TTS, Kokoro and Apple
+    system voice laboratory adapters have no runtime, catalog, build or UI dependency. Supertonic3 is user-selected for developer tests only; supported arm64 app targets require linked CPU ONNX. Unsupported builds/platforms visibly disable install/run without selecting another provider.'
   depends_on:
   - examples.availability
 - id: apple-local-model-lab.watch-tiny
@@ -95,16 +95,6 @@ assertions:
     active inference. No production chat routing, cloud fallback or physical Watch performance claim is introduced.
   depends_on:
   - examples.watch_tiny
-- id: apple-local-model-lab.pocket-tts
-  type: behavior
-  must: After explicit laboratory opt-in and verified installation, Pocket TTS generates and plays ephemeral audio
-    locally from bounded English test text using its pinned compatible CPU runtime and licensed voice assets. The
-    UI identifies the supported language, runtime and voice without claiming multilingual or device quality that
-    has not been measured. Load, synthesis and memory measurements are visible. Cancellation and page exit suppress
-    late results, remain busy until the active bounded native operation releases its resources, stop playback and
-    clear private text/audio. Production speech routing and billing remain unchanged.
-  depends_on:
-  - examples.pocket_tts
 applies_to:
   rest_api:
     required: false
@@ -135,7 +125,7 @@ examples:
   - ephemeral
   - availability
   - watch_tiny
-  - pocket_tts
+  - neural_tts
 approval_source:
   scope: 'Direct user instruction: lets implement as optional downloads, to keep the app size small. go ahead with
     the three models/plan with the separate testing app sub page'
@@ -154,3 +144,10 @@ approval_source:
     testing and moves Enhanced PII download to Privacy with automatic debounced composer use; the latter is governed
     by feature.pii-protection. Core ML research found no validated same-model mobile replacement, so the existing
     pinned ExecuTorch model is retained.
+  version_5_approval: Direct user instruction on 2026-10-04 rejects Pocket TTS quality and requires complete
+    runtime/catalog/build/laboratory removal with no Apple voice fallback. It supersedes the historical version_4
+    speech selection. Research alternatives only; no replacement provider integration is selected.
+
+  version_6_approval: The user explicitly selected Supertonic3 and exact KittenTTS Mini0.8 for optional developer testing on2026-10-04. Kitten uses the official pure Swift BuiltinPhonemizer with explicit limited-vocabulary/pronunciation labeling; CE/eSpeak code and GPL data are excluded. Production chat routing is unchanged; no quality/device reliability claim or automatic download/fallback is approved. Historical version5 removal remains valid for rejected Pocket/system adapters and current release92; this later testing selection supersedes its research-only restriction.
+
+  version_7_approval: Direct user instruction on 2026-10-05 rejects KittenTTS Mini0.8 and requires complete runtime/catalog/build/laboratory removal, retaining Supertonic3. Correct developer timing labels to show actual speech processing rather than personal-data detection. This supersedes only the historical version_6 Kitten selection. Requested production local-first playback and explicit ElevenLabs fallback are a separate pending scope.

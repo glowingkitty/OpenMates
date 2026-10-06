@@ -1,3 +1,7 @@
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.layout.responsive-history,
+//             chats.rendering.inline-entity-interaction
+//
 // Unified embed preview card — compact card shown inline in chat messages.
 // Mirrors UnifiedEmbedPreview.svelte with app gradient header, content area,
 // and status bar footer. Dispatches to per-type renderers via EmbedContentView.
@@ -66,7 +70,17 @@ enum EmbedVisualSkillIcon {
             return "search"
         }
         if HostingEmbedKind.isSearch(embed) || HostingEmbedKind.isDomain(embed) { return "search" }
-        switch embed.type {
+        // Stored tool calls use app-skill-use while preview fixtures use app:*.
+        // Resolve both forms through the same canonical registry key.
+        let appId = embed.appId ?? embed.rawData?["app_id"]?.value as? String
+        let skillId = embed.skillId ?? embed.rawData?["skill_id"]?.value as? String
+        let registryKey: String
+        if embed.isAppSkillUse, let appId, let skillId {
+            registryKey = "app:\(appId):\(skillId)"
+        } else {
+            registryKey = EmbedType.normalized(rawValue: embed.type)?.rawValue ?? embed.type
+        }
+        switch registryKey {
         case "recording": return "microphone"
         case "app:audio:generate", "app:audio:speak": return "audio"
         case "app:business:company_financials", "business-company-financial-result": return "business"
@@ -78,7 +92,7 @@ enum EmbedVisualSkillIcon {
              "app:home:search", "app:images:search", "app:maps:search",
              "app:models3d:search", "app:news:search", "app:nutrition:search_recipes",
              "nutrition-recipe", "app:shopping:search_products", "shopping-product",
-             "app:social_media:get-posts", "app:social_media:search", "app:tasks:search",
+             "app:social_media:search", "app:tasks:search",
              "app:travel:search_connections", "app:travel:search_stays", "travel-stay",
              "app:videos:search", "app:web:search", "app:workflows:search": return "search"
         case "code-repo": return "github"
@@ -103,6 +117,7 @@ enum EmbedVisualSkillIcon {
         case "web-website": return "website"
         case "pdf": return "pdf"
         case "app:reminder:set-reminder", "app:reminder:list-reminders", "app:reminder:cancel-reminder": return "reminder"
+        case "app:social_media:get-posts": return fullscreen ? "socialmedia" : "search"
         case "social-media-post": return "socialmedia"
         case "app:tasks:create", "tasks-task": return "task"
         case "travel-connection": return fullscreen ? "travel" : "search"
@@ -111,11 +126,12 @@ enum EmbedVisualSkillIcon {
         case "videos-video": return "video"
         case "app:videos:get_transcript": return "transcript"
         case "app:videos:create", "app:videos:generate": return "videos"
-        case "weather-day", "app:weather:forecast", "app:weather:rain_radar": return "weather"
+        case "app:weather:forecast": return fullscreen ? "search" : "weather"
+        case "weather-day", "app:weather:rain_radar": return "weather"
         case "app:web:read": return "text"
         case "app:workflows:create-or-modify", "workflows-workflow": return "workflow"
         case "sheets-sheet": return "table"
-        case "focus-mode-activation": return "focus"
+        case "focus-mode-activation": return fullscreen ? "focus" : "insight"
         default:
             return AppIconView.iconName(forAppId: embed.appId ?? EmbedType.normalized(rawValue: embed.type)?.appId ?? "web")
         }
@@ -222,7 +238,7 @@ struct EmbedPreviewCard: View {
                 )
                 // Code exposes its source/processing/empty renderer state in
                 // every status, while retaining the outer actionable card.
-                .accessibilityElement(children: HostingEmbedKind.isSearch(embed) || HostingEmbedKind.isDomain(embed) || embedType == .codeCode || embedType == .mindmapsMindmap || (embed.status == .finished &&
+                .accessibilityElement(children: exposesRuntimeSkillIcons || TravelSearchPresentation.isSearch(embed) || HostingEmbedKind.isSearch(embed) || HostingEmbedKind.isDomain(embed) || embedType == .codeCode || embedType == .mindmapsMindmap || (embed.status == .finished &&
                     (embedType == .maps || embedType == .mapsPlace || embedType == .webSearch || embedType == .newsSearch || (embedType == .webWebsite && appId == "news") || embedType == .imagesSearch || embedType == .sheetsSheet || (embed.isAppSkillUse && appId == "web"))) ? .contain : .combine)
                 .accessibilityValue(statusAccessibilityValue)
             }
@@ -518,6 +534,7 @@ struct EmbedPreviewCard: View {
             skillIconName: skillIconName,
             title: statusTitle,
             subtitle: statusSubtitle,
+            isProcessing: embed.status == .processing,
             faviconURL: faviconURL,
             faviconIsCircular: embedType == .codeRepo || embedType == .videosVideo,
             showSkillIcon: showsSkillIcon,
@@ -535,9 +552,7 @@ struct EmbedPreviewCard: View {
     private var processingOrAudioTrailingAction: AnyView? {
         if embed.status == .processing {
             return AnyView(
-                Icon("stop_processing", size: 35)
-                    .foregroundStyle(Color.red)
-                    .frame(width: 40, height: 40)
+                EmbedProcessingStopGlyph()
                     .accessibilityLabel(AppStrings.stop)
             )
         }
@@ -554,7 +569,15 @@ struct EmbedPreviewCard: View {
     }
 
     private var appId: String {
-        embed.appId ?? embedType?.appId ?? "web"
+        embed.appId ?? embed.rawData?["app_id"]?.value as? String ?? embedType?.appId ?? "web"
+    }
+
+    private var exposesRuntimeSkillIcons: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--dev-runtime-skill-icon-preview")
+        #else
+        false
+        #endif
     }
 
     private var skillIconName: String {
@@ -563,7 +586,8 @@ struct EmbedPreviewCard: View {
 
     private var showsSkillIcon: Bool {
         if HostingEmbedKind.isDomain(embed) { return false }
-        if embedType == .mailEmail || embedType == .mathPlot { return false }
+        if embedType == .mailEmail || embedType == .mathPlot
+            || embedType == .weatherForecast || embedType == .weatherRainRadar { return false }
         if embedType == .webSearch
             || embedType == .videosSearch
             || embedType == .image
@@ -628,7 +652,7 @@ struct EmbedPreviewCard: View {
         case .financeCheckAccounts: return AppStrings.financeCheckAccounts
         case .mathCalculate: return "Calculate"
         case .reminderSet, .reminderList, .reminderCancel: return AppStrings.setReminder
-        case .weatherForecast: return "Get forecast"
+        case .weatherForecast: return AppStrings.weatherForecast
         case .travelFlight: return "Flight Track"
         default: break
         }
@@ -897,6 +921,8 @@ struct EmbedPreviewCard: View {
             return LocalizationManager.shared.text("common.view")
         case ("travel", "search_connections"):
             return "Search connections"
+        case ("weather", "forecast"):
+            return AppStrings.weatherForecast
         case ("code", "get_docs"):
             return AppStrings.localized("app_skills.code.get_docs")
         default:

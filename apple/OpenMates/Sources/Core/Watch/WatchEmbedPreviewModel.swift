@@ -1,4 +1,6 @@
 // Watch embed preview contract.
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.chats.compact-layout, apple-watch.embeds.read-only-fullscreen
 // Maps regular OpenMates embed records into a small, watchOS-safe card model
 // without importing the large iOS/macOS renderer stack. The model keeps private
 // content out of continuation links and exposes only compact display fields for
@@ -121,14 +123,43 @@ struct WatchEmbedPreviewModel: Equatable, Identifiable, Sendable {
     let continuation: WatchEmbedContinuation
     let visual: WatchEmbedPreviewVisual
     var detailContent: WatchEmbedDetailContent = .empty
+    var previewSymbolAssetName: String? = nil
+
+    var hasPreviewVisual: Bool {
+        if state == .processing || detailContent.imageData != nil || detailContent.imageURL != nil { return true }
+        switch visual {
+        // The reported code placeholder must not repeat its app-bar icon.
+        // Preserve other families' existing symbol preview composition.
+        case .symbol: return family != .code && previewSymbolIconName != nil
+        case .text(let lines), .code(let lines): return !lines.isEmpty
+        case .table(let headers, _, _): return !headers.isEmpty
+        }
+    }
+
+    /// Transcription/processing does not own the local recording's playback.
+    /// Other processing embed families keep their existing opening guard.
+    var hasPlayableAudio: Bool {
+        (family == .audioRecording || family == .audio)
+            && (detailContent.audioData != nil || detailContent.audioSource != nil)
+    }
+    var canOpenReadOnlyPreview: Bool { state != .processing || hasPlayableAudio }
 
     var isSupported: Bool { family != .unsupported }
+    // The Watch app bar represents the app; a search-result symbol represents
+    // its skill. Preserve Mail's explicit mail glyph from the web preview.
+    var previewSymbolIconName: String? {
+        if state == .error { return "warning" }
+        if let previewSymbolAssetName { return previewSymbolAssetName.isEmpty ? nil : previewSymbolAssetName }
+        return iconName
+    }
+
     var iconName: String {
         switch appId {
         case "mindmaps": return "workflow"
         case "tasks": return "task"
         case "workflows": return "workflow"
         case "electronics": return "pcbdesign"
+        case "hosting": return "server"
         case "models3d": return "3dmodels"
         case "file": return "files"
         case "photos": return "image"
@@ -144,6 +175,8 @@ struct WatchEmbedDetailContent: Equatable, Sendable {
     var isCode = false
     var imageURL: URL?
     var imageData: Data?
+    var audioData: Data?
+    var audioSource: WatchAudioSource?
     var tableHeaders: [String] = []
     var tableRows: [[String]] = []
     var latitude: Double?
@@ -164,11 +197,19 @@ struct WatchEmbedDetailContent: Equatable, Sendable {
         case .code: keys = ["code", "content", "text"]; result.isCode = true
         case .spreadsheet: keys = ["table", "markdown", "code", "content"]
         case .document, .mindmap: keys = ["markdown", "content", "text", "description"]
-        case .audio, .audioRecording: keys = ["transcript", "transcription", "text", "content"]
+        case .audio, .audioRecording: keys = ["transcript", "transcription", "text"]
         case .mapPlace: keys = ["formattedAddress", "formatted_address", "address", "description"]
         default: keys = ["description", "summary", "text", "content"]
         }
         result.text = string(keys)
+        if family == .audio || family == .audioRecording {
+            result.audioSource = WatchAudioSource(raw: raw)
+            if raw["use_corrected"]?.value as? Bool == true {
+                result.text = string(["transcript_corrected"]) ?? result.text
+            } else {
+                result.text = string(["transcript_original"]) ?? result.text
+            }
+        }
         if family == .spreadsheet, let text = result.text {
             let lines = text.components(separatedBy: .newlines).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty && $0.contains("|") }
             func cells(_ line: String) -> [String] {
@@ -226,7 +267,7 @@ struct WatchMessageRenderSegment: Equatable, Identifiable, Sendable {
 }
 
 enum WatchMessageRenderProjection {
-    static func segments(message: WatchChatMessage, hydratedChildren: [EmbedRecord] = []) -> [WatchMessageRenderSegment] {
+    static func segments(message: WatchChatMessage, hydratedChildren: [EmbedRecord] = [], localAudio: [String: Data] = [:]) -> [WatchMessageRenderSegment] {
         let refs = WatchMessageContentSanitizer.mergedEmbedRefs(content: message.content, provided: message.embedRefs)
         let records = refs.map(WatchEmbedPreviewMapper.embedRecord(from:))
         let lookup = EmbedRecord.dictionaryById(records + hydratedChildren, context: "watchMessageProjection") { _ in }
@@ -253,7 +294,9 @@ enum WatchMessageRenderProjection {
             let key = record.isAppSkillUse ? "app-skill-use" : record.type
             if groupKey != nil && groupKey != key { flushGroup() }
             groupKey = key
-            group.append(WatchEmbedPreviewMapper.makeModel(for: record, chatId: message.chatId, allEmbedRecords: lookup))
+            var model = WatchEmbedPreviewMapper.makeModel(for: record, chatId: message.chatId, allEmbedRecords: lookup)
+            model.detailContent.audioData = localAudio[id]
+            group.append(model)
         }
         let source = message.content ?? ""
         // Match embed JSON only; ordinary fenced code stays intact and its
@@ -300,8 +343,12 @@ enum WatchEmbedPreviewMapper {
         var raw = embedRef.data ?? [:]
         if let encoded = raw["content"]?.value as? String {
             let decoded = EmbedRecord.parseContent(encoded).mapValues(AnyCodable.init)
-            if encoded.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{")
-                || decoded["app_id"] != nil || decoded["embed_id"] != nil {
+            // A serialized embed envelope differs from a JSON code/document body.
+            // Preserve ordinary JSON source as readable content on Watch.
+            let envelopeKeys = ["app_id", "embed_id", "code", "table", "markdown", "filename", "embed_ids"]
+            if envelopeKeys.contains(where: { decoded[$0] != nil })
+                || (encoded.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{")
+                    && EmbedType.normalized(rawValue: embedRef.type) != .codeCode) {
                 raw.removeValue(forKey: "content")
             }
             raw = decoded.merging(raw, uniquingKeysWith: { _, supplied in supplied })
@@ -336,13 +383,15 @@ enum WatchEmbedPreviewMapper {
         allEmbedRecords: [String: EmbedRecord] = [:]
     ) -> WatchEmbedPreviewModel {
         let inferredSkill: EmbedType?
-        if embed.isAppSkillUse, let appId = embed.appId, let skillId = embed.skillId {
+        if embed.isAppSkillUse,
+           let appId = embed.appId ?? string(embed.rawData ?? [:], keys: ["app_id", "appId"]),
+           let skillId = embed.skillId ?? string(embed.rawData ?? [:], keys: ["skill_id", "skillId"]) {
             inferredSkill = EmbedType(rawValue: "app:\(appId):\(skillId)")
         } else { inferredSkill = nil }
         let embedType = inferredSkill ?? EmbedType.normalized(rawValue: embed.type)
         let family = family(for: embed, embedType: embedType)
         let raw = embed.rawData ?? [:]
-        let appId = embed.appId ?? embedType?.appId ?? appId(for: family)
+        let appId = embed.appId ?? string(raw, keys: ["app_id", "appId"]) ?? embedType?.appId ?? appId(for: family)
         let state = state(for: embed, family: family)
         let content = content(for: embed, embedType: embedType, family: family, raw: raw, allEmbedRecords: allEmbedRecords)
         return WatchEmbedPreviewModel(
@@ -356,8 +405,20 @@ enum WatchEmbedPreviewMapper {
             detail: content.detail,
             continuation: WatchEmbedContinuation(chatId: chatId, embedId: embed.id),
             visual: visual(for: family, raw: raw, allEmbedRecords: allEmbedRecords, embed: embed),
-            detailContent: family == .unsupported || state == .error ? .empty : WatchEmbedDetailContent.make(for: embed, family: family, allRecords: allEmbedRecords, chatId: chatId)
+            detailContent: family == .unsupported || state == .error ? .empty : WatchEmbedDetailContent.make(for: embed, family: family, allRecords: allEmbedRecords, chatId: chatId),
+            previewSymbolAssetName: GeneratedWebEmbedPreviewIconPolicy.name(for: embed)
         )
+    }
+
+    /// Refresh an already opened projection when its authorized hydration arrives.
+    /// No fetch or durable plaintext storage is introduced by this display helper.
+    static func refreshedModel(_ model: WatchEmbedPreviewModel,
+                               hydratedRefs: [String: WatchEmbedRef]) -> WatchEmbedPreviewModel {
+        guard let ref = hydratedRefs[model.id], ref.id == model.id else { return model }
+        let records = hydratedRefs.mapValues { embedRecord(from: $0) }
+        var updated = makeModel(for: ref, chatId: model.continuation.chatId, allEmbedRecords: records)
+        updated.detailContent.audioData = model.detailContent.audioData
+        return updated
     }
 
     static func supports(_ embedType: EmbedType) -> Bool {
@@ -473,7 +534,12 @@ enum WatchEmbedPreviewMapper {
             detail = string(raw, keys: ["width", "height"]).map { "\($0)" }
         case .audioRecording:
             title = string(raw, keys: ["title", "filename", "transcript"]).flatMap(cleanText) ?? fallback
-            subtitle = string(raw, keys: ["duration", "duration_text", "mime_type"])
+            if let number = raw["duration"]?.value as? NSNumber,
+               CFGetTypeID(number) != CFBooleanGetTypeID(), number.doubleValue.isFinite,
+               (0...86_400).contains(number.doubleValue) {
+                let seconds = Int(number.doubleValue)
+                subtitle = String(format: "%d:%02d", seconds / 60, seconds % 60)
+            } else { subtitle = string(raw, keys: ["duration", "duration_text", "mime_type"]) }
             detail = string(raw, keys: ["transcript"]).flatMap(cleanText)
         case .code:
             title = filename(from: string(raw, keys: ["filename", "path"])) ?? string(raw, keys: ["title", "language"]) ?? fallback
@@ -1073,3 +1139,183 @@ enum WatchTranscriptZoom {
     }
     static func scale(for level: Int) -> Double { pow(1.15, Double(min(maximum, max(minimum, level)))) }
 }
+
+
+/// Recording file metadata is decrypted with the embed; it never enters a
+/// continuation link or the offline preview allowlist. Only original media is
+/// accepted, and unknown encryption versions fail closed.
+struct WatchAudioSource: Equatable, Sendable {
+    static let maximumBytes = 16 * 1024 * 1024
+    let s3Key: String
+    let aesKey: String
+    let aesNonce: String?
+    let encryption: String?
+
+    init?(raw: [String: AnyCodable]) {
+        // Watch currently supports personal chats only. A Team-owned media
+        // descriptor must not escape into a personal presign request.
+        if let team = raw["team_id"]?.value, !(team is NSNull) { return nil }
+        guard let files = raw["files"]?.value as? [String: Any],
+              let original = files["original"] as? [String: Any],
+              let key = original["s3_key"] as? String, !key.isEmpty, key.utf8.count <= 2_048,
+              let aesKey = raw["aes_key"]?.value as? String,
+              Self.material(aesKey, count: 32) != nil else { return nil }
+        let nonce = (original["aes_nonce"] as? String) ?? (raw["aes_nonce"]?.value as? String)
+        let encryption = (original["encryption"] as? String) ?? (raw["encryption"]?.value as? String)
+        guard encryption == nil || encryption == "" || encryption == "aes-gcm-nonce-prefixed-v1" else { return nil }
+        // Web accepts an explicit empty legacy nonce as nonce-prefixed;
+        // genuinely missing nonce metadata is not a playable legacy recording.
+        guard encryption == "aes-gcm-nonce-prefixed-v1" || nonce != nil else { return nil }
+        if encryption == nil, let nonce, !nonce.isEmpty,
+           Self.material(nonce, count: 12) == nil { return nil }
+        if let size = original["size_bytes"] as? NSNumber,
+           size.int64Value <= 0 || size.int64Value > Int64(Self.maximumBytes) { return nil }
+        self.s3Key = key; self.aesKey = aesKey; self.aesNonce = nonce; self.encryption = encryption
+    }
+
+    private static func material(_ encoded: String, count: Int) -> Data? {
+        if encoded.utf8.count == count * 2 {
+            var data = Data(); var index = encoded.startIndex
+            while index < encoded.endIndex {
+                let end = encoded.index(index, offsetBy: 2)
+                guard let byte = UInt8(encoded[index..<end], radix: 16) else { return nil }
+                data.append(byte); index = end
+            }
+            return data
+        }
+        guard let data = Data(base64Encoded: encoded), data.count == count else { return nil }
+        return data
+    }
+
+    func decrypt(_ data: Data) throws -> Data {
+        guard data.count <= Self.maximumBytes, let key = Self.material(aesKey, count: 32) else {
+            throw WatchChatRuntimeError.invalidRecording
+        }
+        let nonce: Data
+        let body: Data
+        if encryption == "aes-gcm-nonce-prefixed-v1" || aesNonce?.isEmpty != false {
+            guard data.count > 28 else { throw WatchChatRuntimeError.invalidRecording }
+            nonce = Data(data.prefix(12)); body = Data(data.dropFirst(12))
+        } else {
+            guard let bytes = Self.material(aesNonce!, count: 12), data.count > 16 else {
+                throw WatchChatRuntimeError.invalidRecording
+            }
+            nonce = bytes; body = data
+        }
+        let sealed = try AES.GCM.SealedBox(nonce: AES.GCM.Nonce(data: nonce),
+            ciphertext: body.dropLast(16), tag: body.suffix(16))
+        return try AES.GCM.open(sealed, using: SymmetricKey(data: key))
+    }
+}
+
+// BEGIN GENERATED WEB EMBED PREVIEW ICON POLICY
+// Generated by scripts/audit_apple_embed_icons.py --write-watch-policy.
+// Source: canonical enabled registry + actual Svelte preview props/CSS.
+// Empty asset means the web preview intentionally omits its secondary icon.
+enum GeneratedWebEmbedPreviewIconPolicy {
+    static let assets: [String: String] = [
+        "app:audio:generate": "audio",
+        "app:audio:speak": "audio",
+        "app:business:company_financials": "business",
+        "app:calendar:create-event": "search",
+        "app:calendar:delete-event": "search",
+        "app:calendar:get-events": "search",
+        "app:calendar:list-calendars": "search",
+        "app:calendar:update-event": "search",
+        "app:code:get_docs": "docs",
+        "app:code:search_repos": "search",
+        "app:design:search_icons": "search",
+        "app:electronics:search_components": "search",
+        "app:events:search": "search",
+        "app:finance:check_accounts": "finance",
+        "app:fitness:search_classes": "search",
+        "app:fitness:search_locations": "search",
+        "app:health:search_appointments": "search",
+        "app:home:search": "search",
+        "app:hosting:search_domains": "search",
+        "app:images:generate": "ai",
+        "app:images:generate_draft": "ai",
+        "app:images:search": "search",
+        "app:mail:search": "mail",
+        "app:maps:search": "search",
+        "app:math:calculate": "math",
+        "app:models3d:generate": "3dmodels",
+        "app:models3d:search": "search",
+        "app:music:generate": "ai",
+        "app:news:search": "search",
+        "app:nutrition:search_recipes": "search",
+        "app:reminder:cancel-reminder": "reminder",
+        "app:reminder:list-reminders": "reminder",
+        "app:reminder:set-reminder": "reminder",
+        "app:shopping:search_products": "search",
+        "app:social_media:get-posts": "search",
+        "app:social_media:search": "search",
+        "app:tasks:create": "task",
+        "app:tasks:search": "search",
+        "app:travel:get_flight": "travel",
+        "app:travel:price_calendar": "calendar",
+        "app:travel:search_connections": "search",
+        "app:travel:search_stays": "search",
+        "app:videos:create": "videos",
+        "app:videos:generate": "videos",
+        "app:videos:get_transcript": "transcript",
+        "app:videos:search": "search",
+        "app:weather:forecast": "",
+        "app:weather:rain_radar": "",
+        "app:web:read": "text",
+        "app:web:search": "search",
+        "app:workflows:create-or-modify": "workflow",
+        "app:workflows:search": "search",
+        "business-company-financial-result": "business",
+        "code-application": "coding",
+        "code-code": "coding",
+        "code-notebook": "coding",
+        "code-repo": "github",
+        "design-icon-result": "search",
+        "docs-doc": "docs",
+        "electronics-component": "search",
+        "electronics-pcb-schematic": "pcbdesign",
+        "events-event": "event",
+        "file-file": "files",
+        "fitness-class": "fitness",
+        "fitness-location": "fitness",
+        "focus-mode-activation": "insight",
+        "health-appointment": "heart",
+        "home-listing": "search",
+        "hosting-domain": "search",
+        "image": "image",
+        "images-image-result": "image",
+        "mail-email": "mail",
+        "maps": "pin",
+        "maps-place": "pin",
+        "math-plot": "math",
+        "mindmaps-mindmap": "workflow",
+        "models3d-model-result": "3dmodels",
+        "nutrition-recipe": "search",
+        "pdf": "pdf",
+        "recording": "recordaudio",
+        "sheets-sheet": "sheets",
+        "shopping-product": "search",
+        "social-media-post": "socialmedia",
+        "tasks-task": "task",
+        "travel-connection": "search",
+        "travel-stay": "search",
+        "videos-video": "videos",
+        "weather-day": "weather",
+        "web-website": "web",
+        "workflows-workflow": "workflow",
+    ]
+
+    static func name(for embed: EmbedRecord) -> String? {
+        let appID = embed.appId ?? embed.rawData?["app_id"]?.value as? String ?? embed.rawData?["appId"]?.value as? String
+        let skillID = embed.skillId ?? embed.rawData?["skill_id"]?.value as? String ?? embed.rawData?["skillId"]?.value as? String
+        let key: String
+        if embed.isAppSkillUse, let appID, let skillID {
+            key = "app:\(appID):\(skillID)"
+        } else {
+            key = EmbedType.normalized(rawValue: embed.type)?.rawValue ?? embed.type
+        }
+        return assets[key]
+    }
+}
+// END GENERATED WEB EMBED PREVIEW ICON POLICY

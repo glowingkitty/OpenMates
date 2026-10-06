@@ -101,6 +101,141 @@ final class EmbedRenderingParityUITests: XCTestCase {
         attachScreenshot(name: "File artifact shared More download action")
     }
 
+    /// Compare painted screen regions, independent of production animation phase metadata.
+    private func footerPixelSamples(_ app: XCUIApplication, frame: CGRect, name: String) throws -> [[UInt8]] {
+        var samples: [[UInt8]] = []
+        for index in 0..<8 {
+            let screenshot = app.screenshot()
+            let attachment = XCTAttachment(screenshot: screenshot)
+            attachment.name = "\(name)-\(index)"; attachment.lifetime = .keepAlways; add(attachment)
+            guard let image = screenshot.image.cgImage else { throw NSError(domain: "FooterPixels", code: 1) }
+            let scale = CGFloat(image.width) / app.frame.width
+            guard let crop = image.cropping(to: CGRect(x: frame.minX * scale, y: frame.minY * scale,
+                width: frame.width * scale, height: frame.height * scale).integral) else { throw NSError(domain: "FooterPixels", code: 2) }
+            var pixels = [UInt8](repeating: 0, count: crop.width * crop.height * 4)
+            let drawn = pixels.withUnsafeMutableBytes { bytes -> Bool in
+                guard let context = CGContext(data: bytes.baseAddress, width: crop.width, height: crop.height,
+                    bitsPerComponent: 8, bytesPerRow: crop.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+                context.draw(crop, in: CGRect(x: 0, y: 0, width: crop.width, height: crop.height)); return true
+            }
+            XCTAssertTrue(drawn); samples.append(pixels)
+            // Sampling only; no production time probes or counters.
+            if index < 7 { Thread.sleep(forTimeInterval: 0.17) }
+        }
+        return samples
+    }
+
+    private func maximumPixelDifference(_ samples: [[UInt8]]) -> Double {
+        guard let first = samples.first, !first.isEmpty else { return 0 }
+        return samples.dropFirst().map { sample in
+            zip(first, sample).enumerated().reduce(0.0) { total, item in
+                item.offset % 4 == 3 ? total : total + abs(Double(item.element.0) - Double(item.element.1))
+            } / Double(first.count / 4 * 3)
+        }.max() ?? 0
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,web-search.surface-parity
+    func testRuntimeWebSkillRendersPrimaryGlobeAndSecondarySearchInBothStates() throws {
+        // Prior rotation tests may fail before their asynchronous restore settles.
+        // Establish the intended coordinate space before sampling painted pixels.
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = XCUIApplication()
+        for (variant, reducedMotion) in [("processing", false), ("default", false), ("processing", true)] {
+            app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "web",
+                "--embed-registry-key", "app:web:search", "--embed-surface", "preview",
+                "--embed-variant", variant, "--dev-runtime-skill-icon-preview"]
+            // Synthetic Simulator input exercises the production reduced-motion
+            // branch; this does not claim a change to the OS accessibility setting.
+            if reducedMotion { app.launchArguments.append("--dev-processing-reduced-motion") }
+            app.launch()
+            let portraitWindow = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let frame = app.windows.firstMatch.frame
+                return frame.width > 0 && frame.height > frame.width
+            }, object: app.windows.firstMatch)
+            XCTAssertEqual(XCTWaiter.wait(for: [portraitWindow], timeout: 5), .completed,
+                           "Pixel sampling requires a settled portrait window")
+            let wire = app.descendants(matching: .any)["runtime-embed-wire-contract"].firstMatch
+            XCTAssertTrue(wire.waitForExistence(timeout: 10))
+            XCTAssertEqual(wire.label, "app-skill-use|raw:web:search|\(variant == "processing" ? "processing" : "finished")")
+            let preview = app.buttons["embed-preview"].firstMatch
+            XCTAssertTrue(preview.waitForExistence(timeout: 5))
+            XCTAssertEqual(preview.frame.width, 300, accuracy: 1)
+            XCTAssertEqual(preview.frame.height, 200, accuracy: 1)
+            XCTAssertTrue(app.frame.intersects(preview.frame))
+            let primaryImage = app.images["embed-primary-app-icon-web"].firstMatch
+            let secondaryImage = app.images["embed-secondary-skill-icon-search"].firstMatch
+            XCTAssertTrue(primaryImage.waitForExistence(timeout: 5))
+            XCTAssertTrue(secondaryImage.waitForExistence(timeout: 5))
+            XCTAssertGreaterThan(primaryImage.frame.width, 0)
+            XCTAssertGreaterThan(secondaryImage.frame.width, 0)
+            XCTAssertTrue(preview.frame.insetBy(dx: -1, dy: -1).contains(primaryImage.frame))
+            XCTAssertTrue(preview.frame.insetBy(dx: -1, dy: -1).contains(secondaryImage.frame))
+            XCTAssertTrue(app.frame.contains(primaryImage.frame))
+            XCTAssertTrue(app.frame.contains(secondaryImage.frame))
+            XCTAssertGreaterThan(secondaryImage.frame.minX, primaryImage.frame.maxX)
+            XCTAssertFalse(app.images["embed-secondary-skill-icon-web"].exists)
+            func bounds(_ role: String) throws -> CGRect {
+                let probe = app.descendants(matching: .any)["runtime-embed-\(role)-bounds"].firstMatch
+                XCTAssertTrue(probe.waitForExistence(timeout: 5))
+                let ready = NSPredicate { _, _ in
+                    probe.label.split(separator: ",").compactMap { Double($0) }.count == 4
+                }
+                XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: probe)], timeout: 5), .completed)
+                let values = probe.label.split(separator: ",").compactMap { Double($0) }
+                guard values.count == 4 else { throw NSError(domain: "RuntimeEmbedGlyphBounds", code: 1) }
+                return CGRect(x: values[0], y: values[1], width: values[2], height: values[3])
+            }
+            let card = try bounds("card")
+            let primary = try bounds("primary-app-icon-web")
+            let secondary = try bounds("secondary-skill-icon-search")
+            XCTAssertEqual(primary.width, 25, accuracy: 0.5)
+            XCTAssertEqual(primary.height, 25, accuracy: 0.5)
+            XCTAssertEqual(secondary.width, 29, accuracy: 0.5)
+            XCTAssertEqual(secondary.height, 29, accuracy: 0.5)
+            XCTAssertTrue(card.contains(primary)); XCTAssertTrue(card.contains(secondary))
+            XCTAssertGreaterThan(secondary.minX, primary.maxX)
+            XCTAssertFalse(app.descendants(matching: .any)["runtime-embed-secondary-skill-icon-web-bounds"].exists)
+            if variant == "processing" {
+                let status = app.staticTexts["embed-basic-info-status"].firstMatch
+                let stop = app.images["embed-processing-stop-icon"].firstMatch
+                XCTAssertTrue(status.waitForExistence(timeout: 5)); XCTAssertTrue(stop.waitForExistence(timeout: 5))
+                let statusChange = maximumPixelDifference(try footerPixelSamples(app, frame: status.frame, name: "Processing text reduced=\(reducedMotion)"))
+                let stopChange = maximumPixelDifference(try footerPixelSamples(app, frame: stop.frame, name: "Stop pulse reduced=\(reducedMotion)"))
+                if reducedMotion {
+                    XCTAssertLessThan(statusChange, 0.1); XCTAssertLessThan(stopChange, 0.1)
+                } else {
+                    XCTAssertGreaterThan(statusChange, 0.3); XCTAssertGreaterThan(stopChange, 1.0)
+                }
+                let oldPreviewFrame = preview.frame
+                let originalTitle = app.staticTexts["embed-basic-info-title"].firstMatch.label
+                app.buttons["runtime-finish-processing"].tap()
+                XCTAssertTrue(app.staticTexts["runtime-embed-wire-contract"].waitForExistence(timeout: 5))
+                let finished = NSPredicate { _, _ in wire.label == "app-skill-use|raw:web:search|finished" && !stop.exists }
+                XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: finished, object: nil)], timeout: 5), .completed)
+                XCTAssertEqual(preview.frame, oldPreviewFrame)
+                XCTAssertTrue(primaryImage.exists); XCTAssertTrue(secondaryImage.exists)
+                // Completion deliberately cycles through encryption/open-details
+                // hints before this generic skill's subtitle disappears. Observe
+                // the settled terminal layout before sampling its painted text.
+                let settled = NSPredicate { _, _ in
+                    let title = app.staticTexts["embed-basic-info-title"].firstMatch
+                    return !status.exists && !stop.exists && title.exists
+                        && title.frame.width > 0 && title.frame.height > 0
+                }
+                XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: settled, object: nil)], timeout: 5), .completed)
+                let finishedTitle = app.staticTexts["embed-basic-info-title"].firstMatch
+                XCTAssertFalse(status.exists); XCTAssertFalse(stop.exists)
+                XCTAssertEqual(finishedTitle.label, originalTitle)
+                XCTAssertTrue(preview.frame.insetBy(dx: -1, dy: -1).contains(finishedTitle.frame))
+                XCTAssertLessThan(maximumPixelDifference(try footerPixelSamples(app, frame: finishedTitle.frame, name: "Finished static text")), 0.1)
+            }
+            attachScreenshot(name: "Runtime web skill globe app and search skill \(variant)")
+            app.terminate()
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,web-search.surface-parity
     func testGalleryProcessingVariantAndQuoteOpenUseSelectedState() {
         let app = XCUIApplication()

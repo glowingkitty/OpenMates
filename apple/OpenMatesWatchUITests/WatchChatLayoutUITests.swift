@@ -4,6 +4,7 @@
 // retained as durable evidence without exposing real account or chat content.
 
 import XCTest
+import CoreGraphics
 
 @MainActor
 final class WatchChatLayoutUITests: XCTestCase {
@@ -135,10 +136,10 @@ final class WatchChatLayoutUITests: XCTestCase {
     }
 
     @MainActor
-    // contract-test: direct surface=gui.apple assertions=apple-watch.chats.browse-search-open,apple-watch.chats.new-text-reply
+    // contract-test: direct surface=gui.apple assertions=apple-watch.chats.browse-search-open,apple-watch.chats.new-text-reply,apple-watch.chats.compact-layout
     func testChatsListShowsSearchNewChatAndExistingConversation() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-watch-chat-layout"]
+        app.launchArguments = ["--ui-test-watch-chat-layout", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
 
         let back = app.buttons["watch-chat-back"]
@@ -152,6 +153,17 @@ final class WatchChatLayoutUITests: XCTestCase {
 
         let row = app.buttons["watch-chat-row-watch-ui-test-chat"]
         XCTAssertTrue(row.exists)
+        let icon = row.descendants(matching: .any)["watch-chat-row-icon-watch-ui-test-chat"].firstMatch
+        let title = row.staticTexts["watch-chat-row-title-watch-ui-test-chat"]
+        XCTAssertTrue(icon.exists)
+        XCTAssertEqual(icon.value as? String, "lucide-code", "The cached icon and category gradient remain the visual identity")
+        XCTAssertTrue(title.exists)
+        XCTAssertEqual(title.label, "Offline Whisper iOS Integration")
+        XCTAssertGreaterThanOrEqual(title.frame.minX, icon.frame.maxX)
+        XCTAssertFalse(row.staticTexts["watch-chat-row-category-watch-ui-test-chat"].exists,
+                       "The category is represented by the gradient circle, never a text subtitle")
+        XCTAssertFalse(row.staticTexts["Draft: I think ..."].exists,
+                       "Chat summaries must not appear in the compact Watch list")
 
         let listAttachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         listAttachment.name = "Watch Chats list"
@@ -543,4 +555,105 @@ extension WatchChatLayoutUITests {
             app.terminate()
         }
     }
+}
+
+
+extension WatchChatLayoutUITests {
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout,apple-watch.embeds.read-only-fullscreen
+    func testCodeEnvelopePreviewOpensReadOnlyFullscreenAndReturnsToChat() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-chat-mobile-preview", "--ui-test-watch-embed-family", "code",
+            "--ui-test-watch-code-envelope", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let card = app.buttons["watch-embed-preview-code"]
+        XCTAssertTrue(card.waitForExistence(timeout: 12))
+        let title = app.staticTexts["watch-embed-title-watch-mobile-preview"]
+        XCTAssertEqual(title.label, "watch-preview.swift")
+        XCTAssertEqual(app.staticTexts["watch-embed-metadata-watch-mobile-preview"].label, "3 lines")
+        XCTAssertFalse(app.staticTexts["Preview not available"].exists)
+        XCTAssertEqual(card.frame.width, 156, accuracy: 1)
+        let transcript = app.scrollViews["watch-chat-shell"]
+        XCTAssertTrue(transcript.exists)
+        let visible = card.frame.intersection(transcript.frame).insetBy(dx: 5, dy: 5)
+        XCTAssertFalse(visible.isEmpty)
+        let before = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        before.name = "Watch hydrated code dark inline preview"
+        before.lifetime = .keepAlways; add(before)
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: visible.midX, dy: visible.midY)).tap()
+        XCTAssertTrue(app.descendants(matching: .any)["watch-embed-continuation"].waitForExistence(timeout: 5))
+        let code = app.staticTexts["watch-embed-fullscreen-code-text"]
+        XCTAssertTrue(code.waitForExistence(timeout: 5))
+        XCTAssertTrue(code.label.contains("let lastLine = 3"), "Fullscreen preserves the complete source")
+        XCTAssertFalse(app.textFields["watch-message-input"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["watch-embed-fullscreen-unavailable"].exists)
+        let close = app.buttons["watch-embed-continuation-close"]
+        XCTAssertTrue(close.isHittable)
+        assertWatchEmbedDarkPixel(at: CGPoint(x: app.frame.midX, y: app.frame.maxY - 4))
+        let opened = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        opened.name = "Watch code read-only dark fullscreen"
+        opened.lifetime = .keepAlways; add(opened)
+        close.tap()
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["watch-message-input"].exists)
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout,apple-watch.embeds.read-only-fullscreen
+    func testUnavailableCodePreviewIsCompactAndStillOpensFullscreen() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-chat-mobile-preview", "--ui-test-watch-embed-family", "code",
+            "--ui-test-watch-preview-missing-payload", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let card = app.buttons["watch-embed-preview-code"]
+        XCTAssertTrue(card.waitForExistence(timeout: 12))
+        XCTAssertLessThan(card.frame.height, 196, "Missing content must not reserve a second symbol-only visual")
+        XCTAssertFalse(app.descendants(matching: .any)["watch-embed-visual-watch-mobile-preview"].exists)
+        XCTAssertTrue(app.staticTexts["Preview not available"].exists)
+        XCTAssertTrue(card.isEnabled)
+        let transcript = app.scrollViews["watch-chat-shell"]
+        let visible = card.frame.intersection(transcript.frame).insetBy(dx: 5, dy: 5)
+        XCTAssertFalse(visible.isEmpty)
+        for _ in 0..<3 where card.frame.maxY > transcript.frame.maxY { transcript.swipeUp() }
+        XCTAssertLessThanOrEqual(card.frame.maxY, transcript.frame.maxY)
+        assertWatchEmbedDarkPixel(at: CGPoint(x: card.frame.midX, y: card.frame.maxY - 3))
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "Watch compact unavailable code dark preview"
+        attachment.lifetime = .keepAlways; add(attachment)
+        let tapBounds = card.frame.intersection(transcript.frame).insetBy(dx: 5, dy: 5)
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: tapBounds.midX, dy: tapBounds.midY)).tap()
+        XCTAssertTrue(app.descendants(matching: .any)["watch-embed-continuation"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["watch-embed-fullscreen-unavailable"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["watch-embed-open-device"].isHittable)
+        let close = app.buttons["watch-embed-continuation-close"]
+        XCTAssertTrue(close.isHittable)
+        close.tap()
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    private func assertWatchEmbedDarkPixel(at point: CGPoint, file: StaticString = #filePath, line: UInt = #line) {
+        let image = XCUIScreen.main.screenshot().image
+        guard let cgImage = image.cgImage else { return XCTFail("Watch screenshot is unavailable", file: file, line: line) }
+        let pixelRect = CGRect(x: floor(point.x * CGFloat(cgImage.width) / image.size.width),
+                               y: floor(point.y * CGFloat(cgImage.height) / image.size.height), width: 1, height: 1)
+        guard let cropped = cgImage.cropping(to: pixelRect) else {
+            return XCTFail("Dark surface point is outside the rendered screen", file: file, line: line)
+        }
+        var pixel = [UInt8](repeating: 0, count: 4)
+        let rendered = pixel.withUnsafeMutableBytes { bytes -> Bool in
+            guard let context = CGContext(data: bytes.baseAddress, width: 1, height: 1,
+                bitsPerComponent: 8, bytesPerRow: 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(cropped, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+            return true
+        }
+        XCTAssertTrue(rendered, file: file, line: line)
+        XCTAssertLessThan(pixel[0], 95, "Embed surface must match the dark Watch transcript", file: file, line: line)
+        XCTAssertLessThan(pixel[1], 95, file: file, line: line)
+        XCTAssertLessThan(pixel[2], 95, file: file, line: line)
+    }
+
 }

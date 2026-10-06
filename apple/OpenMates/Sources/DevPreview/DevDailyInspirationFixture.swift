@@ -26,7 +26,8 @@ struct DevDailyInspirationFixture: View {
                             channelName: "TechTalks", thumbnailUrl: "", durationSeconds: 847,
                             viewCount: 1_240_000, publishedAt: "2024-01-15T10:00:00Z")),
                     containerSize: CGSize(width: width, height: viewport.size.height),
-                    heightOverride: height
+                    heightOverride: height,
+                    isInteractive: variant != "read-only"
                 ) { onAction("inspiration-started") }
                 .frame(width: width, height: height)
                 Spacer(minLength: 0)

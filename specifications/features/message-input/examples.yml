@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.message-input@1
+specification: feature.message-input@2
 
 parent_state:
   - id: focus-and-text-update-parent
@@ -154,3 +154,13 @@ responsive_layout:
   - id: apple-corresponding-layouts
     given: {surface: gui.apple, profiles: [iphone_portrait, ipad_landscape, macos_regular]}
     expect: {web_hierarchy_preserved: true, relative_geometry_preserved: true, controls_reachable: true, latest_message_obscured: false}
+  - id: apple-expand-only-after-inline-overflow
+    assertion_ids: [message-input.layout.responsive-parity]
+    given: An Apple chat or workspace composer is focused and its three short lines fit without scrolling.
+    when: The user adds enough lines or attachment content to exceed the visible inline height.
+    then: Expand was absent while all content fit and now appears beside the text without covering it; opening fullscreen keeps Collapse reachable and preserves the same draft.
+  - id: apple-clear-removes-inline-expand
+    assertion_ids: [message-input.layout.responsive-parity]
+    given: An Apple inline composer contains a long draft and shows Expand.
+    when: The user clears or shortens the draft until all content fits without scrolling.
+    then: Expand disappears while the composer remains focused and Cancel stays available.

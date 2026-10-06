@@ -10952,6 +10952,24 @@ travel_connection:
   de: "Reiseverbindung"
   verified_by_human: []
 
+watch_audio_metadata_unavailable:
+  context: "Watch audio recording cannot be played because encrypted original-file metadata is absent"
+  en: "Audio playback details are unavailable"
+  de: "Details zur Audiowiedergabe sind nicht verfügbar"
+  verified_by_human: []
+
+watch_audio_playback_failed:
+  context: "Watch audio recording could not be loaded, decrypted, or played"
+  en: "Audio could not be played"
+  de: "Audio konnte nicht wiedergegeben werden"
+  verified_by_human: []
+
+watch_audio_loading:
+  context: "Watch audio recording is loading for playback"
+  en: "Loading audio…"
+  de: "Audio wird geladen…"
+  verified_by_human: []
+
 wiki.learn_more:
   context: 'Wikipedia fullscreen learning action: learn more'
   en: Learn more

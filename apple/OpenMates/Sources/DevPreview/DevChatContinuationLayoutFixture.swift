@@ -10,6 +10,8 @@ struct DevChatContinuationLayoutFixture: View {
     @StateObject private var store: ChatStore
     @State private var sidebarOpen = false
     @State private var searchOpen = false
+    @State private var browsingChatGrid = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var input = ""
     @State private var bannerBottom: CGFloat?
     @State private var composerTop: CGFloat?
@@ -42,17 +44,29 @@ struct DevChatContinuationLayoutFixture: View {
                 let globalBottom = geometry.frame(in: .global).maxY
                 let keyboardOverlap = max(0, globalBottom - (keyboardMinY ?? globalBottom))
                 let placement = WorkspaceContinuationLayoutPolicy.resolve(width: geometry.size.width, height: geometry.size.height,
-                    bannerBottom: bannerBottom ?? 190, composerTop: composerTop ?? max(0, geometry.size.height - 69 - keyboardOverlap))
+                    bannerBottom: browsingChatGrid ? 0 : bannerBottom ?? 190,
+                    composerTop: composerTop ?? max(0, geometry.size.height - 69 - keyboardOverlap))
                 ZStack(alignment: .bottom) {
                     VStack {
+                        if !browsingChatGrid {
                         InspirationCard(inspiration: DailyInspirationData(text: "Explore a useful research question.", title: "Research tip", category: "technology"),
                             containerSize: geometry.size, heightOverride: 190) { }
                             .accessibilityIdentifier("continuation-inspiration")
                             .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("continuation-fixture-layout")).maxY } action: {
                                 bannerBottom = $0
                             }
+                            .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+                        }
                         Spacer(minLength: 0)
                     }
+                    if browsingChatGrid {
+                        WelcomeChatGrid(cards: store.chats.map { WelcomeScreenState.cardData(for: $0) },
+                            width: geometry.size.width, height: placement.availableHeight,
+                            onBack: { setBrowsing(false) }, onOpenChat: selected,
+                            onShowChatActions: { onAction("actions:\($0)") })
+                            .position(x: geometry.size.width / 2, y: placement.centerY)
+                            .transition(.opacity)
+                    } else {
                     WelcomeContinuationLayout(placement: placement, width: geometry.size.width) {
                         VStack(spacing: .spacing4) {
                             VStack(spacing: .spacing3) {
@@ -64,7 +78,7 @@ struct DevChatContinuationLayoutFixture: View {
                                 onOpenChat: selected, onShowChatActions: { onAction("actions:\($0)") })
                             HStack(spacing: .spacing5) {
                                 WorkspaceContinuationLink(title: AppStrings.welcomeShowAllChats, icon: "message-square", identifier: "welcome-show-all-chats") {
-                                    sidebarOpen = true; searchOpen = false
+                                    setBrowsing(true)
                                 }
                                 WorkspaceContinuationLink(title: AppStrings.search, icon: "search", identifier: "welcome-search-chats") {
                                     sidebarOpen = true; searchOpen = true
@@ -72,6 +86,7 @@ struct DevChatContinuationLayoutFixture: View {
                             }
                         }
                         .fixedSize(horizontal: false, vertical: true)
+                    }
                     }
                     WorkspacePromptComposerView(text: $input, placeholder: AppStrings.whatDoYouNeedHelpWith,
                         submitLabel: AppStrings.send, submittingLabel: AppStrings.send, disabled: false, submitting: false,
@@ -93,6 +108,9 @@ struct DevChatContinuationLayoutFixture: View {
         onAction("open:\(id)")
         sidebarOpen = false
         searchOpen = false
+    }
+    private func setBrowsing(_ value: Bool) {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { browsingChatGrid = value }
     }
 }
 #endif

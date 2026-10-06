@@ -3039,7 +3039,10 @@ class ChatCacheMixin:
         try:
             import json
             embed_json = json.dumps(embed_data)
-            await client.set(key, embed_json, ex=ttl)
+            cached = await client.set(key, embed_json, ex=ttl)
+            if not cached:
+                logger.warning("Embed cache write was not acknowledged")
+                return False
             
             # Add to chat index for eviction tracking
             chat_embed_index_key = self._get_chat_embed_ids_key(chat_id)

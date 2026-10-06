@@ -25,7 +25,7 @@ workspace.move_failed:
   verified_by_human: []
 workspace.drop_to_mark:
   context: Native Task status-column drop-target instruction; status is an already localized Task status label
-  en: "Drop to mark {status}"
+  en: "Drop here to mark as {status}"
   de: "Ablegen, um als {status} zu markieren"
   verified_by_human: []
 blocked_heading:

@@ -29,7 +29,9 @@ struct ProjectsWorkspaceFence {
         self.accountID = accountID
         self.teamContext = TeamWorkspaceContext.shared.snapshot
         self.scope = OfflineStore.shared.scopeGeneration
-        self.serverProfile = ServerProfile.custom(domain: ServerConfiguration.current.selectedDomain)
+        // Preserve hosted profile identity and its upload satellite endpoint.
+        // Reconstructing dev/prod as self-hosted fails the API scope preflight.
+        self.serverProfile = ServerProfile.current()
     }
 
     func check() async throws {
@@ -49,6 +51,7 @@ protocol ProjectsWorkspaceServing: Sendable {
     func listProjects(accountID: String, teamID: String?) async throws -> [ProjectWorkspaceProject]
     func listSources(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> [ProjectWorkspaceSource]
     func contents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents
+    func chatNavigationContents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents
     func settings(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceSettings
     func createProject(name: String, writeMode: ProjectWorkspaceWriteMode, fence: ProjectsWorkspaceFence, teamID: String?) async throws -> ProjectWorkspaceProject
     func createChatOrganization(chats: [Chat], fence: ProjectsWorkspaceFence, teamID: String?) async throws -> ProjectWorkspaceProject
@@ -65,6 +68,10 @@ protocol ProjectsWorkspaceServing: Sendable {
 }
 
 extension ProjectsWorkspaceServing {
+    func chatNavigationContents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents {
+        let contents = try await contents(project: project, fence: fence)
+        return .init(folders: contents.folders, items: contents.items.filter { $0.kind == "chat" }, sources: [])
+    }
     func createChatOrganization(chats: [Chat], fence: ProjectsWorkspaceFence, teamID: String?) async throws -> ProjectWorkspaceProject { throw ProjectsWorkspaceError.invalidContext }
     func removeChatLink(chatID: String, project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws { throw ProjectsWorkspaceError.invalidContext }
     func cachedProjects(accountID: String, teamID: String?) async throws -> [ProjectWorkspaceProject]? { nil }
@@ -259,6 +266,36 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
 
     func contents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents {
         try await loadContents(project: project, fence: fence, cachedOnly: false)
+    }
+
+    /// The chat rail only needs folder ancestry and chat membership. Source
+    /// descriptors and file metadata belong to the full Project workspace.
+    func chatNavigationContents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents {
+        let records = try await response(ContentsResponse.self, path: projectRoute(project, suffix: "/items"),
+            fence: fence, teamID: project.teamId)
+        let contents = try await openChatNavigationContents(folders: records.folders, items: records.items, project: project)
+        try await fence.check()
+        return contents
+    }
+
+    func openChatNavigationContents(folders records: [ProjectWorkspaceFolderRecord],
+                                    items itemRecords: [ProjectWorkspaceItemRecord],
+                                    project: ProjectWorkspaceProject) async throws -> ProjectWorkspaceContents {
+        var folders: [ProjectWorkspaceFolder] = []
+        for record in records {
+            folders.append(.init(id: record.folderId,
+                name: try await decryptOptional(record.encryptedName, key: project.key),
+                parentHash: record.hashedParentFolderId, position: record.position, createdAt: record.createdAt))
+        }
+        var items: [ProjectWorkspaceItem] = []
+        for record in itemRecords where record.itemType == "chat" {
+            let targetID = try await decryptOptional(record.targetIdEncrypted, key: project.key)
+            guard !targetID.isEmpty else { throw ProjectsWorkspaceError.invalidResponse }
+            items.append(.init(id: record.projectItemId, kind: "chat", targetID: targetID,
+                name: "", metadata: [:], folderHash: record.hashedFolderId,
+                position: record.position, createdAt: record.createdAt))
+        }
+        return .init(folders: folders, items: items, sources: [])
     }
 
     private func loadContents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence,
@@ -573,7 +610,7 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
 // Web source: frontend/packages/ui/src/services/projectAuthoringClientService.ts
 // Web source: frontend/packages/openmates-cli/src/cliProjectAuthoringSave.ts
 @MainActor
-struct NativeProjectAuthoringJob: Identifiable {
+struct NativeProjectAuthoringJob: @MainActor Identifiable {
     var value: [String: Any]
     let recommendationID: String
     let fence: ProjectsWorkspaceFence
@@ -712,7 +749,8 @@ final class NativeProjectAuthoringClient: ObservableObject {
         try await fence.check()
         let data: Data
         if let body {
-            data = try await APIClient.shared.request(method, path: path, serverProfile: fence.serverProfile, body: body,
+            let encodedBody = JSONRawBody(data: try JSONSerialization.data(withJSONObject: body))
+            data = try await APIClient.shared.request(method, path: path, serverProfile: fence.serverProfile, body: encodedBody,
                 expectedAccountID: fence.accountID, expectedScope: fence.scope,
                 expectedTeamContext: .init(epoch: fence.teamContext.epoch, teamID: fence.teamContext.teamID))
         } else {
@@ -988,6 +1026,7 @@ final class NativeProjectAuthoringClient: ObservableObject {
             guard depth <= 20, nodes <= 2048 else { return false }
             switch node {
             case .scalar: return true
+            case .alias: return false
             case let .sequence(sequence): return sequence.allSatisfy { validate($0, depth: depth + 1) }
             case let .mapping(mapping):
                 var keys = Set<String>()
@@ -1424,4 +1463,9 @@ struct NativeProjectAuthoringJobView: View {
         }
         .font(.omSmall).accessibilityIdentifier("project-authoring-job")
     }
+}
+
+@MainActor
+private func L(_ key: String) -> String {
+    LocalizationManager.shared.text(key)
 }

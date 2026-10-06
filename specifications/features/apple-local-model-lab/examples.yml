@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.apple-local-model-lab@4
+specification: feature.apple-local-model-lab@7
 downloads:
 - id: verified-download-and-offline-reopen
   given: No laboratory models are installed.
@@ -71,13 +71,12 @@ availability:
 - id: unsupported-intel
   given: The user opens the laboratory on an Intel Mac.
   when: The model controls are displayed.
-  then: Whisper and Privacy Filter inference remain unavailable; Pocket TTS is offered only when its compiled CPU
-    runtime supports the target.
+  then: Whisper and Privacy Filter inference remain unavailable, and no removed speech adapter is offered.
 - id: removed-adapter-absent
   given: The user opens the laboratory on a supported Apple device.
   when: The user inspects available models.
-  then: Only current supported adapters are offered; Kokoro and Apple system voice testing have no controls or runtime
-    dependencies.
+  then: Only current supported adapters are offered; KittenTTS Mini0.8, Pocket TTS, Kokoro and Apple system voice testing have no controls or runtime, catalog or build
+    dependencies. No automatic replacement or system-voice fallback appears.
 watch_tiny:
 - id: watch-foreground-tiny
   given: The user opens Watch Settings, Developers, the tiny Whisper lab; its separate pinned model assets are absent.
@@ -95,15 +94,13 @@ watch_tiny:
   when: The user retries explicitly, then reopens the verified experiment with network unavailable.
   then: Incomplete or invalid installations never become ready; only fully verified retry assets become ready, and
     verified reopening reads local assets without a network fetch.
-pocket_tts:
-- id: pocket-offline-playback
-  given: The user explicitly enables the lab and downloads the pinned Pocket TTS English weights, tokenizer and
-    licensed voice.
-  when: They enter disposable English prose, run the local test offline and play the resulting audio.
-  then: Actual 24 kHz PCM audio is generated locally; phase timings and sampled memory are shown without a provider
-    call or production routing change.
-- id: pocket-cancel-exit
-  given: Pocket is synthesizing a bounded sentence from temporary test text.
-  when: The user cancels or leaves the page before native synthesis finishes.
-  then: No late result or playback occurs; the native operation remains visibly cancelling until it finishes and
-    releases resources, then private text/audio clears.
+
+neural_tts:
+- id: exact-models-explicit-offline-test
+  given: Developers opts into the laboratory with verified pinned Supertonic3 assets.
+  when: A short private text is submitted with a selected stock voice and supported language.
+  then: Local CPU synthesis reports model-load/speech-synthesis/audio-preparation/cleanup timing with accurate labels, sampled memory, duration and real-time factor. Explicit playback uses a temporary mono WAV. No runtime download or provider/system fallback is possible. Speech timing never says personal data is being detected.
+- id: cancel-owner-change-after-native-return
+  given: A native operation returns a WAV immediately before Cancel or an account/server/scope change.
+  when: Cancellation or ownership validation rejects publication.
+  then: The request destination remains owned until drain/unload, then is removed even if the result handle was cleared. Private text/playback/results cannot cross the new owner boundary.

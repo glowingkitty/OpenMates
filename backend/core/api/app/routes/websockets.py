@@ -5,9 +5,11 @@ import asyncio # Added asyncio
 import time
 import uuid
 from typing import Optional
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI, HTTPException
 from starlette.websockets import WebSocketState
-from backend.core.api.app.utils.websocket_lifecycle import receive_json_or_disconnect
+from backend.core.api.app.utils.websocket_lifecycle import (
+    SessionAuthorityCloseCategory, log_session_authority_close, receive_json_or_disconnect,
+)
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.storage_archive_client_compatibility import (
@@ -2528,11 +2530,31 @@ async def websocket_endpoint(
                     state = await get_session_state_cached(
                         directus_service, cache_service, session_hash, user_id=user_id,
                     )
-                    if (canonical_session_user_id(link) != user_id
+                    link_user_id = canonical_session_user_id(link)
+                    if (link_user_id != user_id
                             or state is None or state.get("risk_pending")):
+                        if link_user_id != user_id:
+                            category = (SessionAuthorityCloseCategory.SESSION_LINK_MISSING
+                                        if link_user_id is None
+                                        else SessionAuthorityCloseCategory.SESSION_LINK_MISMATCH)
+                        elif state is None:
+                            category = SessionAuthorityCloseCategory.STATE_MISSING
+                        else:
+                            category = SessionAuthorityCloseCategory.RISK_PENDING
+                        log_session_authority_close(
+                            logger, connection_hash=device_fingerprint_hash, category=category,
+                        )
                         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Session invalid")
                         return
-                except Exception:
+                except Exception as exc:
+                    authority_status = exc.status_code if isinstance(exc, HTTPException) else 0
+                    category = (SessionAuthorityCloseCategory.AUTHORITY_REJECTED
+                                if authority_status in (401, 403)
+                                else SessionAuthorityCloseCategory.AUTHORITY_UNAVAILABLE)
+                    log_session_authority_close(
+                        logger, connection_hash=device_fingerprint_hash, category=category,
+                        authority_status=authority_status,
+                    )
                     await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Session unavailable")
                     return
 

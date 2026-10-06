@@ -5,8 +5,8 @@ title:
   verified_by_human: []
 description:
   context: Apple-only local model lab description
-  en: "Optional on-device experiments. Use installed system voices or download models once, then test without a network connection. No credits are charged."
-  de: "Optionale Tests auf diesem Gerät. Installierte Systemstimmen verwenden oder Modelle einmal herunterladen, dann ohne Netzwerk testen. Es werden keine Credits berechnet."
+  en: "Optional on-device experiments. Download models once, then test without a network connection. No credits are charged."
+  de: "Optionale Tests auf diesem Gerät. Modelle einmal herunterladen, dann ohne Netzwerk testen. Es werden keine Credits berechnet."
   verified_by_human: []
 toggle:
   context: Apple-only local model lab toggle
@@ -271,7 +271,7 @@ end_memory:
   verified_by_human: []
 
 phase_inference:
-  context: Apple-only local lab operation or interrupted transfer stage
+  context: Apple-only personal-data detection inference stage
   en: "Detecting personal data…"
   de: "Personenbezogene Daten werden erkannt …"
   verified_by_human: []
@@ -287,53 +287,53 @@ retrying_download:
   en: "Retrying interrupted download · {percent}% downloaded"
   de: "Unterbrochener Download wird erneut versucht · {percent}% heruntergeladen"
   verified_by_human: []
-pocket_tts:
-  context: Native Pocket TTS developer lab
-  en: "Pocket TTS · English"
-  de: "Pocket TTS · Englisch"
+supertonic:
+  context: Developer-only neural speech lab
+  en: "Supertonic 3 (experimental)"
+  de: "Supertonic 3 (experimentell)"
   verified_by_human: []
-pocket_description:
-  context: Native Pocket TTS developer lab
-  en: "Developer test: English speech with the Alba voice, entirely on this device after download. Chat speech stays unchanged. Multilingual models are not supported by this runtime."
-  de: "Entwicklertest: Englische Sprache mit Alba, nach dem Download vollständig auf diesem Gerät. Die Sprachausgabe im Chat bleibt unverändert. Mehrsprachige Modelle werden von dieser Laufzeit nicht unterstützt."
+synthesis_input:
+  context: Developer-only neural speech lab
+  en: "Private test text (maximum 2,000 characters)"
+  de: "Privater Testtext (maximal 2.000 Zeichen)"
   verified_by_human: []
-pocket_voice:
-  context: Native Pocket TTS developer lab
+synthesis_voice:
+  context: Developer-only neural speech lab
   en: "Voice"
   de: "Stimme"
   verified_by_human: []
-pocket_attribution:
-  context: Native Pocket TTS developer lab
-  en: "Alba MacKenna voice attribution and license"
-  de: "Alba MacKenna: Quellenangabe und Lizenz"
+synthesis_language:
+  context: Developer-only neural speech lab
+  en: "Language"
+  de: "Sprache"
   verified_by_human: []
-pocket_input:
-  context: Native Pocket TTS developer lab
-  en: "Text to speak"
-  de: "Text für Sprachausgabe"
+synthesis_steps:
+  context: Developer-only neural speech lab
+  en: "Quality steps"
+  de: "Qualitätsschritte"
   verified_by_human: []
-pocket_input_limit:
-  context: Native Pocket TTS developer lab
-  en: "Up to 600 UTF-8 bytes and 4 short sentences. Each sentence is limited to 160 bytes and 64 model tokens. Longer input is rejected."
-  de: "Bis zu 600 UTF-8-Bytes und 4 kurze Sätze. Jeder Satz ist auf 160 Bytes und 64 Modell-Tokens begrenzt. Längere Eingaben werden abgelehnt."
+play:
+  context: Developer-only neural speech lab
+  en: "Play local result"
+  de: "Lokales Ergebnis abspielen"
   verified_by_human: []
-pocket_synthesis:
-  context: Native Pocket TTS developer lab
-  en: "Generating speech on this device…"
-  de: "Sprache wird auf diesem Gerät erzeugt…"
+stop_playback:
+  context: Developer-only neural speech lab
+  en: "Stop playback"
+  de: "Wiedergabe stoppen"
   verified_by_human: []
-pocket_cancelling:
-  context: Native Pocket TTS developer lab
-  en: "Cancelling after the current sentence finishes and the model unloads…"
-  de: "Abbruch nach Abschluss des aktuellen Satzes und Entladen des Modells…"
+speech_unavailable:
+  context: Developer-only neural speech lab
+  en: "This neural speech runtime is unavailable on this build or platform."
+  de: "Diese neuronale Sprachausgabe ist auf dieser Version oder Plattform nicht verfügbar."
   verified_by_human: []
-pocket_play:
-  context: Native Pocket TTS developer lab
-  en: "Play generated audio"
-  de: "Erzeugtes Audio abspielen"
+phase_speech_synthesis:
+  context: Apple-only local neural speech synthesis wall-clock processing stage
+  en: "Generating speech…"
+  de: "Sprache wird erzeugt …"
   verified_by_human: []
-pocket_stop:
-  context: Native Pocket TTS developer lab
-  en: "Stop audio"
-  de: "Audio stoppen"
+phase_audio_encoding:
+  context: Apple-only local neural speech output encoding and temporary WAV write stage
+  en: "Preparing audio playback…"
+  de: "Audiowiedergabe wird vorbereitet …"
   verified_by_human: []

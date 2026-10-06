@@ -35,6 +35,8 @@ enum AppStrings {
     static var localLabPhaseTokenizer: String { L("settings.local_models.phase_tokenizer") }
     static var localLabPhaseModelLoading: String { L("settings.local_models.phase_model_loading") }
     static var localLabPhaseTranscription: String { L("settings.local_models.phase_transcription") }
+    static var localLabPhaseAudioEncoding: String { L("settings.local_models.phase_audio_encoding") }
+    static var localLabPhaseSpeechSynthesis: String { L("settings.local_models.phase_speech_synthesis") }
     static var localLabPhaseInference: String { L("settings.local_models.phase_inference") }
     static var localLabPhaseCleanup: String { L("settings.local_models.phase_cleanup") }
     static var localLabPhaseCompletion: String { L("settings.local_models.phase_completion") }
@@ -49,16 +51,6 @@ enum AppStrings {
     }
     static var localLabArchitectureUnavailable: String { L("settings.local_models.architecture_unavailable") }
     static var localLabPeakMemory: String { L("settings.local_models.peak_memory") }
-    static var localLabPocketTTS: String { L("settings.local_models.pocket_tts") }
-    static var localLabPocketDescription: String { L("settings.local_models.pocket_description") }
-    static var localLabPocketVoice: String { L("settings.local_models.pocket_voice") }
-    static var localLabPocketAttribution: String { L("settings.local_models.pocket_attribution") }
-    static var localLabPocketInput: String { L("settings.local_models.pocket_input") }
-    static var localLabPocketInputLimit: String { L("settings.local_models.pocket_input_limit") }
-    static var localLabPocketSynthesis: String { L("settings.local_models.pocket_synthesis") }
-    static var localLabPocketCancelling: String { L("settings.local_models.pocket_cancelling") }
-    static var localLabPocketPlay: String { L("settings.local_models.pocket_play") }
-    static var localLabPocketStop: String { L("settings.local_models.pocket_stop") }
     static var localLabTitle: String { L("settings.local_models.title") }
     static var localLabDescription: String { L("settings.local_models.description") }
     static var localLabToggle: String { L("settings.local_models.toggle") }
@@ -89,6 +81,14 @@ enum AppStrings {
     static var localLabMicrophoneError: String { L("settings.local_models.microphone_error") }
     static var localLabRunError: String { L("settings.local_models.run_error") }
     static var localLabPrivacyNote: String { L("settings.local_models.privacy_note") }
+    static var localLabSupertonic: String { L("settings.local_models.supertonic") }
+    static var localLabSynthesisInput: String { L("settings.local_models.synthesis_input") }
+    static var localLabSynthesisVoice: String { L("settings.local_models.synthesis_voice") }
+    static var localLabSynthesisLanguage: String { L("settings.local_models.synthesis_language") }
+    static var localLabSynthesisSteps: String { L("settings.local_models.synthesis_steps") }
+    static var localLabPlay: String { L("settings.local_models.play") }
+    static var localLabStopPlayback: String { L("settings.local_models.stop_playback") }
+    static var localLabSpeechUnavailable: String { L("settings.local_models.speech_unavailable") }
     static var localLabWhisper: String { L("settings.local_models.whisper") }
     static var localLabPrivacyFilter: String { L("settings.local_models.privacy_filter") }
     static var localLabInstalledSize: String { L("settings.local_models.installed_size") }

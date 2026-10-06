@@ -310,6 +310,18 @@ struct WorkflowTemplateTextView: UIViewRepresentable {
     }
 }
 #elseif canImport(AppKit)
+// AppKit's AX value setter edits NSTextView content and calls its delegate.
+// Project readable chip labels through the getter without changing text storage.
+@MainActor
+private final class WorkflowAccessibleTemplateTextView: NSTextView {
+    var templateOutputs: [WorkflowMessageOutput] = []
+
+    override func accessibilityValue() -> String? {
+        WorkflowAttributedTemplate.accessibleText(
+            WorkflowAttributedTemplate.storage(attributedString()), outputs: templateOutputs)
+    }
+}
+
 struct WorkflowTemplateTextView: NSViewRepresentable {
     @Binding var value: String
     let outputs: [WorkflowMessageOutput]
@@ -323,9 +335,9 @@ struct WorkflowTemplateTextView: NSViewRepresentable {
         scrollView.drawsBackground = false
         let textView = Self.makeNativeTextView()
         textView.delegate = context.coordinator
-        textView.textStorage?.setAttributedString(WorkflowAttributedTemplate.render(value, outputs: outputs))
         scrollView.documentView = textView
         context.coordinator.textView = textView
+        context.coordinator.replaceRenderedText(WorkflowAttributedTemplate.render(value, outputs: outputs))
         insertionBridge.insert = { [weak coordinator = context.coordinator] syntax in
             coordinator?.insert(syntax)
         }
@@ -337,7 +349,7 @@ struct WorkflowTemplateTextView: NSViewRepresentable {
     // test subclass whose injected undo manager can mask disabled native undo.
     @MainActor
     static func makeNativeTextView() -> NSTextView {
-        let textView = NSTextView()
+        let textView = WorkflowAccessibleTemplateTextView()
         textView.isRichText = true
         textView.allowsUndo = true
         textView.font = NSFont.systemFont(ofSize: 16)
@@ -359,9 +371,8 @@ struct WorkflowTemplateTextView: NSViewRepresentable {
             let storageCursor = WorkflowAttributedTemplate.storageOffset(
                 for: textView.selectedRange().location, in: rendered)
             let updated = WorkflowAttributedTemplate.render(value, outputs: outputs)
-            textView.textStorage?.setAttributedString(updated)
-            textView.setSelectedRange(NSRange(location: WorkflowAttributedTemplate.visualOffset(
-                for: storageCursor, in: updated), length: 0))
+            context.coordinator.replaceRenderedText(updated, selection: NSRange(
+                location: WorkflowAttributedTemplate.visualOffset(for: storageCursor, in: updated), length: 0))
             context.coordinator.outputSignature = outputSignature
         }
         context.coordinator.updateAccessibility()
@@ -373,6 +384,8 @@ struct WorkflowTemplateTextView: NSViewRepresentable {
         var outputs: [WorkflowMessageOutput]
         weak var textView: NSTextView?
         var outputSignature = ""
+        private var isUpdatingText = false
+        private var isHandlingTextChange = false
 
         init(value: Binding<String>, outputs: [WorkflowMessageOutput]) {
             valueBinding = value; self.outputs = outputs
@@ -387,27 +400,40 @@ struct WorkflowTemplateTextView: NSViewRepresentable {
             apply(next, selection: NSRange(location: selected.location + token.length, length: 0))
         }
 
-        private func apply(_ next: NSAttributedString, selection: NSRange) {
+        func replaceRenderedText(_ next: NSAttributedString, selection: NSRange? = nil) {
             guard let textView else { return }
+            let wasUpdatingText = isUpdatingText
+            isUpdatingText = true
+            defer { isUpdatingText = wasUpdatingText }
+            textView.textStorage?.setAttributedString(next)
+            if let selection { textView.setSelectedRange(selection) }
+            updateAccessibility()
+        }
+
+        private func apply(_ next: NSAttributedString, selection: NSRange) {
+            guard let textView, !isUpdatingText else { return }
+            isUpdatingText = true
+            defer { isUpdatingText = false }
             let previous = NSAttributedString(attributedString: textView.attributedString())
             let previousSelection = textView.selectedRange()
             textView.undoManager?.registerUndo(withTarget: self) { target in
                 MainActor.assumeIsolated { target.apply(previous, selection: previousSelection) }
             }
-            textView.textStorage?.setAttributedString(next)
-            textView.setSelectedRange(selection)
+            replaceRenderedText(next, selection: selection)
             valueBinding.wrappedValue = WorkflowAttributedTemplate.storage(next)
             updateAccessibility()
         }
 
         func updateAccessibility() {
-            guard let textView else { return }
-            textView.setAccessibilityValue(WorkflowAttributedTemplate.accessibleText(
-                WorkflowAttributedTemplate.storage(textView.attributedString()), outputs: outputs))
+            guard let textView = textView as? WorkflowAccessibleTemplateTextView else { return }
+            textView.templateOutputs = outputs
         }
 
         func textDidChange(_ notification: Notification) {
-            guard let textView = notification.object as? NSTextView else { return }
+            guard let textView = notification.object as? NSTextView,
+                  textView === self.textView, !isUpdatingText, !isHandlingTextChange else { return }
+            isHandlingTextChange = true
+            defer { isHandlingTextChange = false }
             valueBinding.wrappedValue = WorkflowAttributedTemplate.storage(textView.attributedString())
             updateAccessibility()
         }

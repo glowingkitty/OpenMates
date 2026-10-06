@@ -523,6 +523,20 @@ final class OfflineStore: ObservableObject {
         recentContentFence.capture(chatID: chatID)
     }
 
+    func loadSearchContent(chatID: String, includeMessages: Bool, includeEmbeds: Bool) async throws -> OfflineSearchContent {
+        let scope = scopeGeneration
+        let deletionVersion = chatDeletionVersion(chatID)
+        let fence = recentContentWriteFence(for: chatID)
+        try Task.checkCancellation()
+        guard let writer = await makeRecentChatCacheWriter() else { return OfflineSearchContent(messages: [], embeds: [], readOnMainThread: false) }
+        guard scope == scopeGeneration, deletionVersion == chatDeletionVersion(chatID), fence.isCurrent else { throw CancellationError() }
+        let content = try await writer.loadSearchContent(chatID: chatID, includeMessages: includeMessages,
+            includeEmbeds: includeEmbeds, fence: fence)
+        try Task.checkCancellation()
+        guard scope == scopeGeneration, deletionVersion == chatDeletionVersion(chatID), fence.isCurrent else { throw CancellationError() }
+        return content
+    }
+
     private func invalidateRecentContentReceipt(chatID: String, context: ModelContext) {
         recentContentFence.invalidate(chatID: chatID)
         let rows = FetchDescriptor<PersistedChat>(predicate: #Predicate { $0.id == chatID })
@@ -1414,8 +1428,117 @@ struct OfflineRecentChatWriteFence: Sendable {
     func commit(save: () throws -> Void) throws { try owner.commit(self, save: save) }
 }
 
+struct OfflineSearchContent: Sendable {
+    let messages: [Message]
+    let embeds: [EmbedRecord]
+    let readOnMainThread: Bool
+}
+
+private final class OfflineSearchReadCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    func cancel() { lock.withLock { cancelled = true } }
+    func check(_ fence: OfflineRecentChatWriteFence) throws {
+        guard !lock.withLock({ cancelled }), fence.isCurrent else { throw CancellationError() }
+    }
+}
+
+private enum OfflineSearchDiskReader {
+    private static let queue = DispatchQueue(label: "org.openmates.offline-search-read", qos: .utility)
+
+    static func read(container: ModelContainer, chatID: String, includeMessages: Bool, includeEmbeds: Bool,
+                     fence: OfflineRecentChatWriteFence) async throws -> OfflineSearchContent {
+        let cancellation = OfflineSearchReadCancellation()
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            return try await withCheckedThrowingContinuation { continuation in
+                queue.async {
+                    do {
+                        continuation.resume(returning: try readOnBackgroundQueue(container: container, chatID: chatID,
+                            includeMessages: includeMessages, includeEmbeds: includeEmbeds,
+                            fence: fence, cancellation: cancellation))
+                    } catch { continuation.resume(throwing: error) }
+                }
+            }
+        } onCancel: { cancellation.cancel() }
+    }
+
+    // The context is constructed and consumed entirely inside this dispatch
+    // queue. A SwiftData model actor's default executor can run on the UI thread.
+    private static func readOnBackgroundQueue(container: ModelContainer, chatID: String,
+        includeMessages: Bool, includeEmbeds: Bool, fence: OfflineRecentChatWriteFence,
+        cancellation: OfflineSearchReadCancellation) throws -> OfflineSearchContent {
+        try cancellation.check(fence)
+        let context = ModelContext(container)
+        let readOnMainThread = Thread.isMainThread
+        var messages: [Message] = []
+        var embeds: [EmbedRecord] = []
+        let batchSize = 128
+        if includeMessages {
+            var offset = 0
+            while true {
+                try cancellation.check(fence)
+                var query = FetchDescriptor<PersistedMessage>(predicate: #Predicate { $0.chatId == chatID },
+                    sortBy: [SortDescriptor(\.createdAt), SortDescriptor(\.id)])
+                query.fetchLimit = batchSize
+                query.fetchOffset = offset
+                let rows = try context.fetch(query)
+                messages.append(contentsOf: rows.map { $0.toMessage() })
+                if rows.count < batchSize { break }
+                offset += rows.count
+            }
+        }
+        if includeEmbeds {
+            var offset = 0
+            while true {
+                try cancellation.check(fence)
+                var query = FetchDescriptor<PersistedEmbed>(predicate: #Predicate { $0.chatId == chatID },
+                    sortBy: [SortDescriptor(\.id)])
+                query.fetchLimit = batchSize
+                query.fetchOffset = offset
+                let rows = try context.fetch(query)
+                embeds.append(contentsOf: rows.map { $0.toEmbed() })
+                if rows.count < batchSize { break }
+                offset += rows.count
+            }
+        }
+        try cancellation.check(fence)
+        return OfflineSearchContent(messages: messages, embeds: embeds, readOnMainThread: readOnMainThread)
+    }
+
+}
+
 @ModelActor
 actor OfflineRecentChatCacheWriter {
+    /// Preserve the complete allowed search corpus with bounded disk reads on
+    /// an explicit background queue. Existing cache writes retain their actor.
+    func loadSearchContent(chatID: String, includeMessages: Bool, includeEmbeds: Bool,
+                           fence: OfflineRecentChatWriteFence) async throws -> OfflineSearchContent {
+        try await OfflineSearchDiskReader.read(container: modelContainer, chatID: chatID,
+            includeMessages: includeMessages, includeEmbeds: includeEmbeds, fence: fence)
+    }
+
+    // The transport response contains immutable decoded JSON. Serialize it here,
+    // alongside snapshot decoding, rather than on the main-actor bridge.
+    func decode(_ response: WebSocketResponse, chatId: String) throws -> OfflineRecentChatSnapshot {
+        try Task.checkCancellation()
+        return try decode(JSONSerialization.data(withJSONObject: response.fields), chatId: chatId)
+    }
+
+    func hasCompleteSnapshot(for chat: Chat) -> Bool {
+        guard !Task.isCancelled else { return false }
+        let context = ModelContext(modelContainer)
+        let chatID = chat.id
+        let descriptor = FetchDescriptor<PersistedChat>(predicate: #Predicate { $0.id == chatID })
+        guard let row = try? context.fetch(descriptor).first,
+              let serverCount = row.offlineContentServerCount,
+              let expectedRows = row.offlineContentRowCount, serverCount >= 0, expectedRows >= serverCount,
+              (row.offlineContentMessagesV ?? -1) >= (chat.messagesV ?? 0),
+              row.offlineContentRecency == OfflineRecentChatPolicy.recency(of: chat) else { return false }
+        let messages = FetchDescriptor<PersistedMessage>(predicate: #Predicate { $0.chatId == chatID })
+        return (try? context.fetchCount(messages)) == expectedRows
+    }
+
     func decode(_ data: Data, chatId: String) throws -> OfflineRecentChatSnapshot {
         try Task.checkCancellation()
         guard let fields = try JSONSerialization.jsonObject(with: data) as? [String: Any],

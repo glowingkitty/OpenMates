@@ -137,4 +137,77 @@ final class TravelEmbedFormattingTests: XCTestCase {
         XCTAssertTrue(file.content.replacingOccurrences(of: "\r\n ", with: "").contains("URL:" + expected))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.assistant-document-convergence
+    func testEmptySearchKeepsFlattenedRequestRouteDateAndZeroCount() throws {
+        let fixture = try travelSearchFixture("zero-provider-empty")
+        let model = TravelSearchPresentation(embed: fixture.primaryEmbed, locale: Locale(identifier: "en_US"),
+                                             timeZone: TimeZone(secondsFromGMT: 0)!)
+        XCTAssertTrue(TravelSearchPresentation.isSearch(fixture.primaryEmbed))
+        XCTAssertEqual(model.route, "Berlin → Prague")
+        XCTAssertEqual(model.previewDate, "Mon, Oct 5")
+        XCTAssertEqual(model.fullscreenDate, "Mon, October 5, 2026")
+        XCTAssertEqual(model.resultCount, 0)
+        XCTAssertTrue(model.connections.isEmpty)
+        XCTAssertTrue(model.providers.isEmpty)
+        XCTAssertNil(model.previewProviderText)
+        XCTAssertNil(model.priceText())
+        let header = EmbedFullscreenHeader(embed: fixture.primaryEmbed)
+        XCTAssertFalse(header.headerTitle.contains("app-skill-use"))
+        XCTAssertTrue(header.headerTitle.contains("Berlin → Prague"))
+        XCTAssertTrue(header.headerSubtitle?.hasPrefix("0 ") == true)
+        XCTAssertFalse(AppStrings.localized("embeds.search_no_results").contains("embeds.search_no_results"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.assistant-document-convergence
+    func testEmptySearchGroupsRemainMetadataAndQueryFallbackSurvives() throws {
+        let grouped = try travelSearchFixture("zero-provider-grouped")
+        let model = TravelSearchPresentation(embed: grouped.primaryEmbed, locale: Locale(identifier: "en_US"),
+                                             timeZone: TimeZone(secondsFromGMT: 0)!)
+        XCTAssertEqual(model.route, "Oslo → Bergen")
+        XCTAssertEqual(model.previewDate, "Thu, Oct 8")
+        XCTAssertEqual(model.resultCount, 0)
+        XCTAssertTrue(model.connections.isEmpty, "A search request group is not a returned connection")
+        let query = try travelSearchFixture("zero-provider-query")
+        let queryModel = TravelSearchPresentation(embed: query.primaryEmbed)
+        XCTAssertEqual(queryModel.route, "Night train from Berlin to Prague")
+        XCTAssertNil(queryModel.previewDate)
+        XCTAssertEqual(queryModel.fullscreenTitle, queryModel.route)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.assistant-document-convergence
+    func testEmptySearchDoesNotBorrowConnectionsFromAnotherParent() throws {
+        let fixture = try travelSearchFixture("zero-provider-empty")
+        let unrelated = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "travel-connection")?.primaryEmbed)
+        let model = TravelSearchPresentation(embed: fixture.primaryEmbed, allEmbedRecords: [unrelated.id: unrelated])
+        XCTAssertTrue(model.connections.isEmpty)
+        XCTAssertTrue(model.childEmbeds.isEmpty)
+        XCTAssertEqual(model.route, "Berlin → Prague")
+        XCTAssertEqual(model.resultCount, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.assistant-document-convergence
+    func testSearchMetadataCountAndNestedResultsFollowWebPrecedence() throws {
+        let fixture = try travelSearchFixture("zero-provider-empty")
+        var data = fixture.primaryEmbed.rawData ?? [:]
+        data["result_count"] = AnyCodable(4)
+        data["provider"] = AnyCodable("Google")
+        let metadata = TravelSearchPresentation(embed: fixture.primaryEmbed, data: data)
+        XCTAssertEqual(metadata.resultCount, 4)
+        XCTAssertTrue(metadata.connections.isEmpty)
+        XCTAssertNil(metadata.previewProviderText, "Legacy attribution requires actual results")
+        data["results"] = AnyCodable([["query": "Request", "result_count": 9, "results": [
+            ["origin": "Munich", "destination": "London", "departure": "2026-10-06T08:00:00", "price": 50, "currency": "EUR"]
+        ]]])
+        let loaded = TravelSearchPresentation(embed: fixture.primaryEmbed, data: data)
+        XCTAssertEqual(loaded.resultCount, 1)
+        XCTAssertEqual(loaded.route, "Munich → London")
+        XCTAssertEqual(loaded.priceText(), "EUR 50")
+        XCTAssertTrue(loaded.previewProviderText?.contains("Google") == true)
+    }
+
+    private func travelSearchFixture(_ name: String) throws -> DevEmbedPreviewSkill {
+        let base = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "app:travel:search_connections"))
+        return try XCTUnwrap(DevEmbedPreviewFixtures.variants(for: base).first { $0.name == name }?.skill)
+    }
+
 }

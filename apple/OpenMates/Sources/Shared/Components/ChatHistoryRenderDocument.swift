@@ -1,3 +1,7 @@
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.rendering.assistant-document-convergence,
+//             chats.rendering.inline-entity-interaction
+//
 // Canonical message-scoped render document for stable Apple chat history.
 // Converts the existing native markdown parser output into codable semantic blocks.
 // Preserves web document order, message ownership, inline entities, and embed IDs.

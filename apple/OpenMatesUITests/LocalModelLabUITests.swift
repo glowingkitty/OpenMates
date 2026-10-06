@@ -63,23 +63,18 @@ final class LocalModelLabUITests: XCTestCase {
         XCTAssertTrue(try settingsPane(in: app).descendants(matching: .any)["settings-developers-local-models-row"].firstMatch.waitForExistence(timeout: 5))
     }
 
-    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.pocket-tts,apple-local-model-lab.optional-downloads,apple-local-model-lab.isolated-scope
-    func testPocketTTSIsAnExplicitEnglishDownloadWithoutSystemVoiceFallback() throws {
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.availability,apple-local-model-lab.isolated-scope
+    func testRejectedSpeechAdaptersHaveNoLabControlsOrFallback() throws {
         let app = try openLab()
-        let card = try settingsPane(in: app).descendants(matching: .any)["local-model-pocketTTS-card"]
-        try scrollTo(card, in: app, actionable: false)
-        XCTAssertTrue(card.exists)
-        let scope = try settingsPane(in: app).staticTexts["pocket-tts-availability-scope"]
-        try scrollTo(scope, in: app, actionable: false)
-        XCTAssertTrue(scope.exists)
-        XCTAssertTrue(scope.label.contains("English"))
-        let download = try settingsPane(in: app).buttons["local-model-pocketTTS-download"]
-        try scrollTo(download, in: app)
-        XCTAssertTrue(download.isHittable)
-        XCTAssertTrue(download.isEnabled)
-        XCTAssertFalse(try settingsPane(in: app).buttons["local-model-pocketTTS-run"].exists)
-        XCTAssertFalse(try settingsPane(in: app).descendants(matching: .any)["local-model-appleSpeech-card"].exists)
-        XCTAssertFalse(try settingsPane(in: app).descendants(matching: .any)["local-model-privacyFilter-card"].exists)
+        let pane = try settingsPane(in: app)
+        XCTAssertTrue(pane.descendants(matching: .any)["local-model-whisper-card"].exists)
+        for removed in ["pocketTTS", "appleSpeech", "kokoro"] {
+            XCTAssertFalse(pane.descendants(matching: .any)["local-model-\(removed)-card"].exists)
+            XCTAssertFalse(pane.buttons["local-model-\(removed)-download"].exists)
+            XCTAssertFalse(pane.buttons["local-model-\(removed)-run"].exists)
+        }
+        XCTAssertFalse(pane.descendants(matching: .any)["local-model-lab-system-speech-card"].exists)
+        XCTAssertFalse(pane.descendants(matching: .any)["local-model-privacyFilter-card"].exists)
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.isolated-scope
@@ -253,6 +248,65 @@ final class LocalModelLabUITests: XCTestCase {
         XCTAssertTrue(try settingsPane(in: app).buttons["local-model-privacyFilter-remove"].exists)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads,apple-local-model-lab.local-execution,apple-local-model-lab.ephemeral-state,apple-local-model-lab.isolated-scope
+    func testNeuralSpeechLabPlaysLocalFixtureAndClearsItWhenDisabled() throws {
+        let app = try openLab(extraArguments: ["--ui-test-neural-tts-fixture"])
+        try enableLab(in: app)
+        for id in ["supertonic3"] {
+            let input = try settingsPane(in: app).descendants(matching: .any)["local-model-\(id)-text"].firstMatch
+            try scrollTo(input, in: app)
+            input.tap(); input.typeText("Disposable local speech text")
+            let run = try settingsPane(in: app).buttons["local-model-\(id)-run"]
+            try scrollTo(run, in: app); XCTAssertTrue(run.isEnabled && run.isHittable); run.tap()
+            let play = try settingsPane(in: app).buttons["local-model-\(id)-play"]
+            XCTAssertTrue(play.waitForExistence(timeout: 10)); try scrollTo(play, in: app)
+            XCTAssertTrue(play.isEnabled && play.isHittable)
+            let beforePlayback = XCTAttachment(string: targetDiagnostics(play, in: app) + "\n" + app.debugDescription)
+            beforePlayback.name = "\(id) visible local playback target before tap"
+            beforePlayback.lifetime = .keepAlways; add(beforePlayback)
+            let beforePlaybackShot = XCTAttachment(screenshot: app.screenshot())
+            beforePlaybackShot.name = "\(id) local playback target before tap"
+            beforePlaybackShot.lifetime = .keepAlways; add(beforePlaybackShot)
+            let synthesisTiming = try settingsPane(in: app).staticTexts["local-model-lab-phase-timing-5"]
+            try scrollTo(synthesisTiming, in: app)
+            XCTAssertTrue(synthesisTiming.label.hasPrefix("Generating speech"))
+            XCTAssertFalse(synthesisTiming.label.contains("personal data"))
+            try scrollTo(play, in: app)
+            play.tap()
+            let playing = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Stop playback"), object: play)
+            let playbackTransition = XCTWaiter.wait(for: [playing], timeout: 3)
+            if playbackTransition != .completed {
+                // Synthetic-only case: retain evidence before the assertion stops
+                // execution; never pad the transient-state observation timeout.
+                let details = XCTAttachment(string: """
+                    model=\(id);play-label=\(play.label);play-frame=\(play.frame);play-hittable=\(play.isHittable)
+                    \(app.debugDescription)
+                    """)
+                details.name = "\(id) local fixture playback transition failure"
+                details.lifetime = .keepAlways; add(details)
+                let shot = XCTAttachment(screenshot: app.screenshot())
+                shot.name = "\(id) local playback transition failure screen"
+                shot.lifetime = .keepAlways; add(shot)
+            }
+            XCTAssertEqual(playbackTransition, .completed)
+            let remove = try settingsPane(in: app).buttons["local-model-\(id)-remove"]
+            XCTAssertFalse(remove.isEnabled, "Playback retains private output ownership")
+            play.tap()
+            let stopped = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Play local result"), object: play)
+            XCTAssertEqual(XCTWaiter.wait(for: [stopped], timeout: 3), .completed)
+            let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "\(id) synthetic local speech result"; shot.lifetime = .keepAlways; add(shot)
+            let toggle = try settingsPane(in: app).switches["local-model-lab-toggle"]
+            // This switch precedes the model cards in the lazy settings stack.
+            // Return toward the header while its offscreen AX child is absent.
+            try scrollTo(toggle, in: app, searchTowardTop: true)
+            toggle.tap(); try waitForValue("Off", on: toggle)
+            XCTAssertFalse(play.exists)
+            toggle.tap(); try waitForValue("On", on: toggle)
+            try scrollTo(input, in: app)
+            XCTAssertFalse((input.value as? String ?? "").contains("Disposable local speech text"), "Leaving the lab clears private speech text")
+        }
+    }
+
     private func waitForStage(_ stage: String, on element: XCUIElement, timeout: TimeInterval = 5) throws {
         // The app displays localized status copy; test launches explicitly use English.
         let prefixes = [
@@ -326,7 +380,7 @@ final class LocalModelLabUITests: XCTestCase {
             in: app, actionable: false)
     }
 
-    private func scrollTo(_ element: XCUIElement, in app: XCUIApplication, actionable: Bool = true) throws {
+    private func scrollTo(_ element: XCUIElement, in app: XCUIApplication, actionable: Bool = true, searchTowardTop: Bool = false) throws {
         // description preserves the query; identifier dereferences a snapshot
         // and can itself fail after a lazy child has left the viewport.
         let queryDescription = element.description
@@ -335,11 +389,26 @@ final class LocalModelLabUITests: XCTestCase {
             pane.scrollViews.matching(NSPredicate(format: "identifier IN %@",
                 ["local-model-lab-scroll", "settings-local-models-page", "settings-menu", "settings-privacy-page", "settings-hide-personal-data-page"])), in: app, actionable: false)
         let content = scrollView.children(matching: .other).firstMatch
-        var scrollForward = true
+        var scrollForward = !searchTowardTop
         for _ in 0..<48 {
             // The settings panel is smaller than the window. A focused input
             // can also cover its lower portion with the system keyboard.
             var viewport = scrollView.frame.intersection(app.windows.firstMatch.frame)
+            // Sticky banner and child navigation are siblings of the scroll.
+            // AX may report an underlying control hittable through these rows;
+            // only the exposed content area is safe for real taps and drags.
+            let stickyControls = pane.descendants(matching: .any).matching(
+                NSPredicate(format: "identifier IN %@", ["settings-banner-shell",
+                    "settings-developers-back", "settings-privacy-diagnostics-back"]))
+            for control in stickyControls.allElementsBoundByIndex {
+                let frame = control.frame
+                let overlap = viewport.intersection(frame)
+                if !overlap.isNull, overlap.width > 0, overlap.height > 0 {
+                    let bottom = viewport.maxY
+                    viewport.origin.y = max(viewport.minY, frame.maxY)
+                    viewport.size.height = max(0, bottom - viewport.minY)
+                }
+            }
             #if os(iOS)
             let keyboard = app.keyboards.firstMatch
             if keyboard.exists && keyboard.frame.intersects(viewport) {
@@ -368,7 +437,9 @@ final class LocalModelLabUITests: XCTestCase {
             #if os(iOS)
             // Full swipes jumped ~680pt across a 461pt viewport in the failure
             // evidence. Slow, held 30% drags expose each control before reversal.
-            let x = viewport.maxX - min(20, viewport.width * 0.1)
+            // Keep the gesture in the left gutter. The right gutter is the
+            // vertical scrollbar's touch region and can jump the scroll offset.
+            let x = viewport.minX + min(12, viewport.width * 0.04)
             let upper = CGPoint(x: x, y: viewport.minY + viewport.height * 0.35)
             let lower = CGPoint(x: x, y: viewport.minY + viewport.height * 0.65)
             let origin = app.coordinate(withNormalizedOffset: .zero)
@@ -381,9 +452,11 @@ final class LocalModelLabUITests: XCTestCase {
             if scrollForward { scrollView.swipeUp(velocity: .slow) }
             else { scrollView.swipeDown(velocity: .slow) }
             #endif
-            // An absent lazy child gives no target geometry. Explore to the
-            // current edge, then reverse, rather than overshooting both ways.
-            if let before, content.exists, abs(content.frame.minY - before) < 1 {
+            // An absent lazy child gives no target geometry. For a known header
+            // control, keep returning toward the top until it reenters AX. Lazy
+            // content geometry alone can appear stationary before reaching it.
+            // Other searches still explore the current edge before reversing.
+            if !searchTowardTop, let before, content.exists, abs(content.frame.minY - before) < 1 {
                 scrollForward.toggle()
             }
         }

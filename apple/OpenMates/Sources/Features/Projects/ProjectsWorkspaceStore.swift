@@ -53,6 +53,35 @@ final class ProjectsWorkspaceStore: ObservableObject {
     @Published private(set) var sources: [ProjectWorkspaceSource] = []
     @Published private(set) var settings: ProjectWorkspaceSettings?
     @Published private(set) var readme: ReadmeState = .loading
+    #if DEBUG
+    @Published private(set) var readOnlyReadmeCategory = "pending"
+    @Published private(set) var readOnlyFilesCategory = "pending"
+
+    static func readOnlyErrorCategory(_ error: Error) -> String {
+        if error is DecodingError { return "decoding" }
+        if error is CryptoKitError { return "crypto" }
+        if let error = error as? ProjectsWorkspaceError {
+            switch error {
+            case .accountChanged: return "account_changed"
+            case .missingMasterKey: return "master_key_unavailable"
+            case .missingProjectKey: return "project_key_unavailable"
+            case .invalidResponse: return "invalid_response"
+            case .invalidContext: return "invalid_context"
+            case .unsupportedSource: return "unsupported_source"
+            case .sourceOffline: return "source_offline"
+            case .sourceTimedOut: return "source_timeout"
+            }
+        }
+        if case APIError.httpError(let status, let message) = error {
+            let allowed = ["source_offline", "source_capability_denied", "key_epoch_mismatch",
+                "source_session_changed", "request_not_found", "request_scope_mismatch", "source_queue_full"]
+            return "http_\(status)_\(allowed.contains(message) ? message : "other")"
+        }
+        if error is CancellationError { return "cancelled" }
+        if error is ProjectRemoteResultError { return "remote_operation_failed" }
+        return "other"
+    }
+    #endif
     @Published private(set) var activeRemoteSourceID: String?
     @Published private(set) var remotePath = "."
     @Published private(set) var remoteEntries: [ProjectRemoteEntry] = []
@@ -153,6 +182,23 @@ final class ProjectsWorkspaceStore: ObservableObject {
         if requestGeneration == generation { isLoading = false }
     }
 
+    /// Explicit Controls action validates current authorization independently of a cached or in-flight workspace load.
+    func refreshForControl(projectID: String, accountID: String, teamID: String?) async -> Bool {
+        if self.accountID != accountID || self.teamID != teamID {
+            reset(accountId: accountID); self.teamID = teamID
+        }
+        let request = generation
+        let fence = ProjectsWorkspaceFence(accountID: accountID)
+        do {
+            try await validateFence(fence)
+            let values = try await service.listProjects(accountID: accountID, teamID: teamID)
+            try await validateFence(fence)
+            guard !Task.isCancelled, generation == request, self.accountID == accountID, self.teamID == teamID else { return false }
+            projects = values.sorted { $0.updatedAt > $1.updatedAt }
+            return values.contains { $0.id == projectID && $0.teamId == teamID }
+        } catch { return false }
+    }
+
     func reset(accountId: String?) {
         generation = UUID()
         cancelSearch()
@@ -248,6 +294,9 @@ final class ProjectsWorkspaceStore: ObservableObject {
         } catch {
             guard requestGeneration == generation else { return }
             errorMessage = AppStrings.projectError(error)
+            #if DEBUG
+            readOnlyReadmeCategory = Self.readOnlyErrorCategory(error)
+            #endif
             readme = .failed
         }
         if requestGeneration == generation { isLoadingDetail = false }
@@ -406,12 +455,28 @@ final class ProjectsWorkspaceStore: ObservableObject {
             try await validateFence(fence)
             let projects = try await service.listProjects(accountID: accountID, teamID: teamID)
             var result: [ChatSidebarProject] = []
+            var failedProjectCount = 0
             for project in projects {
-                guard generation == request else { return }
-                let contents = try await service.contents(project: project, fence: fence)
-                try await validateFence(fence)
-                guard generation == request else { return }
-                result.append(.init(project: project, contents: contents))
+                guard generation == request, !Task.isCancelled else { return }
+                do {
+                    let contents = try await service.chatNavigationContents(project: project, fence: fence)
+                    try await validateFence(fence)
+                    guard generation == request else { return }
+                    result.append(.init(project: project, contents: contents))
+                } catch {
+                    // Cancellation or an account/team change must never publish
+                    // a partial response into the next workspace.
+                    try Task.checkCancellation()
+                    try await validateFence(fence)
+                    guard generation == request else { return }
+                    failedProjectCount += 1
+                    if let previous = chatNavigationProjects.first(where: { $0.id == project.id }) {
+                        result.append(.init(project: project, contents: previous.contents))
+                    }
+                }
+            }
+            if failedProjectCount > 0 {
+                NativeDiagnostics.warning("Chat navigation membership unavailable for \(failedProjectCount) projects", category: "projects.navigation")
             }
             guard generation == request else { return }
             self.projects = projects.sorted { $0.updatedAt > $1.updatedAt }
@@ -918,6 +983,9 @@ final class ProjectsWorkspaceStore: ObservableObject {
         let requestGeneration = generation
         let fence = ProjectsWorkspaceFence(accountID: accountID)
         isLoadingRemote = true
+        #if DEBUG
+        readOnlyFilesCategory = "pending"
+        #endif
         do {
             let directory = try await remoteClient.list(project: project, source: source,
                 path: path, cursor: remotePagination.cursor(for: pageIndex), fence: fence)
@@ -929,12 +997,18 @@ final class ProjectsWorkspaceStore: ObservableObject {
             remotePath = path
             remotePagination.install(directory, page: pageIndex)
             remoteEntries = remotePagination.entries
+            #if DEBUG
+            readOnlyFilesCategory = "ready"
+            #endif
             if remotePagination.omitted > 0 && remotePagination.nextCursor == nil {
                 remoteError = AppStrings.projectRemoteLimited
             }
         } catch {
             if requestGeneration == generation && remoteRequest == remoteGeneration {
                 remoteError = AppStrings.projectError(error)
+                #if DEBUG
+                readOnlyFilesCategory = Self.readOnlyErrorCategory(error)
+                #endif
             }
         }
         if requestGeneration == generation && remoteRequest == remoteGeneration { isLoadingRemote = false }
@@ -1156,12 +1230,21 @@ final class ProjectsWorkspaceStore: ObservableObject {
                 return .ready(ProjectWorkspaceReadme(markdown: markdown, truncated: false, origin: "stored"))
             } catch { return .failed }
         }
+        #if DEBUG
+        readOnlyReadmeCategory = "pending"
+        #endif
         return await Self.loadConnectedReadme(sources: contents.sources, list: { source in
             try await self.remoteClient.list(project: project, source: source,
                                               path: ".", maxEntries: 500, fence: fence)
         }, read: { source, path in
             try await self.remoteClient.readText(project: project, source: source,
                                                  path: path, fence: fence)
+        }, onFailure: { error in
+            #if DEBUG
+            if self.selectedProjectID == project.id {
+                self.readOnlyReadmeCategory = Self.readOnlyErrorCategory(error)
+            }
+            #endif
         })
     }
 
@@ -1169,25 +1252,34 @@ final class ProjectsWorkspaceStore: ObservableObject {
     /// Only a complete check of every readable source can prove an empty overview.
     static func loadConnectedReadme(sources: [ProjectWorkspaceSource],
         list: (ProjectWorkspaceSource) async throws -> ProjectRemoteDirectory,
-        read: (ProjectWorkspaceSource, String) async throws -> ProjectRemoteText) async -> ReadmeState {
+        read: (ProjectWorkspaceSource, String) async throws -> ProjectRemoteText,
+        onFailure: (Error) -> Void = { _ in }) async -> ReadmeState {
         let readable = sources.filter { $0.capabilities.contains("read") }
-        var unavailable = readable.contains { $0.status != "connected" }
+        var unavailable = readable.contains { $0.status == "offline" }
+        var failed = readable.contains { $0.status != "connected" && $0.status != "offline" }
         for source in readable where source.status == "connected" {
             do {
                 let directory = try await list(source)
                 guard let entry = directory.entries.first(where: {
                     $0.kind == "file" && $0.path.lowercased() == "readme.md"
                 }) else {
-                    unavailable = unavailable || directory.omitted > 0 || directory.nextCursor != nil
+                    failed = failed || directory.omitted > 0 || directory.nextCursor != nil
                     continue
                 }
                 let text = try await read(source, entry.path)
                 return .ready(ProjectWorkspaceReadme(markdown: text.content,
                     truncated: text.truncated, origin: "connected", sourceID: source.id,
                     sourceSessionID: source.sessionID, sourceKeyEpoch: source.keyEpoch))
-            } catch { unavailable = true }
+            } catch {
+                onFailure(error)
+                if case ProjectsWorkspaceError.sourceOffline = ProjectRemoteSourceClient.classifySourceError(error) {
+                    unavailable = true
+                } else {
+                    failed = true
+                }
+            }
         }
-        return unavailable ? .unavailable : .empty
+        return failed ? .failed : unavailable ? .unavailable : .empty
     }
 
     private func prefetchSourceRoots(project: ProjectWorkspaceProject,

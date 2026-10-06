@@ -37,4 +37,16 @@ final class WorkspaceSwitcherLayoutTests: XCTestCase {
             XCTAssertLessThanOrEqual(end, width - .spacing10 - 84 - .spacing4)
         }
     }
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testSyncIndicatorReflectsOnlyAuthenticatedActiveWork() {
+        XCTAssertFalse(NativeHeaderSyncActivityPolicy.isActive(authenticated: false,
+            initialSyncComplete: false, prefetching: true, flushing: true))
+        XCTAssertFalse(NativeHeaderSyncActivityPolicy.isActive(authenticated: true,
+            initialSyncComplete: true, prefetching: false, flushing: false))
+        for phase in 0..<3 {
+            XCTAssertTrue(NativeHeaderSyncActivityPolicy.isActive(authenticated: true,
+                initialSyncComplete: phase != 0, prefetching: phase == 1, flushing: phase == 2))
+        }
+    }
+
 }

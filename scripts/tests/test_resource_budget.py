@@ -17,6 +17,87 @@ import pytest
 from scripts import resource_budget as budget
 
 
+def test_linux_start_ticks_keep_existing_identity(monkeypatch):
+    monkeypatch.setattr(budget.sys, "platform", "linux")
+    fields = ["S"] + ["0"] * 18 + ["123456789"]
+    monkeypatch.setattr(Path, "read_text", lambda _path: "123 (process ) name) " + " ".join(fields))
+    assert budget._start_time(123) == "123456789"
+
+
+@pytest.mark.parametrize("returned,pid,seconds,microseconds,expected", [
+    (136, 123, 1700000000, 1, "darwin:1700000000:000001"),
+    (136, 123, 1700000000, 2, "darwin:1700000000:000002"),
+    (0, 123, 1700000000, 1, ""),
+    (128, 123, 1700000000, 1, ""),
+    (136, 124, 1700000000, 1, ""),
+    (136, 123, 0, 1, ""),
+    (136, 123, 1700000000, 1000000, ""),
+])
+def test_darwin_identity_validates_complete_kernel_reply(
+        monkeypatch, returned, pid, seconds, microseconds, expected):
+    class Query:
+        def __call__(self, query_pid, flavor, arg, buffer, size):
+            assert (query_pid, flavor, arg, size) == (123, 3, 0, 136)
+            info = budget.ctypes.cast(buffer, budget.ctypes.POINTER(budget._ProcBSDInfo)).contents
+            info.pbi_pid = pid
+            info.pbi_start_tvsec = seconds
+            info.pbi_start_tvusec = microseconds
+            return returned
+
+    class Library:
+        proc_pidinfo = Query()
+
+    monkeypatch.setattr(budget.sys, "platform", "darwin")
+    monkeypatch.setattr(budget.ctypes, "CDLL", lambda *_args, **_kwargs: Library())
+    assert budget._start_time(123) == expected
+
+
+def test_darwin_library_failure_cannot_admit_owner(tmp_path, monkeypatch):
+    monkeypatch.setattr(budget.sys, "platform", "darwin")
+    def unavailable(*_args, **_kwargs):
+        raise OSError("libproc unavailable")
+    monkeypatch.setattr(budget.ctypes, "CDLL", unavailable)
+    with pytest.raises(RuntimeError, match="Cannot establish disk reservation owner"):
+        with budget.reserve(tmp_path, 1, min_free=0, max_used_percent=100):
+            pytest.fail("unknown owner admitted")
+    assert not list(budget._control(tmp_path).glob("reservation-*.json"))
+
+
+def test_unknown_live_owner_reservation_is_retained(tmp_path, monkeypatch):
+    directory = budget._control(tmp_path)
+    directory.mkdir(parents=True)
+    reservation = directory / "reservation-existing.json"
+    reservation.write_text(json.dumps({"pid": os.getpid(), "start": "known", "bytes": 70}))
+    monkeypatch.setattr(budget, "_start_time", lambda _pid: "")
+    with pytest.raises(RuntimeError, match="existing disk reservation owner"):
+        budget._reservations(directory)
+    assert reservation.is_file()
+
+
+def test_pid_reuse_with_different_microseconds_releases_old_reservation(tmp_path, monkeypatch):
+    directory = budget._control(tmp_path)
+    directory.mkdir(parents=True)
+    reservation = directory / "reservation-existing.json"
+    reservation.write_text(json.dumps({"pid": os.getpid(), "start": "darwin:1700000000:000001", "bytes": 70}))
+    monkeypatch.setattr(budget, "_start_time", lambda _pid: "darwin:1700000000:000002")
+    assert budget._reservations(directory) == []
+    assert not reservation.exists()
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="native libproc integration")
+def test_native_darwin_owner_identity_and_reservation(tmp_path):
+    identity = budget._start_time(os.getpid())
+    assert identity.startswith("darwin:")
+    assert identity == budget._start_time(os.getpid())
+    assert budget._ProcBSDInfo.pbi_start_tvsec.offset == 120
+    assert budget._ProcBSDInfo.pbi_start_tvusec.offset == 128
+    assert budget.ctypes.sizeof(budget._ProcBSDInfo) == 136
+    with budget.reserve(tmp_path, 1, min_free=0, max_used_percent=100):
+        reservations = budget._reservations(budget._control(tmp_path))
+        assert len(reservations) == 1
+        assert reservations[0]["start"] == identity
+
+
 def test_inventory_counts_other_files_after_unsafe_link_without_following_it(tmp_path):
     own = tmp_path / "owned"
     own.mkdir()

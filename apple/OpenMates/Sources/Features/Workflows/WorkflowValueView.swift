@@ -130,41 +130,51 @@ struct WorkflowValueView: View {
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
         } else if let results = resultItems(items), !results.isEmpty {
+            let index = min(max(0, selectedIndex), results.count - 1)
             VStack(alignment: .leading, spacing: .spacing3) {
                 HStack(spacing: .spacing3) {
                     Button {
-                        selectedIndex = max(0, selectedIndex - 1)
+                        selectedIndex = max(0, index - 1)
                     } label: {
-                        Icon("chevron-left", size: 18)
+                        Icon("back", size: .iconSizeMd)
+                            .foregroundStyle(Color.fontPrimary)
+                            .frame(width: 42, height: 42)
+                            .background(Color.grey30, in: Circle())
+                            .contentShape(Circle())
                     }
-                    .disabled(selectedIndex == 0)
-                    .frame(width: 42, height: 42)
-                    .background(Color.grey30, in: Circle())
+                    .disabled(index == 0)
+                    .opacity(index == 0 ? 0.5 : 1)
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("workflow-result-previous")
                     .accessibilityLabel(AppStrings.workflowBuilder(.previous_result))
 
-                    Text(AppStrings.workflowResultPosition(current: min(selectedIndex + 1, results.count), total: results.count))
+                    Text(AppStrings.workflowResultPosition(current: index + 1, total: results.count))
                         .font(.omSmall.weight(.semibold))
                         .foregroundStyle(Color.fontSecondary)
                         .accessibilityIdentifier("workflow-result-position")
 
                     Button {
-                        selectedIndex = min(results.count - 1, selectedIndex + 1)
+                        selectedIndex = min(results.count - 1, index + 1)
                     } label: {
-                        Icon("chevron-right", size: 18)
+                        Icon("back", size: .iconSizeMd)
+                            .rotationEffect(.degrees(180))
+                            .foregroundStyle(Color.fontPrimary)
+                            .frame(width: 42, height: 42)
+                            .background(Color.grey30, in: Circle())
+                            .contentShape(Circle())
                     }
-                    .disabled(selectedIndex >= results.count - 1)
-                    .frame(width: 42, height: 42)
-                    .background(Color.grey30, in: Circle())
+                    .disabled(index == results.count - 1)
+                    .opacity(index == results.count - 1 ? 0.5 : 1)
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("workflow-result-next")
                     .accessibilityLabel(AppStrings.workflowBuilder(.next_result))
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
 
-                WorkflowValueView(value: results[min(selectedIndex, results.count - 1)], appId: appId,
+                WorkflowValueView(value: results[index], appId: appId,
                                   depth: depth + 1, showDetails: true)
+                    // Web gives each selected result its own path/preview identity.
+                    .id(index)
                     .padding(.spacing4)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.grey10)
@@ -300,6 +310,8 @@ struct WorkflowValueView: View {
                     .padding(.spacing4)
                     .background(Color.grey10)
                     .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("workflow-result-fields")
             }
         }
     }

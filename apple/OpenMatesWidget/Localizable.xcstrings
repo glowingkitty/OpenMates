@@ -475,6 +475,94 @@
           }
         }
       }
+    },
+    "activity.quick_action_ask": {
+      "comment": "Reused canonical web locale key for system Controls.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask"
+          }
+        }
+      }
+    },
+    "activity.quick_action_record_request": {
+      "comment": "Reused canonical web locale key for system Controls.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record request"
+          }
+        }
+      }
+    },
+    "activity.quick_action_ask_about_photo": {
+      "comment": "Reused canonical web locale key for system Controls.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask About Photo"
+          }
+        }
+      }
+    },
+    "activity.quick_action_incognito_ask": {
+      "comment": "Reused canonical web locale key for system Controls.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incognito Ask"
+          }
+        }
+      }
+    },
+    "activity.search": {
+      "comment": "Reused canonical web locale key for system Controls.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search"
+          }
+        }
+      }
+    },
+    "tasks.workspace.new_task": {
+      "comment": "Reused canonical web locale key for system Controls.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New task"
+          }
+        }
+      }
+    },
+    "navigation.projects": {
+      "comment": "Reused canonical web locale key for system Controls.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projects"
+          }
+        }
+      }
+    },
+    "apple.controls.action": {
+      "comment": "Canonical apple.controls.action locale key.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

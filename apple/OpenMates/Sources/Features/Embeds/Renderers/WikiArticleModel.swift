@@ -19,16 +19,40 @@ struct WikiArticleIdentity: Hashable {
     }
 
     init(data: [String: AnyCodable], fallbackLanguage: String = "en") {
-        let sourceURL = (data["url"]?.value as? String).flatMap(Self.articleURL)
+        let sourceURL = ((data["source_url"]?.value as? String) ?? (data["url"]?.value as? String)).flatMap(Self.articleURL)
         let sourceLanguage = sourceURL?.host?.split(separator: ".").first.map(String.init)
-        self.init(title: (data["wiki_title"]?.value as? String)
+        self.init(title: (data["canonical_title"]?.value as? String) ?? (data["wiki_title"]?.value as? String)
             ?? sourceURL.map { String($0.path.dropFirst("/wiki/".count)) }
             ?? (data["title"]?.value as? String) ?? "",
             language: (data["language"]?.value as? String) ?? sourceLanguage ?? fallbackLanguage)
     }
 
     static let languages: Set<String> = ["en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it",
-        "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv"]
+        "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv", "he"]
+
+    // Same public-name comparison as web; retain the full title in identity,
+    // URLs and future private Study references so disambiguation is not lost.
+    static func namesMatch(_ label: String, _ title: String) -> Bool {
+        func normalized(_ value: String) -> String {
+            value.precomposedStringWithCompatibilityMapping
+                .replacingOccurrences(of: "_", with: " ")
+                .replacingOccurrences(of: #"\s*\([^()]*\)\s*$"#, with: "", options: .regularExpression)
+                .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+        let name = normalized(label)
+        return !name.isEmpty && name == normalized(title)
+    }
+
+    static func canonicalNamesMatch(_ left: String, _ right: String) -> Bool {
+        func normalized(_ value: String) -> String {
+            value.precomposedStringWithCompatibilityMapping
+                .replacingOccurrences(of: "_", with: " ")
+                .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+        return !normalized(left).isEmpty && normalized(left) == normalized(right)
+    }
 
     var pageURL: URL? {
         guard !title.isEmpty else { return nil }
@@ -70,8 +94,12 @@ struct WikiArticleIdentity: Hashable {
 
 struct WikiArticleSummary: Decodable {
     let title: String?
+    let canonicalTitle: String?
+    let language: String?
     let description: String?
     let extract: String?
+    let thumbnailURL: String?
+    let sourceURL: String?
     let thumbnail: ImageSource?
     let originalImage: ImageSource?
     let contentURLs: ContentURLs?
@@ -83,11 +111,29 @@ struct WikiArticleSummary: Decodable {
     }
     enum CodingKeys: String, CodingKey {
         case title, description, extract, thumbnail
+        case canonicalTitle = "canonical_title", language
+        case thumbnailURL = "thumbnail_url", sourceURL = "source_url"
         case originalImage = "originalimage"
         case contentURLs = "content_urls"
     }
-    var imageURL: String? { originalImage?.source ?? thumbnail?.source }
-    var pageURL: URL? { contentURLs?.desktop?.page.flatMap(WikiArticleIdentity.articleURL) }
+    var resolvedTitle: String? { canonicalTitle ?? title }
+    var imageURL: String? { thumbnailURL ?? originalImage?.source ?? thumbnail?.source }
+    var pageURL: URL? { (sourceURL ?? contentURLs?.desktop?.page).flatMap(WikiArticleIdentity.articleURL) }
+
+    func validate(for identity: WikiArticleIdentity, displayTitle: String) throws {
+        guard let canonical = resolvedTitle,
+              WikiArticleIdentity.namesMatch(displayTitle, canonical),
+              WikiArticleIdentity.namesMatch(identity.title, canonical) else { throw APIError.invalidResponse }
+        if let title, !WikiArticleIdentity.namesMatch(title, canonical) { throw APIError.invalidResponse }
+        if let language, language != identity.language { throw APIError.invalidResponse }
+        // A supplied canonical destination must identify this same article and
+        // language. A redirect to a differently named topic is unavailable.
+        if sourceURL != nil || contentURLs?.desktop?.page != nil {
+            guard let pageURL, pageURL.host?.lowercased() == "\(identity.language).wikipedia.org",
+                  WikiArticleIdentity.canonicalNamesMatch(String(pageURL.path.dropFirst("/wiki/".count)), canonical)
+            else { throw APIError.invalidResponse }
+        }
+    }
 
     static func proxiedImageURL(_ value: String?, webBaseURL: URL) -> URL? {
         guard let raw = value?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty,

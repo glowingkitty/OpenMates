@@ -127,11 +127,11 @@ models:
     retired_chat_ids:
       type: ordered_array
       required: true
-      constraints: {value: [demo-for-everyone, demo-for-developers]}
+      constraints: {value: [demo-for-everyone, demo-for-developers, demo-who-develops-openmates]}
     retired_routes:
       type: ordered_array
       required: true
-      constraints: {value: [/intro/for-everyone, /intro/for-developers]}
+      constraints: {value: [/intro/for-everyone, /intro/for-developers, /intro/who-develops-openmates]}
     path_behavior:
       type: redirect
       required: true
@@ -191,7 +191,7 @@ assertions:
     depends_on: [models.SignupCTA, examples.signup_cta]
   - id: landing-onboarding.legacy-intros-retired
     type: behavior
-    must: Logged-out onboarding and real-example discovery do not register, select, recommend, or render the retired For everyone and For developers public chats; their old path URLs redirect to the root welcome surface, their old hash IDs are cleared client-side into the same welcome state without an error, and authentication recovery never persists either retired ID as last_opened.
+    must: Logged-out onboarding and real-example discovery do not register, select, recommend, or render the retired For everyone, For developers, and Who develops OpenMates public chats; their old path URLs redirect to the root welcome surface, their old hash IDs are cleared client-side into the same welcome state without an error, and authentication recovery never persists any retired ID as last_opened.
     depends_on: [models.RetiredIntroCompatibility, examples.legacy_intro_retirement]
   - id: landing-onboarding.primary-slogan-consistent
     type: invariant

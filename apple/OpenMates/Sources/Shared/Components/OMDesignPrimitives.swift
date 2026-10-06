@@ -132,9 +132,30 @@ extension EnvironmentValues {
 // Web source: MessageInput.svelte / MessageInput.styles.css —
 // `.message-field`, `.message-field.inline-compact`, and ActionButtons slot.
 
+private struct ComposerFieldMaximumHeightKey: EnvironmentKey {
+    static var defaultValue: CGFloat? { nil }
+}
+
+extension EnvironmentValues {
+    /// Host's remaining keyboard-adjusted field budget, excluding Cancel/outside gutter.
+    var composerFieldMaximumHeight: CGFloat? {
+        get { self[ComposerFieldMaximumHeightKey.self] }
+        set { self[ComposerFieldMaximumHeightKey.self] = newValue }
+    }
+}
+
 struct OMMessageInputField<ActionButtons: View>: View {
+    @Environment(\.composerFieldMaximumHeight) private var maximumFieldHeight
+    @Environment(\.composerFullscreen) private var fullscreen
+    @Environment(\.workspacePromptEditorIdentifier) private var editorIdentifier
+    @Environment(\.workspacePromptEditorEditable) private var workspaceEditorEditable
     @ObservedObject var session: NativeComposerSession
     @State private var measuredEditorHeight: CGFloat = 0
+    @State private var measuredInlineHeight: CGFloat = 0
+    @State private var topFadeActive = false
+    @State private var nativeContentOverflows = false
+    @State private var nativeLayoutDiagnostic = ""
+    @State private var fieldWidth: CGFloat = 0
     let isFocused: Binding<Bool>
     let compact: Bool
     let placeholder: String
@@ -153,7 +174,26 @@ struct OMMessageInputField<ActionButtons: View>: View {
     @ViewBuilder var actionButtons: () -> ActionButtons
 
     private let expandedHorizontalPadding: CGFloat = 16
-    private let expandedTopPadding: CGFloat = 16
+    // Text and media share the trailing control lane. Narrow media previews
+    // fit that lane instead of introducing a blank row above the document.
+    private var topReservedHeight: CGFloat { 0 }
+    private var controlVisible: Bool { !compact && (fullscreen || nativeContentOverflows) }
+    private var reservesControlLane: Bool { controlVisible }
+    private var maximumUnscrolledEditorHeight: CGFloat {
+        if fullscreen { return editorViewportHeight }
+        let limit = containsEmbed ? MessageComposerMetric.embedTextEditorMaxHeight
+            : MessageComposerMetric.collapsedTextEditorMaxHeight
+        let inlineReserve: CGFloat = inlineFieldContent == nil ? 0 : measuredInlineHeight + (.spacing2 * 2)
+        let hostLimit = maximumFieldHeight.map { max(0, $0 - expandedBottomPadding - inlineReserve) } ?? limit
+        return min(limit, hostLimit)
+    }
+    private var scrollFadeDiagnostic: String {
+        #if DEBUG
+        return "native-top-fade=\(topFadeActive ? "active" : "inactive");native-layout=\(nativeLayoutDiagnostic)"
+        #else
+        return ""
+        #endif
+    }
     private let expandedBottomPadding = MessageComposerMetric.expandedBottomReservedHeight
 
     private var fieldHeight: CGFloat {
@@ -163,8 +203,8 @@ struct OMMessageInputField<ActionButtons: View>: View {
     private var fieldMaxHeight: CGFloat {
         guard !compact else { return compactHeight }
         let contentMaximum = containsEmbed
-            ? MessageComposerMetric.embedTextFieldMaxHeight
-            : MessageComposerMetric.expandedMaxHeight
+            ? MessageComposerMetric.embedTextFieldMaxHeight + topReservedHeight
+            : MessageComposerMetric.expandedMaxHeight + topReservedHeight
         return max(expandedMinHeight, contentMaximum)
     }
 
@@ -172,7 +212,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
         session.controller.document.nodes.contains(where: { $0.kind == "embed" })
     }
 
-    private var resolvedFieldHeight: CGFloat {
+    private var intrinsicFieldHeight: CGFloat {
         if compact { return compactHeight }
         if expandedMinHeight > MessageComposerMetric.focusedEmptyHeight {
             return expandedMinHeight
@@ -181,10 +221,10 @@ struct OMMessageInputField<ActionButtons: View>: View {
             return fieldMaxHeight
         }
         return min(
-            MessageComposerMetric.collapsedTextFieldMaxHeight,
+            MessageComposerMetric.collapsedTextFieldMaxHeight + topReservedHeight,
             max(
-                MessageComposerMetric.focusedEmptyHeight,
-                measuredEditorHeight + expandedBottomPadding
+                MessageComposerMetric.focusedEmptyHeight + topReservedHeight,
+                measuredEditorHeight + expandedBottomPadding + topReservedHeight
             )
         )
     }
@@ -197,9 +237,17 @@ struct OMMessageInputField<ActionButtons: View>: View {
         !compact || showActionButtonsWhenCompact
     }
 
-    private var textEditorMinHeight: CGFloat {
-        guard inlineFieldContent == nil else { return 40 }
-        return compact ? fieldHeight : max(0, fieldHeight - expandedBottomPadding)
+    private var resolvedFieldHeight: CGFloat {
+        MessageComposerMetric.boundedFieldHeight(intrinsicHeight: intrinsicFieldHeight,
+            maximumHeight: maximumFieldHeight, compact: compact, fullscreen: fullscreen,
+            containsEmbed: containsEmbed, topReservedHeight: topReservedHeight,
+            hasInlineContent: inlineFieldContent != nil)
+    }
+
+    private var editorViewportHeight: CGFloat {
+        let inlineReserve: CGFloat = inlineFieldContent == nil ? 0 : measuredInlineHeight + (.spacing2 * 2)
+        return max(0, resolvedFieldHeight - topReservedHeight
+            - (compact ? 0 : expandedBottomPadding) - inlineReserve)
     }
 
     var body: some View {
@@ -211,26 +259,37 @@ struct OMMessageInputField<ActionButtons: View>: View {
                 .accessibilityLabel(AppStrings.chatMessageInput)
                 .accessibilityHint(accessibilityHint)
                 .accessibilityIdentifier("message-field")
+                .accessibilityValue(scrollFadeDiagnostic)
+                .preference(key: ComposerNativeOverflowPreferenceKey.self, value: nativeContentOverflows)
 
             VStack(alignment: .leading, spacing: .spacing2) {
                 if let inlineFieldContent {
                     inlineFieldContent
                         .padding(.horizontal, compact ? .spacing4 : .spacing4)
                         .padding(.top, compact ? .spacing2 : .spacing4)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                            if abs(measuredInlineHeight - height) > 0.5 { measuredInlineHeight = height }
+                        }
                 }
 
                 NativeComposerEditorView(
                     session: session,
                     isFocused: isFocused,
-                    isEditable: isComposerEditable,
+                    isEditable: isComposerEditable && workspaceEditorEditable,
                     accessibilityHint: accessibilityHint,
                     measuredHeight: $measuredEditorHeight,
+                    topFadeActive: $topFadeActive,
+                    reservesControlLane: reservesControlLane,
+                    layoutDiagnostic: $nativeLayoutDiagnostic,
+                    maximumUnscrolledHeight: maximumUnscrolledEditorHeight,
+                    contentOverflows: $nativeContentOverflows,
                     piiDecorations: piiDecorations,
                     onExcludePII: onExcludePII,
                     onSubmit: onSubmit
                 )
+                .frame(height: editorViewportHeight)
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-                .accessibilityIdentifier("message-editor")
+                .accessibilityIdentifier(editorIdentifier)
                 .overlay(alignment: compact ? .center : .topLeading) {
                     if MessageComposerPresentation.showsPlaceholder(
                         markdown: session.canonicalMarkdown,
@@ -242,15 +301,22 @@ struct OMMessageInputField<ActionButtons: View>: View {
                             .lineLimit(1)
                             .padding(.horizontal, compact && idleFieldContent != nil ? 56 : .spacing4)
                             .padding(.vertical, compact ? 0 : .spacing6)
+                            .padding(.trailing, reservesControlLane ? MessageComposerMetric.plaintextControlRightInset : 0)
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
                     }
                 }
                 .padding(.top, inlineFieldContent == nil ? 0 : .spacing2)
                 .padding(.bottom, compact ? 0 : expandedBottomPadding)
-                .frame(maxWidth: .infinity, minHeight: textEditorMinHeight, alignment: compact ? .center : .topLeading)
+                .frame(maxWidth: .infinity, alignment: compact ? .center : .topLeading)
             }
-            .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: compact ? .center : .topLeading)
+            // Plaintext shares the top-left row with the icon; only media too
+            // wide for that lane needs a separate control-height clearance.
+            .padding(.top, topReservedHeight)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+                if abs(fieldWidth - width) > 0.5 { fieldWidth = width }
+            }
+            .frame(maxWidth: .infinity, minHeight: resolvedFieldHeight, alignment: compact ? .center : .topLeading)
             .zIndex(1)
 
             if shouldShowActionButtons {
@@ -1237,5 +1303,21 @@ struct OMSegmentedControl<Option: Hashable>: View {
             RoundedRectangle(cornerRadius: .radius7)
                 .stroke(Color.grey20, lineWidth: 1)
         )
+    }
+}
+
+// Shared full-width Save/Cancel surface below the editor; host actions keep
+// ownership of flush, draft retention and focus dismissal.
+struct ComposerDismissLabel: View {
+    let title: String
+    var body: some View {
+        Text(title)
+            .font(.omSmall).fontWeight(.medium)
+            .foregroundStyle(Color.fontSecondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, .spacing3)
+            .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radiusFull))
+            .overlay(RoundedRectangle(cornerRadius: .radiusFull).stroke(Color.grey30, lineWidth: 1))
+            .contentShape(Rectangle())
     }
 }

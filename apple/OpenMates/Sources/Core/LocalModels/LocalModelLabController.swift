@@ -21,6 +21,11 @@ enum LocalModelLabAvailability {
     static func unavailableReason(for id: LocalModelID,
                                   architectureSupported: Bool = supportsArchitecture) -> String? {
         guard architectureSupported else { return AppStrings.localLabArchitectureUnavailable }
+        if id.isSpeechSynthesis {
+            #if !canImport(OnnxRuntimeBindings)
+            return AppStrings.localLabSpeechUnavailable
+            #endif
+        }
         return nil
     }
 }
@@ -29,6 +34,9 @@ enum LocalModelLabAvailability {
 final class LocalModelLabController: ObservableObject {
     static let shared: LocalModelLabController = {
         #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-neural-tts-fixture") {
+            return LocalModelLabController(store: .shared, availability: { _ in nil }, runtimeFactory: { _ in LocalNeuralTTSFixtureRuntime() })
+        }
         if ProcessInfo.processInfo.arguments.contains("--ui-test-local-lab-progress-fixture") {
             return LocalModelLabController(store: .shared, availability: { _ in nil },
                                            runtimeFactory: { _ in LocalModelProgressFixtureRuntime() })
@@ -37,6 +45,13 @@ final class LocalModelLabController: ObservableObject {
         return LocalModelLabController(store: .shared)
     }()
     @Published var privacyText = ""
+    @Published var synthesisText = ""
+    @Published var synthesisLanguage = "en"
+    @Published var supertonicVoice = "F1"
+    @Published var synthesisSteps = "8"
+    @Published private(set) var isPlaying = false
+    private var player: AVAudioPlayer?
+    private var playbackTask: Task<Void, Never>?
     @Published private(set) var audioInput: URL?
     @Published private(set) var isRecording = false
     @Published private(set) var isRequestingMicrophone = false
@@ -68,9 +83,13 @@ final class LocalModelLabController: ObservableObject {
     private let memorySample: @Sendable () -> Int64?
     private var lastMeasurementElapsed = -Double.infinity
     private let warningAfter: Double
+    private let ownerIdentity: @MainActor () -> String
 
     init(store: LocalModelStore = .shared,
          temporaryRoot: URL = FileManager.default.temporaryDirectory,
+         ownerIdentity: @escaping @MainActor () -> String = {
+             "\(OfflineStore.shared.activeScopeId ?? "guest"):\(OfflineStore.shared.scopeGeneration):\(ServerProfile.current().id):\(TeamWorkspaceContext.shared.contextEpoch)"
+         },
          microphonePermission: @escaping @MainActor () async -> Bool = { await LocalModelLabController.requestMicrophonePermission() },
          monotonicNow: @escaping @Sendable () -> Double = { ProcessInfo.processInfo.systemUptime },
          memorySample: @escaping @Sendable () -> Int64? = { LocalModelRunMeasurement.residentBytes() },
@@ -80,13 +99,14 @@ final class LocalModelLabController: ObservableObject {
              switch id {
              case .whisper: WhisperKitLocalRuntime()
              case .privacyFilter: LocalPrivacyFilterRuntime()
-             case .pocketTTS: nil // Dedicated Pocket controller owns audio synthesis.
+             case .supertonic3: LocalNeuralTTSRuntime(model: id)
              }
          }) {
         self.microphonePermission = microphonePermission
         self.monotonicNow = monotonicNow
         self.memorySample = memorySample
         self.warningAfter = warningAfter
+        self.ownerIdentity = ownerIdentity
         self.store = store
         self.temporaryRoot = temporaryRoot
         self.availability = availability
@@ -95,7 +115,7 @@ final class LocalModelLabController: ObservableObject {
 
     func unavailableReason(for id: LocalModelID) -> String? { availability(id) }
 
-    var busy: Bool { runningModel != nil || isRecording || isRequestingMicrophone }
+    var busy: Bool { runningModel != nil || isRecording || isRequestingMicrophone || isPlaying }
     var audioDuration: Double? {
         guard let audioInput, let file = try? AVAudioFile(forReading: audioInput),
               file.processingFormat.sampleRate > 0 else { return nil }
@@ -209,16 +229,26 @@ final class LocalModelLabController: ObservableObject {
         case .privacyFilter:
             guard !privacyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
             request = .detectPII(privacyText)
-        case .pocketTTS: return
+        case .supertonic3:
+            let input = LocalTTSSynthesisInput(text: synthesisText,
+                voice: supertonicVoice,
+                language: synthesisLanguage,
+                steps: Int(synthesisSteps) ?? 0)
+            do {
+                try input.validate(for: id)
+                let destination = try tempDirectory().appendingPathComponent(UUID().uuidString).appendingPathExtension("wav")
+                request = .synthesize(input, destination: destination)
+            } catch { errorMessage = AppStrings.localLabRunError; return }
         }
         guard let runtime = runtimeFactory(id) else { return }
         clearResult()
         generation = UUID()
         let token = generation
+        let owner = ownerIdentity()
         runningModel = id
         activeRuntime = runtime
         let sourceDuration = id == .whisper ? audioDuration : nil
-        let submittedText = id == .privacyFilter ? privacyText : ""
+        let submittedText = id == .privacyFilter ? privacyText : id.isSpeechSynthesis ? synthesisText : ""
         let measurement = LocalModelRunMeasurement(now: monotonicNow, memory: memorySample, warningAfter: warningAfter)
         applyMeasurement(measurement.snapshot())
         let progressController = self
@@ -230,7 +260,7 @@ final class LocalModelLabController: ObservableObject {
                     let snapshot = measurement.snapshot()
                     await MainActor.run { [weak progressController] in
                         guard let controller = progressController, controller.generation == token,
-                              controller.runningModel == id else { return }
+                              controller.runningModel == id, controller.ownerIdentity() == owner else { return }
                         controller.applyMeasurement(snapshot)
                     }
                 }
@@ -242,10 +272,11 @@ final class LocalModelLabController: ObservableObject {
                     measurement.transition(nextPhase)
                     Task { @MainActor [weak progressController] in
                         guard let controller = progressController, controller.generation == token,
-                              controller.runningModel == id else { return }
+                              controller.runningModel == id, controller.ownerIdentity() == owner else { return }
                         controller.applyMeasurement(measurement.snapshot())
                     }
                 }
+                if ownerIdentity() != owner { leave(); throw CancellationError() }
                 try Task.checkCancellation()
             } catch is CancellationError {
                 // Cancellation is an expected terminal state, with no retained result.
@@ -263,7 +294,8 @@ final class LocalModelLabController: ObservableObject {
             measurement.sample()
             measurement.transition(.completion)
             let final = measurement.snapshot()
-            if token == generation && !Task.isCancelled {
+            if ownerIdentity() != owner { leave() }
+            if token == generation && ownerIdentity() == owner && !Task.isCancelled {
                 applyMeasurement(final)
                 if let result {
                     resultInput = submittedText
@@ -277,6 +309,12 @@ final class LocalModelLabController: ObservableObject {
             NativeDiagnostics.event("offline_model_run", category: "local_models", flags: ["cancelled": Task.isCancelled],
                 counts: ["duration_ms": Int(final.elapsed * 1000), "baseline_bytes": Int(final.baselineBytes ?? 0),
                          "peak_bytes": Int(final.peakBytes ?? 0), "end_bytes": Int(final.endBytes ?? 0)])
+            // Keep the request destination even if cancellation cleared result
+            // immediately after a successful native return.
+            if case let .synthesize(_, destination) = request, destination != output?.audioURL {
+                removeEphemeralAudio(destination)
+            }
+            if let audio = result?.audioURL, audio != output?.audioURL { removeEphemeralAudio(audio) }
             activeRuntime = nil
             runningModel = nil
             cancelling = false
@@ -284,6 +322,31 @@ final class LocalModelLabController: ObservableObject {
             if token != generation { removeTemporaryFiles() }
             else if Task.isCancelled { clearResult() }
         }
+    }
+
+    func playResult() {
+        guard !busy, let url = output?.audioURL, url.isFileURL else { return }
+        do {
+            #if os(iOS)
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+            #endif
+            let playback = try AVAudioPlayer(contentsOf: url)
+            guard playback.prepareToPlay(), playback.play() else { throw LocalSpeechRuntimeError.invalidOutput }
+            player = playback; isPlaying = true
+            playbackTask = Task { [weak self] in
+                while !Task.isCancelled, playback.isPlaying {
+                    do { try await Task.sleep(for: .milliseconds(150)) } catch { break }
+                }
+                guard !Task.isCancelled else { return }
+                self?.stopPlayback()
+            }
+        } catch { stopPlayback(); errorMessage = AppStrings.localLabAudioError }
+    }
+    func stopPlayback() {
+        playbackTask?.cancel(); playbackTask = nil
+        player?.stop(); player = nil; isPlaying = false
+        if !isRecording { deactivateAudio() }
     }
 
     private func applyMeasurement(_ snapshot: LocalModelRunMeasurement.Snapshot) {
@@ -316,11 +379,14 @@ final class LocalModelLabController: ObservableObject {
         cancel()
         stopRecording()
         privacyText = ""
+        synthesisText = ""; synthesisLanguage = "en"; supertonicVoice = "F1"; synthesisSteps = "8"
         audioInput = nil
         clearResult()
         if job == nil { removeTemporaryFiles() }
     }
     private func clearResult(keepProgress: Bool = false) {
+        stopPlayback()
+        if let url = output?.audioURL { removeEphemeralAudio(url) }
         resultInput = ""; output = nil; resultModel = nil; elapsed = nil; realTimeFactor = nil
         errorMessage = nil
         if !keepProgress {
@@ -328,6 +394,11 @@ final class LocalModelLabController: ObservableObject {
             phase = nil; phaseTimings = []; phaseWarning = false
             lastMeasurementElapsed = -Double.infinity
         }
+    }
+    private func removeEphemeralAudio(_ url: URL) {
+        guard let temporaryDirectory, url.isFileURL,
+              url.resolvingSymlinksInPath().path.hasPrefix(temporaryDirectory.resolvingSymlinksInPath().path + "/") else { return }
+        try? FileManager.default.removeItem(at: url)
     }
     private func tempDirectory() throws -> URL {
         if let temporaryDirectory { return temporaryDirectory }
@@ -370,4 +441,22 @@ private actor LocalModelProgressFixtureRuntime: LocalModelRuntime {
     }
 }
 
+#endif
+
+#if DEBUG
+private actor LocalNeuralTTSFixtureRuntime: LocalModelRuntime {
+    func run(_ request: LocalModelTestRequest, directory: URL) async throws -> LocalModelTestOutput {
+        try await run(request, directory: directory, progress: { _ in })
+    }
+    func run(_ request: LocalModelTestRequest, directory: URL,
+             progress: @escaping @Sendable (LocalModelRunPhase) -> Void) async throws -> LocalModelTestOutput {
+        guard case let .synthesize(_, destination) = request else { throw LocalSpeechRuntimeError.invalidRequest }
+        progress(.submission); try await Task.sleep(for: .milliseconds(100))
+        progress(.modelLoading); try await Task.sleep(for: .milliseconds(100))
+        progress(.speechSynthesis); try await Task.sleep(for: .milliseconds(100))
+        progress(.audioEncoding)
+        return try LocalTTSWAV.write(samples: [Float](repeating: 0, count: 240_000), sampleRate: 24_000, to: destination)
+    }
+    func unload() async {}
+}
 #endif

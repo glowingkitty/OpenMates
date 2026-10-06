@@ -269,8 +269,20 @@ struct SettingsProjectsView: View {
         body: JSONRawBody? = nil
     ) async throws -> T {
         try await fence.check()
-        let data = try await APIClient.shared.request(method, path: path,
+        let data: Data
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-focus-phase-fixture"),
+           ProcessInfo.processInfo.arguments.contains("--ui-test-account-settings-fixture"),
+           fence.accountID == "ui-test-chat-navigation-user" {
+            data = try await DevFocusPhaseFixture.projectResponse(path: path, accountID: fence.accountID)
+        } else {
+            data = try await APIClient.shared.request(method, path: path,
                                                       serverProfile: fence.server, body: body)
+        }
+        #else
+        data = try await APIClient.shared.request(method, path: path,
+                                                  serverProfile: fence.server, body: body)
+        #endif
         try await fence.check()
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase

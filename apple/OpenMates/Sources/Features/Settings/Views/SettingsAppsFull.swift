@@ -520,6 +520,14 @@ struct SettingsAppsFullView: View {
         }
     }
 
+    private static var uiTestFocusPhases: [FocusPhaseDefinition]? {
+        #if DEBUG
+        return FocusPhaseDefinition.fromInstruction(DevFocusPhaseFixture.instructions)
+        #else
+        return nil
+        #endif
+    }
+
     private static let uiTestApps: [AppInfo] = [
         appInfo(from: AppMetadataItem(
             id: "weather",
@@ -564,7 +572,8 @@ struct SettingsAppsFullView: View {
                 exampleTitles: ["Weekend trip forecast"],
                 exampleChatIds: ["example-flights-berlin-bangkok"],
                 processBullets: ["Check the forecast", "Recommend timing around bad weather"],
-                systemPrompt: "Prioritize weather-aware travel planning."
+                systemPrompt: "Prioritize weather-aware travel planning.",
+                phases: Self.uiTestFocusPhases
             )],
             settingsAndMemories: [AppSkill(
                 id: "home_location",
@@ -1473,7 +1482,8 @@ private struct AppFocusModeDetailNativeView: View {
     @State private var mentionInserted = false
 
     var body: some View {
-        OMSettingsPage(title: focusMode.name, showsHeader: false) {
+        OMSettingsPage(title: focusMode.name, showsHeader: false,
+                       scrollAccessibilityIdentifier: "settings-focus-detail-scroll") {
             Color.clear
                 .frame(height: 0)
                 .accessibilityIdentifier("settings-focus-detail-page")

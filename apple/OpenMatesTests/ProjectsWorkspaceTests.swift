@@ -4,16 +4,91 @@ import XCTest
 
 @MainActor
 final class ProjectsWorkspaceTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.projects.nested-readable,projects.access.explicit-context
+    func testNavigationDecryptsOnlyFoldersAndChatMembership() async throws {
+        let service = ProjectsWorkspaceService()
+        let project = makeProject(id: "navigation", name: "Navigation")
+        let folderName = try await CryptoManager.shared.encryptWithMasterKey("Nested", masterKey: project.key)
+        let target = try await CryptoManager.shared.encryptWithMasterKey("chat", masterKey: project.key)
+        let folders = [ProjectWorkspaceFolderRecord(folderId: "folder", encryptedName: folderName,
+            hashedParentFolderId: nil, createdAt: 0, position: 0)]
+        let records = [
+            ProjectWorkspaceItemRecord(projectItemId: "chat-link", itemType: "chat", targetIdEncrypted: target,
+                encryptedDisplayName: "invalid-unused-ciphertext", encryptedMetadata: "invalid-unused-ciphertext",
+                hashedFolderId: ChatSidebarProject.hash("folder"), createdAt: 0, position: 0),
+            ProjectWorkspaceItemRecord(projectItemId: "file", itemType: "embed", targetIdEncrypted: "invalid-unused-ciphertext",
+                encryptedDisplayName: "invalid-unused-ciphertext", encryptedMetadata: "invalid-unused-ciphertext",
+                hashedFolderId: nil, createdAt: 0, position: 0)
+        ]
+        let contents = try await service.openChatNavigationContents(folders: folders, items: records, project: project)
+        XCTAssertEqual(contents.folders.map(\.name), ["Nested"])
+        XCTAssertEqual(contents.items.map(\.targetID), ["chat"])
+        XCTAssertTrue(contents.sources.isEmpty)
+        XCTAssertEqual(ChatSidebarProject(project: project, contents: contents).chatIDs(in: "folder"), ["chat"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.projects.nested-readable,projects.access.explicit-context
+    func testNavigationReadsMembershipIndependentlyAndPreservesHealthyProjectsAfterFailure() async {
+        let service = ProjectsWorkspaceMockService()
+        let first = makeProject(id: "first", name: "First")
+        let healthy = makeProject(id: "healthy", name: "Healthy")
+        service.listResult = [first, healthy]
+        service.contentsByProject[first.id] = .init(folders: [], items: [
+            .init(id: "first-link", kind: "chat", targetID: "first-chat", name: "", metadata: [:], folderHash: nil, position: 0, createdAt: 0)
+        ], sources: [])
+        service.contentsByProject[healthy.id] = .init(folders: [], items: [
+            .init(id: "healthy-link", kind: "chat", targetID: "healthy-chat", name: "", metadata: [:], folderHash: nil, position: 0, createdAt: 0)
+        ], sources: [])
+        service.failsWorkspaceContents = true
+        let store = ProjectsWorkspaceStore(service: service, validateFence: { _ in })
+        await store.refreshChatNavigation(accountID: "owner", teamID: nil)
+        XCTAssertEqual(service.workspaceContentsReads, 0, "Navigation must not invoke full contents or source reads")
+        XCTAssertEqual(store.chatNavigationProjects.map(\.id), [first.id, healthy.id])
+        service.navigationFailures = [first.id]
+        await store.refreshChatNavigation(accountID: "owner", teamID: nil)
+        XCTAssertEqual(store.chatNavigationProjects.first?.chatIDs(in: nil), ["first-chat"], "Retain scoped membership on a transient read failure")
+        XCTAssertEqual(store.chatNavigationProjects.last?.chatIDs(in: nil), ["healthy-chat"])
+        XCTAssertNil(store.errorMessage, "A failed membership read must not become a generic workspace action error")
+        store.reset(accountId: "other-owner")
+        await store.refreshChatNavigation(accountID: "other-owner", teamID: nil)
+        XCTAssertEqual(store.chatNavigationProjects.map(\.id), [healthy.id], "Previous account membership must not survive reset")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context,projects.files.no-server-decryption-authority
+    func testProjectRequestFencePreservesCanonicalServerProfileForScopedTransport() {
+        let currentProfile = ServerProfile.current()
+        let fence = ProjectsWorkspaceFence(accountID: "fixture-project-owner")
+        XCTAssertEqual(fence.serverProfile, currentProfile,
+                       "A captured Project request must retain the canonical hosted or self-hosted profile")
+        XCTAssertTrue(APIClient.isUploadContextCurrent(
+            expectedAccountID: fence.accountID, currentAccountID: fence.accountID,
+            expectedScope: fence.scope, currentScope: fence.scope,
+            serverProfile: fence.serverProfile, currentProfile: currentProfile),
+            "The real scoped-request preflight must accept an unchanged account, scope and server")
+        XCTAssertFalse(APIClient.isUploadContextCurrent(
+            expectedAccountID: fence.accountID, currentAccountID: "different-fixture-owner",
+            expectedScope: fence.scope, currentScope: fence.scope,
+            serverProfile: fence.serverProfile, currentProfile: currentProfile))
+        XCTAssertFalse(APIClient.isUploadContextCurrent(
+            expectedAccountID: fence.accountID, currentAccountID: fence.accountID,
+            expectedScope: fence.scope, currentScope: UUID(),
+            serverProfile: fence.serverProfile, currentProfile: currentProfile))
+        XCTAssertFalse(APIClient.isUploadContextCurrent(
+            expectedAccountID: fence.accountID, currentAccountID: fence.accountID,
+            expectedScope: fence.scope, currentScope: fence.scope,
+            serverProfile: fence.serverProfile, currentProfile: .custom(domain: "different-project-fixture.example")))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=focus-modes.project-authoring-persistence,focus-modes.project-authoring-click
     func testFocusSavePreapprovalReceiptDenialOnlyAcceptsTheTypedApprovalError() {
         let approvalRequired = APIError.httpError(status: 409, message: "PROJECT_WRITE_APPROVAL_REQUIRED")
-        XCTAssertTrue(ProjectsWorkspaceService.isPreapprovalReceiptDenial(approvalRequired, writeMode: .alwaysAsk))
-        XCTAssertFalse(ProjectsWorkspaceService.isPreapprovalReceiptDenial(approvalRequired, writeMode: .applyAndShow))
-        XCTAssertFalse(ProjectsWorkspaceService.isPreapprovalReceiptDenial(
+        XCTAssertTrue(NativeProjectAuthoringClient.isPreapprovalReceiptDenial(approvalRequired, writeMode: .alwaysAsk))
+        XCTAssertFalse(NativeProjectAuthoringClient.isPreapprovalReceiptDenial(approvalRequired, writeMode: .applyAndShow))
+        XCTAssertFalse(NativeProjectAuthoringClient.isPreapprovalReceiptDenial(
             APIError.httpError(status: 409, message: "PROJECT_REVISION_CONFLICT"), writeMode: .alwaysAsk))
-        XCTAssertFalse(ProjectsWorkspaceService.isPreapprovalReceiptDenial(
+        XCTAssertFalse(NativeProjectAuthoringClient.isPreapprovalReceiptDenial(
             APIError.httpError(status: 403, message: "PROJECT_WRITE_APPROVAL_REQUIRED"), writeMode: .alwaysAsk))
-        XCTAssertFalse(ProjectsWorkspaceService.isPreapprovalReceiptDenial(
+        XCTAssertFalse(NativeProjectAuthoringClient.isPreapprovalReceiptDenial(
             ProjectsWorkspaceError.invalidContext, writeMode: .alwaysAsk))
     }
 
@@ -281,12 +356,40 @@ final class ProjectsWorkspaceTests: XCTestCase {
             sources: [readmeSource("limited")], list: { _ in
                 ProjectRemoteDirectory(entries: [], omitted: 1, excluded: 0, nextCursor: "next")
             }, read: { _, _ in throw ProjectsWorkspaceError.invalidContext })
-        guard case .unavailable = incomplete else { return XCTFail("An incomplete listing cannot prove README absence") }
+        guard case .failed = incomplete else { return XCTFail("An incomplete listing must remain retryable without claiming an offline machine") }
         let complete = await ProjectsWorkspaceStore.loadConnectedReadme(
             sources: [readmeSource("empty")], list: { _ in
                 ProjectRemoteDirectory(entries: [], omitted: 0, excluded: 0, nextCursor: nil)
             }, read: { _, _ in throw ProjectsWorkspaceError.invalidContext })
         guard case .empty = complete else { return XCTFail("Complete source listing without README is empty") }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context,projects.surface.semantic-parity
+    func testConnectedReadmeFailureDoesNotClaimRemoteMachineIsOffline() async {
+        for error in [ProjectsWorkspaceError.invalidResponse, .unsupportedSource, .sourceTimedOut] {
+            let state = await ProjectsWorkspaceStore.loadConnectedReadme(sources: [readmeSource("connected")],
+                list: { _ in throw error }, read: { _, _ in throw ProjectsWorkspaceError.invalidContext })
+            guard case .failed = state else { return XCTFail("A read/parse/timeout failure must expose retryable failure, not offline presence") }
+        }
+        let permission = await ProjectsWorkspaceStore.loadConnectedReadme(
+            sources: [readmeSource("permission", status: "permission_required")],
+            list: { _ in XCTFail("Permission-required sources must not dispatch"); throw ProjectsWorkspaceError.invalidContext },
+            read: { _, _ in throw ProjectsWorkspaceError.invalidContext })
+        guard case .failed = permission else { return XCTFail("Permission state must not claim the source machine is offline") }
+        let offline = await ProjectsWorkspaceStore.loadConnectedReadme(sources: [readmeSource("connected")],
+            list: { _ in throw APIError.httpError(status: 404, message: "source_offline") },
+            read: { _, _ in throw ProjectsWorkspaceError.invalidContext })
+        guard case .unavailable = offline else { return XCTFail("The backend's explicit unavailable-source code establishes offline presence") }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context
+    func testRemoteSourceErrorClassificationRequiresExplicitPresenceFailure() {
+        let offline = ProjectRemoteSourceClient.classifySourceError(APIError.httpError(status: 404, message: "source_offline"))
+        guard case ProjectsWorkspaceError.sourceOffline = offline else { return XCTFail("Explicit source_offline must classify as offline") }
+        for status in [403, 404, 500] {
+            let error = ProjectRemoteSourceClient.classifySourceError(APIError.httpError(status: status, message: "request_failed"))
+            guard case APIError.httpError = error else { return XCTFail("Other remote read errors must retain their original category") }
+        }
     }
 
     private func readmeSource(_ id: String, status: String = "connected") -> ProjectWorkspaceSource {
@@ -796,6 +899,40 @@ final class ProjectsWorkspaceTests: XCTestCase {
         XCTAssertNil(store.selectedProjectID)
         XCTAssertTrue(store.items.isEmpty)
         if case .ready = store.readme { XCTFail("A previous Project's README cannot publish after navigation") }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-controls.project
+    func testControlProjectRefreshRejectsDeletedCachedProjectAndOpensExactCurrentSelection() async throws {
+        let service = ProjectsWorkspaceMockService()
+        let cached = makeProject(id: "deleted", name: "Deleted project")
+        let current = makeProject(id: "current", name: "Current project")
+        service.cachedListResult = [cached]
+        service.listResult = [current]
+        let store = ProjectsWorkspaceStore(service: service, validateFence: { _ in })
+        let deletedAvailable = await store.refreshForControl(projectID: cached.id, accountID: "account-a", teamID: nil)
+        XCTAssertFalse(deletedAvailable)
+        XCTAssertNil(store.selectedProjectID)
+        let currentAvailable = await store.refreshForControl(projectID: current.id, accountID: "account-a", teamID: nil)
+        XCTAssertTrue(currentAvailable)
+        await store.selectProject(current.id)
+        XCTAssertEqual(store.selectedProjectID, current.id)
+        XCTAssertEqual(store.selectedProject?.name, current.name)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-controls.project,apple-controls.private-cache
+    func testControlProjectRefreshRejectsLateInventoryAfterAccountReplacement() async throws {
+        let service = ProjectsWorkspaceMockService()
+        let store = ProjectsWorkspaceStore(service: service, validateFence: { _ in })
+        let old = makeProject(id: "old", name: "Old project")
+        let refresh = Task { await store.refreshForControl(projectID: old.id, accountID: "account-a", teamID: nil) }
+        let suspended = await waitForSuspendedList(service)
+        XCTAssertTrue(suspended)
+        store.reset(accountId: "account-b")
+        service.finishList(with: [old])
+        let available = await refresh.value
+        XCTAssertFalse(available)
+        XCTAssertTrue(store.projects.isEmpty)
+        XCTAssertNil(store.selectedProjectID)
     }
 
     // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context
@@ -1440,7 +1577,18 @@ private final class ProjectsWorkspaceMockService: ProjectsWorkspaceServing {
         return await withCheckedContinuation { listContinuation = $0 }
     }
 
+    var navigationFailures: Set<String> = []
+    var failsWorkspaceContents = false
+    var workspaceContentsReads = 0
+    func chatNavigationContents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents {
+        if navigationFailures.contains(project.id) { throw ProjectsWorkspaceError.invalidResponse }
+        let value = contentsByProject[project.id] ?? contentsResult ?? .init(folders: [], items: [], sources: [])
+        return .init(folders: value.folders, items: value.items.filter { $0.kind == "chat" }, sources: [])
+    }
+
     func contents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents {
+        workspaceContentsReads += 1
+        if failsWorkspaceContents { throw ProjectsWorkspaceError.sourceOffline }
         if let specific = contentsByProject[project.id] { return specific }
         if let contentsResult { return contentsResult }
         if !suspendContents { return ProjectWorkspaceContents(folders: [], items: [], sources: []) }

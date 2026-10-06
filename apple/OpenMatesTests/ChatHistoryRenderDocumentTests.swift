@@ -386,7 +386,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertNil(ImportedAssistantProvider.resolve(category: "research"))
     }
 
-    // contract-test: direct surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction,chats.surface.semantic-parity
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction,chats.surface.semantic-parity
     func testStableMessageBuildsOrderedWebSemanticBlocksOnce() throws {
         let content = """
         # Synthetic result
@@ -492,7 +492,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertEqual(resolved.rawData?["url"]?.value as? String, "https://example.com/source")
     }
 
-    // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
+    // contract-test: supporting surface=gui.apple assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
     func testResponsiveChatLayoutMatchesWebBreakpoints() {
         XCTAssertEqual(ChatResponsiveLayoutPolicy.contentMaximumWidth, 1_000)
         XCTAssertTrue(ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: 500))

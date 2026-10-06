@@ -20,25 +20,28 @@ struct SettingsLocalModelsView: View {
     #if DEBUG
     @ObservedObject private var activityCoordinator = LocalModelLiveActivityCoordinator.shared
     #endif
+    @EnvironmentObject private var authManager: AuthManager
+    @ObservedObject private var offline = OfflineStore.shared
+    @ObservedObject private var workspace = TeamWorkspaceContext.shared
     @ObservedObject private var store: LocalModelStore
     @StateObject private var controller: LocalModelLabController
-    @StateObject private var pocket: PocketTTSLabController
-    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("lab-use-local-models") private var useLocalModels = false
     @State private var importingAudio = false
     @State private var pageActive = false
+    @Environment(\.scenePhase) private var scenePhase
     @State private var observedTransferIDs: Set<LocalModelID> = []
     let modelIDs: [LocalModelID]
     let privacyDiagnosticMode: Bool
 
+    private var ownerIdentity: String {
+        "\(authManager.currentUser?.id ?? "guest"):\(ServerProfile.current().id):\(offline.scopeGeneration):\(workspace.contextEpoch)"
+    }
     var diagnosticEnabled: Bool { privacyDiagnosticMode || useLocalModels }
 
     init(store: LocalModelStore = .shared, modelIDs: [LocalModelID]? = nil, privacyDiagnosticMode: Bool = false) {
         self.modelIDs = modelIDs ?? LocalModelID.allCases.filter { $0 != .privacyFilter }
         self.privacyDiagnosticMode = privacyDiagnosticMode
         self.store = store
-        _pocket = StateObject(wrappedValue: store === LocalModelStore.shared
-            ? PocketTTSLabController.shared : PocketTTSLabController(store: store))
         _controller = StateObject(wrappedValue: store === LocalModelStore.shared
             ? LocalModelLabController.shared : LocalModelLabController(store: store))
     }
@@ -88,7 +91,7 @@ struct SettingsLocalModelsView: View {
         .fileImporter(isPresented: $importingAudio, allowedContentTypes: [.audio]) { result in
             if pageActive, case .success(let url) = result { controller.importAudio(url) }
         }
-        .onChange(of: useLocalModels) { _, enabled in if !privacyDiagnosticMode && !enabled { controller.leave(); pocket.leave() } }
+        .onChange(of: useLocalModels) { _, enabled in if !privacyDiagnosticMode && !enabled { controller.leave() } }
         .task { await store.prepareForLab() }
         .onReceive(store.$states) { states in
             guard privacyDiagnosticMode else { return }
@@ -100,9 +103,14 @@ struct SettingsLocalModelsView: View {
                 }
             }
         }
+        .onChange(of: ownerIdentity) { _, _ in controller.leave() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active, controller.runningModel?.isSpeechSynthesis == true || controller.resultModel?.isSpeechSynthesis == true {
+                controller.leave()
+            }
+        }
         .onAppear { pageActive = true }
-        .onDisappear { pageActive = false; controller.leave(); pocket.leave() }
-        .onChange(of: scenePhase) { _, phase in if phase == .background { pocket.leave() } }
+        .onDisappear { pageActive = false; controller.leave() }
     }
 
     @ViewBuilder private func modelCard(_ id: LocalModelID) -> some View {
@@ -125,20 +133,12 @@ struct SettingsLocalModelsView: View {
                             .accessibilityIdentifier("local-model-\(id.rawValue)-live-activity-receipt")
                     }
                     #endif
-                    if id == .pocketTTS {
-                        Text(AppStrings.localLabPocketDescription).font(.omSmall).foregroundStyle(Color.fontSecondary)
-                            .accessibilityIdentifier("pocket-tts-availability-scope")
-                    }
                     if case .ready = store.state(for: id) {
-                        if id == .pocketTTS {
-                            PocketTTSLabView(controller: pocket, enabled: diagnosticEnabled && !controller.busy)
-                        } else {
                         inputControls(id)
-                        Button(AppStrings.localLabRun) { pocket.stopPlayback(); controller.run(id, enabled: diagnosticEnabled) }
+                        Button(AppStrings.localLabRun) { controller.run(id, enabled: diagnosticEnabled) }
                             .buttonStyle(OMSettingsButtonStyle())
                             .disabled(!canRun(id))
                             .accessibilityIdentifier("local-model-\(id.rawValue)-run")
-                        }
                     }
                     if controller.runningModel == id {
                         Text(controller.cancelling ? AppStrings.localLabCancelling : controller.phase.map(phaseCopy) ?? AppStrings.localLabRunning)
@@ -198,7 +198,7 @@ struct SettingsLocalModelsView: View {
             Text(AppStrings.localLabReady).font(.omSmall).foregroundStyle(Color.fontSecondary)
                 .accessibilityIdentifier("local-model-\(id.rawValue)-status")
             Button(AppStrings.remove) { Task { await store.remove(id) } }
-                .buttonStyle(OMSettingsButtonStyle(secondary: true)).disabled(controller.busy || pocket.busy)
+                .buttonStyle(OMSettingsButtonStyle(secondary: true)).disabled(controller.busy)
                 .accessibilityIdentifier("local-model-\(id.rawValue)-remove")
         case .failed(let message):
             Text(message).font(.omSmall).foregroundStyle(Color.fontSecondary)
@@ -208,7 +208,7 @@ struct SettingsLocalModelsView: View {
     }
     private func downloadButton(_ id: LocalModelID, title: String) -> some View {
         Button(title) { Task { await store.download(id) } }
-            .buttonStyle(OMSettingsButtonStyle(secondary: true)).disabled(controller.busy || pocket.busy || store.manifest(for: id) == nil || unavailableReason(id) != nil)
+            .buttonStyle(OMSettingsButtonStyle(secondary: true)).disabled(controller.busy || store.manifest(for: id) == nil || unavailableReason(id) != nil)
             .accessibilityIdentifier("local-model-\(id.rawValue)-download")
     }
 
@@ -216,24 +216,39 @@ struct SettingsLocalModelsView: View {
         switch id {
         case .whisper:
             Button(AppStrings.localLabImportAudio) { importingAudio = true }
-                .buttonStyle(OMSettingsButtonStyle(secondary: true)).disabled(controller.busy || pocket.busy || !diagnosticEnabled)
+                .buttonStyle(OMSettingsButtonStyle(secondary: true)).disabled(controller.busy || !diagnosticEnabled)
                 .accessibilityIdentifier("local-model-lab-import-audio")
             Button(controller.isRecording ? AppStrings.localLabStopRecording : AppStrings.localLabRecord) {
                 if controller.isRecording { controller.stopRecording() }
-                else { pocket.stopPlayback(); Task { await controller.startRecording() } }
+                else { Task { await controller.startRecording() } }
             }
             .buttonStyle(OMSettingsButtonStyle(secondary: true))
-            .disabled(controller.runningModel != nil || pocket.busy || !diagnosticEnabled)
+            .disabled(controller.runningModel != nil || !diagnosticEnabled)
             .accessibilityIdentifier("local-model-lab-record")
             if let seconds = controller.audioDuration {
                 Text(AppStrings.localLabAudioReady(seconds: String(format: "%.1f", seconds)))
                     .font(.omSmall).accessibilityIdentifier("local-model-lab-audio-ready")
             }
-        case .pocketTTS: EmptyView() // Dedicated synthesis input above.
+        case .supertonic3:
+            OMSettingsTextInput(label: AppStrings.localLabSynthesisInput, placeholder: AppStrings.localLabInputPlaceholder,
+                value: $controller.synthesisText, identifier: "local-model-\(id.rawValue)-text", multiline: true)
+                .disabled(controller.busy || !diagnosticEnabled)
+            OMDropdown(title: AppStrings.localLabSynthesisVoice,
+                options: LocalTTSSynthesisInput.supertonicVoices.map { OMDropdownOption($0, label: $0) },
+                selection: $controller.supertonicVoice, disabled: controller.busy || !diagnosticEnabled)
+                .disabled(controller.busy || !diagnosticEnabled).accessibilityIdentifier("local-model-\(id.rawValue)-voice")
+            OMDropdown(title: AppStrings.localLabSynthesisLanguage,
+                options: LocalTTSSynthesisInput.supertonicLanguages.map { OMDropdownOption($0, label: $0) },
+                selection: $controller.synthesisLanguage, disabled: controller.busy || !diagnosticEnabled)
+                .disabled(controller.busy || !diagnosticEnabled).accessibilityIdentifier("local-model-supertonic3-language")
+            OMDropdown(title: AppStrings.localLabSynthesisSteps,
+                options: ["4", "8", "16"].map { OMDropdownOption($0, label: $0) },
+                selection: $controller.synthesisSteps, disabled: controller.busy || !diagnosticEnabled)
+                .disabled(controller.busy || !diagnosticEnabled).accessibilityIdentifier("local-model-supertonic3-steps")
         case .privacyFilter:
             OMSettingsTextInput(label: AppStrings.localLabPrivacyInput, placeholder: AppStrings.localLabInputPlaceholder,
                 value: $controller.privacyText, identifier: "local-model-lab-privacy-input", multiline: true)
-                .disabled(controller.busy || pocket.busy || !diagnosticEnabled)
+                .disabled(controller.busy || !diagnosticEnabled)
         }
     }
 
@@ -265,6 +280,16 @@ struct SettingsLocalModelsView: View {
         if let text = controller.output?.text {
             Text(text).font(.omP).textSelection(.enabled).accessibilityIdentifier("local-model-lab-transcript")
         }
+        if id.isSpeechSynthesis, controller.output?.audioURL != nil {
+            Button(controller.isPlaying ? AppStrings.localLabStopPlayback : AppStrings.localLabPlay) {
+                if controller.isPlaying { controller.stopPlayback() } else { controller.playResult() }
+            }.buttonStyle(OMSettingsButtonStyle())
+                .accessibilityIdentifier("local-model-\(id.rawValue)-play")
+            if let seconds = controller.output?.audioDurationSeconds {
+                Text(AppStrings.localLabAudioReady(seconds: String(format: "%.2f", seconds)))
+                    .font(.omSmall).accessibilityIdentifier("local-model-\(id.rawValue)-audio-duration")
+            }
+        }
         if id == .privacyFilter {
             Text(highlightedPrivacyText).font(.omP).textSelection(.enabled)
                 .accessibilityIdentifier("local-model-lab-pii-highlighted-text")
@@ -289,15 +314,19 @@ struct SettingsLocalModelsView: View {
     }
     private func canRun(_ id: LocalModelID) -> Bool {
         guard unavailableReason(id) == nil else { return false }
-        guard diagnosticEnabled, !controller.busy, !pocket.busy else { return false }
+        guard diagnosticEnabled, !controller.busy else { return false }
         switch id {
         case .whisper: return controller.audioInput != nil
-        case .pocketTTS: return false
+        case .supertonic3:
+            let input = LocalTTSSynthesisInput(text: controller.synthesisText,
+                voice: controller.supertonicVoice,
+                language: controller.synthesisLanguage,
+                steps: Int(controller.synthesisSteps) ?? 0)
+            return (try? input.validate(for: id)) != nil
         case .privacyFilter: return !controller.privacyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
     private func unavailableReason(_ id: LocalModelID) -> String? {
-        if id == .pocketTTS { return pocket.available ? nil : AppStrings.localLabArchitectureUnavailable }
         return controller.unavailableReason(for: id)
     }
     private func isDownloadActive(_ id: LocalModelID) -> Bool {
@@ -314,6 +343,8 @@ struct SettingsLocalModelsView: View {
         case .modelLoading: AppStrings.localLabPhaseModelLoading
         case .transcription: AppStrings.localLabPhaseTranscription
         case .inference: AppStrings.localLabPhaseInference
+        case .speechSynthesis: AppStrings.localLabPhaseSpeechSynthesis
+        case .audioEncoding: AppStrings.localLabPhaseAudioEncoding
         case .cleanup: AppStrings.localLabPhaseCleanup
         case .completion: AppStrings.localLabPhaseCompletion
         }
@@ -322,7 +353,7 @@ struct SettingsLocalModelsView: View {
         switch id {
         case .whisper: AppStrings.localLabWhisper
         case .privacyFilter: AppStrings.localLabPrivacyFilter
-        case .pocketTTS: AppStrings.localLabPocketTTS
+        case .supertonic3: AppStrings.localLabSupertonic
         }
     }
 }

@@ -15,6 +15,18 @@ import CryptoKit
 import Foundation
 import SwiftUI
 
+// Visibility compatibility for retired bundled introductions. Exact IDs avoid
+// classifying an example copy or a user chat by its title or prefix. No records
+// are deleted or rewritten by this policy.
+// Specification: specifications/features/landing-onboarding/specification.yml
+// Assertions: landing-onboarding.legacy-intros-retired
+enum RetiredIntroChatPolicy {
+    static let ids: Set<String> = [
+        "demo-for-everyone", "demo-for-developers", "demo-who-develops-openmates"
+    ]
+    static func excludes(_ id: String) -> Bool { ids.contains(id) }
+}
+
 enum WatchUIContract {
     static let pairLoginIdentifiers = [
         "watch-pair-login",
@@ -693,9 +705,13 @@ protocol WatchChatAPI: Sendable {
     func fetchMessagesVersion(chatId: String, context: WatchChatRequestContext) async throws -> Int?
     func uploadAudioRecording(data: Data, filename: String, chatId: String, context: WatchChatRequestContext) async throws -> WatchUploadedAudio
     func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String, context: WatchChatRequestContext) async throws -> WatchTranscriptionMetadata?
+    func fetchAudioRecording(_ source: WatchAudioSource, context: WatchChatRequestContext) async throws -> Data
 }
 
 extension WatchChatAPI {
+    func fetchAudioRecording(_ source: WatchAudioSource, context: WatchChatRequestContext) async throws -> Data {
+        throw WatchChatRuntimeError.historyUnavailable
+    }
     func fetchMessageWindow(chatId: String, query: WatchMessageWindowQuery, context: WatchChatRequestContext) async throws -> WatchMessageWindow {
         throw WatchChatRuntimeError.historyUnavailable
     }
@@ -709,6 +725,7 @@ protocol WatchChatSyncSocket: AnyObject {
     func sendTurn(_ pending: WatchPendingTextSend, encryptMetadata: @escaping @MainActor (String) async throws -> String) async throws
     func setChangeHandler(_ handler: (@MainActor () -> Void)?)
     var generation: Int { get }
+    var canonicalEmbedReceiptPolicy: CanonicalEmbedReceiptPolicy { get }
     func sendEvent(type: String, payload: [String: Any]) async throws
     func setEventHandler(_ handler: (@MainActor (String, [String: Any]) -> Void)?)
     func setReadyHandler(_ handler: (@MainActor () -> Void)?)
@@ -722,6 +739,7 @@ protocol WatchChatSyncSocket: AnyObject {
 
 extension WatchChatSyncSocket {
     var generation: Int { 0 }
+    var canonicalEmbedReceiptPolicy: CanonicalEmbedReceiptPolicy { .allowLegacyReceipt }
     func sendTurn(_ pending: WatchPendingTextSend, encryptMetadata: @escaping @MainActor (String) async throws -> String) async throws {
         try await sendTurn(pending)
     }
@@ -1030,6 +1048,55 @@ final class WatchChatRuntime: ObservableObject {
     @Published private(set) var chatLoadFailed = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var pendingAudioEmbeds: [WatchPendingAudioEmbed] = []
+    // A just-recorded attachment remains replayable after its recorder temp file
+    // is removed. Never included in WatchChatSnapshot or any disk cache.
+    @Published private var localAudioPreviews: [String: (chatID: String, data: Data)] = [:]
+#if DEBUG
+    private var audioPlaybackFixtureLoader: (@MainActor (WatchAudioSource) async throws -> Data)?
+#endif
+
+    func localAudioPreviews(for chatID: String) -> [String: Data] {
+        guard !isStopped, selectedChatId == chatID else { return [:] }
+        return localAudioPreviews.filter { $0.value.chatID == chatID }.mapValues { $0.data }
+    }
+
+    func audioPlaybackData(for model: WatchEmbedPreviewModel) async throws -> Data {
+        let authorizedIDs = Set(selectedMessages.flatMap { messageWithHydratedEmbeds($0).watchEmbedRecords }
+            .flatMap { [$0.id] + $0.childEmbedIds })
+        guard !isStopped, let chatID = selectedChatId, model.continuation.chatId == chatID,
+              authorizedIDs.contains(model.id) else {
+            throw CancellationError()
+        }
+        if let local = localAudioPreviews[model.id], local.chatID == chatID { return local.data }
+        guard !isOffline, let source = model.detailContent.audioSource else {
+            throw WatchChatRuntimeError.invalidRecording
+        }
+        let context = requestContext()
+        let data: Data
+#if DEBUG
+        if isPreviewFixture, let audioPlaybackFixtureLoader {
+            // Explicitly injected accountless unit fixture. Production and
+            // app launch fixtures never receive this loader.
+            data = try await audioPlaybackFixtureLoader(source)
+        } else {
+            guard !isPreviewFixture else { throw WatchChatRuntimeError.invalidRecording }
+            data = try await api.fetchAudioRecording(source, context: context)
+        }
+#else
+        data = try await api.fetchAudioRecording(source, context: context)
+#endif
+        try context.check()
+        guard selectedChatId == chatID else { throw CancellationError() }
+        return data
+    }
+
+#if DEBUG
+    func seedAudioPlaybackFixture(_ data: Data, embedID: String) {
+        guard isPreviewFixture, ProcessInfo.processInfo.arguments.contains("--ui-test-watch-local-audio"),
+              let selectedChatId, data.count <= WatchAudioSource.maximumBytes else { return }
+        localAudioPreviews[embedID] = (selectedChatId, data)
+    }
+#endif
     @Published private(set) var unavailableChatCount = 0
     @Published private(set) var hydratedEmbedPreviews: [String: WatchEmbedRef] = [:]
     private var requestedEmbedPreviews: Set<String> = []
@@ -1160,9 +1227,11 @@ final class WatchChatRuntime: ObservableObject {
         hydratedEmbedPreviews.removeAll()
     }
 
-    init(uiTestSnapshot snapshot: WatchChatSnapshot, selectedChatId: String?, initialDraft: String? = nil) {
+    init(uiTestSnapshot snapshot: WatchChatSnapshot, selectedChatId: String?, initialDraft: String? = nil,
+         audioPlaybackFixtureLoader: (@MainActor (WatchAudioSource) async throws -> Data)? = nil) {
         self.accountID = nil
         self.isPreviewFixture = true
+        self.audioPlaybackFixtureLoader = audioPlaybackFixtureLoader
         self.api = APIClient.shared
         self.cache = WatchChatOfflineCache()
         self.crypto = WatchPreviewDraftCrypto()
@@ -1575,7 +1644,7 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     func openChat(_ chat: WatchChatSummary) async {
-        guard !isStopped else { return }
+        guard !isStopped, !RetiredIntroChatPolicy.excludes(chat.id) else { return }
         cancelRecentOfflineSync()
         let generation = lifecycleGeneration
         let profile = ServerProfile.current()
@@ -1759,14 +1828,23 @@ final class WatchChatRuntime: ObservableObject {
             hydratedEmbedPreviews[embedID] = ref
             requestedEmbedPreviews.remove(embedID)
             if payload["already_encrypted"] as? Bool != true, payload["encryption_mode"] as? String != "client" {
+                // Preserve the encrypted retry authority before preparing another
+                // randomized bundle for a repeated finalized delivery.
+                if pendingCompletions.contains(where: { entry in
+                    guard entry.eventType == "store_embed_bundle", entry.chatId == chat.id,
+                          let bundle = try? WatchCanonicalStorage.object(entry.encryptedPayload),
+                          let head = bundle["head"] as? [String: Any] else { return false }
+                    return head["embed_id"] as? String == embedID
+                        && (head["version_number"] as? Int ?? 1) == (payload["version_number"] as? Int ?? 1)
+                }) {
+                    await flushPendingCompletions()
+                    return
+                }
                 let prepared = try await crypto.prepareEmbedStorage(payload: payload, chat: chat, messageID: owner.message.id)
                 guard generation == lifecycleGeneration, socketGeneration == syncSocket?.generation,
                       profile == ServerProfile.current(), !isStopped else { return }
-                for (event, wire) in [("store_embed_keys", prepared.keys), ("store_embed", prepared.embed)] {
-                    guard let requestID = wire["request_id"] as? String else { throw WatchChatRuntimeError.invalidPendingTurn }
-                    pendingCompletions.append(WatchPendingCompletion(id: requestID, chatId: chat.id, eventType: event,
-                        encryptedPayload: try JSONSerialization.data(withJSONObject: wire)))
-                }
+                pendingCompletions.append(try WatchCanonicalStorage.embedBundle(chatID: chat.id,
+                    head: prepared.embed, keys: prepared.keys))
                 try await persistSnapshot() // Only ciphertext/wrappers/metadata cross the durable boundary.
                 await flushPendingCompletions()
             }
@@ -1820,6 +1898,7 @@ final class WatchChatRuntime: ObservableObject {
         draftSaveTask?.cancel()
         await saveComposerDraft(composerDrafts[chatId] ?? "", chatId: chatId,
                                 revision: currentDraftRevision(for: chatId), generation: lifecycleGeneration)
+        localAudioPreviews.removeAll()
         selectedChatId = nil
         windowRequestID = UUID(); hasMoreRemoteMessages = false; isLoadingRemoteMessages = false; remoteStartCursor = nil
         offlineConversation = nil
@@ -2085,6 +2164,7 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     func stopRealtimeSync() {
+        localAudioPreviews.removeAll()
         cancelRecentOfflineSync()
         lifecycleGeneration &+= 1
         isStopped = true
@@ -2249,7 +2329,7 @@ final class WatchChatRuntime: ObservableObject {
             errorMessage = WatchChatRuntimeError.noSelectedChat.localizedDescription
             return false
         }
-        guard !data.isEmpty, duration > 0 else {
+        guard !data.isEmpty, data.count <= WatchAudioSource.maximumBytes, duration > 0 else {
             errorMessage = WatchChatRuntimeError.invalidRecording.localizedDescription
             return false
         }
@@ -2262,7 +2342,19 @@ final class WatchChatRuntime: ObservableObject {
             let transcription = try await api.transcribeAudioRecording(upload, chatId: chat.id, context: requestContext())
             guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current() else { return false }
             let embed = WatchPendingAudioEmbed.from(upload: upload, transcription: transcription, duration: duration)
-            return await send(content: embed.markdownReference, chat: chat, embed: embed)
+            // Metadata and local bytes are transient; durable pending sends keep
+            // their existing encrypted prepared turn. Scope fences above run
+            // before this projection is installed.
+            // Bound retained recordings to one file; saved recordings lazily load.
+            localAudioPreviews.removeAll()
+            localAudioPreviews[embed.id] = (chat.id, data)
+            if let object = try? JSONSerialization.jsonObject(with: Data(embed.content.utf8)) as? [String: Any] {
+                hydratedEmbedPreviews[embed.id] = WatchEmbedRef(id: embed.id, type: "audio-recording", status: "finished",
+                    data: object.mapValues(AnyCodable.init))
+            }
+            let accepted = await send(content: embed.markdownReference, chat: chat, embed: embed)
+            if !accepted { localAudioPreviews.removeValue(forKey: embed.id) }
+            return accepted
         } catch {
             errorMessage = error.localizedDescription
             return false
@@ -2515,6 +2607,7 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     private func apply(_ snapshot: WatchChatSnapshot) {
+        localAudioPreviews.removeAll()
         encryptedDrafts = snapshot.encryptedDrafts
         draftRevision = encryptedDrafts.values.map(\.localRevision).max() ?? 0
         chats = Self.sortedChats(snapshot.chats)
@@ -2803,34 +2896,45 @@ final class WatchChatRuntime: ObservableObject {
                   socketGeneration == syncSocket.generation, profile == ServerProfile.current() else { throw WatchChatRuntimeError.socketUnavailable }
         }
         var failed = false
-        for entry in pendingCompletions {
+        do {
+            let migrated = try WatchCanonicalStorage.migratedEmbedBundles(pendingCompletions)
+            if migrated != pendingCompletions { pendingCompletions = migrated; try await persistSnapshot() }
+        } catch { failed = true }
+        for entry in WatchCanonicalStorage.completionDrainCandidates(pendingCompletions) {
+            if failed { break }
             do {
                 try validate()
+                if entry.eventType == "store_embed_bundle" {
+                    try await WatchCanonicalStorage.persistEmbedBundle(entry, policy: syncSocket.canonicalEmbedReceiptPolicy,
+                        request: { type, payload, responseTypes, matching in
+                            try await syncSocket.requestEvent(type: type, payload: payload, responseTypes: responseTypes,
+                                matching: matching, beforeSend: {
+                                    try validate()
+                                    guard self.chats.contains(where: { $0.id == entry.chatId }) else { throw WatchChatRuntimeError.noSelectedChat }
+                                })
+                        }, validate: {
+                            try validate()
+                            guard self.chats.contains(where: { $0.id == entry.chatId }) else { throw WatchChatRuntimeError.noSelectedChat }
+                        })
+                    try validate()
+                    pendingCompletions.removeAll { $0.id == entry.id }
+                    try await persistSnapshot()
+                    continue
+                }
                 let payload = try WatchCanonicalStorage.object(entry.encryptedPayload)
                 let acknowledgementType: String
                 switch entry.eventType {
-                case "store_embed_keys": acknowledgementType = "store_embed_keys_confirmed"
-                case "store_embed": acknowledgementType = "store_embed_confirmed"
                 case "ai_response_completed": acknowledgementType = "ai_response_storage_confirmed"
                 case "update_post_processing_metadata": acknowledgementType = "post_processing_metadata_stored"
                 default: acknowledgementType = "encrypted_metadata_stored"
                 }
-                let embedStorage = entry.eventType == "store_embed" || entry.eventType == "store_embed_keys"
                 let types: Set<String> = [acknowledgementType, "incomplete_chat_metadata", "chat_key_mismatch"]
                 let acknowledgement = try await syncSocket.requestEvent(type: entry.eventType, payload: payload, responseTypes: types, matching: {
-                    if embedStorage { return $0["request_id"] as? String == entry.id }
                     guard $0["chat_id"] as? String == entry.chatId else { return false }
                     return entry.eventType == "ai_response_completed" ? $0["message_id"] as? String == entry.id : ($0["message_id"] as? String) == nil
                 })
                 try validate()
                 guard acknowledgement["code"] == nil else { throw WatchChatRuntimeError.preflightRejected }
-                if embedStorage {
-                    try WatchCanonicalStorage.validateEmbedStorageAcknowledgement(type: entry.eventType, payload: payload,
-                        acknowledgement: acknowledgement, requestID: entry.id)
-                    pendingCompletions.removeAll { $0.id == entry.id }
-                    try await persistSnapshot()
-                    continue
-                }
                 applyAcceptedVersions(acknowledgement)
                 if let index = chats.firstIndex(where: { $0.id == entry.chatId }),
                    let versions = acknowledgement["versions"] as? [String: Any] {
@@ -2977,6 +3081,36 @@ final class WatchChatRuntime: ObservableObject {
 }
 
 extension APIClient: WatchChatAPI {
+    func fetchAudioRecording(_ source: WatchAudioSource, context: WatchChatRequestContext) async throws -> Data {
+        try await context.check()
+        let encoded = source.s3Key.addingPercentEncoding(withAllowedCharacters:
+            .urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=+?#"))) ?? ""
+        let metadata = try await verifiedWatchData(.get, path: "/v1/embeds/presigned-url?s3_key=\(encoded)", context: context)
+        struct Presign: Decodable { let url: String }
+        let target = try JSONDecoder().decode(Presign.self, from: metadata)
+        guard let parts = URLComponents(string: target.url), parts.scheme == "https",
+              parts.user == nil, parts.password == nil, let url = parts.url else { throw URLError(.badURL) }
+        try await context.check()
+        let config = URLSessionConfiguration.ephemeral
+        config.urlCache = nil; config.httpCookieStorage = nil; config.urlCredentialStorage = nil
+        config.httpShouldSetCookies = false; config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        let session = URLSession(configuration: config)
+        defer { session.invalidateAndCancel() }
+        var request = URLRequest(url: url); request.httpShouldHandleCookies = false
+        let (bytes, response) = try await session.bytes(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode),
+              response.expectedContentLength <= Int64(WatchAudioSource.maximumBytes) else { throw URLError(.badServerResponse) }
+        var encrypted = Data()
+        for try await byte in bytes {
+            guard encrypted.count < WatchAudioSource.maximumBytes else { throw URLError(.dataLengthExceedsMaximum) }
+            if encrypted.count % 16_384 == 0 { try await context.check() }
+            encrypted.append(byte)
+        }
+        try await context.check()
+        let decrypted = try source.decrypt(encrypted)
+        try await context.check()
+        return decrypted
+    }
     private func verifiedWatchData(_ method: HTTPMethod, path: String, context: WatchChatRequestContext,
                                    body: (any Encodable & Sendable)? = nil) async throws -> Data {
         guard context.accountID != nil else { throw CancellationError() }
@@ -3069,10 +3203,15 @@ enum WatchSocketReadiness {
         probe: () async -> ProbeResult
     ) async -> Bool {
         for _ in 0..<maxAttempts {
-            switch await probe() {
+            guard !Task.isCancelled else { return false }
+            let result = await probe()
+            guard !Task.isCancelled else { return false }
+            switch result {
             case .open: return true
             case .closed: return false
-            case .retry: try? await Task.sleep(for: interval)
+            case .retry:
+                do { try await Task.sleep(for: interval) }
+                catch { return false }
             }
         }
         return false
@@ -3080,7 +3219,15 @@ enum WatchSocketReadiness {
 }
 
 @MainActor
-private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
+final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
+    private let canonicalStorageConfiguration: CanonicalEmbedStorageConfiguration
+    private var canonicalStorageProfile: ServerProfile?
+    init(canonicalStorageConfiguration: CanonicalEmbedStorageConfiguration = .deployed) {
+        self.canonicalStorageConfiguration = canonicalStorageConfiguration
+    }
+    var canonicalEmbedReceiptPolicy: CanonicalEmbedReceiptPolicy {
+        canonicalStorageConfiguration.receiptPolicy(for: canonicalStorageProfile ?? ServerProfile.current())
+    }
     private var webSocketTask: URLSessionWebSocketTask?
     private var isConnecting = false
     private var isReady = false
@@ -3115,6 +3262,7 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
         connectionGeneration += 1
         let expectedGeneration = connectionGeneration
         let profile = ServerProfile.current()
+        canonicalStorageProfile = profile
         connectionTask = Task {
             defer { if self.connectionGeneration == expectedGeneration { self.isConnecting = false } }
             let baseURL = profile.apiBaseURL
@@ -3131,15 +3279,7 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
                     "refresh_cookie_present": hasRefreshCookie,
                 ]
             )
-            guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else { return }
-            components.scheme = components.scheme == "https" ? "wss" : "ws"
-            components.path = "/v1/ws"
-            var queryItems = [URLQueryItem(name: "sessionId", value: syncSession.sessionId)]
-            if let token = syncSession.token, !token.isEmpty {
-                queryItems.append(URLQueryItem(name: "token", value: token))
-            }
-            components.queryItems = queryItems
-            guard let url = components.url else { return }
+            guard let url = canonicalStorageConfiguration.socketURL(profile: profile, sessionID: syncSession.sessionId, token: syncSession.token) else { return }
             var request = URLRequest(url: url)
             request.timeoutInterval = 30
             request.setValue(origin, forHTTPHeaderField: "Origin")
@@ -3242,7 +3382,11 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
                 requestType: type, responseTypes: responseTypes, matching: matching) { return response }
             try await Task.sleep(for: .milliseconds(100))
         }
-        throw WatchChatRuntimeError.socketUnavailable
+        let stage = WatchSocketTimeoutStage(requestType: type, responseTypes: responseTypes)
+        NativeDiagnostics.event("response_timeout", category: "watch_chat_socket", level: .warning,
+            flags: ["stage_\(stage.rawValue)": true],
+            counts: ["unmatched_errors": inbox.filter { $0.type == "error" }.count])
+        throw WatchChatRuntimeError.socketTimedOut(stage)
     }
 
     private func connectedTask() async throws -> URLSessionWebSocketTask {
@@ -3251,13 +3395,14 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
             if webSocketTask == nil && !isConnecting { break }
             try await Task.sleep(for: .milliseconds(100))
         }
-        NativeDiagnostics.event("ready_timeout", category: "watch_chat_socket", level: .warning)
-        throw WatchChatRuntimeError.socketUnavailable
+        NativeDiagnostics.event("ready_timeout", category: "watch_chat_socket", level: .warning,
+            counts: ["close_code": webSocketTask?.closeCode.rawValue ?? 0])
+        throw WatchChatRuntimeError.socketTimedOut(.connection)
     }
 
     private func send(_ message: WatchWSOutboundMessage, on task: URLSessionWebSocketTask) async throws {
         guard webSocketTask === task, !Task.isCancelled else { throw WatchChatRuntimeError.socketUnavailable }
-        let data = try JSONEncoder().encode(message)
+        let data = try message.encodedData()
         guard let json = String(data: data, encoding: .utf8) else { throw WatchChatRuntimeError.socketUnavailable }
         try await task.send(.string(json))
     }
@@ -3323,15 +3468,29 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
     }
 }
 
-private struct WatchWSOutboundMessage: Encodable {
+// JSONSerialization retains the numeric/Boolean distinction in dictionaries
+// reopened from encrypted prepared turns. Routing those NSNumber values through
+// a Bool-first heterogeneous encoder can turn protocol_version 1 into true.
+// Use this same boundary for phased sync, admission and canonical storage.
+struct WatchWSOutboundMessage {
     let type: String
-    let payload: [String: AnyCodable]
+    let payload: [String: Any]
 
     init(type: String, payload: [String: Any]) {
         self.type = type
-        self.payload = payload.mapValues { AnyCodable($0) }
+        self.payload = payload
+    }
+
+    func encodedData() throws -> Data {
+        let envelope: [String: Any] = ["type": type, "payload": payload]
+        guard JSONSerialization.isValidJSONObject(envelope) else {
+            throw WatchSocketWireEncodingError.invalidJSONObject
+        }
+        return try JSONSerialization.data(withJSONObject: envelope)
     }
 }
+
+enum WatchSocketWireEncodingError: Error { case invalidJSONObject }
 
 @MainActor
 private final class WatchChatCryptoService: WatchChatCrypto {
@@ -3645,10 +3804,37 @@ enum WatchSocketResponses {
         }) else { return nil }
         let event = inbox.remove(at: index)
         if event.type == "error" {
+            if event.payload["code"] as? String == "client_capability_required" { throw CanonicalEmbedStorageReceiptError.updateRequired }
             guard let stage = WatchTurnAdmissionStage(requestType: requestType) else { throw WatchChatRuntimeError.preflightRejected }
             throw WatchTurnAdmissionDiagnostic.serverRejection(stage: stage, code: event.payload["code"])
         }
         return event.payload
+    }
+}
+
+// Static stages retain a useful failure reason without adopting unrelated
+// server errors, URLs, credentials, IDs, or response payloads as authority.
+enum WatchSocketTimeoutStage: String, Equatable, Sendable {
+    case connection, sync, preflight, commit, storage, response
+
+    init(requestType: String, responseTypes: Set<String>) {
+        switch requestType {
+        case "chat_turn_preflight": self = .preflight
+        case "chat_message_added": self = .commit
+        case "encrypted_chat_metadata", "store_embed", "store_embed_keys": self = .storage
+        default: self = responseTypes.contains("phased_sync_complete") ? .sync : .response
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .connection: return "Chat connection did not become ready"
+        case .sync: return "Chat synchronization acknowledgement timed out"
+        case .preflight: return "Message save acknowledgement timed out"
+        case .commit: return "Reply acknowledgement timed out"
+        case .storage: return "Encrypted storage acknowledgement timed out"
+        case .response: return "Chat server acknowledgement timed out"
+        }
     }
 }
 
@@ -3659,6 +3845,7 @@ enum WatchChatRuntimeError: LocalizedError {
     case invalidRecording
     case sendInProgress
     case socketUnavailable
+    case socketTimedOut(WatchSocketTimeoutStage)
     case invalidPendingTurn
     case preflightRejected
     case inferenceRejected
@@ -3674,6 +3861,7 @@ enum WatchChatRuntimeError: LocalizedError {
         case .invalidRecording: return "Recording is empty"
         case .sendInProgress: return "A message is already sending"
         case .socketUnavailable: return "Chat connection is unavailable"
+        case .socketTimedOut(let stage): return stage.message
         case .invalidPendingTurn: return "Pending message cannot be sent"
         case .preflightRejected: return "Message could not be saved"
         case .inferenceRejected: return "Message could not start a reply"

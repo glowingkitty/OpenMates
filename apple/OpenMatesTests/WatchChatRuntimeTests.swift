@@ -268,6 +268,115 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(closedAttempts, 1)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply,apple-watch.chats.audio-reply
+    func testCancelledWatchSocketReadinessDoesNotProbeOrPublishReady() async {
+        var probes = 0
+        let attempt = Task { @MainActor in
+            await WatchSocketReadiness.wait(maxAttempts: 6, interval: .milliseconds(1)) {
+                probes += 1
+                return .open
+            }
+        }
+        attempt.cancel()
+        let ready = await attempt.value
+        XCTAssertFalse(ready)
+        XCTAssertEqual(probes, 0)
+
+        let gate = WatchChatFetchGate()
+        let delayed = Task { @MainActor in
+            await WatchSocketReadiness.wait(maxAttempts: 6, interval: .milliseconds(1)) {
+                await gate.suspendFetch()
+                return .open
+            }
+        }
+        await gate.waitUntilStarted()
+        delayed.cancel()
+        await gate.release()
+        let lateReady = await delayed.value
+        XCTAssertFalse(lateReady, "A successful late probe cannot publish readiness after cancellation")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply,apple-watch.chats.audio-reply
+    func testWatchSocketTimeoutStagesPreserveStaticUserReasons() {
+        XCTAssertEqual(WatchSocketTimeoutStage(requestType: "chat_turn_preflight", responseTypes: []), .preflight)
+        XCTAssertEqual(WatchSocketTimeoutStage(requestType: "chat_message_added", responseTypes: []), .commit)
+        XCTAssertEqual(WatchSocketTimeoutStage(requestType: "encrypted_chat_metadata", responseTypes: []), .storage)
+        XCTAssertEqual(WatchSocketTimeoutStage(requestType: "", responseTypes: ["phased_sync_complete"]), .sync)
+        XCTAssertEqual(WatchSocketTimeoutStage(requestType: "unknown-private-value", responseTypes: []), .response)
+        let reasons = [WatchSocketTimeoutStage.connection, .sync, .preflight, .commit, .storage, .response]
+            .map { WatchChatRuntimeError.socketTimedOut($0).localizedDescription }
+        XCTAssertEqual(Set(reasons).count, 6)
+        XCTAssertTrue(reasons.allSatisfy { !$0.contains("unknown-private-value") })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open,apple-watch.pairing.private-session
+    func testLivePersonalWatchSocketReadinessUsesVerifiedSessionWithoutInference() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard env["OPENMATES_TEST_WATCH_SOCKET_READ_ONLY"] == "1" else {
+            throw XCTSkip("Real Watch socket validation is explicitly opt-in")
+        }
+        guard env["OPENMATES_TEST_PERSONAL_READ_ONLY"] == "1",
+              let identityHash = env["OPENMATES_TEST_PERSONAL_IDENTITY_HASH"], identityHash.count == 64,
+              let accountHash = env["OPENMATES_TEST_PERSONAL_ACCOUNT_HASH"], accountHash.count == 64,
+              let email = env["OPENMATES_TEST_ACCOUNT_EMAIL"],
+              Self.watchSocketIdentityHash(email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) == identityHash,
+              ServerProfile.current() == .development,
+              let accountID = AuthManager.notificationAccountId,
+              Self.watchSocketIdentityHash(accountID) == accountHash else {
+            XCTFail("Opted-in Watch socket validation requires the approved recovered personal identity and exact development profile")
+            return
+        }
+        let profile = ServerProfile.current()
+        let context = WatchChatRequestContext(accountID: accountID, profile: profile,
+            accountGeneration: WatchChatAccountLifecycle.generation, validate: {
+                guard AuthManager.notificationAccountId == accountID else { throw CancellationError() }
+            })
+        // A fresh connection ID avoids replacing the main app's existing socket.
+        // No login, default/session-ID mutation, message send, or recovery claim.
+        let connectionID = UUID().uuidString
+        let socket = WatchRealtimeSyncSocket()
+        defer { socket.disconnect() }
+        var stage = "session_restore"
+        do {
+            let restored = try await WatchSessionTransport.loadSession(
+                body: SessionRequest(sessionId: connectionID, deviceInfo: WatchCompatibleSession.makeNativeDeviceInfo()),
+                context: context)
+            try context.check()
+            guard restored.isAuthenticated, restored.user?.id == accountID,
+                  let token = restored.wsToken, !token.isEmpty else {
+                XCTFail("Verified Watch session did not restore the approved account and socket credential")
+                return
+            }
+            stage = "socket_sync"
+            socket.connect(session: WatchSyncSession(sessionId: connectionID, token: token),
+                syncState: WatchSyncClientState(clientChatVersions: [:], clientChatIds: [],
+                    clientSuggestionsCount: 0, clientEmbedIds: []))
+            let response = try await socket.requestEvent(type: "", payload: [:],
+                responseTypes: ["phased_sync_complete"], matching: {
+                    ($0["context_epoch"] as? Int) == 0 && $0["phase"] as? String == "all"
+                        && ($0["team_id"] == nil || $0["team_id"] is NSNull)
+                })
+            try context.check()
+            XCTAssertTrue(socket.isConnected)
+            XCTAssertEqual(response["context_epoch"] as? Int, 0)
+            socket.disconnect()
+            XCTAssertFalse(socket.isConnected)
+            let receipt = XCTAttachment(string: "verified_personal=true;development=true;production_watch_socket=true;phased_sync_complete=true;disconnected=true;inference=false")
+            receipt.name = "Watch real socket read-only readiness receipt"
+            receipt.lifetime = .keepAlways
+            add(receipt)
+        } catch {
+            // XCTest must never interpolate a transport URL, token, body or ID.
+            let nsError = error as NSError
+            let safeReason = (error as? WatchChatRuntimeError)?.localizedDescription ?? "transport_failure"
+            XCTFail("Watch read-only readiness stage=\(stage) reason=\(safeReason) error_type=\(String(reflecting: type(of: error))) error_code=\(nsError.code)")
+        }
+    }
+
+    private static func watchSocketIdentityHash(_ value: String) -> String {
+        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
     // contract-test: direct surface=gui.apple assertions=apple-watch.chats.browse-search-open
     func testNonemptyChatResponseDecodesMasterWrappersAndSelectsReplyKey() async throws {
         let chatId = "fixture-chat"
@@ -447,13 +556,32 @@ final class WatchChatRuntimeTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open
-    func testWatchCryptoCanOmitHiddenChatCandidates() throws {
-        let appleRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-        let runtimeURL = appleRoot.appendingPathComponent("OpenMates/Sources/Core/Watch/WatchChatRuntime.swift")
-        let source = try String(contentsOf: runtimeURL, encoding: .utf8)
+    func testWatchCryptoCanOmitHiddenChatCandidates() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        var visible = Self.remoteChat(id: "visible", title: nil,
+            lastMessageAt: "2026-07-06T10:00:00Z", encryptedTitle: "encrypted:Visible")
+        visible.lastEditedOverallTimestamp = "2026-07-06T12:00:00Z"
+        let hidden = Self.remoteChat(id: "hidden", title: "Hidden fallback must not appear",
+            lastMessageAt: "2026-07-06T11:00:00Z", encryptedTitle: "unavailable-ciphertext")
+        let crypto: any WatchChatCrypto = FakeWatchChatCrypto(omittedChatIds: [hidden.id])
+        let hiddenCandidate = await crypto.decryptChat(hidden)
+        XCTAssertNil(hiddenCandidate, "An unavailable key must permit omitting the whole candidate, including its fallback title")
+        let runtime = WatchChatRuntime(api: FakeWatchChatAPI(chats: [hidden, visible]),
+            cache: cache, crypto: crypto, syncSocket: nil)
 
-        XCTAssertTrue(source.contains("func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary?"))
-        XCTAssertTrue(source.contains("if let decrypted = await crypto.decryptChat(chat)"))
+        await runtime.refresh()
+
+        XCTAssertEqual(runtime.chats.map(\.id), [visible.id])
+        XCTAssertEqual(runtime.chats.first?.title, "Visible")
+        XCTAssertEqual(runtime.chats.first?.lastEditedOverallTimestamp, visible.lastEditedOverallTimestamp)
+        XCTAssertEqual(runtime.unavailableChatCount, 1)
+        XCTAssertFalse(runtime.isOffline)
+        let snapshot = await cache.loadSnapshot()
+        XCTAssertEqual(snapshot.chats.map(\.id), [visible.id], "An omitted encrypted candidate must not enter the persisted chat list")
+        XCTAssertEqual(snapshot.chats.first?.encryptedTitle, visible.encryptedTitle)
+        XCTAssertNil(snapshot.messagesByChatId[hidden.id])
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open
@@ -701,6 +829,49 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(afterRejectedReplay.pendingTextSends, [saved], "Admission diagnostics cannot change the persisted encrypted turn")
         XCTAssertEqual(socket.attemptedTurns.map(\.id), [saved.id, saved.id])
         XCTAssertTrue(socket.sentTurns.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply,apple-watch.chats.audio-reply
+    func testSocketTimeoutKeepsExactEncryptedTurnAndRetriesWithoutNewIdentity() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let chat = Self.chat(id: "timeout-chat", title: "Synthetic", lastMessageAt: "2026-07-06T10:00:00Z")
+        let socket = FakeWatchChatSyncSocket()
+        socket.sendFailure = .socketTimedOut(.preflight)
+        let api = FakeWatchChatAPI(chats: [Self.remoteChat(id: chat.id,
+            title: "Synthetic", lastMessageAt: "2026-07-06T10:00:00Z")])
+        let runtime = WatchChatRuntime(api: api, cache: cache,
+            crypto: FakeWatchChatCrypto(), syncSocket: socket,
+            syncSession: WatchSyncSession(sessionId: "synthetic-session", token: "synthetic-token"))
+        await runtime.refresh()
+        await runtime.openChat(chat)
+        XCTAssertEqual(runtime.selectedChatId, chat.id)
+        XCTAssertEqual(runtime.chats.map(\.id), [chat.id], "Sending requires a selected chat in the authorized inventory")
+        let queued = await runtime.sendText("Public retry fixture")
+        XCTAssertTrue(queued)
+        XCTAssertEqual(runtime.errorMessage, WatchChatRuntimeError.socketTimedOut(.preflight).localizedDescription)
+        let saved = await cache.loadSnapshot()
+        let original = try XCTUnwrap(saved.pendingTextSends.first)
+        XCTAssertNotNil(original.encryptedPreparedTurn)
+        XCTAssertTrue(original.preflightJSON.isEmpty)
+        XCTAssertTrue(original.inferenceJSON.isEmpty)
+        XCTAssertTrue(runtime.selectedMessages.last?.isPending == true)
+        let blockedNewTurn = await runtime.sendText("Blocked new synthetic text")
+        XCTAssertFalse(blockedNewTurn)
+        XCTAssertEqual(runtime.errorMessage, WatchChatRuntimeError.socketTimedOut(.preflight).localizedDescription)
+        let retained = await cache.loadSnapshot()
+        XCTAssertEqual(retained.pendingTextSends, [original])
+        socket.sendFailure = nil
+        await runtime.refresh()
+        let retried = try XCTUnwrap(socket.sentTurns.first)
+        XCTAssertEqual(retried.id, original.id)
+        XCTAssertEqual(retried.messageId, original.messageId)
+        XCTAssertEqual(retried.encryptedContent, original.encryptedContent)
+        XCTAssertEqual(retried.encryptedPreparedTurn, original.encryptedPreparedTurn)
+        let completed = await cache.loadSnapshot()
+        XCTAssertTrue(completed.pendingTextSends.isEmpty)
+        XCTAssertFalse(runtime.selectedMessages.contains { $0.id == original.messageId && $0.isPending })
     }
 
     // contract-test: direct surface=gui.apple assertions=apple-watch.chats.new-text-reply
@@ -1181,7 +1352,11 @@ final class WatchChatRuntimeTests: XCTestCase {
             api: transport, cache: cache, crypto: crypto, syncSocket: transport)
         await runtime.setForeground(true)
         await runtime.refresh()
-        for _ in 0..<100 where transport.requestedIDs.isEmpty { await Task.yield() }
+        let clock = ContinuousClock()
+        let requestDeadline = clock.now.advanced(by: .seconds(3))
+        while transport.requestedIDs.isEmpty && clock.now < requestDeadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
         XCTAssertEqual(transport.requestedIDs, ["watch-offline-20"])
         runtime.setForegroundNavigationBusy(true)
         transport.holdBatch = false
@@ -1665,6 +1840,7 @@ private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
     private(set) var attemptedTurns: [WatchPendingTextSend] = []
     var shouldRejectSend: Bool
     var rejectionCode: String?
+    var sendFailure: WatchChatRuntimeError?
 
     init(shouldRejectSend: Bool = false, rejectionCode: String? = nil) {
         self.shouldRejectSend = shouldRejectSend
@@ -1680,6 +1856,7 @@ private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
     func setChangeHandler(_ handler: (@MainActor () -> Void)?) {}
     func sendTurn(_ pending: WatchPendingTextSend) async throws {
         attemptedTurns.append(pending)
+        if let sendFailure { throw sendFailure }
         if shouldRejectSend {
             if let rejectionCode { throw WatchTurnAdmissionDiagnostic.serverRejection(stage: .preflight, code: rejectionCode) }
             throw WatchChatRuntimeError.preflightRejected

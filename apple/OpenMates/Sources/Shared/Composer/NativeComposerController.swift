@@ -52,15 +52,16 @@ final class NativeComposerController {
             && !attributedString.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    init(document: ComposerDocumentV1, selection: NSRange) throws {
+    init(document: ComposerDocumentV1, selection: NSRange? = nil) throws {
         self.document = document
-        self.selection = selection
+        self.selection = selection ?? NSRange(location: 0, length: 0)
         var nodeIDs = Set<String>()
         for node in document.nodes where !nodeIDs.insert(node.id).inserted {
             throw NativeComposerControllerError.duplicateNodeID(node.id)
         }
-        guard isValid(range: selection) else {
-            throw NativeComposerControllerError.invalidSelection(selection)
+        if selection == nil { self.selection = NSRange(location: semanticLength, length: 0) }
+        guard isValid(range: self.selection) else {
+            throw NativeComposerControllerError.invalidSelection(self.selection)
         }
         rebuildAttributedString()
     }

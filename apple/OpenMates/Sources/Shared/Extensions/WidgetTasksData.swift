@@ -2,8 +2,14 @@
 // Specification: specifications/features/apple-tasks-widget/specification.yml
 // Assertions: apple-tasks-widget.status-filter, apple-tasks-widget.links, apple-tasks-widget.private-cache
 
+// Specification: specifications/features/apple-live-activities/specification.yml
+// Assertions: apple-live-activities.lifecycle.isolation
+// Specification: specifications/features/apple-controls/specification.yml
+// Assertions: apple-controls.private-cache
+
 import CryptoKit
 import Foundation
+import LocalAuthentication
 import Security
 import WidgetKit
 
@@ -156,7 +162,7 @@ enum WidgetTasksStorage {
         let defaults = UserDefaults(suiteName: suiteName)
         defaults?.removeObject(forKey: ownerKey)
         defaults?.removeObject(forKey: snapshotKey)
-        SecItemDelete(keyQuery() as CFDictionary)
+        WidgetSnapshotKeychain(baseQuery: keyQuery()).clear()
     }
 
     private static func keyQuery() -> [CFString: Any] {
@@ -174,24 +180,108 @@ enum WidgetTasksStorage {
     }
 
     private static func loadKey(create: Bool) throws -> SymmetricKey {
-        var query = keyQuery()
-        query[kSecReturnData] = true
-        query[kSecMatchLimit] = kSecMatchLimitOne
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        if status == errSecSuccess, let data = result as? Data, data.count == 32 {
-            return SymmetricKey(data: data)
-        }
-        guard create, status == errSecItemNotFound else { throw StorageError.keyUnavailable }
-        let key = SymmetricKey(size: .bits256)
-        var insertion = keyQuery()
-        insertion[kSecValueData] = key.withUnsafeBytes { Data($0) }
-        insertion[kSecAttrAccessible] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        guard SecItemAdd(insertion as CFDictionary, nil) == errSecSuccess else {
-            throw StorageError.keyUnavailable
-        }
-        return key
+        try WidgetSnapshotKeychain(baseQuery: keyQuery()).load(create: create)
     }
 
     private enum StorageError: Error { case keyUnavailable, invalidData }
+}
+
+/// Dedicated snapshot keys only. Never replace unreadable or malformed keys:
+/// existing App Group ciphertext must remain decryptable by the same key.
+/// Security's SecItem.h documents the macOS Data Protection selector and the
+/// default UI-allow policy. Explicit UI-fail also fences legacy ACL prompts.
+@MainActor
+struct WidgetSnapshotKeychain {
+    @MainActor
+    struct Operations {
+        let copy: ([CFString: Any]) -> (OSStatus, Data?)
+        let add: ([CFString: Any]) -> OSStatus
+        let delete: ([CFString: Any]) -> OSStatus
+
+        static let live = Operations(copy: { query in
+            var result: CFTypeRef?
+            let status = SecItemCopyMatching(query as CFDictionary, &result)
+            return (status, result as? Data)
+        }, add: { SecItemAdd($0 as CFDictionary, nil) },
+           delete: { SecItemDelete($0 as CFDictionary) })
+    }
+
+    // Internal policy seam lets injected Security operations exercise both
+    // namespace policies on any unit-test platform. Production uses this default.
+    static var platformUsesMacOSNamespaces: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
+    }
+
+    let baseQuery: [CFString: Any]
+    var usesMacOSNamespaces: Bool = WidgetSnapshotKeychain.platformUsesMacOSNamespaces
+    var operations: Operations = .live
+    var makeKey: () -> Data = { SymmetricKey(size: .bits256).withUnsafeBytes { Data($0) } }
+    private enum KeyError: Error { case unavailable }
+
+    private func query(legacy: Bool = false) -> [CFString: Any] {
+        var query = baseQuery
+        // LAContext is the modern Data Protection no-interaction policy;
+        // UI-fail explicitly preserves no-interaction behavior for legacy ACLs.
+        let context = LAContext()
+        context.interactionNotAllowed = true
+        query[kSecUseAuthenticationContext] = context
+        query[kSecUseAuthenticationUI] = kSecUseAuthenticationUIFail
+        if usesMacOSNamespaces && !legacy { query[kSecUseDataProtectionKeychain] = true }
+        return query
+    }
+
+    private func read(legacy: Bool = false) -> (OSStatus, Data?) {
+        var query = query(legacy: legacy)
+        query[kSecReturnData] = true
+        query[kSecMatchLimit] = kSecMatchLimitOne
+        return operations.copy(query)
+    }
+
+    private func valid(_ bytes: Data?) throws -> Data {
+        guard let bytes, bytes.count == 32 else { throw KeyError.unavailable }
+        return bytes
+    }
+
+    private func insert(_ bytes: Data) throws -> SymmetricKey {
+        _ = try valid(bytes)
+        var insertion = query()
+        insertion[kSecValueData] = bytes
+        insertion[kSecAttrAccessible] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        switch operations.add(insertion) {
+        case errSecSuccess: return SymmetricKey(data: bytes)
+        case errSecDuplicateItem:
+            // A concurrent writer can win. Accept only the identical key, never
+            // overwrite ciphertext using a different key after a migration race.
+            let (status, winner) = read()
+            guard status == errSecSuccess, try valid(winner) == bytes else { throw KeyError.unavailable }
+            return SymmetricKey(data: bytes)
+        default: throw KeyError.unavailable
+        }
+    }
+
+    func load(create: Bool) throws -> SymmetricKey {
+        let (status, bytes) = read()
+        if status == errSecSuccess { return SymmetricKey(data: try valid(bytes)) }
+        guard status == errSecItemNotFound else { throw KeyError.unavailable }
+        if usesMacOSNamespaces {
+            let (legacyStatus, legacyBytes) = read(legacy: true)
+            if legacyStatus == errSecSuccess {
+                // Preserve legacy ciphertext continuity. Never delete the legacy key.
+                return try insert(valid(legacyBytes))
+            }
+            guard legacyStatus == errSecItemNotFound else { throw KeyError.unavailable }
+        }
+        guard create else { throw KeyError.unavailable }
+        return try insert(makeKey())
+    }
+
+    /// Called only by the existing logout/account-switch storage clear hooks.
+    func clear() {
+        _ = operations.delete(query())
+        if usesMacOSNamespaces { _ = operations.delete(query(legacy: true)) }
+    }
 }
