@@ -424,3 +424,24 @@ test("saved item ciphertext warms in the background with bounded concurrency",as
   state.homeAbortController?.abort();for(const resolve of pending)resolve();
   await new Promise<void>(resolve=>setImmediate(resolve));assert.equal(reads,3);
 });
+
+// contract-test: supporting surface=cli assertions=chats.rendering.inline-entity-interaction,cli.surface.semantic-parity
+test("batched command text precedes Enter and Escape interrupts pending fullscreen loading",async()=>{
+  const {runTui}=await import("../src/tui.js");
+  let key!:(chunk:string,key:{name?:string;ctrl?:boolean})=>void;
+  let lastFrame="",ready=false,opened=false,resolveEmbed!:(embed:unknown)=>void;
+  const terminal={width:100,height:32,colorMode:"none",ascii:true,enter:()=>{},leave:()=>{},onResize:()=>{},
+    onKey:(handler:typeof key)=>{key=handler;},render:(frame:string)=>{lastFrame=stripAnsi(frame);if(lastFrame.includes("DAILY INSPIRATION"))ready=true;}};
+  const client={hasSession:()=>false,beginInteractiveViewerSession:()=>{},endInteractiveViewerSession:()=>{},clearInteractiveChatViewer:()=>{},
+    getEmbed:async(id:string)=>{assert.equal(id,"fixture");opened=true;return await new Promise(resolve=>{resolveEmbed=resolve;});}};
+  const result=runTui(client as never,terminal as never,{privacyOffer:async()=>false,privacyInstall:async()=>{},updateCheck:async()=>null,updateInstall:async()=>{},updateSkip:()=>{}});
+  const wait=async(predicate:()=>boolean)=>{for(let i=0;i<100 && !predicate();i++)await new Promise(resolve=>setTimeout(resolve,5));assert.ok(predicate());};
+  try {
+    await wait(()=>ready);
+    for(const character of "/embed fixture")key(character,{name:character});key("\r",{name:"return"});
+    await wait(()=>opened);assert.match(lastFrame,/Loading saved embed|DAILY INSPIRATION/);
+    key("\x1b",{name:"escape"});await wait(()=>lastFrame.includes("DAILY INSPIRATION"));
+    resolveEmbed({id:"fixture",embedId:"fixture",type:"code",content:{code:"const answer = 42;"},textPreview:null,createdAt:null,appId:"code",skillId:"code"});
+    await new Promise(resolve=>setTimeout(resolve,25));assert.match(lastFrame,/DAILY INSPIRATION/);assert.doesNotMatch(lastFrame,/const answer/);
+  } finally {key("\x03",{name:"c",ctrl:true});await result;}
+});
