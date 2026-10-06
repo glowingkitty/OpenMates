@@ -58,6 +58,12 @@ export type TuiState = {
   homeError: string | null;
   homeLoadVersion: number;
   homeShowAll: boolean;
+  homeSelectionMoved: boolean;
+  homeContextKey: string | null;
+  continueData: {memories: import("./client.js").DecryptedMemoryEntry[]; reminders: Array<Record<string,unknown>>} | null;
+  detailEmbed: DecryptedEmbed | null;
+  embedOrigin: {screen:TuiScreen;workspace:TuiWorkspace;focus:TuiFocus;selectedIndex:number;scrollOffset:number;filter:string;input:string} | null;
+  embedChoices: string[];
   apps: TuiApp[];
   activeApp: TuiApp | null;
   activeAppSkill: TuiAppsSkillDetails | null;
@@ -162,7 +168,7 @@ export const TUI_INTERESTS = [
 
 export function createInitialTuiState(): TuiState {
   return {
-    username:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeChatsLoading:false,homeAbortController:null,homeError:null,homeLoadVersion:0,homeShowAll:false,
+    username:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeChatsLoading:false,homeAbortController:null,homeError:null,homeLoadVersion:0,homeShowAll:false,homeSelectionMoved:false,homeContextKey:null,continueData:null,detailEmbed:null,embedOrigin:null,embedChoices:[],
     apps:[],activeApp:null,activeAppSkill:null,appTab:"skills",appSkillTab:"overview",appResults:{items:[],hasMore:false,offset:0},
     appWorkflows:{items:[],hasMore:false,offset:0},activeAppResult:null,appPreparedRun:null,
     workspace: "chats", sidebarOpen: false, sidebarIndex: 0, navigationIndex: 0,
@@ -350,8 +356,12 @@ function renderScreenBody(state: TuiState, width: number,height:number): TuiLine
         : blueHero(renderProjectDetail(state.activeProject, { width, tab: state.projectTab, files: state.projectFiles, selectedFileId: filteredProjectFiles(state.projectFiles,state.filter)[state.selectedIndex]?.id, query: state.filter, folderId:state.projectFolderId??undefined, sourceId:state.projectSourceId??undefined, path:state.projectPath }),renderProjectIdentity(state.activeProject,{width}).length) : ["Projects", "Loading project…"];
     case "status":
       return renderStatus(state, width);
-    case "embed":
-      return [state.detailTitle || "Embed", "", ...state.detailLines].flatMap((line) => wrap(line, width));
+    case "embed": {
+      const app=state.detailEmbed?.appId ?? "", gradient=APP_GRADIENTS[app] ?? PRIMARY_GRADIENT;
+      const title=state.detailTitle || "Embed";
+      const header=[title, state.detailEmbed ? `${state.detailEmbed.type?.replaceAll("-"," ") ?? "Saved item"} · ${state.detailEmbed.embedId.slice(0,8)}` : "Saved embeds"];
+      return [...coloredHero(header,header.length,gradient),"",...(state.embedChoices.length ? state.embedChoices.map((id,index)=>`${index===state.selectedIndex?">":" "} Embed ${index+1} · ${id.slice(0,8)} · Enter open`) : state.detailLines).flatMap(line=>wrap(line,width)),"","↑/↓ scroll · PgUp/PgDn page · Esc back"];
+    }
     case "workflows":
       return [...homeHeader(state,width,height),...homeCards(state.workflows.filter((w)=>w.title.toLowerCase().includes(state.filter.toLowerCase())).flatMap((w,i)=>[...renderWorkflowPreviewCard(w,{width:Math.min(width,88),selected:state.focus==="content"&&i===state.selectedIndex}),""]),width,[]),"Show my workflows  ·  /search Search"];
     case "workflow":
@@ -531,7 +541,7 @@ function renderChat(state: TuiState, width: number): string[] {
 
 export function renderChatHeader(state: TuiState, width: number): string[] {
   const chat = state.screen === "example" ? state.activeExample?.chat : state.activeChat;
-  const title = state.headerState === "loading" && !chat?.title ? "Creating new chat…"
+  const title = state.headerState === "loading" && !chat?.title ? state.status === "Loading chat…" ? "Loading chat…" : "Creating new chat…"
     : state.headerState === "error" ? state.headerError || "Could not send message"
     : chat?.title || (state.messages.length ? "Chat" : "New chat");
   const category = chat?.category?.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());

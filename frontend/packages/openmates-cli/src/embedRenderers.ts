@@ -21,6 +21,11 @@
 import type { DecryptedEmbed } from "./client.js";
 import type { OpenMatesClient } from "./client.js";
 import qrcode from "qrcode-terminal";
+import { terminalText } from "./tuiText.js";
+
+type EmbedWriter = (chunk: string) => void;
+const stdoutWriter: EmbedWriter = chunk => { process.stdout.write(chunk); };
+const writeEmbedLine = (write: EmbedWriter, text = "") => write(`${text}\n`);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -410,6 +415,8 @@ export async function renderEmbedPreview(
 export async function renderEmbedFullscreen(
   embed: DecryptedEmbed,
   client: OpenMatesClient,
+  write: EmbedWriter = stdoutWriter,
+  createShareLinks = true,
 ): Promise<void> {
   const c = (embed.content ?? {}) as Record<string, unknown>;
   const resolvedType = embed.type ?? str(c.type) ?? "";
@@ -417,15 +424,15 @@ export async function renderEmbedFullscreen(
   // Child embeds with a direct type — use type-specific fullscreen renderer.
   if (DIRECT_TYPES.has(resolvedType)) {
     const typeLabel = DIRECT_TYPE_LABELS[resolvedType] ?? resolvedType;
-    process.stdout.write(
+    write(
       `\x1b[1m${typeLabel}\x1b[0m  \x1b[2m${embed.embedId.slice(0, 8)}\x1b[0m\n`,
     );
     if (embed.createdAt)
-      process.stdout.write(
+      write(
         `\x1b[2mCreated:\x1b[0m ${formatTs(embed.createdAt)}\n`,
       );
-    process.stdout.write("\n");
-    renderDirectTypeFullscreen(embed, c);
+    write("\n");
+    renderDirectTypeFullscreen(embed, c, write);
     return;
   }
 
@@ -435,25 +442,25 @@ export async function renderEmbedFullscreen(
   const status = str(c.status);
 
   // Header
-  process.stdout.write(`\x1b[1m${label}\x1b[0m`);
-  if (status) process.stdout.write(`  ${statusLabel(status)}`);
-  process.stdout.write(`  \x1b[2m${embed.embedId.slice(0, 8)}\x1b[0m\n`);
+  write(`\x1b[1m${label}\x1b[0m`);
+  if (status) write(`  ${statusLabel(status)}`);
+  write(`  \x1b[2m${embed.embedId.slice(0, 8)}\x1b[0m\n`);
 
   const query = str(c.query) ?? str(c.search_query) ?? str(c.question);
   const provider = str(c.provider);
-  if (query) process.stdout.write(`\x1b[2mQuery:\x1b[0m ${query}\n`);
-  if (provider) process.stdout.write(`\x1b[2mProvider:\x1b[0m ${provider}\n`);
+  if (query) write(`\x1b[2mQuery:\x1b[0m ${query}\n`);
+  if (provider) write(`\x1b[2mProvider:\x1b[0m ${provider}\n`);
   if (embed.createdAt)
-    process.stdout.write(
+    write(
       `\x1b[2mCreated:\x1b[0m ${formatTs(embed.createdAt)}\n`,
     );
 
   const error = str(c.error) ?? str(c.error_message);
   if (error) {
-    process.stdout.write(`\n\x1b[31mError:\x1b[0m ${error}\n`);
+    write(`\n\x1b[31mError:\x1b[0m ${error}\n`);
   }
 
-  process.stdout.write("\n");
+  write("\n");
 
   // Type-specific detail
   const key = `${app}/${skill}`;
@@ -463,78 +470,78 @@ export async function renderEmbedFullscreen(
     case "shopping/search_products":
     case "images/search":
     case "mail/search":
-      await renderSearchFullscreen(c, client);
+      await renderSearchFullscreen(c, client, write);
       break;
 
     case "events/search":
-      await renderEventsSearchFullscreen(c, client);
+      await renderEventsSearchFullscreen(c, client, write);
       break;
 
     case "videos/search":
-      await renderVideosSearchFullscreen(c, client);
+      await renderVideosSearchFullscreen(c, client, write);
       break;
 
     case "maps/search":
-      renderMapsSearchFullscreen(c);
+      renderMapsSearchFullscreen(c, write);
       break;
 
     case "travel/search_connections":
-      await renderTravelConnectionsFullscreen(c, client);
+      await renderTravelConnectionsFullscreen(c, client, write);
       break;
 
     case "travel/search_stays":
-      await renderTravelStaysFullscreen(c, client);
+      await renderTravelStaysFullscreen(c, client, write);
       break;
 
     case "travel/price_calendar":
-      renderTravelPriceCalendarFullscreen(c);
+      renderTravelPriceCalendarFullscreen(c, write);
       break;
 
     case "travel/get_flight":
-      renderTravelFlightFullscreen(c);
+      renderTravelFlightFullscreen(c, write);
       break;
 
     case "code/get_docs":
-      renderCodeDocsFullscreen(c);
+      renderCodeDocsFullscreen(c, write);
       break;
 
     case "web/read":
-      renderWebReadFullscreen(c);
+      renderWebReadFullscreen(c, write);
       break;
 
     case "math/calculate":
-      renderMathCalculateFullscreen(c);
+      renderMathCalculateFullscreen(c, write);
       break;
 
     case "reminder/set-reminder":
     case "reminder/list-reminders":
     case "reminder/cancel-reminder":
-      renderReminderFullscreen(c);
+      renderReminderFullscreen(c, write);
       break;
 
     case "images/generate":
     case "images/generate_draft":
-      renderImageGenerateFullscreen(c);
+      renderImageGenerateFullscreen(c, write);
       break;
 
     case "videos/get_transcript":
-      renderVideoTranscriptFullscreen(c);
+      renderVideoTranscriptFullscreen(c, write);
       break;
 
     case "videos/create":
-      await renderRemotionCreateFullscreen(embed, c, client);
+      await renderRemotionCreateFullscreen(embed, c, client, write, createShareLinks);
       break;
 
     case "health/search_appointments":
-      await renderHealthSearchFullscreen(c, client);
+      await renderHealthSearchFullscreen(c, client, write);
       break;
 
     case "audio/transcribe":
-      renderAudioTranscribeFullscreen(c);
+      renderAudioTranscribeFullscreen(c, write);
       break;
 
     default:
-      renderDirectTypeFullscreen(embed, c);
+      renderDirectTypeFullscreen(embed, c, write);
       break;
   }
 }
@@ -542,6 +549,13 @@ export async function renderEmbedFullscreen(
 // ---------------------------------------------------------------------------
 // Search types (web, news, shopping, images, mail)
 // ---------------------------------------------------------------------------
+
+/** Complete fullscreen content for the TUI, without terminal writes or share mutations. */
+export async function formatEmbedFullscreenLines(embed: DecryptedEmbed, client: OpenMatesClient): Promise<string[]> {
+  let output = "";
+  await renderEmbedFullscreen(embed, client, chunk => {output += chunk;}, false);
+  return terminalText(output).trimEnd().split("\n");
+}
 
 async function renderSearchPreview(
   c: Record<string, unknown>,
@@ -556,23 +570,24 @@ async function renderSearchPreview(
 async function renderSearchFullscreen(
   c: Record<string, unknown>,
   client: OpenMatesClient,
+  write: EmbedWriter,
 ): Promise<void> {
   const results = await resolveChildResults(c, client);
   if (results.length === 0) {
-    console.log("No results found.");
+    writeEmbedLine(write, "No results found.");
     return;
   }
-  console.log(`${results.length} results:\n`);
+  writeEmbedLine(write, `${results.length} results:\n`);
   for (const r of results) {
     const title = str(r.title) ?? str(r.name) ?? "";
     const url = str(r.url) ?? str(r.link) ?? "";
     const desc = str(r.description) ?? str(r.snippet) ?? str(r.summary) ?? "";
     const age = str(r.page_age);
-    if (title) process.stdout.write(`  \x1b[1m${title}\x1b[0m\n`);
-    if (url) process.stdout.write(`  \x1b[2m${url}\x1b[0m\n`);
-    if (age) process.stdout.write(`  \x1b[2m${age}\x1b[0m\n`);
-    if (desc) process.stdout.write(`  ${trunc(desc, 300)}\n`);
-    process.stdout.write(`  \x1b[2m${"─".repeat(40)}\x1b[0m\n`);
+    if (title) write(`  \x1b[1m${title}\x1b[0m\n`);
+    if (url) write(`  \x1b[2m${url}\x1b[0m\n`);
+    if (age) write(`  \x1b[2m${age}\x1b[0m\n`);
+    if (desc) write(`  ${desc}\n`);
+    write(`  \x1b[2m${"─".repeat(40)}\x1b[0m\n`);
   }
 }
 
@@ -591,13 +606,14 @@ async function renderEventsSearchPreview(
 async function renderEventsSearchFullscreen(
   c: Record<string, unknown>,
   client: OpenMatesClient,
+  write: EmbedWriter,
 ): Promise<void> {
   const results = await resolveChildResults(c, client);
   if (results.length === 0) {
-    console.log("No events found.");
+    writeEmbedLine(write, "No events found.");
     return;
   }
-  console.log(`${results.length} events:\n`);
+  writeEmbedLine(write, `${results.length} events:\n`);
   for (const r of results) {
     const name = str(r.name) ?? str(r.title) ?? "";
     const date = str(r.date) ?? str(r.start_date) ?? str(r.dateTime) ?? "";
@@ -605,15 +621,15 @@ async function renderEventsSearchFullscreen(
     const url = str(r.url) ?? str(r.link) ?? "";
     const desc = str(r.description) ?? str(r.summary) ?? "";
     const going = typeof r.going_count === "number" ? r.going_count : null;
-    if (name) process.stdout.write(`  \x1b[1m${name}\x1b[0m\n`);
-    if (date) process.stdout.write(`  \x1b[2m${date}\x1b[0m`);
-    if (venue) process.stdout.write(`  \x1b[2m@ ${venue}\x1b[0m`);
-    if (date || venue) process.stdout.write("\n");
+    if (name) write(`  \x1b[1m${name}\x1b[0m\n`);
+    if (date) write(`  \x1b[2m${date}\x1b[0m`);
+    if (venue) write(`  \x1b[2m@ ${venue}\x1b[0m`);
+    if (date || venue) write("\n");
     if (going !== null)
-      process.stdout.write(`  \x1b[2m${going} going\x1b[0m\n`);
-    if (desc) process.stdout.write(`  ${trunc(desc, 200)}\n`);
-    if (url) process.stdout.write(`  \x1b[2m${url}\x1b[0m\n`);
-    process.stdout.write(`  \x1b[2m${"─".repeat(40)}\x1b[0m\n`);
+      write(`  \x1b[2m${going} going\x1b[0m\n`);
+    if (desc) write(`  ${desc}\n`);
+    if (url) write(`  \x1b[2m${url}\x1b[0m\n`);
+    write(`  \x1b[2m${"─".repeat(40)}\x1b[0m\n`);
   }
 }
 
@@ -632,26 +648,27 @@ async function renderVideosSearchPreview(
 async function renderVideosSearchFullscreen(
   c: Record<string, unknown>,
   client: OpenMatesClient,
+  write: EmbedWriter,
 ): Promise<void> {
   const results = await resolveChildResults(c, client);
   if (results.length === 0) {
-    console.log("No videos found.");
+    writeEmbedLine(write, "No videos found.");
     return;
   }
-  console.log(`${results.length} videos:\n`);
+  writeEmbedLine(write, `${results.length} videos:\n`);
   for (const r of results) {
     const title = str(r.title) ?? "";
     const channel = str(r.channel) ?? str(r.author) ?? "";
     const duration = str(r.duration) ?? "";
     const url = str(r.url) ?? str(r.link) ?? "";
-    if (title) process.stdout.write(`  \x1b[1m${title}\x1b[0m\n`);
+    if (title) write(`  \x1b[1m${title}\x1b[0m\n`);
     if (channel || duration) {
-      process.stdout.write(
+      write(
         `  \x1b[2m${channel}${duration ? `  ${duration}` : ""}\x1b[0m\n`,
       );
     }
-    if (url) process.stdout.write(`  \x1b[2m${url}\x1b[0m\n`);
-    console.log();
+    if (url) write(`  \x1b[2m${url}\x1b[0m\n`);
+    writeEmbedLine(write);
   }
 }
 
@@ -679,34 +696,36 @@ async function renderRemotionCreateFullscreen(
   embed: DecryptedEmbed,
   c: Record<string, unknown>,
   client: OpenMatesClient,
+  write: EmbedWriter,
+  createShareLinks: boolean,
 ): Promise<void> {
   const meta = remotionMeta(c);
-  process.stdout.write(`\x1b[1m${meta.filename}\x1b[0m\n`);
-  process.stdout.write(`${meta.statusText}  \x1b[2mv${meta.sourceVersion} · ${meta.durationSeconds}s · ${meta.width}x${meta.height}\x1b[0m\n\n`);
+  write(`\x1b[1m${meta.filename}\x1b[0m\n`);
+  write(`${meta.statusText}  \x1b[2mv${meta.sourceVersion} · ${meta.durationSeconds}s · ${meta.width}x${meta.height}\x1b[0m\n\n`);
 
   if (meta.layers.length > 0) {
-    process.stdout.write("Timeline:\n");
+    write("Timeline:\n");
     for (const layer of meta.layers) {
-      process.stdout.write(`  - ${layer}\n`);
+      write(`  - ${layer}\n`);
     }
-    process.stdout.write("\n");
+    write("\n");
   }
 
   if (meta.source) {
-    process.stdout.write("Source:\n");
-    process.stdout.write("```tsx\n");
-    process.stdout.write(`${meta.source.trim()}\n`);
-    process.stdout.write("```\n\n");
+    write("Source:\n");
+    write("```tsx\n");
+    write(`${meta.source.trim()}\n`);
+    write("```\n\n");
   }
 
   if (meta.error) {
-    process.stdout.write(`\x1b[31mError:\x1b[0m ${meta.error}\n\n`);
+    write(`\x1b[31mError:\x1b[0m ${meta.error}\n\n`);
   }
 
-  if (meta.status === "finished") {
-    await renderRemotionShareLink(embed.embedId, client, (line) => process.stdout.write(`${line}\n`));
-  } else {
-    process.stdout.write("Run again after rendering finishes to get the rendered video link and QR code.\n");
+  if (createShareLinks && meta.status === "finished") {
+    await renderRemotionShareLink(embed.embedId, client, (line) => write(`${line}\n`));
+  } else if(meta.status !== "finished") {
+    write("Run again after rendering finishes to get the rendered video link and QR code.\n");
   }
 }
 
@@ -814,23 +833,23 @@ function renderMapsSearchPreview(
   }
 }
 
-function renderMapsSearchFullscreen(c: Record<string, unknown>): void {
+function renderMapsSearchFullscreen(c: Record<string, unknown>, write: EmbedWriter): void {
   const results = c.results as Array<Record<string, unknown>> | undefined;
   if (!Array.isArray(results) || results.length === 0) {
-    console.log("No places found.");
+    writeEmbedLine(write, "No places found.");
     return;
   }
-  console.log(`${results.length} places:\n`);
+  writeEmbedLine(write, `${results.length} places:\n`);
   for (const r of results) {
     const name = str(r.displayName) ?? str(r.name) ?? "";
     const address = str(r.formattedAddress) ?? str(r.address) ?? "";
     const rating = typeof r.rating === "number" ? `★ ${r.rating}` : "";
     if (name)
-      process.stdout.write(
+      write(
         `  \x1b[1m${name}\x1b[0m${rating ? `  ${rating}` : ""}\n`,
       );
-    if (address) process.stdout.write(`  \x1b[2m${address}\x1b[0m\n`);
-    console.log();
+    if (address) write(`  \x1b[2m${address}\x1b[0m\n`);
+    writeEmbedLine(write);
   }
 }
 
@@ -877,13 +896,14 @@ async function renderTravelConnectionsPreview(
 async function renderTravelConnectionsFullscreen(
   c: Record<string, unknown>,
   client: OpenMatesClient,
+  write: EmbedWriter,
 ): Promise<void> {
   const results = await resolveChildResults(c, client);
   if (results.length === 0) {
-    console.log("No connections found.");
+    writeEmbedLine(write, "No connections found.");
     return;
   }
-  console.log(`${results.length} connections:\n`);
+  writeEmbedLine(write, `${results.length} connections:\n`);
   for (const r of results) {
     const origin = str(r.origin) ?? "";
     const dest = str(r.destination) ?? "";
@@ -902,17 +922,17 @@ async function renderTravelConnectionsFullscreen(
       : (str(r.carrier) ?? "");
 
     if (origin && dest)
-      process.stdout.write(`  \x1b[1m${origin} → ${dest}\x1b[0m\n`);
+      write(`  \x1b[1m${origin} → ${dest}\x1b[0m\n`);
     if (dep && arr)
-      process.stdout.write(
+      write(
         `  ${dep} – ${arr}${duration ? `  (${duration})` : ""}\n`,
       );
     if (price || stops || carriers) {
-      process.stdout.write(
+      write(
         `  \x1b[2m${[price, stops, carriers].filter(Boolean).join("  · ")}\x1b[0m\n`,
       );
     }
-    console.log();
+    writeEmbedLine(write);
   }
 }
 
@@ -928,13 +948,14 @@ async function renderTravelStaysPreview(
 async function renderTravelStaysFullscreen(
   c: Record<string, unknown>,
   client: OpenMatesClient,
+  write: EmbedWriter,
 ): Promise<void> {
   const results = await resolveChildResults(c, client);
   if (results.length === 0) {
-    console.log("No stays found.");
+    writeEmbedLine(write, "No stays found.");
     return;
   }
-  console.log(`${results.length} stays:\n`);
+  writeEmbedLine(write, `${results.length} stays:\n`);
   for (const r of results) {
     const name = str(r.name) ?? str(r.hotel_name) ?? "";
     const price = formatPrice(r.total_price ?? r.price, r.currency);
@@ -942,12 +963,12 @@ async function renderTravelStaysFullscreen(
     const address = str(r.address) ?? "";
 
     if (name)
-      process.stdout.write(
+      write(
         `  \x1b[1m${name}\x1b[0m${rating ? `  ${rating}` : ""}\n`,
       );
-    if (price) process.stdout.write(`  ${price}\n`);
-    if (address) process.stdout.write(`  \x1b[2m${address}\x1b[0m\n`);
-    console.log();
+    if (price) write(`  ${price}\n`);
+    if (address) write(`  \x1b[2m${address}\x1b[0m\n`);
+    writeEmbedLine(write);
   }
 }
 
@@ -965,22 +986,22 @@ function renderTravelPriceCalendarPreview(
   }
 }
 
-function renderTravelPriceCalendarFullscreen(c: Record<string, unknown>): void {
+function renderTravelPriceCalendarFullscreen(c: Record<string, unknown>, write: EmbedWriter): void {
   const prices = c.prices as Array<Record<string, unknown>> | undefined;
   if (!Array.isArray(prices) || prices.length === 0) {
-    console.log("No price data available.");
+    writeEmbedLine(write, "No price data available.");
     return;
   }
   const currency = str(c.currency) ?? "EUR";
-  console.log(`Price calendar (${prices.length} dates):\n`);
+  writeEmbedLine(write, `Price calendar (${prices.length} dates):\n`);
   for (const p of prices.slice(0, 14)) {
     const date = str(p.date) ?? "";
     const price = p.price ?? p.amount;
     if (date && price !== undefined) {
-      process.stdout.write(`  ${date}  ${currency} ${price}\n`);
+      write(`  ${date}  ${currency} ${price}\n`);
     }
   }
-  if (prices.length > 14) console.log(`  ... and ${prices.length - 14} more`);
+  if (prices.length > 14) writeEmbedLine(write, `  ... and ${prices.length - 14} more`);
 }
 
 function renderTravelFlightPreview(
@@ -998,7 +1019,7 @@ function renderTravelFlightPreview(
   if (status) ln(`\x1b[2mStatus: ${status}\x1b[0m`);
 }
 
-function renderTravelFlightFullscreen(c: Record<string, unknown>): void {
+function renderTravelFlightFullscreen(c: Record<string, unknown>, write: EmbedWriter): void {
   const fields: [string, unknown][] = [
     ["Flight", c.flight_number ?? c.callsign],
     ["Airline", c.airline],
@@ -1015,7 +1036,7 @@ function renderTravelFlightFullscreen(c: Record<string, unknown>): void {
   ];
   for (const [label, value] of fields) {
     if (value !== null && value !== undefined) {
-      process.stdout.write(`  \x1b[2m${label.padEnd(14)}\x1b[0m ${value}\n`);
+      write(`  \x1b[2m${label.padEnd(14)}\x1b[0m ${value}\n`);
     }
   }
 }
@@ -1039,15 +1060,15 @@ function renderCodeDocsPreview(
   if (wordCount) ln(`\x1b[2m${String(wordCount)} words\x1b[0m`);
 }
 
-function renderCodeDocsFullscreen(c: Record<string, unknown>): void {
+function renderCodeDocsFullscreen(c: Record<string, unknown>, write: EmbedWriter): void {
   const results = c.results as Array<Record<string, unknown>> | undefined;
   const first = Array.isArray(results) ? results[0] : null;
   const docs =
     str(first?.documentation as string) ?? str(c.documentation as string) ?? "";
   if (docs) {
-    console.log(docs);
+    writeEmbedLine(write, docs);
   } else {
-    console.log("No documentation content.");
+    writeEmbedLine(write, "No documentation content.");
   }
 }
 
@@ -1061,15 +1082,15 @@ function renderWebReadPreview(
   if (resultCount) ln(`\x1b[2m${resultCount} results\x1b[0m`);
 }
 
-function renderWebReadFullscreen(c: Record<string, unknown>): void {
+function renderWebReadFullscreen(c: Record<string, unknown>, write: EmbedWriter): void {
   const url = str(c.url);
-  if (url) process.stdout.write(`\x1b[2mURL:\x1b[0m ${url}\n\n`);
+  if (url) write(`\x1b[2mURL:\x1b[0m ${url}\n\n`);
   const results = c.results as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(results)) {
     for (const r of results) {
       const content = str(r.content) ?? str(r.text) ?? "";
-      if (content) console.log(content);
-      console.log();
+      if (content) writeEmbedLine(write, content);
+      writeEmbedLine(write);
     }
   }
 }
@@ -1090,22 +1111,22 @@ function renderMathCalculatePreview(
   }
 }
 
-function renderMathCalculateFullscreen(c: Record<string, unknown>): void {
+function renderMathCalculateFullscreen(c: Record<string, unknown>, write: EmbedWriter): void {
   const results = c.results as Array<Record<string, unknown>> | undefined;
   const title = str(c.title);
-  if (title) process.stdout.write(`  \x1b[2mTitle:\x1b[0m ${title}\n`);
+  if (title) write(`  \x1b[2mTitle:\x1b[0m ${title}\n`);
   if (!Array.isArray(results) || results.length === 0) {
-    console.log("No calculation results.");
+    writeEmbedLine(write, "No calculation results.");
     return;
   }
   for (const r of results) {
     const resultTitle = str(r.title);
     const expr = str(r.expression) ?? str(r.input) ?? "";
     const result = str(r.result) ?? str(r.output) ?? "";
-    if (resultTitle && resultTitle !== title) process.stdout.write(`  \x1b[2mTitle:\x1b[0m ${resultTitle}\n`);
-    if (expr) process.stdout.write(`  \x1b[2mExpression:\x1b[0m ${expr}\n`);
-    if (result) process.stdout.write(`  \x1b[1mResult:\x1b[0m ${result}\n`);
-    console.log();
+    if (resultTitle && resultTitle !== title) write(`  \x1b[2mTitle:\x1b[0m ${resultTitle}\n`);
+    if (expr) write(`  \x1b[2mExpression:\x1b[0m ${expr}\n`);
+    if (result) write(`  \x1b[1mResult:\x1b[0m ${result}\n`);
+    writeEmbedLine(write);
   }
 }
 
@@ -1124,7 +1145,7 @@ function renderReminderPreview(
   if (c.is_repeating === true) ln("\x1b[2mRepeating\x1b[0m");
 }
 
-function renderReminderFullscreen(c: Record<string, unknown>): void {
+function renderReminderFullscreen(c: Record<string, unknown>, write: EmbedWriter): void {
   const fields: [string, unknown][] = [
     ["Message", c.prompt ?? c.message ?? c.reminder_text],
     ["Time", c.trigger_at_formatted ?? c.trigger_at],
@@ -1144,7 +1165,7 @@ function renderReminderFullscreen(c: Record<string, unknown>): void {
   ];
   for (const [label, value] of fields) {
     if (value !== null && value !== undefined) {
-      process.stdout.write(`  \x1b[2m${label.padEnd(14)}\x1b[0m ${value}\n`);
+      write(`  \x1b[2m${label.padEnd(14)}\x1b[0m ${value}\n`);
     }
   }
 }
@@ -1164,7 +1185,7 @@ function renderImageGeneratePreview(
   ln("\x1b[2m[image]\x1b[0m");
 }
 
-function renderImageGenerateFullscreen(c: Record<string, unknown>): void {
+function renderImageGenerateFullscreen(c: Record<string, unknown>, write: EmbedWriter): void {
   const fields: [string, unknown][] = [
     ["Model", c.model],
     ["Prompt", c.prompt],
@@ -1173,10 +1194,10 @@ function renderImageGenerateFullscreen(c: Record<string, unknown>): void {
   ];
   for (const [label, value] of fields) {
     if (value !== null && value !== undefined) {
-      process.stdout.write(`  \x1b[2m${label.padEnd(14)}\x1b[0m ${value}\n`);
+      write(`  \x1b[2m${label.padEnd(14)}\x1b[0m ${value}\n`);
     }
   }
-  console.log("\n  [Images are encrypted — view in web app]");
+  writeEmbedLine(write, "\n  [Images are encrypted — view in web app]");
 }
 
 function renderVideoTranscriptPreview(
@@ -1189,15 +1210,15 @@ function renderVideoTranscriptPreview(
   if (channel) ln(`\x1b[2m${channel}\x1b[0m`);
 }
 
-function renderVideoTranscriptFullscreen(c: Record<string, unknown>): void {
+function renderVideoTranscriptFullscreen(c: Record<string, unknown>, write: EmbedWriter): void {
   const title = str(c.title) ?? str(c.video_title);
   const url = str(c.url) ?? str(c.video_url);
-  if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
-  if (url) process.stdout.write(`\x1b[2m${url}\x1b[0m\n`);
-  console.log();
+  if (title) write(`\x1b[1m${title}\x1b[0m\n`);
+  if (url) write(`\x1b[2m${url}\x1b[0m\n`);
+  writeEmbedLine(write);
   const transcript = str(c.transcript) ?? str(c.text) ?? "";
-  if (transcript) console.log(transcript);
-  else console.log("No transcript available.");
+  if (transcript) writeEmbedLine(write, transcript);
+  else writeEmbedLine(write, "No transcript available.");
 }
 
 async function renderHealthSearchPreview(
@@ -1214,22 +1235,23 @@ async function renderHealthSearchPreview(
 async function renderHealthSearchFullscreen(
   c: Record<string, unknown>,
   client: OpenMatesClient,
+  write: EmbedWriter,
 ): Promise<void> {
   const results = await resolveChildResults(c, client);
   if (results.length === 0) {
-    console.log("No appointments found.");
+    writeEmbedLine(write, "No appointments found.");
     return;
   }
-  console.log(`${results.length} appointments:\n`);
+  writeEmbedLine(write, `${results.length} appointments:\n`);
   for (const r of results) {
     const slotDt = str(r.slot_datetime) ?? str(r.next_slot) ?? str(r.date) ?? "";
     const name = str(r.name) ?? str(r.doctor_name) ?? str(r.title) ?? "";
     const speciality = str(r.speciality) ?? "";
     const address = str(r.address) ?? "";
-    if (slotDt) process.stdout.write(`  \x1b[1m${slotDt}\x1b[0m\n`);
-    if (name) process.stdout.write(`  ${name}${speciality ? ` · ${speciality}` : ""}\n`);
-    if (address) process.stdout.write(`  \x1b[2m${address}\x1b[0m\n`);
-    console.log();
+    if (slotDt) write(`  \x1b[1m${slotDt}\x1b[0m\n`);
+    if (name) write(`  ${name}${speciality ? ` · ${speciality}` : ""}\n`);
+    if (address) write(`  \x1b[2m${address}\x1b[0m\n`);
+    writeEmbedLine(write);
   }
 }
 
@@ -1245,10 +1267,10 @@ function renderAudioTranscribePreview(
   if (text) ln(trunc(text, 60));
 }
 
-function renderAudioTranscribeFullscreen(c: Record<string, unknown>): void {
+function renderAudioTranscribeFullscreen(c: Record<string, unknown>, write: EmbedWriter): void {
   const text = str(c.text) ?? str(c.transcript) ?? "";
-  if (text) console.log(text);
-  else console.log("No transcript available.");
+  if (text) writeEmbedLine(write, text);
+  else writeEmbedLine(write, "No transcript available.");
 }
 
 // ---------------------------------------------------------------------------
@@ -1487,6 +1509,7 @@ function renderByDirectType(
 function renderDirectTypeFullscreen(
   embed: DecryptedEmbed,
   c: Record<string, unknown>,
+  write: EmbedWriter,
 ): void {
   const type = embed.type ?? str(c.type) ?? "";
 
@@ -1496,10 +1519,10 @@ function renderDirectTypeFullscreen(
       const lang = str(c.language);
       const filename = str(c.filename);
       const code = str(c.code) ?? str(c.content) ?? "";
-      if (filename) process.stdout.write(`\x1b[2mFile:\x1b[0m ${filename}\n`);
-      if (lang) process.stdout.write(`\x1b[2mLanguage:\x1b[0m ${lang}\n`);
-      console.log();
-      if (code) console.log(code);
+      if (filename) write(`\x1b[2mFile:\x1b[0m ${filename}\n`);
+      if (lang) write(`\x1b[2mLanguage:\x1b[0m ${lang}\n`);
+      writeEmbedLine(write);
+      if (code) writeEmbedLine(write, code);
       break;
     }
 
@@ -1508,9 +1531,9 @@ function renderDirectTypeFullscreen(
       const name = str(c.name) ?? str(c.title);
       const framework = str(c.framework);
       const runtime = str(c.runtime);
-      if (name) process.stdout.write(`\x1b[1m${name}\x1b[0m\n`);
-      if (framework) process.stdout.write(`\x1b[2mFramework:\x1b[0m ${framework}\n`);
-      if (runtime) process.stdout.write(`\x1b[2mRuntime:\x1b[0m ${runtime}\n`);
+      if (name) write(`\x1b[1m${name}\x1b[0m\n`);
+      if (framework) write(`\x1b[2mFramework:\x1b[0m ${framework}\n`);
+      if (runtime) write(`\x1b[2mRuntime:\x1b[0m ${runtime}\n`);
       break;
     }
 
@@ -1518,14 +1541,14 @@ function renderDirectTypeFullscreen(
     case "doc": {
       const title = str(c.title);
       const html = str(c.html) ?? "";
-      if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n\n`);
+      if (title) write(`\x1b[1m${title}\x1b[0m\n\n`);
       if (html) {
         // Strip HTML for text output
         const text = html
           .replace(/<[^>]+>/g, " ")
           .replace(/\s+/g, " ")
           .trim();
-        console.log(text);
+        writeEmbedLine(write, text);
       }
       break;
     }
@@ -1533,13 +1556,13 @@ function renderDirectTypeFullscreen(
     case "document": {
       const title = str(c.title);
       const html = str(c.html) ?? "";
-      if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n\n`);
+      if (title) write(`\x1b[1m${title}\x1b[0m\n\n`);
       if (html) {
         const text = html
           .replace(/<[^>]+>/g, " ")
           .replace(/\s+/g, " ")
           .trim();
-        console.log(text);
+        writeEmbedLine(write, text);
       }
       break;
     }
@@ -1548,21 +1571,21 @@ function renderDirectTypeFullscreen(
     case "sheet": {
       const title = str(c.title);
       const table = str(c.table) ?? str(c.content) ?? "";
-      if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n\n`);
-      if (table) console.log(table);
+      if (title) write(`\x1b[1m${title}\x1b[0m\n\n`);
+      if (table) writeEmbedLine(write, table);
       break;
     }
 
     case "pdf": {
       const filename = str(c.filename);
-      if (filename) process.stdout.write(`\x1b[2mFile:\x1b[0m ${filename}\n`);
+      if (filename) write(`\x1b[2mFile:\x1b[0m ${filename}\n`);
       const results = c.results as Array<Record<string, unknown>> | undefined;
       if (Array.isArray(results)) {
         for (const r of results) {
           const content = str(r.content) ?? str(r.text) ?? "";
           if (content) {
-            console.log();
-            console.log(content);
+            writeEmbedLine(write);
+            writeEmbedLine(write, content);
           }
         }
       }
@@ -1574,12 +1597,12 @@ function renderDirectTypeFullscreen(
       const url = str(c.url);
       const desc = str(c.description) ?? str(c.snippet) ?? "";
       const age = str(c.page_age);
-      if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
-      if (url) process.stdout.write(`\x1b[2m${url}\x1b[0m\n`);
-      if (age) process.stdout.write(`\x1b[2mAge: ${age}\x1b[0m\n`);
+      if (title) write(`\x1b[1m${title}\x1b[0m\n`);
+      if (url) write(`\x1b[2m${url}\x1b[0m\n`);
+      if (age) write(`\x1b[2mAge: ${age}\x1b[0m\n`);
       if (desc) {
-        console.log();
-        console.log(desc);
+        writeEmbedLine(write);
+        writeEmbedLine(write, desc);
       }
       break;
     }
@@ -1590,15 +1613,15 @@ function renderDirectTypeFullscreen(
       const channel = str(c.channel) ?? str(c.author) ?? "";
       const duration = str(c.duration) ?? "";
       const desc = str(c.description) ?? str(c.snippet) ?? "";
-      if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
-      if (url) process.stdout.write(`\x1b[2m${url}\x1b[0m\n`);
+      if (title) write(`\x1b[1m${title}\x1b[0m\n`);
+      if (url) write(`\x1b[2m${url}\x1b[0m\n`);
       if (channel)
-        process.stdout.write(
+        write(
           `\x1b[2mChannel:\x1b[0m ${channel}${duration ? `  \x1b[2m(${duration})\x1b[0m` : ""}\n`,
         );
       if (desc) {
-        console.log();
-        console.log(desc);
+        writeEmbedLine(write);
+        writeEmbedLine(write, desc);
       }
       break;
     }
@@ -1607,11 +1630,11 @@ function renderDirectTypeFullscreen(
       const subject = str(c.subject);
       const receiver = str(c.receiver);
       const content = str(c.content) ?? "";
-      if (subject) process.stdout.write(`\x1b[1m${subject}\x1b[0m\n`);
-      if (receiver) process.stdout.write(`\x1b[2mTo: ${receiver}\x1b[0m\n`);
+      if (subject) write(`\x1b[1m${subject}\x1b[0m\n`);
+      if (receiver) write(`\x1b[2mTo: ${receiver}\x1b[0m\n`);
       if (content) {
-        console.log();
-        console.log(content);
+        writeEmbedLine(write);
+        writeEmbedLine(write, content);
       }
       break;
     }
@@ -1620,16 +1643,36 @@ function renderDirectTypeFullscreen(
     case "mindmaps-mindmap": {
       const document = mindMapDocumentFromContent(c);
       const title = str(c.title) ?? str(document?.title) ?? "Mind Map";
-      process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
+      write(`\x1b[1m${title}\x1b[0m\n`);
       if (!document) {
-        console.log("Invalid mind map JSON");
+        writeEmbedLine(write, "Invalid mind map JSON");
         break;
       }
-      console.log(`${document.nodes.length} nodes · ${document.edges?.length ?? 0} edges\n`);
-      console.log(mindMapOutline(document));
-      console.log("\n```openmates_mindmap");
-      console.log(JSON.stringify(document, null, 2));
-      console.log("```");
+      writeEmbedLine(write, `${document.nodes.length} nodes · ${document.edges?.length ?? 0} edges\n`);
+      writeEmbedLine(write, mindMapOutline(document));
+      writeEmbedLine(write, "\n```openmates_mindmap");
+      writeEmbedLine(write, JSON.stringify(document, null, 2));
+      writeEmbedLine(write, "```");
+      break;
+    }
+
+    case "events-event": {
+      const venue = isRecord(c.venue) ? c.venue : {};
+      const organizer = isRecord(c.organizer) ? c.organizer : {};
+      const fee = isRecord(c.fee) ? c.fee : {};
+      const field = (label: string, value: unknown) => {
+        if (value !== null && value !== undefined && String(value).trim()) {
+          writeEmbedLine(write,label);writeEmbedLine(write,String(value));writeEmbedLine(write);
+        }
+      };
+      writeEmbedLine(write,str(c.title) ?? str(c.name) ?? "Event");writeEmbedLine(write);
+      field("When",[c.date_start ?? c.start_time ?? c.date,c.date_end,c.timezone].filter(Boolean).join(" · "));
+      field("Location",c.event_type === "online" ? "Online event" : [venue.name ?? c.venue_name,venue.address ?? c.venue_address,venue.city ?? c.venue_city,venue.country ?? c.venue_country,str(c.location)].filter(Boolean).join(", "));
+      field("Organizer",organizer.name ?? c.organizer_name);
+      field("Description",c.description);
+      field("Admission",c.is_paid === false ? "Free" : [fee.amount ?? c.fee_amount,fee.currency ?? c.fee_currency].filter(v=>v!==undefined&&v!==null).join(" "));
+      field("Attendees",c.rsvp_count);
+      field("Event page",c.url);
       break;
     }
 
@@ -1638,11 +1681,11 @@ function renderDirectTypeFullscreen(
       for (const [k, v] of Object.entries(c)) {
         if (v === null || v === undefined || k.startsWith("_")) continue;
         if (typeof v === "object") {
-          process.stdout.write(
+          write(
             `  \x1b[2m${k.padEnd(20)}\x1b[0m ${JSON.stringify(v)}\n`,
           );
         } else {
-          process.stdout.write(
+          write(
             `  \x1b[2m${k.padEnd(20)}\x1b[0m ${String(v)}\n`,
           );
         }

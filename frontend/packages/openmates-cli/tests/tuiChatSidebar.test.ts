@@ -65,6 +65,23 @@ test('an activity response from the previous account cannot publish', async () =
   assert.deepEqual(state.runningChatIds, ['child']);
 });
 
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.activity.global-running
+test('background activity failures preserve the cached-chat sync status', async () => {
+  const state = fixture();
+  const cachedStatus = 'Showing cached chats. Sync failed; /refresh to retry.';
+  state.status = cachedStatus;
+  const client = { getChatActivity: async () => { throw new Error('Offline'); } };
+  let renders = 0;
+  await refreshTuiChatSidebar(state, client as never, () => { renders++; });
+  assert.equal(state.status, cachedStatus);
+  assert.equal(renders, 0);
+  assert.ok(tuiChatSidebarRows(state).some(row => row.chatId === 'idle'));
+  state.status = null;
+  await refreshTuiChatSidebar(state, client as never, () => { renders++; });
+  assert.equal(state.status, 'Running chat status unavailable.');
+  assert.equal(renders, 1);
+});
+
 // contract-test: supporting surface=cli assertions=chat-navigation.activity.global-running,chat-navigation.projects.nested-readable
 test('locked keys never expose rows, counts or saved project labels', () => {
   const state = fixture(); state.activityChats[1].isHiddenCandidate = true;

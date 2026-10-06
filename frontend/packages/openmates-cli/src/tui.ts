@@ -33,7 +33,7 @@ import { decryptUserTasks } from "./tasksCli.js";
 import { handleWorkspaceKey, handleWorkspaceCommand, rememberDraft, route, type WorkspaceContext } from "./tuiWorkspaceController.js";
 import { loadWorkflowRunGraph } from "./tuiWorkflowWorkspace.js";
 import { prepareTuiMessage } from "./tuiAttachments.js";
-import { loadHomeData } from "./tuiHome.js";
+import { loadHomeData, startHomeSync } from "./tuiHome.js";
 import { refreshTuiChatSidebar } from './tuiChatSidebar.js';
 import { parseChatContextContent } from "./chatContextEvents.js";
 
@@ -90,11 +90,13 @@ export async function runTui(
     }, 16);
   };
 
+  const stopHomeSync=startHomeSync(state,client,render,()=>closed);
+
   const finish = (result: TuiResult) => {
     closed = true;
     state.homeAbortController?.abort();
     Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
-    stopActivity?.(); clearTimeout(activityTimer); clearInterval(activityPoll); clearInterval(activityAnimation);
+    stopHomeSync();stopActivity?.(); clearTimeout(activityTimer); clearInterval(activityPoll); clearInterval(activityAnimation);
     client.endInteractiveViewerSession();
     if (renderTimer) clearTimeout(renderTimer);
     renderTimer = null;

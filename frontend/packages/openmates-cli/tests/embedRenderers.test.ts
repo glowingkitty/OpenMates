@@ -8,7 +8,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { formatEmbedPreviewLines, renderEmbedPreview, renderEmbedFullscreen } from "../src/embedRenderers.ts";
+import { formatEmbedPreviewLines, formatEmbedFullscreenLines, renderEmbedPreview, renderEmbedFullscreen } from "../src/embedRenderers.ts";
 import type { DecryptedEmbed } from "../src/client.ts";
 
 function captureStdout(run: () => Promise<void>): Promise<string> {
@@ -95,6 +95,7 @@ function mockClient(): { createEmbedShareLink: (embedId: string) => Promise<stri
 }
 
 describe("Remotion videos.create CLI renderer", () => {
+  // contract-test: supporting surface=cli assertions=chats.rendering.assistant-document-convergence
   it("prints a rendered video link and QR code in preview output", async () => {
     const output = await captureStdout(async () => {
       await renderEmbedPreview(remotionEmbed(), mockClient() as never);
@@ -107,6 +108,7 @@ describe("Remotion videos.create CLI renderer", () => {
     assert.match(output, /ProductAnnouncement\.tsx/);
   });
 
+  // contract-test: supporting surface=cli assertions=chats.rendering.assistant-document-convergence
   it("prints source, timeline, link, and QR code in fullscreen output", async () => {
     const output = await captureStdout(async () => {
       await renderEmbedFullscreen(remotionEmbed(), mockClient() as never);
@@ -122,6 +124,7 @@ describe("Remotion videos.create CLI renderer", () => {
 });
 
 describe("Direct content embed CLI renderers", () => {
+  // contract-test: supporting surface=cli assertions=chats.rendering.assistant-document-convergence
   it("labels partial and timetable-only travel fares", async () => {
     const partialOutput = await captureStdout(async () => {
       await renderEmbedPreview(
@@ -187,6 +190,7 @@ describe("Direct content embed CLI renderers", () => {
     assert.match(timetableOutput, /Timetable only/);
   });
 
+  // contract-test: supporting surface=cli assertions=chats.rendering.assistant-document-convergence
   it("formats generated application embeds as compact TUI preview lines", () => {
     const lines = formatEmbedPreviewLines({
       id: "embed-application-compact",
@@ -215,6 +219,7 @@ describe("Direct content embed CLI renderers", () => {
     assert.ok(lines.length < 16);
   });
 
+  // contract-test: supporting surface=cli assertions=chats.rendering.assistant-document-convergence
   it("renders backend document aliases as document embeds", async () => {
     const output = await captureStdout(async () => {
       await renderEmbedPreview(
@@ -241,6 +246,7 @@ describe("Direct content embed CLI renderers", () => {
     assert.match(output, /89 words/);
   });
 
+  // contract-test: supporting surface=cli assertions=chats.rendering.assistant-document-convergence
   it("renders generated application embeds as application content", async () => {
     const output = await captureStdout(async () => {
       await renderEmbedPreview(
@@ -268,6 +274,7 @@ describe("Direct content embed CLI renderers", () => {
     assert.match(output, /Vite/);
   });
 
+  // contract-test: supporting surface=cli assertions=chats.rendering.assistant-document-convergence
   it("renders mind map previews as a compact outline", async () => {
     const output = await captureStdout(async () => {
       await renderEmbedPreview(mindMapEmbed(), mockClient() as never);
@@ -279,6 +286,7 @@ describe("Direct content embed CLI renderers", () => {
     assert.match(output, /Audience Research/);
   });
 
+  // contract-test: supporting surface=cli assertions=chats.rendering.assistant-document-convergence
   it("renders mind map fullscreen as canonical fenced JSON", async () => {
     const output = await captureStdout(async () => {
       await renderEmbedFullscreen(mindMapEmbed(), mockClient() as never);
@@ -287,5 +295,25 @@ describe("Direct content embed CLI renderers", () => {
     assert.match(output, /```openmates_mindmap/);
     assert.match(output, /"openmatesType": "mindmap"/);
     assert.match(output, /"rootId": "root"/);
+  });
+});
+
+describe('terminal fullscreen collection',()=>{
+  // contract-test: supporting surface=cli assertions=chats.rendering.assistant-document-convergence
+  it('keeps complete event details without writing to stdout',async()=>{
+    const description='Full event description '.repeat(80);
+    const embed={...mindMapEmbed(),type:'events-event',appId:'events',skillId:'event',content:{title:'Community gathering',date_start:'2026-10-06T12:00:00Z',timezone:'Europe/Berlin',venue:{name:'Hall',address:'Example street',city:'Berlin'},organizer:{name:'Community'},description,url:'https://example.org/event',is_paid:false}};
+    let lines:string[]=[];
+    const output=await captureStdout(async()=>{lines=await formatEmbedFullscreenLines(embed,mockClient() as never);});
+    assert.equal(output,'');assert.ok(lines.includes(description));assert.ok(lines.includes('Organizer'));assert.ok(lines.includes('Free'));
+    assert.ok(lines.every(line=>!line.includes('\x1b')));
+  });
+  // contract-test: supporting surface=cli assertions=chats.rendering.assistant-document-convergence
+  it('shows code and video source without creating a share link',async()=>{
+    let shares=0;const client={createEmbedShareLink:async()=>{shares++;throw Error('No share mutation');}};
+    const lines=await formatEmbedFullscreenLines(remotionEmbed(),client as never);
+    assert.equal(shares,0);assert.match(lines.join('\n'),/TitleSlide/);
+    const code={...mindMapEmbed(),type:'code',content:{language:'typescript',filename:'example.ts',code:'export const answer = 42;'}};
+    assert.match((await formatEmbedFullscreenLines(code,client as never)).join('\n'),/export const answer = 42/);
   });
 });

@@ -36,6 +36,7 @@ test.describe('CLI TUI workflows', () => {
 			'tests/tuiWorkflowVersion.test.ts',
 			'tests/tuiAppsWorkspace.test.ts',
 			'tests/tuiHome.test.ts',
+			'tests/embedRenderers.test.ts',
 			'tests/tuiChatSidebar.test.ts',
 			'tests/sdk-chat-sidebar.test.ts',
 			'tests/ws.test.ts',
@@ -54,6 +55,10 @@ test.describe('CLI TUI workflows', () => {
 		expect(result.stdout).toContain('cold startup shows verified synced previews while saved output recovery is still pending');
 		expect(result.stdout).toContain('verified synced history is published and retained on disk before slow recovery finishes');
 		expect(result.stdout).toContain('failed sync keeps cached chats usable');
+		expect(result.stdout).toContain('background activity failures preserve the cached-chat sync status');
+		expect(result.stdout).toContain('opening a cached chat renders messages before slow draft lookup');
+		expect(result.stdout).toContain('cached chat opening and drafts bypass full sync');
+		expect(result.stdout).toContain('metadata-only chat opening reads canonical history without saved-output recovery');
 	});
 });
 

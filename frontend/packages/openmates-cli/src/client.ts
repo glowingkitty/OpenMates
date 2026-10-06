@@ -331,6 +331,26 @@ export function getClientMessagesVersionForSync(cached: CachedChat): number {
   return Math.min(messagesVersion, cached.messages.length);
 }
 
+/** Keep ciphertext fetched while the background sync was recovering outputs. */
+export function mergeConcurrentChatMessages(cache: SyncCache, latest: SyncCache | null): SyncCache {
+  const byId = new Map(latest?.chats.map(chat => [String(chat.details.id), chat]));
+  const chatHashes = new Set(cache.chats.map(chat=>computeSHA256(String(chat.details.id))));
+  const embedIds = new Set(cache.embeds.map(embed=>String(embed.embed_id ?? embed.id)));
+  const addedEmbeds = (latest?.embeds ?? []).filter(embed=>!embedIds.has(String(embed.embed_id ?? embed.id)) &&
+    (!embed.hashed_chat_id || chatHashes.has(String(embed.hashed_chat_id))));
+  const keyIds = new Set(cache.embedKeys.map(key=>String(key.id ?? key.encrypted_embed_key)));
+  const embedHashes = new Set([...cache.embeds,...addedEmbeds].map(embed=>computeSHA256(String(embed.embed_id ?? embed.id))));
+  return {...cache, ...(latest && "tuiContinueCiphertext" in latest ? {tuiContinueCiphertext:latest.tuiContinueCiphertext} : {}),
+    embeds:[...cache.embeds,...addedEmbeds],
+    embedKeys:[...cache.embedKeys,...(latest?.embedKeys ?? []).filter(key=>!keyIds.has(String(key.id ?? key.encrypted_embed_key)) && embedHashes.has(String(key.hashed_embed_id)))],
+    chats: cache.chats.map(chat => {
+      const newer = byId.get(String(chat.details.id));
+      return newer && newer.details.messages_v === chat.details.messages_v &&
+        newer.details.encrypted_chat_key === chat.details.encrypted_chat_key &&
+        newer.messages.length > chat.messages.length ? {...chat, messages: newer.messages} : chat;
+    })};
+}
+
 function findCliMessageBoundaryIndex(messages: Array<{ id: string }>, messageId: string): number {
   const index = messages.findIndex((message) => message.id === messageId || message.id.startsWith(messageId));
   if (index < 0) {
@@ -5317,7 +5337,7 @@ export class OpenMatesClient {
       options.signal?.throwIfAborted();
       // Verified history remains readable if recovery is slow or the terminal closes.
       // Decryption above fences the account and Team before this synchronous write.
-      saveSyncCache({ ...synced, syncedAt: 0 }, teamId);
+      saveSyncCache(mergeConcurrentChatMessages({ ...synced, syncedAt: 0 }, loadSyncCache(teamId)), teamId);
       options.onSyncedChats?.(syncedPage);
     } : undefined, options.signal);
     return this.decryptChatListPage(cache, limit, page, options, teamId, masterKey);
@@ -5762,6 +5782,16 @@ export class OpenMatesClient {
     return drafts;
   }
 
+  async getCachedDraft(chatId: string, options: TeamContextOptions = {}): Promise<DecryptedDraft | null> {
+    const teamId = this.resolveTeamContext(options);
+    const masterKey = Buffer.from(this.getMasterKeyBytes());
+    if (teamId && !loadLocalTeamKey(this.requireSession().hashedEmail, teamId)) return null;
+    const chat = loadSyncCache(teamId)?.chats.find(entry => String(entry.details.id ?? "") === chatId);
+    const draft = chat ? await this.decryptCachedDraft(chat) : null;
+    if (!this.hasSession() || teamId !== this.resolveTeamContext(options) || !masterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Chat workspace changed');
+    return draft;
+  }
+
   async getDraft(chatId: string, forceRefresh = false): Promise<DecryptedDraft | null> {
     if (forceRefresh) {
       let response;
@@ -6164,32 +6194,71 @@ export class OpenMatesClient {
   }
 
   /** Get decrypted messages for a chat resolved by UUID, prefix or title. */
-  async getChatMessages(query: string, options: TeamContextOptions = {}): Promise<{
+  async getChatMessages(query: string, options: TeamContextOptions & { preferCache?: boolean; maxHistoryPages?: number; signal?: AbortSignal; onMessages?: (result: {chat: ChatListItem; messages: DecryptedMessage[]}) => void } = {}): Promise<{
     chat: ChatListItem;
     messages: DecryptedMessage[];
+    historyIncomplete?: boolean;
   }> {
     const teamId = this.resolveTeamContext(options);
-    let cache = await this.ensureSynced(true, [], options);
-    const masterKey = this.getMasterKeyBytes();
-    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
-    let found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    const masterKey = Buffer.from(this.getMasterKeyBytes());
+    const localCache = options.preferCache ? loadSyncCache(teamId) : null;
+    let cache: SyncCache = localCache ?? (options.preferCache ? {
+      syncedAt:0,totalChatCount:0,loadedChatCount:0,chats:[],embeds:[],embedKeys:[]
+    } : await this.ensureSynced(true, [], options));
+    const current = () => {
+      if (!this.hasSession() || teamId !== this.resolveTeamContext(options) || !masterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Chat workspace changed');
+    };
+    const localTeamKey = options.preferCache && teamId ? loadLocalTeamKey(this.requireSession().hashedEmail, teamId) : null;
+    if (options.preferCache && teamId && !localTeamKey) throw new Error('Team key unavailable offline. Reconnect to refresh Team access.');
+    const wrappingKey = localTeamKey ? base64ToBytes(localTeamKey) : await this.getChatWrappingKey(teamId, masterKey);
+    let found: CachedChat;
+    let fetchedMetadata = false;
+    try {
+      found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    } catch (error) {
+      if (!options.preferCache || !(error instanceof Error) || !/^Chat '.*' not found\./.test(error.message)) throw error;
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query)) throw error;
+      // Project/sidebar links can refer to chats absent from the local census.
+      // Fetch authorized encrypted metadata directly, without a recovery pass.
+      const response = await this.http.post<{chats: Record<string, unknown>[]}>(
+        this.appendTeamQuery('/v1/chats/metadata/batch', options), {chat_ids:[query]}, this.getCliRequestHeaders());
+      current();
+      if (!response.ok) throw new Error(`Chat metadata failed with HTTP ${response.status}`);
+      const details = response.data.chats.find(chat => String(chat.id ?? '') === query);
+      if (!details) throw error;
+      found = {details,messages:[]};fetchedMetadata = true;
+      cache = {...cache,chats:[...cache.chats,found],chatKeyWrappers:[...(cache.chatKeyWrappers ?? []),
+        ...(Array.isArray(details.chat_key_wrappers) ? details.chat_key_wrappers as Record<string,unknown>[] : [])]};
+    }
 
     const foundChatId = String(found.details.id ?? "");
-    if (foundChatId && getClientMessagesVersionForSync(found) === 0) {
+    if (!options.preferCache && foundChatId && getClientMessagesVersionForSync(found) === 0) {
       cache = await this.ensureSynced(true, [foundChatId], options, true);
       found = cache.chats.find((c) => String(c.details.id ?? "") === foundChatId) ?? found;
     }
 
     const chatItem = await this.decryptChatListItem(found, wrappingKey, cache, teamId);
     const chatKeyBytes = await this.resolveChatKey(cache, found, wrappingKey, teamId);
+    if (!chatKeyBytes && (found.details.encrypted_chat_key || found.messages.length || Number(found.details.messages_v) > 0)) throw new Error('Chat key unavailable. Use /refresh to retry.');
+    const persistMessages = (messages: string[]) => {
+      current();options.signal?.throwIfAborted();
+      const latest = loadSyncCache(teamId) ?? cache;
+      const row = latest.chats.find(chat => String(chat.details.id) === foundChatId);
+      // A newer edit, deletion or key rotation wins over this older window.
+      if (row && (row.details.messages_v !== found.details.messages_v || row.details.encrypted_chat_key !== found.details.encrypted_chat_key)) return;
+      if (!row && localCache?.chats.some(chat => String(chat.details.id) === foundChatId)) return;
+      const merged = {...latest, chats: row ? latest.chats.map(chat => chat === row ? {...row,messages} : chat) : [...latest.chats,{...found,messages}]};
+      saveSyncCache(mergeConcurrentChatMessages(merged,latest),teamId);
+    };
     let rawMessages = found.messages;
+    let historyIncomplete = rawMessages.length > 0 && Number(found.details.messages_v) > rawMessages.length;
     const hasServerMessages =
       typeof found.details.messages_v === "number" && found.details.messages_v > 0;
-    if (rawMessages.length === 0 && hasServerMessages && foundChatId) {
+    if (rawMessages.length === 0 && (hasServerMessages || fetchedMetadata) && foundChatId) {
       const pages: string[][] = [];
       let cursor: ChatMessageWindowCursor | null = null;
       let hasMoreBefore = true;
-      for (let page = 0; page < CLI_MESSAGE_HISTORY_MAX_PAGES && hasMoreBefore; page += 1) {
+      for (let page = 0; page < Math.max(1,Math.min(CLI_MESSAGE_HISTORY_MAX_PAGES,options.maxHistoryPages ?? CLI_MESSAGE_HISTORY_MAX_PAGES)) && hasMoreBefore; page += 1) {
         const queryParams = new URLSearchParams({
           direction: cursor ? "before" : "latest",
           limit: String(CLI_MESSAGE_HISTORY_PAGE_LIMIT),
@@ -6199,23 +6268,56 @@ export class OpenMatesClient {
           queryParams.set("before_timestamp", String(cursor.created_at));
           queryParams.set("before_message_id", cursor.message_id);
         }
-        const response: HttpResponse<RawChatMessageWindowResponse> = await this.http.get<RawChatMessageWindowResponse>(
-          this.appendTeamQuery(`/v1/chats/${encodeURIComponent(foundChatId)}/messages/window?${queryParams.toString()}`, { teamId }),
-          this.getCliRequestHeaders(),
-        );
+        options.signal?.throwIfAborted();
+        let response: HttpResponse<RawChatMessageWindowResponse>;
+        try {
+          response = await this.http.get<RawChatMessageWindowResponse>(
+            this.appendTeamQuery(`/v1/chats/${encodeURIComponent(foundChatId)}/messages/window?${queryParams.toString()}`, { teamId }),
+            this.getCliRequestHeaders(),
+          );
+        } catch (error) {
+          if (!options.preferCache || !pages.length) throw error;
+          historyIncomplete = true;break;
+        }
+        current();options.signal?.throwIfAborted();
         if (!response.ok) throw new Error(`Chat messages failed with HTTP ${response.status}`);
         const pageMessages = Array.isArray(response.data.messages)
           ? normalizeSyncedMessages(response.data.messages)
           : [];
         if (pageMessages.length === 0) break;
+        if (page === 0 && options.onMessages) {
+          const latest = await this.decryptRawChatMessages(pageMessages, chatItem, chatKeyBytes, cache.embeds);
+          current();if(options.preferCache)persistMessages(pageMessages);options.onMessages({chat:chatItem,messages:latest});
+        }
         pages.unshift(pageMessages);
         cursor = response.data.start_cursor ?? null;
         hasMoreBefore = response.data.has_more_before === true && cursor !== null;
       }
       rawMessages = pages.flat();
+      historyIncomplete ||= hasMoreBefore;
     }
     const messages = await this.decryptRawChatMessages(rawMessages, chatItem, chatKeyBytes, cache.embeds);
-    return { chat: chatItem, messages };
+    current();
+    if(options.preferCache && rawMessages !== found.messages)persistMessages(rawMessages);
+    return { chat: chatItem, messages, ...(historyIncomplete ? {historyIncomplete:true} : {}) };
+  }
+
+  /** Warm the latest recent windows in the background; only ciphertext reaches disk. */
+  async cacheRecentChatMessages(options: TeamContextOptions & {signal?: AbortSignal} = {}): Promise<void> {
+    const teamId = this.resolveTeamContext(options), masterKey = Buffer.from(this.getMasterKeyBytes());
+    const recent = (loadSyncCache(teamId)?.chats ?? [])
+      .sort((a,b) => Number(b.details.last_edited_overall_timestamp ?? 0)-Number(a.details.last_edited_overall_timestamp ?? 0)).slice(0,20)
+      .filter(chat => Number(chat.details.messages_v) > 0 && chat.messages.length === 0);
+    let next = 0;
+    await Promise.all(Array.from({length:Math.min(3,recent.length)},async()=>{
+      while(next < recent.length) {
+        options.signal?.throwIfAborted();
+        if (!this.hasSession() || teamId !== this.resolveTeamContext(options) || !masterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Chat workspace changed');
+        const chat = recent[next++];
+        try { await this.getChatMessages(String(chat.details.id), {...options,preferCache:true,maxHistoryPages:1}); }
+        catch { options.signal?.throwIfAborted(); }
+      }
+    }));
   }
 
   async generateExistingAssistantSpeech(
@@ -6544,15 +6646,59 @@ export class OpenMatesClient {
    *
    * hashed_embed_id in the key table = SHA-256(embed.embed_id).
    */
-  async getEmbed(embedIdOrShort: string): Promise<DecryptedEmbed> {
-    const cache = await this.ensureSynced();
-    const masterKey = this.getMasterKeyBytes();
+  async getEmbed(embedIdOrShort: string, options: TeamContextOptions & {preferCache?: boolean; chatId?: string} = {}): Promise<DecryptedEmbed> {
+    const teamId = this.resolveTeamContext(options), masterKey = Buffer.from(this.getMasterKeyBytes());
+    const current = () => {
+      if (!this.hasSession() || teamId !== this.resolveTeamContext(options) || !masterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Embed workspace changed');
+    };
+    let cache = options.preferCache ? loadSyncCache(teamId) : await this.ensureSynced(false,[],options);
+    cache ??= {syncedAt:0,totalChatCount:0,loadedChatCount:0,chats:[],embeds:[],embedKeys:[]};
+    const localTeamKey = options.preferCache && teamId ? loadLocalTeamKey(this.requireSession().hashedEmail,teamId) : null;
+    if (options.preferCache && teamId && !localTeamKey) throw new Error('Team key unavailable offline.');
+    const wrappingKey = localTeamKey ? base64ToBytes(localTeamKey) : await this.getChatWrappingKey(teamId,masterKey);
 
-    const embed = cache.embeds.find(
+    let embed = cache.embeds.find(
       (e) =>
         String(e.embed_id ?? "").startsWith(embedIdOrShort) ||
         String(e.id ?? "").startsWith(embedIdOrShort),
     );
+    let fetched = false;
+    const fetchedIds=new Set<string>(), fetchedKeyIds=new Set<string>();
+    const wrapperId=(key:Record<string,unknown>)=>`${key.hashed_embed_id}:${key.key_type}:${key.hashed_chat_id ?? ""}`;
+    const targetId=embed ? String(embed.embed_id ?? embed.id) : embedIdOrShort;
+    const cachedKey=options.preferCache && embed ? await this.resolveEmbedKey(cache,wrappingKey,embed,targetId,computeSHA256(targetId)) : null;
+    if ((!embed || !cachedKey) && options.preferCache && /^[0-9a-f-]{36}$/i.test(targetId)) {
+      if(teamId && !options.chatId)throw new Error('Open the original Team chat to load this embed.');
+      const {ws} = await this.openWsClient({taskUpdateJobs:false});
+      try {
+        let wanted = targetId;
+        const visited = new Set<string>();
+        while(wanted && !visited.has(wanted) && visited.size < 8) {
+          visited.add(wanted);
+          const pending = ws.waitForMessage('send_embed_data',payload=>{
+            const row = payload as Record<string,unknown>, nested=(row.payload ?? row) as Record<string,unknown>;
+            return nested.embed_id === wanted;
+          },10_000);
+          await ws.sendAsync('request_embed',{embed_id:wanted,...(teamId ? {team_id:teamId,chat_id:options.chatId} : {})});
+          const envelope=(await pending).payload as Record<string,unknown>, row=(envelope.payload ?? envelope) as Record<string,unknown>;
+          current();
+          if(row.already_encrypted !== true || typeof row.content !== 'string') throw new Error('Saved embed ciphertext is unavailable. Open its original chat and /refresh.');
+          const encrypted={embed_id:wanted,encrypted_type:row.type,encrypted_content:row.content,
+            encrypted_text_preview:row.encrypted_text_preview,created_at:row.createdAt,updated_at:row.updatedAt,
+            hashed_chat_id:typeof row.chat_id==="string" ? /^[0-9a-f]{64}$/i.test(row.chat_id) ? row.chat_id : computeSHA256(row.chat_id) : undefined,parent_embed_id:row.parent_embed_id,status:row.status};
+          const wrappers=Array.isArray(row.embed_keys) ? row.embed_keys as Record<string,unknown>[] : [];
+          fetchedIds.add(wanted);for(const wrapper of wrappers)fetchedKeyIds.add(wrapperId(wrapper));
+          cache={...cache,embeds:[...cache.embeds.filter(e=>String(e.embed_id ?? e.id)!==wanted),encrypted],
+            embedKeys:[...cache.embedKeys.filter(key=>!wrappers.some(wrapper=>wrapperId(wrapper)===wrapperId(key))),...wrappers]};
+          fetched=true;
+          const parent=typeof row.parent_embed_id === 'string' ? row.parent_embed_id : '';
+          const parentEmbed=cache.embeds.find(e=>String(e.embed_id ?? e.id)===parent);
+          const parentKey=parentEmbed ? await this.resolveEmbedKey(cache,wrappingKey,parentEmbed,parent,computeSHA256(parent)) : null;
+          wanted=parent && !parentKey ? parent : '';
+        }
+        embed=cache.embeds.find(e=>String(e.embed_id ?? e.id)===targetId);
+      } finally {ws.close();}
+    }
     if (!embed) {
       throw new Error(
         `Embed '${embedIdOrShort}' not found in local cache. Run 'openmates chats list' to sync first.`,
@@ -6569,7 +6715,7 @@ export class OpenMatesClient {
 
     const embedKeyBytes = await this.resolveEmbedKey(
       cache,
-      masterKey,
+      wrappingKey,
       embed,
       embedId,
       hashedEmbedId,
@@ -6586,7 +6732,17 @@ export class OpenMatesClient {
     let content: Record<string, unknown> | null = null;
     const rawContent = await decryptField("encrypted_content");
     if (rawContent) content = parseEmbedContentObject(rawContent);
-    content = await this.refreshRemotionVideoCreateContent(embedId, content);
+    if(options.preferCache && (!embedKeyBytes || rawContent === null)) throw new Error('Saved embed key or content is unavailable. Use /refresh to retry.');
+    if(!options.preferCache)content = await this.refreshRemotionVideoCreateContent(embedId, content);
+    if(options.preferCache) {
+      current();
+      if(fetched) {
+        const latest=loadSyncCache(teamId) ?? cache;
+        saveSyncCache({...latest,
+          embeds:[...latest.embeds.filter(e=>!fetchedIds.has(String(e.embed_id ?? e.id))),...cache.embeds.filter(e=>fetchedIds.has(String(e.embed_id ?? e.id)))],
+          embedKeys:[...latest.embedKeys.filter(key=>!fetchedKeyIds.has(wrapperId(key))),...cache.embedKeys.filter(key=>fetchedKeyIds.has(wrapperId(key)))]},teamId);
+      }
+    }
 
     // Derive type/appId/skillId from content if not on the embed record itself
     const strVal = (v: unknown) =>
@@ -6743,22 +6899,10 @@ export class OpenMatesClient {
         return chatHash === hashedChatId;
       });
       if (owningChat) {
-        const encChatKey =
-          typeof owningChat.details.encrypted_chat_key === "string"
-            ? owningChat.details.encrypted_chat_key
-            : null;
-        if (encChatKey) {
-          const chatKeyBytes = await decryptBytesWithAesGcm(
-            encChatKey,
-            masterKey,
-          );
-          if (chatKeyBytes) {
-            const key = await decryptBytesWithAesGcm(
-              chatKeyEntry.encrypted_embed_key as string,
-              chatKeyBytes,
-            );
-            if (key) return key;
-          }
+        const chatKeyBytes=await this.resolveChatKey(cache,owningChat,masterKey,this.resolveTeamContext());
+        if(chatKeyBytes) {
+          const key=await decryptBytesWithAesGcm(chatKeyEntry.encrypted_embed_key as string,chatKeyBytes);
+          if(key)return key;
         }
       }
     }
@@ -13131,6 +13275,35 @@ export class OpenMatesClient {
     return legacy.data?.app_settings_memories ?? [];
   }
 
+  async getCachedContinueItems(): Promise<{memories: DecryptedMemoryEntry[]; reminders: Array<Record<string,unknown>>} | null> {
+    const teamId=this.resolveTeamContext(),masterKey=Buffer.from(this.getMasterKeyBytes());
+    const teamKey=teamId ? loadLocalTeamKey(this.requireSession().hashedEmail,teamId) : null;
+    if(teamId && !teamKey)return null;
+    const cache=loadSyncCache(teamId) as (SyncCache & {tuiContinueCiphertext?:string}) | null;
+    if(!cache?.tuiContinueCiphertext)return null;
+    const plain=await decryptWithAesGcmCombined(cache.tuiContinueCiphertext,teamKey ? base64ToBytes(teamKey) : masterKey);
+    if(!this.hasSession() || this.resolveTeamContext()!==teamId || !masterKey.equals(Buffer.from(this.getMasterKeyBytes())))throw new Error('Home workspace changed');
+    if(!plain)return null;
+    const data=JSON.parse(plain);
+    return Array.isArray(data.memories) && Array.isArray(data.reminders) ? data : null;
+  }
+
+  async getContinueItems(): Promise<{memories: DecryptedMemoryEntry[]; reminders: Array<Record<string,unknown>>}> {
+    const teamId=this.resolveTeamContext(),masterKey=Buffer.from(this.getMasterKeyBytes());
+    const [memories,response]=await Promise.all([teamId ? Promise.resolve([]) : this.listMemories({personal:true}),this.settingsGet('/v1/settings/reminders?include_recent_fired=true&upcoming_hours=24&recent_hours=12')]);
+    const reminderData=response as {success?:boolean;reminders?:Array<Record<string,unknown>>};
+    const teamChats=new Set(loadSyncCache(teamId)?.chats.map(chat=>String(chat.details.id)) ?? []);
+    const reminders=reminderData.success && Array.isArray(reminderData.reminders) ? reminderData.reminders : [];
+    const data={memories:memories.filter(memory=>typeof memory.data.embed_id==='string'),
+      reminders:teamId ? reminders.filter(reminder=>teamChats.has(String(reminder.target_chat_id))) : reminders};
+    const wrappingKey=await this.getChatWrappingKey(teamId,masterKey);
+    const tuiContinueCiphertext=await encryptWithAesGcmCombined(JSON.stringify(data),wrappingKey);
+    if(!this.hasSession() || this.resolveTeamContext()!==teamId || !masterKey.equals(Buffer.from(this.getMasterKeyBytes())))throw new Error('Home workspace changed');
+    const cache=loadSyncCache(teamId) ?? {syncedAt:0,totalChatCount:0,loadedChatCount:0,chats:[],embeds:[],embedKeys:[]};
+    saveSyncCache({...cache,tuiContinueCiphertext} as SyncCache,teamId);
+    return data;
+  }
+
   async listMemories(options: TeamContextOptions = {}): Promise<DecryptedMemoryEntry[]> {
     const masterKey = this.getMasterKeyBytes();
     const teamId = this.resolveTeamContext(options);
@@ -14316,6 +14489,7 @@ export class OpenMatesClient {
   ): Promise<SyncCache> {
     signal?.throwIfAborted();
     const teamId = this.resolveTeamContext(options);
+    const syncMasterKey = Buffer.from(this.getMasterKeyBytes());
     const refreshChatIdSet = new Set(refreshChatIds.filter(Boolean));
     if (!forceRefresh && refreshChatIdSet.size === 0 && isSyncCacheFresh(300_000, teamId)) {
       const cache = loadSyncCache(teamId);
@@ -14681,8 +14855,10 @@ export class OpenMatesClient {
       newChatSuggestions,
     };
 
-    saveSyncCache(cache, teamId);
-    return cache;
+    if (!this.hasSession() || teamId !== this.resolveTeamContext(options) || !syncMasterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Chat workspace changed');
+    const mergedCache = mergeConcurrentChatMessages(cache,loadSyncCache(teamId));
+    saveSyncCache(mergedCache, teamId);
+    return mergedCache;
   }
 
 

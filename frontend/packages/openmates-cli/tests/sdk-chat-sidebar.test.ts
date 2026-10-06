@@ -1,22 +1,79 @@
 // Minimal sidebar metadata preserves hidden-key privacy without loading transcripts.
 // These tests exercise real encryption/decoding and publication fences locally.
+import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { OpenMatesClient } from '../src/client.js';
+import { OpenMatesClient, mergeConcurrentChatMessages } from '../src/client.js';
 import { encryptBytesWithAesGcm, encryptWithAesGcmCombined } from '../src/crypto.js';
 import { loadSyncCache, saveSyncCache } from '../src/storage.js';
 
 function fixture() {
   let master = Buffer.alloc(32, 1);
   const client = Object.create(OpenMatesClient.prototype) as OpenMatesClient;
-  Object.assign(client, { requireSession: () => {}, hasSession: () => true,
+  Object.assign(client, { requireSession: () => ({hashedEmail:'fixture-account'}), hasSession: () => true,
     resolveTeamContext: () => null, getMasterKeyBytes: () => master,
     getChatWrappingKey: async () => master, getCliRequestHeaders: () => ({}), appendTeamQuery: (path: string) => path });
   return { client, master, changeAccount: () => { master = Buffer.alloc(32, 2); } };
 }
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+test('cached chat opening and drafts bypass full sync while preserving account fences', async () => {
+  const previousStateDir = process.env.OPENMATES_STATE_DIR;
+  const stateDir = mkdtempSync(join(tmpdir(), 'openmates-cached-chat-open-'));
+  process.env.OPENMATES_STATE_DIR = stateDir;
+  try {
+    const {client,master,changeAccount}=fixture(),key=Buffer.alloc(32,3);
+    saveSyncCache({syncedAt:0,totalChatCount:1,loadedChatCount:1,chats:[{details:{id:'cached',messages_v:1,
+      encrypted_chat_key:await encryptBytesWithAesGcm(key,master),
+      encrypted_title:await encryptWithAesGcmCombined('Saved conversation',key),
+      encrypted_draft_md:await encryptWithAesGcmCombined('Continue the plan',master)},
+      messages:[JSON.stringify({message_id:'message',role:'user',encrypted_content:await encryptWithAesGcmCombined('A cached message',key)})]}],embeds:[],embedKeys:[]});
+    Object.assign(client,{ensureSynced:async()=>{throw new Error('Full sync must not block opening');},
+      http:{get:async()=>{throw new Error('Cached messages must not fetch history');}}});
+    const opened=await client.getChatMessages('cached',{preferCache:true});
+    assert.equal(opened.chat.title,'Saved conversation');
+    assert.equal(opened.messages[0].content,'A cached message');
+    assert.equal((await client.getCachedDraft('cached'))?.markdown,'Continue the plan');
+    await assert.rejects(client.getChatMessages('cached'),/Full sync must not block opening/);
+    Object.assign(client,{decryptRawChatMessages:async()=>{changeAccount();return [];}});
+    await assert.rejects(client.getChatMessages('cached',{preferCache:true}),/workspace changed/);
+  } finally {
+    if(previousStateDir===undefined)delete process.env.OPENMATES_STATE_DIR;
+    else process.env.OPENMATES_STATE_DIR=previousStateDir;
+    rmSync(stateDir,{recursive:true,force:true});
+  }
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+test('metadata-only chat opening reads canonical history without saved-output recovery', async () => {
+  const previousStateDir=process.env.OPENMATES_STATE_DIR;
+  const stateDir=mkdtempSync(join(tmpdir(),'openmates-metadata-chat-open-'));
+  process.env.OPENMATES_STATE_DIR=stateDir;
+  try {
+    const {client,master}=fixture(),key=Buffer.alloc(32,3);
+    saveSyncCache({syncedAt:0,totalChatCount:1,loadedChatCount:1,chats:[{details:{id:'older',messages_v:2,
+      encrypted_chat_key:await encryptBytesWithAesGcm(key,master)},messages:[]}],embeds:[],embedKeys:[]});
+    let requests=0;
+    Object.assign(client,{ensureSynced:async()=>{throw new Error('Recovery must not block history');},
+      http:{get:async(route:string)=>{
+        requests++;assert.match(route,/\/v1\/chats\/older\/messages\/window\?/);
+        return {ok:true,data:{messages:[{message_id:'archived',role:'assistant',
+          encrypted_content:await encryptWithAesGcmCombined('Canonical history',key)}],has_more_before:false}};
+      }}});
+    const opened=await client.getChatMessages('older',{preferCache:true});
+    assert.equal(opened.messages[0].content,'Canonical history');
+    assert.equal(loadSyncCache()?.chats[0].messages.length,1);
+    Object.assign(client,{http:{get:async()=>{throw new Error('Offline');}}});
+    assert.equal((await client.getChatMessages('older',{preferCache:true})).messages[0].content,'Canonical history');assert.equal(requests,1);
+  } finally {
+    if(previousStateDir===undefined)delete process.env.OPENMATES_STATE_DIR;
+    else process.env.OPENMATES_STATE_DIR=previousStateDir;
+    rmSync(stateDir,{recursive:true,force:true});
+  }
+});
 
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
 test('cached history decrypts stale local chats without network access and retains account fences', async () => {
@@ -326,4 +383,114 @@ test('an incomplete metadata sync cannot replace the saved chat cache or publish
     if(previous===undefined)delete process.env.OPENMATES_STATE_DIR;else process.env.OPENMATES_STATE_DIR=previous;
     rmSync(stateDir,{recursive:true,force:true});
   }
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent,chats.persistence.client-encrypted
+test('first history window is usable and encrypted on disk while older history is unavailable', async()=>{
+  const previous=process.env.OPENMATES_STATE_DIR,stateDir=mkdtempSync(join(tmpdir(),'tui-window-offline-'));
+  process.env.OPENMATES_STATE_DIR=stateDir;
+  try {
+    const {client,master}=fixture(),key=Buffer.alloc(32,3);let reads=0,published=false;
+    const id='aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+    Object.assign(client,{ensureSynced:async()=>{throw Error('Recovery must not block');},http:{
+      post:async(_route:string,body:unknown)=>{assert.deepEqual(body,{chat_ids:[id]});return {ok:true,data:{chats:[{id,encrypted_chat_key:await encryptBytesWithAesGcm(key,master)}]}};},
+      get:async()=>{if(reads++) {assert.equal(published,true);throw Error('Offline');}
+        return {ok:true,data:{messages:[{message_id:'recent',role:'user',encrypted_content:await encryptWithAesGcmCombined('Private window content',key)}],has_more_before:true,start_cursor:{message_id:'recent',created_at:1}}};},
+    }});
+    const opened=await client.getChatMessages(id,{preferCache:true,onMessages:page=>{
+      published=true;assert.equal(page.messages[0].content,'Private window content');
+      assert.equal(loadSyncCache()?.chats[0].messages.length,1);
+      assert.equal(JSON.stringify(loadSyncCache()).includes('Private window content'),false);
+    }});
+    assert.equal(opened.historyIncomplete,true);assert.equal(opened.messages.length,1);
+    assert.equal((await client.getChatMessages(id,{preferCache:true})).messages[0].content,'Private window content');
+    await assert.rejects(client.getChatMessages('uncached-secret-title',{preferCache:true}),/not found/);
+  } finally {if(previous===undefined)delete process.env.OPENMATES_STATE_DIR;else process.env.OPENMATES_STATE_DIR=previous;rmSync(stateDir,{recursive:true,force:true});}
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent,chats.persistence.client-encrypted
+test('background sync retains concurrent windows without reviving deleted or newer chats',()=>{
+  const chat={details:{id:'saved',messages_v:2,encrypted_chat_key:'key'},messages:[]};
+  const cache={syncedAt:0,totalChatCount:1,loadedChatCount:1,chats:[chat],embeds:[],embedKeys:[]};
+  const latest={...cache,chats:[{...chat,messages:['ciphertext']}]};
+  assert.deepEqual(mergeConcurrentChatMessages(cache,latest).chats[0].messages,['ciphertext']);
+  assert.equal(mergeConcurrentChatMessages({...cache,chats:[]},latest).chats.length,0);
+  assert.equal(mergeConcurrentChatMessages({...cache,chats:[{...chat,details:{...chat.details,messages_v:3}}]},latest).chats[0].messages.length,0);
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent,chats.persistence.client-encrypted
+test('idle recent history warming is bounded and cancellation stops subsequent reads',async()=>{
+  const previous=process.env.OPENMATES_STATE_DIR,stateDir=mkdtempSync(join(tmpdir(),'tui-warm-recent-'));
+  process.env.OPENMATES_STATE_DIR=stateDir;
+  try {
+    const {client}=fixture(),controller=new AbortController();let reads=0;
+    saveSyncCache({syncedAt:0,totalChatCount:30,loadedChatCount:30,chats:Array.from({length:30},(_,i)=>({details:{id:String(i),messages_v:1,last_edited_overall_timestamp:30-i},messages:[]})),embeds:[],embedKeys:[]});
+    Object.assign(client,{getChatMessages:async(id:string,options:{preferCache:boolean;maxHistoryPages:number})=>{
+      assert.ok(Number(id)<20);assert.equal(options.preferCache,true);assert.equal(options.maxHistoryPages,1);reads++;
+      return {chat:{id},messages:[]};
+    }});
+    await client.cacheRecentChatMessages();assert.equal(reads,20);
+    Object.assign(client,{getChatMessages:async()=>{reads++;controller.abort();return {chat:{},messages:[]};}});
+    await assert.rejects(client.cacheRecentChatMessages({signal:controller.signal}),{name:'AbortError'});
+    assert.ok(reads<=23);
+  } finally {if(previous===undefined)delete process.env.OPENMATES_STATE_DIR;else process.env.OPENMATES_STATE_DIR=previous;rmSync(stateDir,{recursive:true,force:true});}
+});
+
+// contract-test: supporting surface=cli assertions=app-memories.privacy.client-encrypted,app-memories.access.owner-scoped,cli.surface.semantic-parity
+test('remembered home data remains encrypted offline and cannot cross accounts or Teams',async()=>{
+  const previous=process.env.OPENMATES_STATE_DIR,stateDir=mkdtempSync(join(tmpdir(),'tui-remembered-cache-'));
+  process.env.OPENMATES_STATE_DIR=stateDir;
+  try {
+    const {client,changeAccount}=fixture();
+    Object.assign(client,{listMemories:async()=>[{id:'saved',data:{embed_id:'event',title:'Private remembered title'},app_id:'events',item_type:'saved_events'}],
+      settingsGet:async()=>({success:true,reminders:[{target_embed_id:'event',prompt_preview:'Private reminder'}]})});
+    const result=await client.getContinueItems();assert.equal(result.memories.length,1);
+    assert.equal(JSON.stringify(loadSyncCache()).includes('Private remembered'),false);
+    assert.equal(JSON.stringify(loadSyncCache()).includes('Private reminder'),false);
+    assert.equal((await client.getCachedContinueItems())?.memories[0].data.title,'Private remembered title');
+    Object.assign(client,{resolveTeamContext:()=> 'team'});assert.equal(await client.getCachedContinueItems(),null);
+    Object.assign(client,{resolveTeamContext:()=>null,listMemories:async()=>{changeAccount();return result.memories;}});
+    await assert.rejects(client.getContinueItems(),/workspace changed/);
+  } finally {if(previous===undefined)delete process.env.OPENMATES_STATE_DIR;else process.env.OPENMATES_STATE_DIR=previous;rmSync(stateDir,{recursive:true,force:true});}
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chats.persistence.client-encrypted
+test('saved embeds open from encrypted cache and targeted reads without a full recovery sync',async()=>{
+  const previous=process.env.OPENMATES_STATE_DIR,stateDir=mkdtempSync(join(tmpdir(),'tui-embed-cache-'));
+  process.env.OPENMATES_STATE_DIR=stateDir;
+  try {
+    const {client,master,changeAccount}=fixture(),key=Buffer.alloc(32,3),id='aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';let requested=0,closed=0;
+    const wrapper={hashed_embed_id:createHash('sha256').update(id).digest('hex'),key_type:'master',encrypted_embed_key:await encryptBytesWithAesGcm(key,master)};
+    const content=await encryptWithAesGcmCombined(JSON.stringify({title:'Private saved event',description:'Full details'}),key),type=await encryptWithAesGcmCombined('events-event',key);
+    Object.assign(client,{ensureSynced:async()=>{throw Error('Full recovery must not block embed opening');},openWsClient:async()=>({ws:{
+      sendAsync:async(name:string,payload:{embed_id:string})=>{requested++;assert.equal(name,'request_embed');assert.equal(payload.embed_id,id);},
+      waitForMessage:async()=>({payload:{embed_id:id,type,content,already_encrypted:true,embed_keys:[wrapper]}}),close:()=>{closed++;},
+    }})});
+    const embed=await client.getEmbed(id,{preferCache:true});assert.equal(embed.content?.title,'Private saved event');assert.equal(requested,1);assert.equal(closed,1);
+    assert.equal(JSON.stringify(loadSyncCache()).includes('Private saved event'),false);
+    Object.assign(client,{openWsClient:async()=>{throw Error('Offline');}});
+    assert.equal((await client.getEmbed(id,{preferCache:true})).content?.description,'Full details');
+    Object.assign(client,{resolveEmbedKey:async()=>{changeAccount();return key;}});
+    await assert.rejects(client.getEmbed(id,{preferCache:true}),/workspace changed/);
+  } finally {if(previous===undefined)delete process.env.OPENMATES_STATE_DIR;else process.env.OPENMATES_STATE_DIR=previous;rmSync(stateDir,{recursive:true,force:true});}
+});
+
+// contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chats.rendering.inline-entity-interaction
+test('cached child embed repairs its missing inherited parent and stays readable offline',async()=>{
+  const previous=process.env.OPENMATES_STATE_DIR,stateDir=mkdtempSync(join(tmpdir(),'tui-parent-repair-'));
+  process.env.OPENMATES_STATE_DIR=stateDir;
+  try {
+    const {client,master}=fixture(),key=Buffer.alloc(32,3),id='aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',parent='bbbbbbbb-cccc-4ddd-8eee-ffffffffffff';
+    const content=await encryptWithAesGcmCombined(JSON.stringify({title:'Inherited event'}),key),type=await encryptWithAesGcmCombined('events-event',key);
+    saveSyncCache({syncedAt:0,totalChatCount:0,loadedChatCount:0,chats:[],embedKeys:[],embeds:[{embed_id:id,parent_embed_id:parent,encrypted_type:type,encrypted_content:content}]});
+    let requests=0;
+    Object.assign(client,{openWsClient:async()=>({ws:{sendAsync:async()=>{requests++;},waitForMessage:async()=>({payload:{
+      embed_id:requests===0?id:parent,type,content,already_encrypted:true,...(requests===0?{parent_embed_id:parent}:{}),
+      embed_keys:requests===0?[]:[{hashed_embed_id:createHash('sha256').update(parent).digest('hex'),key_type:'master',encrypted_embed_key:await encryptBytesWithAesGcm(key,master)}],
+    }}),close:()=>{}}})});
+    assert.equal((await client.getEmbed(id,{preferCache:true})).content?.title,'Inherited event');assert.equal(requests,2);
+    Object.assign(client,{openWsClient:async()=>{throw Error('Offline');}});
+    assert.equal((await client.getEmbed(id,{preferCache:true})).content?.title,'Inherited event');
+    assert.equal(JSON.stringify(loadSyncCache()).includes('Inherited event'),false);
+  } finally {if(previous===undefined)delete process.env.OPENMATES_STATE_DIR;else process.env.OPENMATES_STATE_DIR=previous;rmSync(stateDir,{recursive:true,force:true});}
 });

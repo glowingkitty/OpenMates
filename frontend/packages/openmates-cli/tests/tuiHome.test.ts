@@ -2,11 +2,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createInitialTuiState, renderTuiFrame } from "../src/tuiRenderer.js";
-import { loadHomeData, workspaceInspirations } from "../src/tuiHome.js";
-import { handleWorkspaceCommand, handleWorkspaceKey, type WorkspaceContext } from "../src/tuiWorkspaceController.js";
+import { loadHomeData, workspaceInspirations, homeContinueItems, startHomeSync } from "../src/tuiHome.js";
+import { handleWorkspaceCommand, handleWorkspaceKey, openSavedChat, type WorkspaceContext } from "../src/tuiWorkspaceController.js";
 import { cells, lineText, sliceCells, stripAnsi } from "../src/tuiText.js";
 import { renderCardCarousel } from "../src/tuiCarousel.js";
 import { tuiChatSidebarRows } from "../src/tuiChatSidebar.js";
+import type { ChatListItem } from "../src/client.js";
 import type { TuiApp } from "../src/tuiAppsWorkspace.js";
 
 function context(state=createInitialTuiState(),client:Record<string,unknown>={}) {
@@ -17,6 +18,27 @@ function context(state=createInitialTuiState(),client:Record<string,unknown>={})
 const inspiration={id:"daily",phrase:"Make room for the next idea",title:"A daily planning tip",category:"productivity",content_type:"feature",video:null,generated_at:1,assistant_response:"Plan one small action.",follow_up_suggestions:[]};
 const chat=(i:number)=>({id:`chat-${i}`,shortId:`C${i}`,title:`Conversation ${i}`,summary:`Summary ${i}`,category:"technology",mateName:null,updatedAt:null});
 const app=(id:string,name:string):TuiApp=>({id,name,description:`${name} description`,category:"general_knowledge",skills:[],focusModes:[],settingsMemories:[]});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+test("opening a cached chat renders messages before slow draft lookup and preserves new input", async () => {
+  const state=createInitialTuiState();state.signedIn=true;
+  let draft!:(value:{markdown:string})=>void;
+  const {ctx}=context(state,{
+    getChatMessages:async(_id:string,options:{preferCache:boolean})=>{
+      assert.equal(options.preferCache,true);
+      return {chat:chat(1),messages:[{id:'message',role:'user',content:'A cached message',embedIds:[]}]};
+    },
+    getDraft:()=>new Promise(done=>{draft=done;})
+  });
+  const frames:string[]=[];ctx.render=()=>frames.push(stripAnsi(renderTuiFrame(state,120,40)));
+  await openSavedChat(ctx,'chat-1');
+  assert.equal(state.activeChatId,'chat-1');assert.equal(state.status,null);
+  assert.match(frames.at(-1)!,/A cached message/);
+  assert.doesNotMatch(frames.at(-1)!,/Loading chat/);
+  state.input='New text';draft({markdown:'Saved draft'});
+  await new Promise<void>(done=>setImmediate(done));
+  assert.equal(state.input,'New text');
+});
 
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
 test("startup renders cached chats before background sync and preserves the selected chat when sync finishes", async () => {
@@ -325,4 +347,80 @@ test('sidebar wheel page and edge navigation skip headings and preserve main scr
     await handleWorkspaceKey(ctx,'',{name:'home'});assert.equal(tuiChatSidebarRows(state)[state.sidebarIndex].kind,'new');
     await handleWorkspaceKey(ctx,'',{name:'down'});assert.equal(tuiChatSidebarRows(state)[state.sidebarIndex].chatId,'chat-0');
   }
+});
+
+// contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,continue-carousel.chat.reminder-gated,cli.surface.semantic-parity
+test("remembered items and due chats precede recents while dated embeds obey the web time gate",()=>{
+  const state=createInitialTuiState(),now=Date.now();state.signedIn=true;state.recentChats=[chat(1),chat(2)];
+  const memory=(id:string,hours:number)=>({id,app_id:'events',item_type:'saved_events',item_key_hash:'key',item_version:1,created_at:1,updated_at:1,
+    data:{embed_id:id,title:id,date_start:new Date(now+hours*3600000).toISOString()}});
+  state.continueData={memories:[memory('Soon event',23),memory('Too early event',46)],reminders:[
+    {reminder_id:'early',trigger_at:(now+2*3600000)/1000,target_type:'embed',target_embed_id:'Too early event',status:'pending'},
+    {reminder_id:'chat',trigger_at:(now-60000)/1000,target_type:'chat',target_chat_id:'chat-2',status:'pending'},
+  ]};
+  const items=homeContinueItems(state,now);
+  assert.deepEqual(items.map(item=>item.kind==='embed'?item.embedId:item.chat.id),['chat-2','Soon event','chat-1']);
+  assert.match(items[0].priority!.label,/Reminder/);assert.match(items[1].priority!.label,/Event/);
+  assert.equal(homeContinueItems(state,now+48*3600000).some(item=>item.kind==='embed' && item.embedId==='Soon event'),false);
+});
+
+// contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,cli.surface.semantic-parity
+test("saved item keyboard opening renders fullscreen and Escape returns to its home selection",async()=>{
+  const state=createInitialTuiState();state.signedIn=true;state.focus='content';state.recentChats=[chat(1)];
+  state.continueData={memories:[{id:'memory',app_id:'events',item_type:'saved_events',item_key_hash:'key',item_version:1,created_at:1,updated_at:1,
+    data:{embed_id:'event',title:'Remembered event',date_start:new Date(Date.now()+3600000).toISOString()}}],reminders:[]};
+  let opened=false;
+  const {ctx}=context(state,{getEmbed:async(id:string,options:{preferCache:boolean})=>{
+    opened=true;assert.equal(id,'event');assert.equal(options.preferCache,true);
+    return {id,embedId:id,type:'events-event',appId:'events',skillId:'event',textPreview:'Remembered event',createdAt:null,
+      content:{title:'Remembered event',description:'A complete event description',date_start:'2026-10-06T12:00:00Z',venue:{name:'Community Hall',city:'Berlin'},organizer:{name:'Open community'},url:'https://example.org/event'}};
+  }});
+  const frame=stripAnsi(renderTuiFrame(state,120,40));assert.match(frame,/Remembered event/);assert.match(frame,/Saved/);
+  await handleWorkspaceKey(ctx,'',{name:'return'});assert.equal(opened,true);assert.equal(state.screen,'embed');
+  assert.match(state.detailLines.join('\n'),/Location[\s\S]*Community Hall/);assert.match(state.detailLines.join('\n'),/Organizer[\s\S]*Open community/);
+  assert.match(stripAnsi(renderTuiFrame(state,120,40)),/Esc back/);
+  await handleWorkspaceKey(ctx,'',{name:'escape'});assert.equal(state.screen,'start');assert.equal(state.selectedIndex,0);assert.equal(state.focus,'content');
+  await handleWorkspaceKey(ctx,'',{name:'right'});assert.equal(state.selectedIndex,1);
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent,chats.persistence.client-encrypted
+test("history polling retries after failure avoids overlap and stops on exit",async(t)=>{
+  t.mock.timers.enable({apis:['setInterval']});
+  const state=createInitialTuiState();state.signedIn=true;
+  let attempts=0,done!:(result:{chats:unknown[]})=>void;
+  const client={listCachedChats:async()=>null,listChats:()=>{attempts++;if(attempts===1)return Promise.reject(Error('Offline'));return new Promise(resolve=>{done=resolve;});}};
+  const stop=startHomeSync(state,client as never,()=>{},()=>false);
+  t.mock.timers.tick(60000);await new Promise<void>(resolve=>setImmediate(resolve));assert.equal(attempts,1);assert.equal(state.homeLoading,false);
+  t.mock.timers.tick(60000);await new Promise<void>(resolve=>setImmediate(resolve));assert.equal(attempts,2);
+  t.mock.timers.tick(120000);await new Promise<void>(resolve=>setImmediate(resolve));assert.equal(attempts,2);
+  done({chats:[]});await new Promise<void>(resolve=>setImmediate(resolve));stop();
+  t.mock.timers.tick(120000);assert.equal(attempts,2);
+});
+
+// contract-test: supporting surface=cli assertions=continue-carousel.chat.reminder-gated,chat-navigation.open.local-first-coherent
+test("cold Team reminders wait for persisted Team chat metadata",async()=>{
+  const state=createInitialTuiState();state.signedIn=true;
+  let persisted=false,reads=0;
+  await loadHomeData(state,{
+    getActiveTeamId:()=>"team",listCachedChats:async()=>null,
+    getContinueItems:async()=>{assert.equal(persisted,true);reads++;return {memories:[],reminders:[{reminder_id:"due",trigger_at:Date.now()/1000,target_type:"chat",target_chat_id:"chat-1",status:"pending"}]};},
+    listChats:async(_limit:unknown,_page:unknown,options:{onSyncedChats:(value:{chats:ChatListItem[]})=>void})=>{
+      persisted=true;options.onSyncedChats({chats:[chat(2),chat(1)]});return {chats:[chat(2),chat(1)]};
+    },
+  } as never,()=>{});
+  assert.equal(reads,1);const first=homeContinueItems(state)[0];assert.equal(first.kind,"chat");
+  assert.equal(first.kind==="chat" && first.chat.id,"chat-1");
+});
+
+// contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,chats.persistence.client-encrypted
+test("saved item ciphertext warms in the background with bounded concurrency",async()=>{
+  const state=createInitialTuiState();state.signedIn=true;let reads=0;
+  const pending:Array<()=>void>=[];
+  await loadHomeData(state,{
+    getContinueItems:async()=>({memories:Array.from({length:15},(_,i)=>({id:String(i),app_id:"events",item_type:"saved_events",data:{embed_id:String(i),title:"Saved event",date_start:new Date(Date.now()+3600000).toISOString()}})),reminders:[]}),
+    getEmbed:async(_id:string,options:{preferCache:boolean})=>{assert.equal(options.preferCache,true);reads++;await new Promise<void>(resolve=>pending.push(resolve));},
+  } as never,()=>{});
+  assert.equal(state.homeLoading,false);assert.equal(reads,3);assert.equal(homeContinueItems(state).length,10);
+  state.homeAbortController?.abort();for(const resolve of pending)resolve();
+  await new Promise<void>(resolve=>setImmediate(resolve));assert.equal(reads,3);
 });

@@ -38,12 +38,15 @@ test('fullscreen update precedes the workspace, skip survives restart, and expir
   } finally { removeWorkflowCliHome(home); }
 });
 
-// contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted,chat-navigation.draft-only.addressable
+// contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted,chat-navigation.draft-only.addressable,continue-carousel.saved-item.start-time-gated,chats.rendering.inline-entity-interaction
 test('cold TUI loads a saved chat and canonical child reads return only authorized parent wrappers', async ({page}: {page: any}, testInfo: any) => {
   test.setTimeout(240_000);
   const cli = requireIsolatedCliBuild(), home = createWorkflowCliHome('tui-inherited-key');
   const api = workflowApiUrl(), env = workflowCliEnv(api, home);
   let chatId: string | undefined;
+  let memoryId: string | undefined;
+  let offlineSessionOriginal: string | undefined;
+  const sessionPath=path.join(home, ".openmates/session.json");
   const sdk = (program: string, input: unknown = {}) => JSON.parse(execFileSync('node', ['-e', `
     const {pathToFileURL}=require('node:url');
     const {randomUUID,randomBytes,createHash,webcrypto}=require('node:crypto');
@@ -73,10 +76,10 @@ test('cold TUI loads a saved chat and canonical child reads return only authoriz
         await ws.sendAsync(type,{...payload,request_id:requestId});return (await receipt).payload;
       };
       try {
-        const now=Math.floor(Date.now()/1000);
+        const now=Math.floor(Date.now()/1000),eventStart=new Date(Date.now()+3600000).toISOString();
         for(const id of [parentId,childId]) await send('store_embed','store_embed_confirmed',{
-          embed_id:id,encrypted_content:await encrypt('encrypted fixture content',embedKey),
-          encrypted_type:await encrypt('code',embedKey),status:'finished',
+          embed_id:id,encrypted_content:await encrypt(JSON.stringify(id===childId ? {app_id:'events',skill_id:'event',title:'Remembered terminal event',date_start:eventStart,description:'Full remembered event details',venue:{name:'Community hall'},organizer:{name:'Community'},url:'https://example.org/event',is_paid:false} : {code:'export const terminalProof = true;',language:'typescript'}),embedKey),
+          encrypted_type:await encrypt(id===childId?'events-event':'code',embedKey),status:'finished',
           hashed_chat_id:hash(chatId),hashed_message_id:hash(randomUUID()),hashed_user_id:hash(ownerId),
           ...(id===childId?{parent_embed_id:parentId}:{}),created_at:now,updated_at:now,version_number:1
         });
@@ -89,13 +92,17 @@ test('cold TUI loads a saved chat and canonical child reads return only authoriz
         if(result.data.embed.embed_id!==childId||result.data.embed_keys.length!==1||result.data.embed_keys[0].hashed_embed_id!==hash(parentId))throw Error('Wrong inherited wrapper scope');
         const missing=await client.http.get('/v1/embeds/chats/'+chatId+'/embeds/'+randomUUID(),client.getCliRequestHeaders());
         if(missing.status!==404)throw Error('Unknown child must stay masked');
-        process.stdout.write(JSON.stringify({chatId,version:JSON.parse(require('node:fs').readFileSync(require('node:path').join(require('node:path').dirname(process.argv[1]),'../package.json'),'utf8')).version}));
+        const memory=await client.createMemory({appId:'events',itemType:'saved_events',personal:true,itemValue:{embed_id:childId,title:'Remembered terminal event',date_start:eventStart,url:'https://example.org/event'}});
+        process.stdout.write(JSON.stringify({chatId,memoryId:memory.id,version:JSON.parse(require('node:fs').readFileSync(require('node:path').join(require('node:path').dirname(process.argv[1]),'../package.json'),'utf8')).version}));
       } finally {ws.close();}
     `);
     chatId = fixture.chatId;
+    memoryId = fixture.memoryId;
     clearWorkflowCliSyncCache(home);
     const result = await runTuiPty(cli, {...env, TERM: 'xterm-256color', OPENMATES_CLI_LATEST_VERSION: fixture.version}, [
-      {waitFor: 'TUI saved recovery draft', absent: ['Canonical recovery embed reread failed', 'Saved chats could not be loaded']},
+      {waitFor: 'Remembered terminal event', absent: ['Canonical recovery embed reread failed', 'Saved chats could not be loaded']},
+      {key: 'enter', waitFor: 'Full remembered event details', absent: ['Loading embed', 'Continue where you left off']},
+      {key: 'escape', waitFor: 'Remembered terminal event', absent: ['Full remembered event details']},
       {text: '/chat ' + chatId, waitFor: 'Draft', absent: ['DAILY INSPIRATION', 'Canonical recovery embed reread failed']},
     ]);
     expect(result.code).toBe(0);
@@ -103,17 +110,29 @@ test('cold TUI loads a saved chat and canonical child reads return only authoriz
     // An expired cache must remain immediately usable while the next sync fails.
     const cachePath = path.join(home, '.openmates/sync_cache.json');
     const cache = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+    expect(JSON.stringify(cache)).not.toContain('Full remembered event details');
+    expect(JSON.stringify(cache)).not.toContain('Remembered terminal event');
     cache.syncedAt = 0;
     fs.writeFileSync(cachePath, JSON.stringify(cache), {mode: 0o600});
+    // HTTP overrides do not change the origin-bound WebSocket saved in a session.
+    // Disable both transports in this disposable profile, retaining its encrypted cache.
+    offlineSessionOriginal=fs.readFileSync(sessionPath,'utf8');
+    const offlineSession=JSON.parse(offlineSessionOriginal);offlineSession.apiUrl='http://127.0.0.1:1';
+    fs.writeFileSync(sessionPath,JSON.stringify(offlineSession),{mode:0o600});
     const offline = await runTuiPty(cli, {...env, OPENMATES_API_URL: 'http://127.0.0.1:1',
       TERM: 'xterm-256color', OPENMATES_CLI_LATEST_VERSION: fixture.version}, [
       {waitFor: 'TUI saved recovery draft', absent: ['Loading your recent chats']},
       {waitFor: 'Showing cached chats. Sync failed', absent: ['Loading your recent chats']},
+      {key: 'enter', waitFor: 'Full remembered event details', absent: ['Loading embed', 'Continue where you left off']},
+      {key: 'escape', waitFor: 'Remembered terminal event', absent: ['Full remembered event details']},
+      {text: '/chat ' + chatId, waitFor: 'TUI saved recovery draft', absent: ['Loading chat', 'Continue where you left off']},
     ]);
     expect(offline.code).toBe(0);
     await testInfo.attach('cached-offline-tui-frames', {body: JSON.stringify(offline), contentType: 'application/json'});
   } finally {
+    if(offlineSessionOriginal !== undefined)fs.writeFileSync(sessionPath,offlineSessionOriginal,{mode:0o600});
     try {
+      if (memoryId) sdk(`await client.deleteMemory(input.memoryId,{personal:true});process.stdout.write('{}');`, {memoryId});
       if (chatId) sdk(`await client.deleteChat(input.chatId,{personal:true});process.stdout.write('{}');`, {chatId});
     } catch {
       // The isolated runner destroys its disposable database after this spec.

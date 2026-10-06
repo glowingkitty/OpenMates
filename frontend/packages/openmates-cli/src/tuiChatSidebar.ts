@@ -132,7 +132,7 @@ export async function refreshTuiChatSidebar(state: TuiState, client: OpenMatesCl
     try {
       const activity = await client.getChatActivity();
       if (current() && activityRequest === state.chatActivityLoadVersion) { updateTuiChatSidebar(state, () => { state.runningChatIds = activity.ids; state.activityChats = activity.chats; }); render(); }
-    } catch { if (current()) { state.status = 'Running chat status unavailable.'; render(); } }
+    } catch { if (current() && !state.status) { state.status = 'Running chat status unavailable.'; render(); } }
   }
   if (includeProjects && typeof client.listProjects === 'function') {
     const summaries = (await loadTuiProjects(client)).filter(project => !project.archived), projects: TuiProject[] = [];
