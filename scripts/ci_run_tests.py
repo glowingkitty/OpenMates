@@ -814,6 +814,19 @@ def prepare_storage_billing_fixture(account: dict, profile_name: str) -> tuple[d
             or api_env.get("SERVER_ENVIRONMENT") != "development"
             or api_env.get("STORAGE_LOGICAL_S3_BILLING_ENABLED") != ("1" if profile_name == "logical" else "0")):
         raise RuntimeError("Storage billing fixture requires the exact isolated profile")
+    team_capable = has_team_storage_billing_schema(ROOT)
+    team_rated_profile = team_capable and profile_name == "logical"
+    if team_capable and api_env.get("TEAM_STORAGE_BILLING_ENABLED") != ("1" if team_rated_profile else "0"):
+        raise RuntimeError("Storage billing fixture requires the exact Team profile")
+    if team_capable and profile_name == "legacy":
+        cms_env = profile["services"]["cms"]["environment"]
+        if (api_env.get("OPENMATES_DEPLOYMENT_MODE") != "self_host"
+                or cms_env.get("OPENMATES_DEPLOYMENT_MODE") != "official_cloud"
+                or any(environment.get("OPENMATES_CLOUD_OVERLAY_ENABLED") == "true"
+                       or environment.get("OPENMATES_CLOUD_OVERLAY_PACKAGE") == "OpenMatesCloud"
+                       or environment.get("TEAM_STORAGE_BILLING_ENABLED") != "0"
+                       for environment in (api_env, cms_env))):
+            raise RuntimeError("Storage billing fixture requires the isolated CMS guard profile")
     email = account.get("OPENMATES_TEST_ACCOUNT_EMAIL", "")
     if not isinstance(email, str) or not email.startswith("ci-") or not email.endswith("@example.com"):
         raise RuntimeError("Storage billing fixture requires a disposable CI identity")
@@ -873,11 +886,17 @@ def prepare_storage_billing_fixture(account: dict, profile_name: str) -> tuple[d
         if team_capable:
             team_id = summary["team_id"]
             team_bytes = summary["team_total_bytes"]
-            if (summary.get("team_rated") is not True
-                    or (profile_name == "logical" and summary.get("team_contact_crypto") is not True)
-                    or type(team_bytes) is not int or team_bytes <= 0
-                    or not isinstance(team_id, str) or not re.fullmatch(r"[0-9a-f-]{36}", team_id)):
-                raise ValueError("incomplete Team billing")
+            if (not isinstance(team_id, str) or not re.fullmatch(r"[0-9a-f-]{36}", team_id)
+                    or type(team_bytes) is not int):
+                raise ValueError("incomplete Team identity")
+            if team_rated_profile:
+                if (summary.get("team_rated") is not True
+                        or summary.get("team_contact_crypto") is not True or team_bytes <= 0):
+                    raise ValueError("incomplete Team billing")
+            elif (summary.get("team_rated") is not False
+                    or summary.get("team_contact_crypto") is not False
+                    or summary.get("cms_team_disabled_claim_rejected") is not True or team_bytes != 0):
+                raise ValueError("incomplete disabled Team claim proof")
         elif summary.get("team_unrated") is not True:
             raise ValueError("incomplete legacy Team exclusion")
         if (summary.get("prepared") is not True
@@ -906,7 +925,8 @@ def prepare_storage_billing_fixture(account: dict, profile_name: str) -> tuple[d
         "E2E_STORAGE_BILLING_EXPECTED_TOTAL_BYTES": str(total),
         **({"E2E_STORAGE_BILLING_TEAM_RATED": "1",
             "E2E_STORAGE_BILLING_TEAM_ID": team_id,
-            "E2E_STORAGE_BILLING_TEAM_BYTES": str(team_bytes)} if team_capable else
+            "E2E_STORAGE_BILLING_TEAM_BYTES": str(team_bytes)} if team_rated_profile else
+           {"E2E_STORAGE_BILLING_CMS_TEAM_DISABLED_CLAIM_REJECTED": "1"} if team_capable else
            {"E2E_STORAGE_BILLING_TEAM_UNRATED": "1"}),
         "E2E_STORAGE_BILLING_CONFLICT_REJECTED": "1",
         "E2E_STORAGE_BILLING_LEGACY_PROFILE": "1" if profile_name == "legacy" else "0",

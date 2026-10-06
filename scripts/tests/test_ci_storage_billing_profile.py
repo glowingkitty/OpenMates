@@ -67,7 +67,7 @@ def test_billing_profile_limits_flag_and_private_bind_to_api(mode, flag):
     assert profile["networks"]["default"]["internal"] is True
 
 
-@pytest.mark.parametrize("team_case", ["old", "rated", "unrated", "missing_crypto", "missing_team_id", "missing_team_bytes"])
+@pytest.mark.parametrize("team_case", ["old", "rated", "unrated", "missing_crypto", "missing_team_id", "missing_team_bytes", "missing_disabled", "false_disabled", "rated_legacy", "nonzero_legacy", "profile_mismatch"])
 @pytest.mark.parametrize("profile_mode,invalid_expiry", [
     ("logical", None), ("logical", "missing"), ("logical", "large_object"),
     ("logical", "ledger_changed"), ("legacy", None),
@@ -79,9 +79,12 @@ def test_billing_probe_uses_private_selector_and_only_public_totals(tmp_path, mo
         schema = tmp_path / "backend/core/directus/schemas/team_storage_billing.yml"
         schema.parent.mkdir(parents=True)
         schema.write_text("team_storage_billing_periods: {}\n")
+    monkeypatch.setattr(ci_environment, "has_team_storage_billing_schema", lambda _: team_case != "old")
     profile = ci_environment.compose_profile(
         "a" * 40, billing_profile=profile_mode, account_emails=["ci-one@example.com"]
     )
+    if team_case != "old":
+        profile["services"]["api"]["environment"]["TEAM_STORAGE_BILLING_ENABLED"] = "1" if profile_mode == "logical" else "0"
     private = tmp_path / "storage-billing"
     private.mkdir(mode=0o700)
     compose_path = tmp_path / "compose.json"
@@ -105,7 +108,8 @@ def test_billing_probe_uses_private_selector_and_only_public_totals(tmp_path, mo
         calls.append(args)
         if "node" in args:
             assert profile_mode == "logical"
-            return SimpleNamespace(stdout=json.dumps({key: True for key in runner.STORAGE_BILLING_PG_PROOF_FLAGS}))
+            return SimpleNamespace(stdout=json.dumps({key: True for key in (runner.STORAGE_BILLING_PG_PROOF_FLAGS |
+                (runner.TEAM_STORAGE_BILLING_PG_PROOF_FLAGS if team_case != "old" else set()))}))
         if "prepare" in args:
             receipt_name = Path(args[args.index("--receipt-file") + 1]).name
             (private / receipt_name).write_text("{}")
@@ -119,7 +123,20 @@ def test_billing_probe_uses_private_selector_and_only_public_totals(tmp_path, mo
             }
             if team_case != "old":
                 summary.update(team_id="5cd17363-d30c-40c4-ac66-a3eeaa98fca9", team_total_bytes=227,
-                               team_rated=team_case != "unrated", team_contact_crypto=True)
+                               team_rated=profile_mode == "logical", team_contact_crypto=profile_mode == "logical",
+                               cms_team_disabled_claim_rejected=profile_mode == "legacy")
+                if profile_mode == "legacy":
+                    summary["team_total_bytes"] = 0
+                if team_case == "unrated":
+                    summary["team_rated"] = not summary["team_rated"]
+                if team_case == "missing_disabled" and profile_mode == "legacy":
+                    summary.pop("cms_team_disabled_claim_rejected")
+                if team_case == "false_disabled" and profile_mode == "legacy":
+                    summary["cms_team_disabled_claim_rejected"] = False
+                if team_case == "rated_legacy" and profile_mode == "legacy":
+                    summary["team_rated"] = True
+                if team_case == "nonzero_legacy" and profile_mode == "legacy":
+                    summary["team_total_bytes"] = 1
                 if team_case == "missing_crypto":
                     summary.pop("team_contact_crypto")
                 elif team_case == "missing_team_id":
@@ -138,8 +155,19 @@ def test_billing_probe_uses_private_selector_and_only_public_totals(tmp_path, mo
         return SimpleNamespace(stdout='{"cleaned": true}')
 
     monkeypatch.setattr(runner, "compose", fake_compose)
+    if team_case == "profile_mismatch":
+        profile["services"]["api"]["environment"]["TEAM_STORAGE_BILLING_ENABLED"] = "0" if profile_mode == "logical" else "1"
+        compose_path.write_text(json.dumps(profile))
+        with pytest.raises(RuntimeError, match="exact Team profile"):
+            runner.prepare_storage_billing_fixture(
+                {"OPENMATES_TEST_ACCOUNT_EMAIL": "ci-one@example.com"}, profile_mode,
+            )
+        assert calls == []
+        return
     team_invalid = team_case in {"unrated", "missing_team_id", "missing_team_bytes"} or (
-        team_case == "missing_crypto" and profile_mode == "logical"
+        team_case == "missing_crypto"
+    ) or (profile_mode == "legacy" and team_case in {
+        "missing_disabled", "false_disabled", "rated_legacy", "nonzero_legacy"}
     )
     if invalid_expiry or team_invalid:
         with pytest.raises(RuntimeError, match="complete bounded receipt"):
@@ -153,6 +181,9 @@ def test_billing_probe_uses_private_selector_and_only_public_totals(tmp_path, mo
     )
     if team_case == "old":
         assert env["E2E_STORAGE_BILLING_TEAM_UNRATED"] == "1"
+        assert "E2E_STORAGE_BILLING_TEAM_RATED" not in env
+    elif profile_mode == "legacy":
+        assert env["E2E_STORAGE_BILLING_CMS_TEAM_DISABLED_CLAIM_REJECTED"] == "1"
         assert "E2E_STORAGE_BILLING_TEAM_RATED" not in env
     else:
         assert env["E2E_STORAGE_BILLING_TEAM_RATED"] == "1"
@@ -169,6 +200,7 @@ def test_billing_probe_uses_private_selector_and_only_public_totals(tmp_path, mo
         "E2E_STORAGE_BILLING_EXPECTED_PAGE_BYTES": "321",
         "E2E_STORAGE_BILLING_EXPECTED_TOTAL_BYTES": "417",
         **({"E2E_STORAGE_BILLING_TEAM_UNRATED": "1"} if team_case == "old" else
+           {"E2E_STORAGE_BILLING_CMS_TEAM_DISABLED_CLAIM_REJECTED": "1"} if profile_mode == "legacy" else
            {"E2E_STORAGE_BILLING_TEAM_RATED": "1",
             "E2E_STORAGE_BILLING_TEAM_ID": "5cd17363-d30c-40c4-ac66-a3eeaa98fca9",
             "E2E_STORAGE_BILLING_TEAM_BYTES": "227"}),
@@ -276,3 +308,47 @@ def test_fixture_process_failure_exposes_only_static_diagnostic(tmp_path, monkey
         runner.prepare_storage_billing_fixture({"OPENMATES_TEST_ACCOUNT_EMAIL": "ci-one@example.com"}, "legacy")
     assert str(failure.value).endswith(":" + expected)
     assert all(value not in str(failure.value) for value in (user_id, "secret-token", "private-owner@example.com"))
+
+
+def test_team_storage_component_keeps_static_fixture_classification():
+    manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
+    icon_groups = [key for key, group in manifest["groups"].items()
+                   if "components/settings-teams-icons.spec.ts" in group["specs"]]
+    storage_groups = [key for key, group in manifest["groups"].items()
+                      if "components/settings-teams-storage.spec.ts" in group["specs"]]
+    assert len(icon_groups) == 1
+    assert storage_groups == icon_groups
+
+
+
+@pytest.mark.parametrize("service,key,value", [
+    ("api", "OPENMATES_DEPLOYMENT_MODE", "official_cloud"),
+    ("cms", "OPENMATES_DEPLOYMENT_MODE", "self_host"),
+    ("cms", "OPENMATES_CLOUD_OVERLAY_ENABLED", "true"),
+    ("api", "OPENMATES_CLOUD_OVERLAY_PACKAGE", "OpenMatesCloud"),
+    ("cms", "TEAM_STORAGE_BILLING_ENABLED", "1"),
+])
+def test_team_legacy_runner_requires_isolated_cms_and_valid_api_mode(tmp_path, monkeypatch, service, key, value):
+    runner = _runner(monkeypatch)
+    monkeypatch.setattr(runner, "has_team_storage_billing_schema", lambda _: True)
+    monkeypatch.setattr(ci_environment, "has_team_storage_billing_schema", lambda _: True)
+    profile = ci_environment.compose_profile("a" * 40, billing_profile="legacy")
+    for name in ("api", "core-worker", "cms"):
+        assert profile["services"][name]["environment"]["OPENMATES_DEPLOYMENT_MODE"] == ("official_cloud" if name == "cms" else "self_host")
+        assert profile["services"][name]["environment"]["TEAM_STORAGE_BILLING_ENABLED"] == "0"
+    profile["services"][service]["environment"][key] = value
+    compose_path = tmp_path / "compose.json"
+    compose_path.write_text(json.dumps(profile))
+    monkeypatch.setattr(runner, "COMPOSE_PATH", compose_path)
+    monkeypatch.setattr(runner, "require_runner", lambda: None)
+    monkeypatch.setattr(runner, "cms_admin_token", lambda _: pytest.fail("Identity lookup must not run"))
+    with pytest.raises(RuntimeError, match="isolated CMS guard profile"):
+        runner.prepare_storage_billing_fixture({"OPENMATES_TEST_ACCOUNT_EMAIL": "ci-one@example.com"}, "legacy")
+
+
+def test_team_legacy_cms_fence_preserves_generic_and_logical_self_host_profiles(monkeypatch):
+    monkeypatch.setattr(ci_environment, "has_team_storage_billing_schema", lambda _: True)
+    for options in ({}, {"billing_profile": "logical"}):
+        profile = ci_environment.compose_profile("a" * 40, **options)
+        assert profile["services"]["api"]["environment"]["OPENMATES_DEPLOYMENT_MODE"] == "self_host"
+        assert "OPENMATES_DEPLOYMENT_MODE" not in profile["services"]["cms"]["environment"]

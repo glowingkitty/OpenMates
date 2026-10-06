@@ -626,6 +626,9 @@ def compose_profile(
     if storage_capacity and has_team_storage_billing_schema(SOURCE):
         team_billing_flag = "0" if billing_profile == "legacy" else "1"
         common["TEAM_STORAGE_BILLING_ENABLED"] = team_billing_flag
+    # Probe only the CMS Team financial guard. API/workers retain valid
+    # self-host mode; this does not claim a full cloud API deployment.
+    team_legacy_cms_guard = team_billing_flag == "0" and billing_profile == "legacy"
     source_mounts = [
         f"{SOURCE}/backend:/app/backend:ro",
         f"{SOURCE}/shared:/shared:ro",
@@ -755,6 +758,8 @@ def compose_profile(
                 "INTERNAL_API_SHARED_TOKEN": credentials["internal"],
                 **({"TEAM_STORAGE_BILLING_ENABLED": team_billing_flag}
                    if team_billing_flag is not None else {}),
+                **({"OPENMATES_DEPLOYMENT_MODE": "official_cloud"}
+                   if team_legacy_cms_guard else {}),
                 "PUBLIC_URL": "http://localhost:8055",
                 "CACHE_ENABLED": "false",
                 "TELEMETRY": "false",
