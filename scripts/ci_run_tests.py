@@ -743,6 +743,12 @@ STORAGE_BILLING_PG_PROOF_FLAGS = frozenset({
 })
 
 
+TEAM_STORAGE_BILLING_PG_PROOF_FLAGS = frozenset({
+    "team_wallet_once", "team_four_recipient_warnings",
+    "team_exact_warned_waiver", "team_rollback_verified",
+})
+
+
 def run_storage_billing_pg_probe(api_env: dict, user_id: str, log_path: Path, *, hashed_email: str) -> None:
     """Run the real rollback SQL proof before preparing the owner's S3 fixture."""
     guards = {
@@ -750,8 +756,10 @@ def run_storage_billing_pg_probe(api_env: dict, user_id: str, log_path: Path, *,
         "S3_ENDPOINT_URL": "http://storage.ci.test:9000", "SERVER_ENVIRONMENT": "development",
     }
     source = api_env.get("BUILD_COMMIT_SHA", "")
+    team_capable = has_team_storage_billing_schema(ROOT)
     if (any(api_env.get(key) != value for key, value in guards.items())
             or api_env.get("STORAGE_LOGICAL_S3_BILLING_ENABLED") != "1"
+            or (team_capable and api_env.get("TEAM_STORAGE_BILLING_ENABLED") != "1")
             or not re.fullmatch(r"[0-9a-f]{40}", source)
             or not re.fullmatch(r"[A-Za-z0-9+/]{43}=", hashed_email)
             or str(uuid.UUID(user_id, version=4)) != user_id):
@@ -762,13 +770,16 @@ def run_storage_billing_pg_probe(api_env: dict, user_id: str, log_path: Path, *,
     command.extend(("cms", "node",
         "/directus/extensions/sub-chat-orchestration-transaction/test/storage-billing-postgres-probe.mjs",
         user_id, hashed_email))
+    expected_flags = STORAGE_BILLING_PG_PROOF_FLAGS | (
+        TEAM_STORAGE_BILLING_PG_PROOF_FLAGS if team_capable else frozenset()
+    )
     record = {"source_commit": source, "passed": False}
     try:
         completed = compose(*command, capture=True, timeout=300)
         if not isinstance(completed.stdout, str) or len(completed.stdout.encode()) > 4096:
             raise ValueError("unbounded receipt")
         proof = json.loads(completed.stdout)
-        if (not isinstance(proof, dict) or set(proof) != STORAGE_BILLING_PG_PROOF_FLAGS
+        if (not isinstance(proof, dict) or set(proof) != expected_flags
                 or any(value is not True for value in proof.values())):
             raise ValueError("incomplete receipt")
         record["proof"] = proof
