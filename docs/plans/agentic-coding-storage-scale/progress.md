@@ -1,3 +1,56 @@
+## Focused completion — 2026-10-06
+
+Foreground recovery is published and active on dev at `df151727`. The five
+recovery E2Es passed on source `0d179680` in run `37537787420`: 5 expected,
+0 skipped, 0 unexpected, 0 flaky. Source/isolation/cleanup proof is verified.
+Final publication adds four supporting contract annotations and regenerated
+metadata; product bytes and test AST are unchanged. Independent backend/client
+review and the focused 39 backend / 11 UI cases remain applicable.
+
+The tiny archive lifecycle passed on source `466c2bcf` in run `37534227928`:
+20 client-encrypted messages copied from PostgreSQL to S3, source payloads
+pruned, exact ciphertext fetched and all 20 decrypted against the client ledger.
+Personal/Team read, late-arrival, mutation, pending-recovery and concurrent-prune
+fences passed. Source/profile/egress and zero-container/volume cleanup are verified.
+Archive evidence reuse is backed by byte comparison through the later test-only
+and annotation-only candidates. No real inference was used.
+
+Operation `docker-231f6429` verified all 16 backend services at `df151727`, with
+Directus healthy, all four billing/expiry switches on and all six archive switches
+off. Matching Vercel deployment `9UDLabqwRoMcxk9FpeE4XHuN2Dx6` succeeded.
+Production is unchanged; real-user PostgreSQL payload pruning is not active.
+
+Public tooling prerequisite `545089c6` pins the standalone archive profile and
+subject loader (95 focused cases). Receipt registration `f06e3bec` uses the
+unchanged strict nine-service and cleanup guards for the archive selector
+(113 cases and independent review). The green artifact was retained and
+revalidated without rerunning the archive test.
+
+Earlier recovery source `e2776208` passed 4/5 cases including blur/focus, then
+failed an own missing-version probe because its reader header was absent.
+Source `466c2bcf` passed that corrected 404 assertion and again passed 4/5,
+but timed out waiting for a later diff. Retained evidence did not prove whether
+the tab was unfocused. The successful replay adds explicit focus and fresh-ACK
+preconditions plus recordings, retaining the existing version assertion.
+
+The two-user/two-slot simulator run `37534922128` completed 6/6 rounds,
+6/6 embeds and 6/6 versions with zero real calls, but failed 30 contract rejects
+and 22 version-phase fixture misses. A fixed-predicate, content-free diagnostic
+patch passed three privacy/boundedness cases. Diagnostic replay `37539404866`
+on `6f5e1cb5` again completed 6/6 rounds, embeds and versions with zero real
+calls, but the strict gate remains failed (30 cache misses). Twenty-two
+rejections share an over-broad direction-contract label; four async preprocessing
+length bindings and four downstream phase bindings also reject. Version fixture
+rejections do not yet prove an authorized no-tools completion. No safe acceptance
+change is established. A final small diagnostic refinement separates fixed
+first-failing predicates; no product behavior is changed.
+No guard, counter or zero-miss criterion was relaxed. The last earlier strict
+pilot `37515533987` remains failed (60/60 rounds, 8/8 embeds, 7/8 versions);
+neither run establishes full capacity or uncached-page latency. Separate runner
+access/budget, successful strict fixtures, native proof and exact-release
+eligibility remain open. Billing/Team/email/waiver implementation is deployed;
+the retained Task-done operation is pending and has not been resubmitted.
+
 # Storage implementation progress
 
 Snapshot: 2026-10-06. OpenMates Tasks owns work status and dependencies.
@@ -745,7 +798,7 @@ probe are reused with their original source provenance.
 Small processing run37196327970 on `f0be743e`, trusted harness `d84085c9`,
 confirmed both expected child completions (2/2) and passed its signed encrypted
 browser turn1/1, zero skips/flaky. The processing workload then stopped at
-`version_callback_count` in the version adapter after30/60 rounds,8/8 embeds
+`version_callback_count` in the version adapter after30/60 rounds, 8/8 embeds
 and2/8 versions. Cleanup was verified and real provider calls were zero. The
 version owner is inspecting only this exact failure from existing evidence;
 no additional workload or inference request has been scheduled. The pilot is

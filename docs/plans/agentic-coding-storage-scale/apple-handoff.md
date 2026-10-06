@@ -1,3 +1,26 @@
+# Foreground recovery correction — 2026-10-06
+
+The approved server/web correction separates negotiated recovery capability from
+foreground eligibility. A capable background client receives the transient
+`recovery_requires_foreground`; `client_capability_required` means the required
+protocol was never negotiated. Keep native recovery paused while backgrounded,
+retain pending output and exact prepared ciphertext, and resume only after
+`native_client_lifecycle_ack` confirms foreground plus a fresh completed
+`recovery_outputs_discovery_complete` scan. The server rediscoveries after the
+first foreground lifecycle announcement and each background-to-foreground
+transition. A supported focused client can request an additional guarded scan
+with the empty-payload `request_recovery_discovery` event.
+
+Do not turn a transient foreground pause into an update-required notification,
+clear the journal, ACK an unsaved output, or remove the existing foreground
+privacy guards. Preserve canonical receipts, stable record identity, current
+account/Team/key/deletion checks, and reconnect retry semantics. Add focused
+synthetic blur/focus/reconnect coverage alongside the existing storage-reader
+qualification. This correction is public and active on dev as `df15172792965f38a23ead2e4b11ee0ba39a1c4e`.
+All five recovery E2Es pass; the 20-message encrypted archive lifecycle also
+passes. All six real-user archive flags remain off. Pull current dev through
+your existing Mac workspace workflow and qualify native against this contract.
+
 # Additional compression checkpoint requirement — 2026-10-06
 
 Pull current dev including CLI fix `e9ec49cd` for the reference contract.

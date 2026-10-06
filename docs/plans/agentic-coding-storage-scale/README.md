@@ -2,36 +2,79 @@
 
 ## Current status — 2026-10-06
 
-The database fixes are published and active on dev at `54935c2c`: fixed bounded
-PostgreSQL message windows, stable cursors and storage maintenance independent of
-finance/template startup. All 40 required publication tests, lint and
-Specification checks passed. The actual isolated PostgreSQL window/archive
-probes passed. Coordinated restart verified all 17 services; the matching web
-deployment succeeded.
+The foreground recovery correction is published and active on dev as
+`df15172792965f38a23ead2e4b11ee0ba39a1c4e`. Negotiated client capability is now
+separate from temporary foreground eligibility. A capable background client
+pauses recovery and resumes after a foreground acknowledgement and fresh
+authoritative discovery. It no longer receives the misleading update-client
+classification for that temporary state. The five recovery E2E cases passed
+with zero skips, failures or flaky retries (run `37537787420`).
 
-Personal and Team weekly storage billing, confirmed email warnings, protected
-warned-unit expiry and episode waivers are already deployed. Each Team has a
-separate 1 GiB allowance and wallet. All eight Team CI gates passed. Automatic
-schema-before-writer migration and exact-release/client eligibility retries are
-published; a missing proof pauses advancement while preserving existing data.
+The isolated 20-message archive lifecycle also passed (run `37534227928`):
+client-encrypted messages copied from PostgreSQL to S3, source payloads pruned,
+then exact ciphertext retrieved and decrypted against the client ledger. Source,
+network isolation and disposable cleanup were verified. The later test-precondition
+and contract-annotation edits preserve all tested product bytes; the annotation
+edit also preserves the test AST. No archive replay was needed for those edits.
 
-The CLI compression-boundary fix is published as `e9ec49cd`; its focused
-GitHub check passed both changed test files and the real CLI build. The latest
-strict processing pilot failed at 53/60 rounds and 6/8 versions, with zero real
-inference and complete disposable cleanup. Its tiny PostgreSQL probe establishes
-query correctness, not 500-execution capacity or archive latency. No speculative
-fixture repair is counted as an end-to-end pass.
+Coordinated operation `docker-231f6429` verified all 16 backend services on the
+published source, with Directus separately healthy. The matching Vercel
+deployment succeeded. Personal and Team billing remains active; each Team has
+its own 1 GiB allowance. Confirmed email warnings, protected warned-unit expiry
+and episode waivers are deployed. The earlier eight Team gates, 221-case Team
+publication gate and two real CLI/web canaries remain retained evidence.
+This focused completion made zero real inference requests.
 
-**Rollout remains gated:** all six archive flags are off, so PostgreSQL payload
-pruning and its storage reduction are not active. The full 1000-user-day /
-500-execution test needs separate runner capacity, valid deterministic fixtures,
-and native reader/recovery evidence before signed pruning eligibility. Production
-is unchanged. The two earlier real CLI/web canaries already passed; architecture
-verification makes no real inference requests.
+**Real-user archive rollout remains disabled:** all six archive copy/read/prune
+switches are off. PostgreSQL payload pruning and the resulting storage reduction
+are not active yet. Production is unchanged. Bounded PostgreSQL windows, stable
+cursors and storage startup fixes from `54935c2c`, and the normal CLI compression
+boundary fix from `e9ec49cd`, remain published.
 
-See [progress.md](progress.md) for exact evidence and
-[apple-handoff.md](apple-handoff.md) for the Mac work. Current artifact heads remain
-in PostgreSQL; optional head eviction is outside the approved completion scope.
+The two-user/two-slot simulator completed 6/6 rounds, 6/6 embeds and 6/6 versions
+with zero real provider calls, but failed the strict fixture-miss gate
+(run `37534922128`). The diagnostic replay
+(run `37539404866`) confirms the same strict failure: 30 cache misses and zero
+real calls. The rejection labels do not yet establish a safe fixture correction;
+no acceptance guard was relaxed. A final small diagnostic refinement is restricted
+to content-free first-failing predicates. This is not full capacity qualification.
+Apple typed recovery and bounded readers, a successful strict workload, separate
+runner capacity, native proof and signed exact-release eligibility remain
+required before real payload pruning.
+
+### Storage after the rollout gates pass
+
+| Tier | Purpose |
+| --- | --- |
+| Redis | Bounded working contexts for three recent main chats and currently running subchats; required embeds within explicit byte/execution bounds. |
+| PostgreSQL / Directus | All encrypted browsing metadata, current artifact heads and bounded recent message tails: initially up to ten recent main chats, at most 100 messages / 2 MiB per chat, with temporary verified source-retention buffers. |
+| Hetzner S3 | Independently loadable encrypted history pages, separately addressed large payloads and old artifact versions. Compression-covered prefixes and finished/inactive chats move through copy, verification and fenced cutover. |
+
+A user opening an older chat loads its metadata from PostgreSQL and only the
+requested small history page from S3. It does not download an entire transcript.
+Current artifact heads stay in PostgreSQL; optional head eviction remains outside
+the approved completion scope. See [progress.md](progress.md) for evidence and
+[apple-handoff.md](apple-handoff.md) for the Mac work.
+
+## Remaining release steps, in order
+
+1. Finish the separately owned Apple typed recovery, compression-boundary, bounded
+   archive readers and version-history qualification using the published contract.
+2. Resolve only the proven simulator fixture mismatches, then freeze the combined
+   release candidate. On an approved separate runner, pass its zero-inference
+   pilot, measured calibration and 1000-heavy-user-day / 500-concurrent-execution
+   workload. Qualify uncached page opens, including authorization, transfer and
+   client decryption, against the approved p95 target of one second. A small
+   hosted smoke does not replace this qualification.
+3. Seal matching release eligibility, publish the migration-aware stable CLI and
+   prepare the dev-to-main production PR with source-bound evidence.
+4. After production approval, use the normal updater: additive schema/index setup
+   before writers, bounded encrypted copy and verification, then pilot S3 reads.
+   For initial migration cohorts, retain each authoritative PostgreSQL source
+   for at least 24 hours after verified read cutover. Prune only when durability,
+   replication, references, canonical
+   persistence, ownership and generation fences still pass; elapsed time alone
+   is insufficient. Verify rollback and ordinary chat health before widening.
 
 ## Historical checkpoint — earlier 2026-10-06
 

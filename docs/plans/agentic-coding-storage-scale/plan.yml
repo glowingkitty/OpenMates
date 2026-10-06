@@ -475,9 +475,13 @@ focused_completion_checkpoint:
   publication_tests: "40/40; lint and Specification passed"
   runtime_evidence: "docker-06f5a696; 17 healthy services; billing on; six archive flags off"
   database_probe: "37497045177: actual hot PostgreSQL window and archive integrity passed"
-  strict_processing_pilot: "37497045177: failed; 53/60 rounds, 6/8 versions; zero real provider calls"
+  strict_processing_pilot: "37515533987: failed; 60/60 rounds, 8/8 embeds, 7/8 versions; zero real provider calls"
   latency_and_full_capacity: unqualified
   cli_checkpoint_fix: "e9ec49cd445982a89084320dec5ff857d4bd17e3; GitHub37512438654 passed"
+  recovery_foreground_fix: "df151727 active; GitHub37537787420:5/5, no skips/failures/flakes; metadata-only final edit preserves product and test AST"
+  recovery_runtime: "docker-231f6429;16 backend services verified, Directus healthy; matching Vercel success; billing on, archive off"
+  tiny_archive_lifecycle: "GitHub37534227928 passed:20 encrypted messages, PG source prune, exact S3 read/client decryption; source/isolation/cleanup verified; unchanged-code evidence reuse"
+  target_simulator_smoke: "GitHub37534922128:6/6 rounds/embeds/versions at2slots, zero real calls; strict fixture-miss gate failed; diagnostic37539404866 confirms30cache misses,0real calls; no safe acceptance correction proven"
   separate_capacity_runner: user_decision_pending
   native_readers_and_typed_ack: separately_owned_mac_gate
   source_retention_before_pruning_hours: 24
