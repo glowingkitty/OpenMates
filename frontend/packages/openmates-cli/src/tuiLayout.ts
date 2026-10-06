@@ -213,7 +213,7 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
         let remaining=span;rendered="";
         for(const part of style.spans){
           const text=truncateCells(terminalText(part.text).replace(/\n/g," "),remaining),size=cells(text);
-          rendered+=part.background?backgroundLine(text,size,part.background,mode,part.bold):foreground(text,part.color??'#e6e6e6',mode,part.bold);
+          rendered+=part.background?backgroundLine(text,size,part.background,mode,part.bold,part.color):foreground(text,part.color??'#e6e6e6',mode,part.bold);
           remaining-=size;if(!remaining)break;
         }
         rendered=" ".repeat(inset)+rendered+" ".repeat(remaining+inset);

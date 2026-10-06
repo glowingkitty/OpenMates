@@ -102,9 +102,10 @@ function colorSequence(color: number[], mode: TuiColorMode, background: boolean)
 export function foreground(value: string, color: string, mode: TuiColorMode, bold = false): string {
   return mode === "none" ? value : `${bold ? "\x1b[1m" : ""}${colorSequence(rgb(color), mode, false)}${value}\x1b[0m`;
 }
-export function backgroundLine(value: string, width: number, color: string, mode: TuiColorMode, bold = false): string {
+export function backgroundLine(value: string, width: number, color: string, mode: TuiColorMode, bold = false, textColor?: string): string {
   const line = padCells(value, width);
   if (mode === "none") return line;
-  const white = mode === "ansi16" ? "\x1b[97m" : colorSequence([255,255,255], mode, false);
-  return `${bold ? "\x1b[1m" : ""}${white}${colorSequence(rgb(color), mode, true)}${line}\x1b[0m`;
+  const foreground = textColor ? colorSequence(rgb(textColor), mode, false)
+    : mode === "ansi16" ? "\x1b[97m" : colorSequence([255,255,255], mode, false);
+  return `${bold ? "\x1b[1m" : ""}${foreground}${colorSequence(rgb(color), mode, true)}${line}\x1b[0m`;
 }

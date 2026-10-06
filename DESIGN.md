@@ -396,6 +396,12 @@ Preview interaction:
 
 Use `BasicInfosBar.svelte` through `UnifiedEmbedPreview`.
 
+Terminal embed previews keep details above a bottom app/skill info bar. Use the
+app's `APP_GRADIENTS` start color as a solid bar background, with contrasting text;
+unknown apps use the primary start color. Audio recording details include the
+active original or corrected transcript, shortened to 120 characters and wrapped
+to terminal cells. Source: `openmates-cli/src/tuiEmbedPreviews.ts`.
+
 | Element | Desktop Rule |
 |---|---|
 | Bar | `61px` tall, `--color-grey-30`, `30px` radius. |

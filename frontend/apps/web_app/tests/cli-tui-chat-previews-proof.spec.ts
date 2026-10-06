@@ -335,3 +335,147 @@ test('records encrypted text-only request, Fitness carousel, aliases, and worksp
 		finally { await cleanupWorkspace(apiUrl,home,workspace); }
 	}
 });
+
+const AUDIO_TRANSCRIPT = 'Please check the Berlin forecast for tomorrow morning and tell me whether I should bring a light rain jacket when I leave for the station, because the walk is long and I will be outside for several hours after breakfast.';
+const AUDIO_PREVIEW = AUDIO_TRANSCRIPT.slice(0,119)+'…';
+
+function makeAppPreviewFixture(apiUrl: string, home: string, cli: string): ChatFixture {
+	return sdk(apiUrl,home,cli,`
+		const owner=await client.whoAmI();
+		if(!owner.id||client.getActiveTeamId())throw Error('Expected paired Personal account');
+		const chatId=randomUUID(),userMessageId=randomUUID(),assistantMessageId=randomUUID();
+		const embedIds=[randomUUID(),randomUUID()],key=randomBytes(32),master=client.getMasterKeyBytes();
+		const now=Math.floor(Date.now()/1000),fence=String.fromCharCode(96).repeat(3);
+		const reference=(embedId,appId,skillId)=>fence+'json_embed\\n'+JSON.stringify({
+			type:'app_skill_use',embed_id:embedId,app_id:appId,skill_id:skillId,status:'finished'})+'\\n'+fence;
+		const chat={id:chatId,hashed_user_id:hash(owner.id),created_at:now,updated_at:now,
+			last_edited_overall_timestamp:now,last_message_timestamp:now,messages_v:1,title_v:1,metadata_v:1,
+			unread_count:0,encrypted_chat_key:await encrypt(key,master),
+			encrypted_title:await encrypt('Audio and Weather preview proof',key),
+			encrypted_chat_summary:await encrypt('A recorded question and forecast.',key),
+			encrypted_category:await encrypt('weather',key)};
+		const message=async(id,role,createdAt,content)=>({id,client_message_id:id,message_id:id,chat_id:chatId,
+			hashed_user_id:hash(owner.id),role,created_at:createdAt,updated_at:createdAt,
+			encrypted_sender_name:await encrypt(role==='user'?'You':'Assistant',key),
+			encrypted_category:await encrypt('weather',key),encrypted_content:await encrypt(content,key)});
+		const messages=[await message(userMessageId,'user',now-1,reference(embedIds[0],'audio','transcribe')),
+			await message(assistantMessageId,'assistant',now,'Here is the Berlin forecast.\\n\\n'+reference(embedIds[1],'weather','forecast'))];
+		process.stdout.write(JSON.stringify({chatId,userMessageId,assistantMessageId,embedIds,ownerId:owner.id,chat,messages}));
+	`);
+}
+
+function seedAppPreviewEmbeds(apiUrl: string, home: string, cli: string, fixture: ChatFixture): void {
+	const result=sdk(apiUrl,home,cli,`
+		const owner=await client.whoAmI();if(owner.id!==input.ownerId)throw Error('Fixture owner changed');
+		const now=Math.floor(Date.now()/1000),{ws}=await client.openWsClient({taskUpdateJobs:false});
+		const send=async(type,reply,payload)=>{const requestId=randomUUID(),receipt=ws.waitForMessage(reply,p=>p.request_id===requestId,30000);
+			await ws.sendAsync(type,{...payload,request_id:requestId});return (await receipt).payload};
+		const content=[{app_id:'audio',skill_id:'transcribe',type:'audio-recording',status:'finished',
+			filename:'berlin-weather-question.wav',title:'Berlin weather question',transcript:input.transcript,
+			transcript_original:'Original voice recognition differs from the corrected question.',
+			transcript_corrected:input.transcript,use_corrected:true},
+			{app_id:'weather',skill_id:'forecast',status:'finished',title:'Berlin forecast',
+				summary:'Cloudy with a chance of light rain tomorrow morning.'}];
+		try{
+			for(const [index,embedId] of input.embedIds.entries()){
+				const key=randomBytes(32),value=content[index];
+				await send('store_embed','store_embed_confirmed',{embed_id:embedId,
+					encrypted_content:await encrypt(JSON.stringify(value),key),
+					encrypted_type:await encrypt(index===0?'audio-recording':'app_skill_use',key),status:'finished',
+					hashed_chat_id:hash(input.chatId),hashed_message_id:hash(index===0?input.userMessageId:input.assistantMessageId),
+					hashed_user_id:hash(owner.id),created_at:now,updated_at:now,version_number:1});
+				await send('store_embed_keys','store_embed_keys_confirmed',{keys:[{hashed_embed_id:hash(embedId),
+					key_type:'master',hashed_chat_id:null,encrypted_embed_key:await encrypt(key,client.getMasterKeyBytes()),
+					hashed_user_id:hash(owner.id),created_at:now}]});
+				const saved=await client.getEmbed(embedId,{preferCache:true,chatId:input.chatId});
+				if(saved.content.app_id!==value.app_id||saved.content.skill_id!==value.skill_id)throw Error('Saved app embed missing');
+			}
+			// Seed ciphertext into the isolated CLI cache after the saved chat enters its synced census.
+			await client.listChats(20,1,{forceRefresh:true});
+			const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
+			const home=process.env.HOME;
+			if(!home||!home.startsWith(os.tmpdir()+path.sep))throw Error('Expected isolated CLI home');
+			const cachePath=path.join(home,'.openmates','sync_cache.json');
+			const cache=JSON.parse(fs.readFileSync(cachePath,'utf8'));
+			const row=cache.chats.find(chat=>chat.details.id===input.chatId);
+			if(!row)throw Error('Saved chat missing from isolated CLI census');
+			const chats=cache.chats.map(chat=>chat===row?{...chat,messages:input.messages.map(JSON.stringify)}:chat);
+			fs.writeFileSync(cachePath,JSON.stringify({...cache,chats},null,2)+'\\n',{mode:0o600});
+			const savedChat=await client.getChatMessages(input.chatId,{preferCache:true,maxHistoryPages:1});
+			if(savedChat.messages.length!==2)throw Error('Saved chat messages missing');
+			process.stdout.write(JSON.stringify({ok:true}));
+		}finally{ws.close()}
+	`,{...fixture,transcript:AUDIO_TRANSCRIPT});
+	expect(result.ok).toBe(true);
+}
+
+const appPreviewContract={
+	id:'cli-tui-chat-app-previews-real-terminal',title:'Saved audio recording and Weather forecast previews',
+	surface:'cli',devices:[PROFILE],
+	transcript:[
+		{id:'chat',text:'A saved voice recording precedes the assistant forecast. Each preview shows its own app identity and background.',checkpoint:'app-chat-open',devices:[PROFILE]},
+		{id:'shortcuts',text:'The user recording and assistant forecast have separate short embed commands.',checkpoint:'app-chat-open',devices:[PROFILE]},
+	],
+	assertions:[
+		{id:'chats.rendering.inline-entity-interaction',checkpoint:'app-chat-open',visual:'The user audio transcript is shortened, the forecast belongs to the assistant, and both embeds have their own shortcut.',devices:[PROFILE]},
+		{id:'cli.surface.semantic-parity',checkpoint:'app-chat-open',visual:'Audio and Weather previews emit their exact app colors and readable foregrounds in the real terminal.',devices:[PROFILE]},
+	],
+	tutorial:{readingWordsPerSecond:2.5,minimumHoldMs:1200,maximumHoldMs:5000},
+};
+
+// contract-test: direct surface=cli assertions=chats.rendering.inline-entity-interaction,cli.surface.semantic-parity
+test('records saved user audio and assistant Weather previews with distinct app colors',async({page}:{page:any},testInfo:any)=>{
+	test.setTimeout(240_000);
+	test.skip(process.env.GITHUB_ACTIONS!=='true'||process.env.RUNNER_ENVIRONMENT!=='github-hosted'||process.env.CI_TEST_MODE!=='e2e','Requires isolated GitHub product stack');
+	skipWithoutCredentials(test,email,password,otpKey);
+	const cli=requireIsolatedCliBuild();installRecorderDeps();
+	const apiUrl=workflowApiUrl(),home=createWorkflowCliHome('tui-app-previews'),workspace=newFixture();
+	let chat:ChatFixture|undefined;
+	try{
+		await seedWorkspace(page,apiUrl,home,workspace,false);
+		chat=makeAppPreviewFixture(apiUrl,home,cli);
+		persistChatFixture(chat,'seed');
+		seedAppPreviewEmbeds(apiUrl,home,cli,chat);
+		const steps:(ProofStep & {wait_timeout_ms?:number})[]=[
+			{name:'app-landing',wait_for:'DAILY INSPIRATION',hold_ms:300},
+			{name:'app-chat-command',text:'/chat '+chat.chatId},
+			{name:'app-chat-open',key:'Return',wait_for:'Weather · Forecast',wait_for_absent:'Loading chat…',wait_timeout_ms:30_000,hold_ms:1800},
+			{name:'app-exit-command',text:'/exit'},
+			{name:'app-exit',key:'Return'},
+		];
+		const recording=await captureProof(apiUrl,home,cli,steps,appPreviewContract,testInfo);
+		const opened=recording.frame('app-chat-open').join('\n');
+		const audio=opened.indexOf('Audio · Transcribe'),weather=opened.indexOf('Weather · Forecast');
+		expect(audio).toBeGreaterThanOrEqual(0);
+		expect(weather).toBeGreaterThan(audio);
+		// Cards wrap long detail text across bordered rows in the terminal frame.
+		const compact=(value:string)=>value.replace(/[│╭╮╰╯─├┤\s]/g,'');
+		expect(compact(opened)).toContain(compact(AUDIO_PREVIEW));
+		expect(opened).not.toContain(AUDIO_TRANSCRIPT);
+		expect(opened).not.toContain('Original voice recognition differs');
+		expect(compact(opened)).not.toContain(compact(AUDIO_TRANSCRIPT.slice(119)));
+		expect(opened).toContain('/embed aud-t-1');
+		expect(opened).toContain('/embed wea-f-1');
+		expect(opened.indexOf('/embed aud-t-1')).toBeLessThan(weather);
+		expect(opened.indexOf('/embed wea-f-1')).toBeGreaterThan(audio);
+		const checkpoint=recording.manifest.input_checkpoints.find((point:{name:string})=>point.name==='app-chat-open');
+		expect(checkpoint).toBeTruthy();
+		const rawBefore=Buffer.from(recording.transcript,'utf8').subarray(0,checkpoint!.transcript_offset).toString('utf8');
+		const rawEnd=rawBefore.lastIndexOf('\x1b[?2026l'),rawStart=rawBefore.lastIndexOf('\x1b[?2026h',rawEnd);
+		expect(rawStart).toBeGreaterThanOrEqual(0);
+		expect(rawEnd).toBeGreaterThan(rawStart);
+		const rawChat=rawBefore.slice(rawStart,rawEnd);
+		// eslint-disable-next-line no-control-regex -- Check exact emitted app RGB colors in the real terminal.
+		expect(rawChat).toMatch(/\x1b\[48;2;0;199;160m/);
+		// eslint-disable-next-line no-control-regex -- Check exact emitted app RGB colors in the real terminal.
+		expect(rawChat).toMatch(/\x1b\[48;2;0;91;165m/);
+		// eslint-disable-next-line no-control-regex -- Audio's bright green uses a dark foreground for readable contrast.
+		expect(rawChat).toMatch(/\x1b\[38;2;(?:[0-5]?\d|6[0-3]);(?:[0-5]?\d|6[0-3]);(?:[0-5]?\d|6[0-3])m\x1b\[48;2;0;199;160m/);
+		// eslint-disable-next-line no-control-regex -- Weather's dark blue uses white text.
+		expect(rawChat).toMatch(/\x1b\[38;2;255;255;255m\x1b\[48;2;0;91;165m/);
+		await recording.attest();
+	}finally{
+		try{if(chat)persistChatFixture(chat,'cleanup');}
+		finally{await cleanupWorkspace(apiUrl,home,workspace);}
+	}
+});
