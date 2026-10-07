@@ -14,7 +14,10 @@ const previewData = {
     { user_id: 'owner-preview', role: 'owner', status: 'active', profile: { display_name: 'Mira', avatar: { mode: 'generated', icon_name: 'mate', background_color: '#4d73ff' } } },
     { user_id: 'member-preview', role: 'member', status: 'active', profile: { display_name: 'Alex', avatar: { mode: 'generated', icon_name: 'mate', background_color: '#8b62c9' } } },
   ],
-  invites: [{ invite_id: 'preview-invite', role: 'member', status: 'pending', kind: 'email', recipientEmail: 'alex@example.org' }],
+  invites: [
+    { invite_id: 'preview-invite', role: 'member', status: 'pending', kind: 'email', recipientEmail: 'alex@example.org' },
+    { invite_id: 'preview-link-invite', role: 'viewer', status: 'pending', kind: 'link' },
+  ],
 };
 
 const storage: TeamStorageSummary = {
@@ -48,6 +51,7 @@ export const variants = {
   viewerMemberDetail: { activeSettingsView: 'teams/preview-team/members/member-preview', previewData: { ...previewData, teams: [{ ...team, role: 'viewer' as const }] } },
   restrictedMembers: { activeSettingsView: 'teams/preview-team/members', previewData: { ...previewData, teams: [{ ...team, securityPolicy: { ...team.securityPolicy!, restrict_email_domains: true, allowed_email_domains: ['example.org'] } }] } },
   security: { activeSettingsView: 'teams/preview-team/security', previewData },
+  restrictedSecurity: { activeSettingsView: 'teams/preview-team/security', previewData: { ...previewData, teams: [{ ...team, securityPolicy: { ...team.securityPolicy!, restrict_email_domains: true, allowed_email_domains: ['example.org'] } }] } },
   delete: { activeSettingsView: 'teams/preview-team/delete', previewData },
   owner: { activeSettingsView: 'teams/preview-team', previewData: { ...previewData, storage, notice: null } },
   viewer: { activeSettingsView: 'teams/preview-team', previewData: { ...previewData, teams: [{ ...team, role: 'viewer' as const }], storage, notice: null } },

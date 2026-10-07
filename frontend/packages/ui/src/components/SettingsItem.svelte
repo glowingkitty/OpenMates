@@ -201,7 +201,7 @@
                 <div class="left-content">
                     {@render leftContent()}
                 </div>
-            {:else}
+            {:else if icon || lucideIcon}
                 <!-- Unified icon rendering — single element, two CSS modes via .has-bg -->
                 <div class="icon-container">
                     {#if lucideIcon}

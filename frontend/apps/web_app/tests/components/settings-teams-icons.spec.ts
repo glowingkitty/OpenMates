@@ -43,6 +43,40 @@ test.describe('Teams settings canonical icons', () => {
 		expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width + 1);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=settings-ui.composition.canonical-and-accessible,settings-ui.parity.web-apple-shell
+	test('pending email and link invites show plain text rows with revoke controls', async ({ page }) => {
+		await page.goto(
+			'/dev/preview/settings/SettingsTeams?variant=members&theme=light&background=%23dbeafe&width=323&chrome=0'
+		);
+		await waitForComponentPreview(page);
+		const rows = page.getByTestId('team-pending-invite-row');
+		await expect(rows).toHaveCount(2);
+		await expect(rows.nth(0)).toContainText('alex@example.org');
+		await expect(rows.nth(1)).toContainText('Invite link');
+		await expect(rows.locator('.settings-icon')).toHaveCount(0);
+		await expect(rows.nth(0).getByTestId('team-invite-revoke-preview-invite')).toBeVisible();
+		await expect(rows.nth(1).getByTestId('team-invite-revoke-preview-link-invite')).toBeVisible();
+		const copyLinkIcon = page.getByTestId('team-copy-invite-link').locator('.settings-icon');
+		await expect(copyLinkIcon).toBeVisible();
+		await expectCanonicalMask(copyLinkIcon, 'copy', '::after');
+	});
+
+	// contract-test: supporting surface=gui.web assertions=settings-ui.composition.canonical-and-accessible,settings-ui.parity.web-apple-shell
+	test('allowed email domain row stays plain text beside the canonical domain control', async ({ page }) => {
+		await page.goto(
+			'/dev/preview/settings/SettingsTeams?variant=restrictedSecurity&theme=light&background=%23dbeafe&width=323&chrome=0'
+		);
+		await waitForComponentPreview(page);
+		const row = page.getByTestId('team-security-domain-row');
+		await expect(row).toHaveCount(1);
+		await expect(row).toContainText('example.org');
+		await expect(row.locator('.settings-icon')).toHaveCount(0);
+		await expect(row.getByTestId('team-security-domain-remove-example.org')).toBeVisible();
+		const toggleIcon = page.getByTestId('team-security-domain-toggle').locator('.settings-icon');
+		await expect(toggleIcon).toBeVisible();
+		await expectCanonicalMask(toggleIcon, 'mail', '::after');
+	});
+
 	// contract-test: supporting surface=gui.web assertions=settings-ui.parity.web-apple-shell
 	test('Teams banner resolves the route alias to its canonical mask in both header states', async ({
 		page
