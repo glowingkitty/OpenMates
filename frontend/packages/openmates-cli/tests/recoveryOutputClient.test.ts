@@ -541,7 +541,7 @@ describe("CLI typed recovery replay", () => {
     client.resolveChatKey = async () => rawKey;
     client.getCliRequestHeaders = () => ({});
     let diff: Record<string, unknown> | null = null;
-    const wrappers: Array<Record<string, unknown>> = [];
+    let wrappers: Array<Record<string, unknown>> = [];
     const sent: string[] = [];
     client.http = { get: async (path: string) => path.includes("/versions/")
       ? diff ? { ok: true, status: 200, data: { rows: [diff] } }

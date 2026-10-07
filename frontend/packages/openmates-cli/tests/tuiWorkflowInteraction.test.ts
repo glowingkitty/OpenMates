@@ -13,9 +13,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { WorkflowGraph } from "../src/client.js";
 
-import { runTui } from "../src/tui.ts";
+import { runTui as runProductTui } from "../src/tui.ts";
+import { noStartupPrompts } from "./tuiTestServices.js";
 import { createTuiWorkspaceCache } from "../src/tuiWorkspaceCache.ts";
 import { clearSession, saveSession, type OpenMatesSession } from "../src/storage.ts";
+
+const runTui = (client: Parameters<typeof runProductTui>[0], terminal: Parameters<typeof runProductTui>[1]) =>
+  runProductTui(client, terminal, noStartupPrompts);
 
 function workflowSummary() {
   return {
@@ -289,50 +293,52 @@ describe("CLI TUI Workflow interaction", () => {
     const terminal = new FakeTerminal();
     const client = new FakeClient();
     const tui = runTui(client as never, terminal as never);
-    await tick();
+    try {
+      await tick();
 
-    for (const char of "/workflows") terminal.press(char, { name: char });
-    terminal.press("\r", { name: "return" });
-    await tick();
-    assert.match(terminal.latestFrame(), /Workflows/);
-    assert.match(terminal.latestFrame(), /Daily rain check/);
+      for (const char of "/workflows") terminal.press(char, { name: char });
+      terminal.press("\r", { name: "return" });
+      await tick();
+      assert.match(terminal.latestFrame(), /Workflows/);
+      assert.match(terminal.latestFrame(), /Daily rain check/);
 
-    terminal.press("\r", { name: "return" });
-    await tick();
-    assert.match(terminal.latestFrame(), /Template · g/);
-    assert.match(terminal.latestFrame(), /Weather forecast/);
+      terminal.press("\r", { name: "return" });
+      await tick();
+      assert.match(terminal.latestFrame(), /Template · g/);
+      assert.match(terminal.latestFrame(), /Weather forecast/);
 
-    terminal.press("r", { name: "r" });
-    await tick();
-    assert.match(terminal.latestFrame(), /Runs · r/);
-    assert.match(terminal.latestFrame(), /Run run-1 · completed/);
-    assert.match(terminal.latestFrame(), /provider: DWD/);
+      terminal.press("r", { name: "r" });
+      await tick();
+      assert.match(terminal.latestFrame(), /Runs · r/);
+      assert.match(terminal.latestFrame(), /Run run-1 · completed/);
+      assert.match(terminal.latestFrame(), /provider: DWD/);
 
-    terminal.press("g", { name: "g" });
-    terminal.press("\r", { name: "return" });
-    await tick();
-    assert.match(terminal.latestFrame(), /id: trigger/);
+      terminal.press("g", { name: "g" });
+      terminal.press("\r", { name: "return" });
+      await tick();
+      assert.match(terminal.latestFrame(), /id: trigger/);
 
-    terminal.press("x", { name: "x" });
-    await tick();
-    assert.equal(client.runStarted, true);
-    assert.match(terminal.latestFrame(), /Started run run-active/);
+      terminal.press("x", { name: "x" });
+      await tick();
+      assert.equal(client.runStarted, true);
+      assert.match(terminal.latestFrame(), /Started run run-active/);
 
-    terminal.press("c", { name: "c" });
-    await tick();
-    assert.equal(client.cancelRequested, true);
+      terminal.press("c", { name: "c" });
+      await tick();
+      assert.equal(client.cancelRequested, true);
 
-    terminal.press("e", { name: "e" });
-    await tick();
-    assert.match(terminal.latestFrame(), /Editing title/);
-    for (const char of "Updated title") terminal.press(char, { name: char });
-    terminal.press("\r", { name: "return" });
-    await tick();
-    assert.match(JSON.stringify(client.updatePayload), /Updated title/);
-
-    terminal.press("\u0003", { ctrl: true, name: "c" });
-    const result = await tui;
-    assert.equal(result.action, "exit");
+      terminal.press("e", { name: "e" });
+      await tick();
+      assert.match(terminal.latestFrame(), /Editing title/);
+      for (const char of "Updated title") terminal.press(char, { name: char });
+      terminal.press("\r", { name: "return" });
+      await tick();
+      assert.match(JSON.stringify(client.updatePayload), /Updated title/);
+    } finally {
+      terminal.press("\u0003", { ctrl: true, name: "c" });
+      const result = await tui;
+      assert.equal(result.action, "exit");
+    }
   });
 
   // contract-test: direct surface=cli assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
@@ -350,21 +356,24 @@ describe("CLI TUI Workflow interaction", () => {
       versions.push(version); return { graph: old };
     };
     const tui = runTui(client as never, terminal as never);
-    await tick();
-    for (const char of "/workflows") terminal.press(char, { name: char });
-    terminal.press("\r", { name: "return" }); await tick();
-    terminal.press("\r", { name: "return" }); await tick();
-    terminal.press("r", { name: "r" }); await tick();
-    assert.match(terminal.latestFrame(), /Historical trigger/);
-    assert.doesNotMatch(terminal.latestFrame(), /Current trigger/);
-    terminal.press("", { name: "down" }); await tick();
-    assert.match(terminal.latestFrame(), /Current trigger/);
-    assert.doesNotMatch(terminal.latestFrame(), /Historical trigger/);
-    terminal.press("", { name: "up" }); await tick();
-    assert.match(terminal.latestFrame(), /Historical trigger/);
-    assert.deepEqual(versions, ["v1", "v1"]);
-    terminal.press("\u0003", { ctrl: true, name: "c" });
-    await tui;
+    try {
+      await tick();
+      for (const char of "/workflows") terminal.press(char, { name: char });
+      terminal.press("\r", { name: "return" }); await tick();
+      terminal.press("\r", { name: "return" }); await tick();
+      terminal.press("r", { name: "r" }); await tick();
+      assert.match(terminal.latestFrame(), /Historical trigger/);
+      assert.doesNotMatch(terminal.latestFrame(), /Current trigger/);
+      terminal.press("", { name: "down" }); await tick();
+      assert.match(terminal.latestFrame(), /Current trigger/);
+      assert.doesNotMatch(terminal.latestFrame(), /Historical trigger/);
+      terminal.press("", { name: "up" }); await tick();
+      assert.match(terminal.latestFrame(), /Historical trigger/);
+      assert.deepEqual(versions, ["v1", "v1"]);
+    } finally {
+      terminal.press("\u0003", { ctrl: true, name: "c" });
+      await tui;
+    }
   });
 
   // contract-test: direct surface=cli assertions=workflows.execution.lifecycle-visible,cli.surface.semantic-parity
@@ -376,17 +385,20 @@ describe("CLI TUI Workflow interaction", () => {
     let resolveVersion: ((value: { graph: WorkflowGraph }) => void) | undefined;
     (client as FakeClient & { getWorkflowVersion: () => Promise<unknown> }).getWorkflowVersion = () => new Promise((resolve) => { resolveVersion = resolve as typeof resolveVersion; });
     const tui = runTui(client as never, terminal as never);
-    await tick();
-    for (const char of "/workflows") terminal.press(char, { name: char });
-    terminal.press("\r", { name: "return" }); await tick();
-    terminal.press("\r", { name: "return" }); await tick();
-    terminal.press("r", { name: "r" }); await tick();
-    assert.match(terminal.latestFrame(), /Run graph unavailable/);
-    terminal.press("\u000e", { ctrl: true, name: "n" }); await tick();
-    resolveVersion?.({ graph: workflowDetail().graph }); await tick();
-    assert.doesNotMatch(terminal.latestFrame(), /Run run-1/);
-    terminal.press("\u0003", { ctrl: true, name: "c" });
-    await tui;
+    try {
+      await tick();
+      for (const char of "/workflows") terminal.press(char, { name: char });
+      terminal.press("\r", { name: "return" }); await tick();
+      terminal.press("\r", { name: "return" }); await tick();
+      terminal.press("r", { name: "r" }); await tick();
+      assert.match(terminal.latestFrame(), /Run graph unavailable/);
+      terminal.press("\u000e", { ctrl: true, name: "n" }); await tick();
+      resolveVersion?.({ graph: workflowDetail().graph }); await tick();
+      assert.doesNotMatch(terminal.latestFrame(), /Run run-1/);
+    } finally {
+      terminal.press("\u0003", { ctrl: true, name: "c" });
+      await tui;
+    }
   });
 
   // contract-test: direct surface=cli assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
@@ -397,15 +409,18 @@ describe("CLI TUI Workflow interaction", () => {
     client.runs = [{ ...workflowRun(), version_id: "v1" }];
     (client as FakeClient & { getWorkflowVersion: () => Promise<never> }).getWorkflowVersion = async () => { throw new Error("version expired"); };
     const tui = runTui(client as never, terminal as never);
-    await tick();
-    for (const char of "/workflows") terminal.press(char, { name: char });
-    terminal.press("\r", { name: "return" }); await tick();
-    terminal.press("\r", { name: "return" }); await tick();
-    terminal.press("r", { name: "r" }); await tick();
-    assert.match(terminal.latestFrame(), /Run graph unavailable/);
-    assert.match(terminal.latestFrame(), /Could not load recorded graph/);
-    assert.doesNotMatch(terminal.latestFrame(), /Weather forecast/);
-    terminal.press("\u0003", { ctrl: true, name: "c" });
-    await tui;
+    try {
+      await tick();
+      for (const char of "/workflows") terminal.press(char, { name: char });
+      terminal.press("\r", { name: "return" }); await tick();
+      terminal.press("\r", { name: "return" }); await tick();
+      terminal.press("r", { name: "r" }); await tick();
+      assert.match(terminal.latestFrame(), /Run graph unavailable/);
+      assert.match(terminal.latestFrame(), /Could not load recorded graph/);
+      assert.doesNotMatch(terminal.latestFrame(), /Weather forecast/);
+    } finally {
+      terminal.press("\u0003", { ctrl: true, name: "c" });
+      await tui;
+    }
   });
 });

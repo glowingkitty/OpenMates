@@ -222,10 +222,18 @@ async function withChatDeleteMock<T>(
   });
   server.on("upgrade", (request, socket, head) => {
     wss.handleUpgrade(request, socket, head, (ws) => {
-      ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
       ws.on("message", (raw) => {
-        const frame = JSON.parse(raw.toString()) as { type: string; payload?: { chat_id?: string; chatId?: string } };
+        const frame = JSON.parse(raw.toString()) as { type: string; payload?: Record<string, unknown> };
         frameTypes.push(frame.type);
+        if (frame.type === "native_client_lifecycle") {
+          assert.equal(frame.payload?.client_type, "cli");
+          assert.equal(frame.payload?.interactive, false);
+          ws.send(JSON.stringify({ type: "native_client_lifecycle_ack", payload: frame.payload }));
+          if (frame.payload?.is_foreground === true) {
+            ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+          }
+          return;
+        }
         if (frame.type === "delete_chat") {
           ws.send(JSON.stringify({
             type: "chat_deleted",
@@ -4096,7 +4104,7 @@ describe("chat deletion command", () => {
       });
 
       assert.match(result.stdout, /1\/1 chat\(s\) deleted\./);
-      assert.deepEqual(frameTypes, ["delete_chat"]);
+      assert.deepEqual(frameTypes, ["native_client_lifecycle", "delete_chat", "native_client_lifecycle"]);
       assert.equal(requestPaths.some((path) => path.includes("/v1/chats")), false);
     });
   });

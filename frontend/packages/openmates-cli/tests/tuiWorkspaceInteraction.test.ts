@@ -2,12 +2,29 @@
 /** Synthetic TUI interaction coverage. No real terminal, account, or network. */
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { test } from "node:test";
+import { afterEach, test } from "node:test";
 import type { DecryptedUserTask } from "../src/tasksCli.js";
 import { loadHomeData } from "../src/tuiHome.js";
-import { runTui } from "../src/tui.js";
+import { runTui as runProductTui } from "../src/tui.js";
 import { createInitialTuiState } from "../src/tuiRenderer.js";
 import { handleWorkspaceKey, handleWorkspaceCommand, openSavedChat, type WorkspaceContext } from "../src/tuiWorkspaceController.js";
+import { noStartupPrompts } from "./tuiTestServices.js";
+
+const activeTuis = new Set<{ terminal: FakeTerminal; run: ReturnType<typeof runProductTui> }>();
+const runTui = (client: Parameters<typeof runProductTui>[0], terminal: FakeTerminal) => {
+  const run = runProductTui(client, terminal as never, noStartupPrompts);
+  const active = { terminal, run };
+  activeTuis.add(active);
+  void run.then(() => activeTuis.delete(active), () => activeTuis.delete(active));
+  return run;
+};
+
+afterEach(async () => {
+  for (const { terminal, run } of activeTuis) {
+    terminal.press("\u0003", { ctrl: true, name: "c" });
+    await run;
+  }
+});
 
 test("public example embed cards open from their bundled content without an account fetch", async () => {
   const state = createInitialTuiState();

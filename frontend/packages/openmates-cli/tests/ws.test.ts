@@ -36,7 +36,10 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
   // contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent
   it("requires the sync completion frame before publishing collected history", async () => {
     for(const complete of [false,true]) {
-      server.once('connection',(socket)=>socket.once('message',()=>{
+      server.once('connection',(socket)=>socket.on('message',(raw)=>{
+        const frame = JSON.parse(raw.toString()) as {type:string;payload:Record<string,unknown>};
+        if(frame.type==='native_client_lifecycle')return;
+        assert.equal(frame.type,'phased_sync_request');
         socket.send(JSON.stringify({type:'phase_2_last_20_chats_ready',payload:{chats:[]}}));
         if(complete)socket.send(JSON.stringify({type:'phased_sync_complete',payload:{}}));
         else socket.close();

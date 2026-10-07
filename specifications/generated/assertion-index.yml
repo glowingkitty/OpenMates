@@ -1835,17 +1835,17 @@ assertions:
       surface: gui.web
     - &id286
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3643
+      line: 3651
       name: forwards relevance criteria through generated typed app-skill flags
       surface: cli
     - &id287
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3670
+      line: 3678
       name: forwards repository relevance criteria through generated typed input
       surface: cli
     - &id288
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3804
+      line: 3812
       name: forwards models3d relevance criteria through generated JSON input
       surface: cli
     supporting_tests:
@@ -2351,17 +2351,17 @@ assertions:
       surface: cli
     - &id306
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3643
+      line: 3651
       name: forwards relevance criteria through generated typed app-skill flags
       surface: cli
     - &id307
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3670
+      line: 3678
       name: forwards repository relevance criteria through generated typed input
       surface: cli
     - &id308
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3804
+      line: 3812
       name: forwards models3d relevance criteria through generated JSON input
       surface: cli
     supporting_tests:
@@ -21485,12 +21485,12 @@ assertions:
       surface: cli
     - &id2663
       path: frontend/packages/openmates-cli/tests/ws.test.ts
-      line: 115
+      line: 118
       name: 'collects the correct Project execution stage: ${mode}'
       surface: cli
     - &id2664
       path: frontend/packages/openmates-cli/tests/ws.test.ts
-      line: 155
+      line: 158
       name: returns waiting after an interactive-capable review callback defers
       surface: cli
     - &id2665
@@ -22027,12 +22027,12 @@ assertions:
       surface: cli
     - &id2724
       path: frontend/packages/openmates-cli/tests/ws.test.ts
-      line: 115
+      line: 118
       name: 'collects the correct Project execution stage: ${mode}'
       surface: cli
     - &id2725
       path: frontend/packages/openmates-cli/tests/ws.test.ts
-      line: 155
+      line: 158
       name: returns waiting after an interactive-capable review callback defers
       surface: cli
     - &id2726
@@ -22235,7 +22235,7 @@ assertions:
       surface: gui.web
     - &id2758
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3407
+      line: 3415
       name: returns a failing process status when the sandbox execution fails
       surface: cli
     supporting_tests:
@@ -22301,7 +22301,7 @@ assertions:
       surface: rest_api
     - &id2759
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3511
+      line: 3519
       name: retrieves Code Run completion through polling when streaming is unavailable
       surface: cli
     - &id2760
@@ -22600,7 +22600,7 @@ assertions:
       surface: rest_api
     - &id2791
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3385
+      line: 3393
       name: prints direct-run output and artifact download metadata in human mode
       surface: cli
     - &id2792
@@ -23151,12 +23151,12 @@ assertions:
       surface: gui.web
     - &id2883
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3385
+      line: 3393
       name: prints direct-run output and artifact download metadata in human mode
       surface: cli
     - &id2884
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3407
+      line: 3415
       name: returns a failing process status when the sandbox execution fails
       surface: cli
     - &id2888
@@ -26881,7 +26881,7 @@ assertions:
       surface: rest_api
     - &id3279
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3537
+      line: 3545
       name: maps pass-aware train flags into the app-skill request
       surface: cli
     tests:
@@ -27025,7 +27025,7 @@ assertions:
     supporting_tests:
     - &id3288
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3537
+      line: 3545
       name: maps pass-aware train flags into the app-skill request
       surface: cli
     tests:
@@ -42212,7 +42212,7 @@ assertions:
       surface: gui.apple
     - &id5162
       path: frontend/packages/openmates-cli/tests/ws.test.ts
-      line: 65
+      line: 68
       name: never places a refresh token in the WebSocket URL
       surface: cli
     - &id5163
@@ -47510,23 +47510,23 @@ assertions:
       surface: cli
     - &id5840
       path: frontend/packages/openmates-cli/tests/draft-sync.test.ts
-      line: 54
+      line: 63
       name: runs create, list, get, version sync, and clear through encrypted WebSocket
         frames
       surface: cli
     - &id5841
       path: frontend/packages/openmates-cli/tests/draft-sync.test.ts
-      line: 183
+      line: 192
       name: clears cached drafts when REST returns null
       surface: cli
     - &id5842
       path: frontend/packages/openmates-cli/tests/draft-sync.test.ts
-      line: 286
+      line: 295
       name: does not resurrect stale cached drafts when REST returns null
       surface: cli
     - &id5843
       path: frontend/packages/openmates-cli/tests/draft-sync.test.ts
-      line: 638
+      line: 647
       name: clears stale cached drafts when REST refresh fails and versions report
         deletion
       surface: cli
@@ -47555,27 +47555,27 @@ assertions:
       surface: cli
     - &id5848
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 227
+      line: 244
       name: a short chat ID keeps early history, final history and its saved draft
       surface: cli
     - &id5849
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 251
+      line: 268
       name: /chat opens an uncached draft-only UUID with its saved composer text
       surface: cli
     - &id5850
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 276
+      line: 293
       name: /chat keeps a missing UUID as an error when no owned draft exists
       surface: cli
     - &id5851
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 291
+      line: 308
       name: a messages HTTP 404 cannot be relabeled as a draft-only chat
       surface: cli
     - &id5852
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 304
+      line: 321
       name: late draft recovery cannot publish after its owning account changes
       surface: cli
     - &id5853
@@ -48107,12 +48107,12 @@ assertions:
       surface: gui.web
     - &id5933
       path: frontend/packages/openmates-cli/tests/draft-sync.test.ts
-      line: 400
+      line: 409
       name: uses targeted sync when REST refresh fails before a response
       surface: cli
     - &id5934
       path: frontend/packages/openmates-cli/tests/draft-sync.test.ts
-      line: 514
+      line: 523
       name: uses targeted sync when REST refresh stalls
       surface: cli
     - &id5935
@@ -48253,7 +48253,7 @@ assertions:
       surface: cli
     - &id5959
       path: frontend/packages/openmates-cli/tests/ws.test.ts
-      line: 56
+      line: 59
       name: does not create response timers after the socket has already closed
       surface: cli
     - &id5960
@@ -75457,7 +75457,7 @@ assertions:
       surface: gui.web
     - &id9505
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1136
+      line: 1144
       name: rejects Plan creation without a Project before login or API access
       surface: cli
     - &id9506
@@ -76491,12 +76491,12 @@ assertions:
       surface: gui.web
     - &id9614
       path: frontend/packages/openmates-cli/tests/ws.test.ts
-      line: 83
+      line: 86
       name: keeps the Project executor connected until its matching continuation finishes
       surface: cli
     - &id9615
       path: frontend/packages/openmates-cli/tests/ws.test.ts
-      line: 115
+      line: 118
       name: 'collects the correct Project execution stage: ${mode}'
       surface: cli
     - &id9616
@@ -76698,7 +76698,7 @@ assertions:
       surface: gui.web
     - &id9636
       path: frontend/packages/openmates-cli/tests/ws.test.ts
-      line: 83
+      line: 86
       name: keeps the Project executor connected until its matching continuation finishes
       surface: cli
     tests:
@@ -78178,12 +78178,12 @@ assertions:
       surface: gui.web
     - &id9817
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1226
+      line: 1234
       name: requires an explicit write policy for non-interactive Project creation
       surface: cli
     - &id9818
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1279
+      line: 1287
       name: renders exact Project write proposals without emitting terminal controls
       surface: cli
     - &id9819
@@ -78555,12 +78555,12 @@ assertions:
       surface: gui.web
     - &id9861
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1258
+      line: 1266
       name: builds a private default focus for an empty Project
       surface: cli
     - &id9862
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1267
+      line: 1275
       name: recognizes direct Project mentions without treating case variants as conflicts
       surface: cli
     - &id9863
@@ -78638,7 +78638,7 @@ assertions:
       surface: rest_api
     - &id9869
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1238
+      line: 1246
       name: imports root AGENTS.md before CLAUDE.md and supports case variants
       surface: cli
     tests:
@@ -79948,7 +79948,7 @@ assertions:
       surface: cli
     - &id10041
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 371
+      line: 388
       name: a slug-only project search opens the visible card and refresh preserves
         its Files folder and Tasks tab
       surface: cli
@@ -86513,7 +86513,7 @@ assertions:
       surface: cli
     - &id10879
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 324
+      line: 341
       name: Tasks select A, Escape, then select B opens edit and delete forms bound
         to B
       surface: cli
@@ -89594,7 +89594,7 @@ assertions:
       surface: cli
     - &id11251
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
-      line: 211
+      line: 215
       name: shows the cached Tasks board while task sync is pending
       surface: cli
     - &id11252
@@ -95059,7 +95059,7 @@ assertions:
       surface: cli
     - &id11892
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1530
+      line: 1538
       name: exports a portable YAML graph and imports it as a disabled workflow
       surface: cli
     supporting_tests:
@@ -95164,7 +95164,7 @@ assertions:
       surface: cli
     - &id11906
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1530
+      line: 1538
       name: exports a portable YAML graph and imports it as a disabled workflow
       surface: cli
     supporting_tests:
@@ -95281,7 +95281,7 @@ assertions:
       surface: cli
     - &id11923
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1530
+      line: 1538
       name: exports a portable YAML graph and imports it as a disabled workflow
       surface: cli
     supporting_tests:
@@ -95374,7 +95374,7 @@ assertions:
       surface: cli
     - &id11927
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1530
+      line: 1538
       name: exports a portable YAML graph and imports it as a disabled workflow
       surface: cli
     supporting_tests:
@@ -95798,23 +95798,23 @@ assertions:
       surface: gui.web
     - &id12079
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
-      line: 288
+      line: 292
       name: opens workflows, switches tabs, runs, cancels, expands, and edits node
         details
       surface: cli
     - &id12080
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
-      line: 339
+      line: 345
       name: keeps run selection pinned to each recorded graph version
       surface: cli
     - &id12081
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
-      line: 371
+      line: 380
       name: ignores a historical graph response after leaving the workspace
       surface: cli
     - &id12082
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
-      line: 393
+      line: 405
       name: shows an unavailable historical graph without substituting the current
         template
       surface: cli
@@ -96327,13 +96327,13 @@ assertions:
       surface: rest_api
     - &id12077
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1405
+      line: 1413
       name: waits through a claimed delivery until this run is acknowledged without
         redispatch
       surface: cli
     - &id12078
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
-      line: 144
+      line: 148
       name: opens cached workflow list, detail, runs, and recorded graph before refresh
       surface: cli
     tests:
@@ -97407,18 +97407,18 @@ assertions:
       surface: cli
     - &id12263
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
-      line: 288
+      line: 292
       name: opens workflows, switches tabs, runs, cancels, expands, and edits node
         details
       surface: cli
     - &id12264
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
-      line: 339
+      line: 345
       name: keeps run selection pinned to each recorded graph version
       surface: cli
     - &id12265
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
-      line: 393
+      line: 405
       name: shows an unavailable historical graph without substituting the current
         template
       surface: cli
@@ -97825,7 +97825,7 @@ assertions:
       surface: cli
     - &id12252
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1405
+      line: 1413
       name: waits through a claimed delivery until this run is acknowledged without
         redispatch
       surface: cli
@@ -97852,12 +97852,12 @@ assertions:
       surface: cli
     - &id12261
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
-      line: 144
+      line: 148
       name: opens cached workflow list, detail, runs, and recorded graph before refresh
       surface: cli
     - &id12262
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
-      line: 260
+      line: 264
       name: uses displayed graph order for keyboard node editing
       surface: cli
     - &id12266
@@ -102485,7 +102485,7 @@ assertions:
       surface: rest_api
     - &id12851
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1457
+      line: 1465
       name: inspects and saves a chat-owned workflow by full ID while library search
         stays hidden
       surface: cli
@@ -102642,7 +102642,7 @@ assertions:
       surface: rest_api
     - &id12864
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1457
+      line: 1465
       name: inspects and saves a chat-owned workflow by full ID while library search
         stays hidden
       surface: cli
@@ -106415,17 +106415,17 @@ assertions:
       surface: cli
     - &id13298
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 276
+      line: 293
       name: /chat keeps a missing UUID as an error when no owned draft exists
       surface: cli
     - &id13299
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 291
+      line: 308
       name: a messages HTTP 404 cannot be relabeled as a draft-only chat
       surface: cli
     - &id13300
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 395
+      line: 412
       name: opening a failed chat exits loading and background sync preserves its
         retry error
       surface: cli
@@ -106719,7 +106719,7 @@ assertions:
       surface: cli
     - &id13428
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
-      line: 371
+      line: 380
       name: ignores a historical graph response after leaving the workspace
       surface: cli
     - &id13444
@@ -106794,18 +106794,18 @@ assertions:
       surface: cli
     - &id13332
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1405
+      line: 1413
       name: waits through a claimed delivery until this run is acknowledged without
         redispatch
       surface: cli
     - &id13333
       path: frontend/packages/openmates-cli/tests/draft-sync.test.ts
-      line: 25
+      line: 34
       name: preserves partial omissions and removes only explicit authoritative deletions
       surface: cli
     - &id13334
       path: frontend/packages/openmates-cli/tests/draft-sync.test.ts
-      line: 54
+      line: 63
       name: runs create, list, get, version sync, and clear through encrypted WebSocket
         frames
       surface: cli
@@ -107249,87 +107249,87 @@ assertions:
       surface: cli
     - &id13427
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
-      line: 211
+      line: 215
       name: shows the cached Tasks board while task sync is pending
       surface: cli
     - &id13429
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 24
+      line: 41
       name: guest replies update category header and mate without a saved-account
         lookup
       surface: cli
     - &id13430
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 34
+      line: 51
       name: session loss clears decrypted chat state before the next frame
       surface: cli
     - &id13431
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 95
+      line: 112
       name: chat viewer presence starts with the TUI and clears on workspace navigation
         and exit
       surface: cli
     - &id13432
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 119
+      line: 136
       name: a reply finishing after workspace navigation does not restore the old
         chat viewer
       surface: cli
     - &id13433
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 137
+      line: 154
       name: completed first send releases the header before metadata; second send
         reuses chat ID
       surface: cli
     - &id13434
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 163
+      line: 180
       name: draft survives Ctrl+P Tasks and Ctrl+N returns to the new chat draft
       surface: cli
     - &id13435
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 183
+      line: 200
       name: Unicode cursor edits one grapheme and multiline paste does not send
       surface: cli
     - &id13436
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 204
+      line: 221
       name: /chat reopens saved content and late fetch cannot replace Ctrl+N new chat
       surface: cli
     - &id13437
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 227
+      line: 244
       name: a short chat ID keeps early history, final history and its saved draft
       surface: cli
     - &id13438
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 251
+      line: 268
       name: /chat opens an uncached draft-only UUID with its saved composer text
       surface: cli
     - &id13439
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 304
+      line: 321
       name: late draft recovery cannot publish after its owning account changes
       surface: cli
     - &id13440
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 324
+      line: 341
       name: Tasks select A, Escape, then select B opens edit and delete forms bound
         to B
       surface: cli
     - &id13441
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 342
+      line: 359
       name: signed-out attachment failure keeps draft and never sends
       surface: cli
     - &id13442
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 358
+      line: 375
       name: ordinary detail views scroll down and immediately reverse at their bounds
       surface: cli
     - &id13443
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
-      line: 371
+      line: 388
       name: a slug-only project search opens the visible card and refresh preserves
         its Files folder and Tasks tab
       surface: cli
@@ -107827,7 +107827,7 @@ assertions:
     supporting_tests:
     - &id13469
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3511
+      line: 3519
       name: retrieves Code Run completion through polling when streaming is unavailable
       surface: cli
     - &id13470

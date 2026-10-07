@@ -20,6 +20,15 @@ const { reconcileAuthoritativeChats } = await import("../src/client.ts");
 const require = createRequire(import.meta.url);
 const { WebSocketServer } = require("ws");
 
+type SeenFrame = { type: string; payload: Record<string, unknown> };
+function applicationFrames(seen: SeenFrame[]): SeenFrame[] {
+  assert.deepEqual(seen[0], {
+    type: "native_client_lifecycle",
+    payload: { client_type: "cli", is_foreground: true, interactive: false },
+  });
+  return seen.filter((frame) => frame.type !== "native_client_lifecycle");
+}
+
 describe("CLI draft reconciliation", () => {
   // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
   it("preserves partial omissions and removes only explicit authoritative deletions", () => {
@@ -161,7 +170,7 @@ describe("CLI draft reconciliation", () => {
       const update = seen.find((frame) => frame.type === "update_draft");
       assert.ok(update);
       assert.equal(JSON.stringify(update.payload).includes("private draft"), false);
-      assert.deepEqual(seen.map((frame) => frame.type), [
+      assert.deepEqual(applicationFrames(seen).map((frame) => frame.type), [
         "update_draft",
         "phased_sync_request",
         "get_draft_versions",
@@ -273,7 +282,7 @@ describe("CLI draft reconciliation", () => {
       const created = await client.saveDraft({ markdown: "private draft", preview: "private preview" });
       assert.equal(await client.getDraft(created.chatId, true), null);
       assert.equal(await client.getDraft(created.chatId), null);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft"]);
+      assert.deepEqual(applicationFrames(seen).map((frame) => frame.type), ["update_draft"]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();
@@ -387,7 +396,7 @@ describe("CLI draft reconciliation", () => {
 
       assert.equal(refreshed, null);
       assert.equal(await client.getDraft(created.chatId), null);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft"]);
+      assert.deepEqual(applicationFrames(seen).map((frame) => frame.type), ["update_draft"]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();
@@ -500,8 +509,8 @@ describe("CLI draft reconciliation", () => {
 
       assert.equal(refreshed?.markdown, "new draft");
       assert.equal(refreshed?.draftV, 2);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "get_draft_versions", "phased_sync_request", "get_draft_versions"]);
-      assert.deepEqual(seen[2]?.payload.refresh_chat_ids, [created.chatId]);
+      assert.deepEqual(applicationFrames(seen).map((frame) => frame.type), ["update_draft", "get_draft_versions", "phased_sync_request", "get_draft_versions"]);
+      assert.deepEqual(applicationFrames(seen)[2]?.payload.refresh_chat_ids, [created.chatId]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();
@@ -619,7 +628,7 @@ describe("CLI draft reconciliation", () => {
 
       assert.equal(refreshed?.markdown, "new draft");
       assert.equal(refreshed?.draftV, 2);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "get_draft_versions", "phased_sync_request", "get_draft_versions"]);
+      assert.deepEqual(applicationFrames(seen).map((frame) => frame.type), ["update_draft", "get_draft_versions", "phased_sync_request", "get_draft_versions"]);
     } finally {
       process.env.HOME = originalHome;
       if (originalTimeout === undefined) {
@@ -733,7 +742,7 @@ describe("CLI draft reconciliation", () => {
       assert.equal(refreshed, null);
       assert.equal(refreshedAgain, null);
       assert.equal(await client.getDraft(created.chatId), null);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "get_draft_versions", "get_draft_versions"]);
+      assert.deepEqual(applicationFrames(seen).map((frame) => frame.type), ["update_draft", "get_draft_versions", "get_draft_versions"]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();

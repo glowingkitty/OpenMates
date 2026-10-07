@@ -59,8 +59,17 @@ test("typing and later stream events retain the server AI task ID", async () => 
 
 test("cancelAITask sends both IDs, ignores unrelated receipt, and returns server acknowledgement", async () => {
   await withServer(async (apiUrl, server) => {
+    let foregroundSeen = false;
     server.once("connection", (socket: ServerSocket) => socket.on("message", (raw) => {
       const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+      if (frame.type === "native_client_lifecycle") {
+        if (frame.payload.is_foreground === true) {
+          assert.deepEqual(frame.payload, { client_type: "cli", is_foreground: true, interactive: false });
+          foregroundSeen = true;
+        }
+        return;
+      }
+      assert.equal(foregroundSeen, true);
       assert.deepEqual(frame, { type: "cancel_ai_task", payload: { task_id: "task-1", chat_id: "chat-1" } });
       socket.send(JSON.stringify({ type: "ai_task_cancel_requested", payload: { task_id: "other", status: "revocation_sent" } }));
       socket.send(JSON.stringify({ type: "ai_task_cancel_requested", payload: { task_id: "task-1", status: "revocation_sent" } }));
@@ -73,7 +82,10 @@ test("cancelAITask sends both IDs, ignores unrelated receipt, and returns server
 
 test("cancelAITask surfaces a server failure instead of reporting success", async () => {
   await withServer(async (apiUrl, server) => {
-    server.once("connection", (socket: ServerSocket) => socket.on("message", () => {
+    server.once("connection", (socket: ServerSocket) => socket.on("message", (raw) => {
+      const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+      if (frame.type === "native_client_lifecycle") return;
+      assert.deepEqual(frame, { type: "cancel_ai_task", payload: { task_id: "task-1", chat_id: "chat-1" } });
       socket.send(JSON.stringify({ type: "error", payload: { message: "Cancellation failed", details: "synthetic" } }));
     }));
     await assert.rejects(clientUsingSyntheticSocket(apiUrl).cancelAITask("task-1", "chat-1"),
