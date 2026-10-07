@@ -49,6 +49,8 @@ changes to the documentation (to keep the documentation up to date).
     import { getApiUrl } from '../config/api';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { webSocketService } from '../services/websocketService';
+    import { connectionFeedback } from '../stores/connectionFeedbackStore';
+    import ConnectionStatusSlot from './ConnectionStatusSlot.svelte';
     import { notificationStore } from '../stores/notificationStore'; // Import notification store for payment notifications
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { learningMode } from '../stores/learningModeStore';
@@ -989,6 +991,12 @@ changes to the documentation (to keep the documentation up to date).
     });
     let isInSignupMode = $derived($isInSignupProcess);
     let visuallyAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
+    let connectionStatusLabel = $derived(
+        $connectionFeedback.state === 'syncing' ? $text('activity.syncing')
+        : $connectionFeedback.reason === 'offline' ? $text('notifications.connection.offline_banner.title')
+        : $connectionFeedback.reason === 'server_updating' ? $text('notifications.connection.server_updating.title')
+        : $text('notifications.connection.reconnecting.title')
+    );
 
     /**
      * Resolved blob URL (or legacy https:// URL) for the user's profile image.
@@ -3142,6 +3150,7 @@ changes to the documentation (to keep the documentation up to date).
 {#if showSettingsIcon}
     <div
     	class="profile-container-wrapper"
+        style:--profile-status-space={$connectionFeedback.state === 'idle' ? '0px' : '38px'}
     	class:signup-footer-mode={$showSignupFooter}
     	in:fly={{ y: -window.innerHeight/2 + 60, x: 0, duration: 800, easing: cubicOut }}
     	out:fade
@@ -3188,6 +3197,13 @@ changes to the documentation (to keep the documentation up to date).
                 <span class="referral-cta-text">{$text('settings.learning_mode')}</span>
             </button>
         {/if}
+        <ConnectionStatusSlot
+            state={$connectionFeedback.state}
+            label={connectionStatusLabel}
+            retryLabel={$text('notifications.connection.tap_to_reconnect')}
+            onReconnect={$authStore.isAuthenticated ? () => webSocketService.retryConnection() : undefined}
+            withGap={false}
+        />
      	<div
 			id="settings-menu-toggle"
      		class="profile-container"
@@ -3544,6 +3560,12 @@ changes to the documentation (to keep the documentation up to date).
         inset-inline-end: auto;
     }
 
+    .profile-container-wrapper :global(.connection-status-slot) {
+        position: absolute;
+        top: 10px;
+        inset-inline-end: 58px;
+    }
+
     .profile-container {
         position: absolute;
         top: 0;
@@ -3561,7 +3583,7 @@ changes to the documentation (to keep the documentation up to date).
     .referral-cta {
         position: absolute;
         top: 4px;
-        inset-inline-end: 102px;
+        inset-inline-end: calc(102px + var(--profile-status-space, 0px));
         height: 42px;
         max-width: 185px;
         min-width: 24px;
@@ -3577,6 +3599,7 @@ changes to the documentation (to keep the documentation up to date).
         overflow: visible;
         white-space: nowrap;
         transition:
+            inset-inline-end 200ms var(--easing-default),
             max-width var(--duration-slow) var(--easing-default),
             opacity var(--duration-normal) var(--easing-default),
             transform var(--duration-normal) var(--easing-default);
@@ -3589,7 +3612,7 @@ changes to the documentation (to keep the documentation up to date).
     .header-github-link {
         position: absolute;
         top: 4px;
-        inset-inline-end: 58px;
+        inset-inline-end: calc(58px + var(--profile-status-space, 0px));
         width: 42px;
         height: 42px;
         display: flex;
@@ -3599,6 +3622,7 @@ changes to the documentation (to keep the documentation up to date).
         color: var(--color-primary-end);
         text-decoration: none;
         transition:
+            inset-inline-end 200ms var(--easing-default),
             opacity var(--duration-normal) var(--easing-default),
             transform var(--duration-normal) var(--easing-default);
     }
@@ -3691,10 +3715,17 @@ changes to the documentation (to keep the documentation up to date).
 
     @media (max-width: 730px) {
         .referral-cta {
-            inset-inline-end: 58px;
+            inset-inline-end: calc(58px + var(--profile-status-space, 0px));
             width: 42px;
             min-width: 42px;
             max-width: 42px;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .header-github-link,
+        .referral-cta {
+            transition: none;
         }
     }
 

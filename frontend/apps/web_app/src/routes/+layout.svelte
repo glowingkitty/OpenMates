@@ -32,8 +32,7 @@
 		) || /^\/(?:de\/)?(?:news|blog|social)(?:\/|$)/.test(page.url.pathname)
 	);
 	let MetaTagsComponent = $state<Component | null>(null);
-	let OfflineBannerComponent = $state<Component | null>(null);
-	let OfflineIndicatorComponent = $state<Component | null>(null);
+	let ConnectionStatusControllerComponent = $state<Component | null>(null);
 	const TRANSLATION_STARTUP_TIMEOUT_MS = 5000;
 	const OPENMATES_FAVICONS = [
 		{ key: 'primary', rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
@@ -133,16 +132,14 @@
 
 	onMount(async () => {
 		if (!isSeoRoute) {
-			const [metaTags, offlineBanner, offlineIndicator, metaConfig, serverStatus] = await Promise.all([
+			const [metaTags, connectionStatusController, metaConfig, serverStatus] = await Promise.all([
 				import('@repo/ui/components/MetaTags.svelte'),
-				import('@repo/ui/components/OfflineBanner.svelte'),
-				import('@repo/ui/components/OfflineIndicator.svelte'),
+				import('@repo/ui/components/ConnectionStatusController.svelte'),
 				import('@repo/ui/config/meta'),
 				import('@repo/ui/stores/serverStatusStore')
 			]);
 			MetaTagsComponent = metaTags.default;
-			OfflineBannerComponent = offlineBanner.default;
-			OfflineIndicatorComponent = offlineIndicator.default;
+			ConnectionStatusControllerComponent = connectionStatusController.default;
 			await metaConfig.loadMetaTags();
 			serverStatus.initializeServerStatus();
 		}
@@ -380,17 +377,16 @@
 	Rendering strategy:
 	  - `{@render children()}` is called unconditionally so SEO routes (inside the
 	    (seo) layout group) emit their full HTML server-side for crawlers to index.
-	  - MetaTags and OfflineBanner are SPA-specific; they only mount after `loaded`
+	  - MetaTags and connection feedback are SPA-specific; they mount after `loaded`
 	    (= after waitLocale() + initializeTheme() run in onMount), preventing FOUC.
 	  - The SPA root (/) has ssr=false so its children render empty on the server;
 	    the `{#if loaded}` on SPA-specific children preserves existing behaviour.
 	  - The `<main>` wrapper is always present; on SPA routes it's empty until
 	    hydration completes (same as before — the SPA mounts into the Svelte body div).
 -->
-{#if loaded && !isSeoRoute && MetaTagsComponent && OfflineBannerComponent && OfflineIndicatorComponent}
+{#if loaded && !isSeoRoute && MetaTagsComponent && ConnectionStatusControllerComponent}
 	<MetaTagsComponent />
-	<OfflineBannerComponent />
-	<OfflineIndicatorComponent />
+	<ConnectionStatusControllerComponent />
 {/if}
 <main>
 	{@render children()}

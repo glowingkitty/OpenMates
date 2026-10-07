@@ -10,6 +10,7 @@ import { websocketStatus } from "../stores/websocketStatusStore";
 import { notificationStore } from "../stores/notificationStore";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
+import { chatSyncActivity } from "../stores/chatSyncActivityStore";
 import { activeChatFocusStore } from "../stores/activeChatFocusStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import {
@@ -100,10 +101,6 @@ import {
 // All payload interface definitions are now expected to be in types/chat.ts
 
 const CHAT_CONTENT_BATCH_WS_READY_TIMEOUT_MS = 8_000;
-const CHAT_SYNC_RECOVERY_NOTIFICATION_DEDUPE_KEY = "chat-sync-recovery";
-const CHAT_SYNC_RECOVERY_NOTIFICATION_TITLE = "Chat sync is still recovering";
-const CHAT_SYNC_RECOVERY_NOTIFICATION_MESSAGE =
-  "Please keep this tab open while we reload your chats.";
 const PROJECT_FILE_COMMIT_TIMEOUT_MS = 30_000;
 const PROJECT_FILE_EXECUTOR_EVENTS = new Set([
   "project_file_operation_claim",
@@ -264,8 +261,6 @@ export class ChatSynchronizationService extends EventTarget {
   private cacheStatusRetryCount = 0;
   private cacheStatusServerChatCount = 0;
   private hasCurrentConnectionCacheStatusCount = false;
-  private syncRecoveryNotificationId: string | null = null;
-  private syncRecoveryNotificationShown = false;
   private readonly CACHE_STATUS_RETRY_INTERVAL_MS = 3000; // Poll every 3 seconds
   private readonly CACHE_STATUS_MAX_RETRIES = 10; // Give up after 30 seconds (10 * 3s)
 
@@ -408,6 +403,7 @@ export class ChatSynchronizationService extends EventTarget {
     // Listen for handlers being cleared (e.g., during logout)
     // and reset the registration flag so they can be re-registered on next login
     webSocketService.addEventListener("handlers_cleared", () => {
+      chatSyncActivity.clear();
       resetRecoveryLifecycleImpl();
       console.warn(
         "[ChatSyncService] WebSocket handlers were cleared. Resetting registration flag.",
@@ -441,7 +437,10 @@ export class ChatSynchronizationService extends EventTarget {
         });
       });
       window.addEventListener('focus', () => { if (this.webSocketConnected) void this.refreshChatActivity(); });
-      window.addEventListener('userLoggingOut', () => this.resetCacheStatusCountEvidence());
+      window.addEventListener('userLoggingOut', () => {
+        this.resetCacheStatusCountEvidence();
+        chatSyncActivity.clear();
+      });
       window.addEventListener(TEAM_CONTEXT_CHANGED_EVENT, (event) => {
         const context = (event as CustomEvent<TeamContextSnapshot>).detail;
         void this.handleTeamContextChanged(context);
@@ -587,6 +586,7 @@ export class ChatSynchronizationService extends EventTarget {
 
         // Always clear in-progress sync state
         this.isSyncing = false;
+        chatSyncActivity.clear();
         if (this.cacheStatusRequestTimeout) {
           clearTimeout(this.cacheStatusRequestTimeout);
           this.cacheStatusRequestTimeout = null;
@@ -594,7 +594,6 @@ export class ChatSynchronizationService extends EventTarget {
 
         // Clear cache status retry polling to prevent stale retries after reconnect
         this.clearCacheStatusRetry();
-        this.clearSyncRecoveryNotification();
 
         // CRITICAL: Clear the phased sync timeout on disconnect to prevent stale timeouts
         // A new timeout will be started when connection is restored and sync starts again
@@ -988,6 +987,7 @@ export class ChatSynchronizationService extends EventTarget {
 
   private async handleTeamContextChanged(context: TeamContextSnapshot): Promise<void> {
     void this.refreshChatActivity();
+    chatSyncActivity.clear();
     this.clearPhasedSyncTimeout();
     this.cachePrimed = false;
     this.initialSyncAttempted = false;
@@ -2296,7 +2296,6 @@ export class ChatSynchronizationService extends EventTarget {
     // When cache becomes primed, clear any pending retry polling
     if (value) {
       this.clearCacheStatusRetry();
-      this.clearSyncRecoveryNotification();
     }
   }
   public get initialSyncAttempted_FOR_HANDLERS_ONLY(): boolean {
@@ -2359,7 +2358,6 @@ export class ChatSynchronizationService extends EventTarget {
             `but server reports ${this.cacheStatusServerChatCount} chat(s). Keeping sync pending and retrying ` +
             `instead of marking an empty local DB as complete.`,
         );
-        this.showSyncRecoveryNotification();
         this.cacheStatusRetryCount = 0;
         this.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
         return;
@@ -2369,7 +2367,6 @@ export class ChatSynchronizationService extends EventTarget {
         `[ChatSyncService] Cache status retry limit reached (${this.CACHE_STATUS_MAX_RETRIES}) ` +
           `and server reports no chats. Dispatching synthetic sync complete to unblock UI.`,
       );
-      this.clearSyncRecoveryNotification();
       this.dispatchSyncTimeoutComplete("timeout");
       return;
     }
@@ -2403,30 +2400,6 @@ export class ChatSynchronizationService extends EventTarget {
       this.cacheStatusRetryTimer = null;
     }
     this.cacheStatusRetryCount = 0;
-  }
-
-  private showSyncRecoveryNotification(): void {
-    if (this.syncRecoveryNotificationShown) return;
-    this.syncRecoveryNotificationShown = true;
-    this.syncRecoveryNotificationId = notificationStore.addNotificationWithOptions(
-      "warning",
-      {
-        title: CHAT_SYNC_RECOVERY_NOTIFICATION_TITLE,
-        message: CHAT_SYNC_RECOVERY_NOTIFICATION_MESSAGE,
-        duration: 0,
-        dismissible: true,
-        isProcessing: true,
-        dedupeKey: CHAT_SYNC_RECOVERY_NOTIFICATION_DEDUPE_KEY,
-      },
-    );
-  }
-
-  private clearSyncRecoveryNotification(): void {
-    this.syncRecoveryNotificationShown = false;
-    this.syncRecoveryNotificationId = null;
-    notificationStore.removeNotificationsByDedupeKey(
-      CHAT_SYNC_RECOVERY_NOTIFICATION_DEDUPE_KEY,
-    );
   }
 
   // --- Syncing Message IDs Tracking ---
@@ -2997,6 +2970,7 @@ export class ChatSynchronizationService extends EventTarget {
       return;
     }
 
+    let activityAttempt: number | null = null;
     try {
       const context = get(activeTeamContext);
       const teamId = context.teamId;
@@ -3091,11 +3065,21 @@ export class ChatSynchronizationService extends EventTarget {
         ...(teamId ? { team_id: teamId } : {}),
       };
 
+      // The context may have changed while IndexedDB was preparing this request.
+      // Never show activity for, or send, a request from the old context.
+      const currentContext = get(activeTeamContext);
+      if (currentContext.epoch !== context.epoch || currentContext.teamId !== teamId) return;
+      if (!this.webSocketConnected || get(forcedLogoutInProgress) || get(isLoggingOut)) return;
+      // Slow request preparation may have exhausted the earlier UI watchdog.
+      // Give the actual request its own bounded completion window.
+      this.startPhasedSyncTimeout();
+      activityAttempt = chatSyncActivity.begin(context);
       await webSocketService.sendMessage("phased_sync_request", payload);
       console.warn(
         "[ChatSyncService] 4/4: ✅ Successfully sent 'phased_sync_request' to server.",
       );
     } catch (error) {
+      if (activityAttempt !== null) chatSyncActivity.clearAttempt(activityAttempt);
       console.error(
         "[ChatSyncService] ❌ CRITICAL: Error during startPhasedSync:",
         error,
@@ -3132,6 +3116,7 @@ export class ChatSynchronizationService extends EventTarget {
 
     this.phasedSyncTimeout = setTimeout(() => {
       this.phasedSyncTimeout = null;
+      chatSyncActivity.clear();
 
       if (!this.cachePrimed && this.cacheStatusServerChatCount > 0) {
         console.warn(
@@ -3172,6 +3157,9 @@ export class ChatSynchronizationService extends EventTarget {
   private dispatchSyncTimeoutComplete(
     reason: "timeout" | "error" | "logout-in-progress",
   ): void {
+    // The failed send already clears its own attempt. An older async failure
+    // must not hide a newer request's activity.
+    if (reason !== "error") chatSyncActivity.clear();
     console.warn(
       `[ChatSyncService] Dispatching synthetic phasedSyncComplete event (reason: ${reason})`,
     );

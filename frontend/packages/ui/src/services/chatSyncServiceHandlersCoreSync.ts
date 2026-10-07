@@ -7,6 +7,7 @@ import { decryptWithChatKey } from "./encryption/MessageEncryptor";
 import { userDB } from "./userDB";
 import { chatListCache } from "./chatListCache";
 import { notificationStore } from "../stores/notificationStore";
+import { chatSyncActivity } from "../stores/chatSyncActivityStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
@@ -1293,6 +1294,7 @@ export async function handleOfflineSyncCompleteImpl(
   serviceInstance: ChatSynchronizationService,
   payload: OfflineSyncCompletePayload,
 ): Promise<void> {
+  chatSyncActivity.completeOffline();
   console.info(
     "[ChatSyncService:CoreSync] Received offline_sync_complete:",
     payload,
@@ -1315,14 +1317,6 @@ export async function handleOfflineSyncCompleteImpl(
       if (payload.conflicts > 0)
         notificationStore.warning(
           `Offline sync: ${payload.conflicts} changes had conflicts.`,
-        );
-      if (
-        payload.errors === 0 &&
-        payload.conflicts === 0 &&
-        payload.processed > 0
-      )
-        notificationStore.success(
-          `${payload.processed} offline changes synced.`,
         );
       serviceInstance.dispatchEvent(
         new CustomEvent("offlineSyncProcessed", { detail: payload }),

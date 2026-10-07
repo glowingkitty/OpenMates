@@ -8,6 +8,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
 import type { ChatSynchronizationService } from "../chatSyncService";
 
+// Some senders import the package barrel for translations. Loading that barrel
+// here pulls UI components back into chatSyncService before it is initialized.
+vi.mock("@repo/ui", () => ({
+  text: {
+    subscribe: (run: (value: (key: string) => string) => void) => {
+      run((key) => key);
+      return () => undefined;
+    },
+  },
+}));
+
 const mocks = vi.hoisted(() => ({
   chatDB: {
     getChat: vi.fn(),
@@ -103,8 +114,6 @@ type RetryServiceHarness = Pick<
   cacheStatusRetryCount: number;
   cacheStatusServerChatCount: number;
   cacheStatusRetryTimer: ReturnType<typeof setTimeout> | null;
-  syncRecoveryNotificationId: string | null;
-  syncRecoveryNotificationShown: boolean;
   dispatchSyncTimeoutComplete: ReturnType<typeof vi.fn>;
   webSocketConnected: boolean;
   requestCacheStatus: ReturnType<typeof vi.fn>;
@@ -598,8 +607,6 @@ describe("ChatSynchronizationService cache status retry", () => {
     service.cacheStatusRetryCount = 10;
     service.cacheStatusServerChatCount = 1;
     service.cacheStatusRetryTimer = null;
-    service.syncRecoveryNotificationId = null;
-    service.syncRecoveryNotificationShown = false;
     service.webSocketConnected = true;
     service.dispatchSyncTimeoutComplete = vi.fn();
     service.requestCacheStatus = vi.fn();
@@ -607,16 +614,7 @@ describe("ChatSynchronizationService cache status retry", () => {
     service.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
 
     expect(service.dispatchSyncTimeoutComplete).not.toHaveBeenCalled();
-    expect(
-      mocks.notificationStore.addNotificationWithOptions,
-    ).toHaveBeenCalledWith(
-      "warning",
-      expect.objectContaining({
-        dedupeKey: "chat-sync-recovery",
-        duration: 0,
-        isProcessing: true,
-      }),
-    );
+    expect(mocks.notificationStore.addNotificationWithOptions).not.toHaveBeenCalled();
     expect(service.cacheStatusRetryCount).toBe(1);
 
     vi.runOnlyPendingTimers();
@@ -625,7 +623,7 @@ describe("ChatSynchronizationService cache status retry", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases
-  it("does not repeat the cache recovery notification during the same recovery cycle", () => {
+  it("continues polling after repeated retry limits without a recovery toast", () => {
     vi.useFakeTimers();
     const service = Object.create(
       ChatSynchronizationServiceClass.prototype,
@@ -637,8 +635,6 @@ describe("ChatSynchronizationService cache status retry", () => {
     service.cacheStatusRetryCount = 10;
     service.cacheStatusServerChatCount = 1;
     service.cacheStatusRetryTimer = null;
-    service.syncRecoveryNotificationId = null;
-    service.syncRecoveryNotificationShown = false;
     service.webSocketConnected = true;
     service.dispatchSyncTimeoutComplete = vi.fn();
     service.requestCacheStatus = vi.fn();
@@ -648,15 +644,15 @@ describe("ChatSynchronizationService cache status retry", () => {
     service.cacheStatusRetryTimer = null;
     service.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
 
-    expect(
-      mocks.notificationStore.addNotificationWithOptions,
-    ).toHaveBeenCalledTimes(1);
+    expect(service.dispatchSyncTimeoutComplete).not.toHaveBeenCalled();
+    expect(service.cacheStatusRetryCount).toBe(1);
+    expect(mocks.notificationStore.addNotificationWithOptions).not.toHaveBeenCalled();
 
     vi.useRealTimers();
   });
 
   // contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases
-  it("clears the cache recovery notification once the cache is primed", () => {
+  it("stops cache status retries once the cache is primed", () => {
     const service = Object.create(
       ChatSynchronizationServiceClass.prototype,
     ) as RetryServiceHarness;
@@ -667,8 +663,6 @@ describe("ChatSynchronizationService cache status retry", () => {
     service.cacheStatusRetryCount = 10;
     service.cacheStatusServerChatCount = 1;
     service.cacheStatusRetryTimer = null;
-    service.syncRecoveryNotificationId = null;
-    service.syncRecoveryNotificationShown = false;
     service.webSocketConnected = true;
     service.dispatchSyncTimeoutComplete = vi.fn();
     service.requestCacheStatus = vi.fn();
@@ -676,8 +670,8 @@ describe("ChatSynchronizationService cache status retry", () => {
     service.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
     service.cachePrimed_FOR_HANDLERS_ONLY = true;
 
-    expect(
-      mocks.notificationStore.removeNotificationsByDedupeKey,
-    ).toHaveBeenCalledWith("chat-sync-recovery");
+    expect(service.cacheStatusRetryTimer).toBeNull();
+    expect(service.cacheStatusRetryCount).toBe(0);
+    expect(mocks.notificationStore.addNotificationWithOptions).not.toHaveBeenCalled();
   });
 });

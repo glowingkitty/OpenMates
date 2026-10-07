@@ -70,8 +70,8 @@ export { default as Button } from "./src/components/Button.svelte";
 export { default as HealthAppCard } from "./src/components/cards/HealthAppCard.svelte";
 export { default as EventAppCard } from "./src/components/cards/EventAppCard.svelte";
 export { default as PushNotificationBanner } from "./src/components/PushNotificationBanner.svelte";
-export { default as OfflineBanner } from "./src/components/OfflineBanner.svelte";
-export { default as OfflineIndicator } from "./src/components/OfflineIndicator.svelte";
+export { default as ConnectionStatusIndicator } from "./src/components/ConnectionStatusIndicator.svelte";
+export { default as ConnectionStatusSlot } from "./src/components/ConnectionStatusSlot.svelte";
 export { default as NewsroomSurface } from "./src/components/newsroom/NewsroomSurface.svelte";
 export type {
   NewsroomAction,

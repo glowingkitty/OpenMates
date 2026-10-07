@@ -33,6 +33,7 @@
     type LastAuthMethod,
   } from "../utils/lastAuthMethod";
   import IconTabBar, { type IconTabItem } from "./IconTabBar.svelte";
+  import { connectionFeedback } from "../stores/connectionFeedbackStore";
 
   // Props using Svelte 5 runes
   let {
@@ -52,6 +53,8 @@
     /** Optional public publication CTA rendered with the canonical header button. */
     primaryCtaLabel = undefined as string | undefined,
     onPrimaryCta = undefined as (() => void) | undefined,
+    /** Layout override for an isolated status preview. Live headers use the store. */
+    connectionStatusVisible = undefined as boolean | undefined,
   }: {
     context?: "website" | "webapp";
     isLoggedIn?: boolean;
@@ -61,6 +64,7 @@
     publicationLabel?: string;
     primaryCtaLabel?: string;
     onPrimaryCta?: () => void;
+    connectionStatusVisible?: boolean;
   } = $props();
 
   let serverEdition = $derived($serverStatusStore.status?.server_edition ?? null);
@@ -71,6 +75,7 @@
         : $text("signup.version_title")),
   );
   let hasControlledSidebar = $derived(!!onToggleSidebar);
+  let hasConnectionStatus = $derived(connectionStatusVisible ?? $connectionFeedback.state !== 'idle');
 
   let headerDiv: HTMLElement;
   let isSignedOut = $derived(
@@ -82,10 +87,15 @@
   );
 
   // Measure the original layout so compact styling only applies when controls overlap.
-  function fitGuestHeader(node: HTMLElement, signedOut: boolean) {
+  function fitGuestHeader(node: HTMLElement, state: { signedOut: boolean; statusVisible: boolean }) {
+    let { signedOut, statusVisible } = state;
     const update = () => {
       node.classList.remove("guest-crowded");
       if (!signedOut) return;
+      if (statusVisible) {
+        node.classList.add("guest-crowded");
+        return;
+      }
       const switcher = node.querySelector<HTMLElement>(".workspace-select-shell");
       const cta = node.querySelector<HTMLElement>(".login-signup-button");
       const left = node.querySelector<HTMLElement>(".left-section");
@@ -109,8 +119,8 @@
     if (cta) observer.observe(cta);
     update();
     return {
-      update(value: boolean) {
-        signedOut = value;
+      update(value: { signedOut: boolean; statusVisible: boolean }) {
+        ({ signedOut, statusVisible } = value);
         update();
       },
       destroy() {
@@ -537,6 +547,8 @@
   class:webapp={context === "webapp"}
   class:signed-out={isSignedOut}
   class:publication={!!publicationLabel}
+  class:connection-status-visible={hasConnectionStatus}
+  style:--header-status-space={hasConnectionStatus ? '38px' : '0px'}
 >
   {#await waitLocale()}
     <div class="container">
@@ -549,7 +561,7 @@
     </div>
   {:then}
     <div class="container">
-      <nav class:webapp={context === "webapp"} use:fitGuestHeader={isSignedOut && !$loginInterfaceOpen && !$introBannerVisible}>
+      <nav class:webapp={context === "webapp"} use:fitGuestHeader={{ signedOut: isSignedOut && !$loginInterfaceOpen && !$introBannerVisible, statusVisible: hasConnectionStatus }}>
         <div class="left-section">
           <!-- Menu button container - always rendered to maintain header height -->
           <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
@@ -1113,12 +1125,17 @@
     align-items: center;
     gap: 0.75rem; /* Add gap between sign in button and language icon */
     transition:
+      right 200ms var(--easing-default),
       gap var(--duration-normal) var(--easing-default),
       opacity var(--duration-normal) var(--easing-default),
       visibility var(--duration-normal) var(--easing-default),
       transform var(--duration-normal) var(--easing-default);
     margin-right: var(--spacing-5);
     /* Absolutely positioned so it doesn't affect header height, but we keep it rendered for smooth transitions */
+  }
+
+  header.webapp.signed-out .right-section {
+    right: calc(50px + var(--header-status-space, 0px));
   }
 
   .right-section.signup-cta-hidden {
@@ -1366,7 +1383,7 @@
     /* Keep the guest CTA and settings slot clear only when controls overlap. */
     header.signed-out nav.webapp:global(.guest-crowded) {
       justify-content: flex-start;
-      padding-inline-end: 50px;
+      padding-inline-end: calc(50px + var(--header-status-space, 0px));
     }
 
     header.signed-out nav:global(.guest-crowded) .logo-container {
@@ -1432,7 +1449,7 @@
 
     header.signed-out nav.webapp:global(.guest-crowded) {
       justify-content: flex-start;
-      padding-inline-end: 50px;
+      padding-inline-end: calc(50px + var(--header-status-space, 0px));
     }
 
     header.signed-out nav:global(.guest-crowded) .logo-container {
@@ -1459,16 +1476,44 @@
       flex-shrink: 0;
     }
   }
-  @media (max-width: 380px) {
-    .workspace-select-shell {
+  .workspace-select-shell {
+    transition: left 200ms var(--easing-default), width 200ms var(--easing-default), padding 200ms var(--easing-default);
+  }
+
+  @media (max-width: 730px) {
+    header.webapp.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      left: calc(50% - 20px);
       box-sizing: border-box;
-      width: 4.5rem;
     }
   }
-  @container main-content (max-width: 380px) {
-    .workspace-select-shell {
+
+  @container main-content (max-width: 730px) {
+    header.webapp.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      left: calc(50% - 20px);
       box-sizing: border-box;
-      width: 4.5rem;
+    }
+  }
+
+  @media (max-width: 380px) {
+    header.webapp.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      width: 4.25rem;
+      padding: 0;
+      left: calc(50% - 30px);
+    }
+  }
+
+  @container main-content (max-width: 380px) {
+    header.webapp.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      width: 4.25rem;
+      padding: 0;
+      left: calc(50% - 30px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .workspace-select-shell,
+    header.webapp.signed-out .right-section {
+      transition: none;
     }
   }
   @media (max-width: 380px) {

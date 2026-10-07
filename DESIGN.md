@@ -458,6 +458,21 @@ Escape and viewport resizing close the picker. Source:
 
 ## Motion
 
+Transient connection and chat-sync feedback uses one muted icon immediately
+before the fixed profile avatar: an 18px static airplane shows browser/device
+offline status for all users; a 20px Wi-Fi icon ripples outward over 1.8s
+while reconnecting; 18px sync arrows rotate over 2.4s during actual phased chat
+sync. Reconnection takes priority. Brief syncs under 600ms remain silent.
+The 30px icon and 8px gap collapse when idle; neighboring GitHub/referral/learning
+controls move into that 38px space over 200ms. The avatar stays fixed and no
+empty status space remains. Wi-Fi and sync feedback are signed-in-only;
+signed-out users see just the airplane while offline and reserve no space online.
+The compact workspace selector makes room while
+the icon is present. Reduced Motion keeps the icons static and disables the
+collapse/movement transitions. Wi-Fi remains a keyboard-accessible retry control
+with a translated status and tooltip. Routine progress and reconnection do not
+create notification cards; actionable sync errors retain their existing cards.
+
 Motion should make the UI feel alive and responsive without distracting users.
 
 Use existing timings:

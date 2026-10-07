@@ -28,6 +28,7 @@ import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithChatKey } from "./encryption/MessageEncryptor";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
+import { chatSyncActivity } from "../stores/chatSyncActivityStore";
 import {
   filterPersistableSyncedMessagesWithSkipped,
   markSyncedMessagesDeferred,
@@ -703,6 +704,7 @@ export async function handlePhasedSyncCompleteImpl(
   payload: PhasedSyncCompletePayload,
 ): Promise<void> {
   console.info("[ChatSyncService] Phased sync complete");
+  chatSyncActivity.complete(payload);
 
   // CRITICAL: Clear the timeout since sync completed successfully
   // This prevents the synthetic timeout event from firing after real completion

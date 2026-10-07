@@ -4,11 +4,14 @@
 // cannot overwrite locally valid encrypted chat header metadata with nulls.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { get } from "svelte/store";
 import type { ChatSynchronizationService } from "../chatSyncService";
+import { chatSyncActivity } from "../../stores/chatSyncActivityStore";
 import {
   handleChatContentBatchResponseImpl,
   handleCacheStatusResponseImpl,
   handlePhase1LastChatImpl,
+  handleOfflineSyncCompleteImpl,
 } from "../chatSyncServiceHandlersCoreSync";
 
 const mocks = vi.hoisted(() => ({
@@ -35,6 +38,9 @@ const mocks = vi.hoisted(() => ({
     updateChat: vi.fn(),
     getMessageCountForChat: vi.fn(),
     saveEncryptedNewChatSuggestions: vi.fn(),
+    getOfflineChanges: vi.fn(),
+    getTransaction: vi.fn(),
+    deleteOfflineChange: vi.fn(),
   },
   userDB: {
     getUserProfile: vi.fn(),
@@ -61,6 +67,12 @@ const mocks = vi.hoisted(() => ({
   activeChatStore: {
     get: vi.fn((): string | null => null),
   },
+  notificationStore: {
+    chatMessage: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    success: vi.fn(),
+  },
 }));
 
 vi.mock("../db", () => ({ chatDB: mocks.chatDB }));
@@ -79,7 +91,7 @@ vi.mock("../../stores/dailyInspirationStore", () => ({
   dailyInspirationStore: mocks.dailyInspirationStore,
 }));
 vi.mock("../../stores/notificationStore", () => ({
-  notificationStore: { chatMessage: vi.fn(), error: vi.fn() },
+  notificationStore: mocks.notificationStore,
 }));
 vi.mock("../../stores/activeChatStore", () => ({
   activeChatStore: mocks.activeChatStore,
@@ -94,7 +106,50 @@ vi.mock("../chatSyncMessageKeyGuard", () => ({
 }));
 
 afterEach(() => {
+  chatSyncActivity.clear();
   vi.unstubAllGlobals();
+});
+
+describe("handleOfflineSyncCompleteImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.chatDB.getOfflineChanges.mockResolvedValue([]);
+    mocks.chatDB.deleteOfflineChange.mockResolvedValue(undefined);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+  it("ends offline activity and keeps error and conflict notices", async () => {
+    const tx = { oncomplete: null as (() => void) | null };
+    mocks.chatDB.getTransaction.mockResolvedValue(tx);
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    chatSyncActivity.beginOffline();
+
+    await handleOfflineSyncCompleteImpl(service, { processed: 0, errors: 1, conflicts: 2 });
+    expect(get(chatSyncActivity).active).toBe(false);
+    tx.oncomplete?.();
+
+    expect(mocks.notificationStore.error).toHaveBeenCalledOnce();
+    expect(mocks.notificationStore.warning).toHaveBeenCalledOnce();
+    expect(mocks.notificationStore.success).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "offlineSyncProcessed" }),
+    );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+  it("does not display a routine success card", async () => {
+    const tx = { oncomplete: null as (() => void) | null };
+    mocks.chatDB.getTransaction.mockResolvedValue(tx);
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    chatSyncActivity.beginOffline();
+
+    await handleOfflineSyncCompleteImpl(service, { processed: 1, errors: 0, conflicts: 0 });
+    tx.oncomplete?.();
+
+    expect(mocks.notificationStore.success).not.toHaveBeenCalled();
+    expect(mocks.notificationStore.error).not.toHaveBeenCalled();
+    expect(mocks.notificationStore.warning).not.toHaveBeenCalled();
+  });
 });
 
 describe("handleCacheStatusResponseImpl", () => {

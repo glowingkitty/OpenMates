@@ -57,6 +57,25 @@ A single web app reduces development effort and gives visitors immediate exposur
 
 ## How It Works
 
+### Connection and sync feedback
+
+`ConnectionStatusController.svelte` feeds browser connectivity, authenticated
+WebSocket status and `chatSyncActivityStore.ts` into `connectionFeedbackStore.ts`.
+`Settings.svelte` renders the transient Wi-Fi/sync slot beside the fixed profile;
+`Header.svelte` adjusts the compact workspace selector when that slot is visible.
+Browser/device offline status shows a static airplane for all users. Signed-out
+users never show animated Wi-Fi or sync feedback and reserve no space online.
+Idle collapses the slot and moves the neighboring controls back over 200ms.
+The controller preserves the 3s socket-loss delay, 10s wake grace and 12s stuck
+auth-check detection. Sync appears only after 600ms of an actual phased sync
+request and ends on a matching full server completion or an interruption.
+Offline-change replay contributes independent activity until its acknowledgement,
+send failure, disconnect or 30s timeout; completing one sync keeps the other visible.
+Cached/synthetic UI-readiness completions and ordinary incoming messages do not
+start sync activity. Routine connection/reconnected/cache-recovery notifications
+and offline-replay progress/success cards are replaced by this slot; actionable
+sync errors and conflicts remain in the notification deck.
+
 ### Unauthenticated Experience
 
 When a visitor loads `openmates.org` without being logged in:

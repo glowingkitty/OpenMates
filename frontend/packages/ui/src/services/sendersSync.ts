@@ -16,6 +16,7 @@ import { notificationStore } from "../stores/notificationStore";
 import { get } from "svelte/store";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { activeTeamContext } from "../stores/teamStore";
+import { chatSyncActivity } from "../stores/chatSyncActivityStore";
 import type {
 	OfflineChange,
 	CancelAITaskPayload,
@@ -343,7 +344,6 @@ export async function queueOfflineChangeImpl(
 		change_id: crypto.randomUUID()
 	};
 	await chatDB.addOfflineChange(fullChange);
-	notificationStore.info(`Change saved offline. Will sync when reconnected.`, 3000);
 }
 
 export async function sendOfflineChangesImpl(): Promise<void> {
@@ -355,11 +355,14 @@ export async function sendOfflineChangesImpl(): Promise<void> {
 	}
 	const changes = await chatDB.getOfflineChanges();
 	if (changes.length === 0) return;
-	notificationStore.info(
-		`Attempting to sync ${changes.length} offline change(s)...`
-	);
 	const payload: SyncOfflineChangesPayload = { changes };
-	await webSocketService.sendMessage("sync_offline_changes", payload);
+	const attempt = chatSyncActivity.beginOffline();
+	try {
+		await webSocketService.sendMessage("sync_offline_changes", payload);
+	} catch (error) {
+		chatSyncActivity.clearOfflineAttempt(attempt);
+		throw error;
+	}
 }
 
 // Scroll position and read status sync methods
