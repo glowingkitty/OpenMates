@@ -57,6 +57,16 @@ A single web app reduces development effort and gives visitors immediate exposur
 
 ## How It Works
 
+### Temporary marketing landing page
+
+`/landing` is a server-rendered public route under `(marketing)`, with a reset
+layout that reuses the app's fonts, colors and icons without starting account
+synchronization. Its full-height hero keeps the app rails and rotating prompts;
+visitors scroll the feature sections while the composer link stays fixed to the
+viewport. `/#compose` focuses the real app editor and preserves a guest draft.
+App and website destinations are independently configurable for the later
+[website/app domain split](../web-app-landing-domain-split.md).
+
 ### Connection and sync feedback
 
 `ConnectionStatusController.svelte` feeds browser connectivity, authenticated

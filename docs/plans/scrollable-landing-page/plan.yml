@@ -1,7 +1,7 @@
 schema_version: 2
 id: scrollable-landing-page
 title: Scrollable Figma landing page
-status: implementing
+status: verified
 goal: >
   Implement the updated UI for the landingpage, accessible via a new /landing for
   now, based on the existing visitor-facing web app UI, with a full viewport height
@@ -44,6 +44,16 @@ verification:
     - Isolated GitHub component proof for laptop/phone layout, hero motion, fixed composer, icons, images, and destinations.
     - Isolated GitHub route proof for server-rendered content and cold-start composer/account deep links.
     - Reviewed dev laptop/mobile visual smoke and retained CI recordings delivered in chat.
+  deployed_review:
+    commit: dbab85b377120afa9c43894f1221edf581fd20c0
+    deployment: dpl_Ug6t8X6JsYfCDffBjq8BTrD59ibf
+    readiness: Exact commit confirmed READY through the Vercel API after two GitHub-status timeouts.
+    url: https://app.dev.openmates.org/landing
+    run_id: test-results/visual-smoke/2026-10-07T16-14-04-607Z/summary.json
+    result: passed
+    viewports: [laptop, mobile]
+    summary: Laptop and mobile screenshots reviewed; no clipping, overlap, broken media, console or network defects. Approved mobile web screenshot substitution retained.
+    recording_delivery: All 25 existing CI recordings uploaded, including failed attempts, retries, recorded profiles and workspace popups; final chat links are the delivery record.
 
 scenarios:
   - id: S-1
@@ -160,8 +170,8 @@ tasks:
   - id: TASK-1
     external_task_id: f3fadd31-5772-4657-b5a7-ab31bda4f1ab
     title: Implement and verify the temporary scrollable landing route
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-2]
       acceptance_criteria: [AC-1, AC-2]
@@ -179,8 +189,8 @@ tasks:
       shared_files: []
 handoff:
   current_task_id: TASK-1
-  next_action: Deploy the verified implementation to dev and review laptop/mobile screenshots.
+  next_action: Later extract the website build and rehearse the documented domain migration on dev.
   command: python3 scripts/plan_validate.py docs/plans/scrollable-landing-page/plan.yml
-  expected_outcome: Component and route proof are green; deployed visual review remains pending.
+  expected_outcome: Implementation, isolated browser proof, dev deployment and reviewed visual smoke are complete.
   blocker: null
   last_verified_commit: 969f500d03fcae7b04bbd4cda6204a7075cc16be
