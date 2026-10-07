@@ -106,6 +106,10 @@ assertions:
     type: privacy
     must: APNs alert fields contain localized generic text without private chat titles or message plaintext; an optional preview is encrypted to the target device, decrypted only by the notification service extension, and falls back to generic text when absent or invalid.
     depends_on: [models.ApplePushPayload, examples.payload_privacy]
+  - id: apple-notifications.preview.readable
+    type: behavior
+    must: An encrypted response preview starts with the first app and skill's translated display labels plus available allowlisted human query or request details, summarizes additional skill uses, then separates readable response prose with a blank line; inline embeds use human markers such as [3 Images], never raw JSON, internal identifiers, or embed protocol. The complete APNs UTF-8 JSON payload, including ciphertext and base64 overhead, stays within 4096 bytes by retaining the available start of the preview.
+    depends_on: [models.ApplePushPayload, examples.payload_privacy]
   - id: apple-notifications.action.routing-coherent
     type: behavior
     must: An authorized chat notification opened from foreground, background, or terminated state selects the target chat through normal authenticated sync and hydration; an inline reply persists at most one client-encrypted user message with a stable id in that chat; a client already visibly viewing the chat does not show duplicate system and in-app presentation; and opening the chat clears only its unread count while recomputing the application badge from remaining unread chats.

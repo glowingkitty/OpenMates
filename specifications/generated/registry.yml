@@ -316,7 +316,7 @@ specifications:
     version: 1
     status: draft
     path: features/apple-notifications
-    fingerprint: 157ca4d7495761e8333a80ff9346f43204692992e28b82949585f74327560d9e
+    fingerprint: cbe684c40c6f8ea634956198c8535e14e442b025e02a97b4c5f61e3986a17c01
     required_applies_to:
     - rest_api
     - gui.apple
@@ -4169,7 +4169,15 @@ assertions:
     specification: feature.apple-notifications@1
     specification_id: feature.apple-notifications
     type: privacy
-    fingerprint: 3658e574aca183755aa65030be763c7d41a3eb0030b0a9e386b41a44eaccf6c3
+    fingerprint: a8b622066d977cd517b76a112c59f7bcbe283af9f36c5210e8bed1f631afde29
+    required_applies_to:
+    - rest_api
+    - gui.apple
+  apple-notifications.preview.readable:
+    specification: feature.apple-notifications@1
+    specification_id: feature.apple-notifications
+    type: behavior
+    fingerprint: 6bee083031e01f3331c6e21b18b152044af87a5941b7217d5d56530927e60ac9
     required_applies_to:
     - rest_api
     - gui.apple

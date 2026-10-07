@@ -40,7 +40,7 @@ def completion_dispatch():
     ('Readable first.\n```json\n{"type":"app_skill_use","embed_id":', 'Readable first.'),
     ('```json\n{"type":"app_skill_use","embed_id":', ''),
     ('JSON objects can contain app_skill_use and embed_id words in ordinary prose.', 'JSON objects can contain app_skill_use and embed_id words in ordinary prose.'),
-    ('# Heading\n- **Bold** and [human link](https://example.invalid).\n![image](https://example.invalid/image)', 'Heading Bold and human link.'),
+    ('# Heading\n- **Bold** and [human link](https://example.invalid).\n![image](https://example.invalid/image)', 'Heading Bold and human link. [Image]'),
 ])
 # contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
 def test_notification_preview_preserves_prose_and_removes_fences(content, expected):
@@ -76,6 +76,9 @@ def decode(value):
 @pytest.mark.parametrize("content,expected", [
     ('```json\n{"type":"app_skill_use","embed_id":"fixture"}\n```\nPrivate readable prose.', 'Private readable prose.'),
     ('```json\n{"type":"app_skill_use","embed_id":', None),
+    ('Readable ' + 'a' * 12000, '<truncated>'),
+    ('Readable ' + '🔐漢字' * 3000, '<truncated>'),
+    ('Readable ' + '\"\\' * 6000, '<truncated>'),
 ])
 # contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
 def test_apns_transport_keeps_public_generic_and_encrypts_only_clean_preview(monkeypatch, content, expected):
@@ -101,6 +104,9 @@ def test_apns_transport_keeps_public_generic_and_encrypts_only_clean_preview(mon
     monkeypatch.setattr(service, '_build_apns_jwt', lambda **kwargs: 'synthetic-provider-auth')
     assert service._send_apns_notification(target, 'Private title', content, 'synthetic-chat', APNS_CHAT_CATEGORY, None)
     payload = calls[0]
+    import httpx
+    wire = httpx.Request('POST', 'https://example.invalid', json=payload).content
+    assert len(wire) <= 4096
     assert payload['aps']['alert'] == {'title': 'OpenMates', 'body': APNS_CHAT_MESSAGE_BODY}
     assert 'Private' not in json.dumps(payload)
     assert 'app_skill_use' not in json.dumps(payload)
@@ -113,5 +119,51 @@ def test_apns_transport_keeps_public_generic_and_encrypts_only_clean_preview(mon
         secret = private.exchange(ephemeral)
         key = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=APNS_ENCRYPTION_INFO).derive(secret)
         plaintext = AESGCM(key).decrypt(decode(envelope['nonce']), decode(envelope['ciphertext']), None)
-        assert json.loads(plaintext) == {'preview': expected}
+        if expected == '<truncated>':
+            preview = json.loads(plaintext)['preview']
+            assert preview.startswith('Readable ')
+            assert preview.endswith('…')
+            assert len(preview) > 200
+            assert content.startswith(preview[:-1])
+        else:
+            assert json.loads(plaintext) == {'preview': expected}
         assert payload['aps']['mutable-content'] == 1
+
+
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe,apple-notifications.preview.readable
+def test_preview_skill_summary_query_and_readable_inline_images():
+    blocks = []
+    for index, app in enumerate(('web', 'images', 'web', 'code')):
+        blocks.append('```json\n' + json.dumps({
+            'type': 'app_skill_use', 'embed_id': f'private-id-{index}',
+            'app_id': app, 'skill_id': 'search' if app != 'code' else 'get_docs',
+            'query': 'GPT6.1 Astra' if index == 0 else 'ignored later query',
+            'metadata': {'private_id': 'must-never-render'},
+        }) + '\n```')
+    prose = 'Here are the results [3 Images](embed:private-image-slug).'
+    expected = "Web | Search: 'GPT6.1 Astra' & 3 other app skills\n\nHere are the results [3 Images]."
+    assert notification_preview_text('\n'.join(blocks) + '\n' + prose) == expected
+    assert notification_preview_text(expected) == expected
+
+
+@pytest.mark.parametrize('content,expected', [
+    ('```json\n{"type":"app_skill_use","embed_id":"private","app_id":"web","skill_id":"search"}\n```\nSummary.', 'Web | Search\n\nSummary.'),
+    ('{"type":"app_skill_use","embed_id":"private","app_id":"web","skill_id":"search","query":{"private":"never"}}\nSummary.', 'Web | Search\n\nSummary.'),
+    ('Summary. {"type":"image","embed_id":"private","metadata":{"url":"private"}}', 'Summary. [Image]'),
+    ('Summary. {"type":"app_skill_use","embed_id":', 'Summary.'),
+    ('Summary. {"type":{},"embed_id":"private"}', 'Summary.'),
+    ('```json\n{"type":"app_skill_use","app_id":"web","skill_id":"search","embed_id":{"private":"id"}}\n```', 'Web | Search'),
+    ('See [](embed:private-id) and [private-id](embed:private-id).', 'See [Attachment] and [Attachment].'),
+    ('![a](https://example.invalid/a) ![b](https://example.invalid/b) ![c](https://example.invalid/c)', '[3 Images]'),
+])
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.preview.readable
+def test_preview_allowlisted_metadata_and_markers(content, expected):
+    assert notification_preview_text(content) == expected
+
+
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.preview.readable
+def test_preview_uses_existing_translated_skill_labels_without_internal_ids():
+    content = '```json\n{"type":"app_skill_use","embed_id":"private","app_id":"web","skill_id":"search"}\n```'
+    assert notification_preview_text(content, lang='de') == 'Internet | Suchen'
+    unknown = content.replace('"web"', '"private-app"').replace('"search"', '"private-skill"')
+    assert notification_preview_text(unknown) == 'App | Action'
