@@ -871,6 +871,7 @@
     .security-body :global(.icon-container) { margin-inline-end: 17px; }
     .security-body :global(.toggle-container) { padding: 0; }
     .security-body :global(.menu-title) { white-space: normal; overflow: visible; text-overflow: clip; }
+    .security-body :global([data-testid="team-security-domain-row"] .menu-title) { font-weight: var(--font-weight-p); }
     .teams-body :global(.settings-section-heading) { margin: 0; }
     .teams-body :global(.heading-icon) { height: 24px; }
     .teams-body :global(.heading-icon::after) { mask-size: 24px 24px; -webkit-mask-size: 24px 24px; }

@@ -70,6 +70,7 @@ test.describe('Teams settings canonical icons', () => {
 		const row = page.getByTestId('team-security-domain-row');
 		await expect(row).toHaveCount(1);
 		await expect(row).toContainText('example.org');
+		await expect(row.locator('.menu-title')).toHaveCSS('font-weight', '500');
 		await expect(row.locator('.settings-icon')).toHaveCount(0);
 		await expect(row.getByTestId('team-security-domain-remove-example.org')).toBeVisible();
 		const toggleIcon = page.getByTestId('team-security-domain-toggle').locator('.settings-icon');

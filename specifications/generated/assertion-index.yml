@@ -84361,7 +84361,7 @@ assertions:
       surface: gui.web
     - &id10589
       path: frontend/apps/web_app/tests/components/settings-teams-icons.spec.ts
-      line: 81
+      line: 82
       name: Teams banner resolves the route alias to its canonical mask in both header
         states
       surface: gui.web
