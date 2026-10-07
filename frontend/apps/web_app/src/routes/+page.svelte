@@ -667,9 +667,6 @@
 
 	// --- Reactive Computations ---
 
-	// Footer should only show in settings panel (not on main chat interface)
-	let showFooter = $derived($panelState.isSettingsOpen);
-
 	/**
 	 * Handle chat deep linking from URL
 	 * Supports both user chats (from IndexedDB) and demo/legal chats (from static data)
@@ -3757,7 +3754,6 @@
 	class:settings-edge-dragging={edgeSwipeDragging &&
 		(edgeSwipeTarget === 'open-settings' || edgeSwipeTarget === 'close-settings')}
 	class:initial-load={isInitialLoad}
-	class:scrollable={showFooter}
 	style={`--dev-console-height: ${devConsoleOpen ? DEV_CONSOLE_HEIGHT : 0}px; --chat-drag-offset: ${edgeSwipeChatOffsetPx}px; --settings-drag-offset: ${edgeSwipeSettingsOffsetPx}px; --settings-drag-width: ${edgeSwipeSettingsWidthPx}px; --settings-drag-gap: ${edgeSwipeProgress * 20}px;`}
 >
 	<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
@@ -3867,7 +3863,7 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 0;
-		/* Change from fixed to absolute positioning when in scrollable mode */
+		/* Keep chat height bounded; settings scroll inside their own panel. */
 		position: fixed;
 		/* Logical property: offset from the sidebar on the inline-start side.
 		   In LTR this pushes the main area right of the sidebar;
@@ -3889,15 +3885,6 @@
 
 	.main-content:has(:global(.fullscreen-embed-container.overlay-mode)) {
 		z-index: 10001;
-	}
-
-	/* Add new scrollable mode styles */
-	.main-content.scrollable {
-		position: absolute;
-		bottom: auto; /* Remove bottom constraint */
-		min-height: 100vh; /* Ensure it takes at least full viewport height */
-		min-height: 100dvh; /* Ensure it takes at least full viewport height */
-		overflow-x: hidden; /* Prevent horizontal scrolling when profile container is absolute */
 	}
 
 	.main-content.menu-closed {
@@ -4005,12 +3992,6 @@
 			transform: translateX(0);
 		}
 
-		/* Scrollable mode: disable transform transitions to prevent conflicts */
-		.main-content.scrollable {
-			transition: none;
-			transform: none;
-			inset-inline-start: 0;
-		}
 	}
 
 	/* RTL mobile: sidebar is on the right, so slide main content left to reveal it */

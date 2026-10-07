@@ -64,11 +64,21 @@ for (const { name, width, height } of [
   { name: 'phone', width: 390, height: 844 },
   { name: 'laptop', width: 1440, height: 900 },
 ]) {
-  // contract-test: direct surface=gui.web assertions=marketing-landing.composer-focus,marketing-landing.destinations
+  // contract-test: direct surface=gui.web assertions=marketing-landing.composer-focus,marketing-landing.destinations,marketing-landing.independent-scroll
   test(`landing composer preserves a guest draft and signup opens basics (${name})`, async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width, height });
     await page.goto(getE2EDebugUrl('/landing'), { waitUntil: 'domcontentloaded' });
+    const scroller = page.getByTestId('landing-scroll-container');
+    const composer = page.getByTestId('landing-compose');
+    await expect(composer).toBeVisible();
+    const composerBeforeScroll = await composer.boundingBox();
+    if (!composerBeforeScroll) throw new Error('Landing composer geometry is missing');
+    await scroller.hover();
+    await page.mouse.wheel(0, height);
+    await expect.poll(() => scroller.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+    await expect.poll(() => composer.evaluate(element => element.getBoundingClientRect().top)).toBeCloseTo(composerBeforeScroll.y, 0);
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
     await page.getByTestId('landing-compose').click();
     const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
     await expect(editor).toBeFocused({ timeout: 30_000 });

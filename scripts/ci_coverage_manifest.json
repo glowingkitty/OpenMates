@@ -215,6 +215,7 @@
         "components/newsroom-surface.spec.ts",
         "components/marketing-landing.spec.ts",
         "marketing-landing-route.spec.ts",
+        "settings-chat-viewport.spec.ts",
         "components/report-issue-confirmation.spec.ts",
         "components/settings-usage-overview.spec.ts",
         "components/embed-workspace.spec.ts",
