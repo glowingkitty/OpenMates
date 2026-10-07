@@ -26,6 +26,7 @@ export type DeepLinkType =
   | "embed"
   | "pair"
   | "message"
+  | "compose"
   | "not_found"
   | "unknown";
 
@@ -53,6 +54,8 @@ export interface DeepLinkHandlers {
   onPair?: (token: string) => void;
   /** Handler for /#message=<text> deep links — pre-fills message input, auto-sends if same-origin */
   onMessage?: (text: string, autoSend: boolean, newChat?: boolean) => Promise<void>;
+  /** Explicitly focus the existing composer without changing or sending its draft. */
+  onCompose?: () => void | Promise<void>;
   /** Handler for /#404=<encodedPath> deep links — shows the Not404Screen */
   onNotFound?: (failedPath: string) => void;
   onNoHash?: () => Promise<void>; // Handler for when no hash is present
@@ -78,6 +81,9 @@ export function parseDeepLink(
   // Also support / prefix (e.g. /#chatid=...)
   // Optional params: &message-id={id}  &scroll=latest-response  &embed-id={id}
   const normalizedHash = hash.startsWith("#/") ? "#" + hash.substring(2) : hash;
+  if (normalizedHash === "#compose") {
+    return { type: "compose", data: {} };
+  }
   // Settings deep links can also be embedded in parameter-style hashes so the
   // URL can keep chat/embed context: #chat-id={id}&settings=privacy/pii.
   const settingsParamPath = getSettingsPathFromHash(normalizedHash);
@@ -339,6 +345,17 @@ export async function processDeepLink(
         const failedPath = decodeURIComponent(parsed.data?.failedPath ?? "");
         handlers.onNotFound(failedPath);
         return { type: "not_found", processed: true };
+      }
+      break;
+    }
+
+    case "compose": {
+      if (handlers.onCompose) {
+        await handlers.onCompose();
+        if (typeof window !== "undefined") {
+          replaceState(window.location.pathname + window.location.search, {});
+        }
+        return { type: "compose", processed: true };
       }
       break;
     }

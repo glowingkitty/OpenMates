@@ -48,6 +48,7 @@
     import { demoMode } from '../../stores/demoModeStore';
     import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus } from '../../stores/serverStatusStore';
     import { externalLinks } from '../../config/links';
+    import { composerFocusRequested } from '../../stores/composerFocusStore';
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -2593,6 +2594,14 @@
             }
         });
 
+        // A landing deep link may arrive before this editor mounts. Subscribe
+        // after editor creation so the pending request is consumed without a timer.
+        const unsubscribeComposerFocus = composerFocusRequested.subscribe((requested) => {
+            if (!requested || startNewChatOnClick) return;
+            focus();
+            composerFocusRequested.set(false);
+        });
+
         // Listen for docs page deep link prefill events (/#message= handler in +page.svelte)
         function handleDocsPrefill(event: Event) {
             const { text: rawMsgText, autoSend } = (event as CustomEvent).detail;
@@ -2628,6 +2637,7 @@
             cleanup();
             unsubscribeAiTyping();
             unsubscribeText();
+            unsubscribeComposerFocus();
             window.removeEventListener('docsMessagePrefill', handleDocsPrefill);
             document.removeEventListener('pointerdown', dismissOnOutsidePointer, true);
             window.removeEventListener('codeRunOutputFollowup', handleCodeRunOutputFollowup);

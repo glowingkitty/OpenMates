@@ -1,0 +1,186 @@
+schema_version: 2
+id: scrollable-landing-page
+title: Scrollable Figma landing page
+status: implementing
+goal: >
+  Implement the updated UI for the landingpage, accessible via a new /landing for
+  now, based on the existing visitor-facing web app UI, with a full viewport height
+  header, moving app icons and switching examples, scrollable feature sections,
+  and a message input fixed at the bottom of the active-chat viewport.
+scope:
+  in:
+    - A server-rendered /landing page and its self-contained guest app-style shell.
+    - Figma feature copy/order, distinct category icons, and real dev-account screenshot assets.
+    - Existing hero app-rail motion and example switching without header collapse or story takeover.
+    - Fixed composer deep link, account link, app workspace links, and blog links.
+    - Real published event, news, and blog records; empty states when no upcoming free events exist.
+    - Focused local checks, isolated component and route browser proof, dev deployment and visual review.
+    - A documented recommendation for the later website/app domain split.
+  out:
+    - Changing the current app root onboarding carousel.
+    - Production DNS or auth migration, new blog posts, or native Apple screenshots.
+authorization:
+  request: User implementation request and subsequent visual clarifications in Codex chat 01a116b9-306b-7940-beae-99d10025f62a.
+  contract: feature.marketing-landing@1
+  fingerprint: b6e03c207968c6267408b49c100858b754d505cc727c95eb2fa70326431908c9
+  mobile_images: User approved responsive mobile web screenshots; native captures may replace them later.
+design_brief:
+  file_key: PzgE78TVxG0eWuEeO6o8ve
+  node: '6049:87898'
+  frame: {width: 1512, height: 5050, version: '2407624242280847601'}
+  reference: test-results/figma/scrollable-landing/reference.png
+  visitor_baseline: test-results/figma/scrollable-landing/guest-baseline-desktop.png
+  target: Feature layout and copy follow Figma; the hero, header, rounded viewport, and composer follow the existing guest app UI as clarified by the user.
+  responsive: Desktop copy/media columns stack on narrow screens; the viewport and fixed composer retain the app geometry.
+  reuse: Existing theme, typography, icon masks, app metadata, category gradients, and public publication/event records.
+  accepted_differences:
+    - Wireframe sidebar draft data is omitted from the signed-out default view, as in the current app.
+    - Responsive web screenshots stand in for native phone screenshots for this version.
+    - Screenshot examples are historical product demonstrations, separate from current public events.
+    - The static guest navigation surface uses functional app links without initializing private app sync on /landing.
+verification:
+  required:
+    - Focused local unit checks and changed-file lint/Svelte compilation.
+    - Isolated GitHub component proof for laptop/phone layout, hero motion, fixed composer, icons, images, and destinations.
+    - Isolated GitHub route proof for server-rendered content and cold-start composer/account deep links.
+    - Reviewed dev laptop/mobile visual smoke and retained CI recordings delivered in chat.
+
+scenarios:
+  - id: S-1
+    title: Visitor explores the landing page
+    given: [A visitor opens /landing without signing in.]
+    when: [The visitor scrolls from the hero through the public content rows.]
+    then:
+      - The page renders independently of private app synchronization and remains readable on laptop and phone widths.
+      - Feature sections follow the approved Figma hierarchy with distinct icons and real product screenshots.
+      - Public events, news, and blog destinations use published records or an honest empty state.
+  - id: S-2
+    title: Visitor enters the app
+    given: [A visitor is viewing /landing.]
+    when: [The visitor uses a workspace, account, example, or hero composer link.]
+    then:
+      - The destination opens the correct web-app or public page.
+      - The hero composer request focuses the real app composer after cold start without sending or replacing a draft.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: /landing exposes the approved responsive feature order, distinct category icons, real screenshots, and published event/news/blog content without private app startup.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-LANDING-COMPONENT, T-LANDING-ROUTE]
+  - id: AC-2
+    scenario: S-2
+    text: Landing links reach their intended app or public destination, and the hero composer request focuses the real composer after a cold start without mutating its draft.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-LANDING-ROUTE]
+
+tests:
+  - id: T-LANDING-COMPONENT
+    type: playwright
+    file: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    command: Isolated GitHub CI component preview for the marketing landing spec.
+    execution_environment: isolated_github_ci
+    target: isolated_github_ci
+    covers: [AC-1]
+    assertions:
+      - Laptop and phone preview layouts, content, media, icons, and link destinations match the approved contract.
+    red_phase:
+      required: false
+      expected: fail
+      evidence: {status: not_recorded}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/ci_coordinator.py wait 555264de8d44d2199b94424896357cd7343c28f8a5057d3361b60214d4f851fe
+        run_id: '37647246435'
+        subject_commit: 969f500d03fcae7b04bbd4cda6204a7075cc16be
+        harness_commit: 707e5f10de834190046d04024c422a93cd2be664
+        execution_environment: isolated_github_ci
+        profile: component
+        timestamp: '2026-10-07T15:52:28Z'
+        artifacts:
+          - https://github.com/glowingkitty/OpenMates/actions/runs/37647246435/artifacts/11495235431
+        summary: Three cases passed without retries; laptop, phone, 320px and dark layouts reviewed, with fixed composer, moving hero, category icons and real screenshots.
+  - id: T-LANDING-ROUTE
+    type: playwright
+    file: frontend/apps/web_app/tests/marketing-landing-route.spec.ts
+    command: Isolated GitHub CI route proof for /landing and a cold app start.
+    execution_environment: isolated_github_ci
+    target: isolated_github_ci
+    covers: [AC-1, AC-2]
+    assertions:
+      - /landing serves public content without private app startup.
+      - Cold-start composer navigation focuses the real message input without sending or replacing a draft.
+    red_phase:
+      required: false
+      expected: fail
+      evidence: {status: not_recorded}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/ci_coordinator.py wait ffe94646bc10e6369ad67b76927a1b2ec429bbd051c6006a931ac8db71f5e527
+        run_id: '37648165828'
+        subject_commit: 969f500d03fcae7b04bbd4cda6204a7075cc16be
+        harness_commit: 707e5f10de834190046d04024c422a93cd2be664
+        execution_environment: isolated_github_ci
+        profile: e2e
+        timestamp: '2026-10-07T16:01:21Z'
+        artifacts:
+          - https://github.com/glowingkitty/OpenMates/actions/runs/37648165828/artifacts/11496400296
+        summary: Three cases passed without retries; server-rendered content, independent startup, real app workspaces, signup, composer focus and guest draft recovery verified. Disposable runtime cleanup passed.
+
+implementation_state:
+  subject_commit: 969f500d03fcae7b04bbd4cda6204a7075cc16be
+approvals:
+  specification: {status: approved, approved_at: '2026-10-07', fingerprint: b6e03c207968c6267408b49c100858b754d505cc727c95eb2fa70326431908c9, source: 'Explicit user confirmation in Codex chat 01a116b9-306b-7940-beae-99d10025f62a on 2026-10-07'}
+  plan: {status: pending}
+decisions:
+  - id: D-1
+    status: active
+    decision: Keep /landing on the current web deployment while documenting a separate later website/app domain migration.
+    reason: The user requested a temporary route now and a domain recommendation for the subsequent cutover.
+    decided_at: '2026-10-07'
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Implement the approved landing contract and submit isolated route/component verification.
+    outcome: succeeded
+    recorded_at: '2026-10-07'
+tasks:
+  - id: TASK-1
+    external_task_id: f3fadd31-5772-4657-b5a7-ab31bda4f1ab
+    title: Implement and verify the temporary scrollable landing route
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2]
+      acceptance_criteria: [AC-1, AC-2]
+    expected_files:
+      - frontend/apps/web_app/src/routes/(marketing)/landing/+page.svelte
+      - frontend/packages/ui/src/components/landing/LandingPage.svelte
+    verification_ids: [T-LANDING-COMPONENT, T-LANDING-ROUTE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/apps/web_app/src/routes/(marketing)/landing/+page.svelte
+        - frontend/packages/ui/src/components/landing/LandingPage.svelte
+      shared_files: []
+handoff:
+  current_task_id: TASK-1
+  next_action: Deploy the verified implementation to dev and review laptop/mobile screenshots.
+  command: python3 scripts/plan_validate.py docs/plans/scrollable-landing-page/plan.yml
+  expected_outcome: Component and route proof are green; deployed visual review remains pending.
+  blocker: null
+  last_verified_commit: 969f500d03fcae7b04bbd4cda6204a7075cc16be

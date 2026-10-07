@@ -504,6 +504,13 @@ specifications:
     required_applies_to:
     - gui.web
     - gui.apple
+  feature.marketing-landing:
+    version: 1
+    status: draft
+    path: features/marketing-landing
+    fingerprint: b6e03c207968c6267408b49c100858b754d505cc727c95eb2fa70326431908c9
+    required_applies_to:
+    - gui.web
   feature.message-input:
     version: 2
     status: draft
@@ -6350,6 +6357,48 @@ assertions:
     required_applies_to:
     - gui.web
     - gui.apple
+  marketing-landing.independent-scroll:
+    specification: feature.marketing-landing@1
+    specification_id: feature.marketing-landing
+    type: behavior
+    fingerprint: 3492e9ef45a38607f1f784284ad38c8e9047c8769e5dc93a382f010067984fd5
+    required_applies_to:
+    - gui.web
+  marketing-landing.feature-layout:
+    specification: feature.marketing-landing@1
+    specification_id: feature.marketing-landing
+    type: behavior
+    fingerprint: 35e501fe244655fb2908da5732159c62a8ddbae4613f292467d986bd026fbdaf
+    required_applies_to:
+    - gui.web
+  marketing-landing.destinations:
+    specification: feature.marketing-landing@1
+    specification_id: feature.marketing-landing
+    type: behavior
+    fingerprint: 0f9df85e98dfdfd87ace1a0850a5a7f43212e06a7a0f3f4b10925eaa49a3fa66
+    required_applies_to:
+    - gui.web
+  marketing-landing.composer-focus:
+    specification: feature.marketing-landing@1
+    specification_id: feature.marketing-landing
+    type: behavior
+    fingerprint: 0b068f3e65626c34fa9f5dc30c84e6505b981189af256dfa882598dc95b3b19b
+    required_applies_to:
+    - gui.web
+  marketing-landing.real-screenshots:
+    specification: feature.marketing-landing@1
+    specification_id: feature.marketing-landing
+    type: behavior
+    fingerprint: b01a33c2a9d46c9bbd7ee9a4cf8b56e90451afe230df015889b0c00d6a1a9809
+    required_applies_to:
+    - gui.web
+  marketing-landing.public-content:
+    specification: feature.marketing-landing@1
+    specification_id: feature.marketing-landing
+    type: behavior
+    fingerprint: 442a854ff08f5d72240e66774bc2a27d78f159522ea51a554f7ba49df0a90393
+    required_applies_to:
+    - gui.web
   message-input.focus.parent-state:
     specification: feature.message-input@2
     specification_id: feature.message-input

@@ -87,6 +87,7 @@
 	// Ordinary cards keep their centered preview canvas.
 	const FULL_PAGE_WORKSPACE_COMPONENTS = new Set([
 		'Header',
+		'landing/LandingPage',
 		'chats/ChatSettingsPreviewHarness',
 		'projects/ProjectsPage',
 		'plans/PlanDetailPage',

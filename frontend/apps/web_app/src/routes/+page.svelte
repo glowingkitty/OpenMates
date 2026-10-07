@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { composerFocusRequested } from '@repo/ui/stores/composerFocusStore';
 	import {
 		// components
 		Chats,
@@ -3362,6 +3363,15 @@
 				console.debug('[+page.svelte] onNotFound deep link:', failedPath);
 				history.replaceState(null, '', '/');
 				notFoundPathStore.set(failedPath);
+			},
+			onCompose: async () => {
+				deepLinkProcessed = true;
+				// Preserve the same guest draft recovery as an ordinary app visit.
+				if (!$authStore.isAuthenticated && !$activeChatStore && getAllDraftChatIdsWithDrafts().length) {
+					await loadDemoWelcomeChat();
+					await tick();
+				}
+				composerFocusRequested.set(true);
 			},
 			onMessage: async (messageText: string, autoSend: boolean, newChat = false) => {
 				deepLinkProcessed = true;

@@ -213,6 +213,8 @@
         "components/password-and-tfa-otp.spec.ts",
         "components/map-load-recovery.spec.ts",
         "components/newsroom-surface.spec.ts",
+        "components/marketing-landing.spec.ts",
+        "marketing-landing-route.spec.ts",
         "components/report-issue-confirmation.spec.ts",
         "components/settings-usage-overview.spec.ts",
         "components/embed-workspace.spec.ts",

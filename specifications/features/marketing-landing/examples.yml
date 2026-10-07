@@ -1,0 +1,44 @@
+schema_version: 1
+specification: feature.marketing-landing@1
+scrolling:
+  - id: visitor-controls-reading-time
+    given: Alex opens /landing while signed out and JavaScript is unavailable.
+    when: Alex reads the privacy section and then scrolls to Workflows.
+    then: Both sections remain readable in the server-rendered page, without automatic slide changes or login.
+layout:
+  - id: laptop-feature-sections
+    given: Alex opens /landing on a laptop.
+    when: Alex scrolls through the feature sections.
+    then: The five sections follow the Figma order, show distinct category icons, and place feature copy beside the associated screenshots.
+  - id: phone-feature-sections
+    given: Sam opens /landing on a phone.
+    when: Sam explores the hero, features, and publication rows.
+    then: Copy and images stack into a readable page, all links remain reachable, and the page has no horizontal overflow.
+destinations:
+  - id: temporary-dev-destinations
+    given: Alex opens https://app.dev.openmates.org/landing before the domains are separated.
+    when: Alex selects Explore Apps, Explore Workflows, Login/Signup, or Learn more about privacy.
+    then: Apps and Workflows open the matching dev-app workspaces in new tabs, Login/Signup opens the dev-app account interface, and Learn more opens the blog index.
+  - id: separate-app-destinations
+    given: The landing deployment is configured with https://app.openmates.org as its app destination and https://openmates.org as its website destination.
+    when: Alex follows an app link or a blog link; Sam follows an app link from landing.dev.openmates.org without a destination override.
+    then: Alex reaches the appropriate production domain, Sam reaches app.dev.openmates.org, and a non-HTTP destination is rejected.
+composer:
+  - id: cold-start-focus
+    given: Alex has an unsent draft in the web app and opens /landing in a new tab.
+    when: Alex activates the hero's message-input link and the web app finishes starting.
+    then: The real composer receives focus, the draft remains intact, and no message is sent.
+screenshots:
+  - id: real-safe-product-images
+    given: The authenticated personal dev account displays the shared Berlin-events and privacy examples plus its Workflows workspace.
+    when: Screenshots are prepared for the landing page.
+    then: The published images show the real product views with descriptive alternative text, exclude personal identity and unrelated chat content, and do not label mobile web captures as native iPhone UI.
+public_content:
+  - id: current-publication-links
+    given: OpenMates has published news and blog posts and a future free community event.
+    when: Alex opens their cards from /landing.
+    then: Each card opens its real public page and the events row shows only upcoming free events.
+  - id: no-upcoming-events
+    given: Every event in the published event list has finished or requires payment.
+    when: Alex reaches Upcoming free OpenMates events.
+    then: The page shows an honest empty state and a link to the events page, with no invented upcoming event.
