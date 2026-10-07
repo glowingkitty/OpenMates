@@ -11,6 +11,7 @@ import pytest
 import yaml
 
 from backend.scripts import aggregate_leaderboards
+from backend.scripts.fetch_lmarena_rankings import parse_lmarena_markdown, validate_rankings
 
 
 @pytest.fixture
@@ -26,6 +27,71 @@ VALID_DATA = {"metadata": {"generated_at": "earlier"}, "rankings": [
 EMPTY_DATA = {"metadata": {"generated_at": "failed"}, "rankings": [], "unranked": [
     {"model_id": "working-model"},
 ]}
+
+
+def _current_lmarena_markdown(count=30):
+    """Small public, synthetic table matching the current seven-column page."""
+    families = (
+        ("gemini", "Google"), ("claude", "Anthropic"),
+        ("gpt", "OpenAI"), ("grok", "xAI"),
+    )
+    rows = [
+        "| Rank | Rank Spread | Model | Score | Votes | Price $/M | Context |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for rank in range(1, count + 1):
+        family, organization = families[(rank - 1) % len(families)]
+        model = f"{family}-fixture-{rank}"
+        prefix = "Anthropic<br>![Icon](https://example.invalid/icon.png)<br>" if rank == 2 else ""
+        score = f"{1500 - 6 * rank}±{3 + rank % 5}"
+        if rank == 1:
+            score += "Preliminary"
+        rows.append(
+            f"| {rank} | {rank} {rank + 2} | {prefix}[{model}](https://example.invalid/{model})"
+            f"<br>{organization} · Proprietary | {score} | {50_000 - rank * 100:,} | $2 / $10 | 1M |"
+        )
+    return "\n".join(rows)
+
+
+def test_current_lmarena_score_ci_and_model_suffix_validate():
+    markdown = _current_lmarena_markdown()
+    rankings = parse_lmarena_markdown(markdown, "text")
+
+    assert len(rankings) == 30
+    assert rankings[0] == {
+        "rank": 1, "model": "gemini-fixture-1", "score": 1494,
+        "votes": 49_900, "organization": "Google",
+    }
+    assert rankings[1]["model"] == "claude-fixture-2"  # Last link, after an icon.
+    assert rankings[1]["organization"] == "Anthropic"
+    assert {entry["organization"] for entry in rankings} == {"Google", "Anthropic", "OpenAI", "xAI"}
+    assert validate_rankings(rankings, "text", markdown)["valid"] is True
+
+    # Extra modern columns cannot turn a plain-text Price into an organization.
+    no_suffix = "\n".join([
+        "| Rank | Rank Spread | Model | Score | Votes | Price $/M | Context | Release |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| 1 | 1 3 | [unnamed-fixture](https://example.invalid/unnamed) |"
+        " 1450±4 | 12,345 | Free | 1M | Preview |",
+    ])
+    assert "organization" not in parse_lmarena_markdown(no_suffix, "text")[0]
+
+
+def test_legacy_lmarena_columns_and_invalid_current_ci():
+    legacy = "\n".join([
+        "| Rank | Rank Spread | Model | Score | 95% CI (±) | Votes | Organization | License |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| 1 | 1◄─►1 | [legacy-model](https://example.invalid/legacy) | 1489 Preliminary | ±5 | 26,385 | Google | Proprietary |",
+    ])
+    assert parse_lmarena_markdown(legacy, "text") == [{
+        "rank": 1, "model": "legacy-model", "score": 1489,
+        "votes": 26_385, "organization": "Google",
+    }]
+
+    insufficient = _current_lmarena_markdown(9).replace("1494±4Preliminary", "1494±bad")
+    rankings = parse_lmarena_markdown(insufficient, "text")
+    assert len(rankings) == 8
+    assert validate_rankings(rankings, "text", insufficient)["valid"] is False
 
 
 def test_provider_outage_preserves_last_good_file(tmp_path, monkeypatch):

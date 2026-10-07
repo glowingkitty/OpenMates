@@ -482,3 +482,64 @@ test('batch skips stale cached chats while preserving current personal and Team 
 		}
 	}
 });
+
+function isolatedServiceRegression(operation: string, ids: Record<string, string>): any {
+	const root = path.resolve(__dirname, '../../../..');
+	const compose = path.join(root, 'test-results/ci-private/compose.json');
+	expect(process.env.GITHUB_ACTIONS).toBe('true');
+	expect(fs.existsSync(compose), 'Requires the disposable CI stack').toBe(true);
+	const program = fs.readFileSync(path.join(root, 'backend/tests/ci_service_error_regressions.py'), 'utf8');
+	const output = execFileSync('docker', ['compose', '-f', compose, 'exec', '-T', '-e', 'OPENMATES_CI_ISOLATED=1',
+		'api', 'python', '-c', program], {
+		cwd: root, input: JSON.stringify({ operation, ...ids }), encoding: 'utf8',
+		timeout: operation === 'legacy_workflow_readiness' ? 180_000 : 120_000,
+	});
+	return JSON.parse(output.trim().split(/\r?\n/).at(-1)!);
+}
+
+// contract-test: infrastructure
+test('orphaned recurring reminder is retired before any delivery and stays retired', async () => {
+	requireSignedRecoveryProfile();
+	test.setTimeout(150_000);
+	const receipt = isolatedServiceRegression('orphan_reminder', {
+		reminder_id: randomUUID(), owner_id: randomUUID(),
+	});
+	expect(receipt).toEqual({ status: 'cancelled', occurrence_count: 0, repeat_fired: false });
+});
+
+// contract-test: infrastructure
+test('current Arena table creates a ranked snapshot and invalid feed preserves it', async () => {
+	requireSignedRecoveryProfile();
+	test.setTimeout(150_000);
+	const receipt = isolatedServiceRegression('leaderboard_snapshot', {});
+	expect(receipt.parsed_rows).toBe(30);
+	expect(receipt.ranked_models).toBeGreaterThan(0);
+	expect(receipt).toMatchObject({ source_valid: true, invalid_feed_preserved_snapshot: true });
+});
+
+// contract-test: supporting surface=rest_api assertions=workflows.activation.reachable-side-effect,workflows.execution.lifecycle-visible
+test('legacy accepted schedule without a reachable effect fails its durable run immediately', async ({ browser }: { browser: any }) => {
+	requireSignedRecoveryProfile();
+	test.setTimeout(240_000);
+	const context = await recordedContext(browser, process.env.PLAYWRIGHT_TEST_BASE_URL, 'legacy-workflow-readiness');
+	const page = await context.newPage();
+	const apiUrl = workflowApiUrl();
+	const home = createWorkflowCliHome('legacy-workflow-readiness');
+	try {
+		await loginWorkflowCliViaPair(page, apiUrl, home, 'LEGACY_WORKFLOW_READINESS');
+		const identity = await runWorkflowCliJson(apiUrl, home, ['whoami'], 'Identify disposable workflow owner');
+		const ownerId = identity.id ?? identity.user_id;
+		expect(ownerId).toMatch(/^[0-9a-f-]{36}$/i);
+		const receipt = isolatedServiceRegression('legacy_workflow_readiness', {
+			owner_id: ownerId, fixture_id: randomUUID(),
+		});
+		expect(receipt).toEqual({
+			run_status: 'failed',
+			error_summary: 'Workflow readiness requires a reachable qualifying effect',
+			node_runs: 0, finished_immediately: true,
+		});
+	} finally {
+		await context.close();
+		removeWorkflowCliHome(home);
+	}
+});

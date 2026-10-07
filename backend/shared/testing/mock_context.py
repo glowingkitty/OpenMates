@@ -404,8 +404,15 @@ def _install_raw_http_guard_once() -> None:
         _raw_http_guard_installed = True
 
 
-def _allow_isolated_capacity_internal(raw_url: Any) -> bool:
-    """Permit exact internal CMS/Vault transport during isolated capacity replay."""
+_ISOLATED_CAPACITY_BILLING_POST_PATHS = frozenset({
+    "/internal/billing/reserve",
+    "/internal/billing/team/reserve",
+    "/internal/billing/reservation/release",
+})
+
+
+def _allow_isolated_capacity_internal(raw_url: Any, method: Any = None) -> bool:
+    """Permit exact internal CMS/Vault and billing transport in isolated replay."""
     receipt = live_mock_receipt_var.get()
     if not (
         mock_mode_var.get() == "mock"
@@ -429,7 +436,15 @@ def _allow_isolated_capacity_internal(raw_url: Any) -> bool:
         return False
     if url.netloc == "cms:8055":
         return True
-    return url.netloc == "vault:8200" and url.path.startswith("/v1/")
+    if url.netloc == "vault:8200" and url.path.startswith("/v1/"):
+        return True
+    return (
+        os.getenv("INTERNAL_API_BASE_URL", "http://api:8000") == "http://api:8000"
+        and url.netloc == "api:8000"
+        and str(method).upper() == "POST"
+        and url.path in _ISOLATED_CAPACITY_BILLING_POST_PATHS
+        and not url.query
+    )
 
 
 def _install_httpx_transport_guard() -> None:
@@ -444,13 +459,13 @@ def _install_httpx_transport_guard() -> None:
     original_sync = httpx.HTTPTransport.handle_request
 
     async def guarded_async(transport: Any, request: Any) -> Any:
-        if is_mock_active() and not _allow_isolated_capacity_internal(request.url):
+        if is_mock_active() and not _allow_isolated_capacity_internal(request.url, request.method):
             record_blocked_provider_call()
             raise DailyAITestBudgetExceeded(_raw_http_guard_message(request))
         return await original_async(transport, request)
 
     def guarded_sync(transport: Any, request: Any) -> Any:
-        if is_mock_active() and not _allow_isolated_capacity_internal(request.url):
+        if is_mock_active() and not _allow_isolated_capacity_internal(request.url, request.method):
             record_blocked_provider_call()
             raise DailyAITestBudgetExceeded(_raw_http_guard_message(request))
         return original_sync(transport, request)
@@ -474,9 +489,12 @@ def _install_aiohttp_request_guard() -> None:
         return
 
     async def guarded_request(session: Any, method: Any, url: Any, **kwargs: Any) -> Any:
-        if is_mock_active() and not _allow_isolated_capacity_internal(url):
+        if is_mock_active() and not _allow_isolated_capacity_internal(url, method):
             record_blocked_provider_call()
             raise DailyAITestBudgetExceeded(_raw_http_guard_message(method, url))
+        if _allow_isolated_capacity_internal(url, method) and urlsplit(str(url)).netloc == "api:8000":
+            # aiohttp follows redirects inside _request, bypassing this wrapper.
+            kwargs["allow_redirects"] = False
         return await original_request(session, method, url, **kwargs)
 
     guarded_request._openmates_live_guard = True
@@ -497,15 +515,19 @@ def _install_requests_request_guard() -> None:
         return
 
     def guarded_request(session: Any, method: Any, url: Any, **kwargs: Any) -> Any:
-        if is_mock_active() and not _allow_isolated_capacity_internal(url):
+        if is_mock_active() and not _allow_isolated_capacity_internal(url, method):
             record_blocked_provider_call()
             raise DailyAITestBudgetExceeded(_raw_http_guard_message(method, url))
+        if _allow_isolated_capacity_internal(url, method) and urlsplit(str(url)).netloc == "api:8000":
+            kwargs["allow_redirects"] = False
         return original_request(session, method, url, **kwargs)
 
     def guarded_send(session: Any, request: Any, **kwargs: Any) -> Any:
-        if is_mock_active() and not _allow_isolated_capacity_internal(request.url):
+        if is_mock_active() and not _allow_isolated_capacity_internal(request.url, request.method):
             record_blocked_provider_call()
             raise DailyAITestBudgetExceeded(_raw_http_guard_message(request))
+        if _allow_isolated_capacity_internal(request.url, request.method) and urlsplit(str(request.url)).netloc == "api:8000":
+            kwargs["allow_redirects"] = False
         return original_send(session, request, **kwargs)
 
     guarded_request._openmates_live_guard = True

@@ -23,7 +23,7 @@ from backend.core.api.app.services.workflow_runtime_service import WorkflowRunti
 from backend.core.api.app.services.workflow_scheduler_service import WorkflowSchedulerService
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService
 from backend.core.api.app.services.workflow_input_service import DirectusWorkflowInputRepository, WorkflowInputService
-from backend.core.api.app.services.workflow_models import WorkflowRunStatus
+from backend.core.api.app.services.workflow_models import WorkflowRunStatus, WorkflowValidationError
 from backend.core.api.app.services.workflow_service import _hash_owner_id
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app, broker_url
@@ -43,6 +43,7 @@ _SCHEDULED_DISPATCH_LOCK_PREFIX = "workflow-scheduled-dispatch:"
 _SCHEDULED_EXECUTION_LOCK_PREFIX = "workflow-scheduled-execution:"
 WORKFLOW_QUEUED_TIMEOUT_SECONDS = 300
 WORKFLOW_WAIT_DEFAULT_TIMEOUT_SECONDS = 24 * 60 * 60
+_UNREACHABLE_EFFECT_READINESS_ERROR = "Workflow readiness requires a reachable qualifying effect"
 
 
 class WorkflowCallerDeliveryPending(RuntimeError):
@@ -235,14 +236,35 @@ async def run_scheduled_workflow_trigger_now(
     async def execute_accepted_run(run_id: str, workflow_id: str, version_id: str, owner_user_id: str) -> None:
         vault_key_id = await asyncio.to_thread(service.resolve_user_vault_key_id, owner_user_id)
         workflow = await asyncio.to_thread(service.get_workflow_version, workflow_id, owner_user_id, version_id, vault_key_id)
-        await WorkflowRunner(service, app_skill_adapter=app_skill_adapter).run_workflow(
-            workflow,
-            owner_user_id,
-            vault_key_id=vault_key_id,
-            trigger_type="schedule",
-            run_id=run_id,
-            version_id=version_id,
-        )
+        try:
+            await WorkflowRunner(service, app_skill_adapter=app_skill_adapter).run_workflow(
+                workflow,
+                owner_user_id,
+                vault_key_id=vault_key_id,
+                trigger_type="schedule",
+                run_id=run_id,
+                version_id=version_id,
+            )
+        except WorkflowValidationError as exc:
+            if str(exc) != _UNREACHABLE_EFFECT_READINESS_ERROR:
+                raise
+            # Legacy enabled schedules can predate the activation guard. Their
+            # accepted run has already started, so record the precise failure
+            # now instead of leaving it running until timeout reconciliation.
+            try:
+                accepted = await asyncio.to_thread(service.get_run, workflow_id, run_id, owner_user_id, vault_key_id)
+                if accepted.status == WorkflowRunStatus.RUNNING:
+                    failed = accepted.model_copy(update={
+                        "status": WorkflowRunStatus.FAILED,
+                        "finished_at": int(time.time()),
+                        "error_summary": _UNREACHABLE_EFFECT_READINESS_ERROR,
+                        "node_runs": [],
+                        "output_summary": {},
+                    })
+                    await asyncio.to_thread(service.save_run, owner_user_id, failed, vault_key_id)
+            except Exception:
+                logger.exception("Could not finalize rejected scheduled workflow run; stale-run reconciliation remains available")
+            raise
 
     return await WorkflowSchedulerService(runtime_service).execute_due_trigger(
         trigger_id,

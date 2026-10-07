@@ -312,6 +312,11 @@ async def test_signed_isolated_capacity_allows_only_exact_internal_http_transpor
     activate_mock_mode("mock", "storage_capacity_v1", task_id="synthetic-capacity-task")
     try:
         mock_context._install_httpx_transport_guard()
+        billing_urls = [
+            "http://api:8000/internal/billing/reserve",
+            "http://api:8000/internal/billing/team/reserve",
+            "http://api:8000/internal/billing/reservation/release",
+        ]
         allowed = await httpx.AsyncHTTPTransport.handle_async_request(
             object(), httpx.Request("GET", "http://cms:8055/items/chats"),
         )
@@ -320,6 +325,15 @@ async def test_signed_isolated_capacity_allows_only_exact_internal_http_transpor
             object(), httpx.Request("GET", "http://vault:8200/v1/kv/data/providers/openrouter"),
         )
         assert vault.status_code == 204
+        for url in billing_urls:
+            response = await httpx.AsyncHTTPTransport.handle_async_request(
+                object(), httpx.Request("POST", url),
+            )
+            assert response.status_code == 204
+        sync_response = httpx.HTTPTransport.handle_request(
+            object(), httpx.Request("POST", billing_urls[0]),
+        )
+        assert sync_response.status_code == 204
         with pytest.raises(DailyAITestBudgetExceeded, match="raw HTTP provider dispatch"):
             await httpx.AsyncHTTPTransport.handle_async_request(
                 object(), httpx.Request("GET", "https://generativelanguage.googleapis.com/v1/models"),
@@ -338,11 +352,30 @@ async def test_signed_isolated_capacity_allows_only_exact_internal_http_transpor
                 await httpx.AsyncHTTPTransport.handle_async_request(
                     object(), httpx.Request("GET", url),
                 )
-        monkeypatch.setenv("OPENMATES_CI_ISOLATED", "0")
-        for url in ("http://cms:8055/items/chats", "http://vault:8200/v1/auth/token/lookup-self"):
+        blocked_billing = (
+            ("GET", billing_urls[0]),
+            ("DELETE", billing_urls[2]),
+            ("POST", "http://api:8000/internal/billing/charge"),
+            ("POST", "http://api:8000/internal/billing/reserve/extra"),
+            ("POST", "http://api:8000/internal/billing/reserve?override=1"),
+            ("POST", "http://api.evil:8000/internal/billing/reserve"),
+            ("POST", "http://api:8000@evil.example/internal/billing/reserve"),
+            ("POST", "https://api:8000/internal/billing/reserve"),
+        )
+        for method, url in blocked_billing:
             with pytest.raises(DailyAITestBudgetExceeded, match="raw HTTP provider dispatch"):
                 await httpx.AsyncHTTPTransport.handle_async_request(
-                    object(), httpx.Request("GET", url),
+                    object(), httpx.Request(method, url),
+                )
+        monkeypatch.setenv("OPENMATES_CI_ISOLATED", "0")
+        for method, url in (
+            ("GET", "http://cms:8055/items/chats"),
+            ("GET", "http://vault:8200/v1/auth/token/lookup-self"),
+            ("POST", billing_urls[0]),
+        ):
+            with pytest.raises(DailyAITestBudgetExceeded, match="raw HTTP provider dispatch"):
+                await httpx.AsyncHTTPTransport.handle_async_request(
+                    object(), httpx.Request(method, url),
                 )
         receipt = get_live_mock_receipt()
     finally:
@@ -350,6 +383,81 @@ async def test_signed_isolated_capacity_allows_only_exact_internal_http_transpor
     assert dispatched == [
         "http://cms:8055/items/chats",
         "http://vault:8200/v1/kv/data/providers/openrouter",
+        *billing_urls,
+        billing_urls[0],
     ]
-    assert receipt["blocked_provider_calls"] == 8
+    assert receipt["blocked_provider_calls"] == 17
     assert receipt["real_provider_calls"] == 0
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=storage.validation.synthetic-capacity
+async def test_capacity_billing_transport_keeps_receipt_origin_and_redirect_fences(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    aiohttp = pytest.importorskip("aiohttp")
+    requests = pytest.importorskip("requests")
+    for key, value in {
+        "OPENMATES_CI_ISOLATED": "1",
+        "OPENMATES_STORAGE_CAPACITY_FIXTURES": "true",
+        "MOCK_EXTERNAL_APIS": "true",
+        "S3_ENDPOINT_URL": "http://storage.ci.test:9000",
+        "CMS_URL": "http://cms:8055",
+        "VAULT_URL": "http://vault:8200",
+        "INTERNAL_API_BASE_URL": "http://api:8000",
+        "SERVER_ENVIRONMENT": "development",
+    }.items():
+        monkeypatch.setenv(key, value)
+    billing_url = "http://api:8000/internal/billing/reserve"
+
+    activate_mock_mode("mock", "storage_capacity_v1")
+    try:
+        assert not mock_context._allow_isolated_capacity_internal(billing_url, "POST")
+    finally:
+        deactivate_mock_mode()
+
+    activate_mock_mode("mock", "storage_capacity_v1", task_id="synthetic-capacity-task")
+    try:
+        assert mock_context._allow_isolated_capacity_internal(billing_url, "POST")
+        monkeypatch.setenv("INTERNAL_API_BASE_URL", "http://api.evil:8000")
+        assert not mock_context._allow_isolated_capacity_internal(billing_url, "POST")
+        monkeypatch.setenv("INTERNAL_API_BASE_URL", "http://api:8000")
+
+        async def fake_aiohttp_request(_session, _method, _url, **kwargs):
+            return kwargs
+
+        def fake_requests_request(_session, _method, _url, **kwargs):
+            return kwargs
+
+        def fake_requests_send(_session, _request, **kwargs):
+            return kwargs
+
+        monkeypatch.setattr(aiohttp.ClientSession, "_request", fake_aiohttp_request)
+        monkeypatch.setattr(requests.sessions.Session, "request", fake_requests_request)
+        monkeypatch.setattr(requests.sessions.Session, "send", fake_requests_send)
+        mock_context._install_aiohttp_request_guard()
+        mock_context._install_requests_request_guard()
+
+        aiohttp_options = await aiohttp.ClientSession._request(
+            object(), "POST", billing_url, allow_redirects=True,
+        )
+        assert aiohttp_options["allow_redirects"] is False
+        requests_options = requests.sessions.Session.request(
+            object(), "POST", billing_url, allow_redirects=True,
+        )
+        assert requests_options["allow_redirects"] is False
+        prepared = requests.Request("POST", billing_url).prepare()
+        send_options = requests.sessions.Session.send(
+            object(), prepared, allow_redirects=True,
+        )
+        assert send_options["allow_redirects"] is False
+        with pytest.raises(DailyAITestBudgetExceeded, match="raw HTTP provider dispatch"):
+            await aiohttp.ClientSession._request(
+                object(), "POST", "http://api.evil:8000/internal/billing/reserve",
+            )
+        with pytest.raises(DailyAITestBudgetExceeded, match="raw HTTP provider dispatch"):
+            requests.sessions.Session.send(
+                object(), requests.Request("POST", "https://provider.example/reserve").prepare(),
+            )
+    finally:
+        deactivate_mock_mode()

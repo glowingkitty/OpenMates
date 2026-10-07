@@ -128,13 +128,6 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                 created_at = reminder.get("created_at", current_time)
                 response_type = reminder.get("response_type", "simple")
 
-                # IDEMPOTENCY: Atomically claim this reminder via ZREM.
-                # If another worker already claimed it, skip.
-                claimed = await cache_service.claim_due_reminder(reminder_id)
-                if not claimed:
-                    logger.debug(f"Reminder {reminder_id} already claimed, skipping")
-                    continue
-
                 # Decrypt user_id from vault-encrypted field.
                 # The DB stores encrypted_user_id; cache may still have raw user_id
                 # from the old format. Support both for backwards compatibility.
@@ -150,6 +143,9 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                             logger.error(f"Failed to decrypt user_id for reminder {reminder_id}: {e}")
 
                 if not user_id:
+                    claimed = await cache_service.claim_due_reminder(reminder_id)
+                    if not claimed:
+                        continue
                     logger.error(f"Reminder {reminder_id}: no user_id available, skipping")
                     error_count += 1
                     # Mark failed in DB
@@ -157,6 +153,59 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                         await directus_service.reminder.update_reminder(
                             reminder_id, {"status": "failed"}
                         )
+                    continue
+
+                # A reminder may outlive its Directus user. Check the durable
+                # identity before claiming the due entry or creating any chat,
+                # delivery, or repeat work. A failed check leaves the original
+                # due entry in place for the next scheduler run. Directus returns
+                # 403 for a missing user detail, so only a successful empty list
+                # query can establish that the owner is gone.
+                try:
+                    canonical_user_id = str(uuid.UUID(user_id))
+                    if directus_service is None:
+                        raise RuntimeError("Directus unavailable for reminder owner check")
+                    owner_rows = await directus_service.get_items(
+                        "users",
+                        params={
+                            "filter[id][_eq]": canonical_user_id,
+                            "fields": "id",
+                            "limit": 1,
+                        },
+                        admin_required=True,
+                        no_cache=True,
+                        raise_on_error=True,
+                    )
+                    if (not isinstance(owner_rows, list) or len(owner_rows) > 1
+                            or any(not isinstance(row, dict) or row.get("id") != canonical_user_id
+                                   for row in owner_rows)):
+                        raise RuntimeError("Invalid reminder owner lookup response")
+                except Exception as owner_error:
+                    logger.warning("Reminder %s owner lookup failed (%s)", reminder_id, type(owner_error).__name__)
+                    error_count += 1
+                    continue
+
+                if not owner_rows:
+                    try:
+                        retired = await directus_service.reminder.update_reminder(
+                            reminder_id, {"status": "cancelled"},
+                        )
+                    except Exception as retire_error:
+                        logger.warning("Failed to retire orphan reminder %s (%s)", reminder_id, type(retire_error).__name__)
+                        retired = False
+                    if not retired:
+                        error_count += 1
+                        continue
+                    if not await cache_service.remove_reminder_from_cache(reminder_id):
+                        logger.warning("Retired orphan reminder %s but could not clear its cache record", reminder_id)
+                    logger.info("Retired reminder %s because its owner no longer exists", reminder_id)
+                    continue
+
+                # IDEMPOTENCY: only a verified live owner reaches the ZREM
+                # claim. Another worker may have won it while we checked.
+                claimed = await cache_service.claim_due_reminder(reminder_id)
+                if not claimed:
+                    logger.debug(f"Reminder {reminder_id} already claimed, skipping")
                     continue
 
                 logger.info(f"Processing reminder {reminder_id} for user {user_id[:8]}... (response_type={response_type})")

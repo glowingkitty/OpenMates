@@ -113,10 +113,9 @@ def parse_lmarena_markdown(markdown: str, category: str) -> List[Dict[str, Any]]
     """
     Parse LMArena leaderboard data from Firecrawl markdown output.
     
-    The actual LMArena table format is:
-    | Rank | Rank Spread | Model | Score | 95% CI (±) | Votes | Organization | License |
-    | --- | --- | --- | --- | --- | --- | --- | --- |
-    | 1 | 1◄─►1 | [gemini-3-pro](url "title") | 1489 | ±5 | 26,385 | Google | Proprietary |
+    LMArena has used both separate and combined score/CI columns. Its current
+    table puts the organization after the model link and follows Votes with
+    Price and Context rather than Organization and License.
     
     Model names can have prefixes like:
     - Anthropic<br>[claude-opus-4-5]...
@@ -131,18 +130,30 @@ def parse_lmarena_markdown(markdown: str, category: str) -> List[Dict[str, Any]]
     """
     rankings = []
     seen_models = set()
+    organization_col_idx = None
     
     # Process each line that looks like a table row
     for line in markdown.split('\n'):
-        # Skip non-table lines and header/separator lines
-        if not line.startswith('|') or '---' in line:
+        if not line.startswith('|'):
+            organization_col_idx = None
             continue
         
         # Split by |, filter empty parts
         parts = [p.strip() for p in line.split('|')]
         parts = [p for p in parts if p]  # Remove empty strings
+
+        # The legacy table explicitly names Organization after Votes; the
+        # current table names Price and Context there, even if it gains columns.
+        if parts and parts[0].lower() == 'rank':
+            headers = [part.lower() for part in parts]
+            organization_col_idx = (headers.index('organization')
+                                    if {'model', 'score', 'votes'} <= set(headers)
+                                    and 'organization' in headers else None)
+            continue
+        if '---' in line:
+            continue
         
-        # Skip if not enough columns (Rank, Spread, Model, Score, CI, Votes, Org, License = 8)
+        # Both the current seven-column and older eight-column tables qualify.
         if len(parts) < 6:
             continue
         
@@ -172,25 +183,27 @@ def parse_lmarena_markdown(markdown: str, category: str) -> List[Dict[str, Any]]
         # Extract model name from [model-name](url "title") format
         # Handle prefixes like "Anthropic<br>[model]" or "![Icon](img)<br>[model]"
         # We want the LAST markdown link which is usually the actual model name
-        all_links = re.findall(r'\[([^\]]+)\]\([^)]+\)', model_col)
+        all_links = list(re.finditer(r'\[([^\]]+)\]\([^)]+\)', model_col))
         if not all_links:
             continue
         # Take the last link (actual model name) - earlier links are often org names/icons
-        model = all_links[-1].strip()
+        model = all_links[-1].group(1).strip()
         
         # Find score - it's the next column with a 3-4 digit number after the model
         score = None
         votes = None
         organization = None
+
+        # Current rows put "Google · Proprietary" after the model link.
+        model_suffix = re.sub(r'^(?:<br>\s*)+', '', model_col[all_links[-1].end():]).strip()
+        suffix_org = model_suffix.split('·', 1)[0].strip()
+        if suffix_org and 1 < len(suffix_org) < 30:
+            organization = suffix_org
         
-        # Look for score (3-4 digit number, possibly with "Preliminary")
+        # CI can be separate or joined to Elo as "1525±9Preliminary".
         for idx in range(model_col_idx + 1, len(parts)):
             part = parts[idx].strip()
-            # Skip columns that are likely CI (contain ±)
-            if '±' in part:
-                continue
-            # Match score (might have "Preliminary" suffix)
-            score_match = re.match(r'^(\d{3,4})(?:<br>|\s|$)', part)
+            score_match = re.match(r'^(\d{3,4})(?:±\d+)?(?:Preliminary)?(?:<br>|\s|$)', part)
             if score_match:
                 score = int(score_match.group(1))
                 break
@@ -206,16 +219,13 @@ def parse_lmarena_markdown(markdown: str, category: str) -> List[Dict[str, Any]]
                 votes = int(votes_match.group(1).replace(',', ''))
                 break
         
-        # Find organization (column before License, usually after Votes)
-        # It's typically a simple string without special characters
-        for idx in range(model_col_idx + 3, min(len(parts), model_col_idx + 6)):
-            part = parts[idx].strip()
-            if part and not re.match(r'^[\d,±]+$', part) and '◄' not in part:
-                # Skip columns that are clearly not org names
-                if part.lower() not in ('proprietary', 'mit', 'apache 2.0', 'gemma', '---'):
-                    if len(part) > 1 and len(part) < 30:
-                        organization = part
-                        break
+        # Only an explicit legacy Organization header authorizes a separate
+        # organization cell; a modern Price value may also be plain text.
+        if (not organization and organization_col_idx is not None
+                and organization_col_idx < len(parts)):
+            candidate = parts[organization_col_idx].strip()
+            if 1 < len(candidate) < 30:
+                organization = candidate
         
         # Skip duplicates
         if model.lower() in seen_models:
@@ -721,7 +731,7 @@ def print_rankings(data: Dict[str, Any], as_json: bool = False) -> None:
     metrics = validation.get("metrics", {})
     
     print(f"\n{'═' * 75}")
-    print(f"📊 LMARENA LEADERBOARD")
+    print("📊 LMARENA LEADERBOARD")
     print(f"{'═' * 75}")
     print(f"Source:   {data.get('source')}")
     print(f"Category: {data.get('category')}")
@@ -731,7 +741,7 @@ def print_rankings(data: Dict[str, Any], as_json: bool = False) -> None:
     
     # Print data quality metrics if available
     if metrics:
-        print(f"\n📈 Data Quality Metrics:")
+        print("\n📈 Data Quality Metrics:")
         if "completeness_pct" in metrics:
             print(f"   Completeness: {metrics['completeness_pct']}% have all required fields")
         if "votes_pct" in metrics:
