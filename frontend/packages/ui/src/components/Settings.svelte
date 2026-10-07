@@ -58,7 +58,6 @@ changes to the documentation (to keep the documentation up to date).
     import { pendingMentionStore } from '../stores/pendingMentionStore';
     import { activeTeam, activeTeamId, orderTeamsByRecent, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../stores/teamStore';
     import { listTeams, loadTeamBilling, subscribeTeamListRefresh, TeamRequestCancelledError, type TeamViewModel } from '../services/teamService';
-    import { getTeamAvatarBackground } from '../utils/teamAvatar';
     // Admin status is now read directly from userProfile.is_admin (synced during login)
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { isRestrictedSession } from '../stores/pairSessionStore'; // Pair session restricted mode
@@ -76,7 +75,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsMainHeader from './settings/SettingsMainHeader.svelte';
     import SettingsTeamBilling from './settings/billing/SettingsTeamBilling.svelte';
     import SettingsTeamInvite from './settings/SettingsTeamInvite.svelte';
-    import TeamAvatar from './teams/TeamAvatar.svelte';
+    import TeamProfileBadge from './teams/TeamProfileBadge.svelte';
     import TeamSettingsHeader from './settings/TeamSettingsHeader.svelte';
     
     // Import all settings route definitions and the dynamic wrapper components
@@ -3217,18 +3216,7 @@ changes to the documentation (to keep the documentation up to date).
                     {:else}
                         <div class="clickable-icon icon_settings"></div>
                     {/if}
-                    {#if $activeTeam}
-                        <span
-                            class="profile-team-badge"
-                            data-testid="profile-active-team-avatar"
-                            aria-label={`Active team: ${$activeTeam.name}`}
-                            title={`Active team: ${$activeTeam.name}`}
-                            style:background={getTeamAvatarBackground($activeTeam)}
-                        >
-                            <TeamAvatar team={$activeTeam} size={22} />
-                            <span class="profile-team-badge-label">{$activeTeam.name}</span>
-                        </span>
-                    {/if}
+                    {#if $activeTeam}<TeamProfileBadge team={$activeTeam} />{/if}
                 </div>
             {/if}
     	</div>
@@ -3778,48 +3766,6 @@ changes to the documentation (to keep the documentation up to date).
         object-fit: cover;
         border-radius: 50%;
         display: block;
-    }
-
-    .profile-team-badge {
-        position: absolute;
-        right: -0.125rem;
-        bottom: -0.5rem;
-        display: flex;
-        max-width: 9rem;
-        height: 1.25rem;
-        align-items: center;
-        justify-content: center;
-        gap: 0.25rem;
-        padding: 0 0.4rem;
-        border: 0.125rem solid var(--color-grey-0);
-        border-radius: var(--radius-full);
-        box-shadow: var(--shadow-xs);
-        pointer-events: none;
-    }
-
-    .profile-team-badge-icon {
-        width: 0.6875rem;
-        height: 0.6875rem;
-        background: var(--color-font-button);
-        -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
-        mask-image: url('@openmates/ui/static/icons/team.svg');
-        -webkit-mask-size: contain;
-        mask-size: contain;
-        -webkit-mask-position: center;
-        mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        flex: 0 0 auto;
-    }
-
-    .profile-team-badge-label {
-        overflow: hidden;
-        color: var(--color-font-button);
-        font-size: 0.625rem;
-        font-weight: 700;
-        line-height: 1;
-        text-overflow: ellipsis;
-        white-space: nowrap;
     }
 
     .language-icon-container {

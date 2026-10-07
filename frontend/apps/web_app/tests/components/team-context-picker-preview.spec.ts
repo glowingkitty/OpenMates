@@ -1,5 +1,35 @@
 import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentMotion, waitForComponentPreview } from '../helpers/component-preview';
+import type { Locator, Page, TestInfo } from '@playwright/test';
+
+async function expectEqualWorkspaceIdentity(avatar: Locator, icon: Locator): Promise<void> {
+	await expect(avatar).toBeVisible();
+	await expect(icon).toBeVisible();
+	await expect(avatar).toBeInViewport();
+	await expect(icon).toBeInViewport();
+	await expect(avatar).toHaveCSS('opacity', '0.3');
+	const [avatarBox, iconBox] = await Promise.all([avatar.boundingBox(), icon.boundingBox()]);
+	expect(avatarBox).not.toBeNull();
+	expect(iconBox).not.toBeNull();
+	expect(Math.abs(avatarBox!.width - iconBox!.width)).toBeLessThanOrEqual(1);
+	expect(Math.abs(avatarBox!.height - iconBox!.height)).toBeLessThanOrEqual(1);
+	expect(avatarBox!.x + avatarBox!.width).toBeLessThan(iconBox!.x);
+	expect(iconBox!.x - avatarBox!.x - avatarBox!.width).toBeGreaterThanOrEqual(8);
+	expect(iconBox!.x - avatarBox!.x - avatarBox!.width).toBeLessThanOrEqual(12);
+	expect(
+		Math.abs(avatarBox!.y + avatarBox!.height / 2 - iconBox!.y - iconBox!.height / 2)
+	).toBeLessThanOrEqual(1);
+}
+
+async function attachPreviewScreenshot(
+	page: Page,
+	testInfo: TestInfo,
+	filename: string
+): Promise<void> {
+	const path = testInfo.outputPath(filename);
+	await page.screenshot({ path });
+	await testInfo.attach(filename, { path, contentType: 'image/png' });
+}
 
 // playwright-account: not_required reason=isolated_component_preview
 test.describe('Team context picker preview', () => {
@@ -116,17 +146,115 @@ test.describe('Teams settings quick action preview', () => {
 
 test.describe('Team workspace identity preview', () => {
 	// contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
-	test('shows the active Team avatar beside each workspace icon', async ({ page }) => {
-		for (const surface of ['projects', 'tasks', 'workflows'] as const) {
-			const variant = surface === 'projects' ? '' : `&variant=${surface}`;
-			await page.goto(
-				`/dev/preview/teams/TeamWorkspaceIdentityPreviewHarness?chrome=0&theme=light&background=%23dbeafe&width=440${variant}`
-			);
+	test('keeps each Team avatar equal-sized, left, aligned, and faint on phone and desktop', async ({
+		page
+	}, testInfo) => {
+		for (const viewport of [
+			{ width: 390, height: 844 },
+			{ width: 1440, height: 900 }
+		]) {
+			await page.setViewportSize(viewport);
+			for (const surface of ['chats', 'projects', 'tasks', 'workflows'] as const) {
+				await page.goto(`/dev/preview/teams/TeamWorkspaceIdentity?chrome=0&variant=${surface}`);
+				await waitForComponentPreview(page);
+				const avatar = page.getByTestId(`${surface}-workspace-team-avatar`);
+				const icon = page.getByTestId(
+					surface === 'chats' ? 'guest-workspace-icon' : `${surface}-workspace-background-icon`
+				);
+				await expect(avatar.locator('.team-avatar')).toBeVisible();
+				await expectEqualWorkspaceIdentity(avatar, icon);
+				await attachPreviewScreenshot(page, testInfo, `shared-${surface}-${viewport.width}.png`);
+			}
+		}
+	});
+
+	// contract-test: supporting surface=gui.web assertions=teams.workspace.surface-parity
+	test('keeps the three actual workspace shells aligned at phone and desktop sizes', async ({
+		page
+	}, testInfo) => {
+		for (const viewport of [
+			{ width: 390, height: 844 },
+			{ width: 1440, height: 900 }
+		]) {
+			await page.setViewportSize(viewport);
+			for (const surface of ['projects', 'tasks', 'workflows'] as const) {
+				await page.goto(
+					`/dev/preview/teams/TeamWorkspaceIdentityPreviewHarness?chrome=0&theme=light&background=%23dbeafe&width=${viewport.width === 390 ? 360 : 440}${surface === 'projects' ? '' : `&variant=${surface}`}`
+				);
+				await waitForComponentPreview(page);
+				const frame = page.getByTestId('team-workspace-preview-frame');
+				const shell = page.getByTestId(`${surface}-workspace-home`);
+				await expect(frame).toBeInViewport();
+				await expect(shell).toBeInViewport();
+				const [frameBox, shellBox] = await Promise.all([frame.boundingBox(), shell.boundingBox()]);
+				expect(frameBox).not.toBeNull();
+				expect(shellBox).not.toBeNull();
+				expect(frameBox!.height).toBeGreaterThan(500);
+				expect(shellBox!.height).toBeGreaterThan(500);
+				await expect(page.getByRole('heading', { name: 'Preview workspace' })).toBeInViewport();
+				const avatar = page.getByTestId(`${surface}-workspace-team-avatar`);
+				const icon = page.getByTestId(`${surface}-workspace-background-icon`);
+				await expect(avatar.locator('.team-avatar')).toBeVisible();
+				await expectEqualWorkspaceIdentity(avatar, icon);
+				await attachPreviewScreenshot(page, testInfo, `shell-${surface}-${viewport.width}.png`);
+			}
+		}
+	});
+
+	// contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
+	test('shows the Personal workspace icon without a Team avatar', async ({ page }) => {
+		await page.goto('/dev/preview/teams/TeamWorkspaceIdentity?chrome=0&variant=personal');
+		await waitForComponentPreview(page);
+		await expect(page.getByTestId('workflows-workspace-background-icon')).toBeVisible();
+		await expect(page.getByTestId('workflows-workspace-team-avatar')).toHaveCount(0);
+		await expect(page.locator('.workspace-identity .team-avatar')).toHaveCount(0);
+	});
+});
+
+test.describe('Team profile badge preview', () => {
+	// contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local,teams.workspace.surface-parity
+	test('shows only an accessible circular Team badge at the profile bottom-left', async ({
+		page
+	}, testInfo) => {
+		for (const viewport of [
+			{ width: 390, height: 844 },
+			{ width: 1440, height: 900 }
+		]) {
+			await page.setViewportSize(viewport);
+			await page.goto('/dev/preview/teams/TeamProfileBadgePreviewHarness?chrome=0');
 			await waitForComponentPreview(page);
-			await expect(page.getByTestId(`${surface}-workspace-background-icon`)).toBeVisible();
-			await expect(
-				page.getByTestId(`${surface}-workspace-team-avatar`).locator('.team-avatar')
-			).toBeVisible();
+			const profile = page.getByTestId('profile-avatar-preview-parent');
+			const badge = page.getByTestId('profile-active-team-avatar');
+			await expect(profile).toBeVisible();
+			await expect(badge).toBeVisible();
+			await expect(badge).toHaveAttribute('role', 'img');
+			await expect(badge).toHaveAttribute('aria-label', 'Active team: Preview team');
+			await expect(badge).not.toHaveAttribute('title', /.+/);
+			await expect(badge).toHaveText('');
+			await expect(badge).toHaveCSS('width', '24px');
+			await expect(badge).toHaveCSS('height', '24px');
+			expect(
+				await badge.evaluate((element) => {
+					const radius = getComputedStyle(element).borderTopLeftRadius;
+					return radius.endsWith('%')
+						? Number.parseFloat(radius) >= 50
+						: Number.parseFloat(radius) >= element.getBoundingClientRect().width / 2;
+				})
+			).toBe(true);
+			await expect(badge.locator('.team-avatar')).toHaveCSS('width', '22px');
+			const [profileBox, badgeBox] = await Promise.all([
+				profile.boundingBox(),
+				badge.boundingBox()
+			]);
+			expect(profileBox).not.toBeNull();
+			expect(badgeBox).not.toBeNull();
+			expect(profileBox!.width).toBe(50);
+			expect(profileBox!.height).toBe(50);
+			expect(Math.abs(badgeBox!.x - (profileBox!.x - 2))).toBeLessThanOrEqual(1);
+			expect(Math.abs(badgeBox!.y + badgeBox!.height - (profileBox!.y + 54))).toBeLessThanOrEqual(
+				1
+			);
+			await attachPreviewScreenshot(page, testInfo, `profile-badge-${viewport.width}.png`);
 		}
 	});
 });

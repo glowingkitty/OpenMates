@@ -45,7 +45,15 @@
       if (operation !== generation || accountId !== get(userProfile).user_id) return;
       console.error('[TeamInvite] Acceptance or decline failed');
       status = 'error';
-      error = caught instanceof Error ? caught.message : $text('settings.team_invitation.failed');
+      const detail = caught instanceof Error ? caught.message : '';
+      const errorKey = detail === 'TEAM_STRONG_AUTH_REQUIRED'
+        ? 'settings.teams_ui.strong_auth_info'
+        : ['TEAM_VERIFIED_EMAIL_REQUIRED', 'TEAM_VALID_EMAIL_REQUIRED'].includes(detail)
+          ? 'settings.team_invitation.description'
+          : detail === 'TEAM_EMAIL_DOMAIN_NOT_ALLOWED'
+            ? 'settings.teams_ui.domain_disallowed'
+            : 'settings.team_invitation.failed';
+      error = $text(errorKey);
     }
   }
 </script>

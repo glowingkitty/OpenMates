@@ -211,6 +211,48 @@ async function openProfileMenu(page: Page): Promise<void> {
 	await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 15000 });
 }
 
+async function expectProfileTeamBadge(page: Page, teamName: string): Promise<void> {
+	const profile = page.getByTestId('profile-container');
+	const badge = page.getByTestId('profile-active-team-avatar');
+	await expect(badge).toBeVisible({ timeout: 15000 });
+	await expect(badge).toHaveAttribute('aria-label', `Active team: ${teamName}`);
+	await expect(badge).toHaveText('');
+	expect(
+		await badge.evaluate((element) => {
+			const radius = getComputedStyle(element).borderTopLeftRadius;
+			return radius.endsWith('%')
+				? Number.parseFloat(radius) >= 50
+				: Number.parseFloat(radius) >= element.getBoundingClientRect().width / 2;
+		})
+	).toBe(true);
+	const [profileBox, badgeBox] = await Promise.all([profile.boundingBox(), badge.boundingBox()]);
+	expect(profileBox).not.toBeNull();
+	expect(badgeBox).not.toBeNull();
+	expect(Math.abs(badgeBox!.width - badgeBox!.height)).toBeLessThanOrEqual(1);
+	expect(badgeBox!.width / profileBox!.width).toBeGreaterThan(0.4);
+	expect(badgeBox!.width / profileBox!.width).toBeLessThan(0.55);
+	expect(Math.abs(badgeBox!.x - profileBox!.x)).toBeLessThanOrEqual(6);
+	expect(badgeBox!.y).toBeGreaterThan(profileBox!.y + profileBox!.height / 2);
+	expect(badgeBox!.y + badgeBox!.height).toBeGreaterThan(profileBox!.y + profileBox!.height);
+}
+
+async function expectChatTeamIdentity(page: Page): Promise<void> {
+	const avatar = page.getByTestId('chats-workspace-team-avatar');
+	const icon = page.getByTestId('guest-workspace-icon');
+	await expect(avatar).toBeVisible({ timeout: 15000 });
+	await expect(icon).toBeVisible();
+	await expect(avatar).toHaveCSS('opacity', '0.3');
+	const [avatarBox, iconBox] = await Promise.all([avatar.boundingBox(), icon.boundingBox()]);
+	expect(avatarBox).not.toBeNull();
+	expect(iconBox).not.toBeNull();
+	expect(Math.abs(avatarBox!.width - iconBox!.width)).toBeLessThanOrEqual(1);
+	expect(Math.abs(avatarBox!.height - iconBox!.height)).toBeLessThanOrEqual(1);
+	expect(avatarBox!.x + avatarBox!.width).toBeLessThan(iconBox!.x);
+	expect(
+		Math.abs(avatarBox!.y + avatarBox!.height / 2 - iconBox!.y - iconBox!.height / 2)
+	).toBeLessThanOrEqual(1);
+}
+
 test.describe('Teams V1 context isolation', () => {
 	// contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.chat.encrypted-until-invoked,notifications.surface.semantic-parity
 	test('isolates Team chats and sends ordinary Team turns as scoped ciphertext', async ({
@@ -296,13 +338,13 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(page.locator('.active-chat-container')).not.toHaveClass(/dimmed/, {
 				timeout: 15000
 			});
-			await expect(page.getByTestId('profile-active-team-avatar')).toContainText(teamName, {
-				timeout: 15000
-			});
+			await expectProfileTeamBadge(page, teamName);
 			await openProfileMenu(page);
-			await expect(page.getByTestId('team-context-dropdown')).toContainText(teamName, {
-				timeout: 15000
-			});
+			await page.getByTestId('team-context-dropdown').click();
+			await expect(
+				page.getByTestId('team-context-menu').getByRole('menuitemradio', { name: teamName })
+			).toHaveAttribute('aria-checked', 'true');
+			await page.keyboard.press('Escape');
 			await page.waitForTimeout(6000);
 			await page.getByTestId('icon-button-close').click();
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
@@ -318,9 +360,11 @@ test.describe('Teams V1 context isolation', () => {
 			await page.waitForTimeout(6000);
 			await ensureSidebarClosed(page);
 			await startNewChat(page);
-			await expect(page.getByTestId('profile-active-team-avatar')).toContainText(teamName, {
-				timeout: 15000
-			});
+			await expectProfileTeamBadge(page, teamName);
+			await expectChatTeamIdentity(page);
+			if (process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT) {
+				await page.waitForTimeout(1200);
+			}
 
 			const sendFrameIndex = frames.length;
 			const messageInput = page.locator('[data-action="message-input"]').last();
@@ -761,9 +805,7 @@ test.describe('Teams V1 context isolation', () => {
 			const teamWindowResponse = await teamWindowResponsePromise;
 			expect(teamWindowResponse.ok(), 'Team link chat access check must succeed').toBe(true);
 			await waitForPhasedSyncCompletion(frames, teamLinkFrameIndex, teamId);
-			await expect(page.getByTestId('profile-active-team-avatar')).toContainText(teamName, {
-				timeout: 30000
-			});
+			await expectProfileTeamBadge(page, teamName);
 			await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
 				'data-current-chat-id',
 				teamChatId,

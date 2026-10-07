@@ -166,7 +166,7 @@ import { storageArchiveFetch } from "../config/api";
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
     import { activeTeam, activeTeamId, TEAM_CONTEXT_CHANGED_EVENT } from '../stores/teamStore';
-    import TeamAvatar from './teams/TeamAvatar.svelte';
+    import TeamWorkspaceIdentity from './teams/TeamWorkspaceIdentity.svelte';
     import {
         getInterestSurfaceIds,
         rankDailyInspirationsByInterests,
@@ -13970,10 +13970,12 @@ import { storageArchiveFetch } from "../config/api";
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
 								<div class="welcome-text">
-									<div class="guest-workspace-icon" data-testid="guest-workspace-icon" data-surface={!$authStore.isAuthenticated ? activeGuestSurface : 'chats'} aria-hidden="true"></div>
-									{#if $authStore.isAuthenticated && $activeTeam}
-										<span class="chat-welcome-team-avatar" data-testid="chats-workspace-team-avatar"><TeamAvatar team={$activeTeam} size={46} /></span>
-									{/if}
+								<TeamWorkspaceIdentity
+									team={$authStore.isAuthenticated ? $activeTeam : null}
+									surface={!$authStore.isAuthenticated ? activeGuestSurface : 'chats'}
+									avatarTestId="chats-workspace-team-avatar"
+									iconTestId="guest-workspace-icon"
+								/>
 									{#if $authStore.isAuthenticated}
                                         <h2>
                                             {#each welcomeHeadingParts as part, index}
@@ -15791,17 +15793,6 @@ import { storageArchiveFetch } from "../config/api";
 		isolation: isolate;
 	}
 
-	.chat-welcome-team-avatar {
-		position: absolute;
-		left: calc(50% + 40px);
-		top: calc(50% - 54px);
-		z-index: 1;
-		display: inline-flex;
-		border: 2px solid var(--color-grey-0);
-		border-radius: var(--radius-full);
-		pointer-events: none;
-	}
-
 	.welcome-text h2 {
 		position: relative;
 		z-index: 1;
@@ -15827,40 +15818,6 @@ import { storageArchiveFetch } from "../config/api";
 		font-weight: 600;
         line-height: 1.25;
     }
-
-	.guest-workspace-icon {
-		position: absolute;
-		left: 50%;
-		top: 50%;
-		z-index: 0;
-		width: clamp(76px, 11vw, 128px);
-		height: clamp(76px, 11vw, 128px);
-		background: var(--color-grey-30);
-		transform: translate(-50%, -54%);
-		pointer-events: none;
-		-webkit-mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
-		mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
-	}
-
-	.guest-workspace-icon[data-surface='projects'] {
-		-webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
-		mask-image: url('@openmates/ui/static/icons/project.svg');
-	}
-
-	.guest-workspace-icon[data-surface='plans'] {
-		-webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
-		mask-image: url('@openmates/ui/static/icons/task.svg');
-	}
-
-	.guest-workspace-icon[data-surface='workflows'] {
-		-webkit-mask-image: url('@openmates/ui/static/icons/workflow.svg');
-		mask-image: url('@openmates/ui/static/icons/workflow.svg');
-	}
-
-	.guest-workspace-icon[data-surface='tasks'] {
-		-webkit-mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
-		mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
-	}
 
     .guest-interest-tags-overlay {
         position: relative;
@@ -16067,10 +16024,6 @@ import { storageArchiveFetch } from "../config/api";
     }
 
     @media (max-width: 730px) {
-		.guest-workspace-icon {
-			width: 76px;
-			height: 76px;
-		}
 
         .guest-all-examples-view {
             width: min(100% - 24px, 520px);

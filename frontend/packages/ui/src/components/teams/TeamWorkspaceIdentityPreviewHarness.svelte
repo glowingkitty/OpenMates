@@ -19,4 +19,17 @@
   });
 </script>
 
-<WorkspaceHomeShell {surface} heading="Preview workspace" showComposer={false} />
+<div class="workspace-preview-frame" data-testid="team-workspace-preview-frame">
+  <WorkspaceHomeShell {surface} heading="Preview workspace" showComposer={false} />
+</div>
+
+<style>
+  /* Match the app's definite workspace pane height in chrome-free preview. */
+  .workspace-preview-frame {
+    width: 100%;
+    min-width: 0;
+    height: calc(100dvh - 64px);
+    min-height: 560px;
+    box-sizing: border-box;
+  }
+</style>

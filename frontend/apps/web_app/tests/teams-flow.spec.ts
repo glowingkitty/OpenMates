@@ -24,6 +24,29 @@ async function holdProofState(page: Page): Promise<void> {
 	if (isProofCapture) await page.waitForTimeout(PROOF_STATE_HOLD_MS);
 }
 
+async function expectActiveTeamProfileBadge(page: Page, teamName: string): Promise<void> {
+	const profile = page.getByTestId('profile-container');
+	const badge = page.getByTestId('profile-active-team-avatar');
+	await expect(badge).toBeVisible({ timeout: 15000 });
+	await expect(badge).toHaveAttribute('aria-label', `Active team: ${teamName}`);
+	await expect(badge).toHaveText('');
+	expect(
+		await badge.evaluate((element) => {
+			const radius = getComputedStyle(element).borderTopLeftRadius;
+			return radius.endsWith('%')
+				? Number.parseFloat(radius) >= 50
+				: Number.parseFloat(radius) >= element.getBoundingClientRect().width / 2;
+		})
+	).toBe(true);
+	const [profileBox, badgeBox] = await Promise.all([profile.boundingBox(), badge.boundingBox()]);
+	expect(profileBox).not.toBeNull();
+	expect(badgeBox).not.toBeNull();
+	expect(Math.abs(badgeBox!.width - badgeBox!.height)).toBeLessThanOrEqual(1);
+	expect(badgeBox!.x).toBeLessThanOrEqual(profileBox!.x + 6);
+	expect(badgeBox!.y).toBeGreaterThan(profileBox!.y + profileBox!.height / 2);
+	expect(badgeBox!.y + badgeBox!.height).toBeGreaterThan(profileBox!.y + profileBox!.height);
+}
+
 function isApiPath(
 	response: Response,
 	method: string,
@@ -94,7 +117,9 @@ test.describe('Teams V1 web flow', () => {
 			timeout: 30000
 		});
 		// contract-test: direct surface=gui.web assertions=billing.storage.weekly-quote,billing.storage.team-policy-gate
-		await expect(page.getByTestId('team-storage-summary')).toContainText('Free team storage', { timeout: 30000 });
+		await expect(page.getByTestId('team-storage-summary')).toContainText('Free team storage', {
+			timeout: 30000
+		});
 		await expect(page.getByTestId('team-storage-summary')).toContainText('0 credits / week');
 		await expect(page.getByTestId('team-storage-policy')).toContainText('Sundays at 03:00 UTC');
 		await expect(page.getByTestId('team-storage-preview')).toContainText('not yet enabled');
@@ -160,7 +185,7 @@ test.describe('Teams V1 web flow', () => {
 
 		await page.getByTestId('icon-button-close').click();
 		await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('profile-active-team-avatar')).toBeVisible({ timeout: 15000 });
+		await expectActiveTeamProfileBadge(page, teamName);
 		await holdProofState(page);
 	});
 });

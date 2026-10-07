@@ -21,7 +21,7 @@
   import { hasRoomForLargeContinueCards } from '../../utils/continueCardLayout';
   import { text } from '../../i18n/translations';
   import { activeTeam } from '../../stores/teamStore';
-  import TeamAvatar from '../teams/TeamAvatar.svelte';
+  import TeamWorkspaceIdentity from '../teams/TeamWorkspaceIdentity.svelte';
 
   // Vite resolves the same packaged SVGs used by app details into real asset URLs.
   // Keep the glyph independent of Icon.svelte's scoped pseudo-element CSS.
@@ -315,12 +315,12 @@
         {#if eyebrow}
           <p class="workspace-eyebrow">{eyebrow}</p>
         {/if}
-        <span class="workspace-surface-background-icon" data-testid={`${surface}-workspace-background-icon`} data-surface={surface} aria-hidden="true"></span>
-        {#if $activeTeam}
-          <span class="workspace-team-avatar" data-testid={`${surface}-workspace-team-avatar`}>
-            <TeamAvatar team={$activeTeam} size={46} />
-          </span>
-        {/if}
+        <TeamWorkspaceIdentity
+          team={$activeTeam}
+          {surface}
+          avatarTestId={`${surface}-workspace-team-avatar`}
+          iconTestId={`${surface}-workspace-background-icon`}
+        />
         <h2>{heading}</h2>
         {#if subtitle}
           <p class="workspace-subtitle">{subtitle}</p>
@@ -858,61 +858,6 @@
     isolation: isolate;
   }
 
-  .workspace-surface-background-icon {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    z-index: -1;
-    width: clamp(76px, 11vw, 128px);
-    height: clamp(76px, 11vw, 128px);
-    background: var(--color-grey-30);
-    transform: translate(-50%, -54%);
-    pointer-events: none;
-    -webkit-mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
-    mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
-  }
-
-  .workspace-team-avatar {
-    position: absolute;
-    left: calc(50% + clamp(28px, 4vw, 48px));
-    top: calc(50% - clamp(38px, 5.5vw, 60px));
-    z-index: 1;
-    display: inline-flex;
-    border: 2px solid var(--color-grey-0);
-    border-radius: var(--radius-full);
-    pointer-events: none;
-  }
-
-  .workspace-surface-background-icon[data-surface='apps'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/app.svg');
-    mask-image: url('@openmates/ui/static/icons/app.svg');
-  }
-
-  .workspace-surface-background-icon[data-surface='projects'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
-    mask-image: url('@openmates/ui/static/icons/project.svg');
-  }
-
-  .workspace-surface-background-icon[data-surface='plans'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
-    mask-image: url('@openmates/ui/static/icons/task.svg');
-  }
-
-  .workspace-surface-background-icon[data-surface='workflows'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/workflow.svg');
-    mask-image: url('@openmates/ui/static/icons/workflow.svg');
-  }
-
-  .workspace-surface-background-icon[data-surface='tasks'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
-    mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
-  }
-
-  .workspace-surface-background-icon[data-surface='teams'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
-    mask-image: url('@openmates/ui/static/icons/team.svg');
-  }
-
   .workspace-center-content .workspace-subtitle {
     margin: 8px 0 0;
     color: var(--color-grey-60);
@@ -1263,11 +1208,6 @@
     .workspace-home-shell.content-slot-mode .workspace-center-content.center-content {
       top: auto;
       margin-top: clamp(18px, 4vh, 36px);
-    }
-
-    .workspace-surface-background-icon {
-      width: 76px;
-      height: 76px;
     }
 
     .workspace-home-shell.all-items-mode .workspace-center-content.center-content {

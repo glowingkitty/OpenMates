@@ -9,4 +9,5 @@ export const variants = {
   pending: { ...props, status: 'pending' },
   joined: { ...props, status: 'joined' },
   error: { ...props, status: 'error', error: 'Use the verified email address this invitation was sent to.' },
+  'strong-auth': { ...props, status: 'error', error: 'Requires either a passkey or a 2FA app for login. This improves protection against scammers and hackers.' },
 };

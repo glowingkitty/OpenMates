@@ -7,7 +7,8 @@
     eager: true, query: '?url', import: 'default',
   }) as Record<string, string>;
 
-  let { team, size = 28, testId }: { team: TeamViewModel; size?: number; testId?: string } = $props();
+  let { team, size = 28, testId }: { team: TeamViewModel; size?: number | string; testId?: string } = $props();
+  const cssSize = $derived(typeof size === 'number' ? `${size}px` : size);
   let imageUrl = $state<string | null>(null);
   let iconName = $derived(typeof team.profileImageMetadata?.icon_name === 'string'
     && /^[a-z0-9_-]+$/.test(team.profileImageMetadata.icon_name)
@@ -50,8 +51,8 @@
   class="team-avatar"
   data-testid={testId}
   aria-hidden="true"
-  style:width={`${size}px`}
-  style:height={`${size}px`}
+  style:width={cssSize}
+  style:height={cssSize}
   style:background={getTeamAvatarBackground(team)}
 >
   {#if imageUrl}
