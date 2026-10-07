@@ -5,6 +5,8 @@
 import asyncio
 from types import SimpleNamespace
 
+from anthropic.types import Usage
+
 from backend.apps.ai.llm_providers.anthropic_direct_api import invoke_direct_api
 from backend.apps.ai.llm_providers.anthropic_shared import (
     AnthropicUsageMetadata,
@@ -49,18 +51,19 @@ def test_anthropic_caps_breakpoints_and_preserves_static_boundary() -> None:
 
 
 def test_anthropic_stream_merges_start_input_cache_and_delta_output() -> None:
-    start_usage = SimpleNamespace(input_tokens=10, output_tokens=0,
-                                  cache_creation_input_tokens=5273,
-                                  cache_read_input_tokens=0,
-                                  cache_creation=SimpleNamespace(
-                                      ephemeral_5m_input_tokens=5273,
-                                      ephemeral_1h_input_tokens=0))
+    # SDK 0.57.1 retains this newer field as an untyped dict (extra="allow").
+    start_usage = Usage.model_validate({
+        "input_tokens": 10, "output_tokens": 1,
+        "cache_creation_input_tokens": 5273, "cache_read_input_tokens": 0,
+        "cache_creation": {"ephemeral_5m_input_tokens": 5273,
+                           "ephemeral_1h_input_tokens": 0},
+    })
     delta_usage = SimpleNamespace(input_tokens=None, output_tokens=5,
                                   cache_creation_input_tokens=None,
                                   cache_read_input_tokens=None)
     events = [
         SimpleNamespace(type="message_start", message=SimpleNamespace(id="msg_synthetic", usage=start_usage)),
-        SimpleNamespace(type="message_delta", delta=SimpleNamespace(stop_reason="end_turn", usage=delta_usage)),
+        SimpleNamespace(type="message_delta", delta=SimpleNamespace(stop_reason="end_turn"), usage=delta_usage),
     ]
     client = SimpleNamespace(messages=SimpleNamespace(create=lambda **kwargs: events))
 
@@ -76,6 +79,8 @@ def test_anthropic_stream_merges_start_input_cache_and_delta_output() -> None:
     assert usage.output_tokens == 5
     assert usage.cache_creation_input_tokens == 5273
     assert usage.cache_creation_5m_input_tokens == 5273
+    assert usage.cache_creation_1h_input_tokens == 0
+    assert usage.cache_read_input_tokens == 0
     assert usage.provider_request_id == "msg_synthetic"
 
 
@@ -93,6 +98,27 @@ def test_anthropic_nonstream_preserves_missing_cache_counters() -> None:
     assert result.usage.cache_read_input_tokens is None
     assert result.usage.cache_creation_input_tokens is None
     assert result.usage.usage_source == "provider_reported"
+
+
+def test_anthropic_nonstream_reads_sdk_extra_cache_ttl_counters() -> None:
+    usage = Usage.model_validate({
+        "input_tokens": 10, "output_tokens": 5,
+        "cache_creation_input_tokens": 5273, "cache_read_input_tokens": 0,
+        "cache_creation": {"ephemeral_5m_input_tokens": 5273,
+                           "ephemeral_1h_input_tokens": 0},
+    })
+    response = SimpleNamespace(
+        id="msg_synthetic", usage=usage,
+        content=[SimpleNamespace(type="text", text="OK")],
+    )
+    client = SimpleNamespace(messages=SimpleNamespace(create=lambda **kwargs: response))
+    result = asyncio.run(invoke_direct_api(
+        "task", "claude-sonnet-4-6", [{"role": "user", "content": "Reply OK"}],
+        client, max_tokens=8,
+    ))
+    assert result.success
+    assert result.usage.cache_creation_5m_input_tokens == 5273
+    assert result.usage.cache_creation_1h_input_tokens == 0
 
 
 def test_google_read_and_thoughts_are_provider_reported() -> None:

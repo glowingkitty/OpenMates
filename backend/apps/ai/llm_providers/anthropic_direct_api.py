@@ -20,6 +20,17 @@ from .openai_shared import calculate_token_breakdown
 logger = logging.getLogger(__name__)
 
 
+def _cache_creation_ttl_tokens(usage: Any) -> Dict[str, int]:
+    """Read TTL counters from typed or forward-compatible SDK usage data."""
+    creation = getattr(usage, "cache_creation", None)
+    if creation is None:
+        return {}
+    fields = ("ephemeral_5m_input_tokens", "ephemeral_1h_input_tokens")
+    values = {field: creation.get(field) if isinstance(creation, dict) else getattr(creation, field, None)
+              for field in fields}
+    return {field: value for field, value in values.items() if value is not None}
+
+
 async def invoke_direct_api(
     task_id: str,
     model_id: str,
@@ -113,15 +124,15 @@ async def _process_direct_api_response(
         token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
 
         # Parse direct API response
-        creation_details = getattr(response.usage, "cache_creation", None)
+        creation_details = _cache_creation_ttl_tokens(response.usage)
         usage_metadata = AnthropicUsageMetadata(
             input_tokens=response.usage.input_tokens,
             output_tokens=response.usage.output_tokens,
             total_tokens=response.usage.input_tokens + response.usage.output_tokens,
             cache_creation_input_tokens=getattr(response.usage, 'cache_creation_input_tokens', None),
             cache_read_input_tokens=getattr(response.usage, 'cache_read_input_tokens', None),
-            cache_creation_5m_input_tokens=getattr(creation_details, "ephemeral_5m_input_tokens", None),
-            cache_creation_1h_input_tokens=getattr(creation_details, "ephemeral_1h_input_tokens", None),
+            cache_creation_5m_input_tokens=creation_details.get("ephemeral_5m_input_tokens"),
+            cache_creation_1h_input_tokens=creation_details.get("ephemeral_1h_input_tokens"),
             provider_request_id=getattr(response, "id", None),
             user_input_tokens=token_breakdown.get("user_input_tokens"),
             system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
@@ -219,12 +230,7 @@ async def _iterate_direct_api_stream(
                         value = getattr(start_usage, field, None)
                         if value is not None:
                             usage_parts[field] = value
-                    creation_details = getattr(start_usage, "cache_creation", None)
-                    if creation_details is not None:
-                        for field in ("ephemeral_5m_input_tokens", "ephemeral_1h_input_tokens"):
-                            value = getattr(creation_details, field, None)
-                            if value is not None:
-                                usage_parts[field] = value
+                    usage_parts.update(_cache_creation_ttl_tokens(start_usage))
             elif event.type == "content_block_delta":
                 if event.delta.type == "text_delta":
                     text_chunk = event.delta.text
@@ -298,13 +304,15 @@ async def _iterate_direct_api_stream(
                     if stop_reason == "max_tokens":
                         yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
 
-                if hasattr(event.delta, 'usage'):
-                    usage_data = event.delta.usage
-                    if usage_data is not None:
-                        for field in ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"):
-                            value = getattr(usage_data, field, None)
-                            if value is not None:
-                                usage_parts[field] = value
+                # The SDK puts cumulative usage on the event, alongside delta.
+                # Replace reported totals rather than summing successive deltas.
+                usage_data = getattr(event, "usage", None)
+                if usage_data is not None:
+                    for field in ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"):
+                        value = getattr(usage_data, field, None)
+                        if value is not None:
+                            usage_parts[field] = value
+                    usage_parts.update(_cache_creation_ttl_tokens(usage_data))
 
         if usage_parts:
             input_tokens = int(usage_parts.get("input_tokens") or 0)
