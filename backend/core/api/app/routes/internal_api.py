@@ -28,6 +28,11 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.billing_service import BillingService
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
 from backend.core.api.app.services.team_billing_service import TeamBillingService, TeamInsufficientCreditsError
+from backend.core.api.app.services.sub_chat_orchestration_service import (
+    SubChatOrchestrationProtocolError,
+    SubChatOrchestrationService,
+)
+from backend.core.api.app.services.directus.team_methods import hash_id
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.server_stats_service import ServerStatsService
 from backend.core.api.app.services.s3.service import S3UploadService
@@ -739,6 +744,43 @@ class TeamCreditChargePayload(BaseModel):
     usage_details: Optional[Dict[str, Any]] = None
 
 
+class PersonalCreditReservePayload(BaseModel):
+    user_id: str
+    user_id_hash: str
+    idempotency_key: str = Field(..., min_length=1, max_length=255)
+    quoted_credits: int = Field(..., ge=1)
+    app_id: str = Field(..., min_length=1, max_length=100)
+    skill_id: str = Field(..., min_length=1, max_length=100)
+
+
+class TeamCreditReservePayload(BaseModel):
+    team_id: str
+    actor_user_id: str
+    idempotency_key: str = Field(..., min_length=1, max_length=255)
+    quoted_credits: int = Field(..., ge=1)
+    app_id: str = Field(..., min_length=1, max_length=100)
+    skill_id: str = Field(..., min_length=1, max_length=100)
+
+
+class BillingReservationReleasePayload(BaseModel):
+    subject_kind: str = Field(pattern=r"^(personal|team)$")
+    idempotency_key: str = Field(..., min_length=1, max_length=255)
+    reason: str = Field(pattern=r"^(cancelled_before_dispatch|definite_no_cost|provider_failed)$")
+    user_id: str | None = None
+    user_id_hash: str | None = None
+    team_id: str | None = None
+    actor_user_id: str | None = None
+
+
+def _billing_reservation_error(exc: SubChatOrchestrationProtocolError) -> HTTPException:
+    detail: dict[str, Any] = {"code": exc.code}
+    if exc.code == "reservation_budget_exceeded":
+        max_quote = exc.details.get("max_quotable_credits")
+        if isinstance(max_quote, int) and max_quote >= 0:
+            detail["max_quotable_credits"] = max_quote
+    return HTTPException(status_code=exc.status_code, detail=detail)
+
+
 class AnonymousOperationReservePayload(BaseModel):
     parent_request_id: str = Field(..., min_length=1, max_length=255)
     operation_id: str = Field(..., min_length=1, max_length=255)
@@ -903,6 +945,78 @@ async def get_user_credit_balance(
         return {"user_id": user_id, "credits": 0, "cached": False}
 
 
+@router.post("/billing/reserve")
+async def reserve_user_credits_route(
+    payload: PersonalCreditReservePayload,
+    billing_service: BillingService = Depends(get_billing_service),
+) -> Dict[str, Any]:
+    if hash_id(payload.user_id) != payload.user_id_hash:
+        raise HTTPException(status_code=409, detail={"code": "reservation_owner_mismatch"})
+    try:
+        return await billing_service.reserve_user_credits(
+            user_id=payload.user_id,
+            user_id_hash=payload.user_id_hash,
+            charge_id=payload.idempotency_key,
+            quoted_credits=payload.quoted_credits,
+            app_id=payload.app_id,
+            skill_id=payload.skill_id,
+        )
+    except SubChatOrchestrationProtocolError as exc:
+        raise _billing_reservation_error(exc) from exc
+
+
+@router.post("/billing/team/reserve")
+async def reserve_team_credits_route(
+    payload: TeamCreditReservePayload,
+    team_billing_service: TeamBillingService = Depends(get_team_billing_service),
+) -> Dict[str, Any]:
+    try:
+        return await team_billing_service.reserve_team_credits(
+            team_id=payload.team_id,
+            actor_user_id=payload.actor_user_id,
+            charge_id=payload.idempotency_key,
+            quoted_credits=payload.quoted_credits,
+            app_id=payload.app_id,
+            skill_id=payload.skill_id,
+        )
+    except TeamPermissionError as exc:
+        raise HTTPException(status_code=403, detail={"code": "team_permission_denied"}) from exc
+    except SubChatOrchestrationProtocolError as exc:
+        raise _billing_reservation_error(exc) from exc
+
+
+@router.post("/billing/reservation/release")
+async def release_billing_reservation_route(
+    payload: BillingReservationReleasePayload,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    if payload.subject_kind == "personal":
+        if not payload.user_id or not payload.user_id_hash or hash_id(payload.user_id) != payload.user_id_hash:
+            raise HTTPException(status_code=409, detail={"code": "reservation_owner_mismatch"})
+        subject_hash = payload.user_id_hash
+        actor_hash = payload.user_id_hash
+    else:
+        if not payload.team_id or not payload.actor_user_id:
+            raise HTTPException(status_code=422, detail={"code": "team_identity_required"})
+        try:
+            await directus_service.team.require_team_role(
+                payload.team_id, payload.actor_user_id, {"owner", "admin", "member"}
+            )
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=403, detail={"code": "team_permission_denied"}) from exc
+        subject_hash = hash_id(payload.team_id)
+        actor_hash = hash_id(payload.actor_user_id)
+    try:
+        return await SubChatOrchestrationService(directus_service).execute(
+            "release_billing_reservation",
+            {"protocol_version": 1, "charge_id": payload.idempotency_key,
+             "subject_kind": payload.subject_kind, "subject_hash": subject_hash,
+             "actor_user_hash": actor_hash, "reason": payload.reason},
+        )
+    except SubChatOrchestrationProtocolError as exc:
+        raise _billing_reservation_error(exc) from exc
+
+
 @router.post("/billing/charge")
 async def charge_credits_route(
     payload: CreditChargePayload,
@@ -932,9 +1046,12 @@ async def charge_credits_route(
         )
         
         return {
-            "status": "success",
+            "status": "pending" if charge_result.get("state") == "retry_scheduled" else "success",
+            "state": charge_result.get("state", "committed"),
             "charge_id": charge_result.get("charge_id", payload.idempotency_key),
             "charged_credits": charge_result.get("charged_credits", payload.credits),
+            "requested_credits": charge_result.get("requested_credits", payload.credits),
+            "outbox_id": charge_result.get("outbox_id"),
             "usage_id": charge_result.get("usage_id"),
             "idempotent": bool(charge_result.get("idempotent")),
         }
@@ -973,7 +1090,14 @@ async def charge_team_credits_route(
             encrypted_metadata=usage_details.get("encrypted_metadata"),
             usage_details=usage_details,
         )
-        return {"status": "success", "charged_credits": payload.credits, "team_usage_event_id": result["usage_event"].get("id")}
+        return {
+            "status": "success",
+            "state": "committed",
+            "charged_credits": result.get("usage_event", {}).get("credit_amount", payload.credits),
+            "requested_credits": payload.credits,
+            "team_usage_event_id": result["usage_event"].get("id"),
+            "idempotent": bool(result.get("idempotent")),
+        }
     except TeamInsufficientCreditsError as exc:
         raise HTTPException(status_code=402, detail="INSUFFICIENT_TEAM_CREDITS") from exc
     except Exception as exc:

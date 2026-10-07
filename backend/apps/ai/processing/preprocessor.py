@@ -2271,6 +2271,7 @@ async def handle_preprocessing(
             logger.info(f"{log_prefix} Firing Jev bounded preprocessing decisions via {decision_model}.")
             decision_arguments = await decide_preprocessing_with_jev(
                 model_id=decision_model,
+                telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
                 secrets_manager=secrets_manager,
                 message_history=sanitized_message_history,
                 topic_areas=dynamic_context["TOPIC_AREAS_LIST"],

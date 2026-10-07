@@ -7,7 +7,7 @@
 import json
 from typing import Any
 
-from .openai_shared import OpenAIUsageMetadata, ParsedOpenAIToolCall, UnifiedOpenAIResponse
+from .openai_shared import OpenAIUsageMetadata, ParsedOpenAIToolCall, UnifiedOpenAIResponse, openai_cache_read_tokens
 
 
 def _dict(value: Any) -> dict:
@@ -67,7 +67,12 @@ def _usage(response: dict) -> OpenAIUsageMetadata | None:
     usage = response.get("usage")
     if not usage:
         return None
-    return OpenAIUsageMetadata(input_tokens=usage["input_tokens"], output_tokens=usage["output_tokens"], total_tokens=usage["total_tokens"])
+    return OpenAIUsageMetadata(
+        input_tokens=usage["input_tokens"], output_tokens=usage["output_tokens"],
+        total_tokens=usage["total_tokens"],
+        cache_read_input_tokens=openai_cache_read_tokens(usage, responses=True),
+        inference_host="openai", provider_request_id=response.get("id"),
+    )
 
 
 async def invoke_responses(*, client: Any, task_id: str, model_id: str, messages: list[dict], reasoning_effort: str, tools: list[dict] | None = None, tool_choice: Any = None, max_tokens: int | None = None, stream: bool = False) -> Any:

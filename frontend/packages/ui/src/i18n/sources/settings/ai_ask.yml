@@ -1578,6 +1578,43 @@ ai_ask_model_details.text_input:
   he: קלט טקסט
   verified_by_human: [en, de]
 
+ai_ask_model_details.uncached_input:
+  context: Model rate for uncached input tokens
+  en: Uncached input
+  de: Nicht zwischengespeicherte Eingabe
+ai_ask_model_details.cache_read:
+  context: Model rate for cache read input tokens
+  en: Cache read
+  de: Cache-Lesezugriff
+ai_ask_model_details.cache_pricing_explanation:
+  context: Short explanation shown only when verified cache pricing is active
+  en: Cache reads reuse earlier input at a lower price. Cache writes create it and may cost more. Your receipt shows the usage charged.
+  de: Cache-Lesezugriffe verwenden frühere Eingaben zu einem niedrigeren Preis erneut. Cache-Schreibzugriffe legen sie an und können mehr kosten. Dein Nutzungsbeleg zeigt die berechnete Nutzung.
+ai_ask_model_details.cache_write:
+  context: Generic cache write label when retention is implicit and billed in ordinary input
+  en: Cache write
+  de: Cache-Schreibvorgang
+ai_ask_model_details.cache_write_5m:
+  context: Model rate for five-minute cache write input tokens
+  en: Cache write (5 min)
+  de: Cache-Schreibzugriff (5 Min.)
+ai_ask_model_details.cache_write_1h:
+  context: Model rate for one-hour cache write input tokens
+  en: Cache write (1 hour)
+  de: Cache-Schreibzugriff (1 Std.)
+ai_ask_model_details.billable_output:
+  context: Model rate for all billable output including thinking tokens
+  en: Output (including thinking)
+  de: Ausgabe (einschließlich Denk-Token)
+ai_ask_model_details.included_in_input:
+  context: Cache writes billed at ordinary input rate without a separate fee
+  en: Included in ordinary input
+  de: Im normalen Eingabepreis enthalten
+ai_ask_model_details.unavailable:
+  context: Cache rate is not active or not verified for this model
+  en: Unavailable
+  de: Nicht verfügbar
+
 ai_ask_model_details.text_output:
   context: Label for text output pricing
   en: Text output

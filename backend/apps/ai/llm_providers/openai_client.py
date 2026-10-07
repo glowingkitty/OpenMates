@@ -17,6 +17,7 @@ from .openai_shared import (
     RawOpenAIChatCompletionResponse,
     _map_tools_to_openai_format,
     calculate_token_breakdown,
+    openai_cache_read_tokens,
 )
 from .openai_openrouter import invoke_openrouter_chat_completions
 
@@ -216,6 +217,9 @@ def _build_unified_response(
                     input_tokens=int(usage_raw.get("prompt_tokens") or 0),
                     output_tokens=int(usage_raw.get("completion_tokens") or 0),
                     total_tokens=int(usage_raw.get("total_tokens") or 0),
+                    cache_read_input_tokens=openai_cache_read_tokens(usage_raw),
+                    inference_host="openai",
+                    provider_request_id=response_json.get("id"),
                     user_input_tokens=breakdown.get("user_input_tokens"),
                     system_prompt_tokens=breakdown.get("system_prompt_tokens")
                 )
@@ -307,6 +311,9 @@ async def _invoke_openai_direct_api(
             "output_tokens": 0,
             "total_tokens": 0,
         }
+        cached_input_tokens: Optional[int] = None
+        provider_request_id: Optional[str] = None
+        provider_usage_reported = False
 
         # For fallback token estimation when usage is absent
         collected_output_text_parts: List[str] = []
@@ -324,6 +331,7 @@ async def _invoke_openai_direct_api(
             "model": request_model_id,
             "messages": messages,
             "stream": True,
+            "stream_options": {"include_usage": True},
         }
         if reasoning_effort:
             stream_payload["reasoning_effort"] = reasoning_effort
@@ -361,6 +369,17 @@ async def _invoke_openai_direct_api(
             # Iterate over streamed ChatCompletionChunk objects
             async for chunk in stream_resp:  # type: ignore
                 try:
+                    # With include_usage, OpenAI sends a final usage-only chunk
+                    # whose choices list is empty. Capture it before that guard.
+                    provider_request_id = provider_request_id or getattr(chunk, "id", None)
+                    usage_obj = getattr(chunk, "usage", None)
+                    if usage_obj is not None:
+                        usage_dict = usage_obj.model_dump(exclude_none=True) if hasattr(usage_obj, "model_dump") else {}
+                        cumulative_usage["input_tokens"] = int(getattr(usage_obj, "prompt_tokens", 0) or 0)
+                        cumulative_usage["output_tokens"] = int(getattr(usage_obj, "completion_tokens", 0) or 0)
+                        cumulative_usage["total_tokens"] = int(getattr(usage_obj, "total_tokens", 0) or 0)
+                        cached_input_tokens = openai_cache_read_tokens(usage_dict)
+                        provider_usage_reported = True
                     choices = getattr(chunk, "choices", None) or []
                     if not choices:
                         continue
@@ -436,20 +455,6 @@ async def _invoke_openai_direct_api(
                         logger.warning(f"{log_prefix} Response blocked: finish_reason='content_filter'")
                         yield "\n\n---\n*This response was blocked by the model's content filter. Try rephrasing your request or using a different model.*"
 
-                    # Capture usage if present on chunk (some SDK versions include it on final chunk)
-                    usage_obj = getattr(chunk, "usage", None)
-                    if usage_obj is not None:
-                        # Best-effort extraction; attributes may vary across SDK versions
-                        try:
-                            prompt_tokens = int(getattr(usage_obj, "prompt_tokens", 0))
-                            completion_tokens = int(getattr(usage_obj, "completion_tokens", 0))
-                            total_tokens = int(getattr(usage_obj, "total_tokens", prompt_tokens + completion_tokens))
-                            cumulative_usage["input_tokens"] = prompt_tokens
-                            cumulative_usage["output_tokens"] = completion_tokens
-                            cumulative_usage["total_tokens"] = total_tokens
-                        except Exception:  # pragma: no cover - defensive
-                            pass
-
                 except Exception as chunk_exc:  # pragma: no cover - defensive
                     logger.error(f"{log_prefix} Error processing stream chunk: {chunk_exc}", exc_info=True)
                     continue
@@ -502,6 +507,10 @@ async def _invoke_openai_direct_api(
                 input_tokens=cumulative_usage["input_tokens"],
                 output_tokens=cumulative_usage["output_tokens"],
                 total_tokens=cumulative_usage["total_tokens"],
+                cache_read_input_tokens=cached_input_tokens,
+                usage_source="provider_reported" if provider_usage_reported else "estimated",
+                inference_host="openai",
+                provider_request_id=provider_request_id,
                 user_input_tokens=token_breakdown.get("user_input_tokens"),
                 system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
             )

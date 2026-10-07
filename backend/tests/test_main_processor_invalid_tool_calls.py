@@ -331,6 +331,10 @@ async def _run_mocked_protocol_guard_main_processor(
     monkeypatch.setattr(tool_protocol_guard, "StreamChunkType", SimpleNamespace(TEXT="text"))
     monkeypatch.setattr(main_processor, "ToolProtocolGuard", tool_protocol_guard.ToolProtocolGuard)
     monkeypatch.setattr(main_processor, "call_main_llm_stream", call_main_llm_stream)
+    async def reserved_for_protocol_test(**kwargs):
+        return kwargs.get("requested_output_token_limit") or 1024
+
+    monkeypatch.setattr(main_processor, "_reserve_authenticated_ai_turn", reserved_for_protocol_test)
     monkeypatch.setattr(main_processor, "observe_ai_stream", lambda stream, *_args, **_kwargs: stream)
     monkeypatch.setattr(
         main_processor,

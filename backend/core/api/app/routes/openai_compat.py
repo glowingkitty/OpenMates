@@ -128,6 +128,10 @@ def _model_object(provider_id: str, model_config: Dict[str, Any]) -> Dict[str, A
                 "unit": "tokens_per_credit",
                 "input": (token_pricing.get("input") or {}).get("per_credit_unit"),
                 "output": (token_pricing.get("output") or {}).get("per_credit_unit"),
+                "cache_read": (token_pricing.get("cache_read") or {}).get("per_credit_unit"),
+                "cache_write": (token_pricing.get("cache_write") or {}).get("per_credit_unit"),
+                "cache_write_1h": (token_pricing.get("cache_write_1h") or {}).get("per_credit_unit"),
+                "cache_pricing": model_config.get("cache_pricing"),
             },
         }),
     }

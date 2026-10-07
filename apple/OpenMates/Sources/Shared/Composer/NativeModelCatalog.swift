@@ -1,3 +1,5 @@
+// Specification: specifications/features/ai-model-routing/specification.yml
+// Assertions: ai-model-routing.catalog.public-read-only
 import Foundation
 
 struct NativeModelCatalog: Decodable {
@@ -20,6 +22,8 @@ struct NativeModelCatalog: Decodable {
         let input_types: [String]?
         let output_types: [String]?
         let pricing: Pricing?
+        let cache_pricing: CachePricing?
+        let default_server: String?
         let provider_id: String
         let provider_name: String
         let logo_svg: String
@@ -30,6 +34,14 @@ struct NativeModelCatalog: Decodable {
         var tier: String? = nil
         let show_in_mentions: Bool?
         let servers: [Server]
+        func cachePricesActive(today: String = CachePricing.todayUTC()) -> Bool {
+            guard let pricing else { return false }
+            return cache_pricing?.isDisplayActive(defaultHost: default_server, pricing: pricing, today: today) == true
+        }
+        var supportsOneHourCacheWrites: Bool {
+            guard let default_server, !default_server.isEmpty else { return false }
+            return cache_pricing?.cache_write_1h_hosts?.contains(default_server) == true
+        }
     }
     struct Server: Decodable {
         let id: String
@@ -39,6 +51,68 @@ struct NativeModelCatalog: Decodable {
     struct Pricing: Decodable {
         let input_tokens_per_credit: Double?
         let output_tokens_per_credit: Double?
+        let cache_read_tokens_per_credit: Double?
+        let cache_write_tokens_per_credit: Double?
+        let cache_write_1h_tokens_per_credit: Double?
+    }
+    struct CachePricing: Decodable {
+        let enabled: Bool
+        let write_billing: String?
+        let write_ttl: String?
+        let pricing_version: String?
+        let source_url: String?
+        let reviewed_on: String?
+        let effective_from: String?
+        let expires_on: String?
+        let status: String?
+        let eligible_hosts: [String]?
+        let cache_write_1h_hosts: [String]?
+        let requires_cache_write_metric: Bool?
+        let requires_cache_retention_metric: Bool?
+
+        func isDisplayActive(defaultHost: String?, pricing: Pricing, today: String) -> Bool {
+            guard enabled, status == "verified_for_activation",
+                  write_billing == "included_in_input" || write_billing == "separate",
+                  let source_url, !source_url.isEmpty,
+                  let reviewed_on, Self.validUTCDate(reviewed_on),
+                  let expires_on, Self.validUTCDate(expires_on),
+                  let eligible_hosts, !eligible_hosts.isEmpty,
+                  let defaultHost, !defaultHost.isEmpty, eligible_hosts.contains(defaultHost),
+                  Self.validUTCDate(today),
+                  reviewed_on <= today, today <= expires_on else { return false }
+            guard let readRate = pricing.cache_read_tokens_per_credit, readRate > 0 else { return false }
+            if write_billing == "separate" {
+                guard let writeRate = pricing.cache_write_tokens_per_credit, writeRate > 0 else { return false }
+            }
+            if requires_cache_retention_metric == true {
+                guard let oneHourRate = pricing.cache_write_1h_tokens_per_credit, oneHourRate > 0 else { return false }
+            }
+            if let effective_from, !effective_from.isEmpty {
+                guard Self.validUTCDate(effective_from), effective_from <= today else { return false }
+            }
+            return true
+        }
+        static func todayUTC() -> String {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+            let parts = calendar.dateComponents([.year, .month, .day], from: Date())
+            return String(format: "%04d-%02d-%02d", parts.year!, parts.month!, parts.day!)
+        }
+        private static func validUTCDate(_ value: String) -> Bool {
+            let parts = value.split(separator: "-", omittingEmptySubsequences: false)
+            guard value.count == 10, parts.count == 3,
+                  parts[0].count == 4, parts[1].count == 2, parts[2].count == 2,
+                  parts.allSatisfy({ $0.allSatisfy(\.isNumber) }),
+                  let year = Int(parts[0]), year >= 1,
+                  let month = Int(parts[1]), (1...12).contains(month),
+                  let day = Int(parts[2]), (1...31).contains(day) else { return false }
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+            let components = DateComponents(year: year, month: month, day: day)
+            guard let date = calendar.date(from: components) else { return false }
+            let checked = calendar.dateComponents([.year, .month, .day], from: date)
+            return checked.year == year && checked.month == month && checked.day == day
+        }
     }
     enum Failure: Error { case unsupportedSchema, missingDisplayMetadata, invalidCatalog }
     static func load(data: Data) throws -> Self {

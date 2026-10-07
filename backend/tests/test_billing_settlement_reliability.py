@@ -58,6 +58,15 @@ def test_personal_charges_use_a_hashed_subject_lock() -> None:
     assert "user_id_hash" in source
 
 
+# contract-test: direct surface=rest_api assertions=billing.self-host.cloud-guard
+def test_payment_disabled_usage_keeps_nominal_accounting_but_reports_zero_debit() -> None:
+    source = _charge_source()
+    assert 'actual_wallet_debit = credits_to_deduct if payment_enabled else 0' in source
+    assert '_usage_details_for_actual_charge(usage_details, actual_wallet_debit)' in source
+    assert '"charged_credits": credits_to_deduct if payment_enabled else 0' in source
+    assert 'credits_charged=credits_to_deduct' in source
+
+
 # contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge,billing.credits.encrypted-authority-cache-projection
 def test_lock_loss_uses_durable_cas_without_duplicate_mutation() -> None:
     source = _charge_source()

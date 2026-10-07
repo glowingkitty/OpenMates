@@ -26,6 +26,13 @@ class BedrockUsageMetadata(BaseModel):
     total_tokens: int
     user_input_tokens: Optional[int] = None
     system_prompt_tokens: Optional[int] = None
+    cache_read_input_tokens: Optional[int] = None
+    cache_creation_input_tokens: Optional[int] = None
+    cache_creation_5m_input_tokens: Optional[int] = None
+    cache_creation_1h_input_tokens: Optional[int] = None
+    usage_source: str = "provider_reported"
+    inference_host: Optional[str] = "aws_bedrock"
+    provider_request_id: Optional[str] = None
 
 
 class ParsedBedrockToolCall(BaseModel):

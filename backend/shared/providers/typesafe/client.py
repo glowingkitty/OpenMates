@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 from typing import Any, Literal, Mapping, Optional
 
@@ -36,6 +37,34 @@ MAX_SERIALIZED_STATE_CHARS = 80_000
 MAX_SERIALIZED_REQUEST_CHARS = 120_000
 MAX_QUESTIONS = 160
 RETRYABLE_STATUS_CODES = {408, 425, 429, 500, 502, 503, 504, 529}
+# Mirror backend/providers/typesafe.yml. The focused contract test fails if the
+# configured supplier tariff changes; review this rate with that catalog entry.
+TYPESAFE_INPUT_USD_PER_MILLION = 0.042
+
+
+def _reported_number(value: Any) -> Optional[float]:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    number = float(value)
+    return number if math.isfinite(number) and number >= 0 else None
+
+
+def _raw_usage(response: Optional[httpx.Response]) -> tuple[Optional[int], Optional[int], Optional[float]]:
+    if response is None:
+        return None, None, None
+    try:
+        body = response.json()
+    except (ValueError, UnicodeError):
+        return None, None, None
+    if not isinstance(body, dict):
+        return None, None, None
+    usage = body.get("usage")
+    if not isinstance(usage, dict):
+        return None, None, None
+    def tokens(name: str) -> Optional[int]:
+        value = usage.get(name)
+        return value if type(value) is int and value >= 0 else None
+    return tokens("input_tokens"), tokens("output_tokens"), _reported_number(usage.get("cost"))
 
 
 class DecisionProviderError(RuntimeError):
@@ -67,12 +96,16 @@ class JevDecisionClient:
         max_retries: int = 1,
         endpoint: Optional[str] = None,
         provider: Optional[Literal["typesafe", "openrouter"]] = None,
+        telemetry_task_id: Optional[str] = None,
+        telemetry_purpose: Optional[str] = None,
     ) -> None:
         self._secrets_manager = secrets_manager
         self._model = model
         self._http_client = http_client
         self._timeout_seconds = timeout_seconds
         self._max_retries = max(0, max_retries)
+        self._telemetry_task_id = telemetry_task_id
+        self._telemetry_purpose = telemetry_purpose
         if provider is not None and provider not in PROVIDER_SETTINGS:
             raise ValueError("Unsupported Jev provider")
         if endpoint is not None or provider is not None:
@@ -81,6 +114,36 @@ class JevDecisionClient:
         else:
             self._providers = ("typesafe", "openrouter")
         self._endpoint = endpoint
+
+    def _log_cost_attempt(self, *, provider: str, model: str, status: Optional[int],
+                          response: Optional[httpx.Response], success: bool) -> None:
+        if not self._telemetry_task_id:
+            return
+        try:
+            input_tokens, output_tokens, reported_cost = _raw_usage(response)
+            derived_cost = (input_tokens * TYPESAFE_INPUT_USD_PER_MILLION / 1_000_000
+                            if provider == "typesafe" and success and input_tokens is not None else None)
+            # OpenRouter documents usage.cost in USD. TypeSafe's similarly named
+            # field has no verified unit, so use only its catalog tariff.
+            router_cost = reported_cost if provider == "openrouter" else None
+            supplier_cost = router_cost if router_cost is not None else derived_cost
+            logger.info("LLM_JEV_COST %s", json.dumps({
+                "task_id": self._telemetry_task_id,
+                "purpose": self._telemetry_purpose,
+                "inference_host": provider,
+                "model_id": model,
+                "http_status": status,
+                "success": success,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "supplier_cost_usd": supplier_cost,
+                "supplier_cost_complete": router_cost is not None or (success and derived_cost is not None),
+                "supplier_cost_source": ("provider_reported" if router_cost is not None
+                                         else "configured_rate" if derived_cost is not None else None),
+            }, sort_keys=True))
+        except Exception:
+            # Observability must never change the decision or its fallback path.
+            logger.warning("Jev cost telemetry unavailable")
 
     async def _api_key(self, provider: str) -> str:
         _, secret_path, secret_key, environment_key = PROVIDER_SETTINGS[provider]
@@ -190,10 +253,15 @@ class JevDecisionClient:
             try:
                 response = await client.post(endpoint, headers=headers, json=payload, timeout=self._timeout_seconds)
             except (httpx.TimeoutException, httpx.TransportError) as exc:
+                self._log_cost_attempt(provider=provider, model=model, status=None, response=None, success=False)
                 if attempt >= self._max_retries:
                     raise DecisionProviderUnavailable(f"Jev {provider} transport unavailable") from exc
                 await asyncio.sleep(0.05 * (2**attempt))
                 continue
+
+            if response.status_code >= 400:
+                self._log_cost_attempt(provider=provider, model=model, status=response.status_code,
+                                       response=response, success=False)
 
             if response.status_code >= 400 and _is_context_overflow(response):
                 raise DecisionRequestTooLarge("Jev provider rejected the input context size")
@@ -215,9 +283,15 @@ class JevDecisionClient:
             try:
                 parsed = DecisionResponse.model_validate(response.json())
             except (ValueError, ValidationError) as exc:
+                self._log_cost_attempt(provider=provider, model=model, status=response.status_code,
+                                       response=response, success=False)
                 raise DecisionResponseInvalid("Jev returned an invalid decision response") from exc
             if set(questions) - set(parsed.answers):
+                self._log_cost_attempt(provider=provider, model=model, status=response.status_code,
+                                       response=response, success=False)
                 raise DecisionResponseInvalid("Jev response omitted requested answers")
+            self._log_cost_attempt(provider=provider, model=model, status=response.status_code,
+                                   response=response, success=True)
             parsed.provider = provider
             return parsed
         raise DecisionProviderUnavailable("Jev request did not complete")

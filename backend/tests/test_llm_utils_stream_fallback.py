@@ -102,10 +102,13 @@ def test_call_main_llm_stream_falls_back_after_empty_provider_stream(monkeypatch
     chunks = asyncio.run(consume_stream())
 
     assert calls == ["primary", "fallback"]
-    assert chunks[0] == "Recovered answer"
-    assert isinstance(chunks[1], GoogleUsageMetadata)
-    assert chunks[1].candidates_token_count == 4
-    assert len(chunks) == 2
+    assert isinstance(chunks[0], GoogleUsageMetadata)
+    assert chunks[0].candidates_token_count == 0
+    assert chunks[1] == "Recovered answer"
+    assert isinstance(chunks[2], GoogleUsageMetadata)
+    assert chunks[2].candidates_token_count == 4
+    assert chunks[0]._normalized_llm_usage.attempt_id != chunks[2]._normalized_llm_usage.attempt_id
+    assert len(chunks) == 3
 
 
 def test_call_main_llm_stream_falls_back_after_provider_error_marker(monkeypatch):
@@ -476,15 +479,23 @@ def test_call_main_llm_stream_routes_signed_tool_continuation_to_origin_server(m
 def test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fallback(monkeypatch):
     calls = []
     captured_messages_by_provider = {}
+    admissions = []
+    admitted_limits = {}
+
+    async def admit(server_model_id, current_limit):
+        admissions.append(server_model_id)
+        return 5 if server_model_id.startswith("fallback/") else current_limit
 
     async def google_ai_studio_provider(**kwargs):
         calls.append("google_ai_studio")
         captured_messages_by_provider["google_ai_studio"] = kwargs["messages"]
-        raise ValueError("timeout waiting for first chunk")
+        admitted_limits["google_ai_studio"] = kwargs["max_tokens"]
+        raise ValueError("Thought signature is not valid")
 
     async def fallback_provider(**kwargs):
         calls.append("fallback")
         captured_messages_by_provider["fallback"] = kwargs["messages"]
+        admitted_limits["fallback"] = kwargs["max_tokens"]
 
         async def _stream():
             yield "Recovered answer"
@@ -542,6 +553,8 @@ def test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fa
             temperature=0.2,
             tools=[{"type": "function", "function": {"name": "web-read", "parameters": {"type": "object"}}}],
             tool_choice="auto",
+            max_tokens=10,
+            pre_dispatch_admission=admit,
         )
         async for chunk in stream:
             chunks.append(chunk)
@@ -551,6 +564,8 @@ def test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fa
 
     assert chunks == ["Recovered answer"]
     assert calls == ["google_ai_studio", "fallback"]
+    assert admissions == ["google_ai_studio/gemini-3-flash-preview", "fallback/neutral-model"]
+    assert admitted_limits == {"google_ai_studio": 10, "fallback": 5}
     assert (
         captured_messages_by_provider["google_ai_studio"][1]["tool_calls"][0]["thought_signature"]
         == "google-only-signature"

@@ -1,0 +1,64 @@
+# Durable authenticated credit holds. No plaintext balance, content, or provider data.
+billing_reservations:
+  type: collection
+  note: "Internal authenticated inference quote reservations; final charge uses the same charge_id"
+  fields:
+    id:
+      type: uuid
+      primary: true
+    charge_id:
+      type: string
+      length: 255
+      required: true
+    subject_kind:
+      type: string
+      length: 16
+      required: true
+    subject_hash:
+      type: string
+      length: 128
+      required: true
+    actor_user_hash:
+      type: string
+      length: 128
+      nullable: true
+    app_id:
+      type: string
+      length: 100
+      required: true
+    skill_id:
+      type: string
+      length: 100
+      required: true
+    quoted_credits:
+      type: integer
+      required: true
+    actual_credits:
+      type: integer
+      nullable: true
+    state:
+      type: string
+      length: 24
+      required: true
+    release_reason:
+      type: string
+      length: 64
+      nullable: true
+    created_at:
+      type: datetime
+      required: true
+    updated_at:
+      type: datetime
+      required: true
+    last_seen_at:
+      type: datetime
+      required: true
+    review_after_at:
+      type: datetime
+      required: true
+    review_requested_at:
+      type: datetime
+      nullable: true
+    settled_at:
+      type: datetime
+      nullable: true

@@ -18,6 +18,9 @@ export interface ModelPricingPerUnit {
 export interface ModelPricing {
   input_tokens_per_credit?: number;
   output_tokens_per_credit?: number;
+  cache_read_tokens_per_credit?: number;
+  cache_write_tokens_per_credit?: number;
+  cache_write_1h_tokens_per_credit?: number;
   per_unit?: ModelPricingPerUnit;
   per_minute?: number;
   per_second?: number;
@@ -42,6 +45,7 @@ export interface AIModelMetadata {
   servers?: ModelServerInfo[];
   default_server?: string;
   pricing?: ModelPricing;
+  cache_pricing?: { enabled: boolean; write_billing?: "included_in_input" | "separate"; write_ttl?: string; pricing_version?: string; source_url?: string; reviewed_on?: string; effective_from?: string; expires_on?: string; status?: string; eligible_hosts?: string[]; cache_write_1h_hosts?: string[]; requires_cache_write_metric?: boolean; requires_cache_retention_metric?: boolean };
   search_aliases?: string[];
 }
 

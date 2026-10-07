@@ -1318,6 +1318,50 @@ credits_breakdown_label:
   sv: Kreditfördelning
   he: פירוט קרדיטים
   verified_by_human: []
+cache_receipt_title:
+  context: Heading for an immutable LLM usage and billing receipt
+  en: LLM billing receipt
+  de: LLM-Abrechnungsbeleg
+cache_receipt_source:
+  context: Source of provider token counts on an LLM receipt
+  en: Usage source
+  de: Quelle der Tokenzahlen
+cache_receipt_pending:
+  context: A deferred LLM debit has been requested but is not yet charged
+  en: Pending charge
+  de: Ausstehende Abbuchung
+cache_receipt_charged:
+  context: Actual settled credits in an LLM receipt
+  en: Credits charged
+  de: Abgebuchte Credits
+cache_receipt_input_categories:
+  context: Receipt line showing uncached plus read plus write tokens equal total input
+  en: Input categories
+  de: Eingabekategorien
+cache_receipt_cache_creation:
+  context: Cache creation tokens when the provider does not report a five-minute or one-hour window
+  en: Cache creation
+  de: Cache-Erstellung
+cache_receipt_standard_input:
+  context: Ordinary input category on a receipt when cache discounts could not safely be applied
+  en: Input
+  de: Eingabe
+cache_receipt_ordinary_input_explanation:
+  context: Explains why observed cache tokens were billed at the ordinary input rate without separate cache charges
+  en: Required cache information was unavailable; all known input tokens were billed at the ordinary input rate.
+  de: Erforderliche Cache-Informationen fehlten; alle bekannten Eingabe-Token wurden zum normalen Eingabepreis abgerechnet.
+cache_receipt_pricing_version:
+  context: Immutable version of token rates used for an LLM charge
+  en: Pricing version
+  de: Preisversion
+cache_receipt_raw:
+  context: Decimal credit subtotal before final rounding
+  en: Raw credits
+  de: Credits vor Rundung
+cache_receipt_rounding:
+  context: Difference between decimal LLM subtotal and final integer debit, including minimum adjustment
+  en: Rounding or minimum adjustment
+  de: Rundungs- oder Mindestbetragkorrektur
 credits_system_prompt_label:
   context: Label for system prompt credit cost in the breakdown
   en: System prompt

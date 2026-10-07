@@ -160,6 +160,14 @@ function parseProviderYaml(providerId, filePath) {
         pricing.output_tokens_per_credit =
           model.pricing.tokens.output.per_credit_unit;
       }
+      for (const [category, field] of [
+        ["cache_read", "cache_read_tokens_per_credit"],
+        ["cache_write", "cache_write_tokens_per_credit"],
+        ["cache_write_1h", "cache_write_1h_tokens_per_credit"],
+      ]) {
+        const rate = model.pricing?.tokens?.[category]?.per_credit_unit;
+        if (typeof rate === "number" && rate > 0) pricing[field] = rate;
+      }
       if (model.pricing?.per_unit) {
         pricing.per_unit = {
           credits: model.pricing.per_unit.credits,
@@ -199,6 +207,8 @@ function parseProviderYaml(providerId, filePath) {
           model.default_server || (servers.length > 0 ? servers[0].id : null),
         // Pricing for display
         pricing: Object.keys(pricing).length > 0 ? pricing : null,
+        // These rates are advertised as active only after route verification.
+        cache_pricing: model.cache_pricing || { enabled: false },
       };
 
       if (model.show_in_mentions === false) {
@@ -303,6 +313,7 @@ function generateTypeScript(models) {
       if (model.pricing) {
         lines.push(`        pricing: ${JSON.stringify(model.pricing)},`);
       }
+      lines.push(`        cache_pricing: ${JSON.stringify(model.cache_pricing)},`);
 
       if (model.search_aliases && model.search_aliases.length > 0) {
         lines.push(
@@ -374,6 +385,9 @@ export interface ModelPricing {
     input_tokens_per_credit?: number;
     /** Number of output tokens per 1 credit (token-based models) */
     output_tokens_per_credit?: number;
+    cache_read_tokens_per_credit?: number;
+    cache_write_tokens_per_credit?: number;
+    cache_write_1h_tokens_per_credit?: number;
     /** Per-unit pricing (e.g., credits per image or per megapixel) */
     per_unit?: ModelPricingPerUnit;
     /** Credits charged per minute of audio (audio transcription models) */
@@ -422,6 +436,8 @@ export interface AIModelMetadata {
     default_server?: string;
     /** Pricing information (token-based, per-unit, or per-minute depending on model type) */
     pricing?: ModelPricing;
+    /** Whether verified inference routes charge cache-specific token rates. */
+    cache_pricing?: { enabled: boolean; write_billing?: 'included_in_input' | 'separate'; write_ttl?: string; pricing_version?: string; source_url?: string; reviewed_on?: string; effective_from?: string; expires_on?: string; status?: string; eligible_hosts?: string[]; cache_write_1h_hosts?: string[]; requires_cache_write_metric?: boolean; requires_cache_retention_metric?: boolean };
     /** Alternative search terms (e.g., "chatgpt" for OpenAI models) */
     search_aliases?: string[];
 }

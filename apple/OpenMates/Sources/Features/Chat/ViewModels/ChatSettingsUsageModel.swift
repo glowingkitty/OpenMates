@@ -1,9 +1,72 @@
 // Web source: frontend/packages/ui/src/components/chats/chatUsageRows.ts.
 // Reads established owner-only usage endpoints with captured account fences.
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.usage.receipt-token-breakdown
 import Combine
 import Foundation
 import Yams
 import ZIPFoundation
+
+// Immutable server receipt. Keep decimal strings intact so displayed charges
+// cannot change with client-side floating-point arithmetic or catalog updates.
+struct LLMUsageBreakdown: Decodable {
+    let schemaVersion: Int
+    let inputTokens: Int
+    let uncachedInputTokens: Int
+    let cacheReadInputTokens: Int?
+    let cacheCreationInputTokens: Int?
+    let outputTokens: Int
+    let usageSource: String
+    let entries: [Entry]
+    let rawCredits: ReceiptDecimal
+    let roundingAdjustment: ReceiptDecimal
+    let creditsCharged: Int
+    let settlementState: String?
+    let requestedCredits: Int?
+
+    struct Entry: Decodable {
+        let modelId: String
+        let inferenceHost: String?
+        let pricingVersion: String?
+        let writeBilling: String?
+        let billingMode: String?
+        let billedInputTokens: Int?
+        let inputTokens: Int
+        let uncachedInputTokens: Int
+        let cacheReadInputTokens: Int?
+        let cacheCreationInputTokens: Int?
+        let cacheCreation5mInputTokens: Int?
+        let cacheCreation1hInputTokens: Int?
+        let outputTokens: Int
+        let rates: Rates
+        let categoryCredits: Categories
+        let rawCredits: ReceiptDecimal
+        var usesOrdinaryInputFallback: Bool { billingMode == "ordinary_input" }
+        var pricedInputTokens: Int { billedInputTokens ?? (usesOrdinaryInputFallback ? inputTokens : uncachedInputTokens) }
+    }
+    struct Rates: Decodable {
+        let input: ReceiptDecimal?
+        let cacheRead: ReceiptDecimal?
+        let cacheWrite: ReceiptDecimal?
+        let cacheWrite1h: ReceiptDecimal?
+        let output: ReceiptDecimal?
+    }
+    struct Categories: Decodable {
+        let input: ReceiptDecimal
+        let cacheRead: ReceiptDecimal
+        let cacheWrite: ReceiptDecimal
+        let cacheWrite1h: ReceiptDecimal
+        let output: ReceiptDecimal
+    }
+    struct ReceiptDecimal: Decodable, Equatable {
+        let text: String
+        init(from decoder: Decoder) throws {
+            let value = try decoder.singleValueContainer()
+            if let text = try? value.decode(String.self) { self.text = text }
+            else { self.text = NSDecimalNumber(decimal: try value.decode(Decimal.self)).stringValue }
+        }
+    }
+}
 
 struct ChatSettingsUsageRow: Decodable, Identifiable {
     let id: String
@@ -15,10 +78,14 @@ struct ChatSettingsUsageRow: Decodable, Identifiable {
     let timestampLabel: String
     let inputTokens: Int?
     let outputTokens: Int?
+    let systemPromptTokens: Int?
+    let userInputTokens: Int?
+    let toolInferenceIterations: Int?
+    let llmUsageBreakdown: LLMUsageBreakdown?
     init(id: String, label: String, provider: String, credits: Double?, timestamp: String, inputTokens: Int? = nil, outputTokens: Int? = nil, appID: String? = nil) {
-        self.appID = appID; self.id = id; self.label = label; self.provider = provider; self.credits = credits; self.timestamp = timestamp; self.inputTokens = inputTokens; self.outputTokens = outputTokens; self.timestampLabel = Self.formatTimestamp(timestamp)
+        self.appID = appID; self.id = id; self.label = label; self.provider = provider; self.credits = credits; self.timestamp = timestamp; self.inputTokens = inputTokens; self.outputTokens = outputTokens; self.systemPromptTokens = nil; self.userInputTokens = nil; self.toolInferenceIterations = nil; self.llmUsageBreakdown = nil; self.timestampLabel = Self.formatTimestamp(timestamp)
     }
-    private enum CodingKeys: String, CodingKey { case id, messageId, appId, skillId, type, serverProvider, serverRegion, modelUsed, credits, createdAt, inputTokens, outputTokens }
+    private enum CodingKeys: String, CodingKey { case id, messageId, appId, skillId, type, serverProvider, serverRegion, modelUsed, credits, createdAt, inputTokens, outputTokens, systemPromptTokens, userInputTokens, toolInferenceIterations, llmUsageBreakdown }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decodeIfPresent(String.self, forKey: .id) ?? c.decodeIfPresent(String.self, forKey: .messageId) ?? UUID().uuidString
@@ -34,6 +101,10 @@ struct ChatSettingsUsageRow: Decodable, Identifiable {
         timestampLabel = Self.formatTimestamp(timestamp)
         inputTokens = try c.decodeIfPresent(Int.self, forKey: .inputTokens)
         outputTokens = try c.decodeIfPresent(Int.self, forKey: .outputTokens)
+        systemPromptTokens = try c.decodeIfPresent(Int.self, forKey: .systemPromptTokens)
+        userInputTokens = try c.decodeIfPresent(Int.self, forKey: .userInputTokens)
+        toolInferenceIterations = try c.decodeIfPresent(Int.self, forKey: .toolInferenceIterations)
+        llmUsageBreakdown = try c.decodeIfPresent(LLMUsageBreakdown.self, forKey: .llmUsageBreakdown)
     }
     var iconName: String {
         guard let appID, ["web", "ai", "news", "videos", "maps", "code", "audio"].contains(appID) else { return "chat" }

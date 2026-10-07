@@ -113,7 +113,8 @@ def _question_batches(state: dict[str, Any], questions: dict[str, dict[str, Any]
 
 
 async def _evaluate_preprocessing_questions(*, state: dict[str, Any], questions: dict[str, dict[str, Any]],
-                                           secrets_manager: Optional[SecretsManager], model_id: str) -> DecisionResponse:
+                                           secrets_manager: Optional[SecretsManager], model_id: str,
+                                           telemetry_task_id: Optional[str] = None) -> DecisionResponse:
     # Reduce only optional older context. Never slice the latest user request or
     # evaluate a prefix of the catalog when a complete partition cannot fit.
     state = dict(state)
@@ -133,7 +134,9 @@ async def _evaluate_preprocessing_questions(*, state: dict[str, Any], questions:
                 raise
 
     async def evaluate(**kwargs):
-        return await evaluate_jev_decisions(**kwargs, secrets_manager=secrets_manager, model_id=model_id)
+        return await evaluate_jev_decisions(**kwargs, secrets_manager=secrets_manager, model_id=model_id,
+                                            telemetry_task_id=telemetry_task_id,
+                                            telemetry_purpose="preprocess_decision")
 
     return await evaluate_batches([DecisionRequest(state, batch) for batch in batches], evaluate)
 
@@ -154,6 +157,7 @@ async def decide_preprocessing_with_jev(
     available_rules: list[dict[str, Any]] | None = None,
     available_workflows: list[dict[str, Any]] | None = None,
     effective_focus: dict[str, Any] | None = None,
+    telemetry_task_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """Return preprocessing arguments matching the existing structured-output schema."""
 
@@ -286,6 +290,7 @@ async def decide_preprocessing_with_jev(
         questions=questions,
         secrets_manager=secrets_manager,
         model_id=model_id,
+        telemetry_task_id=telemetry_task_id,
     )
 
     temperature = {"precise": 0.2, "balanced": 0.4, "creative": 0.8}[

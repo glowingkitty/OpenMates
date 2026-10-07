@@ -2,6 +2,8 @@
 // frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte,
 // frontend/packages/ui/src/components/settings/elements/SettingsTabs.svelte.
 // Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift, TypographyTokens.generated.swift.
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.usage.receipt-token-breakdown
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -338,8 +340,18 @@ struct ChatSettingsView: View {
                         .accessibilityValue(String(Int((displayedCredits).rounded())))
                     if usage.rows.isEmpty { OMSettingsInfoBox(message: AppStrings.chatSettingsUsageEmpty, identifier: "chat-settings-usage-empty") }
                     ForEach(usage.rows) { row in
-                        ChatSettingsUsageDisplayRow(title: row.label, subtitle: row.subtitle, credits: row.credits, icon: row.iconName, iconIdentifier: "chat-settings-usage-icon-\(row.id)")
-                            .accessibilityIdentifier("chat-settings-usage-row")
+                        VStack(alignment: .leading, spacing: .spacing2) {
+                            ChatSettingsUsageDisplayRow(title: row.label, subtitle: row.subtitle, credits: row.credits, icon: row.iconName, iconIdentifier: "chat-settings-usage-icon-\(row.id)")
+                                .accessibilityIdentifier("chat-settings-usage-row")
+                            if let receipt = row.llmUsageBreakdown {
+                                ChatSettingsLLMReceipt(receipt: receipt)
+                                    .accessibilityIdentifier("chat-settings-usage-receipt")
+                            }
+                            if row.inputTokens != nil || row.outputTokens != nil {
+                                ChatSettingsInputComposition(row: row)
+                                    .accessibilityIdentifier("chat-settings-usage-input-composition")
+                            }
+                        }
                     }
                     if let error = usage.error { OMSettingsInfoBox(kind: .warning, message: error, identifier: "chat-settings-usage-error") }
                 }
@@ -466,14 +478,36 @@ struct ChatSettingsView: View {
         return (OfflineStore.shared.activeScopeId, nil, check)
     }
     #if DEBUG
-    static func preview(shared: Bool = false, example: Bool = false, populatedUsage: Bool = false, allPlans: Bool = false) -> ChatSettingsView {
+    static func preview(shared: Bool = false, example: Bool = false, populatedUsage: Bool = false, receiptUsage: Bool = false, ordinaryReceipt: Bool = false, allPlans: Bool = false) -> ChatSettingsView {
         let chat = Chat(id: example ? "example-audio-speak-openmates-welcome-message" : "preview-chat-settings", title: "Launch preparation", lastMessageAt: nil, createdAt: "2026-10-01T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false, appId: nil,
             chatSummary: "Coordinate the work and verify the outcome before completion.", encryptedTitle: nil, encryptedChatKey: nil, budgetSpent: example ? nil : 24)
-        let rows: [ChatSettingsUsageRow] = example ? PublicChatUsageCatalog.rows(chatID: chat.id) : populatedUsage ? [
+        let rows: [ChatSettingsUsageRow] = example ? PublicChatUsageCatalog.rows(chatID: chat.id) : receiptUsage || ordinaryReceipt ? [previewReceiptRow(ordinary: ordinaryReceipt)] : populatedUsage ? [
             .init(id: "preview-usage-ai", label: "ai | ask", provider: "Google AI Studio / US", credits: 12, timestamp: "2026-10-01T12:00:00Z", appID: "ai"),
             .init(id: "preview-usage-web", label: "web | search", provider: "Brave / EU", credits: 12, timestamp: "2026-10-01T12:01:00Z", appID: "web")
         ] : []
-        return ChatSettingsView(chat: chat, accountID: nil, isSharedViewer: shared, isExample: example, exampleUsageRows: rows, exampleFileLoader: example ? { PublicChatFileCatalog.rows(chatID: chat.id) } : nil, previewPlanCount: allPlans ? 8 : 1, isPreview: true, initialTab: populatedUsage ? .usage : .plan)
+        return ChatSettingsView(chat: chat, accountID: nil, isSharedViewer: shared, isExample: example, exampleUsageRows: rows, exampleFileLoader: example ? { PublicChatFileCatalog.rows(chatID: chat.id) } : nil, previewPlanCount: allPlans ? 8 : 1, isPreview: true, initialTab: populatedUsage || receiptUsage || ordinaryReceipt ? .usage : .plan)
+    }
+    private static func previewReceiptRow(ordinary: Bool) -> ChatSettingsUsageRow {
+        let json = #"{"id":"preview-usage-receipt","app_id":"ai","skill_id":"ask","credits":2,"created_at":"2026-10-06T12:00:00Z","input_tokens":100,"system_prompt_tokens":40,"user_input_tokens":10,"output_tokens":20,"llm_usage_breakdown":{"schema_version":1,"input_tokens":100,"uncached_input_tokens":50,"cache_read_input_tokens":30,"cache_creation_input_tokens":20,"output_tokens":20,"usage_source":"provider","entries":[{"model_id":"fixture/model","inference_host":"bedrock","pricing_version":"fixture-v1","write_billing":"separate","input_tokens":100,"uncached_input_tokens":50,"cache_read_input_tokens":30,"cache_creation_input_tokens":20,"cache_creation_5m_input_tokens":20,"output_tokens":20,"rates":{"input":"1000","cache_read":"10000","cache_write":"500","output":"200"},"category_credits":{"input":"0.5","cache_read":"0.03","cache_write":"0.4","cache_write_1h":"0","output":"1"},"raw_credits":"1.93"}],"raw_credits":"1.93","rounding_adjustment":"0.07","credits_charged":2}}"#
+        let payload = ordinary ? json
+            .replacingOccurrences(of: "\"credits\":2", with: "\"credits\":1")
+            .replacingOccurrences(of: "\"input_tokens\":100", with: "\"input_tokens\":150")
+            .replacingOccurrences(of: "\"uncached_input_tokens\":50", with: "\"uncached_input_tokens\":100")
+            .replacingOccurrences(of: "\"cache_read_input_tokens\":30", with: "\"cache_read_input_tokens\":50")
+            .replacingOccurrences(of: "\"cache_creation_input_tokens\":20", with: "\"cache_creation_input_tokens\":0")
+            .replacingOccurrences(of: "\"cache_creation_5m_input_tokens\":20", with: "\"cache_creation_5m_input_tokens\":0")
+            .replacingOccurrences(of: "\"write_billing\":\"separate\"", with: "\"write_billing\":\"included_in_input\",\"billing_mode\":\"ordinary_input\",\"billed_input_tokens\":150")
+            .replacingOccurrences(of: "\"input\":\"0.5\"", with: "\"input\":\"0.15\"")
+            .replacingOccurrences(of: "\"cache_read\":\"0.03\"", with: "\"cache_read\":\"0\"")
+            .replacingOccurrences(of: "\"cache_write\":\"0.4\"", with: "\"cache_write\":\"0\"")
+            .replacingOccurrences(of: "\"output\":\"1\"", with: "\"output\":\"0.1\"")
+            .replacingOccurrences(of: "\"raw_credits\":\"1.93\"", with: "\"raw_credits\":\"0.25\"")
+            .replacingOccurrences(of: "\"rounding_adjustment\":\"0.07\"", with: "\"rounding_adjustment\":\"0.75\"")
+            .replacingOccurrences(of: "\"credits_charged\":2", with: "\"credits_charged\":1")
+            : json
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return (try? decoder.decode(ChatSettingsUsageRow.self, from: Data(payload.utf8)))
+            ?? ChatSettingsUsageRow(id: "preview-usage-receipt", label: "ai | ask", provider: "bedrock", credits: nil, timestamp: "")
     }
     #endif
 }
@@ -501,6 +535,93 @@ private struct ChatSettingsUsageDisplayRow: View {
             }.foregroundStyle(Color.fontSecondary)
         }.padding(.horizontal, .spacing5).padding(.vertical, .spacing2).frame(minHeight: 52)
         .accessibilityElement(children: .contain)
+    }
+}
+
+private struct ChatSettingsLLMReceipt: View {
+    let receipt: LLMUsageBreakdown
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(AppStrings.receiptTitle).font(.omSmall.weight(.bold))
+            detail(AppStrings.receiptSource, receipt.usageSource)
+            detail(AppStrings.receiptInputCategories,
+                   "\(receipt.inputTokens) = \(receipt.uncachedInputTokens) + \(receipt.cacheReadInputTokens.map(String.init) ?? AppStrings.modelPriceUnavailable) + \(receipt.cacheCreationInputTokens.map(String.init) ?? AppStrings.modelPriceUnavailable)")
+            ForEach(receipt.entries.indices, id: \.self) { index in
+                let entry = receipt.entries[index]
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text(entry.modelId + (entry.inferenceHost.map { " · " + $0 } ?? "")).font(.omSmall.weight(.semibold))
+                    if let version = entry.pricingVersion { detail(AppStrings.receiptPricingVersion, version) }
+                    category(entry.usesOrdinaryInputFallback ? AppStrings.receiptStandardInput : AppStrings.receiptUncachedInput,
+                             count: entry.pricedInputTokens, credits: entry.categoryCredits.input, rate: entry.rates.input)
+                    if entry.usesOrdinaryInputFallback {
+                        Text(AppStrings.receiptOrdinaryInputExplanation)
+                    }
+                    if let count = entry.cacheReadInputTokens {
+                        category(AppStrings.receiptCacheRead, count: count, credits: entry.categoryCredits.cacheRead,
+                                 rate: entry.usesOrdinaryInputFallback ? nil : entry.rates.cacheRead,
+                                 includedInInput: entry.usesOrdinaryInputFallback)
+                    }
+                    if let count = entry.cacheCreation5mInputTokens {
+                        category(AppStrings.receiptCacheWrite5m, count: count, credits: entry.categoryCredits.cacheWrite,
+                                 rate: entry.usesOrdinaryInputFallback ? nil : entry.rates.cacheWrite,
+                                 includedInInput: entry.usesOrdinaryInputFallback || entry.writeBilling == "included_in_input")
+                    }
+                    if let count = entry.cacheCreation1hInputTokens {
+                        category(AppStrings.receiptCacheWrite1h, count: count, credits: entry.categoryCredits.cacheWrite1h,
+                                 rate: entry.usesOrdinaryInputFallback ? nil : entry.rates.cacheWrite1h,
+                                 includedInInput: entry.usesOrdinaryInputFallback || entry.writeBilling == "included_in_input")
+                    }
+                    if entry.cacheCreation5mInputTokens == nil, entry.cacheCreation1hInputTokens == nil,
+                       let count = entry.cacheCreationInputTokens {
+                        category(AppStrings.receiptCacheCreation, count: count, credits: entry.categoryCredits.cacheWrite,
+                                 rate: entry.usesOrdinaryInputFallback ? nil : entry.rates.cacheWrite,
+                                 includedInInput: entry.usesOrdinaryInputFallback || entry.writeBilling == "included_in_input")
+                    }
+                    category(AppStrings.receiptOutput, count: entry.outputTokens, credits: entry.categoryCredits.output, rate: entry.rates.output)
+                }
+            }
+            detail(AppStrings.receiptRaw, receipt.rawCredits.text)
+            detail(AppStrings.receiptRounding, receipt.roundingAdjustment.text)
+            detail(receipt.settlementState == "pending" ? AppStrings.receiptPending : AppStrings.receiptCharged,
+                   String(receipt.settlementState == "pending" ? receipt.requestedCredits ?? receipt.creditsCharged : receipt.creditsCharged))
+        }
+        .font(.omSmall).foregroundStyle(Color.fontSecondary)
+        .padding(.horizontal, .spacing5).padding(.bottom, .spacing3)
+        .accessibilityElement(children: .contain)
+    }
+    private func detail(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label)
+            Spacer(minLength: .spacing2)
+            Text(value).multilineTextAlignment(.trailing)
+        }
+    }
+    private func category(_ label: String, count: Int, credits: LLMUsageBreakdown.ReceiptDecimal, rate: LLMUsageBreakdown.ReceiptDecimal?, includedInInput: Bool = false) -> some View {
+        let rateText = includedInInput ? " · " + AppStrings.modelPriceIncludedInInput
+            : rate.map { " · 1 " + AppStrings.credits + " " + AppStrings.receiptPer + " " + $0.text + " " + AppStrings.receiptTokens } ?? ""
+        return detail(label, String(count) + " · " + credits.text + " " + AppStrings.credits + rateText)
+    }
+}
+
+private struct ChatSettingsInputComposition: View {
+    let row: ChatSettingsUsageRow
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            if let system = row.systemPromptTokens { line(AppStrings.usageSystemPromptTokens, system) }
+            if let user = row.userInputTokens { line(AppStrings.usageUserInputTokens, user) }
+            if let input = row.inputTokens, let system = row.systemPromptTokens, let user = row.userInputTokens,
+               let iterations = row.toolInferenceIterations, iterations > 0, input > system + user {
+                line(AppStrings.usageAppSkillTokens + " (×\(iterations))", input - system - user)
+            }
+            if let input = row.inputTokens { line(AppStrings.usageTotalInputTokens, input) }
+            if let output = row.outputTokens { line(AppStrings.usageOutputTokens, output) }
+        }
+        .font(.omSmall).foregroundStyle(Color.fontSecondary)
+        .padding(.horizontal, .spacing5).padding(.bottom, .spacing3)
+        .accessibilityElement(children: .contain)
+    }
+    private func line(_ label: String, _ count: Int) -> some View {
+        HStack { Text(label); Spacer(minLength: .spacing2); Text(count.formatted()) }
     }
 }
 

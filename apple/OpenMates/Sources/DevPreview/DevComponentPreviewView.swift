@@ -373,6 +373,10 @@ private struct DevComponentPreviewCanvas: View {
             ChatSettingsView.preview()
         case .composer where configuration.variant == "chat-settings-usage":
             ChatSettingsView.preview(populatedUsage: true)
+        case .composer where configuration.variant == "chat-settings-usage-receipt":
+            ChatSettingsView.preview(receiptUsage: true)
+        case .composer where configuration.variant == "chat-settings-usage-ordinary-receipt":
+            ChatSettingsView.preview(ordinaryReceipt: true)
         case .composer where configuration.variant == "chat-settings-plans":
             ChatSettingsView.preview(allPlans: true)
         case .composer where configuration.variant == "chat-settings-shared":

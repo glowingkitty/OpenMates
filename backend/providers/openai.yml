@@ -90,8 +90,20 @@ models:
       tokens:
         input:
           per_credit_unit: 33 # 333.33 / 10.00 = 33.33 (conservative round-down)
+        cache_read:
+          per_credit_unit: 330
+        cache_write:
+          per_credit_unit: 26
         output:
           per_credit_unit: 6 # 333.33 / 50.00 = 6.67 (conservative round-down)
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/guides/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
     costs:
       input_per_million_token:
         price: 10.00
@@ -109,6 +121,14 @@ models:
         price: 50.00
         currency: USD
         max_context: 1050000
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            cache_write: 2
+            output: 1.5
     features:
       max_output_tokens: 128000
       reasoning_token_support: true
@@ -144,8 +164,18 @@ models:
       tokens:
         input:
           per_credit_unit: 165 # 333.33 / 2.00 = 166.67 (conservative round-down)
+        cache_read:
+          per_credit_unit: 3300
         output:
           per_credit_unit: 30 # 333.33 / 10.00 = 33.33 (conservative round-down)
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/guides/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: verified_provider_usage_pending_financial_check
+      expires_on: "2026-11-06"
     costs:
       input_per_million_token:
         price: 2.00
@@ -163,6 +193,14 @@ models:
         price: 10.00
         currency: USD
         max_context: 1050000
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            cache_write: 2
+            output: 1.5
     features:
       max_output_tokens: 128000
       reasoning_token_support: true
@@ -199,8 +237,20 @@ models:
       tokens:
         input:
           per_credit_unit: 165 # 333.33 / 2.00 = 166.67 -> 165 (conservative round-down)
+        cache_read:
+          per_credit_unit: 1650
+        cache_write:
+          per_credit_unit: 132
         output:
           per_credit_unit: 30 # 333.33 / 10.00 = 33.33 -> 30 (conservative round-down)
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/guides/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
     costs:
       input_per_million_token:
         price: 2.00
@@ -218,6 +268,14 @@ models:
         price: 10.00
         currency: USD
         max_context: 1050000
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            cache_write: 2
+            output: 1.5
     features:
       max_output_tokens: 128000
       reasoning_token_support: true
@@ -253,8 +311,18 @@ models:
       tokens:
         input:
           per_credit_unit: 3300 # 333.33 / 0.10 = 3333.30 -> 3300 (conservative round-down)
+        cache_read:
+          per_credit_unit: 33000
         output:
           per_credit_unit: 650 # 333.33 / 0.50 = 666.66 -> 650 (conservative round-down)
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/guides/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: verified_provider_usage_pending_financial_check
+      expires_on: "2026-11-06"
     costs:
       input_per_million_token:
         price: 0.10
@@ -272,6 +340,14 @@ models:
         price: 0.50
         currency: USD
         max_context: 1050000
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            cache_write: 2
+            output: 1.5
     features:
       max_output_tokens: 128000
       reasoning_token_support: true
@@ -304,8 +380,20 @@ models:
       tokens:
         input:
           per_credit_unit: 1600 # 333.33 / 0.20 = 1666.67 -> 1600 (conservative round-down)
+        cache_read:
+          per_credit_unit: 16000
+        cache_write:
+          per_credit_unit: 1280
         output:
           per_credit_unit: 275 # 333.33 / 1.20 = 277.78 -> 275 (conservative round-down)
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/guides/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
     costs:
       input_per_million_token:
         price: 0.20
@@ -323,6 +411,14 @@ models:
         price: 1.20
         currency: USD
         max_context: 1000000
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            cache_write: 2
+            output: 1.5
     features:
       max_output_tokens: 128000
       reasoning_token_support: true
@@ -355,8 +451,20 @@ models:
       tokens:
         input:
           per_credit_unit: 165 # 333.33 / 2.00 = 166.67 -> 165 (conservative round-down)
+        cache_read:
+          per_credit_unit: 1650
+        cache_write:
+          per_credit_unit: 132
         output:
           per_credit_unit: 25 # 333.33 / 12.00 = 27.78 -> 25 (conservative round-down)
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/guides/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
     costs:
       input_per_million_token:
         price: 2.00
@@ -374,6 +482,14 @@ models:
         price: 12.00
         currency: USD
         max_context: 1000000
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            cache_write: 2
+            output: 1.5
     features:
       max_output_tokens: 128000
       reasoning_token_support: true
@@ -407,8 +523,20 @@ models:
       tokens:
         input:
           per_credit_unit: 80 # 333.33 / 4.00 = 83.33 -> 80 (conservative round-down)
+        cache_read:
+          per_credit_unit: 800
+        cache_write:
+          per_credit_unit: 64
         output:
           per_credit_unit: 15 # 333.33 / 20.00 = 16.67 -> 15 (conservative round-down)
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/guides/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
     costs:
       input_per_million_token:
         price: 4.00
@@ -426,6 +554,14 @@ models:
         price: 20.00
         currency: USD
         max_context: 1000000
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            cache_write: 2
+            output: 1.5
     features:
       max_output_tokens: 128000
       reasoning_token_support: true
@@ -459,8 +595,20 @@ models:
       tokens:
         input:
           per_credit_unit: 80 # 333.33 / 4.00 = 83.33 -> 80 (conservative round-down)
+        cache_read:
+          per_credit_unit: 800
+        cache_write:
+          per_credit_unit: 64
         output:
           per_credit_unit: 15 # 333.33 / 20.00 = 16.67 -> 15 (conservative round-down)
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/guides/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
     costs:
       input_per_million_token:
         price: 4.00
@@ -478,6 +626,14 @@ models:
         price: 20.00
         currency: USD
         max_context: 1000000
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            cache_write: 2
+            output: 1.5
     features:
       max_output_tokens: 128000
       reasoning_token_support: true
@@ -509,8 +665,17 @@ models:
       tokens:
         input:
           per_credit_unit: 65 # 333.33 / 5.00 = 66.67 → 65 (conservative round-down)
+        cache_read:
+          per_credit_unit: 650
         output:
           per_credit_unit: 10 # 333.33 / 30.00 = 11.11 → 10 (rounded down for margin)
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/guides/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
     costs:
       input_per_million_token:
         price: 5.00
@@ -523,6 +688,14 @@ models:
       cache_read_per_million_token:
         price: 0.50
         currency: USD
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            cache_write: 2
+            output: 1.5
     features:
       max_output_tokens: 128000
       knowledge_cutoff: "2025-06-01"
@@ -559,6 +732,13 @@ models:
           per_credit_unit: 130
         output:
           per_credit_unit: 20
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/guides/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
     costs:
       input_per_million_token:
         price: 2.50
@@ -568,6 +748,14 @@ models:
         price: 15.00
         currency: USD
         max_context: 1000000
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            cache_write: 2
+            output: 1.5
     features:
       max_output_tokens: 128000
       knowledge_cutoff: "2025-01-01"

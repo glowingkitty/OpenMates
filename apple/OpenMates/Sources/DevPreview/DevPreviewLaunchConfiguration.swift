@@ -111,7 +111,7 @@ enum DevPreviewComponentRegistry {
     static func descriptor(for component: DevPreviewComponent) -> DevPreviewComponentDescriptor {
         switch component {
         case .composer:
-            return .init(component: component, webComponentPath: "enter_message/MessageInput", nativeRendererNames: ["MessageComposerView", "NativeComposerSession"], variants: ["model", "focus", "mentions", "recording-error", "default", "focused", "filled", "attachment", "disabled", "pii", "search-suggestions", "assistant-speech", "assistant-speech-public", "chat-settings", "chat-settings-usage", "chat-settings-plans", "chat-settings-shared", "chat-settings-public", "chat-settings-export-control"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "enter_message/MessageInput", nativeRendererNames: ["MessageComposerView", "NativeComposerSession"], variants: ["model", "focus", "mentions", "recording-error", "default", "focused", "filled", "attachment", "disabled", "pii", "search-suggestions", "assistant-speech", "assistant-speech-public", "chat-settings", "chat-settings-usage", "chat-settings-usage-receipt", "chat-settings-usage-ordinary-receipt", "chat-settings-plans", "chat-settings-shared", "chat-settings-public", "chat-settings-export-control"], hostSupport: .componentHost)
         case .workspaceSwitcher:
             return .init(component: component, webComponentPath: "Header", nativeRendererNames: ["OpenMatesWebHeader", "WorkspaceSwitcherTabs", "CompactWorkspacePicker"], variants: ["default", "reduced-motion", "short-viewport", "wide"], hostSupport: .componentHost)
         case .chatHeader:

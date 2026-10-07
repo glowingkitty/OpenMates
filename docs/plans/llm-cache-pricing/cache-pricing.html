@@ -1,0 +1,124 @@
+<div id="openmates-cache-pricing-1006">
+  <div class="viz-controls">
+    <label class="form-label" for="om-cache-input">Input tokens
+      <input class="form-control" id="om-cache-input" type="number" min="1" max="200000" step="1000" value="100000">
+    </label>
+    <label class="form-label" for="om-cache-output">Billable output tokens
+      <input class="form-control" id="om-cache-output" type="number" min="0" max="30000" step="100" value="1000">
+    </label>
+    <label class="form-label" for="om-cache-prefix">Reusable prefix: <output id="om-cache-prefix-value">80%</output>
+      <input class="form-range" id="om-cache-prefix" type="range" min="0" max="100" step="5" value="80">
+    </label>
+    <label class="form-label" for="om-cache-calls">Repeated calls: <output id="om-cache-calls-value">10</output>
+      <input class="form-range" id="om-cache-calls" type="range" min="1" max="30" step="1" value="10">
+    </label>
+    <label class="form-label" for="om-cache-policy">Read pricing policy
+      <select class="form-select" id="om-cache-policy">
+        <option value="1">Proportional to supplier rates</option>
+        <option value="0.5">Share half the read-rate saving</option>
+      </select>
+    </label>
+    <label class="form-check" for="om-cache-expired">
+      <input class="form-check-input" id="om-cache-expired" type="checkbox">
+      <span class="form-check-label">Cache expires between calls</span>
+    </label>
+  </div>
+  <div id="om-cache-error" role="alert" class="text-destructive" hidden></div>
+  <div class="text-small">Credits per call · excludes storage and contribution floor</div>
+  <div class="table-responsive" aria-live="polite">
+    <table class="table table-sm">
+      <caption class="sr-only">Illustrative main-inference credits per call</caption>
+      <thead><tr><th scope="col">Model</th><th scope="col" class="text-end">Uncached</th><th scope="col" class="text-end">First call</th><th scope="col" class="text-end" id="om-cache-later-heading">Cache hit</th><th scope="col" class="text-end" id="om-cache-total-heading">10-call saving</th></tr></thead>
+      <tbody>
+        <tr data-model="gemini-3.8-flash"><th scope="row">Gemini 3.8 Flash</th><td class="text-end" data-value="baseline">233</td><td class="text-end" data-value="first">233</td><td class="text-end" data-value="later">73</td><td class="text-end" data-value="saving">61.8%</td></tr>
+        <tr data-model="gpt-6.1-sol"><th scope="row">GPT-6.1 Sol</th><td class="text-end" data-value="baseline">639</td><td class="text-end" data-value="first">760</td><td class="text-end" data-value="later">178</td><td class="text-end" data-value="saving">63.0%</td></tr>
+        <tr data-model="claude-opus-5-5"><th scope="row">Claude Opus 5.5</th><td class="text-end" data-value="baseline">1,316</td><td class="text-end" data-value="first">1,566</td><td class="text-end" data-value="later">366</td><td class="text-end" data-value="saving">63.1%</td></tr>
+        <tr data-model="mistral-large-4"><th scope="row">Mistral Large 4</th><td class="text-end" data-value="baseline">210</td><td class="text-end" data-value="first">210</td><td class="text-end" data-value="later">64</td><td class="text-end" data-value="saving">62.6%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="text-small text-muted" id="om-cache-detail">One cold call, then nine verified hits within retention · five-minute Claude writes.</div>
+</div>
+<script>
+(() => {
+  const root = document.getElementById("openmates-cache-pricing-1006");
+  const controls = {
+    input: root.querySelector("#om-cache-input"), output: root.querySelector("#om-cache-output"),
+    prefix: root.querySelector("#om-cache-prefix"), calls: root.querySelector("#om-cache-calls"),
+    policy: root.querySelector("#om-cache-policy"), expired: root.querySelector("#om-cache-expired")
+  };
+  const models = [
+    {id: "gemini-3.8-flash", input: 450, output: 90, read: 0.075 / 0.75, write: 1, minimum: 4096},
+    {id: "gpt-6.1-sol", input: 165, output: 30, read: 0.1 / 2, write: 1.25, minimum: 1024},
+    {id: "claude-opus-5-5", input: 80, output: 15, read: 0.2 / 4, write: 1.25, minimum: 512},
+    {id: "mistral-large-4", input: 490, output: 155, read: 0.07 / 0.68, write: 1, minimum: 64, quantum: 64}
+  ];
+  const defaults = {input: 100000, output: 1000, prefix: 80, calls: 10, policy: 1, expired: false};
+  const error = root.querySelector("#om-cache-error");
+  const integer = new Intl.NumberFormat("en-US", {maximumFractionDigits: 0});
+  const percent = new Intl.NumberFormat("en-US", {minimumFractionDigits: 1, maximumFractionDigits: 1});
+  const charged = value => Math.max(1, Math.floor(value + 1e-9));
+  function values() {
+    return Object.fromEntries(Object.entries(controls).map(([key, control]) => [key, key === "expired" ? control.checked : Number(control.value)]));
+  }
+  function render() {
+    const state = values();
+    const valid = Number.isInteger(state.input) && state.input >= 1 && state.input <= 200000 &&
+      Number.isInteger(state.output) && state.output >= 0 && state.output <= 30000 &&
+      state.prefix >= 0 && state.prefix <= 100 && Number.isInteger(state.calls) && state.calls >= 1 && state.calls <= 30 && [1, 0.5].includes(state.policy);
+    error.hidden = valid;
+    error.textContent = valid ? "" : "Use 1–200,000 input tokens and 0–30,000 output tokens.";
+    if (!valid) return false;
+    root.querySelector("#om-cache-prefix-value").textContent = `${state.prefix}%`;
+    root.querySelector("#om-cache-calls-value").textContent = String(state.calls);
+    root.querySelector("#om-cache-later-heading").textContent = state.expired ? "Later miss" : "Cache hit";
+    root.querySelector("#om-cache-total-heading").textContent = `${state.calls}-call saving`;
+    for (const model of models) {
+      let prefix = Math.floor(state.input * state.prefix / 100);
+      if (model.quantum) prefix = Math.floor(prefix / model.quantum) * model.quantum;
+      if (prefix < model.minimum) prefix = 0;
+      const fresh = state.input - prefix;
+      const readWeight = 1 - state.policy * (1 - model.read);
+      const baseline = charged(state.input / model.input + state.output / model.output);
+      const first = charged((fresh + prefix * model.write) / model.input + state.output / model.output);
+      const warm = charged((fresh + prefix * readWeight) / model.input + state.output / model.output);
+      const later = state.expired ? first : warm;
+      const saving = 100 * (1 - (first + (state.calls - 1) * later) / (baseline * state.calls));
+      const row = root.querySelector(`[data-model="${model.id}"]`);
+      row.querySelector('[data-value="baseline"]').textContent = integer.format(baseline);
+      row.querySelector('[data-value="first"]').textContent = integer.format(first);
+      row.querySelector('[data-value="later"]').textContent = integer.format(later);
+      row.querySelector('[data-value="saving"]').textContent = `${percent.format(saving)}%`;
+    }
+    root.querySelector("#om-cache-detail").textContent = state.expired
+      ? "Every call is cold · paid writes can increase cost · no speculative read discount."
+      : `One cold call, then ${state.calls - 1} verified hits within retention · five-minute Claude writes.`;
+    return true;
+  }
+  function restore(saved) {
+    const state = {...defaults, ...(saved?.privateContent?.inputs || {})};
+    for (const [key, control] of Object.entries(controls)) {
+      if (key === "expired") control.checked = Boolean(state[key]);
+      else control.value = String(state[key]);
+    }
+    if (!render()) {
+      for (const [key, control] of Object.entries(controls)) {
+        if (key === "expired") control.checked = defaults[key];
+        else control.value = String(defaults[key]);
+      }
+      render();
+    }
+  }
+  function changed() {
+    if (!render()) return;
+    if (typeof window.openai?.setWidgetState === "function") {
+      window.openai.setWidgetState({modelContent: {cachePricingScenario: values()}, privateContent: {inputs: values()}}).catch(() => {});
+    }
+  }
+  for (const control of Object.values(controls)) control.addEventListener("input", changed);
+  window.addEventListener("openai:set_globals", event => {
+    if (event.detail?.globals?.widgetState) restore(event.detail.globals.widgetState);
+  });
+  restore(window.openai?.widgetState);
+})();
+</script>

@@ -56,6 +56,7 @@ export interface SkillMetadata {
   name_translation_key: string; // Translation key for skill name
   description_translation_key: string; // Translation key for skill description
   pricing?: SkillPricing;
+  cache_pricing?: { enabled: boolean; write_billing?: 'included_in_input' | 'separate'; status?: string; source_url?: string; reviewed_on?: string; effective_from?: string; expires_on?: string; eligible_hosts?: string[] };
   providers?: string[]; // List of provider names used by this skill
   /** Icon filename for this skill (e.g. "search.svg") — used in Apps skill cards */
   icon_image?: string;
@@ -72,6 +73,9 @@ export interface SkillPricing {
   tokens?: {
     input?: { per_credit_unit: number };
     output?: { per_credit_unit: number };
+    cache_read?: { per_credit_unit: number };
+    cache_write?: { per_credit_unit: number };
+    cache_write_1h?: { per_credit_unit: number };
   };
   per_unit?: {
     credits: number;

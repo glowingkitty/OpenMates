@@ -427,6 +427,44 @@ def test_ai_iteration_quote_uses_input_and_maximum_output_tokens(monkeypatch) ->
     assert quote >= 20
 
 
+def test_ai_iteration_quote_bounds_enabled_separate_cache_writes(monkeypatch) -> None:
+    pricing = {
+        "pricing": {"tokens": {
+            "input": {"per_credit_unit": 1_000},
+            "cache_write": {"per_credit_unit": 500},
+            "cache_write_1h": {"per_credit_unit": 100},
+            "output": {"per_credit_unit": 1_000},
+        }},
+        "cache_pricing": {"enabled": False, "write_billing": "separate"},
+        "features": {"max_output_tokens": 1},
+    }
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    quote_args = {
+        "model_id": "provider/model",
+        "system_prompt": "s" * 1_000,
+        "message_history": [],
+        "tools": None,
+    }
+    legacy_quote = _quote_ai_iteration_credits(**quote_args)
+    pricing["cache_pricing"]["enabled"] = True
+    premium_quote = _quote_ai_iteration_credits(**quote_args)
+    assert premium_quote > legacy_quote
+    assert pricing["pricing"]["tokens"]["input"]["per_credit_unit"] == 1_000
+    pricing["cache_pricing"]["write_billing"] = "included_in_input"
+    assert _quote_ai_iteration_credits(**quote_args) == legacy_quote
+
+
+def test_mistral_prompt_cache_key_is_scoped_to_user_team_and_chat(monkeypatch) -> None:
+    monkeypatch.setattr(main_processor, "INTERNAL_API_SHARED_TOKEN", "test-secret-for-cache-key")
+    request = SimpleNamespace(user_id_hash="user-alpha", team_id=None, chat_id="chat-alpha")
+    key = main_processor._mistral_prompt_cache_key(request)
+    assert key == main_processor._mistral_prompt_cache_key(request)
+    assert len(key) == 64 and "user-alpha" not in key and "chat-alpha" not in key
+    for change in ({"user_id_hash": "user-beta"}, {"team_id": "team-one"}, {"chat_id": "chat-beta"}):
+        changed = SimpleNamespace(**{**vars(request), **change})
+        assert main_processor._mistral_prompt_cache_key(changed) != key
+
+
 def test_ai_iteration_quote_honors_orchestration_output_limit(monkeypatch) -> None:
     monkeypatch.setattr(
         "backend.apps.ai.processing.main_processor.config_manager.get_model_pricing",

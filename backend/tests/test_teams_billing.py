@@ -5,12 +5,17 @@ members can consume team credits, viewers cannot inspect or spend billing state,
 and every deduction records the acting member for reporting.
 """
 
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
 import pytest
 from fastapi import HTTPException
 
 from backend.core.api.app.services.directus.team_methods import TeamMethods, TeamPermissionError, hash_id
 from backend.core.api.app.services.team_billing_service import TeamBillingService, TeamInsufficientCreditsError
+from backend.core.api.app.services import team_billing_service
 from backend.tests.test_teams_lifecycle import FakeDirectus, team_payload
+from backend.tests.test_usage_entries import _llm_receipt, RoundTripEncryption
 
 
 @pytest.mark.anyio
@@ -329,3 +334,87 @@ async def test_member_usage_report_is_self_scoped_owner_can_filter_any_member() 
     assert [event["event_id"] for event in owner_filtered_usage] == ["usage-bob"]
     with pytest.raises(TeamPermissionError):
         await billing.list_usage("team-1", "bob", member_user_id="alice")
+
+
+# contract-test: direct surface=rest_api assertions=billing.usage.receipt-token-breakdown
+@pytest.mark.anyio
+async def test_team_llm_receipt_uses_actor_key_and_existing_member_visibility() -> None:
+    directus, methods, billing = await _seed_team()
+    await methods.create_invite("team-1", "alice", {"invite_id": "invite-member", "role": "member", "created_at": 110})
+    await _approve_invited_member(methods, "invite-member", "bob", "cipher-team-key-for-bob")
+    await billing.add_credits(team_id="team-1", actor_user_id="alice", event_id="fund", credits=100,
+                              encrypted_balance="cipher-100", occurred_at=130)
+    directus.get_user_fields_direct = AsyncMock(return_value={"id": "bob", "vault_key_id": "bob-key"})
+    directus.usage = SimpleNamespace(encryption_service=RoundTripEncryption())
+    receipt = _llm_receipt()
+    receipt["settlement_state"] = "pending"
+    receipt["credits_charged"] = 0
+
+    charged = await billing.charge_team_credits(
+        team_id="team-1", actor_user_id="bob", event_id="usage-bob", credits=1,
+        workspace_type="chat", usage_details={"llm_usage_breakdown": receipt}, occurred_at=140,
+    )
+    assert charged["usage_event"]["encrypted_llm_usage_breakdown"].startswith("enc:bob-key:")
+    assert directus.rows["team_credit_accounts"][0]["balance_credits"] == 99
+    member_rows = await billing.list_usage("team-1", "bob")
+    admin_rows = await billing.list_usage("team-1", "alice", member_user_id="bob")
+    assert member_rows[0]["llm_usage_breakdown"]["settlement_state"] == "settled"
+    assert admin_rows[0]["llm_usage_breakdown"]["credits_charged"] == 1
+    assert "llm_usage_vault_key_id" not in member_rows[0]
+    assert "encrypted_llm_usage_breakdown" not in member_rows[0]
+    assert receipt["settlement_state"] == "pending"
+    with pytest.raises(TeamPermissionError):
+        await billing.list_usage("team-1", "bob", member_user_id="alice")
+
+
+# contract-test: direct surface=rest_api assertions=billing.access.authenticated-first-party,billing.credits.idempotent-charge
+@pytest.mark.anyio
+async def test_team_quote_reservation_requires_member_and_uses_team_wallet_subject(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _directus, methods, billing = await _seed_team()
+    operations = []
+
+    async def execute(_self, operation, payload):
+        operations.append((operation, payload))
+        return {"state": "reserved", "quoted_credits": payload["quoted_credits"]}
+
+    monkeypatch.setattr(team_billing_service.SubChatOrchestrationService, "execute", execute)
+    with pytest.raises(TeamPermissionError):
+        await billing.reserve_team_credits(
+            team_id="team-1", actor_user_id="stranger", charge_id="ai-ask:one:main",
+            quoted_credits=7, app_id="ai", skill_id="ask",
+        )
+    assert operations == []
+    await methods.create_invite("team-1", "alice", {"invite_id": "reserve-member", "role": "member", "created_at": 110})
+    await _approve_invited_member(methods, "reserve-member", "bob", "cipher-team-key-for-bob")
+    result = await billing.reserve_team_credits(
+        team_id="team-1", actor_user_id="bob", charge_id="ai-ask:one:main",
+        quoted_credits=7, app_id="ai", skill_id="ask",
+    )
+    assert result["quoted_credits"] == 7
+    assert operations == [("reserve_team_credits", {
+        "protocol_version": 1, "charge_id": "ai-ask:one:main",
+        "hashed_team_id": hash_id("team-1"), "actor_user_hash": hash_id("bob"),
+        "app_id": "ai", "skill_id": "ask", "quoted_credits": 7,
+    })]
+
+
+# contract-test: direct surface=rest_api assertions=billing.access.authenticated-first-party,billing.credits.idempotent-charge
+@pytest.mark.anyio
+async def test_team_billing_summary_reports_only_authorized_aggregate_holds() -> None:
+    directus, _methods, billing = await _seed_team()
+    directus.rows["billing_reservations"] = [
+        {"subject_kind": "team", "subject_hash": hash_id("team-1"), "state": "reserved",
+         "quoted_credits": 7, "review_requested_at": None, "charge_id": "private-charge-1"},
+        {"subject_kind": "team", "subject_hash": hash_id("team-1"), "state": "reserved",
+         "quoted_credits": 3, "review_requested_at": "2026-10-07", "charge_id": "private-charge-2"},
+        {"subject_kind": "personal", "subject_hash": hash_id("team-1"), "state": "reserved",
+         "quoted_credits": 900, "review_requested_at": None},
+    ]
+    with pytest.raises(TeamPermissionError):
+        await billing.get_billing_summary("team-1", "stranger")
+    summary = await billing.get_billing_summary("team-1", "alice")
+    assert summary["held_credits"] == 10
+    assert summary["review_required_credits"] == 3
+    assert "charge_id" not in summary

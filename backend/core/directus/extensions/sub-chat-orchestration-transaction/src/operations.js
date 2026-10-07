@@ -12,6 +12,7 @@ const OPERATIONS = 'sub_chat_orchestration_operations';
 const CHATS = 'chats';
 const USERS = 'directus_users';
 const CHARGE_IDENTITIES = 'billing_charge_identities';
+const BILLING_RESERVATIONS = 'billing_reservations';
 const REFUND_IDENTITIES = 'billing_refund_identities';
 const SETTLEMENT_OUTBOX = 'billing_settlement_outbox';
 const STORAGE_PERIODS = 'storage_billing_periods';
@@ -24,6 +25,7 @@ const TEAM_STORAGE_SYSTEM_ACTOR = createHash('sha256').update('system:team-stora
 const EMAIL_DELIVERIES = 'email_deliveries';
 const STORAGE_WARNING_INTERVAL_SECONDS = 7 * 24 * 60 * 60;
 const SETTLEMENT_RETRY_DELAYS_MS = [5_000, 30_000, 120_000, 300_000];
+const BILLING_RESERVATION_REVIEW_DELAY_MS = 24 * 60 * 60_000;
 const USAGE = 'usage';
 const TEAM_ACCOUNTS = 'team_credit_accounts';
 const TEAM_CREDIT_EVENTS = 'team_credit_events';
@@ -80,7 +82,19 @@ const OPERATION_FIELDS = Object.freeze({
   commit_personal_charge: new Set([
     'protocol_version', 'charge_id', 'user_id', 'hashed_user_id', 'app_id', 'skill_id',
     'requested_credits', 'charged_credits', 'expected_encrypted_balance', 'new_encrypted_balance', 'usage_entry',
+    'current_credits', 'reservation_required',
   ]),
+  reserve_personal_credits: new Set([
+    'protocol_version', 'charge_id', 'user_id', 'hashed_user_id', 'app_id', 'skill_id',
+    'quoted_credits', 'expected_encrypted_balance', 'current_credits',
+  ]),
+  reserve_team_credits: new Set([
+    'protocol_version', 'charge_id', 'hashed_team_id', 'actor_user_hash', 'app_id', 'skill_id', 'quoted_credits',
+  ]),
+  release_billing_reservation: new Set([
+    'protocol_version', 'charge_id', 'subject_kind', 'subject_hash', 'actor_user_hash', 'reason',
+  ]),
+  reconcile_billing_reservations: new Set(['protocol_version']),
   commit_personal_refund: new Set([
     'protocol_version', 'refund_id', 'user_id', 'hashed_user_id', 'app_id', 'skill_id', 'credits_to_refund',
     'expected_encrypted_balance', 'new_encrypted_balance',
@@ -108,7 +122,8 @@ const OPERATION_FIELDS = Object.freeze({
   commit_team_charge: new Set([
     'protocol_version', 'event_id', 'hashed_team_id', 'actor_user_hash', 'credits',
     'expected_version', 'encrypted_balance', 'workspace_type', 'object_id_hash',
-    'encrypted_metadata', 'occurred_at', 'orchestration_id',
+    'encrypted_metadata', 'encrypted_llm_usage_breakdown', 'llm_usage_vault_key_id', 'occurred_at', 'orchestration_id',
+    'reservation_required',
   ]),
   commit_team_credit_add: new Set([
     'protocol_version', 'event_id', 'hashed_team_id', 'actor_user_hash', 'credits',
@@ -174,15 +189,21 @@ const USAGE_FIELDS = new Set([
 ]);
 
 export class SubChatOrchestrationError extends Error {
-  constructor(status, code) {
+  constructor(status, code, details = null) {
     super(code);
     this.name = 'SubChatOrchestrationError';
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
 const fail = (status, code) => { throw new SubChatOrchestrationError(status, code); };
+const reservationBudgetExceeded = (maxQuotableCredits) => {
+  throw new SubChatOrchestrationError(402, 'reservation_budget_exceeded', {
+    max_quotable_credits: Math.max(0, maxQuotableCredits),
+  });
+};
 const object = (value) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail(400, 'invalid_request');
   return value;
@@ -714,6 +735,225 @@ async function cleanupExpiredReservations(database, raw, now) {
   });
 }
 
+const creditBalance = (value) => {
+  if (!Number.isSafeInteger(value) || value < -500 || value > 2_147_483_647) fail(400, 'invalid_current_credits');
+  return value;
+};
+const reservationReviewAfter = (now) => new Date(now.getTime() + BILLING_RESERVATION_REVIEW_DELAY_MS);
+
+async function heldBillingCredits(trx, subjectKind, subjectHash, exceptChargeId = null) {
+  const rows = await trx(BILLING_RESERVATIONS).where({
+    subject_kind: subjectKind, subject_hash: subjectHash, state: 'reserved',
+  });
+  return rows.reduce((sum, row) => sum + (row.charge_id === exceptChargeId ? 0 : row.quoted_credits), 0);
+}
+
+async function hasUnreservedPersonalSettlement(trx, ownerHash) {
+  // Historic/background charges can predate quote reservations. Their completed
+  // provider work is senior to a new quote, so no new hold may consume its room.
+  const pending = await trx(SETTLEMENT_OUTBOX)
+    .where({ hashed_user_id: ownerHash })
+    .whereIn('state', ['pending', 'retry_scheduled', 'manual_review']);
+  if (!pending.length) return false;
+  const held = await trx(BILLING_RESERVATIONS).where({
+    subject_kind: 'personal', subject_hash: ownerHash, state: 'reserved',
+  });
+  const heldIds = new Set(held.map((row) => row.charge_id));
+  const committed = await trx(CHARGE_IDENTITIES).where({ hashed_user_id: ownerHash })
+    .whereIn('charge_id', pending.map((row) => row.charge_id));
+  const committedIds = new Set(committed.map((row) => row.charge_id));
+  return pending.some((row) => !heldIds.has(row.charge_id) && !committedIds.has(row.charge_id));
+}
+
+function assertReservationIdentity(row, { chargeId, subjectKind, subjectHash, actorHash, appId, skillId }) {
+  if (row.charge_id !== chargeId || row.subject_kind !== subjectKind || row.subject_hash !== subjectHash
+    || (actorHash != null && row.actor_user_hash !== actorHash)
+    || (appId != null && row.app_id !== appId) || (skillId != null && row.skill_id !== skillId)) {
+    fail(409, 'reservation_identity_mismatch');
+  }
+}
+
+async function reservePersonalCredits(database, raw, now) {
+  const body = operationBody(raw, 'reserve_personal_credits');
+  const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
+  const userId = uuid(body.user_id, 'invalid_user_id');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 128);
+  if (tokenHash(userId) !== ownerHash) fail(409, 'reservation_owner_mismatch');
+  const appId = string(body.app_id, 'invalid_app_id', 100);
+  const skillId = string(body.skill_id, 'invalid_skill_id', 100);
+  const quotedCredits = integer(body.quoted_credits, 'invalid_quoted_credits');
+  if (quotedCredits <= 0) fail(400, 'invalid_quoted_credits');
+  const expectedBalance = string(body.expected_encrypted_balance, 'invalid_expected_balance', 16_384);
+  const currentCredits = creditBalance(body.current_credits);
+  return database.transaction(async (trx) => {
+    await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [`storage-billing:${ownerHash}`]);
+    const user = await trx(USERS).where({ id: userId }).forUpdate().first();
+    if (!user) fail(404, 'billing_user_not_found');
+    const identity = { chargeId, subjectKind: 'personal', subjectHash: ownerHash, actorHash: ownerHash, appId, skillId };
+    const existing = await trx(BILLING_RESERVATIONS).where({ charge_id: chargeId }).forUpdate().first();
+    if (existing) {
+      assertReservationIdentity(existing, identity);
+      if (existing.state !== 'reserved') fail(409, 'reservation_not_active');
+      if (existing.review_requested_at) fail(409, 'reservation_under_review');
+      if (quotedCredits <= existing.quoted_credits) {
+        await trx(BILLING_RESERVATIONS).where({ id: existing.id }).update({
+          last_seen_at: now, review_after_at: reservationReviewAfter(now), updated_at: now,
+        });
+        return { state: 'reserved', charge_id: chargeId, quoted_credits: existing.quoted_credits, idempotent: true };
+      }
+    }
+    const committed = await trx(CHARGE_IDENTITIES).where({ charge_id: chargeId }).first();
+    if (committed) fail(409, 'charge_already_committed');
+    if (await hasUnreservedPersonalSettlement(trx, ownerHash)) {
+      reservationBudgetExceeded(0);
+    }
+    if (user.encrypted_credit_balance !== expectedBalance) fail(409, 'stale_credit_balance');
+    const otherHeld = await heldBillingCredits(trx, 'personal', ownerHash, chargeId);
+    const maxQuotable = currentCredits <= -500 ? 0 : Math.max(0, currentCredits + 500 - otherHeld);
+    if (quotedCredits > maxQuotable) reservationBudgetExceeded(maxQuotable);
+    if (existing) {
+      await trx(BILLING_RESERVATIONS).where({ id: existing.id }).update({
+        quoted_credits: quotedCredits, last_seen_at: now,
+        review_after_at: reservationReviewAfter(now), updated_at: now,
+      });
+    } else {
+      await trx(BILLING_RESERVATIONS).insert({
+        id: randomUUID(), charge_id: chargeId, subject_kind: 'personal', subject_hash: ownerHash,
+        actor_user_hash: ownerHash, app_id: appId, skill_id: skillId, quoted_credits: quotedCredits,
+        actual_credits: null, state: 'reserved', release_reason: null,
+        created_at: now, updated_at: now, last_seen_at: now,
+        review_after_at: reservationReviewAfter(now), review_requested_at: null, settled_at: null,
+      });
+    }
+    return { state: 'reserved', charge_id: chargeId, quoted_credits: quotedCredits, idempotent: false };
+  });
+}
+
+async function reserveTeamCredits(database, raw, now) {
+  const body = operationBody(raw, 'reserve_team_credits');
+  const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
+  const teamHash = string(body.hashed_team_id, 'invalid_team', 128);
+  const actorHash = string(body.actor_user_hash, 'invalid_actor', 128);
+  const appId = string(body.app_id, 'invalid_app_id', 100);
+  const skillId = string(body.skill_id, 'invalid_skill_id', 100);
+  const quotedCredits = integer(body.quoted_credits, 'invalid_quoted_credits');
+  if (quotedCredits <= 0) fail(400, 'invalid_quoted_credits');
+  return database.transaction(async (trx) => {
+    const account = await lockedTeamAccount(trx, teamHash);
+    const identity = { chargeId, subjectKind: 'team', subjectHash: teamHash, actorHash, appId, skillId };
+    const existing = await trx(BILLING_RESERVATIONS).where({ charge_id: chargeId }).forUpdate().first();
+    if (existing) {
+      assertReservationIdentity(existing, identity);
+      if (existing.state !== 'reserved') fail(409, 'reservation_not_active');
+      if (existing.review_requested_at) fail(409, 'reservation_under_review');
+      if (quotedCredits <= existing.quoted_credits) {
+        await trx(BILLING_RESERVATIONS).where({ id: existing.id }).update({
+          last_seen_at: now, review_after_at: reservationReviewAfter(now), updated_at: now,
+        });
+        return { state: 'reserved', charge_id: chargeId, quoted_credits: existing.quoted_credits, idempotent: true };
+      }
+    }
+    const committed = await trx(TEAM_CREDIT_EVENTS).where({ event_id: chargeId }).first();
+    if (committed) fail(409, 'charge_already_committed');
+    const otherHeld = await heldBillingCredits(trx, 'team', teamHash, chargeId);
+    const maxQuotable = Math.max(0, account.balance_credits - otherHeld);
+    if (quotedCredits > maxQuotable) reservationBudgetExceeded(maxQuotable);
+    if (existing) {
+      await trx(BILLING_RESERVATIONS).where({ id: existing.id }).update({
+        quoted_credits: quotedCredits, last_seen_at: now,
+        review_after_at: reservationReviewAfter(now), updated_at: now,
+      });
+    } else {
+      await trx(BILLING_RESERVATIONS).insert({
+        id: randomUUID(), charge_id: chargeId, subject_kind: 'team', subject_hash: teamHash,
+        actor_user_hash: actorHash, app_id: appId, skill_id: skillId, quoted_credits: quotedCredits,
+        actual_credits: null, state: 'reserved', release_reason: null,
+        created_at: now, updated_at: now, last_seen_at: now,
+        review_after_at: reservationReviewAfter(now), review_requested_at: null, settled_at: null,
+      });
+    }
+    return { state: 'reserved', charge_id: chargeId, quoted_credits: quotedCredits, idempotent: false };
+  });
+}
+
+async function releaseBillingReservation(database, raw, now) {
+  const body = operationBody(raw, 'release_billing_reservation');
+  const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
+  const subjectKind = string(body.subject_kind, 'invalid_subject_kind', 16);
+  if (!['personal', 'team'].includes(subjectKind)) fail(400, 'invalid_subject_kind');
+  const subjectHash = string(body.subject_hash, 'invalid_subject', 128);
+  const actorHash = body.actor_user_hash == null ? null : string(body.actor_user_hash, 'invalid_actor', 128);
+  const reason = string(body.reason, 'invalid_release_reason', 64);
+  if (!['cancelled_before_dispatch', 'definite_no_cost', 'provider_failed'].includes(reason)) fail(400, 'invalid_release_reason');
+  return database.transaction(async (trx) => {
+    if (subjectKind === 'personal') {
+      await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [`storage-billing:${subjectHash}`]);
+    } else {
+      await lockedTeamAccount(trx, subjectHash);
+    }
+    const row = await trx(BILLING_RESERVATIONS).where({ charge_id: chargeId }).forUpdate().first();
+    if (!row) return { state: 'absent', charge_id: chargeId, idempotent: true };
+    assertReservationIdentity(row, { chargeId, subjectKind, subjectHash, actorHash });
+    if (row.state === 'settled') return { state: 'settled', charge_id: chargeId, idempotent: true };
+    if (row.state === 'released') return { state: 'released', charge_id: chargeId, idempotent: true };
+    await trx(BILLING_RESERVATIONS).where({ id: row.id }).update({
+      state: 'released', release_reason: reason, updated_at: now, settled_at: now,
+    });
+    return { state: 'released', charge_id: chargeId, idempotent: false };
+  });
+}
+
+async function reconcileBillingReservations(database, raw, now) {
+  operationBody(raw, 'reconcile_billing_reservations');
+  // The AI task hard limit is six minutes. A 24-hour review threshold is only
+  // an alert boundary: a dispatched provider attempt is never forgiven by age.
+  const candidates = await database(BILLING_RESERVATIONS)
+    .where({ state: 'reserved', review_requested_at: null })
+    .where('review_after_at', '<=', now)
+    .orderBy('review_after_at', 'asc').limit(50);
+  const result = { examined: candidates.length, settled: 0, review_requested: 0, reviews: [] };
+  for (const candidate of candidates) {
+    const outcome = await database.transaction(async (trx) => {
+      if (candidate.subject_kind === 'personal') {
+        await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))',
+          [`storage-billing:${candidate.subject_hash}`]);
+      }
+      const row = await trx(BILLING_RESERVATIONS).where({ id: candidate.id }).forUpdate().first();
+      if (!row || row.state !== 'reserved' || row.review_requested_at
+        || new Date(row.review_after_at) > now) return null;
+      const charge = row.subject_kind === 'personal'
+        ? await trx(CHARGE_IDENTITIES).where({ charge_id: row.charge_id, hashed_user_id: row.subject_hash }).first()
+        : await trx(TEAM_CREDIT_EVENTS).where({ event_id: row.charge_id, hashed_team_id: row.subject_hash,
+          event_type: 'deduction' }).first();
+      if (charge) {
+        const actualCredits = row.subject_kind === 'personal' ? charge.charged_credits : -charge.amount;
+        await trx(BILLING_RESERVATIONS).where({ id: row.id }).update({
+          state: 'settled', actual_credits: actualCredits, updated_at: now, settled_at: now,
+        });
+        return { state: 'settled' };
+      }
+      const outbox = row.subject_kind === 'personal'
+        ? await trx(SETTLEMENT_OUTBOX).where({ charge_id: row.charge_id,
+          hashed_user_id: row.subject_hash }).first() : null;
+      await trx(BILLING_RESERVATIONS).where({ id: row.id }).update({
+        review_requested_at: now, updated_at: now,
+      });
+      return {
+        state: 'review', subject_kind: row.subject_kind, subject_hash: row.subject_hash,
+        charge_id: row.charge_id,
+        reason: outbox && ['pending', 'retry_scheduled', 'manual_review'].includes(outbox.state)
+          ? 'pending_settlement' : 'unresolved_dispatch',
+      };
+    });
+    if (outcome?.state === 'settled') result.settled += 1;
+    if (outcome?.state === 'review') {
+      result.review_requested += 1;
+      result.reviews.push(outcome);
+    }
+  }
+  return result;
+}
+
 async function commitPersonalCharge(database, raw, now) {
   const body = operationBody(raw, 'commit_personal_charge');
   const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
@@ -723,6 +963,9 @@ async function commitPersonalCharge(database, raw, now) {
   const skillId = string(body.skill_id, 'invalid_skill_id', 100);
   const requestedCredits = integer(body.requested_credits, 'invalid_requested_credits');
   const chargedCredits = integer(body.charged_credits, 'invalid_charged_credits');
+  const reservationRequired = body.reservation_required === true;
+  if (body.reservation_required != null && typeof body.reservation_required !== 'boolean') fail(400, 'invalid_reservation_required');
+  const currentCredits = body.current_credits == null ? null : creditBalance(body.current_credits);
   const expectedBalance = string(body.expected_encrypted_balance, 'invalid_expected_balance', 16_384);
   const newBalance = string(body.new_encrypted_balance, 'invalid_new_balance', 16_384);
   const usageEntry = object(body.usage_entry);
@@ -785,6 +1028,24 @@ async function commitPersonalCharge(database, raw, now) {
       });
     }
     if (user.encrypted_credit_balance !== expectedBalance) fail(409, 'stale_credit_balance');
+    const reservation = await trx(BILLING_RESERVATIONS).where({ charge_id: chargeId }).forUpdate().first();
+    if (reservation) {
+      assertReservationIdentity(reservation, {
+        chargeId, subjectKind: 'personal', subjectHash: ownerHash, actorHash: ownerHash, appId, skillId,
+      });
+      if (reservation.state !== 'reserved' || chargedCredits > reservation.quoted_credits) {
+        fail(409, 'reservation_not_chargeable');
+      }
+    } else if (reservationRequired) {
+      fail(409, 'billing_reservation_required');
+    }
+    const otherHeld = await heldBillingCredits(trx, 'personal', ownerHash, chargeId);
+    if ((reservation || otherHeld > 0 || reservationRequired) && currentCredits == null) {
+      fail(409, 'current_credits_required');
+    }
+    if (currentCredits != null && currentCredits - otherHeld - chargedCredits < -500) {
+      fail(402, 'personal_credit_floor_exceeded');
+    }
     const updated = await trx(USERS).where({ id: userId, encrypted_credit_balance: expectedBalance }).update({
       encrypted_credit_balance: newBalance,
     });
@@ -798,6 +1059,11 @@ async function commitPersonalCharge(database, raw, now) {
       usage_id: usageId,
       state: 'committed', created_at: now, committed_at: now,
     });
+    if (reservation) {
+      await trx(BILLING_RESERVATIONS).where({ id: reservation.id }).update({
+        state: 'settled', actual_credits: chargedCredits, updated_at: now, settled_at: now,
+      });
+    }
     return {
       charge_id: chargeId, charged_credits: chargedCredits,
       encrypted_balance_after: newBalance, usage_id: usageId,
@@ -1060,11 +1326,18 @@ async function commitTeamCharge(database, raw) {
   const actorHash = string(body.actor_user_hash, 'invalid_actor', 128);
   const credits = integer(body.credits, 'invalid_credits');
   if (credits <= 0) fail(400, 'invalid_credits');
+  const reservationRequired = body.reservation_required === true;
+  if (body.reservation_required != null && typeof body.reservation_required !== 'boolean') fail(400, 'invalid_reservation_required');
   const expectedVersion = integer(body.expected_version, 'invalid_account_version');
   const encryptedBalance = string(body.encrypted_balance, 'invalid_encrypted_balance', 16_384);
   const workspaceType = string(body.workspace_type, 'invalid_workspace_type', 64);
   const objectIdHash = body.object_id_hash == null ? null : string(body.object_id_hash, 'invalid_object_id_hash', 255);
   const encryptedMetadata = body.encrypted_metadata == null ? null : string(body.encrypted_metadata, 'invalid_encrypted_metadata', 16_384);
+  const encryptedLlmUsageBreakdown = body.encrypted_llm_usage_breakdown == null ? null
+    : string(body.encrypted_llm_usage_breakdown, 'invalid_encrypted_llm_usage_breakdown', 131_072);
+  const llmUsageVaultKeyId = body.llm_usage_vault_key_id == null ? null
+    : string(body.llm_usage_vault_key_id, 'invalid_llm_usage_vault_key_id', 255);
+  if ((encryptedLlmUsageBreakdown == null) !== (llmUsageVaultKeyId == null)) fail(400, 'incomplete_llm_usage_receipt');
   const occurredAt = integer(body.occurred_at, 'invalid_occurred_at');
   return database.transaction(async (trx) => {
     const existing = await trx(TEAM_CREDIT_EVENTS).where({ event_id: eventId }).forUpdate().first();
@@ -1084,7 +1357,19 @@ async function commitTeamCharge(database, raw) {
       return { account, credit_event: concurrent, usage_event: usageEvent, idempotent: true };
     }
     if (account.version !== expectedVersion) fail(409, 'stale_team_credit_balance');
-    if (account.balance_credits < credits) fail(402, 'insufficient_team_credits');
+    const reservation = await trx(BILLING_RESERVATIONS).where({ charge_id: eventId }).forUpdate().first();
+    if (reservation) {
+      assertReservationIdentity(reservation, {
+        chargeId: eventId, subjectKind: 'team', subjectHash: teamHash, actorHash,
+      });
+      if (reservation.state !== 'reserved' || credits > reservation.quoted_credits) {
+        fail(409, 'reservation_not_chargeable');
+      }
+    } else if (reservationRequired) {
+      fail(409, 'billing_reservation_required');
+    }
+    const otherHeld = await heldBillingCredits(trx, 'team', teamHash, eventId);
+    if (account.balance_credits - otherHeld < credits) fail(402, 'insufficient_team_credits');
     if (body.orchestration_id) {
       await settleChargeReservations(trx, {
         chargeId: eventId,
@@ -1111,10 +1396,17 @@ async function commitTeamCharge(database, raw) {
     const usageEvent = {
       id: randomUUID(), event_id: eventId, hashed_team_id: teamHash, actor_user_hash: actorHash,
       workspace_type: workspaceType, object_id_hash: objectIdHash,
-      credit_amount: credits, created_at: occurredAt,
+      credit_amount: credits, encrypted_llm_usage_breakdown: encryptedLlmUsageBreakdown,
+      llm_usage_vault_key_id: llmUsageVaultKeyId, created_at: occurredAt,
     };
     await trx(TEAM_CREDIT_EVENTS).insert(creditEvent);
     await trx(TEAM_USAGE_EVENTS).insert(usageEvent);
+    if (reservation) {
+      await trx(BILLING_RESERVATIONS).where({ id: reservation.id }).update({
+        state: 'settled', actual_credits: credits, updated_at: new Date(occurredAt * 1000),
+        settled_at: new Date(occurredAt * 1000),
+      });
+    }
     return { account: updatedAccount, credit_event: creditEvent, usage_event: usageEvent, idempotent: false };
   });
 }
@@ -2111,7 +2403,8 @@ async function commitTeamStorageCharge(database, raw, now) {
     }
     if (period.state !== 'unpaid' || event) fail(409, 'storage_period_not_chargeable');
     if (account.version !== expectedVersion) fail(409, 'stale_team_credit_balance');
-    if (!Number.isSafeInteger(account.balance_credits) || account.balance_credits < period.credits_due) {
+    const heldCredits = await heldBillingCredits(trx, 'team', teamHash);
+    if (!Number.isSafeInteger(account.balance_credits) || account.balance_credits - heldCredits < period.credits_due) {
       fail(402, 'insufficient_team_credits');
     }
     const updated = await trx(TEAM_ACCOUNTS).where({ id: account.id, version: expectedVersion })
@@ -2632,6 +2925,10 @@ export const operations = Object.freeze({
   reserve_operation: reserveOperation,
   fail_operation: failOperation,
   cleanup_expired_reservations: cleanupExpiredReservations,
+  reserve_personal_credits: reservePersonalCredits,
+  reserve_team_credits: reserveTeamCredits,
+  release_billing_reservation: releaseBillingReservation,
+  reconcile_billing_reservations: reconcileBillingReservations,
   commit_personal_charge: commitPersonalCharge,
   commit_personal_refund: commitPersonalRefund,
   get_personal_charge: getPersonalCharge,

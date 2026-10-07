@@ -297,7 +297,9 @@
         "components/team-context-picker-preview.spec.ts",
         "components/billing-context-preview.spec.ts",
         "components/teams-invite-form.spec.ts",
-        "components/settings-avatar.spec.ts"
+        "components/settings-avatar.spec.ts",
+        "components/ai-model-cache-pricing.spec.ts",
+        "components/settings-usage-cache-receipt.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"
@@ -594,7 +596,8 @@
         "cli-tui-rich-chat-proof.spec.ts",
         "teams-management-flow.spec.ts",
         "teams-billing-address.spec.ts",
-        "storage-offline-cache-logout.spec.ts"
+        "storage-offline-cache-logout.spec.ts",
+        "billing-reservation-summary.spec.ts"
       ],
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."
     }

@@ -65,12 +65,46 @@ export interface StreamEvent {
   taskId?: string;
 }
 
+export type AiLlmUsageBreakdown = {
+  schema_version: 1;
+  input_tokens: number;
+  uncached_input_tokens: number;
+  cache_read_input_tokens: number | null;
+  cache_creation_input_tokens: number | null;
+  output_tokens: number;
+  usage_source: string;
+  entries: Array<{
+    model_id: string;
+    inference_host: string | null;
+    pricing_version: string;
+    write_billing?: "included_in_input" | "separate";
+    billing_mode?: "cache_aware" | "ordinary_input" | null;
+    billed_input_tokens?: number | null;
+    input_tokens: number;
+    uncached_input_tokens: number;
+    cache_read_input_tokens: number | null;
+    cache_creation_input_tokens: number | null;
+    cache_creation_5m_input_tokens: number | null;
+    cache_creation_1h_input_tokens: number | null;
+    output_tokens: number;
+    rates: Record<"input" | "cache_read" | "cache_write" | "cache_write_1h" | "output", string | null>;
+    category_credits: Record<"input" | "cache_read" | "cache_write" | "cache_write_1h" | "output", string>;
+    raw_credits: string;
+  }>;
+  raw_credits: string;
+  rounding_adjustment: string;
+  credits_charged: number;
+  settlement_state?: "pending" | "settled";
+  requested_credits?: number;
+};
+
 export type AiResponseTokenUsage = {
   promptTokens?: number;
   completionTokens?: number;
   userInputTokens?: number;
   systemPromptTokens?: number;
   totalCredits?: number;
+  llmUsageBreakdown?: AiLlmUsageBreakdown;
 };
 
 export type AiResponsePromptBudget = {
@@ -1057,11 +1091,17 @@ export class OpenMatesWsClient {
         const userInputTokens = numberMetric(p.user_input_tokens);
         const systemPromptTokens = numberMetric(p.system_prompt_tokens);
         const totalCredits = numberMetric(p.total_credits);
+        const llmUsageBreakdown = p.llm_usage_breakdown && typeof p.llm_usage_breakdown === "object"
+          && !Array.isArray(p.llm_usage_breakdown)
+          && (p.llm_usage_breakdown as Record<string, unknown>).schema_version === 1
+          ? p.llm_usage_breakdown as AiResponseTokenUsage["llmUsageBreakdown"]
+          : undefined;
         const hasTokenUsage = promptTokens !== null
           || completionTokens !== null
           || userInputTokens !== null
           || systemPromptTokens !== null
-          || totalCredits !== null;
+          || totalCredits !== null
+          || llmUsageBreakdown !== undefined;
         if (hasTokenUsage) {
           tokenUsage = {
             ...(promptTokens !== null ? { promptTokens } : {}),
@@ -1069,6 +1109,7 @@ export class OpenMatesWsClient {
             ...(userInputTokens !== null ? { userInputTokens } : {}),
             ...(systemPromptTokens !== null ? { systemPromptTokens } : {}),
             ...(totalCredits !== null ? { totalCredits } : {}),
+            ...(llmUsageBreakdown ? { llmUsageBreakdown } : {}),
           };
         }
         if (systemPromptTokens !== null) {

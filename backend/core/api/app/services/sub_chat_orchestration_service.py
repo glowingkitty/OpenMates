@@ -31,6 +31,10 @@ ORCHESTRATION_OPERATIONS = {
     "reserve_operation",
     "fail_operation",
     "cleanup_expired_reservations",
+    "reserve_personal_credits",
+    "reserve_team_credits",
+    "release_billing_reservation",
+    "reconcile_billing_reservations",
     "commit_personal_charge",
     "commit_personal_refund",
     "get_personal_charge",
@@ -70,9 +74,10 @@ ORCHESTRATION_OPERATIONS = {
 
 
 class SubChatOrchestrationProtocolError(RuntimeError):
-    def __init__(self, status_code: int, code: str) -> None:
+    def __init__(self, status_code: int, code: str, details: dict[str, Any] | None = None) -> None:
         self.status_code = status_code
         self.code = code
+        self.details = details or {}
         super().__init__(f"Sub-chat orchestration operation failed: {code}")
 
 
@@ -110,7 +115,9 @@ class SubChatOrchestrationService:
                 safe_code,
                 response.status_code,
             )
-            raise SubChatOrchestrationProtocolError(response.status_code, safe_code)
+            raise SubChatOrchestrationProtocolError(
+                response.status_code, safe_code, error if isinstance(error, dict) else None
+            )
 
         result = payload.get("data") if isinstance(payload, dict) else None
         if not isinstance(result, dict):

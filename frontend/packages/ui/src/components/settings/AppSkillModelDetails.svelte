@@ -22,6 +22,7 @@
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
+    import { isCachePricingDisplayActive, supportsOneHourCacheWrites } from '../../utils/cachePricingAvailability';
     import { providersMetadata } from '../../data/providersMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { SettingsSectionHeading } from './elements';
@@ -46,6 +47,11 @@
     let model = $derived<AIModelMetadata | undefined>(
         modelsMetadata.find(m => m.id === modelId)
     );
+    const cachePricingActive = $derived(isCachePricingDisplayActive(model?.cache_pricing, model?.default_server, {
+        cache_read: model?.pricing?.cache_read_tokens_per_credit,
+        cache_write: model?.pricing?.cache_write_tokens_per_credit,
+        cache_write_1h: model?.pricing?.cache_write_1h_tokens_per_credit,
+    }));
     
     // Format release date for display
     let formattedReleaseDate = $derived.by(() => {
@@ -263,20 +269,42 @@
                     {#if model.pricing?.input_tokens_per_credit}
                         <div class="pricing-row">
                             <Icon name="download" type="subsetting" size="24px" noAnimation={true} />
-                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_input')}</span>
+                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.uncached_input')}</span>
                             <span class="pricing-value">
                                 1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.input_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}
                             </span>
                         </div>
                     {/if}
+                    {#if model.pricing?.input_tokens_per_credit}
+                        <div class="pricing-row" data-testid="app-model-pricing-cache-read-row">
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
+                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.cache_read')}</span>
+                            <span class="pricing-value">{cachePricingActive && model.pricing.cache_read_tokens_per_credit ? `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${model.pricing.cache_read_tokens_per_credit} ${$text('settings.ai_ask.ai_ask_settings.tokens')}` : $text('settings.ai_ask.ai_ask_model_details.unavailable')}</span>
+                        </div>
+                        <div class="pricing-row" data-testid="app-model-pricing-cache-write-row">
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
+                            <span class="pricing-type">{$text(`settings.ai_ask.ai_ask_model_details.${model.cache_pricing?.write_billing === 'included_in_input' ? 'cache_write' : 'cache_write_5m'}`)}</span>
+                            <span class="pricing-value">{cachePricingActive ? model.cache_pricing?.write_billing === 'included_in_input' ? $text('settings.ai_ask.ai_ask_model_details.included_in_input') : model.pricing.cache_write_tokens_per_credit ? `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${model.pricing.cache_write_tokens_per_credit} ${$text('settings.ai_ask.ai_ask_settings.tokens')}` : $text('settings.ai_ask.ai_ask_model_details.unavailable') : $text('settings.ai_ask.ai_ask_model_details.unavailable')}</span>
+                        </div>
+                        {#if cachePricingActive && supportsOneHourCacheWrites(model.cache_pricing, model.default_server) && model.pricing.cache_write_1h_tokens_per_credit}
+                            <div class="pricing-row" data-testid="app-model-pricing-cache-write-1h-row">
+                                <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
+                                <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.cache_write_1h')}</span>
+                                <span class="pricing-value">1 {$text('common.credits')} {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.cache_write_1h_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}</span>
+                            </div>
+                        {/if}
+                    {/if}
                     {#if model.pricing?.output_tokens_per_credit}
                         <div class="pricing-row">
                             <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
-                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_output')}</span>
+                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.billable_output')}</span>
                             <span class="pricing-value">
                                 1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.output_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}
                             </span>
                         </div>
+                    {/if}
+                    {#if cachePricingActive}
+                        <p class="cache-pricing-note" data-testid="app-model-cache-pricing-note">{$text('settings.ai_ask.ai_ask_model_details.cache_pricing_explanation')}</p>
                     {/if}
                 </div>
             </div>
@@ -433,7 +461,7 @@
         align-items: center;
         justify-content: space-between;
         padding: 0.75rem 0;
-        border-bottom: 1px solid var(--color-grey-15);
+        border-bottom: 1px solid var(--color-grey-20);
     }
     
     .info-row:last-child {
@@ -506,6 +534,13 @@
         align-items: center;
         gap: 0.5rem;
         padding: 0.5rem 0;
+    }
+
+    .cache-pricing-note {
+        margin: 0.5rem 0 0;
+        color: var(--color-grey-60);
+        font-size: var(--font-size-small);
+        line-height: 1.4;
     }
     
     .pricing-type {
@@ -614,7 +649,7 @@
     
     /* Dark mode */
     :global(.dark) .provider-item:hover {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
     }
     
     :global(.dark) .tier-economy {

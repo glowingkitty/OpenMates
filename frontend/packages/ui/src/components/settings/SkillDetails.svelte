@@ -37,6 +37,7 @@
     import { userProfile, updateProfile } from '../../stores/userProfile';
     import { notificationStore } from '../../stores/notificationStore';
     import { getApiUrl, apiEndpoints } from '../../config/api';
+    import { isCachePricingDisplayActive } from '../../utils/cachePricingAvailability';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -91,7 +92,7 @@
      *
      * Only used when hasModels is false.
      */
-    function formatPricing(pricing: SkillPricing | undefined): string | string[] {
+    function formatPricing(pricing: SkillPricing | undefined, cachePricing?: SkillMetadata['cache_pricing']): string | string[] {
         // Never show "Free" - if no pricing provided, default to 1 credit per request
         // This should not happen in practice since metadata generation always sets pricing
         if (!pricing) {
@@ -109,6 +110,23 @@
                         .replace('{tokens}', String(pricing.tokens.input.per_credit_unit))
                         .replace('{direction}', $text('settings.app_store.skills.pricing.input'))
                 );
+            }
+            if (isCachePricingDisplayActive(cachePricing, undefined, {
+                cache_read: pricing.tokens.cache_read?.per_credit_unit,
+                cache_write: pricing.tokens.cache_write?.per_credit_unit,
+                cache_write_1h: pricing.tokens.cache_write_1h?.per_credit_unit,
+            })) {
+                for (const [category, label] of [
+                    ['cache_read', 'cache_read'],
+                    ['cache_write', cachePricing?.write_billing === 'included_in_input' ? 'cache_write' : 'cache_write_5m'],
+                    ['cache_write_1h', 'cache_write_1h'],
+                ] as const) {
+                    if (category === 'cache_write' && cachePricing.write_billing === 'included_in_input') {
+                        tokenParts.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: ${$text('settings.ai_ask.ai_ask_model_details.included_in_input')}`);
+                    } else if (pricing.tokens[category]?.per_credit_unit) {
+                        tokenParts.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: 1 ${$text('common.credits')} / ${pricing.tokens[category].per_credit_unit} ${$text('settings.ai_ask.ai_ask_settings.tokens')}`);
+                    }
+                }
             }
             if (pricing.tokens.output) {
                 tokenParts.push(
@@ -164,7 +182,7 @@
      * Returns either a string or array of strings (for token pricing).
      * Only relevant when hasModels is false.
      */
-    let formattedPricing = $derived(formatPricing(skill?.pricing));
+    let formattedPricing = $derived(formatPricing(skill?.pricing, skill?.cache_pricing));
     
     /**
      * Build the @mention display name for this skill.

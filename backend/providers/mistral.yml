@@ -49,8 +49,17 @@ models:
       tokens:
         input:
           per_credit_unit: 490 # About 3x $0.68/M at $0.001 per credit.
+        cache_read:
+          per_credit_unit: 4760
         output:
           per_credit_unit: 155 # About 3x $2.09/M, including reasoning tokens.
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [mistral]
+      source_url: https://docs.mistral.ai/studio/conversations/advanced/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
     costs:
       input_per_million_token:
         price: 0.68
@@ -109,13 +118,26 @@ models:
       tokens:
         input:
           per_credit_unit: 2200 # Approximately 3x $0.15/M at $0.001 per credit.
+        cache_read:
+          per_credit_unit: 22000
         output:
           per_credit_unit: 550 # 1 credit per 550 output tokens ($0.60/M)
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [mistral]
+      source_url: https://docs.mistral.ai/studio/conversations/advanced/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: verified_provider_usage_pending_financial_check
+      expires_on: "2026-11-06"
     costs:
       input_per_million_token:
         price: 0.15
         currency: USD
         max_context: 262144 # Max context window.
+      cached_input_per_million_token:
+        price: 0.015
+        currency: USD
       output_per_million_token:
         price: 0.60
         currency: USD
@@ -153,13 +175,25 @@ models:
       tokens:
         input:
           per_credit_unit: 220 # 1 credit per ~220 input tokens ($1.50/M)
+        cache_read:
+          per_credit_unit: 2200
         output:
           per_credit_unit: 45 # 1 credit per ~45 output tokens ($7.50/M)
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [mistral]
+      source_url: https://docs.mistral.ai/studio/conversations/advanced/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
     costs:
       input_per_million_token:
         price: 1.50
         currency: USD
         max_context: 256000
+      cached_input_per_million_token:
+        price: 0.15
+        currency: USD
       output_per_million_token:
         price: 7.50
         currency: USD

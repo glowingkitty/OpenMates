@@ -47,6 +47,7 @@ SECRET_FIELDS = {
     "encrypted_refresh_token_bundle",
     "encrypted_server_access_ref",
     "one_time_token_hash",
+    "llm_usage_vault_key_id",
 }
 
 MAX_TEAM_INLINE_EXPORT_BYTES = 8 * 1024 * 1024

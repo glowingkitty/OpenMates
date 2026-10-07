@@ -4,6 +4,7 @@
   import SettingsTextarea from '../settings/elements/SettingsTextarea.svelte';
   import type { AppsSkillDetails, AppsSkillGuestEligibility } from '../../types/appsWorkspace';
   import { getAnonymousAppsSkillAvailability } from '../../services/appsWorkspaceService';
+  import { isCachePricingDisplayActive, supportsOneHourCacheWrites, type CachePricingAvailability } from '../../utils/cachePricingAvailability';
   import {
     expandCompositeSkillPaths, getSkillPath, prepareSkillInput, remainingSkillPaths, schemaForPath,
     selectSkillSchema, setSkillPath, showAllSkillSchema, skillLeafPaths,
@@ -40,7 +41,7 @@
   const amount = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
   const names = (items: Record<string, unknown>[]): string[] => [...new Set(items.flatMap(item => typeof item.name === 'string' && item.name.trim() ? [item.name.trim()] : []))];
 
-  function pricingLines(value: unknown): string[] {
+  function pricingLines(value: unknown, cachePricingValue?: unknown, defaultHost?: string): string[] {
     const pricing = data(value);
     const credits = $text('common.credits');
     const lines: string[] = [];
@@ -60,6 +61,25 @@
     for (const direction of ['input', 'output'] as const) {
       const count = amount(data(tokens[direction]).per_credit_unit);
       if (count !== null && count > 0) lines.push(`${tr('one_credit_per')} ${count} ${tr(`${direction}_tokens`)}`);
+    }
+    const cachePricing = data(cachePricingValue);
+    if (isCachePricingDisplayActive(cachePricing as CachePricingAvailability, defaultHost, {
+      cache_read: amount(data(tokens.cache_read).per_credit_unit) ?? undefined,
+      cache_write: amount(data(tokens.cache_write).per_credit_unit) ?? undefined,
+      cache_write_1h: amount(data(tokens.cache_write_1h).per_credit_unit) ?? undefined,
+    })) {
+      for (const direction of ['cache_read', 'cache_write', 'cache_write_1h'] as const) {
+        if (direction === 'cache_write_1h' && !supportsOneHourCacheWrites(cachePricing as CachePricingAvailability, defaultHost)) continue;
+        const count = amount(data(tokens[direction]).per_credit_unit);
+        const label = direction === 'cache_write'
+          ? cachePricing.write_billing === 'included_in_input' ? 'cache_write' : 'cache_write_5m'
+          : direction;
+        if (direction === 'cache_write' && cachePricing.write_billing === 'included_in_input') {
+          lines.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: ${$text('settings.ai_ask.ai_ask_model_details.included_in_input')}`);
+        } else if (count !== null && count > 0) {
+          lines.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: ${tr('one_credit_per')} ${count} ${tr('input_tokens')}`);
+        }
+      }
     }
     return lines;
   }
@@ -118,7 +138,8 @@
   const providerNames = $derived(names(metadata.providers));
   const modelNames = $derived(names(metadata.models));
   const rateLines = $derived(pricingLines(metadata.pricing));
-  const modelRateLines = $derived(metadata.models.flatMap(model => pricingLines(model.pricing)
+  const modelRateLines = $derived(metadata.models.flatMap(model => pricingLines(model.pricing, model.cache_pricing,
+    typeof model.default_server === 'string' ? model.default_server : undefined)
     .filter(line => !rateLines.includes(line))
     .map(line => `${String(model.name ?? model.id ?? '')}: ${line}`)));
 

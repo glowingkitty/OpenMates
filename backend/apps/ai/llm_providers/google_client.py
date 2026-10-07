@@ -93,6 +93,29 @@ class GoogleUsageMetadata(BaseModel):
     total_token_count: Optional[int] = None
     user_input_tokens: Optional[int] = None
     system_prompt_tokens: Optional[int] = None
+    cache_read_input_tokens: Optional[int] = None
+    cache_creation_input_tokens: Optional[int] = None
+    cache_creation_5m_input_tokens: Optional[int] = None
+    cache_creation_1h_input_tokens: Optional[int] = None
+    thoughts_token_count: Optional[int] = None
+    usage_source: str = "provider_reported"
+    inference_host: Optional[str] = None
+    provider_request_id: Optional[str] = None
+
+
+def _google_usage_metadata(usage: Any, token_breakdown: Dict[str, int], host: str, request_id: Optional[str] = None) -> GoogleUsageMetadata:
+    """Keep SDK cache/thought counters from both Studio and Vertex responses."""
+    return GoogleUsageMetadata(
+        prompt_token_count=getattr(usage, "prompt_token_count", None),
+        candidates_token_count=getattr(usage, "candidates_token_count", None),
+        total_token_count=getattr(usage, "total_token_count", None),
+        cache_read_input_tokens=getattr(usage, "cached_content_token_count", None),
+        thoughts_token_count=getattr(usage, "thoughts_token_count", None),
+        user_input_tokens=token_breakdown.get("user_input_tokens"),
+        system_prompt_tokens=token_breakdown.get("system_prompt_tokens"),
+        inference_host=host,
+        provider_request_id=request_id,
+    )
 
 class RawGoogleChatCompletionResponse(BaseModel):
     text: Optional[str] = None
@@ -657,13 +680,10 @@ async def invoke_google_ai_studio_chat_completions(
                 # Note: getattr returns the default only if attr doesn't exist.
                 # Google API can return None for these fields (e.g., if content was filtered),
                 # so we use `or 0` to handle both missing attributes and None values.
-                usage_metadata_dict = {
-                    "prompt_token_count": getattr(response.usage_metadata, "prompt_token_count", 0) or 0,
-                    "candidates_token_count": getattr(response.usage_metadata, "candidates_token_count", 0) or 0,
-                    "total_token_count": getattr(response.usage_metadata, "total_token_count", 0) or 0,
-                    "user_input_tokens": token_breakdown.get("user_input_tokens"),
-                    "system_prompt_tokens": token_breakdown.get("system_prompt_tokens")
-                }
+                usage_metadata_dict = _google_usage_metadata(
+                    response.usage_metadata, token_breakdown, "google_ai_studio",
+                    getattr(response, "response_id", None),
+                ).model_dump(exclude_none=True)
             except Exception as e:
                 logger.warning(f"{log_prefix} Failed to extract usage_metadata attributes: {e}")
                 usage_metadata_dict = None
@@ -736,6 +756,7 @@ async def invoke_google_ai_studio_chat_completions(
         # Capture per-chunk metadata since async stream_iterator has no .response attribute.
         # The last chunk contains cumulative usage_metadata and the final finish_reason.
         last_usage_metadata = None
+        provider_request_id = None
         last_finish_reason = None
         last_prompt_feedback = None
         try:
@@ -746,6 +767,7 @@ async def invoke_google_ai_studio_chat_completions(
             )
 
             async for chunk in stream_iterator:
+                provider_request_id = provider_request_id or getattr(chunk, "response_id", None)
                 # Capture usage_metadata from each chunk — last one has cumulative totals
                 if hasattr(chunk, 'usage_metadata') and chunk.usage_metadata:
                     last_usage_metadata = chunk.usage_metadata
@@ -858,20 +880,7 @@ async def invoke_google_ai_studio_chat_completions(
             # so no manual system prompt token padding is needed.
             try:
                 if last_usage_metadata:
-                    if hasattr(last_usage_metadata, "to_dict"):
-                        usage_dict = last_usage_metadata.to_dict()
-                    else:
-                        usage_dict = {
-                            "prompt_token_count": getattr(last_usage_metadata, "prompt_token_count", 0) or 0,
-                            "candidates_token_count": getattr(last_usage_metadata, "candidates_token_count", 0) or 0,
-                            "total_token_count": getattr(last_usage_metadata, "total_token_count", 0) or 0,
-                        }
-
-                    usage = GoogleUsageMetadata.model_validate({
-                        **usage_dict,
-                        "user_input_tokens": token_breakdown.get("user_input_tokens"),
-                        "system_prompt_tokens": token_breakdown.get("system_prompt_tokens")
-                    })
+                    usage = _google_usage_metadata(last_usage_metadata, token_breakdown, "google_ai_studio", provider_request_id)
                     yield usage
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not extract usage metadata after stream: {e}")
@@ -909,7 +918,8 @@ async def invoke_google_ai_studio_chat_completions(
                         candidates_token_count=completion_tokens,
                         total_token_count=prompt_tokens + completion_tokens,
                         user_input_tokens=token_breakdown.get("user_input_tokens"),
-                        system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
+                        system_prompt_tokens=token_breakdown.get("system_prompt_tokens"),
+                        usage_source="estimated", inference_host="google_ai_studio",
                     )
                     yield usage
                 except Exception as e:
@@ -1030,6 +1040,7 @@ async def invoke_google_chat_completions(
 
     async def _process_non_stream_response(response: types.GenerateContentResponse) -> UnifiedGoogleResponse:
         logger.info(f"{log_prefix} Received non-streamed response from API.")
+        token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
         
         # Convert usage_metadata from protobuf object to dict by accessing attributes directly
         # The usage_metadata object doesn't have a to_dict() method, so we access its attributes
@@ -1037,11 +1048,10 @@ async def invoke_google_chat_completions(
         if response.usage_metadata:
             try:
                 # Handle None values that Google API may return (e.g., content filtered)
-                usage_metadata_dict = {
-                    "prompt_token_count": getattr(response.usage_metadata, "prompt_token_count", 0) or 0,
-                    "candidates_token_count": getattr(response.usage_metadata, "candidates_token_count", 0) or 0,
-                    "total_token_count": getattr(response.usage_metadata, "total_token_count", 0) or 0,
-                }
+                usage_metadata_dict = _google_usage_metadata(
+                    response.usage_metadata, token_breakdown, "google",
+                    getattr(response, "response_id", None),
+                ).model_dump(exclude_none=True)
             except Exception as e:
                 logger.warning(f"{log_prefix} Failed to extract usage_metadata attributes: {e}")
                 usage_metadata_dict = None
@@ -1113,6 +1123,7 @@ async def invoke_google_chat_completions(
         # Capture per-chunk metadata since async stream_iterator has no .response attribute.
         # The last chunk contains cumulative usage_metadata and the final finish_reason.
         last_usage_metadata = None
+        provider_request_id = None
         last_finish_reason = None
         last_prompt_feedback = None
         try:
@@ -1123,6 +1134,7 @@ async def invoke_google_chat_completions(
             )
 
             async for chunk in stream_iterator:
+                provider_request_id = provider_request_id or getattr(chunk, "response_id", None)
                 # Capture usage_metadata from each chunk — last one has cumulative totals
                 if hasattr(chunk, 'usage_metadata') and chunk.usage_metadata:
                     last_usage_metadata = chunk.usage_metadata
@@ -1232,20 +1244,7 @@ async def invoke_google_chat_completions(
             # so no manual system prompt token padding is needed.
             try:
                 if last_usage_metadata:
-                    if hasattr(last_usage_metadata, "to_dict"):
-                        usage_dict = last_usage_metadata.to_dict()
-                    else:
-                        usage_dict = {
-                            "prompt_token_count": getattr(last_usage_metadata, "prompt_token_count", 0) or 0,
-                            "candidates_token_count": getattr(last_usage_metadata, "candidates_token_count", 0) or 0,
-                            "total_token_count": getattr(last_usage_metadata, "total_token_count", 0) or 0,
-                        }
-
-                    usage = GoogleUsageMetadata.model_validate({
-                        **usage_dict,
-                        "user_input_tokens": token_breakdown.get("user_input_tokens"),
-                        "system_prompt_tokens": token_breakdown.get("system_prompt_tokens")
-                    })
+                    usage = _google_usage_metadata(last_usage_metadata, token_breakdown, "google", provider_request_id)
                     yield usage
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not extract usage metadata after stream: {e}")
@@ -1291,7 +1290,8 @@ async def invoke_google_chat_completions(
                     usage = GoogleUsageMetadata(
                         prompt_token_count=prompt_tokens,
                         candidates_token_count=completion_tokens,
-                        total_token_count=prompt_tokens + completion_tokens
+                        total_token_count=prompt_tokens + completion_tokens,
+                        usage_source="estimated", inference_host="google",
                     )
                     yield usage
                 except Exception as e:

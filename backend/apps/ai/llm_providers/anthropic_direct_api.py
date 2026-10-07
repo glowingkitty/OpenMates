@@ -29,14 +29,15 @@ async def invoke_direct_api(
     max_tokens: Optional[int] = None,
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
-    stream: bool = False
+    stream: bool = False,
+    cacheable_system_prefix: Optional[str] = None,
 ) -> Union[UnifiedAnthropicResponse, AsyncIterator[Union[str, ParsedAnthropicToolCall, AnthropicUsageMetadata]]]:
     """Handle requests using Anthropic's direct API"""
     log_prefix = f"[{task_id}] Anthropic Direct API ({model_id}):"
     logger.info(f"{log_prefix} Attempting chat completion. Stream: {stream}. Tools: {'Yes' if tools else 'No'}. Choice: {tool_choice}")
 
     try:
-        system_prompt, anthropic_messages = _prepare_messages_for_anthropic(messages)
+        system_prompt, anthropic_messages = _prepare_messages_for_anthropic(messages, cacheable_system_prefix)
         
         if not anthropic_messages:
             err_msg = "Message history is empty after processing."
@@ -112,12 +113,16 @@ async def _process_direct_api_response(
         token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
 
         # Parse direct API response
+        creation_details = getattr(response.usage, "cache_creation", None)
         usage_metadata = AnthropicUsageMetadata(
             input_tokens=response.usage.input_tokens,
             output_tokens=response.usage.output_tokens,
             total_tokens=response.usage.input_tokens + response.usage.output_tokens,
-            cache_creation_input_tokens=getattr(response.usage, 'cache_creation_input_tokens', 0),
-            cache_read_input_tokens=getattr(response.usage, 'cache_read_input_tokens', 0),
+            cache_creation_input_tokens=getattr(response.usage, 'cache_creation_input_tokens', None),
+            cache_read_input_tokens=getattr(response.usage, 'cache_read_input_tokens', None),
+            cache_creation_5m_input_tokens=getattr(creation_details, "ephemeral_5m_input_tokens", None),
+            cache_creation_1h_input_tokens=getattr(creation_details, "ephemeral_1h_input_tokens", None),
+            provider_request_id=getattr(response, "id", None),
             user_input_tokens=token_breakdown.get("user_input_tokens"),
             system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
         )
@@ -167,9 +172,9 @@ async def _process_direct_api_response(
             logger.warning(f"{log_prefix} {unified_resp.error_message}")
 
         # Log cache usage if present
-        if usage_metadata.cache_read_input_tokens > 0:
+        if (usage_metadata.cache_read_input_tokens or 0) > 0:
             logger.info(f"{log_prefix} Cache hit: {usage_metadata.cache_read_input_tokens} tokens read from cache.")
-        if usage_metadata.cache_creation_input_tokens > 0:
+        if (usage_metadata.cache_creation_input_tokens or 0) > 0:
             logger.info(f"{log_prefix} Cache write: {usage_metadata.cache_creation_input_tokens} tokens written to cache.")
             
         return unified_resp
@@ -193,6 +198,8 @@ async def _iterate_direct_api_stream(
     
     output_buffer = ""
     usage = None
+    usage_parts: Dict[str, Any] = {}
+    provider_request_id = None
     current_tool_calls: Dict[int, Dict[str, Any]] = {}
     
     try:
@@ -203,7 +210,22 @@ async def _iterate_direct_api_stream(
         token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
 
         for event in stream:
-            if event.type == "content_block_delta":
+            if event.type == "message_start":
+                start_message = getattr(event, "message", None)
+                provider_request_id = getattr(start_message, "id", None)
+                start_usage = getattr(start_message, "usage", None)
+                if start_usage is not None:
+                    for field in ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"):
+                        value = getattr(start_usage, field, None)
+                        if value is not None:
+                            usage_parts[field] = value
+                    creation_details = getattr(start_usage, "cache_creation", None)
+                    if creation_details is not None:
+                        for field in ("ephemeral_5m_input_tokens", "ephemeral_1h_input_tokens"):
+                            value = getattr(creation_details, field, None)
+                            if value is not None:
+                                usage_parts[field] = value
+            elif event.type == "content_block_delta":
                 if event.delta.type == "text_delta":
                     text_chunk = event.delta.text
                     output_buffer += text_chunk
@@ -278,21 +300,32 @@ async def _iterate_direct_api_stream(
 
                 if hasattr(event.delta, 'usage'):
                     usage_data = event.delta.usage
-                    usage = AnthropicUsageMetadata(
-                        input_tokens=usage_data.input_tokens,
-                        output_tokens=usage_data.output_tokens,
-                        total_tokens=usage_data.input_tokens + usage_data.output_tokens,
-                        cache_creation_input_tokens=getattr(usage_data, 'cache_creation_input_tokens', 0),
-                        cache_read_input_tokens=getattr(usage_data, 'cache_read_input_tokens', 0),
-                        user_input_tokens=token_breakdown.get("user_input_tokens"),
-                        system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
-                    )
+                    if usage_data is not None:
+                        for field in ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"):
+                            value = getattr(usage_data, field, None)
+                            if value is not None:
+                                usage_parts[field] = value
+
+        if usage_parts:
+            input_tokens = int(usage_parts.get("input_tokens") or 0)
+            output_tokens = int(usage_parts.get("output_tokens") or 0)
+            usage = AnthropicUsageMetadata(
+                input_tokens=input_tokens, output_tokens=output_tokens,
+                total_tokens=input_tokens + output_tokens,
+                cache_creation_input_tokens=usage_parts.get("cache_creation_input_tokens"),
+                cache_read_input_tokens=usage_parts.get("cache_read_input_tokens"),
+                cache_creation_5m_input_tokens=usage_parts.get("ephemeral_5m_input_tokens"),
+                cache_creation_1h_input_tokens=usage_parts.get("ephemeral_1h_input_tokens"),
+                user_input_tokens=token_breakdown.get("user_input_tokens"),
+                system_prompt_tokens=token_breakdown.get("system_prompt_tokens"),
+                provider_request_id=provider_request_id,
+            )
 
         # Yield final usage information
         if usage:
-            if usage.cache_read_input_tokens > 0:
+            if (usage.cache_read_input_tokens or 0) > 0:
                 logger.info(f"{log_prefix} Stream cache hit: {usage.cache_read_input_tokens} tokens read from cache.")
-            if usage.cache_creation_input_tokens > 0:
+            if (usage.cache_creation_input_tokens or 0) > 0:
                 logger.info(f"{log_prefix} Stream cache write: {usage.cache_creation_input_tokens} tokens written to cache.")
             yield usage
         else:
@@ -311,8 +344,7 @@ async def _iterate_direct_api_stream(
                     input_tokens=estimated_input_tokens,
                     output_tokens=estimated_output_tokens,
                     total_tokens=estimated_input_tokens + estimated_output_tokens,
-                    cache_creation_input_tokens=0,
-                    cache_read_input_tokens=0,
+                    usage_source="estimated",
                     user_input_tokens=token_breakdown.get("user_input_tokens"),
                     system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
                 )

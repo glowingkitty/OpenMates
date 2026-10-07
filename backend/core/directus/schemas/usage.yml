@@ -103,6 +103,11 @@ usage:
       length: 512
       note: "Encrypted total credit costs for the request."
 
+    encrypted_llm_usage_breakdown:
+      type: text
+      nullable: true
+      note: "[Encrypted] Immutable JSON snapshot of customer-facing LLM token categories, rates, and charged credits. Encrypted with the user's vault key."
+
     encrypted_input_tokens:
       type: string
       length: 512

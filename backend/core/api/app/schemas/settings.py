@@ -102,6 +102,8 @@ class BillingOverviewResponse(BaseModel):
     auto_topup_amount: int
     auto_topup_currency: str
     invoices: list[InvoiceResponse]
+    held_credits: int = 0
+    review_required_credits: int = 0
 
 
 # ─── Valid period strings for auto-deletion (chats and files) ────────────────

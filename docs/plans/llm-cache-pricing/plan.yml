@@ -1,0 +1,97 @@
+schema_version: 2
+profile: concise
+id: llm-cache-pricing
+title: Verified cache-aware LLM pricing and billing
+status: approved
+goal: >-
+  Double check for conflicts with pre, main and post processing, implement
+  cache-aware pricing only with accurate provider usage, update the web model
+  prices, compare user credits before and after, and verify real OpenMates CLI
+  chats and their committed billing receipts. Ask when conflicts arise.
+requested_by: user
+created: '2026-10-06'
+task: 57852d66-e56f-4a8c-aeb4-6df78789d63f
+workspace_session: '4805'
+authorization:
+  implementation: User explicitly authorized implementation after the architecture check.
+  activation: User approved the recommended safeguards and exact Billing review on 2026-10-07; activation still requires verified route telemetry and financial checks.
+contract:
+  owner: feature.billing@8
+  bundle: specifications/features/billing
+  assertions: [billing.usage.receipt-token-breakdown, billing.surface.semantic-parity, billing.credits.idempotent-charge, billing.credits.retryable-completion-safe]
+scope:
+  in:
+    - Provider-reported ordinary input, cache reads, cache writes and billable output for Google Studio/Vertex, direct OpenAI, direct Anthropic/Bedrock and Mistral.
+    - Frozen per-attempt tariffs, cumulative event replacement, incurred fallback usage and one final floor/minimum.
+    - Encrypted immutable personal/team receipts and actual committed debit, pending settlement, export and archive compatibility.
+    - Scoped stable-prefix controls and opaque Mistral conversation cache keys.
+    - Web pricing/receipt displays and compatibility with implemented CLI, SDK and Apple surfaces.
+    - Provider probes, focused unit checks, isolated product CI and bounded real CLI chat verification after scoped deployment.
+  out:
+    - Production deployment, new credit packs, a new service fee or a claimed net-margin guarantee.
+    - Google explicit cache storage billing/resource manager or unverified provider write charges.
+    - Unrelated provider/routing upgrades, privacy retention changes or broad client redesign.
+architecture_findings:
+  compatible: Pre/main/post processing can share usage telemetry; only main inference is currently customer-billed.
+  conflicts:
+    - Ordinary authenticated Ask has no upfront reservation and personal settlement may cap at the existing -500-credit floor.
+    - Pre/post processing and compression are paid supplier work bundled into current main-model tariffs.
+    - Live OpenAI responses report reads but do not report writes, despite documented paid-write pricing for newer models.
+    - Short remote image URLs can exceed a UTF-8-byte reservation quote on OpenAI and Mistral; the user decision about conservative image reservations is pending.
+  rollout_safety:
+    - All new tariffs stay disabled until decisions and route evidence are complete; inactive debits preserve existing input/output treatment.
+    - New Anthropic/Bedrock checkpoints require an enabled frozen tariff and eligible host.
+    - Missing cache counters remain unknown; no inferred cache discount or write fee is charged.
+    - Vertex gross supplier liability is modeled without assuming later promotional credits.
+    - Expired/unverified model supplier tariffs stay inactive.
+provider_evidence:
+  source: work/llm-cache-provider-proof/
+  privacy: Synthetic public text; no customer prompts, outputs, credentials or private conversations retained.
+  budget_usd_max: 2
+  anthropic_direct: Live cold/write and warm/read counters verified; start/delta streaming totals merged.
+  aws_bedrock: Live exclusive input plus five-minute writes/reads verified; installed SDK lacks one-hour controls.
+  openai: Chat terminal and Responses reads verified; raw write count absent.
+  mistral: Cached read count verified; prompt_cache_key is a documented top-level request field.
+  google_studio: Explicit creation/read counters verified and test cache deleted; repeated implicit calls showed no cached counter.
+  google_vertex: Ordinary and streaming usage verified; explicit cache creation returned 403; no implicit hit observed.
+  limitation: These probes establish counter semantics, not production hit rates, reconciled invoices or realized profit.
+decisions_accepted:
+  - Add authenticated upfront reservations preserving the -500 personal floor and strict team balances.
+  - Keep auxiliary processing bundled and measure its supplier cost privately before activating discounts.
+  - Discount verified OpenAI reads with unreported writes included in ordinary input after financial checks.
+  - Exact feature.billing@8 review approved; fingerprint 5bf7f83dfbb70254431bd3ef2ffbe5a5d0201d7cb59351f667060e6e6b6ca3ca.
+implementation_dependencies:
+  - Complete normalized usage, frozen rates, encrypted receipts and displays without activating prices.
+  - Implement the accepted safeguards, then enable only individually verified and financially checked routes.
+  - Publish an immutable candidate for focused product checks; deploy with session helpers and coordinated runtime leases.
+  - Verify cold/warm real CLI turns against provider counters, saved receipt arithmetic and balance mutations.
+  - Deliver all existing recordings and a before/after comparison from the measured usage.
+checks:
+  required:
+    - Focused provider/normalization/receipt/settlement/fallback/anonymous tests, including missing counters, repeated events, failed attempts and exact adjustment.
+    - Model metadata generation, focused web receipt checks and relevant static checks.
+    - Isolated web/API/client product CI for pricing displays and receipt persistence; deliver receipt evidence recordings.
+    - Real inference directly on dev only after scoped candidate deployment, with disposable account/chat state and actual CLI terminal video.
+    - Compare prior configured flat credits with new category credits on the same observed usage; distinguish omitted legacy Anthropic/Google tokens from intended savings.
+    - Validate the Plan and Billing Specification and preserve explicit pending work in the Task.
+evidence:
+  completed:
+    - Live provider probe metadata, explicit-cache and stream receipts retained privately in work/llm-cache-provider-proof.
+    - Focused adapter, shared-accounting, personal/team receipt and atomic replay tests passed.
+    - Frontend receipt unit checks passed and browser E2E coverage updated; full product checks pending.
+    - Final focused local backend run passed 123 tests; UI receipt units passed 4 tests and Directus transaction checks passed 29 tests.
+    - Independent accounting review findings were fixed, including missing Google counts, unknown Anthropic counters and payment-disabled actual debit.
+    - Exact feature.billing@8 approval recorded; immutable candidates published with all tariffs disabled.
+    - Authenticated personal/team holds, atomic settlement and stale-hold review implemented and checked; auxiliary supplier costs are logged privately for calibration.
+    - Isolated browser component pricing and receipt checks passed on two successive candidates; all six existing recordings downloaded and uploaded.
+  pending:
+    - Remote-image reservation decision, bundled-cost calibration and selective pricing activation.
+    - Scoped deployment and real OpenMates CLI billing verification.
+    - Isolated product/native checks and user recording delivery.
+research_artifacts:
+  design: implementation-design.yml
+  calculator: simulate.py
+  scenarios: scenarios.csv
+  comparison: cache-pricing.html
+  current_credit_comparison: before-after.md
+  caveat: Earlier scenario write assumptions are illustrative; live OpenAI responses did not report writes, and they cannot justify an actual write surcharge.

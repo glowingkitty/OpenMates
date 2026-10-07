@@ -2,6 +2,8 @@ import SwiftUI
 
 // Reachable composer detail surface, not the whole settings navigation system.
 // Web AiAskModelDetails.svelte; measured phone body323, padding12, rowgap12.
+// Specification: specifications/features/ai-model-routing/specification.yml
+// Assertions: ai-model-routing.catalog.public-read-only
 struct NativeComposerModelDetails: View {
     let model: NativeModelCatalog.Model
     let onClose: () -> Void
@@ -34,8 +36,23 @@ struct NativeComposerModelDetails: View {
                 }
                 if let pricing = model.pricing {
                     section("common.pricing") {
-                        if let input = pricing.input_tokens_per_credit { row("settings.ai_ask.ai_ask_model_details.text_input", value: price(input), icon: "coins") }
-                        if let output = pricing.output_tokens_per_credit { row("settings.ai_ask.ai_ask_model_details.text_output", value: price(output), icon: "coins") }
+                        let cacheActive = model.cachePricesActive()
+                        if let input = pricing.input_tokens_per_credit {
+                            row("settings.ai_ask.ai_ask_model_details.uncached_input", value: price(input), icon: "coins")
+                            row("settings.ai_ask.ai_ask_model_details.cache_read", value: cacheActive ? pricing.cache_read_tokens_per_credit.flatMap { $0 > 0 ? price($0) : nil } ?? AppStrings.modelPriceUnavailable : AppStrings.modelPriceUnavailable, icon: "coins")
+                            let cacheWriteValue = cacheActive
+                                ? (model.cache_pricing?.write_billing == "included_in_input" ? AppStrings.modelPriceIncludedInInput : pricing.cache_write_tokens_per_credit.flatMap { $0 > 0 ? price($0) : nil } ?? AppStrings.modelPriceUnavailable)
+                                : AppStrings.modelPriceUnavailable
+                            row(model.cache_pricing?.write_billing == "included_in_input"
+                                ? "settings.ai_ask.ai_ask_model_details.cache_write"
+                                : "settings.ai_ask.ai_ask_model_details.cache_write_5m",
+                                value: cacheWriteValue, icon: "coins")
+                            if cacheActive, model.supportsOneHourCacheWrites,
+                               let oneHour = pricing.cache_write_1h_tokens_per_credit, oneHour > 0 {
+                                row("settings.ai_ask.ai_ask_model_details.cache_write_1h", value: price(oneHour), icon: "coins")
+                            }
+                        }
+                        if let output = pricing.output_tokens_per_credit { row("settings.ai_ask.ai_ask_model_details.billable_output", value: price(output), icon: "coins") }
                     }
                 }
                 section("settings.app_store.skills.examples") {

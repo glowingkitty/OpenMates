@@ -65,6 +65,7 @@ async def _postprocessing_decisions_with_jev(
     assistant_response: str,
     available_app_ids: List[str],
     secrets_manager: SecretsManager,
+    telemetry_task_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     questions: Dict[str, Dict[str, Any]] = {
         "harmful_response": {
@@ -89,6 +90,8 @@ async def _postprocessing_decisions_with_jev(
         questions=questions,
         secrets_manager=secrets_manager,
         model_id=model_id,
+        telemetry_task_id=telemetry_task_id,
+        telemetry_purpose="postprocess_decision",
     )
     ranked_apps = sorted(
         (
@@ -342,6 +345,7 @@ async def handle_postprocessing(
         try:
             jev_decisions = await _postprocessing_decisions_with_jev(
                 model_id=decision_model_id,
+                telemetry_task_id=task_id,
                 user_message=user_message,
                 assistant_response=assistant_response,
                 available_app_ids=available_app_ids,

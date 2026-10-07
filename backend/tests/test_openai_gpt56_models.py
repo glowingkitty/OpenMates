@@ -192,7 +192,7 @@ def _load_llm_utils_with_stubs(monkeypatch: pytest.MonkeyPatch, openai_provider:
                 {
                     "id": "gpt-5.6-sol-max",
                     "default_server": "openai",
-                    "servers": [{"id": "openai", "model_id": "gpt-5.6-sol"}],
+                    "servers": [{"id": "openai", "model_id": "gpt-5.6-sol", "region": "US"}],
                     "reasoning": True,
                 }
             ]
@@ -208,6 +208,9 @@ def _load_llm_utils_with_stubs(monkeypatch: pytest.MonkeyPatch, openai_provider:
         def get_provider_config(self, provider_id: str) -> Optional[dict[str, Any]]:
             return provider_configs.get(provider_id)
 
+        def get_model_pricing(self, provider_id: str, model_id: str) -> Optional[dict[str, Any]]:
+            return None
+
     class _CacheService:
         @property
         async def client(self) -> None:
@@ -218,7 +221,11 @@ def _load_llm_utils_with_stubs(monkeypatch: pytest.MonkeyPatch, openai_provider:
     monkeypatch.setitem(
         sys.modules,
         "backend.apps.ai.llm_providers.mistral_client",
-        _module("mistral_client", UnifiedMistralResponse=type("UnifiedMistralResponse", (), {})),
+        _module(
+            "mistral_client",
+            UnifiedMistralResponse=type("UnifiedMistralResponse", (), {}),
+            MISTRAL_THINKING_STATE_KEY="mistral_thinking",
+        ),
     )
     monkeypatch.setitem(
         sys.modules,
@@ -227,6 +234,7 @@ def _load_llm_utils_with_stubs(monkeypatch: pytest.MonkeyPatch, openai_provider:
             "google_client",
             UnifiedGoogleResponse=type("UnifiedGoogleResponse", (), {}),
             ParsedGoogleToolCall=type("ParsedGoogleToolCall", (), {}),
+            GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY="google_thought_signature",
         ),
     )
     monkeypatch.setitem(
@@ -610,3 +618,158 @@ def test_call_main_llm_stream_preserves_openai_catalog_model_id_after_server_map
     assert asyncio.run(consume_stream()) == ["ok"]
     assert captured["model_id"] == "gpt-5.6-sol"
     assert captured["catalog_model_id"] == "gpt-5.6-sol-max"
+
+
+def test_main_stream_attaches_frozen_route_usage_to_native_chunks(monkeypatch: pytest.MonkeyPatch) -> None:
+    class OpenAIUsageMetadata:
+        input_tokens = 120
+        output_tokens = 8
+        cache_read_input_tokens = 40
+        cache_creation_input_tokens = None
+        user_input_tokens = None
+        system_prompt_tokens = None
+        provider_request_id = "provider-request"
+
+    emitted: list[OpenAIUsageMetadata] = []
+
+    async def openai_provider(**_kwargs: Any) -> Any:
+        async def stream() -> Any:
+            for _ in range(2):
+                usage = OpenAIUsageMetadata()
+                emitted.append(usage)
+                yield usage
+            yield "ok"
+
+        return stream()
+
+    llm_utils = _load_llm_utils_with_stubs(monkeypatch, openai_provider)
+    tariff = {
+        "pricing": {"tokens": {"input": {"per_credit_unit": 100}, "output": {"per_credit_unit": 50}}},
+        "cache_pricing": {"enabled": False},
+        "local": True,
+    }
+    monkeypatch.setattr(llm_utils.config_manager, "get_model_pricing", lambda _provider, _model: tariff)
+
+    async def consume_stream() -> list[Any]:
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="route-usage", model_id="openai/gpt-5.6-sol-max",
+            system_prompt="stable\n\ndynamic", message_history=[], temperature=0.2,
+        )]
+
+    assert asyncio.run(consume_stream()) == [*emitted, "ok"]
+    first = emitted[0]._normalized_llm_usage
+    second = emitted[1]._normalized_llm_usage
+    assert first.model_id == "openai/gpt-5.6-sol-max"
+    assert first.inference_host == "openai"
+    assert first.region == "US"
+    assert first.attempt_id and first.attempt_id == second.attempt_id
+    assert first.provider_request_id == "provider-request"
+    assert (first.input_total, first.input_uncached, first.cache_read_input_tokens) == (120, 80, 40)
+    assert first.tariff_snapshot["local"] is True
+    tariff["pricing"]["tokens"]["input"]["per_credit_unit"] = 1
+    assert first.tariff_snapshot["pricing"]["tokens"]["input"]["per_credit_unit"] == 100
+
+
+def test_main_stream_forwards_cache_hints_only_to_direct_hosts(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def provider(**_kwargs: Any) -> Any:
+        async def stream() -> Any:
+            yield "ok"
+        return stream()
+
+    llm_utils = _load_llm_utils_with_stubs(monkeypatch, provider)
+    captured: dict[str, dict[str, Any]] = {}
+    cache_policy = {
+        "enabled": True, "eligible_hosts": ["anthropic", "aws_bedrock"],
+        "status": "verified_for_activation", "source_url": "https://example.com/pricing",
+        "reviewed_on": "2026-10-01", "expires_on": "2099-12-31",
+    }
+    monkeypatch.setattr(
+        llm_utils.config_manager, "get_model_pricing",
+        lambda _provider, _model: {"cache_pricing": cache_policy},
+    )
+
+    async def capture(**kwargs: Any) -> Any:
+        captured[kwargs["task_id"]] = kwargs
+        return await provider(**kwargs)
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _server: capture)
+
+    async def consume(host: str) -> None:
+        result = [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id=host, model_id=f"{host}/test-model", system_prompt="stable\n\ndynamic",
+            message_history=[], temperature=0.2, cacheable_system_prefix="stable",
+            prompt_cache_key="opaque-conversation-key",
+        )]
+        assert result == ["ok"]
+
+    async def run() -> None:
+        for host in ("anthropic", "aws_bedrock", "mistral", "openrouter"):
+            await consume(host)
+
+    asyncio.run(run())
+    for host in ("anthropic", "aws_bedrock"):
+        assert captured[host]["cacheable_system_prefix"] == "stable"
+        assert "prompt_cache_key" not in captured[host]
+    assert captured["mistral"]["prompt_cache_key"] == "opaque-conversation-key"
+    assert "cacheable_system_prefix" not in captured["mistral"]
+    assert "cacheable_system_prefix" not in captured["openrouter"]
+    assert "prompt_cache_key" not in captured["openrouter"]
+
+    # Disabled or ineligible tariffs cannot request a new paid cache checkpoint.
+    cache_policy["enabled"] = False
+    asyncio.run(consume("anthropic"))
+    assert "cacheable_system_prefix" not in captured["anthropic"]
+    cache_policy.update({"enabled": True, "eligible_hosts": ["anthropic"]})
+    asyncio.run(consume("aws_bedrock"))
+    assert "cacheable_system_prefix" not in captured["aws_bedrock"]
+
+
+def test_main_stream_preserves_failed_server_usage_before_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    class OpenAIUsageMetadata:
+        input_tokens = 30
+        output_tokens = 2
+        cache_read_input_tokens = 0
+
+    class MistralUsage:
+        prompt_tokens = 40
+        completion_tokens = 6
+        cache_read_input_tokens = 0
+
+    async def unused_provider(**_kwargs: Any) -> Any:
+        raise AssertionError("Provider dispatch should use the selected route")
+
+    llm_utils = _load_llm_utils_with_stubs(monkeypatch, unused_provider)
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _model: ["mistral/fallback"])
+
+    async def primary(**_kwargs: Any) -> Any:
+        async def stream() -> Any:
+            yield OpenAIUsageMetadata()
+            yield "[ERROR 503 provider failed]"
+        return stream()
+
+    async def fallback(**_kwargs: Any) -> Any:
+        async def stream() -> Any:
+            yield "recovered"
+            yield MistralUsage()
+        return stream()
+
+    monkeypatch.setattr(
+        llm_utils, "_get_provider_client",
+        lambda server: primary if server == "openai" else fallback,
+    )
+
+    async def consume() -> list[Any]:
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="failed-server-usage", model_id="openai/gpt-5.6-sol-max",
+            system_prompt="system", message_history=[], temperature=0.2,
+        )]
+
+    chunks = asyncio.run(consume())
+    assert [type(chunk).__name__ if not isinstance(chunk, str) else chunk for chunk in chunks] == [
+        "OpenAIUsageMetadata", "recovered", "MistralUsage",
+    ]
+    first = chunks[0]._normalized_llm_usage
+    second = chunks[2]._normalized_llm_usage
+    assert first.model_id == second.model_id == "openai/gpt-5.6-sol-max"
+    assert (first.inference_host, second.inference_host) == ("openai", "mistral")
+    assert first.attempt_id != second.attempt_id

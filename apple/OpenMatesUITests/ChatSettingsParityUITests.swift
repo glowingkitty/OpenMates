@@ -128,6 +128,32 @@ final class ChatSettingsParityUITests: XCTestCase {
         XCTAssertTrue(webIcon.exists); XCTAssertEqual(webIcon.label, "web")
         attach(app, "Chat Settings populated Usage total provider and date")
     }
+    // contract-test: supporting surface=gui.apple assertions=billing.usage.receipt-token-breakdown
+    func testUsageReceiptShowsCachedCategoriesAndLegacyInputComposition() {
+        let app = launch("chat-settings-usage-receipt")
+        let scroll = app.scrollViews["chat-settings-scroll"]
+        let receipt = app.descendants(matching: .any)["chat-settings-usage-receipt"].firstMatch
+        XCTAssertTrue(receipt.waitForExistence(timeout: 15))
+        let pricingVersion = app.staticTexts["fixture-v1"]
+        XCTAssertTrue(pricingVersion.exists); reveal(pricingVersion, in: scroll)
+        XCTAssertTrue(app.staticTexts["1.93"].exists)
+        XCTAssertTrue(app.staticTexts["0.07"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["chat-settings-usage-input-composition"].firstMatch.exists)
+        attach(app, "Chat Settings LLM receipt and input composition")
+    }
+    // contract-test: supporting surface=gui.apple assertions=billing.usage.receipt-token-breakdown
+    func testOrdinaryInputReceiptShowsBilledCountAndFallbackExplanation() {
+        let app = launch("chat-settings-usage-ordinary-receipt")
+        let receipt = app.descendants(matching: .any)["chat-settings-usage-receipt"].firstMatch
+        XCTAssertTrue(receipt.waitForExistence(timeout: 15))
+        let scroll = app.scrollViews["chat-settings-scroll"]
+        let billed = receipt.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "150 · 0.15")).firstMatch
+        XCTAssertTrue(billed.exists); reveal(billed, in: scroll)
+        XCTAssertTrue(receipt.staticTexts["Input"].exists)
+        let explanation = app.staticTexts["Required cache information was unavailable; all known input tokens were billed at the ordinary input rate."]
+        XCTAssertTrue(explanation.exists)
+        attach(app, "Chat Settings ordinary input fallback receipt")
+    }
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
     func testPublicUsageUsesBundledEntriesAndSuppressesOwnerPlanning() {
         let app = launch("chat-settings-public")

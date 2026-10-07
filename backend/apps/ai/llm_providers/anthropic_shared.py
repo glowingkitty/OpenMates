@@ -19,10 +19,15 @@ class AnthropicUsageMetadata(BaseModel):
     input_tokens: int
     output_tokens: int
     total_tokens: int
-    cache_creation_input_tokens: Optional[int] = 0
-    cache_read_input_tokens: Optional[int] = 0
+    cache_creation_input_tokens: Optional[int] = None
+    cache_read_input_tokens: Optional[int] = None
+    cache_creation_5m_input_tokens: Optional[int] = None
+    cache_creation_1h_input_tokens: Optional[int] = None
     user_input_tokens: Optional[int] = None
     system_prompt_tokens: Optional[int] = None
+    usage_source: str = "provider_reported"
+    inference_host: Optional[str] = "anthropic"
+    provider_request_id: Optional[str] = None
 
 class RawAnthropicChatCompletionResponse(BaseModel):
     text: Optional[str] = None
@@ -80,10 +85,21 @@ def _map_tools_to_anthropic_format(tools: List[Dict[str, Any]]) -> Optional[List
     return anthropic_tools if anthropic_tools else None
 
 
-def _prepare_system_with_caching(system_prompt: str) -> Union[str, List[Dict[str, Any]]]:
+def _prepare_system_with_caching(system_prompt: str, cacheable_system_prefix: Optional[str] = None) -> Union[str, List[Dict[str, Any]]]:
     """Prepare system prompt with caching if it meets threshold"""
     if not system_prompt:
         return system_prompt
+
+    if cacheable_system_prefix:
+        if not system_prompt.startswith(cacheable_system_prefix):
+            raise ValueError("Cacheable system prefix does not match the system prompt")
+        blocks: List[Dict[str, Any]] = [{"type": "text", "text": cacheable_system_prefix}]
+        if _should_cache_content(cacheable_system_prefix):
+            blocks[0]["cache_control"] = {"type": "ephemeral"}
+        suffix = system_prompt[len(cacheable_system_prefix):]
+        if suffix:
+            blocks.append({"type": "text", "text": suffix})
+        return blocks
     
     if _should_cache_content(system_prompt):
         logger.debug(f"System prompt ({len(system_prompt)} chars) will be cached.")
@@ -257,7 +273,7 @@ def _prepare_messages_with_caching(messages: List[Dict[str, Any]]) -> List[Dict[
     return anthropic_messages
 
 
-def _prepare_messages_for_anthropic(messages: List[Dict[str, Any]]) -> Tuple[Optional[Union[str, List[Dict[str, Any]]]], List[Dict[str, Any]]]:
+def _prepare_messages_for_anthropic(messages: List[Dict[str, Any]], cacheable_system_prefix: Optional[str] = None) -> Tuple[Optional[Union[str, List[Dict[str, Any]]]], List[Dict[str, Any]]]:
     """Prepare messages for Anthropic API with caching support"""
     system_prompt = None
     processed_messages = list(messages)
@@ -265,9 +281,27 @@ def _prepare_messages_for_anthropic(messages: List[Dict[str, Any]]) -> Tuple[Opt
     # Extract system prompt if present
     if processed_messages and processed_messages[0].get("role") == "system":
         system_prompt_content = processed_messages.pop(0)["content"]
-        system_prompt = _prepare_system_with_caching(system_prompt_content)
+        system_prompt = _prepare_system_with_caching(system_prompt_content, cacheable_system_prefix)
 
     # Process remaining messages with selective caching
     anthropic_messages = _prepare_messages_with_caching(processed_messages)
+    # Claude accepts at most four explicit breakpoints. Keep the system marker
+    # and the latest history markers, where a later turn has the best reuse odds.
+    markers: List[Dict[str, Any]] = []
+    if isinstance(system_prompt, list):
+        markers.extend(block for block in system_prompt if "cache_control" in block)
+    for message in anthropic_messages:
+        content = message.get("content")
+        if isinstance(content, list):
+            markers.extend(block for block in content if isinstance(block, dict) and "cache_control" in block)
+    if len(markers) > 4:
+        system_has_marker = isinstance(system_prompt, list) and any(
+            block is markers[0] for block in system_prompt
+        )
+        chosen = markers[:1] + markers[-3:] if system_has_marker else markers[-4:]
+        keep = {id(block) for block in chosen}
+        for block in markers:
+            if id(block) not in keep:
+                block.pop("cache_control", None)
             
     return system_prompt, anthropic_messages

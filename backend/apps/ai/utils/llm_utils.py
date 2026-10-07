@@ -3,7 +3,7 @@
 # ruff: noqa: E402
 
 import logging
-from typing import Dict, Any, List, Optional, AsyncIterator, Union
+from typing import Awaitable, Callable, Dict, Any, List, Optional, AsyncIterator, Union
 import copy
 from pydantic import BaseModel
 import json
@@ -12,6 +12,7 @@ import importlib
 import inspect
 import asyncio
 import re
+import uuid
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -52,6 +53,12 @@ from backend.core.api.app.utils.text_sanitization import (
 from backend.core.api.app.services.team_chat_ai_service import format_sender_attributed_content
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.services.cache import CacheService
+from backend.shared.python_schemas.llm_usage import normalize_provider_usage
+from backend.shared.python_utils.billing_utils import (
+    calculate_cache_aware_supplier_cost,
+    is_cache_tariff_admissible,
+    snapshot_model_tariff,
+)
 from backend.shared.python_utils.tracing.ai_observability import ai_provider_span
 from toon_format import decode, encode
 
@@ -107,6 +114,51 @@ def _is_usage_chunk(chunk: Any) -> bool:
         "OpenAIUsageMetadata",
         "BedrockUsageMetadata",
     }
+
+
+def _tag_main_usage(chunk: Any, *, model_id: str, server_id: str,
+                    attempt_id: str, tariff_snapshot: Optional[Dict[str, Any]],
+                    region: Optional[str] = None) -> Any:
+    """Keep route and price with a native usage event without changing its type."""
+    provider_kind = {
+        "google_ai_studio": "google", "google": "google",
+        "aws_bedrock": "bedrock", "anthropic": "anthropic",
+        "mistral": "mistral", "openai": "openai",
+    }.get(server_id)
+    normalized = normalize_provider_usage(
+        chunk, model_id=model_id, provider_kind=provider_kind,
+        attempt_id=attempt_id, inference_host=server_id,
+        provider_request_id=getattr(chunk, "provider_request_id", None),
+        tariff_snapshot=tariff_snapshot,
+        region=region,
+    )
+    # Native Pydantic usage types are consumed by the existing streaming contract.
+    # A private attribute travels with the same object and is omitted from JSON.
+    object.__setattr__(chunk, "_normalized_llm_usage", normalized)
+    return chunk
+
+
+def _cache_checkpoint_allowed(tariff_snapshot: Optional[Dict[str, Any]], server_id: str) -> bool:
+    """Only request a new cache checkpoint when this route can bill its writes."""
+    policy = (tariff_snapshot or {}).get("cache_pricing") or {}
+    return is_cache_tariff_admissible(policy, server_id)
+
+
+def _configured_server_region(model_id: str, server_id: str, server_model_id: str) -> Optional[str]:
+    """Find the actual route's region in the canonical model configuration."""
+    if "/" not in model_id:
+        return None
+    provider_id, model_suffix = model_id.split("/", 1)
+    provider_config = config_manager.get_provider_config(provider_id) or {}
+    for model in provider_config.get("models", []):
+        if not isinstance(model, dict) or model.get("id") != model_suffix:
+            continue
+        for server in model.get("servers", []):
+            if (isinstance(server, dict) and server.get("id") == server_id
+                    and server.get("model_id") == server_model_id):
+                region = server.get("region")
+                return region if isinstance(region, str) and len(region) <= 32 else None
+    return None
 
 
 def _chunk_has_substantive_output(chunk: Any) -> bool:
@@ -958,6 +1010,67 @@ class LLMPreprocessingCallResult(BaseModel):
     arguments: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
     raw_provider_response_summary: Optional[Dict[str, Any]] = None
+    usage_telemetry: Optional[Dict[str, Any]] = None
+
+
+def _auxiliary_usage_telemetry(
+    usage: Any, *, logical_model_id: str, route_id: str, server_model_id: str,
+) -> Dict[str, Any]:
+    """Private, numeric supplier estimate for one auxiliary provider attempt."""
+    fields: Dict[str, Any] = {
+        "inference_host": route_id,
+        "input_tokens": None, "uncached_input_tokens": None,
+        "cache_read_input_tokens": None, "cache_creation_input_tokens": None,
+        "output_tokens": None, "output_reasoning_tokens": None,
+        "supplier_cost_usd": None, "supplier_cost_upper_bound_usd": None,
+        "supplier_cost_complete": False, "supplier_upper_bound_complete": False,
+    }
+    if usage is None:
+        return fields
+    try:
+        provider_kind = {
+            "google_ai_studio": "google", "google": "google", "aws_bedrock": "bedrock",
+            "groq": "openai", "openrouter": "openai", "cerebras": "openai",
+        }.get(route_id, route_id)
+        pricing = None
+        for candidate in (logical_model_id, f"{route_id}/{server_model_id}"):
+            if "/" in candidate:
+                pricing = config_manager.get_model_pricing(*candidate.split("/", 1))
+            if pricing:
+                break
+        frozen = snapshot_model_tariff(pricing) if pricing else None
+        normalized = normalize_provider_usage(
+            usage, model_id=logical_model_id, provider_kind=provider_kind,
+            inference_host=route_id, region=_configured_server_region(logical_model_id, route_id, server_model_id),
+            tariff_snapshot=frozen,
+        )
+        bucket = normalized.to_bucket()
+        fields.update({
+            "input_tokens": bucket["input_tokens"],
+            "uncached_input_tokens": bucket["uncached_input_tokens"],
+            "cache_read_input_tokens": bucket["cache_read_input_tokens"],
+            "cache_creation_input_tokens": bucket["cache_creation_input_tokens"],
+            "output_tokens": bucket["output_tokens"],
+            "output_reasoning_tokens": bucket["output_reasoning_tokens"],
+        })
+        if frozen:
+            estimate = calculate_cache_aware_supplier_cost(
+                usage=bucket, model_pricing_details=frozen,
+                inference_host=route_id, region=bucket.get("region"),
+            )
+            fields.update({
+                "supplier_cost_usd": float(estimate["cost_usd"]),
+                "supplier_cost_upper_bound_usd": (
+                    float(estimate["cost_upper_bound_usd"])
+                    if estimate["cost_upper_bound_usd"] is not None else None
+                ),
+                "supplier_cost_complete": estimate["complete"],
+                "supplier_upper_bound_complete": estimate["upper_bound_complete"],
+            })
+    except Exception as exc:
+        # Supplier telemetry must never turn a successful auxiliary response into a failure.
+        logger.warning("Auxiliary usage accounting unavailable: %s", type(exc).__name__)
+    return fields
 
 async def call_preprocessing_llm(
     task_id: str,
@@ -1398,7 +1511,12 @@ async def call_preprocessing_llm(
                         provider_output_tokens,
                         bool(getattr(response, "success", False)),
                     )
-                    return handle_response(response, expected_tool_name)
+                    result = handle_response(response, expected_tool_name)
+                    result.usage_telemetry = _auxiliary_usage_telemetry(
+                        usage, logical_model_id=model_id, route_id=provider_prefix,
+                        server_model_id=actual_model_id,
+                    )
+                    return result
                 except asyncio.TimeoutError:
                     remaining_budget = _remaining_preprocessing_budget_seconds()
                     if remaining_budget is not None and remaining_budget <= 0:
@@ -1525,13 +1643,29 @@ async def call_preprocessing_llm(
                 remaining_providers = len(providers_to_try) - provider_idx
                 attempt_budget_seconds /= remaining_providers
 
-            with ai_provider_span(observability_purpose):
+            with ai_provider_span(observability_purpose) as provider_span:
                 result = await _call_single_provider(
                     provider_model_id,
                     is_last_provider=is_last_provider,
                     timeout_seconds=attempt_budget_seconds,
                     is_primary_model=provider_idx == 0,
                 )
+                telemetry = result.usage_telemetry or {}
+                provider_span.set_attribute("ai.aux_input_tokens", telemetry.get("input_tokens") or 0)
+                provider_span.set_attribute("ai.aux_output_tokens", telemetry.get("output_tokens") or 0)
+                provider_span.set_attribute("ai.aux_supplier_cost_complete", bool(telemetry.get("supplier_cost_complete")))
+                provider_span.set_attribute("ai.aux_supplier_upper_bound_complete", bool(telemetry.get("supplier_upper_bound_complete")))
+                if telemetry.get("supplier_cost_usd") is not None:
+                    provider_span.set_attribute("ai.aux_supplier_cost_usd", telemetry["supplier_cost_usd"])
+                if telemetry.get("supplier_cost_upper_bound_usd") is not None:
+                    provider_span.set_attribute("ai.aux_supplier_cost_upper_bound_usd", telemetry["supplier_cost_upper_bound_usd"])
+            logger.info("LLM_AUX_COST %s", json.dumps({
+                "task_id": task_id, "purpose": observability_purpose,
+                "model_id": model_id,
+                "route": (result.usage_telemetry or {}).get("inference_host") or provider_model_id.split("/", 1)[0],
+                "success": result.arguments is not None and not result.error_message,
+                **(result.usage_telemetry or {}),
+            }, sort_keys=True))
 
             # Success — return immediately.
             # Note: result.arguments can be an empty dict {} which is falsy, so check None explicitly.
@@ -1598,6 +1732,9 @@ async def call_main_llm_stream(
     max_tokens: Optional[int] = None,
     recoverable_attempt: bool = False,
     stop_after_provider_failure: bool = False,
+    cacheable_system_prefix: Optional[str] = None,
+    prompt_cache_key: Optional[str] = None,
+    pre_dispatch_admission: Optional[Callable[[str, Optional[int]], Awaitable[int]]] = None,
 ) -> AsyncIterator[str]:
     # Anonymous accounting reserves one dispatched attempt at a time. Returning
     # failures to its caller preserves ambiguous holds and makes any retry earn
@@ -1612,6 +1749,11 @@ async def call_main_llm_stream(
         system_prompt,
         log_prefix=f"[{task_id}] LLM system prompt ",
     )
+    sanitized_cacheable_prefix = None
+    if cacheable_system_prefix:
+        candidate = sanitize_text_simple(cacheable_system_prefix, log_prefix=f"[{task_id}] LLM cache prefix ")
+        if sanitized_system_prompt.startswith(candidate):
+            sanitized_cacheable_prefix = candidate
     llm_api_messages = [{"role": "system", "content": sanitized_system_prompt}] if sanitized_system_prompt else []
     llm_api_messages.extend(transformed_user_assistant_messages)
 
@@ -1906,6 +2048,25 @@ async def call_main_llm_stream(
                 "max_tokens": max_tokens,
                 "stream": True,
             }
+            _retry_attempt_id = uuid.uuid4().hex
+            _retry_pricing = config_manager.get_model_pricing(*original_model_id.split("/", 1)) if "/" in original_model_id else None
+            _retry_tariff = snapshot_model_tariff(_retry_pricing) if _retry_pricing else None
+            _retry_region = _configured_server_region(
+                original_model_id, _retry_provider_prefix, _retry_actual_model_id,
+            )
+            if (_retry_provider_prefix in {"anthropic", "aws_bedrock"}
+                    and sanitized_cacheable_prefix
+                    and _cache_checkpoint_allowed(_retry_tariff, _retry_provider_prefix)):
+                _retry_input["cacheable_system_prefix"] = sanitized_cacheable_prefix
+            if _retry_provider_prefix == "mistral" and prompt_cache_key:
+                _retry_input["prompt_cache_key"] = prompt_cache_key
+            if pre_dispatch_admission is not None:
+                admitted_limit = await pre_dispatch_admission(_retry_server_model_id, _retry_input["max_tokens"])
+                if (isinstance(admitted_limit, bool) or not isinstance(admitted_limit, int)
+                        or admitted_limit <= 0 or (_retry_input["max_tokens"] is not None
+                                                 and admitted_limit > _retry_input["max_tokens"])):
+                    raise RuntimeError("Provider admission returned an invalid output limit")
+                _retry_input["max_tokens"] = admitted_limit
             try:
                 logger.info(
                     f"{log_prefix} [ThoughtSigRetry] Retrying '{_retry_server_model_id}' "
@@ -1920,9 +2081,15 @@ async def call_main_llm_stream(
                     )
                     # IMPORTANT: Stream chunks exactly as they arrive from provider.
                     # Paragraph aggregation is handled in main_processor so non-text
-                    # chunks stay fully real-time. Usage metadata is buffered until
-                    # we confirm the provider produced substantive output.
+                    # chunks and incurred usage stay visible to the caller.
                     async for _retry_chunk in _retry_timeout_stream:
+                        if _is_usage_chunk(_retry_chunk):
+                            _retry_chunk = _tag_main_usage(
+                                _retry_chunk, model_id=original_model_id,
+                                server_id=_retry_provider_prefix, attempt_id=_retry_attempt_id,
+                                tariff_snapshot=_retry_tariff,
+                                region=_retry_region,
+                            )
                         yield _retry_chunk
                     logger.info(
                         f"{log_prefix} [ThoughtSigRetry] Retry succeeded on '{_retry_server_model_id}'."
@@ -1981,7 +2148,6 @@ async def call_main_llm_stream(
     _any_content_yielded = False
     
     for server_model_id in servers_to_try:
-        buffered_usage_chunks: List[Any] = []
         attempted_servers.append(server_model_id)
         attempt_log_prefix = f"{log_prefix} [Attempt {len(attempted_servers)}/{len(servers_to_try)}: {server_model_id}]"
         
@@ -2080,6 +2246,31 @@ async def call_main_llm_stream(
                     raise AllServersFailedError(original_model_id, attempted_servers, last_error)
             continue
 
+        attempt_id = uuid.uuid4().hex
+        pricing = config_manager.get_model_pricing(*original_model_id.split("/", 1)) if "/" in original_model_id else None
+        tariff_snapshot = snapshot_model_tariff(pricing) if pricing else None
+        attempt_region = _configured_server_region(
+            original_model_id, server_provider_prefix, server_actual_model_id,
+        )
+        if (server_provider_prefix in {"anthropic", "aws_bedrock"}
+                and sanitized_cacheable_prefix
+                and _cache_checkpoint_allowed(tariff_snapshot, server_provider_prefix)):
+            server_llm_input_details["cacheable_system_prefix"] = sanitized_cacheable_prefix
+        if server_provider_prefix == "mistral" and prompt_cache_key:
+            server_llm_input_details["prompt_cache_key"] = prompt_cache_key
+
+        # The previous host may have incurred usage without producing visible
+        # output. Admit every paid dispatch against the updated turn ledger.
+        # Keep this outside the provider try: wallet failures must never become
+        # a supplier fallback or trigger an unreserved retry.
+        if pre_dispatch_admission is not None:
+            admitted_limit = await pre_dispatch_admission(server_model_id, server_llm_input_details["max_tokens"])
+            if (isinstance(admitted_limit, bool) or not isinstance(admitted_limit, int)
+                    or admitted_limit <= 0 or (server_llm_input_details["max_tokens"] is not None
+                                             and admitted_limit > server_llm_input_details["max_tokens"])):
+                raise RuntimeError("Provider admission returned an invalid output limit")
+            server_llm_input_details["max_tokens"] = admitted_limit
+
         try:
             logger.info(f"{attempt_log_prefix} Attempting to call provider client")
             raw_chunk_stream = await provider_client(secrets_manager=secrets_manager, **server_llm_input_details)
@@ -2104,17 +2295,17 @@ async def call_main_llm_stream(
                     )
                     # IMPORTANT: Stream chunks exactly as they arrive from provider.
                     # Paragraph aggregation is handled in main_processor so non-text
-                    # chunks stay fully real-time. Usage metadata is buffered until
-                    # we confirm the provider produced substantive output.
+                    # chunks and incurred usage stay visible to the caller.
                     async for chunk in timeout_stream:
                         if _is_usage_chunk(chunk):
-                            if recoverable_attempt:
-                                # Recovery may reject output after the provider
-                                # incurred usage. Keep accounting independent of
-                                # acceptance; terminal failure still waives billing.
-                                yield chunk
-                            else:
-                                buffered_usage_chunks.append(chunk)
+                            # Provider usage has already been incurred even if this
+                            # server fails and another one completes the turn.
+                            yield _tag_main_usage(
+                                chunk, model_id=original_model_id,
+                                server_id=server_provider_prefix, attempt_id=attempt_id,
+                                tariff_snapshot=tariff_snapshot,
+                                region=attempt_region,
+                            )
                             continue
 
                         if _is_provider_error_marker(chunk):
@@ -2152,8 +2343,6 @@ async def call_main_llm_stream(
 
                         raise AllServersFailedError(original_model_id, attempted_servers, last_error)
 
-                    for usage_chunk in buffered_usage_chunks:
-                        yield usage_chunk
                     # Successfully completed - return from function
                     return
                 except TimeoutError as timeout_err:
@@ -2195,8 +2384,6 @@ async def call_main_llm_stream(
             logger.error(f"{attempt_log_prefix} Client or stream error: {e}", exc_info=True)
             last_error = error_msg
             if stop_after_provider_failure or (recoverable_attempt and _any_content_yielded):
-                for usage_chunk in buffered_usage_chunks:
-                    yield usage_chunk
                 raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
             
             # Special case: Gemini rejected its replayed thought-signature state.
@@ -2247,8 +2434,6 @@ async def call_main_llm_stream(
             logger.error(f"{attempt_log_prefix} Unexpected error during main LLM stream: {e}", exc_info=True)
             last_error = error_msg
             if stop_after_provider_failure or (recoverable_attempt and _any_content_yielded):
-                for usage_chunk in buffered_usage_chunks:
-                    yield usage_chunk
                 raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
             
             # Special case: Gemini rejected its replayed thought-signature state.

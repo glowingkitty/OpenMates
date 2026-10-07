@@ -9,6 +9,37 @@ import Foundation
 
 @MainActor
 enum AppStrings {
+    static var modelPriceUnavailable: String { L("settings.ai_ask.ai_ask_model_details.unavailable") }
+    static var modelPriceIncludedInInput: String { L("settings.ai_ask.ai_ask_model_details.included_in_input") }
+    static var modelPriceUncachedInput: String { L("settings.ai_ask.ai_ask_model_details.uncached_input") }
+    static var modelPriceCacheRead: String { L("settings.ai_ask.ai_ask_model_details.cache_read") }
+    static var modelPriceCacheWrite: String { L("settings.ai_ask.ai_ask_model_details.cache_write") }
+    static var modelPriceCacheWrite5m: String { L("settings.ai_ask.ai_ask_model_details.cache_write_5m") }
+    static var modelPriceCacheWrite1h: String { L("settings.ai_ask.ai_ask_model_details.cache_write_1h") }
+    static var modelPriceOutput: String { L("settings.ai_ask.ai_ask_model_details.billable_output") }
+    static var receiptTitle: String { L("settings.usage.cache_receipt_title") }
+    static var receiptSource: String { L("settings.usage.cache_receipt_source") }
+    static var receiptPending: String { L("settings.usage.cache_receipt_pending") }
+    static var receiptCharged: String { L("settings.usage.cache_receipt_charged") }
+    static var receiptInputCategories: String { L("settings.usage.cache_receipt_input_categories") }
+    static var receiptCacheCreation: String { L("settings.usage.cache_receipt_cache_creation") }
+    static var receiptStandardInput: String { L("settings.usage.cache_receipt_standard_input") }
+    static var receiptOrdinaryInputExplanation: String { L("settings.usage.cache_receipt_ordinary_input_explanation") }
+    static var receiptPricingVersion: String { L("settings.usage.cache_receipt_pricing_version") }
+    static var receiptRaw: String { L("settings.usage.cache_receipt_raw") }
+    static var receiptRounding: String { L("settings.usage.cache_receipt_rounding") }
+    static var receiptUncachedInput: String { L("settings.ai_ask.ai_ask_model_details.uncached_input") }
+    static var receiptCacheRead: String { L("settings.ai_ask.ai_ask_model_details.cache_read") }
+    static var receiptCacheWrite5m: String { L("settings.ai_ask.ai_ask_model_details.cache_write_5m") }
+    static var receiptCacheWrite1h: String { L("settings.ai_ask.ai_ask_model_details.cache_write_1h") }
+    static var receiptOutput: String { L("settings.ai_ask.ai_ask_model_details.billable_output") }
+    static var receiptPer: String { L("settings.ai_ask.ai_ask_settings.per") }
+    static var receiptTokens: String { L("settings.ai_ask.ai_ask_settings.tokens") }
+    static var usageSystemPromptTokens: String { L("settings.usage.system_prompt_tokens_label") }
+    static var usageUserInputTokens: String { L("settings.usage.user_input_tokens_label") }
+    static var usageAppSkillTokens: String { L("settings.usage.app_skills_tokens_label") }
+    static var usageTotalInputTokens: String { L("settings.usage.total_input_tokens_label") }
+    static var usageOutputTokens: String { L("settings.usage.output_tokens_label") }
     // MARK: - Native Live Activities
     static var liveActivityDownloadsTitle: String { L("live_activities.downloads_title") }
     static var liveActivityUpcomingTitle: String { L("live_activities.upcoming_title") }

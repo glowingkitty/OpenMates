@@ -48,6 +48,13 @@ class MistralUsage(BaseModel):
     total_tokens: int
     user_input_tokens: Optional[int] = None
     system_prompt_tokens: Optional[int] = None
+    cache_read_input_tokens: Optional[int] = None
+    cache_creation_input_tokens: Optional[int] = None
+    cache_creation_5m_input_tokens: Optional[int] = None
+    cache_creation_1h_input_tokens: Optional[int] = None
+    usage_source: str = "provider_reported"
+    inference_host: Optional[str] = "mistral"
+    provider_request_id: Optional[str] = None
 
 class RawMistralChatCompletionResponse(BaseModel):
     id: str
@@ -170,7 +177,8 @@ async def invoke_mistral_chat_completions(
     max_tokens: Optional[int] = None,
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[Union[str, Dict[str, Any]]] = None,
-    stream: bool = False
+    stream: bool = False,
+    prompt_cache_key: Optional[str] = None,
 ) -> Union[UnifiedMistralResponse, AsyncIterator[Union[str, UnifiedStreamChunk, ParsedMistralToolCall, MistralUsage]]]:
     global MISTRAL_API_KEY
     if not MISTRAL_API_KEY and secrets_manager:
@@ -199,6 +207,8 @@ async def invoke_mistral_chat_completions(
         "temperature": temperature,
         "stream": stream
     }
+    if prompt_cache_key:
+        payload["prompt_cache_key"] = prompt_cache_key
     if max_tokens is not None:
         payload["max_tokens"] = max_tokens
     reasoning_effort = _get_mistral_reasoning_effort(model_id)
@@ -234,6 +244,9 @@ async def invoke_mistral_chat_completions(
             if raw_api_response.usage:
                 raw_api_response.usage.user_input_tokens = token_breakdown.get("user_input_tokens")
                 raw_api_response.usage.system_prompt_tokens = token_breakdown.get("system_prompt_tokens")
+                details = (response_json.get("usage") or {}).get("prompt_tokens_details") or {}
+                raw_api_response.usage.cache_read_input_tokens = details.get("cached_tokens")
+                raw_api_response.usage.provider_request_id = response_json.get("id")
                 
             unified_resp_obj = UnifiedMistralResponse(
                 task_id=task_id, model_id=model_id, success=True,
@@ -273,7 +286,8 @@ async def invoke_mistral_chat_completions(
         current_tool_function_name: Optional[str] = None
         current_tool_function_args_buffer: str = ""
         
-        usage_info: Optional[Dict[str, int]] = None
+        usage_info: Optional[Dict[str, Any]] = None
+        provider_request_id = None
         aggregated_response = ""
         thinking_text = ""
         was_interrupted = False
@@ -290,6 +304,7 @@ async def invoke_mistral_chat_completions(
                             break
                         try:
                             chunk = json.loads(data_json)
+                            provider_request_id = provider_request_id or chunk.get("id")
                             if "usage" in chunk and chunk["usage"] is not None:
                                 usage_info = chunk["usage"]
                                 # Do not continue here, as the last chunk can have both usage and a final delta.
@@ -361,7 +376,9 @@ async def invoke_mistral_chat_completions(
                 completion_tokens=usage_info.get("completion_tokens", 0),
                 total_tokens=usage_info.get("total_tokens", 0),
                 user_input_tokens=token_breakdown.get("user_input_tokens"),
-                system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
+                system_prompt_tokens=token_breakdown.get("system_prompt_tokens"),
+                cache_read_input_tokens=(usage_info.get("prompt_tokens_details") or {}).get("cached_tokens"),
+                provider_request_id=provider_request_id,
             )
             logger.info(f"[{task_id}] Mistral Client: Yielding final usage info from streaming response.")
             yield final_usage
@@ -397,7 +414,8 @@ async def invoke_mistral_chat_completions(
                     completion_tokens=estimated_output_tokens,
                     total_tokens=estimated_input_tokens + estimated_output_tokens,
                     user_input_tokens=token_breakdown.get("user_input_tokens"),
-                    system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
+                    system_prompt_tokens=token_breakdown.get("system_prompt_tokens"),
+                    usage_source="estimated",
                 )
                 log_yield_reason = "interrupted stream" if was_interrupted else "stream without usage info"
                 logger.info(f"[{task_id}] Mistral Client: Yielding ESTIMATED usage for {log_yield_reason}.")

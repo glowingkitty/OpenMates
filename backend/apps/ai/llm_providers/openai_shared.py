@@ -165,6 +165,20 @@ class OpenAIUsageMetadata(BaseModel):
     total_tokens: int
     user_input_tokens: Optional[int] = None
     system_prompt_tokens: Optional[int] = None
+    cache_read_input_tokens: Optional[int] = None
+    cache_creation_input_tokens: Optional[int] = None
+    cache_creation_5m_input_tokens: Optional[int] = None
+    cache_creation_1h_input_tokens: Optional[int] = None
+    usage_source: str = "provider_reported"
+    inference_host: Optional[str] = None
+    provider_request_id: Optional[str] = None
+
+
+def openai_cache_read_tokens(usage: Dict[str, Any], *, responses: bool = False) -> Optional[int]:
+    """Return provider-reported cached input, preserving missing versus zero."""
+    details_key = "input_tokens_details" if responses else "prompt_tokens_details"
+    details = usage.get(details_key) or {}
+    return details.get("cached_tokens") if isinstance(details, dict) else None
 
 class RawOpenAIChatCompletionResponse(BaseModel):
     """

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.billing@7
+specification: feature.billing@8
 
 anonymous_free_use:
   - id: web-and-cli-share-the-same-allowance
@@ -171,6 +171,16 @@ usage_receipts:
     user_input_tokens: 80
     app_skill_tokens: 13720
     expect: {sub_items_sum_to_input: true, app_skill_hint_visible: true}
+
+cache_usage_receipts:
+  - id: verified-cache-read-with-frozen-price
+    given: A Mistral chat request reports 5,740 input tokens, including 4,760 cache reads, and 155 output tokens. Its active saved prices are 490 ordinary input tokens, 4,760 cache-read tokens, and 155 output tokens per credit.
+    when: The request settles and the user opens its usage receipt after model prices have changed.
+    then: The receipt still shows two credits for 980 ordinary input tokens, one credit for 4,760 cache-read tokens, and one credit for output, totaling four debited credits. Cache writes are included in ordinary input, and the separate input-composition view adds no charge. Missing write counters are shown as unavailable rather than invented.
+  - id: deferred-charge-is-not-a-debit
+    given: A completed chat has a saved category calculation of 40.5 credits and a 40-credit settlement request, but a temporary transaction conflict defers the charge.
+    when: The client receives the final answer and the durable retry later commits.
+    then: The initial receipt shows pending, zero debited credits and 40 requested credits. The committed receipt shows 40 debited credits and a minus 0.5-credit adjustment, and replay never deducts those credits again.
 
 usage_landing:
   - id: interrupted-recording-without-chat

@@ -306,12 +306,27 @@ struct SettingsAIFullView: View {
             }
             if let pricing = model.pricing {
                 modelSection(AppStrings.pricing, identifier: "ai-model-pricing-section") {
+                    let cacheActive = model.cachePricesActive()
                     if let input = pricing.input_tokens_per_credit {
-                        AISettingsDetailRow(title: AppStrings.aiModelTextInput, value: AppStrings.aiPrice(input),
+                        AISettingsDetailRow(title: AppStrings.modelPriceUncachedInput, value: AppStrings.aiPrice(input),
                             icon: "coins", identifier: "ai-model-pricing-input-row")
+                        AISettingsDetailRow(title: AppStrings.modelPriceCacheRead,
+                            value: cacheActive ? pricing.cache_read_tokens_per_credit.flatMap { $0 > 0 ? AppStrings.aiPrice($0) : nil } ?? AppStrings.modelPriceUnavailable : AppStrings.modelPriceUnavailable,
+                            icon: "coins", identifier: "ai-model-pricing-cache-read-row")
+                        let writeValue = cacheActive
+                            ? (model.cache_pricing?.write_billing == "included_in_input" ? AppStrings.modelPriceIncludedInInput : pricing.cache_write_tokens_per_credit.flatMap { $0 > 0 ? AppStrings.aiPrice($0) : nil } ?? AppStrings.modelPriceUnavailable)
+                            : AppStrings.modelPriceUnavailable
+                        AISettingsDetailRow(title: model.cache_pricing?.write_billing == "included_in_input" ? AppStrings.modelPriceCacheWrite : AppStrings.modelPriceCacheWrite5m,
+                            value: writeValue,
+                            icon: "coins", identifier: "ai-model-pricing-cache-write-row")
+                        if cacheActive, model.supportsOneHourCacheWrites,
+                           let oneHour = pricing.cache_write_1h_tokens_per_credit, oneHour > 0 {
+                            AISettingsDetailRow(title: AppStrings.modelPriceCacheWrite1h, value: AppStrings.aiPrice(oneHour),
+                                icon: "coins", identifier: "ai-model-pricing-cache-write-1h-row")
+                        }
                     }
                     if let output = pricing.output_tokens_per_credit {
-                        AISettingsDetailRow(title: AppStrings.aiModelTextOutput, value: AppStrings.aiPrice(output),
+                        AISettingsDetailRow(title: AppStrings.modelPriceOutput, value: AppStrings.aiPrice(output),
                             icon: "coins", identifier: "ai-model-pricing-output-row")
                     }
                 }

@@ -866,6 +866,8 @@ async def get_skill_providers_with_pricing(
         pricing_dict = {}
         if skill.pricing.tokens:
             pricing_dict['tokens'] = skill.pricing.tokens
+        if skill.pricing.cache_pricing:
+            pricing_dict['cache_pricing'] = skill.pricing.cache_pricing
         if skill.pricing.per_unit:
             pricing_dict['per_unit'] = skill.pricing.per_unit
         if skill.pricing.per_minute:

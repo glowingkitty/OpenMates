@@ -2435,6 +2435,7 @@ async def export_usage_csv(
             'Credits',
             'Input Tokens',
             'Output Tokens',
+            'LLM Usage Breakdown',
             'Model',
             'Chat ID',
             'Message ID',
@@ -2457,6 +2458,7 @@ async def export_usage_csv(
                 entry.get("credits", 0),
                 entry.get("input_tokens", ""),
                 entry.get("output_tokens", ""),
+                json.dumps(entry["llm_usage_breakdown"], separators=(",", ":"), sort_keys=True) if entry.get("llm_usage_breakdown") else "",
                 entry.get("model_used", ""),
                 entry.get("chat_id", ""),
                 entry.get("message_id", ""),
@@ -2675,6 +2677,25 @@ async def get_billing_overview(
                     )
                     continue
         
+        reservation_rows = await directus_service.get_items(
+            "billing_reservations",
+            params={
+                "filter[subject_kind][_eq]": "personal",
+                "filter[subject_hash][_eq]": hashlib.sha256(current_user.id.encode()).hexdigest(),
+                "filter[state][_eq]": "reserved",
+                "fields": "quoted_credits,review_requested_at",
+                "limit": -1,
+            },
+            no_cache=True,
+            admin_required=True,
+            raise_on_error=True,
+        )
+        if not isinstance(reservation_rows, list):
+            raise RuntimeError("Billing reservation summary unavailable")
+        held_credits = sum(int(row["quoted_credits"]) for row in reservation_rows)
+        review_required_credits = sum(
+            int(row["quoted_credits"]) for row in reservation_rows if row.get("review_requested_at")
+        )
         logger.info(f"Successfully fetched billing overview for user {current_user.id}: tier={payment_tier}, invoices={len(processed_invoices)}")
         
         return BillingOverviewResponse(
@@ -2683,7 +2704,9 @@ async def get_billing_overview(
             auto_topup_threshold=auto_topup_threshold,
             auto_topup_amount=auto_topup_amount,
             auto_topup_currency=auto_topup_currency,
-            invoices=processed_invoices
+            invoices=processed_invoices,
+            held_credits=held_credits,
+            review_required_credits=review_required_credits,
         )
         
     except HTTPException as e:
@@ -4683,6 +4706,7 @@ async def get_export_data(
                         "cost_response_credits": entry.get("cost_response_credits"),
                         "actual_input_tokens": entry.get("actual_input_tokens"),
                         "actual_output_tokens": entry.get("actual_output_tokens"),
+                        "llm_usage_breakdown": entry.get("llm_usage_breakdown"),
                     }
                     for entry in (usage_entries or [])
                 ]

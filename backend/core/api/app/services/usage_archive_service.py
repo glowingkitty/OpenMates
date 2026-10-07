@@ -388,6 +388,19 @@ class UsageArchiveService:
                         )
                         if decrypted_model:
                             decrypted_entry["model_used"] = decrypted_model
+
+                    encrypted_receipt = entry.get("encrypted_llm_usage_breakdown")
+                    if encrypted_receipt:
+                        decrypted_receipt = await self.encryption_service.decrypt_with_user_key(
+                            encrypted_receipt, user_vault_key_id
+                        )
+                        if decrypted_receipt:
+                            try:
+                                receipt = json.loads(decrypted_receipt)
+                                if isinstance(receipt, dict):
+                                    decrypted_entry["llm_usage_breakdown"] = receipt
+                            except (TypeError, ValueError):
+                                logger.warning("%s Invalid archived LLM usage receipt", log_prefix)
                     
                     encrypted_input_tokens = entry.get("encrypted_input_tokens")
                     if encrypted_input_tokens:

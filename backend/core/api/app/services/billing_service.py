@@ -18,6 +18,7 @@ from backend.core.api.app.services.sub_chat_orchestration_service import (
     SubChatOrchestrationService,
 )
 from backend.core.api.app.services.billing_settlement_service import BillingSettlementLock
+from backend.core.api.app.services.llm_usage_receipt import settle_public_llm_usage_receipt
 from backend.core.api.app.routes.websockets import manager as websocket_manager
 from backend.shared.python_utils.e2e_user_detection import is_non_production_e2e_user_profile
 
@@ -53,6 +54,23 @@ def _resolve_usage_type(usage_details: Optional[Dict[str, Any]]) -> str:
         return str(explicit_type)
     return DEFAULT_USAGE_TYPE
 
+
+def _usage_details_for_actual_charge(
+    usage_details: Optional[Dict[str, Any]], charged_credits: int
+) -> Optional[Dict[str, Any]]:
+    """Freeze the receipt against the actual debit without mutating caller state.
+
+    A balance clamp changes only the charged amount and its reconciliation term;
+    token counts, rates and raw credits remain the immutable pricing snapshot.
+    """
+    if not usage_details or not isinstance(usage_details.get("llm_usage_breakdown"), dict):
+        return usage_details
+    details = dict(usage_details)
+    details["llm_usage_breakdown"] = settle_public_llm_usage_receipt(
+        details["llm_usage_breakdown"], charged_credits
+    )
+    return details
+
 class BillingService:
     def __init__(
         self,
@@ -72,6 +90,65 @@ class BillingService:
         # prevents GC mid-payment and ensures exception callbacks fire.
         # Tasks remove themselves via add_done_callback.
         self._pending_topup_tasks: set[asyncio.Task] = set()
+
+    async def reserve_user_credits(
+        self, *, user_id: str, user_id_hash: str, charge_id: str,
+        quoted_credits: int, app_id: str, skill_id: str,
+    ) -> Dict[str, Any]:
+        """Durably hold an authenticated quote against the encrypted wallet authority."""
+        from backend.core.api.app.utils.server_mode import is_payment_enabled
+
+        if not is_payment_enabled():
+            return {"state": "skipped", "charge_id": charge_id, "quoted_credits": 0, "idempotent": True}
+        if not isinstance(quoted_credits, int) or quoted_credits <= 0:
+            raise ValueError("quoted_credits must be positive")
+        async with self.settlement_lock.hold(user_id_hash):
+            for attempt in range(MAX_BALANCE_CAS_RETRIES + 1):
+                projection = None if attempt else await self.cache_service.get_billing_projection(user_id)
+                if projection:
+                    balance = projection["credits"]
+                    encrypted_balance = projection["encrypted_balance"]
+                else:
+                    rows = await self.directus_service.get_items(
+                        "directus_users",
+                        params={"filter[id][_eq]": user_id,
+                                "fields": "id,vault_key_id,encrypted_credit_balance", "limit": 1},
+                        no_cache=True,
+                        admin_required=True,
+                    )
+                    if not isinstance(rows, list) or not rows:
+                        raise HTTPException(status_code=404, detail="Billing profile not found.")
+                    row = rows[0]
+                    vault_key_id = row.get("vault_key_id")
+                    encrypted_balance = row.get("encrypted_credit_balance")
+                    if not vault_key_id or not encrypted_balance:
+                        raise HTTPException(status_code=409, detail="Billing profile is incomplete.")
+                    decrypted = await self.encryption_service.decrypt_with_user_key(
+                        encrypted_balance, vault_key_id
+                    )
+                    if decrypted is None:
+                        raise HTTPException(status_code=500, detail="Billing balance could not be decrypted.")
+                    try:
+                        balance = int(decrypted)
+                    except (TypeError, ValueError) as exc:
+                        raise HTTPException(status_code=500, detail="Billing balance is invalid.") from exc
+                    await self.cache_service.set_billing_projection(
+                        user_id, credits=balance, encrypted_balance=encrypted_balance,
+                        vault_key_id=vault_key_id,
+                    )
+                try:
+                    return await SubChatOrchestrationService(self.directus_service).execute(
+                        "reserve_personal_credits",
+                        {"protocol_version": 1, "charge_id": charge_id, "user_id": user_id,
+                         "hashed_user_id": user_id_hash, "app_id": app_id, "skill_id": skill_id,
+                         "quoted_credits": quoted_credits,
+                         "expected_encrypted_balance": encrypted_balance,
+                         "current_credits": balance},
+                    )
+                except SubChatOrchestrationProtocolError as exc:
+                    if exc.code != "stale_credit_balance" or attempt >= MAX_BALANCE_CAS_RETRIES:
+                        raise
+            raise RuntimeError("Billing quote reservation retries exhausted")
 
     async def _create_or_reuse_pending_settlement(
         self,
@@ -228,7 +305,8 @@ class BillingService:
         requested_credits = credits_to_deduct
         charge_result: Dict[str, Any] = {
             "charge_id": idempotency_key,
-            "charged_credits": credits_to_deduct,
+            "charged_credits": credits_to_deduct if payment_enabled else 0,
+            "requested_credits": requested_credits,
             "idempotent": False,
         }
         durable_charge_result: Optional[Dict[str, Any]] = None
@@ -389,6 +467,8 @@ class BillingService:
                 new_credits = current_credits
                 # Note: credits_to_deduct is still used for usage entry tracking, but not actually deducted
             user['credits'] = new_credits  # Store as integer in the dictionary for caching
+            actual_wallet_debit = credits_to_deduct if payment_enabled else 0
+            charged_usage_details = _usage_details_for_actual_charge(usage_details, actual_wallet_debit)
 
             # 3. Commit the encrypted balance with the charge identity in one database transaction.
             if payment_enabled:
@@ -398,17 +478,17 @@ class BillingService:
                 transaction_timestamp = int(time.time())
                 transaction_chat_id = None
                 transaction_message_id = None
-                if usage_details:
-                    raw_chat_id = usage_details.get("chat_id")
+                if charged_usage_details:
+                    raw_chat_id = charged_usage_details.get("chat_id")
                     if isinstance(raw_chat_id, str) and raw_chat_id.strip():
                         transaction_chat_id = (
-                            "incognito" if usage_details.get("is_incognito") else raw_chat_id.strip()
+                            "incognito" if charged_usage_details.get("is_incognito") else raw_chat_id.strip()
                         )
-                    raw_message_id = usage_details.get("message_id")
+                    raw_message_id = charged_usage_details.get("message_id")
                     if isinstance(raw_message_id, str) and raw_message_id.strip():
                         transaction_message_id = raw_message_id.strip()
                 transaction_source = _resolve_usage_source(
-                    usage_details,
+                    charged_usage_details,
                     api_key_hash=api_key_hash,
                     chat_id=transaction_chat_id,
                 )
@@ -452,6 +532,7 @@ class BillingService:
                     tool_inference_iterations=(
                         usage_details.get("tool_inference_iterations") if usage_details else None
                     ),
+                    llm_usage_breakdown=charged_usage_details.get("llm_usage_breakdown") if charged_usage_details else None,
                     build_only=True,
                 )
                 if not isinstance(transaction_usage_payload, dict):
@@ -475,6 +556,8 @@ class BillingService:
                         "skill_id": skill_id.strip(),
                         "requested_credits": requested_credits,
                         "charged_credits": credits_to_deduct,
+                        "current_credits": current_credits,
+                        "reservation_required": bool(usage_details and usage_details.get("reservation_required") is True),
                         "expected_encrypted_balance": expected_encrypted_balance,
                         "new_encrypted_balance": encrypted_new_credits,
                         "usage_entry": transaction_usage_payload,
@@ -669,6 +752,7 @@ class BillingService:
                     code_run_duration_seconds=usage_details.get("duration_seconds") if usage_details else None,
                     duration_second=usage_details.get("duration_second") if usage_details else None,
                     tool_inference_iterations=_tool_inference_iterations,
+                    llm_usage_breakdown=charged_usage_details.get("llm_usage_breakdown") if charged_usage_details else None,
                 )
 
             return charge_result
@@ -732,7 +816,8 @@ class BillingService:
                 )
                 return {
                     "charge_id": idempotency_key,
-                    "charged_credits": requested_credits,
+                    "charged_credits": 0,
+                    "requested_credits": requested_credits,
                     "state": "retry_scheduled",
                     "outbox_id": pending.get("outbox_id"),
                     "idempotent": bool(pending.get("idempotent")),

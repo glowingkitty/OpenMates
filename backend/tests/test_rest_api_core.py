@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 # backend/tests/test_rest_api_core.py
 #
 # Integration tests for core REST API endpoints:
@@ -103,6 +104,7 @@ def test_api_keys_list_authenticated(api_client):
 
 
 @pytest.mark.integration
+# contract-test: direct surface=rest_api assertions=billing.access.authenticated-first-party,billing.credits.idempotent-charge
 def test_billing_overview_authenticated(api_client):
     """Test the billing overview endpoint (v1/settings/billing)."""
     response = api_client.get("/v1/settings/billing")
@@ -111,6 +113,9 @@ def test_billing_overview_authenticated(api_client):
     assert "payment_tier" in data
     assert "invoices" in data
     assert "auto_topup_enabled" in data
+    assert isinstance(data["held_credits"], int) and data["held_credits"] >= 0
+    assert isinstance(data["review_required_credits"], int)
+    assert 0 <= data["review_required_credits"] <= data["held_credits"]
 
 
 @pytest.mark.integration

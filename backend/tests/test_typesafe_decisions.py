@@ -5,15 +5,19 @@
 from __future__ import annotations
 
 import json
+import logging
+from pathlib import Path
 
 import httpx
 import pytest
+import yaml
 
 from backend.shared.providers.typesafe.client import (
     DecisionProviderUnavailable,
     DecisionRequestTooLarge,
     JevDecisionClient,
     MAX_SERIALIZED_STATE_CHARS,
+    TYPESAFE_INPUT_USD_PER_MILLION,
 )
 from backend.shared.providers.typesafe.models import ChoiceAnswer, NoulAnswer, ScoreAnswer
 
@@ -117,6 +121,92 @@ class SeparateSecrets:
 
 QUESTIONS = {"ok": {"type": "noul", "instructions": "ok?"}}
 ANSWER = {"model": "jev-1.13.0", "answers": {"ok": {"type": "noul", "noul": 0.9}}, "usage": {"input_tokens": 10, "output_tokens": 2}}
+
+
+def test_jev_telemetry_tariff_matches_provider_catalog() -> None:
+    catalog = yaml.safe_load((Path(__file__).parents[1] / "providers" / "typesafe.yml").read_text())
+    assert catalog["models"][0]["costs"]["input_per_million_token"]["price"] == TYPESAFE_INPUT_USD_PER_MILLION
+    assert catalog["models"][0]["costs"]["output_per_million_token"]["price"] == 0
+
+
+def _cost_events(caplog) -> list[dict]:
+    return [json.loads(record.message.split("LLM_JEV_COST ", 1)[1])
+            for record in caplog.records if record.message.startswith("LLM_JEV_COST ")]
+
+
+@pytest.mark.asyncio
+async def test_jev_cost_telemetry_reports_direct_tokens_without_private_payload(caplog) -> None:
+    caplog.set_level(logging.INFO, logger="backend.shared.providers.typesafe.client")
+    private_text = "private decision state that must not appear in logs"
+    async def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={**ANSWER, "usage": {"input_tokens": 1000, "output_tokens": 0,
+                                                             "cost": 99}})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        result = await JevDecisionClient(
+            secrets_manager=SeparateSecrets(), http_client=http_client, max_retries=0,
+            telemetry_task_id="turn-1", telemetry_purpose="preprocess_decision",
+        ).evaluate(state={"private": private_text}, questions=QUESTIONS)
+    assert result.usage.input_tokens == 1000
+    events = _cost_events(caplog)
+    assert len(events) == 1
+    assert events[0]["inference_host"] == "typesafe"
+    assert events[0]["model_id"] == "jev-1.13.0"
+    assert events[0]["input_tokens"] == 1000
+    assert events[0]["output_tokens"] == 0
+    assert events[0]["supplier_cost_usd"] == pytest.approx(0.000042)
+    assert events[0]["supplier_cost_complete"] is True
+    assert private_text not in caplog.text
+    assert "direct-key" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_jev_cost_telemetry_preserves_missing_usage_and_retry_attempts(caplog) -> None:
+    caplog.set_level(logging.INFO, logger="backend.shared.providers.typesafe.client")
+    attempts = 0
+    async def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(529, json={"usage": {"input_tokens": 30}})
+        return httpx.Response(200, json={**ANSWER, "usage": {"output_tokens": 2}})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        await JevDecisionClient(
+            secrets_manager=SeparateSecrets(), http_client=http_client, max_retries=1,
+            telemetry_task_id="turn-2", telemetry_purpose="postprocess_decision",
+        ).evaluate(state="hello", questions=QUESTIONS)
+    events = _cost_events(caplog)
+    assert len(events) == 2
+    assert [row["http_status"] for row in events] == [529, 200]
+    assert [row["success"] for row in events] == [False, True]
+    assert events[0]["input_tokens"] == 30 and events[0]["output_tokens"] is None
+    assert events[0]["supplier_cost_complete"] is False
+    assert events[1]["input_tokens"] is None and events[1]["output_tokens"] == 2
+    assert events[1]["supplier_cost_usd"] is None
+    assert events[1]["supplier_cost_complete"] is False
+
+
+@pytest.mark.asyncio
+async def test_jev_cost_telemetry_records_openrouter_fallback_reported_cost(caplog) -> None:
+    caplog.set_level(logging.INFO, logger="backend.shared.providers.typesafe.client")
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "api.typesafe.ai":
+            return httpx.Response(503)
+        return httpx.Response(200, json={**ANSWER, "usage": {
+            "input_tokens": 10, "output_tokens": 2, "cost": 0.0009,
+        }})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        await JevDecisionClient(
+            secrets_manager=SeparateSecrets(), http_client=http_client, max_retries=0,
+            telemetry_task_id="turn-3", telemetry_purpose="preprocess_decision",
+        ).evaluate(state="hello", questions=QUESTIONS)
+    events = _cost_events(caplog)
+    assert len(events) == 2
+    assert events[0]["inference_host"] == "typesafe"
+    assert events[0]["supplier_cost_complete"] is False
+    assert events[1]["inference_host"] == "openrouter"
+    assert events[1]["supplier_cost_usd"] == 0.0009
+    assert events[1]["supplier_cost_source"] == "provider_reported"
+    assert events[1]["supplier_cost_complete"] is True
 
 
 @pytest.mark.asyncio

@@ -9,10 +9,17 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+from decimal import Decimal, localcontext
 from pathlib import Path
 from typing import Any
 
 import pytest
+
+from backend.core.api.app.services.llm_usage_receipt import (
+    settle_public_llm_usage_receipt,
+    validate_public_llm_usage_receipt,
+)
 
 
 def _load_usage_methods_class():
@@ -47,6 +54,102 @@ class FakeEncryption:
 
     async def decrypt_with_user_key(self, ciphertext: str, _key_id: str):
         return ciphertext
+
+
+def _llm_receipt() -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "input_tokens": 12,
+        "uncached_input_tokens": 7,
+        "cache_read_input_tokens": 5,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 3,
+        "usage_source": "provider_reported",
+        "entries": [{
+            "model_id": "model-public", "inference_host": "host-public", "pricing_version": "tariff-v1",
+            "input_tokens": 12, "uncached_input_tokens": 7, "cache_read_input_tokens": 5,
+            "cache_creation_input_tokens": 0, "cache_creation_5m_input_tokens": 0,
+            "cache_creation_1h_input_tokens": 0, "output_tokens": 3,
+            "rates": {"input": "100", "cache_read": "200", "cache_write": None,
+                      "cache_write_1h": None, "output": "50"},
+            "write_billing": "included_in_input",
+            "category_credits": {"input": "0.07", "cache_read": "0.025", "cache_write": "0",
+                                 "cache_write_1h": "0", "output": "0.06"},
+            "raw_credits": "0.155",
+        }],
+        "raw_credits": "0.155", "rounding_adjustment": "0.845",
+        "credits_charged": 1, "settlement_state": "settled",
+    }
+
+
+class RoundTripEncryption(FakeEncryption):
+    async def decrypt_with_user_key(self, ciphertext: str, key_id: str):
+        prefix = f"enc:{key_id}:"
+        assert ciphertext.startswith(prefix)
+        return ciphertext[len(prefix):]
+
+
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
+def test_settled_llm_receipt_reconciles_a_clamped_debit_without_changing_pricing_snapshot() -> None:
+    original = _llm_receipt()
+    original["credits_charged"] = 9
+    original["settlement_state"] = "pending"
+    settled = settle_public_llm_usage_receipt(original, 2)
+    assert settled["credits_charged"] == 2
+    assert settled["rounding_adjustment"] == "1.845"
+    assert settled["settlement_state"] == "settled"
+    assert settled["requested_credits"] == 9
+    assert settled["entries"] == original["entries"]
+    assert original["credits_charged"] == 9
+
+
+# contract-test: direct surface=rest_api assertions=billing.usage.receipt-token-breakdown
+def test_repeating_fraction_receipt_settles_without_decimal_context_rounding() -> None:
+    original = _llm_receipt()
+    original["raw_credits"] = "0." + "3" * 60
+    original["credits_charged"] = 3
+    original["requested_credits"] = 7  # Earlier workflow cap already recorded.
+    settled = settle_public_llm_usage_receipt(original, 2)
+    assert settled["requested_credits"] == 7
+    assert settled["rounding_adjustment"] == "1." + "6" * 59 + "7"
+    with localcontext() as context:
+        context.prec = 100
+        assert Decimal(settled["raw_credits"]) + Decimal(settled["rounding_adjustment"]) == 2
+    assert "requested_credits" in original
+    assert original["credits_charged"] == 3
+
+
+# contract-test: direct surface=rest_api assertions=billing.self-host.cloud-guard
+def test_payment_disabled_receipt_reports_zero_wallet_debit_and_nominal_request() -> None:
+    original = _llm_receipt()
+    original["credits_charged"] = 12
+    settled = settle_public_llm_usage_receipt(original, 0)
+    assert settled["credits_charged"] == 0
+    assert settled["requested_credits"] == 12
+    assert settled["rounding_adjustment"] == "-0.155"
+    assert settled["settlement_state"] == "settled"
+    assert original["credits_charged"] == 12
+
+
+# contract-test: direct surface=rest_api assertions=billing.usage.receipt-token-breakdown
+def test_optional_billing_mode_and_billed_input_tokens_are_public_and_independent() -> None:
+    receipt = _llm_receipt()
+    entry = receipt["entries"][0]
+    entry["billing_mode"] = "ordinary_input"
+    assert validate_public_llm_usage_receipt(receipt) is receipt
+    entry.pop("billing_mode")
+    entry["billed_input_tokens"] = 12
+    assert validate_public_llm_usage_receipt(receipt) is receipt
+    entry["billing_mode"] = "cache_aware"
+    assert validate_public_llm_usage_receipt(receipt) is receipt
+
+    entry["billed_input_tokens"] = -1
+    with pytest.raises(ValueError, match="billed input"):
+        validate_public_llm_usage_receipt(receipt)
+    entry["billed_input_tokens"] = 12
+    entry["billing_mode"] = "supplier_cost"
+    with pytest.raises(ValueError, match="billing mode"):
+        validate_public_llm_usage_receipt(receipt)
 
 
 # contract-test: supporting surface=rest_api assertions=billing.surface.semantic-parity
@@ -169,3 +272,46 @@ async def test_create_usage_entry_saves_image_to_html_tokens_and_duration_second
     assert created["encrypted_input_tokens"] == "enc:vault-key:1000"
     assert created["encrypted_output_tokens"] == "enc:vault-key:500"
     assert created["encrypted_code_run_duration_seconds"] == "enc:vault-key:61.25"
+
+
+# contract-test: direct surface=rest_api assertions=billing.usage.receipt-token-breakdown
+@pytest.mark.anyio
+async def test_llm_receipt_is_encrypted_and_available_through_both_owner_scoped_readers() -> None:
+    sdk = FakeDirectusSDK([])
+    usage = UsageMethods(sdk=sdk, encryption_service=RoundTripEncryption())
+    async def noop_summary(**_kwargs: Any) -> None:
+        return None
+    usage._update_monthly_summaries = noop_summary
+    usage._update_daily_summaries = noop_summary
+    receipt = _llm_receipt()
+
+    await usage.create_usage_entry(
+        user_id_hash="owner-hash", app_id="ai", skill_id="ask", usage_type="skill_execution",
+        timestamp=1780000000, credits_charged=1, user_vault_key_id="owner-key",
+        llm_usage_breakdown=receipt,
+    )
+    row = sdk.calls[0]["payload"]
+    assert "llm_usage_breakdown" not in row
+    assert json.loads(row["encrypted_llm_usage_breakdown"].removeprefix("enc:owner-key:")) == receipt
+    sdk.rows = [row]
+    live = await usage.get_user_usage_entries("owner-hash", "owner-key")
+    archived = await usage._decrypt_usage_entries([row], "owner-key")
+    assert live[0]["llm_usage_breakdown"] == receipt
+    assert archived[0]["llm_usage_breakdown"] == receipt
+    assert "llm_usage_breakdown" not in (await usage._decrypt_usage_entries([{"encrypted_credits_costs_total": "enc:owner-key:1"}], "owner-key"))[0]
+
+
+# contract-test: direct surface=rest_api assertions=billing.usage.receipt-token-breakdown
+@pytest.mark.anyio
+async def test_llm_receipt_rejects_private_supplier_metadata_before_usage_write() -> None:
+    sdk = FakeDirectusSDK([])
+    usage = UsageMethods(sdk=sdk, encryption_service=RoundTripEncryption())
+    receipt = _llm_receipt()
+    receipt["entries"][0]["supplier_cost_usd"] = "0.001"
+    result = await usage.create_usage_entry(
+        user_id_hash="owner-hash", app_id="ai", skill_id="ask", usage_type="skill_execution",
+        timestamp=1780000000, credits_charged=1, user_vault_key_id="owner-key",
+        llm_usage_breakdown=receipt, build_only=True,
+    )
+    assert result is None
+    assert sdk.calls == []

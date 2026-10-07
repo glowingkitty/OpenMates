@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "sourceDigest": "06cbdf5f8e291a94fe21c895f7df0682df69c5bc077273036d7706321895fb2c",
+  "sourceDigest": "655e12ac9e07cc86477d2e418357a3e77141570e2e11c892123e59312cc389b8",
   "providers": [
     {
       "id": "openai",
@@ -135,6 +135,9 @@
       "pricing": {
         "input_tokens_per_credit": 550,
         "output_tokens_per_credit": 300
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -167,6 +170,9 @@
       "pricing": {
         "input_tokens_per_credit": 335,
         "output_tokens_per_credit": 220
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -198,7 +204,22 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 35,
-        "output_tokens_per_credit": 7
+        "output_tokens_per_credit": 7,
+        "cache_read_tokens_per_credit": 350,
+        "cache_write_tokens_per_credit": 28,
+        "cache_write_1h_tokens_per_credit": 17
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -237,7 +258,22 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 35,
-        "output_tokens_per_credit": 7
+        "output_tokens_per_credit": 7,
+        "cache_read_tokens_per_credit": 1400,
+        "cache_write_tokens_per_credit": 28,
+        "cache_write_1h_tokens_per_credit": 17
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -281,7 +317,23 @@
       "default_server": "aws_bedrock",
       "pricing": {
         "input_tokens_per_credit": 350,
-        "output_tokens_per_credit": 70
+        "output_tokens_per_credit": 70,
+        "cache_read_tokens_per_credit": 3500,
+        "cache_write_tokens_per_credit": 280,
+        "cache_write_1h_tokens_per_credit": 175
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "aws_bedrock",
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       }
     },
     {
@@ -318,7 +370,23 @@
       "default_server": "aws_bedrock",
       "pricing": {
         "input_tokens_per_credit": 70,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 700,
+        "cache_write_tokens_per_credit": 56,
+        "cache_write_1h_tokens_per_credit": 35
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic",
+          "aws_bedrock"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "show_in_mentions": false,
       "search_aliases": [
@@ -362,7 +430,23 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 70,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 700,
+        "cache_write_tokens_per_credit": 56,
+        "cache_write_1h_tokens_per_credit": 35
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic",
+          "aws_bedrock"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "show_in_mentions": false,
       "search_aliases": [
@@ -403,7 +487,22 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 70,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 700,
+        "cache_write_tokens_per_credit": 56,
+        "cache_write_1h_tokens_per_credit": 35
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "show_in_mentions": false,
       "reasoning": true,
@@ -444,7 +543,22 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 70,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 700,
+        "cache_write_tokens_per_credit": 56,
+        "cache_write_1h_tokens_per_credit": 35
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -484,7 +598,22 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 80,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 1600,
+        "cache_write_tokens_per_credit": 64,
+        "cache_write_1h_tokens_per_credit": 40
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -527,7 +656,25 @@
       "default_server": "aws_bedrock",
       "pricing": {
         "input_tokens_per_credit": 110,
-        "output_tokens_per_credit": 20
+        "output_tokens_per_credit": 20,
+        "cache_read_tokens_per_credit": 1100,
+        "cache_write_tokens_per_credit": 88,
+        "cache_write_1h_tokens_per_credit": 55
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic",
+          "aws_bedrock"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "verified_provider_usage_pending_financial_check",
+        "expires_on": "2026-11-06",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": false,
+        "cache_write_1h_hosts": []
       },
       "show_in_mentions": false,
       "search_aliases": [
@@ -566,7 +713,23 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 170,
-        "output_tokens_per_credit": 35
+        "output_tokens_per_credit": 35,
+        "cache_read_tokens_per_credit": 1700,
+        "cache_write_tokens_per_credit": 136,
+        "cache_write_1h_tokens_per_credit": 85
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/models/sonnet-5/overview",
+        "reviewed_on": "2026-10-07",
+        "status": "verified_provider_usage_pending_financial_check",
+        "expires_on": "2026-11-07",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -609,6 +772,9 @@
           "credits": 15,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -642,6 +808,9 @@
           "credits": 15,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -673,6 +842,9 @@
       "pricing": {
         "input_tokens_per_credit": 2350,
         "output_tokens_per_credit": 1190
+      },
+      "cache_pricing": {
+        "enabled": false
       },
       "reasoning": true
     },
@@ -711,6 +883,9 @@
         "input_tokens_per_credit": 150,
         "output_tokens_per_credit": 75
       },
+      "cache_pricing": {
+        "enabled": false
+      },
       "reasoning": true
     },
     {
@@ -741,6 +916,9 @@
       "default_server": "elevenlabs",
       "pricing": {
         "per_second": 4
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -771,6 +949,9 @@
       "default_server": "elevenlabs",
       "pricing": {
         "per_second": 2
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -801,6 +982,9 @@
       "default_server": "elevenlabs",
       "pricing": {
         "per_second": 4
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -831,6 +1015,9 @@
       "default_server": "elevenlabs",
       "pricing": {
         "per_second": 2
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -861,6 +1048,9 @@
       "default_server": "elevenlabs",
       "pricing": {
         "per_second": 2
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -891,6 +1081,9 @@
       "default_server": "elevenlabs",
       "pricing": {
         "per_second": 4
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -921,6 +1114,9 @@
       "default_server": "elevenlabs",
       "pricing": {
         "per_second": 20
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -961,6 +1157,17 @@
         "input_tokens_per_credit": 650,
         "output_tokens_per_credit": 110
       },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "google_ai_studio",
+          "google"
+        ],
+        "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
+      },
       "reasoning": true
     },
     {
@@ -1000,6 +1207,9 @@
           "credits": 200,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1040,6 +1250,17 @@
         "input_tokens_per_credit": 170,
         "output_tokens_per_credit": 30
       },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "google_ai_studio",
+          "google"
+        ],
+        "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
+      },
       "reasoning": true
     },
     {
@@ -1079,6 +1300,17 @@
       "pricing": {
         "input_tokens_per_credit": 200,
         "output_tokens_per_credit": 40
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "google_ai_studio",
+          "google"
+        ],
+        "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
       },
       "reasoning": true
     },
@@ -1121,6 +1353,17 @@
         "input_tokens_per_credit": 1100,
         "output_tokens_per_credit": 130
       },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "google_ai_studio",
+          "google"
+        ],
+        "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
+      },
       "reasoning": true
     },
     {
@@ -1160,7 +1403,20 @@
       "default_server": "google_ai_studio",
       "pricing": {
         "input_tokens_per_credit": 450,
-        "output_tokens_per_credit": 90
+        "output_tokens_per_credit": 90,
+        "cache_read_tokens_per_credit": 4500
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "google_ai_studio",
+          "google"
+        ],
+        "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "expires_on": "2026-12-31"
       },
       "reasoning": true
     },
@@ -1201,7 +1457,20 @@
       "default_server": "google_ai_studio",
       "pricing": {
         "input_tokens_per_credit": 450,
-        "output_tokens_per_credit": 90
+        "output_tokens_per_credit": 90,
+        "cache_read_tokens_per_credit": 4500
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "google_ai_studio",
+          "google"
+        ],
+        "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "expires_on": "2026-12-31"
       },
       "reasoning": true
     },
@@ -1235,6 +1504,9 @@
       "pricing": {
         "input_tokens_per_credit": 335,
         "output_tokens_per_credit": 220
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1268,6 +1540,9 @@
           "credits": 60,
           "unit_name": "song"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1301,6 +1576,9 @@
           "credits": 60,
           "unit_name": "song"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1334,6 +1612,9 @@
           "credits": 120,
           "unit_name": "song"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1365,6 +1646,9 @@
       "default_server": "google_ai_studio",
       "pricing": {
         "per_second": 600
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1396,6 +1680,9 @@
       "default_server": "google_ai_studio",
       "pricing": {
         "per_second": 150
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1429,6 +1716,9 @@
           "credits": 25,
           "unit_name": "model"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1460,7 +1750,18 @@
       "default_server": "mistral",
       "pricing": {
         "input_tokens_per_credit": 490,
-        "output_tokens_per_credit": 155
+        "output_tokens_per_credit": 155,
+        "cache_read_tokens_per_credit": 4760
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "mistral"
+        ],
+        "source_url": "https://docs.mistral.ai/studio/conversations/advanced/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
       },
       "reasoning": true,
       "search_aliases": [
@@ -1503,7 +1804,18 @@
       "default_server": "mistral",
       "pricing": {
         "input_tokens_per_credit": 220,
-        "output_tokens_per_credit": 45
+        "output_tokens_per_credit": 45,
+        "cache_read_tokens_per_credit": 2200
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "mistral"
+        ],
+        "source_url": "https://docs.mistral.ai/studio/conversations/advanced/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
       }
     },
     {
@@ -1540,7 +1852,19 @@
       "default_server": "mistral",
       "pricing": {
         "input_tokens_per_credit": 2200,
-        "output_tokens_per_credit": 550
+        "output_tokens_per_credit": 550,
+        "cache_read_tokens_per_credit": 22000
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "mistral"
+        ],
+        "source_url": "https://docs.mistral.ai/studio/conversations/advanced/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "verified_provider_usage_pending_financial_check",
+        "expires_on": "2026-11-06"
       },
       "reasoning": true
     },
@@ -1572,6 +1896,9 @@
       "default_server": "mistral",
       "pricing": {
         "per_minute": 3
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1602,6 +1929,9 @@
       "default_server": "mistral",
       "pricing": {
         "per_minute": 8
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1640,6 +1970,9 @@
         "input_tokens_per_credit": 275,
         "output_tokens_per_credit": 75
       },
+      "cache_pricing": {
+        "enabled": false
+      },
       "reasoning": true
     },
     {
@@ -1677,6 +2010,9 @@
         "input_tokens_per_credit": 350,
         "output_tokens_per_credit": 80
       },
+      "cache_pricing": {
+        "enabled": false
+      },
       "reasoning": true
     },
     {
@@ -1709,6 +2045,9 @@
       "pricing": {
         "input_tokens_per_credit": 110,
         "output_tokens_per_credit": 20
+      },
+      "cache_pricing": {
+        "enabled": false
       },
       "reasoning": true
     },
@@ -1744,6 +2083,9 @@
           "credits": 250,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1776,6 +2118,16 @@
       "pricing": {
         "input_tokens_per_credit": 130,
         "output_tokens_per_credit": 20
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
       }
     },
     {
@@ -1807,7 +2159,18 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 65,
-        "output_tokens_per_credit": 10
+        "output_tokens_per_credit": 10,
+        "cache_read_tokens_per_credit": 650
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
       }
     },
     {
@@ -1839,7 +2202,20 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 1600,
-        "output_tokens_per_credit": 275
+        "output_tokens_per_credit": 275,
+        "cache_read_tokens_per_credit": 16000,
+        "cache_write_tokens_per_credit": 1280
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true
       },
       "reasoning": true
     },
@@ -1872,7 +2248,20 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 80,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 800,
+        "cache_write_tokens_per_credit": 64
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true
       },
       "reasoning": true
     },
@@ -1905,7 +2294,20 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 80,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 800,
+        "cache_write_tokens_per_credit": 64
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true
       },
       "reasoning": true
     },
@@ -1938,7 +2340,20 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 165,
-        "output_tokens_per_credit": 25
+        "output_tokens_per_credit": 25,
+        "cache_read_tokens_per_credit": 1650,
+        "cache_write_tokens_per_credit": 132
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true
       },
       "reasoning": true
     },
@@ -1971,7 +2386,20 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 33,
-        "output_tokens_per_credit": 6
+        "output_tokens_per_credit": 6,
+        "cache_read_tokens_per_credit": 330,
+        "cache_write_tokens_per_credit": 26
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -2009,7 +2437,19 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 3300,
-        "output_tokens_per_credit": 650
+        "output_tokens_per_credit": 650,
+        "cache_read_tokens_per_credit": 33000
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "verified_provider_usage_pending_financial_check",
+        "expires_on": "2026-11-06"
       },
       "reasoning": true,
       "search_aliases": [
@@ -2047,7 +2487,20 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 165,
-        "output_tokens_per_credit": 30
+        "output_tokens_per_credit": 30,
+        "cache_read_tokens_per_credit": 1650,
+        "cache_write_tokens_per_credit": 132
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -2085,7 +2538,19 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 165,
-        "output_tokens_per_credit": 30
+        "output_tokens_per_credit": 30,
+        "cache_read_tokens_per_credit": 3300
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "verified_provider_usage_pending_financial_check",
+        "expires_on": "2026-11-06"
       },
       "reasoning": true,
       "search_aliases": [
@@ -2127,6 +2592,9 @@
       "pricing": {
         "input_tokens_per_credit": 2200,
         "output_tokens_per_credit": 550
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2163,6 +2631,9 @@
       "pricing": {
         "input_tokens_per_credit": 4700,
         "output_tokens_per_credit": 1100
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2196,6 +2667,9 @@
           "credits": 50,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2229,6 +2703,9 @@
           "credits": 250,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2262,6 +2739,9 @@
           "credits": 300,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2295,6 +2775,9 @@
           "credits": 100,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2328,6 +2811,9 @@
           "credits": 15,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2363,6 +2849,9 @@
       "default_server": "typesafe",
       "pricing": {
         "input_tokens_per_credit": 7900
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2404,6 +2893,9 @@
       "pricing": {
         "input_tokens_per_credit": 150,
         "output_tokens_per_credit": 120
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2435,6 +2927,9 @@
       "pricing": {
         "input_tokens_per_credit": 275,
         "output_tokens_per_credit": 80
+      },
+      "cache_pricing": {
+        "enabled": false
       },
       "reasoning": true
     }

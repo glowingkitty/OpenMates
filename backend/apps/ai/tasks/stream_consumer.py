@@ -91,11 +91,14 @@ from backend.apps.ai.utils.embeds_map_view import (
     should_include_embeds_map_view_hint,
 )
 from backend.shared.python_utils.billing_utils import (
-    calculate_credits_from_tokens,
-    calculate_real_and_charged_costs,
+    calculate_cache_aware_supplier_cost,
+    is_cache_tariff_eligible,
+    snapshot_model_tariff,
     get_usd_per_credit,
 )
-from backend.apps.ai.processing.model_usage_tracker import calculate_model_usage_credits
+from backend.shared.python_schemas.llm_usage import normalize_provider_usage
+from backend.apps.ai.processing.model_usage_tracker import build_model_usage_breakdown
+from backend.core.api.app.services.llm_usage_receipt import settle_public_llm_usage_receipt
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
 from backend.apps.ai.llm_providers.google_client import invoke_google_chat_completions
@@ -2668,6 +2671,7 @@ def _create_redis_payload(
     category: Optional[str] = None,
     rejection_reason: Optional[str] = None,
     awaiting_focus_mode_continuation: bool = False,
+    llm_usage_breakdown: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Create standardized Redis payload for streaming chunks."""
     created_at = _assistant_response_created_at(request_data, int(time.time()))
@@ -2727,6 +2731,8 @@ def _create_redis_payload(
         payload["system_prompt_tokens"] = system_prompt_tokens
     if total_credits is not None:
         payload["total_credits"] = total_credits
+    if llm_usage_breakdown is not None:
+        payload["llm_usage_breakdown"] = llm_usage_breakdown
     
     if is_final:
         payload.update({
@@ -2897,13 +2903,21 @@ async def _charge_credits(
             )
             response = await client.post(url, json=charge_payload, headers=headers)
             response.raise_for_status()
-            logger.info(f"{log_prefix} Successfully charged {credits} credits.")
-            logger.debug(f"{log_prefix} Charge response: {response.json()}")
-            
+            settlement = response.json()
+            state = settlement.get("state", "committed")
+            if state not in {"committed", "retry_scheduled"}:
+                raise RuntimeError("Billing returned an unknown settlement state")
+            actual_debit = settlement.get("charged_credits", credits if state == "committed" else 0)
+            if type(actual_debit) is not int or actual_debit < 0 or (state == "retry_scheduled" and actual_debit != 0):
+                raise RuntimeError("Billing returned an invalid committed debit")
+            logger.info("%s Billing settlement: state=%s, requested=%s, debited=%s",
+                        log_prefix, state, credits, actual_debit)
             return {
                 "prompt_tokens": usage_details.get("input_tokens", 0),
                 "completion_tokens": usage_details.get("output_tokens", 0),
-                "total_credits": credits
+                "total_credits": actual_debit,
+                "settlement_state": "settled" if state == "committed" else "pending",
+                "requested_credits": settlement.get("requested_credits", credits),
             }
     except Exception as e:
         logger.error(f"{log_prefix} Error charging credits: {e}", exc_info=True)
@@ -3319,6 +3333,7 @@ async def _handle_normal_billing(
     tool_inference_iterations: int = 0,
     successful_model_id: Optional[str] = None,
     usage_by_model: Optional[List[Dict[str, Any]]] = None,
+    billing_reservation_required: bool = False,
 ) -> Dict[str, Any]:
     """
     Handle billing for normal processing flow.
@@ -3406,20 +3421,27 @@ async def _handle_normal_billing(
         model_id = bucket.get("model_id")
         if not isinstance(model_id, str) or not model_id:
             continue
-        model_usage_buckets.append({
-            "model_id": model_id,
-            "input_tokens": int(bucket.get("input_tokens") or 0),
-            "output_tokens": int(bucket.get("output_tokens") or 0),
-            "user_input_tokens": int(bucket.get("user_input_tokens") or 0),
-            "system_prompt_tokens": int(bucket.get("system_prompt_tokens") or 0),
-        })
+        # Preserve the attempt's normalized categories and frozen tariff. These
+        # buckets also include incurred usage from failed fallback attempts.
+        normalized_bucket = dict(bucket)
+        for name in ("input_tokens", "output_tokens", "user_input_tokens", "system_prompt_tokens"):
+            normalized_bucket[name] = int(bucket.get(name) or 0)
+        model_usage_buckets.append(normalized_bucket)
 
     if model_usage_buckets:
         input_tokens = sum(bucket["input_tokens"] for bucket in model_usage_buckets)
         output_tokens = sum(bucket["output_tokens"] for bucket in model_usage_buckets)
         user_input_tokens = sum(bucket["user_input_tokens"] for bucket in model_usage_buckets)
         system_prompt_tokens = sum(bucket["system_prompt_tokens"] for bucket in model_usage_buckets)
+    elif cumulative_input_tokens is None:
+        normalized = getattr(usage, "_normalized_llm_usage", None) or normalize_provider_usage(
+            usage, model_id=actual_model_id,
+        )
+        model_usage_buckets = [normalized.to_bucket()]
+        input_tokens = normalized.input_total
+        output_tokens = normalized.output_billable
     else:
+        # Backward-compatible callers may provide only legacy cumulative totals.
         model_usage_buckets = [{
             "model_id": actual_model_id,
             "input_tokens": input_tokens,
@@ -3430,6 +3452,8 @@ async def _handle_normal_billing(
 
     real_cost_usd = 0.0
     all_models_local = True
+    supplier_cost_complete = True
+    customer_receipt_enabled = False
     for bucket in model_usage_buckets:
         bucket_model_id = bucket["model_id"]
         if "/" in bucket_model_id:
@@ -3445,7 +3469,7 @@ async def _handle_normal_billing(
             )
             raise RuntimeError(f"Pricing configuration for provider '{provider_name}' is not available.")
 
-        model_pricing_details = celery_config.config_manager.get_model_pricing(provider_name, model_id_suffix)
+        model_pricing_details = bucket.get("tariff_snapshot") or celery_config.config_manager.get_model_pricing(provider_name, model_id_suffix)
         if not model_pricing_details:
             logger.critical(
                 f"{log_prefix} Could not find model_pricing_details for '{model_id_suffix}' "
@@ -3453,49 +3477,81 @@ async def _handle_normal_billing(
             )
             raise RuntimeError(f"Pricing details for model '{model_id_suffix}' are not available.")
 
-        pricing_rules = model_pricing_details.get("pricing", model_pricing_details)
-        bucket_raw_credits = calculate_credits_from_tokens(
-            bucket["input_tokens"],
-            bucket["output_tokens"],
-            pricing_rules,
+        if not bucket.get("tariff_snapshot"):
+            bucket["tariff_snapshot"] = snapshot_model_tariff(model_pricing_details)
+        cache_policy = model_pricing_details.get("cache_pricing", {})
+        customer_receipt_enabled = customer_receipt_enabled or is_cache_tariff_eligible(
+            cache_policy, bucket.get("inference_host"),
         )
-        bucket_costs = calculate_real_and_charged_costs(
-            input_tokens=bucket["input_tokens"],
-            output_tokens=bucket["output_tokens"],
+        bucket_costs = calculate_cache_aware_supplier_cost(
+            usage=bucket,
             model_pricing_details=model_pricing_details,
-            total_credits_charged=0,
-            pricing_config=pricing_config,
+            inference_host=bucket.get("inference_host"),
+            region=bucket.get("region"),
+            service_tier=bucket.get("service_tier"),
         )
-        real_cost_usd += bucket_costs["real_cost_usd"]
+        real_cost_usd += float(bucket_costs["cost_usd"])
+        supplier_cost_complete = supplier_cost_complete and bucket_costs["complete"]
         all_models_local = all_models_local and bool(
             model_pricing_details.get("local") or model_pricing_details.get("self_hosted")
         )
         logger.info(
             f"{log_prefix} Billing bucket: model={bucket_model_id}, "
             f"input={bucket['input_tokens']}, output={bucket['output_tokens']}, "
-            f"raw_credits={bucket_raw_credits:.6f}"
+            f"supplier_cost_complete={bucket_costs['complete']}"
+        )
+        # Numeric shadow evidence supports rollout calibration even while the
+        # customer tariff is inactive. Never include prompts or provider IDs.
+        logger.info(
+            "%s LLM_BILLING_SHADOW %s", log_prefix,
+            json.dumps({
+                "model_id": bucket_model_id,
+                "inference_host": bucket.get("inference_host"),
+                "region": bucket.get("region"),
+                "usage_source": bucket.get("usage_source"),
+                "input_tokens": bucket["input_tokens"],
+                "uncached_input_tokens": bucket.get("uncached_input_tokens"),
+                "cache_read_input_tokens": bucket.get("cache_read_input_tokens"),
+                "cache_creation_input_tokens": bucket.get("cache_creation_input_tokens"),
+                "cache_creation_5m_input_tokens": bucket.get("cache_creation_5m_input_tokens"),
+                "cache_creation_1h_input_tokens": bucket.get("cache_creation_1h_input_tokens"),
+                "output_tokens": bucket["output_tokens"],
+                "supplier_cost_usd": str(bucket_costs["cost_usd"]),
+                "supplier_cost_complete": bucket_costs["complete"],
+                "supplier_cost_upper_bound_usd": bucket_costs.get("cost_upper_bound_usd"),
+                "supplier_upper_bound_complete": bucket_costs.get("upper_bound_complete"),
+            }, sort_keys=True),
         )
 
     # This is one user-visible AI usage charge even when provider fallback creates
     # several pricing buckets. Sum fractional credits first, then apply the normal
     # floor/minimum exactly once to avoid per-provider rounding distortion.
-    credits_charged = calculate_model_usage_credits(
+    llm_usage_breakdown = build_model_usage_breakdown(
         model_usage_buckets,
         celery_config.config_manager.get_model_pricing,
         default_provider=usage_provider_name,
     )
-    credits_charged = _enforce_workflow_credit_allowance(request_data, credits_charged)
+    requested_credits = llm_usage_breakdown["credits_charged"]
+    output_tokens = llm_usage_breakdown["output_tokens"]
+    credits_charged = _enforce_workflow_credit_allowance(request_data, requested_credits)
+    llm_usage_breakdown = settle_public_llm_usage_receipt(llm_usage_breakdown, credits_charged)
+    if credits_charged != requested_credits:
+        llm_usage_breakdown["requested_credits"] = requested_credits
     charged_cost_usd = credits_charged * get_usd_per_credit()
     costs = {
         "real_cost_usd": real_cost_usd,
         "charged_cost_usd": charged_cost_usd,
-        "margin_usd": charged_cost_usd - real_cost_usd,
+        # Credit-pack settlement/FX and bundled phase costs are not measured
+        # here. A partial supplier estimate is not a realized profit figure.
+        "margin_usd": None,
+        "supplier_cost_complete": supplier_cost_complete,
     }
 
     logger.info(f"{log_prefix} Billing calculation: "
                 f"Input Tokens: {input_tokens}, Output Tokens: {output_tokens}, "
                 f"Credits Charged: {credits_charged}, Real Cost: ${costs['real_cost_usd']:.6f}, "
-                f"Charged Cost: ${costs['charged_cost_usd']:.6f}, Margin: ${costs['margin_usd']:.6f}")
+                f"Charged Value Estimate: ${costs['charged_cost_usd']:.6f}, "
+                f"Supplier Cost Complete: {supplier_cost_complete}")
 
     # Prepare usage details for billing
     usage_details = {
@@ -3507,6 +3563,7 @@ async def _handle_normal_billing(
         "output_tokens": output_tokens,
         "user_input_tokens": user_input_tokens,
         "system_prompt_tokens": system_prompt_tokens,
+        **({"llm_usage_breakdown": llm_usage_breakdown} if customer_receipt_enabled else {}),
         "api_key_name": request_data.api_key_name,
         "external_request": request_data.is_external,
         # Provider/region metadata was resolved for the preprocessor-selected
@@ -3514,6 +3571,7 @@ async def _handle_normal_billing(
         "server_provider": preprocessing_result.server_provider_name if used_preprocessor_model else None,
         "server_region": preprocessing_result.server_region if used_preprocessor_model else None,
         "tool_inference_iterations": tool_inference_iterations,
+        **({"reservation_required": True} if billing_reservation_required else {}),
     }
 
     if all_models_local:
@@ -3528,14 +3586,24 @@ async def _handle_normal_billing(
         )
         await _settle_anonymous_ai_credits(task_id, request_data, credits_charged)
     else:
-        await _charge_credits(task_id, request_data, credits_charged, usage_details, log_prefix)
+        settlement = await _charge_credits(task_id, request_data, credits_charged, usage_details, log_prefix)
+        credits_charged = settlement.get("total_credits", credits_charged)
+        # The persisted receipt is normalized by the transaction to the actual
+        # debit. A deferred charge must not be announced as already debited.
+        llm_usage_breakdown = settle_public_llm_usage_receipt(llm_usage_breakdown, credits_charged)
+        if settlement.get("settlement_state") == "pending":
+            llm_usage_breakdown["settlement_state"] = "pending"
+            llm_usage_breakdown["requested_credits"] = settlement.get("requested_credits", requested_credits)
+        elif credits_charged != requested_credits:
+            llm_usage_breakdown["requested_credits"] = requested_credits
     
     return {
         "prompt_tokens": input_tokens,
         "completion_tokens": output_tokens,
         "user_input_tokens": user_input_tokens,
         "system_prompt_tokens": system_prompt_tokens,
-        "total_credits": credits_charged
+        "total_credits": credits_charged,
+        **({"llm_usage_breakdown": llm_usage_breakdown} if customer_receipt_enabled else {}),
     }
 
 async def _generate_fake_stream_for_harmful_content(
@@ -5400,6 +5468,7 @@ async def _consume_main_processing_stream(
     tool_inference_iterations: int = 0
     successful_model_id: Optional[str] = None
     usage_by_model: List[Dict[str, Any]] = []
+    billing_reservation_required = False
 
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
     thinking_channel_name = f"chat_stream_thinking::{request_data.chat_id}"  # Separate channel for thinking content
@@ -5894,6 +5963,10 @@ async def _consume_main_processing_stream(
                 successful_model_id = chunk.get("successful_model_id")
                 raw_usage_by_model = chunk.get("usage_by_model")
                 usage_by_model = raw_usage_by_model if isinstance(raw_usage_by_model, list) else []
+                billing_reservation_required = (
+                    billing_reservation_required
+                    or chunk.get("billing_reservation_required") is True
+                )
                 logger.info(
                     f"{log_prefix} Received cumulative LLM usage sentinel: "
                     f"input={cumulative_input_tokens}, output={cumulative_output_tokens}, "
@@ -9953,6 +10026,7 @@ async def _consume_main_processing_stream(
                     tool_inference_iterations=tool_inference_iterations,
                     successful_model_id=successful_model_id,
                     usage_by_model=usage_by_model,
+                    billing_reservation_required=billing_reservation_required,
                 )
         except Exception as e:
             # CRITICAL: Don't let billing errors prevent the final chunk from being sent
@@ -10080,7 +10154,8 @@ async def _consume_main_processing_stream(
         user_input_tokens=billing_info.get("user_input_tokens"),
         system_prompt_tokens=billing_info.get("system_prompt_tokens"),
         total_credits=billing_info.get("total_credits"),
-        category=preprocessing_result.category or "general_knowledge"
+        category=preprocessing_result.category or "general_knowledge",
+        llm_usage_breakdown=billing_info.get("llm_usage_breakdown"),
     )
     # This is the title already supplied/generated for this inference. It is
     # never recovered by decrypting the permanently stored chat title.

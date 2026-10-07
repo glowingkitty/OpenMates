@@ -1,0 +1,351 @@
+schema_version: 1
+kind: research_and_implementation_reference
+status: draft
+plan: plan.yml
+as_of: '2026-10-06'
+purpose: Separate cache read/write pricing and receipts for the four requested providers while preserving funded contribution.
+authorization: User approved authenticated reservations, bundled auxiliary accounting and verified OpenAI read discounts with unreported writes included in ordinary input on 2026-10-07. plan.yml records accepted scope; flags remain disabled until route and financial checks pass.
+working_assumption: Preserve a protected margin percentage plus a minimum contribution. The optional user preference remains unconfirmed; alternatives are evaluated below.
+
+recommendation:
+  pricing: >-
+    Publish fixed rates for ordinary input, verified cache reads, writes with
+    their retention, and output. Price paid writes instead of ordinary input for
+    those tokens, never on top of it. Keep implicit Google and Mistral writes
+    included in ordinary input, because neither provides a separately billable
+    implicit-write category. Google explicit storage needs its own disclosed
+    price or a bounded retention price bundled into the write operation.
+  rollout: Normalize and shadow costs first; improve stable prefixes; calibrate tariffs/reservations; publish receipts and all client surfaces; activate model/route groups gradually. Evaluate Google explicit resources after implicit savings.
+  margin: Proportional category pricing preserves the supplier markup ratio before overhead and rounding. It does not prove OpenMates net margin; fixed work, all inference phases, funding, fees, FX, and promotions must be covered.
+
+provider_design:
+  google:
+    hosts: [google_ai_studio, google]
+    current: Implicit caching is available; cached_content_token_count and thoughts_token_count are lost. No explicit cache objects are created/referenced.
+    phase_one:
+      - Keep implicit caching, make the leading prefix stable, preserve cached_content_token_count.
+      - Treat prompt_token_count as inclusive; uncached = total minus reported reads. The remainder is ordinary input, not a fabricated write count.
+      - Add thoughts_token_count to billable output when candidates_token_count excludes it; do not add thinking twice to providers with inclusive output.
+      - Distinguish provider hosting, actual Vertex SDK location, model revision, context tier, modality, and service tier.
+    phase_two_explicit:
+      - Introduce a server cache-resource manager for create, reuse, reference, expiry, and deletion on each host; use Google SDK caches.create and GenerateContentConfig.cached_content.
+      - Represent the prefix as structured system/tools/contents. Do not resend cached system/tools/prefix as live input; the resource reference supplies them.
+      - Scope resources to authorized owner/project/conversation and exact prefix version. Store only opaque resource handles, hashes, ownership, reported token count, and expiration; do not retain another plaintext prompt copy.
+      - Lock concurrent creation, reserve the entire bounded TTL liability first, keep a strict TTL/cache-count/storage budget, and avoid unbounded automatic renewals.
+      - Recheck authorization before use; stop reuse on membership/context changes, promptly delete handles on revocation where supported, and retain the existing provider retention/residency policy.
+      - Record resource fill once as a write operation, including all creation processing; reference requests separately record reads. Idempotent creation/charge handling must recover from provider success with an interrupted API response.
+      - Reconcile deletion/TTL billing, concurrent failures, duplicate resource creation, and any refundable prepaid storage in the internal cost ledger.
+    public_write_label_implicit: Included in ordinary input; no separate cache-write fee.
+    public_write_label_explicit: Cache write with stated retention; creation and bounded storage included, reads charged separately.
+    costs:
+      gemini_3_8_flash_ai_studio_standard_usd_per_million:
+        through_2026_12_31: {input: '0.75', read: '0.075', output: '3.75', explicit_storage_per_hour: '0.50'}
+        from_2027_01_01: {input: '1.50', read: '0.15', output: '7.50', explicit_storage_per_hour: '1.00'}
+      gemini_3_8_flash_vertex_standard:
+        global_intro_effective_usd_per_million: {input: '0.75', read: '0.075', output: '3.75'}
+        non_global_intro_effective_usd_per_million: {input: '0.825', read: '0.0825', output: '4.125'}
+        global_non_promotional_usd_per_million: {input: '1.50', read: '0.15', output: '7.50'}
+        explicit_storage_usd_per_million_token_hour: '1.00'
+        qualification: Vertex describes introductory discounts as credits back on eligible net spend. Admission/cash exposure must use undiscounted costs until eligibility and posting are reconciled; do not assume AI Studio storage or region rates.
+    break_even_explicit: 'N references are cheaper than N cold prefixes only if N > (input_rate + storage_rate * retained_hours) / (input_rate - read_rate). Every reference, including the first, pays reads after the one-time fill.'
+    explicit_examples:
+      - AI Studio Flash introductory rates, one-hour retention, prefix only; two references beat two cold prefixes, but cost more than equally successful implicit caching because implicit storage is free.
+      - Vertex effective introductory rates and one-hour storage; three references are needed to beat cold prefixes. Credit-back eligibility must first be established.
+    sources:
+      - https://ai.google.dev/gemini-api/docs/caching
+      - https://ai.google.dev/gemini-api/docs/pricing
+      - https://ai.google.dev/api/generate-content#UsageMetadata
+      - https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/context-cache/context-cache-overview
+      - https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing
+
+  openai:
+    hosts: [openai_direct]
+    current: Both Responses and Chat Completions discard cache details; application sends no explicit mode/breakpoints or scoped cache key.
+    implementation:
+      - Normalize Responses input_tokens_details and Chat prompt_tokens_details, including cached_tokens and cache_write_tokens where supported.
+      - On supported GPT-5.6+ models, use explicit-only mode with a breakpoint after the reusable prefix to avoid paid writes for the changing suffix. Put a reusable developer instruction in a supported input_text block, not unmarkable top-level instructions.
+      - Keep model/API capability rules; older models have implicit caching without the new write surcharge. Do not send unsupported cache controls or invent write usage.
+      - Preserve explicit boundaries across turns, tool loops, and forks. Support at most four writes per request, model minimums, and the documented retention/key behavior.
+    minimum_example_tokens: 1024
+    retention_example: GPT-5.6+ supports a 30-minute minimum TTL, refreshed on reads; check model-specific controls before enabling.
+    gpt_6_1_sol_standard_usd_per_million: {input: '2.00', read: '0.10', write: '2.50', output: '10.00'}
+    qualifications: Greater than 272k input changes full-request input/cache costs to 2x and output to 1.5x; fast, regional, flex/batch tiers need independent tariffs. These examples use ordinary standard context.
+    sources:
+      - https://developers.openai.com/api/docs/guides/prompt-caching
+      - https://developers.openai.com/api/docs/models/gpt-6.1-sol
+
+  anthropic:
+    hosts: [anthropic_direct, aws_bedrock]
+    current: Direct adapter marks system and every long message without a four-marker cap. Native cache input is excluded from standard input but is ignored by main billing. Direct streaming misses message_start usage. Bedrock has no application cachePoint and drops cache counters; current AWS documentation also lists implicit caching availability.
+    implementation:
+      - Explicit stable-prefix breakpoints, at most four, model-specific thresholds and 20-block lookup behavior. Do not put a changing clock before reusable history or cache the whole changing system block.
+      - Merge direct message_start and message_delta top-level usage into one final record. Split writes by reported ephemeral_5m_input_tokens and ephemeral_1h_input_tokens; never charge the aggregate plus its TTL parts.
+      - For Converse, append cachePoint after the reusable system/message/tool block; generic cache_control does not survive its converter. Parse cacheReadInputTokens, cacheWriteInputTokens, and cacheDetails TTL attribution; validate actual SDK fixtures for each model.
+      - Anthropic and Bedrock inputTokens are exclusive of reported cache reads/writes; normalized total input is their sum. Missing TTL attribution on an enabled paid-write route requires a known single permitted TTL or conservative internal cost attribution with explicit receipt provenance.
+      - Default to five minutes initially. Add one hour only where reuse within the longer window offsets its 2x write cost; never silently extend retention based on a presumed saving.
+    direct_multipliers: {write_5m: '1.25', write_1h: '2.00', read: Model-specific; usually 0.10, Opus 5.5 0.05, Fable 5.1 0.025}
+    direct_opus_5_5_usd_per_million: {input: '4.00', read: '0.20', write_5m: '5.00', write_1h: '8.00', output: '20.00'}
+    preferred_bedrock_eu_profile_usd_per_million:
+      haiku_4_5: {input: '1.10', read: '0.11', write_5m: '1.375', write_1h: '2.20', output: '5.50', minimum_prefix_tokens: 4096}
+      sonnet_4_6: {input: '3.30', read: '0.33', write_5m: '4.125', write_1h: '6.60', output: '16.50', minimum_prefix_tokens: 1024}
+      opus_4_6: {input: '5.50', read: '0.55', write_5m: '6.875', write_1h: '11.00', output: '27.50', minimum_prefix_tokens: 4096}
+    accounting_change: Existing generic costs reflect lower global/direct rates on these EU profiles. Fix route costs and disclose prospective correction for missing input; never retroactively charge old receipts.
+    sources:
+      - https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+      - https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-caching.html
+      - https://www-cdn.anthropic.com/files/4zrzovbb/website/3684c2faafb97418665782cea0001f439f74b1d2.pdf
+
+  mistral:
+    hosts: [mistral_direct]
+    current: No stable prompt_cache_key is sent; prompt_tokens_details.cached_tokens is discarded.
+    implementation:
+      - Supply an opaque stable owner/conversation/prefix-scoped prompt_cache_key; preserve exact serialized prefix, tools and content. A key improves reuse but does not guarantee a hit.
+      - Normalize cached_tokens within inclusive prompt_tokens; ordinary input is the remainder. Do not fabricate paid writes, storage, or a retention guarantee absent documented terms.
+      - Use model-card/pricing cached rates rather than multiplying every model by exactly 0.10; Large 4 is rounded to 0.07/0.68.
+    minimum_prefix_tokens: 64
+    cache_token_blocks: 64
+    standard_usd_per_million:
+      large_4_intro: {input: '0.68', read: '0.07', output: '2.09'}
+      large_4_non_sale: {input: '1.36', read: '0.14', output: '4.18'}
+      small_4: {input: '0.15', read: '0.015', output: '0.60'}
+      medium_3_5: {input: '1.50', read: '0.15', output: '7.50'}
+    public_write_label: Included in ordinary input; no separate cache-write fee.
+    qualification: Large 4 is currently a public-preview sale; no expiry was verified. Require price revalidation and a conservative non-sale liability bound before activation.
+    sources:
+      - https://docs.mistral.ai/studio/conversations/advanced/prompt-caching
+      - https://docs.mistral.ai/inference/pricing
+      - https://docs.mistral.ai/models/mistral-large-4-0
+
+pricing_policies:
+  recommended_proportional:
+    read_user_rate: 'existing_input_credit_rate * supplier_read_rate / supplier_input_rate'
+    write_user_rate: 'existing_input_credit_rate * supplier_write_rate / supplier_input_rate'
+    meaning: Retain the input markup ratio for each mutually exclusive category; output rate stays unchanged initially. This is a candidate, not activation authority or a net-margin guarantee.
+  half_read_rate_savings:
+    read_user_rate: 'existing_input_credit_rate * (1 - 0.5 * (1 - supplier_read_rate / supplier_input_rate))'
+    write_user_rate: Same paid-write rate as the proportional policy.
+    meaning: Leaves greater contribution per hit; saves approximately half as many credits on a warm request. This differs from passing half the supplier dollar saving.
+  preserve_prior_absolute_contribution:
+    formula: 'target_credits = ceil((actual_all_in_cost + previous_reference_contribution) / net_value_per_credit)'
+    tradeoff: Smaller discounts; depends on actual funded credit value and a properly accounted uncached reference. Any service/contribution component must be published before dispatch, not hidden in a post-response floor.
+  minimum_contribution:
+    floor: 'ceil(max(all_in_cost / (1 - target_margin), all_in_cost + minimum_contribution) / conservative_net_value_per_credit)'
+    how_to_publish: Calibrate fixed category rates plus a disclosed minimum charge or service component before activation. If a quoted tariff fails the cost bound, reject/limit future admission or publish a new version; never secretly change completed prices.
+    inputs_needed: [net payment settlement by pack and region, FX stress bound, payment fees and taxes, auxiliary and retry cost, variable infrastructure, funded promotional credits, reserve, numerical margin and contribution targets]
+  rounding: Preserve the existing floor-once plus one-credit minimum unless its contract is changed. Keep exact rational/decimal category amounts until aggregation; any required ceil margin floor is a separate disclosed policy and must not be silently introduced as a rounding change.
+  google_explicit_write_with_retention: 'write_credit_rate_per_million = ordinary_input_credit_rate_per_million * (1 + storage_usd_per_million_hour * prepaid_hours / supplier_input_usd_per_million)'
+  google_explicit_disclosure: One-time fill with its prepaid retention, then separate reads. Additional renewal requires another disclosed bounded storage purchase. Never bill ordinary input again for the same fill tokens.
+
+representative_models:
+  - id: gemini-3.8-flash
+    provider_file: google.yml
+    label: Gemini 3.8 Flash
+    mode: implicit
+    input_tokens_per_credit: 450
+    output_tokens_per_credit: 90
+    supplier_input: '0.75'
+    supplier_read: '0.075'
+    supplier_output: '3.75'
+    supplier_write: null
+    minimum_prefix_tokens: 4096
+    proposed_read_tokens_per_credit: 4500
+    proposed_write_tokens_per_credit: null
+  - id: gpt-6.1-sol
+    provider_file: openai.yml
+    label: GPT-6.1 Sol
+    mode: read_discount_writes_included
+    input_tokens_per_credit: 165
+    output_tokens_per_credit: 30
+    supplier_input: '2.00'
+    supplier_read: '0.10'
+    supplier_output: '10.00'
+    supplier_write: '2.50'
+    minimum_prefix_tokens: 1024
+    proposed_read_tokens_per_credit: 3300
+    proposed_write_tokens_per_credit: null
+  - id: claude-opus-5-5
+    provider_file: anthropic.yml
+    label: Claude Opus 5.5
+    mode: paid_write
+    input_tokens_per_credit: 80
+    output_tokens_per_credit: 15
+    supplier_input: '4.00'
+    supplier_read: '0.20'
+    supplier_output: '20.00'
+    supplier_write: '5.00'
+    minimum_prefix_tokens: 512
+    proposed_read_tokens_per_credit: 1600
+    proposed_write_tokens_per_credit: 64
+    proposed_write_1h_tokens_per_credit: 40
+  - id: mistral-large-4
+    provider_file: mistral.yml
+    label: Mistral Large 4
+    mode: implicit
+    input_tokens_per_credit: 490
+    output_tokens_per_credit: 155
+    supplier_input: '0.68'
+    supplier_read: '0.07'
+    supplier_output: '2.09'
+    supplier_write: null
+    minimum_prefix_tokens: 64
+    proposed_read_tokens_per_credit: 4760
+    proposed_write_tokens_per_credit: null
+
+scenario_assumptions:
+  main_example: 100000 input tokens, 1000 billable output tokens, 80000 unchanged reusable prefix; one cold call followed by nine reported hits, all within retention.
+  baseline: Correctly accounted uncached reference at existing ordinary input/output rates, not the current undercounting on some Anthropic paths.
+  lower_bound: No measured production hit rate. Smaller prompts, output-heavy turns, changing tools, compression, expiry, and fallback routing reduce savings; no hit means no read discount.
+  paid_write_downside: At 80 percent written input, a cold five-minute/1.25x Claude write request is approximately 19 percent more expensive for users. OpenAI's same supplier premium is absorbed within ordinary input under the approved policy; repeated expired writes reduce our contribution.
+  excluded_from_example: Auxiliary inference, infrastructure, funding/FX/payment effects, minimum contribution, provider price changes, and Google explicit storage.
+  artifacts: [simulate.py, scenarios.csv]
+
+configured_scope:
+  source: Provider YAML inventory at the audited repository head, not verified active production traffic.
+  google:
+    in_scope_gemini: [gemini-3-flash-preview, gemini-3.7-flash, gemini-3.8-flash, gemini-3.1-pro-preview, gemini-3.5-flash, gemini-3.5-flash-lite]
+    outside_requested_host_scope: Gemma 4 31B routes to Cerebras; Google publication does not make it an AI Studio/Vertex cache tariff.
+    per_model_requirement: Add cache supplier/public rates currently missing in YAML; verify minimum prefix, modality and long-context rate for each Gemini rather than copying Flash introductory terms.
+  openai:
+    paid_write_candidates: [gpt-6-astra, gpt-6.1-sol, gpt-6-sol, gpt-6-luna, gpt-5.6-luna, gpt-5.6-terra, gpt-5.6-sol, gpt-5.6-sol-max]
+    earlier_implicit_candidates: [gpt-5.5, gpt-5.4]
+    outside_requested_host_scope: GPT-OSS 120B/20B are served via Bedrock/OpenRouter, not the native OpenAI API. Normalize them without asserting identical caching prices or controls.
+    per_model_requirement: Verify both API contracts and model threshold/context/retention rates; GPT-5.4 lacks cached cost metadata and must not inherit an invented zero or GPT-6.1 Sol ratio.
+  anthropic:
+    direct_candidates: [claude-fable-5-1, claude-fable-5, claude-opus-5-5, claude-opus-5, claude-sonnet-5, claude-haiku-4-5-20251001, claude-sonnet-4-6, claude-opus-4-6, claude-opus-4-7, claude-opus-4-8]
+    preferred_bedrock: [claude-haiku-4-5-20251001, claude-sonnet-4-6, claude-opus-4-6]
+    per_model_requirement: Preserve each model read multiplier, minimum prefix and supported host/TTL; cost EU Bedrock profiles separately from direct. Verify additional Bedrock fallback model capability before admission.
+  mistral:
+    direct_candidates: [mistral-large-4, mistral-small-latest, mistral-medium-latest]
+    current_served_families: [Large 4, Small 4, Medium 3.5]
+    per_model_requirement: Add Small 4 and Medium 3.5 read costs from official pricing, resolve latest aliases to versioned effective models, and revalidate Large 4 sale pricing.
+
+architecture:
+  normalized_usage:
+    location: Shared provider usage contract and billing schema
+    fields: [input_total, input_uncached, cache_read, cache_write_by_retention, output_billable, output_reasoning_subset, provider_host, upstream_model, region, tier, modality, context_band, provider_request_id, attempt_id, phase, usage_provenance, completeness, tariff_version]
+    invariants:
+      - Total input equals uncached plus reads plus writes. Categories never overlap, including legacy aliases and TTL subtotals.
+      - Provider-reported zero differs from unsupported/missing usage. Do not apply a fabricated cache discount to an estimate.
+      - Merge cumulative streaming usage, then emit exactly one final normalized record per invocation. Retries and tool iterations have distinct attempt identities.
+      - Output includes paid reasoning once; visible output and reasoning subsets never add to an already-inclusive provider total.
+    incomplete_attempt: Track an estimated upper cost bound for internal liability and reconciliation. Do not invent customer token counts; reserve uncertainty and preserve the approved partial-failure charge policy.
+  prompt_cache_context:
+    entrypoints: [backend/apps/ai/utils/llm_utils.py:962, backend/apps/ai/utils/llm_utils.py:1589]
+    design: Optional typed context with structured stable instructions/tools/history, explicit boundary, model capability, permitted retention, and opaque owner-scoped key. Translate per adapter; do not pass unsupported generic kwargs to every callable.
+    system_mapping: Both main and preprocessing dispatch currently pass one joined system string; Anthropic/Bedrock/Google converters must preserve stable and dynamic segments without dropping later system text or altering instruction priority.
+    clock_and_history: Separate fresh current-time/context suffix from immutable instructions. A changing suffix before chat history still prevents history reuse; use bounded temporal updates/append-only context where semantically safe, and measure system-only versus history reuse. Never freeze the actual time or authorization context.
+    compression: Compression may invalidate a prefix while lowering total token cost. Retain token-saving compression; do not optimize hit percentage at the expense of total spend.
+  tariff_catalog:
+    owners: [backend/providers/google.yml, backend/providers/openai.yml, backend/providers/anthropic.yml, backend/providers/mistral.yml, backend/core/api/app/utils/config_manager.py, backend/shared/python_utils/billing_utils.py]
+    design: Keep private route supplier costs separate from public user credit rates. A versioned resolver handles model revision, actual host/upstream, location, context band, modality, tier, retention, effective date, expiry, and metric availability.
+    route_pricing: Prefer one published per-model user tariff that is safe across admitted fallback hosts, while supplier costs remain route-specific. If a route needs different user pricing, disclose/select its variant and reserve the maximum accepted fallback price before dispatch; no surprise repricing.
+    snapshot: Freeze public tariff and private cost version per attempt before the provider call. Settlement/retries/outbox replay use that snapshot, not the latest YAML. Reject expired unverified configurations at admission.
+    public_source: Runtime backend catalog is the billing authority; generated web/native catalogs carry version/effective dates and refresh against it. The billed receipt always contains its exact charged version.
+  aggregation_and_charge:
+    paths:
+      - backend/apps/ai/processing/model_usage_tracker.py:52
+      - backend/apps/ai/processing/main_processor.py:5235
+      - backend/apps/ai/processing/main_processor.py:9949
+      - backend/apps/ai/tasks/stream_consumer.py:3405
+      - backend/shared/python_utils/billing_utils.py:84
+    changes: Aggregate normalized usage by actual attempt/route/tariff, preserve it through the final sentinel, calculate category credits once, and atomically commit the same receipt with personal or team debit. Count all supplier-paid phases internally even where their customer fee is bundled.
+    other_callers: Inventory OpenAI-compatible client-tool billing, workflow authoring, account imports, anonymous quotes, preprocessing/postprocessing/compression, and image-to-HTML. Migrate shared semantics or explicitly retain a validated ordinary-only tariff; do not claim global parity with old independent calculators.
+  reservation:
+    paths: [backend/apps/ai/processing/main_processor.py:2062, backend/apps/ai/processing/main_processor.py:2113, backend/apps/ai/processing/main_processor.py:2296]
+    design: Replace standard-input-only quoting with worst admitted cold write/retention, maximum billable output/reasoning, fallback context/host tariffs, bounded retries, auxiliary budgets, and explicit-cache storage liability. Release unused reservation after final settlement.
+    behavior_preserved: Preserve existing atomic personal/team funding checks, authorized personal overdraft, anonymous hard caps, and idempotent recovery. Changing those limits is a separate product decision.
+  receipt_persistence:
+    new_field: Encrypted structured llm_usage_breakdown JSON with schema_version and immutable public itemized usage/rates/fractional amounts/rounding allocation.
+    paths:
+      - backend/core/directus/schemas/usage.yml:100
+      - backend/core/api/app/services/billing_service.py:417
+      - backend/core/api/app/services/team_billing_service.py:109
+      - backend/core/api/app/services/directus/usage.py:245
+      - backend/core/api/app/services/directus/usage.py:1350
+      - backend/core/api/app/services/directus/usage.py:1911
+      - backend/core/api/app/services/usage_overview_service.py:56
+      - backend/core/api/app/services/usage_archive_service.py:92
+      - backend/core/api/app/routes/settings.py:1909
+    compatibility: Add optional schema fields, extend both save/decrypt and service allowlists, REST/detail/chat/CSV/archives. Old entries show unavailable cache breakdown, not invented zeros; immutable historical totals remain unchanged.
+    charge_reconciliation: Input category counts sum to total input. Fractional credit rows plus a rounding/minimum adjustment sum exactly to the committed integer credits, or use deterministic largest-remainder allocation. Token-composition rows are a separate view, never additional charges.
+    privacy: Public receipts contain charged credit rates, not private supplier costs or prompt text. Minimal private cost/provenance ledger has the existing restricted ownership/access policy, encryption, retention, and immutable operation identity.
+  client_surfaces:
+    metadata:
+      - frontend/packages/ui/scripts/generate-models-metadata.js
+      - frontend/packages/ui/src/data/modelsMetadata.d.ts
+      - backend/shared/python_schemas/app_metadata_schemas.py
+      - frontend/packages/ui/src/types/apps.ts
+      - backend/core/api/app/routes/apps_api.py
+      - backend/core/api/app/routes/internal_api.py
+      - backend/core/api/app/routes/openai_compat.py
+    pricing_ui:
+      - frontend/packages/ui/src/components/settings/AiAskModelDetails.svelte
+      - frontend/packages/ui/src/components/settings/AppSkillModelDetails.svelte
+      - frontend/packages/ui/src/components/apps/AppsSkillForm.svelte
+      - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    receipt_ui:
+      - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+      - frontend/packages/ui/src/types/chat.ts
+      - frontend/packages/ui/src/components/chats/chatUsageRows.ts
+    transport: Extend final websocket usage payload and REST schemas with an optional itemized receipt, plus CLI ws.ts/client.ts and npm/pip SDK types; pass-through routes still need contract/documentation checks.
+    apple: Update generated native catalog schema and NativeModelCatalog/NativeComposerModelDetails, settings model pricing, SettingsBillingView, and ChatSettingsUsageModel; match web rate/receipt semantics and unknown legacy states.
+    public_rows: [Ordinary input, Cache read, Cache write with retention or included label, Output including billable thinking]
+    conditional_rows: [Explicit storage or bundled prepaid retention, Service or minimum-charge adjustment if calibrated and approved]
+    rate_display: Prefer credits per 1000 tokens plus an optional existing tokens-per-credit conversion; show write retention, valid version/date, and caching availability. Fractional precision must not imply a different integer charge.
+
+implementation_outcomes:
+  - outcome: Approved cache pricing/receipt contract and calibrated economics
+    dependencies: []
+    deliverable: Extend feature.billing examples/assertions and approve exact review; establish net-credit value, margin/minimum targets, route rates, rounding, contribution disclosure, and maximum liability.
+  - outcome: Trustworthy normalized provider usage and shadow cost ledger
+    dependencies: []
+    deliverable: Both streaming/nonstreaming APIs, direct/Bedrock Claude, Google thinking, all attempts/phases, private cost snapshots, fixture validation and invoice reconciliation. No customer pricing switch yet.
+  - outcome: Stable prompt segments and provider cache controls
+    dependencies: [Trustworthy normalized provider usage and shadow cost ledger]
+    deliverable: Capability-gated explicit boundaries/keys with privacy and temporal semantics preserved; dev-only bounded real cache validation.
+  - outcome: Versioned category pricing, budget reservation, and atomic receipts
+    dependencies: [Approved cache pricing/receipt contract and calibrated economics, Trustworthy normalized provider usage and shadow cost ledger]
+    deliverable: Shared tariff resolver, cold/retry/storage liability, personal/team charges, persisted/decrypted/archived immutable receipt, legacy compatibility and other billing callers.
+  - outcome: Identical public pricing and usage details across clients
+    dependencies: ['Versioned category pricing, budget reservation, and atomic receipts']
+    deliverable: Generated catalog/backend APIs, web disclosures/exports, websocket/CLI/npm/pip schemas, Apple catalog/settings; matching exact total and rate versions.
+  - outcome: Gradual separate-cache pricing activation
+    dependencies: [Stable prompt segments and provider cache controls, Identical public pricing and usage details across clients]
+    deliverable: Shadow-versus-final comparison, funded promotions, per-model/route flags, cold-cache stress evidence, clear prospective accounting correction, price-expiry checks and rollback preserving old receipts.
+  - outcome: Optional bounded Google explicit-cache retention pricing
+    dependencies: [Gradual separate-cache pricing activation]
+    deliverable: Only for eligible reference-heavy use cases with lower measured all-in cost than implicit misses; prepaid retention lifecycle and storage reconciliation.
+tracking: Proposed independent outcomes/dependencies only. Create implementation Tasks after that work is authorized; OpenMates Tasks remains the sole status ledger.
+
+future_contract_examples:
+  owner: specifications/features/billing
+  current_assertions: [billing.usage.receipt-token-breakdown, billing.surface.semantic-parity]
+  candidates:
+    - given: A 100000-token input contains 20000 ordinary tokens, 60000 cache reads, and 20000 newly written tokens.
+      when: The completed request is charged and its receipt is opened in any supported client.
+      then: Three mutually exclusive input rows sum to 100000, each uses its frozen rate, and their charge plus output and the disclosed rounding adjustment equals the debit.
+    - given: A Gemini implicit-cache call reports cached reads but no write counter.
+      when: Pricing and the usage receipt are displayed.
+      then: Cached reads receive their published rate; other input is ordinary input, and cache writes say included rather than showing a fabricated paid write.
+    - given: A one-hour explicit cache is created and reused twice, then the catalog changes before settlement recovery.
+      when: Billing resumes the interrupted operation.
+      then: Fill and prepaid retention are charged once, both references pay their own reads, and replay uses the original rates without another debit.
+    - given: A legacy receipt predates cache usage tracking, or a provider omits cache metrics.
+      when: The receipt is viewed or a new request is admitted.
+      then: Legacy detail remains unavailable with its original total; missing telemetry never creates free usage or a promised cache discount.
+    - given: An admitted request retries on a more expensive host while the first attempt has incurred supplier cost.
+      when: The fallback is considered.
+      then: The frozen published tariff and funding bound cover the accepted attempts, or the next attempt is stopped without undisclosed repricing.
+  preservation: Reuse existing charge atomicity/idempotency/privacy/ownership, anonymous cap, authorized personal overdraft, partial failure, and semantic-parity requirements. Do not expand this research into an unapproved Specification edit.
+
+verification_plan:
+  local_fixture_checks:
+    - Extend test_provider_usage_extraction.py for inclusive/exclusive input, both OpenAI APIs, Google reasoning, direct Anthropic message_start/delta, Bedrock reads/writes, Mistral cached details, zero/unknown, invalid partitions, and one final usage record.
+    - Extend test_model_usage_tracker.py, test_billing_utils.py, test_ai_fallback_billing.py for per-attempt snapshot aggregation, write TTLs, output thinking, cost floors, expired tariffs, paid misses, and one-time rounding.
+    - Extend test_usage_entries.py, test_billing_idempotency.py and test_billing_settlement_reliability.py for encrypted optional breakdown, personal/team transactions, replay, archived/legacy decrypt and exports.
+  isolated_product_ci:
+    - Extend usage-token-breakdown.spec.ts, ai-model-settings.spec.ts and components/apps-skill-form.spec.ts for price rows, included writes, unknown legacy detail, exact receipt totals and version parity.
+    - Add relevant REST/OpenAI-compatible/CLI/npm/pip and Apple semantic-parity cases, including NativeModelCatalogTests.swift and SettingsBillingParityUITests.swift.
+    - Use sessions.py ci-source plus coordinator submission; deliver every recording using the CI receipt's codex_evidence_command.
+  real_inference_dev_only: Bounded isolated test account/budget; one cold write, warm read, partial append, cache expiry, tool/schema change and host fallback per supported model/API/TTL. Record numeric usage and reconcile supplier bill; never use private customer prompts or run real AI in CI.
+  launch_limits: Numeric contribution targets, cash exposure, expiry/revalidation intervals, loss reserve, and pilot thresholds must be calibrated from evidence. Missing financial data is a launch constraint, not a blocker for this completed planning work.

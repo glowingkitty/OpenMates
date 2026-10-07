@@ -322,6 +322,14 @@ team_usage_events:
       nullable: true
     credit_amount:
       type: integer
+    encrypted_llm_usage_breakdown:
+      type: text
+      nullable: true
+      note: "[Encrypted] Immutable customer-facing LLM usage receipt, encrypted with the actor's vault key."
+    llm_usage_vault_key_id:
+      type: string
+      nullable: true
+      note: "[Internal] Actor vault key identifier for server-side authorized team billing receipt decryption. Never returned by API."
     created_at:
       type: integer
 

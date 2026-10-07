@@ -11,6 +11,7 @@
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { updateProfile, userProfile } from '../../stores/userProfile';
     import { getAiProviderDisplay, getModelCapabilityLevel } from '../../utils/aiModelDisplay';
+    import { isCachePricingDisplayActive, supportsOneHourCacheWrites } from '../../utils/cachePricingAvailability';
     import {
         SettingsCapabilityScale,
         SettingsInfoBox,
@@ -21,10 +22,17 @@
 
     interface Props {
         modelId: string;
+        /** A scoped model fixture for component previews. */
+        modelOverride?: AIModelMetadata;
     }
 
-    let { modelId }: Props = $props();
-    const model = $derived<AIModelMetadata | undefined>(modelsMetadata.find((candidate) => candidate.id === modelId));
+    let { modelId, modelOverride }: Props = $props();
+    const model = $derived<AIModelMetadata | undefined>(modelOverride ?? modelsMetadata.find((candidate) => candidate.id === modelId));
+    const cachePricingActive = $derived(isCachePricingDisplayActive(model?.cache_pricing, model?.default_server, {
+        cache_read: model?.pricing?.cache_read_tokens_per_credit,
+        cache_write: model?.pricing?.cache_write_tokens_per_credit,
+        cache_write_1h: model?.pricing?.cache_write_1h_tokens_per_credit,
+    }));
     const disabledModels = $derived($userProfile.disabled_ai_models ?? []);
     const disabledServers = $derived($userProfile.disabled_ai_servers ?? {});
     const isAuthenticated = $derived($authStore.isAuthenticated);
@@ -134,12 +142,22 @@
                     <h3 class="ai-section-title">{$text('common.pricing')}</h3>
                     <div class="ai-row-list">
                         {#if model.pricing.input_tokens_per_credit}
-                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.text_input')} subtitleBottom={priceValue(model.pricing.input_tokens_per_credit)} data-testid="ai-model-pricing-input-row" />
+                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.uncached_input')} subtitleBottom={priceValue(model.pricing.input_tokens_per_credit)} data-testid="ai-model-pricing-input-row" />
+                        {/if}
+                        {#if model.pricing.input_tokens_per_credit}
+                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.cache_read')} subtitleBottom={cachePricingActive && model.pricing.cache_read_tokens_per_credit ? priceValue(model.pricing.cache_read_tokens_per_credit) : $text('settings.ai_ask.ai_ask_model_details.unavailable')} data-testid="ai-model-pricing-cache-read-row" />
+                            <SettingsItem type="ai-price-row" icon="coins" title={$text(`settings.ai_ask.ai_ask_model_details.${model.cache_pricing?.write_billing === 'included_in_input' ? 'cache_write' : 'cache_write_5m'}`)} subtitleBottom={cachePricingActive ? model.cache_pricing?.write_billing === 'included_in_input' ? $text('settings.ai_ask.ai_ask_model_details.included_in_input') : model.pricing.cache_write_tokens_per_credit ? priceValue(model.pricing.cache_write_tokens_per_credit) : $text('settings.ai_ask.ai_ask_model_details.unavailable') : $text('settings.ai_ask.ai_ask_model_details.unavailable')} data-testid="ai-model-pricing-cache-write-row" />
+                            {#if cachePricingActive && supportsOneHourCacheWrites(model.cache_pricing, model.default_server) && model.pricing.cache_write_1h_tokens_per_credit}
+                                <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.cache_write_1h')} subtitleBottom={priceValue(model.pricing.cache_write_1h_tokens_per_credit)} data-testid="ai-model-pricing-cache-write-1h-row" />
+                            {/if}
                         {/if}
                         {#if model.pricing.output_tokens_per_credit}
-                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.text_output')} subtitleBottom={priceValue(model.pricing.output_tokens_per_credit)} data-testid="ai-model-pricing-output-row" />
+                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.billable_output')} subtitleBottom={priceValue(model.pricing.output_tokens_per_credit)} data-testid="ai-model-pricing-output-row" />
                         {/if}
                     </div>
+                    {#if cachePricingActive}
+                        <p class="cache-pricing-note" data-testid="ai-model-cache-pricing-note">{$text('settings.ai_ask.ai_ask_model_details.cache_pricing_explanation')}</p>
+                    {/if}
                 </section>
             {/if}
 
@@ -209,6 +227,13 @@
         font-size: var(--font-size-p);
         font-weight: 700;
         line-height: 1.25;
+    }
+
+    .cache-pricing-note {
+        margin: 0 var(--spacing-10);
+        color: var(--color-grey-60);
+        font-size: var(--font-size-small);
+        line-height: 1.4;
     }
 
     .capability-row {

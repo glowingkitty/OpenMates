@@ -49,8 +49,23 @@ models:
       tokens:
         input:
           per_credit_unit: 35
+        cache_read:
+          per_credit_unit: 1400
+        cache_write:
+          per_credit_unit: 28
+        cache_write_1h:
+          per_credit_unit: 17
         output:
           per_credit_unit: 7
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [anthropic]
+      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
+      requires_cache_retention_metric: true
     costs:
       input_per_million_token:
         price: 10.00
@@ -62,6 +77,9 @@ models:
         max_context: 1000000
       cache_write_per_million_token:
         price: 12.50
+        currency: USD
+      cache_write_1h_per_million_token:
+        price: 20.0
         currency: USD
       cache_read_per_million_token:
         price: 0.25
@@ -104,8 +122,23 @@ models:
       tokens:
         input:
           per_credit_unit: 35
+        cache_read:
+          per_credit_unit: 350
+        cache_write:
+          per_credit_unit: 28
+        cache_write_1h:
+          per_credit_unit: 17
         output:
           per_credit_unit: 7
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [anthropic]
+      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
+      requires_cache_retention_metric: true
     costs:
       input_per_million_token:
         price: 10.00
@@ -117,6 +150,9 @@ models:
         max_context: 1000000
       cache_write_per_million_token:
         price: 12.50
+        currency: USD
+      cache_write_1h_per_million_token:
+        price: 20.0
         currency: USD
       cache_read_per_million_token:
         price: 1.00
@@ -151,8 +187,23 @@ models:
       tokens:
         input:
           per_credit_unit: 80 # 333.33 / 4.00 = 83.33 -> 80 (conservative round-down)
+        cache_read:
+          per_credit_unit: 1600
+        cache_write:
+          per_credit_unit: 64
+        cache_write_1h:
+          per_credit_unit: 40
         output:
           per_credit_unit: 15 # 333.33 / 20.00 = 16.67 -> 15 (conservative round-down)
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [anthropic]
+      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
+      requires_cache_retention_metric: true
     costs:
       input_per_million_token:
         price: 4.00
@@ -164,6 +215,9 @@ models:
         max_context: 1000000
       cache_write_per_million_token:
         price: 5.00
+        currency: USD
+      cache_write_1h_per_million_token:
+        price: 8.0
         currency: USD
       cache_read_per_million_token:
         price: 0.20
@@ -207,8 +261,23 @@ models:
       tokens:
         input:
           per_credit_unit: 70
+        cache_read:
+          per_credit_unit: 700
+        cache_write:
+          per_credit_unit: 56
+        cache_write_1h:
+          per_credit_unit: 35
         output:
           per_credit_unit: 15
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [anthropic]
+      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
+      requires_cache_retention_metric: true
     costs:
       input_per_million_token:
         price: 5.00
@@ -220,6 +289,9 @@ models:
         max_context: 1000000
       cache_write_per_million_token:
         price: 6.25
+        currency: USD
+      cache_write_1h_per_million_token:
+        price: 10.0
         currency: USD
       cache_read_per_million_token:
         price: 0.50
@@ -258,10 +330,27 @@ models:
       tokens:
         input:
           per_credit_unit: 170
+        cache_read:
+          per_credit_unit: 1700
+        cache_write:
+          per_credit_unit: 136
+        cache_write_1h:
+          per_credit_unit: 85
         output:
           per_credit_unit: 35
-    # Introductory Claude Sonnet 5 pricing through 2026-08-31.
-    # Update to $3/$15 MTok on 2026-09-01.
+    # Reviewed 2026-10-07 against the current Claude Sonnet 5 model card.
+    # The earlier 2026-08-31 promotional-expiry comment was stale; the
+    # current listed $2/$10 MTok input/output rates remain configured.
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [anthropic]
+      source_url: https://platform.claude.com/docs/en/models/sonnet-5/overview
+      reviewed_on: "2026-10-07"
+      status: verified_provider_usage_pending_financial_check
+      expires_on: "2026-11-07"
+      requires_cache_write_metric: true
+      requires_cache_retention_metric: true
     costs:
       input_per_million_token:
         price: 2.00
@@ -273,6 +362,9 @@ models:
         max_context: 1000000
       cache_write_per_million_token:
         price: 2.50
+        currency: USD
+      cache_write_1h_per_million_token:
+        price: 4.0
         currency: USD
       cache_read_per_million_token:
         price: 0.20
@@ -310,8 +402,23 @@ models:
       tokens:
         input:
           per_credit_unit: 350 # 1 credit per 350 input tokens (cheaper than Sonnet)
+        cache_read:
+          per_credit_unit: 3500
+        cache_write:
+          per_credit_unit: 280
+        cache_write_1h:
+          per_credit_unit: 175
         output:
           per_credit_unit: 70 # 1 credit per 70 output tokens (cheaper than Sonnet)
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [aws_bedrock, anthropic]
+      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
+      requires_cache_retention_metric: true
     costs:
       input_per_million_token:
         price: 1.00
@@ -323,6 +430,9 @@ models:
         max_context: 200000
       cache_write_per_million_token:
         price: 1.25
+        currency: USD
+      cache_write_1h_per_million_token:
+        price: 2.0
         currency: USD
       cache_read_per_million_token:
         price: 0.10
@@ -368,8 +478,25 @@ models:
       tokens:
         input:
           per_credit_unit: 110 # 1 credit per 110 input tokens
+        cache_read:
+          per_credit_unit: 1100
+        cache_write:
+          per_credit_unit: 88
+        cache_write_1h:
+          per_credit_unit: 55
         output:
           per_credit_unit: 20 # 1 credit per 20 output tokens
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [anthropic, aws_bedrock]
+      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: verified_provider_usage_pending_financial_check
+      expires_on: "2026-11-06"
+      requires_cache_write_metric: true
+      requires_cache_retention_metric: false
+      cache_write_1h_hosts: [] # Current Anthropic/Bedrock controls create only 5m entries.
     costs:
       input_per_million_token:
         price: 3.00
@@ -382,9 +509,16 @@ models:
       cache_write_per_million_token:
         price: 3.75
         currency: USD
+      cache_write_1h_per_million_token:
+        price: 6.0
+        currency: USD
       cache_read_per_million_token:
         price: 0.30
         currency: USD
+    supplier_cost_profiles:
+      aws_bedrock:
+        region: EU
+        multiplier: 1.10
 
   - id: "claude-opus-4-6" # Official model ID
     name: "Claude Opus 4.6"
@@ -427,8 +561,23 @@ models:
       tokens:
         input:
           per_credit_unit: 70 # 1 credit per 70 input tokens
+        cache_read:
+          per_credit_unit: 700
+        cache_write:
+          per_credit_unit: 56
+        cache_write_1h:
+          per_credit_unit: 35
         output:
           per_credit_unit: 15 # 1 credit per 15 output tokens
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [anthropic, aws_bedrock]
+      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
+      requires_cache_retention_metric: true
     costs:
       input_per_million_token:
         price: 5.00
@@ -440,6 +589,9 @@ models:
         max_context: 200000
       cache_write_per_million_token:
         price: 6.25
+        currency: USD
+      cache_write_1h_per_million_token:
+        price: 10.0
         currency: USD
       cache_read_per_million_token:
         price: 0.50
@@ -485,8 +637,23 @@ models:
       tokens:
         input:
           per_credit_unit: 70
+        cache_read:
+          per_credit_unit: 700
+        cache_write:
+          per_credit_unit: 56
+        cache_write_1h:
+          per_credit_unit: 35
         output:
           per_credit_unit: 15
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [anthropic, aws_bedrock]
+      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
+      requires_cache_retention_metric: true
     costs:
       input_per_million_token:
         price: 5.00
@@ -498,6 +665,9 @@ models:
         max_context: 1000000
       cache_write_per_million_token:
         price: 6.25
+        currency: USD
+      cache_write_1h_per_million_token:
+        price: 10.0
         currency: USD
       cache_read_per_million_token:
         price: 0.50
@@ -536,8 +706,23 @@ models:
       tokens:
         input:
           per_credit_unit: 70
+        cache_read:
+          per_credit_unit: 700
+        cache_write:
+          per_credit_unit: 56
+        cache_write_1h:
+          per_credit_unit: 35
         output:
           per_credit_unit: 15
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [anthropic]
+      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
+      requires_cache_retention_metric: true
     costs:
       input_per_million_token:
         price: 5.00
@@ -549,6 +734,9 @@ models:
         max_context: 1000000
       cache_write_per_million_token:
         price: 6.25
+        currency: USD
+      cache_write_1h_per_million_token:
+        price: 10.0
         currency: USD
       cache_read_per_million_token:
         price: 0.50

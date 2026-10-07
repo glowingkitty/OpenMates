@@ -14,6 +14,7 @@ import zoneinfo
 import os
 import copy
 import hashlib
+import hmac
 import time
 import uuid
 from functools import lru_cache
@@ -1761,6 +1762,14 @@ class AnonymousUsageLimitError(AnonymousUsageAccountingError):
     """The authoritative anonymous allowance cannot fund another operation."""
 
 
+class AuthenticatedReservationError(RuntimeError):
+    """A durable personal/team hold was unavailable before provider dispatch."""
+
+
+class AuthenticatedReservationLimitError(AuthenticatedReservationError):
+    """The account cannot fund even the fitted next inference call."""
+
+
 ANONYMOUS_ACCOUNTING_MAX_ATTEMPTS = 2
 ANONYMOUS_AI_CREDIT_ROUNDING_HEADROOM = 1
 
@@ -2095,14 +2104,48 @@ def _quote_ai_iteration_credits(
         1,
         len(serialized_input.encode("utf-8")) + max(0, input_envelope_tokens),
     )
+    quote_config = model_config
+    cache_policy = model_config.get("cache_pricing") or {}
+    if cache_policy.get("enabled") and cache_policy.get("write_billing") == "separate":
+        token_rates = (model_config.get("pricing") or {}).get("tokens") or {}
+        input_units = [
+            rate.get("per_credit_unit")
+            for category in ("input", "cache_write", "cache_write_1h")
+            if isinstance(rate := token_rates.get(category), dict)
+        ]
+        positive_units = [
+            value for value in input_units
+            if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0
+        ]
+        if positive_units:
+            # All estimated input could be a cold write. Bound that premium
+            # without mutating the live tariff or assuming a future cache hit.
+            quote_config = copy.deepcopy(model_config)
+            quote_config["pricing"]["tokens"].setdefault("input", {})["per_credit_unit"] = min(positive_units)
     quote = calculate_total_credits(
-        pricing_config=model_config,
+        pricing_config=quote_config,
         input_tokens=estimated_input_tokens,
         output_tokens=max_output_tokens,
     )
     # A cumulative rounded charge can carry one fractional credit from an
     # earlier operation. Reserve that capacity up front; never clamp usage.
     return quote + credit_rounding_headroom if quote > 0 else 0
+
+
+def _mistral_prompt_cache_key(request_data: AskSkillRequest) -> Optional[str]:
+    """Bind Mistral's opaque key to one authorized user/team/chat scope."""
+    if not INTERNAL_API_SHARED_TOKEN or not request_data.chat_id:
+        return None
+    scope = json.dumps(
+        [getattr(request_data, "user_id_hash", "") or "",
+         getattr(request_data, "team_id", None), request_data.chat_id],
+        separators=(",", ":"), ensure_ascii=False,
+    )
+    return hmac.new(
+        INTERNAL_API_SHARED_TOKEN.encode("utf-8"),
+        b"openmates:mistral-chat-cache:v2\0" + scope.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
 
 
 def _max_affordable_ai_output_tokens(
@@ -2181,6 +2224,116 @@ async def _fit_anonymous_output_token_limit(
     if fitted is None:
         raise AnonymousUsageLimitError("Anonymous allowance cannot cover inference input")
     return fitted
+
+
+async def _reserve_authenticated_ai_turn(
+    *,
+    task_id: str,
+    request_data: AskSkillRequest,
+    model_id: str,
+    system_prompt: str,
+    message_history: List[Dict[str, Any]],
+    tools: Optional[List[Dict[str, Any]]],
+    requested_output_token_limit: Optional[int],
+    model_usage_tracker: ModelUsageTracker,
+    reservation_state: Dict[str, Any],
+) -> int:
+    """Top up one durable turn hold; fit output against authoritative capacity."""
+    if getattr(request_data, "is_anonymous", False) or request_data.orchestration_id:
+        raise ValueError("Authenticated turn reservation requires an ordinary request")
+    if not request_data.user_id or not request_data.user_id_hash:
+        raise AuthenticatedReservationError("Authenticated reservation identity is missing")
+    if requested_output_token_limit is None:
+        if "/" not in model_id:
+            raise AuthenticatedReservationError("Authenticated reservation needs a bounded output limit")
+        configured = config_manager.get_model_pricing(*model_id.split("/", 1)) or {}
+        requested_output_token_limit = (configured.get("features") or {}).get("max_output_tokens")
+        if requested_output_token_limit is None:
+            requested_output_token_limit = ORCHESTRATED_AI_MAX_OUTPUT_TOKENS
+    if isinstance(requested_output_token_limit, bool) or not isinstance(requested_output_token_limit, int) or requested_output_token_limit <= 0:
+        raise AuthenticatedReservationError("Authenticated reservation needs a bounded output limit")
+    charge_id = f"ai-ask:{task_id}:main"
+    endpoint = "internal/billing/team/reserve" if request_data.team_id else "internal/billing/reserve"
+    identity = (
+        {"team_id": request_data.team_id, "actor_user_id": request_data.user_id}
+        if request_data.team_id else
+        {"user_id": request_data.user_id, "user_id_hash": request_data.user_id_hash}
+    )
+    observed_credits = (
+        calculate_model_usage_credits(model_usage_tracker.usage_by_model, config_manager.get_model_pricing)
+        if model_usage_tracker.usage_by_model else 0
+    )
+    fitted_limit = requested_output_token_limit
+    for _ in range(2):
+        next_quote = _quote_ai_iteration_credits(
+            model_id=model_id, system_prompt=system_prompt,
+            message_history=message_history, tools=tools,
+            output_token_limit=fitted_limit, credit_rounding_headroom=1,
+        )
+        cumulative_quote = max(int(reservation_state.get("quoted_credits") or 0), observed_credits + next_quote)
+        try:
+            result = await _make_internal_api_request("POST", endpoint, {
+                **identity, "idempotency_key": charge_id,
+                "quoted_credits": cumulative_quote, "app_id": "ai", "skill_id": "ask",
+            })
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code != 402:
+                raise AuthenticatedReservationError("Authenticated reservation rejected") from error
+            try:
+                refusal = error.response.json()
+                if isinstance(refusal.get("detail"), dict):
+                    refusal = refusal["detail"]
+                max_quote = refusal.get("max_quotable_credits")
+            except (ValueError, AttributeError):
+                max_quote = None
+            if isinstance(max_quote, bool) or not isinstance(max_quote, int):
+                raise AuthenticatedReservationError("Reservation capacity response is invalid") from error
+            affordable = _max_affordable_ai_output_tokens(
+                model_id=model_id, system_prompt=system_prompt,
+                message_history=message_history, tools=tools,
+                requested_output_token_limit=fitted_limit,
+                available_credits=max_quote - observed_credits,
+                credit_rounding_headroom=1,
+            )
+            if affordable is None or affordable >= fitted_limit:
+                raise AuthenticatedReservationLimitError("Insufficient credits for inference input") from error
+            fitted_limit = affordable
+            continue
+        except Exception as error:
+            raise AuthenticatedReservationError("Authenticated reservation acknowledgement unavailable") from error
+        if result.get("state") == "skipped" and result.get("charge_id") == charge_id:
+            # The billing authority disables holds for payment-disabled/self-hosted deployments.
+            reservation_state.clear()
+            return fitted_limit
+        if result.get("state") != "reserved" or result.get("charge_id") != charge_id:
+            raise AuthenticatedReservationError("Authenticated reservation response is invalid")
+        held = result.get("quoted_credits")
+        if isinstance(held, bool) or not isinstance(held, int) or held < cumulative_quote:
+            raise AuthenticatedReservationError("Authenticated reservation quote is invalid")
+        reservation_state.update({"charge_id": charge_id, "quoted_credits": held, "active": True})
+        return fitted_limit
+    raise AuthenticatedReservationLimitError("Insufficient credits for fitted inference")
+
+
+async def _release_authenticated_ai_reservation(
+    *, request_data: AskSkillRequest, reservation_state: Dict[str, Any], reason: str,
+) -> None:
+    if not reservation_state.get("active"):
+        return
+    payload = {
+        "subject_kind": "team" if request_data.team_id else "personal",
+        "idempotency_key": reservation_state["charge_id"],
+        "reason": reason,
+        **({"team_id": request_data.team_id, "actor_user_id": request_data.user_id}
+           if request_data.team_id else
+           {"user_id": request_data.user_id, "user_id_hash": request_data.user_id_hash}),
+    }
+    try:
+        await _make_internal_api_request("POST", "internal/billing/reservation/release", payload)
+    except Exception as error:
+        raise AuthenticatedReservationError("Authenticated reservation release acknowledgement unavailable") from error
+    reservation_state["active"] = False
+    reservation_state["released"] = True
 
 
 def _fit_workflow_output_token_limit(
@@ -3147,7 +3300,19 @@ async def handle_main_processing(
             }
             return
 
-    prompt_parts = []
+    # Keep shared, time-independent rules first so provider prompt caches can
+    # reuse them across turns. The clock and private artifact context follow.
+    stable_prefix_parts = [
+        base_instructions.get("base_ethics_instruction", ""),
+        base_instructions.get("follow_up_instruction", ""),
+        base_instructions.get("base_link_encouragement_instruction", ""),
+        base_instructions.get("base_wikipedia_linking_instruction", ""),
+        base_instructions.get("base_url_sourcing_instruction", ""),
+        base_instructions.get("base_code_block_instruction", ""),
+        base_instructions.get("base_document_generation_instruction", ""),
+    ]
+    cacheable_system_prefix = "\n\n".join(filter(None, stable_prefix_parts))
+    prompt_parts = [*filter(None, stable_prefix_parts)]
     # Explicit research/dispatch requirements apply to the tool phase. Keep all
     # safety, focus, output-format and user constraints in the synthesis prompt.
     research_only_prompt_parts: set[str] = set()
@@ -3196,7 +3361,6 @@ async def handle_main_processing(
         )
         if model_catalogue_context:
             prompt_parts.append(model_catalogue_context)
-    prompt_parts.append(base_instructions.get("base_ethics_instruction", ""))
     selected_mate_config = next((mate for mate in all_mates_configs if mate.id == preprocessing_results.selected_mate_id), None)
     learning_mode_context = getattr(request_data, "learning_mode", None) or {}
     learning_mode_active = is_learning_mode_enabled(learning_mode_context)
@@ -3257,9 +3421,6 @@ async def handle_main_processing(
     else:
         logger.warning(f"{log_prefix} base_capabilities_instruction not found in base_instructions.yml")
     
-    prompt_parts.append(base_instructions.get("follow_up_instruction", ""))
-    prompt_parts.append(base_instructions.get("base_link_encouragement_instruction", ""))
-    prompt_parts.append(base_instructions.get("base_wikipedia_linking_instruction", ""))
     wikipedia_language = normalize_wikipedia_language((request_data.user_preferences or {}).get("language"))
     prompt_parts.append(
         f"For all `wiki:` inline links, use article titles from {wikipedia_language}.wikipedia.org "
@@ -3645,7 +3806,6 @@ async def handle_main_processing(
         # to avoid confusing the AI about capabilities it doesn't have
         logger.info(f"{log_prefix} Skipping base_proactive_skill_usage_instruction - no apps available")
     
-    prompt_parts.append(base_instructions.get("base_url_sourcing_instruction", ""))
     if ai_model_topics:
         prompt_parts.append(
             "AI model accuracy: The dated catalogue snapshot above is the anchor for recent "
@@ -3759,10 +3919,8 @@ async def handle_main_processing(
         logger.debug(f"{log_prefix} [EMBED_PROMPT] Skipped source quote instruction — no quotable embeds in history or preselected skills")
     # Add code block formatting instruction to ensure proper language and filename syntax
     # This helps with consistent parsing and rendering of code embeds
-    prompt_parts.append(base_instructions.get("base_code_block_instruction", ""))
     # Add document generation instruction for rich document embeds (document_html fences)
     # This enables the LLM to create structured HTML documents rendered as document previews
-    prompt_parts.append(base_instructions.get("base_document_generation_instruction", ""))
     # Add math plot instruction only when the math app is available.
     # Teaches the LLM to emit ```plot f(x) = ... ``` fences that stream_consumer.py
     # converts to interactive math-plot embeds rendered by function-plot on the frontend.
@@ -4690,6 +4848,32 @@ async def handle_main_processing(
     # tracker above, but its uncertain reservation stays intact until then.
     anonymous_completed_usage = ModelUsageTracker()
     anonymous_checkpointed_credits = 0
+    ordinary_reservation_state: Dict[str, Any] = {}
+    last_reported_usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = None
+    usage_events_emitted = False
+
+    def billing_usage_events() -> List[Any]:
+        """Emit incurred usage once, including an interrupted final attempt."""
+        nonlocal usage_events_emitted
+        if usage_events_emitted or not (model_usage_tracker.usage_by_model or ordinary_reservation_state.get("active")):
+            return []
+        usage_events_emitted = True
+        sentinel = model_usage_tracker.sentinel(tool_inference_iterations=tool_inference_iterations)
+        if ordinary_reservation_state.get("active"):
+            sentinel["billing_reservation_required"] = True
+            sentinel["billing_reservation_charge_id"] = ordinary_reservation_state["charge_id"]
+        final_usage = last_reported_usage or usage
+        return [sentinel, *([final_usage] if final_usage is not None else [])]
+
+    async def terminal_billing_usage_events() -> List[Any]:
+        # Confirmed terminal failures are customer-free; supplier usage remains
+        # available as private numeric evidence in the sentinel.
+        await _release_authenticated_ai_reservation(
+            request_data=request_data,
+            reservation_state=ordinary_reservation_state,
+            reason="provider_failed",
+        )
+        return billing_usage_events()
 
     # === SKILL CALL BUDGET TRACKING ===
     # Track total skill calls across all iterations to prevent runaway research loops.
@@ -5036,6 +5220,8 @@ async def handle_main_processing(
                         "the recovery instruction from its context; refusing an orphaned continuation.",
                         log_prefix,
                     )
+                    for billing_event in await terminal_billing_usage_events():
+                        yield billing_event
                     yield main_processing_failure("protocol_guard")
                     return
                 current_output_token_limit = _orchestrated_ai_output_token_limit(
@@ -5126,6 +5312,30 @@ async def handle_main_processing(
                     if receipt:
                         yield {"__chat_context_applied__": True,
                                "receipt": agentic_context.receipt_event(request_data, receipt)}
+                if not getattr(request_data, "is_anonymous", False) and not request_data.orchestration_id:
+                    current_output_token_limit = await _reserve_authenticated_ai_turn(
+                        task_id=task_id, request_data=request_data,
+                        model_id=current_model_id,
+                        system_prompt=iteration_system_prompt,
+                        message_history=current_message_history,
+                        tools=iteration_tools,
+                        requested_output_token_limit=current_output_token_limit,
+                        model_usage_tracker=model_usage_tracker,
+                        reservation_state=ordinary_reservation_state,
+                    )
+                    async def admit_actual_provider(_server_model_id: str, dispatch_limit: Optional[int]) -> int:
+                        return await _reserve_authenticated_ai_turn(
+                            task_id=task_id, request_data=request_data,
+                            model_id=current_model_id,
+                            system_prompt=iteration_system_prompt,
+                            message_history=current_message_history,
+                            tools=iteration_tools,
+                            requested_output_token_limit=dispatch_limit,
+                            model_usage_tracker=model_usage_tracker,
+                            reservation_state=ordinary_reservation_state,
+                        )
+                else:
+                    admit_actual_provider = None
                 llm_stream = call_main_llm_stream(
                     task_id=task_id,
                     system_prompt=iteration_system_prompt,
@@ -5143,6 +5353,9 @@ async def handle_main_processing(
                         answer_recovery.active or force_no_tools or tool_inference_iterations > 0
                     ),
                     stop_after_provider_failure=bool(getattr(request_data, "is_anonymous", False)),
+                    cacheable_system_prefix=cacheable_system_prefix or None,
+                    prompt_cache_key=_mistral_prompt_cache_key(request_data),
+                    pre_dispatch_admission=admit_actual_provider,
                 )
                 # Stream created successfully - break out of retry loop
                 break
@@ -5150,6 +5363,14 @@ async def handle_main_processing(
             except AnonymousUsageLimitError:
                 logger.warning("%s Anonymous inference allowance exhausted before provider dispatch", log_prefix)
                 preparation_failure_reason = "anonymous_usage_limit"
+                break
+            except AuthenticatedReservationLimitError:
+                logger.warning("%s Authenticated inference capacity exhausted before provider dispatch", log_prefix)
+                preparation_failure_reason = "stream_error"
+                break
+            except AuthenticatedReservationError:
+                logger.error("%s Authenticated inference reservation failed before provider dispatch", log_prefix, exc_info=True)
+                preparation_failure_reason = "stream_error"
                 break
             except AnonymousUsageAccountingError:
                 logger.error("%s Anonymous inference accounting failed before provider dispatch", log_prefix, exc_info=True)
@@ -5184,6 +5405,8 @@ async def handle_main_processing(
                     ) from model_error
 
         if llm_stream is None:
+            for billing_event in await terminal_billing_usage_events():
+                yield billing_event
             yield main_processing_failure(preparation_failure_reason or "empty_post_tool_response")
             break
 
@@ -5221,6 +5444,7 @@ async def handle_main_processing(
         iteration_usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = None
         iteration_input_tokens = 0
         iteration_output_tokens = 0
+        iteration_normalized_usage_by_attempt: Dict[str, Any] = {}
         try:
           with ai_phase_span("main.iteration"):
            # Observe raw provider delivery before paragraph aggregation so
@@ -5234,14 +5458,29 @@ async def handle_main_processing(
            async for chunk in protocol_guard.filter(observed_llm_stream):
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
                 iteration_usage = chunk
+                last_reported_usage = chunk
                 # Keep the final usage object local until the stream completes so
                 # a failed attempt cannot become the recorded successful model.
                 # Provider-reported tokens are still accumulated immediately:
                 # once reported, that incurred usage remains billable even if a
                 # later stream event triggers fallback.
+                normalized_usage = getattr(chunk, "_normalized_llm_usage", None)
+                previous_input = model_usage_tracker.total_input_tokens
+                previous_output = model_usage_tracker.total_output_tokens
                 _iter_input = 0
                 _iter_output = 0
-                if isinstance(chunk, MistralUsage):
+                if normalized_usage is not None:
+                    usage_model_id = normalized_usage.model_id
+                    model_usage_tracker.record_reported_usage(
+                        model_id=usage_model_id,
+                        normalized_usage=normalized_usage,
+                        attempt_id=normalized_usage.attempt_id,
+                    )
+                    if normalized_usage.attempt_id:
+                        iteration_normalized_usage_by_attempt[normalized_usage.attempt_id] = normalized_usage
+                    _iter_input = model_usage_tracker.total_input_tokens - previous_input
+                    _iter_output = model_usage_tracker.total_output_tokens - previous_output
+                elif isinstance(chunk, MistralUsage):
                     _iter_input = chunk.prompt_tokens or 0
                     _iter_output = chunk.completion_tokens or 0
                 elif isinstance(chunk, GoogleUsageMetadata):
@@ -5256,7 +5495,7 @@ async def handle_main_processing(
                 iteration_input_tokens += _iter_input
                 iteration_output_tokens += _iter_output
                 usage_model_id = current_model_id or preprocessing_results.selected_main_llm_model_id
-                if usage_model_id:
+                if usage_model_id and normalized_usage is None:
                     model_usage_tracker.record_reported_usage(
                         model_id=usage_model_id,
                         input_tokens=_iter_input,
@@ -5801,6 +6040,12 @@ async def handle_main_processing(
                     published_answer_text.append(chunk)
             else:
                 logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk)}")
+        except (AuthenticatedReservationLimitError, AuthenticatedReservationError) as admission_error:
+            logger.warning("%s Authenticated provider dispatch stopped by reservation: %s", log_prefix, type(admission_error).__name__)
+            for billing_event in await terminal_billing_usage_events():
+                yield billing_event
+            yield main_processing_failure("stream_error")
+            break
         except AllServersFailedError as asf_err:
             # All servers for the current model failed before yielding any content.
             # Try the next model in the fallback list instead of showing an error.
@@ -5826,6 +6071,8 @@ async def handle_main_processing(
             if answer_recovery.active or force_no_tools or tool_inference_iterations > 0:
                 if schedule_answer_recovery("provider_exhausted"):
                     continue
+                for billing_event in await terminal_billing_usage_events():
+                    yield billing_event
                 yield main_processing_failure("provider_exhausted")
                 break
             current_model_index += 1
@@ -5844,6 +6091,8 @@ async def handle_main_processing(
                     f"{log_prefix} MODEL_FALLBACK: All {len(models_to_try)} models exhausted. "
                     f"Last error: {_stream_all_servers_error}"
                 )
+                for billing_event in await terminal_billing_usage_events():
+                    yield billing_event
                 yield main_processing_failure("provider_exhausted")
                 break
 
@@ -5853,11 +6102,19 @@ async def handle_main_processing(
             usage = iteration_usage
             successful_model_id = current_model_id or preprocessing_results.selected_main_llm_model_id
             if getattr(request_data, "is_anonymous", False) and current_ai_operation_id:
-                anonymous_completed_usage.record_reported_usage(
-                    model_id=current_model_id,
-                    input_tokens=iteration_input_tokens,
-                    output_tokens=iteration_output_tokens,
-                )
+                if iteration_normalized_usage_by_attempt:
+                    for reported in iteration_normalized_usage_by_attempt.values():
+                        anonymous_completed_usage.record_reported_usage(
+                            model_id=reported.model_id,
+                            normalized_usage=reported,
+                            attempt_id=reported.attempt_id,
+                        )
+                else:
+                    anonymous_completed_usage.record_reported_usage(
+                        model_id=current_model_id,
+                        input_tokens=iteration_input_tokens,
+                        output_tokens=iteration_output_tokens,
+                    )
                 try:
                     cumulative_credits = calculate_model_usage_credits(
                         anonymous_completed_usage.usage_by_model,
@@ -5876,6 +6133,8 @@ async def handle_main_processing(
                     # acknowledgement. Do not dispatch more work or switch models
                     # until accounting is known; the live hold remains reversible.
                     logger.error("%s Anonymous usage checkpoint failed", log_prefix, exc_info=True)
+                    for billing_event in await terminal_billing_usage_events():
+                        yield billing_event
                     yield main_processing_failure("stream_error")
                     break
             if successful_model_id and (llm_turn_had_content or tool_calls_for_this_turn):
@@ -5891,6 +6150,8 @@ async def handle_main_processing(
         if answer_recovery.active and protocol_guard.detected and not tool_calls_for_this_turn:
             if schedule_answer_recovery("protocol_guard"):
                 continue
+            for billing_event in await terminal_billing_usage_events():
+                yield billing_event
             yield main_processing_failure("protocol_guard")
             break
 
@@ -5927,9 +6188,13 @@ async def handle_main_processing(
                     "preserving published safe text and marking the response failed.",
                     log_prefix,
                 )
+                for billing_event in await terminal_billing_usage_events():
+                    yield billing_event
                 yield main_processing_failure("protocol_guard")
                 break
             if protocol_recovery_action == "error":
+                for billing_event in await terminal_billing_usage_events():
+                    yield billing_event
                 yield main_processing_failure("protocol_guard")
                 break
 
@@ -6027,6 +6292,8 @@ async def handle_main_processing(
                     f"{log_prefix} [POST_TOOL_RECOVERY] Forced tool continuation retry produced no answer. "
                     "Emitting the standardized user-facing error."
                 )
+                for billing_event in await terminal_billing_usage_events():
+                    yield billing_event
                 yield main_processing_failure("empty_post_tool_response")
                 break
             # Safety net: if the LLM emitted ONLY hallucinated tool calls (all
@@ -9930,30 +10197,16 @@ async def handle_main_processing(
             )
             break
 
-    if usage:
-        # Yield cumulative token totals as a sentinel dict BEFORE the usage object.
-        # stream_consumer.py reads this to bill for ALL LLM calls in this turn rather
-        # than only the last one.  The sentinel is always emitted when we have usage
-        # data — when no tools were used there is exactly one iteration so the
-        # cumulative totals equal the single-iteration totals (zero-overhead path).
-        #
-        # Fields:
-        #   total_input_tokens  — sum of input tokens across every LLM call in this turn
-        #   total_output_tokens — sum of output tokens across every LLM call in this turn
-        #   tool_inference_iterations — number of extra LLM calls triggered by tool use
-        #                               (0 = no tools used, 1 = one tool round, etc.)
-        #
-        # A future FAQ link can explain why input_tokens may be higher than expected:
-        # each tool result is injected back into the context, making the next call's
-        # input larger.  See docs/billing.md (TODO: create) for the full explanation.
-        yield model_usage_tracker.sentinel(tool_inference_iterations=tool_inference_iterations)
+    final_billing_events = billing_usage_events()
+    if final_billing_events:
+        for billing_event in final_billing_events:
+            yield billing_event
         logger.info(
             f"{log_prefix} [CUMULATIVE_TOKENS] Final totals: "
             f"{model_usage_tracker.total_input_tokens} input tokens, "
             f"{model_usage_tracker.total_output_tokens} output tokens, "
             f"{tool_inference_iterations} tool inference iteration(s)."
         )
-        yield usage
 
     # Yield tool calls info as a special marker at the end of the stream
     # The stream consumer will extract this and format it as a code block

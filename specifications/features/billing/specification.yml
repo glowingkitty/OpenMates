@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.billing
-version: 7
+version: 8
 status: draft
 title: Billing And Payments
 summary: >
@@ -17,6 +17,7 @@ scope:
     - Gift-card redemption and free-testing-credit grants.
     - Invoice, payment-confirmation, credit-note, and refund document visibility.
     - Billing usage overview, detail, export, and receipt-style token breakdowns.
+    - Prospective cache-aware model tariffs and provider-reported token receipts.
     - First-party REST, CLI, SDK, web, and Apple semantic parity for billing usage surfaces.
     - Official-cloud anonymous virtual-budget admission and provider-operation settlement.
     - Public percentage of an identified guest's remaining daily anonymous allowance.
@@ -207,8 +208,8 @@ assertions:
     depends_on: [models.CreditPurchase, models.BillingDocument, examples.bank_transfers]
   - id: billing.usage.receipt-token-breakdown
     type: behavior
-    must: Billing usage details show receipt-style token rows where system prompt, user input, and optional app-skill token sub-items reconcile with the total input token row for a chat usage entry.
-    depends_on: [models.UsageTokenBreakdown, examples.usage_receipts]
+    must: Billing usage details show receipt-style token rows where system prompt, user input, and optional app-skill token sub-items reconcile with total input. For an enabled and verified cache tariff, a separate saved receipt partitions input into ordinary input, cache reads and cache writes, prices output including provider-reported billable thinking, and records the actual debit using the rates frozen for each incurred provider attempt. Absent cache counters remain unavailable, never guessed; cumulative events for one attempt are billed once. Category credits plus the displayed rounding or cap adjustment reconcile to the committed debit. Deferred settlements show pending and zero debited until commitment. Composition rows remain a separate view and do not add another charge; older usage and inactive tariffs preserve their existing debit.
+    depends_on: [models.UsageTokenBreakdown, examples.cache_usage_receipts]
   - id: billing.usage.landing-complete
     type: invariant
     must: The Usage landing page represents every committed usage entry for the authorized billing subject exactly once, either individually or in a clearly labeled non-overlapping group; shows a concise localized description, entry count, and credits for chat, standalone app, API-key, device, workflow, workflow-test, benchmark, incognito, and otherwise unattributed usage; links only to contexts that actually exist; and makes each displayed day total equal the sum of its displayed items without double-counting app work already attributed to a chat or another context.

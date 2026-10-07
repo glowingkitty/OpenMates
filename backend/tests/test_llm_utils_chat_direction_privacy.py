@@ -34,6 +34,11 @@ async def test_chat_direction_review_redacts_logged_instruction_without_changing
     monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _prefix: fake_provider)
     monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _id: (None, None))
     monkeypatch.setattr(llm_utils, "CacheService", CacheWithoutClient)
+    # Some backend imports install a non-propagating JSON logger before this
+    # test runs. Capture the source logger directly so the privacy assertion
+    # verifies its structured record regardless of suite order.
+    monkeypatch.setattr(llm_utils.logger, "handlers", [*llm_utils.logger.handlers, caplog.handler])
+    monkeypatch.setattr(llm_utils.logger, "propagate", False)
 
     with caplog.at_level(logging.DEBUG, logger=llm_utils.logger.name):
         result = await llm_utils.call_preprocessing_llm(
