@@ -20,6 +20,11 @@ from backend.core.api.app.services.project_recommendation_service import (
 )
 from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationError
 from backend.shared.providers.typesafe.models import DecisionResponse
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.workflow_authoring_billing import (
+    MeteredJevClient, WorkflowAuthoringBilling, WorkflowAuthoringBillingError,
+)
+from backend.tests.test_teams_lifecycle import FakeDirectus
 
 HISTORY = [{"role": "user", "content": "Sensitive conversation example: improve reusable daily review."}]
 DOCUMENT = {"name": "Daily review", "description": "Review this Project's work", "when_to_use": "During daily review",
@@ -755,13 +760,16 @@ async def test_remote_workflow_needs_actual_file_completion_and_encrypted_bindin
 @pytest.mark.asyncio
 async def test_team_authoring_ledger_prechecks_and_charges_team_without_personal_fallback(monkeypatch):
     import sys
+    from backend.core.api.app import routes
     from backend.core.api.app.services import workflow_authoring_billing as module
     personal = AsyncMock()
     team = AsyncMock()
     charged = AsyncMock(return_value={"charged_credits": 3})
     monkeypatch.setattr(module, "ensure_credit_headroom", personal)
     monkeypatch.setattr(module, "calculate_total_credits", lambda **_: 3)
-    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.apps_api", SimpleNamespace(charge_credits_via_internal_api=charged))
+    mocked_apps_api = SimpleNamespace(charge_credits_via_internal_api=charged)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.apps_api", mocked_apps_api)
+    monkeypatch.setattr(routes, "apps_api", mocked_apps_api, raising=False)
     billing = module.WorkflowAuthoringBilling(user_id="owner", session_id="job", app_id="ai", skill_id="project-focus-author",
         team_id="team", team_precheck=team, config_manager=SimpleNamespace())
     billing._pricing = lambda _: {}
@@ -774,3 +782,74 @@ async def test_team_authoring_ledger_prechecks_and_charges_team_without_personal
     with pytest.raises(module.WorkflowAuthoringBillingError, match="INSUFFICIENT_CREDITS"):
         await billing.precheck(model=module.GEMINI_MODEL)
     assert charged.await_count == 1
+
+
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary,teams.membership.role-gated
+@pytest.mark.asyncio
+async def test_project_authoring_member_precheck_respects_team_holds(monkeypatch):
+    directus = FakeDirectus()
+
+    async def require_team_role(_team_id, actor, roles):
+        if actor != "member" or "member" not in roles:
+            raise TeamPermissionError("Team permission denied")
+        return {"role": "member"}
+
+    directus.team = SimpleNamespace(require_team_role=require_team_role)
+    directus.rows["team_credit_accounts"].append({
+        "hashed_team_id": hash_id("team-1"), "balance_credits": 2,
+    })
+    monkeypatch.setattr(WorkflowAuthoringBilling, "_pricing", lambda *_: {})
+
+    class ReachedProvider(Exception):
+        pass
+
+    secret = AsyncMock(side_effect=ReachedProvider)
+    author = ProjectFocusAuthor(SimpleNamespace(get_secret=secret), directus_service=directus)
+    kwargs = dict(user_id="member", job_id="job", history=HISTORY, target=None, team_id="team-1")
+    with pytest.raises(ReachedProvider):
+        await author.author(**kwargs)
+    secret.assert_awaited_once()
+
+    directus.rows["billing_reservations"].append({
+        "subject_kind": "team", "subject_hash": hash_id("team-1"),
+        "state": "reserved", "quoted_credits": 2,
+    })
+    with pytest.raises(WorkflowAuthoringBillingError, match="INSUFFICIENT_CREDITS"):
+        await author.author(**kwargs)
+    secret.assert_awaited_once()
+
+    with pytest.raises(WorkflowAuthoringBillingError, match="WORKFLOW_AUTHORING_BILLING_UNAVAILABLE"):
+        await author.author(**{**kwargs, "user_id": "viewer"})
+    secret.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary,teams.membership.role-gated
+@pytest.mark.asyncio
+async def test_project_recommendation_member_precheck_respects_team_holds():
+    directus = FakeDirectus()
+
+    async def require_team_role(_team_id, actor, roles):
+        if actor != "member" or "member" not in roles:
+            raise TeamPermissionError("Team permission denied")
+        return {"role": "member"}
+
+    directus.team = SimpleNamespace(require_team_role=require_team_role)
+    directus.rows["team_credit_accounts"].append({
+        "hashed_team_id": hash_id("team-1"), "balance_credits": 2,
+    })
+    billing = WorkflowAuthoringBilling(user_id="member", session_id="job", team_id="team-1")
+    metered = MeteredJevClient(object(), billing)
+    service = ProjectRecommendationService(
+        access=SimpleNamespace(directus=directus), cache=None, jev=metered,
+    )
+    service._configure_team_billing("team-1")
+    await billing.team_precheck("team-1", "member")
+
+    directus.rows["billing_reservations"].append({
+        "subject_kind": "team", "subject_hash": hash_id("team-1"),
+        "state": "reserved", "quoted_credits": 2,
+    })
+    with pytest.raises(WorkflowAuthoringBillingError, match="INSUFFICIENT_CREDITS"):
+        await billing.team_precheck("team-1", "member")
+    with pytest.raises(TeamPermissionError):
+        await billing.team_precheck("team-1", "viewer")

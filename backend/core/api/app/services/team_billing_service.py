@@ -46,6 +46,17 @@ class TeamBillingService:
         await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_BILLING_ROLES)
         return await self._require_credit_account(team_id)
 
+    async def has_spending_headroom(
+        self, team_id: str, actor_user_id: str, estimated_credits: int
+    ) -> bool:
+        """Check spendable Team credits for an authorized credit user."""
+        await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_CREDIT_USER_ROLES)
+        account = await self._require_credit_account(team_id)
+        available_credits = (
+            _safe_int(account.get("balance_credits")) - _safe_int(account.get("held_credits"))
+        )
+        return available_credits >= estimated_credits
+
     async def reserve_team_credits(
         self, *, team_id: str, actor_user_id: str, charge_id: str,
         quoted_credits: int, app_id: str, skill_id: str,

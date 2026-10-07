@@ -20,6 +20,16 @@ const mocks = vi.hoisted(() => {
       return () => undefined;
     }),
   });
+  const createMutableReadable = <T>(initial: T) => {
+    let value = initial;
+    return {
+      subscribe: vi.fn((run: Subscriber<T>) => {
+        run(value);
+        return () => undefined;
+      }),
+      set(next: T) { value = next; },
+    };
+  };
 
   let websocketState: WebSocketStatusValue = {
     status: "disconnected",
@@ -90,8 +100,8 @@ const mocks = vi.hoisted(() => {
     checkAuth: vi.fn(async () => false),
     forcedLogoutInProgress: createReadable(false),
     isLoggingOut: createReadable(false),
-    activeTeamId: createReadable(null),
-    activeTeamContext: createReadable({ team: null, teamId: null, epoch: 0 }),
+    activeTeamId: createMutableReadable<string | null>(null),
+    activeTeamContext: createMutableReadable<{ team: null; teamId: string | null; epoch: number }>({ team: null, teamId: null, epoch: 0 }),
     flushPendingEmbedOperations: vi.fn(async () => undefined),
     sendOfflineChangesImpl: vi.fn(async () => undefined),
     getCachedChatVersionMap: vi.fn(() => new Map()),
@@ -151,6 +161,7 @@ vi.mock("../chatMetadataCache", () => ({
 vi.mock("../teamService", () => ({
   getTeam: vi.fn(),
   unwrapTeamChatKey: vi.fn(),
+  TeamRequestCancelledError: class TeamRequestCancelledError extends Error {},
 }));
 vi.mock("../embedSenders", () => ({
   flushPendingEmbedOperations: mocks.flushPendingEmbedOperations,
@@ -167,6 +178,8 @@ vi.mock("../connectedAccountStorageService", () => ({
 }));
 vi.mock("../chatSyncServiceHandlersRecovery", () => ({
   handleRecoveryJobsAvailableImpl: vi.fn(),
+  prepareRecoveryLifecycleImpl: vi.fn(),
+  resetRecoveryLifecycleImpl: vi.fn(),
 }));
 vi.mock("../chatSyncServiceHandlersAI", () => ({}));
 vi.mock("../chatSyncServiceHandlersChatUpdates", () => ({}));
@@ -177,6 +190,119 @@ vi.mock("../chatSyncServiceHandlersConnectedAccounts", () => ({}));
 vi.mock("../chatSyncServiceHandlersWebhooks", () => ({}));
 
 import { ChatSynchronizationService, chatSyncService } from "../chatSyncService";
+import { getTeam, TeamRequestCancelledError } from "../teamService";
+
+describe("phased sync context cancellation", () => {
+  afterEach(() => {
+    mocks.activeTeamId.set(null);
+    mocks.activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
+    vi.mocked(getTeam).mockReset();
+    vi.restoreAllMocks();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+  it("ignores a cancelled Team A lookup after Team B starts without ending Team B sync", async () => {
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    (service as unknown as { webSocketConnected: boolean }).webSocketConnected = true;
+    let rejectA!: (error: Error) => void;
+    let rejectB!: (error: Error) => void;
+    vi.mocked(getTeam)
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectA = reject; }))
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectB = reject; }));
+    mocks.activeTeamId.set("team-a");
+    mocks.activeTeamContext.set({ team: null, teamId: "team-a", epoch: 1 });
+    const oldSync = service.startPhasedSync();
+    mocks.activeTeamId.set("team-b");
+    mocks.activeTeamContext.set({ team: null, teamId: "team-b", epoch: 2 });
+    const newSync = service.startPhasedSync();
+    const watchdog = setTimeout(() => undefined, 30_000);
+    (service as unknown as { phasedSyncTimeout: ReturnType<typeof setTimeout> }).phasedSyncTimeout = watchdog;
+    const clearTimeoutSpy = vi.spyOn(
+      service as unknown as { clearPhasedSyncTimeout: () => void },
+      "clearPhasedSyncTimeout",
+    );
+    const completion = vi.fn();
+    service.addEventListener("phasedSyncComplete", completion);
+    mocks.notificationStore.error.mockClear();
+    try {
+      rejectA(new TeamRequestCancelledError("Team request cancelled"));
+      await oldSync;
+      expect(mocks.notificationStore.error).not.toHaveBeenCalled();
+      expect(clearTimeoutSpy).not.toHaveBeenCalled();
+      expect(completion).not.toHaveBeenCalled();
+      expect((service as unknown as { phasedSyncTimeout: unknown }).phasedSyncTimeout).toBe(watchdog);
+    } finally {
+      service.removeEventListener("phasedSyncComplete", completion);
+      mocks.activeTeamContext.set({ team: null, teamId: null, epoch: 3 });
+      rejectB(new TeamRequestCancelledError("Team request cancelled"));
+      await newSync;
+      clearTimeout(watchdog);
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+  it("lets only the latest same-context attempt handle a lookup failure", async () => {
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    (service as unknown as { webSocketConnected: boolean }).webSocketConnected = true;
+    mocks.activeTeamId.set("team-a");
+    mocks.activeTeamContext.set({ team: null, teamId: "team-a", epoch: 1 });
+    let rejectOld!: (error: Error) => void;
+    let rejectLatest!: (error: Error) => void;
+    vi.mocked(getTeam)
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectOld = reject; }))
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectLatest = reject; }));
+    const oldSync = service.startPhasedSync();
+    const latestSync = service.startPhasedSync();
+    const watchdog = setTimeout(() => undefined, 30_000);
+    (service as unknown as { phasedSyncTimeout: ReturnType<typeof setTimeout> }).phasedSyncTimeout = watchdog;
+    const clearTimeoutSpy = vi.spyOn(
+      service as unknown as { clearPhasedSyncTimeout: () => void },
+      "clearPhasedSyncTimeout",
+    );
+    const completion = vi.fn();
+    service.addEventListener("phasedSyncComplete", completion);
+    mocks.notificationStore.error.mockClear();
+    try {
+      rejectOld(new TeamRequestCancelledError("Obsolete Team lookup"));
+      await oldSync;
+      expect(mocks.notificationStore.error).not.toHaveBeenCalled();
+      expect(clearTimeoutSpy).not.toHaveBeenCalled();
+      expect(completion).not.toHaveBeenCalled();
+      expect((service as unknown as { phasedSyncTimeout: unknown }).phasedSyncTimeout).toBe(watchdog);
+
+      rejectLatest(new Error("Current Team lookup failed"));
+      await latestSync;
+      expect(mocks.notificationStore.error).toHaveBeenCalledExactlyOnceWith("Failed to start chat synchronization.");
+      expect(clearTimeoutSpy).toHaveBeenCalledOnce();
+      expect(completion).toHaveBeenCalledOnce();
+    } finally {
+      service.removeEventListener("phasedSyncComplete", completion);
+      clearTimeout(watchdog);
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+  it("reports a genuine failure in the current Team context", async () => {
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    (service as unknown as { webSocketConnected: boolean }).webSocketConnected = true;
+    mocks.activeTeamId.set("team-a");
+    mocks.activeTeamContext.set({ team: null, teamId: "team-a", epoch: 1 });
+    vi.mocked(getTeam).mockRejectedValueOnce(new Error("Team metadata unavailable"));
+    mocks.notificationStore.error.mockClear();
+    const completion = vi.fn();
+    service.addEventListener("phasedSyncComplete", completion);
+    try {
+      await service.startPhasedSync();
+      expect(mocks.notificationStore.error).toHaveBeenCalledWith("Failed to start chat synchronization.");
+      expect(completion).toHaveBeenCalledOnce();
+    } finally {
+      service.removeEventListener("phasedSyncComplete", completion);
+    }
+  });
+});
 
 describe('Sidebar metadata hydration', () => {
   beforeEach(() => {

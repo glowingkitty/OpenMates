@@ -216,6 +216,47 @@ test.describe('Billing context previews', () => {
 	});
 
 	// contract-test: supporting surface=gui.web assertions=billing.documents.visible-downloadable
+	test('Team CSV download click stays inside the phone billing panel', async ({ page }) => {
+		let exportRequests = 0;
+		await page.route(
+			/\/v1\/teams\/team-preview\/billing\/usage\/export\?format=csv$/,
+			(route) => {
+				exportRequests += 1;
+				return route.fulfill({
+					status: 200,
+					contentType: 'text/csv',
+					headers: {
+						'Content-Disposition': 'attachment; filename="team_usage_preview.csv"',
+						'Access-Control-Expose-Headers': 'Content-Disposition'
+					},
+					body: 'created_at,credit_amount\n2026-10-07,25\n'
+				});
+			}
+		);
+		await page.goto(
+			'/dev/preview/settings/billing/SettingsTeamBilling?chrome=0&theme=light&background=%23dbeafe&width=323'
+		);
+		await waitForComponentPreview(page);
+		await page.evaluate(() => {
+			document.body.dataset.teamUsageExportBubbled = '0';
+			document.addEventListener('click', (event) => {
+				if (event.target instanceof HTMLAnchorElement && event.target.hasAttribute('download')) {
+					document.body.dataset.teamUsageExportBubbled = '1';
+				}
+			});
+		});
+		await page.getByTestId('team-usage-download').click();
+		await expect(page.getByTestId('team-usage-csv')).toBeVisible();
+		const downloadPromise = page.waitForEvent('download');
+		await page.getByTestId('team-usage-csv').click();
+		const download = await downloadPromise;
+		expect(download.suggestedFilename()).toBe('team_usage_preview.csv');
+		expect(exportRequests).toBe(1);
+		await expect(page.locator('body')).toHaveAttribute('data-team-usage-export-bubbled', '0');
+		await expect(page.getByTestId('team-billing-page')).toBeVisible();
+	});
+
+	// contract-test: supporting surface=gui.web assertions=billing.documents.visible-downloadable
 	test('Personal address starts collapsed, while Team address fields are visible and optional', async ({
 		page
 	}) => {

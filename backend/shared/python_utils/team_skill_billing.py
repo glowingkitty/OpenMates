@@ -14,8 +14,9 @@ async def ensure_team_skill_credit_headroom(
 ) -> None:
     from backend.core.api.app.services.team_billing_service import TeamBillingService
 
-    account = await TeamBillingService(directus_service).get_billing_summary(team_id, user_id)
-    if int(account.get("balance_credits") or 0) < estimated_credits:
+    if not await TeamBillingService(directus_service).has_spending_headroom(
+        team_id, user_id, estimated_credits
+    ):
         raise ValueError("INSUFFICIENT_TEAM_CREDITS")
 
 

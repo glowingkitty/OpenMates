@@ -17,9 +17,9 @@ from backend.tests import test_apps_api as infra
 from backend.tests import test_generated_model_streaming_storage as generated_asset_infra  # noqa: F401
 
 from backend.core.api.app.routes import apps_api
-from backend.core.api.app.services.directus.team_methods import TeamPermissionError
-from backend.core.api.app.services.team_billing_service import TeamBillingService
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.shared.python_utils.team_skill_billing import skill_billing_request
+from backend.tests.test_teams_lifecycle import FakeDirectus
 
 
 def _app() -> infra.AppYAML:
@@ -51,13 +51,9 @@ def test_team_query_authorizes_member_and_bills_team_only(monkeypatch: pytest.Mo
 
     async def require_team_role(team_id, user_id, roles):
         calls.append({"team_id": team_id, "user_id": user_id, "roles": roles})
-        if team_id in {"forbidden-team", "viewer-team"}:
+        if team_id in {"forbidden-team", "viewer-team"} or "member" not in roles:
             raise TeamPermissionError("Team permission denied")
         return {"role": "member"}
-
-    async def summary(_self, team_id, actor_user_id):
-        assert team_id in {"team-1", "empty-team"} and actor_user_id == "user-1"
-        return {"balance_credits": 0 if team_id == "empty-team" else 100}
 
     async def skill(**kwargs):
         calls.append(kwargs)
@@ -69,14 +65,22 @@ def test_team_query_authorizes_member_and_bills_team_only(monkeypatch: pytest.Mo
     async def charge(**kwargs):
         charges.append(kwargs)
 
-    directus = SimpleNamespace(team=SimpleNamespace(require_team_role=require_team_role))
+    directus = FakeDirectus()
+    directus.team = SimpleNamespace(require_team_role=require_team_role)
+    for team_id, balance in (("team-1", 100), ("empty-team", 0), ("held-team", 100)):
+        directus.rows["team_credit_accounts"].append({
+            "id": team_id, "hashed_team_id": hash_id(team_id), "balance_credits": balance,
+        })
+    directus.rows["billing_reservations"].append({
+        "subject_kind": "team", "subject_hash": hash_id("held-team"),
+        "state": "reserved", "quoted_credits": 100,
+    })
     app = FastAPI()
     app.state.config_manager = SimpleNamespace(get_provider_config=lambda *_: None)
     user_info = {"user_id": "user-1", "api_key_hash": None}
     app.dependency_overrides[apps_api.get_session_or_api_key_info] = lambda: user_info
     app.dependency_overrides[apps_api.get_cache_service] = lambda: object()
     app.dependency_overrides[apps_api.get_directus_service] = lambda: directus
-    monkeypatch.setattr(TeamBillingService, "get_billing_summary", summary)
     monkeypatch.setattr(apps_api, "call_app_skill", skill)
     monkeypatch.setattr(apps_api, "calculate_skill_credits", credits)
     monkeypatch.setattr(apps_api, "charge_credits_via_internal_api", charge)
@@ -87,7 +91,7 @@ def test_team_query_authorizes_member_and_bills_team_only(monkeypatch: pytest.Mo
     response = client.post(path + "?team_id=team-1", json={"requests": [{"query": "x"}]})
     assert response.status_code == 200, response.text
     assert calls[0]["roles"] == {"owner", "admin", "member"}
-    assert calls[1]["user_info"]["team_id"] == "team-1"
+    assert calls[2]["user_info"]["team_id"] == "team-1"
     assert charges[0]["team_id"] == "team-1"
 
     calls.clear()
@@ -97,9 +101,14 @@ def test_team_query_authorizes_member_and_bills_team_only(monkeypatch: pytest.Mo
     assert len(calls) == 1 and charges == []
 
     calls.clear()
+    held = client.post(path + "?team_id=held-team", json={"requests": [{"query": "x"}]})
+    assert held.status_code == 402
+    assert len(calls) == 2 and charges == []
+
+    calls.clear()
     empty = client.post(path + "?team_id=empty-team", json={"requests": [{"query": "x"}]})
     assert empty.status_code == 402
-    assert len(calls) == 1 and charges == []
+    assert len(calls) == 2 and charges == []
 
     calls.clear()
     viewer = client.post(path + "?team_id=viewer-team", json={"requests": [{"query": "x"}]})
@@ -107,6 +116,12 @@ def test_team_query_authorizes_member_and_bills_team_only(monkeypatch: pytest.Mo
     assert len(calls) == 1 and charges == []
 
     calls.clear()
+    user_info["api_key_hash"] = "developer-key"
+    developer = client.post(path + "?team_id=team-1", json={"requests": [{"query": "x"}]})
+    assert developer.status_code == 403
+    assert calls == [] and charges == []
+    user_info["api_key_hash"] = None
+
     personal = client.post(path, json={"requests": [{"query": "x"}]})
     assert personal.status_code == 200
     assert "team_id" not in calls[0]["user_info"]

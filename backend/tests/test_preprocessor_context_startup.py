@@ -11,6 +11,58 @@ from backend.apps.ai.processing import agentic_context, context_preselection, pr
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.core.api.app.services import project_focus_request_service
 from backend.core.api.app.utils import server_mode
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.tests.test_teams_lifecycle import FakeDirectus
+
+
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary,teams.membership.role-gated
+@pytest.mark.asyncio
+async def test_team_chat_member_precheck_uses_spendable_credits(monkeypatch):
+    class ReachedRouting(Exception):
+        pass
+
+    request = AskSkillRequest(
+        chat_id="chat-test", message_id="message-test", user_id="member",
+        user_id_hash="member-hash", team_id="team-1",
+        message_history=[{"role": "user", "content": "Help", "created_at": 1}],
+        current_user_content="Help",
+    )
+    directus = FakeDirectus()
+
+    async def require_team_role(_team_id, user_id, roles):
+        if user_id != "member" or "member" not in roles:
+            raise TeamPermissionError("Team permission denied")
+        return {"role": "member"}
+
+    directus.team = SimpleNamespace(require_team_role=require_team_role)
+    directus.rows["team_credit_accounts"].append({
+        "hashed_team_id": hash_id("team-1"), "balance_credits": 2,
+    })
+    monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: True)
+    load_ledger = AsyncMock(side_effect=ReachedRouting)
+    monkeypatch.setattr(preprocessor, "load_skill_ledger", load_ledger)
+    kwargs = dict(
+        request_data=request, base_instructions={}, skill_config=SimpleNamespace(),
+        cache_service=SimpleNamespace(get_user_by_id=AsyncMock(return_value={"credits": 0})),
+        secrets_manager=None, directus_service=directus, encryption_service=None,
+    )
+
+    funded = await preprocessor.handle_preprocessing(**kwargs)
+    assert funded.rejection_reason != "team_credit_precheck_failed"
+    load_ledger.assert_awaited_once()
+
+    directus.rows["billing_reservations"].append({
+        "subject_kind": "team", "subject_hash": hash_id("team-1"),
+        "state": "reserved", "quoted_credits": 2,
+    })
+    insufficient = await preprocessor.handle_preprocessing(**kwargs)
+    assert insufficient.rejection_reason == "insufficient_team_credits"
+    load_ledger.assert_awaited_once()
+
+    request.user_id = "viewer"
+    forbidden = await preprocessor.handle_preprocessing(**kwargs)
+    assert forbidden.rejection_reason == "team_credit_precheck_failed"
+    load_ledger.assert_awaited_once()
 
 
 @pytest.mark.asyncio

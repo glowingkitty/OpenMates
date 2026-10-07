@@ -15,6 +15,21 @@ export interface BillingAddress {
 
 export const personalBillingContext: BillingContext = { kind: 'personal' };
 
+const TEAM_BILLING_SETTINGS_SUFFIXES = new Set([
+  '', 'address', 'buy-credits', 'buy-credits/payment', 'buy-credits/confirmation',
+  'invoices', 'auto-topup', 'auto-topup/low-balance', 'auto-topup/monthly',
+]);
+
+/** Resolve generic billing links before Settings selects a context-specific page. */
+export function resolveBillingSettingsPath(settingsPath: string, activeTeamId: string | null): string {
+  if (!activeTeamId || !/^billing(?:\/|$)/.test(settingsPath)) return settingsPath;
+  const suffix = settingsPath === 'billing' ? '' : settingsPath.slice('billing/'.length);
+  const teamBillingRoot = `teams/${activeTeamId}/billing`;
+  return TEAM_BILLING_SETTINGS_SUFFIXES.has(suffix)
+    ? `${teamBillingRoot}${suffix ? `/${suffix}` : ''}`
+    : teamBillingRoot;
+}
+
 export function billingPath(context: BillingContext, operation: 'address' | 'balance' | 'methods' | 'cardOrder' | 'savedCardOrder' | 'bankOrder' | 'bankStatus' | 'invoices' | 'autoTopup' | 'monthly' | 'usage' | 'usageExport' | 'saveMethod'): string {
   if (context.kind === 'personal') {
     if (operation === 'balance') throw new Error('Personal balance is read from the user profile');

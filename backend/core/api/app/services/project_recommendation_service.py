@@ -251,8 +251,7 @@ class ProjectRecommendationService:
         if isinstance(self.jev, MeteredJevClient):
             self.jev.billing.team_id = team_id
             async def precheck(team: str, actor: str) -> None:
-                account = await TeamBillingService(self.access.directus).get_billing_summary(team, actor)
-                if int(account.get("balance_credits") or 0) < 1:
+                if not await TeamBillingService(self.access.directus).has_spending_headroom(team, actor, 1):
                     raise WorkflowAuthoringBillingError("INSUFFICIENT_CREDITS")
             self.jev.billing.team_precheck = precheck
 

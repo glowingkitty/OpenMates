@@ -1569,7 +1569,9 @@ async def handle_preprocessing(
 
         team_billing_service = TeamBillingService(directus_service)
         try:
-            team_account = await team_billing_service.get_billing_summary(request_data.team_id, request_data.user_id)
+            has_headroom = await team_billing_service.has_spending_headroom(
+                request_data.team_id, request_data.user_id, 1
+            )
         except Exception as exc:
             logger.warning(f"{log_prefix} Team credit precheck failed closed for team request: {type(exc).__name__}")
             return PreprocessingResult(
@@ -1577,7 +1579,7 @@ async def handle_preprocessing(
                 rejection_reason="team_credit_precheck_failed",
                 error_message="Team credits could not be verified. Please try again later.",
             )
-        if int(team_account.get("balance_credits") or 0) < 1:
+        if not has_headroom:
             logger.warning(f"{log_prefix} Team {request_data.team_id} has insufficient credits for minimum request cost.")
             return PreprocessingResult(
                 can_proceed=False,

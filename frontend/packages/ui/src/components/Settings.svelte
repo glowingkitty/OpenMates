@@ -60,6 +60,7 @@ changes to the documentation (to keep the documentation up to date).
     import { pendingMentionStore } from '../stores/pendingMentionStore';
     import { activeTeam, activeTeamId, orderTeamsByRecent, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../stores/teamStore';
     import { listTeams, loadTeamBilling, subscribeTeamListRefresh, TeamRequestCancelledError, type TeamViewModel } from '../services/teamService';
+    import { resolveBillingSettingsPath } from '../services/billingContext';
     // Admin status is now read directly from userProfile.is_admin (synced during login)
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { isRestrictedSession } from '../stores/pairSessionStore'; // Pair session restricted mode
@@ -1583,9 +1584,7 @@ changes to the documentation (to keep the documentation up to date).
     async function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string; cameFromTitle?: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string; cameFromTitle?: string }>) {
         const detail = 'detail' in event ? event.detail : event;
         let { settingsPath, direction: newDirection, icon, cameFrom, cameFromTitle } = detail;
-        if (settingsPath === 'billing' && get(activeTeamId)) {
-            settingsPath = `teams/${get(activeTeamId)}/billing`;
-        }
+        settingsPath = resolveBillingSettingsPath(settingsPath, get(activeTeamId));
         direction = newDirection;
 
         // --- AI app redirect ---

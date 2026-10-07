@@ -259,6 +259,8 @@
       link.download =
         disposition.match(/filename="?([^";]+)"?/)?.[1] ??
         `team-usage.${format}`;
+      // The synthetic click must not reach Settings' document outside-click handler.
+      link.addEventListener("click", (event) => event.stopPropagation());
       document.body.appendChild(link);
       link.click();
       link.remove();

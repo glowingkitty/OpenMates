@@ -227,8 +227,7 @@ class ProjectFocusAuthor:
         async def team_precheck(team_id: str, actor: str) -> None:
             if self.directus is None:
                 raise WorkflowAuthoringBillingError("WORKFLOW_AUTHORING_BILLING_UNAVAILABLE")
-            account = await TeamBillingService(self.directus).get_billing_summary(team_id, actor)
-            if int(account.get("balance_credits") or 0) < 1:
+            if not await TeamBillingService(self.directus).has_spending_headroom(team_id, actor, 1):
                 raise WorkflowAuthoringBillingError("INSUFFICIENT_CREDITS")
         billing = WorkflowAuthoringBilling(user_id=user_id, session_id=job_id,
                                            app_id="ai", skill_id="project-focus-author",

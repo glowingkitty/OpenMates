@@ -361,12 +361,12 @@ async def _resolve_app_skill_team_context(
         await directus_service.team.require_team_role(
             team_id, user_info["user_id"], TEAM_CREDIT_USER_ROLES
         )
-        account = await TeamBillingService(directus_service).get_billing_summary(
-            team_id, user_info["user_id"]
+        has_headroom = await TeamBillingService(directus_service).has_spending_headroom(
+            team_id, user_info["user_id"], 1
         )
     except TeamPermissionError as exc:
         raise HTTPException(status_code=403, detail="Team permission denied") from exc
-    if int(account.get("balance_credits") or 0) < 1:
+    if not has_headroom:
         raise HTTPException(status_code=402, detail="INSUFFICIENT_TEAM_CREDITS")
     return {**user_info, "team_id": team_id}
 

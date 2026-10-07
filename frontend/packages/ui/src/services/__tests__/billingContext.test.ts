@@ -17,10 +17,30 @@ vi.mock('../../config/api', () => ({
   },
 }));
 
-import { billingPath, loadBillingAddress, saveBillingAddress } from '../billingContext';
+import { billingPath, loadBillingAddress, resolveBillingSettingsPath, saveBillingAddress } from '../billingContext';
 
 describe('billing context isolation', () => {
   beforeEach(() => vi.restoreAllMocks());
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.billing.context-parity
+  it('routes every supported generic billing settings page into the active Team', () => {
+    for (const suffix of [
+      '', 'address', 'buy-credits', 'buy-credits/payment', 'buy-credits/confirmation',
+      'invoices', 'auto-topup', 'auto-topup/low-balance', 'auto-topup/monthly',
+    ]) {
+      const personalPath = suffix ? `billing/${suffix}` : 'billing';
+      const teamPath = `teams/team-2/billing${suffix ? `/${suffix}` : ''}`;
+      expect(resolveBillingSettingsPath(personalPath, 'team-2')).toBe(teamPath);
+      expect(resolveBillingSettingsPath(personalPath, null)).toBe(personalPath);
+      expect(resolveBillingSettingsPath(teamPath, 'team-1')).toBe(teamPath);
+    }
+    // Personal-only and unknown links must never render a Personal billing page in Team context.
+    for (const path of ['billing/redeem-giftcard', 'billing/referral-code', 'billing/gift-cards/buy', 'billing/unknown']) {
+      expect(resolveBillingSettingsPath(path, 'team-2')).toBe('teams/team-2/billing');
+      expect(resolveBillingSettingsPath(path, null)).toBe(path);
+    }
+    expect(resolveBillingSettingsPath('billings/address', 'team-2')).toBe('billings/address');
+  });
 
   // contract-test: supporting surface=gui.web assertions=billing.purchase.provider-routing,billing.documents.visible-downloadable
   it('uses only Team routes when a Team is selected and rejects an empty Team ID', () => {

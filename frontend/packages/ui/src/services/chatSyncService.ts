@@ -251,6 +251,7 @@ export class ChatSynchronizationService extends EventTarget {
   // CRITICAL: Sync timeout mechanism to prevent UI from being stuck in "Loading chats..." state
   // This handles cases where the server never sends phased_sync_complete or events are missed
   private phasedSyncTimeout: NodeJS.Timeout | null = null;
+  private phasedSyncStartGeneration = 0;
   private readonly PHASED_SYNC_TIMEOUT_MS = 30000; // 30 seconds timeout for phased sync
   private syncCompletedViaTimeout = false; // Track if completion was via timeout (for debugging)
 
@@ -2954,6 +2955,7 @@ export class ChatSynchronizationService extends EventTarget {
    * or if events are missed due to timing issues.
    */
   public async startPhasedSync(): Promise<void> {
+    const startGeneration = ++this.phasedSyncStartGeneration;
     if (!this.webSocketConnected) {
       console.warn(
         "[ChatSyncService] Cannot start phased sync - WebSocket not connected",
@@ -2970,13 +2972,21 @@ export class ChatSynchronizationService extends EventTarget {
       return;
     }
 
+    const context = get(activeTeamContext);
+    const workspaceIdentity = getWorkspaceCacheIdentity();
+    const isCurrentAttempt = (): boolean => {
+      const current = get(activeTeamContext);
+      return this.phasedSyncStartGeneration === startGeneration &&
+        workspaceIdentity === getWorkspaceCacheIdentity() &&
+        current.epoch === context.epoch && current.teamId === context.teamId &&
+        !get(forcedLogoutInProgress) && !get(isLoggingOut);
+    };
     let activityAttempt: number | null = null;
     try {
-      const context = get(activeTeamContext);
       const teamId = context.teamId;
       if (teamId) {
         await getTeam(teamId);
-        if (teamId !== get(activeTeamId)) return;
+        if (!isCurrentAttempt()) return;
       }
       console.warn("[ChatSyncService] 1/4: Starting phased sync...");
 
@@ -3067,9 +3077,7 @@ export class ChatSynchronizationService extends EventTarget {
 
       // The context may have changed while IndexedDB was preparing this request.
       // Never show activity for, or send, a request from the old context.
-      const currentContext = get(activeTeamContext);
-      if (currentContext.epoch !== context.epoch || currentContext.teamId !== teamId) return;
-      if (!this.webSocketConnected || get(forcedLogoutInProgress) || get(isLoggingOut)) return;
+      if (!isCurrentAttempt() || !this.webSocketConnected) return;
       // Slow request preparation may have exhausted the earlier UI watchdog.
       // Give the actual request its own bounded completion window.
       this.startPhasedSyncTimeout();
@@ -3079,6 +3087,9 @@ export class ChatSynchronizationService extends EventTarget {
         "[ChatSyncService] 4/4: ✅ Successfully sent 'phased_sync_request' to server.",
       );
     } catch (error) {
+      // An older attempt may reject after a newer one starts, even in the same
+      // Team context. It must not clear the newer watchdog or completion state.
+      if (!isCurrentAttempt()) return;
       if (activityAttempt !== null) chatSyncActivity.clearAttempt(activityAttempt);
       console.error(
         "[ChatSyncService] ❌ CRITICAL: Error during startPhasedSync:",

@@ -14,6 +14,7 @@ from fastapi import HTTPException
 from backend.core.api.app.services.directus.team_methods import TeamMethods, TeamPermissionError, hash_id
 from backend.core.api.app.services.team_billing_service import TeamBillingService, TeamInsufficientCreditsError
 from backend.core.api.app.services import team_billing_service
+from backend.shared.python_utils.team_skill_billing import ensure_team_skill_credit_headroom
 from backend.tests.test_teams_lifecycle import FakeDirectus, team_payload
 from backend.tests.test_usage_entries import _llm_receipt, RoundTripEncryption
 
@@ -197,6 +198,44 @@ async def test_member_charge_deducts_team_balance_and_records_usage_attribution(
     assert result["usage_event"]["actor_user_hash"] == hash_id("bob")
     assert result["usage_event"]["credit_amount"] == 30
     assert directus.rows["team_credit_accounts"][0]["balance_credits"] == 170
+
+
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary,teams.membership.role-gated
+@pytest.mark.anyio
+async def test_member_skill_headroom_uses_available_team_credits_without_billing_summary() -> None:
+    directus, methods, billing = await _seed_team()
+    await methods.create_invite("team-1", "alice", {"invite_id": "invite-member", "role": "member", "created_at": 110})
+    await _approve_invited_member(methods, "invite-member", "bob", "cipher-team-key-for-bob")
+    await billing.add_credits(
+        team_id="team-1", actor_user_id="alice", event_id="purchase-1", credits=100,
+        encrypted_balance="cipher-balance-100",
+    )
+    directus.rows["billing_reservations"].append({
+        "subject_kind": "team", "subject_hash": hash_id("team-1"),
+        "state": "reserved", "quoted_credits": 60,
+    })
+
+    with pytest.raises(TeamPermissionError):
+        await billing.get_billing_summary("team-1", "bob")
+    await ensure_team_skill_credit_headroom(directus, "team-1", "bob", 40)
+    with pytest.raises(ValueError, match="^INSUFFICIENT_TEAM_CREDITS$"):
+        await ensure_team_skill_credit_headroom(directus, "team-1", "bob", 41)
+
+
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary,teams.membership.role-gated
+@pytest.mark.anyio
+async def test_viewer_and_outsider_cannot_check_skill_headroom() -> None:
+    directus, methods, billing = await _seed_team()
+    await methods.create_invite("team-1", "alice", {"invite_id": "invite-viewer", "role": "viewer", "created_at": 110})
+    await _approve_invited_member(methods, "invite-viewer", "viv", "cipher-team-key-for-viewer")
+    await billing.add_credits(
+        team_id="team-1", actor_user_id="alice", event_id="purchase-1", credits=100,
+        encrypted_balance="cipher-balance-100",
+    )
+
+    for user_id in ("viv", "outsider"):
+        with pytest.raises(TeamPermissionError):
+            await ensure_team_skill_credit_headroom(directus, "team-1", user_id, 1)
 
 
 # contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary,teams.membership.role-gated
