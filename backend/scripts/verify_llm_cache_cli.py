@@ -40,14 +40,20 @@ def main() -> None:
     parser.add_argument("--phase", required=True)
     parser.add_argument("--require-receipts", action="store_true")
     parser.add_argument("--model", choices=MODELS)
+    parser.add_argument("--capture-script", type=Path)
+    parser.add_argument("--target-commit")
+    parser.add_argument("--cli-path", type=Path, help="Exact deployed source CLI build; defaults to installed openmates")
     args = parser.parse_args()
+    if args.capture_script and not args.target_commit:
+        parser.error("--capture-script requires --target-commit")
     state = Path(os.environ["OPENMATES_STATE_DIR"])
     output = state / args.phase
     output.mkdir(mode=0o700, exist_ok=True)
     source = state / "test-source"
     source.mkdir(mode=0o700, exist_ok=True)
     project = json.loads((state / "test-project.private.json").read_text())["project"]["project_id"]
-    command = ["openmates", "--api-url", "https://api.dev.openmates.org"]
+    executable = ["node", str(args.cli_path.resolve())] if args.cli_path else ["openmates"]
+    command = executable + ["--api-url", "https://api.dev.openmates.org"]
 
     def run_cli(argv: list[str], name: str, visible: bool = False) -> dict:
         invocation = command + argv + ["--json"]
@@ -55,6 +61,30 @@ def main() -> None:
             print("\n$ " + shlex.join(invocation), flush=True)
         raw_file = output / (name + ".private.json")
         error_file = output / (name + ".stderr.private.txt")
+        if visible and args.capture_script:
+            capture_dir = output / (name + "-capture")
+            capture = subprocess.run(
+                ["python3", str(args.capture_script), "--output-dir", str(capture_dir),
+                 "--target-environment", "OpenMates dev " + args.target_commit,
+                 "--classification", "cache-pricing-" + args.phase,
+                 "--timeout-seconds", "240", "--", *invocation],
+                cwd=source, capture_output=True, text=True, timeout=300,
+            )
+            capture_result = output / (name + ".capture.private.json")
+            capture_result.write_text(capture.stdout)
+            capture_result.chmod(0o600)
+            error_file.write_text(capture.stderr)
+            error_file.chmod(0o600)
+            proof = json.loads(capture.stdout)
+            manifest = proof.get("manifest", {})
+            print("CAPTURED: " + json.dumps({"command": name, "status": proof["status"],
+                                            "video_path": manifest.get("video_path")}), flush=True)
+            if capture.returncode:
+                raise RuntimeError(f"Recorded CLI command failed: {name}; proof retained")
+            stdout = Path(manifest["command_output_path"]).read_text()
+            raw_file.write_text(stdout)
+            raw_file.chmod(0o600)
+            return json.loads(stdout)
         with error_file.open("w") as errors:
             error_file.chmod(0o600)
             child = subprocess.Popen(invocation, stdout=subprocess.PIPE, stderr=errors, text=True, cwd=source)
@@ -93,7 +123,7 @@ def main() -> None:
         if followup.get("status") != "completed" or not followup.get("assistant"):
             raise RuntimeError("Follow-up did not produce a completed answer")
         after = balance(model + "-after-followup")
-        details = run_cli(["settings", "billing", "usage", "details", "--type", "chat", "--identifier", chat, "--month", time.strftime("%Y-%m", time.gmtime())], model + "-usage", True)
+        details = run_cli(["settings", "billing", "usage", "details", "--type", "chat", "--identifier", chat, "--month", time.strftime("%Y-%m", time.gmtime())], model + "-usage")
         rows = details.get("entries", [])
         if len(rows) != 2:
             raise RuntimeError(f"Expected two inference entries, received {len(rows)}")

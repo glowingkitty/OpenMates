@@ -545,6 +545,11 @@ export class OpenMatesWsClient {
       );
       this.socket.once("open", () => {
         clearTimeout(timeout);
+        // Typed recovery discovery starts only after the foreground lifecycle
+        // announcement. CLI commands also need this when no human viewer is active.
+        this.socket.send(JSON.stringify({ type: "native_client_lifecycle", payload: {
+          client_type: "cli", is_foreground: true, interactive: false,
+        } }));
         resolve();
       });
       this.socket.once("error", (error: Error) => {
@@ -578,10 +583,10 @@ export class OpenMatesWsClient {
   close(): void {
     if (this.presenceTimer) clearInterval(this.presenceTimer);
     this.presenceTimer = null;
-    if (this.interactiveHuman && this.socket.readyState === WebSocket.OPEN) {
+    if (this.socket.readyState === WebSocket.OPEN) {
       try {
         this.socket.send(JSON.stringify({ type: "native_client_lifecycle", payload: {
-          client_type: "cli", is_foreground: false, interactive: true,
+          client_type: "cli", is_foreground: false, interactive: this.interactiveHuman,
         } }));
       } catch {
         // The lease expires if the socket closes before the background frame.

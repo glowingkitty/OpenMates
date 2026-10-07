@@ -60,6 +60,7 @@ decisions_accepted:
   - Keep auxiliary processing bundled and measure its supplier cost privately before activating discounts.
   - Discount verified OpenAI reads with unreported writes included in ordinary input after financial checks.
   - Exact feature.billing@8 review approved; fingerprint 5bf7f83dfbb70254431bd3ef2ffbe5a5d0201d7cb59351f667060e6e6b6ca3ca.
+  - Include the bounded CLI foreground-discovery repair and regression coverage to complete the required real chat verification.
 implementation_dependencies:
   - Complete normalized usage, frozen rates, encrypted receipts and displays without activating prices.
   - Implement the accepted safeguards, then enable only individually verified and financially checked routes.
@@ -84,9 +85,14 @@ evidence:
     - Exact feature.billing@8 approval recorded; immutable candidates published with all tariffs disabled.
     - Authenticated personal/team holds, atomic settlement and stale-hold review implemented and checked; auxiliary supplier costs are logged privately for calibration.
     - Isolated browser component pricing and receipt checks passed on two successive candidates; all six existing recordings downloaded and uploaded.
+    - Foundation published to dev as 09a946b2fe82be4745b15514e202a85b7ff19fe7 with every cache tariff disabled; schema initialization, coordinated service rebuild and web deployment passed.
+    - Final materialized deployment passed lint, translations, Specification, SDK boundary and the full 34-file pytest gate; all twelve browser recordings were retained and uploaded.
+    - First real CLI startup attempt was recorded and uploaded but failed before chat submission; the test wallet debit was zero.
+    - Approved CLI lifecycle repair announces foreground before typed recovery discovery; six recovery and twenty-eight WebSocket unit checks passed.
   pending:
     - Remote-image reservation decision, bundled-cost calibration and selective pricing activation.
-    - Scoped deployment and real OpenMates CLI billing verification.
+    - Publish and verify the approved CLI foreground-discovery repair, then retry live chats with its exact source build.
+    - Completed real OpenMates CLI chats, exact debit reconciliation and measured before/after comparison.
     - Isolated product/native checks and user recording delivery.
 research_artifacts:
   design: implementation-design.yml

@@ -8,6 +8,85 @@ const { WebSocketServer } = require("ws") as typeof import("ws");
 
 describe("CLI recovery output discovery", () => {
   // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.sync.key-gated-recovery
+  it("announces foreground for a noninteractive CLI before awaiting discovery and releases it on close", { timeout: 2_000 }, async () => {
+    const server = new WebSocketServer({ port: 0 });
+    await new Promise<void>((resolve) => server.once("listening", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const lifecycle: Array<Record<string, unknown>> = [];
+    let backgroundReceived!: () => void;
+    const background = new Promise<void>((resolve) => { backgroundReceived = resolve; });
+    server.on("connection", (socket) => {
+      socket.on("message", (raw) => {
+        const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+        if (frame.type !== "native_client_lifecycle") return;
+        lifecycle.push(frame.payload);
+        if (frame.payload.is_foreground === true) {
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        } else {
+          backgroundReceived();
+        }
+      });
+    });
+    const client = new OpenMatesWsClient({
+      apiUrl: `http://127.0.0.1:${address.port}`, sessionId: "session", wsToken: "token", refreshToken: null,
+      interactiveHuman: false,
+    });
+    try {
+      await client.open();
+      await client.waitForRecoveryOutputDiscovery(500);
+      client.close();
+      await background;
+      assert.deepEqual(lifecycle, [
+        { client_type: "cli", is_foreground: true, interactive: false },
+        { client_type: "cli", is_foreground: false, interactive: false },
+      ]);
+    } finally {
+      client.close();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover
+  it("keeps interactive chat presence after the foreground discovery announcement", { timeout: 2_000 }, async () => {
+    const server = new WebSocketServer({ port: 0 });
+    await new Promise<void>((resolve) => server.once("listening", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const lifecycle: Array<Record<string, unknown>> = [];
+    let activeReceived!: () => void;
+    const active = new Promise<void>((resolve) => { activeReceived = resolve; });
+    server.on("connection", (socket) => {
+      socket.on("message", (raw) => {
+        const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+        if (frame.type !== "native_client_lifecycle") return;
+        lifecycle.push(frame.payload);
+        if (frame.payload.chat_id === "active-chat") activeReceived();
+        else if (frame.payload.is_foreground === true) {
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        }
+      });
+    });
+    const client = new OpenMatesWsClient({
+      apiUrl: `http://127.0.0.1:${address.port}`, sessionId: "session", wsToken: "token", refreshToken: null,
+      interactiveHuman: true,
+    });
+    try {
+      await client.open();
+      await client.waitForRecoveryOutputDiscovery(500);
+      client.send("set_active_chat", { chat_id: "active-chat" });
+      await active;
+      assert.deepEqual(lifecycle, [
+        { client_type: "cli", is_foreground: true, interactive: false },
+        { client_type: "cli", is_foreground: true, interactive: true, chat_id: "active-chat" },
+      ]);
+    } finally {
+      client.close();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.sync.key-gated-recovery
   it("keeps more than one bounded discovery frame in order until the completion fence", async () => {
     const server = new WebSocketServer({ port: 0 });
     await new Promise<void>((resolve) => server.once("listening", resolve));
