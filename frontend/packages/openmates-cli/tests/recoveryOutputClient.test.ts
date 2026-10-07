@@ -19,6 +19,10 @@ type ReplayOutputPages = (
   cache: unknown, teamId: string | null,
   onPending?: () => void,
 ) => Promise<number>;
+type ReplayCurrentTurnPages = (
+  ws: unknown, ownerId: string, pages: AvailableRecoveryOutputFrame[][],
+  cache: unknown, teamId: string | null, chatId: string,
+) => Promise<void>;
 type ReplayAvailableOutputs = (
   ws: unknown, ownerId: string, outputs: AvailableRecoveryOutputFrame[],
   cache: unknown, teamId: string | null,
@@ -117,6 +121,80 @@ describe("CLI typed recovery replay", () => {
     releaseFirst();
     assert.equal(await pending, 2);
     assert.deepEqual(calls, ["first", "second"]);
+  });
+
+  // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.sync.key-gated-recovery,chats.persistence.client-encrypted
+  it("persists the active turn while an older root without a wrapper remains rediscoverable", async () => {
+    const identity = outputVector.identity;
+    const active: AvailableRecoveryOutputFrame = {
+      record_id: identity.record_id, root_chat_id: identity.root_chat_id,
+      target_chat_id: identity.target_chat_id, turn_id: identity.turn_id,
+      subject_id: identity.subject_id, output_kind: "message",
+      output_version: identity.output_version, chat_key_version: identity.key_version,
+      message_role: "assistant",
+    };
+    const old = { ...active, record_id: "old-pending-output", root_chat_id: "old-root" };
+    const sealed = await sealRecoveryOutputEnvelopeForTest(new TextEncoder().encode(JSON.stringify({
+      record_id: active.record_id, target_chat_id: active.target_chat_id,
+      subject_id: active.subject_id, output_kind: active.output_kind,
+      output_version: active.output_version,
+      content: { role: "assistant", content: "current reply", created_at: 1_700_000_000 },
+    })), {
+      ownerId: identity.owner_id, rootChatId: active.root_chat_id,
+      targetChatId: active.target_chat_id, turnId: active.turn_id,
+      recordId: active.record_id, subjectId: active.subject_id,
+      outputKind: active.output_kind, outputVersion: active.output_version,
+      keyVersion: active.chat_key_version, recoveryPublicKey: keyVector.recovery_public_key,
+      ephemeralPrivateKey: keyVector.ephemeral_private_key, nonce: keyVector.nonce,
+    });
+    const rawKey = new Uint8Array(Buffer.from(keyVector.chat_key, "base64url"));
+    const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
+    client.getMasterKeyBytes = () => new Uint8Array(32);
+    client.getChatWrappingKey = async () => new Uint8Array(32);
+    client.resolveChatKey = async (_cache: unknown, root: { details: { id: string } }) =>
+      root.details.id === active.root_chat_id ? rawKey : null;
+    client.getCliRequestHeaders = () => ({});
+    const lookups: string[] = [];
+    client.http = { get: async (path: string) => {
+      lookups.push(path);
+      return { ok: true, data: { wrappers: [] } };
+    } };
+    const sent: string[] = [];
+    const waiters: Array<{ type: string; resolve: (value: unknown) => void }> = [];
+    const ws = {
+      waitForMessage: (type: string, predicate: (value: unknown) => boolean) => new Promise((resolve) => {
+        waiters.push({ type, resolve: (value: unknown) => {
+          if (predicate((value as { payload: unknown }).payload)) resolve(value);
+        } });
+      }),
+      sendAsync: async (type: string, payload: Record<string, unknown>) => {
+        sent.push(type);
+        const responseType = type === "recovery_output_get" ? "recovery_output_ready" : "recovery_output_persisted";
+        const responsePayload = type === "recovery_output_get"
+          ? { ...active, sealed_payload: JSON.stringify(sealed), messages_v: 0 }
+          : { record_id: active.record_id, state: "ACKNOWLEDGED", committed_messages_v: 1 };
+        const waiter = waiters.find((item) => item.type === responseType);
+        assert.ok(waiter);
+        waiter.resolve({ payload: { ...responsePayload, request_id: payload.request_id } });
+      },
+    };
+    const cache = { syncedAt: Date.now(), totalChatCount: 1, loadedChatCount: 1,
+      chats: [{ details: { id: active.root_chat_id }, messages: [] }],
+      embeds: [], embedKeys: [], chatKeyWrappers: [] };
+    const replay = client.replayCurrentTurnRecoveryOutputPages as ReplayCurrentTurnPages;
+    await replay.call(client, ws, identity.owner_id, [[old, active]], cache, null, active.root_chat_id);
+    assert.deepEqual(sent, ["recovery_output_get", "recovery_output_persist_message"]);
+    assert.deepEqual(lookups, ["/v1/chats/old-root/wrappers/window"]);
+    await replay.call(client, ws, identity.owner_id, [[old]], cache, null, active.root_chat_id);
+    assert.deepEqual(lookups, ["/v1/chats/old-root/wrappers/window", "/v1/chats/old-root/wrappers/window"]);
+    assert.equal(sent.length, 2, "the older output was never fetched, persisted, or acknowledged");
+
+    await assert.rejects(replay.call(client, ws, identity.owner_id, [[active]],
+      { ...cache, chats: [] }, null, active.root_chat_id), /key wrapper is unavailable/);
+    await assert.rejects(replay.call(client, ws, identity.owner_id, [[
+      { ...old, target_chat_id: active.root_chat_id },
+    ]], cache, null, active.root_chat_id), /key wrapper is unavailable/,
+    "a child chat being answered must also keep strict recovery validation");
   });
 
   // contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted

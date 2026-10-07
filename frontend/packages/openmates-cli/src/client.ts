@@ -7823,6 +7823,29 @@ export class OpenMatesClient {
     return acknowledged;
   }
 
+  private async replayCurrentTurnRecoveryOutputPages(
+    ws: OpenMatesWsClient,
+    ownerId: string,
+    pages: AvailableRecoveryOutputFrame[][],
+    cache: SyncCache,
+    teamId: string | null,
+    chatId: string,
+  ): Promise<void> {
+    for (const page of pages) {
+      const isActive = (output: AvailableRecoveryOutputFrame) =>
+        output.root_chat_id === chatId || output.target_chat_id === chatId;
+      const active = page.filter(isActive);
+      const unrelated = page.filter((output) => !isActive(output));
+      if (active.length > 0) {
+        await this.replayRecoveryOutputPages(ws, ownerId, [active], cache, teamId);
+        clearSyncCache(teamId);
+      }
+      if (unrelated.length > 0) {
+        await this.replayRecoveryOutputPages(ws, ownerId, [unrelated], cache, teamId, () => {});
+      }
+    }
+  }
+
   async sendMessage(params: {
     message: string;
     /** Isolated, credential-free storage-capacity replay only. */
@@ -8880,7 +8903,8 @@ export class OpenMatesClient {
           const pages = ws.drainAvailableRecoveryOutputPages();
           if (pages.length === 0) return;
           if (!ownerId) throw new Error("Saved chat recovery output requires the owner identity.");
-          if (pages.some((page) => page.some((output) => output.root_chat_id === chatId)) && (!chatKeyBytes || !encryptedChatKey)) {
+          if (pages.some((page) => page.some((output) =>
+            output.root_chat_id === chatId || output.target_chat_id === chatId)) && (!chatKeyBytes || !encryptedChatKey)) {
             throw new Error("Saved chat recovery output requires the root chat key.");
           }
           const cache: SyncCache = loadSyncCache(teamId) ?? {
@@ -8892,7 +8916,7 @@ export class OpenMatesClient {
             if (root) root.details.encrypted_chat_key = encryptedChatKey;
             else cache.chats.push({ details: { id: chatId, encrypted_chat_key: encryptedChatKey }, messages: [] });
           }
-          await this.replayRecoveryOutputPages(ws, ownerId, pages, cache, teamId);
+          await this.replayCurrentTurnRecoveryOutputPages(ws, ownerId, pages, cache, teamId, chatId);
         };
         const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, {
           ...streamOpts,
