@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: video-call-experiment
 title: Gemini Voice And H3 Turbo Experiment
-status: implementing
+status: verified
 goal: >
   Implement a first test to see how well such a system can actually work, before
   spending more time on it: a basic /experiment/videocall page for Gemini voice
@@ -109,11 +109,11 @@ verification_evidence:
   backend: 36 focused mocked route/provider/billing tests passed, including mandatory prompt constraints, earlier bounded continuation, legacy and binary delivery, idle drain and stop fencing; Ruff passed.
   frontend: Eleven focused audio/controller tests passed, including gesture-first audio unlock, independent decoded ambience, retained ducking gain across clips, aborted pending media fetches, binary media delivery and late-byte stop fencing; changed-path ESLint and panel compilation passed.
   component:
-    source: d3055576339a88bbaa0d64b261ca525d4f48c5dd
-    request: cb1f1df676311b2f27697ea325d5738295ec3bc63d2c14f123ef115670feb33c
-    run: 37521112579
-    result: Four desktop cases passed with synthetic clips, including simultaneous speech, idle drain and explicit close during drain; captures reviewed and all four recordings uploaded.
-    source_scope: Panel, preview and desktop spec stayed frozen after this candidate; later bounded frame-feedback guards and backend drain cleanup passed focused unit checks.
+    source: aaf8995424b9a880cc2cb5c93c5eca98abc2eb80
+    request: 3329de66db47afaa120efcc4bc5c0856f0eda78e68b3065faa4530c11ce01235
+    run: 37609177663
+    result: Five desktop cases passed without retries with synthetic clips, including delayed muted autoplay with audible decoded ambience under the default browser policy, simultaneous speech, idle drain and explicit close; captures reviewed and all five recordings uploaded.
+    source_scope: Product code and desktop coverage stayed frozen after this candidate; later changes only record verification evidence.
   responsive: Execution waived by the user; the separate responsive spec remains available.
   provider_limits: No automated real fal requests were made. Further automated verification is not a deployment gate; the user will evaluate the deployed experiment.
   route:
@@ -122,9 +122,9 @@ verification_evidence:
     result: Failed during test collection in the existing module loader; no route tests or recordings ran. The user waived this run as a deployment gate.
     retrieval: Artifact download hit the host disk-budget limit; the GitHub failure log confirms no tests executed.
   deployment:
-    code_commit: 8ebcbfc99111c9975fe6f3e869253b3ed287c142
-    backend: Dev API and dependent workers refreshed together with independent playback, accepted-clip idle drain and displayed-frame feedback; all services healthy (docker-2b051573).
-    frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall is published (Vercel HrYi68FUHmKKWj8nAdNb9U47TZvf).
+    code_commit: 356edc26599983e5d636b5a8f16872ef6ccea04e
+    backend: Dev API and dependent workers refreshed together with binary media delivery, mandatory speech-free prompts and earlier bounded continuation; all services healthy (docker-cc39a660).
+    frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall is published with muted autoplay and independent decoded ambience (Vercel CZJN7YM2um4ypWJ6YSciZHaZNjii).
     connection_route: Operator applied the managed Caddy update; the authenticated call WebSocket reaches the backend.
   gemini_live_probe:
     result: The exact candidate accepted setup and returned native PCM audio, output transcription, turn completion and modality-level usage.
