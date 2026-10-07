@@ -58,6 +58,21 @@ def test_hosted_read_reuses_original_embed_identity_without_copying_contents():
     assert "private-content-fingerprint" not in json.dumps(preview)
 
 
+# contract-test: supporting surface=gui.web assertions=projects.files.no-server-decryption-authority,projects.files.search-scoped
+def test_remote_read_reply_without_path_uses_dispatched_path_and_not_returned_path():
+    for returned_path in (None, "different-file.md"):
+        result = {"status": "completed", "source_id": "remote-source", "content": "DO_NOT_COPY"}
+        if returned_path is not None:
+            result["path"] = returned_path
+        preview = build_project_file_reference_preview(
+            context=context("project_read_text"), result_status="completed", completed_results=[result],
+        )
+        assert preview["query"] == "README.md"
+        assert preview["results"] == [{"project_id": "project", "project_name": "OpenMates",
+                                       "source_id": "remote-source", "path": "README.md"}]
+        assert "DO_NOT_COPY" not in json.dumps(preview)
+
+
 # contract-test: supporting surface=gui.web assertions=projects.files.search-scoped,projects.focus.inferred-consent
 @pytest.mark.parametrize("status", ["failed", "user_declined", "waiting_for_executor"])
 def test_incomplete_or_rejected_file_result_has_no_durable_reference(status):

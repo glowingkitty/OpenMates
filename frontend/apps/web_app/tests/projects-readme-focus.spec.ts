@@ -164,7 +164,12 @@ test.describe('Plain-language Project README access (real inference, dev only)',
   test.beforeAll(requireDirectDevInference);
   test.beforeEach(async ({ page }: { page: Page }) => {
     await skipIfFeaturesDisabled(test, page, ['platform:projects']);
-    await loginToTestAccount(page);
+    page.on('response', (response) => {
+      if (new URL(response.url()).pathname === '/v1/auth/login') {
+        console.log(`[login] HTTP ${response.status()}`);
+      }
+    });
+    await loginToTestAccount(page, (message: string) => console.log(`[login] ${message}`));
   });
 
   // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent,projects.files.chat-focus-required,projects.files.no-server-decryption-authority
@@ -213,6 +218,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       const fixture = await waitForFixtureEvent(bridge, 'fixture_ready');
       expect(fixture).toMatchObject({ project_name: 'OpenMates', path_privacy_verified: true });
       expect(fixture.project_id).toBeTruthy();
+      console.log('[README] Disposable connected Project ready.');
       await page.goto('/', { waitUntil: 'domcontentloaded' });
       await startNewChat(page);
       await waitForChatReady(page);
@@ -235,6 +241,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       await waitForTurnCompletion(page);
       expect(await currentAuthority(page)).toBeNull();
       expect(received.filter(event => event.type === 'project_file_operation_request')).toHaveLength(0);
+      console.log('[README] Rejection kept Project authority and file access blocked.');
       await deleteActiveChat(page);
       chatUrl = null;
 
@@ -252,6 +259,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       expect(received.filter(event => event.type === 'project_file_operation_request')).toHaveLength(0);
       await expect(page.getByTestId('focus-pill').getByTestId('focus-pill-label')).toHaveText('Work on OpenMates', { timeout: 60_000 });
       await expect.poll(() => currentAuthority(page), { timeout: 30_000 }).toMatchObject({ project_id: fixture.project_id });
+      console.log('[README] Countdown activated the selected Project.');
       await expect.poll(() => received.some(event => event.type === 'project_file_operation_request'
         && event.payload?.operation === 'read_text' && event.payload.arguments?.path === 'README.md'), {
         message: 'the assistant must read the matched README from the selected Project', timeout: 180_000,
@@ -271,8 +279,17 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       await expect(referencePreview).toBeVisible({ timeout: 30_000 });
       await expect(referencePreview).toContainText('OpenMates');
       await expect(referencePreview).toContainText(/readme/i);
+      console.log('[README] Original README read and reference card visible.');
       const toonModule = createRequire(resolve(REPO_ROOT, 'frontend/packages/ui/package.json')).resolve('@toon-format/toon');
       const { decode: decodeToon } = await import(pathToFileURL(toonModule).href);
+      for (const event of received) {
+        if (event.type !== 'send_embed_data' || typeof event.payload?.content !== 'string') continue;
+        const decoded = decodeToon(event.payload.content, { strict: false });
+        // A model's quotation must not become a new code/document embed,
+        // regardless of whether the Project reference card is also present.
+        expect(JSON.stringify(decoded)).not.toContain('# Connected project');
+        expect(JSON.stringify(decoded)).not.toContain('Connected diagram');
+      }
       const projectEmbedSummaries = received.flatMap(event => {
         if (event.type !== 'send_embed_data' || event.payload?.status !== 'finished'
           || typeof event.payload.content !== 'string') return [];
@@ -319,6 +336,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         } finally { db.close(); }
       }, referenceEmbedId as string);
       expect(storedReference).toEqual({ encrypted: true, hasPlainContent: false, containsReadmeBytes: false });
+      console.log('[README] Saved embed contains encrypted references without file bytes.');
       await expect(page.getByTestId('message-assistant').last()).toContainText(/readme|connected project/i);
 
       // The saved card is a location reference. Opening it reads the original
@@ -343,6 +361,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       expect((await projectFileState(page, projectId, sourceId)).itemCount).toBe(beforeOpen.itemCount);
       expect(received.filter(event => event.type === 'send_embed_data')).toHaveLength(savedEmbedEvents);
       await closeFullscreen(page, fullscreen);
+      console.log('[README] Reopening the original created no file or embed copy.');
 
       const stopped = waitForFixtureEvent(bridge, 'bridge_stopped');
       bridge.kill('SIGUSR1');
@@ -356,6 +375,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       await expect(page.getByTestId('code-fullscreen-code')).toHaveCount(0);
       expect((await projectFileState(page, projectId, sourceId)).itemCount).toBe(beforeOpen.itemCount);
       expect(received.filter(event => event.type === 'send_embed_data')).toHaveLength(savedEmbedEvents);
+      console.log('[README] Disconnected source reports unavailable without a cached file copy.');
     } finally {
       await cdp.detach().catch(() => undefined);
       if (chatUrl) {

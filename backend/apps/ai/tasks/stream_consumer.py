@@ -5364,6 +5364,9 @@ async def _consume_main_processing_stream(
     # Track embed IDs that failed during skill execution (received from main_processor)
     # Their embed references will be stripped from the final message content before persistence
     failed_embed_ids: set[str] = set()
+    # A completed Project file operation has already published a reference-only
+    # card. Model prose and fenced file text after that card are never new files.
+    project_file_reference_output = False
 
     # Check for revocation before starting
     # Use AsyncResult to check task status
@@ -5741,6 +5744,9 @@ async def _consume_main_processing_stream(
                 pre_main_open = False
             if not isinstance(chunk, str):
                 await content_publisher.flush()
+            if isinstance(chunk, dict) and chunk.get("__project_file_reference_output__") is True:
+                project_file_reference_output = True
+                continue
             if isinstance(chunk, dict) and "__focus_phases_updated__" in chunk:
                 request_data.focus_phase_state = chunk.get("states") or {}
                 if cache_service:
@@ -6113,6 +6119,29 @@ async def _consume_main_processing_stream(
                             f"len={len(chunk)}, alpha_ratio={alpha_ratio:.3f})"
                         )
                         continue
+
+                if project_file_reference_output:
+                    # Preserve the server-issued reference JSON and later model
+                    # fences as ordinary message text. Bypass all code, document,
+                    # diagram and table embed creation for this result stream.
+                    final_response_chunks.append(chunk)
+                    stream_chunk_count += 1
+                    if cache_service:
+                        payload = _create_redis_payload(
+                            task_id, request_data, "".join(final_response_chunks),
+                            stream_chunk_count, model_name=stream_model_name,
+                            category=preprocessing_result.category or "general_knowledge",
+                        )
+                        await content_publisher.flush()
+                        await _publish_to_redis(
+                            cache_service, redis_channel_name, payload, log_prefix,
+                            "Published Project file reference response text",
+                        )
+                        if completion_timing:
+                            completion_timing.mark_first_visible_content()
+                    if speech_tracker is not None:
+                        speech_tracker.observe("".join(final_response_chunks))
+                    continue
                 
                 # Code block detection and embed creation
                 # Uses extracted helper for testability (see _should_process_chunk_as_code_block).
@@ -8941,6 +8970,7 @@ async def _consume_main_processing_stream(
     # for those passes before showing the runnable application card.
     if (
         aggregated_response
+        and not project_file_reference_output
         and not was_revoked_during_stream
         and not was_soft_limited_during_stream
         and not application_parent_embed_created
@@ -9787,6 +9817,7 @@ async def _consume_main_processing_stream(
     # that references those child file embeds and powers live preview startup.
     if (
         aggregated_response
+        and not project_file_reference_output
         and not was_revoked_during_stream
         and not was_soft_limited_during_stream
         and not application_parent_embed_created

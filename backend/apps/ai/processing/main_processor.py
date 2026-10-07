@@ -3627,6 +3627,17 @@ async def handle_main_processing(
         )
         if not reference:
             raise RequiredRecoveryOutputError("Project file reference was not published")
+        # Only originals are file artifacts for this completion. Interpret the
+        # bytes as temporary context; the consumer must not turn a model's
+        # quoted source into a new code/document embed.
+        yield {"__project_file_reference_output__": True}
+        preprocessing_results.relevant_embedded_previews = []
+        prompt_parts.append(
+            "A reference-only Project file card has already been published. "
+            "Use the completed file results to answer the request and refer to this card to open the original. "
+            "Do not reproduce the original file in code fences, YAML, document/image embeds, or any new chat file artifact. "
+            f"Published reference card: {reference}"
+        )
         yield f"```json\n{reference}\n```\n\n"
     if active_project_focus:
         project_instruction_focus = parse_project_phase_focus(

@@ -41,7 +41,9 @@ def build_project_file_reference_preview(
         for row in rows[:100]:
             if not isinstance(row, dict):
                 continue
-            path = row.get("path")
+            # Remote read_text replies contain bytes/size, not a path. The
+            # dispatched read path is authoritative even if a reply adds one.
+            path = arguments.get("path") if skill_id == "project_read_text" else row.get("path")
             if (not isinstance(path, str) or not path or len(path) > 4096
                     or path.startswith(("/", "\\")) or "\\" in path
                     or any(part in {"", ".", ".."} for part in path.split("/"))):
