@@ -392,16 +392,19 @@ def _gemini_setup() -> dict[str, Any]:
                 "Use generate_visual_clip when the user asks to see, show, visualize, or demonstrate "
                 "something that can be explained by a concrete visual scene, including requests like "
                 "'show me how black holes work'. The user need not say 'video'. "
-                "You may issue that visual tool while speaking; do not wait for it. "
-                "The video prompt must describe visual motion and ambient sound only: no spoken "
-                "dialogue, lip sync, voiceover, captions, or music. Your own live voice supplies speech. "
+                "Call generate_visual_clip immediately once visual intent is clear, before a long "
+                "spoken explanation or redundant confirmation. Then speak concurrently while it generates. "
+                "Your live voice is the only narration and is separate from the video. "
+                "The video prompt describes only visible action, realistic physics and causal motion, "
+                "and scene-appropriate nonverbal ambience. Never ask the video for a speaker, voice, "
+                "dialogue, narration, vocals, music, captions or subtitles. Space and vacuum are silent. "
                 "Never include URLs or private data in a video prompt. If visuals stop, continue voice." 
             )}]},
             "tools": [{"functionDeclarations": [{
                 "name": "generate_visual_clip",
-                "description": "Asynchronously show a concrete scene when the user asks to see, show how, visualize, or demonstrate something; voice continues.",
+                "description": "Asynchronously show a concrete visual scene; your separate live voice continues narrating outside the video.",
                 "behavior": "NON_BLOCKING",
-                "parameters": {"type": "OBJECT", "properties": {"prompt": {"type": "STRING", "description": "Visual action and ambience only. No speech or dialogue."}}, "required": ["prompt"]},
+                "parameters": {"type": "OBJECT", "properties": {"prompt": {"type": "STRING", "description": "Visible action with realistic causal motion and scene-appropriate nonverbal ambience only. No speakers, voices, dialogue, narration, vocals, music, captions or subtitles; space is silent."}}, "required": ["prompt"]},
             }]}],
             "inputAudioTranscription": {},
             "outputAudioTranscription": {},
@@ -425,6 +428,7 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Origin not allowed")
         return
     user_id = auth_data["user_id"]
+    binary_video = websocket.query_params.get("video_transport") == "binary"
     user_hash = hashlib.sha256(user_id.encode()).hexdigest()
     lock_client: Any = None
     lock_key = lock_token = ""
@@ -472,6 +476,17 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         if not disconnected:
             async with socket_send_lock:
                 await websocket.send_json(event)
+
+    async def send_video_ready(metadata: dict[str, Any], media: bytes) -> None:
+        if binary_video:
+            # A single lock keeps this metadata and its binary MP4 contiguous
+            # even while Gemini audio and usage JSON are being forwarded.
+            async with socket_send_lock:
+                if not disconnected:
+                    await websocket.send_json({**metadata, "encoding": "binary"})
+                    await websocket.send_bytes(media)
+        else:
+            await send({**metadata, "data": base64.b64encode(media).decode("ascii")})
 
     async def send_provider(provider: aiohttp.ClientWebSocketResponse, event: dict[str, Any]) -> None:
         async with provider_send_lock:
@@ -529,6 +544,7 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                         nonlocal active_job, continuation_jpeg, continuation_for_clip, latest_clip_id, video_serial, billing_fault, visual_prompt
                         # A new Gemini visual instruction replaces visual_prompt
                         # while a clip is generating. The next iteration uses it.
+                        playback_end_at = 0.0
                         while (
                             visuals_allowed and epoch == segment_epoch
                             and last_visual_instruction is not None
@@ -541,15 +557,16 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 prompt = visual_prompt
                                 if not prompt or epoch != segment_epoch or not visuals_allowed:
                                     return
-                                # Server-extracted final frame is preferred. A
-                                # matching browser frame is a bounded fallback.
+                                # The browser captures this clip's final frame
+                                # directly from the delivered MP4.
                                 image = continuation_jpeg if continuation_for_clip == latest_clip_id else None
                                 continuation_jpeg = None
                                 continuation_for_clip = None
                                 video_serial += 1
                                 clip_id = str(video_serial)
-                                safe_prompt = "Visual motion and ambient scene sound only. No dialogue, speech, lip sync, captions, voiceover, or music. " + prompt
-                                job = await submit_clip(fal_client, key=fal_key, prompt=safe_prompt, image_jpeg=image)
+                                submit_at = time.monotonic()
+                                job = await submit_clip(fal_client, key=fal_key, prompt=prompt, image_jpeg=image)
+                                logger.info("Video call visual submit=%.2fs", time.monotonic() - submit_at)
                                 active_job = job
                                 if epoch != segment_epoch:
                                     await cancel_clip(fal_client, key=fal_key, job=job)
@@ -571,19 +588,19 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 if epoch != segment_epoch or time.monotonic() - started >= MAX_SECONDS:
                                     return
                                 latest_clip_id = clip_id
-                                # This is the generated last frame, not the
-                                # frame sampled for Gemini playback feedback.
                                 continuation_jpeg = clip.last_frame_jpeg
                                 continuation_for_clip = clip_id if clip.last_frame_jpeg else None
-                                await send({
+                                ready_at = time.monotonic()
+                                await send_video_ready({
                                     "type": "video.ready", "clip_id": clip_id,
-                                    "data": base64.b64encode(clip.data).decode("ascii"),
                                     "duration_seconds": float(duration),
                                     "duration_estimated": measured is None,
-                                })
-                                logger.info("Video call visual delivered elapsed=%.1fs duration=%.1fs", time.monotonic() - started, float(duration))
+                                }, clip.data)
+                                logger.info("Video call visual ready=%.2fs elapsed=%.1fs duration=%.1fs", time.monotonic() - ready_at, time.monotonic() - started, float(duration))
                                 if not visuals_allowed:
                                     return
+                                previous_playback_end = playback_end_at
+                                playback_end_at = max(playback_end_at, time.monotonic()) + float(duration)
                                 if continuation_jpeg is None:
                                     # Browser extracts this same clip's final
                                     # frame before playback finishes.
@@ -595,10 +612,12 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                         if epoch == segment_epoch:
                                             visual_prompt = None
                                         return
-                                # Fal can finish faster than playback. Schedule
-                                # the next job near this clip's end so at most
-                                # the current clip and one upcoming clip exist.
-                                await asyncio.sleep(max(0.0, float(duration) - 1.0))
+                                # Start clip 2 as soon as its continuation frame
+                                # arrives. If fal finishes before clip 1 ends,
+                                # wait before submitting clip 3: at most one
+                                # upcoming clip can be ready beside playback.
+                                if previous_playback_end:
+                                    await asyncio.sleep(max(0.0, previous_playback_end - time.monotonic()))
                             except FalCompletedMediaError as exc:
                                 duration = Decimal(str(exc.reported_duration)) if exc.reported_duration else VIDEO_REQUEST_SECONDS
                                 ledger.add_accepted_video(duration, estimated=exc.reported_duration is None)

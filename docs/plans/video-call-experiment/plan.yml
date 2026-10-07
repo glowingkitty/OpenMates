@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: video-call-experiment
 title: Gemini Voice And H3 Turbo Experiment
-status: verified
+status: implementing
 goal: >
   Implement a first test to see how well such a system can actually work, before
   spending more time on it: a basic /experiment/videocall page for Gemini voice
@@ -39,6 +39,10 @@ decisions:
   - Requests such as show me how or visualize must trigger the visual tool without requiring the word video.
   - Gemini speech interruption or cancellation of an acknowledged tool turn never interrupts accepted video playback.
   - After ten seconds without a visual instruction, stop new generation and finish accepted clips before closing video; explicit user stop and hangup remain immediate.
+  - Delayed visuals autoplay muted; scene ambience plays through the gesture-unlocked call audio context, independently of Gemini speech interruption.
+  - Every fal submission enforces no speaker, speech, narration, vocals or music and physically appropriate background sound; space and vacuum are silent.
+  - Optimize the existing Turbo completed-clip API with prompt expansion disabled, earlier continuation, binary media delivery and no server frame extraction before playback.
+  - User declined Director because of its sixty-second billing minimum; the experiment stays Turbo only.
 
 draft_contract:
   path: specifications/features/video-call/specification.yml
@@ -102,8 +106,8 @@ verification:
     - Never issue real fal/H3 requests in automated verification; a bounded Gemini-only provider probe is authorized.
 
 verification_evidence:
-  backend: 33 focused mocked route/provider/billing tests passed, including accepted clips arriving after the idle deadline, speech/tool cancellation independence and stop/re-enable during pending drain settlement; Ruff passed.
-  frontend: Four focused controller tests passed, including idle drain, speech interruption and explicit-stop late-clip fencing; changed-path ESLint and panel compilation passed.
+  backend: 36 focused mocked route/provider/billing tests passed, including mandatory prompt constraints, earlier bounded continuation, legacy and binary delivery, idle drain and stop fencing; Ruff passed.
+  frontend: Eleven focused audio/controller tests passed, including gesture-first audio unlock, independent decoded ambience, retained ducking gain across clips, aborted pending media fetches, binary media delivery and late-byte stop fencing; changed-path ESLint and panel compilation passed.
   component:
     source: d3055576339a88bbaa0d64b261ca525d4f48c5dd
     request: cb1f1df676311b2f27697ea325d5738295ec3bc63d2c14f123ef115670feb33c

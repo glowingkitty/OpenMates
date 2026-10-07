@@ -46,10 +46,18 @@ export function decodePcm16(data: string): Float32Array {
 
 export class CallAudio {
   private context: AudioContext | null = null;
+  private resumeRequested = false;
   private stream: MediaStream | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
   private processor: ScriptProcessorNode | null = null;
   private silentGain: GainNode | null = null;
+  private videoBuffer: AudioBuffer | null = null;
+  private videoPlayback: AudioBufferSourceNode | null = null;
+  private videoGain: GainNode | null = null;
+  private requestedVideoGain = 0.2;
+  private videoElement: HTMLVideoElement | null = null;
+  private videoFetch: AbortController | null = null;
+  private videoGeneration = 0;
   private playback = new Set<AudioBufferSourceNode>();
   private nextStart = 0;
   private generation = 0;
@@ -58,9 +66,21 @@ export class CallAudio {
 
   constructor(private onMicAudio: (data: string) => void, private onSpeaking: (user: boolean, model: boolean) => void) {}
 
+  // Called synchronously by the Start button, while its activation is still available.
+  unlock(): void {
+    if (this.stopped) return;
+    const context = this.context ?? new AudioContext();
+    this.context = context;
+    if (context.state === 'suspended' && !this.resumeRequested) {
+      this.resumeRequested = true;
+      void context.resume().catch(() => { this.resumeRequested = false; });
+    }
+  }
+
   async start(): Promise<void> {
     const generation = ++this.generation;
     this.stopped = false;
+    this.unlock();
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       video: false,
@@ -70,8 +90,7 @@ export class CallAudio {
       return;
     }
     this.stream = stream;
-    const context = new AudioContext();
-    this.context = context;
+    const context = this.context!;
     this.source = context.createMediaStreamSource(stream);
     this.processor = context.createScriptProcessor(2048, 1, 1);
     this.silentGain = context.createGain();
@@ -86,7 +105,71 @@ export class CallAudio {
       this.onSpeaking(rms > 0.045, this.playback.size > 0);
       this.onMicAudio(pcm16Base64(downsample(input, event.inputBuffer.sampleRate)));
     };
-    if (context.state === 'suspended') await context.resume();
+  }
+
+  setVideoElement(video: HTMLVideoElement | null): void {
+    if (this.videoElement === video || this.stopped) return;
+    this.videoGeneration += 1;
+    this.videoFetch?.abort();
+    this.videoFetch = null;
+    this.stopVideoAudio();
+    this.videoGain?.disconnect();
+    this.videoBuffer = null;
+    this.videoGain = null;
+    this.videoElement?.removeEventListener('playing', this.syncVideoAudio);
+    this.videoElement?.removeEventListener('pause', this.syncVideoAudio);
+    this.videoElement?.removeEventListener('seeked', this.syncVideoAudio);
+    this.videoElement = video;
+    if (!video || !this.context) return;
+    const gain = this.context.createGain();
+    gain.gain.value = this.requestedVideoGain;
+    gain.connect(this.context.destination);
+    this.videoGain = gain;
+    video.addEventListener('playing', this.syncVideoAudio);
+    video.addEventListener('pause', this.syncVideoAudio);
+    video.addEventListener('seeked', this.syncVideoAudio);
+    const generation = this.videoGeneration;
+    const context = this.context;
+    const url = video.currentSrc || video.src;
+    const fetchController = new AbortController();
+    this.videoFetch = fetchController;
+    void (async () => {
+      try {
+        const response = await fetch(url, { signal: fetchController.signal });
+        const buffer = await context.decodeAudioData(await response.arrayBuffer());
+        if (this.stopped || generation !== this.videoGeneration) return;
+        this.videoBuffer = buffer;
+        this.syncVideoAudio();
+      } catch { /* A silent or undecodable clip still plays its visual. */ }
+      finally { if (this.videoFetch === fetchController) this.videoFetch = null; }
+    })();
+  }
+
+  private stopVideoAudio(): void {
+    if (!this.videoPlayback) return;
+    this.videoPlayback.onended = null;
+    try { this.videoPlayback.stop(); } catch { /* Already ended. */ }
+    this.videoPlayback.disconnect();
+    this.videoPlayback = null;
+  }
+
+  private syncVideoAudio = (): void => {
+    this.stopVideoAudio();
+    const video = this.videoElement;
+    if (!video || video.paused || video.ended || !this.videoBuffer || !this.videoGain || !this.context) return;
+    const offset = Math.max(0, video.currentTime);
+    if (offset >= this.videoBuffer.duration) return;
+    const source = this.context.createBufferSource();
+    source.buffer = this.videoBuffer;
+    source.connect(this.videoGain);
+    source.onended = () => { if (this.videoPlayback === source) this.videoPlayback = null; source.disconnect(); };
+    this.videoPlayback = source;
+    source.start(0, offset);
+  };
+
+  setVideoGain(value: number): void {
+    this.requestedVideoGain = value;
+    if (this.videoGain) this.videoGain.gain.value = value;
   }
 
   playPcm16(data: string, sampleRate = 24_000): void {
@@ -133,6 +216,17 @@ export class CallAudio {
     this.source?.disconnect();
     this.processor?.disconnect();
     this.silentGain?.disconnect();
+    this.videoGeneration += 1;
+    this.videoFetch?.abort();
+    this.videoFetch = null;
+    this.stopVideoAudio();
+    this.videoGain?.disconnect();
+    this.videoElement?.removeEventListener('playing', this.syncVideoAudio);
+    this.videoElement?.removeEventListener('pause', this.syncVideoAudio);
+    this.videoElement?.removeEventListener('seeked', this.syncVideoAudio);
+    this.videoBuffer = null;
+    this.videoGain = null;
+    this.videoElement = null;
     this.stream?.getTracks().forEach((track) => track.stop());
     this.stream = null;
     const context = this.context;

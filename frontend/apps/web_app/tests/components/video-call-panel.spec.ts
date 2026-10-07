@@ -11,9 +11,58 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 const preview = (variant?: string, width = 1180) =>
   `/dev/preview/videocall/VideoCallPanel?${new URLSearchParams({ chrome: '0', theme: 'light', background: '#dbeafe', width: String(width), ...(variant ? { variant } : {}) })}`;
 
-test.use({ launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] } });
-
 test.describe('Video call experiment panel', () => {
+  // contract-test: direct surface=gui.web assertions=video-call.experiment.generated-visuals,video-call.experiment.audio-mix
+  test('autoplays a delayed clip with audible ambience after the Start gesture', async ({ page }) => {
+    await page.addInitScript(() => {
+      const original = AudioContext.prototype.createBufferSource;
+      AudioContext.prototype.createBufferSource = function () {
+        const source = original.call(this);
+        const analyser = this.createAnalyser();
+        source.connect(analyser);
+        const silent = this.createGain();
+        silent.gain.value = 0;
+        analyser.connect(silent);
+        silent.connect(this.destination);
+        const samples = new Float32Array(analyser.fftSize);
+        const sample = () => {
+          analyser.getFloatTimeDomainData(samples);
+          const peak = samples.reduce((max, value) => Math.max(max, Math.abs(value)), 0);
+          const scope = window as unknown as { callAudioPeak?: number };
+          scope.callAudioPeak = Math.max(scope.callAudioPeak ?? 0, peak);
+          requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+        return source;
+      };
+    });
+    await page.goto(preview());
+    await waitForComponentPreview(page);
+    await page.getByTestId('call-start').click();
+    await page.waitForTimeout(2_000);
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'ready_audio' } })));
+    const video = page.getByTestId('call-video');
+    await expect(video).toHaveJSProperty('muted', true);
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).toBeGreaterThan(0.2);
+    await expect(page.getByTestId('call-resume-video')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => (window as unknown as { callAudioPeak?: number }).callAudioPeak ?? 0)).toBeGreaterThan(0.01);
+    await page.getByTestId('call-hangup').click();
+
+    const supportsMp4 = await page.evaluate(() => document.createElement('video').canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"') !== '');
+    if (supportsMp4) {
+      await page.getByTestId('call-start').click();
+      await page.waitForTimeout(2_000);
+      await page.evaluate(() => {
+        (window as unknown as { callAudioPeak?: number }).callAudioPeak = 0;
+        window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'ready_mp4_audio' } }));
+      });
+      const mp4 = page.getByTestId('call-video');
+      await expect.poll(() => mp4.evaluate((element: HTMLVideoElement) => element.currentTime)).toBeGreaterThan(0.2);
+      await expect.poll(() => page.evaluate(() => (window as unknown as { callAudioPeak?: number }).callAudioPeak ?? 0)).toBeGreaterThan(0.01);
+      await page.getByTestId('call-hangup').click();
+    }
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.user-stop,video-call.experiment.privacy
   test('starts and ends a voice call without recording controls', async ({ page }) => {
     await page.goto(preview());
@@ -58,13 +107,13 @@ test.describe('Video call experiment panel', () => {
     const video = page.getByTestId('call-video');
     await expect(video).toBeVisible();
     await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState >= 2)).toBe(true);
-    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.volume)).toBe(0.2);
+    await expect(video).toHaveJSProperty('muted', true);
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'model_speaking' } })));
-    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.volume)).toBe(0.04);
+    await expect(video).toHaveJSProperty('paused', false);
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'user_speaking' } })));
-    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.volume)).toBe(0.04);
+    await expect(video).toHaveJSProperty('paused', false);
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'silence' } })));
-    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.volume)).toBe(0.2);
+    await expect(video).toHaveJSProperty('paused', false);
     const firstSrc = await video.getAttribute('src');
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'queued' } })));
     await expect(video).toHaveAttribute('src', firstSrc!);
@@ -97,9 +146,9 @@ test.describe('Video call experiment panel', () => {
     await expect(page.getByTestId('call-stop-video')).toBeVisible();
     await expect(page.getByTestId('call-active-rate')).toContainText('Audio only');
     await expect(video).toHaveAttribute('src', firstSrc!);
-    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.volume)).toBe(0.04);
+    await expect(video).toHaveJSProperty('paused', false);
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'audio_interrupted' } })));
-    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.volume)).toBe(0.2);
+    await expect(video).toHaveJSProperty('paused', false);
     await expect.poll(() => video.getAttribute('src'), { timeout: 10_000 }).not.toBe(firstSrc);
     await expect(video).toBeVisible();
     await expect(page.getByTestId('call-video')).toHaveCount(0, { timeout: 10_000 });

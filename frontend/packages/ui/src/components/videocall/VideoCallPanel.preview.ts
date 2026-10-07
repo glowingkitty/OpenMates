@@ -6,8 +6,11 @@
  */
 import { writable } from 'svelte/store';
 import { initialCallState, type CallControllerLike, type CallState } from './callController';
+import { CallAudio } from './callAudio';
 import clipA from '../../../../../apps/web_app/tests/fixtures/video-call-clip-a.mp4?url';
 import clipB from '../../../../../apps/web_app/tests/fixtures/video-call-clip-b.mp4?url';
+import audioClip from '../../../../../apps/web_app/tests/fixtures/video-call-clip-audio.webm?url';
+import mp4AudioClip from '../../../../../apps/web_app/tests/fixtures/video-call-clip-audio.mp4?url';
 
 class PreviewCallController implements CallControllerLike {
   private store;
@@ -15,6 +18,7 @@ class PreviewCallController implements CallControllerLike {
   private state: CallState;
   private drainComplete = false;
   private playedClips = new Set<string>();
+  private audio: CallAudio | null = null;
 
   constructor(initial: Partial<CallState> = {}) {
     this.state = { ...initialCallState, ...initial };
@@ -36,6 +40,10 @@ class PreviewCallController implements CallControllerLike {
           const first = this.state.clips.length === 0;
           this.update({ clips: [...this.state.clips, { id: first ? '1' : '2', url: first ? clipA : clipB, durationSeconds: 1.5 }], videoPending: false, videoStatus: 'playing' });
         }
+        if (detail.type === 'ready_audio' || detail.type === 'ready_mp4_audio') {
+          if (this.state.status !== 'live' || !this.state.visualsAllowed) return;
+          this.update({ clips: [{ id: detail.type, url: detail.type === 'ready_audio' ? audioClip : mp4AudioClip, durationSeconds: 1.5 }], videoPending: false, videoStatus: 'playing' });
+        }
       });
     }
   }
@@ -53,16 +61,21 @@ class PreviewCallController implements CallControllerLike {
   }
 
   async start() {
+    this.audio?.stop();
+    this.audio = new CallAudio(() => {}, () => {});
+    this.audio.unlock();
     this.drainComplete = false; this.playedClips.clear();
     this.update({ status: 'live', error: null, elapsedSeconds: 1, clips: [], visualsAllowed: true, videoStatus: 'off', videoPending: false, videoDraining: false, transcripts: [{ role: 'model', text: 'Hi! What would you like to explore?', final: true }] });
   }
   stopVisuals() { this.drainComplete = false; this.playedClips.clear(); this.update({ visualsAllowed: false, videoDraining: false, videoStatus: 'off', videoPending: false, clips: [] }); }
   allowVisuals() { this.drainComplete = false; this.update({ visualsAllowed: true, videoDraining: false, videoStatus: 'queued' }); }
-  hangup() { this.drainComplete = false; this.playedClips.clear(); this.update({ status: 'ended', videoDraining: false, videoStatus: 'off', videoPending: false, clips: [] }); }
+  hangup() { this.audio?.stop(); this.audio = null; this.drainComplete = false; this.playedClips.clear(); this.update({ status: 'ended', videoDraining: false, videoStatus: 'off', videoPending: false, clips: [] }); }
   sendVideoFrame() { /* Preview transport is inert. */ }
   sendContinuationFrame(clipId: string) { window.dispatchEvent(new CustomEvent('video-call-preview-continuation', { detail: clipId })); }
   videoPlaybackEnded(clipId: string) { this.playedClips.add(clipId); this.finishDrain(); }
-  dispose() { /* Preview remains in memory only until unmounted. */ }
+  setVideoElement(video: HTMLVideoElement | null) { this.audio?.setVideoElement(video); }
+  setVideoGain(value: number) { this.audio?.setVideoGain(value); }
+  dispose() { this.audio?.stop(); this.audio = null; }
 }
 
 const usage = {

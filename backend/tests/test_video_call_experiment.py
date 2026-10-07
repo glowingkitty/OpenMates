@@ -16,10 +16,10 @@ from backend.shared.providers.fal import h3_turbo
 
 
 class _RouteSocket:
-    def __init__(self, app, *, origin="https://openmates.test"):
+    def __init__(self, app, *, origin="https://openmates.test", video_transport=None):
         self.app = app
         self.headers = {"origin": origin}
-        self.query_params = {}
+        self.query_params = {"video_transport": video_transport} if video_transport else {}
         self.incoming: asyncio.Queue[str] = asyncio.Queue()
         self.outgoing: asyncio.Queue[dict] = asyncio.Queue()
         self.sent: list[dict] = []
@@ -37,6 +37,9 @@ class _RouteSocket:
     async def send_json(self, event):
         self.sent.append(event)
         self.outgoing.put_nowait(event)
+
+    async def send_bytes(self, data):
+        self.sent.append({"type": "binary", "data": data})
 
     async def receive_text(self):
         return await self.incoming.get()
@@ -245,7 +248,7 @@ async def test_video_feedback_does_not_extend_instruction_idle_window(route_harn
         return h3_turbo.FalJob("clip-1", "status", "result", "cancel")
 
     async def completed(*args, **kwargs):
-        return h3_turbo.FalClip(b"mp4", 1.5, 1.5, "clip-1", b"\xff\xd8x\xff\xd9")
+        return h3_turbo.FalClip(b"mp4", 1.5, 1.5, "clip-1", None)
 
     monkeypatch.setattr(call, "submit_clip", submit)
     monkeypatch.setattr(call, "await_clip", completed)
@@ -254,7 +257,9 @@ async def test_video_feedback_does_not_extend_instruction_idle_window(route_harn
     await websocket.expect("ready")
     provider = route_harness.providers[0]
     provider.send(_visual_instruction())
-    await websocket.expect("video.ready")
+    first = await websocket.expect("video.ready")
+    assert first["data"] == base64.b64encode(b"mp4").decode()
+    assert "encoding" not in first
 
     offset[0] = 9
     frame = base64.b64encode(b"\xff\xd8x\xff\xd9").decode()
@@ -294,6 +299,67 @@ async def test_video_feedback_does_not_extend_instruction_idle_window(route_harn
     await asyncio.wait_for(route_task, timeout=2)
     assert len(submitted) == 1
     assert not any(event.get("type") == "video.ready" and event.get("clip_id") != "1" for event in websocket.sent)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals
+@pytest.mark.asyncio
+async def test_binary_video_transport_pairs_ready_metadata_with_raw_mp4(route_harness, monkeypatch) -> None:
+    async def submit(*args, **kwargs):
+        return h3_turbo.FalJob("clip-1", "status", "result", "cancel")
+
+    async def complete(*args, **kwargs):
+        return h3_turbo.FalClip(b"raw-mp4", 5.0, 5.0, "clip-1")
+
+    monkeypatch.setattr(call, "submit_clip", submit)
+    monkeypatch.setattr(call, "await_clip", complete)
+    websocket = route_harness.socket(video_transport="binary")
+    route_task = asyncio.create_task(call.video_call(websocket, auth_data={"user_id": "user-1"}))
+    await websocket.expect("ready")
+    route_harness.providers[0].send(_visual_instruction())
+    metadata = await websocket.expect("video.ready")
+    assert metadata == {
+        "type": "video.ready", "clip_id": "1", "duration_seconds": 5.0,
+        "duration_estimated": False, "encoding": "binary",
+    }
+    position = websocket.sent.index(metadata)
+    assert websocket.sent[position + 1] == {"type": "binary", "data": b"raw-mp4"}
+    websocket.send({"type": "hangup"})
+    await asyncio.wait_for(route_task, timeout=2)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals
+@pytest.mark.asyncio
+async def test_next_clip_starts_after_browser_continuation_with_one_clip_lookahead(route_harness, monkeypatch) -> None:
+    submissions = []
+
+    async def submit(*args, **kwargs):
+        submissions.append(kwargs["image_jpeg"])
+        number = len(submissions)
+        return h3_turbo.FalJob(f"clip-{number}", "status", "result", "cancel")
+
+    async def complete(*args, **kwargs):
+        return h3_turbo.FalClip(b"mp4", 0.4, 0.4, kwargs["job"].request_id)
+
+    monkeypatch.setattr(call, "submit_clip", submit)
+    monkeypatch.setattr(call, "await_clip", complete)
+    websocket = route_harness.socket()
+    route_task = asyncio.create_task(call.video_call(websocket, auth_data={"user_id": "user-1"}))
+    await websocket.expect("ready")
+    route_harness.providers[0].send(_visual_instruction())
+    first = await websocket.expect("video.ready")
+    assert first["clip_id"] == "1"
+    frame = b"\xff\xd8x\xff\xd9"
+    websocket.send({"type": "continuation_frame", "clip_id": "1", "source": "continuation", "data": base64.b64encode(frame).decode()})
+    second = await websocket.expect("video.ready")
+    assert second["clip_id"] == "2"
+    assert submissions == [None, frame]
+    await asyncio.sleep(0.05)
+    assert len(submissions) == 2
+    websocket.send({"type": "stop_visuals"})
+    await websocket.expect("video.stopped", reason="user")
+    websocket.send({"type": "hangup"})
+    await asyncio.wait_for(route_task, timeout=2)
+    assert len(submissions) == 2
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals,video-call.experiment.live-voice
@@ -700,8 +766,12 @@ def test_gemini_setup_has_only_nonblocking_visual_tool_and_context_limit() -> No
     tools = setup["tools"][0]["functionDeclarations"]
     assert "show me how black holes work" in instruction
     assert "need not say 'video'" in instruction
+    assert "Call generate_visual_clip immediately" in instruction
     assert [tool["name"] for tool in tools] == ["generate_visual_clip"]
     assert tools[0]["behavior"] == "NON_BLOCKING"
+    assert "separate from the video" in instruction
+    assert "Space and vacuum are silent" in instruction
+    assert "No speakers, voices, dialogue, narration" in tools[0]["parameters"]["properties"]["prompt"]["description"]
     assert setup["contextWindowCompression"] == {"triggerTokens": 8000, "slidingWindow": {"targetTokens": 4000}}
     assert setup["generationConfig"]["responseModalities"] == ["AUDIO"]
 
@@ -739,8 +809,11 @@ async def test_fal_submission_omits_optional_first_frame_and_fixes_model_setting
     class FakeClient:
         async def post(self, url, *, json, headers):
             assert url == h3_turbo.QUEUE_URL
-            assert json == {
-                "prompt": "A forest at dusk",
+            assert "A forest at dusk" in json["prompt"]
+            assert json["prompt"].endswith(h3_turbo.VIDEO_DIRECTION_END)
+            for required in ("no voice", "speaker", "dialogue", "narration", "vocals", "music", "ambient sound", "vacuum", "space", "silent", "physically realistic motion", "causes and effects"):
+                assert required in json["prompt"].lower()
+            assert {key: value for key, value in json.items() if key != "prompt"} == {
                 "duration": 5,
                 "resolution": "480P",
                 "prompt_expansion_mode": "disabled",
@@ -759,6 +832,48 @@ async def test_fal_submission_omits_optional_first_frame_and_fixes_model_setting
 
     job = await h3_turbo.submit_clip(FakeClient(), key="test-key", prompt="A forest at dusk", image_jpeg=None)
     assert job.request_id == "clip-1"
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals,video-call.experiment.privacy
+@pytest.mark.asyncio
+async def test_fal_ready_does_not_decode_last_frame_and_logs_numeric_stage_timing(caplog) -> None:
+    class FakeResponse:
+        headers = {"content-type": "video/mp4"}
+
+        def __init__(self, data=None):
+            self.data = data
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self.data
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def aiter_bytes(self):
+            yield b"mp4"
+
+    class FakeClient:
+        async def get(self, url, *, headers):
+            if url.endswith("/status"):
+                return FakeResponse({"status": "COMPLETED"})
+            return FakeResponse({"video": {"url": "https://v3b.fal.media/files/clip.mp4", "duration": 5}, "timings": {"inference": 3.25}})
+
+        def stream(self, *args, **kwargs):
+            return FakeResponse()
+
+    job = h3_turbo.FalJob("clip-1", "https://queue.fal.run/minimax/h3-max-turbo/requests/clip-1/status", "https://queue.fal.run/minimax/h3-max-turbo/requests/clip-1", "https://queue.fal.run/minimax/h3-max-turbo/requests/clip-1/cancel")
+    with caplog.at_level("INFO", logger=h3_turbo.__name__):
+        clip = await h3_turbo.await_clip(FakeClient(), key="test-key", job=job)
+    assert clip.data == b"mp4"
+    assert clip.last_frame_jpeg is None
+    assert "inference_seconds=3.25" in caplog.text
+    assert "files/clip.mp4" not in caplog.text
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.experiment.billing

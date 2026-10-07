@@ -32,6 +32,12 @@
   let activeRate = $derived(audioRate + (!state.visualsAllowed || state.videoStatus === 'off' ? 0 : videoRate));
   let remaining = $derived(Math.max(0, state.maxDurationSeconds - state.elapsedSeconds));
 
+  $effect(() => {
+    controller.setVideoElement(visibleVideo);
+    return () => controller.setVideoElement(null);
+  });
+  $effect(() => controller.setVideoGain(state.userSpeaking || state.modelSpeaking ? 0.04 : 0.2));
+
   function takeFrame(video: HTMLVideoElement): string | null {
     if (!video.videoWidth || !video.videoHeight || video.readyState < 2) return null;
     const canvas = document.createElement('canvas');
@@ -169,7 +175,7 @@
   <div class="call-layout">
     <section class="stage" aria-label={$text('videocall.visual')} data-testid="video-call-stage">
       {#if activeClip && state.videoStatus === 'playing'}
-        {#key activeClip.id}<video bind:this={visibleVideo} src={activeClip.url} autoplay playsinline preload="auto" volume={state.userSpeaking || state.modelSpeaking ? 0.04 : 0.2} onloadeddata={() => void resumeVideo()} onended={onClipEnded} aria-label="Generated visual" data-testid="call-video"><track kind="captions" src="data:text/vtt,WEBVTT" srclang="en" label="No speech" /></video>{/key}
+        {#key activeClip.id}<video bind:this={visibleVideo} src={activeClip.url} autoplay muted playsinline preload="auto" onloadeddata={() => void resumeVideo()} onended={onClipEnded} aria-label="Generated visual" data-testid="call-video"><track kind="captions" src="data:text/vtt,WEBVTT" srclang="en" label="No speech" /></video>{/key}
         {#if nextClip}<video src={nextClip.url} preload="auto" muted class="preload" aria-hidden="true"><track kind="captions" src="data:text/vtt,WEBVTT" srclang="en" label="No speech" /></video>{/if}
         <span class="visual-badge">{$text('videocall.generated_visual')}</span>
         {#if state.videoPending}<span class="pending-badge">{$text('videocall.next_visual')}</span>{/if}

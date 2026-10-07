@@ -52,6 +52,8 @@ export interface CallControllerLike extends Readable<CallState> {
   sendVideoFrame(data: string): void;
   sendContinuationFrame(clipId: string, data: string): void;
   videoPlaybackEnded(clipId: string): void;
+  setVideoElement(video: HTMLVideoElement | null): void;
+  setVideoGain(value: number): void;
   dispose(): void;
 }
 
@@ -89,6 +91,7 @@ export class VideoCallController implements CallControllerLike {
   private videoDrainComplete = false;
   private playedClipIds = new Set<string>();
   private visualsStoppedExplicitly = false;
+  private pendingBinaryClip: { id: string; durationSeconds: number } | null = null;
 
   private update(patch: Partial<CallState>): void {
     this.state = { ...this.state, ...patch };
@@ -126,11 +129,16 @@ export class VideoCallController implements CallControllerLike {
       const url = new URL(`${getApiUrl().replace(/^http/, 'ws')}/v1/experiment/videocall`);
       url.searchParams.set('sessionId', getSessionId());
       url.searchParams.set('token', token);
+      url.searchParams.set('video_transport', 'binary');
       const socket = new WebSocket(url);
+      socket.binaryType = 'arraybuffer';
       this.socket = socket;
-      socket.onmessage = (event: MessageEvent<string>) => {
+      socket.onmessage = (event: MessageEvent<string | ArrayBuffer>) => {
         if (generation !== this.generation) return;
-        try { this.handleMessage(JSON.parse(event.data) as Record<string, unknown>); }
+        try {
+          if (event.data instanceof ArrayBuffer) this.handleBinaryVideo(event.data);
+          else this.handleMessage(JSON.parse(event.data) as Record<string, unknown>);
+        }
         catch { this.update({ error: callText('invalid_response') }); this.finish('error'); }
       };
       socket.onerror = () => { if (generation === this.generation) { this.update({ error: callText('connection_lost') }); this.finish('error'); } };
@@ -145,6 +153,25 @@ export class VideoCallController implements CallControllerLike {
       this.update({ status: 'error', error: callText(key) });
       audio.stop();
     }
+  }
+
+  private canAcceptVideo(): boolean {
+    return this.state.status === 'live' && !this.visualsStoppedExplicitly &&
+      (this.state.visualsAllowed || (this.state.videoDraining && !this.videoDrainComplete));
+  }
+
+  private addVideoClip(id: string, durationSeconds: number, bytes: Uint8Array): void {
+    if (!this.canAcceptVideo() || bytes.byteLength > 20 * 1024 * 1024) return;
+    const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'video/mp4' }));
+    const clips = [...this.state.clips, { id, url, durationSeconds }];
+    for (const expired of clips.slice(0, -4)) URL.revokeObjectURL(expired.url);
+    this.update({ clips: clips.slice(-4), videoStatus: 'playing', videoPending: false });
+  }
+
+  private handleBinaryVideo(data: ArrayBuffer): void {
+    const clip = this.pendingBinaryClip;
+    this.pendingBinaryClip = null;
+    if (clip) this.addVideoClip(clip.id, clip.durationSeconds, new Uint8Array(data));
   }
 
   private handleMessage(message: Record<string, unknown>): void {
@@ -188,13 +215,16 @@ export class VideoCallController implements CallControllerLike {
         if (this.state.visualsAllowed) this.update({ videoStatus: this.state.clips.length ? 'playing' : 'queued', videoPending: true });
         break;
       case 'video.ready': {
-        if (this.state.status !== 'live' || this.visualsStoppedExplicitly || (!this.state.visualsAllowed && (!this.state.videoDraining || this.videoDrainComplete)) || typeof message.data !== 'string' || message.data.length > 28_000_000 || typeof message.clip_id !== 'string') break;
+        if (!this.canAcceptVideo() || typeof message.clip_id !== 'string') break;
+        const durationSeconds = Number(message.duration_seconds) || 5;
+        if (message.encoding === 'binary') {
+          this.pendingBinaryClip = { id: message.clip_id, durationSeconds };
+          break;
+        }
+        if (typeof message.data !== 'string' || message.data.length > 28_000_000) break;
         const binary = atob(message.data);
         const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-        const url = URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }));
-        const clips = [...this.state.clips, { id: message.clip_id, url, durationSeconds: Number(message.duration_seconds) || 5 }];
-        for (const expired of clips.slice(0, -4)) URL.revokeObjectURL(expired.url);
-        this.update({ clips: clips.slice(-4), videoStatus: 'playing', videoPending: false });
+        this.addVideoClip(message.clip_id, durationSeconds, bytes);
         break;
       }
       case 'video.stopped':
@@ -254,11 +284,15 @@ export class VideoCallController implements CallControllerLike {
     this.finishVideoDrain();
   }
 
+  setVideoElement(video: HTMLVideoElement | null): void { this.audio?.setVideoElement(video); }
+  setVideoGain(value: number): void { this.audio?.setVideoGain(value); }
+
   private finishVideoDrain(): void {
     if (this.state.videoDraining && this.videoDrainComplete && this.state.clips.every((clip) => this.playedClipIds.has(clip.id))) this.clearVisuals();
   }
 
   private clearVisuals(): void {
+    this.pendingBinaryClip = null;
     this.state.clips.forEach((clip) => URL.revokeObjectURL(clip.url));
     this.playedClipIds.clear();
     this.videoDrainComplete = false;

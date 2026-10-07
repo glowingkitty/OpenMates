@@ -22,15 +22,31 @@ Microphone audio is PCM16 at 16 kHz. Gemini supplies native PCM speech at 24 kHz
 user/model transcription and one non-blocking `generate_visual_clip` function.
 There is no separate speech synthesis service or ordinary app-skill dispatcher.
 Gemini speech and the generated MP4 use independent, concurrent browser playback
-streams: Web Audio for speech and the video element for visuals and ambience.
+streams: Web Audio for speech and decoded scene ambience, with a muted video
+element for visuals. The audio context unlocks in the Start call gesture before
+microphone permission is awaited, so delayed video can autoplay without needing
+another click. Ambience follows the visible video's playback position.
 Audio sources are scheduled continuously and flushed on interruption; this does
 not interrupt video. Video ambience ducks while either participant speaks.
 
 H3 Max Turbo returns completed MP4 clips. Five-second 480p requests use disabled
-prompt expansion. The first request can start from text; following requests use
+prompt expansion. Every provider submission carries mandatory no-speaker,
+no-speech, no-narration, no-vocals and no-music instructions. Gemini describes
+physical visual motion and realistic scene background sound, with silence in
+space or vacuum; Gemini itself supplies the spoken explanation.
+The first request can start from text; following requests use
 the previous clip's final frame. The browser separately samples the actually
 displayed video for Gemini at up to one frame per second. These feedback frames
 do not refresh the visual-instruction timer.
+
+The provider's published faster-than-real-time figures measure GPU inference,
+not time to first displayed frame. Queue wait, encoding and media delivery add
+latency. This Turbo endpoint returns completed MP4 files and does not expose
+frames during generation. The browser's final-frame sample supplies continuation
+without blocking first playback on a server ffmpeg decode. New clients request
+binary MP4 WebSocket delivery to avoid base64 overhead; legacy clients still
+receive base64 JSON. Only one upcoming clip is prepared ahead of playback.
+Timing diagnostics record numeric stage durations without prompts or media.
 
 Only one generation request can be outstanding. New Gemini visual instructions
 steer the next request; they cannot rewrite frames already generated. Requests

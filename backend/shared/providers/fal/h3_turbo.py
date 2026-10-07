@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+import logging
+import math
 from typing import Any
 from urllib.parse import urlparse
 
@@ -16,9 +18,25 @@ import httpx
 MODEL = "minimax/h3-max-turbo/image-to-video"
 QUEUE_URL = f"https://queue.fal.run/{MODEL}"
 MAX_VIDEO_BYTES = 20 * 1024 * 1024  # browser's 28 MB encoded-message bound
-POLL_SECONDS = 0.7
+POLL_SECONDS = 0.35
 POLL_LIMIT_SECONDS = 75
-JOB_LIMIT_SECONDS = 90  # Include polling, result, CDN download and frame extraction.
+JOB_LIMIT_SECONDS = 90  # Include polling, result and CDN download.
+
+logger = logging.getLogger(__name__)
+
+# Enforce these constraints for every caller, including future callers that do
+# not use the video-call route's Gemini prompt instructions.
+VIDEO_DIRECTION = (
+    "Create a silent-voice video: absolutely no voice, speaker, speech, spoken words, "
+    "dialogue, narration, voiceover, singing, vocals, lip sync, captions, subtitles, "
+    "or music. Only scene-appropriate nonverbal ambient sound is allowed; a vacuum "
+    "or space scene is completely silent. Show physically realistic motion with "
+    "clear causes and effects, credible timing, inertia, collisions, and continuity. "
+)
+VIDEO_DIRECTION_END = (
+    " Final audio rule: no voice, speaker, dialogue, narration, vocals, or music "
+    "under any circumstances. Use only fitting nonverbal ambience; space and vacuum are silent."
+)
 
 
 @dataclass(frozen=True)
@@ -116,42 +134,11 @@ def _mp4_duration(data: bytes) -> float | None:
     return None
 
 
-async def _last_frame_jpeg(data: bytes) -> bytes | None:
-    """Sample the end of a generated MP4 via ffmpeg pipes; never persist it."""
-    process: asyncio.subprocess.Process | None = None
-    try:
-        process = await asyncio.create_subprocess_exec(
-            "ffmpeg", "-hide_banner", "-loglevel", "error", "-i", "pipe:0",
-            "-t", "6", "-vf", "fps=2,scale=640:360:force_original_aspect_ratio=decrease", "-f", "image2pipe",
-            "-vcodec", "mjpeg", "pipe:1",
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
-        output, _ = await asyncio.wait_for(process.communicate(data), timeout=8)
-        if process.returncode != 0 or len(output) > 3 * 1024 * 1024:
-            return None
-        end = output.rfind(b"\xff\xd9") + 2
-        start = output.rfind(b"\xff\xd8", 0, end)
-        if start < 0 or end <= start or end - start > 256 * 1024:
-            return None
-        return output[start:end]
-    except (OSError, asyncio.TimeoutError):
-        return None
-    finally:
-        if process is not None and process.returncode is None:
-            try:
-                process.kill()
-            except ProcessLookupError:
-                pass
-            await asyncio.shield(process.wait())
-
-
 async def submit_clip(client: httpx.AsyncClient, *, key: str, prompt: str, image_jpeg: bytes | None) -> FalJob:
-    if not prompt or len(prompt) > 3000:
+    if not prompt or len(prompt) + len(VIDEO_DIRECTION) + len(VIDEO_DIRECTION_END) > 3000:
         raise ValueError("Video prompt length is invalid")
     payload: dict[str, Any] = {
-        "prompt": prompt,
+        "prompt": VIDEO_DIRECTION + prompt + VIDEO_DIRECTION_END,
         "duration": 5,
         "resolution": "480P",
         "prompt_expansion_mode": "disabled",
@@ -190,13 +177,17 @@ async def cancel_clip(client: httpx.AsyncClient, *, key: str, job: FalJob) -> bo
 async def await_clip(client: httpx.AsyncClient, *, key: str, job: FalJob) -> FalClip:
     """Bound all work for one accepted job, including slow or trickling media."""
     headers = {"Authorization": f"Key {key}"}
-    deadline = asyncio.get_running_loop().time() + POLL_LIMIT_SECONDS
+    loop = asyncio.get_running_loop()
+    queued_at = loop.time()
+    deadline = queued_at + POLL_LIMIT_SECONDS
     completed = False
     reported_seconds: float | None = None
+    polls = 0
 
     async def finish() -> FalClip:
-        nonlocal completed, reported_seconds
+        nonlocal completed, reported_seconds, polls
         while asyncio.get_running_loop().time() < deadline:
+            polls += 1
             status = await client.get(job.status_url, headers=headers)
             status.raise_for_status()
             status_data = status.json()
@@ -213,17 +204,25 @@ async def await_clip(client: httpx.AsyncClient, *, key: str, job: FalJob) -> Fal
             raise TimeoutError("fal job timed out")
 
         try:
+            completed_at = loop.time()
             response = await client.get(job.result_url, headers=headers)
             response.raise_for_status()
             result = response.json()
             if result.get("error") or result.get("error_type"):
                 raise FalProviderFailed("fal result reported provider error")
+            timings = result.get("timings")
+            inference = timings.get("inference") if isinstance(timings, dict) else None
+            inference_seconds = (
+                float(inference) if isinstance(inference, (int, float)) and not isinstance(inference, bool)
+                and 0 <= inference <= JOB_LIMIT_SECONDS and math.isfinite(inference) else None
+            )
             video = result.get("video") or {}
             if not isinstance(video, dict):
                 raise ValueError("fal video response is invalid")
             reported = video.get("duration") or result.get("duration")
             reported_seconds = float(reported) if isinstance(reported, (int, float)) and 0 < reported < 30 else None
             url = _validated_media_url(video.get("url"))
+            result_at = loop.time()
             media = bytearray()
             async with client.stream("GET", url, follow_redirects=False) as download:
                 download.raise_for_status()
@@ -235,7 +234,13 @@ async def await_clip(client: httpx.AsyncClient, *, key: str, job: FalJob) -> Fal
                         raise ValueError("fal video exceeds size limit")
             if not media:
                 raise ValueError("fal video is empty")
-            return FalClip(bytes(media), reported_seconds, _mp4_duration(media), job.request_id, await _last_frame_jpeg(media))
+            ready_at = loop.time()
+            logger.info(
+                "fal video timing queue=%.2fs result=%.2fs cdn=%.2fs total=%.2fs inference_seconds=%s polls=%d bytes=%d",
+                completed_at - queued_at, result_at - completed_at,
+                ready_at - result_at, ready_at - queued_at, inference_seconds, polls, len(media),
+            )
+            return FalClip(bytes(media), reported_seconds, _mp4_duration(media), job.request_id)
         except FalProviderFailed:
             raise
         except Exception as exc:
