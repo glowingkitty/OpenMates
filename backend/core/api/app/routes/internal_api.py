@@ -13,10 +13,11 @@ from collections import Counter
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from fastapi.responses import Response
 from typing import Dict, Any, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 import base64
 import hashlib
 import httpx
+import uuid
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from datetime import datetime, timezone
 
@@ -772,6 +773,23 @@ class BillingReservationReleasePayload(BaseModel):
     actor_user_id: str | None = None
 
 
+class BillingReservationIntentPayload(BaseModel):
+    """Numeric, content-free summary intent from an authenticated internal worker."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    charge_id: str = Field(..., pattern=r"^ai-ask:[A-Za-z0-9_-]+:summary$", max_length=255)
+    user_id: str = Field(..., min_length=1, max_length=64)
+    user_id_hash: str = Field(..., pattern=r"^[a-f0-9]{64}$")
+    team_id: str | None = Field(default=None, min_length=1, max_length=64)
+    app_id: str = Field(..., pattern=r"^ai$")
+    skill_id: str = Field(..., pattern=r"^ask$")
+    chat_id: str = Field(..., pattern=r"^[A-Za-z0-9][A-Za-z0-9:_-]{0,254}$")
+    message_id: str = Field(..., pattern=r"^[A-Za-z0-9][A-Za-z0-9:_-]{0,254}$")
+    summary_message_id: str = Field(..., min_length=36, max_length=36)
+    llm_usage_breakdown: Dict[str, Any]
+
+
 def _billing_reservation_error(exc: SubChatOrchestrationProtocolError) -> HTTPException:
     detail: dict[str, Any] = {"code": exc.code}
     if exc.code == "reservation_budget_exceeded":
@@ -1015,6 +1033,47 @@ async def release_billing_reservation_route(
         )
     except SubChatOrchestrationProtocolError as exc:
         raise _billing_reservation_error(exc) from exc
+
+
+@router.post("/billing/reservation/record-intent")
+async def record_billing_reservation_intent_route(
+    payload: BillingReservationIntentPayload,
+    billing_service: BillingService = Depends(get_billing_service),
+    team_billing_service: TeamBillingService = Depends(get_team_billing_service),
+) -> Dict[str, Any]:
+    # Internal-only shared-token route (outside Caddy's public API allowlist).
+    # One immutable CAS write per pre-funded hold bounds calls and cost; the
+    # transaction verifies matching subject/actor and ai/ask charge identity.
+    try:
+        identifiers = [payload.user_id, payload.summary_message_id]
+        if payload.team_id:
+            identifiers.append(payload.team_id)
+        if any(str(uuid.UUID(value)) != value for value in identifiers):
+            raise ValueError("Noncanonical billing intent ID")
+    except (ValueError, AttributeError) as exc:
+        raise HTTPException(status_code=422, detail={"code": "invalid_billing_intent_id"}) from exc
+    if hash_id(payload.user_id) != payload.user_id_hash:
+        raise HTTPException(status_code=409, detail={"code": "reservation_owner_mismatch"})
+    try:
+        if payload.team_id is not None:
+            return await team_billing_service.record_summary_billing_intent(
+                team_id=payload.team_id, actor_user_id=payload.user_id,
+                charge_id=payload.charge_id, chat_id=payload.chat_id,
+                message_id=payload.message_id, summary_message_id=payload.summary_message_id,
+                llm_usage_breakdown=payload.llm_usage_breakdown,
+            )
+        return await billing_service.record_summary_billing_intent(
+            user_id=payload.user_id, user_id_hash=payload.user_id_hash,
+            charge_id=payload.charge_id, chat_id=payload.chat_id,
+            message_id=payload.message_id, summary_message_id=payload.summary_message_id,
+            llm_usage_breakdown=payload.llm_usage_breakdown,
+        )
+    except TeamPermissionError as exc:
+        raise HTTPException(status_code=403, detail={"code": "team_permission_denied"}) from exc
+    except SubChatOrchestrationProtocolError as exc:
+        raise _billing_reservation_error(exc) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail={"code": "invalid_billing_intent"}) from exc
 
 
 @router.post("/billing/charge")

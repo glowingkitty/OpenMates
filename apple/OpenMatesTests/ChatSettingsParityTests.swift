@@ -224,18 +224,32 @@ final class ChatSettingsParityTests: XCTestCase {
     func testUsageReceiptKeepsCacheCategoriesAndDecimalCharges() throws {
         let json = #"{"id":"usage-1","created_at":"2026-10-06T12:00:00Z","input_tokens":100,"output_tokens":20,"system_prompt_tokens":40,"user_input_tokens":10,"llm_usage_breakdown":{"schema_version":1,"input_tokens":100,"uncached_input_tokens":50,"cache_read_input_tokens":30,"cache_creation_input_tokens":20,"output_tokens":20,"usage_source":"provider","entries":[{"model_id":"model","inference_host":"bedrock","pricing_version":"v1","write_billing":"separate","input_tokens":100,"uncached_input_tokens":50,"cache_read_input_tokens":30,"cache_creation_input_tokens":20,"cache_creation_5m_input_tokens":20,"cache_creation_1h_input_tokens":null,"output_tokens":20,"rates":{"input":"0.01","cache_read":"0.001","cache_write":"0.02","output":"0.05"},"category_credits":{"input":"0.5","cache_read":"0.03","cache_write":"0.4","cache_write_1h":"0","output":"1"},"raw_credits":"1.93"}],"raw_credits":"1.93","rounding_adjustment":"0.07","credits_charged":2}}"#
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let row = try decoder.decode(ChatSettingsUsageRow.self, from: Data(json.utf8))
+        let withBand = json
+            .replacingOccurrences(of: "\"pricing_version\":\"v1\"", with: "\"pricing_version\":\"v1\",\"context_band\":\"over_272k\"")
+            .replacingOccurrences(of: "\"input\":\"0.01\"", with: "\"input\":\"82.5\"")
+        let row = try decoder.decode(ChatSettingsUsageRow.self, from: Data(withBand.utf8))
         let receipt = try XCTUnwrap(row.llmUsageBreakdown)
         XCTAssertEqual(receipt.uncachedInputTokens + (receipt.cacheReadInputTokens ?? 0) + (receipt.cacheCreationInputTokens ?? 0), receipt.inputTokens)
         XCTAssertEqual(receipt.entries[0].categoryCredits.cacheRead.text, "0.03")
         XCTAssertEqual(receipt.entries[0].rates.cacheWrite?.text, "0.02")
         XCTAssertEqual(receipt.entries[0].writeBilling, "separate")
+        XCTAssertEqual(receipt.entries[0].contextBand, "over_272k")
+        XCTAssertNil(receipt.entries[0].purpose)
+        XCTAssertEqual(receipt.entries[0].rates.input?.text, "82.5")
         XCTAssertEqual(receipt.entries[0].pricedInputTokens, 50)
         XCTAssertEqual(row.systemPromptTokens, 40)
         XCTAssertNil(receipt.entries[0].rates.cacheWrite1h)
         XCTAssertEqual(receipt.roundingAdjustment.text, "0.07")
         XCTAssertEqual(receipt.creditsCharged, 2)
         XCTAssertNil(try decoder.decode(ChatSettingsUsageRow.self, from: Data(#"{"id":"legacy"}"#.utf8)).llmUsageBreakdown)
+        let summary = json
+            .replacingOccurrences(of: "\"model_id\":\"model\"", with: "\"model_id\":\"gemini-3.5-flash-lite\",\"purpose\":\"summary\"")
+            .replacingOccurrences(of: "\"input\":\"0.01\"", with: "\"input\":\"1100\"")
+            .replacingOccurrences(of: "\"output\":\"0.05\"", with: "\"output\":\"130\"")
+        let summaryRow = try decoder.decode(ChatSettingsUsageRow.self, from: Data(summary.utf8))
+        XCTAssertEqual(summaryRow.llmUsageBreakdown?.entries[0].purpose, "summary")
+        XCTAssertEqual(summaryRow.llmUsageBreakdown?.entries[0].rates.input?.text, "1100")
+        XCTAssertEqual(summaryRow.llmUsageBreakdown?.entries[0].rates.output?.text, "130")
     }
 
     // contract-test: supporting surface=gui.apple assertions=billing.usage.receipt-token-breakdown

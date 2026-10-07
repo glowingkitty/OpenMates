@@ -22,7 +22,8 @@
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
-    import { isCachePricingDisplayActive, supportsOneHourCacheWrites } from '../../utils/cachePricingAvailability';
+    import { isCachePricingDisplayActive, isLongContextPricingDisplayActive, supportsOneHourCacheWrites } from '../../utils/cachePricingAvailability';
+    import { getAutomaticSummaryPricing } from '../../utils/automaticSummaryPricing';
     import { providersMetadata } from '../../data/providersMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { SettingsSectionHeading } from './elements';
@@ -34,9 +35,10 @@
         appId: string;
         skillId: string;
         modelId: string;
+        modelOverride?: AIModelMetadata;
     }
     
-    let { appId, skillId, modelId }: Props = $props();
+    let { appId, skillId, modelId, modelOverride }: Props = $props();
     
     // Get app/skill metadata for back navigation title
     let storeState = $state(appSkillsStore.getState());
@@ -45,13 +47,23 @@
     
     // Get model metadata
     let model = $derived<AIModelMetadata | undefined>(
-        modelsMetadata.find(m => m.id === modelId)
+        modelOverride ?? modelsMetadata.find(m => m.id === modelId)
     );
-    const cachePricingActive = $derived(isCachePricingDisplayActive(model?.cache_pricing, model?.default_server, {
+    const standardRates = $derived({
+        input: model?.pricing?.input_tokens_per_credit,
         cache_read: model?.pricing?.cache_read_tokens_per_credit,
         cache_write: model?.pricing?.cache_write_tokens_per_credit,
         cache_write_1h: model?.pricing?.cache_write_1h_tokens_per_credit,
-    }));
+        output: model?.pricing?.output_tokens_per_credit,
+    });
+    const cachePricingActive = $derived(isCachePricingDisplayActive(model?.cache_pricing, model?.default_server, standardRates));
+    const longContextBand = $derived(model?.pricing?.context_bands?.over_272k);
+    const longContextPricingActive = $derived(isLongContextPricingDisplayActive(model?.cache_pricing, model?.default_server, standardRates, longContextBand));
+    const automaticSummaryPricing = $derived(cachePricingActive ? getAutomaticSummaryPricing() : null);
+
+    function tokenPrice(rate: number | undefined): string {
+        return rate ? `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${rate} ${$text('settings.ai_ask.ai_ask_settings.tokens')}` : $text('settings.ai_ask.ai_ask_model_details.unavailable');
+    }
     
     // Format release date for display
     let formattedReleaseDate = $derived.by(() => {
@@ -266,6 +278,9 @@
             <div class="section">
                 <SettingsSectionHeading title={$text('common.pricing')} icon="coins" />
                 <div class="pricing-content">
+                    {#if longContextPricingActive}
+                        <h4 class="pricing-tier-title">{$text('settings.ai_ask.ai_ask_model_details.standard_pricing')}</h4>
+                    {/if}
                     {#if model.pricing?.input_tokens_per_credit}
                         <div class="pricing-row">
                             <Icon name="download" type="subsetting" size="24px" noAnimation={true} />
@@ -305,6 +320,27 @@
                     {/if}
                     {#if cachePricingActive}
                         <p class="cache-pricing-note" data-testid="app-model-cache-pricing-note">{$text('settings.ai_ask.ai_ask_model_details.cache_pricing_explanation')}</p>
+                    {/if}
+                    {#if longContextPricingActive && longContextBand}
+                        <div class="long-context-pricing" data-testid="app-model-long-context-tier">
+                            <h4 class="pricing-tier-title">{$text('settings.ai_ask.ai_ask_model_details.over_272k_pricing')}</h4>
+                            <p class="cache-pricing-note">{$text('settings.ai_ask.ai_ask_model_details.over_272k_explanation')}</p>
+                            <div class="pricing-row"><span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.uncached_input')}</span><span class="pricing-value">{tokenPrice(longContextBand.input_tokens_per_credit)}</span></div>
+                            <div class="pricing-row"><span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.cache_read')}</span><span class="pricing-value">{tokenPrice(longContextBand.cache_read_tokens_per_credit)}</span></div>
+                            <div class="pricing-row"><span class="pricing-type">{$text(`settings.ai_ask.ai_ask_model_details.${model.cache_pricing?.write_billing === 'included_in_input' ? 'cache_write' : 'cache_write_5m'}`)}</span><span class="pricing-value">{model.cache_pricing?.write_billing === 'included_in_input' ? $text('settings.ai_ask.ai_ask_model_details.included_in_input') : tokenPrice(longContextBand.cache_write_tokens_per_credit)}</span></div>
+                            <div class="pricing-row"><span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.billable_output')}</span><span class="pricing-value">{tokenPrice(longContextBand.output_tokens_per_credit)}</span></div>
+                        </div>
+                    {/if}
+                    {#if automaticSummaryPricing}
+                        <div class="long-context-pricing" data-testid="app-model-automatic-summary">
+                            <h4 class="pricing-tier-title">{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_title')}</h4>
+                            <p class="cache-pricing-note">{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_explanation')}</p>
+                            <div class="pricing-row" data-testid="app-model-summary-primary-input"><span class="pricing-type">{automaticSummaryPricing.primary.name} · {$text('settings.usage.cache_receipt_standard_input')}</span><span class="pricing-value">{tokenPrice(automaticSummaryPricing.primary.inputTokensPerCredit)}</span></div>
+                            <div class="pricing-row" data-testid="app-model-summary-primary-output"><span class="pricing-type">{automaticSummaryPricing.primary.name} · {$text('settings.ai_ask.ai_ask_model_details.billable_output')}</span><span class="pricing-value">{tokenPrice(automaticSummaryPricing.primary.outputTokensPerCredit)}</span></div>
+                            <p class="cache-pricing-note">{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_fallback')}</p>
+                            <div class="pricing-row" data-testid="app-model-summary-fallback-input"><span class="pricing-type">{automaticSummaryPricing.fallback.name} · {$text('settings.usage.cache_receipt_standard_input')}</span><span class="pricing-value">{tokenPrice(automaticSummaryPricing.fallback.inputTokensPerCredit)}</span></div>
+                            <div class="pricing-row" data-testid="app-model-summary-fallback-output"><span class="pricing-type">{automaticSummaryPricing.fallback.name} · {$text('settings.ai_ask.ai_ask_model_details.billable_output')}</span><span class="pricing-value">{tokenPrice(automaticSummaryPricing.fallback.outputTokensPerCredit)}</span></div>
+                        </div>
                     {/if}
                 </div>
             </div>
@@ -541,6 +577,17 @@
         color: var(--color-grey-60);
         font-size: var(--font-size-small);
         line-height: 1.4;
+    }
+
+    .long-context-pricing {
+        margin-top: 1rem;
+    }
+
+    .pricing-tier-title {
+        margin: 0.5rem 0;
+        color: var(--color-grey-100);
+        font-size: var(--font-size-small);
+        font-weight: 700;
     }
     
     .pricing-type {

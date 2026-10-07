@@ -96,6 +96,15 @@ models:
           per_credit_unit: 26
         output:
           per_credit_unit: 6 # 333.33 / 50.00 = 6.67 (conservative round-down)
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 16.5 }
+            cache_read: { per_credit_unit: 165 }
+            cache_write: { per_credit_unit: 13 }
+            output: { per_credit_unit: 4 }
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -168,6 +177,14 @@ models:
           per_credit_unit: 3300
         output:
           per_credit_unit: 30 # 333.33 / 10.00 = 33.33 (conservative round-down)
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 82.5 }
+            cache_read: { per_credit_unit: 1650 }
+            output: { per_credit_unit: 20 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -243,6 +260,15 @@ models:
           per_credit_unit: 132
         output:
           per_credit_unit: 30 # 333.33 / 10.00 = 33.33 -> 30 (conservative round-down)
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 82.5 }
+            cache_read: { per_credit_unit: 825 }
+            cache_write: { per_credit_unit: 66 }
+            output: { per_credit_unit: 20 }
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -315,6 +341,14 @@ models:
           per_credit_unit: 33000
         output:
           per_credit_unit: 650 # 333.33 / 0.50 = 666.66 -> 650 (conservative round-down)
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 1650 }
+            cache_read: { per_credit_unit: 16500 }
+            output: { per_credit_unit: 433 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -386,6 +420,15 @@ models:
           per_credit_unit: 1280
         output:
           per_credit_unit: 275 # 333.33 / 1.20 = 277.78 -> 275 (conservative round-down)
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 800 }
+            cache_read: { per_credit_unit: 8000 }
+            cache_write: { per_credit_unit: 640 }
+            output: { per_credit_unit: 183 }
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -457,6 +500,15 @@ models:
           per_credit_unit: 132
         output:
           per_credit_unit: 25 # 333.33 / 12.00 = 27.78 -> 25 (conservative round-down)
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 82.5 }
+            cache_read: { per_credit_unit: 825 }
+            cache_write: { per_credit_unit: 66 }
+            output: { per_credit_unit: 16 }
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -529,6 +581,15 @@ models:
           per_credit_unit: 64
         output:
           per_credit_unit: 15 # 333.33 / 20.00 = 16.67 -> 15 (conservative round-down)
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 40 }
+            cache_read: { per_credit_unit: 400 }
+            cache_write: { per_credit_unit: 32 }
+            output: { per_credit_unit: 10 }
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -601,6 +662,15 @@ models:
           per_credit_unit: 64
         output:
           per_credit_unit: 15 # 333.33 / 20.00 = 16.67 -> 15 (conservative round-down)
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 40 }
+            cache_read: { per_credit_unit: 400 }
+            cache_write: { per_credit_unit: 32 }
+            output: { per_credit_unit: 10 }
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -669,6 +739,14 @@ models:
           per_credit_unit: 650
         output:
           per_credit_unit: 10 # 333.33 / 30.00 = 11.11 → 10 (rounded down for margin)
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 32.5 }
+            cache_read: { per_credit_unit: 325 }
+            output: { per_credit_unit: 6 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -732,6 +810,13 @@ models:
           per_credit_unit: 130
         output:
           per_credit_unit: 20
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 65 }
+            output: { per_credit_unit: 13 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -810,6 +895,15 @@ models:
         price: 0.60
         currency: USD
         max_context: 131000
+    supplier_cost_profiles:
+      cerebras:
+        source_url: https://www.cerebras.ai/pricing
+        reviewed_on: "2026-10-07"
+        costs:
+          input_per_million_token: {price: 0.35, currency: USD}
+          output_per_million_token: {price: 0.75, currency: USD}
+        note: Actual direct Cerebras compression fallback rates; customer units remain unchanged.
+
     characteristics:
       - "reasoning model, with the tendency to create long responses"
       - "fast responses"

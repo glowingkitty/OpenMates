@@ -15949,7 +15949,7 @@
           "text": "Cache-Lesezugriff"
         },
         "cache_pricing_explanation": {
-          "text": "Cache-Lesezugriffe verwenden frühere Eingaben zu einem niedrigeren Preis erneut. Cache-Schreibzugriffe legen sie an und können mehr kosten. Dein Nutzungsbeleg zeigt die berechnete Nutzung."
+          "text": "Cache-Lesezugriffe verwenden frühere Eingaben zu einem niedrigeren Preis erneut. Cache-Schreibzugriffe legen sie an und können mehr kosten. Diese Preise gelten für normale angemeldete persönliche und Team-Chats. Die Abrechnung von Workflows und orchestrierten Unterchats bleibt unverändert. Dein Nutzungsbeleg zeigt die berechnete Nutzung."
         },
         "cache_write": {
           "text": "Cache-Schreibvorgang"
@@ -15986,6 +15986,24 @@
         },
         "enable_model": {
           "text": "Modell aktivieren"
+        },
+        "automatic_summary_title": {
+          "text": "Automatische Zusammenfassungen langer Chats"
+        },
+        "automatic_summary_explanation": {
+          "text": "In normalen angemeldeten persönlichen und Team-Chats werden automatische Zusammenfassungen langer Chats nur bei Bedarf separat abgerechnet. Wenn keine Zusammenfassung erstellt wird, fallen dafür keine Credits an. Die Abrechnung von Workflows und orchestrierten Unterchats bleibt unverändert. Dein Nutzungsbeleg zeigt die verwendeten Preise."
+        },
+        "automatic_summary_fallback": {
+          "text": "Ersatzmodell"
+        },
+        "standard_pricing": {
+          "text": "Standard"
+        },
+        "over_272k_pricing": {
+          "text": "Über 272.000 Eingabe-Token"
+        },
+        "over_272k_explanation": {
+          "text": "Die gesamte Eingabe umfasst auch zwischengespeicherte Eingaben. Bei mehr als 272.000 Eingabe-Token gelten diese Preise für die gesamte Anfrage."
         }
       }
     },
@@ -18608,6 +18626,12 @@
       },
       "context_unavailable": {
         "text": "Ursprünglicher Kontext nicht verfügbar"
+      },
+      "cache_receipt_automatic_summary": {
+        "text": "Automatische Zusammenfassung eines langen Chats"
+      },
+      "cache_receipt_context_band": {
+        "text": "Preisstufe"
       }
     },
     "apps": {

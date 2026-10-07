@@ -16769,7 +16769,7 @@
           "text": "Cache read"
         },
         "cache_pricing_explanation": {
-          "text": "Cache reads reuse earlier input at a lower price. Cache writes create it and may cost more. Your receipt shows the usage charged."
+          "text": "Cache reads reuse earlier input at a lower price. Cache writes create it and may cost more. These rates apply to normal authenticated personal and team chats. Billing for workflows and orchestrated subchats remains unchanged. Your receipt shows the usage charged."
         },
         "cache_write": {
           "text": "Cache write"
@@ -16806,6 +16806,24 @@
         },
         "enable_model": {
           "text": "Enable model"
+        },
+        "automatic_summary_title": {
+          "text": "Automatic long-chat summaries"
+        },
+        "automatic_summary_explanation": {
+          "text": "In normal authenticated personal and team chats, automatic long-chat summaries are billed separately only when needed. If no summary runs, there is no summary charge. Billing for workflows and orchestrated subchats remains unchanged. Your receipt shows the rates used."
+        },
+        "automatic_summary_fallback": {
+          "text": "Fallback"
+        },
+        "standard_pricing": {
+          "text": "Standard"
+        },
+        "over_272k_pricing": {
+          "text": "Over 272,000 input tokens"
+        },
+        "over_272k_explanation": {
+          "text": "Total input includes cached input. Above 272,000 input tokens, these rates apply to the whole request."
         }
       }
     },
@@ -19428,6 +19446,12 @@
       },
       "context_unavailable": {
         "text": "Original context unavailable"
+      },
+      "cache_receipt_automatic_summary": {
+        "text": "Automatic long-chat summary"
+      },
+      "cache_receipt_context_band": {
+        "text": "Pricing tier"
       }
     },
     "apps": {

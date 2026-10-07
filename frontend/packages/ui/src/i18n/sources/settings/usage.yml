@@ -1322,6 +1322,10 @@ cache_receipt_title:
   context: Heading for an immutable LLM usage and billing receipt
   en: LLM billing receipt
   de: LLM-Abrechnungsbeleg
+cache_receipt_automatic_summary:
+  context: Purpose label and usage-row title for a separately billed automatic long-chat summary
+  en: Automatic long-chat summary
+  de: Automatische Zusammenfassung eines langen Chats
 cache_receipt_source:
   context: Source of provider token counts on an LLM receipt
   en: Usage source
@@ -1354,6 +1358,10 @@ cache_receipt_pricing_version:
   context: Immutable version of token rates used for an LLM charge
   en: Pricing version
   de: Preisversion
+cache_receipt_context_band:
+  context: Label for the immutable standard or long-context rate tier used on an LLM receipt
+  en: Pricing tier
+  de: Preisstufe
 cache_receipt_raw:
   context: Decimal credit subtotal before final rounding
   en: Raw credits

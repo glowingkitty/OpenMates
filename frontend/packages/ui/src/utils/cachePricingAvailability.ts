@@ -22,9 +22,44 @@ export function supportsOneHourCacheWrites(
 }
 
 export interface CachePricingRates {
+  input?: number;
   cache_read?: number;
   cache_write?: number;
   cache_write_1h?: number;
+  output?: number;
+}
+
+export interface LongContextPricingBand {
+  min_input_tokens?: number;
+  eligible_hosts?: string[];
+  input_tokens_per_credit?: number;
+  cache_read_tokens_per_credit?: number;
+  cache_write_tokens_per_credit?: number;
+  output_tokens_per_credit?: number;
+}
+
+/** The long-context tier is visible only where the full frozen tariff can apply. */
+export function isLongContextPricingDisplayActive(
+  policy: CachePricingAvailability | null | undefined,
+  defaultHost: string | undefined,
+  standardRates: CachePricingRates,
+  band: LongContextPricingBand | null | undefined,
+  today = new Date().toISOString().slice(0, 10),
+): boolean {
+  if (!isCachePricingDisplayActive(policy, defaultHost, standardRates, today)) return false;
+  if (band?.min_input_tokens !== 272001 || defaultHost !== 'openai' ||
+    band.eligible_hosts?.length !== 1 || band.eligible_hosts[0] !== 'openai') return false;
+  for (const rate of [standardRates.input, standardRates.output]) {
+    if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) return false;
+  }
+  for (const rate of [band.input_tokens_per_credit, band.cache_read_tokens_per_credit, band.output_tokens_per_credit]) {
+    if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) return false;
+  }
+  if (policy?.write_billing === 'separate') {
+    const rate = band.cache_write_tokens_per_credit;
+    if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) return false;
+  }
+  return true;
 }
 
 function validDate(value: string): boolean {

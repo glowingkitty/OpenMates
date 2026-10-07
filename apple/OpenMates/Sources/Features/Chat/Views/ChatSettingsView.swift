@@ -478,16 +478,16 @@ struct ChatSettingsView: View {
         return (OfflineStore.shared.activeScopeId, nil, check)
     }
     #if DEBUG
-    static func preview(shared: Bool = false, example: Bool = false, populatedUsage: Bool = false, receiptUsage: Bool = false, ordinaryReceipt: Bool = false, allPlans: Bool = false) -> ChatSettingsView {
+    static func preview(shared: Bool = false, example: Bool = false, populatedUsage: Bool = false, receiptUsage: Bool = false, ordinaryReceipt: Bool = false, summaryReceipt: Bool = false, allPlans: Bool = false) -> ChatSettingsView {
         let chat = Chat(id: example ? "example-audio-speak-openmates-welcome-message" : "preview-chat-settings", title: "Launch preparation", lastMessageAt: nil, createdAt: "2026-10-01T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false, appId: nil,
             chatSummary: "Coordinate the work and verify the outcome before completion.", encryptedTitle: nil, encryptedChatKey: nil, budgetSpent: example ? nil : 24)
-        let rows: [ChatSettingsUsageRow] = example ? PublicChatUsageCatalog.rows(chatID: chat.id) : receiptUsage || ordinaryReceipt ? [previewReceiptRow(ordinary: ordinaryReceipt)] : populatedUsage ? [
+        let rows: [ChatSettingsUsageRow] = example ? PublicChatUsageCatalog.rows(chatID: chat.id) : receiptUsage || ordinaryReceipt || summaryReceipt ? [previewReceiptRow(ordinary: ordinaryReceipt, summary: summaryReceipt)] : populatedUsage ? [
             .init(id: "preview-usage-ai", label: "ai | ask", provider: "Google AI Studio / US", credits: 12, timestamp: "2026-10-01T12:00:00Z", appID: "ai"),
             .init(id: "preview-usage-web", label: "web | search", provider: "Brave / EU", credits: 12, timestamp: "2026-10-01T12:01:00Z", appID: "web")
         ] : []
-        return ChatSettingsView(chat: chat, accountID: nil, isSharedViewer: shared, isExample: example, exampleUsageRows: rows, exampleFileLoader: example ? { PublicChatFileCatalog.rows(chatID: chat.id) } : nil, previewPlanCount: allPlans ? 8 : 1, isPreview: true, initialTab: populatedUsage || receiptUsage || ordinaryReceipt ? .usage : .plan)
+        return ChatSettingsView(chat: chat, accountID: nil, isSharedViewer: shared, isExample: example, exampleUsageRows: rows, exampleFileLoader: example ? { PublicChatFileCatalog.rows(chatID: chat.id) } : nil, previewPlanCount: allPlans ? 8 : 1, isPreview: true, initialTab: populatedUsage || receiptUsage || ordinaryReceipt || summaryReceipt ? .usage : .plan)
     }
-    private static func previewReceiptRow(ordinary: Bool) -> ChatSettingsUsageRow {
+    private static func previewReceiptRow(ordinary: Bool, summary: Bool) -> ChatSettingsUsageRow {
         let json = #"{"id":"preview-usage-receipt","app_id":"ai","skill_id":"ask","credits":2,"created_at":"2026-10-06T12:00:00Z","input_tokens":100,"system_prompt_tokens":40,"user_input_tokens":10,"output_tokens":20,"llm_usage_breakdown":{"schema_version":1,"input_tokens":100,"uncached_input_tokens":50,"cache_read_input_tokens":30,"cache_creation_input_tokens":20,"output_tokens":20,"usage_source":"provider","entries":[{"model_id":"fixture/model","inference_host":"bedrock","pricing_version":"fixture-v1","write_billing":"separate","input_tokens":100,"uncached_input_tokens":50,"cache_read_input_tokens":30,"cache_creation_input_tokens":20,"cache_creation_5m_input_tokens":20,"output_tokens":20,"rates":{"input":"1000","cache_read":"10000","cache_write":"500","output":"200"},"category_credits":{"input":"0.5","cache_read":"0.03","cache_write":"0.4","cache_write_1h":"0","output":"1"},"raw_credits":"1.93"}],"raw_credits":"1.93","rounding_adjustment":"0.07","credits_charged":2}}"#
         let payload = ordinary ? json
             .replacingOccurrences(of: "\"credits\":2", with: "\"credits\":1")
@@ -505,8 +505,13 @@ struct ChatSettingsView: View {
             .replacingOccurrences(of: "\"rounding_adjustment\":\"0.07\"", with: "\"rounding_adjustment\":\"0.75\"")
             .replacingOccurrences(of: "\"credits_charged\":2", with: "\"credits_charged\":1")
             : json
+        let selectedPayload = summary ? payload
+            .replacingOccurrences(of: "\"model_id\":\"fixture/model\"", with: "\"model_id\":\"gemini-3.5-flash-lite\",\"purpose\":\"summary\"")
+            .replacingOccurrences(of: "\"input\":\"1000\"", with: "\"input\":\"1100\"")
+            .replacingOccurrences(of: "\"output\":\"200\"", with: "\"output\":\"130\"")
+            : payload
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return (try? decoder.decode(ChatSettingsUsageRow.self, from: Data(payload.utf8)))
+        return (try? decoder.decode(ChatSettingsUsageRow.self, from: Data(selectedPayload.utf8)))
             ?? ChatSettingsUsageRow(id: "preview-usage-receipt", label: "ai | ask", provider: "bedrock", credits: nil, timestamp: "")
     }
     #endif
@@ -549,8 +554,16 @@ private struct ChatSettingsLLMReceipt: View {
             ForEach(receipt.entries.indices, id: \.self) { index in
                 let entry = receipt.entries[index]
                 VStack(alignment: .leading, spacing: .spacing2) {
+                    if entry.purpose == "summary" {
+                        Text(AppStrings.receiptAutomaticSummary).font(.omSmall.weight(.semibold))
+                    }
                     Text(entry.modelId + (entry.inferenceHost.map { " · " + $0 } ?? "")).font(.omSmall.weight(.semibold))
                     if let version = entry.pricingVersion { detail(AppStrings.receiptPricingVersion, version) }
+                    if entry.contextBand == "over_272k" {
+                        detail(AppStrings.receiptContextBand, AppStrings.modelPriceOver272kPricing)
+                    } else if entry.contextBand == "standard" {
+                        detail(AppStrings.receiptContextBand, AppStrings.modelPriceStandardPricing)
+                    }
                     category(entry.usesOrdinaryInputFallback ? AppStrings.receiptStandardInput : AppStrings.receiptUncachedInput,
                              count: entry.pricedInputTokens, credits: entry.categoryCredits.input, rate: entry.rates.input)
                     if entry.usesOrdinaryInputFallback {

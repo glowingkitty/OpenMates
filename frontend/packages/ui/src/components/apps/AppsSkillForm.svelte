@@ -4,7 +4,8 @@
   import SettingsTextarea from '../settings/elements/SettingsTextarea.svelte';
   import type { AppsSkillDetails, AppsSkillGuestEligibility } from '../../types/appsWorkspace';
   import { getAnonymousAppsSkillAvailability } from '../../services/appsWorkspaceService';
-  import { isCachePricingDisplayActive, supportsOneHourCacheWrites, type CachePricingAvailability } from '../../utils/cachePricingAvailability';
+  import { isCachePricingDisplayActive, isLongContextPricingDisplayActive, supportsOneHourCacheWrites, type CachePricingAvailability } from '../../utils/cachePricingAvailability';
+  import { getAutomaticSummaryPricing } from '../../utils/automaticSummaryPricing';
   import {
     expandCompositeSkillPaths, getSkillPath, prepareSkillInput, remainingSkillPaths, schemaForPath,
     selectSkillSchema, setSkillPath, showAllSkillSchema, skillLeafPaths,
@@ -58,18 +59,33 @@
       lines.push(`${unitCredits} ${credits} ${$text('apps.skill_form.per_unit', { values: { unit } })}`);
     }
     const tokens = data(pricing.tokens);
+    const cachePricing = data(cachePricingValue) as CachePricingAvailability;
+    const standardRates = {
+      input: amount(data(tokens.input).per_credit_unit) ?? undefined,
+      cache_read: amount(data(tokens.cache_read).per_credit_unit) ?? undefined,
+      cache_write: amount(data(tokens.cache_write).per_credit_unit) ?? undefined,
+      cache_write_1h: amount(data(tokens.cache_write_1h).per_credit_unit) ?? undefined,
+      output: amount(data(tokens.output).per_credit_unit) ?? undefined,
+    };
+    const over272k = data(data(pricing.context_bands).over_272k);
+    const overTokens = data(over272k.tokens);
+    const longContextBand = {
+      min_input_tokens: amount(over272k.min_input_tokens) ?? undefined,
+      eligible_hosts: Array.isArray(over272k.eligible_hosts) ? over272k.eligible_hosts.filter((host): host is string => typeof host === 'string') : [],
+      input_tokens_per_credit: amount(data(overTokens.input).per_credit_unit) ?? undefined,
+      cache_read_tokens_per_credit: amount(data(overTokens.cache_read).per_credit_unit) ?? undefined,
+      cache_write_tokens_per_credit: amount(data(overTokens.cache_write).per_credit_unit) ?? undefined,
+      output_tokens_per_credit: amount(data(overTokens.output).per_credit_unit) ?? undefined,
+    };
+    const longContextActive = isLongContextPricingDisplayActive(cachePricing, defaultHost, standardRates, longContextBand);
+    if (longContextActive) lines.push($text('settings.ai_ask.ai_ask_model_details.standard_pricing'));
     for (const direction of ['input', 'output'] as const) {
       const count = amount(data(tokens[direction]).per_credit_unit);
       if (count !== null && count > 0) lines.push(`${tr('one_credit_per')} ${count} ${tr(`${direction}_tokens`)}`);
     }
-    const cachePricing = data(cachePricingValue);
-    if (isCachePricingDisplayActive(cachePricing as CachePricingAvailability, defaultHost, {
-      cache_read: amount(data(tokens.cache_read).per_credit_unit) ?? undefined,
-      cache_write: amount(data(tokens.cache_write).per_credit_unit) ?? undefined,
-      cache_write_1h: amount(data(tokens.cache_write_1h).per_credit_unit) ?? undefined,
-    })) {
+    if (isCachePricingDisplayActive(cachePricing, defaultHost, standardRates)) {
       for (const direction of ['cache_read', 'cache_write', 'cache_write_1h'] as const) {
-        if (direction === 'cache_write_1h' && !supportsOneHourCacheWrites(cachePricing as CachePricingAvailability, defaultHost)) continue;
+        if (direction === 'cache_write_1h' && !supportsOneHourCacheWrites(cachePricing, defaultHost)) continue;
         const count = amount(data(tokens[direction]).per_credit_unit);
         const label = direction === 'cache_write'
           ? cachePricing.write_billing === 'included_in_input' ? 'cache_write' : 'cache_write_5m'
@@ -79,6 +95,29 @@
         } else if (count !== null && count > 0) {
           lines.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: ${tr('one_credit_per')} ${count} ${tr('input_tokens')}`);
         }
+      }
+    }
+    if (longContextActive) {
+      lines.push($text('settings.ai_ask.ai_ask_model_details.over_272k_pricing'));
+      lines.push($text('settings.ai_ask.ai_ask_model_details.over_272k_explanation'));
+      for (const [category, label, unit] of [
+        ['input', 'uncached_input', 'input_tokens'],
+        ['cache_read', 'cache_read', 'input_tokens'],
+        ['cache_write', cachePricing.write_billing === 'included_in_input' ? 'cache_write' : 'cache_write_5m', 'input_tokens'],
+        ['output', 'billable_output', 'output_tokens'],
+      ] as const) {
+        const labelText = $text(`settings.ai_ask.ai_ask_model_details.${label}`);
+        if (category === 'cache_write' && cachePricing.write_billing === 'included_in_input') {
+          lines.push(`${labelText}: ${$text('settings.ai_ask.ai_ask_model_details.included_in_input')}`);
+          continue;
+        }
+        const count = {
+          input: longContextBand.input_tokens_per_credit,
+          cache_read: longContextBand.cache_read_tokens_per_credit,
+          cache_write: longContextBand.cache_write_tokens_per_credit,
+          output: longContextBand.output_tokens_per_credit,
+        }[category];
+        if (count) lines.push(`${labelText}: ${tr('one_credit_per')} ${count} ${tr(unit)}`);
       }
     }
     return lines;
@@ -142,6 +181,25 @@
     typeof model.default_server === 'string' ? model.default_server : undefined)
     .filter(line => !rateLines.includes(line))
     .map(line => `${String(model.name ?? model.id ?? '')}: ${line}`)));
+  const selectedModel = $derived(metadata.models.length === 1
+    ? metadata.models[0]
+    : metadata.models.find(model => typeof model.id === 'string' && model.id === input.model));
+  const selectedModelCachePricingActive = $derived.by(() => {
+    if (!selectedModel) return false;
+    const tokens = data(data(selectedModel.pricing).tokens);
+    return isCachePricingDisplayActive(
+      data(selectedModel.cache_pricing) as CachePricingAvailability,
+      typeof selectedModel.default_server === 'string' ? selectedModel.default_server : undefined,
+      {
+        input: amount(data(tokens.input).per_credit_unit) ?? undefined,
+        cache_read: amount(data(tokens.cache_read).per_credit_unit) ?? undefined,
+        cache_write: amount(data(tokens.cache_write).per_credit_unit) ?? undefined,
+        cache_write_1h: amount(data(tokens.cache_write_1h).per_credit_unit) ?? undefined,
+        output: amount(data(tokens.output).per_credit_unit) ?? undefined,
+      },
+    );
+  });
+  const automaticSummaryPricing = $derived(selectedModelCachePricingActive ? getAutomaticSummaryPricing() : null);
 
   async function submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -219,7 +277,7 @@
       <WorkflowSchemaFields schema={showAllSkillSchema(advancedSchema)} value={input} onChange={next => input = next as Record<string, unknown>} path="apps-settings" appId={metadata.app_id} {timezone} appsMode />
     </section>
   {/if}
-  {#if providerNames.length || modelNames.length || rateLines.length || modelRateLines.length}
+  {#if providerNames.length || modelNames.length || rateLines.length || modelRateLines.length || automaticSummaryPricing}
     <div class="execution-meta" data-testid="apps-skill-execution-meta">
       {#if providerNames.length}
         <p data-testid="apps-skill-providers">{providerNames.length === 1 ? tr('via') : tr('providers')} <strong>{providerNames.join(', ')}</strong></p>
@@ -227,6 +285,15 @@
       {#each rateLines as line}<p data-testid="apps-skill-pricing">{line}</p>{/each}
       {#if modelNames.length}<p data-testid="apps-skill-models">{tr(modelNames.length === 1 ? 'model' : 'models')} <strong>{modelNames.join(', ')}</strong></p>{/if}
       {#each modelRateLines as line}<p data-testid="apps-skill-model-pricing">{line}</p>{/each}
+      {#if automaticSummaryPricing}
+        <p data-testid="apps-skill-automatic-summary-title"><strong>{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_title')}</strong></p>
+        <p data-testid="apps-skill-automatic-summary-explanation">{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_explanation')}</p>
+        <p data-testid="apps-skill-summary-primary-input">{automaticSummaryPricing.primary.name} · {$text('settings.usage.cache_receipt_standard_input')}: {tr('one_credit_per')} {automaticSummaryPricing.primary.inputTokensPerCredit} {tr('input_tokens')}</p>
+        <p data-testid="apps-skill-summary-primary-output">{automaticSummaryPricing.primary.name} · {$text('settings.ai_ask.ai_ask_model_details.billable_output')}: {tr('one_credit_per')} {automaticSummaryPricing.primary.outputTokensPerCredit} {tr('output_tokens')}</p>
+        <p>{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_fallback')}</p>
+        <p data-testid="apps-skill-summary-fallback-input">{automaticSummaryPricing.fallback.name} · {$text('settings.usage.cache_receipt_standard_input')}: {tr('one_credit_per')} {automaticSummaryPricing.fallback.inputTokensPerCredit} {tr('input_tokens')}</p>
+        <p data-testid="apps-skill-summary-fallback-output">{automaticSummaryPricing.fallback.name} · {$text('settings.ai_ask.ai_ask_model_details.billable_output')}: {tr('one_credit_per')} {automaticSummaryPricing.fallback.outputTokensPerCredit} {tr('output_tokens')}</p>
+      {/if}
     </div>
   {/if}
 </form>

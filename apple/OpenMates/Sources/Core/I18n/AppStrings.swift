@@ -17,6 +17,12 @@ enum AppStrings {
     static var modelPriceCacheWrite5m: String { L("settings.ai_ask.ai_ask_model_details.cache_write_5m") }
     static var modelPriceCacheWrite1h: String { L("settings.ai_ask.ai_ask_model_details.cache_write_1h") }
     static var modelPriceOutput: String { L("settings.ai_ask.ai_ask_model_details.billable_output") }
+    static var modelPriceStandardPricing: String { L("settings.ai_ask.ai_ask_model_details.standard_pricing") }
+    static var modelPriceOver272kPricing: String { L("settings.ai_ask.ai_ask_model_details.over_272k_pricing") }
+    static var modelPriceOver272kExplanation: String { L("settings.ai_ask.ai_ask_model_details.over_272k_explanation") }
+    static var modelPriceAutomaticSummaryTitle: String { L("settings.ai_ask.ai_ask_model_details.automatic_summary_title") }
+    static var modelPriceAutomaticSummaryExplanation: String { L("settings.ai_ask.ai_ask_model_details.automatic_summary_explanation") }
+    static var modelPriceAutomaticSummaryFallback: String { L("settings.ai_ask.ai_ask_model_details.automatic_summary_fallback") }
     static var receiptTitle: String { L("settings.usage.cache_receipt_title") }
     static var receiptSource: String { L("settings.usage.cache_receipt_source") }
     static var receiptPending: String { L("settings.usage.cache_receipt_pending") }
@@ -26,6 +32,8 @@ enum AppStrings {
     static var receiptStandardInput: String { L("settings.usage.cache_receipt_standard_input") }
     static var receiptOrdinaryInputExplanation: String { L("settings.usage.cache_receipt_ordinary_input_explanation") }
     static var receiptPricingVersion: String { L("settings.usage.cache_receipt_pricing_version") }
+    static var receiptContextBand: String { L("settings.usage.cache_receipt_context_band") }
+    static var receiptAutomaticSummary: String { L("settings.usage.cache_receipt_automatic_summary") }
     static var receiptRaw: String { L("settings.usage.cache_receipt_raw") }
     static var receiptRounding: String { L("settings.usage.cache_receipt_rounding") }
     static var receiptUncachedInput: String { L("settings.ai_ask.ai_ask_model_details.uncached_input") }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "sourceDigest": "655e12ac9e07cc86477d2e418357a3e77141570e2e11c892123e59312cc389b8",
+  "sourceDigest": "94c61e4f166e707d92a69f7ab09914772b11e6053bfba9bd47a5e5f5bc7e17a6",
   "providers": [
     {
       "id": "openai",
@@ -2117,7 +2117,17 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 130,
-        "output_tokens_per_credit": 20
+        "output_tokens_per_credit": 20,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 65,
+            "output_tokens_per_credit": 13
+          }
+        }
       },
       "cache_pricing": {
         "enabled": false,
@@ -2160,7 +2170,18 @@
       "pricing": {
         "input_tokens_per_credit": 65,
         "output_tokens_per_credit": 10,
-        "cache_read_tokens_per_credit": 650
+        "cache_read_tokens_per_credit": 650,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 32.5,
+            "cache_read_tokens_per_credit": 325,
+            "output_tokens_per_credit": 6
+          }
+        }
       },
       "cache_pricing": {
         "enabled": false,
@@ -2204,7 +2225,19 @@
         "input_tokens_per_credit": 1600,
         "output_tokens_per_credit": 275,
         "cache_read_tokens_per_credit": 16000,
-        "cache_write_tokens_per_credit": 1280
+        "cache_write_tokens_per_credit": 1280,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 800,
+            "cache_read_tokens_per_credit": 8000,
+            "cache_write_tokens_per_credit": 640,
+            "output_tokens_per_credit": 183
+          }
+        }
       },
       "cache_pricing": {
         "enabled": false,
@@ -2250,7 +2283,19 @@
         "input_tokens_per_credit": 80,
         "output_tokens_per_credit": 15,
         "cache_read_tokens_per_credit": 800,
-        "cache_write_tokens_per_credit": 64
+        "cache_write_tokens_per_credit": 64,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 40,
+            "cache_read_tokens_per_credit": 400,
+            "cache_write_tokens_per_credit": 32,
+            "output_tokens_per_credit": 10
+          }
+        }
       },
       "cache_pricing": {
         "enabled": false,
@@ -2296,7 +2341,19 @@
         "input_tokens_per_credit": 80,
         "output_tokens_per_credit": 15,
         "cache_read_tokens_per_credit": 800,
-        "cache_write_tokens_per_credit": 64
+        "cache_write_tokens_per_credit": 64,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 40,
+            "cache_read_tokens_per_credit": 400,
+            "cache_write_tokens_per_credit": 32,
+            "output_tokens_per_credit": 10
+          }
+        }
       },
       "cache_pricing": {
         "enabled": false,
@@ -2342,7 +2399,19 @@
         "input_tokens_per_credit": 165,
         "output_tokens_per_credit": 25,
         "cache_read_tokens_per_credit": 1650,
-        "cache_write_tokens_per_credit": 132
+        "cache_write_tokens_per_credit": 132,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 82.5,
+            "cache_read_tokens_per_credit": 825,
+            "cache_write_tokens_per_credit": 66,
+            "output_tokens_per_credit": 16
+          }
+        }
       },
       "cache_pricing": {
         "enabled": false,
@@ -2388,7 +2457,19 @@
         "input_tokens_per_credit": 33,
         "output_tokens_per_credit": 6,
         "cache_read_tokens_per_credit": 330,
-        "cache_write_tokens_per_credit": 26
+        "cache_write_tokens_per_credit": 26,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 16.5,
+            "cache_read_tokens_per_credit": 165,
+            "cache_write_tokens_per_credit": 13,
+            "output_tokens_per_credit": 4
+          }
+        }
       },
       "cache_pricing": {
         "enabled": false,
@@ -2438,7 +2519,18 @@
       "pricing": {
         "input_tokens_per_credit": 3300,
         "output_tokens_per_credit": 650,
-        "cache_read_tokens_per_credit": 33000
+        "cache_read_tokens_per_credit": 33000,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 1650,
+            "cache_read_tokens_per_credit": 16500,
+            "output_tokens_per_credit": 433
+          }
+        }
       },
       "cache_pricing": {
         "enabled": false,
@@ -2489,7 +2581,19 @@
         "input_tokens_per_credit": 165,
         "output_tokens_per_credit": 30,
         "cache_read_tokens_per_credit": 1650,
-        "cache_write_tokens_per_credit": 132
+        "cache_write_tokens_per_credit": 132,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 82.5,
+            "cache_read_tokens_per_credit": 825,
+            "cache_write_tokens_per_credit": 66,
+            "output_tokens_per_credit": 20
+          }
+        }
       },
       "cache_pricing": {
         "enabled": false,
@@ -2539,7 +2643,18 @@
       "pricing": {
         "input_tokens_per_credit": 165,
         "output_tokens_per_credit": 30,
-        "cache_read_tokens_per_credit": 3300
+        "cache_read_tokens_per_credit": 3300,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 82.5,
+            "cache_read_tokens_per_credit": 1650,
+            "output_tokens_per_credit": 20
+          }
+        }
       },
       "cache_pricing": {
         "enabled": false,

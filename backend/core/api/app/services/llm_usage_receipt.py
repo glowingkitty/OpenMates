@@ -20,7 +20,7 @@ ENTRY_FIELDS = frozenset({
     "uncached_input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens",
     "cache_creation_5m_input_tokens", "cache_creation_1h_input_tokens", "output_tokens",
     "rates", "category_credits", "raw_credits", "write_billing",
-    "billing_mode", "billed_input_tokens",
+    "billing_mode", "billed_input_tokens", "context_band", "purpose",
 })
 CATEGORIES = frozenset({"input", "cache_read", "cache_write", "cache_write_1h", "output"})
 COUNTS = frozenset({
@@ -63,13 +63,17 @@ def validate_public_llm_usage_receipt(receipt: Any) -> dict[str, Any]:
             if value is not None and (type(value) is not int or value < 0):
                 raise ValueError("Invalid LLM usage token count")
     for entry in receipt["entries"]:
-        required_fields = ENTRY_FIELDS - {"write_billing", "billing_mode", "billed_input_tokens"}
+        required_fields = ENTRY_FIELDS - {"write_billing", "billing_mode", "billed_input_tokens", "context_band", "purpose"}
         if not required_fields.issubset(entry) or not set(entry).issubset(ENTRY_FIELDS):
             raise ValueError("Invalid LLM usage entry fields")
         if "write_billing" in entry and entry["write_billing"] not in {"included_in_input", "separate"}:
             raise ValueError("Invalid cache write billing mode")
         if "billing_mode" in entry and entry["billing_mode"] not in {"cache_aware", "ordinary_input"}:
             raise ValueError("Invalid LLM usage billing mode")
+        if "context_band" in entry and entry["context_band"] not in ("standard", "over_272k"):
+            raise ValueError("Invalid LLM usage context band")
+        if "purpose" in entry and entry["purpose"] != "summary":
+            raise ValueError("Invalid LLM usage purpose")
         if "billed_input_tokens" in entry and (
             type(entry["billed_input_tokens"]) is not int or entry["billed_input_tokens"] < 0
         ):

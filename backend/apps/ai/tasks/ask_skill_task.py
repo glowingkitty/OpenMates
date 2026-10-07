@@ -62,6 +62,15 @@ from backend.apps.ai.utils.user_task_turn_finalization import finalize_user_task
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
+from backend.apps.ai.processing.summary_billing import (
+    SummaryBillingAmbiguousError,
+    SummaryBillingDuplicateError,
+    SummaryBillingError,
+    SummaryBillingLimitError,
+    SummaryBillingOperation,
+    SummaryBillingUnsupportedFallbackError,
+    selected_main_cache_tariff_active,
+)
 from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
 from backend.apps.ai.processing.focus_phase_history import filter_focus_phase_history
 from backend.apps.ai.processing.artifact_ledger import (
@@ -1262,6 +1271,15 @@ async def _compress_for_selected_model(
         )
         return False
 
+    # The selected answer model determines whether the separate summary price
+    # is active. Workflows, anonymous turns and orchestrated subchats keep
+    # their existing bundled compression and budget behavior.
+    summary_billing = None
+    from backend.apps.ai.processing.main_processor import _normal_chat_cache_pricing_scope
+    if (_normal_chat_cache_pricing_scope(request_data)
+            and selected_main_cache_tariff_active(selected_model_id)):
+        summary_billing = SummaryBillingOperation(task_id=task_id, request_data=request_data)
+
     channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
     if request_data.user_id_hash:
         await cache_service.publish_event(channel, {
@@ -1273,15 +1291,35 @@ async def _compress_for_selected_model(
             "user_id_hash": request_data.user_id_hash,
         })
 
-    with ai_phase_span("compression"):
-        result = await compress_chat_history(
-            message_history=history,
-            task_id=task_id,
-            secrets_manager=secrets_manager,
-            compression_threshold=threshold,
-            force=recovery_checkpoint_fixture,
-        )
+    try:
+        with ai_phase_span("compression"):
+            result = await compress_chat_history(
+                message_history=history,
+                task_id=task_id,
+                secrets_manager=secrets_manager,
+                compression_threshold=threshold,
+                force=recovery_checkpoint_fixture,
+                **({"billing_operation": summary_billing} if summary_billing else {}),
+            )
+    except (SummaryBillingLimitError, SummaryBillingUnsupportedFallbackError):
+        if summary_billing:
+            await summary_billing.release_failed()
+        logger.info("[Task ID: %s] Summary skipped before the next provider dispatch", task_id)
+        return False
+    except SummaryBillingDuplicateError:
+        logger.warning("[Task ID: %s] Summary reservation already exists; no provider replay", task_id)
+        return False
+    except SummaryBillingAmbiguousError:
+        logger.exception("[Task ID: %s] Summary cost is uncertain; hold retained for review", task_id)
+        return False
+    except SummaryBillingError:
+        if summary_billing and summary_billing.dispatched:
+            logger.exception("[Task ID: %s] Summary billing failed after dispatch; hold retained", task_id)
+            return False
+        raise
     if not result.was_compressed or not result.summary_content:
+        if summary_billing:
+            await summary_billing.release_failed()
         if result.error and request_data.user_id_hash:
             await cache_service.publish_event(channel, {
                 "type": "chat_compression_completed",
@@ -1299,9 +1337,16 @@ async def _compress_for_selected_model(
     ):
         raise RecoveryCheckpointPersistenceError("Recovery checkpoint lacks a stable source message manifest")
     checkpoint_boundary = result.compressed_up_to_message_id or str(result.compressed_up_to_timestamp)
+    summary_operation_identity = request_data.resolved_recovery_inference_task_id() or task_id
     summary_message_id = str(uuid.uuid5(
-        uuid.NAMESPACE_URL, f"openmates:compression:{task_id}:{checkpoint_boundary}",
+        uuid.NAMESPACE_URL, f"openmates:compression:{summary_operation_identity}:{checkpoint_boundary}",
     ))
+    summary_receipt = None
+    if summary_billing:
+        try:
+            summary_receipt = await summary_billing.record_intent(summary_message_id=summary_message_id)
+        except SummaryBillingError as exc:
+            raise RecoveryCheckpointPersistenceError("Summary billing intent was not durably recorded") from exc
     summary_timestamp = int(time.time())
     encrypted_summary, _ = await encryption_service.encrypt_with_user_key(
         result.summary_content,
@@ -1378,12 +1423,22 @@ async def _compress_for_selected_model(
         except Exception as exc:
             raise RecoveryCheckpointPersistenceError("Checkpoint recovery save failed") from exc
 
-    await cache_service.set_ai_messages_history(
-        user_id=request_data.user_id,
-        chat_id=request_data.chat_id,
-        encrypted_messages_json_list=cache_messages,
-    )
+    try:
+        await cache_service.set_ai_messages_history(
+            user_id=request_data.user_id,
+            chat_id=request_data.chat_id,
+            encrypted_messages_json_list=cache_messages,
+        )
+    except Exception as exc:
+        if summary_billing and summary_billing.intent_recorded:
+            raise RecoveryCheckpointPersistenceError("Summary checkpoint application failed after billing intent") from exc
+        raise
     request_data.message_history = compressed_history
+    if summary_billing and summary_receipt is not None:
+        try:
+            await summary_billing.settle(receipt=summary_receipt)
+        except SummaryBillingAmbiguousError:
+            logger.exception("[Task ID: %s] Summary settlement pending; durable intent and hold retained", task_id)
     logger.info(
         "[Task ID: %s] Model-aware compression for %s replaced %s messages with %s context messages",
         task_id,

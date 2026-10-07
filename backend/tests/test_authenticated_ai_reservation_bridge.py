@@ -1,6 +1,7 @@
 # contract-test-file: infrastructure
 """Main inference holds use the final charge identity and fit to durable capacity."""
 
+import json
 from types import SimpleNamespace
 
 import httpx
@@ -33,6 +34,41 @@ def _pricing():
             "output": {"per_credit_unit": 10},
         }},
     }
+
+
+def _long_context_pricing():
+    base = {
+        "input": {"per_credit_unit": 1_000},
+        "cache_read": {"per_credit_unit": 2_000},
+        "cache_write": {"per_credit_unit": 800},
+        "output": {"per_credit_unit": 10},
+    }
+    band = {
+        "input": {"per_credit_unit": 500},
+        "cache_read": {"per_credit_unit": 1_000},
+        "cache_write": {"per_credit_unit": 400},
+        "output": {"per_credit_unit": 6},
+    }
+    return {
+        "default_server": "openai", "features": {"max_output_tokens": 1_000},
+        "pricing": {"tokens": base, "context_bands": {"over_272k": {
+            "min_input_tokens": 272_001, "eligible_hosts": ["openai"], "tokens": band,
+        }}},
+        "cache_pricing": {
+            "enabled": True, "status": "verified_for_activation",
+            "eligible_hosts": ["openai"], "write_billing": "separate",
+            "source_url": "https://example.com/pricing", "reviewed_on": "2026-10-01",
+            "expires_on": "2099-12-31",
+        },
+        "supplier_cost_profiles": {"openai": {"context_bands": {"over_272k": {
+            "input": 2, "cache_read": 2, "cache_write": 2, "output": 1.5,
+        }}}},
+    }
+
+
+def _system_prompt_for_serialized_input_bytes(size):
+    overhead = len(json.dumps({"system": "", "messages": [], "tools": []}, separators=(",", ":")).encode("utf-8"))
+    return "x" * (size - overhead)
 
 
 def _kwargs(request, tracker, state, *, output_limit=100):
@@ -148,6 +184,53 @@ async def test_ordinary_reservation_uses_model_output_cap_when_unspecified(monke
     kwargs = _kwargs(_request(), ModelUsageTracker(), {})
     kwargs["requested_output_token_limit"] = None
     assert await main_processor._reserve_authenticated_ai_turn(**kwargs) == 1_000
+
+
+async def test_openai_long_context_quote_switches_cold_input_and_output_units_at_boundary(monkeypatch):
+    pricing = _long_context_pricing()
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+
+    def quote(size, host="openai"):
+        return main_processor._quote_ai_iteration_credits(
+            model_id="openai/model", system_prompt=_system_prompt_for_serialized_input_bytes(size),
+            message_history=[], tools=None, output_token_limit=60, inference_host=host,
+        )
+
+    assert quote(272_000) == 346  # Cold writes use 800 tokens/credit; output uses 10.
+    assert quote(272_001) == 690  # Cold writes use 400 tokens/credit; output uses 6.
+    assert quote(272_001, "mistral") == 346  # Ineligible route keeps base units and existing cold-write bound.
+    pricing["cache_pricing"]["enabled"] = False
+    assert quote(272_001) == 278  # Proposed tariffs remain inert while disabled.
+
+
+async def test_long_context_reservation_fits_output_and_tops_up_for_actual_openai_host(monkeypatch):
+    pricing = _long_context_pricing()
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    prompt = _system_prompt_for_serialized_input_bytes(272_001)
+    quotes = []
+    capacity = 683
+
+    async def reserve(_method, _endpoint, payload):
+        quotes.append(payload["quoted_credits"])
+        if payload["quoted_credits"] > capacity:
+            response = httpx.Response(
+                402, json={"detail": {"code": "reservation_budget_exceeded", "max_quotable_credits": capacity}},
+                request=httpx.Request("POST", "http://api/internal/billing/reserve"),
+            )
+            raise httpx.HTTPStatusError("capacity", request=response.request, response=response)
+        return {"state": "reserved", "charge_id": payload["idempotency_key"],
+                "quoted_credits": payload["quoted_credits"]}
+
+    monkeypatch.setattr(main_processor, "_make_internal_api_request", reserve)
+    state = {}
+    kwargs = _kwargs(_request(), ModelUsageTracker(), state, output_limit=100)
+    kwargs.update(model_id="openai/model", system_prompt=prompt, message_history=[])
+    assert await main_processor._reserve_authenticated_ai_turn(**kwargs, inference_host="mistral") == 100
+    first_hold = state["quoted_credits"]
+    fitted = await main_processor._reserve_authenticated_ai_turn(**kwargs, inference_host="openai")
+    assert 0 < fitted < 100
+    assert first_hold < state["quoted_credits"] <= capacity
+    assert quotes[-1] == state["quoted_credits"]
 
 
 @pytest.mark.parametrize("capacity_mode", ["full", "fit", "deny"])

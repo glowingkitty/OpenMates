@@ -196,7 +196,11 @@ from backend.apps.ai.processing.skill_executor import (
 )
 from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 # Import billing utilities
-from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
+from backend.shared.python_utils.billing_utils import (
+    calculate_total_credits,
+    select_customer_context_band,
+    MINIMUM_CREDITS_CHARGED,
+)
 from backend.shared.python_utils.skill_provider_attribution import resolve_skill_usage_provider_id
 
 
@@ -2071,6 +2075,23 @@ async def _settle_anonymous_skill_quote(
     return sum(quotes)
 
 
+def _normal_chat_cache_pricing_scope(request_data: AskSkillRequest) -> bool:
+    """Admit cache customer pricing only for ordinary standalone chats."""
+    preferences = getattr(request_data, "user_preferences", None) or {}
+    return not (
+        getattr(request_data, "is_anonymous", False)
+        or getattr(request_data, "is_external", False)
+        or getattr(request_data, "is_sub_chat", False)
+        or getattr(request_data, "is_sub_chat_continuation", False)
+        or getattr(request_data, "parent_id", None)
+        or getattr(request_data, "orchestration_id", None)
+        or (getattr(request_data, "sub_chat_depth", 0) or 0) > 0
+        or preferences.get("workflow_ai") is True
+        or preferences.get("workflow_budget") is not None
+        or preferences.get("workflow_credit_allowance") is not None
+    )
+
+
 def _quote_ai_iteration_credits(
     *,
     model_id: str,
@@ -2080,6 +2101,8 @@ def _quote_ai_iteration_credits(
     output_token_limit: Optional[int] = None,
     input_envelope_tokens: int = 0,
     credit_rounding_headroom: int = 0,
+    inference_host: Optional[str] = None,
+    customer_cache_pricing_enabled: bool = True,
 ) -> int:
     if "/" not in model_id:
         raise RuntimeError("AI reservation requires a provider-qualified model id")
@@ -2087,6 +2110,9 @@ def _quote_ai_iteration_credits(
     model_config = config_manager.get_model_pricing(provider_id, model_suffix)
     if not model_config:
         raise RuntimeError(f"AI reservation pricing is unavailable for {model_id}")
+    if not customer_cache_pricing_enabled and (model_config.get("cache_pricing") or {}).get("enabled"):
+        model_config = copy.deepcopy(model_config)
+        model_config["cache_pricing"]["enabled"] = False
     configured_max_output_tokens = (model_config.get("features") or {}).get("max_output_tokens")
     if output_token_limit is not None:
         max_output_tokens = (
@@ -2107,10 +2133,20 @@ def _quote_ai_iteration_credits(
         1,
         len(serialized_input.encode("utf-8")) + max(0, input_envelope_tokens),
     )
+    quote_host = inference_host or model_config.get("default_server") or provider_id
+    _context_band, selected_rates = select_customer_context_band(
+        model_pricing_details=model_config,
+        inference_host=quote_host,
+        input_total=estimated_input_tokens,
+    )
+    base_rates = (model_config.get("pricing") or {}).get("tokens") or {}
     quote_config = model_config
+    if selected_rates is not base_rates:
+        quote_config = copy.deepcopy(model_config)
+        quote_config["pricing"]["tokens"] = copy.deepcopy(selected_rates)
     cache_policy = model_config.get("cache_pricing") or {}
     if cache_policy.get("enabled") and cache_policy.get("write_billing") == "separate":
-        token_rates = (model_config.get("pricing") or {}).get("tokens") or {}
+        token_rates = (quote_config.get("pricing") or {}).get("tokens") or {}
         input_units = [
             rate.get("per_credit_unit")
             for category in ("input", "cache_write", "cache_write_1h")
@@ -2123,7 +2159,8 @@ def _quote_ai_iteration_credits(
         if positive_units:
             # All estimated input could be a cold write. Bound that premium
             # without mutating the live tariff or assuming a future cache hit.
-            quote_config = copy.deepcopy(model_config)
+            if quote_config is model_config:
+                quote_config = copy.deepcopy(model_config)
             quote_config["pricing"]["tokens"].setdefault("input", {})["per_credit_unit"] = min(positive_units)
     quote = calculate_total_credits(
         pricing_config=quote_config,
@@ -2161,6 +2198,8 @@ def _max_affordable_ai_output_tokens(
     available_credits: int,
     input_envelope_tokens: int = 0,
     credit_rounding_headroom: int = 0,
+    inference_host: Optional[str] = None,
+    customer_cache_pricing_enabled: bool = True,
 ) -> Optional[int]:
     if requested_output_token_limit <= 0 or available_credits <= 0:
         return None
@@ -2172,6 +2211,8 @@ def _max_affordable_ai_output_tokens(
         "tools": tools,
         "input_envelope_tokens": input_envelope_tokens,
         "credit_rounding_headroom": credit_rounding_headroom,
+        "inference_host": inference_host,
+        "customer_cache_pricing_enabled": customer_cache_pricing_enabled,
     }
     if _quote_ai_iteration_credits(
         **quote_kwargs,
@@ -2223,6 +2264,7 @@ async def _fit_anonymous_output_token_limit(
         available_credits=available,
         input_envelope_tokens=ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS,
         credit_rounding_headroom=ANONYMOUS_AI_CREDIT_ROUNDING_HEADROOM,
+        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
     )
     if fitted is None:
         raise AnonymousUsageLimitError("Anonymous allowance cannot cover inference input")
@@ -2240,6 +2282,7 @@ async def _reserve_authenticated_ai_turn(
     requested_output_token_limit: Optional[int],
     model_usage_tracker: ModelUsageTracker,
     reservation_state: Dict[str, Any],
+    inference_host: Optional[str] = None,
 ) -> int:
     """Top up one durable turn hold; fit output against authoritative capacity."""
     if getattr(request_data, "is_anonymous", False) or request_data.orchestration_id:
@@ -2272,6 +2315,8 @@ async def _reserve_authenticated_ai_turn(
             model_id=model_id, system_prompt=system_prompt,
             message_history=message_history, tools=tools,
             output_token_limit=fitted_limit, credit_rounding_headroom=1,
+            inference_host=inference_host,
+            customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
         )
         cumulative_quote = max(int(reservation_state.get("quoted_credits") or 0), observed_credits + next_quote)
         try:
@@ -2297,6 +2342,8 @@ async def _reserve_authenticated_ai_turn(
                 requested_output_token_limit=fitted_limit,
                 available_credits=max_quote - observed_credits,
                 credit_rounding_headroom=1,
+                inference_host=inference_host,
+                customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
             )
             if affordable is None or affordable >= fitted_limit:
                 raise AuthenticatedReservationLimitError("Insufficient credits for inference input") from error
@@ -2374,6 +2421,7 @@ def _fit_workflow_output_token_limit(
         requested_output_token_limit=requested_output_token_limit,
         available_credits=allowance, input_envelope_tokens=512,
         credit_rounding_headroom=1,
+        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
     )
     if fitted is None:
         raise RuntimeError("Workflow Ask AI input exceeds its credit allowance")
@@ -2417,6 +2465,7 @@ async def _fit_parent_continuation_output_token_limit(
         tools=tools,
         requested_output_token_limit=requested_output_token_limit,
         available_credits=available_credits,
+        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
     )
     if fitted_limit is None:
         raise RuntimeError("Remaining orchestration credits cannot cover parent synthesis input")
@@ -2474,6 +2523,7 @@ async def _reserve_ai_iteration(
         output_token_limit=output_token_limit,
         input_envelope_tokens=ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS if is_anonymous else 0,
         credit_rounding_headroom=ANONYMOUS_AI_CREDIT_ROUNDING_HEADROOM if is_anonymous else 0,
+        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
     )
     if quote <= 0:
         return None
@@ -5436,6 +5486,7 @@ async def handle_main_processing(
                             requested_output_token_limit=dispatch_limit,
                             model_usage_tracker=model_usage_tracker,
                             reservation_state=ordinary_reservation_state,
+                            inference_host=_server_model_id.split("/", 1)[0],
                         )
                 else:
                     admit_actual_provider = None
@@ -5459,6 +5510,7 @@ async def handle_main_processing(
                     cacheable_system_prefix=cacheable_system_prefix or None,
                     prompt_cache_key=_mistral_prompt_cache_key(request_data),
                     pre_dispatch_admission=admit_actual_provider,
+                    customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
                 )
                 # Stream created successfully - break out of retry loop
                 break

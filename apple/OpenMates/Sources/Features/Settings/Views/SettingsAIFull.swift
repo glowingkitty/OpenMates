@@ -307,6 +307,11 @@ struct SettingsAIFullView: View {
             if let pricing = model.pricing {
                 modelSection(AppStrings.pricing, identifier: "ai-model-pricing-section") {
                     let cacheActive = model.cachePricesActive()
+                    let longContext = model.longContextPricesActive() ? pricing.context_bands?.over_272k : nil
+                    if longContext != nil {
+                        Text(AppStrings.modelPriceStandardPricing).font(.omSmall.weight(.bold))
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                    }
                     if let input = pricing.input_tokens_per_credit {
                         AISettingsDetailRow(title: AppStrings.modelPriceUncachedInput, value: AppStrings.aiPrice(input),
                             icon: "coins", identifier: "ai-model-pricing-input-row")
@@ -328,6 +333,47 @@ struct SettingsAIFullView: View {
                     if let output = pricing.output_tokens_per_credit {
                         AISettingsDetailRow(title: AppStrings.modelPriceOutput, value: AppStrings.aiPrice(output),
                             icon: "coins", identifier: "ai-model-pricing-output-row")
+                    }
+                    if let band = longContext {
+                        Text(AppStrings.modelPriceOver272kPricing).font(.omSmall.weight(.bold))
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                        Text(AppStrings.modelPriceOver272kExplanation).font(.omSmall)
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                        if let input = band.input_tokens_per_credit {
+                            AISettingsDetailRow(title: AppStrings.modelPriceUncachedInput, value: AppStrings.aiPrice(input),
+                                icon: "coins", identifier: "ai-model-pricing-over-272k-input-row")
+                        }
+                        if let read = band.cache_read_tokens_per_credit {
+                            AISettingsDetailRow(title: AppStrings.modelPriceCacheRead, value: AppStrings.aiPrice(read),
+                                icon: "coins", identifier: "ai-model-pricing-over-272k-cache-read-row")
+                        }
+                        let writeValue = model.cache_pricing?.write_billing == "included_in_input"
+                            ? AppStrings.modelPriceIncludedInInput
+                            : band.cache_write_tokens_per_credit.map(AppStrings.aiPrice) ?? AppStrings.modelPriceUnavailable
+                        AISettingsDetailRow(title: model.cache_pricing?.write_billing == "included_in_input" ? AppStrings.modelPriceCacheWrite : AppStrings.modelPriceCacheWrite5m,
+                            value: writeValue, icon: "coins", identifier: "ai-model-pricing-over-272k-cache-write-row")
+                        if let output = band.output_tokens_per_credit {
+                            AISettingsDetailRow(title: AppStrings.modelPriceOutput, value: AppStrings.aiPrice(output),
+                                icon: "coins", identifier: "ai-model-pricing-over-272k-output-row")
+                        }
+                    }
+                    if let summary = modelCatalog.catalog?.automaticSummaryPricing(for: model) {
+                        Text(AppStrings.modelPriceAutomaticSummaryTitle).font(.omSmall.weight(.bold))
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                        Text(AppStrings.modelPriceAutomaticSummaryExplanation).font(.omSmall)
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                        Text(summary.primary.modelName).font(.omSmall.weight(.bold))
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                        AISettingsDetailRow(title: AppStrings.modelPriceUncachedInput, value: AppStrings.aiPrice(summary.primary.inputTokensPerCredit),
+                            icon: "coins", identifier: "ai-model-pricing-summary-primary-input-row")
+                        AISettingsDetailRow(title: AppStrings.modelPriceOutput, value: AppStrings.aiPrice(summary.primary.outputTokensPerCredit),
+                            icon: "coins", identifier: "ai-model-pricing-summary-primary-output-row")
+                        Text(AppStrings.modelPriceAutomaticSummaryFallback + ": " + summary.fallback.modelName).font(.omSmall.weight(.bold))
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                        AISettingsDetailRow(title: AppStrings.modelPriceUncachedInput, value: AppStrings.aiPrice(summary.fallback.inputTokensPerCredit),
+                            icon: "coins", identifier: "ai-model-pricing-summary-fallback-input-row")
+                        AISettingsDetailRow(title: AppStrings.modelPriceOutput, value: AppStrings.aiPrice(summary.fallback.outputTokensPerCredit),
+                            icon: "coins", identifier: "ai-model-pricing-summary-fallback-output-row")
                     }
                 }
             }

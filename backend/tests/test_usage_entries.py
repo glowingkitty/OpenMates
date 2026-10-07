@@ -275,8 +275,10 @@ async def test_create_usage_entry_saves_image_to_html_tokens_and_duration_second
 
 
 # contract-test: direct surface=rest_api assertions=billing.usage.receipt-token-breakdown
+@pytest.mark.parametrize("context_band", [None, "standard", "over_272k"])
+@pytest.mark.parametrize("purpose", [None, "summary"])
 @pytest.mark.anyio
-async def test_llm_receipt_is_encrypted_and_available_through_both_owner_scoped_readers() -> None:
+async def test_llm_receipt_is_encrypted_and_available_through_both_owner_scoped_readers(context_band: str | None, purpose: str | None) -> None:
     sdk = FakeDirectusSDK([])
     usage = UsageMethods(sdk=sdk, encryption_service=RoundTripEncryption())
     async def noop_summary(**_kwargs: Any) -> None:
@@ -284,6 +286,10 @@ async def test_llm_receipt_is_encrypted_and_available_through_both_owner_scoped_
     usage._update_monthly_summaries = noop_summary
     usage._update_daily_summaries = noop_summary
     receipt = _llm_receipt()
+    if context_band is not None:
+        receipt["entries"][0]["context_band"] = context_band
+    if purpose is not None:
+        receipt["entries"][0]["purpose"] = purpose
 
     await usage.create_usage_entry(
         user_id_hash="owner-hash", app_id="ai", skill_id="ask", usage_type="skill_execution",
@@ -301,13 +307,22 @@ async def test_llm_receipt_is_encrypted_and_available_through_both_owner_scoped_
     assert "llm_usage_breakdown" not in (await usage._decrypt_usage_entries([{"encrypted_credits_costs_total": "enc:owner-key:1"}], "owner-key"))[0]
 
 
-# contract-test: direct surface=rest_api assertions=billing.usage.receipt-token-breakdown
+@pytest.mark.parametrize("field,value", [
+    ("supplier_cost_usd", "0.001"),
+    ("context_band", "unverified-tier"),
+    ("context_band", {"supplier_cost_usd": "0.001"}),
+    ("context_band", True),
+    ("purpose", "private_supplier_summary"),
+    ("purpose", {"supplier_cost_usd": "0.001"}),
+    ("purpose", True),
+])
 @pytest.mark.anyio
-async def test_llm_receipt_rejects_private_supplier_metadata_before_usage_write() -> None:
+# contract-test: direct surface=rest_api assertions=billing.usage.receipt-token-breakdown
+async def test_llm_receipt_rejects_private_or_invalid_metadata_before_usage_write(field: str, value: Any) -> None:
     sdk = FakeDirectusSDK([])
     usage = UsageMethods(sdk=sdk, encryption_service=RoundTripEncryption())
     receipt = _llm_receipt()
-    receipt["entries"][0]["supplier_cost_usd"] = "0.001"
+    receipt["entries"][0][field] = value
     result = await usage.create_usage_entry(
         user_id_hash="owner-hash", app_id="ai", skill_id="ask", usage_type="skill_execution",
         timestamp=1780000000, credits_charged=1, user_vault_key_id="owner-key",

@@ -144,6 +144,16 @@ def _cache_checkpoint_allowed(tariff_snapshot: Optional[Dict[str, Any]], server_
     return is_cache_tariff_admissible(policy, server_id)
 
 
+def _snapshot_for_customer_scope(pricing: Dict[str, Any], *, cache_pricing_enabled: bool) -> Dict[str, Any]:
+    """Freeze a legacy customer tariff for scopes outside the cache rollout."""
+    if cache_pricing_enabled or not (pricing.get("cache_pricing") or {}).get("enabled"):
+        return snapshot_model_tariff(pricing)
+    legacy_pricing = copy.deepcopy(pricing)
+    legacy_pricing["cache_pricing"]["enabled"] = False
+    legacy_pricing.pop("pricing_version", None)
+    return snapshot_model_tariff(legacy_pricing)
+
+
 def _configured_server_region(model_id: str, server_id: str, server_model_id: str) -> Optional[str]:
     """Find the actual route's region in the canonical model configuration."""
     if "/" not in model_id:
@@ -1735,6 +1745,7 @@ async def call_main_llm_stream(
     cacheable_system_prefix: Optional[str] = None,
     prompt_cache_key: Optional[str] = None,
     pre_dispatch_admission: Optional[Callable[[str, Optional[int]], Awaitable[int]]] = None,
+    customer_cache_pricing_enabled: bool = False,
 ) -> AsyncIterator[str]:
     # Anonymous accounting reserves one dispatched attempt at a time. Returning
     # failures to its caller preserves ambiguous holds and makes any retry earn
@@ -2050,7 +2061,10 @@ async def call_main_llm_stream(
             }
             _retry_attempt_id = uuid.uuid4().hex
             _retry_pricing = config_manager.get_model_pricing(*original_model_id.split("/", 1)) if "/" in original_model_id else None
-            _retry_tariff = snapshot_model_tariff(_retry_pricing) if _retry_pricing else None
+            _retry_tariff = (
+                _snapshot_for_customer_scope(_retry_pricing, cache_pricing_enabled=customer_cache_pricing_enabled)
+                if _retry_pricing else None
+            )
             _retry_region = _configured_server_region(
                 original_model_id, _retry_provider_prefix, _retry_actual_model_id,
             )
@@ -2248,7 +2262,10 @@ async def call_main_llm_stream(
 
         attempt_id = uuid.uuid4().hex
         pricing = config_manager.get_model_pricing(*original_model_id.split("/", 1)) if "/" in original_model_id else None
-        tariff_snapshot = snapshot_model_tariff(pricing) if pricing else None
+        tariff_snapshot = (
+            _snapshot_for_customer_scope(pricing, cache_pricing_enabled=customer_cache_pricing_enabled)
+            if pricing else None
+        )
         attempt_region = _configured_server_region(
             original_model_id, server_provider_prefix, server_actual_model_id,
         )

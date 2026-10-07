@@ -9,7 +9,7 @@ import copy
 import hashlib
 import json
 from datetime import date
-from decimal import Decimal, ROUND_FLOOR, ROUND_HALF_EVEN
+from decimal import Decimal, InvalidOperation, ROUND_FLOOR, ROUND_HALF_EVEN
 from decimal import localcontext
 from fractions import Fraction
 from typing import Dict, Any, Optional
@@ -24,6 +24,7 @@ ModelPricingDetails = PricingConfig
 
 MINIMUM_CREDITS_CHARGED = 1
 OVERDRAFT_LIMIT_CREDITS = -500
+OPENAI_LONG_CONTEXT_MIN_INPUT_TOKENS = 272_001
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 
@@ -161,6 +162,10 @@ def snapshot_model_tariff(model_pricing_details: ModelPricingDetails) -> Dict[st
             raise BillingError("Cache tariff is not yet effective")
         if today > expiry:
             raise BillingError("Cache tariff has expired")
+        for host in policy["eligible_hosts"]:
+            select_customer_context_band(
+                model_pricing_details=snapshot, inference_host=host, input_total=0,
+            )
         snapshot["admitted_on"] = today.isoformat()
     encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":"), default=str)
     snapshot["pricing_version"] = str(
@@ -205,6 +210,70 @@ def is_cache_tariff_admissible(
     return reviewed <= today <= expiry and effective <= today
 
 
+def select_customer_context_band(
+    *, model_pricing_details: ModelPricingDetails, inference_host: str | None, input_total: int,
+) -> tuple[str | None, Dict[str, Any]]:
+    """Select frozen customer token units from one provider attempt's inclusive input.
+
+    Inactive routes retain their original token units and receipt shape. Customer
+    bands are public tariff data, independent from private supplier cost profiles.
+    """
+    pricing = model_pricing_details.get("pricing", model_pricing_details)
+    base_rates = pricing.get("tokens", {})
+    policy = model_pricing_details.get("cache_pricing", {})
+    if not is_cache_tariff_eligible(policy, inference_host):
+        return None, base_rates
+    if isinstance(input_total, bool) or not isinstance(input_total, int) or input_total < 0:
+        raise BillingError("Inclusive input tokens must be a non-negative integer")
+
+    bands = pricing.get("context_bands")
+    supplier_bands = (
+        (model_pricing_details.get("supplier_cost_profiles", {}).get("openai", {})
+         .get("context_bands") or {})
+    )
+    if inference_host == "openai" and "over_272k" in supplier_bands and not bands:
+        raise BillingError("OpenAI long-context supplier price lacks a customer band")
+    if bands is None:
+        return None, base_rates
+    if not isinstance(bands, dict) or set(bands) != {"over_272k"}:
+        raise BillingError("Unsupported customer context bands")
+    band = bands["over_272k"]
+    if not isinstance(band, dict) or set(band) != {"min_input_tokens", "eligible_hosts", "tokens"}:
+        raise BillingError("Invalid OpenAI customer context band")
+    if (type(band["min_input_tokens"]) is not int
+            or band["min_input_tokens"] != OPENAI_LONG_CONTEXT_MIN_INPUT_TOKENS
+            or band["eligible_hosts"] != ["openai"]):
+        raise BillingError("Invalid OpenAI customer context boundary or host")
+    band_rates = band["tokens"]
+    if not isinstance(base_rates, dict) or not isinstance(band_rates, dict) or set(band_rates) != set(base_rates):
+        raise BillingError("Customer context band categories do not match the base tariff")
+    for category, base_row in base_rates.items():
+        band_row = band_rates[category]
+        if (category not in {"input", "output", "cache_read", "cache_write", "cache_write_1h"}
+                or not isinstance(base_row, dict) or not isinstance(band_row, dict)
+                or set(band_row) != {"per_credit_unit"}):
+            raise BillingError("Invalid customer context band token category")
+        try:
+            base_unit = Decimal(str(base_row["per_credit_unit"]))
+            band_unit = Decimal(str(band_row["per_credit_unit"]))
+        except (InvalidOperation, KeyError, TypeError, ValueError) as exc:
+            raise BillingError("Invalid customer context band token unit") from exc
+        if not base_unit.is_finite() or base_unit <= 0 or not band_unit.is_finite() or band_unit <= 0:
+            raise BillingError("Invalid customer context band token unit")
+        expected = (
+            Fraction(base_unit) * Fraction(2, 3) // 1
+            if category == "output" else Fraction(base_unit) / 2
+        )
+        if Fraction(band_unit) != expected:
+            raise BillingError("Customer context band does not match the approved multiplier")
+    if inference_host not in band["eligible_hosts"]:
+        return None, base_rates
+    return (
+        ("over_272k", band_rates)
+        if input_total >= band["min_input_tokens"] else ("standard", base_rates)
+    )
+
+
 def calculate_token_category_credits(
     *,
     input_total: int,
@@ -230,8 +299,11 @@ def calculate_token_category_credits(
         raise BillingError("Token counts cannot be negative")
     if legacy_billable_output is not None and (legacy_billable_output < 0 or legacy_billable_output > output_tokens):
         raise BillingError("Legacy output count must be within normalized billable output")
-    pricing = model_pricing_details.get("pricing", model_pricing_details)
-    rates = pricing.get("tokens", {})
+    _context_band, rates = select_customer_context_band(
+        model_pricing_details=model_pricing_details,
+        inference_host=inference_host,
+        input_total=input_total,
+    )
     cache_policy = model_pricing_details.get("cache_pricing", {})
     eligible_policy = is_cache_tariff_eligible(cache_policy, inference_host)
     charged_output = (
@@ -337,6 +409,10 @@ def calculate_cache_aware_supplier_cost(
     if expires_on and str(tariff_admitted_on) > str(expires_on):
         missing.append("tariff_expired")
     profile = profiles.get(inference_host or "", {})
+    route_costs = profile.get("costs", {})
+    if not isinstance(route_costs, dict):
+        raise BillingError("Invalid supplier route costs")
+    costs = {**costs, **route_costs}
     if profile.get("region") and region != profile["region"]:
         missing.append("region")
         # Retain the declared route's conservative multiplier even when its

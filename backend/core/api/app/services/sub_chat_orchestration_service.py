@@ -33,6 +33,7 @@ ORCHESTRATION_OPERATIONS = {
     "cleanup_expired_reservations",
     "reserve_personal_credits",
     "reserve_team_credits",
+    "record_billing_reservation_intent",
     "release_billing_reservation",
     "reconcile_billing_reservations",
     "commit_personal_charge",

@@ -12,6 +12,7 @@ from backend.shared.python_utils.billing_utils import (
     decimal_string,
     floor_raw_credits,
     is_cache_tariff_eligible,
+    select_customer_context_band,
     snapshot_model_tariff,
 )
 
@@ -42,13 +43,29 @@ def _pricing_for_bucket(
     return model_id, snapshot_model_tariff(pricing)
 
 
+def _validate_summary_bucket(bucket: Mapping[str, Any]) -> None:
+    snapshot = bucket.get("tariff_snapshot")
+    if (not isinstance(snapshot, Mapping) or not isinstance(snapshot.get("pricing_version"), str)
+            or not snapshot["pricing_version"] or not isinstance(bucket.get("attempt_id"), str)
+            or not bucket["attempt_id"] or not isinstance(bucket.get("model_id"), str)
+            or not bucket["model_id"]):
+        raise ValueError("Summary billing requires a frozen tariff, model, and attempt identity")
+    if (type(bucket.get("input_tokens")) is not int or type(bucket.get("output_tokens")) is not int
+            or bucket["input_tokens"] < 0 or bucket["output_tokens"] < 0
+            or bucket.get("usage_source") != "provider_reported"):
+        raise ValueError("Summary billing requires reported inclusive input and billable output totals")
+
+
 def build_model_usage_breakdown(
     usage_buckets: Iterable[Mapping[str, Any]],
     pricing_lookup: Callable[[str, str], Dict[str, Any] | None],
     *,
     default_provider: str | None = None,
+    purpose: str | None = None,
 ) -> Dict[str, Any]:
     """Build one attempt-itemized receipt and floor fractional credits once."""
+    if purpose not in {None, "summary"}:
+        raise ValueError("Unknown LLM usage receipt purpose")
     buckets = list(usage_buckets)
     entries: list[Dict[str, Any]] = []
     raw_total = Fraction(0)
@@ -56,12 +73,14 @@ def build_model_usage_breakdown(
     input_total = output_total = uncached_total = 0
     sources: set[str] = set()
     for bucket in buckets:
+        if purpose == "summary":
+            _validate_summary_bucket(bucket)
         model_id, tariff = _pricing_for_bucket(bucket, pricing_lookup, default_provider)
         input_tokens = int(bucket.get("input_tokens") or 0)
         output_tokens = int(bucket.get("output_tokens") or 0)
         legacy_output = bucket.get("legacy_billable_output_tokens")
         charged_output = (
-            output_tokens if is_cache_tariff_eligible(tariff.get("cache_pricing", {}), bucket.get("inference_host")) or legacy_output is None
+            output_tokens if purpose == "summary" or is_cache_tariff_eligible(tariff.get("cache_pricing", {}), bucket.get("inference_host")) or legacy_output is None
             else int(legacy_output)
         )
         uncached = int(bucket.get("uncached_input_tokens", input_tokens))
@@ -86,11 +105,11 @@ def build_model_usage_breakdown(
             cache_write=write,
             cache_write_1h=write_1h,
             output_tokens=output_tokens,
-            legacy_billable_input=bucket.get("legacy_billable_input_tokens"),
+            legacy_billable_input=None if purpose == "summary" else bucket.get("legacy_billable_input_tokens"),
             model_pricing_details=tariff,
             usage_source=source,
             inference_host=bucket.get("inference_host"),
-            legacy_billable_output=legacy_output,
+            legacy_billable_output=None if purpose == "summary" else legacy_output,
         )
         eligible_policy = is_cache_tariff_eligible(tariff.get("cache_pricing", {}), bucket.get("inference_host"))
         if active:
@@ -100,7 +119,7 @@ def build_model_usage_breakdown(
             )
         else:
             billed_input_tokens = (
-                input_tokens if eligible_policy or bucket.get("legacy_billable_input_tokens") is None
+                input_tokens if purpose == "summary" or eligible_policy or bucket.get("legacy_billable_input_tokens") is None
                 else int(bucket["legacy_billable_input_tokens"])
             )
         raw = sum(categories.values(), Fraction(0))
@@ -114,7 +133,11 @@ def build_model_usage_breakdown(
         output_total += charged_output
         uncached_total += uncached
         sources.add(source)
-        rates = tariff.get("pricing", tariff).get("tokens", {})
+        context_band, rates = select_customer_context_band(
+            model_pricing_details=tariff,
+            inference_host=bucket.get("inference_host"),
+            input_total=input_tokens,
+        )
         one_hour_hosts = tariff.get("cache_pricing", {}).get("cache_write_1h_hosts")
         one_hour_rate_visible = one_hour_hosts is None or bucket.get("inference_host") in one_hour_hosts
         entry = {
@@ -143,6 +166,10 @@ def build_model_usage_breakdown(
         write_billing = tariff.get("cache_pricing", {}).get("write_billing")
         if active and write_billing in {"included_in_input", "separate"}:
             entry["write_billing"] = write_billing
+        if context_band is not None:
+            entry["context_band"] = context_band
+        if purpose == "summary":
+            entry["purpose"] = "summary"
         entries.append(entry)
     charged = floor_raw_credits(raw_total)
     with localcontext() as context:
@@ -162,6 +189,29 @@ def build_model_usage_breakdown(
         "credits_charged": charged,
         "settlement_state": "settled",
     }
+
+
+def build_summary_usage_breakdown(
+    usage_buckets: Iterable[Mapping[str, Any]],
+    pricing_lookup: Callable[[str, str], Dict[str, Any] | None],
+    *,
+    default_provider: str | None = None,
+) -> Dict[str, Any]:
+    """Price reported summary attempts from their frozen tariffs with one floor.
+
+    A repeated cumulative snapshot replaces the prior state of the same attempt;
+    distinct incurred fallback attempts remain separate receipt entries.
+    """
+    tracker = ModelUsageTracker()
+    for bucket in usage_buckets:
+        _validate_summary_bucket(bucket)
+        tracker.record_reported_usage(
+            model_id=bucket["model_id"], normalized_usage=bucket, attempt_id=bucket["attempt_id"],
+            usage_event_kind="cumulative",
+        )
+    return build_model_usage_breakdown(
+        tracker.usage_by_model, pricing_lookup, default_provider=default_provider, purpose="summary",
+    )
 
 
 def calculate_model_usage_credits(

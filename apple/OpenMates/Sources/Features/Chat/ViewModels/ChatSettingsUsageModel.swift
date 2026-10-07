@@ -26,8 +26,10 @@ struct LLMUsageBreakdown: Decodable {
 
     struct Entry: Decodable {
         let modelId: String
+        let purpose: String?
         let inferenceHost: String?
         let pricingVersion: String?
+        let contextBand: String?
         let writeBilling: String?
         let billingMode: String?
         let billedInputTokens: Int?

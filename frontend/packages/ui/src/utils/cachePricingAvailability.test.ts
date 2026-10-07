@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isCachePricingDisplayActive, supportsOneHourCacheWrites } from './cachePricingAvailability';
+import { isCachePricingDisplayActive, isLongContextPricingDisplayActive, supportsOneHourCacheWrites } from './cachePricingAvailability';
 
 const verified = {
   enabled: true,
@@ -37,5 +37,25 @@ describe('cache pricing catalog admission', () => {
     expect(isCachePricingDisplayActive({ ...verified, reviewed_on: '2026-10-08' }, 'anthropic', rates, '2026-10-07')).toBe(false);
     expect(isCachePricingDisplayActive({ ...verified, effective_from: '2026-10-08' }, 'anthropic', rates, '2026-10-07')).toBe(false);
     expect(isCachePricingDisplayActive({ ...verified, expires_on: '2026-11-31' }, 'anthropic', rates, '2026-10-07')).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
+  it('shows a complete long-context tier only on its eligible active host', () => {
+    const openaiPolicy = { ...verified, eligible_hosts: ['openai'] };
+    const standardRates = { ...rates, input: 100, output: 20 };
+    const band = {
+      min_input_tokens: 272001,
+      eligible_hosts: ['openai'],
+      input_tokens_per_credit: 50,
+      cache_read_tokens_per_credit: 500,
+      cache_write_tokens_per_credit: 40,
+      output_tokens_per_credit: 10,
+    };
+    expect(isLongContextPricingDisplayActive(openaiPolicy, 'openai', standardRates, band, '2026-10-07')).toBe(true);
+    expect(isLongContextPricingDisplayActive(openaiPolicy, 'aws_bedrock', standardRates, band, '2026-10-07')).toBe(false);
+    expect(isLongContextPricingDisplayActive({ ...openaiPolicy, enabled: false }, 'openai', standardRates, band, '2026-10-07')).toBe(false);
+    expect(isLongContextPricingDisplayActive(openaiPolicy, 'openai', standardRates, { ...band, min_input_tokens: 272000 }, '2026-10-07')).toBe(false);
+    expect(isLongContextPricingDisplayActive(openaiPolicy, 'openai', standardRates, { ...band, cache_write_tokens_per_credit: undefined }, '2026-10-07')).toBe(false);
+    expect(isLongContextPricingDisplayActive(openaiPolicy, 'openai', { ...standardRates, input: undefined }, band, '2026-10-07')).toBe(false);
   });
 });

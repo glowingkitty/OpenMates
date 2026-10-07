@@ -124,9 +124,9 @@ test('personal quote holds preserve the -500 floor across concurrent charges and
     charge_id, app_id: 'ai', skill_id: 'ask', quoted_credits,
     expected_encrypted_balance: 'cipher-10', current_credits: 10,
   }), new Date(START * 1000));
-  assert.equal((await reserve('ai-ask:one:main', 300)).quoted_credits, 300);
-  assert.equal((await reserve('ai-ask:one:main', 200)).idempotent, true);
-  assert.equal((await reserve('ai-ask:one:main', 400)).quoted_credits, 400);
+  assert.equal((await reserve('ai-ask:one:main', 300)).created, true);
+  assert.equal((await reserve('ai-ask:one:main', 200)).created, false);
+  assert.equal((await reserve('ai-ask:one:main', 400)).created, false);
   await assert.rejects(reserve('ai-ask:two:main', 111), (error) =>
     error.code === 'reservation_budget_exceeded' && error.details.max_quotable_credits === 110);
   const usageId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -136,9 +136,11 @@ test('personal quote holds preserve the -500 floor across concurrent charges and
     reservation_required: true, expected_encrypted_balance: 'cipher-10', new_encrypted_balance: 'cipher-minus-240',
     usage_entry: { id: usageId, charge_id: 'ai-ask:one:main', user_id_hash: OWNER,
       app_id: 'ai', skill_id: 'ask', encrypted_credits_costs_total: 'cipher-usage',
+      encrypted_llm_usage_breakdown: 'vault:v1:opaque-public-receipt',
       created_at: START, updated_at: START },
   });
   assert.equal((await executeOperation(database, 'commit_personal_charge', payload)).charged_credits, 250);
+  assert.equal(database.rows.usage[0].encrypted_llm_usage_breakdown, 'vault:v1:opaque-public-receipt');
   assert.equal(database.rows.billing_reservations[0].state, 'settled');
   assert.equal((await executeOperation(database, 'commit_personal_charge', payload)).idempotent, true);
   await assert.rejects(reserve('ai-ask:one:main', 400), { code: 'reservation_not_active' });
@@ -239,11 +241,11 @@ test('team cumulative quotes block parallel overspend and release only their own
   const reserve = (charge_id, quoted_credits) => executeOperation(database, 'reserve_team_credits', teamRequest({
     charge_id, actor_user_hash: OWNER, app_id: 'ai', skill_id: 'ask', quoted_credits,
   }), new Date(START * 1000));
-  assert.equal((await reserve('ai-ask:one:main', 6)).quoted_credits, 6);
+  assert.equal((await reserve('ai-ask:one:main', 6)).created, true);
   await assert.rejects(reserve('ai-ask:two:main', 5), (error) =>
     error.code === 'reservation_budget_exceeded' && error.details.max_quotable_credits === 4);
-  assert.equal((await reserve('ai-ask:one:main', 6)).idempotent, true);
-  assert.equal((await reserve('ai-ask:one:main', 7)).quoted_credits, 7);
+  assert.equal((await reserve('ai-ask:one:main', 6)).created, false);
+  assert.equal((await reserve('ai-ask:one:main', 7)).created, false);
   const release = (charge_id) => executeOperation(database, 'release_billing_reservation', {
     protocol_version: 1, charge_id, subject_kind: 'team', subject_hash: TEAM,
     actor_user_hash: OWNER, reason: 'definite_no_cost',
@@ -258,6 +260,72 @@ test('team cumulative quotes block parallel overspend and release only their own
   assert.equal(database.rows.team_credit_accounts[0].balance_credits, 2);
   assert.equal(database.rows.billing_reservations[1].state, 'settled');
   assert.equal((await executeOperation(database, 'commit_team_charge', charge)).idempotent, true);
+});
+
+// contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge,billing.usage.receipt-token-breakdown
+test('personal summary intent is encrypted, immutable, and retained while the hold is unresolved', async () => {
+  const database = db({ directus_users: [{ id: USER, encrypted_credit_balance: 'cipher-10' }] });
+  const chargeId = 'ai-ask:task-one:summary';
+  await executeOperation(database, 'reserve_personal_credits', request({
+    charge_id: chargeId, app_id: 'ai', skill_id: 'ask', quoted_credits: 3,
+    expected_encrypted_balance: 'cipher-10', current_credits: 10,
+  }), new Date(START * 1000));
+  const intent = {
+    protocol_version: 1, charge_id: chargeId, subject_kind: 'personal',
+    subject_hash: OWNER, actor_user_hash: OWNER, app_id: 'ai', skill_id: 'ask',
+    encrypted_intent: 'vault:v1:Y2lwaGVydGV4dA==', intent_vault_key_id: 'actor-vault-key',
+    intent_digest: 'a'.repeat(64), receipt_credits: 2,
+  };
+  await assert.rejects(executeOperation(database, 'record_billing_reservation_intent', {
+    ...intent, receipt_credits: 4,
+  }), { code: 'summary_intent_exceeds_reservation' });
+  assert.deepEqual(await executeOperation(database, 'record_billing_reservation_intent', intent), {
+    state: 'response_recorded', charge_id: chargeId, idempotent: false,
+  });
+  assert.equal(database.rows.billing_reservations[0].encrypted_intent, 'vault:v1:Y2lwaGVydGV4dA==');
+  assert.equal(database.rows.billing_reservations[0].intent_digest, 'a'.repeat(64));
+  assert.equal((await executeOperation(database, 'record_billing_reservation_intent', intent)).idempotent, true);
+  await assert.rejects(executeOperation(database, 'record_billing_reservation_intent', {
+    ...intent, intent_digest: 'b'.repeat(64),
+  }), { code: 'billing_intent_mismatch' });
+  await assert.rejects(executeOperation(database, 'release_billing_reservation', {
+    protocol_version: 1, charge_id: chargeId, subject_kind: 'personal',
+    subject_hash: OWNER, actor_user_hash: OWNER, reason: 'provider_failed',
+  }), { code: 'billing_response_recorded' });
+  assert.equal(database.rows.billing_reservations[0].state, 'reserved');
+  database.rows.billing_reservations[0].review_after_at = new Date((START - 1) * 1000);
+  const review = await executeOperation(database, 'reconcile_billing_reservations',
+    { protocol_version: 1 }, new Date(START * 1000));
+  assert.deepEqual(review.reviews.map((item) => item.reason), ['response_recorded']);
+  assert.equal(database.rows.billing_reservations[0].state, 'reserved');
+  assert.equal((await executeOperation(database, 'release_billing_reservation', {
+    protocol_version: 1, charge_id: chargeId, subject_kind: 'personal',
+    subject_hash: OWNER, actor_user_hash: OWNER, reason: 'operator_review_cleared',
+  })).state, 'released');
+});
+
+// contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge,billing.usage.receipt-token-breakdown
+test('team summary intent requires the reserved actor and settles with its own charge identity', async () => {
+  const database = teamDb(10);
+  const chargeId = 'ai-ask:team-task:summary';
+  await executeOperation(database, 'reserve_team_credits', teamRequest({
+    charge_id: chargeId, actor_user_hash: OWNER, app_id: 'ai', skill_id: 'ask', quoted_credits: 3,
+  }), new Date(START * 1000));
+  const intent = {
+    protocol_version: 1, charge_id: chargeId, subject_kind: 'team', subject_hash: TEAM,
+    actor_user_hash: OWNER, app_id: 'ai', skill_id: 'ask', encrypted_intent: 'vault:v1:Y2lwaGVydGV4dA==',
+    intent_vault_key_id: 'actor-vault-key', intent_digest: 'c'.repeat(64), receipt_credits: 2,
+  };
+  await assert.rejects(executeOperation(database, 'record_billing_reservation_intent', {
+    ...intent, actor_user_hash: 'd'.repeat(64),
+  }), { code: 'reservation_identity_mismatch' });
+  assert.equal((await executeOperation(database, 'record_billing_reservation_intent', intent)).idempotent, false);
+  const charge = teamRequest({ event_id: chargeId, actor_user_hash: OWNER, credits: 2,
+    expected_version: 1, encrypted_balance: 'cipher-eight', workspace_type: 'chat',
+    reservation_required: true, occurred_at: START });
+  assert.equal((await executeOperation(database, 'commit_team_charge', charge)).usage_event.credit_amount, 2);
+  assert.equal(database.rows.billing_reservations[0].state, 'settled');
+  assert.equal((await executeOperation(database, 'record_billing_reservation_intent', intent)).idempotent, true);
 });
 
 // contract-test: direct surface=rest_api assertions=billing.usage.receipt-token-breakdown

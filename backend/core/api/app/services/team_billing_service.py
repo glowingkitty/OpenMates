@@ -10,6 +10,8 @@ from __future__ import annotations
 import logging
 import time
 import json
+import hashlib
+import re
 from typing import Any, Literal
 
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
@@ -32,6 +34,44 @@ MAX_TEAM_BALANCE_CAS_RETRIES = 3
 logger = logging.getLogger(__name__)
 
 TeamCreditAddEvent = Literal["purchase", "personal_transfer_in"]
+
+
+def frozen_summary_billing_intent(
+    *, charge_id: str, chat_id: str, message_id: str,
+    summary_message_id: str, llm_usage_breakdown: dict[str, Any],
+) -> tuple[str, str]:
+    """Canonical numeric-only intent; only its ciphertext enters the hold ledger."""
+    if not charge_id.startswith("ai-ask:") or not charge_id.endswith(":summary"):
+        raise ValueError("Invalid summary billing charge identity")
+    receipt = validate_public_llm_usage_receipt(llm_usage_breakdown)
+    if receipt["settlement_state"] != "pending" or not receipt["entries"] or any(
+        entry.get("purpose") != "summary" for entry in receipt["entries"]
+    ):
+        raise ValueError("Summary intent requires a pending summary receipt")
+    if receipt["usage_source"] != "provider_reported":
+        raise ValueError("Summary intent requires provider-reported usage")
+    safe_identity = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,127}$")
+    for entry in receipt["entries"]:
+        if any(not isinstance(entry.get(key), str) or not safe_identity.fullmatch(entry[key])
+               for key in ("model_id", "inference_host", "pricing_version")):
+            raise ValueError("Summary intent contains an invalid model or price identity")
+        if (entry["model_id"], entry["inference_host"]) not in {
+            ("google/gemini-3.5-flash-lite", "google_ai_studio"),
+            ("openai/gpt-oss-120b", "cerebras"),
+        }:
+            raise ValueError("Summary intent model and host are not approved")
+    intent = {
+        "state": "response_recorded",
+        "charge_id": charge_id,
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "summary_message_id": summary_message_id,
+        "llm_usage_breakdown": receipt,
+    }
+    serialized = json.dumps(intent, separators=(",", ":"), sort_keys=True, allow_nan=False)
+    if len(serialized.encode("utf-8")) > 65_536:
+        raise ValueError("Summary billing intent exceeds size limit")
+    return serialized, hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
 class TeamInsufficientCreditsError(ValueError):
@@ -76,6 +116,36 @@ class TeamBillingService:
                 "skill_id": skill_id,
                 "quoted_credits": quoted_credits,
             },
+        )
+
+    async def record_summary_billing_intent(
+        self, *, team_id: str, actor_user_id: str, charge_id: str,
+        chat_id: str, message_id: str, summary_message_id: str,
+        llm_usage_breakdown: dict[str, Any],
+    ) -> dict[str, Any]:
+        await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_CREDIT_USER_ROLES)
+        serialized, digest = frozen_summary_billing_intent(
+            charge_id=charge_id, chat_id=chat_id, message_id=message_id,
+            summary_message_id=summary_message_id, llm_usage_breakdown=llm_usage_breakdown,
+        )
+        actor = await self.directus.get_user_fields_direct(
+            actor_user_id, ["id", "vault_key_id"], no_cache=True,
+        )
+        if not actor or actor.get("id") != actor_user_id or not actor.get("vault_key_id"):
+            raise ValueError("Summary billing actor vault key unavailable")
+        key_id = actor["vault_key_id"]
+        encrypted, _ = await self.directus.usage.encryption_service.encrypt_with_user_key(
+            plaintext=serialized, key_id=key_id,
+        )
+        if not encrypted:
+            raise ValueError("Summary billing intent encryption failed")
+        return await SubChatOrchestrationService(self.directus).execute(
+            "record_billing_reservation_intent",
+            {"protocol_version": 1, "charge_id": charge_id, "subject_kind": "team",
+             "subject_hash": hash_id(team_id), "actor_user_hash": hash_id(actor_user_id),
+             "app_id": "ai", "skill_id": "ask", "encrypted_intent": encrypted,
+             "intent_vault_key_id": key_id, "intent_digest": digest,
+             "receipt_credits": llm_usage_breakdown["credits_charged"]},
         )
 
     async def add_credits(

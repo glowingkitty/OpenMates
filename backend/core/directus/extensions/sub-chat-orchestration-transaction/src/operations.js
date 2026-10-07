@@ -91,6 +91,10 @@ const OPERATION_FIELDS = Object.freeze({
   reserve_team_credits: new Set([
     'protocol_version', 'charge_id', 'hashed_team_id', 'actor_user_hash', 'app_id', 'skill_id', 'quoted_credits',
   ]),
+  record_billing_reservation_intent: new Set([
+    'protocol_version', 'charge_id', 'subject_kind', 'subject_hash', 'actor_user_hash',
+    'app_id', 'skill_id', 'encrypted_intent', 'intent_vault_key_id', 'intent_digest', 'receipt_credits',
+  ]),
   release_billing_reservation: new Set([
     'protocol_version', 'charge_id', 'subject_kind', 'subject_hash', 'actor_user_hash', 'reason',
   ]),
@@ -181,7 +185,7 @@ const USAGE_FIELDS = new Set([
   'id', 'user_id_hash', 'app_id', 'skill_id', 'type', 'source', 'created_at', 'updated_at',
   'encrypted_credits_costs_total', 'chat_id', 'root_chat_id', 'actual_chat_id', 'root_turn_id',
   'orchestration_id', 'depth', 'charge_id', 'operation_id', 'message_id',
-  'api_key_hash', 'device_hash', 'encrypted_model_used', 'encrypted_input_tokens',
+  'api_key_hash', 'device_hash', 'encrypted_model_used', 'encrypted_llm_usage_breakdown', 'encrypted_input_tokens',
   'encrypted_output_tokens', 'encrypted_user_input_tokens', 'encrypted_system_prompt_tokens',
   'encrypted_credits_costs_system_prompt', 'encrypted_credits_costs_history',
   'encrypted_credits_costs_response', 'encrypted_server_provider', 'encrypted_server_region',
@@ -799,7 +803,8 @@ async function reservePersonalCredits(database, raw, now) {
         await trx(BILLING_RESERVATIONS).where({ id: existing.id }).update({
           last_seen_at: now, review_after_at: reservationReviewAfter(now), updated_at: now,
         });
-        return { state: 'reserved', charge_id: chargeId, quoted_credits: existing.quoted_credits, idempotent: true };
+        return { state: 'reserved', charge_id: chargeId, quoted_credits: existing.quoted_credits,
+          idempotent: true, created: false };
       }
     }
     const committed = await trx(CHARGE_IDENTITIES).where({ charge_id: chargeId }).first();
@@ -825,7 +830,8 @@ async function reservePersonalCredits(database, raw, now) {
         review_after_at: reservationReviewAfter(now), review_requested_at: null, settled_at: null,
       });
     }
-    return { state: 'reserved', charge_id: chargeId, quoted_credits: quotedCredits, idempotent: false };
+    return { state: 'reserved', charge_id: chargeId, quoted_credits: quotedCredits,
+      idempotent: false, created: !existing };
   });
 }
 
@@ -850,7 +856,8 @@ async function reserveTeamCredits(database, raw, now) {
         await trx(BILLING_RESERVATIONS).where({ id: existing.id }).update({
           last_seen_at: now, review_after_at: reservationReviewAfter(now), updated_at: now,
         });
-        return { state: 'reserved', charge_id: chargeId, quoted_credits: existing.quoted_credits, idempotent: true };
+        return { state: 'reserved', charge_id: chargeId, quoted_credits: existing.quoted_credits,
+          idempotent: true, created: false };
       }
     }
     const committed = await trx(TEAM_CREDIT_EVENTS).where({ event_id: chargeId }).first();
@@ -872,7 +879,49 @@ async function reserveTeamCredits(database, raw, now) {
         review_after_at: reservationReviewAfter(now), review_requested_at: null, settled_at: null,
       });
     }
-    return { state: 'reserved', charge_id: chargeId, quoted_credits: quotedCredits, idempotent: false };
+    return { state: 'reserved', charge_id: chargeId, quoted_credits: quotedCredits,
+      idempotent: false, created: !existing };
+  });
+}
+
+async function recordBillingReservationIntent(database, raw, now) {
+  const body = operationBody(raw, 'record_billing_reservation_intent');
+  const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
+  const subjectKind = string(body.subject_kind, 'invalid_subject_kind', 16);
+  if (!['personal', 'team'].includes(subjectKind)) fail(400, 'invalid_subject_kind');
+  const subjectHash = string(body.subject_hash, 'invalid_subject', 128);
+  const actorHash = string(body.actor_user_hash, 'invalid_actor', 128);
+  const appId = string(body.app_id, 'invalid_app_id', 100);
+  const skillId = string(body.skill_id, 'invalid_skill_id', 100);
+  if (appId !== 'ai' || skillId !== 'ask' || !/^ai-ask:[A-Za-z0-9_-]+:summary$/.test(chargeId)) {
+    fail(400, 'invalid_summary_intent_namespace');
+  }
+  const encryptedIntent = string(body.encrypted_intent, 'invalid_encrypted_intent', 131_072);
+  if (!/^vault:v[1-9][0-9]*:[A-Za-z0-9+/=]+$/.test(encryptedIntent)) fail(400, 'invalid_encrypted_intent');
+  const intentVaultKeyId = string(body.intent_vault_key_id, 'invalid_intent_vault_key', 64);
+  const intentDigest = string(body.intent_digest, 'invalid_intent_digest', 64);
+  const receiptCredits = integer(body.receipt_credits, 'invalid_receipt_credits');
+  if (!/^[a-f0-9]{64}$/.test(intentDigest)) fail(400, 'invalid_intent_digest');
+  return database.transaction(async (trx) => {
+    if (subjectKind === 'personal') {
+      await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [`storage-billing:${subjectHash}`]);
+    } else {
+      await lockedTeamAccount(trx, subjectHash);
+    }
+    const row = await trx(BILLING_RESERVATIONS).where({ charge_id: chargeId }).forUpdate().first();
+    if (!row) fail(409, 'billing_reservation_required');
+    assertReservationIdentity(row, { chargeId, subjectKind, subjectHash, actorHash, appId, skillId });
+    if (row.intent_digest || row.encrypted_intent) {
+      if (row.intent_digest !== intentDigest || !row.encrypted_intent) fail(409, 'billing_intent_mismatch');
+      return { state: 'response_recorded', charge_id: chargeId, idempotent: true };
+    }
+    if (row.state !== 'reserved' || row.review_requested_at) fail(409, 'reservation_not_active');
+    if (receiptCredits > row.quoted_credits) fail(409, 'summary_intent_exceeds_reservation');
+    await trx(BILLING_RESERVATIONS).where({ id: row.id }).update({
+      encrypted_intent: encryptedIntent, intent_vault_key_id: intentVaultKeyId,
+      intent_digest: intentDigest, intent_recorded_at: now, updated_at: now,
+    });
+    return { state: 'response_recorded', charge_id: chargeId, idempotent: false };
   });
 }
 
@@ -884,7 +933,9 @@ async function releaseBillingReservation(database, raw, now) {
   const subjectHash = string(body.subject_hash, 'invalid_subject', 128);
   const actorHash = body.actor_user_hash == null ? null : string(body.actor_user_hash, 'invalid_actor', 128);
   const reason = string(body.reason, 'invalid_release_reason', 64);
-  if (!['cancelled_before_dispatch', 'definite_no_cost', 'provider_failed'].includes(reason)) fail(400, 'invalid_release_reason');
+  if (!['cancelled_before_dispatch', 'definite_no_cost', 'provider_failed', 'operator_review_cleared'].includes(reason)) {
+    fail(400, 'invalid_release_reason');
+  }
   return database.transaction(async (trx) => {
     if (subjectKind === 'personal') {
       await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [`storage-billing:${subjectHash}`]);
@@ -896,6 +947,10 @@ async function releaseBillingReservation(database, raw, now) {
     assertReservationIdentity(row, { chargeId, subjectKind, subjectHash, actorHash });
     if (row.state === 'settled') return { state: 'settled', charge_id: chargeId, idempotent: true };
     if (row.state === 'released') return { state: 'released', charge_id: chargeId, idempotent: true };
+    if (row.encrypted_intent && (reason !== 'operator_review_cleared' || !row.review_requested_at)) {
+      fail(409, 'billing_response_recorded');
+    }
+    if (reason === 'operator_review_cleared' && !row.review_requested_at) fail(409, 'reservation_not_under_review');
     await trx(BILLING_RESERVATIONS).where({ id: row.id }).update({
       state: 'released', release_reason: reason, updated_at: now, settled_at: now,
     });
@@ -942,7 +997,7 @@ async function reconcileBillingReservations(database, raw, now) {
         state: 'review', subject_kind: row.subject_kind, subject_hash: row.subject_hash,
         charge_id: row.charge_id,
         reason: outbox && ['pending', 'retry_scheduled', 'manual_review'].includes(outbox.state)
-          ? 'pending_settlement' : 'unresolved_dispatch',
+          ? 'pending_settlement' : row.encrypted_intent ? 'response_recorded' : 'unresolved_dispatch',
       };
     });
     if (outcome?.state === 'settled') result.settled += 1;
@@ -2927,6 +2982,7 @@ export const operations = Object.freeze({
   cleanup_expired_reservations: cleanupExpiredReservations,
   reserve_personal_credits: reservePersonalCredits,
   reserve_team_credits: reserveTeamCredits,
+  record_billing_reservation_intent: recordBillingReservationIntent,
   release_billing_reservation: releaseBillingReservation,
   reconcile_billing_reservations: reconcileBillingReservations,
   commit_personal_charge: commitPersonalCharge,

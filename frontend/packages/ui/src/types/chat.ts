@@ -178,8 +178,11 @@ export interface LlmUsageBreakdown {
 
 export interface LlmUsageBreakdownEntry {
   model_id: string;
+  /** A separately billed automatic long-chat summary; absent on ordinary replies. */
+  purpose?: 'summary' | null;
   inference_host: string | null;
   pricing_version: string;
+  context_band?: 'standard' | 'over_272k' | null;
   write_billing?: 'included_in_input' | 'separate';
   billing_mode?: 'cache_aware' | 'ordinary_input' | null;
   billed_input_tokens?: number | null;

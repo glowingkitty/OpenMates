@@ -1587,9 +1587,33 @@ ai_ask_model_details.cache_read:
   en: Cache read
   de: Cache-Lesezugriff
 ai_ask_model_details.cache_pricing_explanation:
-  context: Short explanation shown only when verified cache pricing is active
-  en: Cache reads reuse earlier input at a lower price. Cache writes create it and may cost more. Your receipt shows the usage charged.
-  de: Cache-Lesezugriffe verwenden frühere Eingaben zu einem niedrigeren Preis erneut. Cache-Schreibzugriffe legen sie an und können mehr kosten. Dein Nutzungsbeleg zeigt die berechnete Nutzung.
+  context: Verified cache pricing explanation and first-rollout scope for normal authenticated chats
+  en: Cache reads reuse earlier input at a lower price. Cache writes create it and may cost more. These rates apply to normal authenticated personal and team chats. Billing for workflows and orchestrated subchats remains unchanged. Your receipt shows the usage charged.
+  de: Cache-Lesezugriffe verwenden frühere Eingaben zu einem niedrigeren Preis erneut. Cache-Schreibzugriffe legen sie an und können mehr kosten. Diese Preise gelten für normale angemeldete persönliche und Team-Chats. Die Abrechnung von Workflows und orchestrierten Unterchats bleibt unverändert. Dein Nutzungsbeleg zeigt die berechnete Nutzung.
+ai_ask_model_details.automatic_summary_title:
+  context: Title of ordinary token prices for separately billed automatic long-chat summaries
+  en: Automatic long-chat summaries
+  de: Automatische Zusammenfassungen langer Chats
+ai_ask_model_details.automatic_summary_explanation:
+  context: First-rollout disclosure for separately billed long-chat summarization in normal authenticated personal and team chats
+  en: In normal authenticated personal and team chats, automatic long-chat summaries are billed separately only when needed. If no summary runs, there is no summary charge. Billing for workflows and orchestrated subchats remains unchanged. Your receipt shows the rates used.
+  de: In normalen angemeldeten persönlichen und Team-Chats werden automatische Zusammenfassungen langer Chats nur bei Bedarf separat abgerechnet. Wenn keine Zusammenfassung erstellt wird, fallen dafür keine Credits an. Die Abrechnung von Workflows und orchestrierten Unterchats bleibt unverändert. Dein Nutzungsbeleg zeigt die verwendeten Preise.
+ai_ask_model_details.automatic_summary_fallback:
+  context: Label for backup summarization model and its ordinary input/output prices
+  en: Fallback
+  de: Ersatzmodell
+ai_ask_model_details.standard_pricing:
+  context: Standard token pricing tier before the long-context threshold
+  en: Standard
+  de: Standard
+ai_ask_model_details.over_272k_pricing:
+  context: Token pricing tier for a request with more than 272000 total input tokens
+  en: Over 272,000 input tokens
+  de: Über 272.000 Eingabe-Token
+ai_ask_model_details.over_272k_explanation:
+  context: Explains that cached input counts toward the long-context threshold and selected rates cover the entire request
+  en: Total input includes cached input. Above 272,000 input tokens, these rates apply to the whole request.
+  de: Die gesamte Eingabe umfasst auch zwischengespeicherte Eingaben. Bei mehr als 272.000 Eingabe-Token gelten diese Preise für die gesamte Anfrage.
 ai_ask_model_details.cache_write:
   context: Generic cache write label when retention is implicit and billed in ordinary input
   en: Cache write

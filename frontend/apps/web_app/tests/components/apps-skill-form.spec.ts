@@ -8,6 +8,32 @@ const preview = (width: number, variant?: string) =>
     ...(variant ? { variant } : {}),
   })}`;
 
+// contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
+test('Apps skill form shows the active model long-context tier but hides disabled proposals', async ({ page }) => {
+  await page.goto(preview(760, 'longContext'));
+  await waitForComponentPreview(page);
+  const rates = page.getByTestId('apps-skill-model-pricing');
+  await expect(rates.filter({ hasText: 'Over 272,000 input tokens' })).toHaveCount(1);
+  await expect(rates.filter({ hasText: '82.5' })).toContainText('Uncached input');
+  await expect(rates.filter({ hasText: '1650' })).toContainText('Cache read');
+  await expect(rates.filter({ hasText: '20' }).filter({ hasText: 'Output' })).toHaveCount(1);
+  await expect(rates.filter({ hasText: 'Included in ordinary input' })).toHaveCount(2);
+  await expect(rates.filter({ hasText: 'Total input includes cached input.' })).toHaveCount(1);
+  await expect(page.getByTestId('apps-skill-automatic-summary-explanation')).toContainText('billed separately only when needed');
+  await expect(page.getByTestId('apps-skill-automatic-summary-explanation')).toContainText('normal authenticated personal and team chats');
+  await expect(page.getByTestId('apps-skill-automatic-summary-explanation')).toContainText('Billing for workflows and orchestrated subchats remains unchanged.');
+  await expect(page.getByTestId('apps-skill-summary-primary-input')).toContainText('1100');
+  await expect(page.getByTestId('apps-skill-summary-primary-output')).toContainText('130');
+  await expect(page.getByTestId('apps-skill-summary-fallback-input')).toContainText('2200');
+  await expect(page.getByTestId('apps-skill-summary-fallback-output')).toContainText('550');
+
+  await page.goto(preview(760, 'longContextInactive'));
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('apps-skill-model-pricing').filter({ hasText: 'Over 272,000 input tokens' })).toHaveCount(0);
+  await expect(page.getByTestId('apps-skill-model-pricing').filter({ hasText: 'Cache read' })).toHaveCount(0);
+  await expect(page.getByTestId('apps-skill-automatic-summary-title')).toHaveCount(0);
+});
+
 // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven
 test('Apps skill form keeps two primary controls and preserves request shape', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });

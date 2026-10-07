@@ -414,6 +414,9 @@ Usage Settings - View usage statistics and export usage data
 
     // Get display name for usage entry
     function getEntryDisplayName(entry: UsageEntry): string {
+        if (entry.llm_usage_breakdown?.entries.some(llmEntry => llmEntry.purpose === 'summary')) {
+            return $text('settings.usage.cache_receipt_automatic_summary');
+        }
         if (entry.app_id && entry.skill_id) {
             // Look up skill translation key from app metadata (correct approach)
             const appKey = `apps.${entry.app_id}`;
@@ -1911,9 +1914,15 @@ Usage Settings - View usage statistics and export usage data
                         </div>
                         {#each receipt.entries as llmEntry, receiptIndex (receiptIndex)}
                             <div class="entry-detail-row" data-testid="usage-llm-entry">
-                                <span class="entry-detail-label">{llmEntry.model_id} · {llmEntry.inference_host ?? $text('settings.ai_ask.ai_ask_model_details.unavailable')}</span>
+                                <span class="entry-detail-label">{llmEntry.purpose === 'summary' ? `${$text('settings.usage.cache_receipt_automatic_summary')} · ` : ''}{llmEntry.model_id} · {llmEntry.inference_host ?? $text('settings.ai_ask.ai_ask_model_details.unavailable')}</span>
                                 <span class="entry-detail-value">{$text('settings.usage.cache_receipt_pricing_version')}: {llmEntry.pricing_version}</span>
                             </div>
+                            {#if llmEntry.context_band === 'standard' || llmEntry.context_band === 'over_272k'}
+                                <div class="entry-detail-row entry-detail-sub" data-testid="usage-llm-context-band">
+                                    <span class="entry-detail-label">{$text('settings.usage.cache_receipt_context_band')}</span>
+                                    <span class="entry-detail-value">{$text(`settings.ai_ask.ai_ask_model_details.${llmEntry.context_band === 'over_272k' ? 'over_272k_pricing' : 'standard_pricing'}`)}</span>
+                                </div>
+                            {/if}
                             {#if llmEntry.billing_mode === 'ordinary_input'}
                                 <div class="entry-detail-row entry-detail-sub" data-testid="usage-llm-ordinary-input-explanation">
                                     <span class="entry-detail-hint">{$text('settings.usage.cache_receipt_ordinary_input_explanation')}</span>
@@ -2136,7 +2145,9 @@ Usage Settings - View usage statistics and export usage data
                         if (key) { try { return $text(key); } catch { return entry.skill_id; } }
                         return entry.skill_id;
                     })() : null}
-                    {@const oDisplayName = oAppName && oSkillName 
+                    {@const oDisplayName = entry.llm_usage_breakdown?.entries.some(llmEntry => llmEntry.purpose === 'summary')
+                        ? $text('settings.usage.cache_receipt_automatic_summary')
+                        : oAppName && oSkillName
                         ? `${oAppName} - ${oSkillName}` 
                         : oAppName || entry.type || $text('settings.usage.unknown_activity')}
                     {@const oEntryIcon = getEntryIcon(entry)}

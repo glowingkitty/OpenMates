@@ -136,6 +136,32 @@ export const healthMetadata: AppsSkillDetails = {
   anonymous_allowed: false,
 };
 
+/** Active tariff fixture exercises the form's raw app-model pricing shape. */
+export const longContextMetadata: AppsSkillDetails = {
+  ...metadata,
+  models: [{
+    id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', default_server: 'openai',
+    pricing: {
+      tokens: {
+        input: { per_credit_unit: 165 }, cache_read: { per_credit_unit: 3300 },
+        output: { per_credit_unit: 30 },
+      },
+      context_bands: { over_272k: {
+        min_input_tokens: 272001, eligible_hosts: ['openai'],
+        tokens: {
+          input: { per_credit_unit: 82.5 }, cache_read: { per_credit_unit: 1650 },
+          output: { per_credit_unit: 20 },
+        },
+      } },
+    },
+    cache_pricing: {
+      enabled: true, status: 'verified_for_activation', write_billing: 'included_in_input',
+      source_url: 'https://openai.com/api/pricing/', reviewed_on: '2026-10-06',
+      expires_on: '2099-12-31', eligible_hosts: ['openai'],
+    },
+  }],
+};
+
 const dispatch = async (input: Record<string, unknown>) => {
   window.dispatchEvent(new CustomEvent('apps-skill-preview-submit', { detail: input }));
 };
@@ -154,4 +180,6 @@ export const variants = {
   audioGenerate: { metadata: audioGenerateMetadata, onSubmit: dispatch },
   musicGenerate: { metadata: musicGenerateMetadata, onSubmit: dispatch },
   health: { metadata: healthMetadata, onSubmit: dispatch },
+  longContext: { metadata: longContextMetadata, onSubmit: dispatch },
+  longContextInactive: { metadata: { ...longContextMetadata, models: longContextMetadata.models.map(model => ({ ...model, cache_pricing: { ...(model.cache_pricing as Record<string, unknown>), enabled: false } })) }, onSubmit: dispatch },
 };

@@ -21,23 +21,31 @@ contract:
   assertions: [billing.usage.receipt-token-breakdown, billing.surface.semantic-parity, billing.credits.idempotent-charge, billing.credits.retryable-completion-safe]
 scope:
   in:
+    - First rollout covers normal authenticated personal/team chats; workflow and orchestrated subchat billing remains unchanged.
     - Provider-reported ordinary input, cache reads, cache writes and billable output for Google Studio/Vertex, direct OpenAI, direct Anthropic/Bedrock and Mistral.
-    - Frozen per-attempt tariffs, cumulative event replacement, incurred fallback usage and one final floor/minimum.
+    - Frozen per-attempt tariffs, cumulative event replacement, incurred fallback usage and one final floor/minimum per billable operation.
+    - Automatic long-chat summary as a separate reserved operation and usage receipt, billed only when applied, with encrypted numeric intent retained for interrupted settlement.
     - Encrypted immutable personal/team receipts and actual committed debit, pending settlement, export and archive compatibility.
     - Scoped stable-prefix controls and opaque Mistral conversation cache keys.
     - Web pricing/receipt displays and compatibility with implemented CLI, SDK and Apple surfaces.
+    - Explicit OpenAI customer pricing above 272,000 inclusive input tokens, frozen per attempt and displayed before use.
     - Provider probes, focused unit checks, isolated product CI and bounded real CLI chat verification after scoped deployment.
   out:
-    - Production deployment, new credit packs, a new service fee or a claimed net-margin guarantee.
+    - Production deployment, credit purchase prices or App Store fees, new credit packs, a new service fee or a claimed net-margin guarantee.
     - Google explicit cache storage billing/resource manager or unverified provider write charges.
     - Unrelated provider/routing upgrades, privacy retention changes or broad client redesign.
 architecture_findings:
   compatible: Pre/main/post processing can share usage telemetry; only main inference is currently customer-billed.
   conflicts:
     - Ordinary authenticated Ask has no upfront reservation and personal settlement may cap at the existing -500-credit floor.
-    - Pre/post processing and compression are paid supplier work bundled into current main-model tariffs.
+    - Ordinary pre/post processing remains bundled. Automatic compression was unbilled supplier work and now has an approved separately billed operation.
     - Live OpenAI responses report reads but do not report writes, despite documented paid-write pricing for newer models.
     - Short remote image URLs can exceed a UTF-8-byte reservation quote on OpenAI and Mistral; the user decision about conservative image reservations is pending.
+    - Automatic long-chat compression can exceed the debit for a cheap cached main reply; the approved separate summary operation is implemented and awaits product verification.
+    - Real CLI verification encountered a cache-save failure before inference, then saved a paid answer but failed on unrelated historical key recovery; the second scoped CLI repair is approved and published as 707e5f10de834190046d04024c422a93cd2be664.
+    - Workflows and orchestrated subchats use a separate budget authority that omits compression costs; the user approved keeping their existing billing for the first rollout.
+    - Generative postprocessing may resend up to 120k history tokens; its bundled supplier cost can exceed a cheap cached main reply. A separate processing-cost decision is pending before activation.
+    - Live Anthropic answers exposed a streaming counter bug: terminal usage was read from delta.usage instead of event.usage, and SDK-extra cache-creation TTL dictionaries were ignored. The repair is published and a fresh two-turn CLI test verified terminal output and five-minute writes; both turns reported zero reads.
   rollout_safety:
     - All new tariffs stay disabled until decisions and route evidence are complete; inactive debits preserve existing input/output treatment.
     - New Anthropic/Bedrock checkpoints require an enabled frozen tariff and eligible host.
@@ -57,10 +65,16 @@ provider_evidence:
   limitation: These probes establish counter semantics, not production hit rates, reconciled invoices or realized profit.
 decisions_accepted:
   - Add authenticated upfront reservations preserving the -500 personal floor and strict team balances.
-  - Keep auxiliary processing bundled and measure its supplier cost privately before activating discounts.
+  - Keep ordinary pre/post processing bundled and measure its supplier cost privately before activating discounts; the later summarisation decision overrides bundling for automatic long-chat summaries.
   - Discount verified OpenAI reads with unreported writes included in ordinary input after financial checks.
   - Exact feature.billing@8 review approved; fingerprint 5bf7f83dfbb70254431bd3ef2ffbe5a5d0201d7cb59351f667060e6e6b6ca3ca.
   - Include the bounded CLI foreground-discovery repair and regression coverage to complete the required real chat verification.
+  - Add a clearly shown OpenAI long-context customer tier before activation.
+  - Credit purchase prices and App Store fees are outside scope; request charges remain identical across credit purchase channels.
+  - Existing internal USD 0.001 per credit is used only for supplier-cost comparisons, without claiming realized net margin.
+  - Bill automatic long-chat summarisation when applied, using provider-reported usage and a separately understandable receipt entry; ordinary pre/post stays bundled.
+  - Include the second scoped CLI recovery repair: active-root key checks stay strict; unrelated unkeyed outputs remain pending without rejecting a completed current reply.
+  - Roll out cache-aware pricing and separately billed summaries to normal authenticated personal/team chats first; preserve existing workflow and orchestrated subchat billing.
 implementation_dependencies:
   - Complete normalized usage, frozen rates, encrypted receipts and displays without activating prices.
   - Implement the accepted safeguards, then enable only individually verified and financially checked routes.
@@ -89,11 +103,38 @@ evidence:
     - Final materialized deployment passed lint, translations, Specification, SDK boundary and the full 34-file pytest gate; all twelve browser recordings were retained and uploaded.
     - First real CLI startup attempt was recorded and uploaded but failed before chat submission; the test wallet debit was zero.
     - Approved CLI lifecycle repair announces foreground before typed recovery discovery; six recovery and twenty-eight WebSocket unit checks passed.
+    - CLI recovery product CI passed one case with zero skips; all five recordings from its failed and successful runs were uploaded. The fix was published as 9846895f0846c64255c19e3938401494282f2a5b and its web deployment succeeded.
+    - Approved long-context tariff is implemented across frozen accounting, reservation quotes, public receipts and web/native pricing. Focused accounting, reservation, receipt and web unit checks passed; every tariff remains inactive.
+    - Second live CLI attempt retained a recorded backend cache-save error before AI dispatch; its wallet debit was zero.
+    - Next live Gemini attempt saved a real answer and charged 38 credits; a separate Project recommendation charged 1 credit, reconciling the 39-credit wallet change. The CLI command then failed on an unrelated historical recovery root; raw pre-restart cost logs were unavailable, so no full supplier margin or cache savings are claimed.
+    - All four long-context component specs passed on source 20541eb027d29d86dbd9d7b1ba741704d45be88d, 16 cases total; all sixteen recordings were uploaded.
+    - Automatic summary pricing, exact full reported usage, encrypted immutable intent, created-only dispatch guard, and ordinary personal/team settlement are implemented. Focused compression/accounting/summary checks passed 130 tests; core transaction checks passed 36 tests; public receipt encryption checks passed 22 tests.
+    - Missing Cerebras raw counters now prevent a summary charge and retain the hold; payment-disabled summary billing remains inactive.
+    - Scoped CLI historical recovery repair passed eleven focused tests, preserving active root or child key requirements. A broader pre-existing recovery fixture timed out before reaching the changed path.
+    - CLI JavaScript and declaration builds passed with the second approved recovery repair. Eight verifier checks passed, including separate Project assessment attribution and resuming the already paid first turn.
+    - Normal-chat scope gate passed 62 focused checks. Workflows, orchestrated subchats, anonymous and external requests keep legacy customer tariffs and avoid explicit paid cache checkpoints; ordinary authenticated chats use the new eligible tariff.
+    - All four current summary/long-context pricing and receipt component specs passed, 16 cases total. The localized-number expectation was corrected without changing product behavior; failed and successful recordings were retained and uploaded.
+    - Scoped historical CLI repair published as 707e5f10de834190046d04024c422a93cd2be664 after isolated CLI proof passed one case with zero skips. Exact deployed CLI build identity was checked before paid chats.
+    - Real Gemini follow-up completed; its 39-credit main usage entry matched the 39-credit wallet debit and left zero holds. The older 38-credit first entry remained intact; pagination reanalysis reused retained records without another paid request.
+    - Corrected private collector captured all five own-turn numeric costs. Their combined supplier upper bound is USD 0.017752846; Google cache counters were absent and no live cache savings are claimed.
+    - Real OpenAI first/follow-up completed and persisted 94 and 95 credits. A separate one-credit Project recommendation reconciled the 190-credit wallet debit; zero holds remained.
+    - Real API checks identified and fixed two receipt-persistence bugs: actor lookup omitted its required id field, and the personal Directus transaction rejected encrypted receipt ciphertext. Focused transaction regression checks pass; isolated API retry remains required.
+    - Real Mistral first/follow-up completed with 6 and 6 actual chat credits, plus a one-credit Project recommendation. The follow-up reported 3,984 cached input tokens; proposed main-only pricing is 5 credits, but all five supplier-call upper bounds total USD 0.006191602, crossing the internal five-credit value.
+    - Real Anthropic first/follow-up completed with one legacy chat credit each, plus a one-credit Project recommendation. The legacy debit omitted 23,950 cache-write tokens on each request. Captured output counts of four/three tokens were invalid for the completed answer lengths; exact corrected pricing requires another deployed probe.
+    - Independent direct-Anthropic adapter audit fixed top-level cumulative message-delta usage and SDK-extra TTL dictionary extraction. Missing submetrics remain unknown; SDK-shaped focused regression tests passed.
+    - Anthropic counter repair published as be15805b82e7d3a5f5829c8d07c91db98fdb176a after 16 focused tests and the scoped deployment gates passed; the coordinated runtime rebuild completed with coherent healthy services.
+    - Corrected Anthropic first/follow-up CLI test completed with 6 and 8 actual main credits, plus a one-credit Project recommendation; all 15 wallet credits reconciled and no holds remained. Both turns reported 23,950 five-minute writes and zero reads, with 190 and 226 output tokens. Proposed category pricing is 182 and 184 main credits; correcting the existing omitted-write undercharge increases each by 176 credits. Both recordings were retained and uploaded.
+    - Corrected Anthropic main supplier-cost estimates total USD 0.124822 from complete reported counters; the ten own-turn supplier records have a combined upper bound of USD 0.133555430 because auxiliary Google cache counters remain unknown. No realized margin or live activated tariff is claimed.
+    - Re-evaluated seven retained live main operations across Google, OpenAI, Mistral and corrected Anthropic through the production category calculator. Every inactive debit matched the observed charge; proposed credits matched the comparison table without another paid request. Simulation changes tariff eligibility only in memory and is not activated-billing proof.
+    - Isolated real-API summary reservation, encrypted intent, actor ownership, replay/mismatch denial, exact settlement, wallet and public receipt checks passed on source ab160863e295e2226e2b586bacc9b6f382992c83 in GitHub run 37650559156: two cases, zero skips or failures. The receipt/intent implementations are preserved in the final candidate; a later upstream Team headroom helper was merged separately without changing existing Team billing methods. Both recordings were uploaded.
+    - Concurrent upstream main processing and localized text were reviewed and merged in a resolved candidate without altering the bound worktree. Materialized Specification metadata, generated integrity, Python and Svelte compiler checks passed.
   pending:
-    - Remote-image reservation decision, bundled-cost calibration and selective pricing activation.
-    - Publish and verify the approved CLI foreground-discovery repair, then retry live chats with its exact source build.
-    - Completed real OpenMates CLI chats, exact debit reconciliation and measured before/after comparison.
-    - Isolated product/native checks and user recording delivery.
+    - Remote-image reservation decision, ordinary processing-cost decision and selective pricing activation.
+    - Publish the verified long-context tier, summary operation and normal-chat scope changes with every tariff disabled; accepted component and real-API checks are complete.
+    - Verify the accepted normal-chat scope gate and resolve remote-image reservations before activation on affected routes.
+    - Native parsing and pricing fixtures are updated, but execution remains unavailable under the existing Mac build/test guard.
+    - Real OpenMates CLI verification of activated category charges and encrypted receipts, after financial decisions; inactive-tariff baselines and their wallet reconciliation are complete.
+    - Native execution under an available approved Mac environment and user recording delivery.
 research_artifacts:
   design: implementation-design.yml
   calculator: simulate.py

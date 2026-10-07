@@ -1,9 +1,11 @@
 # contract-test-file: infrastructure
 """Cache usage and tariffs remain exact, partitioned, and inactive by default."""
 
+import copy
 from types import SimpleNamespace
 from decimal import Decimal
 from datetime import date
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -12,6 +14,7 @@ import yaml
 from backend.apps.ai.processing.model_usage_tracker import (
     ModelUsageTracker,
     build_model_usage_breakdown,
+    build_summary_usage_breakdown,
 )
 from backend.core.api.app.services.llm_usage_receipt import validate_public_llm_usage_receipt
 from backend.shared.python_schemas.llm_usage import normalize_provider_usage
@@ -19,6 +22,7 @@ from backend.shared.python_utils.billing_utils import (
     BillingError,
     calculate_cache_aware_supplier_cost,
     is_cache_tariff_admissible,
+    select_customer_context_band,
     snapshot_model_tariff,
 )
 
@@ -55,6 +59,35 @@ def _lookup(pricing: dict):
 def _provider_model(provider: str, model_id: str) -> dict:
     path = Path(__file__).parents[1] / "providers" / f"{provider}.yml"
     return next(model for model in yaml.safe_load(path.read_text())["models"] if model["id"] == model_id)
+
+
+def _active_openai_model(model_id: str) -> dict:
+    model = _provider_model("openai", model_id)
+    model["cache_pricing"].update(
+        enabled=True, status="verified_for_activation", reviewed_on="2026-10-01",
+        expires_on="2099-01-01",
+    )
+    return model
+
+
+def test_compression_fallback_cost_uses_actual_cerebras_route_without_changing_customer_rates() -> None:
+    model = _provider_model("openai", "gpt-oss-120b")
+    snapshot = snapshot_model_tariff(model)
+    usage = {
+        "input_tokens": 1000, "uncached_input_tokens": 1000,
+        "output_tokens": 1000, "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0, "usage_source": "provider_reported",
+    }
+    cerebras = calculate_cache_aware_supplier_cost(
+        usage=usage, model_pricing_details=snapshot, inference_host="cerebras",
+    )
+    bedrock = calculate_cache_aware_supplier_cost(
+        usage=usage, model_pricing_details=snapshot, inference_host="aws_bedrock",
+    )
+    assert Decimal(cerebras["cost_usd"]) == Decimal("0.0011")
+    assert Decimal(bedrock["cost_usd"]) == Decimal("0.00075")
+    assert snapshot["pricing"]["tokens"]["input"]["per_credit_unit"] == 2200
+    assert snapshot["pricing"]["tokens"]["output"]["per_credit_unit"] == 550
 
 
 def test_anthropic_exclusive_cache_input_is_inclusive_only_after_normalization() -> None:
@@ -521,3 +554,225 @@ def test_implicit_read_bound_requires_known_host_rates_output_and_reported_usage
         )
         assert unsafe["upper_bound_complete"] is False
         assert unsafe["cost_upper_bound_usd"] is None
+
+
+@pytest.mark.parametrize("model_id", [
+    "gpt-6-astra", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna",
+    "gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-sol-max",
+    "gpt-5.5", "gpt-5.4",
+])
+def test_openai_long_context_catalog_units_match_approved_multipliers(model_id: str) -> None:
+    frozen = snapshot_model_tariff(_active_openai_model(model_id))
+    base = frozen["pricing"]["tokens"]
+    standard_band, standard = select_customer_context_band(
+        model_pricing_details=frozen, inference_host="openai", input_total=272_000,
+    )
+    long_band, long_rates = select_customer_context_band(
+        model_pricing_details=frozen, inference_host="openai", input_total=272_001,
+    )
+    assert standard_band == "standard" and standard == base
+    assert long_band == "over_272k" and set(long_rates) == set(base)
+    for category, row in base.items():
+        base_unit = Fraction(Decimal(str(row["per_credit_unit"])))
+        expected = base_unit * Fraction(2, 3) // 1 if category == "output" else base_unit / 2
+        assert Fraction(Decimal(str(long_rates[category]["per_credit_unit"]))) == expected
+
+
+def test_openai_long_context_uses_actual_attempt_total_and_frozen_rates() -> None:
+    model = _active_openai_model("gpt-6.1-sol")
+    frozen = snapshot_model_tariff(model)
+    tracker = ModelUsageTracker()
+    first = normalize_provider_usage(
+        {"input_tokens": 272_000, "output_tokens": 30, "cache_read_input_tokens": 0},
+        model_id="openai/gpt-6.1-sol", provider_kind="openai", inference_host="openai",
+        attempt_id="one-attempt", tariff_snapshot=frozen,
+    )
+    second = normalize_provider_usage(
+        {"input_tokens": 272_001, "output_tokens": 30, "cache_read_input_tokens": 100_000},
+        model_id="openai/gpt-6.1-sol", provider_kind="openai", inference_host="openai",
+        attempt_id="one-attempt", tariff_snapshot=frozen,
+    )
+    tracker.record_reported_usage(model_id=first.model_id, normalized_usage=first)
+    tracker.record_reported_usage(model_id=second.model_id, normalized_usage=second)
+    assert tracker.total_input_tokens == 272_001
+    model["pricing"]["tokens"]["input"]["per_credit_unit"] = 1
+    model["pricing"]["context_bands"]["over_272k"]["tokens"]["input"]["per_credit_unit"] = 1
+    receipt = build_model_usage_breakdown(tracker.usage_by_model, _lookup(model))
+    assert len(receipt["entries"]) == 1
+    entry = receipt["entries"][0]
+    assert entry["context_band"] == "over_272k"
+    assert entry["rates"]["input"] == "82.5"
+    assert entry["rates"]["cache_read"] == "1650"
+    assert entry["rates"]["output"] == "20"
+    assert entry["pricing_version"] == frozen["pricing_version"]
+    assert tracker.usage_by_model[0]["tariff_snapshot"] == frozen
+
+
+def test_openai_fallback_attempts_choose_independent_context_bands_and_floor_once() -> None:
+    frozen = snapshot_model_tariff(_active_openai_model("gpt-6-luna"))
+    tracker = ModelUsageTracker()
+    for attempt_id, input_tokens in (("first-host", 272_000), ("second-host", 272_001)):
+        usage = normalize_provider_usage(
+            {"input_tokens": input_tokens, "output_tokens": 1, "cache_read_input_tokens": 0},
+            model_id="openai/gpt-6-luna", provider_kind="openai", inference_host="openai",
+            attempt_id=attempt_id, tariff_snapshot=frozen,
+        )
+        tracker.record_reported_usage(model_id=usage.model_id, normalized_usage=usage)
+    receipt = build_model_usage_breakdown(tracker.usage_by_model, _lookup({}))
+    assert [entry["context_band"] for entry in receipt["entries"]] == ["standard", "over_272k"]
+    assert [entry["rates"]["output"] for entry in receipt["entries"]] == ["650", "433"]
+    assert receipt["credits_charged"] == int(Decimal(receipt["raw_credits"]))
+    assert receipt["credits_charged"] > 0
+
+
+def test_openai_long_context_missing_cache_counter_uses_long_ordinary_input() -> None:
+    model = _active_openai_model("gpt-6.1-sol")
+    usage = normalize_provider_usage(
+        {"input_tokens": 272_001, "output_tokens": 30},
+        model_id="openai/gpt-6.1-sol", provider_kind="openai", inference_host="openai",
+    ).to_bucket()
+    long_entry = build_model_usage_breakdown([usage], _lookup(model))["entries"][0]
+    assert long_entry["context_band"] == "over_272k"
+    assert long_entry["billing_mode"] == "ordinary_input"
+    assert long_entry["billed_input_tokens"] == 272_001
+    assert long_entry["rates"]["input"] == "82.5"
+    assert long_entry["rates"]["cache_read"] is None
+    assert long_entry["category_credits"]["cache_read"] == "0"
+
+    disabled = copy.deepcopy(model)
+    disabled["cache_pricing"]["enabled"] = False
+    old_entry = build_model_usage_breakdown([usage], _lookup(disabled))["entries"][0]
+    assert "context_band" not in old_entry
+    assert old_entry["rates"]["input"] == "165"
+    ineligible = build_model_usage_breakdown([{**usage, "inference_host": "openrouter"}], _lookup(model))["entries"][0]
+    assert "context_band" not in ineligible
+    assert ineligible["rates"]["input"] == "165"
+
+
+def test_openai_long_context_activation_rejects_malformed_or_missing_band() -> None:
+    model = _active_openai_model("gpt-6-sol")
+    model["pricing"]["context_bands"]["over_272k"]["min_input_tokens"] = 272_000
+    with pytest.raises(BillingError, match="boundary"):
+        snapshot_model_tariff(model)
+    model["pricing"]["context_bands"]["over_272k"]["min_input_tokens"] = 272_001
+    model["pricing"]["context_bands"]["over_272k"]["tokens"]["output"]["per_credit_unit"] = 21
+    with pytest.raises(BillingError, match="multiplier"):
+        snapshot_model_tariff(model)
+    model["pricing"].pop("context_bands")
+    with pytest.raises(BillingError, match="lacks a customer band"):
+        snapshot_model_tariff(model)
+
+
+def test_summary_receipt_uses_full_reported_anthropic_input_while_main_stays_legacy() -> None:
+    tariff = snapshot_model_tariff(_pricing(False))
+    usage = normalize_provider_usage(
+        {"input_tokens": 100, "output_tokens": 5, "cache_read_input_tokens": 40,
+         "cache_creation_input_tokens": 10},
+        model_id="anthropic/summary", provider_kind="anthropic", inference_host="anthropic",
+        attempt_id="summary-1", tariff_snapshot=tariff,
+    ).to_bucket()
+    assert usage["input_tokens"] == 150 and usage["legacy_billable_input_tokens"] == 100
+    main = build_model_usage_breakdown([usage], _lookup({}))
+    summary = build_summary_usage_breakdown([usage], _lookup({}))
+    assert main["credits_charged"] == 11
+    assert "purpose" not in main["entries"][0]
+    assert summary["credits_charged"] == 16
+    assert summary["entries"][0]["purpose"] == "summary"
+    assert summary["entries"][0]["billed_input_tokens"] == 150
+    assert summary["entries"][0]["billing_mode"] == "ordinary_input"
+    assert summary["entries"][0]["rates"]["cache_read"] is None
+    assert summary["entries"][0]["category_credits"]["cache_read"] == "0"
+
+
+def test_summary_receipt_bills_google_thoughts_once_with_frozen_ordinary_rates() -> None:
+    tariff = snapshot_model_tariff(_pricing(False))
+    usage = normalize_provider_usage(
+        {"prompt_token_count": 100, "candidates_token_count": 20, "thoughts_token_count": 10},
+        model_id="google/summary", provider_kind="google", inference_host="google",
+        attempt_id="summary-1", tariff_snapshot=tariff,
+    ).to_bucket()
+    assert usage["output_tokens"] == 30 and usage["legacy_billable_output_tokens"] == 20
+    main = build_model_usage_breakdown([usage], _lookup({}))
+    summary = build_summary_usage_breakdown([usage], _lookup({}))
+    assert main["credits_charged"] == 14
+    assert summary["credits_charged"] == 16
+    assert summary["output_tokens"] == 30
+    assert summary["entries"][0]["category_credits"]["output"] == "6"
+
+
+def test_summary_receipt_selects_long_context_band_from_reported_inclusive_input() -> None:
+    tariff = snapshot_model_tariff(_active_openai_model("gpt-6.1-sol"))
+    buckets = [
+        normalize_provider_usage(
+            {"input_tokens": tokens, "output_tokens": 30, "cache_read_input_tokens": 100_000},
+            model_id="openai/gpt-6.1-sol", provider_kind="openai", inference_host="openai",
+            attempt_id=f"summary-{tokens}", tariff_snapshot=tariff,
+        ).to_bucket()
+        for tokens in (272_000, 272_001)
+    ]
+    receipt = build_summary_usage_breakdown(buckets, _lookup({}))
+    assert [entry["context_band"] for entry in receipt["entries"]] == ["standard", "over_272k"]
+    assert [entry["rates"]["input"] for entry in receipt["entries"]] == ["165", "82.5"]
+    assert [entry["rates"]["output"] for entry in receipt["entries"]] == ["30", "20"]
+    assert receipt["input_tokens"] == 544_001
+    assert receipt["output_tokens"] == 60
+
+
+def test_summary_receipt_respects_verified_cache_rates_without_inventing_missing_counters() -> None:
+    tariff = snapshot_model_tariff(_pricing(True))
+    known = normalize_provider_usage(
+        {"input_tokens": 100, "output_tokens": 5, "cache_read_input_tokens": 40,
+         "cache_creation_input_tokens": 10},
+        model_id="openai/summary", provider_kind="openai", inference_host="openai",
+        attempt_id="known", tariff_snapshot=tariff,
+    ).to_bucket()
+    unknown = normalize_provider_usage(
+        {"input_tokens": 100, "output_tokens": 5, "cache_read_input_tokens": 40},
+        model_id="openai/summary", provider_kind="openai", inference_host="openai",
+        attempt_id="unknown", tariff_snapshot=tariff,
+    ).to_bucket()
+    known_entry = build_summary_usage_breakdown([known], _lookup({}))["entries"][0]
+    unknown_entry = build_summary_usage_breakdown([unknown], _lookup({}))["entries"][0]
+    assert known_entry["billing_mode"] == "cache_aware"
+    assert known_entry["category_credits"]["cache_read"] == "0.4"
+    assert known_entry["category_credits"]["cache_write"] == "1.25"
+    assert unknown_entry["billing_mode"] == "ordinary_input"
+    assert unknown_entry["billed_input_tokens"] == 100
+    assert unknown_entry["rates"]["cache_read"] is None
+    assert unknown_entry["category_credits"]["cache_read"] == "0"
+
+
+@pytest.mark.parametrize("invalid", [
+    {"input_tokens": None}, {"output_tokens": None}, {"output_tokens": -1},
+    {"usage_source": "estimated"}, {"attempt_id": None}, {"tariff_snapshot": None},
+])
+def test_summary_receipt_rejects_unknown_totals_or_unfrozen_attempt(invalid: dict) -> None:
+    tariff = snapshot_model_tariff(_pricing(False))
+    bucket = normalize_provider_usage(
+        {"input_tokens": 10, "output_tokens": 2},
+        model_id="openai/summary", provider_kind="openai", inference_host="openai",
+        attempt_id="summary-1", tariff_snapshot=tariff,
+    ).to_bucket()
+    with pytest.raises(ValueError, match="Summary billing requires"):
+        build_summary_usage_breakdown([{**bucket, **invalid}], _lookup({}))
+
+
+def test_summary_receipt_replaces_replayed_attempt_and_floors_fallbacks_once() -> None:
+    model = _pricing(False)
+    tariff = snapshot_model_tariff(model)
+    buckets = [
+        normalize_provider_usage(
+            {"input_tokens": tokens, "output_tokens": 0},
+            model_id="openai/summary", provider_kind="openai", inference_host="openai",
+            attempt_id=attempt_id, tariff_snapshot=tariff,
+        ).to_bucket()
+        for attempt_id, tokens in (("first", 2), ("first", 4), ("fallback", 4))
+    ]
+    model["pricing"]["tokens"]["input"]["per_credit_unit"] = 1
+    receipt = build_summary_usage_breakdown(buckets, _lookup(model))
+    assert receipt["input_tokens"] == 8
+    assert len(receipt["entries"]) == 2
+    assert receipt["raw_credits"] == "0.8"
+    assert receipt["credits_charged"] == 1
+    assert all(entry["rates"]["input"] == "10" for entry in receipt["entries"])
+    assert all(entry["purpose"] == "summary" for entry in receipt["entries"])

@@ -19,6 +19,7 @@ from backend.core.api.app.services.sub_chat_orchestration_service import (
 )
 from backend.core.api.app.services.billing_settlement_service import BillingSettlementLock
 from backend.core.api.app.services.llm_usage_receipt import settle_public_llm_usage_receipt
+from backend.core.api.app.services.team_billing_service import frozen_summary_billing_intent
 from backend.core.api.app.routes.websockets import manager as websocket_manager
 from backend.shared.python_utils.e2e_user_detection import is_non_production_e2e_user_profile
 
@@ -71,6 +72,7 @@ def _usage_details_for_actual_charge(
     )
     return details
 
+
 class BillingService:
     def __init__(
         self,
@@ -99,7 +101,8 @@ class BillingService:
         from backend.core.api.app.utils.server_mode import is_payment_enabled
 
         if not is_payment_enabled():
-            return {"state": "skipped", "charge_id": charge_id, "quoted_credits": 0, "idempotent": True}
+            return {"state": "skipped", "charge_id": charge_id, "quoted_credits": 0,
+                    "idempotent": True, "created": False}
         if not isinstance(quoted_credits, int) or quoted_credits <= 0:
             raise ValueError("quoted_credits must be positive")
         async with self.settlement_lock.hold(user_id_hash):
@@ -149,6 +152,37 @@ class BillingService:
                     if exc.code != "stale_credit_balance" or attempt >= MAX_BALANCE_CAS_RETRIES:
                         raise
             raise RuntimeError("Billing quote reservation retries exhausted")
+
+    async def record_summary_billing_intent(
+        self, *, user_id: str, user_id_hash: str, charge_id: str,
+        chat_id: str, message_id: str, summary_message_id: str,
+        llm_usage_breakdown: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        if hashlib.sha256(user_id.encode("utf-8")).hexdigest() != user_id_hash:
+            raise ValueError("Summary billing actor does not match user")
+        serialized, digest = frozen_summary_billing_intent(
+            charge_id=charge_id, chat_id=chat_id, message_id=message_id,
+            summary_message_id=summary_message_id, llm_usage_breakdown=llm_usage_breakdown,
+        )
+        actor = await self.directus_service.get_user_fields_direct(
+            user_id, ["id", "vault_key_id"], no_cache=True,
+        )
+        if not actor or actor.get("id") != user_id or not actor.get("vault_key_id"):
+            raise ValueError("Summary billing actor vault key unavailable")
+        key_id = actor["vault_key_id"]
+        encrypted, _ = await self.encryption_service.encrypt_with_user_key(
+            plaintext=serialized, key_id=key_id,
+        )
+        if not encrypted:
+            raise ValueError("Summary billing intent encryption failed")
+        return await SubChatOrchestrationService(self.directus_service).execute(
+            "record_billing_reservation_intent",
+            {"protocol_version": 1, "charge_id": charge_id, "subject_kind": "personal",
+             "subject_hash": user_id_hash, "actor_user_hash": user_id_hash,
+             "app_id": "ai", "skill_id": "ask", "encrypted_intent": encrypted,
+             "intent_vault_key_id": key_id, "intent_digest": digest,
+             "receipt_credits": llm_usage_breakdown["credits_charged"]},
+        )
 
     async def _create_or_reuse_pending_settlement(
         self,

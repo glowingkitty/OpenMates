@@ -7,6 +7,26 @@ struct NativeModelCatalog: Decodable {
     let sourceDigest: String
     let providers: [ProviderDisplay]
     let models: [Model]
+    struct AutomaticSummaryRate {
+        let modelName: String
+        let inputTokensPerCredit: Double
+        let outputTokensPerCredit: Double
+    }
+    struct AutomaticSummaryPricing {
+        let primary: AutomaticSummaryRate
+        let fallback: AutomaticSummaryRate
+    }
+    func automaticSummaryPricing(for model: Model, today: String = CachePricing.todayUTC()) -> AutomaticSummaryPricing? {
+        guard model.cachePricesActive(today: today) else { return nil }
+        func rate(_ id: String) -> AutomaticSummaryRate? {
+            guard let summaryModel = models.first(where: { $0.id == id }),
+                  let input = summaryModel.pricing?.input_tokens_per_credit, input.isFinite, input > 0,
+                  let output = summaryModel.pricing?.output_tokens_per_credit, output.isFinite, output > 0 else { return nil }
+            return AutomaticSummaryRate(modelName: summaryModel.name, inputTokensPerCredit: input, outputTokensPerCredit: output)
+        }
+        guard let primary = rate("gemini-3.5-flash-lite"), let fallback = rate("gpt-oss-120b") else { return nil }
+        return AutomaticSummaryPricing(primary: primary, fallback: fallback)
+    }
     struct ProviderDisplay: Decodable {
         let id: String
         let brandName: String
@@ -38,6 +58,21 @@ struct NativeModelCatalog: Decodable {
             guard let pricing else { return false }
             return cache_pricing?.isDisplayActive(defaultHost: default_server, pricing: pricing, today: today) == true
         }
+        func longContextPricesActive(today: String = CachePricing.todayUTC()) -> Bool {
+            guard cachePricesActive(today: today), default_server == "openai",
+                  let standardInput = pricing?.input_tokens_per_credit, standardInput.isFinite, standardInput > 0,
+                  let standardOutput = pricing?.output_tokens_per_credit, standardOutput.isFinite, standardOutput > 0,
+                  let band = pricing?.context_bands?.over_272k,
+                  band.min_input_tokens == 272_001,
+                  band.eligible_hosts == ["openai"],
+                  let input = band.input_tokens_per_credit, input.isFinite, input > 0,
+                  let read = band.cache_read_tokens_per_credit, read.isFinite, read > 0,
+                  let output = band.output_tokens_per_credit, output.isFinite, output > 0 else { return false }
+            if cache_pricing?.write_billing == "separate" {
+                guard let write = band.cache_write_tokens_per_credit, write.isFinite, write > 0 else { return false }
+            }
+            return true
+        }
         var supportsOneHourCacheWrites: Bool {
             guard let default_server, !default_server.isEmpty else { return false }
             return cache_pricing?.cache_write_1h_hosts?.contains(default_server) == true
@@ -54,6 +89,18 @@ struct NativeModelCatalog: Decodable {
         let cache_read_tokens_per_credit: Double?
         let cache_write_tokens_per_credit: Double?
         let cache_write_1h_tokens_per_credit: Double?
+        let context_bands: ContextBands?
+        struct ContextBands: Decodable {
+            let over_272k: LongContextBand?
+        }
+        struct LongContextBand: Decodable {
+            let min_input_tokens: Int?
+            let eligible_hosts: [String]?
+            let input_tokens_per_credit: Double?
+            let cache_read_tokens_per_credit: Double?
+            let cache_write_tokens_per_credit: Double?
+            let output_tokens_per_credit: Double?
+        }
     }
     struct CachePricing: Decodable {
         let enabled: Bool

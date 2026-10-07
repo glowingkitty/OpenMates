@@ -44,6 +44,20 @@ billing_reservations:
       type: string
       length: 64
       nullable: true
+    encrypted_intent:
+      type: text
+      nullable: true
+    intent_vault_key_id:
+      type: string
+      length: 64
+      nullable: true
+    intent_digest:
+      type: string
+      length: 64
+      nullable: true
+    intent_recorded_at:
+      type: datetime
+      nullable: true
     created_at:
       type: datetime
       required: true

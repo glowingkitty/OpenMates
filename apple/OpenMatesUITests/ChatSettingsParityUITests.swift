@@ -154,6 +154,19 @@ final class ChatSettingsParityUITests: XCTestCase {
         XCTAssertTrue(explanation.exists)
         attach(app, "Chat Settings ordinary input fallback receipt")
     }
+    // contract-test: supporting surface=gui.apple assertions=billing.usage.receipt-token-breakdown
+    func testAutomaticSummaryReceiptLabelsSeparateOperationAndFrozenRates() {
+        let app = launch("chat-settings-usage-summary-receipt")
+        let receipt = app.descendants(matching: .any)["chat-settings-usage-receipt"].firstMatch
+        XCTAssertTrue(receipt.waitForExistence(timeout: 15))
+        let scroll = app.scrollViews["chat-settings-scroll"]
+        let title = receipt.staticTexts["Automatic long-chat summary"]
+        XCTAssertTrue(title.exists); reveal(title, in: scroll)
+        XCTAssertTrue(receipt.staticTexts["gemini-3.5-flash-lite · bedrock"].exists)
+        XCTAssertTrue(receipt.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1100")).firstMatch.exists)
+        XCTAssertTrue(receipt.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "130")).firstMatch.exists)
+        attach(app, "Chat Settings automatic summary receipt")
+    }
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
     func testPublicUsageUsesBundledEntriesAndSuppressesOwnerPlanning() {
         let app = launch("chat-settings-public")

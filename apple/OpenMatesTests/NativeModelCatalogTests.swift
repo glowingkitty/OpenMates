@@ -85,6 +85,90 @@ final class NativeModelCatalogTests: XCTestCase {
         XCTAssertFalse(try model(["requires_cache_retention_metric": true]).cachePricesActive(today: "2026-10-07"))
         XCTAssertTrue(try model(["requires_cache_retention_metric": true], rates: ["cache_write_1h_tokens_per_credit": 350]).cachePricesActive(today: "2026-10-07"))
     }
+    // contract-test: supporting surface=gui.apple assertions=ai-model-routing.catalog.public-read-only
+    func testLongContextRatesRequireActiveOpenAIRouteAndCompletePublicBand() throws {
+        let basePolicy: [String: Any] = [
+            "enabled": true, "status": "verified_for_activation", "write_billing": "included_in_input",
+            "source_url": "https://example.invalid/tariff", "reviewed_on": "2026-10-06",
+            "expires_on": "2026-11-06", "eligible_hosts": ["openai"],
+        ]
+        let baseBand: [String: Any] = [
+            "min_input_tokens": 272001, "eligible_hosts": ["openai"],
+            "input_tokens_per_credit": 82.5, "cache_read_tokens_per_credit": 1650,
+            "output_tokens_per_credit": 20,
+        ]
+        func model(policyChanges: [String: Any] = [:], bandChanges: [String: Any] = [:], standardChanges: [String: Any] = [:], host: String = "openai") throws -> NativeModelCatalog.Model {
+            var root = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(fixture.utf8)) as? [String: Any])
+            var models = try XCTUnwrap(root["models"] as? [[String: Any]])
+            var policy = basePolicy; for (key, value) in policyChanges { policy[key] = value }
+            var band = baseBand; for (key, value) in bandChanges { band[key] = value }
+            models[0]["default_server"] = host
+            models[0]["cache_pricing"] = policy
+            var pricing: [String: Any] = [
+                "input_tokens_per_credit": 165, "cache_read_tokens_per_credit": 3300,
+                "output_tokens_per_credit": 30,
+                "context_bands": ["over_272k": band],
+            ]
+            for (key, value) in standardChanges { pricing[key] = value }
+            models[0]["pricing"] = pricing
+            root["models"] = models
+            return try NativeModelCatalog.load(data: JSONSerialization.data(withJSONObject: root)).models[0]
+        }
+        let active = try model()
+        XCTAssertTrue(active.longContextPricesActive(today: "2026-10-07"))
+        XCTAssertEqual(active.pricing?.context_bands?.over_272k?.min_input_tokens, 272001)
+        XCTAssertEqual(active.pricing?.context_bands?.over_272k?.input_tokens_per_credit, 82.5)
+        XCTAssertEqual(active.pricing?.context_bands?.over_272k?.cache_read_tokens_per_credit, 1650)
+        XCTAssertFalse(try model(policyChanges: ["status": "proposed_pending_provider_evidence"]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertFalse(try model(bandChanges: ["min_input_tokens": 272000]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertFalse(try model(bandChanges: ["eligible_hosts": ["other"]]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertFalse(try model(bandChanges: ["eligible_hosts": ["openai", "other"]]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertFalse(try model(bandChanges: ["cache_read_tokens_per_credit": NSNull()]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertFalse(try model(bandChanges: ["output_tokens_per_credit": NSNull()]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertFalse(try model(standardChanges: ["input_tokens_per_credit": 0]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertFalse(try model(standardChanges: ["output_tokens_per_credit": 0]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertFalse(try model(host: "other").longContextPricesActive(today: "2026-10-07"))
+        XCTAssertFalse(try model(policyChanges: ["write_billing": "separate"]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertTrue(try model(policyChanges: ["write_billing": "separate"], bandChanges: ["cache_write_tokens_per_credit": 12]).longContextPricesActive(today: "2026-10-07"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=ai-model-routing.catalog.public-read-only
+    func testAutomaticSummaryDisclosureUsesCatalogRatesOnlyForActiveMainTariff() throws {
+        var root = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(fixture.utf8)) as? [String: Any])
+        var models = try XCTUnwrap(root["models"] as? [[String: Any]])
+        models[0]["default_server"] = "host"
+        models[0]["pricing"] = ["input_tokens_per_credit": 1000, "output_tokens_per_credit": 200, "cache_read_tokens_per_credit": 10000]
+        models[0]["cache_pricing"] = [
+            "enabled": true, "status": "verified_for_activation", "write_billing": "included_in_input",
+            "source_url": "https://example.invalid/tariff", "reviewed_on": "2026-10-06",
+            "expires_on": "2026-10-08", "eligible_hosts": ["host"],
+        ]
+        func summary(_ id: String, _ name: String, _ input: Int, _ output: Int) -> [String: Any] {
+            var value = models[0]
+            value["id"] = id
+            value["name"] = name
+            value["pricing"] = ["input_tokens_per_credit": input, "output_tokens_per_credit": output]
+            value["cache_pricing"] = ["enabled": false]
+            return value
+        }
+        models.append(summary("gemini-3.5-flash-lite", "Gemini 3.5 Flash-Lite", 1100, 130))
+        models.append(summary("gpt-oss-120b", "GPT-OSS-120b", 2200, 550))
+        root["models"] = models
+        let catalog = try NativeModelCatalog.load(data: JSONSerialization.data(withJSONObject: root))
+        let summaryPricing = try XCTUnwrap(catalog.automaticSummaryPricing(for: catalog.models[0], today: "2026-10-07"))
+        XCTAssertEqual(summaryPricing.primary.modelName, "Gemini 3.5 Flash-Lite")
+        XCTAssertEqual(summaryPricing.primary.inputTokensPerCredit, 1100)
+        XCTAssertEqual(summaryPricing.primary.outputTokensPerCredit, 130)
+        XCTAssertEqual(summaryPricing.fallback.modelName, "GPT-OSS-120b")
+        XCTAssertEqual(summaryPricing.fallback.inputTokensPerCredit, 2200)
+        XCTAssertEqual(summaryPricing.fallback.outputTokensPerCredit, 550)
+        XCTAssertNil(catalog.automaticSummaryPricing(for: catalog.models[0], today: "2026-10-09"))
+        XCTAssertNil(catalog.automaticSummaryPricing(for: catalog.models[1], today: "2026-10-07"))
+        var missingFallbackRoot = root
+        missingFallbackRoot["models"] = Array(models.dropLast())
+        let missingFallback = try NativeModelCatalog.load(data: JSONSerialization.data(withJSONObject: missingFallbackRoot))
+        XCTAssertNil(missingFallback.automaticSummaryPricing(for: missingFallback.models[0], today: "2026-10-07"))
+    }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testAssistantIdentityResolvesOnlyCanonicalMateSettingsTargets() {
