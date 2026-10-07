@@ -59,6 +59,7 @@ export const ICON_NAME_MAP: Record<string, string> = {
     'hosting': 'server',
     'images': 'image',
     'models3d': '3dmodels',
+    'projects': 'project',
     'social_media': 'socialmedia',
     // Icon names that don't match SVG filenames
     'api-keys': 'coding',

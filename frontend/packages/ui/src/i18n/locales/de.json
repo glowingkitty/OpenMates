@@ -2040,6 +2040,12 @@
           "description": {
             "text": "Verschlüsselte Projekte über einen geeigneten verbundenen Client finden."
           }
+        },
+        "read": {
+          "text": "Projektdatei lesen",
+          "description": {
+            "text": "Eine Datei aus einem verschlüsselten Projekt über einen verbundenen Client lesen."
+          }
         }
       }
     },
@@ -8583,6 +8589,43 @@
     },
     "watch_audio_loading": {
       "text": "Audio wird geladen…"
+    },
+    "projects": {
+      "references": {
+        "subtitle": {
+          "text": "Dateien in diesem Projekt"
+        },
+        "waiting": {
+          "text": "Warte auf Projektergebnisse…"
+        },
+        "count": {
+          "text": "{count} Dateiverweise"
+        },
+        "empty": {
+          "text": "Keine Dateiverweise gefunden"
+        },
+        "opening": {
+          "text": "Originaldatei wird geöffnet…"
+        },
+        "source_unavailable": {
+          "text": "Die verbundene Quelle ist nicht verfügbar. Öffne sie, sobald sie online ist."
+        },
+        "preview_unavailable": {
+          "text": "Für diese Datei ist keine Vorschau verfügbar."
+        },
+        "open_failed": {
+          "text": "Diese Datei konnte nicht geöffnet werden."
+        },
+        "query_in_project": {
+          "text": "„{query}“ in {project}"
+        },
+        "query_only": {
+          "text": "„{query}“"
+        },
+        "files_fallback": {
+          "text": "Dateien"
+        }
+      }
     }
   },
   "enter_message": {
@@ -15899,6 +15942,33 @@
         "text_input": {
           "text": "Texteingabe"
         },
+        "uncached_input": {
+          "text": "Nicht zwischengespeicherte Eingabe"
+        },
+        "cache_read": {
+          "text": "Cache-Lesezugriff"
+        },
+        "cache_pricing_explanation": {
+          "text": "Cache-Lesezugriffe verwenden frühere Eingaben zu einem niedrigeren Preis erneut. Cache-Schreibzugriffe legen sie an und können mehr kosten. Dein Nutzungsbeleg zeigt die berechnete Nutzung."
+        },
+        "cache_write": {
+          "text": "Cache-Schreibvorgang"
+        },
+        "cache_write_5m": {
+          "text": "Cache-Schreibzugriff (5 Min.)"
+        },
+        "cache_write_1h": {
+          "text": "Cache-Schreibzugriff (1 Std.)"
+        },
+        "billable_output": {
+          "text": "Ausgabe (einschließlich Denk-Token)"
+        },
+        "included_in_input": {
+          "text": "Im normalen Eingabepreis enthalten"
+        },
+        "unavailable": {
+          "text": "Nicht verfügbar"
+        },
         "text_output": {
           "text": "Textausgabe"
         },
@@ -18430,6 +18500,39 @@
       },
       "credits_breakdown_label": {
         "text": "Aufschlüsselung"
+      },
+      "cache_receipt_title": {
+        "text": "LLM-Abrechnungsbeleg"
+      },
+      "cache_receipt_source": {
+        "text": "Quelle der Tokenzahlen"
+      },
+      "cache_receipt_pending": {
+        "text": "Ausstehende Abbuchung"
+      },
+      "cache_receipt_charged": {
+        "text": "Abgebuchte Credits"
+      },
+      "cache_receipt_input_categories": {
+        "text": "Eingabekategorien"
+      },
+      "cache_receipt_cache_creation": {
+        "text": "Cache-Erstellung"
+      },
+      "cache_receipt_standard_input": {
+        "text": "Eingabe"
+      },
+      "cache_receipt_ordinary_input_explanation": {
+        "text": "Erforderliche Cache-Informationen fehlten; alle bekannten Eingabe-Token wurden zum normalen Eingabepreis abgerechnet."
+      },
+      "cache_receipt_pricing_version": {
+        "text": "Preisversion"
+      },
+      "cache_receipt_raw": {
+        "text": "Credits vor Rundung"
+      },
+      "cache_receipt_rounding": {
+        "text": "Rundungs- oder Mindestbetragkorrektur"
       },
       "credits_system_prompt_label": {
         "text": "Systemprompt"

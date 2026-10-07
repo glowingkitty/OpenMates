@@ -4,6 +4,31 @@ icon_image: project.svg
 category: productivity
 last_updated: "2026-07-25"
 settings_and_memories: []
+embed_types:
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: true
+    preview_component: projects/ProjectReferenceEmbedPreview.svelte
+    fullscreen_component: projects/ProjectReferenceEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-projects"
+    i18n_namespace: embeds.projects.references
+  - id: read
+    category: app-skill-use
+    skill_id: read
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: true
+    preview_component: projects/ProjectReferenceEmbedPreview.svelte
+    fullscreen_component: projects/ProjectReferenceEmbedFullscreen.svelte
+    icon: project
+    gradient_var: "--color-app-projects"
+    i18n_namespace: embeds.projects.references
 instructions:
   - instruction: |
       **Project Skills**

@@ -488,6 +488,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // Render based on skill type - use Svelte components for ALL states (including processing)
     // This ensures consistent styling and proper preview display during streaming
     if (appId && skillId) {
+      if (appId === "projects" && (skillId === "search" || skillId === "read")) {
+        return this.renderProjectReferenceComponent(attrs, embedData, decodedContent, content, skillId);
+      }
       // For web search, render using Svelte component
       if (appId === "web" && skillId === "search") {
         return this.renderWebSearchComponent(
@@ -1150,6 +1153,35 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       mountedComponents.set(content, component);
     } catch (error) {
       console.error("[AppSkillUseRenderer] Error mounting TaskCreateEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private async renderProjectReferenceComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+    skillId: "search" | "read",
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: ProjectReferenceEmbedPreview } = await import("../../../embeds/projects/ProjectReferenceEmbedPreview.svelte");
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(ProjectReferenceEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          content: { ...decodedContent, skill_id: skillId },
+          skillId,
+          status: (decodedContent?.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error" | "cancelled",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting ProjectReferenceEmbedPreview:", error);
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }

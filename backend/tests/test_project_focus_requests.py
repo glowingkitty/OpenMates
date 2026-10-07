@@ -123,3 +123,39 @@ async def test_auto_selection_uses_owner_settings_and_bounded_metadata():
     assert explicitly_named_project_focus_ids("Work on Garden", result) == []
     result[0]["auto_selection"] = True
     assert explicitly_named_project_focus_ids("Work on Garden", result) == [f"project-{PROJECT}"]
+
+
+# contract-test: supporting surface=rest_api assertions=projects.focus.inferred-consent
+def test_named_project_file_request_selects_only_one_offered_eligible_project():
+    from backend.apps.ai.processing.project_file_tools import (
+        requests_project_file_work, uniquely_named_project_focus_id,
+    )
+
+    first = {"project_id": PROJECT, "name": "OpenMates", "auto_selection": True}
+    second = {"project_id": "33333333-3333-4333-8333-333333333333",
+              "name": "Garden notes", "auto_selection": True}
+    candidates = [first, second]
+    offered = [f"project-{PROJECT}"]
+    assert uniquely_named_project_focus_id(
+        "can you read the readme from my OpenMates project?", candidates, offered,
+    ) == f"project-{PROJECT}"
+    assert requests_project_file_work("can you read the readme from my OpenMates project?")
+    assert requests_project_file_work("create a README in my OpenMates project")
+    assert not requests_project_file_work("create a new OpenMates project")
+    assert not requests_project_file_work("write an email about the OpenMates project")
+    assert uniquely_named_project_focus_id("OpenMates and Garden notes", candidates,
+                                           offered + [f"project-{second['project_id']}"]) is None
+    assert uniquely_named_project_focus_id("OpenMates", candidates, []) is None
+    first["auto_selection"] = False
+    assert uniquely_named_project_focus_id("OpenMates", candidates, offered) is None
+
+
+# contract-test: supporting surface=rest_api assertions=projects.focus.inferred-consent
+def test_legacy_unscoped_project_search_is_hidden_from_model_tools():
+    from backend.apps.ai.processing.project_file_tools import without_unscoped_project_search
+
+    tools = [{"function": {"name": name}} for name in
+             ("projects-search", "projects_search", "projects|search", "project_search_files")]
+    assert [tool["function"]["name"] for tool in without_unscoped_project_search(tools)] == [
+        "project_search_files",
+    ]

@@ -105,11 +105,13 @@ async function expectStatus(client, path, status, options = {}) {
 
 async function createFixture(client, teamId = null, teamKey = null, hosted = false) {
   const projectId = randomUUID();
-  const projectName = `Remote access live verification ${projectId.slice(0, 8)}`;
+  const projectName = mode === "serve" && process.env.OPENMATES_PROJECT_FIXTURE_NAME?.trim()
+    ? process.env.OPENMATES_PROJECT_FIXTURE_NAME.trim()
+    : `Remote access live verification ${projectId.slice(0, 8)}`;
   const sourceId = randomUUID();
   const projectKey = randomBytes(32);
   const timestamp = Math.floor(Date.now() / 1000);
-  const defaultFocus = { focus_id: randomUUID(), name: "Work on disposable fixture", instructions: "Work only on this disposable verification Project. Use the Project file tools for file access.", source: "generated" };
+  const defaultFocus = { focus_id: randomUUID(), name: projectName === "OpenMates" ? "Work on OpenMates" : "Work on disposable fixture", instructions: "Work only on this disposable verification Project. Use the Project file tools for file access.", source: "generated" };
   const projectPayload = {
     project_id: projectId,
     encrypted_project_key: teamId ? null : await encryptBytesWithAesGcm(projectKey, client.getMasterKeyBytes()),
@@ -143,7 +145,7 @@ async function createFixture(client, teamId = null, teamKey = null, hosted = fal
   } else {
     await client.createProject(projectPayload);
   }
-  if (hosted) return { projectId, sourceId: null, projectKey: new Uint8Array(projectKey), teamId };
+  if (hosted) return { projectId, projectName, sourceId: null, projectKey: new Uint8Array(projectKey), teamId };
   const sourcePayload = {
     source_id: sourceId,
     source_type: "local_folder",
@@ -164,7 +166,7 @@ async function createFixture(client, teamId = null, teamKey = null, hosted = fal
   } else {
     await client.createProjectSource(projectId, sourcePayload);
   }
-  return { projectId, sourceId, projectKey: new Uint8Array(projectKey), teamId, defaultFocus };
+  return { projectId, projectName, sourceId, projectKey: new Uint8Array(projectKey), teamId, defaultFocus };
 }
 
 async function deleteFixture(client, fixture) {
@@ -959,7 +961,7 @@ async function runServeFixture(client, fixture) {
     process.stdout.write(`${JSON.stringify({
       event: "fixture_ready",
       project_id: fixture.projectId,
-      project_name: `Remote access live verification ${fixture.projectId.slice(0, 8)}`,
+      project_name: fixture.projectName,
       source_id: fixture.sourceId,
       ...(workflowChatId ? { chat_id: workflowChatId } : {}),
       team_id: fixture.teamId ?? null,

@@ -7602,6 +7602,13 @@
       "watermarking": {
         "text": "Watermarking"
       }
+    },
+    "projects": {
+      "references": {
+        "subtitle": {
+          "text": "Bestanden in dit project"
+        }
+      }
     }
   },
   "enter_message": {

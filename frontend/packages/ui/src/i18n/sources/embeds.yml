@@ -11378,3 +11378,78 @@ wiki.source_attribution:
   sv: 'Source: Wikipedia — CC BY-SA 4.0'
   he: 'Source: Wikipedia — CC BY-SA 4.0'
   verified_by_human: []
+
+projects.references.subtitle:
+  context: Subtitle on a Projects file-reference embed
+  en: Files in this Project
+  de: Dateien in diesem Projekt
+  zh: 此项目中的文件
+  es: Archivos de este proyecto
+  fr: Fichiers de ce projet
+  pt: Arquivos deste projeto
+  ru: Файлы в этом проекте
+  ja: このプロジェクトのファイル
+  ko: 이 프로젝트의 파일
+  it: File in questo progetto
+  tr: Bu projedeki dosyalar
+  vi: Tệp trong dự án này
+  id: File dalam proyek ini
+  pl: Pliki w tym projekcie
+  nl: Bestanden in dit project
+  ar: ملفات هذا المشروع
+  hi: इस प्रोजेक्ट की फ़ाइलें
+  th: ไฟล์ในโปรเจกต์นี้
+  cs: Soubory v tomto projektu
+  sv: Filer i det här projektet
+  he: קבצים בפרויקט הזה
+  verified_by_human: []
+projects.references.waiting:
+  context: Status while project references are being searched
+  en: Waiting for Project results…
+  de: Warte auf Projektergebnisse…
+  verified_by_human: []
+projects.references.count:
+  context: Number of project file references found, count is a placeholder
+  en: '{count} file references'
+  de: '{count} Dateiverweise'
+  verified_by_human: []
+projects.references.empty:
+  context: Honest empty state when a Project search returned no file references
+  en: No file references found
+  de: Keine Dateiverweise gefunden
+  verified_by_human: []
+projects.references.opening:
+  context: Loading the original project file on demand
+  en: Opening original file…
+  de: Originaldatei wird geöffnet…
+  verified_by_human: []
+projects.references.source_unavailable:
+  context: The connected project file source cannot currently be read
+  en: Connected source is unavailable. Open it when the source is online.
+  de: Die verbundene Quelle ist nicht verfügbar. Öffne sie, sobald sie online ist.
+  verified_by_human: []
+projects.references.preview_unavailable:
+  context: The referenced file has no supported fullscreen preview
+  en: A preview is unavailable for this file.
+  de: Für diese Datei ist keine Vorschau verfügbar.
+  verified_by_human: []
+projects.references.open_failed:
+  context: Generic error while opening an original project file
+  en: Could not open this file.
+  de: Diese Datei konnte nicht geöffnet werden.
+  verified_by_human: []
+projects.references.query_in_project:
+  context: Project reference card title with query and Project name placeholders
+  en: '“{query}” in {project}'
+  de: '„{query}“ in {project}'
+  verified_by_human: []
+projects.references.query_only:
+  context: Project reference card title when Project name is unavailable
+  en: '“{query}”'
+  de: '„{query}“'
+  verified_by_human: []
+projects.references.files_fallback:
+  context: Fallback title when a Project file search query is unavailable
+  en: Files
+  de: Dateien
+  verified_by_human: []

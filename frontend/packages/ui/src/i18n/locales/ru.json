@@ -7602,6 +7602,13 @@
       "watermarking": {
         "text": "Watermarking"
       }
+    },
+    "projects": {
+      "references": {
+        "subtitle": {
+          "text": "Файлы в этом проекте"
+        }
+      }
     }
   },
   "enter_message": {

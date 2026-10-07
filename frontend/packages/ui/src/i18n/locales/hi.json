@@ -7602,6 +7602,13 @@
       "watermarking": {
         "text": "Watermarking"
       }
+    },
+    "projects": {
+      "references": {
+        "subtitle": {
+          "text": "इस प्रोजेक्ट की फ़ाइलें"
+        }
+      }
     }
   },
   "enter_message": {

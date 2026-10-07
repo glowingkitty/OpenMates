@@ -185,7 +185,13 @@ export function createProjectFileJobExecutor(options: ProjectFileJobExecutorOpti
       }
       approved.delete(job.operation_id);
       const safeOutput = context.privacy ? await context.privacy.redactResult(output) : output;
-      await result("completed", { ...(safeOutput && typeof safeOutput === "object" ? safeOutput : { value: safeOutput }), ...(proposalCommitment ? { proposal_commitment: proposalCommitment } : {}) });
+      await result("completed", {
+        ...(safeOutput && typeof safeOutput === "object" ? safeOutput : { value: safeOutput }),
+        // Preserve the resolver-selected source so a chat can reopen the
+        // original remote file without uploading its contents as an embed.
+        source_id: context.sourceId !== undefined ? context.sourceId : job.source_id ?? null,
+        ...(proposalCommitment ? { proposal_commitment: proposalCommitment } : {}),
+      });
       if (mutation) {
         // Display failure cannot turn an acknowledged successful write into a failed job.
         try { options.onMutationApplied?.({ projectId: job.project_id, chatId: job.chat_id, mutation }); }

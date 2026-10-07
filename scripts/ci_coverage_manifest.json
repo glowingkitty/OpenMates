@@ -111,7 +111,8 @@
         "webhook-incoming-chat.spec.ts",
         "wikipedia-mentions.spec.ts",
         "cli-project-file-chat.spec.ts",
-        "projects-chat-file-executor.spec.ts"
+        "projects-chat-file-executor.spec.ts",
+        "projects-readme-focus.spec.ts"
       ]
     },
     "ai_cached_pipeline_pending": {
@@ -283,6 +284,7 @@
         "components/workflow-chat-embed.spec.ts",
         "components/chat-project-navigation.spec.ts",
         "components/project-chat-previews.spec.ts",
+        "components/project-file-references.spec.ts",
         "components/settings-storage-overview.spec.ts",
         "components/maps-discovery.spec.ts",
         "components/agent-context-message.spec.ts",
@@ -1387,6 +1389,18 @@
     "cli-project-file-chat.spec.ts": {
       "dependency": "original_live_inference",
       "next_action": "Run directly against the dev server with the documented personal dev account and disposable Projects/CLI state. Explicit user direction U24 forbids real AI inference in CI for now. Do not request CI provider credentials or replace the real chat with mocks.",
+      "user_input_required": false,
+      "source_environment_names": [
+        "OPENMATES_TEST_ACCOUNT_EMAIL",
+        "OPENMATES_TEST_ACCOUNT_PASSWORD",
+        "OPENMATES_TEST_ACCOUNT_OTP_KEY",
+        "PLAYWRIGHT_TEST_BASE_URL",
+        "PLAYWRIGHT_TEST_API_URL"
+      ]
+    },
+    "projects-readme-focus.spec.ts": {
+      "dependency": "original_live_inference",
+      "next_action": "Run directly against dev with a leased isolated test account, disposable Project and CLI state. Uses real inference for the exact no-mention README request; never run in CI or substitute replay.",
       "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_EMAIL",

@@ -145,6 +145,15 @@ test("hosted create publishes ciphertext only and update validates the actual de
   assert.ok(embedKey);
   const content = await decryptWithAesGcmCombined(String((committed!.head as Record<string, unknown>).encrypted_content), embedKey);
   state.current = { embedKey, content: JSON.parse(content!), revision: 1, hasInitialHistory: true };
+  const searched = await executeHostedProjectFileJob(adapter, job({
+    operation: "search", arguments: { query: "README", target: "files" },
+  }));
+  assert.deepEqual(searched.matches, [{ path: "README.md", embed_id: embedId }]);
+  const readBack = await executeHostedProjectFileJob(adapter, job({
+    operation: "read_text", arguments: { path: "README.md" },
+  }));
+  assert.equal(readBack.embed_id, embedId);
+  assert.equal(readBack.content, "hello\n");
   const patch = "--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-hello\n+world\n";
   const update = job({ operation: "update_file", operation_id: "fixture-update-1", arguments: { path: "README.md", patch, expected_base: "0".repeat(64) } });
   const mutation = { operation: "update_file" as const, operation_id: update.operation_id, path: "README.md", patch, expected_base: "0".repeat(64) };
@@ -155,6 +164,23 @@ test("hosted create publishes ciphertext only and update validates the actual de
   assert.equal(changed.revision, 2);
   assert.equal((committed!.history_rows as unknown[]).length, 1);
   assert.equal(JSON.stringify(committed).includes("world"), false);
+});
+
+// contract-test: supporting surface=cli assertions=projects.files.commit-replay
+test("completed reads carry the resolver-selected remote source for original-file references", async () => {
+  const events: Array<Record<string, unknown>> = [];
+  const executor = createProjectFileJobExecutor({
+    isActiveChat: () => true,
+    send: (_event, payload) => { events.push(payload); },
+    resolve: async () => ({
+      projectKey, sourceId: "selected-remote-source", writeMode: "apply_and_show",
+      execute: async () => ({ path: "README.md", content: "transient file bytes" }),
+    }),
+    approve: async () => {},
+  });
+  await executor.request(job({ operation: "read_text", arguments: { path: "README.md" } }));
+  assert.equal(events.at(-1)?.status, "completed");
+  assert.equal((events.at(-1)?.result as Record<string, unknown>).source_id, "selected-remote-source");
 });
 
 // contract-test: supporting surface=cli assertions=projects.files.commit-replay
@@ -194,9 +220,9 @@ test("hosted search excludes protected candidate paths before decrypting them", 
     arguments: { query: "needle", target: "content", mode: "literal", path: ".", max_results: 20 },
   }));
   assert.deepEqual(result.matches, [
-    { path: "package.json", line: 1, snippet: "needle" },
-    { path: "Dockerfile", line: 1, snippet: "needle" },
-    { path: "src/auth/session.ts", line: 1, snippet: "needle" },
+    { path: "package.json", embed_id: "package", line: 1, snippet: "needle" },
+    { path: "Dockerfile", embed_id: "docker", line: 1, snippet: "needle" },
+    { path: "src/auth/session.ts", embed_id: "auth", line: 1, snippet: "needle" },
   ]);
   assert.deepEqual(read, ["package", "docker", "auth"]);
   assert.equal(result.excluded, 3);

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 
@@ -21,6 +22,48 @@ PROJECT_SOURCE_TYPES = {
     "remote_git_repository",
 }
 PROJECT_SOURCE_CAPABILITIES = {"read", "search", "import", "write_request", "run_command"}
+UNSCOPED_PROJECT_SEARCH_TOOL = "projects-search"
+PROJECT_READ_INTENT = re.compile(r"\b(?:read|open|inspect|review|summari[sz]e)\b", re.IGNORECASE)
+PROJECT_FILE_ACTION = re.compile(
+    r"\b(?:show|list|search|find|edit|update|write|modify|change|fix|add|remove|delete|create)\b",
+    re.IGNORECASE,
+)
+PROJECT_FILE_NOUN = re.compile(
+    r"\b(?:files?|readme|folders?|directories|directory|documents?|source|code|repositories|repository|paths?)\b",
+    re.IGNORECASE,
+)
+
+
+def requests_project_file_work(text: str) -> bool:
+    """Recognize explicit file work; other named Project uses keep model selection."""
+
+    return bool(PROJECT_READ_INTENT.search(text) or
+                PROJECT_FILE_ACTION.search(text) and PROJECT_FILE_NOUN.search(text))
+
+
+def without_unscoped_project_search(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The legacy Projects search has no client result consumer or active-focus scope."""
+
+    return [
+        tool for tool in tools
+        if str(tool.get("function", {}).get("name") or "").replace(":", "-").replace("_", "-").replace("|", "-")
+        != UNSCOPED_PROJECT_SEARCH_TOOL
+    ]
+
+
+def uniquely_named_project_focus_id(
+    text: str,
+    candidates: list[dict[str, Any]],
+    offered_focus_ids: list[str],
+) -> str | None:
+    """Choose only one eligible, offered plain-name match for a consent request."""
+
+    from backend.core.api.app.services.project_focus_request_service import (
+        explicitly_named_project_focus_ids,
+    )
+
+    matches = list(dict.fromkeys(explicitly_named_project_focus_ids(text, candidates)))
+    return matches[0] if len(matches) == 1 and matches[0] in offered_focus_ids else None
 
 
 def build_project_source_routing_context(

@@ -1870,6 +1870,23 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      if (appId === "projects" && (skillId === "search" || skillId === "read")) {
+        const { default: ProjectReferenceEmbedPreview } = await import("../../../embeds/projects/ProjectReferenceEmbedPreview.svelte");
+        const component = mount(ProjectReferenceEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            content: { ...(decodedContent || {}), query, skill_id: skillId },
+            skillId,
+            status,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
       if (appId === "tasks" && skillId === "create") {
         const { default: TaskCreateEmbedPreview } = await import("../../../embeds/tasks/TaskCreateEmbedPreview.svelte");
         const component = mount(TaskCreateEmbedPreview, {

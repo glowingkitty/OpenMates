@@ -94,3 +94,13 @@ skills.search.description:
   sv: Hitta krypterade projekt via en kapabel ansluten klient.
   he: מציאת פרויקטים מוצפנים דרך לקוח מחובר מתאים.
   verified_by_human: []
+skills.read:
+  context: Skill name for reading a file in a Project
+  en: Read Project File
+  de: Projektdatei lesen
+  verified_by_human: []
+skills.read.description:
+  context: Skill description for reading Project file references through a connected client
+  en: Read a file from an encrypted Project through a connected client.
+  de: Eine Datei aus einem verschlüsselten Projekt über einen verbundenen Client lesen.
+  verified_by_human: []

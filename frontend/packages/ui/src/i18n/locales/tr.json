@@ -7602,6 +7602,13 @@
       "watermarking": {
         "text": "Watermarking"
       }
+    },
+    "projects": {
+      "references": {
+        "subtitle": {
+          "text": "Bu projedeki dosyalar"
+        }
+      }
     }
   },
   "enter_message": {

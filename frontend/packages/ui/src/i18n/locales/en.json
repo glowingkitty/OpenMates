@@ -2056,6 +2056,12 @@
           "description": {
             "text": "Find encrypted projects through a capable connected client."
           }
+        },
+        "read": {
+          "text": "Read Project File",
+          "description": {
+            "text": "Read a file from an encrypted Project through a connected client."
+          }
         }
       }
     },
@@ -8628,6 +8634,43 @@
     },
     "watch_audio_loading": {
       "text": "Loading audio…"
+    },
+    "projects": {
+      "references": {
+        "subtitle": {
+          "text": "Files in this Project"
+        },
+        "waiting": {
+          "text": "Waiting for Project results…"
+        },
+        "count": {
+          "text": "{count} file references"
+        },
+        "empty": {
+          "text": "No file references found"
+        },
+        "opening": {
+          "text": "Opening original file…"
+        },
+        "source_unavailable": {
+          "text": "Connected source is unavailable. Open it when the source is online."
+        },
+        "preview_unavailable": {
+          "text": "A preview is unavailable for this file."
+        },
+        "open_failed": {
+          "text": "Could not open this file."
+        },
+        "query_in_project": {
+          "text": "“{query}” in {project}"
+        },
+        "query_only": {
+          "text": "“{query}”"
+        },
+        "files_fallback": {
+          "text": "Files"
+        }
+      }
     }
   },
   "enter_message": {
@@ -16719,6 +16762,33 @@
         "text_input": {
           "text": "Text input"
         },
+        "uncached_input": {
+          "text": "Uncached input"
+        },
+        "cache_read": {
+          "text": "Cache read"
+        },
+        "cache_pricing_explanation": {
+          "text": "Cache reads reuse earlier input at a lower price. Cache writes create it and may cost more. Your receipt shows the usage charged."
+        },
+        "cache_write": {
+          "text": "Cache write"
+        },
+        "cache_write_5m": {
+          "text": "Cache write (5 min)"
+        },
+        "cache_write_1h": {
+          "text": "Cache write (1 hour)"
+        },
+        "billable_output": {
+          "text": "Output (including thinking)"
+        },
+        "included_in_input": {
+          "text": "Included in ordinary input"
+        },
+        "unavailable": {
+          "text": "Unavailable"
+        },
         "text_output": {
           "text": "Text output"
         },
@@ -19250,6 +19320,39 @@
       },
       "credits_breakdown_label": {
         "text": "Credit breakdown"
+      },
+      "cache_receipt_title": {
+        "text": "LLM billing receipt"
+      },
+      "cache_receipt_source": {
+        "text": "Usage source"
+      },
+      "cache_receipt_pending": {
+        "text": "Pending charge"
+      },
+      "cache_receipt_charged": {
+        "text": "Credits charged"
+      },
+      "cache_receipt_input_categories": {
+        "text": "Input categories"
+      },
+      "cache_receipt_cache_creation": {
+        "text": "Cache creation"
+      },
+      "cache_receipt_standard_input": {
+        "text": "Input"
+      },
+      "cache_receipt_ordinary_input_explanation": {
+        "text": "Required cache information was unavailable; all known input tokens were billed at the ordinary input rate."
+      },
+      "cache_receipt_pricing_version": {
+        "text": "Pricing version"
+      },
+      "cache_receipt_raw": {
+        "text": "Raw credits"
+      },
+      "cache_receipt_rounding": {
+        "text": "Rounding or minimum adjustment"
       },
       "credits_system_prompt_label": {
         "text": "System prompt"

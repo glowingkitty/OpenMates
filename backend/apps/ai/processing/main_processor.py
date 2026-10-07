@@ -119,6 +119,9 @@ from backend.apps.ai.processing.project_file_tools import (
     build_project_file_tools,
     build_project_focus_prompt,
     build_project_source_routing_context,
+    requests_project_file_work,
+    uniquely_named_project_focus_id,
+    without_unscoped_project_search,
 )
 from backend.apps.ai.processing.task_queue_continuation import (
     TASK_QUEUE_GUARD_MAX_RETRIES,
@@ -3604,6 +3607,27 @@ async def handle_main_processing(
         if active_project_focus
         else None
     )
+    reference_preview = getattr(request_data, "project_file_reference_preview", None)
+    if reference_preview is not None:
+        # A continuation may publish only the result of its freshly authorized
+        # Project. Consume this transient hint once before the answer model runs.
+        request_data.project_file_reference_preview = None
+        if (not isinstance(reference_preview, dict) or not active_project_focus
+                or reference_preview.get("project_id") != active_project_focus.get("project_id")):
+            raise RequiredRecoveryOutputError("Project file reference focus changed before publication")
+        from backend.apps.ai.processing.project_file_references import (
+            publish_project_file_reference_preview,
+        )
+
+        reference = await publish_project_file_reference_preview(
+            preview=reference_preview, request_data=request_data,
+            cache_service=cache_service, directus_service=directus_service,
+            encryption_service=encryption_service, user_vault_key_id=user_vault_key_id,
+            task_id=task_id, log_prefix=log_prefix,
+        )
+        if not reference:
+            raise RequiredRecoveryOutputError("Project file reference was not published")
+        yield f"```json\n{reference}\n```\n\n"
     if active_project_focus:
         project_instruction_focus = parse_project_phase_focus(
             active_project_focus.get("instruction") or "", active_project_focus["focus_id"])
@@ -4130,6 +4154,7 @@ async def handle_main_processing(
         preselected_skills=preselected_skills,
         translation_service=translation_service
     ) if assigned_app_ids != [] else []
+    available_tools_for_llm = without_unscoped_project_search(available_tools_for_llm)
 
     if task_queue_blocks_plan_tools:
         original_tool_count = len(available_tools_for_llm)
@@ -4600,6 +4625,50 @@ async def handle_main_processing(
             + current_message_history[-DEBUG_MSG_HISTORY_TAIL:]
         )
     
+    async def request_project_focus(focus_id: str) -> str:
+        """Route both named and model-selected Projects through one cancellable request."""
+        from backend.apps.ai.tasks.async_skill_continuation import cache_async_skill_continuation_context
+        from backend.core.api.app.services.embed_service import EmbedService
+        from backend.core.api.app.services.project_focus_request_service import (
+            PROJECT_FOCUS_REQUEST_TTL, ProjectFocusRequestService,
+        )
+
+        if (focus_id not in project_candidates or focus_id not in relevant_focus_modes
+                or not project_file_tools_enabled
+                or project_candidates[focus_id].get("auto_selection", True) is not True):
+            raise PermissionError("Project activation was not offered for this turn")
+        candidate = project_candidates[focus_id]
+        embed = await EmbedService(
+            cache_service=cache_service, directus_service=directus_service,
+            encryption_service=encryption_service,
+        ).create_focus_mode_activation_embed(
+            focus_id=focus_id, app_id="projects",
+            focus_mode_name=f"Work on {candidate['name']}",
+            chat_id=request_data.chat_id, message_id=request_data.message_id,
+            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+        )
+        if not embed:
+            raise RuntimeError("Project access confirmation could not be created")
+        request_id = embed["embed_id"]
+        await cache_async_skill_continuation_context(
+            cache_service=cache_service, async_task_id=request_id,
+            request_data=request_data, skill_config_dict=skill_config_dict,
+            app_id="system", skill_id="activate_focus_mode", tool_name="activate_focus_mode",
+            tool_arguments={"focus_id": focus_id}, requires_current_turn=True,
+            defer_until_initial_response_complete=True, ttl_seconds=PROJECT_FOCUS_REQUEST_TTL,
+        )
+        pending = await ProjectFocusRequestService(cache_service, directus_service).create_pending(
+            user_id=request_data.user_id, chat_id=request_data.chat_id,
+            request_id=request_id, project_id=candidate["project_id"],
+            message_id=request_data.message_id, team_id=request_data.team_id,
+        )
+        redis_client = await cache_service.client
+        await redis_client.publish(f"user_cache_events:{request_data.user_id}", json.dumps({
+            "event_type": "focus_mode_pending", "payload": ProjectFocusRequestService.pending_event(pending),
+        }))
+        return embed["embed_reference"]
+
     # Build concise tool summaries (name + first 120 chars of description)
     TOOL_DESCRIPTION_PREVIEW_LENGTH = 120
     debug_tool_summaries = []
@@ -4622,6 +4691,28 @@ async def handle_main_processing(
     }
     
     # --- End of existing logic ---
+
+    # A unique name in the current user turn is enough to request access, but
+    # never to grant it. Reuse the same cancellable countdown as the model tool.
+    named_project_focus_id = None
+    if (project_file_tools_enabled and not getattr(request_data, "project_access_declined", False)
+            and not user_requested_skills_only and not user_requested_focus_only
+            and requests_project_file_work(request_data.current_user_content or "")
+            and (request_data.user_preferences or {}).get("apps_enabled") is not False
+            and any(tool.get("function", {}).get("name") == "activate_focus_mode"
+                    for tool in available_tools_for_llm)):
+        named_project_focus_id = uniquely_named_project_focus_id(
+            request_data.current_user_content or "",
+            list(project_candidates.values()),
+            relevant_focus_modes,
+        )
+    if named_project_focus_id:
+        logger.info("%s Requesting named Project Focus through standard countdown", log_prefix)
+        embed_reference = await request_project_focus(named_project_focus_id)
+        yield f"```json\n{embed_reference}\n```\n\n"
+        yield {"__awaiting_focus_mode_confirmation__": True,
+               "focus_id": named_project_focus_id, "chat_id": request_data.chat_id}
+        return
 
     # --- User-requested focus mode: bypass LLM + countdown ---
     # When the user explicitly mentioned a focus mode via @focus:app_id:focus_id in their message,
@@ -4954,6 +5045,7 @@ async def handle_main_processing(
             candidate_tools = generate_tools_from_apps(discovered_apps_metadata=discovered_apps_metadata,
                 assigned_app_ids=list(candidate_apps), preselected_skills=list(candidate_skill_ids),
                 translation_service=translation_service) if candidate_apps else []
+            candidate_tools = without_unscoped_project_search(candidate_tools)
             if task_queue_blocks_plan_tools:
                 candidate_tools = [tool for tool in candidate_tools
                     if not str(tool.get("function", {}).get("name") or "").startswith("plans-")]
@@ -5542,7 +5634,8 @@ async def handle_main_processing(
                 normalized_from_explicit_task_app = canonical_name != _canonicalize_tool_name(raw_function_name)
                 is_sub_chat_violation = (canonical_name == "start-sub-chats" and chat_depth >= 2)
                 if (
-                    canonical_name not in allowed_tool_names or is_sub_chat_violation
+                    canonical_name not in allowed_tool_names or canonical_name == "projects-search"
+                    or is_sub_chat_violation
                 ):
                     rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else INVALID_TOOL_RESULT_REASON
                     raw_arguments_log = "" if _is_task_tool_like(canonical_name) or _is_task_tool_like(raw_function_name) else f"Raw arguments: {chunk.function_arguments_raw[:500]}"
@@ -6785,6 +6878,18 @@ async def handle_main_processing(
                         }),
                     })
                     continue
+
+                if app_id == "projects" and skill_id == "search":
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps({
+                            "status": "rejected",
+                            "reason": "Unscoped Project search is unavailable. Request Project Focus first.",
+                        }),
+                    })
+                    continue
                 
                 # Validate that app_id and skill_id are non-empty after split
                 # This ensures we have valid identifiers before proceeding with skill execution and billing
@@ -7233,44 +7338,8 @@ async def handle_main_processing(
                     if skill_id == "activate_focus_mode":
                         focus_id = parsed_args.get("focus_id")
                         if focus_id in project_candidates:
-                            from backend.apps.ai.tasks.async_skill_continuation import cache_async_skill_continuation_context
-                            from backend.core.api.app.services.embed_service import EmbedService
-                            from backend.core.api.app.services.project_focus_request_service import (
-                                PROJECT_FOCUS_REQUEST_TTL, ProjectFocusRequestService,
-                            )
-                            if focus_id not in project_candidates or focus_id not in relevant_focus_modes or not project_file_tools_enabled:
-                                raise PermissionError("Project activation was not offered for this turn")
-                            candidate = project_candidates[focus_id]
-                            embed = await EmbedService(
-                                cache_service=cache_service, directus_service=directus_service,
-                                encryption_service=encryption_service,
-                            ).create_focus_mode_activation_embed(
-                                focus_id=focus_id, app_id="projects",
-                                focus_mode_name=f"Work on {candidate['name']}",
-                                chat_id=request_data.chat_id, message_id=request_data.message_id,
-                                user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
-                                user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
-                            )
-                            if not embed:
-                                raise RuntimeError("Project access confirmation could not be created")
-                            request_id = embed["embed_id"]
-                            await cache_async_skill_continuation_context(
-                                cache_service=cache_service, async_task_id=request_id,
-                                request_data=request_data, skill_config_dict=skill_config_dict,
-                                app_id="system", skill_id="activate_focus_mode", tool_name="activate_focus_mode",
-                                tool_arguments=parsed_args, requires_current_turn=True,
-                                defer_until_initial_response_complete=True, ttl_seconds=PROJECT_FOCUS_REQUEST_TTL,
-                            )
-                            pending = await ProjectFocusRequestService(cache_service, directus_service).create_pending(
-                                user_id=request_data.user_id, chat_id=request_data.chat_id,
-                                request_id=request_id, project_id=candidate["project_id"],
-                                message_id=request_data.message_id, team_id=request_data.team_id,
-                            )
-                            redis_client = await cache_service.client
-                            await redis_client.publish(f"user_cache_events:{request_data.user_id}", json.dumps({
-                                "event_type": "focus_mode_pending", "payload": ProjectFocusRequestService.pending_event(pending),
-                            }))
-                            yield f"```json\n{embed['embed_reference']}\n```\n\n"
+                            embed_reference = await request_project_focus(focus_id)
+                            yield f"```json\n{embed_reference}\n```\n\n"
                             yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
                             return
                         if focus_id not in relevant_focus_modes:

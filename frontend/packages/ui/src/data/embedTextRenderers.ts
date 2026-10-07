@@ -79,6 +79,7 @@ import { renderCompanyFinancialResult, renderCompanyFinancials } from '../compon
 import { normalizeFinanceOverview } from '../components/embeds/finance/financeCheckAccountsContent';
 import { renderMindMapText } from '../components/embeds/mindmaps/mindMapContent';
 import { renderFile } from '../components/embeds/file/fileEmbedText';
+import { renderProjectReferences } from '../components/embeds/projects/projectReferenceEmbedText';
 
 // ── Renderer type ────────────────────────────────────────────────────────
 
@@ -195,6 +196,8 @@ function renderMindMap(content: Record<string, unknown>): string {
 export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	// ── App-skill-use (composite) embeds ──────────────────────────────
 	'app:web:search': renderWebSearch,
+	'app:projects:search': renderProjectReferences,
+	'app:projects:read': renderProjectReferences,
 	'app:web:read': renderWebRead,
 	'app:news:search': renderNewsSearch,
 	'app:shopping:search_products': renderShoppingSearch,

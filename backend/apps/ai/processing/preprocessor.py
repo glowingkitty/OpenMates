@@ -2070,6 +2070,10 @@ async def handle_preprocessing(
                     if app_id == "ai" and skill.id == "ask":
                         logger.debug(f"{log_prefix} Skipping skill '{skill.id}' from app '{app_id}' - this is the main processing entry point, not a tool")
                         continue
+                    if app_id == "projects" and skill.id == "search":
+                        # This legacy unscoped skill has no client result consumer.
+                        # Project files become searchable only after Focus consent.
+                        continue
 
                     # Skip skills whose providers are all unhealthy (fail-open if no health data)
                     if skill.providers:
@@ -3303,9 +3307,9 @@ async def handle_preprocessing(
         else:
             logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
 
-    # Plain Project-name matches are automatic suggestions and respect the
-    # authoritative setting. Structured @Project sends activate through the
-    # first-party preflight; names in ordinary text never bypass auto-selection.
+    # Plain Project-name matches are shortlists. Main processing routes a unique
+    # eligible match through the standard cancellable countdown. Structured
+    # @Project sends activate through the first-party preflight.
     if (not user_requested_focus_only and not request_data.project_access_declined
             and "project_file_jobs" in (request_data.client_capabilities or [])):
         named_project_focus_ids = explicitly_named_project_focus_ids(

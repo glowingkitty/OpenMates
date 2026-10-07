@@ -262,7 +262,7 @@ export async function executeHostedProjectFileJob(adapter: HostedProjectFileAdap
       examined++;
       if (byName) {
         if (matchesProjectSearchQuery(file.path, search)) {
-          if (matches.length < limit) matches.push({ path: file.path });
+          if (matches.length < limit) matches.push({ path: file.path, embed_id: file.embedId });
           else omitted++;
         }
       }
@@ -275,7 +275,7 @@ export async function executeHostedProjectFileJob(adapter: HostedProjectFileAdap
         for (let index = 0; index < Math.min(lines.length, 4_000); index++) {
           if (!matchesProjectSearchQuery(lines[index]!, search)) continue;
           if (matches.length < limit) {
-            matches.push({ path: file.path, line: index + 1, snippet: lines[index]!.slice(0, 500) });
+            matches.push({ path: file.path, embed_id: file.embedId, line: index + 1, snippet: lines[index]!.slice(0, 500) });
           } else {
             omitted++;
           }
@@ -297,7 +297,7 @@ export async function executeHostedProjectFileJob(adapter: HostedProjectFileAdap
     if (!found[0]) failure("file_not_found");
     const head = await adapter.readHead(found[0].embedId);
     const content = textContent(head);
-    return { path, content, expected_base: await projectFileContentHash(content), revision: head.revision, size_bytes: bytes(content).length, truncated: false };
+    return { path, embed_id: found[0].embedId, content, expected_base: await projectFileContentHash(content), revision: head.revision, size_bytes: bytes(content).length, truncated: false };
   }
   if (!mutation) failure("invalid_file_mutation");
   const creating = mutation.operation === "create_file";

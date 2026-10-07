@@ -46,6 +46,16 @@ ASYNC_EMBED_REFERENCE_INSTRUCTION = (
 celery_app = None
 
 
+def _project_file_reference_preview(
+    *, context: dict[str, Any], completed_results: list[dict[str, Any]], result_status: str,
+) -> dict[str, Any] | None:
+    from backend.apps.ai.processing.project_file_references import build_project_file_reference_preview
+
+    return build_project_file_reference_preview(
+        context=context, completed_results=completed_results, result_status=result_status,
+    )
+
+
 def async_skill_continuation_key(task_id: str) -> str:
     """Return the cache key used to resume interpretation for an async skill task."""
     return f"{ASYNC_SKILL_CONTINUATION_KEY_PREFIX}:{task_id}"
@@ -243,6 +253,9 @@ async def dispatch_async_skill_continuation(
             and any(result.get("access_granted") is False for result in completed_results)
         ),
         active_project_focus=original_request.active_project_focus,
+        project_file_reference_preview=_project_file_reference_preview(
+            context=context, completed_results=completed_results, result_status=result_status,
+        ),
         continuation_message_id=original_request.continuation_message_id,
         is_async_skill_continuation=True,
         original_user_message_id=(
