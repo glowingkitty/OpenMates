@@ -14,6 +14,7 @@ from backend.core.api.app.routes.connection_manager import (
     should_rediscover_recovery_on_lifecycle,
 )
 from backend.core.api.app.routes.handlers.websocket_handlers import chat_recovery_job_handlers
+from backend.core.api.app.routes import websockets as websocket_routes
 
 
 class FakeManager:
@@ -300,6 +301,159 @@ async def test_typed_connection_delays_all_initial_recovery_discovery_until_life
     assert epoch_calls == 0
     assert FakeRecoveryService.calls == []
     assert manager.messages == []
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,storage.background.complete-sealed-recovery
+async def test_legacy_first_foreground_ack_keeps_initial_job_delivery_alive(monkeypatch) -> None:
+    gate = asyncio.Event()
+    started = asyncio.Event()
+
+    class Recovery:
+        def __init__(self, _directus_service) -> None:
+            pass
+
+        async def execute(self, operation: str, _data: dict) -> dict:
+            assert operation == "list_available_jobs"
+            started.set()
+            await gate.wait()
+            return {"jobs": [{"job_id": "job-1", "chat_id": "chat-1"}]}
+
+    monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService", Recovery)
+    manager = FakeManager()
+    tasks = await chat_recovery_job_handlers.begin_initial_recovery_discovery(
+        manager=manager, directus_service=object(), user_id="user-1",
+        user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        supports_typed_recovery_outputs=False, get_epoch=lambda: asyncio.sleep(0, result=1),
+    )
+    await started.wait()
+    scheduled = []
+    websocket_routes._reconcile_recovery_lifecycle_discovery(
+        initial_tasks=tasks, foreground_task=None, is_foreground=True,
+        lifecycle_seen_before=False, should_discover=True,
+        supports_typed_outputs=False, schedule=lambda: scheduled.append(True),
+    )
+    gate.set()
+    await asyncio.gather(*tasks)
+
+    assert scheduled == []
+    assert {message["type"] for message in manager.messages} == {
+        "recovery_outputs_discovery_complete", "recovery_jobs_available",
+    }
+    assert manager.messages[-1]["payload"]["jobs"][0]["job_id"] == "job-1"
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,storage.background.complete-sealed-recovery
+async def test_legacy_background_cancels_scan_and_resume_rediscovers_jobs_only(monkeypatch) -> None:
+    gate = asyncio.Event()
+    started = asyncio.Event()
+    calls = []
+
+    class Recovery:
+        def __init__(self, _directus_service) -> None:
+            pass
+
+        async def execute(self, operation: str, _data: dict) -> dict:
+            calls.append(operation)
+            assert operation == "list_available_jobs"
+            started.set()
+            await gate.wait()
+            return {"jobs": [{"job_id": "job-1", "chat_id": "chat-1"}]}
+
+    monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService", Recovery)
+    manager = FakeManager()
+    arguments = dict(manager=manager, directus_service=object(), user_id="user-1",
+                     user_id_hash="owner-hash", device_fingerprint_hash="device-hash")
+    initial = await chat_recovery_job_handlers.begin_initial_recovery_discovery(
+        **arguments, supports_typed_recovery_outputs=False,
+        get_epoch=lambda: asyncio.sleep(0, result=1),
+    )
+    await started.wait()
+    manager.foreground = False
+    websocket_routes._reconcile_recovery_lifecycle_discovery(
+        initial_tasks=initial, foreground_task=None, is_foreground=False,
+        lifecycle_seen_before=False, should_discover=False,
+        supports_typed_outputs=False, schedule=lambda: pytest.fail("background scheduled recovery"),
+    )
+    await asyncio.gather(*initial, return_exceptions=True)
+    assert initial[0].cancelled()
+    assert not any(message["type"] == "recovery_jobs_available" for message in manager.messages)
+
+    manager.foreground = True
+    scans = []
+    websocket_routes._reconcile_recovery_lifecycle_discovery(
+        initial_tasks=initial, foreground_task=None, is_foreground=True,
+        lifecycle_seen_before=True, should_discover=True,
+        supports_typed_outputs=False,
+        schedule=lambda: scans.append(asyncio.create_task(
+            chat_recovery_job_handlers.send_available_recovery_jobs(**arguments)
+        )),
+    )
+    gate.set()
+    await asyncio.gather(*scans)
+    assert calls == ["list_available_jobs", "list_available_jobs"]
+    assert manager.messages[-1]["type"] == "recovery_jobs_available"
+    assert not any(message["type"] == "recovery_outputs_available" for message in manager.messages)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("typed,epoch", [
+    (False, 0), (False, None), (False, 1),
+    (True, 0), (True, None), (True, 1),
+])
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,storage.background.complete-sealed-recovery
+async def test_foreground_scan_gates_v1_jobs_for_both_clients_and_typed_outputs_only(
+    monkeypatch, typed: bool, epoch: int | None,
+) -> None:
+    manager = FakeManager(typed=typed)
+    calls = []
+
+    class Cutover:
+        def __init__(self, *_args) -> None:
+            pass
+
+        async def get_epoch(self, *, authoritative: bool) -> int:
+            assert authoritative
+            if epoch is None:
+                raise RuntimeError("authoritative epoch unavailable")
+            return epoch
+
+    async def send_jobs(**_kwargs) -> None:
+        calls.append("jobs")
+        await manager.send_personal_message(
+            {"type": "recovery_jobs_available", "payload": {"jobs": [{"job_id": "v1-job"}]}},
+            "user-1", "device-hash",
+        )
+
+    async def send_outputs(**_kwargs) -> None:
+        calls.append("outputs")
+        await manager.send_personal_message(
+            {"type": "recovery_outputs_discovery_complete", "payload": {"status": "completed"}},
+            "user-1", "device-hash",
+        )
+
+    monkeypatch.setattr(websocket_routes, "ChatRecoveryCutoverController", Cutover)
+    monkeypatch.setattr(websocket_routes, "send_available_recovery_jobs", send_jobs)
+    monkeypatch.setattr(websocket_routes, "send_available_recovery_outputs", send_outputs)
+
+    await websocket_routes._discover_foreground_recovery(
+        manager=manager, cache_service=object(), directus_service=object(),
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        supports_typed_recovery_outputs=typed, user_otel_attrs={},
+    )
+    if epoch != 1:
+        assert calls == []
+        assert manager.messages == [{
+            "type": "recovery_outputs_discovery_complete",
+            "payload": {"status": "disabled" if epoch == 0 else "failed"},
+        }]
+    else:
+        assert calls == (["jobs", "outputs"] if typed else ["jobs"])
+        assert manager.messages[0]["type"] == "recovery_jobs_available"
+        assert manager.messages[-1]["type"] == (
+            "recovery_outputs_discovery_complete" if typed else "recovery_jobs_available"
+        )
 
 
 @pytest.mark.anyio

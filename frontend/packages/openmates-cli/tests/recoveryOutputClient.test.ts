@@ -237,7 +237,8 @@ describe("CLI typed recovery replay", () => {
   }
 
   // contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
-  it("ACKs a child embed against parent key wrappers and an unchanged historical version", async () => {
+  for (const child of [false, true]) {
+  it(`ACKs a ${child ? "child" : "root"} embed with wrapper-gated reads and an unchanged historical version`, async () => {
     const identity = outputVector.identity;
     const output: AvailableRecoveryOutputFrame = {
       record_id: identity.record_id, root_chat_id: identity.root_chat_id,
@@ -245,7 +246,8 @@ describe("CLI typed recovery replay", () => {
       subject_id: identity.subject_id, output_kind: "embed",
       output_version: 1, chat_key_version: identity.key_version,
     };
-    const parentId = "77777777-7777-4777-8777-777777777777";
+    const parentId = child ? "77777777-7777-4777-8777-777777777777" : null;
+    const keySubject = parentId || output.subject_id;
     const content = {
       embed_id: output.subject_id, version_number: 1, type: "code",
       content: toonEncode({ type: "code", code: "private recovered source" }),
@@ -265,23 +267,28 @@ describe("CLI typed recovery replay", () => {
       ephemeralPrivateKey: keyVector.ephemeral_private_key, nonce: keyVector.nonce,
     });
     const rawKey = new Uint8Array(Buffer.from(keyVector.chat_key, "base64url"));
+    const embedKey = await deriveEmbedKeyFromChatKey(rawKey, keySubject);
     const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
     client.getMasterKeyBytes = () => new Uint8Array(32);
     client.getChatWrappingKey = async () => new Uint8Array(32);
     client.resolveChatKey = async () => rawKey;
     client.getCliRequestHeaders = () => ({});
     let stored: Record<string, unknown> | null = null;
-    let wrappers: Array<Record<string, unknown>> = [];
+    // A recovered parent may have only its master wrapper. A new root has none.
+    const wrappers: Array<Record<string, unknown>> = child ? [{
+      hashed_embed_id: createHash("sha256").update(keySubject).digest("hex"), key_type: "master",
+      encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, new Uint8Array(32)),
+    }] : [];
     let historicalSnapshot: string | null = null;
     const sent: string[] = [];
     const digest = (value: string) => createHash("sha256").update(value).digest("hex");
     client.http = { get: async (path: string) => path.includes("/versions/1?")
       ? { ok: true, status: 200, data: { embed_id: output.subject_id,
         version_number: 1, rows: [{ version_number: 1, encrypted_snapshot: historicalSnapshot, encrypted_patch: null }] } }
-      : path.includes(`/embeds/${parentId}`) ? { ok: true, status: 200, data: { embed: {
+      : parentId && path.includes(`/embeds/${parentId}`) && wrappers.length ? { ok: true, status: 200, data: { embed: {
         embed_id: parentId, hashed_chat_id: createHash("sha256").update(output.target_chat_id).digest("hex"),
       }, embed_keys: wrappers } }
-      : stored ? { ok: true, status: 200, data: { embed: stored, embed_keys: wrappers } }
+      : stored && wrappers.length ? { ok: true, status: 200, data: { embed: stored, embed_keys: wrappers } }
         : { ok: false, status: 404, data: {} } };
     const pending: Array<{ type: string; resolve: (value: unknown) => void }> = [];
     const ws = {
@@ -292,8 +299,10 @@ describe("CLI typed recovery replay", () => {
         sent.push(type);
         if (type === "store_embed") stored = payload;
         if (type === "store_embed_keys") {
-          wrappers = payload.keys as Array<Record<string, unknown>>;
-          assert.ok(wrappers.every((key) => key.hashed_embed_id === digest(parentId)));
+          assert.ok(stored, "head receipt must precede wrapper bootstrap");
+          const keys = payload.keys as Array<Record<string, unknown>>;
+          assert.ok(keys.every((key) => key.hashed_embed_id === digest(keySubject)));
+          wrappers.push(...keys);
         }
         if (type === "recovery_output_ack_embed") {
           assert.equal(payload.canonical_digest, historicalSnapshot
@@ -311,7 +320,8 @@ describe("CLI typed recovery replay", () => {
           ? { ...output, sealed_payload: JSON.stringify(sealed), messages_v: 1, encrypted_chat_key: "wrapped" }
           : type === "store_embed" ? { embed_id: output.subject_id,
             canonical_digest: digest(String(stored?.encrypted_content)), canonical_source: "head" }
-            : type === "store_embed_keys" ? { created_count: 2, failed_count: 0, requested_count: 2 }
+            : type === "store_embed_keys" ? { created_count: (payload.keys as unknown[]).length,
+              failed_count: 0, requested_count: (payload.keys as unknown[]).length }
               : { record_id: output.record_id, state: "ACKNOWLEDGED" };
         const waiterIndex = pending.findIndex((item) => item.type === typeToSend);
         const waiter = waiterIndex >= 0 ? pending.splice(waiterIndex, 1)[0] : null;
@@ -329,7 +339,6 @@ describe("CLI typed recovery replay", () => {
     assert.equal(sent.filter((type) => type === "store_embed").length, 1);
     assert.equal(sent.filter((type) => type === "store_embed_keys").length, 1);
     assert.equal(sent.filter((type) => type === "recovery_output_ack_embed").length, 2);
-    const embedKey = await deriveEmbedKeyFromChatKey(rawKey, parentId);
     historicalSnapshot = await encryptWithAesGcmCombined("private recovered source", embedKey);
     stored!.version_number = 2;
     stored!.encrypted_content = await encryptWithAesGcmCombined("newer unrelated content", embedKey);
@@ -343,6 +352,7 @@ describe("CLI typed recovery replay", () => {
     );
     assert.equal(sent.filter((type) => type === "recovery_output_ack_embed").length, 3);
   });
+  }
 
   // contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
   it("ACKs an existing checkpoint using its canonical ciphertext and source manifest", async () => {
@@ -453,7 +463,7 @@ describe("CLI typed recovery replay", () => {
     client.resolveChatKey = async () => rawKey;
     client.getCliRequestHeaders = () => ({});
     let diff: Record<string, unknown> | null = null;
-    let wrappers: Array<Record<string, unknown>> = [];
+    const wrappers: Array<Record<string, unknown>> = [];
     const sent: string[] = [];
     client.http = { get: async (path: string) => path.includes("/versions/")
       ? diff ? { ok: true, status: 200, data: { rows: [diff] } }

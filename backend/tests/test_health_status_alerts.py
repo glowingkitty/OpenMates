@@ -133,6 +133,32 @@ async def test_dispatch_health_status_alerts_sends_discord_without_email_by_defa
     assert hct.HEALTH_ALERT_EMAIL_TASK_NAME not in {call.get("name") for call in calls}
 
 
+@pytest.mark.anyio
+async def test_unavailable_prior_health_status_does_not_write_or_alert(monkeypatch):
+    import sys
+    import types
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from backend.core.api.app.services.directus.health_event_methods import HealthStatusUnavailable
+
+    service = SimpleNamespace(
+        health_event=SimpleNamespace(
+            get_last_status=AsyncMock(side_effect=HealthStatusUnavailable("HTTP 503")),
+            record_health_event=AsyncMock(),
+        ),
+        close=AsyncMock(),
+    )
+    module = types.ModuleType("backend.core.api.app.services.directus")
+    module.DirectusService = lambda: service
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.directus", module)
+    dispatch = AsyncMock()
+    monkeypatch.setattr(hct, "_dispatch_health_status_alerts", dispatch)
+    await hct._record_health_event_if_changed("app", "workflows", "healthy")
+    service.health_event.record_health_event.assert_not_awaited()
+    dispatch.assert_not_awaited()
+    service.close.assert_awaited_once()
+
+
 @pytest.mark.asyncio
 async def test_dispatch_health_status_alerts_queues_email_only_when_enabled(
     monkeypatch: pytest.MonkeyPatch,
@@ -193,7 +219,7 @@ async def test_record_health_event_queues_alert_after_persisted_transition(monke
             return True
 
     class FakeDirectus:
-        def __init__(self, cache_service: object) -> None:
+        def __init__(self) -> None:
             self.health_event = FakeHealthEvent()
 
         async def close(self) -> None:

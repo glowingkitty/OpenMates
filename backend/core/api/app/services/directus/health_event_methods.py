@@ -9,6 +9,10 @@ from typing import Dict, Any, Optional, List
 logger = logging.getLogger(__name__)
 
 
+class HealthStatusUnavailable(RuntimeError):
+    """The prior durable status could not be read; this is not empty history."""
+
+
 class HealthEventMethods:
     """
     Methods for recording and querying health status change events.
@@ -58,17 +62,21 @@ class HealthEventMethods:
             
             response = await self.ds._make_api_request("GET", url)
             
-            if response.status_code == 200:
-                data = response.json()
-                events = data.get("data", [])
-                if events:
-                    return events[0]
-            
-            return None
+            if response.status_code != 200:
+                raise HealthStatusUnavailable(f"Prior health status unavailable (HTTP {response.status_code})")
+            data = response.json()
+            events = data.get("data") if isinstance(data, dict) else None
+            if not isinstance(events, list) or len(events) > 1 or any(
+                not isinstance(event, dict) or not isinstance(event.get("new_status"), str)
+                for event in events
+            ):
+                raise HealthStatusUnavailable("Prior health status response was invalid")
+            return events[0] if events else None
             
         except Exception as e:
-            logger.warning(f"[HEALTH_EVENT] Error getting last status for {service_type}/{service_id}: {e}")
-            return None
+            if isinstance(e, HealthStatusUnavailable):
+                raise
+            raise HealthStatusUnavailable("Prior health status read failed") from e
 
     async def record_health_event(
         self,

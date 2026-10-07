@@ -6,9 +6,32 @@ export {};
 const { test, expect } = require('./console-monitor');
 const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, installE2EServerContentOverrideGate } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat, sendMessage } = require('./helpers/chat-test-helpers');
-const { requireSignedRecoveryProfile, observeRecoveryFrames, availableOutputs, requireActiveRecoveryDiscovery, disconnectCanonicalWrites, installLegacyRecoverySocket } = require('./storage-recovery-fixtures');
+const { requireSignedRecoveryProfile, observeRecoveryFrames, availableOutputs, requireActiveRecoveryDiscovery, focusRecoveryPage, requireForegroundRecoveryLifecycle, disconnectCanonicalWrites, installLegacyRecoverySocket } = require('./storage-recovery-fixtures');
 import type { RecoveryFrame } from './storage-recovery-fixtures';
 const { createHash } = require('node:crypto');
+const { randomUUID } = require('node:crypto');
+const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+const { createWorkflowCliHome, removeWorkflowCliHome, loginWorkflowCliViaPair, runWorkflowCli, runWorkflowCliJson, parseCliJson, workflowApiUrl } = require('./helpers/workflow-cli-e2e-helpers');
+const { installRecorderDeps } = require('./cli-tui-proof-helpers');
+
+async function recordedContext(browser: any, baseURL: string | undefined, label: string): Promise<any> {
+	const context = await browser.newContext({ baseURL, recordVideo: { dir: test.info().outputPath(label) } });
+	const videos: any[] = [];
+	context.on('page', (page: any) => { if (page.video()) videos.push(page.video()); });
+	const close = context.close.bind(context);
+	let closed = false;
+	context.close = async (...args: any[]) => {
+		if (closed) return;
+		closed = true;
+		await close(...args);
+		for (const [index, video] of videos.entries()) {
+			await test.info().attach(`${label}-${index}`, { path: await video.path(), contentType: 'video/webm' });
+		}
+	};
+	return context;
+}
 
 function summarizeReceiptWire(frames: RecoveryFrame[], recordId: string): Array<Record<string, unknown>> {
 	const sentRequests = new Map<string, string>();
@@ -44,9 +67,9 @@ test('legacy connection preserves typed rows while completing the existing v1 fi
 	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
 	const log = createSignupLogger('storage-recovery-capability-gate');
 	const screenshot = createStepScreenshotter(log);
-	const producerContext = await browser.newContext({ baseURL });
-	const legacyContext = await browser.newContext({ baseURL });
-	const capableContext = await browser.newContext({ baseURL });
+	const producerContext = await recordedContext(browser, baseURL, 'producer');
+	const legacyContext = await recordedContext(browser, baseURL, 'legacy');
+	const capableContext = await recordedContext(browser, baseURL, 'capable');
 	const producer = await producerContext.newPage();
 	const legacy = await legacyContext.newPage();
 	const capable = await capableContext.newPage();
@@ -72,8 +95,10 @@ test('legacy connection preserves typed rows while completing the existing v1 fi
 		await producerContext.close();
 
 		await installLegacyRecoverySocket(legacy);
+		await focusRecoveryPage(legacy);
 		await loginToTestAccount(legacy, log, screenshot);
 		await legacy.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`));
+		await requireForegroundRecoveryLifecycle(legacyFrames);
 		await expect.poll(() => legacyFrames.some((frame) => frame.type === 'recovery_job_persisted'
 			&& frame.payload.state === 'TERMINAL'), { timeout: 120_000 }).toBe(true);
 		expect(legacyFrames.some((frame) => frame.type === 'recovery_outputs_available')).toBe(false);
@@ -111,7 +136,8 @@ test('legacy connection preserves typed rows while completing the existing v1 fi
 		const apiOrigin = process.env.PLAYWRIGHT_TEST_API_URL;
 		if (!apiOrigin) throw new Error('Isolated recovery replay requires PLAYWRIGHT_TEST_API_URL.');
 		const rejectedRead = await legacy.evaluate(async ({ chatId, embedId, apiOrigin }) => {
-			const options = { credentials: 'include' as const };
+			const options = { credentials: 'include' as const,
+				headers: { 'x-openmates-client-capabilities': 'agentic-storage-v2' } };
 			const head = await fetch(`${apiOrigin}/v1/embeds/chats/${encodeURIComponent(chatId)}`
 				+ `/embeds/${encodeURIComponent(embedId)}`, options);
 			const versions = await fetch(`${apiOrigin}/v1/embeds/${encodeURIComponent(embedId)}/versions`
@@ -123,6 +149,7 @@ test('legacy connection preserves typed rows while completing the existing v1 fi
 		expect(rejectedRead).toEqual({ head: 404, versions: 404, wrappers: 404 });
 		await legacyContext.close();
 
+		await focusRecoveryPage(capable);
 		await loginToTestAccount(capable, log, screenshot);
 		await capable.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`));
 		await expect.poll(() => {
@@ -160,10 +187,10 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
 	const log = createSignupLogger('storage-recovery-artifacts');
 	const screenshot = createStepScreenshotter(log);
-	const first = await browser.newContext({ baseURL });
+	const first = await recordedContext(browser, baseURL, 'origin');
 	const firstPage = await first.newPage();
 	const firstFrames: RecoveryFrame[] = [];
-	const restored = await browser.newContext({ baseURL });
+	const restored = await recordedContext(browser, baseURL, 'restored');
 	const restoredPage = await restored.newPage();
 	const frames: Array<{ direction: string; type: string; payload: Record<string, any> }> = [];
 	const recoveryErrors: string[] = [];
@@ -223,7 +250,7 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 					+ `recoveryErrors=${JSON.stringify(recoveryErrors.slice(-5))}`);
 			}
 		}
-		const update = await browser.newContext({ baseURL });
+		const update = await recordedContext(browser, baseURL, 'update');
 		try {
 			const updatePage = await update.newPage();
 			const updateFrames: RecoveryFrame[] = [];
@@ -261,5 +288,197 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 	} finally {
 		await first.close().catch(() => undefined);
 		await restored.close();
+	}
+});
+
+// contract-test: supporting surface=cli assertions=storage.background.complete-sealed-recovery,chats.completion.recovery-takeover,chats.persistence.client-encrypted
+test('CLI bootstraps root wrappers before protected canonical reads and replay stays idempotent', async ({ browser }: { browser: any }) => {
+	requireSignedRecoveryProfile();
+	test.setTimeout(360_000);
+	installRecorderDeps();
+	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL;
+	const apiUrl = workflowApiUrl();
+	const home = createWorkflowCliHome('root-recovery');
+	const context = await recordedContext(browser, baseURL, 'cli-pairing-and-producer');
+	const page = await context.newPage();
+	const frames: RecoveryFrame[] = [];
+	const log = createSignupLogger('storage-cli-root-recovery');
+	const screenshot = createStepScreenshotter(log);
+	try {
+		await disconnectCanonicalWrites(page, frames);
+		await installE2EServerContentOverrideGate(page, 'storage-recovery-replay');
+		await focusRecoveryPage(page);
+		await loginWorkflowCliViaPair(page, apiUrl, home, 'CLI_ROOT_RECOVERY');
+		await requireActiveRecoveryDiscovery(frames);
+		await startNewChat(page, log);
+		await sendMessage(page,
+			'Generate a CLI recovery artifact. STORAGE_CAPACITY_SCENARIO:recovery_embed <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
+			log, screenshot, 'storage-cli-root-producer');
+		const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
+		expect(chatId).toBeTruthy();
+		await expect.poll(() => availableOutputs(frames, chatId!).some((output) => output.output_kind === 'embed'),
+			{ timeout: 120_000 }).toBe(true);
+		const output = availableOutputs(frames, chatId!).find((row) => row.output_kind === 'embed') as any;
+		expect(output.subject_id).toBeTruthy();
+		const readHead = () => page.evaluate(async ({ apiUrl, chatId, embedId }) => {
+			const response = await fetch(`${apiUrl}/v1/embeds/chats/${chatId}/embeds/${embedId}`, {
+				credentials: 'include', headers: { 'x-openmates-client-capabilities': 'agentic-storage-v2' },
+			});
+			return { status: response.status, body: response.ok ? await response.json() : null };
+		}, { apiUrl, chatId, embedId: output.subject_id });
+		expect((await readHead()).status).toBe(404);
+		const replay = await runWorkflowCli(apiUrl, home, ['chats', 'show', chatId, '--json'], 180_000,
+			{ OPENMATES_CLI_RECORD_E2E: '1', OPENMATES_E2E_SPEC: 'storage-recovery-canonical-receipts.spec.ts' });
+		if (!replay.recording || !fs.existsSync(replay.recording.videoPath) || !fs.existsSync(replay.recording.manifestPath)) {
+			let reason = `exit ${replay.code}`;
+			try {
+				const failure = JSON.parse(replay.stdout);
+				if (typeof failure.reason === 'string') reason = failure.reason.slice(0, 500);
+			} catch { /* Preserve the bounded exit diagnostic when no recorder receipt exists. */ }
+			throw new Error(`CLI recovery terminal capture unavailable: ${reason}`);
+		}
+		await test.info().attach('cli-root-recovery', { path: replay.recording.videoPath, contentType: 'video/mp4' });
+		await test.info().attach('cli-root-recovery-manifest', { path: replay.recording.manifestPath, contentType: 'application/json' });
+		const recovered = parseCliJson(replay, 'Recover root');
+		expect(recovered.error, 'CLI root recovery must complete without a command error').toBeUndefined();
+		expect(recovered.chat?.id).toBe(chatId);
+		const first = await readHead();
+		expect(first.status).toBe(200);
+		expect(first.body.embed.version_number).toBe(output.output_version);
+		expect(first.body.embed.parent_embed_id ?? null).toBeNull();
+		expect(first.body.embed_keys.map((row: any) => row.key_type).sort()).toEqual(['chat', 'master']);
+		await runWorkflowCliJson(apiUrl, home, ['chats', 'show', chatId], 'Repeat root read', 180_000);
+		const repeated = await readHead();
+		expect(repeated.body.embed.encrypted_content).toBe(first.body.embed.encrypted_content);
+		expect(repeated.body.embed.version_number).toBe(first.body.embed.version_number);
+		expect(repeated.body.embed_keys.map((row: any) => row.encrypted_embed_key).sort())
+			.toEqual(first.body.embed_keys.map((row: any) => row.encrypted_embed_key).sort());
+		frames.length = 0;
+		await page.reload();
+		await requireActiveRecoveryDiscovery(frames);
+		expect(availableOutputs(frames, chatId!).filter((row) => ['embed', 'diff'].includes(row.output_kind))).toEqual([]);
+	} finally {
+		await context.close();
+		removeWorkflowCliHome(home);
+	}
+});
+
+function batchAuthorityFixture(ownerId: string, ids: Record<string, string>, operation: 'seed' | 'verify' | 'cleanup'): void {
+	const root = path.resolve(__dirname, '../../../..');
+	const compose = path.join(root, 'test-results/ci-private/compose.json');
+	expect(process.env.GITHUB_ACTIONS).toBe('true');
+	expect(fs.existsSync(compose), 'Requires the disposable CI stack').toBe(true);
+	const program = `
+import asyncio,hashlib,json,logging,os,sys,time
+logging.disable(logging.CRITICAL)
+assert os.environ.get('OPENMATES_CI_ISOLATED')=='1'
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus import DirectusService
+async def main():
+    data=json.load(sys.stdin); ids=data['ids']; owner=data['ownerId']; op=data['operation']
+    cache=CacheService(); ds=DirectusService(cache_service=cache)
+    digest=lambda value:hashlib.sha256(value.encode()).hexdigest()
+    try:
+        if op=='seed':
+            for key in ('team','forbiddenTeam'):
+                ok,_=await ds.create_item('teams',{'team_id':ids[key],'hashed_team_id':digest(ids[key]),'slug':ids[key],
+                    'encrypted_name':'fixture-ciphertext','status':'active','created_at':int(time.time()),'updated_at':int(time.time())},admin_required=True)
+                assert ok
+            ok,_=await ds.create_item('team_memberships',{'hashed_team_id':digest(ids['team']),'hashed_user_id':digest(owner),
+                'user_id':owner,'role':'viewer','status':'active','joined_at':int(time.time()),'created_at':int(time.time())},admin_required=True)
+            assert ok
+            for key in ('deleting','liveTeam','forbidden','personal'):
+                row={'id':ids[key],'hashed_user_id':None if key=='liveTeam' else digest(owner),
+                    'hashed_team_id':digest(ids['team']) if key=='liveTeam' else digest(ids['forbiddenTeam']) if key=='forbidden' else None,
+                    'messages_v':0,'title_v':0,'metadata_v':0,'archived_message_count':0,
+                    'storage_state':'deleting' if key=='deleting' else 'hot','created_at':int(time.time()),'updated_at':int(time.time())}
+                ok,_=await ds.chat.create_chat_in_directus(row); assert ok
+            ok,_=await ds.create_item('chat_key_wrappers',{'hashed_chat_id':digest(ids['liveTeam']),
+                'hashed_team_id':digest(ids['team']),'hashed_user_id':None,'key_type':'team','team_key_epoch':1,
+                'encrypted_chat_key':'fixture-team-ciphertext','wrapper_version':1,'created_at':int(time.time())},admin_required=True)
+            assert ok
+            for key in ('absent','deleting','liveTeam','forbidden','personal'):
+                assert await cache.add_chat_to_ids_versions(owner,ids[key],int(time.time()))
+        elif op=='verify':
+            cached=set(await cache.get_chat_ids_versions(owner))
+            assert all(ids[key] not in cached for key in ('absent','deleting','forbidden'))
+            assert all(ids[key] in cached for key in ('liveTeam','personal'))
+        else:
+            rows=await ds.get_items('chat_key_wrappers',params={'filter':{'hashed_chat_id':{'_eq':digest(ids['liveTeam'])}},'fields':'id','limit':5},admin_required=True,no_cache=True,raise_on_error=True)
+            for row in rows: await ds.delete_item('chat_key_wrappers',row['id'],admin_required=True)
+            for key in ('absent','deleting','liveTeam','forbidden','personal'):
+                await cache.remove_chat_from_ids_versions(owner,ids[key])
+            for key in ('deleting','liveTeam','forbidden','personal'):
+                await ds.delete_item('chats',ids[key],admin_required=True)
+            for key in ('team','forbiddenTeam'):
+                for collection in ('team_memberships','teams'):
+                    rows=await ds.get_items(collection,params={'filter':{'hashed_team_id':{'_eq':digest(ids[key])}},'fields':'id','limit':5},admin_required=True,no_cache=True,raise_on_error=True)
+                    for row in rows: await ds.delete_item(collection,row['id'],admin_required=True)
+        print('batch authority fixture applied')
+    finally:
+        await ds.close(); await cache.close()
+asyncio.run(main())
+`;
+	const result = execFileSync('docker', ['compose', '-f', compose, 'exec', '-T', '-e', 'OPENMATES_CI_ISOLATED=1',
+		'api', 'python', '-c', program], { cwd: root, input: JSON.stringify({ ownerId, ids, operation }), encoding: 'utf8', timeout: 60_000 });
+	expect(result.trim()).toBe('batch authority fixture applied');
+}
+
+// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('batch skips stale cached chats while preserving current personal and Team authority', async ({ browser }: { browser: any }) => {
+	requireSignedRecoveryProfile();
+	test.setTimeout(180_000);
+	const context = await recordedContext(browser, process.env.PLAYWRIGHT_TEST_BASE_URL, 'batch-authority');
+	const page = await context.newPage();
+	const frames = observeRecoveryFrames(page);
+	const apiUrl = workflowApiUrl(), home = createWorkflowCliHome('batch-authority');
+	const ids = Object.fromEntries(['absent', 'deleting', 'liveTeam', 'forbidden', 'personal', 'team', 'forbiddenTeam'].map((key) => [key, randomUUID()]));
+	let ownerId: string | undefined;
+	try {
+		await page.addInitScript(() => {
+			const Native = window.WebSocket;
+			const Capture = function(url: string | URL, protocols?: string | string[]) {
+				const socket = protocols === undefined ? new Native(url) : new Native(url, protocols);
+				if (String(url).includes('/v1/ws')) Object.assign(window, { __batchAuthoritySocket: socket });
+				return socket;
+			} as unknown as typeof WebSocket;
+			Capture.prototype = Native.prototype;
+			for (const field of ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'] as const) {
+				Object.defineProperty(Capture, field, { value: Native[field] });
+			}
+			Object.defineProperty(window, 'WebSocket', { value: Capture, configurable: true });
+		});
+		await loginWorkflowCliViaPair(page, apiUrl, home, 'BATCH_AUTHORITY');
+		const identity = await runWorkflowCliJson(apiUrl, home, ['whoami'], 'Identify disposable owner');
+		ownerId = identity.id ?? identity.user_id;
+		expect(ownerId).toBeTruthy();
+		batchAuthorityFixture(ownerId!, ids, 'seed');
+		await page.evaluate((chatIds) => {
+			const socket = (window as any).__batchAuthoritySocket as WebSocket;
+			if (socket.readyState !== WebSocket.OPEN) throw new Error('Authenticated socket must be open');
+			socket.send(JSON.stringify({ type: 'request_chat_content_batch', payload: { chat_ids: chatIds } }));
+		}, ['absent', 'deleting', 'liveTeam', 'forbidden', 'personal'].map((key) => ids[key]));
+		await expect.poll(() => frames.some((frame) => frame.type === 'chat_content_batch_response'
+			&& Object.keys(frame.payload.messages_by_chat_id ?? {}).includes(ids.absent))).toBe(true);
+		const response = frames.find((frame) => frame.type === 'chat_content_batch_response'
+			&& Object.keys(frame.payload.messages_by_chat_id ?? {}).includes(ids.absent))!.payload as any;
+		expect(response.partial_error).toBeUndefined();
+		expect(Object.keys(response.versions_by_chat_id).sort()).toEqual([ids.liveTeam, ids.personal].sort());
+		expect(response.chat_key_wrappers).toHaveLength(1);
+		expect(response.chat_key_wrappers[0]).toMatchObject({ key_type: 'team', encrypted_chat_key: 'fixture-team-ciphertext',
+			hashed_team_id: createHash('sha256').update(ids.team).digest('hex') });
+		for (const key of ['absent', 'deleting', 'forbidden']) {
+			expect(response.messages_by_chat_id[ids[key]]).toEqual([]);
+			expect(response.message_windows_by_chat_id[ids[key]]).toBeUndefined();
+			expect(response.embed_windows_by_chat_id[ids[key]]).toBeUndefined();
+		}
+		batchAuthorityFixture(ownerId!, ids, 'verify');
+	} finally {
+		try {
+			if (ownerId) batchAuthorityFixture(ownerId, ids, 'cleanup');
+		} finally {
+			await context.close();
+			removeWorkflowCliHome(home);
+		}
 	}
 });

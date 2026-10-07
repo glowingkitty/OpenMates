@@ -77,6 +77,19 @@ export async function requireActiveRecoveryDiscovery(frames: RecoveryFrame[]): P
 		.toBe('completed');
 }
 
+export async function focusRecoveryPage(page: Page): Promise<void> {
+	await page.bringToFront();
+	await expect.poll(() => page.evaluate(() =>
+		document.visibilityState === 'visible' && document.hasFocus()),
+	{ timeout: 10_000, message: 'Recovery client must be visible and focused before connecting' }).toBe(true);
+}
+
+export async function requireForegroundRecoveryLifecycle(frames: RecoveryFrame[]): Promise<void> {
+	await expect.poll(() => frames.filter((frame) => frame.type === 'native_client_lifecycle_ack')
+		.at(-1)?.payload.is_foreground,
+	{ timeout: 60_000, message: 'Recovery client must receive its foreground lifecycle acknowledgement' }).toBe(true);
+}
+
 export async function disconnectCanonicalWrites(page: Page, frames: RecoveryFrame[] = []): Promise<void> {
 	await page.routeWebSocket(/\/v1\/ws(?:\?|$)/, (socket) => {
 		const server = socket.connectToServer();
@@ -104,7 +117,8 @@ export async function installLegacyRecoverySocket(page: Page): Promise<void> {
 		const NativeWebSocket = window.WebSocket;
 		const LegacyWebSocket = function(url: string | URL, protocols?: string | string[]) {
 			const next = new URL(String(url), window.location.href);
-			next.searchParams.delete('client_capabilities');
+			// Exercise legacy recovery without opting out of the current archive reader contract.
+			next.searchParams.set('client_capabilities', 'agentic-storage-v2');
 			const socket = protocols === undefined ? new NativeWebSocket(next) : new NativeWebSocket(next, protocols);
 			Object.assign(window, { __legacyRecoverySocket: socket });
 			return socket;

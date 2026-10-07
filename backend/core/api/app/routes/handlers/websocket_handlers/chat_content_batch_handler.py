@@ -206,18 +206,69 @@ async def handle_chat_content_batch(
         import hashlib
         user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
+        # Chat-list cache membership can outlive a deleted chat. Read one small,
+        # authoritative ownership projection for this bounded batch before any
+        # message, embed or sidecar reads. A transport failure must not evict it.
+        try:
+            chat_rows = await directus_service.get_items(
+                "chats", params={
+                    "filter": {"id": {"_in": chat_ids}},
+                    "fields": "id,hashed_user_id,hashed_team_id,storage_state,messages_v", "limit": len(chat_ids),
+                }, admin_required=True, no_cache=True, raise_on_error=True,
+            )
+            if not isinstance(chat_rows, list) or any(
+                not isinstance(row, dict) or row.get("id") not in chat_ids for row in chat_rows
+            ):
+                raise RuntimeError("Invalid durable chat ownership response")
+            # Older batch frames have no clear team_id. Resolve only the Team
+            # hashes in this batch; cached membership never grants authority.
+            team_hashes = list({row["hashed_team_id"] for row in chat_rows if row.get("hashed_team_id")})
+            active_team_hashes = set()
+            if team_hashes:
+                memberships = await directus_service.get_items("team_memberships", params={
+                    "filter": {"hashed_team_id": {"_in": team_hashes},
+                               "hashed_user_id": {"_eq": user_id_hash}, "status": {"_eq": "active"},
+                               "role": {"_in": ["owner", "admin", "member", "viewer"]}},
+                    "fields": "hashed_team_id,hashed_user_id,status,role", "limit": len(team_hashes),
+                }, admin_required=True, no_cache=True, raise_on_error=True)
+                teams = await directus_service.get_items("teams", params={
+                    "filter": {"hashed_team_id": {"_in": team_hashes}, "status": {"_eq": "active"}},
+                    "fields": "hashed_team_id,status", "limit": len(team_hashes),
+                }, admin_required=True, no_cache=True, raise_on_error=True)
+                if not isinstance(memberships, list) or not isinstance(teams, list):
+                    raise RuntimeError("Invalid durable Team authority response")
+                if any(not isinstance(row, dict) or row.get("hashed_team_id") not in team_hashes
+                       or row.get("hashed_user_id") != user_id_hash or row.get("status") != "active"
+                       or row.get("role") not in {"owner", "admin", "member", "viewer"} for row in memberships):
+                    raise RuntimeError("Invalid durable Team membership response")
+                if any(not isinstance(row, dict) or row.get("hashed_team_id") not in team_hashes
+                       or row.get("status") != "active" for row in teams):
+                    raise RuntimeError("Invalid durable Team status response")
+                active_team_hashes = {row["hashed_team_id"] for row in memberships} & {
+                    row["hashed_team_id"] for row in teams
+                }
+            current_chats = {row["id"]: row for row in chat_rows if (
+                row.get("hashed_team_id") in active_team_hashes if row.get("hashed_team_id")
+                else row.get("hashed_user_id") == user_id_hash
+            )}
+        except Exception as exc:
+            logger.warning("[CHAT_CONTENT_BATCH]: Durable ownership unavailable (%s)", type(exc).__name__)
+            await manager.send_personal_message(
+                message={"type": "chat_content_batch_response", "payload": {
+                    "messages_by_chat_id": {chat_id: [] for chat_id in chat_ids},
+                    "versions_by_chat_id": {}, "partial_error": True,
+                }}, user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+            )
+            return
+
         authorized_chat_ids: List[str] = []
         for chat_id in chat_ids:
             try:
-                # Verify chat ownership
-                is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
-                if not is_owner:
-                    logger.warning(
-                        f"User {user_id} attempted to fetch messages for chat {chat_id} they don't own. Skipping."
-                    )
+                chat_metadata = current_chats.get(chat_id)
+                if not chat_metadata or chat_metadata.get("storage_state") == "deleting":
+                    await cache_service.remove_chat_from_ids_versions(user_id, chat_id)
                     messages_by_chat_id[chat_id] = []
                     continue
-                authorized_chat_ids.append(chat_id)
 
                 window = await load_bounded_sync_message_window(
                     cache_service=cache_service,
@@ -228,6 +279,7 @@ async def handle_chat_content_batch(
                     user_otel_attrs=user_otel_attrs,
                     archive_service=archive_service,
                 )
+                authorized_chat_ids.append(chat_id)
                 messages_data = window["messages"]
                 messages_by_chat_id[chat_id] = messages_data
                 message_windows_by_chat_id[chat_id] = {
@@ -243,10 +295,7 @@ async def handle_chat_content_batch(
                 if cached_versions and cached_versions.messages_v is not None:
                     messages_v = cached_versions.messages_v
                 else:
-                    # Fall back to Directus chat metadata for messages_v
-                    chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
-                    if chat_metadata:
-                        messages_v = chat_metadata.get("messages_v", 0)
+                    messages_v = chat_metadata.get("messages_v", 0)
 
                 # Use max of messages_v and actual message count to handle async gaps
                 # (Celery may have updated messages but not yet incremented messages_v)
@@ -333,8 +382,9 @@ async def handle_chat_content_batch(
         chat_key_wrappers: List[Dict[str, Any]] = []
         wrapper_windows: Dict[str, Dict[str, Any]] = {}
         for chat_id, hashed_id in zip(authorized_chat_ids, hashed_ids_for_keys):
+            team_hash = current_chats[chat_id].get("hashed_team_id")
             page = await directus_service.chat_key_wrapper.get_sync_wrapper_window_for_chat(
-                hashed_id, hashed_user_id=user_id_hash,
+                hashed_id, **({"hashed_team_id": team_hash} if team_hash else {"hashed_user_id": user_id_hash}),
             )
             chat_key_wrappers.extend(page["wrappers"])
             wrapper_windows[chat_id] = {

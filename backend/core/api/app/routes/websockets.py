@@ -4,7 +4,7 @@ import json
 import asyncio # Added asyncio
 import time
 import uuid
-from typing import Optional
+from typing import Callable, Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI, HTTPException
 from starlette.websockets import WebSocketState
 from backend.core.api.app.utils.websocket_lifecycle import (
@@ -168,6 +168,85 @@ router = APIRouter(
 )
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
+
+
+def _reconcile_recovery_lifecycle_discovery(
+    *,
+    initial_tasks: list[asyncio.Task],
+    foreground_task: asyncio.Task | None,
+    is_foreground: bool,
+    lifecycle_seen_before: bool,
+    should_discover: bool,
+    supports_typed_outputs: bool,
+    schedule: Callable[[], None],
+) -> None:
+    """Keep legacy v1 job discovery alive until foreground work can receive it."""
+    if not is_foreground:
+        for task in initial_tasks:
+            if not task.done():
+                task.cancel()
+        if foreground_task is not None and not foreground_task.done():
+            foreground_task.cancel()
+        return
+    if should_discover and (supports_typed_outputs or lifecycle_seen_before or not initial_tasks):
+        schedule()
+
+
+async def _discover_foreground_recovery(
+    *, manager: ConnectionManager, cache_service: CacheService,
+    directus_service: DirectusService, user_id: str, user_id_hash: str,
+    device_fingerprint_hash: str, supports_typed_recovery_outputs: bool,
+    user_otel_attrs: dict,
+) -> None:
+    # Both v1 jobs and typed outputs require the authoritative recovery epoch.
+    try:
+        epoch = await ChatRecoveryCutoverController(
+            cache_service, directus_service,
+        ).get_epoch(authoritative=True)
+    except Exception:
+        logger.exception("Foreground recovery discovery epoch read failed")
+        if manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+            await manager.send_personal_message(
+                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}},
+                user_id, device_fingerprint_hash,
+            )
+        return
+    if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+        return
+    if epoch < 1:
+        await manager.send_personal_message(
+            {"type": "recovery_outputs_discovery_complete", "payload": {"status": "disabled"}},
+            user_id, device_fingerprint_hash,
+        )
+        return
+    # Job discovery must finish before the typed output completion fence.
+    try:
+        await send_available_recovery_jobs(
+            manager=manager, directus_service=directus_service,
+            user_id=user_id, user_id_hash=user_id_hash,
+            device_fingerprint_hash=device_fingerprint_hash,
+            user_otel_attrs=user_otel_attrs,
+        )
+    except Exception:
+        logger.exception("Foreground recovery job discovery failed")
+        if manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+            await manager.send_personal_message(
+                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}},
+                user_id, device_fingerprint_hash,
+            )
+        return
+    if not supports_typed_recovery_outputs:
+        return
+    try:
+        await send_available_recovery_outputs(
+            manager=manager, directus_service=directus_service,
+            user_id=user_id, user_id_hash=user_id_hash,
+            device_fingerprint_hash=device_fingerprint_hash,
+        )
+    except Exception:
+        logger.exception("Foreground recovery output discovery failed")
+
+
 SAFE_ASSISTANT_SPEECH_STATUS_FIELDS = (
     "segment_id",
     "status",
@@ -2658,60 +2737,19 @@ async def websocket_endpoint(
     else:
         manager.mark_volatile_session_unavailable(websocket)
 
-    async def discover_foreground_recovery() -> None:
-        try:
-            foreground_recovery_epoch = await ChatRecoveryCutoverController(
-                cache_service, directus_service,
-            ).get_epoch(authoritative=True)
-        except Exception:
-            logger.exception("Foreground recovery discovery epoch read failed")
-            if manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
-                await manager.send_personal_message(
-                    {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}},
-                    user_id, device_fingerprint_hash,
-                )
-            return
-        if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
-            return
-        if foreground_recovery_epoch < 1:
-            await manager.send_personal_message(
-                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "disabled"}},
-                user_id, device_fingerprint_hash,
-            )
-            return
-        # Job discovery must finish before the output completion fence: clients
-        # use that fence as the end of this fresh authoritative scan.
-        try:
-            await send_available_recovery_jobs(
-                manager=manager, directus_service=directus_service,
-                user_id=user_id, user_id_hash=user_id_hash,
-                device_fingerprint_hash=device_fingerprint_hash,
-                user_otel_attrs=user_otel_attrs,
-            )
-        except Exception:
-            logger.exception("Foreground recovery job discovery failed")
-            if manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
-                await manager.send_personal_message(
-                    {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}},
-                    user_id, device_fingerprint_hash,
-                )
-            return
-        try:
-            await send_available_recovery_outputs(
-                manager=manager, directus_service=directus_service,
-                user_id=user_id, user_id_hash=user_id_hash,
-                device_fingerprint_hash=device_fingerprint_hash,
-            )
-        except Exception:
-            logger.exception("Foreground recovery output discovery failed")
-
     def schedule_foreground_recovery_discovery(*, replace: bool) -> None:
         nonlocal foreground_recovery_discovery_task
         if foreground_recovery_discovery_task is not None and not foreground_recovery_discovery_task.done():
             if not replace:
                 return
             foreground_recovery_discovery_task.cancel()
-        foreground_recovery_discovery_task = asyncio.create_task(discover_foreground_recovery())
+        foreground_recovery_discovery_task = asyncio.create_task(_discover_foreground_recovery(
+            manager=manager, cache_service=cache_service,
+            directus_service=directus_service, user_id=user_id,
+            user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash,
+            supports_typed_recovery_outputs=supports_typed_recovery_outputs,
+            user_otel_attrs=user_otel_attrs,
+        ))
 
     disconnect_reason = "Server closed connection"
     try:
@@ -3318,9 +3356,7 @@ async def websocket_endpoint(
                     )
             elif message_type == "native_client_lifecycle":
                 is_foreground = bool(payload.get("is_foreground", True))
-                if not foreground_lifecycle_seen:
-                    for initial_task in initial_recovery_discovery_tasks:
-                        initial_task.cancel()
+                foreground_lifecycle_seen_before = foreground_lifecycle_seen
                 was_foreground = manager.is_connection_completion_capable(
                     user_id, device_fingerprint_hash,
                 )
@@ -3347,15 +3383,20 @@ async def websocket_endpoint(
                     user_id,
                     device_fingerprint_hash,
                 )
-                if not is_foreground and foreground_recovery_discovery_task is not None:
-                    foreground_recovery_discovery_task.cancel()
-                # The lifecycle ACK is the client's foreground barrier. Discover
-                # authoritative recovery state after the first foreground
-                # announcement or a real background-to-foreground transition.
-                if supports_typed_recovery_outputs and should_discover_recovery and manager.is_connection_completion_capable(
-                    user_id, device_fingerprint_hash,
-                ):
-                    schedule_foreground_recovery_discovery(replace=True)
+                # Keep the initial legacy job scan alive across a foreground ACK.
+                # A background transition cancels work; a later foreground ACK
+                # starts a fresh job-only scan for clients without typed outputs.
+                _reconcile_recovery_lifecycle_discovery(
+                    initial_tasks=initial_recovery_discovery_tasks,
+                    foreground_task=foreground_recovery_discovery_task,
+                    is_foreground=is_foreground,
+                    lifecycle_seen_before=foreground_lifecycle_seen_before,
+                    should_discover=should_discover_recovery and manager.is_connection_completion_capable(
+                        user_id, device_fingerprint_hash,
+                    ),
+                    supports_typed_outputs=supports_typed_recovery_outputs,
+                    schedule=lambda: schedule_foreground_recovery_discovery(replace=True),
+                )
             elif message_type == "request_recovery_discovery":
                 if not manager.negotiated_typed_recovery_outputs(user_id, device_fingerprint_hash):
                     await manager.send_personal_message(

@@ -7631,12 +7631,17 @@ export class OpenMatesClient {
         const keySubject = parentId || output.subject_id;
         const keyPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(keySubject)}`
           + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
-        const keyPage = keySubject === output.subject_id && canonicalBefore.ok
+        // A root head's confirmed write precedes its wrappers. The read route
+        // requires a readable wrapper, so bootstrap only this sealed root's
+        // keys before the read. Children must first verify their existing parent.
+        const bootstrapRootKeys = output.output_kind === "embed" && !parentId
+          && !canonicalBefore.ok && canonicalBefore.status === 404;
+        const keyPage = bootstrapRootKeys ? null : keySubject === output.subject_id && canonicalBefore.ok
           ? canonicalBefore
           : await this.http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
             keyPath, this.getCliRequestHeaders(),
           );
-        if (!keyPage.ok || keyPage.data?.embed?.hashed_chat_id !== computeSHA256(output.target_chat_id)) {
+        if (keyPage && (!keyPage.ok || keyPage.data?.embed?.hashed_chat_id !== computeSHA256(output.target_chat_id))) {
           throw new Error("Canonical recovery parent embed key scope was unavailable.");
         }
         const hashedKeySubject = computeSHA256(keySubject);
@@ -7662,7 +7667,7 @@ export class OpenMatesClient {
           }
           return types;
         };
-        const existingTypes = await verifiedKeyTypes(keyPage.data?.embed_keys ?? []);
+        const existingTypes = await verifiedKeyTypes(keyPage?.data?.embed_keys ?? []);
         const keys = [
           { hashed_embed_id: hashedKeySubject, key_type: "master", hashed_chat_id: null,
             encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, masterKey), hashed_user_id: hashedUserId, created_at: now },
@@ -7693,13 +7698,17 @@ export class OpenMatesClient {
         const canonicalAfter = await this.http.get<{ embed?: Record<string, unknown> }>(
           embedPath, this.getCliRequestHeaders(),
         );
-        if (!canonicalAfter.ok || canonicalAfter.data?.embed?.hashed_chat_id !== computeSHA256(output.target_chat_id)) {
+        if (!canonicalAfter.ok || canonicalAfter.data?.embed?.hashed_chat_id !== computeSHA256(output.target_chat_id)
+          || (canonicalAfter.data.embed.parent_embed_id ?? null) !== parentId) {
           throw new Error("Canonical recovery embed reread failed before acknowledgement.");
         }
         if (canonicalSource === "head") {
           const ciphertext = canonicalAfter.data.embed?.encrypted_content;
           if (typeof ciphertext !== "string" || computeSHA256(ciphertext) !== canonicalDigest
-            || await decryptWithAesGcmCombined(ciphertext, embedKey) !== content.content) {
+            || await decryptWithAesGcmCombined(ciphertext, embedKey) !== content.content
+            || canonicalAfter.data.embed.hashed_message_id !== computeSHA256(String(content.message_id))
+            || typeof canonicalAfter.data.embed.encrypted_type !== "string"
+            || await decryptWithAesGcmCombined(canonicalAfter.data.embed.encrypted_type, embedKey) !== content.type) {
             throw new Error("Canonical recovery embed reread did not match its receipt.");
           }
         } else {

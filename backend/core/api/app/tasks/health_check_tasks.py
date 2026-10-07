@@ -85,10 +85,10 @@ async def _record_health_event_if_changed(
         # Import and use DirectusService for recording events
         # We do this lazily to avoid circular imports and startup issues
         from backend.core.api.app.services.directus import DirectusService
-        from backend.core.api.app.services.cache import CacheService
         from datetime import datetime, timezone
         
-        directus = DirectusService(cache_service=CacheService())
+        # Own the cache as well as the HTTP client so both are closed below.
+        directus = DirectusService()
         
         try:
             # Get the last known status from the DATABASE (not cache)
