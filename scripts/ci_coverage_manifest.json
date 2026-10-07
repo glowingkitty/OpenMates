@@ -318,7 +318,8 @@
       "enabling_work": "Use real runner-local upload service, ClamAV, S3, Vault and fresh authenticated users. AI detection/transcription/provider assertions remain separately gated; no scan or upload mocks.",
       "specs": [
         "apple-ui-contracts.spec.ts",
-        "profile-image-recovery.spec.ts"
+        "profile-image-recovery.spec.ts",
+        "teams-management-flow.spec.ts"
       ]
     },
     "credential_free_domains": {
@@ -597,7 +598,6 @@
         "cli-project-focus-settings.spec.ts",
         "jev-project-context-api.spec.ts",
         "cli-tui-rich-chat-proof.spec.ts",
-        "teams-management-flow.spec.ts",
         "teams-billing-address.spec.ts",
         "storage-offline-cache-logout.spec.ts",
         "billing-reservation-summary.spec.ts"
