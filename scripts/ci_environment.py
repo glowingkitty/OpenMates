@@ -820,7 +820,7 @@ def compose_profile(
             "depends_on": {"cms": {"condition": "service_started"}},
         },
         "vault": {
-            "image": "hashicorp/vault:1.19",
+            "image": "mirror.gcr.io/hashicorp/vault:1.19@sha256:c4298db7f9b2ea8cab452cbff5877749087913aa035fcae62026cf16132929f5",
             "mem_limit": 512 * MIB,
             "environment": {
                 "VAULT_DEV_ROOT_TOKEN_ID": credentials["vault"],

@@ -53,6 +53,14 @@ def test_profile_is_private_and_source_bound():
         assert any(target in str(mount) for mount in api_mounts), target
 
 
+def test_vault_image_uses_verified_pinned_mirror():
+    image = compose_profile("a" * 40)["services"]["vault"]["image"]
+    assert image == (
+        "mirror.gcr.io/hashicorp/vault:1.19@sha256:"
+        "c4298db7f9b2ea8cab452cbff5877749087913aa035fcae62026cf16132929f5"
+    )
+
+
 def test_signup_mail_capture_stays_on_disposable_internal_network():
     normal = compose_profile("a" * 40)
     assert "mailpit" not in normal["services"]
