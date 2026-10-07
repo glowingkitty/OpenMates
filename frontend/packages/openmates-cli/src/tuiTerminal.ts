@@ -21,6 +21,7 @@ export type TerminalKey = {
   ctrl?: boolean;
   meta?: boolean;
   shift?: boolean;
+  mouse?: { row: number; column: number };
 };
 
 export type TerminalKeyHandler = (chunk: string, key: TerminalKey) => void;
@@ -38,6 +39,7 @@ export class TuiTerminal {
   private readonly decoder = new StringDecoder("utf8");
   private pendingInput = "";
   private pendingMouse = "";
+  private discardingMouse = false;
   private paste = false;
   private pasteText = "";
   private inputTimer: NodeJS.Timeout | null = null;
@@ -109,7 +111,7 @@ export class TuiTerminal {
     if (this.mouseTimer) clearTimeout(this.mouseTimer);
     this.mouseTimer = null;
     this.inputTimer = null;
-    this.pendingInput = ""; this.pendingMouse = ""; this.paste = false; this.pasteText = "";
+    this.pendingInput = ""; this.pendingMouse = ""; this.discardingMouse = false; this.paste = false; this.pasteText = "";
     this.output.write("\x1b[?25h");
     this.output.write("\x1b[?2004l");
     this.output.write("\x1b[?1000l\x1b[?1006l");
@@ -122,6 +124,8 @@ export class TuiTerminal {
     } finally {
       this.suspended = false;
       if (this.active) {
+      // Discard bytes queued while an external command owned stdin.
+      while (this.input.read() !== null) { /* drain suspended input */ }
       this.input.on("data", this.rawInput);
       if (this.resizeHandler) this.output.on("resize", this.resizeHandler);
       if (typeof (this.input as ReadStream).setRawMode === "function") {
@@ -177,7 +181,14 @@ export class TuiTerminal {
       if (this.paste) {
         this.pasteText = (this.pasteText + before).slice(0, 131072);
         this.keyHandler?.(this.pasteText, { name: "paste" }); this.pasteText = "";
-      } else this.dispatchInput(before);
+      } else {
+        this.dispatchInput(before);
+        // Bracketed paste starts a new input mode; stale mouse fragments cannot consume it.
+        if (this.mouseTimer) clearTimeout(this.mouseTimer);
+        this.mouseTimer = null;
+        this.pendingMouse = "";
+        this.discardingMouse = false;
+      }
       this.paste = !this.paste;
       this.pendingInput = this.pendingInput.slice(found + marker.length);
       this.receiveInput(""); return;
@@ -191,38 +202,70 @@ export class TuiTerminal {
     if (trailing && !this.paste) this.inputTimer = setTimeout(() => {this.dispatchInput(this.pendingInput);this.pendingInput="";this.inputTimer=null;}, 30);
   }
 
-  /** Consume SGR mouse reports without letting clicks become composer text. */
-  private dispatchInput(text:string):void {
-    if(this.mouseTimer)clearTimeout(this.mouseTimer);this.mouseTimer=null;
-    const input=this.pendingMouse+text;this.pendingMouse="";
-    let offset=0;
-    while(offset<input.length){
-      const start=input.indexOf("\x1b[<",offset);
-      if(start<0){
-        const rest=input.slice(offset),prefix=rest.endsWith("\x1b[")?"\x1b[":rest.endsWith("\x1b")?"\x1b":"";
-        this.keyInput.write(prefix?rest.slice(0,-prefix.length):rest);
-        if(prefix){
-          this.pendingMouse=prefix;
-          this.mouseTimer=setTimeout(()=>{
-            const pending=this.pendingMouse;this.pendingMouse="";this.mouseTimer=null;
-            if(pending==="\x1b")this.keyHandler?.("\x1b",{name:"escape",sequence:pending});
-            else this.keyInput.write(pending);
-          },500);
-        }
+  /** Keep SGR mouse bytes out of readline, including malformed and split reports. */
+  private dispatchInput(text: string): void {
+    if (this.mouseTimer) clearTimeout(this.mouseTimer);
+    this.mouseTimer = null;
+    const input = this.pendingMouse + text;
+    this.pendingMouse = "";
+    let offset = 0;
+    if (this.discardingMouse) {
+      // eslint-disable-next-line no-control-regex -- Consume the escape that starts a new trusted terminal report.
+      const end = input.search(/[mM\x1b]/);
+      if (end < 0) return;
+      this.discardingMouse = false;
+      offset = input[end] === "\x1b" ? end : end + 1;
+    }
+    while (offset < input.length) {
+      const start = input.indexOf("\x1b[<", offset);
+      if (start < 0) {
+        const rest = input.slice(offset);
+        const prefix = rest.endsWith("\x1b[") ? "\x1b[" : rest.endsWith("\x1b") ? "\x1b" : "";
+        this.keyInput.write(prefix ? rest.slice(0, -prefix.length) : rest);
+        if (prefix) this.holdMousePrefix(prefix);
         break;
       }
-      this.keyInput.write(input.slice(offset,start));
-      // eslint-disable-next-line no-control-regex -- Parse terminal SGR mouse protocol bytes.
-      const rest=input.slice(start),report=/^\x1b\[<(\d+);(\d+);(\d+)([mM])/.exec(rest);
-      if(!report){
-        // eslint-disable-next-line no-control-regex -- Retain a fragmented SGR mouse report.
-        if(rest.length<128&&/^\x1b\[<[\d;]*$/.test(rest)){this.pendingMouse=rest;break;}
-        this.keyInput.write(rest.slice(0,3));offset=start+3;continue;
+      this.keyInput.write(input.slice(offset, start));
+      const nextEscape = input.indexOf("\x1b", start + 3);
+      const endM = input.indexOf("M", start + 3);
+      const endm = input.indexOf("m", start + 3);
+      const end = endM < 0 ? endm : endm < 0 ? endM : Math.min(endM, endm);
+      if (end < 0 || (nextEscape >= 0 && nextEscape < end)) {
+        if (nextEscape >= 0) { offset = nextEscape; continue; }
+        if (input.length - start < 128) this.holdMousePrefix(input.slice(start));
+        else this.discardingMouse = true;
+        break;
       }
-      const button=Number(report[1]);
-      if(report[4]==="M"&&(button&64)&&((button&3)===0||(button&3)===1))this.keyHandler?.("",{name:(button&3)===0?"scrollup":"scrolldown",sequence:report[0]});
-      offset=start+report[0].length;
+      const sequence = input.slice(start, end + 1);
+      // eslint-disable-next-line no-control-regex -- Parse terminal SGR mouse protocol bytes.
+      const report = /^\x1b\[<(\d+);(\d+);(\d+)([mM])$/.exec(sequence);
+      if (report) {
+        const button = Number(report[1]);
+        const column = Number(report[2]);
+        const row = Number(report[3]);
+        if ([button, column, row].every(Number.isSafeInteger) && column > 0 && row > 0) {
+          const mouse = {row: row - 1, column: column - 1};
+          if (report[4] === "M" && button === 0 && !this.selectingText) {
+            this.keyHandler?.("", {name: "mouseclick", sequence, mouse});
+          } else if (report[4] === "M" && (button & 64) && ((button & 3) === 0 || (button & 3) === 1)) {
+            this.keyHandler?.("", {name: (button & 3) === 0 ? "scrollup" : "scrolldown", sequence, mouse});
+          }
+        }
+      }
+      offset = end + 1;
     }
+  }
+
+  private holdMousePrefix(prefix: string): void {
+    this.pendingMouse = prefix;
+    this.mouseTimer = setTimeout(() => {
+      const pending = this.pendingMouse;
+      this.pendingMouse = "";
+      this.mouseTimer = null;
+      if (pending === "\x1b") this.keyHandler?.("\x1b", {name: "escape", sequence: pending});
+      else if (pending === "\x1b[") this.keyInput.write(pending);
+      else this.discardingMouse = true;
+    }, 500);
   }
 
   private removeListeners(): void {
@@ -234,7 +277,7 @@ export class TuiTerminal {
     if (this.inputTimer) clearTimeout(this.inputTimer);
     if (this.mouseTimer) clearTimeout(this.mouseTimer);
     this.mouseTimer = null;
-    this.inputTimer = null; this.pendingInput = ""; this.pendingMouse = ""; this.paste = false; this.pasteText = "";
+    this.inputTimer = null; this.pendingInput = ""; this.pendingMouse = ""; this.discardingMouse = false; this.paste = false; this.pasteText = "";
     if (this.resizeHandler) {
       this.output.off("resize", this.resizeHandler);
       this.resizeHandler = null;

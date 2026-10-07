@@ -63,17 +63,83 @@ test("suspend detaches key input and frame rendering during external auth, then 
   assert.ok(written().includes("\x1b[?1049l"));
 });
 
-test("wheel reports survive fragmented input and clicks never enter the composer", async () => {
-  const {input,terminal,written}=fakeTerminal(),keys:Array<{text:string;name?:string}>=[];
-  terminal.enter();terminal.onKey((text,key)=>keys.push({text,name:key.name}));
+// contract: feature.terminal-pointer@1 terminal-pointer.lifecycle-selection-safe, terminal-pointer.visible-action-parity
+test("fragmented SGR left press emits one zero-based click while wheels and paste retain their meaning", async () => {
+  const {input,terminal,written}=fakeTerminal(),keys:Array<{text:string;name?:string;mouse?:TerminalKey["mouse"]}>=[];
+  terminal.enter();terminal.onKey((text,key)=>keys.push({text,name:key.name,mouse:key.mouse}));
   assert.ok(written().includes("\x1b[?1000h\x1b[?1006h"));
   input.write("\x1b");await new Promise((resolve)=>setTimeout(resolve,45));input.write("[<64;12;5M");
   input.write("\x1b[");await new Promise((resolve)=>setTimeout(resolve,45));input.write("<65;12;5M");
-  input.write("\x1b[<0;12;5M\x1b[<0;12;5ma");
+  input.write("\x1b[<0;12;");input.write("5M\x1b[<0;12;5ma");
   input.write("\x1b[200~literal \x1b[<64;12;5M\x1b[201~");
   await new Promise((resolve)=>setImmediate(resolve));
-  assert.deepEqual(keys,[{text:"",name:"scrollup"},{text:"",name:"scrolldown"},{text:"a",name:"a"},{text:"literal \x1b[<64;12;5M",name:"paste"}]);
+  assert.deepEqual(keys,[
+    {text:"",name:"scrollup",mouse:{row:4,column:11}},
+    {text:"",name:"scrolldown",mouse:{row:4,column:11}},
+    {text:"",name:"mouseclick",mouse:{row:4,column:11}},
+    {text:"a",name:"a",mouse:undefined},
+    {text:"literal \x1b[<64;12;5M",name:"paste",mouse:undefined},
+  ]);
   terminal.leave();assert.ok(written().includes("\x1b[?1000l\x1b[?1006l"));
+});
+
+// contract: feature.terminal-pointer@1 terminal-pointer.lifecycle-selection-safe
+test("mouse releases, other buttons, motion, modifiers, and invalid coordinates cannot activate a click", async () => {
+  const {input, terminal} = fakeTerminal();
+  const names: string[] = [];
+  terminal.enter();
+  terminal.onKey((_text, key) => names.push(key.name ?? ""));
+  for (const report of [
+    "0;1;1m", "1;1;1M", "2;1;1M", "3;1;1M", "32;1;1M",
+    "4;1;1M", "8;1;1M", "16;1;1M", "0;0;1M", "0;1;0M",
+    "0;9007199254740992;1M", "0;1;9007199254740992M", "bogus;1;1M",
+  ]) input.write(`\x1b[<${report}`);
+  input.write("\x1b[<0;1;1M");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(names, ["mouseclick"]);
+  terminal.leave();
+});
+
+// contract: feature.terminal-pointer@1 terminal-pointer.lifecycle-selection-safe
+test("incomplete and oversized reports stay out of composer input across suspension and selection", async () => {
+  const {input, terminal, written} = fakeTerminal();
+  const keys: Array<{text: string; name?: string}> = [];
+  terminal.enter();
+  terminal.onKey((text, key) => keys.push({text, name: key.name}));
+  input.write("\x1b[<0;" + "9".repeat(140));
+  input.write("9Mok");
+  input.write("\x1b[<0;2;");
+  await terminal.suspend(async () => { input.write("3M"); });
+  input.write("z");
+  terminal.render("select", null, true);
+  input.write("\x1b[<0;1;1M");
+  await new Promise((resolve) => setImmediate(resolve));
+  terminal.render("resume", null, false);
+  input.write("\x1b[<0;1;1M");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(keys, [{text: "o", name: "o"}, {text: "k", name: "k"}, {text: "z", name: "z"}, {text: "", name: "mouseclick"}]);
+  terminal.leave();
+  assert.ok(written().endsWith("\x1b[?1049l"));
+});
+
+// contract: feature.terminal-pointer@1 terminal-pointer.lifecycle-selection-safe
+test("timed-out mouse fragments cannot leak trailing bytes or consume a later paste", async () => {
+  const {input, terminal} = fakeTerminal();
+  const keys: Array<{text: string; name?: string}> = [];
+  terminal.enter();
+  terminal.onKey((text, key) => keys.push({text, name: key.name}));
+  input.write("\x1b[<0;20;");
+  await new Promise((resolve) => setTimeout(resolve, 550));
+  input.write("3M");
+  input.write("\x1b[<0;20;");
+  input.write("\x1b[200~literal \x1b[<0;2;3M\x1b[201~");
+  input.write("\x1b[<0;1;1M");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(keys, [
+    {text: "literal \x1b[<0;2;3M", name: "paste"},
+    {text: "", name: "mouseclick"},
+  ]);
+  terminal.leave();
 });
 
 test("full-width redraws address rows without newline autowrap or erasing the last cell",()=>{

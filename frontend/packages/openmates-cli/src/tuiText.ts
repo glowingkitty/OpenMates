@@ -1,5 +1,6 @@
 /* eslint-disable no-control-regex -- Terminal sanitization intentionally matches escape and control bytes. */
 /** Terminal cell geometry. User text is sanitized before any trusted styling. */
+import type {TuiPointerAction} from './tuiPointer.js';
 const segments = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 export function stripAnsi(value: string): string { return value.replace(/\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\))/g, ""); }
 export function terminalText(value: string): string {
@@ -76,10 +77,11 @@ export function moveGraphemeCursor(value: string, cursor: number, direction: -1 
 }
 
 export type TuiColorMode = "none" | "ansi16" | "ansi256" | "truecolor";
-export type TuiSpan = { text: string; background?: string; color?: string; bold?: boolean };
+export type TuiSpan = { text: string; background?: string; color?: string; bold?: boolean; action?:TuiPointerAction };
 /** Trusted rendering metadata, kept separate from untrusted terminal text. */
 export type TuiLine = string | {
   text: string;
+  action?:TuiPointerAction;
   background?: string;
   spans?: TuiSpan[];
   color?: string;

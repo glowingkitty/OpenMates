@@ -5,6 +5,7 @@ import { parseTuiMarkdown } from './tuiMarkdown.js';
 import type { TuiState } from './tuiRenderer.js';
 import type { WorkspaceContext } from './tuiWorkspaceController.js';
 import type { TerminalKey } from './tuiTerminal.js';
+import type { TuiPointerAction } from './tuiPointer.js';
 import { eraseGrapheme, terminalText, wrapCells, type TuiLine } from './tuiText.js';
 
 export type TuiQuestion = { key:number; messageIndex:number; payload:InteractiveQuestionPayload; response?:InteractiveQuestionAnswer };
@@ -63,23 +64,65 @@ export function renderQuestionCard(question:TuiQuestion,width:number):TuiLine[] 
     const marker=q.type==='choice'?(control.selected?'[✓]':q.multiple?'[ ]':'( )'):'';
     rows.push(...wrapCells(`${marker} ${control.label}${control.value!==undefined?` · ${control.value||'(empty)'}`:''}`.trim(),width));
   }
-  rows.push(...wrapCells(answer?'Answered':`/question ${question.key} · Answer${q.multiple?' · Choose several':''} · Ctrl+Q latest question`,width).map(text=>({text,color:answer?'#808080':'#85c9e8'})),'');
+  rows.push(...wrapCells(answer?'Answered':`/question ${question.key} · Answer${q.multiple?' · Choose several':''} · Ctrl+Q latest question`,width)
+    .map(text=>({text,color:answer?'#808080':'#85c9e8',
+      ...(answer?{}:{action:{kind:'question' as const,index:question.key,activate:true}})})),'');
   return rows;
 }
 
 export function renderQuestionEditor(editor:TuiQuestionEditor,width:number):TuiLine[] {
   const q=editor.question.payload,items=controls(editor),rows:TuiLine[]=[];
-  const add=(text:string,color='#e6e6e6',bold=false)=>rows.push(...wrapCells(text,width).map(text=>({text,color,bold})));
+  const add=(text:string,color='#e6e6e6',bold=false,action?:TuiPointerAction)=>
+    rows.push(...wrapCells(text,width).map(text=>({text,color,bold,action})));
   add(`Answer question ${editor.question.key}`,'#80caff',true);
   add(q.question??(q.type==='input'?'Tell us more':'Review these options'),'#ffffff',true);rows.push('');
   items.forEach((item,index)=>{
     const focused=index===editor.fieldIndex,marker=q.type==='choice'?(item.selected?'[✓]':q.multiple?'[ ]':'( )'):'';
-    add(`${focused?'›':' '} ${marker} ${item.label}`,focused?'#32ade6':'#e6e6e6',focused);
-    if(item.value!==undefined)add(`    ${item.value||'(empty)'}${focused&&item.text&&!editor.busy?'_':''}`);
+    const action:TuiPointerAction={kind:'question',index,activate:q.type==='choice'};
+    add(`${focused?'›':' '} ${marker} ${item.label}`,focused?'#32ade6':'#e6e6e6',focused,action);
+    if(item.value!==undefined)add(`    ${item.value||'(empty)'}${focused&&item.text&&!editor.busy?'_':''}`,'#e6e6e6',false,action);
+    if(q.type==='rating'&&index===0){
+      const max=q.max_stars??q.max??q.scale??5;
+      add('    '+Array.from({length:Math.min(max,20)},(_,star)=>`[${star+1}]`).join(' '),'#85c9e8');
+      const line=rows.at(-1);
+      if(typeof line!=='string'&&line){
+        const spans=[];let text='    ';
+        spans.push({text});
+        for(let star=1;star<=Math.min(max,20);star++){
+          text=`[${star}]${star<Math.min(max,20)?' ':''}`;
+          spans.push({text,action:{kind:'question' as const,index,value:star}});
+        }
+        if(spans.map(span=>span.text).join('')===line.text)line.spans=spans;
+      }
+    }
+    if(q.type==='slider'){
+      const min=q.min!,max=q.max!,step=q.step??1,current=Number(editor.answer.value);
+      const values=[min,Math.max(min,Math.min(max,min+Math.round((current-min)/step-1)*step)),
+        current,Math.max(min,Math.min(max,min+Math.round((current-min)/step+1)*step)),max]
+        .filter((value,position,all)=>position===all.indexOf(value));
+      const text='    '+values.map(value=>`[${value}]`).join(' ');
+      if(wrapCells(text,width).length===1){
+        const spans=[{text:'    '},...values.map((value,position)=>({
+          text:`[${value}]${position<values.length-1?' ':''}`,
+          action:{kind:'question' as const,index,value},
+        }))];
+        rows.push({text,spans});
+      }
+    }
+    if(q.type==='swipe'){
+      const text='    [← dislike]  [like →]';
+      if(wrapCells(text,width).length===1)rows.push({text,spans:[
+        {text:'    '},{text:'[← dislike]',action:{kind:'question',index,value:'dislike'}},
+        {text:'  '},{text:'[like →]',action:{kind:'question',index,value:'like'}},
+      ]});
+    }
   });
   rows.push('');
-  add(`${editor.fieldIndex===items.length?'›':' '} [Send answer]`,'#32ade6',true);
-  add(`${editor.fieldIndex===items.length+1?'›':' '} [Clear]`,'#a0a0a0');
+  add(`${editor.fieldIndex===items.length?'›':' '} [Send answer]`,'#32ade6',true,
+    {kind:'question',index:items.length,activate:true});
+  add(`${editor.fieldIndex===items.length+1?'›':' '} [Clear]`,'#a0a0a0',false,
+    {kind:'question',index:items.length+1,activate:true});
+  add(' [Cancel]','#a0a0a0',false,{kind:'question',index:items.length+2,activate:true});
   if(editor.error)add(editor.error,'#ff6b6b',true);
   add(editor.busy?'Sending…':'Tab / ↑↓ move · Space choose · ←/→ adjust · Ctrl+S send · Ctrl+U clear · Esc cancel','#a0a0a0');
   return rows;
@@ -157,4 +200,45 @@ export async function handleQuestionKey(context:WorkspaceContext,chunk:string,ke
     editor.error=undefined;
   }
   render();return true;
+}
+
+/** Pointer actions use the same draft and submit path as keyboard interaction. */
+export async function handleQuestionPointer(
+  context:WorkspaceContext,action:Extract<TuiPointerAction,{kind:'question'}>,
+):Promise<void> {
+  const {state,render}=context,editor=state.questionEditor;
+  if(!editor){
+    if(!action.activate||!['chat','example'].includes(state.screen))return;
+    const key=typeof action.index==='number'?action.index:Number(action.index);
+    if(!Number.isInteger(key)||key<1)return;
+    try{openQuestion(state,key);}catch(error){state.status=String((error as Error).message);}
+    render();return;
+  }
+  if(editor.busy)return;
+  const q=editor.question.payload,items=controls(editor),
+    index=typeof action.index==='number'?action.index:Number(action.index);
+  if(!Number.isInteger(index)||index<0||index>items.length+2)return;
+  if(index>=items.length&&!action.activate)return;
+  if(index===items.length+2){await handleQuestionKey(context,'',{name:'escape'});return;}
+  if(index===items.length+1){await handleQuestionKey(context,'',{name:'u',ctrl:true});return;}
+  if(index===items.length){await handleQuestionKey(context,'',{name:'s',ctrl:true});return;}
+  editor.fieldIndex=index;
+  if(q.type==='choice'&&action.activate){
+    await handleQuestionKey(context,'',{name:'space'});return;
+  }
+  if(q.type==='slider'&&typeof action.value==='number'){
+    const min=q.min!,max=q.max!,step=q.step??1,value=action.value;
+    if(Number.isFinite(value)&&value>=min&&value<=max&&Math.abs((value-min)/step-Math.round((value-min)/step))<1e-7){
+      editor.answer.value=value;editor.touched=true;editor.error=undefined;
+    }
+  }else if(q.type==='rating'&&typeof action.value==='number'){
+    const max=q.max_stars??q.max??q.scale??5;
+    if(Number.isInteger(action.value)&&action.value>=1&&action.value<=max){
+      editor.answer.rating=action.value;editor.error=undefined;
+    }
+  }else if(q.type==='swipe'&&(action.value==='like'||action.value==='dislike')){
+    (editor.answer.swipes as Record<string,string>)[items[index].id]=action.value;
+    editor.error=undefined;
+  }
+  render();
 }

@@ -99,7 +99,9 @@ async function recordInteractiveCli(apiUrl: string, home: string, outputDir: str
 	});
 }
 
-export type ProofStep = {name: string; text?: string; key?: string; repeat?: number; wheel?: 'up' | 'down'; wait_for?: string; wait_for_absent?: string; hold_ms?: number};
+export type ProofStep = {name: string; text?: string; key?: string; repeat?: number; wheel?: 'up' | 'down';
+	click?: {text: string; occurrence?: number} | {row: number; column: number};
+	resize?: {width: number; height: number}; wait_for?: string; wait_for_absent?: string; hold_ms?: number};
 type ProofContract = typeof detailProofContract | typeof homeProofContract;
 type CliCheckpoint = {name: string; at_ms: number; transcript_offset: number};
 type CliManifest = {
@@ -200,7 +202,7 @@ function seedEncryptedAppsResult(apiUrl: string, home: string, candidateCli: str
 	return result.stdout.trim();
 }
 
-type SeededWorkspace = {projectId?: string; taskId?: string; workflowId?: string; draftIds: string[]; projectName: string; taskTitle: string; workflowTitle: string};
+type SeededWorkspace = {projectId?: string; taskId?: string; workflowId?: string; workflowDetail?: unknown; draftIds: string[]; projectName: string; taskTitle: string; workflowTitle: string};
 
 async function seedWorkspace(page: Page, apiUrl: string, home: string, fixture: SeededWorkspace, withRecentChats: boolean): Promise<void> {
 	await loginWorkflowCliViaPair(page, apiUrl, home, 'CLI_TUI_PROOF');
@@ -228,6 +230,7 @@ async function seedWorkspace(page: Page, apiUrl: string, home: string, fixture: 
 	].join('\n'));
 	const workflow = (await runWorkflowCliJson(apiUrl, home, ['workflows', 'create', '--file', yaml], 'create proof workflow')).workflow;
 	fixture.workflowId = workflow.id;
+	fixture.workflowDetail = workflow;
 	expect(workflow.enabled).toBe(false);
 	if (withRecentChats) {
 		for (const label of ['Plan a weekend', 'Review a project', 'Learn a concept', 'Organize a trip', 'Write a story']) {
@@ -242,8 +245,16 @@ async function seedWorkspace(page: Page, apiUrl: string, home: string, fixture: 
 }
 
 async function cleanupWorkspace(apiUrl: string, home: string, fixture: SeededWorkspace): Promise<void> {
-	// Clearing a draft leaves its chat behind; remove only this test's owned chats.
-	for (const id of fixture.draftIds) await runWorkflowCliJson(apiUrl, home, ['chats', 'delete', id, '--yes', '--json'], 'delete proof chat');
+	// Draft-only IDs have no persisted chat row to delete. Clear each owned
+	// encrypted draft, then verify that none remains in the server-backed list.
+	for (const id of fixture.draftIds) {
+		const cleared = await runWorkflowCliJson(apiUrl, home, ['drafts', 'clear', id], 'clear proof draft');
+		expect(cleared).toEqual({success: true, chat_id: id});
+	}
+	if (fixture.draftIds.length) {
+		const listed = await runWorkflowCliJson(apiUrl, home, ['drafts', 'list', '--refresh'], 'verify cleared proof drafts');
+		for (const id of fixture.draftIds) expect(listed.drafts.some((item: {chatId: string}) => item.chatId === id)).toBe(false);
+	}
 	if (fixture.workflowId) await deleteWorkflowQuietly(apiUrl, home, fixture.workflowId);
 	if (fixture.taskId) await runWorkflowCli(apiUrl, home, ['tasks', 'delete', fixture.taskId, '--confirm', '--json']);
 	if (fixture.projectId) await runWorkflowCli(apiUrl, home, ['projects', 'delete', fixture.projectId, '--confirm', fixture.projectId, '--json']);

@@ -114,7 +114,10 @@ test("only the selected card has the accented border, background, and title mark
   const selectedRows = lines.filter((line) => lineText(line).includes("Second task") || lineText(line).includes("╔") || lineText(line).includes("╚"));
   assert.ok(selectedRows.every((line) => typeof line !== "string" && line.spans?.some((span) => span.background === "#263b52")));
   const firstTitle = lines.find((line) => lineText(line).includes("First task"));
-  assert.equal(typeof firstTitle, "string");
+  assert.ok(firstTitle&&typeof firstTitle!=="string");
+  assert.equal(firstTitle.background,undefined);
+  assert.equal(firstTitle.spans?.some(span=>span.background),undefined);
+  assert.deepEqual(firstTitle.action,{kind:"select",target:"task",column:1,index:0,id:"task-1",activate:true});
 });
 
 // contract-test: supporting surface=cli assertions=tasks.structure.flat-dependencies,tasks.activity.single-final-section

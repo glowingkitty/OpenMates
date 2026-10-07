@@ -1,0 +1,27 @@
+schema_version: 2
+profile: concise
+id: tui-pointer
+title: Open terminal UI elements with clicks and terminal-generated taps
+status: implementing
+goal: >
+  Implement clicking on elements in the OpenMates TUI when used in a terminal
+  on a GUI device such as a Mac or tablet.
+specifications:
+  - feature.terminal-pointer@1
+approval:
+  confirmation: explicit_user_confirmation
+  fingerprint: f8c88e1d4413dcc072cc7bb1db60a39cc78da437278c5670e9f119b40a4b65e7
+task: 584ffc7a-8fd5-4db1-a3d2-4326b7fb31ba
+scope:
+  in:
+    - Invoke existing keyboard actions from visible terminal cells.
+    - Rebuild targets after scrolling, resizing, carousels and background updates.
+    - Preserve draft-only questions, composer focus, modal validation and native selection.
+  out:
+    - Hover, drag-and-drop, reordering or gestures without terminal mouse reports.
+verification:
+  - Focused parser, pointer layout, action and workspace unit checks.
+  - CLI build, Specification coverage and scoped source checks.
+  - Isolated GitHub terminal proof using actual XTEST clicks and resize.
+  - Installed authenticated CLI read-only offline smoke.
+  - Review and deliver all captured CI videos, then publish the scoped dev change.

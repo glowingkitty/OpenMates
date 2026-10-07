@@ -1,7 +1,8 @@
 /** Shared centered card viewport for the terminal Chats and Apps homes. */
 import { cells, lineText, padCells, sliceCells, truncateCells, wrapCells, type TuiLine, type TuiSpan } from "./tuiText.js";
+import type { TuiPointerAction } from "./tuiPointer.js";
 
-export type TuiCarouselCard = { title: string; description: string; footer: string; background: string };
+export type TuiCarouselCard = { title: string; description: string; footer: string; background: string; action?: TuiPointerAction };
 
 export function renderCardCarousel(cards: TuiCarouselCard[], width: number, selectedIndex: number, focused: boolean): TuiLine[] {
   width = Math.max(1, Math.floor(width));
@@ -23,7 +24,7 @@ export function renderCardCarousel(cards: TuiCarouselCard[], width: number, sele
       `│ ${padCells(card.footer, inner)} │`,
       `╰${"─".repeat(cardWidth - 2)}╯`,
     ];
-    return { rows, left: center + (index - selected) * stride, background: card.background, active };
+    return { rows, left: center + (index - selected) * stride, background: card.background, active, action: card.action };
   });
   return Array.from({ length: visible[0].rows.length }, (_, row) => {
     const spans: TuiSpan[] = []; let column = 0;
@@ -31,7 +32,7 @@ export function renderCardCarousel(cards: TuiCarouselCard[], width: number, sele
       const start = Math.max(0, card.left), end = Math.min(width, card.left + cardWidth);
       if (end <= start) continue;
       if (start > column) spans.push({ text: " ".repeat(start - column) });
-      spans.push({ text: sliceCells(card.rows[row], Math.max(0, -card.left), end - start), background: card.background, bold: card.active });
+      spans.push({ text: sliceCells(card.rows[row], Math.max(0, -card.left), end - start), background: card.background, bold: card.active, action: card.action });
       column = end;
     }
     if (column < width) spans.push({ text: " ".repeat(width - column) });
@@ -63,12 +64,12 @@ export function renderLineCarousel(cards:TuiLine[][],width:number,selectedIndex:
         const raw=lineText(line),text=raw.startsWith('│ ')?`│ › ${padCells(raw.slice(2,-2),Math.max(0,cardWidth-6))} │`:padCells('› '+raw,cardWidth);
         line=typeof line==='string'?{text,bold:true,color:'#ff553b'}:{...line,text,bold:true,spans:line.spans?[{...line.spans[0],text,bold:true}]:undefined};
       }
-      const source=typeof line==='string'?[{text:line}]:line.spans??[{text:line.text,color:line.color,background:line.background,bold:line.bold}];
+      const source:TuiSpan[]=typeof line==='string'?[{text:line}]:line.spans??[{text:line.text,color:line.color,background:line.background,bold:line.bold,action:line.action}];
       let offset=0,used=0;
       const cropStart=Math.max(0,-card.left),cropEnd=cropStart+end-start;
       for(const part of source){
         const size=cells(part.text),from=Math.max(cropStart,offset),to=Math.min(cropEnd,offset+size);
-        if(to>from){spans.push({...part,text:sliceCells(part.text,from-offset,to-from)});used+=to-from;}
+        if(to>from){spans.push({...part,action:part.action??(typeof line==='string'?undefined:line.action),text:sliceCells(part.text,from-offset,to-from)});used+=to-from;}
         offset+=size;
       }
       if(used<end-start)spans.push({text:' '.repeat(end-start-used)});

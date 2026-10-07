@@ -7,6 +7,7 @@ import { CATEGORY_GRADIENTS } from "../../chatCategoryTheme.js";
 import { centeredCarouselText, renderCardCarousel } from "./tuiCarousel.js";
 import { terminalText, wrapCells, type TuiLine } from "./tuiText.js";
 import { runningTuiChatGroups, refreshTuiChatSidebar, updateTuiChatSidebar } from './tuiChatSidebar.js';
+import { pointerLine } from './tuiPointer.js';
 
 import {getSavedEmbedContinueCandidates,getReminderByTargetEmbedId,getReminderByTargetChatId,sortContinuePriorityItems,
   type ActiveReminderForContinue,type ContinuePriority,type SavedEmbedContinueCandidate} from "../../ui/src/services/continueCarouselService.js";
@@ -228,7 +229,8 @@ export function homeHeader(state:TuiState,width:number,height:number):TuiLine[] 
   const title=inspiration?.feature?.title || inspiration?.title || "Daily inspiration";
   const banner=[centered(`DAILY INSPIRATION  ${state.focus==="inspiration" ? "‹  Enter open  ›" : "‹  Ctrl+O explore  ›"}`,width),"",...parts.map((line)=>centered(line,width)),centered(title,width)];
   while(banner.length<rows)banner.push("");
-  banner.forEach((text)=>result.push({text,background:gradient.start}));
+  banner.forEach((text)=>result.push({text,background:gradient.start,
+    ...(inspiration ? {action:{kind:'command' as const,command:'/inspiration'}} : {})}));
   result.push("",{text:centered(state.workspace==="apps" ? prompts.apps : state.username ? `Hey ${state.username}!` : "Hey there!",width),bold:true});
   if(state.workspace!=="chats"||!homeChatItems(state).length)result.push({text:centered(state.workspace==="apps" ? "Use your apps directly and return to saved results." : prompts[state.workspace],width),color:"#cfcfcf"});
   result.push("");
@@ -238,7 +240,7 @@ export function homeHeader(state:TuiState,width:number,height:number):TuiLine[] 
 export function renderHomeChatCards(state:TuiState,width:number,height:number):TuiLine[] {
   const items=homeContinueItems(state), result=homeHeader(state,width,height);
   const activeCount = runningTuiChatGroups(state).length;
-  if (activeCount) result.push(centered(`${activeCount} ${activeCount === 1 ? 'chat' : 'chats'} active…  /active`, width), '');
+  if (activeCount) result.push(pointerLine(centered(`${activeCount} ${activeCount === 1 ? 'chat' : 'chats'} active…  /active`, width),{kind:'command',command:'/active'}), '');
   if(!items.length){
     result.push(centered(state.homeChatsLoading ? "Loading your recent chats…" : state.homeError || "Start a chat below. Your recent chats will appear here.",width),"");
     return result;
@@ -247,10 +249,12 @@ export function renderHomeChatCards(state:TuiState,width:number,height:number):T
   const selected=Math.max(0,Math.min(items.length-1,state.selectedIndex));
   result.push(...renderCardCarousel(items.map(item=>{
     if(item.kind==="embed")return {title:item.title,description:item.summary || "Open saved item",
-      footer:`${item.priority.label} · Saved`,background:(item.category && CATEGORY_GRADIENTS[item.category] || BLUE).start};
+      footer:`${item.priority.label} · Saved`,background:(item.category && CATEGORY_GRADIENTS[item.category] || BLUE).start,
+      action:{kind:'command' as const,command:`/embed ${item.embedId}`}};
     const chat=item.chat;return {
       title:chat.title||chat.draftPreview||"Untitled chat",description:chat.hasDraft?'Draft':chat.summary||"Continue this conversation",
       footer:item.priority?.label || chat.category?.replaceAll("_"," ") || "Chat",background:(chat.category && CATEGORY_GRADIENTS[chat.category] || BLUE).start,
+      action:{kind:'command' as const,command:chat.source==='example'?`/example ${chat.slug||chat.id}`:`/chat ${chat.id}`},
     };
   }),width,selected,state.focus==="content"));
   result.push("",centered(`${selected>0?"‹":" "}  ${items.some(item=>item.kind==="embed")?"Item":"Chat"} ${selected+1} of ${items.length}  ${selected<items.length-1?"›":" "}`,width),

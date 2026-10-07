@@ -6,8 +6,9 @@ import { buildEncryptedObjectSlugMetadata } from "./objectSlugs.js";
 import { requestProjectRemoteOperation } from "./projectRequester.js";
 import { isProtectedProjectReadPath } from "../../ui/src/utils/projectSearchProtocol.js";
 import { formValue, type TuiForm } from "./tuiForms.js";
-import { cells, padCells, terminalText, truncateCells, type TuiLine } from "./tuiText.js";
+import { cells, padCells, terminalText, truncateCells, type TuiLine, type TuiSpan } from "./tuiText.js";
 import { centeredCarouselText, renderCardCarousel } from "./tuiCarousel.js";
+import { pointerLine } from "./tuiPointer.js";
 import { APP_GRADIENTS, PRIMARY_GRADIENT } from "../../appGradientTheme.js";
 
 export interface TuiProjectFile {
@@ -288,6 +289,7 @@ export function renderProjectCarousel(projects: TuiProject[], width: number, sel
       description: safeText(project.description),
       footer: `${count} ${count === 1 ? "item" : "items"}${project.pinned ? " · Pinned" : ""}${project.archived ? " · Archived" : ""}`,
       background: projectCardColor(project.color),
+      action: {kind: "command" as const, command: `/project ${project.id}`},
     };
   });
   return [...renderCardCarousel(cards, width, selected, focused), "",
@@ -358,19 +360,41 @@ export function renderProjectTabs(tab: "overview" | "files" | "tasks", width: nu
   return ["", `${" ".repeat(inset)}${clip(text, width)}`, ""];
 }
 
+/** Rich tab strip with targets limited to the visible, clipped label cells. */
+export function renderProjectPointerTabs(tab: "overview" | "files" | "tasks", width: number): TuiLine[] {
+  const names = ["overview", "files", "tasks"] as const;
+  const labels = names.map((name, index) => `${name === tab ? "[" : " "}${name[0]!.toUpperCase() + name.slice(1)} · ${index + 1}${name === tab ? "]" : " "}`);
+  const full = labels.join("  ");
+  const inset = Math.max(0, Math.floor((width - cells(full)) / 2));
+  const spans:TuiSpan[] = [{text: " ".repeat(inset)}];
+  let remaining = Math.max(0, width - inset);
+  labels.forEach((label, index) => {
+    if (index && remaining > 0) {const gap = Math.min(2, remaining); spans.push({text: " ".repeat(gap)}); remaining -= gap;}
+    const text = truncateCells(label, remaining);
+    if (text) spans.push({text, action:{kind:"key" as const,name:"",chunk:String(index + 1),focus:"content" as const}});
+    remaining -= cells(text);
+  });
+  return ["", {text:spans.map((span)=>span.text).join(""),spans}, ""];
+}
+
 export function renderProjectDetail(project: TuiProject, options: {
   width: number; tab: "overview" | "files" | "tasks"; files?: TuiProjectFile[];
   selectedFileId?: string; query?: string; folderId?: string; sourceId?: string; path?: string;
 }): TuiLine[] {
   const width = options.width;
-  const lines: TuiLine[] = [...renderProjectIdentity(project, { width }), ...renderProjectTabs(options.tab, width)];
+  const lines: TuiLine[] = [...renderProjectIdentity(project, { width }), ...renderProjectPointerTabs(options.tab, width)];
   if (options.tab === "overview") {
     lines.push(...renderProjectCard(false, project.readme
       ? project.readme.split("\n")
       : ["No project overview created yet."], width, "OVERVIEW"));
     const links = project.items.filter((item) => item.type !== "embed");
     if (links.length) {
-      lines.push("", ...renderProjectCard(false, links.map((item) => `${item.type}: ${item.name}`), width, "LINKED WORK"));
+      const card=renderProjectCard(false, links.map((item) => `${item.type}: ${item.name}`), width, "LINKED WORK");
+      lines.push("", ...card.map((line,index) => {
+        const item=links[index-1];
+        return item?.type==="chat"||item?.type==="workflow"
+          ? pointerLine(line,{kind:"command",command:`/${item.type} ${item.targetId}`}) : line;
+      }));
     }
     return lines;
   }
@@ -399,7 +423,12 @@ export function renderProjectDetail(project: TuiProject, options: {
     const context = file.sourceId ? `  (${project.sources.find((source) => source.id === file.sourceId)?.name || "source"})` : "";
     rows.push(`${file.id === options.selectedFileId ? ">" : " "} [${icon}] ${file.name}${context}`);
   }
-  lines.push(...renderProjectCard(false, rows, width, "FILES"));
+  const card = renderProjectCard(false, rows, width, "FILES");
+  const fileOffset = 1 + (rows.length - visible.length);
+  lines.push(...card.map((line, index) => {
+    const file = visible[index - fileOffset];
+    return file ? pointerLine(line,{kind:"select",target:"content",index:index-fileOffset,id:file.id,activate:true}) : line;
+  }));
   return lines;
 }
 

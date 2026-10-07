@@ -2,6 +2,7 @@
 import type { OpenMatesClient, UserTaskStatus, WorkDependencyRecord } from "./client.js";
 import { formValue, type TuiForm } from "./tuiForms.js";
 import { cells, lineText, padCells, terminalText, truncateCells, wrapCells, type TuiLine, type TuiSpan } from "./tuiText.js";
+import { pointerLine } from "./tuiPointer.js";
 import {
   TASK_STATUSES,
   buildBlockUserTaskInput,
@@ -45,7 +46,8 @@ function joinColumns(rows: TuiLine[], width: number, gap: string): TuiLine {
     if (index) spans.push({text: gap});
     if (typeof row === "string") spans.push({text: padCells(row, width)});
     else {
-      spans.push(...(row.spans as ColoredSpan[] | undefined ?? [{text: row.text, background: row.background, bold: row.bold, color: row.color}]));
+      spans.push(...(row.spans as ColoredSpan[] | undefined ?? [{text: row.text, background: row.background, bold: row.bold, color: row.color}])
+        .map((span) => ({...span, action: span.action ?? row.action})));
       const padding = Math.max(0, width - cells(lineText(row)));
       if (padding) spans.push({text: " ".repeat(padding)});
     }
@@ -93,10 +95,12 @@ export function renderTaskBoard(tasks: DecryptedUserTask[], options: { width: nu
     const shown = columns.slice(firstColumn, firstColumn + columnCount);
     const colWidth = Math.floor((width - gap.length * (columnCount - 1)) / columnCount);
     lines.push(truncateCells(`←/→ columns  ·  ${STATUS_LABELS[focused]} ${focusedIndex + 1}/5`, width));
-    lines.push(joinColumns(shown.map(({status, tasks}) => columnHeader(status, tasks.length, colWidth)), colWidth, gap));
+    lines.push(joinColumns(shown.map(({status, tasks}) => pointerLine(columnHeader(status, tasks.length, colWidth),
+      {kind:"select",target:"task",column:TASK_STATUSES.indexOf(status),index:0})), colWidth, gap));
     lines.push(shown.map(() => "─".repeat(colWidth)).join(gap));
     const stacks = shown.map(({tasks: group}) => group.length
-      ? group.flatMap((task) => [...taskCard(task, colWidth, task.taskId === options.selectedTaskId), ""])
+      ? group.flatMap((task, index) => [...taskCard(task, colWidth, task.taskId === options.selectedTaskId,
+          {kind:"select",target:"task",column:TASK_STATUSES.indexOf(task.status),index,id:task.taskId,activate:true}), ""])
       : [padCells("No tasks here.", colWidth)]);
     for (let row = 0; row < Math.max(...stacks.map((stack) => stack.length)); row++) {
       lines.push(joinColumns(stacks.map((stack) => stack[row] ?? ""), colWidth, gap));
@@ -104,16 +108,18 @@ export function renderTaskBoard(tasks: DecryptedUserTask[], options: { width: nu
   } else {
     const group = columns[focusedIndex]?.tasks ?? [];
     lines.push(truncateCells(`←/→ columns  ·  ${STATUS_LABELS[focused]} ${focusedIndex + 1}/5`, width));
-    lines.push(columnHeader(focused, group.length, Math.min(width, 52)), "─".repeat(Math.min(width, 52)));
+    lines.push(pointerLine(columnHeader(focused, group.length, Math.min(width, 52)),
+      {kind:"select",target:"task",column:focusedIndex,index:0}), "─".repeat(Math.min(width, 52)));
     if (!group.length) lines.push("  No tasks here.");
-    for (const task of group) {
-      lines.push(...taskCard(task, Math.min(width, 52), task.taskId === options.selectedTaskId));
+    for (const [index, task] of group.entries()) {
+      lines.push(...taskCard(task, Math.min(width, 52), task.taskId === options.selectedTaskId,
+        {kind:"select",target:"task",column:focusedIndex,index,id:task.taskId,activate:true}));
     }
   }
   return lines;
 }
 
-function taskCard(task: DecryptedUserTask, width: number, selected: boolean): TuiLine[] {
+function taskCard(task: DecryptedUserTask, width: number, selected: boolean, action: TuiSpan["action"]): TuiLine[] {
   const inside = Math.max(8, width - 2);
   const edge = (selected ? "═" : "─").repeat(inside);
   const row = (value: string, title = false): TuiLine => {
@@ -138,7 +144,7 @@ function taskCard(task: DecryptedUserTask, width: number, selected: boolean): Tu
     ...metadata.map((item) => row(`  ${item}`)),
     ...(task.queueState && task.queueState !== "none" ? [row(`Q ${task.queueState}`)] : []),
     border(false),
-  ];
+  ].map((line) => pointerLine(line, action!));
 }
 
 export type TaskContext = {
@@ -158,9 +164,11 @@ export async function loadTaskContext(client: OpenMatesClient, taskId: string): 
   return { activity: await decryptTaskActivityEntries(task, client.getMasterKeyBytes(), page.entries), dependencies, nextCursor: page.next_cursor };
 }
 
-export function renderTaskDetails(task: DecryptedUserTask, options: { width: number; activity?: DecryptedTaskActivityEntry[]; dependencies?: TaskContext["dependencies"] }): string[] {
+export function renderTaskDetails(task:DecryptedUserTask,options:{width:number;activity?:DecryptedTaskActivityEntry[];dependencies?:TaskContext["dependencies"];pointer:true}):TuiLine[];
+export function renderTaskDetails(task:DecryptedUserTask,options:{width:number;activity?:DecryptedTaskActivityEntry[];dependencies?:TaskContext["dependencies"]}):string[];
+export function renderTaskDetails(task: DecryptedUserTask, options: { width: number; activity?: DecryptedTaskActivityEntry[]; dependencies?: TaskContext["dependencies"];pointer?:true }): TuiLine[] {
   const width = Math.max(18, options.width);
-  const lines = [
+  const lines:TuiLine[] = [
     ...wrapCells(task.title || "Untitled task", width),
     truncateCells(`${label(task)}  ·  ${STATUS_LABELS[task.status]}`, width),
     "─".repeat(width),
@@ -171,7 +179,10 @@ export function renderTaskDetails(task: DecryptedUserTask, options: { width: num
   if (task.labels.length) lines.push(truncateCells(`Labels: ${task.labels.join(", ")}`, width));
   if (task.dueAt) lines.push(`Due: ${new Date(task.dueAt * 1000).toISOString().slice(0, 16)} UTC`);
   if (task.blockedReason) lines.push(truncateCells(`Blocked: ${task.blockedReason}`, width));
-  lines.push("", "Actions", ...wrapCells("c create  e edit  m status  p assignee  r reorder", width), ...wrapCells("s start  d done  b block  u unblock  k skip  x delete", width), "", "Description");
+  const firstActions="c create  e edit  m status  p assignee  r reorder";
+  const secondActions="s start  d done  b block  u unblock  k skip  x delete";
+  lines.push("", "Actions", ...(options.pointer?pointerTaskShortcuts(firstActions,width):wrapCells(firstActions,width)),
+    ...(options.pointer?pointerTaskShortcuts(secondActions,width):wrapCells(secondActions,width)), "", "Description");
   lines.push(...wrapCells(task.description || "No description.", width));
   if (options.dependencies) {
     lines.push("", `Dependencies (${options.dependencies.dependencies.length})`);
@@ -184,6 +195,29 @@ export function renderTaskDetails(task: DecryptedUserTask, options: { width: num
     lines.push(...(options.activity.length ? options.activity.map((entry) => truncateCells(`  ${new Date(entry.createdAt * 1000).toISOString().slice(0, 16)} ${entry.actorDisplayName ?? taskIdentityDisplayName(entry.actorIdentity) ?? entry.actorType}: ${entry.kind === "comment" ? entry.message ?? "" : entry.nextStatus ? `→ ${STATUS_LABELS[entry.nextStatus]}` : entry.eventType}`, width)) : ["  No activity"]));
   }
   return lines;
+}
+
+/** Keep shortcut targets on their displayed cell fragments, including narrow wraps. */
+function pointerTaskShortcuts(source:string,width:number):TuiLine[] {
+  const ranges=[...source.matchAll(/(?:^| {2})([cemprsdbukx]) ([a-z]+)/g)].map((match)=>{
+    const index=match.index+(match[0].startsWith("  ")?2:0);
+    return {start:index,end:index+match[1].length+1+match[2].length,chunk:match[1]};
+  });
+  let rowStart=0;
+  return wrapCells(source,width).map((row)=>{
+    const rowEnd=rowStart+row.length,spans:TuiSpan[]=[];
+    let cursor=rowStart;
+    for(const range of ranges){
+      const from=Math.max(rowStart,range.start),to=Math.min(rowEnd,range.end);
+      if(to<=from)continue;
+      if(from>cursor)spans.push({text:source.slice(cursor,from)});
+      spans.push({text:source.slice(from,to),action:{kind:"key",name:"",chunk:range.chunk,focus:"content"}});
+      cursor=to;
+    }
+    if(cursor<rowEnd)spans.push({text:source.slice(cursor,rowEnd)});
+    rowStart=rowEnd;
+    return {text:row,spans};
+  });
 }
 
 function relationLabel(reference: string): string {

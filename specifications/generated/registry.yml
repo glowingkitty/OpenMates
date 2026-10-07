@@ -646,6 +646,13 @@ specifications:
     - sdks.npm
     - sdks.pip
     - gui.web
+  feature.terminal-pointer:
+    version: 1
+    status: draft
+    path: features/terminal-pointer
+    fingerprint: f8c88e1d4413dcc072cc7bb1db60a39cc78da437278c5670e9f119b40a4b65e7
+    required_applies_to:
+    - cli
   feature.video-call:
     version: 1
     status: draft
@@ -8349,6 +8356,27 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  terminal-pointer.visible-action-parity:
+    specification: feature.terminal-pointer@1
+    specification_id: feature.terminal-pointer
+    type: behavior
+    fingerprint: 8f8cce6af739200845a05b72696f895dd85a025be980a06e0166b0640829aa15
+    required_applies_to:
+    - cli
+  terminal-pointer.viewport-coherent:
+    specification: feature.terminal-pointer@1
+    specification_id: feature.terminal-pointer
+    type: behavior
+    fingerprint: b8379ef293c48f650bba90302f82df220d679223e5e9cfa04dd34046ba189fc7
+    required_applies_to:
+    - cli
+  terminal-pointer.lifecycle-selection-safe:
+    specification: feature.terminal-pointer@1
+    specification_id: feature.terminal-pointer
+    type: failure
+    fingerprint: 2f775d278d89c96423a5403161a5b6959a7e498032ed56fe435400206c88949c
+    required_applies_to:
+    - cli
   video-call.chat.launch-and-provider:
     specification: feature.video-call@1
     specification_id: feature.video-call

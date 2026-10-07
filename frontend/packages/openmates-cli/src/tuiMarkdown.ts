@@ -23,8 +23,9 @@ function append(out: Styled[], value: string, style: Omit<Styled, 'text'> = {}):
   const text = terminalText(value);
   if (!text) return;
   const last = out.at(-1);
-  if (last && last.bold === style.bold && last.color === style.color && last.background === style.background) last.text += text;
-  else out.push({text, bold: style.bold, color: style.color, background: style.background});
+  if (last && last.bold === style.bold && last.color === style.color && last.background === style.background &&
+    JSON.stringify(last.action) === JSON.stringify(style.action)) last.text += text;
+  else out.push({text, bold: style.bold, color: style.color, background: style.background, action:style.action});
 }
 
 function closing(source: string, from: number, delimiter: string): number {
@@ -77,8 +78,9 @@ function inline(source: string, options: TuiMarkdownOptions, base: Omit<Styled, 
       } else if (wiki && safeReference(wiki)) action = `/wiki ${wiki}`;
       else if (/^https?:\/\/\S+$/i.test(target)) action = target;
       if (action) {
-        append(out, label || (embed ? 'Embed' : target), {...base, color: LINK});
-        if (action !== label) append(out, ` (${action})`, {color: CODE});
+        const pointerAction = embed || wiki ? {kind:'command' as const,command:action} : undefined;
+        append(out, label || (embed ? 'Embed' : target), {...base, color: LINK, action:pointerAction});
+        if (action !== label) append(out, ` (${action})`, {color: CODE,action:pointerAction});
       } else append(out, source.slice(i, link.end), base);
       i = link.end; continue;
     }

@@ -22,6 +22,7 @@ import subprocess
 import sys
 import time
 from typing import Any
+import unicodedata
 
 
 TERMINAL_WIDTH = 1280
@@ -33,7 +34,8 @@ MAX_KEY_REPEAT = 16
 KEY_REPEAT_DELAY_MS = 120
 MAX_STEP_WAIT_MS = 30_000
 MAX_STEP_HOLD_MS = 5_000
-ALLOWED_KEYS = {"Return", "Escape", "Tab", "Up", "Down", "Left", "Right", "space", "ctrl+b", "ctrl+s", "ctrl+c", "ctrl+g", "ctrl+o", "ctrl+q", "ctrl+u", "ctrl+y", "shift+Tab", "Home", "End", "Page_Up", "Page_Down"}
+MIN_RESIZE_WIDTH, MIN_RESIZE_HEIGHT = 640, 360
+ALLOWED_KEYS = {"Return", "Escape", "Tab", "Up", "Down", "Left", "Right", "space", "ctrl+b", "ctrl+s", "ctrl+c", "ctrl+g", "ctrl+o", "ctrl+p", "ctrl+q", "ctrl+u", "ctrl+y", "shift+Tab", "Home", "End", "Page_Up", "Page_Down"}
 SECRET_FLAGS = {"--api-key", "--password", "--token", "--secret", "--otp", "--totp"}
 TERMINAL_GEOMETRY = "160x48"
 TERMINAL_FONT_SIZE = "14"
@@ -74,13 +76,13 @@ def load_input_plan(path: Path) -> list[dict[str, Any]]:
         raise CliCaptureError(f"Terminal input plan must contain 1–{MAX_INPUT_STEPS} steps")
     names: set[str] = set()
     for step in steps:
-        if not isinstance(step, dict) or set(step) - {"name", "text", "key", "wheel", "repeat", "wait_for", "wait_for_absent", "wait_timeout_ms", "hold_ms"}:
+        if not isinstance(step, dict) or set(step) - {"name", "text", "key", "wheel", "click", "resize", "repeat", "wait_for", "wait_for_absent", "wait_timeout_ms", "hold_ms"}:
             raise CliCaptureError("Terminal input plan contains an invalid step")
         name = step.get("name")
         if not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9-]{0,63}", name) or name in names:
             raise CliCaptureError("Terminal input step names must be unique slugs")
         names.add(name)
-        input_count = sum(field in step for field in ("text", "key", "wheel"))
+        input_count = sum(field in step for field in ("text", "key", "wheel", "click", "resize"))
         if input_count != 1 and not (input_count == 0 and "wait_for" in step):
             raise CliCaptureError(f"Step {name} needs exactly one input, or only a wait_for marker")
         if "text" in step:
@@ -97,6 +99,25 @@ def load_input_plan(path: Path) -> list[dict[str, Any]]:
                 raise CliCaptureError(f"Step {name} has invalid key repeat")
         if "wheel" in step and step["wheel"] not in ("up", "down"):
             raise CliCaptureError(f"Step {name} has unsupported wheel direction")
+        if "click" in step:
+            click = step["click"]
+            if not isinstance(click, dict) or set(click) not in ({"text"}, {"text", "occurrence"}, {"row", "column"}):
+                raise CliCaptureError(f"Step {name} has invalid click target")
+            if "text" in click:
+                if not isinstance(click["text"], str) or not 1 <= len(click["text"]) <= 120 or any(c in click["text"] for c in "\r\n\x1b"):
+                    raise CliCaptureError(f"Step {name} has invalid click text")
+                if any(flag in click["text"].lower() for flag in SECRET_FLAGS):
+                    raise CliCaptureError(f"Step {name} contains a secret-bearing click target")
+                if "occurrence" in click and (not isinstance(click["occurrence"], int) or isinstance(click["occurrence"], bool) or not 0 <= click["occurrence"] <= 20):
+                    raise CliCaptureError(f"Step {name} has invalid click occurrence")
+            elif any(not isinstance(click[field], int) or isinstance(click[field], bool) or not 1 <= click[field] <= 256 for field in ("row", "column")):
+                raise CliCaptureError(f"Step {name} has invalid click cell")
+        if "resize" in step:
+            resize = step["resize"]
+            if not isinstance(resize, dict) or set(resize) != {"width", "height"} or any(
+                not isinstance(resize[field], int) or isinstance(resize[field], bool) for field in ("width", "height")
+            ) or not MIN_RESIZE_WIDTH <= resize["width"] <= TERMINAL_WIDTH or not MIN_RESIZE_HEIGHT <= resize["height"] <= TERMINAL_HEIGHT:
+                raise CliCaptureError(f"Step {name} has invalid resize dimensions")
         if "wait_for" in step and (not isinstance(step["wait_for"], str) or not 1 <= len(step["wait_for"]) <= 120):
             raise CliCaptureError(f"Step {name} has invalid wait_for marker")
         if "wait_for_absent" in step and ("wait_for" not in step or not isinstance(step["wait_for_absent"], str) or not 1 <= len(step["wait_for_absent"]) <= 120):
@@ -122,6 +143,73 @@ def input_step_ready(output: str, marker: str, absent_marker: str | None = None)
         output = output[start:end]
     plain = ANSI_ESCAPE_RE.sub("", output).replace("\r", "")
     return marker in plain and (absent_marker is None or absent_marker not in plain)
+
+
+def _cell_width(text: str) -> int:
+    """Count terminal cells, including wide glyphs and zero-width marks."""
+    width = 0
+    for char in text:
+        if char in "\u200c\u200d" or unicodedata.combining(char) or unicodedata.category(char) in {"Cf", "Mn", "Me"}:
+            continue
+        width += 2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1
+    return width
+
+
+def _latest_screen(output: str) -> tuple[list[str], int, int]:
+    """Read a complete synchronized terminal paint as padded visible rows."""
+    end = output.rfind("\x1b[?2026l")
+    start = output.rfind("\x1b[?2026h", 0, end)
+    if start < 0 or end < start:
+        raise CliCaptureError("Click target requires a complete terminal frame")
+    writes = re.findall(r"\x1b\[(\d+);1H\x1b\[2K([\s\S]*?)(?=\x1b\[\d+;1H|$)", output[start + 8:end])
+    if not writes:
+        raise CliCaptureError("Click target frame has no terminal rows")
+    rows_by_number = {int(number): ANSI_ESCAPE_RE.sub("", content).replace("\r", "") for number, content in writes}
+    height = max(rows_by_number)
+    if sorted(rows_by_number) != list(range(1, height + 1)):
+        raise CliCaptureError("Click target frame is missing terminal rows")
+    rows = [rows_by_number[number] for number in range(1, height + 1)]
+    width = max(map(_cell_width, rows))
+    if width < 20 or height < 5 or any(_cell_width(row) != width for row in rows):
+        raise CliCaptureError("Click target frame has inconsistent terminal geometry")
+    return rows, width, height
+
+
+def resolve_click_cell(output: str, target: dict[str, Any]) -> tuple[int, int, int, int]:
+    """Resolve visible text or an explicit 1-based cell against the latest frame."""
+    rows, width, height = _latest_screen(output)
+    if "row" in target:
+        row, column = target["row"], target["column"]
+        if row > height or column > width:
+            raise CliCaptureError("Click target cell is outside the terminal frame")
+        return row, column, width, height
+    needle = target["text"]
+    matches: list[tuple[int, int]] = []
+    for row_number, row in enumerate(rows, 1):
+        start = 0
+        while (position := row.find(needle, start)) >= 0:
+            column = _cell_width(row[:position]) + max(0, _cell_width(needle) - 1) // 2 + 1
+            matches.append((row_number, column))
+            start = position + len(needle)
+    if not matches:
+        raise CliCaptureError(f"Visible click target was not found: {needle}")
+    if "occurrence" not in target and len(matches) != 1:
+        raise CliCaptureError(f"Visible click target is ambiguous ({len(matches)} matches): {needle}")
+    occurrence = target.get("occurrence", 0)
+    if occurrence >= len(matches):
+        raise CliCaptureError(f"Visible click target occurrence is unavailable: {needle}")
+    return *matches[occurrence], width, height
+
+
+def _window_size(xdotool: str, window_id: str, env: dict[str, str]) -> tuple[int, int]:
+    result = subprocess.run([xdotool, "getwindowgeometry", "--shell", window_id], env=env,
+                            capture_output=True, text=True, check=False, timeout=5)
+    if result.returncode != 0:
+        raise CliCaptureError(f"Could not read terminal window geometry: {result.stderr[-500:]}")
+    values = dict(re.findall(r"^(WIDTH|HEIGHT)=(\d+)$", result.stdout, flags=re.MULTILINE))
+    if not {"WIDTH", "HEIGHT"} <= values.keys():
+        raise CliCaptureError("Terminal window geometry omitted width or height")
+    return int(values["WIDTH"]), int(values["HEIGHT"])
 
 
 def drive_terminal_inputs(
@@ -168,8 +256,9 @@ def drive_terminal_inputs(
         # The first readiness marker may have been rendered while the X window
         # was discovered and focused. Inputs and later markers must still see
         # only output produced after their step begins.
-        initial_readiness = index == 0 and "wait_for" in step and all(field not in step for field in ("text", "key", "wheel"))
+        initial_readiness = index == 0 and "wait_for" in step and all(field not in step for field in ("text", "key", "wheel", "click", "resize"))
         start_offset = 0 if initial_readiness else (transcript_path.stat().st_size if transcript_path.exists() else 0)
+        pointer_details: dict[str, Any] | None = None
         if "text" in step:
             command = [xdotool, "type", "--clearmodifiers", "--delay", "15", "--", step["text"]]
         elif "key" in step:
@@ -186,6 +275,24 @@ def drive_terminal_inputs(
             if move.returncode != 0:
                 raise CliCaptureError(f"Terminal wheel pointer failed at {step['name']}: {move.stderr[-500:]}")
             command = [xdotool, "click", "4" if step["wheel"] == "up" else "5"]
+        elif "click" in step:
+            output = transcript_path.read_text(encoding="utf-8", errors="replace")
+            row, column, columns, rows = resolve_click_cell(output, step["click"])
+            window_width, window_height = _window_size(xdotool, window_id, process_env)
+            x = min(window_width - 1, max(0, round((column - 0.5) * window_width / columns)))
+            y = min(window_height - 1, max(0, round((row - 0.5) * window_height / rows)))
+            for action in ([xdotool, "mousemove", "--window", window_id, str(x), str(y)],
+                           [xdotool, "mousedown", "1"], [xdotool, "mouseup", "1"]):
+                sent = subprocess.run(action, env=process_env, capture_output=True, text=True, check=False, timeout=8)
+                if sent.returncode != 0:
+                    raise CliCaptureError(f"Terminal click {step['name']} failed: {sent.stderr[-500:]}")
+            pointer_details = {"row": row, "column": column, "columns": columns, "rows": rows,
+                               "x": x, "y": y, "window_width": window_width, "window_height": window_height,
+                               **({"text": step["click"]["text"]} if "text" in step["click"] else {})}
+            command = None
+        elif "resize" in step:
+            size = step["resize"]
+            command = [xdotool, "windowsize", "--sync", window_id, str(size["width"]), str(size["height"])]
         else:
             command = None
         if command:
@@ -215,6 +322,7 @@ def drive_terminal_inputs(
             "transcript_offset": transcript_path.stat().st_size if transcript_path.exists() else 0,
             "marker": marker,
             **({"absent_marker": absent_marker} if absent_marker is not None else {}),
+            **({"pointer": pointer_details} if pointer_details is not None else {}),
         })
     return checkpoints
 

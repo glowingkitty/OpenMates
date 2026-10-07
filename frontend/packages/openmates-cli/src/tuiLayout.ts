@@ -1,6 +1,7 @@
 /** Pure shared workspace layout, terminal color adaptation and overlays. */
 import type { TuiState } from "./tuiRenderer.js";
 import {renderQuestionEditor} from './tuiInteractiveQuestions.js';
+import {addPointerTarget, beginPointerFrame, pointerLine, type TuiPointerAction} from './tuiPointer.js';
 import { CATEGORY_GRADIENTS } from "../../chatCategoryTheme.js";
 import { paletteActions } from "./tuiActions.js";
 import { tuiChatSidebarRows, tuiChatBreadcrumb } from './tuiChatSidebar.js';
@@ -63,6 +64,21 @@ export function sidebarLines(state: TuiState): string[] {
   }
 }
 
+/** Stable row identities survive background sorting without trusting labels. */
+export function sidebarPointerIds(state:TuiState):Array<string|null> {
+  if(state.workspace==='chats')return tuiChatSidebarRows(state).map(row=>row.kind==='section'?null:
+    JSON.stringify([row.kind,row.chatId,row.projectId,row.folderId]));
+  return (state.workspace==='projects'?state.projects:state.workspace==='tasks'?state.tasks:
+    state.workspace==='workflows'?state.workflows:state.apps).map(item=>'taskId' in item?item.taskId:item.id);
+}
+function pointerSidebarLines(state:TuiState):TuiLine[] {
+  const ids=sidebarPointerIds(state);
+  return sidebarLines(state).map((line,row)=>{
+    const index=row-2,id=ids[index];
+    return id?pointerLine(line,{kind:'select',target:'sidebar',index,id,activate:true}):line;
+  });
+}
+
 export function workspaceHint(state: TuiState): string {
   if(state.questionEditor)return 'Tab / ↑↓ move   Space choose   ←/→ adjust   Ctrl+S send   Esc cancel';
   if (state.form) return "Tab field   ←/→ choice   Ctrl+S save   Esc cancel";
@@ -98,7 +114,8 @@ function overlayLines(state: TuiState, width: number, height: number): TuiLine[]
   if (state.paletteOpen) {
     const actions = paletteActions(state.paletteQuery);
     const start = Math.max(0, state.paletteIndex - Math.max(1, height - 5));
-    return ["Actions", `Search: ${state.paletteQuery}_`, "", ...actions.slice(start).map((a, i) => `${i + start === state.paletteIndex ? ">" : " "} ${a.label}  ${a.command}`)];
+    return ["Actions", `Search: ${state.paletteQuery}_`, "", ...actions.slice(start).map((a, i) => pointerLine(`${i + start === state.paletteIndex ? ">" : " "} ${a.label}  ${a.command}`,
+      {kind:'select',target:'palette',index:i+start,id:a.command,activate:true}))];
   }
   const form = state.form;
   if (!form) return [];
@@ -112,51 +129,71 @@ function overlayLines(state: TuiState, width: number, height: number): TuiLine[]
     for(const [index,field] of form.fields.entries()){
       const focused=index===form.fieldIndex;
       const suffix=[field.required?'required':'',field.valueType&&field.valueType!=='string'?field.valueType:'',field.options?'←/→ choose':''].filter(Boolean).join(' · ');
-      rows.push({text:`${focused?'›':' '} ${field.label}${suffix?` · ${suffix}`:''}`,bold:true,color:focused?'#32ade6':'#e6e6e6',inset});
+      const action:TuiPointerAction={kind:'select',target:'form-field',index,id:field.name};
+      rows.push({text:`${focused?'›':' '} ${field.label}${suffix?` · ${suffix}`:''}`,bold:true,color:focused?'#32ade6':'#e6e6e6',inset,action});
       if(panelWidth>=6){
         const edge='─'.repeat(panelWidth-2),border=focused?'#32ade6':'#626878';
         rows.push({text:`╭${edge}╮`,color:border,inset});
-        rows.push(...wrapCells(`${field.value||'(empty)'}${focused&&!form.busy?'_':''}`,panelWidth-4).map(text=>({text:`│ ${padCells(text,panelWidth-4)} │`,color:focused?'#ffffff':'#cfcfcf',...(focused?{background:'#2b3548'}:{}),inset})));
+        rows.push(...wrapCells(`${field.value||'(empty)'}${focused&&!form.busy?'_':''}`,panelWidth-4).map(text=>({text:`│ ${padCells(text,panelWidth-4)} │`,color:focused?'#ffffff':'#cfcfcf',...(focused?{background:'#2b3548'}:{}),inset,action})));
         rows.push({text:`╰${edge}╯`,color:border,inset},'');
-      }else rows.push(...wrapCells(field.value,panelWidth));
+      }else rows.push(...wrapCells(field.value,panelWidth).map(line=>pointerLine(line,action)));
+      if(field.options)rows.push({text:'‹ Previous   Next ›',inset,spans:[
+        {text:'‹ Previous',action:{...action,activate:true,name:'left'}},{text:'   '},
+        {text:'Next ›',action:{...action,activate:true,name:'right'}}]});
     }
     if(form.error)rows.push({text:form.error,color:'#ff6b6b',bold:true,inset});
-    rows.push({text:form.busy?'Saving…':'Ctrl+S saves changes · Escape cancels',color:'#a0a0a0',inset});
+    rows.push({text:form.busy?'Saving…':'Save · Ctrl+S    Cancel · Esc',color:'#a0a0a0',inset,
+      ...(!form.busy?{spans:[{text:'Save · Ctrl+S',action:{kind:'key' as const,name:'s',ctrl:true}},
+        {text:'    '},{text:'Cancel · Esc',action:{kind:'key' as const,name:'escape'}}]}:{})});
     return rows;
   }
-  const rows = [form.title, ""];
+  const rows:TuiLine[] = [form.title, ""];
   for (const [index, field] of form.fields.entries()) {
-    rows.push(`${index === form.fieldIndex ? ">" : " "} ${field.label}${field.options ? " [←/→]" : ""}`);
-    rows.push(...wrapCells(`  ${field.value || "(empty)"}${index === form.fieldIndex && !form.busy ? "_" : ""}`, width));
+    const action:TuiPointerAction={kind:'select',target:'form-field',index,id:field.name};
+    rows.push(pointerLine(`${index === form.fieldIndex ? ">" : " "} ${field.label}${field.options ? " [←/→]" : ""}`,action));
+    rows.push(...wrapCells(`  ${field.value || "(empty)"}${index === form.fieldIndex && !form.busy ? "_" : ""}`, width).map(line=>pointerLine(line,action)));
+    if(field.options)rows.push({text:'‹ Previous   Next ›',spans:[
+      {text:'‹ Previous',action:{...action,activate:true,name:'left'}},{text:'   '},
+      {text:'Next ›',action:{...action,activate:true,name:'right'}}]});
     rows.push("");
   }
   if (form.error) rows.push(`Error: ${form.error}`);
-  rows.push(form.busy ? "Saving…" : form.fields.length ? "Ctrl+S saves. Escape cancels." : "Enter confirms. Escape cancels.");
+  rows.push(form.busy?'Saving…':{text:'Save · Ctrl+S    Cancel · Esc',spans:[
+    {text:'Save · Ctrl+S',action:{kind:'key',name:'s',ctrl:true}},{text:'    '},
+    {text:'Cancel · Esc',action:{kind:'key',name:'escape'}}]});
   return rows;
 }
 
 export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeight: number, body: TuiLine[], options: {colorMode?: TuiColorMode; ascii?: boolean; headerRows?: number; stickyRows?:number} = {}): string {
   const { gutter, sidebarWidth, paneWidth, contentWidth, inset, composerWidth, composerInset } = workspaceGeometry(state, rawWidth);
   const height = Math.max(1, Math.floor(rawHeight));
+  beginPointerFrame(state,Math.max(1,Math.floor(rawWidth)),height);
+  const modal=Boolean(state.form||state.paletteOpen||state.questionEditor);
+  const bodyColumn=gutter+sidebarWidth+inset;
   const mode = options.colorMode ?? "none";
   const ascii = options.ascii ?? false;
   const line = ascii ? "-" : "─", vertical = ascii ? "|" : "│";
   const place = (rendered: string, side = " ".repeat(sidebarWidth)) =>
     " ".repeat(gutter) + side + " ".repeat(inset) + rendered + " ".repeat(paneWidth - inset - contentWidth + gutter);
-  const navParts = [{text:'OpenMates  ',color:'#cfcfcf',bold:true},...WORKSPACES.map((workspace,index)=>{
+  const navParts:Array<{text:string;color:string;bold:boolean;action?:TuiPointerAction}> = [{text:'OpenMates  ',color:'#cfcfcf',bold:true,action:{kind:'command',command:'/chats'}},...WORKSPACES.map((workspace,index)=>{
     const focused=state.focus==='navigation'&&index===state.navigationIndex;
     const label=state.workspace===workspace?`[${titleCase(workspace)}]`:titleCase(workspace);
-    return {text:`${focused?'› ':''}${label}  `,color:focused?'#32ade6':state.workspace===workspace?'#ff553b':'#cfcfcf',bold:true};
+    return {text:`${focused?'› ':''}${label}  `,color:focused?'#32ade6':state.workspace===workspace?'#ff553b':'#cfcfcf',bold:true,
+      action:{kind:'command' as const,command:`/${workspace}`}};
   })];
   if(cells(navParts.map(part=>part.text).join(''))>contentWidth-6){
     const focused=state.focus==='navigation';
-    navParts.splice(0,navParts.length,{text:`OpenMates  [${titleCase(state.workspace)}]${focused?`  › ${titleCase(WORKSPACES[state.navigationIndex])}`:''}  `,color:focused?'#32ade6':'#ff553b',bold:true});
+    navParts.splice(0,navParts.length,{text:'OpenMates  ',color:'#cfcfcf',bold:true,action:{kind:'command',command:'/chats'}},
+      {text:`[${titleCase(state.workspace)}]  `,color:'#ff553b',bold:true,action:{kind:'command',command:`/${state.workspace}`}},
+      ...(focused?[{text:`› ${titleCase(WORKSPACES[state.navigationIndex])}  `,color:'#32ade6',bold:true,action:{kind:'command' as const,command:`/${WORKSPACES[state.navigationIndex]}`}}]:[]));
   }
   const navUsed=cells(navParts.map(part=>part.text).join(''));
-  navParts.push({text:contentWidth-navUsed>=18?'Ctrl+G navigation':'^G nav',color:'#808080',bold:false});
+  navParts.push({text:contentWidth-navUsed>=18?'Ctrl+G navigation':'^G nav',color:'#808080',bold:false,action:{kind:'key',name:'g',ctrl:true}});
   let navRemaining=contentWidth;
   const renderedNav=navParts.map(part=>{
+    const column=bodyColumn+contentWidth-navRemaining;
     const value=truncateCells(part.text,navRemaining);navRemaining-=cells(value);
+    if(!modal&&part.action)addPointerTarget(state,column,0,cells(value.trimEnd()),part.action);
     return foreground(value,part.color,mode,part.bold);
   }).join('')+' '.repeat(navRemaining);
   const input = composerViewport(state, composerWidth);
@@ -166,7 +203,7 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
   const overlay = state.form || state.paletteOpen || state.questionEditor;
   const sidebar = state.sidebarOpen && !overlay;
   const sidebarOverlay = sidebar && !sidebarWidth;
-  let content = overlay ? overlayLines(state, contentWidth, bodyHeight) : sidebarOverlay ? sidebarLines(state) : body;
+  let content = overlay ? overlayLines(state, contentWidth, bodyHeight) : sidebarOverlay ? pointerSidebarLines(state) : body;
   const stickyCount=!overlay&&!sidebarOverlay?Math.min(options.stickyRows??0,Math.max(0,bodyHeight-8)):0;
   const fixed=content.slice(0,stickyCount);content=content.slice(stickyCount);
   const viewportHeight=bodyHeight-stickyCount;
@@ -198,8 +235,8 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
   const heroRows = options.headerRows ?? 0;
   const category = state.screen === "example" ? state.activeExample?.chat.category : state.activeChat?.category;
   const background = chatBackground(category);
-  const allSide = sidebarWidth ? sidebarLines(state) : [];
-  const sideMarker = allSide.findIndex((row) => row.startsWith("> "));
+  const allSide = sidebarWidth ? pointerSidebarLines(state) : [];
+  const sideMarker = allSide.findIndex((row) => lineText(row).startsWith("> "));
   const sideStart = Math.max(0, sideMarker - bodyHeight + 3);
   const side = sideStart ? [allSide[0], "", ...allSide.slice(sideStart)] : allSide;
   const rows: string[] = [];
@@ -209,6 +246,10 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     const style = typeof value === "string" ? undefined : value;
     const raw = terminalText(lineText(value)).replace(/\n/g, " ");
     let rendered = padCells(raw, contentWidth);
+    const targetInset=Math.max(0,Math.min(Math.floor(contentWidth/2)-1,style?.inset??0));
+    const leading=cells(raw)-cells(raw.trimStart());
+    if(style?.action)addPointerTarget(state,bodyColumn+targetInset+leading,i+2,
+      Math.min(cells(raw.trim()),Math.max(0,contentWidth-2*targetInset-leading)),style.action);
     if (style && !sidebarOverlay) {
       const inset=Math.max(0,Math.min(Math.floor(contentWidth/2)-1,style.inset??0));
       const span=Math.max(1,contentWidth-2*inset);
@@ -216,6 +257,7 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
         let remaining=span;rendered="";
         for(const part of style.spans){
           const text=truncateCells(terminalText(part.text).replace(/\n/g," "),remaining),size=cells(text);
+          if(part.action)addPointerTarget(state,bodyColumn+inset+span-remaining,i+2,size,part.action);
           rendered+=part.background?backgroundLine(text,size,part.background,mode,part.bold,part.color):foreground(text,part.color??'#e6e6e6',mode,part.bold);
           remaining-=size;if(!remaining)break;
         }
@@ -226,7 +268,9 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     else if (!overlay && !sidebarOverlay && index < heroRows) rendered = backgroundLine(raw, contentWidth, background, mode);
     else if (raw.startsWith("> ") || raw.includes("›")) rendered = foreground(rendered, "#ff553b", mode, true);
     else if (/^(You|Sophia|Tasks|Projects|Workflows|Recent chats|Suggestions|Actions)$/.test(raw)) rendered = foreground(rendered, "#5a85eb", mode, true);
-    const sidebarRow = sidebarWidth ? foreground(padCells(side[i] ?? "", sidebarWidth - 2), "#cfcfcf", mode) + `${vertical} ` : undefined;
+    const sideValue=side[i],sideText=sideValue?lineText(sideValue):'';
+    if(sideValue&&typeof sideValue!=='string'&&sideValue.action)addPointerTarget(state,gutter,i+2,Math.min(cells(sideText),sidebarWidth-2),sideValue.action);
+    const sidebarRow = sidebarWidth ? foreground(padCells(sideText, sidebarWidth - 2), "#cfcfcf", mode) + `${vertical} ` : undefined;
     rows.push(place(rendered, sidebarRow));
   }
   const placeholder = state.screen === "example" ? "Continue from this example, or ask your own question..."
@@ -238,6 +282,8 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
   const hintColor = state.focus === "composer" ? "#a0a0a0" : "#ff553b";
   const composer: string[] = [];
   if (showComposer) {
+    if(!modal&&!sidebarOverlay)for(let i=0;i<input.count;i++)addPointerTarget(state,gutter+sidebarWidth+composerInset+(composerWidth<6?0:2),
+      2+bodyHeight+(composerWidth<6?0:1)+i,Math.max(1,composerWidth-(composerWidth<6?0:4)),{kind:'focus',focus:'composer'});
     const placeInput = (rendered: string) => ' '.repeat(gutter + sidebarWidth + composerInset) + rendered + ' '.repeat(paneWidth - composerInset - composerWidth + gutter);
     const inputRows = input.lines.map((text, i) => `${i ? "  " : "> "}${text || (!state.input ? placeholder : "")}`);
     if (composerWidth < 6) composer.push(...inputRows.map((text) => placeInput(padCells(text, composerWidth))), placeInput(foreground(padCells(hint, composerWidth), hintColor, mode)), placeInput(" ".repeat(composerWidth)), placeInput(" ".repeat(composerWidth)));

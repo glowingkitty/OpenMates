@@ -15,7 +15,7 @@ import { APP_GRADIENTS, PRIMARY_GRADIENT } from "../../appGradientTheme.js";
 import { type DecryptedUserTask } from "./tasksCli.js";
 import type { TuiForm } from "./tuiForms.js";
 import type { TuiProject, TuiProjectFile } from "./tuiProjectsWorkspace.js";
-import { renderProjectCarousel, renderProjectDetail, renderProjectIdentity, renderProjectTabs, filteredProjects, filteredProjectFiles } from "./tuiProjectsWorkspace.js";
+import { renderProjectCarousel, renderProjectDetail, renderProjectIdentity, renderProjectTabs, renderProjectPointerTabs, filteredProjects, filteredProjectFiles } from "./tuiProjectsWorkspace.js";
 import { renderTaskBoard, renderTaskDetails, filterTasks, type TaskContext } from "./tuiTasksWorkspace.js";
 import { renderWorkflowWorkspace, renderWorkflowCarousel, renderWorkflowIdentity } from "./tuiWorkflowWorkspace.js";
 import { chatBackground, renderWorkspaceFrame, workspaceGeometry } from "./tuiLayout.js";
@@ -29,11 +29,12 @@ import { parseMessageSegments } from "./messageSegments.js";
 import { aliasForEmbed, chatEmbedReferences, exampleEmbedMap, type TuiEmbedTarget } from './tuiEmbeds.js';
 import { renderTuiEmbedPreview } from './tuiEmbedPreviews.js';
 import { parseTuiMarkdown } from './tuiMarkdown.js';
-import { buildTuiResultsViewData, renderTuiResultsViewLines, type TuiResultsViewMode } from './tuiResultsViews.js';
-import { chatResultsViews, messageResultsViews, renderChatResultsView } from './tuiChatResults.js';
+import { buildTuiResultsViewData, renderTuiResultsViewLines, type TuiResultsViewDescriptor, type TuiResultsViewMode } from './tuiResultsViews.js';
+import { chatResultsViews, messageResultsViews } from './tuiChatResults.js';
 import { parseChatContextContent, chatContextSummary } from "./chatContextEvents.js";
 import type { ProjectFocusCountdown } from "./projectFocusCountdown.js";
 import {chatQuestions, messageQuestions, renderQuestionCard, type TuiQuestionEditor} from './tuiInteractiveQuestions.js';
+import {beginPointerFrame,pointerLine} from './tuiPointer.js';
 
 export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chats" | "chat" | "embed" | "results-view" | "apps" | "app" | "app-skill" | "app-result" | "projects" | "project" | "workflows" | "workflow" | "tasks" | "task" | "status";
 export type TuiWorkspace = "chats" | "apps" | "projects" | "tasks" | "workflows";
@@ -277,6 +278,7 @@ export function rankExamples(
 }
 
 export function renderTuiFrame(state: TuiState, width: number, height: number, options: { colorMode?: TuiColorMode; ascii?: boolean } = {}): string {
+  beginPointerFrame(state,width,height);
   if (state.startup || state.privacyOffer) return renderStartupFrame(state, width, height, options.colorMode ?? "none");
   const bodyWidth = workspaceGeometry(state, width).contentWidth;
   const stickyRows=state.screen==="embed"?3:state.screen==="results-view"?2:state.screen==="project"&&state.activeProject?renderProjectIdentity(state.activeProject,{width:bodyWidth}).length+renderProjectTabs(state.projectTab,bodyWidth).length:
@@ -317,7 +319,27 @@ function renderStartupFrame(state: TuiState, width: number, height: number, colo
   return [...lines.slice(0, Math.max(0, height - footer.length)), ...footer.slice(-height)].join("\n");
 }
 
-function coloredHero(lines:string[],rows:number,gradient=PRIMARY_GRADIENT):TuiLine[]{return lines.map((text,index)=>index<rows?{text,background:gradient.start}:text);}
+function coloredHero(lines:TuiLine[],rows:number,gradient=PRIMARY_GRADIENT):TuiLine[]{
+  return lines.map((line,index)=>index<rows
+    ? typeof line==='string'?{text:line,background:gradient.start}:{...line,background:gradient.start}
+    : line);
+}
+function appsHomeCommandLine(showAll:boolean,width:number):TuiLine {
+  const browse=showAll?'/browse Featured apps':'/browse Show all';
+  const separator='  ·  ',search='/search Search apps';
+  const visible=truncateCells(browse+separator+search,width);
+  const text=centeredCarouselText(browse+separator+search,width);
+  const left=text.slice(0,text.length-visible.length);
+  const shownBrowse=visible.slice(0,browse.length);
+  const shownSeparator=visible.slice(browse.length,browse.length+separator.length);
+  const shownSearch=visible.slice(browse.length+separator.length);
+  return {text,spans:[
+    {text:left},
+    {text:shownBrowse,action:{kind:'command',command:'/browse'}},
+    {text:shownSeparator},
+    {text:shownSearch,action:shownSearch.startsWith('/search')?{kind:'command',command:'/search'}:undefined},
+  ]};
+}
 function renderBody(state: TuiState, width: number,height:number): TuiLine[] {
   return renderScreenBody(state, width, height);
 }
@@ -338,40 +360,49 @@ function renderScreenBody(state: TuiState, width: number,height:number): TuiLine
     case "apps": {
       const apps=homeTuiApps(state.apps,state.filter,state.homeShowAll);
       return [...homeHeader(state,width,height),...renderTuiAppsHome(apps,{width,selectedIndex:state.selectedIndex,selectedId:state.focus==="content"?apps[state.selectedIndex]?.id:undefined}),"",
-        centeredCarouselText(`${state.homeShowAll?"/browse Featured apps":"/browse Show all"}  ·  /search Search apps`,width)];
+        appsHomeCommandLine(state.homeShowAll,width)];
     }
     case "app": {
       const app=state.activeApp;if(!app)return ["Loading app…"];
       const header=renderTuiAppIdentity(app,width),gradient=APP_GRADIENTS[app.id]??PRIMARY_GRADIENT;
-      if(state.appTab==="embeds"||state.appTab==="workflows")return [...coloredHero(header,header.length,gradient),...renderTuiAppTabs(state.appTab,width),
-        ...state.appTab==="embeds"?renderTuiAppsResults(state.appResults,{width,selectedId:state.appResults.items[state.selectedIndex]?.embedId}):renderTuiAppsWorkflows(state.appWorkflows,{width,selectedId:state.appWorkflows.items[state.selectedIndex]?.id})];
-      return coloredHero(renderTuiApp(app,{width,tab:state.appTab,selectedId:app.skills[state.selectedIndex]?.id}),header.length,gradient);
+      if(state.appTab==="embeds"||state.appTab==="workflows")return [...coloredHero(header,header.length,gradient),...renderTuiAppTabs(state.appTab,width,{pointer:true}),
+        ...state.appTab==="embeds"?renderTuiAppsResults(state.appResults,{width,selectedId:state.appResults.items[state.selectedIndex]?.embedId,pointer:true}):renderTuiAppsWorkflows(state.appWorkflows,{width,selectedId:state.appWorkflows.items[state.selectedIndex]?.id,pointer:true})];
+      return coloredHero(renderTuiApp(app,{width,tab:state.appTab,selectedId:app.skills[state.selectedIndex]?.id,pointer:true}),header.length,gradient);
     }
     case "app-skill": {
       const skill=state.activeAppSkill;if(!skill)return ["Loading skill…"];
       const header=renderTuiAppsSkillIdentity(skill,width),gradient=APP_GRADIENTS[skill.appId]??PRIMARY_GRADIENT;
-      if(state.appSkillTab==="embeds"||state.appSkillTab==="workflows")return [...coloredHero(header,header.length,gradient),...renderTuiAppsSkillTabs(state.appSkillTab,width),
-        ...state.appSkillTab==="embeds"?renderTuiAppsResults(state.appResults,{width,selectedId:state.appResults.items[state.selectedIndex]?.embedId}):renderTuiAppsWorkflows(state.appWorkflows,{width,selectedId:state.appWorkflows.items[state.selectedIndex]?.id})];
-      return coloredHero(renderTuiAppsSkill(skill,{width,tab:state.appSkillTab}),header.length,gradient);
+      if(state.appSkillTab==="embeds"||state.appSkillTab==="workflows")return [...coloredHero(header,header.length,gradient),...renderTuiAppsSkillTabs(state.appSkillTab,width,{pointer:true}),
+        ...state.appSkillTab==="embeds"?renderTuiAppsResults(state.appResults,{width,selectedId:state.appResults.items[state.selectedIndex]?.embedId,pointer:true}):renderTuiAppsWorkflows(state.appWorkflows,{width,selectedId:state.appWorkflows.items[state.selectedIndex]?.id,pointer:true})];
+      return coloredHero(renderTuiAppsSkill(skill,{width,tab:state.appSkillTab,pointer:true}),header.length,gradient);
     }
     case "app-result": return state.activeAppResult ? renderTuiAppsResult(state.activeAppResult,width):["Loading saved result…"];
     case "projects":
       return [...homeHeader(state,width,height),...renderProjectCarousel(filteredProjects(state.projects,state.filter),width,state.selectedIndex,state.focus==='content')];
     case "project":
       return state.activeProject ? state.projectTab === "tasks"
-        ? [...renderProjectIdentity(state.activeProject,{width}),...renderProjectTabs("tasks",width),"",...renderTaskBoard(state.tasks, { width, selectedTaskId: filterTasks(state.tasks, state.filter)[state.selectedIndex]?.taskId, query: state.filter })]
+        ? [...renderProjectIdentity(state.activeProject,{width}),...renderProjectPointerTabs("tasks",width),"",...renderTaskBoard(state.tasks, { width, selectedTaskId: filterTasks(state.tasks, state.filter)[state.selectedIndex]?.taskId, query: state.filter })]
         : renderProjectDetail(state.activeProject, { width, tab: state.projectTab, files: state.projectFiles, selectedFileId: filteredProjectFiles(state.projectFiles,state.filter)[state.selectedIndex]?.id, query: state.filter, folderId:state.projectFolderId??undefined, sourceId:state.projectSourceId??undefined, path:state.projectPath }) : ["Projects", "Loading project…"];
     case "status":
       return renderStatus(state, width);
     case "results-view": {
       const key = state.activeResultsView ?? 1, descriptor = chatResultsViews(state)[key-1];
-      return descriptor ? [...renderChatResultsView(state,descriptor,key,width), '', 'm Map · c Calendar · l List · /embed <shortcut> open · Esc back'] : ['Results view unavailable. Escape returns to the chat.'];
+      return descriptor ? [...pointerResultsView(state,descriptor,key,width), '',
+        {text:'m Map · c Calendar · l List · Esc back',spans:[
+          {text:'m Map',action:{kind:'command',command:`/view ${key} map`}},
+          {text:' · '},{text:'c Calendar',action:{kind:'command',command:`/view ${key} calendar`}},
+          {text:' · '},{text:'l List',action:{kind:'command',command:`/view ${key} list`}},
+          {text:' · '},{text:'Esc back',action:{kind:'key',name:'escape'}},
+        ]}] : ['Results view unavailable. Escape returns to the chat.'];
     }
     case "embed": {
       const app=state.detailEmbed?.appId ?? "", gradient=APP_GRADIENTS[app] ?? PRIMARY_GRADIENT;
       const title=state.detailTitle || "Embed";
       const header=[title, state.detailEmbed ? `${state.detailEmbed.type?.replaceAll("-"," ") ?? "Saved item"} · ${state.detailEmbed.embedId.slice(0,8)}` : "Saved embeds"];
-      return [...coloredHero(header,header.length,gradient),"",...(state.embedChoices.length ? state.embedChoices.map((alias,index)=>`${index===state.selectedIndex?">":" "} /embed ${alias} · Enter open`) : state.detailLines).flatMap(line=>wrap(line,width))];
+      return [...coloredHero(header,header.length,gradient),"",...(state.embedChoices.length ? state.embedChoices.map((alias,index)=>
+        pointerLine(`${index===state.selectedIndex?">":" "} /embed ${alias} · Enter open`,
+          {kind:'command',command:`/embed ${alias}`})) : state.detailLines)].flatMap(line=>
+        wrap(lineText(line),width).map(text=>typeof line==='string'?text:{...line,text,spans:undefined}));
     }
     case "workflows":
       return [...homeHeader(state,width,height),...renderWorkflowCarousel(state.workflows.filter(w=>w.title.toLowerCase().includes(state.filter.toLowerCase())),width,state.selectedIndex,state.focus==='content')];
@@ -428,7 +459,8 @@ function renderTasks(state: TuiState, width: number): TuiLine[] {
 
 function renderTaskDetail(state: TuiState, width: number): TuiLine[] {
   if (!state.activeTask) return renderTasks(state, width);
-  return renderTaskDetails(state.activeTask, { width, activity: state.taskContext?.activity, dependencies: state.taskContext?.dependencies });
+  return renderTaskDetails(state.activeTask, { width, activity: state.taskContext?.activity,
+    dependencies: state.taskContext?.dependencies, pointer:true });
 }
 
 function renderWorkflows(state: TuiState, width: number): string[] {
@@ -524,7 +556,7 @@ function renderExampleChat(state: TuiState, width: number): TuiLine[] {
       lines.push(`  ${index + 1}. ${suggestion}`);
     }
   }
-  return lines.flatMap(line=>typeof line==='string'?wrap(line,width):[line]);
+  return lines.flatMap<TuiLine>(line=>typeof line==='string'?wrap(line,width):[line]);
 }
 
 function renderChat(state: TuiState, width: number): TuiLine[] {
@@ -554,7 +586,7 @@ function renderChat(state: TuiState, width: number): TuiLine[] {
   if (state.isBusy) lines.push(`${messageLabel('assistant',null,null,state.activeChat)} is typing...`);
   if (state.followUpSuggestions.length) lines.push("", "Suggestions", ...state.followUpSuggestions.slice(0, 3).map((s, i) => `  ${i + 1}. ${s}`));
   if (state.status) lines.push("", state.status);
-  return lines.flatMap(line=>typeof line==='string'?wrap(line,width):[line]);
+  return lines.flatMap<TuiLine>(line=>typeof line==='string'?wrap(line,width):[line]);
 }
 
 export function renderChatHeader(state: TuiState, width: number): TuiLine[] {
@@ -604,7 +636,8 @@ export function renderMessageContentStyled(content: string, width: number, embed
     const cards=rawCards.map(card=>card.length<5?card:[...card.slice(0,-4),
       ...Array.from({length:height-card.length},()=>`│ ${padCells('',Math.max(0,cardWidth-4))} │`),...card.slice(-4)]);
     lines.push(...renderLineCarousel(cards,width,Math.max(0,selected),Boolean(state?.focus==='content'&&selected>=0),cardWidth));
-    if(state&&selected>=0)lines.push(centeredCarouselText(`Embed ${selected+1}/${unique.length} · ←/→ choose · Enter open · /embed ${aliasForEmbed(state,id!)}`,width));
+    if(state&&selected>=0)lines.push(pointerLine(centeredCarouselText(`Embed ${selected+1}/${unique.length} · ←/→ choose · Enter open · /embed ${aliasForEmbed(state,id!)}`,width),
+      {kind:'command',command:`/embed ${aliasForEmbed(state,id!)}`}));
     pending=[];
   };
   const text=(value:string)=>{
@@ -617,7 +650,7 @@ export function renderMessageContentStyled(content: string, width: number, embed
       }
       else if(block.type==='results-view') {
         const key=++viewIndex;
-        if(state)lines.push(...renderChatResultsView(state,block,key,width));
+        if(state)lines.push(...pointerResultsView(state,block,key,width));
         else lines.push(...renderTuiResultsViewLines(buildTuiResultsViewData(block,embeds),{viewKey:key}).flatMap(row=>wrap(row,width)));
       }
     }
@@ -630,6 +663,26 @@ export function renderMessageContentStyled(content: string, width: number, embed
   const inline=new Set(segments.filter(segment=>segment.type==='embed').map(segment=>segment.value));
   pending.push(...extraIds.filter(id=>!inline.has(id)).map(value=>({value})));
   flush();return lines;
+}
+function pointerResultsView(state:TuiState,descriptor:TuiResultsViewDescriptor,key:number,width:number):TuiLine[] {
+  const data=buildTuiResultsViewData(descriptor,{...exampleEmbedMap(state),...state.chatEmbeds});
+  const actions=data.entries.map((entry,index)=>{
+    const alias=aliasForEmbed(state,entry.ref);
+    return {index,title:entry.title,command:`/embed ${alias}`};
+  }).filter(entry=>/^[\p{L}\p{N}_.:()-]{1,300}$/u.test(entry.command.slice(7)));
+  const rows=renderTuiResultsViewLines(data,{viewKey:key,mode:state.resultsViewModes[key],
+    aliasForEmbed:id=>aliasForEmbed(state,id)});
+  return rows.flatMap((row,index)=>{
+    const value=row.trim(),entry=actions.find(item=>value===item.command||
+      value.startsWith(`${item.index+1}. ${item.title}`)||
+      value.startsWith(`★ ${item.index+1}. ${item.title}`)||
+      value.startsWith(`▶ ${item.index+1}. ${item.title}`));
+    const action=index===1&&value.startsWith(`/view ${key} `)?{kind:'command' as const,command:`/view ${key}`}:
+      entry?{kind:'command' as const,command:entry.command}:undefined;
+    return wrap(row,width).map(text=>action?pointerLine(index===0?{text,bold:true,color:'#80caff'}:
+      index===1?{text,color:'#85c9e8'}:text,action):
+      index===0?{text,bold:true,color:'#80caff'}:index===1&&row.includes('/view')?{text,color:'#85c9e8'}:text);
+  });
 }
 function renderEmbedReference(segment:{value:string;meta?:Record<string,unknown>},width:number,embeds:Map<string,DecryptedEmbed>,state?:TuiState):TuiLine[] {
   const meta=segment.meta??{}, saved=embeds.get(segment.value);

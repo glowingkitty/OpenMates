@@ -1,0 +1,38 @@
+schema_version: 1
+specification: feature.terminal-pointer@1
+
+visible_actions:
+  - id: click-workspace-card-and-project-tab
+    assertion_ids: [terminal-pointer.visible-action-parity]
+    given: OpenMates is running over SSH in a terminal with mouse reporting, with the Chats workspace visible.
+    when: I click Projects in the header, click the OpenMates project card, then click its Tasks tab.
+    then: The Projects workspace opens, the selected project opens once, and its existing Tasks section becomes active, just as with keyboard navigation.
+  - id: click-embed-question-and-composer
+    assertion_ids: [terminal-pointer.visible-action-parity]
+    given: An open chat shows a fitness class embed, a wiki link and an unanswered choice question.
+    when: I click the embed or wiki link, return to the chat, choose an answer in the question editor, then click Send. Later I click the message input.
+    then: Each link opens its existing view. Choosing an answer only changes the draft; Send validates and submits it once. The input gains focus without sending a message.
+
+viewport_targets:
+  - id: resized-and-scrolled-carousel-target
+    assertion_ids: [terminal-pointer.viewport-coherent]
+    given: The recent-chat carousel shows Berlin trip planning next to Dance classes, and the terminal is resized before I scroll to another card.
+    when: I click the visible part of the Dance classes card at its new position.
+    then: Dance classes opens. The old card positions and blank space do not activate another chat.
+  - id: dialog-prevents-click-through
+    assertion_ids: [terminal-pointer.viewport-coherent]
+    given: A project editing dialog is open above the project content, with the existing project name still visible behind it.
+    when: I click outside the dialog where a background project tab would otherwise be.
+    then: The background tab does not activate, the dialog stays open, and its unsaved fields are preserved.
+
+terminal_lifecycle:
+  - id: native-selection-and-keyboard-fallback
+    assertion_ids: [terminal-pointer.lifecycle-selection-safe]
+    given: A chat is open in a desktop terminal, and I enable the existing Ctrl+Y text-selection mode.
+    when: I drag across chat text, leave selection mode, and use the keyboard to navigate. I also open OpenMates in a terminal that sends no mouse events.
+    then: The drag selects text without opening links or cards, and keyboard navigation works in both terminals. Mouse report bytes never appear as typed messages.
+  - id: release-and-external-command-cleanup
+    assertion_ids: [terminal-pointer.lifecycle-selection-safe]
+    given: Mouse reporting is active while OpenMates runs in a terminal.
+    when: I click and release a card, use a right or modified click, then leave the TUI or temporarily run an external command.
+    then: The normal click activates once; release and the other clicks do not activate anything. The shell receives ordinary terminal input while OpenMates is inactive, and resuming restores the correct mouse or text-selection mode.

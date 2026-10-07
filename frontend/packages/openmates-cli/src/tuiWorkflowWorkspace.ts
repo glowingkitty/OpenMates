@@ -2,8 +2,10 @@
 import type { OpenMatesClient, WorkflowCapability, WorkflowDetail, WorkflowGraph, WorkflowNode, WorkflowNodeRun, WorkflowRunDetail, WorkflowSummary } from "./client.js";
 import type { TuiForm, TuiFormField } from "./tuiForms.js";
 import { formValue } from "./tuiForms.js";
-import { cells, padCells, terminalText, truncateCells, wrapCells, type TuiLine } from "./tuiText.js";
+import { cells, padCells, terminalText, truncateCells, wrapCells, type TuiLine, type TuiSpan } from "./tuiText.js";
 import { centeredCarouselText, renderCardCarousel } from "./tuiCarousel.js";
+import { pointerLine } from "./tuiPointer.js";
+import type { TuiPointerAction } from "./tuiPointer.js";
 import { APP_GRADIENTS, PRIMARY_GRADIENT } from "../../appGradientTheme.js";
 import { CATEGORY_GRADIENTS } from "../../chatCategoryTheme.js";
 
@@ -30,6 +32,7 @@ export function renderWorkflowCarousel(workflows: WorkflowSummary[], width: numb
       truncateCells(clean(workflow.trigger_summary || "Manual"), 32)].filter(Boolean).join("\n"),
     footer: `${workflow.enabled ? "Enabled" : "Paused"}${workflow.last_run_status ? ` · Last: ${clean(workflow.last_run_status)}` : ""}`,
     background: PRIMARY_GRADIENT.start,
+    action: {kind:"command" as const,command:`/workflow ${workflow.id}`},
   }));
   return [...renderCardCarousel(cards, width, selected, focused), "",
     centeredCarouselText(`Workflow ${selected + 1} of ${workflows.length} · ←/→ choose workflow · Enter open`, width)];
@@ -63,7 +66,8 @@ export function renderWorkflowIdentity(workflow: WorkflowSummary, options: { wid
   ];
   return rows.map((row, index) => {
     const value = truncateCells(terminalText(row), width);
-    return { text: padCells(centered(value, width), width), background: workflowIdentityColor(workflow), color: "#ffffff", bold: index === 0 || index === 2 };
+    return { text: padCells(centered(value, width), width), background: workflowIdentityColor(workflow), color: "#ffffff", bold: index === 0 || index === 2,
+      ...(index===3?{action:{kind:"command" as const,command:"/workflow-toggle"}}:{}) };
   });
 }
 
@@ -126,6 +130,19 @@ function workflowTabs(width: number, tab: "graph" | "runs"): string[] {
   const right = tabBox("Runs", "r", tab === "runs", tabWidth);
   const inset = " ".repeat(Math.floor((width - tabWidth * 2 - 2) / 2));
   return left.map((line, index) => `${inset}${line}  ${right[index]}`);
+}
+
+function workflowPointerTabs(width:number,tab:"graph"|"runs"):TuiLine[] {
+  const source=workflowTabs(width,tab);
+  const key=(chunk:"g"|"r"):TuiPointerAction=>({kind:"key",name:"",chunk,focus:"content"});
+  if(width<36) return source.map((line,index)=>pointerLine(line,key(index<3?"g":"r")));
+  const tabWidth=18;
+  const inset=Math.max(0,Math.floor((width-tabWidth*2-2)/2));
+  return source.map((line)=>{
+    const spans:TuiSpan[]=[{text:line.slice(0,inset)},{text:line.slice(inset,inset+tabWidth),action:key("g")},
+      {text:line.slice(inset+tabWidth,inset+tabWidth+2)},{text:line.slice(inset+tabWidth+2),action:key("r")}];
+    return {text:line,spans};
+  });
 }
 
 export function orderedWorkflowNodes(graph: WorkflowGraph): WorkflowNode[] {
@@ -222,7 +239,7 @@ function graphCanvas(graph: WorkflowGraph, options: WorkflowWorkspaceOptions, ru
   const selected = nodes[Math.max(0, Math.min(nodes.length - 1, options.selectedNodeIndex ?? 0))]?.id;
   const innerWidth = Math.max(8, width - 4);
   const rows: TuiLine[] = [];
-  for (const node of nodes) {
+  for (const [nodeIndex,node] of nodes.entries()) {
     const nodeRun = nodeRuns.get(node.id);
     const typeLabel = nodeKind(node);
     const badge = graph.trigger_node_id === node.id ? " · trigger" : "";
@@ -241,10 +258,20 @@ function graphCanvas(graph: WorkflowGraph, options: WorkflowWorkspaceOptions, ru
       ...(expanded ? expandedStepRows(node, nodeRun, options.tab === "runs", options.edit) : []),
     ];
     const color = workflowNodeColor(node);
+    const action:TuiPointerAction={kind:"select",target:"workflow-node",index:nodeIndex,id:node.id,activate:true};
     rows.push(...panel(expanded ? "Step details" : "Step", cardRows, cardWidth, expanded ? "left" : "center").map((line): TuiLine => {
       const inset = " ".repeat(cardInset);
       const text = `${inset}${line}`;
-      return color ? { text, spans: [{ text: inset }, { text: line, background: color, bold: line.includes(typeLabel) }] } : text;
+      if(expanded&&options.tab==="graph"&&line.includes("e Edit title · E Edit config")){
+        const titleAt=line.indexOf("e Edit title"),configAt=line.indexOf("E Edit config");
+        const spans:TuiSpan[]=[{text:inset},{text:line.slice(0,titleAt),background:color,action},
+          {text:line.slice(titleAt,configAt-3),background:color,action:{kind:"key",name:"",chunk:"e",focus:"content"}},
+          {text:line.slice(configAt-3,configAt),background:color,action},
+          {text:line.slice(configAt,configAt+13),background:color,action:{kind:"key",name:"",chunk:"E",focus:"content"}},
+          {text:line.slice(configAt+13),background:color,action}];
+        return {text,spans};
+      }
+      return {text,spans:[{text:inset},{text:line,background:color,bold:line.includes(typeLabel),action}]};
     }));
     const outgoing = (graph.edges ?? []).filter((edge) => edge.from === node.id);
     const connector = " ".repeat(cardInset + 2);
@@ -267,7 +294,7 @@ export function renderWorkflowWorkspace(workflow: WorkflowDetail, options: Workf
   const width = Math.max(1, options.width);
   const lines: TuiLine[] = [
     ...renderWorkflowIdentity(workflow, { width,run:options.tab==="runs"?run??undefined:undefined }),
-    ...workflowTabs(width, options.tab),
+    ...workflowPointerTabs(width, options.tab),
     "",
   ];
   const upcoming = workflow.enabled && workflow.next_run_at && workflow.next_run_at > Date.now() / 1000 ? workflow.next_run_at : null;
@@ -278,7 +305,8 @@ export function renderWorkflowWorkspace(workflow: WorkflowDetail, options: Workf
     if (!runs.length && !upcoming) lines.push("No runs yet.");
     for (const [index, item] of runs.entries()) {
       const marker = index === (options.selectedRunIndex ?? 0) ? ">" : " ";
-      lines.push(`${marker} ${item.id} · ${item.status}${item.started_at ? ` · ${new Date(item.started_at * 1000).toISOString()}` : ""}`);
+      lines.push(pointerLine(`${marker} ${item.id} · ${item.status}${item.started_at ? ` · ${new Date(item.started_at * 1000).toISOString()}` : ""}`,
+        {kind:"select",target:"workflow-run",index,id:item.id,activate:true}));
     }
     if (run) {
       lines.push("", `Selected run ${run.id} · ${run.status} · version ${run.version_id}`);

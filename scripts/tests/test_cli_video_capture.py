@@ -62,6 +62,8 @@ def test_interactive_plan_runs_cli_directly_and_validates_bounded_inputs(tmp_pat
     path.write_text('{"steps":[{"name":"ready","wait_for":"OpenMates"},{"name":"navigation","key":"ctrl+g"},{"name":"sidebar","key":"ctrl+b","wait_for":"Chats"},{"name":"tasks","text":"/tasks"},{"name":"enter","key":"Return","wait_for":"Tasks","hold_ms":400}]}', encoding="utf-8")
     steps = module.load_input_plan(path)
     assert [step["name"] for step in steps] == ["ready", "navigation", "sidebar", "tasks", "enter"]
+    path.write_text('{"steps":[{"name":"palette","key":"ctrl+p"}]}', encoding="utf-8")
+    assert module.load_input_plan(path)[0]["key"] == "ctrl+p"
     plan = module.build_capture_plan(
         argv=["node", "frontend/packages/openmates-cli/dist/cli.js"], output_dir=tmp_path,
         xvfb_binary="Xvfb", terminal_binary="zutty", ffmpeg_binary="ffmpeg", interactive=True,
@@ -76,6 +78,17 @@ def test_interactive_plan_runs_cli_directly_and_validates_bounded_inputs(tmp_pat
     path.write_text('{"steps":[{"name":"bad","key":"ctrl+alt+Delete"}]}', encoding="utf-8")
     with pytest.raises(module.CliCaptureError, match="unsupported key"):
         module.load_input_plan(path)
+
+
+def test_pointer_proof_key_sequence_passes_recorder_validation(tmp_path: Path) -> None:
+    module = load_module()
+    path = tmp_path / "pointer-input.json"
+    keys = ["ctrl+g", "ctrl+p", "Escape", "Escape", "End", "Return"]
+    path.write_text(json.dumps({"steps": [
+        {"name": f"pointer-key-{index}", "key": key}
+        for index, key in enumerate(keys)
+    ]}), encoding="utf-8")
+    assert [step["key"] for step in module.load_input_plan(path)] == keys
 
 
 def test_interactive_capture_prefers_zutty_and_uses_software_renderer(tmp_path: Path, monkeypatch) -> None:
@@ -196,6 +209,95 @@ def test_interactive_driver_wheels_over_sidebar_and_rejects_mixed_inputs(tmp_pat
     input_path.write_text(json.dumps({"steps": [{"name": "bad-wheel", "wheel": "left"}]}), encoding="utf-8")
     with pytest.raises(module.CliCaptureError, match="unsupported wheel direction"):
         module.load_input_plan(input_path)
+
+
+def _screen(*rows: str) -> str:
+    return "\x1b[?2026h" + "".join(f"\x1b[{index};1H\x1b[2K{row}" for index, row in enumerate(rows, 1)) + "\x1b[?2026l"
+
+
+def test_click_plan_resolves_visible_cells_and_rejects_ambiguous_targets(tmp_path: Path) -> None:
+    module = load_module()
+    path = tmp_path / "pointer-plan.json"
+    steps = [
+        {"name": "project", "click": {"text": "Projects"}},
+        {"name": "second", "click": {"text": "Open", "occurrence": 1}},
+        {"name": "card", "click": {"row": 3, "column": 12}},
+        {"name": "narrow", "resize": {"width": 900, "height": 600}},
+    ]
+    path.write_text(json.dumps({"steps": steps}), encoding="utf-8")
+    assert module.load_input_plan(path) == steps
+    frame = _screen("漢 Projects Open    ", "Open                ", "Card                ",
+                    "                    ", "                    ")
+    assert module.resolve_click_cell(frame, {"text": "Projects"}) == (1, 7, 20, 5)
+    assert module.resolve_click_cell(frame, {"text": "Open", "occurrence": 1}) == (2, 2, 20, 5)
+    assert module.resolve_click_cell(frame, {"row": 3, "column": 12}) == (3, 12, 20, 5)
+    with pytest.raises(module.CliCaptureError, match="ambiguous"):
+        module.resolve_click_cell(frame, {"text": "Open"})
+    with pytest.raises(module.CliCaptureError, match="outside"):
+        module.resolve_click_cell(frame, {"row": 6, "column": 1})
+    with pytest.raises(module.CliCaptureError, match="complete"):
+        module.resolve_click_cell(frame[:-8], {"text": "Projects"})
+
+
+@pytest.mark.parametrize("click", [
+    {"text": ""}, {"text": "Projects", "occurrence": -1},
+    {"text": "Projects", "occurrence": True}, {"text": "Projects", "row": 1},
+    {"row": 0, "column": 1}, {"row": 1, "column": 257}, {"row": True, "column": 1},
+])
+def test_click_plan_rejects_invalid_targets(tmp_path: Path, click: dict) -> None:
+    module = load_module()
+    path = tmp_path / "bad-pointer-plan.json"
+    path.write_text(json.dumps({"steps": [{"name": "bad", "click": click}]}), encoding="utf-8")
+    with pytest.raises(module.CliCaptureError, match="invalid click"):
+        module.load_input_plan(path)
+
+
+def test_click_plan_rejects_secret_bearing_target(tmp_path: Path) -> None:
+    module = load_module()
+    path = tmp_path / "secret-pointer-plan.json"
+    path.write_text(json.dumps({"steps": [{"name": "secret", "click": {"text": "--api-key value"}}]}), encoding="utf-8")
+    with pytest.raises(module.CliCaptureError, match="secret-bearing"):
+        module.load_input_plan(path)
+
+
+def test_pointer_driver_uses_xtest_press_release_and_recalculates_after_resize(tmp_path: Path, monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    module = load_module()
+    transcript = tmp_path / "transcript.txt"
+    transcript.write_text(_screen(*(["Projects".ljust(20)] + [" " * 20] * 4)), encoding="utf-8")
+    commands: list[list[str]] = []
+    size = {"WIDTH": 800, "HEIGHT": 500}
+
+    def fake_run(argv, **_kwargs):
+        commands.append(argv)
+        if argv[1] == "search":
+            return SimpleNamespace(returncode=0, stdout="42\n", stderr="")
+        if argv[1] == "getwindowgeometry":
+            return SimpleNamespace(returncode=0, stdout=f"WIDTH={size['WIDTH']}\nHEIGHT={size['HEIGHT']}\n", stderr="")
+        if argv[1] == "windowsize" and argv[-2:] == ["900", "600"]:
+            size.update(WIDTH=900, HEIGHT=600)
+            transcript.write_text(transcript.read_text() + _screen(*(["Projects".ljust(30)] + [" " * 30] * 5)), encoding="utf-8")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    monkeypatch.setattr(module.time, "sleep", lambda _seconds: None)
+    checkpoints = module.drive_terminal_inputs(
+        steps=[{"name": "first", "click": {"text": "Projects"}},
+               {"name": "resize", "resize": {"width": 900, "height": 600}, "wait_for": "Projects"},
+               {"name": "second", "click": {"text": "Projects"}}],
+        transcript_path=transcript, display=":91", terminal=SimpleNamespace(poll=lambda: None),
+        started_at=module.time.monotonic(), xdotool_binary="xdotool",
+    )
+    assert [command[1] for command in commands].count("mousedown") == 2
+    assert [command[1] for command in commands].count("mouseup") == 2
+    assert checkpoints[0]["pointer"]["columns"] == 20
+    assert checkpoints[0]["pointer"]["rows"] == 5
+    assert checkpoints[0]["pointer"]["window_width"] == 800
+    assert checkpoints[2]["pointer"]["columns"] == 30
+    assert checkpoints[2]["pointer"]["rows"] == 6
+    assert checkpoints[2]["pointer"]["window_width"] == 900
+    assert checkpoints[0]["pointer"]["x"] != checkpoints[2]["pointer"]["x"]
 
 
 @pytest.mark.parametrize("repeat", [1, 8, 16])

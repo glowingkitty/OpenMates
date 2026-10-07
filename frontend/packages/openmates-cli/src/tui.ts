@@ -39,6 +39,8 @@ import { loadHomeData, startHomeSync } from "./tuiHome.js";
 import { refreshTuiChatSidebar } from './tuiChatSidebar.js';
 import { parseChatContextContent } from "./chatContextEvents.js";
 import { tuiComposerCursor } from './tuiLayout.js';
+import {pointerTargetAt} from './tuiPointer.js';
+import {handleTuiPointer} from './tuiPointerActions.js';
 import { registerChatEmbedAliases, hydrateChatEmbedPreviews } from './tuiEmbeds.js';
 
 export type CliDefaultMode = "tui" | "quickstart";
@@ -127,6 +129,7 @@ export async function runTui(
   terminal.onKey((chunk, key) => {
     if (key.ctrl && key.name === "c") { finish({ action: "exit" }); return; }
     void (async () => {
+      if(key.name==='mouseclick'){await handleKey({chunk,key,state,client,terminal,render,finish});return;}
       if (await startup.handleKey(chunk, key)) return;
       await handleKey({ chunk, key, state, client, terminal, render, finish });
     })().catch((error) => {
@@ -163,6 +166,12 @@ async function handleKey(params: {
     command: (command) => handleCommand({command,state,client,terminal,render,finish}),
     send: (message, options) => sendTuiMessage({message,state,client,render,questionAnswer:options?.questionAnswer}),
   };
+  if(key.name==='mouseclick'){
+    if(!key.mouse||key.ctrl||key.meta||key.shift)return;
+    const action=pointerTargetAt(state,key.mouse.column,key.mouse.row,terminal.width,terminal.height);
+    if(action)await handleTuiPointer(context,action,(text,pressed)=>handleKey({...params,chunk:text,key:pressed}));
+    return;
+  }
   if (await handleWorkspaceKey(context, chunk, key)) return;
   if (key.name === "escape") {
     if (state.workflowEdit) {

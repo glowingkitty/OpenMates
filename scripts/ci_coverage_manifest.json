@@ -522,6 +522,7 @@
         "cli-tui-centered-carousels-proof.spec.ts",
         "cli-tui-chat-previews-proof.spec.ts",
         "cli-tui-interactive-questions-proof.spec.ts",
+        "cli-tui-pointer-proof.spec.ts",
         "cli-tui-workspace-proof.spec.ts",
         "cli-tui-workspace-details-proof.spec.ts",
         "cli-workflow-data-branches.spec.ts",

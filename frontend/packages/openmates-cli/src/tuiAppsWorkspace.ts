@@ -12,8 +12,9 @@ import type { OpenMatesClient } from "./client.js";
 import { decryptBytesWithAesGcm, decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
 import { formatEmbedPreviewLines } from "./embedRenderers.js";
 import { formValue, type TuiForm } from "./tuiForms.js";
-import { cells, padCells, terminalText, truncateCells, wrapCells, type TuiLine } from "./tuiText.js";
+import { cells, padCells, terminalText, truncateCells, wrapCells, type TuiLine, type TuiSpan } from "./tuiText.js";
 import { centeredCarouselText, renderCardCarousel } from "./tuiCarousel.js";
+import { pointerLine } from "./tuiPointer.js";
 import { APP_GRADIENTS, PRIMARY_GRADIENT } from "../../appGradientTheme.js";
 import {
   getSkillPath, prepareSkillInput, resolveSkillSchema, schemaForPath, setSkillPath,
@@ -112,6 +113,7 @@ export function renderTuiAppsHome(apps: TuiApp[], options: { width: number; sele
   return [...renderCardCarousel(visible.map((app) => ({ title: app.name, description: app.description,
     footer: `${app.skills.length} skills${app.category ? ` · ${app.category.replaceAll("_", " ")}` : ""}`,
     background: (APP_GRADIENTS[app.id] ?? PRIMARY_GRADIENT).start,
+    action: {kind:"command" as const,command:`/app ${app.id}`},
   })), width, selected, options.selectedId !== undefined), "",
   centeredCarouselText(`${selected > 0 ? "‹" : " "}  App ${selected + 1} of ${visible.length}  ${selected < visible.length - 1 ? "›" : " "}`, width),
   centeredCarouselText("←/→ choose app  ·  Enter open  ·  Tab focus", width)];
@@ -157,26 +159,64 @@ function outlinedTabs<T extends string>(tabs: readonly T[], labels: Record<T, st
   return ["", `╭${edges.join("┬")}╮`, `│${row.join("│")}│`, `╰${edges.join("┴")}╯`, ""];
 }
 
+function outlinedPointerTabs<T extends string>(tabs:readonly T[],labels:Record<T,string>,selected:T,width:number):TuiLine[] {
+  const rendered=outlinedTabs(tabs,labels,selected,width);
+  const action=(index:number)=>({kind:"key" as const,name:"",chunk:String(index+1),focus:"content" as const});
+  if(width<tabs.length*8+1){
+    const spans:TuiSpan[]=[];let remaining=Math.max(1,width);
+    tabs.forEach((tab,index)=>{
+      if(index&&remaining){const separator=truncateCells(" | ",remaining);spans.push({text:separator});remaining-=cells(separator);}
+      const label=truncateCells(`${index+1} ${tab===selected?`[${labels[tab]}]`:labels[tab]}`,remaining);
+      if(label)spans.push({text:label,action:action(index)});
+      remaining-=cells(label);
+    });
+    return ["",{text:rendered[1],spans},""];
+  }
+  const available=width-tabs.length-1,base=Math.floor(available/tabs.length);
+  const sizes=tabs.map((_,index)=>base+(index<available%tabs.length?1:0));
+  return rendered.map((line,row)=>{
+    if(row===0||row===rendered.length-1)return line;
+    const spans:TuiSpan[]=[{text:line.slice(0,1)}];let offset=1;
+    sizes.forEach((size,index)=>{
+      spans.push({text:line.slice(offset,offset+size),action:action(index)});offset+=size;
+      spans.push({text:line.slice(offset,offset+1)});offset++;
+    });
+    return {text:line,spans};
+  });
+}
+
+function pointerPageLine(offset:number,hasMore:boolean):TuiLine {
+  const prefix=`Page ${Math.floor(offset / RESULT_PAGE_SIZE) + 1} · `;
+  const spans:TuiSpan[]=[{text:prefix},{text:"previous",...(offset>0?{action:{kind:"key" as const,name:"",chunk:"[",focus:"content" as const}}:{})},
+    {text:"/"},{text:"next",...(hasMore?{action:{kind:"key" as const,name:"",chunk:"]",focus:"content" as const}}:{})},{text:" available"}];
+  return {text:spans.map((span)=>span.text).join(""),spans};
+}
+
 export function renderTuiAppIdentity(app: TuiApp, width: number): string[] {
   return identityCard([`APP  /  ${app.id.toUpperCase()}`, app.name, app.description,
     `${app.skills.length} skills · ${app.focusModes.length} focus modes`], width, "APP WORKSPACE");
 }
 
-export function renderTuiAppTabs(tab: TuiAppsTab, width: number): string[] {
+export function renderTuiAppTabs(tab:TuiAppsTab,width:number,options:{pointer:true}):TuiLine[];
+export function renderTuiAppTabs(tab:TuiAppsTab,width:number):string[];
+export function renderTuiAppTabs(tab: TuiAppsTab, width: number, options?:{pointer:true}): TuiLine[] {
   const tabs: TuiAppsTab[] = ["skills", "focus_modes", "settings_memories", "embeds", "workflows"];
   const labels: Record<TuiAppsTab, string> = { skills: "Skills", focus_modes: "Focus modes", settings_memories: "Memories", embeds: "Embeds", workflows: "Workflows" };
-  return outlinedTabs(tabs, labels, tab, width);
+  return options?.pointer?outlinedPointerTabs(tabs,labels,tab,width):outlinedTabs(tabs, labels, tab, width);
 }
 
-export function renderTuiApp(app: TuiApp, options: { width: number; tab: TuiAppsTab; selectedId?: string }): string[] {
+export function renderTuiApp(app:TuiApp,options:{width:number;tab:TuiAppsTab;selectedId?:string;pointer:true}):TuiLine[];
+export function renderTuiApp(app:TuiApp,options:{width:number;tab:TuiAppsTab;selectedId?:string}):string[];
+export function renderTuiApp(app: TuiApp, options: { width: number; tab: TuiAppsTab; selectedId?: string;pointer?:true }): TuiLine[] {
   const width = Math.max(1, options.width);
-  const lines = [...renderTuiAppIdentity(app, width), ...renderTuiAppTabs(options.tab, width)];
+  const lines:TuiLine[] = [...renderTuiAppIdentity(app, width), ...(options.pointer?renderTuiAppTabs(options.tab,width,{pointer:true}):renderTuiAppTabs(options.tab, width))];
   if (options.tab === "skills") {
     lines.push("Which app skill do you want to use?", "");
     if (!app.skills.length) lines.push("No skills available.");
     for (const skill of app.skills) {
-      lines.push(...cardLines(`${skill.id === options.selectedId ? "›" : " "} ${skill.name}`, skill.description,
-        skill.providers.length ? `via ${skill.providers.join(", ")}` : `${app.id}/${skill.id}`, width), "");
+      const card=cardLines(`${skill.id === options.selectedId ? "›" : " "} ${skill.name}`, skill.description,
+        skill.providers.length ? `via ${skill.providers.join(", ")}` : `${app.id}/${skill.id}`, width);
+      lines.push(...(options.pointer?card.map((line)=>pointerLine(line,{kind:"command",command:`/app-skill ${app.id}/${skill.id}`})):card), "");
     }
   } else if (options.tab === "focus_modes" || options.tab === "settings_memories") {
     const items = options.tab === "focus_modes" ? app.focusModes : app.settingsMemories;
@@ -184,7 +224,7 @@ export function renderTuiApp(app: TuiApp, options: { width: number; tab: TuiApps
     for (const item of items) {
       lines.push(truncateCells(`${item.id === options.selectedId ? ">" : " "} ${item.name}`, width));
       if (item.description) lines.push(...textLines(`  ${oneLine(item.description)}`, width));
-      if ('body' in item && item.body && item.id === options.selectedId) lines.push(...textLines(item.body, width));
+      if ('body' in item && typeof item.body === "string" && item.body && item.id === options.selectedId) lines.push(...textLines(item.body, width));
     }
     lines.push("", "Manage private Memories in the web app.");
   } else if (options.tab === "embeds") lines.push("Saved results load from the encrypted Apps history. Use Enter to inspect a result.");
@@ -205,9 +245,11 @@ export async function loadTuiAppsSkill(client: Pick<OpenMatesClient, "getAppsWor
   };
 }
 
-export function renderTuiAppsSkill(skill: TuiAppsSkillDetails, options: { width: number; tab: TuiAppsSkillTab }): string[] {
+export function renderTuiAppsSkill(skill:TuiAppsSkillDetails,options:{width:number;tab:TuiAppsSkillTab;pointer:true}):TuiLine[];
+export function renderTuiAppsSkill(skill:TuiAppsSkillDetails,options:{width:number;tab:TuiAppsSkillTab}):string[];
+export function renderTuiAppsSkill(skill: TuiAppsSkillDetails, options: { width: number; tab: TuiAppsSkillTab;pointer?:true }): TuiLine[] {
   const width = Math.max(1, options.width);
-  const lines = [...renderTuiAppsSkillIdentity(skill, width), ...renderTuiAppsSkillTabs(options.tab, width)];
+  const lines:TuiLine[] = [...renderTuiAppsSkillIdentity(skill, width), ...(options.pointer?renderTuiAppsSkillTabs(options.tab,width,{pointer:true}):renderTuiAppsSkillTabs(options.tab, width))];
   if (options.tab === "overview") {
     lines.push("Use this skill manually. Your mates can also use it in chats.", "");
     for (const path of skillLeafPaths(skill.schema)) {
@@ -215,7 +257,9 @@ export function renderTuiAppsSkill(skill: TuiAppsSkillDetails, options: { width:
       const value = getSkillPath(skill.defaults, path);
       lines.push(truncateCells(`${path}${isRequired(skill.schema, path) ? " *" : ""} · ${field?.type ?? "value"}${value !== undefined ? ` · ${typeof value === "string" ? value : JSON.stringify(value)}` : ""}`, width));
     }
-    lines.push("", skill.executionAvailable ? "Enter opens the input form. Running may spend credits." : `Unavailable: ${skill.unavailableReason ?? "This skill cannot run here."}`);
+    lines.push("", skill.executionAvailable && options.pointer
+      ? pointerLine("Enter opens the input form. Running may spend credits.",{kind:"command",command:"/app-run"})
+      : skill.executionAvailable ? "Enter opens the input form. Running may spend credits." : `Unavailable: ${skill.unavailableReason ?? "This skill cannot run here."}`);
     const fixed = skill.pricing?.fixed;
     if (typeof fixed === "number") lines.push(`${fixed} credits per request`);
   } else if (options.tab === "embeds") lines.push("Saved results are listed in the app's Embeds tab.");
@@ -229,10 +273,12 @@ export function renderTuiAppsSkillIdentity(skill: TuiAppsSkillDetails, width: nu
     skill.executionAvailable ? "Use skill · review input and confirm credits before running" : "Skill unavailable"], width, "APP SKILL");
 }
 
-export function renderTuiAppsSkillTabs(tab: TuiAppsSkillTab, width: number): string[] {
+export function renderTuiAppsSkillTabs(tab:TuiAppsSkillTab,width:number,options:{pointer:true}):TuiLine[];
+export function renderTuiAppsSkillTabs(tab:TuiAppsSkillTab,width:number):string[];
+export function renderTuiAppsSkillTabs(tab: TuiAppsSkillTab, width: number, options?:{pointer:true}): TuiLine[] {
   const tabs: TuiAppsSkillTab[] = ["overview", "embeds", "workflows"];
   const labels: Record<TuiAppsSkillTab, string> = { overview: "Overview", embeds: "Embeds", workflows: "Workflows" };
-  return outlinedTabs(tabs, labels, tab, width);
+  return options?.pointer?outlinedPointerTabs(tabs,labels,tab,width):outlinedTabs(tabs, labels, tab, width);
 }
 
 function isRequired(schema: SkillSchema, path: string): boolean {
@@ -424,12 +470,17 @@ export async function loadTuiAppsWorkflows(client: Pick<OpenMatesClient, "listAp
     hasMore: page.has_more === true, offset: typeof page.offset === "number" ? page.offset : offset };
 }
 
-export function renderTuiAppsWorkflows(page: TuiAppsWorkflowPage, options: { width: number; selectedId?: string }): string[] {
+export function renderTuiAppsWorkflows(page:TuiAppsWorkflowPage,options:{width:number;selectedId?:string;pointer:true}):TuiLine[];
+export function renderTuiAppsWorkflows(page:TuiAppsWorkflowPage,options:{width:number;selectedId?:string}):string[];
+export function renderTuiAppsWorkflows(page: TuiAppsWorkflowPage, options: { width: number; selectedId?: string;pointer?:true }): TuiLine[] {
   const width = Math.max(1, options.width);
-  const lines = ["Related workflows", ""];
+  const lines:TuiLine[] = ["Related workflows", ""];
   if (!page.items.length) lines.push("No workflows for this app.");
-  for (const workflow of page.items) lines.push(truncateCells(`${workflow.id === options.selectedId ? ">" : " "} ${workflow.title} · ${workflow.id.slice(0, 8)}`, width));
-  if (page.offset > 0 || page.hasMore) lines.push("", `Page ${Math.floor(page.offset / RESULT_PAGE_SIZE) + 1} · previous/next available`);
+  for (const workflow of page.items) {
+    const line=truncateCells(`${workflow.id === options.selectedId ? ">" : " "} ${workflow.title} · ${workflow.id.slice(0, 8)}`, width);
+    lines.push(options.pointer?pointerLine(line,{kind:"command",command:`/workflow ${workflow.id}`}):line);
+  }
+  if (page.offset > 0 || page.hasMore) lines.push("", options.pointer?pointerPageLine(page.offset,page.hasMore):`Page ${Math.floor(page.offset / RESULT_PAGE_SIZE) + 1} · previous/next available`);
   return lines;
 }
 
@@ -453,12 +504,17 @@ export async function loadTuiAppsResult(client: Pick<OpenMatesClient, "getAppsWo
   return { embedId, appId: string(root.app_id), skillId: string(root.skill_id), status: string(root.status), content: decrypted.content, children };
 }
 
-export function renderTuiAppsResults(page: TuiAppsResultsPage, options: { width: number; selectedId?: string }): string[] {
+export function renderTuiAppsResults(page:TuiAppsResultsPage,options:{width:number;selectedId?:string;pointer:true}):TuiLine[];
+export function renderTuiAppsResults(page:TuiAppsResultsPage,options:{width:number;selectedId?:string}):string[];
+export function renderTuiAppsResults(page: TuiAppsResultsPage, options: { width: number; selectedId?: string;pointer?:true }): TuiLine[] {
   const width = Math.max(1, options.width);
-  const lines = ["Saved results", ""];
+  const lines:TuiLine[] = ["Saved results", ""];
   if (!page.items.length) lines.push("No saved results for this app.");
-  for (const item of page.items) lines.push(truncateCells(`${item.embedId === options.selectedId ? ">" : " "} ${item.skillId} · ${item.status} · ${item.embedId.slice(0, 8)}`, width));
-  if (page.offset > 0 || page.hasMore) lines.push("", `Page ${Math.floor(page.offset / RESULT_PAGE_SIZE) + 1} · previous/next available`);
+  for (const item of page.items) {
+    const line=truncateCells(`${item.embedId === options.selectedId ? ">" : " "} ${item.skillId} · ${item.status} · ${item.embedId.slice(0, 8)}`, width);
+    lines.push(options.pointer?pointerLine(line,{kind:"command",command:`/app-result ${item.embedId}`}):line);
+  }
+  if (page.offset > 0 || page.hasMore) lines.push("", options.pointer?pointerPageLine(page.offset,page.hasMore):`Page ${Math.floor(page.offset / RESULT_PAGE_SIZE) + 1} · previous/next available`);
   return lines;
 }
 

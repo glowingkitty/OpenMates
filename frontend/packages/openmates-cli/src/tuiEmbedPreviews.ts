@@ -13,6 +13,7 @@ import {
   type FitnessSkillId,
 } from '../../ui/src/components/embeds/fitness/fitnessEmbedData.js';
 import { padCells, terminalText, truncateCells, wrapCells, type TuiLine } from './tuiText.js';
+import {pointerLine} from './tuiPointer.js';
 
 export interface TuiEmbedPreviewOptions {
   /** Metadata from the reference may be available before the embed is hydrated. */
@@ -55,7 +56,11 @@ function card(details: string[], width: number, appName: string, skillName: stri
   appId: string, emphasizeSecond = true): TuiLine[] {
   const cardWidth = Math.max(1, Math.min(62, Math.floor(width) || 1));
   const shortcut = `/embed ${readable(alias)}`;
-  if (cardWidth < 6) return [truncateCells(shortcut, cardWidth)];
+  const action=/^[\p{L}\p{N}_.:()-]{1,300}$/u.test(alias)?{kind:'command' as const,command:shortcut}:null;
+  if (cardWidth < 6) {
+    const line=truncateCells(shortcut, cardWidth);
+    return [action?pointerLine(line,action):line];
+  }
   const inner = cardWidth - 4;
   const colors = appColors(appId);
   const row = (value: string, color = DETAIL, background?: string, bold = false): TuiLine => {
@@ -75,7 +80,7 @@ function card(details: string[], width: number, appName: string, skillName: stri
   lines.push(row(truncateCells(`${appName} · ${skillName}`, inner), colors.foreground, colors.background, true));
   lines.push(row(truncateCells(shortcut, inner), colors.foreground, colors.background));
   lines.push({ text: `╰${'─'.repeat(cardWidth - 2)}╯`, color: BORDER });
-  return lines;
+  return action?lines.map(line=>pointerLine(line,action)):lines;
 }
 
 /** Recording payloads store flat transcript fields, exactly as the web preview does. */

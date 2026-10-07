@@ -1,0 +1,82 @@
+schema_version: 1
+id: feature.terminal-pointer
+version: 1
+status: draft
+title: Terminal Pointer Interaction
+summary: >
+  OpenMates terminal controls support mouse clicks and terminal-generated touch
+  taps using the same actions as keyboard navigation.
+
+scope:
+  includes:
+    - Left-click or tap activation in terminals that emit supported mouse reports, including over SSH.
+    - Visible workspace navigation, sidebar entries, cards, tabs, workflow nodes and runs, embed and wiki links, and existing form and question controls.
+    - Composer focus, accurate targets after scrolling or resizing, keyboard fallback, and native text selection.
+  excludes:
+    - Hover effects, drag and drop, task reordering, touch gestures not translated into terminal mouse reports, and changes to the underlying object workflows.
+  related_contracts:
+    - surface.cli preserves canonical object ids, encryption and owner/team boundaries; its existing assertions do not define terminal pointer input.
+    - feature.chat-navigation supplies navigation guidance but currently marks CLI parity as not required and does not define terminal click handling.
+
+assertions:
+  - id: terminal-pointer.visible-action-parity
+    type: behavior
+    surfaces: [cli]
+    must: >
+      A left click or terminal-generated tap on a visible interactive element
+      activates its existing keyboard action once. Workspace labels switch
+      workspaces; sidebar entries, cards, workflow nodes and runs, and embed or
+      wiki links open their existing destinations; tabs switch sections; form
+      and question controls focus or change their drafts. Clicking the composer
+      focuses it without sending. Save, Send and confirmation controls retain
+      their existing validation, busy locks and confirmation requirements.
+    depends_on: [examples.visible_actions]
+  - id: terminal-pointer.viewport-coherent
+    type: behavior
+    surfaces: [cli]
+    must: >
+      Click targets match the currently displayed terminal cells after
+      scrolling, resizing, carousel movement or background updates, including
+      clipped cards and wide characters. Hidden elements and blank space have
+      no action. An open dialog, action palette, question editor or narrow
+      sidebar overlay prevents clicks from activating obscured content.
+    depends_on: [examples.viewport_targets]
+  - id: terminal-pointer.lifecycle-selection-safe
+    type: failure
+    surfaces: [cli]
+    must: >
+      Keyboard navigation remains usable when a terminal does not send mouse
+      reports. Right and middle clicks, drag and motion reports, modified
+      clicks, and button release reports do not activate elements; mouse
+      reports never become composer text. Existing wheel scrolling is
+      preserved. Native text selection remains available through the existing
+      selection mode, which releases mouse capture and prevents click
+      activation. Exit, errors and suspension for external commands release
+      mouse capture and restore the terminal; resuming restores the appropriate
+      mouse or text-selection mode.
+    depends_on: [examples.terminal_lifecycle]
+
+applies_to:
+  rest_api:
+    required: false
+    role: Existing authenticated operations remain unchanged.
+  cli:
+    required: true
+    parity: source_of_truth
+    role: Owns terminal input, rendering, hit targets and activation.
+  sdks:
+    required: false
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+    role: Existing SDK actions retain their object and privacy contracts.
+  gui:
+    required: false
+    implementations:
+      web: {required: false}
+      apple: {required: false}
+    role: Existing graphical controls are interaction references; this change adds no GUI behavior.
+
+examples:
+  file: examples.yml
+  required_groups: [visible_actions, viewport_targets, terminal_lifecycle]
