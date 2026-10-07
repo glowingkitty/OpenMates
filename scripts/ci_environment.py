@@ -71,6 +71,21 @@ def mail_capture_specs(harness_manifest: dict, candidate_root: Path) -> set[str]
     return set(harness_specs) | set(candidate_specs)
 
 
+def upload_specs(harness_manifest: dict, candidate_root: Path) -> set[str]:
+    """Include candidate upload dependencies without removing harness requirements."""
+    candidate_manifest = json.loads(
+        (candidate_root / "scripts/ci_coverage_manifest.json").read_text()
+    )
+    harness_specs = harness_manifest["groups"].get("uploads", {}).get("specs", [])
+    candidate_specs = candidate_manifest["groups"].get("uploads", {}).get("specs", [])
+    if any(
+        not isinstance(specs, list) or not all(isinstance(spec, str) for spec in specs)
+        for specs in (harness_specs, candidate_specs)
+    ):
+        raise RuntimeError("Invalid uploads specs in CI coverage manifest")
+    return set(harness_specs) | set(candidate_specs)
+
+
 QUEUES = "persistence,health_check,server_stats,user_init,user_tasks,email,push"
 STACK_START_RETRY_DELAYS = (5, 15)
 TRANSIENT_REGISTRY_FAILURE = re.compile(
@@ -1256,8 +1271,8 @@ def main():
         account_count = 0 if storage_accountability else capacity_users if target_smoke else 2 * len(selected) + capacity_users
         account_emails = [] if offline_preview else [f"ci-{secrets.token_hex(16)}@example.com" for _ in range(account_count)]
         storage_specs = set(manifest["groups"].get("object_storage", {}).get("specs", []))
-        upload_specs = set(manifest["groups"].get("uploads", {}).get("specs", []))
-        needs_uploads = bool(upload_specs.intersection(selected))
+        declared_upload_specs = upload_specs(manifest, Path(SOURCE))
+        needs_uploads = bool(declared_upload_specs.intersection(selected))
         public_specs = set(manifest["groups"].get("ai_cached_public_provider", {}).get("specs", []))
         mail_specs = mail_capture_specs(manifest, Path(SOURCE))
         needs_public_provider = bool(public_specs.intersection(selected))

@@ -19,6 +19,7 @@ from scripts.ci_environment import (
     apply_prepared_schema,
     compose_profile,
     mail_capture_specs,
+    upload_specs,
     require_runner,
     start_stack,
 )
@@ -82,6 +83,23 @@ def test_signup_mail_capture_stays_on_disposable_internal_network():
         assert service["environment"]["SELF_HOST_SIGNUP_MODE"] == "invite_and_domain"
         assert service["depends_on"]["mailpit"]["condition"] == "service_started"
         assert "BREVO_API_KEY" not in service["environment"]
+
+
+def test_candidate_upload_dependencies_keep_harness_requirements(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    candidate_manifest.write_text(json.dumps({"groups": {"uploads": {
+        "specs": ["teams-management-flow.spec.ts"]
+    }}}))
+    harness = {"groups": {"uploads": {"specs": ["profile-image-recovery.spec.ts"]}}}
+    assert upload_specs(harness, tmp_path) == {
+        "profile-image-recovery.spec.ts", "teams-management-flow.spec.ts"
+    }
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    assert upload_specs(harness, tmp_path) == {"profile-image-recovery.spec.ts"}
+    candidate_manifest.write_text(json.dumps({"groups": {"uploads": {"specs": "bad"}}}))
+    with pytest.raises(RuntimeError, match="Invalid uploads specs"):
+        upload_specs(harness, tmp_path)
 
 
 def test_candidate_mail_dependencies_add_only_mail_capture(tmp_path):
