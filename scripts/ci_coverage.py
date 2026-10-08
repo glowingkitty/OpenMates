@@ -53,6 +53,8 @@ CORE_SPECS = frozenset({
     "test-account-preflight.spec.ts",
     # Real core auth/chat state; share/report failures are explicit browser stubs.
     "report-issue-context-fallback.spec.ts",
+    # Paired browser/CLI crypto and genuine chat/embed receipts; no inference.
+    "embed-preview-backfill-replay.spec.ts",
     # Guest eligibility and stream are browser stubs; no private cloud or inference.
     "anonymous-child-embeds.spec.ts",
     # Browser media fixtures; real first-turn preflight/metadata ACKs, no TTS.

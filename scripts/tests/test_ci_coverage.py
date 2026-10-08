@@ -38,6 +38,12 @@ def test_search_relevance_schema_parity_uses_core_without_provider_access():
     assert held == {}
 
 
+def test_embed_preview_replay_uses_real_core_state_without_provider_access():
+    allowed, held = partition(["embed-preview-backfill-replay.spec.ts"])
+    assert allowed == ["embed-preview-backfill-replay.spec.ts"]
+    assert held == {}
+
+
 def test_cleanup_failure_and_skipped_preflight_cannot_activate():
     data = receipt()
     data["state"] = "failure"
