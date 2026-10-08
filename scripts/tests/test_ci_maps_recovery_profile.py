@@ -45,6 +45,40 @@ def test_failed_native_cache_retains_only_bounded_private_api_window(tmp_path, m
     assert "private-native-diagnostic-sentinel" not in json.dumps(summaries)
 
 
+@pytest.mark.parametrize("log_text,expected", [
+    ("CACHE_OP_ERROR: Failed to save vault-encrypted message to AI cache.\n"
+     "Failed to save message private-message to cache or update versions for chat private-chat.",
+     {"cache_failure_stages": ["current_message_save_failure", "ai_history_append_failure"]}),
+    ("Failed to replace AI history for chat 11111111-1111-1111-1111-111111111111: RuntimeError",
+     {"exception_class": "RuntimeError",
+      "cache_failure_stages": ["client_history_recache_failure"],
+      "cache_recache_exception_class": "RuntimeError"}),
+    ("CACHE_OP_ERROR: Failed to set explicit messages_v to private-version.\n"
+     "CACHE_OP_ERROR: Failed to update last_edited_overall_timestamp for user private-user.",
+     {"cache_failure_stages": ["messages_version_failure", "chat_score_failure"]}),
+    ("An unrelated warning with private-user and private-message", {}),
+])
+def test_private_cache_failures_deliver_only_fixed_stage_and_type(tmp_path, monkeypatch, log_text, expected):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: SimpleNamespace(stdout=log_text))
+    report = {"suites": [{"specs": [{
+        "title": "native cache keeps selected math tools and settled billing across five chat turns",
+        "tests": [{"results": [{"status": "failed", "startTime": "2026-10-08T13:00:00Z", "duration": 1000}]}],
+    }]}]}
+
+    summaries = runner.capture_recovery_receipt_api_diagnostics(report, 0)
+    assert summaries == [{"exception_class": "none", "function": "none", "line": 0, **expected}]
+    public = json.dumps(summaries)
+    assert "private-" not in public
+    assert "11111111-1111-1111-1111-111111111111" not in public
+    retained = tmp_path / "ci-private" / "recovery-api-spec-0-result-0.log"
+    assert retained.read_text() == log_text
+    assert retained.stat().st_mode & 0o777 == 0o600
+
+
 def _runner_profile(tmp_path, monkeypatch, **options):
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner

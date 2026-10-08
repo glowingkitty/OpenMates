@@ -1598,10 +1598,31 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
                         safe_text,
                     )
                     line, function = frames[-1] if frames else ("0", "none")
-                    summaries.append({
+                    summary = {
                         "exception_class": classes[-1] if classes else "none",
                         "function": function, "line": int(line),
-                    })
+                    }
+                    # Raw windows stay runner-private. Boolean cache failures
+                    # have no traceback, so deliver only fixed stage names.
+                    cache_stages = []
+                    for stage, pattern in (
+                        ("current_message_save_failure", r"Failed to save message [^\r\n]{1,150} to cache or update versions"),
+                        ("client_history_recache_failure", r"Failed to replace AI history for chat "),
+                        ("ai_history_append_failure", r"Failed to save vault-encrypted message to AI cache"),
+                        ("messages_version_failure", r"Failed to (?:set explicit messages_v|increment messages_v)"),
+                        ("chat_score_failure", r"Failed to update last_edited_overall_timestamp"),
+                    ):
+                        if re.search(pattern, safe_text):
+                            cache_stages.append(stage)
+                    if cache_stages:
+                        summary["cache_failure_stages"] = cache_stages
+                    recache_classes = re.findall(
+                        r"Failed to replace AI history for chat [0-9a-fA-F-]{36}: ([A-Za-z_][A-Za-z_0-9]{0,79})",
+                        safe_text,
+                    )
+                    if recache_classes:
+                        summary["cache_recache_exception_class"] = recache_classes[-1]
+                    summaries.append(summary)
     return summaries
 
 
