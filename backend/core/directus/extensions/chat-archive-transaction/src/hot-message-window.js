@@ -1,7 +1,7 @@
 /* Internal fixed ciphertext projection; API callers authorize owner/Team scope. */
 import { ArchiveProtocolError } from './operations.js';
 
-export const HOT_MESSAGE_FIELDS = ["id", "client_message_id", "chat_id", "encrypted_content", "role", "encrypted_sender_name", "encrypted_category", "encrypted_model_name", "encrypted_thinking_content", "encrypted_thinking_signature", "has_thinking", "thinking_token_count", "encrypted_pii_mappings", "user_message_id", "created_at"];
+export const HOT_MESSAGE_FIELDS = ["id", "client_message_id", "chat_id", "encrypted_content", "role", "hashed_user_id", "encrypted_sender_name", "encrypted_category", "encrypted_model_name", "encrypted_thinking_content", "encrypted_thinking_signature", "has_thinking", "thinking_token_count", "encrypted_pii_mappings", "user_message_id", "created_at"];
 const KEYS = new Set(['chat_id', 'direction', 'limit', 'cursor_timestamp',
   'cursor_message_id', 'lower_bound_timestamp']);
 const ID = `COALESCE(NULLIF(client_message_id, ''), id::text) COLLATE "C"`;

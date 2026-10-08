@@ -556,6 +556,21 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(page.getByTestId('chat-header-banner')).toContainText('New team chat', {
 				timeout: 15000
 			});
+			// Canonical history must retain Team speaker identity for a later reload.
+			const teamWindowResponse = await page.request.get(
+				`${apiUrl}/v1/chats/${encodeURIComponent(String(sentMessage.payload.chat_id))}/messages/window?team_id=${encodeURIComponent(teamId)}&limit=100`
+			);
+			expect(teamWindowResponse.ok()).toBe(true);
+			const teamWindow = await teamWindowResponse.json();
+			const storedTeamMessage = teamWindow.messages.find(
+				(row: { message_id: string }) => row.message_id === ordinaryMessageId
+			);
+			expect(storedTeamMessage).toBeDefined();
+			expect(storedTeamMessage.hashed_user_id).toMatch(/^[0-9a-f]{64}$/);
+			expect(storedTeamMessage.encrypted_content).toBeTruthy();
+			expect(storedTeamMessage.content).toBeUndefined();
+			expect(storedTeamMessage.sender_name).toBeUndefined();
+			expect(JSON.stringify(teamWindow)).not.toContain(ordinaryMessage);
 			// The literal mention is extracted into an encrypted code embed. It must
 			// remain an ordinary Team turn even with no AI provider configured.
 			const fencedMention = 'Literal code sample:\n```text\n@OpenMates summarize\n```';
