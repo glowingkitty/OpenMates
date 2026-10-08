@@ -86,19 +86,26 @@ def upload_specs(harness_manifest: dict, candidate_root: Path) -> set[str]:
     return set(harness_specs) | set(candidate_specs)
 
 
-def workflow_specs(harness_manifest: dict, candidate_root: Path) -> set[str]:
-    """Add candidate Workflow runtime dependencies without removing harness gates."""
+def workflow_specs(harness_manifest: dict, candidate_root: Path, group: str = "workflow_weather") -> set[str]:
+    """Add candidate Workflow dependencies without removing trusted harness gates."""
+    if group not in {"workflow_weather", "workflow_core"}:
+        raise ValueError("Unknown Workflow runtime dependency group")
     candidate_manifest = json.loads(
         (candidate_root / "scripts/ci_coverage_manifest.json").read_text()
     )
-    harness_specs = harness_manifest["groups"].get("workflow_weather", {}).get("specs", [])
-    candidate_specs = candidate_manifest["groups"].get("workflow_weather", {}).get("specs", [])
+    harness_specs = harness_manifest["groups"].get(group, {}).get("specs", [])
+    candidate_specs = candidate_manifest["groups"].get(group, {}).get("specs", [])
     if any(
         not isinstance(specs, list) or not all(isinstance(spec, str) for spec in specs)
         for specs in (harness_specs, candidate_specs)
     ):
-        raise RuntimeError("Invalid workflow_weather specs in CI coverage manifest")
+        raise RuntimeError(f"Invalid {group} specs in CI coverage manifest")
     return set(harness_specs) | set(candidate_specs)
+
+
+def workflow_core_specs(harness_manifest: dict, candidate_root: Path) -> set[str]:
+    """Add candidate internal Workflow runtime dependencies without removing harness gates."""
+    return workflow_specs(harness_manifest, candidate_root, "workflow_core")
 
 
 QUEUES = "persistence,health_check,server_stats,user_init,user_tasks,email,push"
@@ -582,6 +589,7 @@ def compose_profile(
     uploads: bool = False,
     public_provider: bool = False,
     workflows: bool = False,
+    workflow_runtime: bool = False,
     account_emails: list[str] | None = None,
     offline_preview: bool = False,
     mail_capture: bool = False,
@@ -600,7 +608,7 @@ def compose_profile(
     storage_capacity = storage_capacity or billing_profile is not None
     ai_fixtures = ai_fixtures or public_provider or storage_capacity
     object_storage = object_storage or uploads or storage_capacity
-    if storage_accountability and (ai_fixtures or object_storage or uploads or public_provider or workflows):
+    if storage_accountability and (ai_fixtures or object_storage or uploads or public_provider or workflows or workflow_runtime):
         raise ValueError("Storage accountability requires its standalone zero-provider profile")
     if storage_accountability and (not 1000 <= os.getuid() <= 60000 or not 1 <= os.getgid() <= 60000):
         raise ValueError("Storage accountability requires a nonroot isolated runner owner")
@@ -612,7 +620,9 @@ def compose_profile(
         raise ValueError("Capacity worker concurrency must be 1..500")
     if capacity_target and (not storage_capacity or capacity_concurrency != TARGET_SLOTS):
         raise ValueError("Target profile requires exactly 500 isolated worker slots")
-    isolate_backend = ai_fixtures or object_storage or offline_preview or mail_capture or storage_accountability
+    if workflow_runtime and (workflows or ai_fixtures or object_storage or offline_preview or storage_accountability or detached_docs):
+        raise ValueError("Internal Workflow runtime cannot mix with weather or provider/storage profiles")
+    isolate_backend = ai_fixtures or object_storage or offline_preview or mail_capture or storage_accountability or workflow_runtime
     if workflows and isolate_backend:
         raise ValueError("Credential-free weather workflows require a separate batch from offline replay/storage")
     credentials = {
@@ -1000,7 +1010,7 @@ def compose_profile(
         # Port3128 is internal only. All other provider authorities are denied;
         # API/AI workers still cannot use direct outbound network connections.
 
-    if workflows:
+    if workflows or workflow_runtime:
         workflow_queues = QUEUES + ",workflow"
         worker["environment"]["CELERY_QUEUES"] = workflow_queues
         worker["command"] = [part.replace(f"--queues={QUEUES}", f"--queues={workflow_queues}") for part in worker["command"]]
@@ -1296,9 +1306,13 @@ def main():
         mail_specs = mail_capture_specs(manifest, Path(SOURCE))
         needs_public_provider = bool(public_specs.intersection(selected))
         declared_workflow_specs = workflow_specs(manifest, Path(SOURCE))
+        declared_workflow_core_specs = workflow_core_specs(manifest, Path(SOURCE))
         needs_workflows = bool(declared_workflow_specs.intersection(selected))
+        needs_workflow_core = bool(declared_workflow_core_specs.intersection(selected))
         if needs_workflows and not set(selected).issubset(declared_workflow_specs):
             raise RuntimeError("Credential-free weather workflows require their own batch")
+        if needs_workflow_core and not set(selected).issubset(declared_workflow_core_specs):
+            raise RuntimeError("Internal Workflow runtime requires its own batch")
         needs_storage = bool(storage_specs.intersection(selected)) or needs_uploads or storage_capacity
         if needs_storage:
             for relative in ("backend/core/api/app/services/s3/service.py", "backend/upload/services/s3_upload.py"):
@@ -1306,7 +1320,7 @@ def main():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
         capacity_run_id = (f"{os.environ['GITHUB_RUN_ID']}:{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
                            if capacity_target or target_smoke else None)
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile)
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, workflow_runtime=needs_workflow_core, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile)
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")

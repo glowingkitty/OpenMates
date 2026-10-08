@@ -21,6 +21,7 @@ from scripts.ci_environment import (
     mail_capture_specs,
     upload_specs,
     workflow_specs,
+    workflow_core_specs,
     require_runner,
     start_stack,
 )
@@ -169,6 +170,34 @@ def test_candidate_workflow_dependencies_reject_bad_declarations(tmp_path, bad_s
     candidate_manifest.write_text(json.dumps({"groups": {}}))
     with pytest.raises(RuntimeError, match="Invalid workflow_weather specs"):
         workflow_specs({"groups": {"workflow_weather": {"specs": bad_specs}}}, tmp_path)
+
+
+def test_candidate_internal_workflow_dependencies_are_additive(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    harness = {"groups": {"workflow_core": {"specs": ["existing-internal-workflow.spec.ts"]}}}
+    candidate_manifest.write_text(json.dumps({"groups": {"workflow_core": {
+        "specs": ["workflow-completion-notifications.spec.ts", "workflow-completion-notification-route.spec.ts"]
+    }}}))
+    assert workflow_core_specs(harness, tmp_path) == {
+        "existing-internal-workflow.spec.ts",
+        "workflow-completion-notifications.spec.ts",
+        "workflow-completion-notification-route.spec.ts",
+    }
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    assert workflow_core_specs(harness, tmp_path) == {"existing-internal-workflow.spec.ts"}
+
+
+@pytest.mark.parametrize("bad_specs", ["bad", ["valid.spec.ts", 42], {"spec.ts": True}])
+def test_internal_workflow_dependencies_reject_bad_declarations(tmp_path, bad_specs):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    candidate_manifest.write_text(json.dumps({"groups": {"workflow_core": {"specs": bad_specs}}}))
+    with pytest.raises(RuntimeError, match="Invalid workflow_core specs"):
+        workflow_core_specs({"groups": {}}, tmp_path)
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    with pytest.raises(RuntimeError, match="Invalid workflow_core specs"):
+        workflow_core_specs({"groups": {"workflow_core": {"specs": bad_specs}}}, tmp_path)
 
 
 def test_fresh_credentials_and_runner_only(monkeypatch):
@@ -505,6 +534,46 @@ def test_workflow_scheduler_keeps_only_original_workflow_scan(monkeypatch):
     assert profile["services"]["workflow-scheduler"]["command"] == ["python", "-c", WORKFLOW_SCHEDULER]
     with pytest.raises(ValueError, match="separate batch"):
         compose_profile("a" * 40, workflows=True, ai_fixtures=True)
+
+
+def test_internal_workflow_runtime_with_mail_capture_stays_private():
+    from scripts.ci_environment import WORKFLOW_SCHEDULER
+
+    profile = compose_profile("a" * 40, workflow_runtime=True, mail_capture=True)
+    services = profile["services"]
+    assert profile["networks"]["default"]["internal"] is True
+    assert "ports" not in services["api"]
+    assert services["core-worker"]["environment"]["CELERY_QUEUES"].endswith(",workflow")
+    assert services["workflow-scheduler"]["command"] == ["python", "-c", WORKFLOW_SCHEDULER]
+    assert "ports" not in services["mailpit"]
+    assert "127.0.0.1:8025:8025" in services["runner-gateway"]["ports"]
+    assert services["runner-gateway"]["environment"]["OPENMATES_CI_MAIL_CAPTURE"] == "1"
+    assert "OPENMATES_CI_PUBLIC_PROVIDER_PROXY" not in services["runner-gateway"]["environment"]
+    assert "ai-worker" not in services
+    for name in ("api", "core-worker"):
+        assert "HTTPS_PROXY" not in services[name]["environment"]
+        assert "BREVO_API_KEY" not in services[name]["environment"]
+
+
+def test_internal_workflow_runtime_without_mail_and_weather_restrictions():
+    from scripts.ci_coverage import runtime_batches, validate_runtime_batch
+
+    profile = compose_profile("a" * 40, workflow_runtime=True)
+    assert profile["networks"]["default"]["internal"] is True
+    assert "mailpit" not in profile["services"]
+    assert "ports" not in profile["services"]["api"]
+    assert profile["services"]["core-worker"]["environment"]["CELERY_QUEUES"].endswith(",workflow")
+    with pytest.raises(ValueError, match="separate batch"):
+        compose_profile("a" * 40, workflows=True, mail_capture=True)
+    with pytest.raises(ValueError, match="cannot mix"):
+        compose_profile("a" * 40, workflows=True, workflow_runtime=True)
+    with pytest.raises(ValueError, match="cannot mix"):
+        compose_profile("a" * 40, workflow_runtime=True, public_provider=True)
+    specs = ["workflow-completion-notification-route.spec.ts", "cli-workflows-rain-real.spec.ts", "test-account-preflight.spec.ts"]
+    assert runtime_batches(specs, 4) == [["test-account-preflight.spec.ts"], ["cli-workflows-rain-real.spec.ts"], ["workflow-completion-notification-route.spec.ts"]]
+    with pytest.raises(ValueError, match="separate batch"):
+        validate_runtime_batch(specs)
+    validate_runtime_batch(["workflow-completion-notifications.spec.ts", "workflow-completion-notification-route.spec.ts"])
 
 
 def test_public_replay_keeps_workers_internal_and_proxy_unpublished():
