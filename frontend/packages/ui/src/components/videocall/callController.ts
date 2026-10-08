@@ -157,14 +157,17 @@ export class VideoCallController implements CallControllerLike {
 
   private canAcceptVideo(): boolean {
     return this.state.status === 'live' && !this.visualsStoppedExplicitly &&
-      (this.state.visualsAllowed || (this.state.videoDraining && !this.videoDrainComplete));
+      this.state.visualsAllowed;
   }
 
   private addVideoClip(id: string, durationSeconds: number, bytes: Uint8Array): void {
     if (!this.canAcceptVideo() || bytes.byteLength > 20 * 1024 * 1024) return;
     const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'video/mp4' }));
     const clips = [...this.state.clips, { id, url, durationSeconds }];
-    for (const expired of clips.slice(0, -4)) URL.revokeObjectURL(expired.url);
+    for (const expired of clips.slice(0, -4)) {
+      URL.revokeObjectURL(expired.url);
+      this.playedClipIds.delete(expired.id);
+    }
     this.update({ clips: clips.slice(-4), videoStatus: 'playing', videoPending: false });
   }
 
@@ -212,7 +215,7 @@ export class VideoCallController implements CallControllerLike {
         }
         break;
       case 'video.queued':
-        if (this.state.visualsAllowed) this.update({ videoStatus: this.state.clips.length ? 'playing' : 'queued', videoPending: true });
+        if (this.state.visualsAllowed) this.update({ videoStatus: this.hasUnplayedClip() ? 'playing' : 'queued', videoPending: true });
         break;
       case 'video.ready': {
         if (!this.canAcceptVideo() || typeof message.clip_id !== 'string') break;
@@ -230,12 +233,16 @@ export class VideoCallController implements CallControllerLike {
       case 'video.stopped':
         if (message.reason === 'idle' && message.finish_playback === true && !this.visualsStoppedExplicitly) {
           this.videoDrainComplete = false;
-          this.update({ visualsAllowed: false, videoDraining: true, videoPending: message.pending_clip === true, videoStatus: this.state.clips.length ? 'playing' : message.pending_clip === true ? 'queued' : 'off' });
+          this.update({ videoDraining: true, videoPending: message.pending_clip === true, videoStatus: this.hasUnplayedClip() ? 'playing' : message.pending_clip === true ? 'queued' : 'off' });
         } else {
           this.visualsStoppedExplicitly = true;
           this.clearVisuals();
           this.update({ visualsAllowed: false });
         }
+        break;
+      case 'video.complete':
+        if (this.visualsStoppedExplicitly || typeof message.clip_id !== 'string') break;
+        this.update({ videoPending: false, videoStatus: this.hasUnplayedClip() ? 'playing' : 'off' });
         break;
       case 'video.drain_complete':
         if (!this.state.videoDraining) break;
@@ -254,7 +261,7 @@ export class VideoCallController implements CallControllerLike {
       }
       case 'error':
         if (message.code === 'video_unavailable') {
-          this.update({ error: callText('visual_unavailable'), videoStatus: this.state.clips.length ? 'playing' : 'off', videoPending: false });
+          this.update({ error: callText('visual_unavailable'), videoStatus: this.hasUnplayedClip() ? 'playing' : 'off', videoPending: false });
           break;
         }
         this.update({ error: callText('call_unavailable') });
@@ -282,13 +289,20 @@ export class VideoCallController implements CallControllerLike {
     if (!this.state.clips.some((clip) => clip.id === clipId)) return;
     this.playedClipIds.add(clipId);
     this.finishVideoDrain();
+    if (!this.state.videoDraining && !this.hasUnplayedClip()) this.update({ videoStatus: this.state.videoPending ? 'queued' : 'off' });
   }
 
   setVideoElement(video: HTMLVideoElement | null): void { this.audio?.setVideoElement(video); }
   setVideoGain(value: number): void { this.audio?.setVideoGain(value); }
 
   private finishVideoDrain(): void {
-    if (this.state.videoDraining && this.videoDrainComplete && this.state.clips.every((clip) => this.playedClipIds.has(clip.id))) this.clearVisuals();
+    if (this.state.videoDraining && this.videoDrainComplete && !this.hasUnplayedClip()) {
+      this.update({ videoDraining: false, videoStatus: 'off', videoPending: false });
+    }
+  }
+
+  private hasUnplayedClip(): boolean {
+    return this.state.clips.some((clip) => !this.playedClipIds.has(clip.id));
   }
 
   private clearVisuals(): void {

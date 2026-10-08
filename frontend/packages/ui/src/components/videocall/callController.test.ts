@@ -114,7 +114,7 @@ describe('video call session state', () => {
     emit(controller, { type: 'ready' });
     emit(controller, { type: 'video.ready', clip_id: '1', data: btoa('abcd') });
     emit(controller, { type: 'video.stopped', reason: 'idle', finish_playback: true, pending_clip: true });
-    expect(get(controller)).toMatchObject({ status: 'live', visualsAllowed: false, videoDraining: true, videoPending: true, videoStatus: 'playing' });
+    expect(get(controller)).toMatchObject({ status: 'live', visualsAllowed: true, videoDraining: true, videoPending: true, videoStatus: 'playing' });
     emit(controller, { type: 'audio_chunk', data: 'AAAA' });
     emit(controller, { type: 'audio.interrupted' });
     expect(get(controller).clips.map((clip) => clip.id)).toEqual(['1']);
@@ -125,14 +125,14 @@ describe('video call session state', () => {
     emit(controller, { type: 'video.drain_complete' });
     expect(get(controller).clips.map((clip) => clip.id)).toEqual(['1', '2']);
     controller.videoPlaybackEnded('2');
-    expect(get(controller)).toMatchObject({ status: 'live', videoStatus: 'off', videoDraining: false, clips: [] });
-    expect(revokeUrl).toHaveBeenCalledWith('blob:clip-1');
-    expect(revokeUrl).toHaveBeenCalledWith('blob:clip-2');
+    expect(get(controller)).toMatchObject({ status: 'live', visualsAllowed: true, videoStatus: 'off', videoDraining: false });
+    expect(get(controller).clips.map((clip) => clip.id)).toEqual(['1', '2']);
+    expect(revokeUrl).not.toHaveBeenCalled();
     controller.dispose();
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.experiment.user-stop,video-call.experiment.generated-visuals
-  it('fences late clips after explicit stop and clears an idle drain with no pending clip', () => {
+  it('retains a completed frame across visual requests and fences late clips after explicit stop', () => {
     const controller = new VideoCallController();
     const send = vi.spyOn(controller as unknown as { send: (message: Record<string, unknown>) => void }, 'send');
     emit(controller, { type: 'ready' });
@@ -142,19 +142,28 @@ describe('video call session state', () => {
     expect(get(controller).clips).toHaveLength(1);
     controller.videoPlaybackEnded('1');
     expect(get(controller).videoStatus).toBe('off');
-    emit(controller, { type: 'video.ready', clip_id: 'late', data: btoa('efgh') });
-    expect(get(controller).clips).toHaveLength(0);
-    controller.allowVisuals();
+    expect(get(controller).visualsAllowed).toBe(true);
+    controller.sendContinuationFrame('1', 'last-frame-1');
+    expect(send).toHaveBeenCalledWith({ type: 'continuation_frame', clip_id: '1', data: 'last-frame-1', source: 'continuation' });
+    emit(controller, { type: 'error', code: 'video_unavailable' });
+    expect(get(controller)).toMatchObject({ status: 'live', visualsAllowed: true, videoStatus: 'off', videoPending: false });
+    expect(get(controller).clips.map((clip) => clip.id)).toEqual(['1']);
+    emit(controller, { type: 'video.queued' });
+    expect(get(controller)).toMatchObject({ status: 'live', videoStatus: 'queued', videoPending: true });
     emit(controller, { type: 'video.ready', clip_id: '2', data: btoa('efgh') });
-    emit(controller, { type: 'video.stopped', reason: 'idle', finish_playback: true, pending_clip: true });
-    expect(get(controller).videoDraining).toBe(true);
+    emit(controller, { type: 'video.complete', clip_id: '2' });
+    expect(get(controller).clips.map((clip) => clip.id)).toEqual(['1', '2']);
     controller.sendVideoFrame('displayed-frame');
     expect(send).toHaveBeenCalledWith({ type: 'video_frame', data: 'displayed-frame', mime_type: 'image/jpeg' });
+    controller.videoPlaybackEnded('2');
+    expect(get(controller)).toMatchObject({ status: 'live', visualsAllowed: true, videoStatus: 'off', videoPending: false });
+    controller.sendContinuationFrame('2', 'last-frame-2');
+    expect(send).toHaveBeenCalledWith({ type: 'continuation_frame', clip_id: '2', data: 'last-frame-2', source: 'continuation' });
     controller.stopVisuals();
     send.mockClear();
     controller.sendVideoFrame('after-close');
     expect(send).not.toHaveBeenCalled();
-    emit(controller, { type: 'video.stopped', reason: 'idle', finish_playback: true, pending_clip: true });
+    emit(controller, { type: 'video.complete', clip_id: '2' });
     emit(controller, { type: 'video.ready', clip_id: 'late', data: btoa('ijkl') });
     expect(get(controller)).toMatchObject({ clips: [], videoDraining: false });
     expect(createUrl).toHaveBeenCalledTimes(2);

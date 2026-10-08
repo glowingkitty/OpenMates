@@ -673,7 +673,7 @@ specifications:
     version: 1
     status: draft
     path: features/video-call-experiment
-    fingerprint: 55b307e17cbc06d22c2fd276586cd8cb2a912264d31d0139db11d31f5312bdb4
+    fingerprint: 7ff700f739f17936316b71662b61367e03f531ab560fbd109958caee38321291
     required_applies_to:
     - gui.web
   feature.wikipedia-mentions:
@@ -8451,21 +8451,21 @@ assertions:
     specification: feature.video-call-experiment@1
     specification_id: feature.video-call-experiment
     type: behavior
-    fingerprint: 131c91e10e7f32752ee1f245cde241de44551229bd0b2eff9911c503ccfa0fa6
+    fingerprint: cee76b353b8848ee49bf22b671c0042a589e8dec211276a28ddfaf01989e5220
     required_applies_to:
     - gui.web
   video-call.experiment.user-stop:
     specification: feature.video-call-experiment@1
     specification_id: feature.video-call-experiment
     type: behavior
-    fingerprint: b9da78cc59df95eed4886f8706d2fb8a3d0d7343ce56582904bbf677dafa9703
+    fingerprint: 153a43f82a34dcd2efe2193327153f532561285308d85820b5e6076cabff7dc6
     required_applies_to:
     - gui.web
   video-call.experiment.audio-mix:
     specification: feature.video-call-experiment@1
     specification_id: feature.video-call-experiment
     type: behavior
-    fingerprint: 94f2feaa110ad11e658c499c153e877e267be182be633a6f32c53007271e3ced
+    fingerprint: ac3ff5cdc76069bdbd493b1f7638950557ef1b06fe94a8e358e2291a6e4e8b7d
     required_applies_to:
     - gui.web
   video-call.experiment.responsive:

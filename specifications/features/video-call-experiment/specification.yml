@@ -9,8 +9,8 @@ scope:
   includes:
   - The standalone /experiment/videocall web page and its private authenticated WebSocket.
   - Gemini 3.8 Live voice, transient transcript, interruption and visible two-minute session limit.
-  - Gemini-triggered five-second H3 Max Turbo 480p clips, last-frame continuation and ten-second
-    visual-instruction inactivity shutdown.
+  - Gemini-triggered five-second H3 Max Turbo 480p clips, a held final frame and request-driven
+    continuation across the same voice conversation.
   - Independent user Close video and Hangup controls, narrator-first audio mix and responsive transcript/video
     layout.
   - 1.2-multiplier proportional provider usage billing through the existing credit ledger with rate/time/spend
@@ -66,21 +66,23 @@ assertions:
   - examples.voice
 - id: video-call.experiment.generated-visuals
   type: behavior
-  must: 'Gemini can automatically start and redirect H3 Max Turbo 480p visuals during voice conversation.
-    The experiment chains approximately five-second clips guided by the previous generated last frame,
-    with at most one generation request outstanding. Visual instructions affect upcoming clips; playback
-    frames sampled for Gemini do not become new visual instructions. The first scene may start from
-    text without a separately generated image.
+  must: 'Gemini can automatically start H3 Max Turbo 480p visuals during voice conversation when the
+    user requests a visual explanation. Each fresh visual instruction requests approximately one
+    five-second clip, with at most one generation outstanding. After playback finishes, the last displayed
+    frame stays visible without further generation until another visual instruction arrives. The next
+    clip uses that retained frame together with Gemini''s new text direction; playback-frame feedback
+    never requests a new clip by itself. The first scene may start from text without a separate image.
 
     '
   depends_on:
   - examples.visuals
 - id: video-call.experiment.user-stop
   type: behavior
-  must: 'Ten seconds without a new Gemini visual instruction stops new generation, closes the video
-    panel and returns to audio-only while the call continues. User Close video stops queued generation
-    immediately; late clips cannot reopen it. Explicit visual re-enablement or a later user request
-    may allow another segment. Hangup, expiry and disconnect stop further paid work.
+  must: 'A completed visual request stops generation, returns the displayed rate to audio-only after
+    playback and retains the last frame while voice continues. Natural completion does not disable
+    later visual requests in the same call. User Close video stops queued generation immediately and
+    clears the retained frame; late clips cannot reopen it until visual permission is explicitly
+    re-enabled. Hangup, expiry and disconnect stop further paid work and release retained media.
 
     '
   depends_on:
@@ -89,7 +91,9 @@ assertions:
   type: behavior
   must: 'Gemini is the spoken narrator. Video prompts request ambience/effects without dialogue.
     Video sound is mixed quietly and automatically ducked while the user or Gemini speaks so Gemini
-    remains clearly audible. Interruption clears queued Gemini speech without ending the call.
+    remains clearly audible. Interruption clears queued Gemini speech without ending the call or
+    interrupting video. Video generation, completion and held frames do not block voice; users can
+    continue the same conversation across multiple visual requests.
 
     '
   depends_on:

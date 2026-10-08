@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+from collections import deque
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_CEILING
 import hashlib
@@ -36,7 +37,6 @@ router = APIRouter(prefix="/v1/experiment")
 GEMINI_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
 GEMINI_MODEL = "gemini-3.8-live"
 MAX_SECONDS = 120
-IDLE_VIDEO_SECONDS = 10
 LOCK_TTL_SECONDS = MAX_SECONDS + 120
 MAX_AUDIO_CHUNK = 128 * 1024
 MAX_FRAME = 256 * 1024
@@ -50,6 +50,7 @@ VIDEO_RATE_PROMO = Decimal("0.015")
 VIDEO_RATE_NORMAL = Decimal("0.025")
 VIDEO_REQUEST_SECONDS = Decimal("5")
 VIDEO_RESERVE_SECONDS = Decimal("5.7")
+CONTINUATION_WAIT_SECONDS = 6.0
 MIN_VOICE_HEADROOM = 20
 FORBIDDEN_VIDEO_LANGUAGE = re.compile(r"\b(?:speak|speaks|says|dialogue|voiceover|lip[ -]?sync|talk|talking|captions?|subtitles?)\b|<d>", re.I)
 
@@ -394,6 +395,9 @@ def _gemini_setup() -> dict[str, Any]:
                 "'show me how black holes work'. The user need not say 'video'. "
                 "Call generate_visual_clip immediately once visual intent is clear, before a long "
                 "spoken explanation or redundant confirmation. Then speak concurrently while it generates. "
+                "Call it once for each fresh user request for a visual. A tool acknowledgement, "
+                "generated clip, or incoming video frame is not a new user request; do not call it "
+                "again until the user asks for another visual. "
                 "Your live voice is the only narration and is separate from the video. "
                 "The video prompt describes only visible action, realistic physics and causal motion, "
                 "and scene-appropriate nonverbal ambience. Never ask the video for a speaker, voice, "
@@ -402,7 +406,7 @@ def _gemini_setup() -> dict[str, Any]:
             )}]},
             "tools": [{"functionDeclarations": [{
                 "name": "generate_visual_clip",
-                "description": "Asynchronously show a concrete visual scene; your separate live voice continues narrating outside the video.",
+                "description": "Generate one visual clip for a fresh user request to see a scene. Do not repeat for tool acknowledgements or video feedback; your separate live voice continues narrating.",
                 "behavior": "NON_BLOCKING",
                 "parameters": {"type": "OBJECT", "properties": {"prompt": {"type": "STRING", "description": "Visible action with realistic causal motion and scene-appropriate nonverbal ambience only. No speakers, voices, dialogue, narration, vocals, music, captions or subtitles; space is silent."}}, "required": ["prompt"]},
             }]}],
@@ -416,7 +420,7 @@ def _gemini_setup() -> dict[str, Any]:
 def _tool_response(call: dict[str, Any], result: str) -> dict[str, Any]:
     return {"toolResponse": {"functionResponses": [{
         "id": call.get("id"), "name": "generate_visual_clip",
-        "response": {"result": result}, "scheduling": "SILENT",
+        "response": {"result": result}, "scheduling": "WHEN_IDLE",
     }]}}
 
 
@@ -453,13 +457,12 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     started = time.monotonic()
     call_id = uuid.uuid4().hex
     ledger = UsageLedger()
-    last_visual_instruction: float | None = None
     visuals_allowed = True
     billing_fault = False
     active_video: asyncio.Task[None] | None = None
-    drain_notification: asyncio.Task[None] | None = None
     active_job: FalJob | None = None
-    visual_prompt: str | None = None
+    pending_prompts: deque[str] = deque(maxlen=1)
+    accepted_tool_ids: set[str] = set()
     segment_epoch = 0
     continuation_jpeg: bytes | None = None
     continuation_for_clip: str | None = None
@@ -505,13 +508,6 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         if is_payment_enabled() and await _authoritative_credits(websocket, user_id) < credits + pending:
             raise RuntimeError("Insufficient credits")
 
-    async def cancel_drain_notification() -> None:
-        nonlocal drain_notification
-        if drain_notification is not None:
-            drain_notification.cancel()
-            await asyncio.gather(drain_notification, return_exceptions=True)
-            drain_notification = None
-
     try:
         google_key, fal_key = await asyncio.gather(
             websocket.app.state.secrets_manager.get_secret("kv/data/providers/google_ai_studio", "api_key"),
@@ -540,112 +536,85 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     })
                     last_auth_check = 0.0
 
-                    async def visual_chain(epoch: int) -> None:
-                        nonlocal active_job, continuation_jpeg, continuation_for_clip, latest_clip_id, video_serial, billing_fault, visual_prompt
-                        # A new Gemini visual instruction replaces visual_prompt
-                        # while a clip is generating. The next iteration uses it.
-                        playback_end_at = 0.0
-                        while (
-                            visuals_allowed and epoch == segment_epoch
-                            and last_visual_instruction is not None
-                            and time.monotonic() - last_visual_instruction < IDLE_VIDEO_SECONDS
-                            and time.monotonic() - started < MAX_SECONDS
-                        ):
-                            job: FalJob | None = None
+                    async def generate_visual(prompt: str, epoch: int) -> None:
+                        nonlocal active_job, continuation_jpeg, continuation_for_clip, latest_clip_id, video_serial, billing_fault
+                        if not visuals_allowed or epoch != segment_epoch or time.monotonic() - started >= MAX_SECONDS:
+                            return
+                        # The browser sends the final displayed frame at playback
+                        # end. Wait briefly if the next instruction arrives while
+                        # the prior clip is still playing.
+                        if latest_clip_id is not None and continuation_for_clip != latest_clip_id:
+                            deadline = time.monotonic() + CONTINUATION_WAIT_SECONDS
+                            while continuation_for_clip != latest_clip_id and visuals_allowed and epoch == segment_epoch and time.monotonic() < deadline:
+                                await asyncio.sleep(min(0.1, deadline - time.monotonic()))
+                        if not visuals_allowed or epoch != segment_epoch or time.monotonic() - started >= MAX_SECONDS:
+                            return
+                        if latest_clip_id is not None and (continuation_for_clip != latest_clip_id or continuation_jpeg is None):
+                            await send({"type": "error", "code": "video_unavailable", "message": "The previous clip's final frame is unavailable. Voice can continue."})
+                            return
+                        job: FalJob | None = None
+                        try:
+                            await require_headroom(_credits_for(_video_rate() * VIDEO_RESERVE_SECONDS) + MIN_VOICE_HEADROOM)
+                            # A matching retained frame is the only accepted
+                            # continuation source for this explicit instruction.
+                            image = continuation_jpeg if continuation_for_clip == latest_clip_id else None
+                            video_serial += 1
+                            clip_id = str(video_serial)
+                            submit_at = time.monotonic()
+                            job = await submit_clip(fal_client, key=fal_key, prompt=prompt, image_jpeg=image)
+                            logger.info("Video call visual submit=%.2fs", time.monotonic() - submit_at)
+                            active_job = job
+                            if epoch != segment_epoch:
+                                await cancel_clip(fal_client, key=fal_key, job=job)
+                            else:
+                                await send({"type": "video.queued", "clip_id": clip_id})
+                                logger.info("Video call visual queued elapsed=%.1fs", time.monotonic() - started)
+                            clip = await await_clip(fal_client, key=fal_key, job=job)
+                            # Completed output is billed once, even when the user
+                            # stopped while fal was processing the accepted job.
+                            measured = clip.reported_duration or clip.measured_duration
+                            duration = Decimal(str(measured)) if measured and 0 < measured < 30 else VIDEO_REQUEST_SECONDS
+                            ledger.add_accepted_video(duration, estimated=measured is None)
                             try:
-                                await require_headroom(_credits_for(_video_rate() * VIDEO_RESERVE_SECONDS) + MIN_VOICE_HEADROOM)
-                                prompt = visual_prompt
-                                if not prompt or epoch != segment_epoch or not visuals_allowed:
-                                    return
-                                # The browser captures this clip's final frame
-                                # directly from the delivered MP4.
-                                image = continuation_jpeg if continuation_for_clip == latest_clip_id else None
-                                continuation_jpeg = None
-                                continuation_for_clip = None
-                                video_serial += 1
-                                clip_id = str(video_serial)
-                                submit_at = time.monotonic()
-                                job = await submit_clip(fal_client, key=fal_key, prompt=prompt, image_jpeg=image)
-                                logger.info("Video call visual submit=%.2fs", time.monotonic() - submit_at)
-                                active_job = job
-                                if epoch != segment_epoch:
-                                    await cancel_clip(fal_client, key=fal_key, job=job)
-                                else:
-                                    await send({"type": "video.queued", "clip_id": clip_id})
-                                    logger.info("Video call visual queued elapsed=%.1fs", time.monotonic() - started)
-                                clip = await await_clip(fal_client, key=fal_key, job=job)
-                                # Failed/cancelled jobs have no reported generated
-                                # seconds. Completed output is billed once, even
-                                # when the user stopped during processing.
-                                measured = clip.reported_duration or clip.measured_duration
-                                duration = Decimal(str(measured)) if measured and 0 < measured < 30 else VIDEO_REQUEST_SECONDS
-                                ledger.add_accepted_video(duration, estimated=measured is None)
-                                try:
-                                    await settle()
-                                except Exception:
-                                    billing_fault = True
-                                    raise
-                                if epoch != segment_epoch or time.monotonic() - started >= MAX_SECONDS:
-                                    return
-                                latest_clip_id = clip_id
-                                continuation_jpeg = clip.last_frame_jpeg
-                                continuation_for_clip = clip_id if clip.last_frame_jpeg else None
-                                ready_at = time.monotonic()
-                                await send_video_ready({
-                                    "type": "video.ready", "clip_id": clip_id,
-                                    "duration_seconds": float(duration),
-                                    "duration_estimated": measured is None,
-                                }, clip.data)
-                                logger.info("Video call visual ready=%.2fs elapsed=%.1fs duration=%.1fs", time.monotonic() - ready_at, time.monotonic() - started, float(duration))
-                                if not visuals_allowed:
-                                    return
-                                previous_playback_end = playback_end_at
-                                playback_end_at = max(playback_end_at, time.monotonic()) + float(duration)
-                                if continuation_jpeg is None:
-                                    # Browser extracts this same clip's final
-                                    # frame before playback finishes.
-                                    for _ in range(5):
-                                        if continuation_for_clip == clip_id or epoch != segment_epoch:
-                                            break
-                                        await asyncio.sleep(0.2)
-                                    if continuation_for_clip != clip_id:
-                                        if epoch == segment_epoch:
-                                            visual_prompt = None
-                                        return
-                                # Start clip 2 as soon as its continuation frame
-                                # arrives. If fal finishes before clip 1 ends,
-                                # wait before submitting clip 3: at most one
-                                # upcoming clip can be ready beside playback.
-                                if previous_playback_end:
-                                    await asyncio.sleep(max(0.0, previous_playback_end - time.monotonic()))
-                            except FalCompletedMediaError as exc:
-                                duration = Decimal(str(exc.reported_duration)) if exc.reported_duration else VIDEO_REQUEST_SECONDS
-                                ledger.add_accepted_video(duration, estimated=exc.reported_duration is None)
-                                try:
-                                    await settle()
-                                except Exception:
-                                    billing_fault = True
-                                    logger.exception("Completed fal job billing failed")
-                                if epoch == segment_epoch:
-                                    visual_prompt = None
-                                if epoch == segment_epoch and visuals_allowed:
-                                    try:
-                                        await send({"type": "error", "code": "video_unavailable", "message": "Visual generation completed, but the clip could not be delivered. Voice can continue."})
-                                    except Exception:
-                                        pass
+                                await settle()
+                            except Exception:
+                                billing_fault = True
+                                raise
+                            if epoch != segment_epoch or time.monotonic() - started >= MAX_SECONDS:
                                 return
-                            except Exception as exc:
-                                logger.warning("Video generation ended with %s", type(exc).__name__)
-                                if epoch == segment_epoch:
-                                    visual_prompt = None
-                                if epoch == segment_epoch and visuals_allowed:
-                                    try:
-                                        await send({"type": "error", "code": "video_unavailable", "message": "Visual generation failed; voice can continue."})
-                                    except Exception:
-                                        pass
-                                return  # no transparent retry of a paid request
-                            finally:
-                                active_job = None
+                            ready_at = time.monotonic()
+                            await send_video_ready({
+                                "type": "video.ready", "clip_id": clip_id,
+                                "duration_seconds": float(duration),
+                                "duration_estimated": measured is None,
+                            }, clip.data)
+                            latest_clip_id = clip_id
+                            continuation_jpeg = clip.last_frame_jpeg
+                            continuation_for_clip = clip_id if clip.last_frame_jpeg else None
+                            await send({"type": "video.complete", "clip_id": clip_id})
+                            logger.info("Video call visual ready=%.2fs elapsed=%.1fs duration=%.1fs", time.monotonic() - ready_at, time.monotonic() - started, float(duration))
+                        except FalCompletedMediaError as exc:
+                            duration = Decimal(str(exc.reported_duration)) if exc.reported_duration else VIDEO_REQUEST_SECONDS
+                            ledger.add_accepted_video(duration, estimated=exc.reported_duration is None)
+                            try:
+                                await settle()
+                            except Exception:
+                                billing_fault = True
+                                logger.exception("Completed fal job billing failed")
+                            if epoch == segment_epoch and visuals_allowed:
+                                try:
+                                    await send({"type": "error", "code": "video_unavailable", "message": "Visual generation completed, but the clip could not be delivered. Voice can continue."})
+                                except Exception:
+                                    pass
+                        except Exception as exc:
+                            logger.warning("Video generation ended with %s", type(exc).__name__)
+                            if epoch == segment_epoch and visuals_allowed:
+                                try:
+                                    await send({"type": "error", "code": "video_unavailable", "message": "Visual generation failed; voice can continue."})
+                                except Exception:
+                                    pass
+                        finally:
+                            active_job = None
 
                     client_receive = asyncio.create_task(websocket.receive_text())
                     provider_receive = asyncio.create_task(gemini.receive())
@@ -661,29 +630,8 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                             if now - started >= MAX_SECONDS:
                                 await send({"type": "ended", "reason": "time_limit"})
                                 break
-                            if visuals_allowed and last_visual_instruction is not None and now - last_visual_instruction >= IDLE_VIDEO_SECONDS:
-                                visuals_allowed = False
-                                visual_prompt = None
-                                pending_clip = active_video is not None and not active_video.done()
-                                await send({"type": "video.stopped", "reason": "idle", "finish_playback": True, "pending_clip": pending_clip})
-                                logger.info("Video call visuals idle elapsed=%.1fs pending_clip=%s", now - started, pending_clip)
-                                if pending_clip:
-                                    async def signal_drain_complete(draining_video: asyncio.Task[None], draining_epoch: int) -> None:
-                                        # Canceling this notifier must not cancel
-                                        # the accepted, spend-bearing fal job.
-                                        await asyncio.gather(asyncio.shield(draining_video), return_exceptions=True)
-                                        if draining_epoch == segment_epoch and not visuals_allowed:
-                                            await send({"type": "video.drain_complete"})
-                                            logger.info("Video call visual drain complete elapsed=%.1fs", time.monotonic() - started)
-
-                                    drain_notification = asyncio.create_task(signal_drain_complete(active_video, segment_epoch))
-                                else:
-                                    await send({"type": "video.drain_complete"})
-                                    logger.info("Video call visual drain complete elapsed=%.1fs", time.monotonic() - started)
-                            if visuals_allowed and visual_prompt and (active_video is None or active_video.done()):
-                                # A stopped segment may still be settling when
-                                # the user explicitly re-enables visuals.
-                                active_video = asyncio.create_task(visual_chain(segment_epoch))
+                            if visuals_allowed and pending_prompts and (active_video is None or active_video.done()):
+                                active_video = asyncio.create_task(generate_visual(pending_prompts.popleft(), segment_epoch))
                             # Fail closed as projected balance is consumed. This
                             # catches quiet/long turns before another fal submit.
                             await require_headroom(MIN_VOICE_HEADROOM)
@@ -705,8 +653,7 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                         raise ValueError("Audio stream exceeds real-time rate")
                                     await send_provider(gemini, {"realtimeInput": {"audio": {"data": incoming["data"], "mimeType": "audio/pcm;rate=16000"}}})
                                 elif event_type == "video_frame":
-                                    # Idle stops new generation, but frames from
-                                    # an accepted playing clip still inform Gemini.
+                                    # Frames from a playing clip still inform Gemini.
                                     # Explicit stop/re-enable clear the clip ID.
                                     if latest_clip_id is None:
                                         client_receive = asyncio.create_task(websocket.receive_text())
@@ -718,14 +665,13 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                     last_frame_at = frame_at
                                     await send_provider(gemini, {"realtimeInput": {"video": {"data": base64.b64encode(data).decode("ascii"), "mimeType": "image/jpeg"}}})
                                 elif event_type == "continuation_frame":
-                                    if visuals_allowed and continuation_jpeg is None and incoming.get("source") == "continuation" and incoming.get("clip_id") == latest_clip_id:
+                                    if visuals_allowed and incoming.get("source") == "continuation" and incoming.get("clip_id") == latest_clip_id:
                                         continuation_jpeg = _decode_media(incoming.get("data"), max_bytes=MAX_FRAME, jpeg=True)
                                         continuation_for_clip = latest_clip_id
                                 elif event_type == "stop_visuals":
                                     visuals_allowed = False
                                     segment_epoch += 1
-                                    await cancel_drain_notification()
-                                    visual_prompt = None
+                                    pending_prompts.clear()
                                     continuation_jpeg = None
                                     continuation_for_clip = None
                                     latest_clip_id = None
@@ -735,10 +681,8 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                     logger.info("Video call visuals stopped reason=user elapsed=%.1fs", time.monotonic() - started)
                                 elif event_type == "allow_visuals":
                                     visuals_allowed = True
-                                    last_visual_instruction = None
                                     segment_epoch += 1
-                                    await cancel_drain_notification()
-                                    visual_prompt = None
+                                    pending_prompts.clear()
                                     continuation_jpeg = None
                                     continuation_for_clip = None
                                     latest_clip_id = None
@@ -785,23 +729,25 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                     prompt = args.get("prompt") if isinstance(args, dict) else None
                                     if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > MAX_PROMPT or "http://" in prompt or "https://" in prompt or FORBIDDEN_VIDEO_LANGUAGE.search(prompt):
                                         await send_provider(gemini, _tool_response(call, "invalid visual instruction"))
-                                    elif not visuals_allowed or (last_visual_instruction is not None and time.monotonic() - last_visual_instruction >= IDLE_VIDEO_SECONDS):
+                                    elif not visuals_allowed:
                                         await send_provider(gemini, _tool_response(call, "visuals are stopped; continue voice"))
+                                    elif isinstance(call.get("id"), str) and call["id"] in accepted_tool_ids:
+                                        await send_provider(gemini, _tool_response(call, "visual direction already accepted; voice may continue"))
                                     else:
-                                        last_visual_instruction = time.monotonic()
-                                        visual_prompt = prompt.strip()
+                                        if isinstance(call.get("id"), str):
+                                            accepted_tool_ids.add(call["id"])
+                                        pending_prompts.append(prompt.strip())
                                         await send_provider(gemini, _tool_response(call, "visual direction accepted; voice may continue"))
                                         if active_video is None or active_video.done():
-                                            active_video = asyncio.create_task(visual_chain(segment_epoch))
+                                            active_video = asyncio.create_task(generate_visual(pending_prompts.popleft(), segment_epoch))
                                 provider_receive = asyncio.create_task(gemini.receive())
                     finally:
                         # Fence every late result before waiting for accepted
                         # work to settle; never start another clip after exit.
                         visuals_allowed = False
                         segment_epoch += 1
-                        visual_prompt = None
+                        pending_prompts.clear()
                         disconnected = True
-                        await cancel_drain_notification()
                         client_receive.cancel()
                         provider_receive.cancel()
                         await asyncio.gather(client_receive, provider_receive, return_exceptions=True)

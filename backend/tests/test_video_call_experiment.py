@@ -236,7 +236,7 @@ async def test_binary_gemini_setup_and_speech_reach_the_caller(route_harness) ->
 
 # contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals
 @pytest.mark.asyncio
-async def test_video_feedback_does_not_extend_instruction_idle_window(route_harness, monkeypatch) -> None:
+async def test_completed_clip_keeps_voice_and_later_visual_instruction_live(route_harness, monkeypatch) -> None:
     offset = [0.0]
     monkeypatch.setattr(call, "time", SimpleNamespace(
         monotonic=lambda: time.monotonic() + offset[0], time=time.time,
@@ -244,11 +244,11 @@ async def test_video_feedback_does_not_extend_instruction_idle_window(route_harn
     submitted = []
 
     async def submit(*args, **kwargs):
-        submitted.append(kwargs["prompt"])
-        return h3_turbo.FalJob("clip-1", "status", "result", "cancel")
+        submitted.append(kwargs["image_jpeg"])
+        return h3_turbo.FalJob(f"clip-{len(submitted)}", "status", "result", "cancel")
 
     async def completed(*args, **kwargs):
-        return h3_turbo.FalClip(b"mp4", 1.5, 1.5, "clip-1", None)
+        return h3_turbo.FalClip(b"mp4", 1.5, 1.5, kwargs["job"].request_id, None)
 
     monkeypatch.setattr(call, "submit_clip", submit)
     monkeypatch.setattr(call, "await_clip", completed)
@@ -260,45 +260,44 @@ async def test_video_feedback_does_not_extend_instruction_idle_window(route_harn
     first = await websocket.expect("video.ready")
     assert first["data"] == base64.b64encode(b"mp4").decode()
     assert "encoding" not in first
+    assert (await websocket.expect("video.complete"))["clip_id"] == "1"
+    assert submitted == [None]
+    provider.send(_visual_instruction())  # A repeated provider call ID is not a new request.
+    async def duplicate_acknowledged():
+        while not any("already accepted" in response.get("response", {}).get("result", "")
+                      for event in provider.sent
+                      for response in (event.get("toolResponse") or {}).get("functionResponses") or []):
+            await asyncio.sleep(0.001)
+    await asyncio.wait_for(duplicate_acknowledged(), timeout=2)
+    await asyncio.sleep(0.05)
+    assert submitted == [None]
 
     offset[0] = 9
     frame = base64.b64encode(b"\xff\xd8x\xff\xd9").decode()
-    websocket.send({"type": "video_frame", "data": frame})
-    async def feedback_sent():
-        while not any("video" in event.get("realtimeInput", {}) for event in provider.sent):
-            await asyncio.sleep(0.001)
-    await asyncio.wait_for(feedback_sent(), timeout=2)
+    websocket.send({"type": "continuation_frame", "clip_id": "1", "source": "continuation", "data": frame})
     assert not route_task.done(), websocket.sent
 
     offset[0] = 11
-    provider.send({})  # Wake the route to enter idle without consuming a frame.
-    try:
-        stopped = await websocket.expect("video.stopped", reason="idle")
-    except TimeoutError:
-        pytest.fail(f"idle stop absent: {websocket.sent}")
-    assert stopped["finish_playback"] is True
-    assert stopped["pending_clip"] is True
-    await websocket.expect("video.drain_complete")
-    websocket.send({"type": "video_frame", "data": frame})
-    async def two_frames_forwarded():
-        while sum("video" in event.get("realtimeInput", {}) for event in provider.sent) < 2:
-            await asyncio.sleep(0.001)
-    await asyncio.wait_for(two_frames_forwarded(), timeout=2)
+    provider.send({"serverContent": {"outputTranscription": {"text": "I can explain more."}}})
+    assert (await websocket.expect("transcript"))["text"] == "I can explain more."
+    provider.send(_visual_instruction("visual-2"))
+    await asyncio.wait_for(_expect_tool_result(provider, "visual-2", "accepted"), timeout=2)
+    assert (await websocket.expect("video.ready"))["clip_id"] == "2"
+    assert (await websocket.expect("video.complete"))["clip_id"] == "2"
+    assert submitted == [None, base64.b64decode(frame)]
+    assert not any(event.get("type") == "video.stopped" for event in websocket.sent)
     websocket.send({"type": "stop_visuals"})
     await websocket.expect("video.stopped", reason="user")
-    websocket.send({"type": "video_frame", "data": frame})
     websocket.send({"type": "mic_audio", "data": base64.b64encode(b"\x00\x01").decode()})
     async def mic_forwarded():
         while not any("audio" in event.get("realtimeInput", {}) for event in provider.sent):
             await asyncio.sleep(0.001)
     await asyncio.wait_for(mic_forwarded(), timeout=2)
-    assert sum("video" in event.get("realtimeInput", {}) for event in provider.sent) == 2
-    provider.send(_visual_instruction("visual-2"))
-    await asyncio.wait_for(_expect_tool_result(provider, "visual-2", "visuals are stopped"), timeout=2)
+    provider.send(_visual_instruction("visual-3"))
+    await asyncio.wait_for(_expect_tool_result(provider, "visual-3", "visuals are stopped"), timeout=2)
     websocket.send({"type": "hangup"})
     await asyncio.wait_for(route_task, timeout=2)
-    assert len(submitted) == 1
-    assert not any(event.get("type") == "video.ready" and event.get("clip_id") != "1" for event in websocket.sent)
+    assert len(submitted) == 2
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals
@@ -329,7 +328,7 @@ async def test_binary_video_transport_pairs_ready_metadata_with_raw_mp4(route_ha
 
 # contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals
 @pytest.mark.asyncio
-async def test_next_clip_starts_after_browser_continuation_with_one_clip_lookahead(route_harness, monkeypatch) -> None:
+async def test_next_clip_requires_explicit_instruction_and_browser_continuation(route_harness, monkeypatch) -> None:
     submissions = []
 
     async def submit(*args, **kwargs):
@@ -350,6 +349,9 @@ async def test_next_clip_starts_after_browser_continuation_with_one_clip_lookahe
     assert first["clip_id"] == "1"
     frame = b"\xff\xd8x\xff\xd9"
     websocket.send({"type": "continuation_frame", "clip_id": "1", "source": "continuation", "data": base64.b64encode(frame).decode()})
+    await asyncio.sleep(0.05)
+    assert submissions == [None]
+    route_harness.providers[0].send(_visual_instruction("visual-2"))
     second = await websocket.expect("video.ready")
     assert second["clip_id"] == "2"
     assert submissions == [None, frame]
@@ -364,63 +366,114 @@ async def test_next_clip_starts_after_browser_continuation_with_one_clip_lookahe
 
 # contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals,video-call.experiment.live-voice
 @pytest.mark.asyncio
-async def test_idle_drains_slow_accepted_clip_without_starting_another(route_harness, monkeypatch) -> None:
+async def test_failed_followup_keeps_retained_frame_for_next_request(route_harness, monkeypatch) -> None:
+    submissions = []
+    frame = b"\xff\xd8held\xff\xd9"
+
+    async def submit(*args, **kwargs):
+        submissions.append(kwargs["image_jpeg"])
+        if len(submissions) == 2:
+            raise RuntimeError("provider unavailable")
+        return h3_turbo.FalJob(f"clip-{len(submissions)}", "status", "result", "cancel")
+
+    async def complete(*args, **kwargs):
+        return h3_turbo.FalClip(b"mp4", 5.0, 5.0, kwargs["job"].request_id)
+
+    monkeypatch.setattr(call, "submit_clip", submit)
+    monkeypatch.setattr(call, "await_clip", complete)
+    websocket = route_harness.socket()
+    route_task = asyncio.create_task(call.video_call(websocket, auth_data={"user_id": "user-1"}))
+    await websocket.expect("ready")
+    provider = route_harness.providers[0]
+    provider.send(_visual_instruction())
+    assert (await websocket.expect("video.ready"))["clip_id"] == "1"
+    websocket.send({"type": "continuation_frame", "clip_id": "1", "source": "continuation", "data": base64.b64encode(frame).decode()})
+    provider.send(_visual_instruction("visual-2"))
+    assert (await websocket.expect("error"))["code"] == "video_unavailable"
+    provider.send(_visual_instruction("visual-3"))
+    assert (await websocket.expect("video.ready"))["clip_id"] == "3"
+    assert submissions == [None, frame, frame]
+    websocket.send({"type": "hangup"})
+    await asyncio.wait_for(route_task, timeout=2)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals,video-call.experiment.live-voice
+@pytest.mark.asyncio
+async def test_missing_held_frame_fails_without_new_paid_submission(route_harness, monkeypatch) -> None:
+    submissions = []
+
+    async def submit(*args, **kwargs):
+        submissions.append(kwargs["image_jpeg"])
+        return h3_turbo.FalJob("clip-1", "status", "result", "cancel")
+
+    async def complete(*args, **kwargs):
+        return h3_turbo.FalClip(b"mp4", 5.0, 5.0, "clip-1")
+
+    monkeypatch.setattr(call, "submit_clip", submit)
+    monkeypatch.setattr(call, "await_clip", complete)
+    monkeypatch.setattr(call, "CONTINUATION_WAIT_SECONDS", 0.02)
+    websocket = route_harness.socket()
+    route_task = asyncio.create_task(call.video_call(websocket, auth_data={"user_id": "user-1"}))
+    await websocket.expect("ready")
+    provider = route_harness.providers[0]
+    provider.send(_visual_instruction())
+    await websocket.expect("video.ready")
+    provider.send(_visual_instruction("visual-2"))
+    assert (await websocket.expect("error"))["code"] == "video_unavailable"
+    assert submissions == [None]
+    websocket.send({"type": "hangup"})
+    await asyncio.wait_for(route_task, timeout=2)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals,video-call.experiment.live-voice
+@pytest.mark.asyncio
+async def test_slow_clip_does_not_expire_visual_permission_or_start_automatically(route_harness, monkeypatch) -> None:
     offset = [0.0]
     monkeypatch.setattr(call, "time", SimpleNamespace(
         monotonic=lambda: time.monotonic() + offset[0], time=time.time,
     ))
     released = asyncio.Event()
     submitted = []
-    cancelled = []
 
     async def submit(*args, **kwargs):
-        submitted.append(kwargs["prompt"])
-        return h3_turbo.FalJob("clip-1", "status", "result", "cancel")
+        submitted.append(kwargs["image_jpeg"])
+        return h3_turbo.FalJob(f"clip-{len(submitted)}", "status", "result", "cancel")
 
     async def complete_later(*args, **kwargs):
         await released.wait()
-        return h3_turbo.FalClip(b"mp4", 5.0, 5.0, "clip-1", None)
-
-    async def cancel(*args, **kwargs):
-        cancelled.append(True)
-        return True
+        return h3_turbo.FalClip(b"mp4", 5.0, 5.0, kwargs["job"].request_id, None)
 
     monkeypatch.setattr(call, "submit_clip", submit)
     monkeypatch.setattr(call, "await_clip", complete_later)
-    monkeypatch.setattr(call, "cancel_clip", cancel)
     websocket = route_harness.socket()
     route_task = asyncio.create_task(call.video_call(websocket, auth_data={"user_id": "user-1"}))
     await websocket.expect("ready")
     provider = route_harness.providers[0]
     provider.send(_visual_instruction())
     await websocket.expect("video.queued")
-
     offset[0] = 11
-    provider.send({})  # Wake the route while fal is still generating.
-    stopped = await websocket.expect("video.stopped", reason="idle")
-    assert stopped["finish_playback"] is True
-    assert stopped["pending_clip"] is True
-    assert not cancelled
+    provider.send({"serverContent": {"outputTranscription": {"text": "Still here."}}})
+    assert (await websocket.expect("transcript"))["text"] == "Still here."
+    assert not any(event.get("type") == "video.stopped" for event in websocket.sent)
     released.set()
-    ready = await websocket.expect("video.ready")
-    assert ready["duration_seconds"] == 5.0
-    await websocket.expect("video.drain_complete")
+    assert (await websocket.expect("video.ready"))["clip_id"] == "1"
+    assert (await websocket.expect("video.complete"))["clip_id"] == "1"
+    await asyncio.sleep(0.05)
+    assert submitted == [None]
+    frame = b"\xff\xd8x\xff\xd9"
+    websocket.send({"type": "continuation_frame", "clip_id": "1", "source": "continuation", "data": base64.b64encode(frame).decode()})
     provider.send(_visual_instruction("visual-2"))
-    await asyncio.wait_for(_expect_tool_result(provider, "visual-2", "visuals are stopped"), timeout=2)
+    await asyncio.wait_for(_expect_tool_result(provider, "visual-2", "accepted"), timeout=2)
+    assert (await websocket.expect("video.ready"))["clip_id"] == "2"
+    assert submitted == [None, frame]
     websocket.send({"type": "hangup"})
     await asyncio.wait_for(route_task, timeout=2)
-    assert len(submitted) == 1
-    assert not cancelled
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.experiment.user-stop,video-call.experiment.billing
 @pytest.mark.asyncio
 @pytest.mark.parametrize("next_event", ["stop_visuals", "allow_visuals"])
-async def test_pending_idle_drain_is_retired_when_visual_epoch_changes(route_harness, monkeypatch, next_event) -> None:
-    offset = [0.0]
-    monkeypatch.setattr(call, "time", SimpleNamespace(
-        monotonic=lambda: time.monotonic() + offset[0], time=time.time,
-    ))
+async def test_pending_clip_is_fenced_when_visual_epoch_changes(route_harness, monkeypatch, next_event) -> None:
     released = asyncio.Event()
     cancelled = []
 
@@ -441,12 +494,8 @@ async def test_pending_idle_drain_is_retired_when_visual_epoch_changes(route_har
     websocket = route_harness.socket()
     route_task = asyncio.create_task(call.video_call(websocket, auth_data={"user_id": "user-1"}))
     await websocket.expect("ready")
-    provider = route_harness.providers[0]
-    provider.send(_visual_instruction())
+    route_harness.providers[0].send(_visual_instruction())
     await websocket.expect("video.queued")
-    offset[0] = 11
-    provider.send({})
-    assert (await websocket.expect("video.stopped", reason="idle"))["pending_clip"] is True
     websocket.send({"type": next_event})
     if next_event == "stop_visuals":
         await websocket.expect("video.stopped", reason="user")
@@ -454,7 +503,7 @@ async def test_pending_idle_drain_is_retired_when_visual_epoch_changes(route_har
     else:
         websocket.send({"type": "mic_audio", "data": base64.b64encode(b"\x00\x01").decode()})
         async def mic_forwarded():
-            while not any("audio" in event.get("realtimeInput", {}) for event in provider.sent):
+            while not any("audio" in event.get("realtimeInput", {}) for event in route_harness.providers[0].sent):
                 await asyncio.sleep(0.001)
         await asyncio.wait_for(mic_forwarded(), timeout=2)
     released.set()
@@ -462,7 +511,7 @@ async def test_pending_idle_drain_is_retired_when_visual_epoch_changes(route_har
     assert usage["h3_generated_seconds"] == 5.0
     websocket.send({"type": "hangup"})
     await asyncio.wait_for(route_task, timeout=2)
-    assert not any(event.get("type") in ("video.ready", "video.drain_complete") for event in websocket.sent)
+    assert not any(event.get("type") in ("video.ready", "video.complete") for event in websocket.sent)
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals,video-call.experiment.live-voice
@@ -680,7 +729,7 @@ async def test_tool_only_usage_does_not_cancel_an_accepted_video(route_harness, 
         assert not cancellations
         assert not any(event.get("type") == "error" for event in socket.sent)
         reply = next(event["toolResponse"]["functionResponses"][0] for event in provider.sent if "toolResponse" in event)
-        assert reply["scheduling"] == "SILENT"
+        assert reply["scheduling"] == "WHEN_IDLE"
         assert "scheduling" not in reply["response"]
     finally:
         released.set()
@@ -767,6 +816,8 @@ def test_gemini_setup_has_only_nonblocking_visual_tool_and_context_limit() -> No
     assert "show me how black holes work" in instruction
     assert "need not say 'video'" in instruction
     assert "Call generate_visual_clip immediately" in instruction
+    assert "once for each fresh user request" in instruction
+    assert "incoming video frame is not a new user request" in instruction
     assert [tool["name"] for tool in tools] == ["generate_visual_clip"]
     assert tools[0]["behavior"] == "NON_BLOCKING"
     assert "separate from the video" in instruction

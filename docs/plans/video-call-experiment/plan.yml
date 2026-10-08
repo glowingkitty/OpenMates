@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: video-call-experiment
 title: Gemini Voice And H3 Turbo Experiment
-status: verified
+status: implementing
 goal: >
   Implement a first test to see how well such a system can actually work, before
   spending more time on it: a basic /experiment/videocall page for Gemini voice
@@ -13,7 +13,7 @@ scope:
   in:
     - Authenticated first-party experiment with native Gemini 3.8 Live speech and transient transcript.
     - Gemini-only visual tool driving sequential five-second H3 Max Turbo 480p clips.
-    - Ten-second generation inactivity timeout with complete playback of accepted clips and independent video/hangup controls.
+    - One clip per visual instruction, retained final-frame continuation and independent video/hangup controls.
     - Clearly audible Gemini speech, quieter video ambience/effects and automatic ducking.
     - Wide side-by-side transcript/video and narrow fullscreen video with transcript access.
     - Authoritative proportional billing, 1.2 multiplier, visible rates/time/credits and bounded spend.
@@ -38,10 +38,11 @@ decisions:
   - UI prices stay in rounded whole credits per minute; proportional per-second usage settles with a one-credit minimum for positive billable usage.
   - Requests such as show me how or visualize must trigger the visual tool without requiring the word video.
   - Gemini speech interruption or cancellation of an acknowledged tool turn never interrupts accepted video playback.
-  - After ten seconds without a visual instruction, stop new generation and finish accepted clips before closing video; explicit user stop and hangup remain immediate.
+  - User approved replacing inactivity-close behavior with request-driven clips and a held last frame on 2026-10-08; natural completion keeps voice and later visuals enabled.
   - Delayed visuals autoplay muted; scene ambience plays through the gesture-unlocked call audio context, independently of Gemini speech interruption.
   - Every fal submission enforces no speaker, speech, narration, vocals or music and physically appropriate background sound; space and vacuum are silent.
-  - Optimize the existing Turbo completed-clip API with prompt expansion disabled, earlier continuation, binary media delivery and no server frame extraction before playback.
+  - Optimize the existing Turbo completed-clip API with prompt expansion disabled, retained-frame continuation, binary media delivery and no server frame extraction before playback.
+  - WHEN_IDLE tool acknowledgements resume speech without interrupting narration; each fresh visual request generates one clip and repeated tool IDs cannot duplicate paid work.
   - User declined Director because of its sixty-second billing minimum; the experiment stays Turbo only.
 
 draft_contract:
@@ -58,20 +59,20 @@ experimental_contract:
   path: specifications/features/video-call-experiment/specification.yml
   id: feature.video-call-experiment
   status: draft
-  approval: Both exact draft bundles were explicitly approved and committed to dev as 7b8ab00b10a375bb6df89d4dd12a0d73a98804ff.
+  approval: Both initial drafts were approved and committed as 7b8ab00b10a375bb6df89d4dd12a0d73a98804ff; the user explicitly approved the held-frame revision 7ff700f739f17936316b71662b61367e03f531ab560fbd109958caee38321291 on 2026-10-08.
 
 acceptance_criteria:
   - id: AC-1
     text: Start with permitted microphone and session; receive native Gemini audio and live transcript.
     coverage_status: covered
   - id: AC-2
-    text: Gemini can request an initial visual and redirect upcoming clips without invoking other app skills.
+    text: Gemini requests one clip at a time and later requests use the retained final frame and new text direction without invoking other app skills.
     coverage_status: covered
   - id: AC-3
-    text: User stop returns to audio immediately and fences late clips; ten-second visual inactivity stops generation, finishes accepted clips and then returns to audio.
+    text: Finished clips hold their last frame with an audio-only rate and continuous voice; natural completion permits later visuals while explicit user stop clears the scene and fences late clips.
     coverage_status: covered
   - id: AC-4
-    text: Gemini remains audible over video sound and interruptions flush queued speech.
+    text: Gemini remains audible over video sound, interruptions flush queued speech independently, and voice continues across multiple visual generations.
     coverage_status: covered
   - id: AC-5
     text: Auth/origin, balance failure, packet limits and concurrent admission reject paid work safely.
@@ -106,8 +107,8 @@ verification:
     - Never issue real fal/H3 requests in automated verification; a bounded Gemini-only provider probe is authorized.
 
 verification_evidence:
-  backend: 36 focused mocked route/provider/billing tests passed, including mandatory prompt constraints, earlier bounded continuation, legacy and binary delivery, idle drain and stop fencing; Ruff passed.
-  frontend: Eleven focused audio/controller tests passed, including gesture-first audio unlock, independent decoded ambience, retained ducking gain across clips, aborted pending media fetches, binary media delivery and late-byte stop fencing; changed-path ESLint and panel compilation passed.
+  backend: 38 focused mocked route/provider/billing tests passed, including request-driven clips, repeated tool IDs, held-frame reuse after failure, missing-frame refusal without a paid fallback, continuous voice, binary delivery and stop fencing; Ruff passed.
+  frontend: Eleven focused audio/controller tests passed, including held frames across requests, audio-only state after completion or failure, independent decoded ambience, binary delivery and explicit-stop fencing; changed-path ESLint and panel compilation passed.
   component:
     source: aaf8995424b9a880cc2cb5c93c5eca98abc2eb80
     request: 3329de66db47afaa120efcc4bc5c0856f0eda78e68b3065faa4530c11ce01235
@@ -144,3 +145,8 @@ verification_evidence:
     bounds: Two Google connections for synthetic speech and one live spoken request, at most 45 seconds; mocked visual tool response, zero fal requests, no saved media or transcripts.
     tool_turn_provider_cost_usd: "0.00166425"
     limitation: This cost covers the live tool turn only. Synthetic speech preparation is separate; actual fal latency and output quality remain for manual evaluation.
+  gemini_voice_tool_continuity_probe:
+    result: A bounded live diagnostic completed two spoken turns on one connection, including a mocked visual tool followed by native audio with WHEN_IDLE scheduling.
+    counts: 72 provider events, one visual tool, two completed turns and 403680 native PCM bytes; zero fal requests.
+    bounds: Two connections totaling at most 60 seconds; synthetic text inputs and mocked visual responses only, no saved media or transcripts. The first 45-second capped multi-turn probe timed out; the second 15-second diagnostic passed.
+    limitation: This proves native voice and tool-acknowledgement behavior, not real fal output quality or end-to-end video latency.

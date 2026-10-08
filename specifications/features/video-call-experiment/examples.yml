@@ -13,25 +13,36 @@ voice:
 visuals:
 - id: illustrate-a-black-hole
   given: Maya is in an experimental voice call with visuals allowed.
-  when: She asks Gemini to show an accretion disk and then zoom in.
-  then: Gemini starts 480p short clips automatically, upcoming clips follow the new direction, and
-    only one generation can be outstanding.
+  when: She asks Gemini to show an accretion disk and the resulting short clip finishes.
+  then: Its last displayed frame stays visible, generation stops, and no additional clip is requested
+    until she asks for another visual explanation.
+- id: continue-from-the-held-scene
+  given: The accretion-disk clip has finished and its last frame is still visible while Maya talks
+    with Gemini.
+  when: She asks to show the black hole in comparison with Earth.
+  then: Gemini requests another short clip using the retained frame and its new text direction,
+    without restarting the call or blocking voice while the clip generates.
 stop:
-- id: idle-visuals-return-to-voice
-  given: Gemini's last visual instruction was ten seconds ago, although speech and frame feedback
-    continue.
-  when: The inactivity deadline expires.
-  then: New video generation stops and the panel closes while the voice call continues.
+- id: finished-visuals-return-to-voice
+  given: Maya's requested clip has finished and the last frame is held on screen.
+  when: She asks an ordinary spoken follow-up question without requesting another visual.
+  then: Gemini answers in the same call, the frame stays visible, the displayed rate is audio-only,
+    and no video generation or video-ambience playback continues.
 - id: close-with-request-in-flight
   given: A visual clip is still generating.
   when: Maya closes video.
-  then: No queued request starts or late clip reopens the panel; already accepted provider usage
-    remains accounted for.
+  then: The retained scene clears, no queued request starts or late clip reopens the panel until
+    she re-enables visuals; already accepted provider usage remains accounted for.
 audio:
 - id: narrator-over-ambience
   given: A generated clip is playing background sound during the experimental call.
   when: Gemini explains the event horizon or Maya asks a question.
   then: The clip's sound lowers automatically and Gemini's speech stays clearly audible.
+- id: conversation-across-visuals
+  given: Maya is talking with Gemini while a requested visual clip generates.
+  when: She asks a factual follow-up, waits for the clip to finish, then asks for a second visual.
+  then: Gemini keeps answering throughout generation, playback and the held frame; both visuals
+    belong to the same voice conversation and neither interrupts the other audio stream.
 layout:
 - id: laptop-and-phone
   given: An experimental call has a live transcript and active video.

@@ -18,27 +18,35 @@ class PreviewCallController implements CallControllerLike {
   private state: CallState;
   private drainComplete = false;
   private playedClips = new Set<string>();
+  private nextClipId = 1;
   private audio: CallAudio | null = null;
 
   constructor(initial: Partial<CallState> = {}) {
     this.state = { ...initialCallState, ...initial };
+    this.nextClipId = Math.max(0, ...this.state.clips.map((clip) => Number(clip.id) || 0)) + 1;
     this.store = writable(this.state);
     this.subscribe = this.store.subscribe;
     if (typeof window !== 'undefined') {
       window.addEventListener('video-call-preview-event', (event) => {
         const detail = (event as CustomEvent<{ type: string }>).detail;
-        if (detail.type === 'queued') this.update({ videoStatus: 'playing', videoPending: true });
-        if (detail.type === 'idle') this.update({ visualsAllowed: false, videoDraining: true, videoPending: false });
-        if (detail.type === 'idle_pending') this.update({ visualsAllowed: false, videoDraining: true, videoPending: true });
+        if (detail.type === 'queued' && this.state.visualsAllowed) this.update({ videoStatus: this.hasUnplayedClip() ? 'playing' : 'queued', videoPending: true });
+        if (detail.type === 'idle') this.update({ videoDraining: true, videoPending: false });
+        if (detail.type === 'idle_pending') this.update({ videoDraining: true, videoPending: true });
+        if (detail.type === 'complete' && this.state.visualsAllowed) this.update({ videoStatus: this.hasUnplayedClip() ? 'playing' : 'off', videoPending: false });
+        if (detail.type === 'unavailable' && this.state.visualsAllowed) this.update({ videoStatus: this.hasUnplayedClip() ? 'playing' : 'off', videoPending: false });
         if (detail.type === 'drain_complete') { this.drainComplete = true; this.update({ videoPending: false }); this.finishDrain(); }
         if (detail.type === 'audio_interrupted') this.update({ modelSpeaking: false });
         if (detail.type === 'model_speaking') this.update({ modelSpeaking: true, userSpeaking: false });
         if (detail.type === 'user_speaking') this.update({ modelSpeaking: false, userSpeaking: true });
         if (detail.type === 'silence') this.update({ modelSpeaking: false, userSpeaking: false });
         if (detail.type === 'ready') {
-          if (!this.state.visualsAllowed && (!this.state.videoDraining || this.drainComplete)) return;
-          const first = this.state.clips.length === 0;
-          this.update({ clips: [...this.state.clips, { id: first ? '1' : '2', url: first ? clipA : clipB, durationSeconds: 1.5 }], videoPending: false, videoStatus: 'playing' });
+          if (this.state.status !== 'live' || !this.state.visualsAllowed) return;
+          const id = String(this.nextClipId++);
+          const clips = [...this.state.clips, { id, url: Number(id) % 2 ? clipA : clipB, durationSeconds: 1.5 }].slice(-4);
+          for (const playedId of this.playedClips) {
+            if (!clips.some((clip) => clip.id === playedId)) this.playedClips.delete(playedId);
+          }
+          this.update({ clips, videoPending: false, videoStatus: 'playing' });
         }
         if (detail.type === 'ready_audio' || detail.type === 'ready_mp4_audio') {
           if (this.state.status !== 'live' || !this.state.visualsAllowed) return;
@@ -54,17 +62,16 @@ class PreviewCallController implements CallControllerLike {
   }
 
   private finishDrain() {
-    if (this.state.videoDraining && this.drainComplete && this.state.clips.every((clip) => this.playedClips.has(clip.id))) {
-      this.playedClips.clear();
-      this.update({ videoDraining: false, videoStatus: 'off', videoPending: false, clips: [] });
-    }
+    if (this.state.videoDraining && this.drainComplete && !this.hasUnplayedClip()) this.update({ videoDraining: false, videoStatus: 'off', videoPending: false });
   }
+
+  private hasUnplayedClip() { return this.state.clips.some((clip) => !this.playedClips.has(clip.id)); }
 
   async start() {
     this.audio?.stop();
     this.audio = new CallAudio(() => {}, () => {});
     this.audio.unlock();
-    this.drainComplete = false; this.playedClips.clear();
+    this.drainComplete = false; this.playedClips.clear(); this.nextClipId = 1;
     this.update({ status: 'live', error: null, elapsedSeconds: 1, clips: [], visualsAllowed: true, videoStatus: 'off', videoPending: false, videoDraining: false, transcripts: [{ role: 'model', text: 'Hi! What would you like to explore?', final: true }] });
   }
   stopVisuals() { this.drainComplete = false; this.playedClips.clear(); this.update({ visualsAllowed: false, videoDraining: false, videoStatus: 'off', videoPending: false, clips: [] }); }
@@ -72,7 +79,11 @@ class PreviewCallController implements CallControllerLike {
   hangup() { this.audio?.stop(); this.audio = null; this.drainComplete = false; this.playedClips.clear(); this.update({ status: 'ended', videoDraining: false, videoStatus: 'off', videoPending: false, clips: [] }); }
   sendVideoFrame() { /* Preview transport is inert. */ }
   sendContinuationFrame(clipId: string) { window.dispatchEvent(new CustomEvent('video-call-preview-continuation', { detail: clipId })); }
-  videoPlaybackEnded(clipId: string) { this.playedClips.add(clipId); this.finishDrain(); }
+  videoPlaybackEnded(clipId: string) {
+    this.playedClips.add(clipId);
+    this.finishDrain();
+    if (!this.state.videoDraining && !this.hasUnplayedClip()) this.update({ videoStatus: this.state.videoPending ? 'queued' : 'off' });
+  }
   setVideoElement(video: HTMLVideoElement | null) { this.audio?.setVideoElement(video); }
   setVideoGain(value: number) { this.audio?.setVideoGain(value); }
   dispose() { this.audio?.stop(); this.audio = null; }

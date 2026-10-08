@@ -95,13 +95,17 @@
   }
 
   function onClipEnded(): void {
-    const index = state.clips.findIndex((clip) => clip.id === activeClip?.id);
+    const endedClip = activeClip;
+    const index = state.clips.findIndex((clip) => clip.id === endedClip?.id);
     const following = state.clips[index + 1];
     if (visibleVideo) {
       const frame = takeFrame(visibleVideo);
-      if (frame) heldFrame = frame;
+      if (frame) {
+        heldFrame = frame;
+        if (endedClip) controller.sendContinuationFrame(endedClip.id, frame);
+      }
     }
-    lastPlayedClipId = activeClip?.id ?? null;
+    lastPlayedClipId = endedClip?.id ?? null;
     if (following) activeClipId = following.id;
     else activeClipId = null;
     if (lastPlayedClipId) controller.videoPlaybackEnded(lastPlayedClipId);
@@ -117,6 +121,9 @@
       else if (!activeClipId || !value.clips.some((clip) => clip.id === activeClipId)) {
         const playedIndex = value.clips.findIndex((clip) => clip.id === lastPlayedClipId);
         activeClipId = value.clips[playedIndex + 1]?.id ?? (playedIndex < 0 ? value.clips[0].id : null);
+      }
+      for (const sentId of continuationSent) {
+        if (!value.clips.some((clip) => clip.id === sentId)) continuationSent.delete(sentId);
       }
       for (const clip of value.clips) {
         if (!continuationSent.has(clip.id)) {
@@ -180,9 +187,10 @@
         <span class="visual-badge">{$text('videocall.generated_visual')}</span>
         {#if state.videoPending}<span class="pending-badge">{$text('videocall.next_visual')}</span>{/if}
         {#if playbackBlocked}<button class="resume-button" type="button" onclick={() => void resumeVideo()} data-testid="call-resume-video">{$text('videocall.play_visual')}</button>{/if}
-      {:else if heldFrame && (state.visualsAllowed || state.videoDraining)}
+      {:else if heldFrame && state.status === 'live' && (state.visualsAllowed || state.videoDraining)}
         <img class="held-frame" src={`data:image/jpeg;base64,${heldFrame}`} alt={$text('videocall.waiting_visual')} />
         <span class="visual-badge">{$text('videocall.waiting_visual')}</span>
+        {#if state.videoPending}<span class="pending-badge">{$text('videocall.next_visual')}</span>{/if}
       {:else}
         <div class="portrait" aria-label="OpenMates AI call portrait"><span class="orb" aria-hidden="true">✦</span><span>{state.videoStatus === 'queued' ? $text('videocall.creating_visual') : $text('videocall.voice_call')}</span></div>
       {/if}

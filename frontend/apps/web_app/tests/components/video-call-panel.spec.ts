@@ -132,35 +132,43 @@ test.describe('Video call experiment panel', () => {
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.generated-visuals,video-call.experiment.audio-mix
-  test('lets accepted clips finish while voice continues after idle generation stops', async ({ page }) => {
+  test('holds each final frame while voice continues through two visual generations', async ({ page }) => {
     await page.goto(preview('visuals'));
     await waitForComponentPreview(page);
     const video = page.getByTestId('call-video');
     await expect(video).toBeVisible();
     const firstSrc = await video.getAttribute('src');
-    await page.evaluate(() => {
-      for (const type of ['model_speaking', 'idle_pending', 'ready', 'drain_complete']) {
-        window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type } }));
-      }
-    });
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'complete' } })));
     await expect(page.getByTestId('call-stop-video')).toBeVisible();
-    await expect(page.getByTestId('call-active-rate')).toContainText('Audio only');
     await expect(video).toHaveAttribute('src', firstSrc!);
     await expect(video).toHaveJSProperty('paused', false);
-    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'audio_interrupted' } })));
-    await expect(video).toHaveJSProperty('paused', false);
-    await expect.poll(() => video.getAttribute('src'), { timeout: 10_000 }).not.toBe(firstSrc);
-    await expect(video).toBeVisible();
-    await expect(page.getByTestId('call-video')).toHaveCount(0, { timeout: 10_000 });
-    await expect(page.getByTestId('call-allow-video')).toBeVisible();
+    await expect(page.getByAltText('Waiting for next visual…')).toBeVisible({ timeout: 10_000 });
+    const firstFrame = await page.getByAltText('Waiting for next visual…').getAttribute('src');
+    await expect(page.getByTestId('call-video')).toHaveCount(0);
+    await expect(page.getByTestId('call-active-rate')).toContainText('Audio only');
     await expect(page.getByTestId('call-hangup')).toBeVisible();
-
-    await page.getByTestId('call-allow-video').click();
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'unavailable' } })));
+    await expect(page.getByAltText('Waiting for next visual…')).toHaveAttribute('src', firstFrame!);
+    await expect(page.getByTestId('call-active-rate')).toContainText('Audio only');
+    await expect(page.getByTestId('call-hangup')).toBeVisible();
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'model_speaking' } })));
+    await expect(page.getByTestId('call-video')).toHaveCount(0);
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'audio_interrupted' } })));
+    await expect(page.getByAltText('Waiting for next visual…')).toHaveAttribute('src', firstFrame!);
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'queued' } })));
+    await expect(page.getByAltText('Waiting for next visual…')).toHaveAttribute('src', firstFrame!);
+    await expect(page.getByText('Next visual is rendering…')).toBeVisible();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'ready' } })));
     await expect(page.getByTestId('call-video')).toBeVisible();
-    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'idle_pending' } })));
+    await expect.poll(() => video.getAttribute('src')).not.toBe(firstSrc);
+    await expect(page.getByTestId('call-resume-video')).toHaveCount(0);
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'complete' } })));
+    await expect(page.getByAltText('Waiting for next visual…')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByAltText('Waiting for next visual…')).not.toHaveAttribute('src', firstFrame!);
+    await expect(page.getByTestId('call-active-rate')).toContainText('Audio only');
     await page.getByTestId('call-stop-video').click();
     await expect(page.getByTestId('call-video')).toHaveCount(0);
+    await expect(page.getByAltText('Waiting for next visual…')).toHaveCount(0);
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'ready' } })));
     await expect(page.getByTestId('call-video')).toHaveCount(0);
   });

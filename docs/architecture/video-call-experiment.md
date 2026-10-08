@@ -21,6 +21,8 @@ Provider keys come from the existing Vault entries for Google AI Studio and fal.
 Microphone audio is PCM16 at 16 kHz. Gemini supplies native PCM speech at 24 kHz,
 user/model transcription and one non-blocking `generate_visual_clip` function.
 There is no separate speech synthesis service or ordinary app-skill dispatcher.
+Tool acknowledgements use `WHEN_IDLE`, allowing a spoken response after a visual
+request without interrupting narration already in progress.
 Gemini speech and the generated MP4 use independent, concurrent browser playback
 streams: Web Audio for speech and decoded scene ambience, with a muted video
 element for visuals. The audio context unlocks in the Start call gesture before
@@ -35,9 +37,9 @@ no-speech, no-narration, no-vocals and no-music instructions. Gemini describes
 physical visual motion and realistic scene background sound, with silence in
 space or vacuum; Gemini itself supplies the spoken explanation.
 The first request can start from text; following requests use
-the previous clip's final frame. The browser separately samples the actually
+the previous clip's retained final frame with Gemini's new text direction. The browser separately samples the actually
 displayed video for Gemini at up to one frame per second. These feedback frames
-do not refresh the visual-instruction timer.
+never request another generated clip.
 
 The provider's published faster-than-real-time figures measure GPU inference,
 not time to first displayed frame. Queue wait, encoding and media delivery add
@@ -45,21 +47,26 @@ latency. This Turbo endpoint returns completed MP4 files and does not expose
 frames during generation. The browser's final-frame sample supplies continuation
 without blocking first playback on a server ffmpeg decode. New clients request
 binary MP4 WebSocket delivery to avoid base64 overhead; legacy clients still
-receive base64 JSON. Only one upcoming clip is prepared ahead of playback.
+receive base64 JSON. Generation is request-driven rather than an automatic clip chain.
 Timing diagnostics record numeric stage durations without prompts or media.
 
 Only one generation request can be outstanding. New Gemini visual instructions
-steer the next request; they cannot rewrite frames already generated. Requests
+request one clip each; at most the latest pending direction waits for an active
+job. A repeated tool ID cannot create another paid job. Requests
 such as "show me how" or "visualize" direct Gemini to use the visual tool without
 requiring the caller to say "video". Cancellation of an acknowledged Gemini tool
 turn does not cancel the accepted visual scene.
 
-Ten seconds without a new instruction stops new generation. Already accepted
-clips finish processing and play fully before the video panel closes, so provider
-latency does not consume their playback time. Gemini voice keeps running during
-generation, playback and this final drain.
-User Close video, hangup, expiry and disconnect fence late results and stop new
-paid requests. The experiment ends after two minutes and does not reconnect
+When a requested clip finishes, its last displayed frame stays on stage and the
+rate returns to audio-only. No video ambience or further generation continues
+while that frame is held. Natural completion leaves voice and later visual
+requests enabled in the same connection. A later request uses the held frame
+and new prompt; a failed request preserves the frame for a subsequent attempt.
+If a previous frame is unavailable after a bounded wait, the route reports the
+visual failure and continues voice without submitting a text-only paid fallback.
+User Close video clears the held scene, fences late results and blocks new visual
+requests until explicitly re-enabled. Hangup, expiry and disconnect release
+retained media and stop further paid work. The experiment ends after two minutes and does not reconnect
 automatically. Wide screens show transcript and video together; narrow screens
 retain call controls and transcript access over the video experience.
 
