@@ -16,7 +16,8 @@ const {
 	fillMessageEditor,
 	focusMessageEditor,
 	loginToTestAccount,
-	startNewChat
+	startNewChat,
+	waitForChatReady
 } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
@@ -413,6 +414,7 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(page.locator('.active-chat-container')).not.toHaveClass(/dimmed/, {
 				timeout: 15000
 			});
+			await waitForChatReady(page);
 			await expectProfileTeamBadge(page, teamName);
 			await openProfileMenu(page);
 			await page.getByTestId('team-context-dropdown').click();
@@ -883,6 +885,7 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(page.locator('.active-chat-container')).not.toHaveClass(/dimmed/, {
 				timeout: 15000
 			});
+			await waitForChatReady(page);
 			await expect(
 				page.getByTestId('message-user').filter({ hasText: ordinaryMessage })
 			).toHaveCount(0, { timeout: 15000 });

@@ -192,6 +192,92 @@ vi.mock("../chatSyncServiceHandlersWebhooks", () => ({}));
 import { ChatSynchronizationService, chatSyncService } from "../chatSyncService";
 import { getTeam, TeamRequestCancelledError } from "../teamService";
 
+describe("Team and Personal context cache handoff", () => {
+  beforeEach(() => {
+    mocks.emitWebSocketStatus("disconnected");
+  });
+  afterEach(() => {
+    mocks.emitWebSocketStatus("disconnected");
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: false }); return () => undefined; });
+    mocks.activeTeamId.set(null);
+    mocks.activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
+    vi.restoreAllMocks();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
+  it("requests authoritative account cache status before syncing returned Personal context", async () => {
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: true }); return () => undefined; });
+    vi.spyOn(service, "refreshChatActivity").mockResolvedValue(undefined);
+    const startSync = vi.spyOn(service, "startPhasedSync").mockResolvedValue(undefined);
+    (service as unknown as { webSocketConnected: boolean }).webSocketConnected = true;
+    service.cachePrimed_FOR_HANDLERS_ONLY = true;
+    mocks.webSocketService.sendMessage.mockClear();
+    const context = { team: null, teamId: null, epoch: 2 };
+    mocks.activeTeamId.set(null);
+    mocks.activeTeamContext.set(context);
+
+    await (service as unknown as { handleTeamContextChanged: (context: typeof context) => Promise<void> }).handleTeamContextChanged(context);
+
+    expect(service.cachePrimed_FOR_HANDLERS_ONLY).toBe(false);
+    expect(service.hasCompletedInitialSync_FOR_HANDLERS_ONLY).toBe(false);
+    expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith("request_cache_status", {});
+    expect(startSync).not.toHaveBeenCalled();
+    expect((service as unknown as { isPayloadForActiveContext: (payload: { team_id: string; context_epoch: number }) => boolean })
+      .isPayloadForActiveContext({ team_id: "old-team", context_epoch: 1 })).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local,teams.collaboration.realtime-team-sync
+  it("starts Team sync directly and ignores late account cache responses", async () => {
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: true }); return () => undefined; });
+    vi.spyOn(service, "refreshChatActivity").mockResolvedValue(undefined);
+    const startSync = vi.spyOn(service, "startPhasedSync").mockResolvedValue(undefined);
+    (service as unknown as { webSocketConnected: boolean }).webSocketConnected = true;
+    mocks.webSocketService.sendMessage.mockClear();
+    const context = { team: null, teamId: "team-a", epoch: 1 };
+    mocks.activeTeamId.set("team-a");
+    mocks.activeTeamContext.set(context);
+
+    await (service as unknown as { handleTeamContextChanged: (context: typeof context) => Promise<void> }).handleTeamContextChanged(context);
+
+    expect(startSync).toHaveBeenCalledOnce();
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith("request_cache_status", {});
+    for (const type of ["cache_primed", "cache_status_response", "sync_status_response"]) {
+      const registration = [...mocks.webSocketService.on.mock.calls].reverse().find(([name]) => name === type);
+      expect(registration).toBeDefined();
+      expect(() => registration![1]({})).not.toThrow();
+    }
+    expect(startSync).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local,teams.collaboration.realtime-team-sync
+  it("starts scoped sync for a restored Team on cold connection and reconnect", async () => {
+    mocks.activeTeamId.set("restored-team");
+    mocks.activeTeamContext.set({ team: null, teamId: "restored-team", epoch: 0 });
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    const startSync = vi.spyOn(service, "startPhasedSync").mockResolvedValue(undefined);
+    mocks.webSocketService.sendMessage.mockClear();
+
+    mocks.emitWebSocketStatus("connected");
+    expect(startSync).toHaveBeenCalledOnce();
+    expect(service.initialSyncAttempted_FOR_HANDLERS_ONLY).toBe(true);
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith("request_cache_status", {});
+
+    mocks.emitWebSocketStatus("connected");
+    expect(startSync).toHaveBeenCalledOnce();
+    service.markInitialSyncCompleted();
+    mocks.emitWebSocketStatus("disconnected");
+    expect(service.initialSyncAttempted_FOR_HANDLERS_ONLY).toBe(false);
+    mocks.emitWebSocketStatus("connected");
+    expect(startSync).toHaveBeenCalledTimes(2);
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith("request_cache_status", {});
+  });
+});
+
 describe("phased sync context cancellation", () => {
   afterEach(() => {
     mocks.activeTeamId.set(null);

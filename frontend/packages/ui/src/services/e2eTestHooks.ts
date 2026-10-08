@@ -73,6 +73,8 @@ export async function installE2ETestHooks() {
       online: boolean;
       websocketConnected: boolean;
       cachePrimed: boolean;
+      teamContextActive: boolean;
+      contextSyncCompleted: boolean;
     }>;
     __openmatesE2EReplayDraftSelection?: (chatId: string, pauseBeforeCommit?: boolean) => void;
     __openmatesE2EPauseNextDraftSelection?: () => void;
@@ -144,10 +146,15 @@ export async function installE2ETestHooks() {
 
   testWindow.__openmatesE2EChatConnectionState = async () => {
     const { chatSyncService } = await import('./chatSyncService');
+    const { activeTeamId } = await import('../stores/teamStore');
     return {
       online: window.navigator.onLine,
       websocketConnected: chatSyncService.webSocketConnected_FOR_SENDERS_ONLY,
       cachePrimed: chatSyncService.cachePrimed_FOR_HANDLERS_ONLY,
+      teamContextActive: Boolean(get(activeTeamId)),
+      // Team switches reset this flag. Stale completion frames are rejected by
+      // chatSyncService's context/epoch guard before they can set it again.
+      contextSyncCompleted: chatSyncService.hasCompletedInitialSync_FOR_HANDLERS_ONLY,
     };
   };
 

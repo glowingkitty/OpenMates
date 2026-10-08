@@ -569,7 +569,14 @@ export class ChatSynchronizationService extends EventTarget {
           clearTimeout(this.cacheStatusRequestTimeout);
           this.cacheStatusRequestTimeout = null;
         }
-        if (this.cachePrimed) {
+        if (get(activeTeamId)) {
+          // A restored Team has no account-cache status handshake. Start its
+          // scoped sync directly on first connection and on reconnect.
+          if (!this.initialSyncAttempted) {
+            this.initialSyncAttempted = true;
+            void this.startPhasedSync();
+          }
+        } else if (this.cachePrimed) {
           this.attemptInitialSync();
         } else {
           this.cacheStatusRequestTimeout = setTimeout(() => {
@@ -1016,7 +1023,16 @@ export class ChatSynchronizationService extends EventTarget {
     this.dispatchEvent(new CustomEvent("teamContextChanged", { detail: context }));
 
     if (this.webSocketConnected && get(authStore).isAuthenticated) {
-      await this.startPhasedSync();
+      if (context.teamId) {
+        // Team sync reads its own scoped data; account cache status does not
+        // describe Team readiness.
+        this.initialSyncAttempted = true;
+        await this.startPhasedSync();
+      } else {
+        // Returning to Personal must use the account-cache handshake again.
+        // The switch reset cachePrimed, and phased_sync_complete does not set it.
+        await this.requestCacheStatus();
+      }
     }
   }
 
@@ -1200,18 +1216,20 @@ export class ChatSynchronizationService extends EventTarget {
       if (!this.isPayloadForActiveContext(typedPayload)) return;
       void coreSyncHandlers.handlePhase1bChatContentImpl(this, typedPayload);
     });
-    webSocketService.on("cache_primed", (payload) =>
+    webSocketService.on("cache_primed", (payload) => {
+      if (get(activeTeamId)) return; // Account cache state cannot start Team sync.
       coreSyncHandlers.handleCachePrimedImpl(
         this,
         payload as CachePrimedPayload,
-      ),
-    );
-    webSocketService.on("cache_status_response", (payload) =>
+      );
+    });
+    webSocketService.on("cache_status_response", (payload) => {
+      if (get(activeTeamId)) return;
       coreSyncHandlers.handleCacheStatusResponseImpl(
         this,
         payload as CacheStatusResponsePayload,
-      ),
-    );
+      );
+    });
 
     // Phased sync event handlers (delegated to chatSyncServiceHandlersPhasedSync.ts)
     webSocketService.on("phase_2_last_20_chats_ready", (payload) => {
@@ -1245,12 +1263,13 @@ export class ChatSynchronizationService extends EventTarget {
       if (!this.isPayloadForActiveContext(typedPayload)) return;
       void phasedSyncHandlers.handlePhasedSyncCompleteImpl(this, typedPayload);
     });
-    webSocketService.on("sync_status_response", (payload) =>
-      phasedSyncHandlers.handleSyncStatusResponseImpl(
+    webSocketService.on("sync_status_response", (payload) => {
+      if (get(activeTeamId)) return;
+      void phasedSyncHandlers.handleSyncStatusResponseImpl(
         this,
         payload as SyncStatusResponsePayload,
-      ),
-    );
+      );
+    });
     webSocketService.on("team_chat_message_created", (payload) => {
       void this.handleTeamChatMessageCreated(payload as TeamChatMessageCreatedPayload);
     });

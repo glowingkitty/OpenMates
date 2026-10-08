@@ -350,6 +350,24 @@ function isLoginRejectedSignal(signal: unknown): signal is LoginRejectedSignal {
 	return Boolean(signal && typeof signal === 'object' && (signal as LoginRejectedSignal).type === 'login-rejected');
 }
 
+/** A v2 response is provisional when the app will try the legacy credential next. */
+export async function shouldWaitForLegacyPasswordFallback(response: any): Promise<boolean> {
+	let version: number;
+	try {
+		version = response.request().postDataJSON()?.credential_version ?? 1;
+	} catch {
+		return false;
+	}
+	if (version !== 2 || response.status() === 429 || response.status() >= 500) return false;
+	let data: any;
+	try {
+		data = await response.json();
+	} catch {
+		return false;
+	}
+	return !(response.ok() && data?.success === true && data?.user?.id);
+}
+
 async function waitForRejectedLoginResponse(
 	page: any,
 	options: { ignoreStatuses?: number[] } = {}
@@ -360,6 +378,7 @@ async function waitForRejectedLoginResponse(
 				const request = candidate.request();
 				const url = new URL(candidate.url());
 				if (request.method() !== 'POST' || !url.pathname.endsWith('/v1/auth/login')) return false;
+				if (await shouldWaitForLegacyPasswordFallback(candidate)) return false;
 				const diagnostic = await readLoginResponseDiagnostic(candidate);
 				if (options.ignoreStatuses?.includes(diagnostic.status)) return false;
 				return isRejectedLoginDiagnostic(diagnostic);
@@ -379,7 +398,8 @@ async function waitForRejectedLoginResponse(
 
 async function waitForLoginSuccessAfterSubmit(page: any, authSignal: any): Promise<boolean> {
 	const loginResponse = page.waitForResponse(
-		(response: any) => response.url().includes('/v1/auth/login') && response.request().method() === 'POST',
+		async (response: any) => response.url().includes('/v1/auth/login') &&
+			response.request().method() === 'POST' && !(await shouldWaitForLegacyPasswordFallback(response)),
 		{ timeout: 20000 }
 	).catch(() => null);
 
@@ -1519,11 +1539,18 @@ async function waitForAssistantResponse(page: any, timeout = 60000): Promise<any
  *  1. `data-authenticated="true"` marker is present (set by ActiveChat.svelte
  *     when authStore.isAuthenticated flips to true).
  *  2. `message-editor` is visible.
- *  3. Dev-only E2E hook reports the browser online and chat WebSocket ready.
+ *  3. Dev-only E2E hook reports the browser online and chat WebSocket ready,
+ *     with Personal cache primed or the active Team's phased sync complete.
  *
  * The send button is intentionally absent while the composer is empty, so it is
  * not a reliable readiness signal for specs that only need post-login UI access.
  */
+export function isChatTransportReady(state: Record<string, unknown> | null): boolean {
+	return Boolean(state?.hookAvailable && state.online && state.websocketConnected &&
+		(state.teamContextActive === true ? state.contextSyncCompleted :
+			state.teamContextActive === false && state.cachePrimed));
+}
+
 async function waitForChatReady(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void = noopLog,
@@ -1545,6 +1572,8 @@ async function waitForChatReady(
 						online: boolean;
 						websocketConnected: boolean;
 						cachePrimed: boolean;
+						teamContextActive: boolean;
+						contextSyncCompleted: boolean;
 					}>;
 				};
 				if (typeof testWindow.__openmatesE2EChatConnectionState !== 'function') {
@@ -1554,12 +1583,7 @@ async function waitForChatReady(
 				return { hookAvailable: true, ...state };
 			}).catch((error: unknown) => ({ hookAvailable: false, error: String(error) }));
 
-			return Boolean(
-				lastConnectionState.hookAvailable &&
-				lastConnectionState.online &&
-				lastConnectionState.websocketConnected &&
-				lastConnectionState.cachePrimed
-			);
+			return isChatTransportReady(lastConnectionState);
 		}, {
 			timeout: budget(),
 			intervals: [250, 500, 1000]
@@ -1759,5 +1783,9 @@ module.exports = {
 	waitForAssistantResponse,
 	waitForChatReady,
 	dismissSecurityReminderIfPresent,
-	waitForAssistantMessage
+	waitForAssistantMessage,
+	shouldWaitForLegacyPasswordFallback,
+	waitForRejectedLoginResponse,
+	waitForLoginSuccessAfterSubmit,
+	isChatTransportReady
 };

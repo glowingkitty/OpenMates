@@ -2,6 +2,7 @@
 /** Dev-only proof: two real Team members collaborate before and after real AI turns. */
 export {};
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import type { APIResponse, Browser, Page, Response, TestInfo } from '@playwright/test';
@@ -94,6 +95,19 @@ async function readTeamCredits(page: Page, teamId: string): Promise<number> {
   return body.billing!.balance_credits!;
 }
 
+async function readTeamUsage(page: Page, teamId: string): Promise<Array<Record<string, any>>> {
+  const response = await page.request.get(`${API_URL}/v1/teams/${teamId}/billing/usage`);
+  expect(response.ok()).toBe(true);
+  const body = await response.json() as { usage?: Array<Record<string, any>> };
+  expect(Array.isArray(body.usage)).toBe(true);
+  const teamHash = createHash('sha256').update(teamId).digest('hex');
+  for (const row of body.usage!) {
+    expect(row.hashed_team_id).toBe(teamHash);
+    expect(row.credit_amount).toBeGreaterThan(0);
+  }
+  return body.usage!;
+}
+
 async function readPersonalCredits(page: Page): Promise<number> {
   const response = await page.request.get(`${API_URL}/v1/settings/delete-account-preview`);
   expect(response.ok()).toBe(true);
@@ -143,6 +157,8 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
   { page, browser }: { page: Page; browser: Browser }, testInfo: TestInfo,
 ) => {
   test.setTimeout(600_000);
+  page.setDefaultTimeout(60_000);
+  page.setDefaultNavigationTimeout(60_000);
   const owner = getTestAccount(1);
   const member = getTestAccount(2);
   const ownerFrames: Frame[] = [];
@@ -169,6 +185,7 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     });
     await page.getByTestId('profile-container').click();
     await page.getByTestId('settings-teams-item').click();
+    await expect(page.getByTestId('team-create-open')).toBeVisible({ timeout: 60_000 });
     await page.getByTestId('team-create-open').click();
     const teamName = `Berlin planning ${Date.now()}`;
     await page.getByTestId('team-name-input').fill(teamName);
@@ -196,11 +213,15 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     memberContext = await browser.newContext({ baseURL: new URL(secureLink!).origin, viewport,
       recordVideo: { dir: testInfo.outputPath('member-video'), size: viewport } });
     memberPage = await memberContext.newPage();
+    memberPage.setDefaultTimeout(60_000);
+    memberPage.setDefaultNavigationTimeout(60_000);
     memberVideo = memberPage.video();
     captureProtocol(memberPage, memberFrames);
     await memberPage.goto(secureLink!);
     await expect.poll(() => memberPage!.url()).not.toContain('#key=');
     await loginToTestAccount(memberPage, undefined, undefined, { credentials: member });
+    // Login returns to the home page; the secure link already stored its key in this tab.
+    await memberPage.goto(getE2EDebugUrl(`/#settings/teams/invites/${encodeURIComponent(invite.invite_id)}`));
     await expect(memberPage.getByTestId('team-invite-recipient-email')).toBeVisible();
     await memberPage.getByTestId('team-invite-recipient-email').fill(member.email);
     const accepted = memberPage.waitForResponse((response: Response) => response.request().method() === 'POST' &&
@@ -210,6 +231,8 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     await expect(memberPage.getByTestId('team-invite-result')).toContainText(/joined/i);
     await page.getByTestId('banner-back-button').click();
     await page.getByTestId('banner-back-button').click();
+    await expect.poll(() => new URL(page.url()).hash).toBe('#settings/teams');
+    await page.getByTestId('banner-back-button').click();
     await expect(page.getByTestId('team-context-dropdown')).toBeVisible();
     await page.getByTestId('team-context-dropdown').click();
     await page.getByTestId(`team-context-option-${teamId}`).click();
@@ -218,6 +241,7 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     await startNewChat(page);
     const personalCreditsBefore = await readPersonalCredits(page);
     const teamCreditsBefore = await readTeamCredits(page, teamId);
+    expect(await readTeamUsage(page, teamId)).toHaveLength(0);
 
     const lines = [
       'Could we plan our Berlin team event for Saturday afternoon?',
@@ -308,6 +332,8 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     await expect(memberPage.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60_000 });
     await expect.poll(() => readTeamCredits(page, teamId!), { timeout: 60_000 }).toBeLessThan(teamCreditsBefore);
     const teamCreditsAfterAI = await readTeamCredits(page, teamId);
+    await expect.poll(async () => (await readTeamUsage(page, teamId!)).length, { timeout: 60_000 }).toBeGreaterThan(0);
+    const usageCountAfterAI = (await readTeamUsage(page, teamId)).length;
     expect(await readPersonalCredits(page)).toBe(personalCreditsBefore);
 
     const followStart = memberFrames.length;
@@ -323,6 +349,7 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     expect(memberFrames.slice(followStart).some((frame) => frame.type === 'team_ai_processing' &&
       frame.payload.chat_id === chatId)).toBe(false);
     expect(await readTeamCredits(page, teamId)).toBe(teamCreditsAfterAI);
+    expect(await readTeamUsage(page, teamId)).toHaveLength(usageCountAfterAI);
     expect(await readPersonalCredits(page)).toBe(personalCreditsBefore);
 
     const mateStart = ownerFrames.length;
@@ -339,6 +366,10 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
       .toBeGreaterThan(assistantCountBeforeMate);
     await expect.poll(() => memberPage!.getByTestId('message-assistant').count(), { timeout: 60_000 })
       .toBeGreaterThan(assistantCountBeforeMate);
+    await expect.poll(async () => (await readTeamUsage(page, teamId!)).length, { timeout: 60_000 })
+      .toBeGreaterThan(usageCountAfterAI);
+    expect(await readTeamCredits(page, teamId)).toBeLessThan(teamCreditsAfterAI);
+    expect(await readPersonalCredits(page)).toBe(personalCreditsBefore);
   } catch (error) {
     runError = error;
   } finally {
