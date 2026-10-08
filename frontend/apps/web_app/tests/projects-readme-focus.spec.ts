@@ -75,6 +75,30 @@ interface RetrievalEvent {
   embed_id?: string;
 }
 
+function extractSafeEmbedFenceMetadata(content: string) {
+  const safeToken = (value: unknown) => typeof value === 'string' && /^[A-Za-z0-9_:.-]{1,128}$/.test(value) ? value : null;
+  return [...content.matchAll(/```([A-Za-z][A-Za-z0-9_-]{0,63})\s*\n([\s\S]*?)```/g)]
+    .slice(0, 12)
+    .flatMap(match => {
+      const body = match[2];
+      let json: Record<string, unknown> | null = null;
+      if (match[1] === 'json') {
+        try {
+          const parsed: unknown = JSON.parse(body);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) json = parsed as Record<string, unknown>;
+        } catch { /* A diagnostic must not fail on malformed model output. */ }
+      }
+      const toonField = (name: string) => body.match(new RegExp(`^[ \\t]*${name}[ \\t]*[:=][ \\t]*["']?([A-Za-z0-9_:.-]{1,128})["']?[ \\t]*$`, 'm'))?.[1] ?? null;
+      const metadata = {
+        type: safeToken(json?.type) ?? (match[1] === 'json' ? null : safeToken(match[1])),
+        embed_id: safeToken(json?.embed_id) ?? toonField('embed_id'),
+        app_id: safeToken(json?.app_id) ?? toonField('app_id'),
+        skill_id: safeToken(json?.skill_id) ?? toonField('skill_id'),
+      };
+      return /embed/i.test(match[1]) || metadata.embed_id ? [metadata] : [];
+    });
+}
+
 // Fixed observed baseline from the retained 2026-10-07 dev run. The browser
 // can time the new run, while model token totals require correlated backend logs.
 const RETRIEVAL_BASELINE = {
@@ -268,6 +292,25 @@ test.describe('Plain-language Project README access (real inference, dev only)',
     let turnCompletedAt: number | null = null;
     let acceptedChatId: string | null = null;
     let projectReferenceEmbedId: string | null = null;
+    const browserErrors: Array<{ source: 'console' | 'pageerror'; name: string | null; code: string | null }> = [];
+    const safeErrorCode = (value: unknown) => typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,48}$/.test(value) ? value : null;
+    page.on('console', message => {
+      if (message.type() !== 'error' || browserErrors.length >= 20) return;
+      const errorText = message.text();
+      browserErrors.push({
+        source: 'console',
+        name: errorText.match(/\b(?:TypeError|ReferenceError|SyntaxError|RangeError|DOMException|Error)\b/)?.[0] ?? null,
+        code: safeErrorCode(errorText.match(/\b(?:code|error_code)\s*[:=]\s*["']?([A-Z][A-Z0-9_]{0,48})/)?.[1]),
+      });
+    });
+    page.on('pageerror', error => {
+      if (browserErrors.length >= 20) return;
+      browserErrors.push({
+        source: 'pageerror',
+        name: /^(?:TypeError|ReferenceError|SyntaxError|RangeError|DOMException|Error)$/.test(error.name) ? error.name : null,
+        code: safeErrorCode((error as Error & { code?: unknown }).code),
+      });
+    });
     const recordEvent = (direction: RetrievalEvent['direction'], event: SocketEvent) => {
       if (acceptedTurnStartedAt === null || !event.type || ![
         'chat_turn_preflight', 'project_file_operation_request', 'project_file_operation_result',
@@ -301,6 +344,55 @@ test.describe('Plain-language Project README access (real inference, dev only)',
     let scenarioFailure: unknown = null;
     let chatCleanupFailure: string | null = null;
     let fixtureCleanupFailure: string | null = null;
+    const captureReferenceRenderState = async (stage: 'before-assertion' | 'before-cleanup') => {
+      const finalAssistantFences = received.filter(event =>
+        (event.type === 'ai_message_update' || event.type === 'ai_background_response_completed')
+        && event.payload?.chat_id === acceptedChatId && event.payload.is_final_chunk === true)
+        .flatMap(event => {
+          const content = event.payload?.content;
+          return typeof content === 'string' ? extractSafeEmbedFenceMetadata(content) : [];
+        });
+      const mounted = await page.evaluate(() => {
+        const assistant = Array.from(document.querySelectorAll('[data-testid="message-assistant"]')).at(-1);
+        const safeToken = (value: string | null) => value && /^[A-Za-z0-9_:.-]{1,128}$/.test(value) ? value : null;
+        const metadata = (element: Element) => ({
+          embed_id: safeToken(element.getAttribute('data-embed-id')),
+          app_id: safeToken(element.getAttribute('data-app-id')),
+          skill_id: safeToken(element.getAttribute('data-skill-id')),
+          status: safeToken(element.getAttribute('data-status') ?? element.getAttribute('data-embed-status')),
+          type: safeToken(element.getAttribute('data-embed-type') ?? element.getAttribute('data-type')),
+          test_id: safeToken(element.getAttribute('data-testid')),
+        });
+        const groupItems = assistant ? Array.from(assistant.querySelectorAll('[data-embed-item-id]')).slice(0, 20) : [];
+        return {
+          assistant_present: Boolean(assistant),
+          group_items: groupItems.map(item => ({
+            embed_item_id: safeToken(item.getAttribute('data-embed-item-id')),
+            descendants: Array.from(item.querySelectorAll('[data-testid="embed-preview"], [data-testid="project-reference-preview"], [data-embed-id]'))
+              .slice(0, 20).map(metadata),
+          })),
+          preview_cards: assistant ? Array.from(assistant.querySelectorAll('[data-testid="embed-preview"]')).slice(0, 20).map(metadata) : [],
+          project_reference_preview_count: assistant?.querySelectorAll('[data-testid="project-reference-preview"]').length ?? 0,
+          read_embed_id_node_count: 0,
+        };
+      }).catch(() => null);
+      if (mounted && projectReferenceEmbedId) {
+        mounted.read_embed_id_node_count = await page.locator(`[data-embed-id="${projectReferenceEmbedId}"]`).count().catch(() => 0);
+      }
+      await test.info().attach(`readme-reference-render-${stage}`, {
+        body: JSON.stringify({
+          read_ws_embed_id: projectReferenceEmbedId,
+          mounted,
+          final_assistant_embed_fences: finalAssistantFences,
+          final_assistant_payload_fields: received.filter(event =>
+            (event.type === 'ai_message_update' || event.type === 'ai_background_response_completed')
+            && event.payload?.chat_id === acceptedChatId && event.payload.is_final_chunk === true)
+            .map(event => Object.keys(event.payload ?? {}).sort()),
+          browser_errors: browserErrors,
+        }, null, 2),
+        contentType: 'application/json',
+      });
+    };
     try {
       const fixture = await waitForFixtureEvent(bridge, 'fixture_ready');
       fixtureAudit = { project_id: fixture.project_id, source_id: fixture.source_id };
@@ -491,6 +583,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       expect(referenceEmbedId).toBeTruthy();
       projectReferenceEmbedId = referenceEmbedId ?? null;
       const referencePreview = page.locator(`[data-embed-id="${referenceEmbedId}"]`).getByTestId('project-reference-preview');
+      await captureReferenceRenderState('before-assertion').catch(() => undefined);
       await expect(referencePreview).toBeVisible({ timeout: 30_000 });
       await expect(referencePreview).toContainText('OpenMates');
       await expect(referencePreview).toContainText(/readme/i);
@@ -557,6 +650,14 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       console.log('[README] Disconnected source reports unavailable without a cached file copy.');
     } catch (error) {
       scenarioFailure = error;
+      await captureReferenceRenderState('before-cleanup').catch(() => undefined);
+      const preCleanupScreenshot = await page.screenshot({ fullPage: false }).catch(() => null);
+      if (preCleanupScreenshot) {
+        await test.info().attach('readme-precleanup-screenshot', {
+          body: preCleanupScreenshot,
+          contentType: 'image/png',
+        });
+      }
     } finally {
       if (acceptedTurnStartedAt !== null || fixtureAudit !== null) {
         const first = (type: string, direction: RetrievalEvent['direction'], operation?: string) =>
