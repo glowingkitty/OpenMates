@@ -435,6 +435,13 @@ test.describe('Teams V1 context isolation', () => {
 			await page.waitForTimeout(6000);
 			await ensureSidebarClosed(page);
 			await startNewChat(page);
+			// Desktop New chat focuses the composer, which hides the welcome avatar.
+			const dismissComposer = page.getByTestId('input-dismiss-button');
+			if (await dismissComposer.isVisible()) {
+				await dismissComposer.click();
+			}
+			await expect(dismissComposer).not.toBeVisible();
+			await expect(page.getByTestId('chat-side')).toBeVisible();
 			await expectProfileTeamBadge(page, teamName);
 			await expectChatTeamIdentity(page);
 			if (process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT) {
