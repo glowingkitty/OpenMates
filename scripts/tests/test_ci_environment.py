@@ -85,6 +85,18 @@ def test_signup_mail_capture_stays_on_disposable_internal_network():
         assert "BREVO_API_KEY" not in service["environment"]
 
 
+@pytest.mark.parametrize("service_name", ["api", "core-worker"])
+def test_worker_email_links_resolve_to_disposable_frontend(monkeypatch, service_name):
+    from backend.shared.python_utils.frontend_url import get_frontend_base_url
+
+    environment = compose_profile("a" * 40, mail_capture=True)["services"][service_name]["environment"]
+    monkeypatch.delenv("FRONTEND_URL", raising=False)
+    monkeypatch.setenv("FRONTEND_URLS", environment["FRONTEND_URLS"])
+    if "FRONTEND_URL" in environment:
+        monkeypatch.setenv("FRONTEND_URL", environment["FRONTEND_URL"])
+    assert get_frontend_base_url() == environment["APPLICATION_PREVIEW_ORIGIN"]
+
+
 def test_candidate_upload_dependencies_keep_harness_requirements(tmp_path):
     (tmp_path / "scripts").mkdir()
     candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"

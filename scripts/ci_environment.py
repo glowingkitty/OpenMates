@@ -640,6 +640,7 @@ def compose_profile(
         "SELF_HOST_SIGNUP_MODE": "invite_only",
         "TRANSLATIONS_DIR": "/translations",
         "APPLICATION_PREVIEW_ORIGIN": "http://localhost:5173",
+        "FRONTEND_URL": "http://localhost:5173",
         "FRONTEND_URLS": "http://localhost:5173",
         "PRODUCTION_URL": "http://localhost:5173",
         "E2E_TEST_DEV_ENABLED": "false",
