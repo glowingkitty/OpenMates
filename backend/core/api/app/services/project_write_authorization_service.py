@@ -8,6 +8,7 @@ from the current chat, Project, Team role, focus binding, and write policy.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import re
 import time
@@ -195,9 +196,19 @@ class ProjectWriteAuthorizationService:
         if not isinstance(project_id, str):
             return None
         try:
-            await self._require_chat_access(user_id, chat_id, team_id)
-            await self._require_project_access(user_id, project_id, team_id, write=False)
-            settings = await self.directus_service.project.get_project_settings(project_id, user_id, team_id=team_id)
+            # Each Directus read enforces the same owner/Team scope independently.
+            # Collect all results before checking them in the original order so a
+            # chat/Project denial still takes precedence over a settings failure.
+            access_results = await asyncio.gather(
+                self._require_chat_access(user_id, chat_id, team_id),
+                self._require_project_access(user_id, project_id, team_id, write=False),
+                self.directus_service.project.get_project_settings(project_id, user_id, team_id=team_id),
+                return_exceptions=True,
+            )
+            for result in access_results:
+                if isinstance(result, BaseException):
+                    raise result
+            settings = access_results[2]
         except ProjectWriteAuthorizationError:
             return None
         if not settings or settings.get("default_focus_id_hash") != binding.get("focus_id_hash"):

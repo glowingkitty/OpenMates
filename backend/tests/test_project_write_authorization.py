@@ -253,6 +253,64 @@ async def test_private_base_instruction_revision_change_cannot_reuse_cached_cont
     assert await service.get_active_focus(user_id="user-1", chat_id="chat-a") is None
 
 
+# contract-test: supporting surface=rest_api assertions=projects.focus.existing-instructions,focus-modes.project-specialist-composition
+@pytest.mark.asyncio
+@pytest.mark.parametrize("change", (
+    "chat_revoked", "project_revoked", "settings_changed", "activation_replaced",
+    "chat_revoked_settings_failed",
+))
+async def test_focus_reads_start_together_but_revalidate_latest_authority(change):
+    cache = MemoryCache()
+    directus = personal_directus({"value": project_settings()})
+    service = ProjectWriteAuthorizationService(directus, cache)
+    binding = await activate(service)
+    started = {name: asyncio.Event() for name in ("chat", "project", "settings")}
+    release = asyncio.Event()
+
+    async def live_chat(*_args, **_kwargs):
+        started["chat"].set()
+        await release.wait()
+        return {"hashed_user_id": hash_id("other-user") if change.startswith("chat_revoked")
+                else hash_id("user-1"), "hashed_team_id": None}
+
+    async def live_project(*_args, **_kwargs):
+        started["project"].set()
+        await release.wait()
+        return None if change == "project_revoked" else {"id": "project-row"}
+
+    async def live_settings(*_args, **_kwargs):
+        started["settings"].set()
+        await release.wait()
+        if change == "chat_revoked_settings_failed":
+            raise RuntimeError("settings unavailable")
+        if change == "settings_changed":
+            return project_settings(encrypted_settings="cipher-new-instructions")
+        return project_settings()
+
+    directus.chat.get_chat_metadata.side_effect = live_chat
+    directus.project.get_project.side_effect = live_project
+    directus.project.get_project_settings.side_effect = live_settings
+    lookup = asyncio.create_task(service.get_active_focus(user_id="user-1", chat_id="chat-a"))
+    try:
+        await asyncio.wait_for(asyncio.gather(*(event.wait() for event in started.values())), timeout=2)
+        if change == "activation_replaced":
+            await cache.set(service._focus_key("user-1", "chat-a"), {**binding, "activation_id": "new-activation"})
+    finally:
+        release.set()
+    assert await lookup is None
+
+
+# contract-test: supporting surface=rest_api assertions=projects.focus.existing-instructions
+@pytest.mark.asyncio
+async def test_focus_read_preserves_unexpected_settings_failure():
+    directus = personal_directus({"value": project_settings()})
+    service = ProjectWriteAuthorizationService(directus, MemoryCache())
+    await activate(service)
+    directus.project.get_project_settings.side_effect = RuntimeError("settings unavailable")
+    with pytest.raises(RuntimeError, match="settings unavailable"):
+        await service.get_active_focus(user_id="user-1", chat_id="chat-a")
+
+
 async def automatic_focus_authorization():
     from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService
     from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
