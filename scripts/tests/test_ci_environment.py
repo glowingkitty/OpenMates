@@ -483,15 +483,19 @@ def test_public_replay_keeps_workers_internal_and_proxy_unpublished():
 
 def test_only_isolated_ai_profile_advertises_fixture_model_readiness():
     ordinary = compose_profile('a' * 40)
-    assert 'OPENMATES_CI_AI_FIXTURES' not in ordinary['services']['api']['environment']
+    for service in ('api', 'core-worker'):
+        assert 'OPENMATES_CI_AI_FIXTURES' not in ordinary['services'][service]['environment']
+    assert 'ai-worker' not in ordinary['services']
     replay = compose_profile('a' * 40, ai_fixtures=True)
-    environment = replay['services']['api']['environment']
-    assert environment['CI'] == 'true'
-    assert environment['OPENMATES_CI_ISOLATED'] == '1'
-    assert environment['OPENMATES_CI_AI_FIXTURES'] == '1'
+    for service in ('api', 'ai-worker'):
+        environment = replay['services'][service]['environment']
+        assert environment['CI'] == 'true'
+        assert environment['OPENMATES_CI_ISOLATED'] == '1'
+        assert environment['OPENMATES_CI_AI_FIXTURES'] == '1'
+        assert not any(key.startswith('SECRET__') for key in environment)
+    assert 'OPENMATES_CI_AI_FIXTURES' not in replay['services']['core-worker']['environment']
     assert replay['networks']['default']['internal'] is True
     assert 'ai-worker' in replay['services']
-    assert not any(key.startswith('SECRET__') for key in environment)
 
 
 def test_schema_setup_mounts_exact_candidate_and_enables_ci_fast_settle():

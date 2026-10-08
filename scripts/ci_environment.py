@@ -939,7 +939,10 @@ def compose_profile(
         # Existing committed TEST_MOCK fixtures still traverse the real API/worker.
         # The internal network prevents paid providers or shared-server egress.
         ai_worker = deepcopy(worker)
-        ai_worker["environment"]["CELERY_QUEUES"] = "app_ai"
+        ai_worker["environment"].update(
+            CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_AI_FIXTURES="1",
+            CELERY_QUEUES="app_ai",
+        )
         ai_worker["command"] = [part.replace(f"--queues={QUEUES}", "--queues=app_ai") for part in worker["command"]]
         ai_worker["mem_limit"] = 1536 * MIB
         services["ai-worker"] = ai_worker
