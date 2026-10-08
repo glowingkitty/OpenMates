@@ -4564,7 +4564,8 @@ class EmbedService:
                     decoded["transcript"] = decoded["transcript_original"]
 
                 _AUDIO_KEEP = frozenset({
-                    "type", "transcript", "duration", "mime_type", "filename", "status"
+                    "type", "transcript", "duration", "mime_type", "filename", "status",
+                    "transcription_source", "transcription_status",
                 })
                 filtered = {k: v for k, v in decoded.items() if k in _AUDIO_KEEP}
                 # Use filename as embed_ref; fall back to a short UUID prefix.

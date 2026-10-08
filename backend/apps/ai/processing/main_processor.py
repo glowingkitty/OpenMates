@@ -154,6 +154,7 @@ from backend.apps.ai.processing.chat_compressor import model_history_token_budge
 from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     has_transcribed_web_audio_recording,
+    should_block_local_audio_transcription,
 )
 from backend.apps.ai.processing.connected_account_receipts import (
     attach_connected_account_action_metadata,
@@ -5829,7 +5830,9 @@ async def handle_main_processing(
                     if (
                         app_id == "audio"
                         and skill_id == "transcribe"
-                        and audio_transcribe_blocked_by_recording
+                        and (audio_transcribe_blocked_by_recording or should_block_local_audio_transcription(
+                            parsed_args, request_data.message_history,
+                        ))
                     ):
                         logger.warning(
                             f"{log_prefix} [AUDIO_RECORDING_GUARD] Rejecting '{tool_name}' before placeholder creation: "
@@ -5844,8 +5847,8 @@ async def handle_main_processing(
                             "content": json.dumps({
                                 "status": "rejected",
                                 "reason": (
-                                    "This web app voice recording already has a transcript. "
-                                    "Use the transcript in the conversation; do not retry transcription."
+                                    "This voice recording uses local transcription or already has a transcript. "
+                                    "Use any available transcript; do not retry it with an external provider."
                                 ),
                             }),
                         }
@@ -7092,7 +7095,9 @@ async def handle_main_processing(
                 if (
                     app_id == "audio"
                     and skill_id == "transcribe"
-                    and audio_transcribe_blocked_by_recording
+                    and (audio_transcribe_blocked_by_recording or should_block_local_audio_transcription(
+                        parsed_args, request_data.message_history,
+                    ))
                 ):
                     logger.warning(
                         f"{log_prefix} [AUDIO_RECORDING_GUARD] Refusing to execute '{tool_name}': "
@@ -7105,8 +7110,8 @@ async def handle_main_processing(
                         "content": json.dumps({
                             "status": "rejected",
                             "reason": (
-                                "This web app voice recording already has a transcript. "
-                                "Use the transcript in the conversation; do not retry transcription."
+                                "This voice recording uses local transcription or already has a transcript. "
+                                "Use any available transcript; do not retry it with an external provider."
                             ),
                         }),
                     })

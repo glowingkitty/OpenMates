@@ -390,6 +390,25 @@ async def test_followup_edit_does_not_reencrypt_canonical_v1_snapshot():
     assert cache._client.published[0][1]["payload"]["version_history_rows"] == [rows[1]]
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize("transcription_status,transcript", [("complete", ""), ("complete", "Hello"), ("failed", None)])
+def test_audio_llm_context_preserves_local_transcription_authority(transcription_status, transcript):
+    service = EmbedService(FakeCacheService({}), directus_service=object(), encryption_service=FakeEncryptionService())
+    filtered_toon, embed_ref = service._filter_toon_for_llm(encode({
+        "type": "audio-recording", "filename": "voice.m4a", "status": "finished",
+        "transcript": transcript, "transcription_source": "local",
+        "transcription_status": transcription_status,
+        "aes_key": "synthetic-key", "s3_base_url": "https://storage.invalid",
+        "vault_wrapped_aes_key": "synthetic-wrapper", "files": {"original": {"s3_key": "synthetic-key"}},
+    }), "audio-embed-1")
+    filtered = decode(filtered_toon)
+    assert embed_ref == "voice.m4a"
+    assert filtered["transcript"] == transcript
+    assert filtered["transcription_source"] == "local"
+    assert filtered["transcription_status"] == transcription_status
+    assert not {"aes_key", "s3_base_url", "vault_wrapped_aes_key", "files"} & filtered.keys()
+
+
 # contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,chats.message.identity-idempotent
 @pytest.mark.asyncio
 async def test_versioned_finished_code_update_publishes_same_embed_snapshot():

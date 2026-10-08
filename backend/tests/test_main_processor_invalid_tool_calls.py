@@ -181,6 +181,7 @@ _install_stub("backend.apps.ai.processing.tool_generator", tool_generator_stub)
 audio_guard_stub = types.ModuleType("backend.apps.ai.processing.audio_recording_guard")
 audio_guard_stub.AUDIO_TRANSCRIBE_SKILL_ID = "audio-transcribe"
 audio_guard_stub.has_transcribed_web_audio_recording = lambda *_args, **_kwargs: False
+audio_guard_stub.should_block_local_audio_transcription = lambda *_args, **_kwargs: False
 _install_stub("backend.apps.ai.processing.audio_recording_guard", audio_guard_stub)
 
 sub_chat_stub = types.ModuleType("backend.apps.ai.sub_chat_orchestration")
