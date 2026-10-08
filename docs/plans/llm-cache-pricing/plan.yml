@@ -41,7 +41,7 @@ architecture_findings:
     - Ordinary pre/post processing remains bundled. Automatic compression was unbilled supplier work and now has an approved separately billed operation.
     - Live OpenAI responses report reads but do not report writes, despite documented paid-write pricing for newer models.
     - Short remote image URLs can exceed a UTF-8-byte reservation quote on OpenAI and Mistral; conservative full-context holds now protect admission and normal settlement releases unused credits.
-    - Automatic long-chat compression can exceed the debit for a cheap cached main reply; the approved separate summary operation is implemented and awaits product verification.
+    - Automatic long-chat compression can exceed the debit for a cheap cached main reply; the approved separate summary operation is implemented and verified by isolated real-API checks.
     - Real CLI verification encountered a cache-save failure before inference, then saved a paid answer but failed on unrelated historical key recovery; the second scoped CLI repair is approved and published as 707e5f10de834190046d04024c422a93cd2be664.
     - Workflows and orchestrated subchats use a separate budget authority that omits compression costs; the user approved keeping their existing billing for the first rollout.
     - Generative postprocessing may resend up to 120k history tokens; its bundled supplier cost can exceed a cheap cached main reply. User requested activation while retaining ordinary processing as bundled work. Configured main-category markup is checked; no per-turn or net-margin guarantee is claimed.
@@ -138,10 +138,14 @@ evidence:
     - Activated Mistral initial request and one follow-up charged 6 and 5 credits versus full-input flat estimates of 6 and 6. The follow-up reported 3,984 cached tokens; all 12 wallet credits including unchanged Project recommendation reconciled and no holds remained.
     - OpenAI completed two paid turns with settled 93- and 102-credit inference receipts and an unchanged 10-credit web search. Reanalysis of retained numeric snapshots reconciled the full 206-credit wallet debit including Project recommendation. The verifier now attributes same-chat tool costs separately without accepting unrelated charges.
     - A concrete OpenAI cache-reuse obstacle was found: stable instructions and the changing clock shared one system content block. Direct eligible GPT-5.6+/GPT-6 now mark the stable prefix with the documented explicit breakpoint; text, order, tools, history and store=False remain intact. Independent review passed and 60 focused transport/verifier/scope tests passed.
-  pending:
-    - Native parsing and pricing fixtures are updated, but execution remains unavailable under the existing Mac build/test guard.
-    - Real OpenMates CLI verification of activated category charges and encrypted receipts, with an initial natural-language request and one or two follow-ups per provider; compare actual charged credits with the prior flat tariff on the same reported usage.
-    - Native execution under an available approved Mac environment remains unavailable under the existing guard; deliver all new web/CLI recordings.
+    - OpenAI cache-boundary and CLI verifier repairs published as 258ffdfb0fd251fa236d14c8daddbabdf96bf63a. The six-file deployment pytest gate and coordinated sixteen-service runtime rebuild passed; the exact web deployment succeeded.
+    - Final OpenAI initial request and one follow-up charged 93 and 53 credits versus full-input flat estimates of 93 and 93. The follow-up reported 6,796 cached tokens. All 147 wallet credits including the unchanged one-credit Project recommendation reconciled, every receipt matched the requested model and admitted frozen tariff, and no holds remained.
+    - Activated short natural-language chats are complete for all four providers. The comparison distinguishes intended cache savings from Anthropic's previous omitted-cache undercharge (estimated 162 old credits versus 253 corrected credits for this sample).
+    - All eighteen new recordings are retained and uploaded: seven pricing component cases and eleven real CLI requests, including the earlier OpenAI verifier-stop attempt. No paid call was repeated for evidence delivery.
+  pending: []
+  limitations:
+    - Native pricing metadata and parser fixtures are updated. Mac execution remains unavailable under the previously recorded build/test guard; native device execution was not required by the latest activation and web/CLI verification instruction.
+    - Google omitted implicit cache metrics in the measured short chats; ordinary-input fallback was verified and no cache saving is claimed. Real samples do not establish average hit rates or net margins.
 research_artifacts:
   design: implementation-design.yml
   calculator: simulate.py
