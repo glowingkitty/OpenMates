@@ -67,6 +67,7 @@ MARKER_CHAT_EPOCH_SPECS = frozenset({
     "audio-recording-deferred-send.spec.ts",
     "connection-resilience.spec.ts",
     "skill-web-search.spec.ts",
+    "native-cache-selected-tools.spec.ts",
 })
 BILLING_STORAGE_PROFILES = {
     "billing-storage-legacy.spec.ts": "legacy",

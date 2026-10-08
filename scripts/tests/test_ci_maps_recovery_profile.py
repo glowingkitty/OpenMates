@@ -37,6 +37,7 @@ def _runner_profile(tmp_path, monkeypatch, **options):
     "audio-recording-deferred-send.spec.ts",
     "connection-resilience.spec.ts",
     "skill-web-search.spec.ts",
+    "native-cache-selected-tools.spec.ts",
 ])
 def test_marker_chat_epoch_activates_only_fresh_idle_state(tmp_path, monkeypatch, initial, pending, spec_name):
     runner, profile, _ = _runner_profile(tmp_path, monkeypatch, ai_fixtures=True)
