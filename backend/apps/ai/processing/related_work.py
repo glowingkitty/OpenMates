@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 import hashlib
+import math
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -88,7 +89,10 @@ async def fetch_related_task_candidates(
             **scope,
             "filter[task_id][_in]": ",".join(ids),
             "filter[event_type][_in]": "status,comment_added",
-            "filter[created_at][_gte]": now - RECENT_WORK_WINDOW_SECONDS,
+            # Directus stores activity timestamps as integer seconds. Floor the
+            # discovery bound so boundary rows remain available to the exact
+            # floating-point window check below.
+            "filter[created_at][_gte]": math.floor(now - RECENT_WORK_WINDOW_SECONDS),
             "filter[deleted_at][_null]": True,
             "fields": "task_id,event_type,previous_status,next_status,created_at", "sort": "-created_at", "limit": 128,
         }, no_cache=True)

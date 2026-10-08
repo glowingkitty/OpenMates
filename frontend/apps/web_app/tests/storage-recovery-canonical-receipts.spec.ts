@@ -4,7 +4,7 @@
 export {};
 
 const { test, expect } = require('./console-monitor');
-const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, installE2EServerContentOverrideGate } = require('./signup-flow-helpers');
+const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount, installE2EServerContentOverrideGate } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat, sendMessage } = require('./helpers/chat-test-helpers');
 const { requireSignedRecoveryProfile, observeRecoveryFrames, availableOutputs, requireActiveRecoveryDiscovery, focusRecoveryPage, requireForegroundRecoveryLifecycle, disconnectCanonicalWrites, installLegacyRecoverySocket } = require('./storage-recovery-fixtures');
 import type { RecoveryFrame } from './storage-recovery-fixtures';
@@ -58,6 +58,46 @@ function summarizeReceiptWire(frames: RecoveryFrame[], recordId: string): Array<
 			state: ['ACKNOWLEDGED', 'PENDING', 'READY'].includes(frame.payload.state) ? frame.payload.state : null,
 		};
 	});
+}
+
+function isolatedBillingSnapshot(label: string): Record<string, unknown> {
+	const accountEmail = getTestAccount().email;
+	if (!accountEmail) throw new Error('Disposable account is required for isolated billing diagnostics');
+	let snapshot: Record<string, unknown>;
+	try {
+		snapshot = isolatedServiceRegression('billing_snapshot', { account_email: accountEmail });
+	} catch {
+		snapshot = { status: 'unavailable' };
+	}
+	console.log(`[isolated-billing:${label}] ${JSON.stringify(snapshot)}`);
+	return snapshot;
+}
+
+async function withBillingFailureDiagnostic<T>(
+	frames: RecoveryFrame[], label: string, waitForOutput: () => Promise<T>,
+): Promise<T> {
+	let timer: ReturnType<typeof setInterval>;
+	let captured = false;
+	const streamError = new Promise<never>((_resolve, reject) => {
+		timer = setInterval(() => {
+			if (captured || !frames.some((frame) => frame.type === 'ai_message_update'
+				&& frame.payload.is_final_chunk === true
+				&& (frame.payload.error === true || frame.payload.failure_reason === 'stream_error'
+					|| /Sorry, something went wrong while I was trying to process your message|AI service encountered an error/i
+						.test(String(frame.payload.full_content_so_far ?? ''))))) return;
+			captured = true;
+			const snapshot = isolatedBillingSnapshot(label);
+			reject(new Error(`Synthetic producer ended with a terminal stream error; billing=${JSON.stringify(snapshot)}`));
+		}, 250);
+	});
+	try {
+		return await Promise.race([waitForOutput(), streamError]);
+	} catch (error) {
+		if (!captured) isolatedBillingSnapshot(label);
+		throw error;
+	} finally {
+		clearInterval(timer!);
+	}
 }
 
 // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.completion.recovery-takeover
@@ -223,9 +263,11 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 			log, screenshot, 'storage-recovery-embed');
 		const chatId = firstPage.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
 		expect(chatId).toBeTruthy();
-		await expect.poll(() => availableOutputs(firstFrames, chatId!).map((output) => output.output_kind),
-			{ timeout: 120_000, message: 'Origin must publish sealed code embed and diff before disconnect' })
-			.toEqual(expect.arrayContaining(['embed', 'diff']));
+		await withBillingFailureDiagnostic(firstFrames, 'saved-first-turn', () =>
+			expect.poll(() => availableOutputs(firstFrames, chatId!).map((output) => output.output_kind),
+				{ timeout: 120_000, message: 'Origin must publish sealed code embed and diff before disconnect' })
+				.toEqual(expect.arrayContaining(['embed', 'diff'])));
+		isolatedBillingSnapshot('saved-first-turn-complete');
 		await first.close();
 		await loginToTestAccount(restoredPage, log, screenshot);
 		await restoredPage.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`));
@@ -262,10 +304,11 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 			await sendMessage(updatePage,
 				'Apply the scripted patch to recovery_demo.py. STORAGE_CAPACITY_SCENARIO:recovery_diff <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
 				log, screenshot, 'storage-recovery-diff');
-			await expect.poll(() => availableOutputs(updateFrames, chatId!).some((output) =>
-				output.output_kind === 'diff' && output.output_version > 1),
-			{ timeout: 120_000, message: 'Origin must publish the sealed version diff before disconnect' })
-				.toBe(true);
+			await withBillingFailureDiagnostic(updateFrames, 'saved-diff-turn', () =>
+				expect.poll(() => availableOutputs(updateFrames, chatId!).some((output) =>
+					output.output_kind === 'diff' && output.output_version > 1),
+				{ timeout: 120_000, message: 'Origin must publish the sealed version diff before disconnect' })
+					.toBe(true));
 		} finally {
 			await update.close();
 		}
@@ -316,8 +359,9 @@ test('CLI bootstraps root wrappers before protected canonical reads and replay s
 			log, screenshot, 'storage-cli-root-producer');
 		const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
 		expect(chatId).toBeTruthy();
-		await expect.poll(() => availableOutputs(frames, chatId!).some((output) => output.output_kind === 'embed'),
-			{ timeout: 120_000 }).toBe(true);
+		await withBillingFailureDiagnostic(frames, 'cli-producer', () =>
+			expect.poll(() => availableOutputs(frames, chatId!).some((output) => output.output_kind === 'embed'),
+				{ timeout: 120_000 }).toBe(true));
 		const output = availableOutputs(frames, chatId!).find((row) => row.output_kind === 'embed') as any;
 		expect(output.subject_id).toBeTruthy();
 		const readHead = () => page.evaluate(async ({ apiUrl, chatId, embedId }) => {
@@ -357,6 +401,18 @@ test('CLI bootstraps root wrappers before protected canonical reads and replay s
 		await page.reload();
 		await requireActiveRecoveryDiscovery(frames);
 		expect(availableOutputs(frames, chatId!).filter((row) => ['embed', 'diff'].includes(row.output_kind))).toEqual([]);
+		await expect.poll(() => {
+			const billing = isolatedBillingSnapshot('replay-settled');
+			return {
+				status: billing.status,
+				held: billing.active_held_count,
+				unmatched: billing.unmatched_settlement_count,
+				settled: Number((billing.reservation_status as any)?.settled) > 0,
+				charged: typeof billing.balance_credits === 'number' && billing.balance_credits < 1000,
+			};
+		}, { timeout: 30_000, intervals: [1000, 1500, 3000],
+			message: 'Completed replay turns must settle their real reservations and wallet charges' })
+			.toEqual({ status: 'ok', held: 0, unmatched: 0, settled: true, charged: true });
 	} finally {
 		await context.close();
 		removeWorkflowCliHome(home);
@@ -369,7 +425,7 @@ function batchAuthorityFixture(ownerId: string, ids: Record<string, string>, ope
 	expect(process.env.GITHUB_ACTIONS).toBe('true');
 	expect(fs.existsSync(compose), 'Requires the disposable CI stack').toBe(true);
 	const program = `
-import asyncio,hashlib,json,logging,os,sys,time
+import asyncio,hashlib,json,logging,os,sys,time,uuid
 logging.disable(logging.CRITICAL)
 assert os.environ.get('OPENMATES_CI_ISOLATED')=='1'
 from backend.core.api.app.services.cache import CacheService
@@ -393,20 +449,28 @@ async def main():
                     'messages_v':0,'title_v':0,'metadata_v':0,'archived_message_count':0,
                     'storage_state':'deleting' if key=='deleting' else 'hot','created_at':int(time.time()),'updated_at':int(time.time())}
                 ok,_=await ds.chat.create_chat_in_directus(row); assert ok
+            for key in ('liveTeam','personal'):
+                ok,_=await ds.create_item('messages',{'client_message_id':str(uuid.uuid4()),'chat_id':ids[key],
+                    'hashed_user_id':digest(owner),'encrypted_content':'fixture-'+key+'-ciphertext',
+                    'role':'user','created_at':int(time.time()),'updated_at':int(time.time())},admin_required=True)
+                assert ok
             ok,_=await ds.create_item('chat_key_wrappers',{'hashed_chat_id':digest(ids['liveTeam']),
                 'hashed_team_id':digest(ids['team']),'hashed_user_id':None,'key_type':'team','team_key_epoch':1,
                 'encrypted_chat_key':'fixture-team-ciphertext','wrapper_version':1,'created_at':int(time.time())},admin_required=True)
             assert ok
-            for key in ('absent','deleting','liveTeam','forbidden','personal'):
+            for key in ('alias','absent','deleting','liveTeam','forbidden','personal'):
                 assert await cache.add_chat_to_ids_versions(owner,ids[key],int(time.time()))
         elif op=='verify':
             cached=set(await cache.get_chat_ids_versions(owner))
-            assert all(ids[key] not in cached for key in ('absent','deleting','forbidden'))
+            assert all(ids[key] not in cached for key in ('alias','absent','deleting','forbidden'))
             assert all(ids[key] in cached for key in ('liveTeam','personal'))
         else:
+            for key in ('liveTeam','personal'):
+                rows=await ds.get_items('messages',params={'filter':{'chat_id':{'_eq':ids[key]}},'fields':'id','limit':5},admin_required=True,no_cache=True,raise_on_error=True)
+                for row in rows: await ds.delete_item('messages',row['id'],admin_required=True)
             rows=await ds.get_items('chat_key_wrappers',params={'filter':{'hashed_chat_id':{'_eq':digest(ids['liveTeam'])}},'fields':'id','limit':5},admin_required=True,no_cache=True,raise_on_error=True)
             for row in rows: await ds.delete_item('chat_key_wrappers',row['id'],admin_required=True)
-            for key in ('absent','deleting','liveTeam','forbidden','personal'):
+            for key in ('alias','absent','deleting','liveTeam','forbidden','personal'):
                 await cache.remove_chat_from_ids_versions(owner,ids[key])
             for key in ('deleting','liveTeam','forbidden','personal'):
                 await ds.delete_item('chats',ids[key],admin_required=True)
@@ -425,7 +489,7 @@ asyncio.run(main())
 }
 
 // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
-test('batch skips stale cached chats while preserving current personal and Team authority', async ({ browser }: { browser: any }) => {
+test('batch skips stale and non-UUID cached chats while preserving personal and Team authority', async ({ browser }: { browser: any }) => {
 	requireSignedRecoveryProfile();
 	test.setTimeout(180_000);
 	const context = await recordedContext(browser, process.env.PLAYWRIGHT_TEST_BASE_URL, 'batch-authority');
@@ -433,6 +497,7 @@ test('batch skips stale cached chats while preserving current personal and Team 
 	const frames = observeRecoveryFrames(page);
 	const apiUrl = workflowApiUrl(), home = createWorkflowCliHome('batch-authority');
 	const ids = Object.fromEntries(['absent', 'deleting', 'liveTeam', 'forbidden', 'personal', 'team', 'forbiddenTeam'].map((key) => [key, randomUUID()]));
+	ids.alias = 'legal-imprint';
 	let ownerId: string | undefined;
 	try {
 		await page.addInitScript(() => {
@@ -453,25 +518,41 @@ test('batch skips stale cached chats while preserving current personal and Team 
 		ownerId = identity.id ?? identity.user_id;
 		expect(ownerId).toBeTruthy();
 		batchAuthorityFixture(ownerId!, ids, 'seed');
-		await page.evaluate((chatIds) => {
-			const socket = (window as any).__batchAuthoritySocket as WebSocket;
-			if (socket.readyState !== WebSocket.OPEN) throw new Error('Authenticated socket must be open');
-			socket.send(JSON.stringify({ type: 'request_chat_content_batch', payload: { chat_ids: chatIds } }));
-		}, ['absent', 'deleting', 'liveTeam', 'forbidden', 'personal'].map((key) => ids[key]));
-		await expect.poll(() => frames.some((frame) => frame.type === 'chat_content_batch_response'
-			&& Object.keys(frame.payload.messages_by_chat_id ?? {}).includes(ids.absent))).toBe(true);
-		const response = frames.find((frame) => frame.type === 'chat_content_batch_response'
-			&& Object.keys(frame.payload.messages_by_chat_id ?? {}).includes(ids.absent))!.payload as any;
+		const requestBatch = async (chatIds: string[]): Promise<any> => {
+			const before = frames.filter((frame) => frame.type === 'chat_content_batch_response').length;
+			await page.evaluate((requestedIds) => {
+				const socket = (window as any).__batchAuthoritySocket as WebSocket;
+				if (socket.readyState !== WebSocket.OPEN) throw new Error('Authenticated socket must be open');
+				socket.send(JSON.stringify({ type: 'request_chat_content_batch', payload: { chat_ids: requestedIds } }));
+			}, chatIds);
+			await expect.poll(() => frames.filter((frame) => frame.type === 'chat_content_batch_response').length)
+				.toBeGreaterThan(before);
+			return frames.filter((frame) => frame.type === 'chat_content_batch_response')[before].payload as any;
+		};
+		const response = await requestBatch(['alias', 'absent', 'liveTeam', 'forbidden', 'personal'].map((key) => ids[key]));
 		expect(response.partial_error).toBeUndefined();
 		expect(Object.keys(response.versions_by_chat_id).sort()).toEqual([ids.liveTeam, ids.personal].sort());
+		for (const key of ['liveTeam', 'personal']) {
+			expect(response.messages_by_chat_id[ids[key]]).toHaveLength(1);
+			expect(JSON.parse(response.messages_by_chat_id[ids[key]][0]).encrypted_content)
+				.toBe(`fixture-${key}-ciphertext`);
+			expect(response.versions_by_chat_id[ids[key]].server_message_count).toBe(1);
+		}
 		expect(response.chat_key_wrappers).toHaveLength(1);
 		expect(response.chat_key_wrappers[0]).toMatchObject({ key_type: 'team', encrypted_chat_key: 'fixture-team-ciphertext',
 			hashed_team_id: createHash('sha256').update(ids.team).digest('hex') });
-		for (const key of ['absent', 'deleting', 'forbidden']) {
+		for (const key of ['alias', 'absent', 'forbidden']) {
 			expect(response.messages_by_chat_id[ids[key]]).toEqual([]);
 			expect(response.message_windows_by_chat_id[ids[key]]).toBeUndefined();
 			expect(response.embed_windows_by_chat_id[ids[key]]).toBeUndefined();
 		}
+		const deleting = await requestBatch([ids.deleting]);
+		expect(deleting.partial_error).toBeUndefined();
+		expect(deleting.messages_by_chat_id[ids.deleting]).toEqual([]);
+		const aliasOnly = await requestBatch([ids.alias]);
+		expect(aliasOnly.partial_error).toBeUndefined();
+		expect(aliasOnly.messages_by_chat_id).toEqual({ [ids.alias]: [] });
+		expect(aliasOnly.versions_by_chat_id).toEqual({});
 		batchAuthorityFixture(ownerId!, ids, 'verify');
 	} finally {
 		try {
@@ -542,4 +623,43 @@ test('legacy accepted schedule without a reachable effect fails its durable run 
 		await context.close();
 		removeWorkflowCliHome(home);
 	}
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.context.related-work-selection,tasks.activity.task-scoped-authorization
+test('recent Task Activity uses integer Directus bounds and preserves personal and Team scope', async ({ browser }: { browser: any }) => {
+	requireSignedRecoveryProfile();
+	test.setTimeout(180_000);
+	const context = await recordedContext(browser, process.env.PLAYWRIGHT_TEST_BASE_URL, 'recent-task-activity');
+	const page = await context.newPage();
+	const apiUrl = workflowApiUrl();
+	const home = createWorkflowCliHome('recent-task-activity');
+	try {
+		await loginWorkflowCliViaPair(page, apiUrl, home, 'RECENT_TASK_ACTIVITY');
+		const identity = await runWorkflowCliJson(apiUrl, home, ['whoami'], 'Identify disposable Task owner');
+		const ownerId = identity.id ?? identity.user_id;
+		expect(ownerId).toMatch(/^[0-9a-f-]{36}$/i);
+		const receipt = isolatedServiceRegression('recent_task_activity', {
+			owner_id: ownerId, fixture_id: randomUUID(),
+		});
+		expect(receipt).toEqual({
+			personal_scope: true, team_scope: true,
+			fractional_query_succeeded: true, exact_boundary_preserved: true,
+		});
+	} finally {
+		await context.close();
+		removeWorkflowCliHome(home);
+	}
+});
+
+// contract-test: supporting surface=rest_api assertions=operational-monitoring.providers.current-availability
+test('OpenRouter health probe falls back within one request and preserves failure thresholds', async () => {
+	requireSignedRecoveryProfile();
+	test.setTimeout(150_000);
+	const receipt = isolatedServiceRegression('openrouter_health_probe', { fixture_id: randomUUID() });
+	expect(receipt).toEqual({
+		statuses: ['healthy', 'healthy', 'unhealthy', 'healthy', 'unhealthy'],
+		failure_counts: [1, 2, 3, 0, 1],
+		request_count: 5,
+		auth_error: 'credential_error',
+	});
 });

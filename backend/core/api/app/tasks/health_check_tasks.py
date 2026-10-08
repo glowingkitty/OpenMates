@@ -186,6 +186,7 @@ TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
 SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS = 7200  # 2 hours
 SIGHTENGINE_USAGE_LIMIT_ERROR = "usage_limit"
 CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID = "gpt-oss-120b"
+OPENROUTER_HEALTH_FALLBACK_MODEL_ID = "deepseek/deepseek-v4-flash"
 CELERY_WORKER_INSPECT_TIMEOUT_SECONDS = 5.0
 STRIPE_PAYMENT_ROUTES_HEALTH_URL = "http://api:8000/internal/health/payments"
 STRIPE_SETTLEMENT_STALE_AFTER = timedelta(minutes=15)
@@ -385,8 +386,9 @@ def _is_credential_error(error_message: Optional[str]) -> bool:
     
     error_lower = error_message.lower()
     
-    # AWS credential error indicators
+    # Provider authentication and AWS credential error indicators
     credential_indicators = [
+        'http error 401',
         'unrecognizedclientexception',
         'invalidclienttokenid',
         'invalidaccesskeyid',
@@ -766,11 +768,11 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
                 logger.error(f"Exception during Groq health check test request: {e}", exc_info=True)
                 return False, str(e), response_time_ms
         
-        # Special case: For OpenRouter health checks, call the OpenRouter client directly
-        # with Mistral Small 4 to avoid upstream rate limits from models that OpenRouter
-        # routes through other providers (e.g., gpt-oss-safeguard-20b → Groq → 429)
+        # A second configured upstream keeps a rate limit on one model from
+        # marking the whole OpenRouter route unavailable. OpenRouter handles
+        # both attempts in one completion request.
         if provider_id == "openrouter":
-            logger.debug("Using direct OpenRouter API call for health check with model 'mistralai/mistral-small-2603'")
+            logger.debug("Using OpenRouter model fallback for health check")
             provider_client = _get_provider_client("openrouter")
             if not provider_client:
                 return False, "OpenRouter provider client not found", None
@@ -786,6 +788,7 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
                     provider_client(
                         task_id="health_check",
                         model_id="mistralai/mistral-small-2603",
+                        fallback_models=[OPENROUTER_HEALTH_FALLBACK_MODEL_ID],
                         messages=test_messages,
                         secrets_manager=secrets_manager,
                         tools=None,

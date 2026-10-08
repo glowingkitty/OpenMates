@@ -80,7 +80,7 @@ class _WindowDirectus:
                 "oversized_wrapper_id": None}
 
 
-async def _run_window_request(monkeypatch, directus, cache=None):
+async def _run_window_request(monkeypatch, directus, cache=None, chat_ids=None):
     async def message_window(**kwargs):
         return {"messages": ["encrypted-message"], "has_more_before": True,
                 "start_cursor": {"created_at": 1, "id": "message-1"},
@@ -99,7 +99,7 @@ async def _run_window_request(monkeypatch, directus, cache=None):
     await handler.handle_chat_content_batch(
         cache_service=cache or _WindowCache(), directus_service=directus, encryption_service=None,
         manager=manager, user_id="owner", device_fingerprint_hash="device",
-        payload={"chat_ids": [CHAT_ID]},
+        payload={"chat_ids": chat_ids if chat_ids is not None else [CHAT_ID]},
     )
     assert len(manager.sent) == 1
     return manager.sent[0]
@@ -124,6 +124,35 @@ async def test_stale_cached_chat_is_skipped_before_content_reads(monkeypatch, st
     assert not response.get("partial_error")
     assert directus.embed_reads == []
     assert cache.removed == [("owner", CHAT_ID)]
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+@pytest.mark.parametrize("include_valid_chat", [False, True])
+async def test_non_uuid_chat_does_not_poison_durable_batch(monkeypatch, include_valid_chat):
+    directus = _WindowDirectus({"embeds": [], "has_more_before": False,
+                                "start_cursor": None, "oversized_embed_id": None})
+    original = directus.get_items
+    queries = []
+
+    async def current_rows(collection, params, **kwargs):
+        queries.append(params["filter"]["id"]["_in"])
+        return await original(collection, params, **kwargs)
+
+    directus.get_items = current_rows
+    cache = _WindowCache()
+    invalid_id = "legal-imprint"
+    response = await _run_window_request(
+        monkeypatch, directus, cache,
+        [invalid_id, CHAT_ID] if include_valid_chat else [invalid_id],
+    )
+
+    assert queries == ([[CHAT_ID]] if include_valid_chat else [])
+    assert response["messages_by_chat_id"][invalid_id] == []
+    assert cache.removed == [("owner", invalid_id)]
+    assert not response.get("partial_error")
+    if include_valid_chat:
+        assert response["messages_by_chat_id"][CHAT_ID] == ["encrypted-message"]
 
 
 # contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted

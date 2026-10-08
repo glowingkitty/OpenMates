@@ -91,6 +91,10 @@ async def test_task_discovery_joins_fresh_authorized_version_and_meaningful_acti
                 return [{"task_id": "done", "status": "done", "version": 2},
                         {"task_id": "stale", "status": "in_progress", "version": 3},
                         {"task_id": "navigated", "status": "blocked", "version": 1}]
+            assert collection == "user_task_activity"
+            assert params["filter[hashed_team_id][_null]"] is True
+            assert params["filter[created_at][_gte]"] == 8_200
+            assert isinstance(params["filter[created_at][_gte]"], int)
             return [{"task_id": "done", "event_type": "status", "previous_status": "in_progress", "next_status": "done", "created_at": 9_999},
                     {"task_id": "navigated", "event_type": "status", "previous_status": "blocked", "next_status": "blocked", "created_at": 9_999}]
 
@@ -99,10 +103,33 @@ async def test_task_discovery_joins_fresh_authorized_version_and_meaningful_acti
         {"id": "done", "summary": "completed relevant work", "version": 2},
         {"id": "stale", "summary": "old text", "version": 2},
         {"id": "navigated", "summary": "viewed task", "version": 1},
-    ], now=10_000)
-    eligible = bounded_candidates(result, owner_id="owner", current_project_id=None, now=10_000)
+    ], now=10_000.75)
+    eligible = bounded_candidates(result, owner_id="owner", current_project_id=None, now=10_000.75)
     assert [item.id for item in eligible] == ["done"]
     assert eligible[0].meaningful_changed_at == 9_999
+
+
+@pytest.mark.asyncio
+async def test_task_activity_floor_only_widens_discovery_not_exact_recency():
+    class Directus:
+        async def get_items(self, collection, params, **kwargs):
+            if collection == "user_tasks":
+                return [{"task_id": task_id, "status": "done", "version": 1}
+                        for task_id in ("before", "inside", "future")]
+            assert collection == "user_task_activity"
+            assert params["filter[created_at][_gte]"] == 8_200
+            return [{"task_id": "before", "event_type": "comment_added", "created_at": 8_200},
+                    {"task_id": "inside", "event_type": "comment_added", "created_at": 8_201},
+                    {"task_id": "future", "event_type": "comment_added", "created_at": 10_001}]
+
+    summaries = [{"id": task_id, "summary": task_id, "version": 1}
+                 for task_id in ("before", "inside", "future")]
+    result = await related_work.fetch_related_task_candidates(
+        SimpleNamespace(user_id="owner"), Directus(), client_summaries=summaries, now=10_000.75,
+    )
+    assert {item.id: item.meaningful_changed_at for item in result} == {
+        "before": None, "inside": 8_201, "future": None,
+    }
 
 
 @pytest.mark.asyncio

@@ -209,15 +209,19 @@ async def handle_chat_content_batch(
         # Chat-list cache membership can outlive a deleted chat. Read one small,
         # authoritative ownership projection for this bounded batch before any
         # message, embed or sidecar reads. A transport failure must not evict it.
+        # The chats primary key is UUID; a stale/non-UUID cache ID would make
+        # Directus reject the entire _in query and hide valid chats in the batch.
+        durable_chat_ids = [chat_id for chat_id in chat_ids
+                            if isinstance(chat_id, str) and _UUID_RE.fullmatch(chat_id)]
         try:
             chat_rows = await directus_service.get_items(
                 "chats", params={
-                    "filter": {"id": {"_in": chat_ids}},
-                    "fields": "id,hashed_user_id,hashed_team_id,storage_state,messages_v", "limit": len(chat_ids),
+                    "filter": {"id": {"_in": durable_chat_ids}},
+                    "fields": "id,hashed_user_id,hashed_team_id,storage_state,messages_v", "limit": len(durable_chat_ids),
                 }, admin_required=True, no_cache=True, raise_on_error=True,
-            )
+            ) if durable_chat_ids else []
             if not isinstance(chat_rows, list) or any(
-                not isinstance(row, dict) or row.get("id") not in chat_ids for row in chat_rows
+                not isinstance(row, dict) or row.get("id") not in durable_chat_ids for row in chat_rows
             ):
                 raise RuntimeError("Invalid durable chat ownership response")
             # Older batch frames have no clear team_id. Resolve only the Team
