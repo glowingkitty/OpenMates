@@ -79,6 +79,9 @@ async def main():
    assert await cache.set_chat_list_item_data(data['ownerId'],data['chatId'],_chat_list_cache_data_from_metadata(data['chat']))
    assert await cache.set_chat_versions(data['ownerId'],data['chatId'],_chat_versions_from_metadata(data['chat']))
   else:
+   for task in await directus.user_task.list_tasks(data['ownerId'],chat_id=data['chatId'],limit=100):
+    assert task['hashed_user_id']==owner and task['primary_chat_id']==data['chatId'],'Only fixture-linked tasks may be removed'
+    assert await directus.user_task.delete_task(task['task_id'],data['ownerId'],int(task['version']))
    metadata=await directus.chat.get_chat_metadata(data['chatId'])
    if metadata:
     assert metadata.get('hashed_user_id')==owner,'Only fixture-owned chat may be removed'
@@ -149,4 +152,25 @@ function seedChromeEmbedAndCache(apiUrl:string,home:string,cli:string,fixture:Ch
 	expect(result.ok).toBe(true);
 }
 
-module.exports={makeChromeFixture,persistChromeFixture,chromeShareState,seedChromeEmbedAndCache};
+
+function chromeTaskState(fixture:ChromeFixture):{count:number;statuses:string[];encrypted:boolean} {
+	const program=`
+import asyncio,hashlib,json,logging,os,sys
+logging.disable(logging.CRITICAL)
+assert os.environ.get('OPENMATES_CI_ISOLATED')=='1'
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus.directus import DirectusService
+async def main():
+ data=json.load(sys.stdin);cache=CacheService();directus=DirectusService(cache_service=cache)
+ try:
+  rows=await directus.user_task.list_tasks(data['ownerId'],chat_id=data['chatId'],limit=100)
+  assert all(row['hashed_user_id']==hashlib.sha256(data['ownerId'].encode()).hexdigest() and row['primary_chat_id']==data['chatId'] for row in rows)
+  print(json.dumps({'count':len(rows),'statuses':sorted(row['status'] for row in rows),'encrypted':all(bool(row.get('encrypted_title')) and not row.get('title') for row in rows)}))
+ finally: await directus.close();await cache.close()
+asyncio.run(main())
+`;
+	return JSON.parse(execFileSync('docker',['compose','-f',COMPOSE,'exec','-T','-e','OPENMATES_CI_ISOLATED=1',
+		'api','python','-c',program],{cwd:ROOT,input:JSON.stringify(fixture),encoding:'utf8',timeout:90_000}).trim());
+}
+
+module.exports={makeChromeFixture,persistChromeFixture,chromeShareState,seedChromeEmbedAndCache,chromeTaskState};

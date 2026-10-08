@@ -7,6 +7,7 @@ import { headerCapabilities, openHeaderAction, handleHeaderCommand, handleHeader
 import { requestTerminalClipboard } from '../src/tuiClipboard.js';
 import type { WorkspaceContext } from '../src/tuiWorkspaceController.js';
 import type { TuiState } from '../src/tuiRenderer.js';
+import { createTuiShareQr, validTuiShareUrl } from '../src/tuiQrCode.js';
 
 function setup(client:Record<string,unknown>={}) {
   const state={chrome:null,signedIn:true,screen:'chat',activeChatId:'chat-id',status:null,input:'draft',scrollOffset:7} as unknown as TuiState&{chrome:TuiChromeState|null};
@@ -211,4 +212,184 @@ test('long selectable copy fallback supports keyboard and wheel paging',async()=
   assert.equal((state.chrome as Extract<TuiChromeState,{kind:'copy'}>).scrollOffset,end-1);
   await handleHeaderKey(context,'',{name:'home'});
   assert.equal((state.chrome as Extract<TuiChromeState,{kind:'copy'}>).scrollOffset,0);
+});
+
+// contract-test: supporting surface=cli assertions=terminal-chrome.actions.contextual-and-functional,terminal-chrome.share.explicit-and-private
+test('chat settings opens native tabs without changing the draft and routes Share to the encrypted form',async()=>{
+  const {state,context}=setup();
+  assert.ok(headerCapabilities(state).some(item=>item.label==='Chat settings'));
+  openHeaderAction(context,'settings');
+  assert.equal(state.chrome?.kind,'chat-settings');
+  assert.match(renderHeaderDialog(state.chrome,80,24,state).map(line=>line.text).join('\n'),/Plan[\s\S]*Tasks[\s\S]*Files[\s\S]*Usage[\s\S]*Share/);
+  const strip=renderHeaderDialog(state.chrome,80,24,state).find(line=>typeof line!=='string'&&line.spans?.some(span=>span.action?.kind==='command'&&span.action.command==='/header-action settings-tab tasks'));
+  assert.ok(strip && typeof strip!=='string' && strip.spans?.some(span=>span.text==='Tasks'));
+  const narrowTabs=renderHeaderDialog(state.chrome,19,24,state).filter(line=>typeof line!=='string'&&line.spans?.some(span=>span.action?.kind==='command'&&span.action.command.startsWith('/header-action settings-tab')));
+  assert.ok(narrowTabs.length>1);assert.ok(narrowTabs.every(line=>typeof line!=='string'&&line.text.length<=19));
+  await handleHeaderCommand(context,'settings-tab usage');
+  assert.match(renderHeaderDialog(state.chrome,80,24,state).map(line=>line.text).join('\n'),/Total credits|Loading usage|Could not load usage/);
+  await handleHeaderCommand(context,'settings-tab share');
+  assert.match(renderHeaderDialog(state.chrome,80,24,state).map(line=>line.text).join('\n'),/Share chat/);
+  await handleHeaderCommand(context,'settings-share');
+  assert.equal(state.chrome?.kind,'share');
+  assert.equal(state.input,'draft');assert.equal(state.scrollOffset,7);
+});
+
+// contract-test: supporting surface=cli assertions=terminal-chrome.actions.contextual-and-functional,terminal-chrome.navigation.origin-preserved
+test('chat settings ignores a late task load after owner change',async()=>{
+  let finish!:(records:[])=>void;
+  const owner=ownedClient({getMasterKeyBytes:()=>new Uint8Array(32),listUserTasks:()=>new Promise<[]>(resolve=>{finish=resolve;})});
+  const {state,context}=setup(owner.client);
+  openHeaderAction(context,'settings');
+  await handleHeaderCommand(context,'settings-tab tasks');
+  assert.match(renderHeaderDialog(state.chrome,80,24,state).map(line=>line.text).join('\n'),/Loading tasks/);
+  owner.session.hashedEmail='new-owner';finish([]);
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.doesNotMatch(renderHeaderDialog(state.chrome,80,24,state).map(line=>line.text).join('\n'),/No tasks linked/);
+});
+
+// contract-test: supporting surface=cli assertions=terminal-chrome.share.explicit-and-private,terminal-pointer.viewport-coherent
+test('QR is generated only after choosing a valid encrypted URL and never displays a clipped matrix',async()=>{
+  const url='https://openmates.org/share/chat/id#key=secret%2Bfragment';
+  const {state,context}=setup({createChatShareLink:async()=>url});
+  openHeaderAction(context,'share');
+  assert.doesNotMatch(lines(state.chrome),/Show QR code/);
+  await handleHeaderCommand(context,'show-qr');assert.equal(state.chrome?.kind,'share');
+  await handleHeaderCommand(context,'generate');
+  assert.match(lines(state.chrome),/Show QR code/);
+  await handleHeaderCommand(context,'show-qr');
+  assert.equal(state.chrome?.kind,'qr');
+  const qr=(state.chrome as Extract<TuiChromeState,{kind:'qr'}>).qr;
+  assert.equal(qr.url,url);
+  assert.ok(qr.lines.every(line=>line.length===qr.width));
+  const wide=renderHeaderDialog(state.chrome,qr.width+4,qr.height+4,state).map(line=>line.text);
+  assert.equal(wide.filter(line=>/[▄▀█]/u.test(line)).length,qr.height);
+  const narrow=renderHeaderDialog(state.chrome,20,12,state).map(line=>line.text).join('\n');
+  assert.match(narrow.replace(/\n/g,' '),/QR needs \d+ columns and \d+ rows/);
+  assert.doesNotMatch(narrow,/[▄▀█]/u);
+  assert.doesNotMatch(narrow,/secret/);
+  await handleHeaderKey(context,'',{name:'escape'});
+  assert.equal(state.chrome?.kind,'share');assert.equal(state.input,'draft');
+});
+
+// contract-test: supporting surface=cli assertions=terminal-chrome.share.explicit-and-private,terminal-pointer.viewport-coherent
+test('QR matrix has standard finder patterns and changes when encrypted fragment changes',()=>{
+  const prefix='https://openmates.org/share/chat/id#key=';
+  const qr=createTuiShareQr(prefix+'secret','https://openmates.org','chat');
+  const other=createTuiShareQr(prefix+'different','https://openmates.org','chat');
+  assert.ok(qr&&other);assert.notDeepEqual(qr.lines,other.lines);
+  // Decode Unicode half-block cells into black/white modules independently of the renderer.
+  const module=(r:number,c:number)=>{const char=qr.lines[Math.floor(r/2)]?.[c];return r%2===0?char===' '||char==='▄':char===' '||char==='▀';};
+  const n=qr.width-8;
+  for(let r=0;r<qr.width;r++)for(let c=0;c<qr.width;c++)if(r<4||c<4||r>=n+4||c>=n+4)assert.equal(module(r,c),false,'four-module light quiet zone');
+  for(const [top,left] of [[4,4],[4,n-3],[n-3,4]])for(let r=0;r<7;r++)for(let c=0;c<7;c++){
+    const expected=r===0||r===6||c===0||c===6||(r>=2&&r<=4&&c>=2&&c<=4);
+    assert.equal(module(top+r,left+c),expected,`finder ${top},${left} at ${r},${c}`);
+  }
+  assert.equal(validTuiShareUrl(prefix+'secret','https://openmates.org','chat'),true);
+  assert.equal(validTuiShareUrl('https://evil.test/share/chat/id#key=secret','https://openmates.org','chat'),false);
+  assert.equal(validTuiShareUrl('https://openmates.org/share/chat/id','https://openmates.org','chat'),false);
+  assert.equal(createTuiShareQr(prefix+'x'.repeat(4000),'https://openmates.org','chat'),null);
+});
+
+// contract-test: supporting surface=cli assertions=terminal-chrome.share.explicit-and-private,terminal-pointer.viewport-coherent
+test('QR disappears after owner changes and malformed SDK links cannot offer QR',async()=>{
+  const owner=ownedClient({createChatShareLink:async()=> 'https://openmates.org/share/chat/id#key=old-secret'});
+  const {state,context}=setup(owner.client);
+  openHeaderAction(context,'share');await handleHeaderCommand(context,'generate');await handleHeaderCommand(context,'show-qr');
+  owner.session.hashedEmail='new-owner';
+  assert.match(renderHeaderDialog(state.chrome,80,100,state).map(line=>line.text).join('\n'),/no longer available/);
+  await handleHeaderCommand(context,'copy-link');assert.equal(state.chrome,null);
+  const bad=setup({createChatShareLink:async()=> 'https://evil.test/share/chat/id#key=stolen'});
+  openHeaderAction(bad.context,'share');await handleHeaderCommand(bad.context,'generate');
+  assert.doesNotMatch(lines(bad.state.chrome),/Show QR code|stolen/);
+  assert.match(lines(bad.state.chrome),/Could not generate link/);
+});
+
+// contract-test: supporting surface=cli assertions=terminal-chrome.actions.contextual-and-functional,terminal-chrome.navigation.origin-preserved
+test('chat task Create and Done use encrypted chat-bound SDK inputs and remain in settings',async()=>{
+  const key=new Uint8Array(32).fill(7);let record:Record<string,unknown>|null=null,creates=0,updates=0;
+  const owner=ownedClient({getMasterKeyBytes:()=>key,listUserPlans:async()=>[],listUserTasks:async()=>[],
+    createUserTask:async(input:Record<string,unknown>)=>{creates++;record={...input,short_id:'T-1'};return record;},
+    updateUserTask:async(_id:string,patch:Record<string,unknown>)=>{updates++;record={...record,...patch,version:2};return record;}});
+  const {state,context}=setup(owner.client);state.tasks=[];
+  openHeaderAction(context,'settings');assert.equal((state.chrome as Extract<TuiChromeState,{kind:'chat-settings'}>).tab,'plan');
+  await handleHeaderCommand(context,'settings-tab tasks');await new Promise(resolve=>setImmediate(resolve));
+  await handleHeaderCommand(context,'settings-task-create');
+  await handleHeaderKey(context,'New linked task',{name:'paste'});
+  await handleHeaderCommand(context,'settings-task-save');
+  assert.equal(creates,1);assert.equal(record?.primary_chat_id,'chat-id');
+  assert.equal(state.chrome?.kind,'chat-settings');
+  const dialog=state.chrome as Extract<TuiChromeState,{kind:'chat-settings'}>;
+  assert.equal(dialog.tasks[0]?.title,'New linked task');
+  assert.match(renderHeaderDialog(dialog,80,24,state).map(line=>line.text).join('\n'),/0\/1 tasks done/);
+  await handleHeaderCommand(context,`settings-task-toggle ${dialog.tasks[0].taskId}`);
+  assert.equal(updates,1);assert.equal(dialog.tasks[0]?.status,'done');
+  assert.match(renderHeaderDialog(dialog,80,24,state).map(line=>line.text).join('\n'),/1\/1 tasks done/);
+  let opened='';context.command=async(command:string)=>{opened=command;};
+  await handleHeaderCommand(context,`settings-task-open ${dialog.tasks[0].taskId}`);
+  assert.equal(opened,`/task-open ${dialog.tasks[0].taskId}`);assert.equal(state.chrome,null);
+  assert.equal(state.input,'draft');
+});
+
+// contract-test: supporting surface=cli assertions=terminal-chrome.actions.contextual-and-functional,terminal-chrome.share.explicit-and-private
+test('chat task validation keeps typed title on failure and never posts after owner changes',async()=>{
+  let posts=0;let reject=true;
+  const owner=ownedClient({getMasterKeyBytes:()=>new Uint8Array(32).fill(9),listUserPlans:async()=>[],listUserTasks:async()=>[],createUserTask:async()=>{posts++;throw Error(reject?'secret backend detail':'should not post');}});
+  const {state,context}=setup(owner.client);state.tasks=[];
+  openHeaderAction(context,'settings');await handleHeaderCommand(context,'settings-tab tasks');await new Promise(resolve=>setImmediate(resolve));
+  await handleHeaderCommand(context,'settings-task-create');await handleHeaderCommand(context,'settings-task-save');
+  assert.match(renderHeaderDialog(state.chrome,80,24,state).map(line=>line.text).join('\n'),/Task title must be 1–200 characters/);
+  await handleHeaderKey(context,'Keep this title',{name:'paste'});await handleHeaderCommand(context,'settings-task-save');
+  const dialog=state.chrome as Extract<TuiChromeState,{kind:'chat-settings'}>;
+  assert.equal(dialog.taskTitle,'Keep this title');assert.equal(dialog.editingTask,true);
+  assert.doesNotMatch(renderHeaderDialog(state.chrome,80,24,state).map(line=>line.text).join('\n'),/secret backend detail/);
+  reject=false;const before=posts;
+  context.render=()=>{if(dialog.busy)owner.session.hashedEmail='new-owner';};
+  await handleHeaderCommand(context,'settings-task-save');assert.equal(posts,before);
+});
+
+// contract-test: supporting surface=cli assertions=terminal-chrome.actions.contextual-and-functional,terminal-chrome.share.explicit-and-private
+test('chat usage reads existing settings endpoints and offers reviewed CSV/YAML destination',async()=>{
+  const reads:string[]=[];
+  const {state,context}=setup({settingsGet:async(path:string)=>{reads.push(path);return path.includes('chat-entries')?{entries:[{id:'entry-1',type:'ai',model_used:'model',credits:3,created_at:1}]}:{total_credits:3};}});
+  openHeaderAction(context,'settings');await handleHeaderCommand(context,'settings-tab usage');await new Promise(resolve=>setImmediate(resolve));
+  const text=renderHeaderDialog(state.chrome,80,24,state).map(line=>line.text).join('\n');
+  assert.match(text,/Total credits: 3/);assert.match(text,/Download usage CSV/);
+  assert.equal(reads.length,2);assert.ok(reads.every(path=>path.includes('chat_id=chat-id')));
+  await handleHeaderCommand(context,'settings-usage-download csv');
+  assert.equal(state.chrome?.kind,'download');
+  assert.match((state.chrome as Extract<TuiChromeState,{kind:'download'}>).content!.toString(),/"entry-1"/);
+});
+
+// contract-test: supporting surface=cli assertions=terminal-chrome.actions.contextual-and-functional,terminal-chrome.navigation.origin-preserved
+test('public example settings expose Share and only static Files, never private Plan or Tasks',()=>{
+  const {state,context}=setup();state.screen='example';state.activeExample={chat:{id:'public-id',shortId:'public',slug:'demo',title:'Demo',summary:null,updatedAt:null,category:null,mateName:null,source:'example'},messages:[],embeds:[],files:[],followUpSuggestions:[]};
+  openHeaderAction(context,'settings');
+  const publicTabs=renderHeaderDialog(state.chrome,80,24,state).map(line=>line.text).join('\n');
+  assert.match(publicTabs,/›\[Share\]/);assert.doesNotMatch(publicTabs,/\b(?:Plan|Tasks|Usage)\b/);
+  state.activeExample.files=[{embedId:'file-1',contentRef:'file-1',title:'File',subtitle:'',type:'document',nodeType:'file',iconName:'file',createdAt:0,updatedAt:0,metadata:'',appId:null,skillId:null,url:null,mimeType:null}];
+  assert.match(renderHeaderDialog(state.chrome,80,24,state).map(line=>line.text).join('\n'),/Files/);
+});
+
+// contract-test: supporting surface=cli assertions=terminal-chrome.actions.contextual-and-functional,terminal-chrome.share.explicit-and-private
+test('web-only chat controls offer the actual chat settings deep link for copying',async()=>{
+  const {state,context}=setup();openHeaderAction(context,'settings');await handleHeaderCommand(context,'settings-tab share');
+  assert.match(renderHeaderDialog(state.chrome,80,24,state).map(line=>line.text).join('\n'),/Copy web settings link/);
+  await handleHeaderCommand(context,'settings-web');
+  assert.equal(state.chrome?.kind,'copy');
+  assert.equal((state.chrome as Extract<TuiChromeState,{kind:'copy'}>).text,'https://openmates.org/#settings/chats/chat-id/share');
+});
+
+// contract-test: supporting surface=cli assertions=terminal-chrome.actions.contextual-and-functional,terminal-chrome.navigation.origin-preserved
+test('static example file offers a native reviewed download only for loaded content',async()=>{
+  const {state,context}=setup();state.screen='example';state.embedAliases={};state.chatEmbeds={};
+  state.activeExample={chat:{id:'public-id',shortId:'public',slug:'demo',title:'Demo',summary:null,updatedAt:null,category:null,mateName:null,source:'example'},messages:[],
+    embeds:[{embed_id:'code-1',type:'code',content:JSON.stringify({code:'print(1)',language:'python'}),parent_embed_id:null,embed_ids:null}],
+    files:[{embedId:'code-1',contentRef:'code-1',title:'Code',subtitle:'',type:'code',nodeType:'file',iconName:'code',createdAt:0,updatedAt:0,metadata:'',appId:null,skillId:null,url:null,mimeType:null}],followUpSuggestions:[]};
+  openHeaderAction(context,'settings');await handleHeaderCommand(context,'settings-tab files');
+  const rendered=renderHeaderDialog(state.chrome,80,24,state).map(line=>line.text).join('\n');
+  assert.match(rendered,/Download code-1/);
+  await handleHeaderCommand(context,'settings-file-download code-1');
+  assert.equal(state.chrome?.kind,'download');
+  assert.equal((state.chrome as Extract<TuiChromeState,{kind:'download'}>).content,'print(1)');
 });

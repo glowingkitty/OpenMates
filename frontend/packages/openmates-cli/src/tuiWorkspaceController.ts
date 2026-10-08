@@ -300,6 +300,10 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
   const name = space < 0 ? command : command.slice(0, space);
   const arg = space < 0 ? "" : command.slice(space + 1).trim();
   switch (name) {
+    case "/task-open": {
+      if(!arg || !state.tasks.some(task=>task.taskId===arg))throw new Error('Choose a task from this chat first.');
+      await openTask(context,arg);return true;
+    }
     case "/model": if(context.modelShell)await context.modelShell.open();return true;
     case "/model-action": if(context.modelShell)await context.modelShell.action(arg);return true;
     case "/attach": {

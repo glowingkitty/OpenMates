@@ -659,7 +659,7 @@ specifications:
     version: 1
     status: draft
     path: features/terminal-ui
-    fingerprint: f763d91f38570ae87752eac8c243de8a963826241b01349831f2650d1e60d13c
+    fingerprint: 420322edd75dabe3dab613df781d4e04ce994fd4d9423fc0fd290e34c5fb2cd7
     required_applies_to:
     - cli
   feature.video-call:
@@ -8367,14 +8367,14 @@ assertions:
     specification: feature.terminal-ui@1
     specification_id: feature.terminal-ui
     type: behavior
-    fingerprint: c5b969a12ea24eb729ea4d4569aa53372a15f031625c47c6338142957233677b
+    fingerprint: 8595c5ce91ada1695bca1df2e3dee257d1adf50f7d889ebf2275c5c146a3f49b
     required_applies_to:
     - cli
   terminal-chrome.share.explicit-and-private:
     specification: feature.terminal-ui@1
     specification_id: feature.terminal-ui
     type: behavior
-    fingerprint: 23bd8df7d599bc55565bb243d63164c30e0d1efd47de8cb3021617b56b5971b4
+    fingerprint: 1f1151612a35382a224caa6c93d3816763cef0a3f0701f2f892f61291a3ae4ac
     required_applies_to:
     - cli
   terminal-settings.shell.responsive-and-restorable:

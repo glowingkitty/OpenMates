@@ -21,6 +21,8 @@ scope:
   - Existing locally decrypted recent-chat and workspace caches with background synchronization.
   - Rich message formatting, assistant identities, actionable links, interactive questions, app-colored
     previews and text-only results views.
+  - Chat settings expose the web Plan, Tasks, Files, Usage and Share sections; generated share links support
+    an explicit local QR view.
   excludes:
   - Hover effects, drag and drop, task reordering, touch gestures not translated into terminal mouse reports,
     and changes to the underlying object workflows.

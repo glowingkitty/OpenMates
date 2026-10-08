@@ -122,7 +122,7 @@ export function workspaceHint(state: TuiState): string {
 }
 
 function overlayLines(state: TuiState, width: number, height: number): TuiLine[] {
-  if(state.chrome)return renderHeaderDialog(state.chrome,width);
+  if(state.chrome)return renderHeaderDialog(state.chrome,width,height,state);
   if(state.questionEditor)return renderQuestionEditor(state.questionEditor,width);
   if (state.paletteOpen) {
     const actions = paletteActions(state.paletteQuery);

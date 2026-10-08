@@ -69,9 +69,11 @@ header_actions:
   assertion_ids:
   - terminal-chrome.actions.contextual-and-functional
   given: I opened a saved Python code embed in a wide terminal.
-  when: I use Copy, then Download and choose a local destination; an existing file already has that name.
-  then: Copy requests delivery of the code to my clipboard with a selectable fallback, and Download identifies
-    the CLI machine and asks before overwriting the file.
+  when: I use Copy, then Download and choose a local destination with an existing filename; I return to
+    the chat and open Chat settings to browse Plan, Tasks, Files, Usage and Share.
+  then: Copy provides a selectable clipboard fallback, and Download identifies the CLI machine and confirms
+    before overwriting. Chat settings show existing data and supported controls with readable loading,
+    empty and failure states; closing restores my chat and unsent draft.
 - id: narrow-and-unsupported-actions
   assertion_ids:
   - terminal-chrome.actions.contextual-and-functional
@@ -84,9 +86,12 @@ sharing:
   assertion_ids:
   - terminal-chrome.share.explicit-and-private
   given: I opened a private chat containing an email address and an attached event result.
-  when: I click Share, choose an expiration, and then click Generate Link.
-  then: Clicking Share alone creates no link; Generate Link applies the existing privacy defaults and
-    chosen expiration, and Copy or Show URL lets me retrieve the generated link explicitly.
+  when: I click Share, choose an expiration, click Generate Link, explicitly choose Show QR code, then
+    resize and return to sharing.
+  then: Share alone creates no link or QR. Generate Link applies privacy defaults and expiration. The
+    complete locally generated QR encodes the same URL including its encryption fragment; small viewports
+    offer resize/copy instead of clipping. Back preserves configuration; owner changes clear the private
+    link and QR. Copy or Show URL remain explicit.
 - id: existing-public-link-and-failed-generation
   assertion_ids:
   - terminal-chrome.share.explicit-and-private

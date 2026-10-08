@@ -6,13 +6,16 @@ status: implementing
 goal: Since we have clickable elements, add the web app breadcrumbs, close, share, copy, download, more
   and back controls to chat and embed fullscreen headers, plus top-right Settings opening on the left
   in split view when wide enough and fullscreen otherwise. Ensure one single TUI specification, then implement.
+  Match contextual chat settings to the web app, including an explicit local QR sharing option.
 specifications:
 - feature.terminal-ui@1
 approval:
   confirmation: explicit_user_confirmation
-  fingerprint: f763d91f38570ae87752eac8c243de8a963826241b01349831f2650d1e60d13c
+  fingerprint: 420322edd75dabe3dab613df781d4e04ce994fd4d9423fc0fd290e34c5fb2cd7
   context: User explicitly requested consolidation then implementation after reviewing the complete fullscreen/settings
-    scope; existing pointer assertion IDs and earlier implemented requirements are preserved.
+    scope; existing pointer assertion IDs and earlier implemented requirements are preserved. Current
+    explicit user request adds web chat settings parity and QR generation; existing assertion IDs and
+    must requirements remain unchanged.
 task: b635ba39-4329-497b-89f1-e2e67be7e812
 scope:
   in:
@@ -21,11 +24,16 @@ scope:
   - Responsive left settings panel with web hierarchy and capability-aware native or web-only pages.
   - Responsive chat and embed header sizes with horizontally centered identity and action content.
   - One consolidated terminal Specification; retain existing terminal interactions and caching.
+  - Chat settings Plan, Tasks, Files, Usage and Share sections with explicitly generated local share QR
+    codes.
   out:
   - New backend APIs, sharing encryption changes, web/Apple product edits or browser checkout emulation.
 verification:
 - Focused TUI unit tests, CLI lint and build.
 - Source-bound isolated GitHub terminal E2E recording with real clicks, keyboard and resize.
-- Authenticated disposable-fixture dev CLI proof of centered headers at narrow and wide widths when isolated CI cannot start the terminal.
+- Authenticated disposable-fixture dev CLI proof of centered headers at narrow and wide widths when isolated
+  CI cannot start the terminal.
 - Download/upload and deliver all captured CI videos.
 - Scoped dev deployment and installed CLI source verification.
+- Focused chat-settings interaction and QR conformance/owner-isolation checks plus recorded real Share-to-QR
+  keyboard/pointer flow.

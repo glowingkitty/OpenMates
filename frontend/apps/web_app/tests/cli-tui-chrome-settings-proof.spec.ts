@@ -7,7 +7,7 @@ import type {ChromeFixture} from './cli-tui-chrome-settings-fixture';
 const {test,expect,email,password,otpKey,captureProof,installRecorderDeps,requireIsolatedCliBuild,
 	workflowApiUrl,createWorkflowCliHome,skipWithoutCredentials} = require('./cli-tui-proof-helpers');
 const {loginWorkflowCliViaPair,removeWorkflowCliHome} = require('./helpers/workflow-cli-e2e-helpers');
-const {makeChromeFixture,persistChromeFixture,seedChromeEmbedAndCache,chromeShareState} = require('./cli-tui-chrome-settings-fixture');
+const {makeChromeFixture,persistChromeFixture,seedChromeEmbedAndCache,chromeShareState,chromeTaskState} = require('./cli-tui-chrome-settings-fixture');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -29,20 +29,20 @@ const contract={
 	],tutorial:{readingWordsPerSecond:2.5,minimumHoldMs:1200,maximumHoldMs:5000},
 };
 const settingsContract={
-	id:'cli-tui-settings-real-terminal',title:'Responsive terminal Settings',surface:'cli',devices:[PROFILE],
+	id:'cli-tui-settings-real-terminal',title:'Chat settings, QR sharing and responsive Settings',surface:'cli',devices:[PROFILE],
 	transcript:[
-		{id:'generate',text:'A private share URL appears only after Generate Link; Show URL is explicit.',checkpoint:'share-generated',devices:[PROFILE]},
-		{id:'wide',text:'Settings opens alongside the chat with Interface and Developers groups while restricted account controls stay hidden.',checkpoint:'settings-root',devices:[PROFILE]},
-		{id:'narrow',text:'Language remains open through a narrow fullscreen resize and a background click.',checkpoint:'narrow-no-clickthrough',devices:[PROFILE]},
-		{id:'validation',text:'An invalid language code is rejected without changing the account.',checkpoint:'invalid-save',devices:[PROFILE]},
-		{id:'browser',text:'Devices explains its browser requirement and provides a web destination.',checkpoint:'devices',devices:[PROFILE]},
-		{id:'logout',text:'Explicit logout clears the owner chat and draft from the displayed terminal frame.',checkpoint:'logout-cleared',devices:[PROFILE]},
+		{id:'configure',text:'Chat settings includes Plan, Tasks, Files, Usage and Share; Generate Link remains explicit.',checkpoint:'share-open',devices:[PROFILE]},
+		{id:'qr',text:'Choose Show QR code for a local share code; a small terminal offers a resize or copy fallback.',checkpoint:'share-qr-wide',devices:[PROFILE]},
+		{id:'native',text:'Language is a native setting, while Devices explains its browser flow.',checkpoint:'devices',devices:[PROFILE]},
+		{id:'restore',text:'Close Settings to return to the chat with the unsent draft preserved.',checkpoint:'settings-closed',devices:[PROFILE]},
+		{id:'logout',text:'Confirming logout removes the owner chat and draft from the terminal.',checkpoint:'logout-cleared',devices:[PROFILE]},
 	],
 	assertions:[
-		{id:'terminal-chrome.share.explicit-and-private',checkpoint:'share-generated',visual:'Generate Link acknowledges the isolated fixture share; its URL remains hidden until Show URL.',devices:[PROFILE]},
-		{id:'terminal-settings.shell.responsive-and-restorable',checkpoint:'settings-closed',visual:'Wide and narrow layouts keep the route and edit; Close restores the chat and unsent composer draft.',devices:[PROFILE]},
+		{id:'terminal-chrome.share.explicit-and-private',checkpoint:'share-open',visual:'Chat settings reaches private Share configuration without creating a link; Generate Link and QR remain explicit choices.',devices:[PROFILE]},
+		{id:'terminal-pointer.viewport-coherent',checkpoint:'share-qr-wide',visual:'A real Show QR code click produces the complete local matrix; a narrow resize offers a usable fallback and Back remains clickable.',devices:[PROFILE]},
 		{id:'terminal-settings.navigation.web-hierarchy-and-capabilities',checkpoint:'devices',visual:'Paired-session Account controls stay hidden; Interface and Language are native pages; Devices explains the browser flow.',devices:[PROFILE]},
-		{id:'terminal-settings.operations.validated-and-owner-scoped',checkpoint:'logout-cleared',visual:'An invalid native field is rejected before save; confirmed logout immediately clears the isolated owner chat and draft.',devices:[PROFILE]},
+		{id:'terminal-settings.shell.responsive-and-restorable',checkpoint:'settings-closed',visual:'Wide and narrow layouts keep the route and edit; Close restores the chat and unsent composer draft.',devices:[PROFILE]},
+		{id:'terminal-settings.operations.validated-and-owner-scoped',checkpoint:'logout-cleared',visual:'Confirmed logout immediately clears the isolated owner chat and draft; invalid native field validation is checked before save.',devices:[PROFILE]},
 	],tutorial:contract.tutorial,
 };
 
@@ -86,12 +86,14 @@ function clickedVisibleTarget(recording:any,from:string,step:string,label:string
 	expect(pointer.columns).toBe(rows[row].length);
 	expect([pointer.window_width,pointer.window_height]).toEqual([640,360]);
 }
-function nestedInfo(testInfo:any,label:string):any {
+function nestedInfo(testInfo:any,label:string,canonical=false):any {
+	// One Playwright result may contain only one canonical proof timeline. Keep
+	// both real recordings, with the Settings timeline as the approved proof.
 	return {outputPath:(...parts:string[])=>testInfo.outputPath(label,...parts),
-		attach:(name:string,options:unknown)=>testInfo.attach(label+'-'+name,options)};
+		attach:(name:string,options:unknown)=>testInfo.attach(canonical?name:label+'-'+name,options)};
 }
 
-// contract-test: supporting surface=cli assertions=terminal-chrome.navigation.origin-preserved,terminal-chrome.actions.contextual-and-functional,terminal-chrome.share.explicit-and-private,terminal-settings.shell.responsive-and-restorable,terminal-settings.navigation.web-hierarchy-and-capabilities,terminal-settings.operations.validated-and-owner-scoped
+// contract-test: supporting surface=cli assertions=terminal-chrome.navigation.origin-preserved,terminal-chrome.actions.contextual-and-functional,terminal-chrome.share.explicit-and-private,terminal-settings.shell.responsive-and-restorable,terminal-settings.navigation.web-hierarchy-and-capabilities,terminal-settings.operations.validated-and-owner-scoped,terminal-pointer.viewport-coherent
 test('records real fullscreen header and Settings clicks on an owner-encrypted chat',async({page}:{page:any},testInfo:any)=>{
 	test.setTimeout(420_000);
 	test.skip(process.env.GITHUB_ACTIONS!=='true'||process.env.RUNNER_ENVIRONMENT!=='github-hosted'||process.env.CI_TEST_MODE!=='e2e',
@@ -108,14 +110,17 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 		expect(chromeShareState(chat)).toEqual({isShared:false,sharePii:false});
 		downloadPath=path.join(ROOT,chat.title+'.md');
 		const sentinel='Original fixture file; cancel must retain this.\n';
+		const taskTitle='Chrome task '+chat.chatId.slice(0,8);
 		fs.writeFileSync(downloadPath,sentinel,{flag:'wx',mode:0o600});
 		const first:ProofStep[]=[
 			{name:'landing',wait_for:'DAILY INSPIRATION',hold_ms:300},
 			{name:'chat-command',text:'/chat '+chat.chatId},
 			{name:'chat-open',key:'Return',wait_for:'Chrome proof code',hold_ms:450},
-			{name:'chat-narrow',resize:{width:640,height:360},wait_for:chat.title,hold_ms:350},
+			{name:'chat-narrow-bottom',resize:{width:640,height:360},wait_for:chat.title,hold_ms:200},
+			{name:'chat-narrow',key:'Home',wait_for:'Private terminal chrome proof.',hold_ms:350},
 			{name:'chat-narrow-more',click:{text:'More'},wait_for:'More actions',hold_ms:180},
 			{name:'chat-narrow-more-dismiss',key:'Escape',wait_for:'× Close',wait_for_absent:'More actions',hold_ms:150},
+			{name:'chat-narrow-end',key:'End',wait_for:'Chrome proof code',hold_ms:150},
 			{name:'chat-wide',resize:{width:1280,height:720},wait_for:chat.title,hold_ms:350},
 			{name:'header-focus',key:'alt+h',wait_for:'Enter activate',hold_ms:150},
 			{name:'composer-focus',click:{text:'Ask a follow-up'},wait_for:'Ask a follow-up',wait_for_absent:'Enter activate',hold_ms:150},
@@ -170,8 +175,22 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 			{name:'landing',wait_for:'DAILY INSPIRATION',hold_ms:250},
 			{name:'chat-command',text:'/chat '+chat.chatId},
 			{name:'chat-open',key:'Return',wait_for:'Chrome proof code',hold_ms:400},
-			{name:'share-open',click:{text:'Share'},wait_for:'Share settings',hold_ms:150},
+			{name:'chat-settings-open',click:{text:'Chat settings'},wait_for:'Chat settings ·',hold_ms:200},
+			{name:'chat-tasks',click:{text:'  Tasks',occurrence:1},wait_for:'Create task',hold_ms:150},
+			{name:'task-create',click:{text:'Create task'},wait_for:'Task title: _',hold_ms:100},
+			{name:'task-title-focus',click:{text:'Task title:'},wait_for:'Task title: _',hold_ms:100},
+			{name:'task-title',text:taskTitle,wait_for:taskTitle,hold_ms:100},
+			{name:'task-saved',click:{text:'Save task'},wait_for:'Mark done · '+taskTitle,hold_ms:200},
+			{name:'task-done',click:{text:'Mark done · '+taskTitle},wait_for:'Undo done · '+taskTitle,hold_ms:200},
+			{name:'chat-files',click:{text:'  Files'},wait_for:'Open or download an embedded result.',hold_ms:150},
+			{name:'chat-usage',click:{text:'  Usage'},wait_for:'No usage entries for this chat.',hold_ms:150},
+			{name:'chat-share-tab',click:{text:'  Share'},wait_for:'Share chat',hold_ms:150},
+			{name:'share-open',click:{text:'Share chat'},wait_for:'Share settings',hold_ms:150},
 			{name:'share-generated',click:{text:'Generate Link'},wait_for:'Copy Link',hold_ms:350},
+			{name:'share-qr-open',click:{text:'Show QR code'},wait_for:'Share QR code',hold_ms:350},
+			{name:'share-qr-narrow',resize:{width:640,height:360},wait_for:'QR needs',hold_ms:250},
+			{name:'share-qr-wide',resize:{width:1280,height:720},wait_for:'Back to share',hold_ms:300},
+			{name:'share-qr-back',click:{text:'Back to share'},wait_for:'Share settings',hold_ms:150},
 			{name:'share-url',click:{text:'Show URL'},wait_for:'Share URL',hold_ms:200},
 			{name:'url-close',key:'Escape',wait_for:'× Close',wait_for_absent:'Share URL',hold_ms:150},
 			{name:'download-open',click:{text:'Download'},wait_for:'Download to this CLI machine',hold_ms:150},
@@ -200,7 +219,22 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 			{name:'exit-command',text:'/exit'},
 			{name:'exit',key:'Return'},
 		];
-		const settingsRecording=await captureProof(apiUrl,home,cli,second,settingsContract,nestedInfo(testInfo,'settings'));
+		const settingsRecording=await captureProof(apiUrl,home,cli,second,settingsContract,nestedInfo(testInfo,'settings',true));
+		expect(frame(settingsRecording,'chat-settings-open')).toContain('Plan');
+		expect(frame(settingsRecording,'chat-settings-open')).toContain('Tasks');
+		expect(frame(settingsRecording,'chat-settings-open')).toContain('Files');
+		expect(frame(settingsRecording,'chat-settings-open')).toContain('Usage');
+		expect(frame(settingsRecording,'chat-settings-open')).toContain('Share');
+		expect(frame(settingsRecording,'chat-usage')).toContain('Total credits: 0');
+		expect(frame(settingsRecording,'chat-files')).toContain('Download');
+		expect(frame(settingsRecording,'task-saved')).toContain('0/1 tasks done');
+		expect(frame(settingsRecording,'task-done')).toContain('1/1 tasks done');
+		expect(chromeTaskState(chat)).toEqual({count:1,statuses:['done'],encrypted:true});
+		expect(frame(settingsRecording,'share-qr-open')).toContain('Share QR code');
+		expect(frame(settingsRecording,'share-qr-wide')).toMatch(/[▀▄█]/);
+		expect(frame(settingsRecording,'share-qr-wide')).not.toContain('QR needs');
+		expect(frame(settingsRecording,'share-qr-narrow').split('\n').map(row=>row.trim()).join(' ')).toContain('Resize terminal or copy the link.');
+		expect(frame(settingsRecording,'share-qr-back')).toContain('Copy Link');
 		expect(frame(settingsRecording,'share-generated')).toContain('Show URL');
 		expect(frame(settingsRecording,'share-generated')).not.toContain('#key=');
 		expect(frame(settingsRecording,'share-url')).toContain('/share/chat/');
