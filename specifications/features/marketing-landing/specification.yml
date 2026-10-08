@@ -1,90 +1,137 @@
 schema_version: 1
 id: feature.marketing-landing
-version: 1
+version: 2
 status: draft
-title: Scrollable Marketing Landing Page
-summary: >
-  A standalone public landing page explains OpenMates through the updated Figma
-  design, with visitor-controlled scrolling and links into the web app.
+title: Lightweight Public Website and Scrollable Landing Page
+summary: A lightweight standalone website owns the scrollable landing page, news, blog and legal
+  content, and links visitors into the independent web app.
 scope:
   includes:
-    - The temporary /landing route, independently rendered from the app shell.
-    - The hero, five feature sections, and public events, news, and blog rows.
-    - Responsive layout, category icons, screenshots, and accessible navigation.
-    - Web-app workspace, account, example-chat, and composer deep links.
-    - Configurable app and website destinations for the later domain split.
+  - The standalone public website and compatibility /landing route on the web app.
+  - A full-viewport hero, five feature sections, newsletter signup, and public events, news and blog
+    rows.
+  - A single app-icon rail, language-only navigation, device-framed screenshots and motion preferences.
+  - Public /news, /blog and legal pages rendered without the chat shell.
+  - Web-app workspace, account, example-chat, event-detail and composer deep links.
+  - Independent website build and configurable website/app/API origins for separate Vercel deployment.
   excludes:
-    - Changing the existing root app or its guest onboarding carousel.
-    - Production DNS, authentication, cookie, passkey, or OAuth migration.
-    - Writing the future feature blog posts or changing native Apple UI.
-    - Pixel-for-pixel matching of wireframe placeholders or sidebar draft data.
+  - Production DNS, domain ownership transfer, authentication cookie, passkey or OAuth migration.
+  - Anonymous workflow execution; guest template viewing is owned by feature.workflows-ui.
+  - Newsletter enrollment semantics, owned by feature.newsletter.
+  - Writing future feature blog posts or changing native Apple UI.
+  - Pixel-for-pixel matching of wireframe placeholders or sidebar draft data.
 assertions:
-  - id: marketing-landing.independent-scroll
-    type: behavior
-    must: >
-      /landing renders public content without requiring app authentication or
-      the chat shell. Visitors explore the complete page through normal
-      scrolling; automatic story transitions do not determine reading time.
-    depends_on: [examples.scrolling]
-  - id: marketing-landing.feature-layout
-    type: behavior
-    must: >
-      The page follows the referenced Figma hierarchy: hero, actionable chats,
-      privacy and safety, workflow automation, cross-device experience, open
-      source and resilience, then events, news, and blog. Each feature has an
-      appropriate distinct icon. Desktop copy and screenshots sit side by side;
-      narrow screens stack them without hiding links or overflowing the page.
-    depends_on: [examples.layout]
-  - id: marketing-landing.destinations
-    type: behavior
-    must: >
-      Explore Apps and Explore Workflows open their web-app workspaces in new
-      tabs. Login/Signup opens the web app's account interface. Example links
-      open the corresponding real shared chats. Learn-more links lead to the
-      OpenMates blog index until dedicated feature posts are available. App and
-      website destinations can be configured independently; the temporary page
-      uses its current deployment and the dev landing host targets the dev app.
-      Configured destinations use HTTP or HTTPS.
-    depends_on: [examples.destinations]
-  - id: marketing-landing.composer-focus
-    type: behavior
-    must: >
-      Activating the hero's message-input affordance opens the web app with its
-      real message composer focused. This explicit focus request survives a
-      cold start and does not send a message, replace an existing draft, or
-      require the user to click the composer again.
-    depends_on: [examples.composer]
-  - id: marketing-landing.real-screenshots
-    type: behavior
-    must: >
-      Wireframe screenshot areas display real rendered product screenshots
-      collected within the authenticated personal dev test account, showing
-      actionable event results, privacy placeholders, and Workflows. Screenshots
-      exclude private identity and unrelated account content, provide meaningful
-      alternative text, and identify mobile web captures as web rather than
-      implying that they are native iPhone captures.
-    depends_on: [examples.screenshots]
-  - id: marketing-landing.public-content
-    type: behavior
-    must: >
-      Events, news, and blog rows reuse published OpenMates content and working
-      public destinations. The upcoming free-events row excludes paid and
-      finished events. When no matching records exist, the row offers an honest
-      empty state and browse link instead of fabricated cards.
-    depends_on: [examples.public_content]
+- id: marketing-landing.independent-scroll
+  type: behavior
+  must: The public website and /landing compatibility route render public content without requiring
+    app authentication or a chat shell. Visitors explore the complete page through normal scrolling;
+    automatic story transitions, scroll snapping or animation do not determine reading time. The
+    standalone website client contains only required public UI, style and content modules, with no
+    web-app authentication, synchronization, message editor, account database or chat startup code.
+  depends_on:
+  - examples.scrolling
+- id: marketing-landing.feature-layout
+  type: behavior
+  must: 'The page follows the referenced hierarchy: full-viewport hero, actionable chats, privacy
+    and safety, workflow automation, cross-device experience, open source and resilience, newsletter
+    signup, then events, news and blog. Each feature has a distinct appropriate icon. Feature copy
+    and large device-framed screenshots sit side by side on desktop and stack on narrow screens without
+    hiding links or overflowing. Reveal and restrained parallax effects preserve visitor-controlled
+    scrolling; reduced-motion visitors receive static readable content. The composer affordance remains
+    fixed at the bottom of the viewport container.'
+  depends_on:
+  - examples.layout
+- id: marketing-landing.destinations
+  type: behavior
+  must: Header Chats, Apps and Workflows links use the existing web-app icon-only dimensions and
+    hover treatment, have no active workspace state on the website, and open the matching app workspaces.
+    Explore Apps and Explore Workflows open their app workspaces in new tabs. Login/Signup opens
+    the app account interface for signed-out visitors, opens Chats for an already authenticated user
+    with completed signup, and preserves incomplete signup recovery. Example links open real shared
+    chats. Learn-more links lead to the website blog index until dedicated posts exist. TestFlight
+    testing links lead to the website newsletter section. Social footer links open the existing official
+    destinations in new tabs. App and website origins are independently configurable and require
+    HTTP(S); landing.dev.openmates.org targets app.dev.openmates.org by default.
+  depends_on:
+  - examples.destinations
+- id: marketing-landing.composer-focus
+  type: behavior
+  must: 'Activating the hero''s message-input affordance opens the web app with its real message
+    composer focused. This explicit focus request survives a cold start and does not send a message,
+    replace an existing draft, or require the user to click the composer again.
+
+    '
+  depends_on:
+  - examples.composer
+- id: marketing-landing.real-screenshots
+  type: behavior
+  must: 'Product screenshot areas display real rendered views captured within the authenticated personal
+    dev test account: actionable results, privacy placeholders, Workflows and the same chat across
+    desktop and mobile web. Phone and laptop screenshots sit inside lightweight SVG device frames
+    at matching screen proportions. The open-source section shows real public repository evidence.
+    Published images exclude private identity and unrelated account content, have meaningful alternative
+    text and accurately identify mobile web captures without implying native iPhone UI.'
+  depends_on:
+  - examples.screenshots
+- id: marketing-landing.public-content
+  type: behavior
+  must: The upcoming-events row contains every published event whose end time has not passed, including
+    paid events, in a horizontally scrollable row with no separate browse link. Event cards open
+    the actual web-app event detail in a new tab. The public SEO event page retains crawler-readable
+    event content and sends human visitors to the matching app event detail. News and blog reuse
+    published OpenMates content, including published news releases. The standalone website owns /news,
+    /blog and readable full legal documents without redirecting into a chat. Empty collections have
+    honest empty states, with no invented records.
+  depends_on:
+  - examples.public_content
+- id: marketing-landing.hero-app-rail
+  type: behavior
+  must: The hero has exactly one row of app icons moving right to left in a seamless infinite loop.
+    It shows every currently available non-internal app with at least one skill or focus mode, excluding
+    OpenMates, Projects and Tasks; Docs is also included because its live document-generation pipeline
+    supports writing letters. Each highlighted app has a capability-matched prompt. Icons adapt to
+    the available hero space with a desktop size cap; translucent edge gradients fade entry and exit.
+    Prompt bubbles have the real user-message tail and transition by opacity and scale from the bottom-right
+    without changing position. The aligned scroll cue smoothly cycles opacity between 0.3 and 0.8.
+    Reduced motion keeps the rail and prompts usable without continuous animation.
+  depends_on:
+  - examples.hero
+- id: marketing-landing.language-theme
+  type: behavior
+  must: The public header omits the hamburger and full app settings. A current-language control opens
+    only language selection, using the existing supported-language names and preserving the preference.
+    It must not import account, payment, chat or synchronization settings. The saved or system theme
+    applies before the first visible paint and remains consistent during startup on both the website
+    and /landing; a saved dark preference must not flash light.
+  depends_on:
+  - examples.preferences
 applies_to:
-  rest_api: {required: false}
-  cli: {required: false}
+  rest_api:
+    required: false
+  cli:
+    required: false
   sdks:
     required: false
     implementations:
-      npm: {required: false}
-      pip: {required: false}
+      npm:
+        required: false
+      pip:
+        required: false
   gui:
     required: true
     implementations:
-      web: {required: true}
-      apple: {required: false}
+      web:
+        required: true
+      apple:
+        required: false
 examples:
   file: examples.yml
-  required_groups: [scrolling, layout, destinations, composer, screenshots, public_content]
+  required_groups:
+  - scrolling
+  - layout
+  - destinations
+  - composer
+  - screenshots
+  - public_content
+  - hero
+  - preferences

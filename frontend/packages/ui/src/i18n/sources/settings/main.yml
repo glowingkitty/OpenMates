@@ -8999,6 +8999,141 @@ newsletter_categories.description:
   sv: Välj vilka typer av nyhetsbrev du vill få. Du kan ändra dessa när som helst.
   he: בחר את סוגי הניוזלטר שתרצה לקבל. ניתן לשנות זאת בכל עת.
   verified_by_human: []
+newsletter_categories.openmates_events.title:
+  context: Newsletter category for free OpenMates events
+  en: OpenMates events
+  de: OpenMates-Veranstaltungen
+  verified_by_human: []
+newsletter_categories.openmates_events.description:
+  context: Description of the OpenMates events newsletter category
+  en: Invitations and updates about free OpenMates events.
+  de: Einladungen und Neuigkeiten zu kostenlosen OpenMates-Veranstaltungen.
+  verified_by_human: []
+newsletter_categories.software_updates.title:
+  context: Newsletter category for OpenMates product updates
+  en: Software updates
+  de: Software-Updates
+  verified_by_human: []
+newsletter_categories.software_updates.description:
+  context: Description of the OpenMates software updates newsletter category
+  en: New features, product news, and important changes.
+  de: Neue Funktionen, Produktneuigkeiten und wichtige Änderungen.
+  verified_by_human: []
+newsletter_categories.apple_beta_updates.title:
+  context: Optional newsletter category for Apple app beta and TestFlight updates
+  en: Apple app beta updates (including TestFlight)
+  de: Updates zu Apple-App-Betas (einschließlich TestFlight)
+  verified_by_human: []
+newsletter_categories.apple_beta_updates.description:
+  context: Description of the optional Apple app beta newsletter category
+  en: Invitations and news about beta testing OpenMates on Apple devices.
+  de: Einladungen und Neuigkeiten zum Beta-Test von OpenMates auf Apple-Geräten.
+  verified_by_human: []
+newsletter_public_title:
+  context: Public website newsletter signup heading
+  en: Sign up for our newsletter
+  de: Für unseren Newsletter anmelden
+  verified_by_human: []
+newsletter_public_intro:
+  context: Public website newsletter signup introduction
+  en: Choose the OpenMates updates you would like to receive. We will email a confirmation link before your choices take effect.
+  de: Wähle die OpenMates-Neuigkeiten, die du erhalten möchtest. Deine Auswahl wird erst wirksam, nachdem du den Link in unserer Bestätigungs-E-Mail geöffnet hast.
+  verified_by_human: []
+newsletter_public_choices:
+  context: Public website newsletter category fieldset legend
+  en: What would you like to receive?
+  de: Was möchtest du erhalten?
+  verified_by_human: []
+newsletter_public_events:
+  context: Public website events newsletter category
+  en: OpenMates events
+  de: OpenMates-Veranstaltungen
+  verified_by_human: []
+newsletter_public_software:
+  context: Public website software newsletter category
+  en: Software updates
+  de: Software-Updates
+  verified_by_human: []
+newsletter_public_apple_beta:
+  context: Public website optional Apple app beta newsletter category
+  en: Apple app beta updates (including TestFlight)
+  de: Beta-Neuigkeiten zur Apple-App (einschließlich TestFlight)
+  verified_by_human: []
+newsletter_public_email:
+  context: Public website newsletter email field label
+  en: Email address
+  de: E-Mail-Adresse
+  verified_by_human: []
+newsletter_public_email_placeholder:
+  context: Public website newsletter email input placeholder
+  en: you@example.com
+  de: du@beispiel.de
+  verified_by_human: []
+newsletter_public_subscribe:
+  context: Public website newsletter submit button
+  en: Subscribe
+  de: Anmelden
+  verified_by_human: []
+newsletter_public_sending:
+  context: Public website newsletter button while submitting
+  en: Sending…
+  de: Wird gesendet…
+  verified_by_human: []
+newsletter_public_neutral:
+  context: Neutral public newsletter signup acknowledgment that does not reveal subscriber status
+  en: If this address is eligible, please check your email to confirm your subscription.
+  de: Falls diese Adresse berechtigt ist, prüfe bitte deine E-Mails und bestätige deine Anmeldung.
+  verified_by_human: []
+newsletter_public_request_error:
+  context: Public website newsletter signup network or service error
+  en: Could not request newsletter signup. Please try again.
+  de: Die Newsletter-Anmeldung konnte nicht angefordert werden. Bitte versuche es erneut.
+  verified_by_human: []
+newsletter_public_privacy_note:
+  context: Public website newsletter unsubscribe assurance
+  en: You can unsubscribe at any time.
+  de: Du kannst dich jederzeit abmelden.
+  verified_by_human: []
+newsletter_public_privacy_link:
+  context: Public website newsletter privacy link
+  en: Privacy policy
+  de: Datenschutzerklärung
+  verified_by_human: []
+newsletter_public_confirmation_title:
+  context: Public website newsletter confirmation page heading
+  en: Newsletter confirmation
+  de: Newsletter-Bestätigung
+  verified_by_human: []
+newsletter_public_confirmation_intro:
+  context: Public website instruction before accepting the newsletter subscription
+  en: Confirm your subscription to activate your selected updates.
+  de: Bestätige deine Anmeldung, um deine ausgewählten Neuigkeiten zu aktivieren.
+  verified_by_human: []
+newsletter_public_confirm_button:
+  context: Public website button that explicitly accepts the newsletter subscription
+  en: Confirm subscription
+  de: Anmeldung bestätigen
+  verified_by_human: []
+newsletter_public_confirming:
+  context: Public website newsletter confirmation progress
+  en: Confirming your subscription…
+  de: Deine Anmeldung wird bestätigt…
+  verified_by_human: []
+newsletter_public_confirmed:
+  context: Public website newsletter confirmation success
+  en: Your newsletter subscription is confirmed. Thank you!
+  de: Deine Newsletter-Anmeldung ist bestätigt. Vielen Dank!
+  verified_by_human: []
+newsletter_public_signal:
+  context: Signal group invitation after successful newsletter confirmation
+  en: Join the OpenMates Signal group
+  de: Der OpenMates-Signal-Gruppe beitreten
+  verified_by_human: []
+newsletter_public_invalid:
+  context: Expired or invalid newsletter confirmation link error
+  en: This confirmation link is invalid or expired. Please subscribe again.
+  de: Dieser Bestätigungslink ist ungültig oder abgelaufen. Bitte melde dich erneut an.
+  verified_by_human: []
 newsletter_categories.updates_and_announcements.title:
   context: Title for the Updates & Announcements newsletter category toggle
   en: Updates & Announcements

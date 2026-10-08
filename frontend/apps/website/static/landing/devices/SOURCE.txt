@@ -1,0 +1,11 @@
+Device bezel SVGs from responsive-point-check by akintola4, commit 352e429b9ef24ff06557f1912acb671001a68ef2.
+https://github.com/akintola4/responsive-point-check/blob/352e429b9ef24ff06557f1912acb671001a68ef2/public/bezels/iphone-17-pro.svg
+https://github.com/akintola4/responsive-point-check/blob/352e429b9ef24ff06557f1912acb671001a68ef2/public/bezels/macbook-pro-14.svg
+Licensed under MIT; see LICENSE-MIT.txt. Device images are third-party vector illustrations, not Apple-provided assets.
+The `-overlay.svg` copies add a transparent screen cutout so real browser captures render behind the bezel without covering the device edge.
+
+Screen images are real OpenMates web UI captures, not native iOS screenshots:
+- devices-desktop.webp / devices-mobile.webp: same public example chat, AI Workshops and Meetups in Berlin, captured inside authenticated personal dev web session at 1512x982 and 402x874. The personal profile control was hidden through browser CSS before capture.
+- events-desktop.webp / events-mobile.webp: scrolled answer in that same authenticated public example, recaptured at 1512x982 and 402x874 with the personal profile control hidden before capture. Dates in this example are June 2026; the marketing copy should not claim these are current events.
+- open-source-desktop.webp / open-source-mobile.webp: public https://github.com/glowingkitty/OpenMates repository captured in a logged-out browser at 1512x982 and 402x874.
+The older hero, privacy, and workflows WebPs use proportion-preserving `object-fit: cover` in the device frames; this intentionally crops screen edges. The privacy mobile screenshot contains only fictional, unsent contact details.

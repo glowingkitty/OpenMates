@@ -16,4 +16,4 @@
 	{#if data.isDevHost}<meta name="robots" content="noindex, nofollow" />{/if}
 </svelte:head>
 
-<LandingPage appBaseUrl={data.appBaseUrl} websiteBaseUrl={data.websiteBaseUrl} news={data.news} posts={data.posts} events={data.events} />
+<LandingPage appBaseUrl={data.appBaseUrl} websiteBaseUrl={data.websiteBaseUrl} apiBaseUrl={data.apiBaseUrl} news={data.news} posts={data.posts} events={data.events} />

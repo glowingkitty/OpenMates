@@ -13,7 +13,7 @@ export {};
  *     subscription state). On first toggle the backend auto-creates a
  *     subscriber row using the account email. We verify:
  *       - toggles visible immediately after login
- *       - flipping daily_inspirations persists via the API
+ *       - flipping apple_beta_updates persists via the API
  *       - "Use a different email address" link is present
  */
 
@@ -33,12 +33,12 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
-const API_BASE_URL = BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.');
+const API_BASE_URL = (process.env.OPENMATES_E2E_API_URL || BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.')).replace(/\/$/, '');
 
 const CATEGORY_KEYS = [
-	'updates_and_announcements',
-	'tips_and_tricks',
-	'daily_inspirations'
+	'openmates_events',
+	'software_updates',
+	'apple_beta_updates'
 ] as const;
 
 /** Open Settings → Newsletter (works for both auth + unauth users). */
@@ -76,6 +76,7 @@ async function fetchCategoriesViaBrowser(
 // Scenario 1 — unauthenticated
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=newsletter.surface.semantic-parity,newsletter.categories.default-and-migration
 test('newsletter categories: unauthenticated visitor does not see category toggles', async ({
 	page
 }: {
@@ -123,8 +124,10 @@ test('newsletter categories: unauthenticated visitor does not see category toggl
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 test.describe('newsletter categories (authenticated)', () => {
+	test.skip(process.env.OPENMATES_CI_ISOLATED !== '1', 'Category persistence uses only a disposable isolated account.');
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
+	// contract-test: direct surface=gui.web assertions=newsletter.surface.semantic-parity,newsletter.categories.default-and-migration
 	test('authenticated user sees toggles matching their subscription state', async ({
 		page
 	}: {
@@ -175,14 +178,21 @@ test.describe('newsletter categories (authenticated)', () => {
 		for (const key of CATEGORY_KEYS) {
 			expect(typeof apiState.categories[key]).toBe('boolean');
 		}
+		if (!apiState.subscribed) {
+			expect(apiState.categories).toMatchObject({
+				openmates_events: true,
+				software_updates: true,
+				apple_beta_updates: false
+			});
+		}
 
-		// ── Flip daily_inspirations and confirm the API echoes the new state
+		// ── Flip Apple beta and confirm the API echoes the new state
 		// (this may auto-create a subscriber row if the test account wasn't subscribed)
-		const dailyToggle = page.getByTestId('newsletter-category-toggle-daily_inspirations');
-		const beforeState = apiState.categories.daily_inspirations;
-		log(`daily_inspirations before flip: ${beforeState}`);
+		const betaToggle = page.getByTestId('newsletter-category-toggle-apple_beta_updates');
+		const beforeState = apiState.categories.apple_beta_updates;
+		log(`apple_beta_updates before flip: ${beforeState}`);
 
-		await dailyToggle.click();
+		await betaToggle.click();
 		const saveButton = page.getByTestId('newsletter-save-button');
 		await expect(saveButton).toBeVisible({ timeout: 5000 });
 		await Promise.all([
@@ -197,12 +207,12 @@ test.describe('newsletter categories (authenticated)', () => {
 		]);
 
 		const afterState = await fetchCategoriesViaBrowser(page);
-		log(`daily_inspirations after flip: ${afterState.categories.daily_inspirations}`);
+		log(`apple_beta_updates after flip: ${afterState.categories.apple_beta_updates}`);
 		expect(afterState.success).toBe(true);
-		expect(afterState.categories.daily_inspirations).toBe(!beforeState);
+		expect(afterState.categories.apple_beta_updates).toBe(!beforeState);
 
 		// Flip back so the test is idempotent for repeated runs.
-		await dailyToggle.click();
+		await betaToggle.click();
 		await expect(saveButton).toBeVisible({ timeout: 5000 });
 		await Promise.all([
 			page.waitForResponse(
@@ -216,8 +226,8 @@ test.describe('newsletter categories (authenticated)', () => {
 		]);
 
 		const restoredState = await fetchCategoriesViaBrowser(page);
-		expect(restoredState.categories.daily_inspirations).toBe(beforeState);
-		log('daily_inspirations restored to original — toggles are persistent + reversible.');
+		expect(restoredState.categories.apple_beta_updates).toBe(beforeState);
+		log('apple_beta_updates restored to original — toggles are persistent + reversible.');
 
 		await screenshot(page, '03-toggle-persisted');
 	});

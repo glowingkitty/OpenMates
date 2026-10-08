@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows-ui@8
+specification: feature.workflows-ui@9
 workflow_file_export:
 - id: more-exports-current-saved-workflow
   assertion_ids: [workflows-ui.files.more-export]
@@ -543,9 +543,21 @@ workflow_library_templates:
   then: The grid initially shows the newly edited Workflow first, then switches to the ten-minute run, the two-hour run, and the paused Workflow. No built-in template is mixed into that grid.
 - id: templates-create-disabled-copies
   assertion_ids: [workflows-ui.workspace.owned-library-and-templates]
-  given: Bob is on the Workflows start screen with no Workflows of his own.
+  given: Bob is signed in on the Workflows start screen with no Workflows of his own.
   when: He opens Show templates and selects a built-in planning template.
   then: A new disabled Workflow opens in Template for his review. Browsing alone creates nothing; selection performs no run or schedule activation, and the new Workflow is reachable through Show my workflows and Continue where you left off.
+
+guest_template_preview:
+- id: signed-out-browsing-is-read-only
+  assertion_ids: [workflows-ui.workspace.guest-template-preview]
+  given: Sam is signed out and Workflows are enabled on this server.
+  when: Sam opens Workflows from the header, chooses Show templates, and selects a built-in reminder template.
+  then: Sam can read the template's steps and sees a sign-in/create action, while no owned Workflow is fetched or created and no save, import, enable, run, or schedule action is available.
+- id: signed-out-template-cannot-run
+  assertion_ids: [workflows-ui.workspace.guest-template-preview]
+  given: Sam is inspecting a built-in template that schedules a task and sends a chat message.
+  when: Sam looks for a way to try it before signing in.
+  then: The template remains an inspectable example only; it neither runs nor schedules work, sends a chat message, spends credits, or creates a server-owned record.
 
 option_check:
 - id: option-editor

@@ -1,0 +1,389 @@
+schema_version: 2
+id: standalone-website
+title: Standalone public website and landing refinements
+status: implementing
+goal: 'Guide me through setting up the separate Vercel landingpage that loads only the landingpage
+  so it stays slim and fast loading, including news, blog and legal pages, and fix the reported landing
+  UI issues, newsletter signup, events links and signed-out workflow template visibility.
+
+  '
+scope:
+  in:
+  - Separate website SvelteKit build with minimal shared public UI and canonical public content.
+  - Single seamless app rail, icon-only navigation, language control, theme startup and user bubbles.
+  - Large real screenshots in SVG devices with restrained motion and reduced-motion support.
+  - Selected newsletter categories through confirmed double opt-in and post-confirmation Signal link.
+  - All upcoming events with actual app detail links, social footer and human SEO event forwarding.
+  - Guest template browsing and completed-auth signup-link handling, preserving owned workflow boundaries.
+  - Scoped dev publication and exact Vercel setup instructions.
+  out:
+  - Production domain transfer or DNS/auth migration.
+  - Anonymous execution of scheduled or chat-delivery workflows.
+  - Native Apple screenshots or native category controls.
+authorization:
+  source: User approved all three review PDFs on 2026-10-08 in Codex chat 01a116b9-306b-7940-beae-99d10025f62a.
+  specifications:
+  - feature.marketing-landing@2
+  - feature.newsletter@2
+  - feature.workflows-ui@9
+  mobile_images: User approved mobile web screenshots until native captures are supplied.
+verification:
+  required:
+  - Focused local build, unit and lint checks for changed modules.
+  - Standalone website build module boundary and compressed client-size report.
+  - Isolated GitHub component proof before broader route proof.
+  - Relevant isolated newsletter, guest-workflow, auth-link and public-page browser/API coverage.
+  - Scoped dev deployment with reviewed landing laptop/mobile visual smoke.
+  - All retained browser recordings linked in final response.
+decisions:
+- id: D-1
+  status: active
+  decision: Use frontend/apps/website and frontend/packages/public-site; avoid importing the web app
+    runtime or heavy UI package into the website client.
+  reason: Separate entry points enforce the requested public-site dependency boundary.
+  decided_at: '2026-10-08'
+- id: D-2
+  status: active
+  decision: Use landing.dev.openmates.org for dev, openmates.org for the eventual production website,
+    and app.openmates.org for the production app.
+  reason: Preserve app.dev.openmates.org and rehearse website isolation before production domain transfer.
+  decided_at: '2026-10-08'
+scenarios:
+- id: S-1
+  title: Explore the standalone website
+  given:
+  - A signed-out visitor opens the website.
+  when:
+  - They browse features and public content at their own pace.
+  then:
+  - The site stays readable, independently built and responsive, and app links reach their intended
+    workspaces.
+- id: S-2
+  title: Confirm signup and inspect workflows
+  given:
+  - A visitor selects newsletter categories or opens workflow templates.
+  when:
+  - They confirm the emailed token or inspect a template while signed out.
+  then:
+  - Only confirmed categories activate; templates remain read-only until authentication.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: The website client excludes app runtime modules, renders full public/legal content and the
+    approved responsive landing UI.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids: [T-COMPONENT, T-WEBSITE-PUBLIC, T-BUILD]
+- id: AC-2
+  scenario: S-2
+  text: Selected categories activate only after confirmation, Signal follows success, and guest templates
+    expose no owned actions or API requests.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids: [T-NEWSLETTER, T-NEWSLETTER-FLOW, T-WORKFLOW-COMP]
+- id: AC-3
+  scenario: S-1
+  text: App destinations, event forwarding and saved theme startup behave correctly, with dev publication
+    and exact Vercel guidance.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids: [T-ROUTE, T-EVENTS, T-AUTH]
+tests:
+- id: T-COMPONENT
+  type: playwright
+  file: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+  command: Focused isolated component proof
+  covers:
+  - AC-1
+  assertions:
+  - Focused isolated component proof
+  red_phase:
+    required: false
+    expected: fail
+    evidence:
+      status: not_recorded
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: components/marketing-landing.spec.ts
+      run_id: '37808829234'
+      subject_commit: d69141b5733641213db735d73cc088fd5a3538e2
+      timestamp: '2026-10-08T16:28:35.033Z'
+      execution_environment: isolated_github_ci
+      harness_commit: cb9caf5ee16acb57ea4b0b2d9efdf2ee9885ac7c
+      profile: component
+      artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/37808829234/artifacts/11563838120]
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+- id: T-ROUTE
+  type: playwright
+  file: frontend/apps/web_app/tests/marketing-landing-route.spec.ts
+  command: Isolated app landing route cases
+  covers:
+  - AC-1
+  - AC-3
+  assertions:
+  - App landing route and public app links
+  red_phase:
+    required: false
+    expected: fail
+    evidence:
+      status: not_recorded
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: marketing-landing-route.spec.ts
+      run_id: '37815623995'
+      subject_commit: 4129263a8f2f96e97c86a30b2c9ddc1d102da874
+      timestamp: '2026-10-08T17:22:43.984Z'
+      execution_environment: isolated_github_ci
+      harness_commit: a22a2cac89dceb0aa1156c471499c5a8654915fe
+      profile: e2e
+      artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/37815623995/artifacts/11567536115]
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+- id: T-BUILD
+  type: unit
+  file: frontend/apps/website/package.json
+  command: pnpm --filter website build and emitted module boundary gate
+  covers:
+  - AC-1
+  assertions:
+  - pnpm --filter website build and emitted module boundary gate
+  red_phase:
+    required: false
+    expected: fail
+    evidence:
+      status: not_recorded
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: pnpm --filter website... run build
+      run_id: /tmp/a753-final-bound-local-build.json
+      subject_commit: 873323641d4600cc30e3ac1ef129ee0c2265208a
+      timestamp: '2026-10-08T18:21:08.587707+00:00'
+      execution_environment: local_source_bound
+      source_manifest_sha256: 1ee27b7a01ed6efaed025bb16965ac3b25ead55f0d2f9caeffe4fd6f2444dbf7
+      artifacts: [/tmp/a753-final-bound-website-check.log, /tmp/a753-final-bound-website-build.log]
+- id: T-NEWSLETTER
+  type: unit
+  file: backend/tests/test_newsletter_categories.py
+  command: Focused newsletter unit checks plus canonical route coverage in isolated CI
+  covers:
+  - AC-2
+  assertions:
+  - Focused newsletter unit checks plus canonical route coverage in isolated CI
+  red_phase:
+    required: false
+    expected: fail
+    evidence:
+      status: not_recorded
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest -q backend/tests/test_newsletter_categories.py backend/tests/test_newsletter_email_confirmation_destination.py backend/tests/test_newsletter_public_origin.py backend/tests/test_newsletter_signup_choices.py
+      run_id: /tmp/a753-final-bound-local-newsletter.json
+      subject_commit: 873323641d4600cc30e3ac1ef129ee0c2265208a
+      timestamp: '2026-10-08T18:21:15.568736+00:00'
+      execution_environment: local_source_bound
+      source_manifest_sha256: 3b928494a886a3291b6d5bc6ede2f9b3a602f1f83d429e0b285568b9be66e269
+      artifacts: [/tmp/a753-final-bound-newsletter.log]
+- id: T-WEBSITE-PUBLIC
+  type: playwright
+  file: frontend/apps/web_app/tests/website-public-routes.spec.ts
+  command: Isolated standalone website public routes
+  covers: [AC-1, AC-3]
+  assertions: [SSR public routes, legal content, responsive landing, newsletter destination]
+  red_phase:
+    required: false
+    expected: fail
+    evidence: {status: not_recorded}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: website-public-routes.spec.ts
+      run_id: '37818606605'
+      subject_commit: f44de34a1accbe4f6bf984ee196e16b2627ab11e
+      timestamp: '2026-10-08T17:46:25.192Z'
+      execution_environment: isolated_github_ci
+      harness_commit: e9dc3dab0283a15d6371af056829d0ea817cdcb4
+      profile: e2e
+      artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/37818606605/artifacts/11568487249]
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+- id: T-EVENTS
+  type: playwright
+  file: frontend/apps/web_app/tests/openmates-events.spec.ts
+  command: Isolated public events route proof
+  covers: [AC-3]
+  assertions: [Upcoming event cards and human event forwarding]
+  red_phase:
+    required: false
+    expected: fail
+    evidence: {status: not_recorded}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: openmates-events.spec.ts
+      run_id: '37812693439'
+      subject_commit: aa3b3bbcf4a3ec55110ae23825d1a02673d57c0e
+      timestamp: '2026-10-08T17:00:35.564Z'
+      execution_environment: isolated_github_ci
+      harness_commit: cb9caf5ee16acb57ea4b0b2d9efdf2ee9885ac7c
+      profile: e2e
+      artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/37812693439/artifacts/11565747640]
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+- id: T-WORKFLOW-COMP
+  type: playwright
+  file: frontend/apps/web_app/tests/components/workspace-home-responsive.spec.ts
+  command: Isolated existing workspace home component proof
+  covers: [AC-2]
+  assertions: [Signed-out template workspace uses existing responsive home UI]
+  red_phase:
+    required: false
+    expected: fail
+    evidence: {status: not_recorded}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: components/workspace-home-responsive.spec.ts
+      run_id: '37808835031'
+      subject_commit: d69141b5733641213db735d73cc088fd5a3538e2
+      timestamp: '2026-10-08T16:28:10.562Z'
+      execution_environment: isolated_github_ci
+      harness_commit: cb9caf5ee16acb57ea4b0b2d9efdf2ee9885ac7c
+      profile: component
+      artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/37808835031/artifacts/11564246570]
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+- id: T-NEWSLETTER-FLOW
+  type: playwright
+  file: frontend/apps/web_app/tests/newsletter-flow.spec.ts
+  command: Final-source isolated double opt-in browser flow
+  covers: [AC-2]
+  assertions: [Selected categories activate only after explicit confirmation]
+  red_phase:
+    required: false
+    expected: fail
+    evidence: {status: not_recorded}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: newsletter-flow.spec.ts
+      run_id: '37821944969'
+      subject_commit: 327ac58da7f70236105b92d423de65e54c48e7b3
+      timestamp: '2026-10-08T18:12:16.107Z'
+      execution_environment: isolated_github_ci
+      harness_commit: b814e5761587bf036abfc269c76fb2ddc3d714e3
+      profile: e2e
+      artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/37821944969/artifacts/11570051497]
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+- id: T-AUTH
+  type: playwright
+  file: frontend/apps/web_app/tests/landing-auth-links.spec.ts
+  command: Final-source isolated signed-out auth-link flow
+  covers: [AC-3]
+  assertions: [Signup links preserve completed-auth return destination]
+  red_phase:
+    required: false
+    expected: fail
+    evidence: {status: not_recorded}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: landing-auth-links.spec.ts
+      run_id: '37823605775'
+      subject_commit: 873323641d4600cc30e3ac1ef129ee0c2265208a
+      timestamp: '2026-10-08T18:24:51.947Z'
+      execution_environment: isolated_github_ci
+      harness_commit: f7fdcd2a04b233e8fab1e568f81a449ca6f84258
+      profile: e2e
+      artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/37823605775/artifacts/11571125543]
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+implementation_state:
+  subject_commit: 873323641d4600cc30e3ac1ef129ee0c2265208a
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-10-08'
+    source: Explicit approval of all three exact review PDFs in this chat.
+  plan:
+    status: not_required
+    reason: Transcribes the explicit implementation request and approved scope; no additional design
+      decision.
+tasks:
+- id: TASK-1
+  external_task_id: 6273200a-d511-4156-86a4-3490281deb65
+  title: Standalone website implementation; live status remains in OpenMates Tasks
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+  expected_files:
+  - frontend/apps/website
+  - frontend/packages/public-site
+  verification_ids:
+  - T-COMPONENT
+  - T-ROUTE
+  - T-BUILD
+  - T-NEWSLETTER
+  - T-WEBSITE-PUBLIC
+  - T-EVENTS
+  - T-WORKFLOW-COMP
+  - T-NEWSLETTER-FLOW
+  - T-AUTH
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - frontend/apps/website
+    - frontend/packages/public-site
+    shared_files: []
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-1
+  approach: Parallel implementation within disjoint ownership and focused component proof before route
+    verification.
+  outcome: planned
+  recorded_at: '2026-10-08'
+handoff:
+  current_task_id: TASK-1
+  next_action: Scoped dev deploy, reviewed laptop/mobile smoke, and deliver all retained recordings.
+  command: python3 scripts/plan_validate.py docs/plans/standalone-website/plan.yml
+  expected_outcome: A slim independently deployable website with verified UI and Vercel instructions.
+  blocker: null
+  last_verified_commit: f44de34a1accbe4f6bf984ee196e16b2627ab11e

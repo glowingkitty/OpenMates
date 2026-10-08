@@ -1,0 +1,7 @@
+# Anonymous Workflow execution assessment
+
+Signed-out visitors can inspect the built-in Workflow templates locally. The guest browser reads `workflowTemplates.json` and renders `WorkflowGraphRenderer` with `readOnly`; it does not call the owner Workflow API or start a run.
+
+The existing templates cannot run under the anonymous chat allowance. Both reminder templates schedule work and send a chat message; the website-change template also calls an app skill. The current `/v1/workflows` create, read, and run endpoints require an authenticated owner. Accepted runs use owner IDs, vault keys, encrypted persisted definitions and run records, account billing, and background dispatch. [The Workflows Specification](../../specifications/features/workflows/specification.yml) keeps control and retained data owner-authenticated. [The anonymous billing Specification](../../specifications/features/billing/specification.yml) permits only explicitly classified account-free, bounded, inline skill calls without durable side effects or background jobs.
+
+If anonymous execution becomes a separate approved feature, it needs a distinct synchronous path with a strict node allowlist, conservative per-operation budget reservation and settlement, anonymous identity caps, and client-only content and results. Scheduled triggers, chat delivery, connected-account actions, uploads, durable records, and unbounded graph work would remain disallowed. A simulated client-only walkthrough could explain a template, but should not be presented as an actual run.

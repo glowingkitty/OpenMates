@@ -4,12 +4,17 @@
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
   import WorkspacePromptComposer from '../workspace/WorkspacePromptComposer.svelte';
   import { sortAllWorkflows, sortWorkflowContinue } from './workflowHomeSorting';
+  import { workflowTemplates, workflowTemplateGraph, type WorkflowTemplate } from './workflowTemplates';
+  import WorkflowDetailPage from './WorkflowDetailPage.svelte';
+  import WorkflowGraphRenderer from './WorkflowGraphRenderer.svelte';
   import { text } from '../../i18n/translations';
 
-  let { greetingName = 'there', empty = false }: { greetingName?: string; empty?: boolean } = $props();
+  let { greetingName = 'there', empty = false, guest = false }: { greetingName?: string; empty?: boolean; guest?: boolean } = $props();
   let value = $state('');
   let browseMode = $state<'home' | 'workflows' | 'templates'>('home');
   let sortMode = $state<'recent' | 'running-next'>('recent');
+  let selectedGuestTemplate = $state<WorkflowTemplate | null>(null);
+  let selectedGuestGraph = $derived(selectedGuestTemplate ? workflowTemplateGraph(selectedGuestTemplate.id) : null);
   const now = Math.floor(Date.now() / 1000);
   const actionItems = [
     { id: 'workflow-fixture', title: 'Weekly AI events', summary: 'Every day, 09:00 - Keep latest 5 encrypted runs', badge: 'Paused', category: 'technology', icon: 'calendar-days', source: 'recent' as const, created_at: now - 60, updated_at: now - 60, next_run_at: null, enabled: false },
@@ -21,20 +26,47 @@
     { id: 'daily-planning-reminder', title: 'Daily planning reminder', summary: 'A morning message to choose your priorities for the day', badge: 'Template', category: 'productivity', icon: 'sun', source: 'example' as const },
     { id: 'weekly-review-reminder', title: 'Weekly review reminder', summary: 'A Friday prompt to reflect and plan the next week', badge: 'Template', category: 'productivity', icon: 'calendar-days', source: 'example' as const },
   ];
+  const guestTemplates = workflowTemplates.map(template => ({
+    id: template.id,
+    title: template.id === 'website-changes' ? $text('workflows.templates.website_changes_title') : template.title,
+    summary: template.id === 'website-changes' ? $text('workflows.templates.website_changes_summary') : template.summary,
+    badge: 'Template', category: template.category, icon: template.icon, source: 'example' as const
+  }));
 </script>
 
+{#if guest && selectedGuestTemplate}
+  <section class="workflow-management" data-testid="workflow-management">
+    <section class="workflow-detail" data-testid="workflow-detail">
+      <WorkflowDetailPage
+        title={selectedGuestTemplate.title} description={selectedGuestTemplate.description ?? selectedGuestTemplate.summary}
+        category={selectedGuestTemplate.category} icon={selectedGuestTemplate.icon}
+        enabled={false} canEnable={false} canRun={false} saving={false} provisional activeTab="template"
+        onTabChange={() => {}} onToggleEnabled={() => {}} onRunWorkflow={() => {}} onDeleteWorkflow={() => {}}
+        onOpenHome={() => { selectedGuestTemplate = null; }} onOpenShare={() => {}} onExport={() => {}}
+        onOpenRuns={() => {}} runsHref="" onUpdateIdentity={async () => {}} onDraftIdentity={() => {}}
+      />
+      <div id="tabpanel-template" data-testid="workflow-template-panel" role="tabpanel" aria-label="Workflow template">
+        <div data-testid="workflow-editor">
+          {#if selectedGuestGraph}
+            <WorkflowGraphRenderer graph={selectedGuestGraph} readOnly onChange={() => {}} onSave={null}/>
+          {/if}
+        </div>
+      </div>
+    </section>
+  </section>
+{:else}
 <WorkspaceHomeShell
   surface="workflows" testId="workflows-start-screen"
   heading={`Hey ${greetingName}!`} subtitle="What do you want to automate next?"
-  actionItems={empty ? [] : sortWorkflowContinue(actionItems)} actionItemsTestId="workflow-mixed-row" itemTestId="workflow-landing-card"
-  showReportIssue showAllMode={browseMode !== 'home'} showAllLabel="Show my workflows" showAllTestId="workflows-show-all"
+  actionItems={guest || empty ? [] : sortWorkflowContinue(actionItems)} actionItemsTestId="workflow-mixed-row" itemTestId="workflow-landing-card"
+  showReportIssue showComposer={!guest} showAllMode={guest || browseMode !== 'home'} showAllLabel="Show my workflows" showAllTestId="workflows-show-all"
   browseLabel="Show templates" browseTestId="workflows-show-templates"
-  allItemsHeading={browseMode === 'templates' ? 'Templates' : 'My workflows'}
-  allItems={browseMode === 'templates' ? templates : empty ? [] : sortAllWorkflows(actionItems, sortMode)} allItemsViewTestId="all-workflows-view" allItemsGridTestId="all-workflows-grid"
+  allItemsHeading={guest || browseMode === 'templates' ? 'Templates' : 'My workflows'}
+  allItems={guest ? guestTemplates : browseMode === 'templates' ? templates : empty ? [] : sortAllWorkflows(actionItems, sortMode)} allItemsViewTestId="all-workflows-view" allItemsGridTestId="all-workflows-grid"
   allItemsToolbarTestId="workflows-all-toolbar" allItemTestId="workflow-landing-card"
   backTestId="workflows-back-to-recent" searchTestId="workflows-search"
-  onShowAll={() => { browseMode = 'workflows'; }} onBrowse={() => { browseMode = 'templates'; }} onBackToRecent={() => { browseMode = 'home'; }}
-  onSearchAll={() => {}} onActionItem={() => {}} onAllItem={() => {}}
+  onShowAll={() => { browseMode = 'workflows'; }} onBrowse={() => { browseMode = 'templates'; }} onBackToRecent={guest ? undefined : () => { browseMode = 'home'; }}
+  onSearchAll={guest ? undefined : () => {}} onActionItem={() => {}} onAllItem={(item) => { if (guest) selectedGuestTemplate = workflowTemplates.find(template => template.id === item.id) ?? null; }}
 >
   <svelte:fragment slot="top-right">
     {#if browseMode === 'workflows'}
@@ -51,3 +83,4 @@
     />
   </svelte:fragment>
 </WorkspaceHomeShell>
+{/if}

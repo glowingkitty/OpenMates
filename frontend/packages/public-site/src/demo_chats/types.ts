@@ -1,0 +1,1 @@
+export interface DemoChat { chat_id: string; slug: string; title: string; description: string; keywords: string[]; messages: Array<{id: string; role: 'user' | 'assistant'; content: string; timestamp: string}>; follow_up_suggestions: string[]; metadata: {category: string; icon_names: string[]; featured: boolean; order: number; lastUpdated: string}; }

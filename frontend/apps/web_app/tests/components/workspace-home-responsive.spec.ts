@@ -108,4 +108,54 @@ test.describe('Responsive workspace homes', () => {
 		await expect(page.getByTestId('workflow-landing-card')).toHaveCount(0);
 	});
 
+	for (const size of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+		// contract-test: direct surface=gui.web assertions=workflows-ui.workspace.guest-template-preview
+		test(`guest browses the existing workflow template detail without owner actions (${size.width}px)`, async ({ page }, testInfo) => {
+			await page.setViewportSize(size);
+			const ownedRequests: string[] = [];
+			page.on('request', request => {
+				if (/\/v1\/workflows(?:\/|\?|$)/.test(new URL(request.url()).pathname)) ownedRequests.push(request.url());
+			});
+			await page.goto('/dev/preview/workflows/WorkflowHomePreviewHarness?variant=guest&theme=light&chrome=0');
+			await waitForComponentPreview(page);
+			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+			await expect(page.getByTestId('all-workflows-view')).toBeVisible();
+			await expect(page.getByTestId('workflow-landing-card')).toHaveCount(3);
+			await expect(page.getByTestId('workflow-input-composer')).toHaveCount(0);
+			await expect(page.getByTestId('workflows-sort')).toHaveCount(0);
+			await page.getByTestId('workflow-landing-card').filter({ hasText: 'Daily planning reminder' }).click();
+			await expect(page.getByTestId('workflow-detail')).toBeVisible();
+			await expect(page.getByTestId('workspace-detail-header')).toBeVisible();
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText('Daily planning reminder');
+			await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
+			const graph = page.getByTestId('workflow-graph-renderer');
+			await expect(graph).toHaveAttribute('data-read-only', 'true');
+			const nodes = graph.getByTestId('workflow-node-card');
+			await expect(nodes).toHaveCount(2);
+			await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
+			for (const id of ['workflow-input-composer', 'workflow-export', 'delete-workflow', 'run-workflow', 'workflow-share', 'workflow-add-step', 'workflow-node-save', 'workflow-test-action']) {
+				await expect(page.getByTestId(id)).toHaveCount(0);
+			}
+			const firstSummary = nodes.first().getByTestId('workflow-node-summary');
+			await firstSummary.click();
+			await expect(firstSummary).toHaveAttribute('aria-expanded', 'true');
+			const fields = nodes.first().getByTestId('workflow-node-expanded');
+			await expect(fields).toBeVisible();
+			await page.evaluate(async () => {
+				await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+				await Promise.all(document.getAnimations().filter(animation =>
+					animation.effect instanceof KeyframeEffect && animation.effect.pseudoElement?.startsWith('::view-transition')
+				).map(animation => animation.finished.catch(() => undefined)));
+			});
+			const [firstBox, fieldsBox, nextBox] = await Promise.all([
+				firstSummary.boundingBox(), fields.boundingBox(), nodes.last().getByTestId('workflow-node-summary').boundingBox(),
+			]);
+			expect(firstBox && fieldsBox && nextBox).toBeTruthy();
+			expect(fieldsBox!.y).toBeGreaterThanOrEqual(firstBox!.y + firstBox!.height - 1);
+			expect(nextBox!.y).toBeGreaterThan(fieldsBox!.y + fieldsBox!.height + 8);
+			expect(ownedRequests).toEqual([]);
+			await page.screenshot({ path: testInfo.outputPath(`guest-workflow-detail-${size.width}.png`) });
+		});
+	}
+
 });

@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Request
 import logging
 import secrets
 from datetime import datetime, timezone
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, StrictBool, field_validator
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
@@ -21,13 +21,14 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_encryption_service
 )
-from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
+from backend.core.api.app.utils.newsletter_public_origin import verify_newsletter_subscribe_origin
 from backend.core.api.app.tasks.celery_config import app as celery_app
 from backend.core.api.app.utils.newsletter_utils import (
     hash_email,
     check_ignored_email,
     update_newsletter_registration_status,
     DEFAULT_NEWSLETTER_CATEGORIES,
+    NEWSLETTER_CATEGORIES,
     apply_newsletter_category_update,
     normalize_newsletter_categories,
 )
@@ -189,6 +190,14 @@ class NewsletterSubscribeRequest(BaseModel):
     email: EmailStr
     language: str = "en"
     darkmode: bool = False  # Default to light mode if not provided
+    categories: Optional[Dict[str, StrictBool]] = None
+
+    @field_validator("categories")
+    @classmethod
+    def validate_categories(cls, categories: Optional[Dict[str, bool]]) -> Optional[Dict[str, bool]]:
+        if categories is not None and set(categories) - set(NEWSLETTER_CATEGORIES):
+            raise ValueError("Unknown newsletter category")
+        return categories
 
 
 class NewsletterSubscribeResponse(BaseModel):
@@ -214,7 +223,7 @@ class NewsletterUnsubscribeResponse(BaseModel):
     message: str
 
 
-@router.post("/newsletter/subscribe", response_model=NewsletterSubscribeResponse, dependencies=[Depends(verify_allowed_origin)])
+@router.post("/newsletter/subscribe", response_model=NewsletterSubscribeResponse, dependencies=[Depends(verify_newsletter_subscribe_origin)])
 @limiter.limit("2/minute")
 async def newsletter_subscribe(
     request: Request,
@@ -231,6 +240,9 @@ async def newsletter_subscribe(
         email = subscribe_request.email.lower().strip()
         language = subscribe_request.language or "en"
         darkmode = subscribe_request.darkmode if hasattr(subscribe_request, 'darkmode') else False
+        categories = normalize_newsletter_categories(subscribe_request.categories)
+        categories_patch = dict(subscribe_request.categories) if subscribe_request.categories is not None else {}
+        neutral_message = "If this address is eligible, please check your email to confirm your subscription."
         
         # Hash email for lookup
         hashed_email = hash_email(email)
@@ -242,10 +254,12 @@ async def newsletter_subscribe(
             # Return success to avoid revealing that email is ignored
             return NewsletterSubscribeResponse(
                 success=True,
-                message="If this email is not in our ignore list, you will receive a confirmation email."
+                message=neutral_message
             )
         
-        # Check if already subscribed (if entry exists in Directus, they're confirmed)
+        # Existing subscribers receive the same neutral acknowledgment and a
+        # confirmation link. Their active choices remain unchanged until that
+        # link is used; returning here would prevent new category opt-ins.
         try:
             collection_name = "newsletter_subscribers"
             url = f"{directus_service.base_url}/items/{collection_name}"
@@ -257,11 +271,7 @@ async def newsletter_subscribe(
                 response_data = response.json()
                 items = response_data.get("data", [])
                 if items:
-                    logger.info(f"Newsletter subscription attempt for already confirmed email: {hashed_email[:16]}...")
-                    return NewsletterSubscribeResponse(
-                        success=True,
-                        message="You are already subscribed to our newsletter."
-                    )
+                    logger.info(f"Newsletter confirmation requested for existing subscriber: {hashed_email[:16]}...")
         except Exception as e:
             logger.warning(f"Error checking existing subscription: {str(e)}")
         
@@ -275,6 +285,8 @@ async def newsletter_subscribe(
             "hashed_email": hashed_email,
             "language": language,
             "darkmode": darkmode,
+            "categories": categories,
+            "categories_patch": categories_patch,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         await cache_service.set(cache_key, cache_data, ttl=1800)  # 30 minutes
@@ -296,7 +308,7 @@ async def newsletter_subscribe(
         
         return NewsletterSubscribeResponse(
             success=True,
-            message="Please check your email to confirm your subscription."
+            message=neutral_message
         )
         
     except Exception as e:
@@ -336,6 +348,12 @@ async def newsletter_confirm(
         hashed_email = cache_data.get("hashed_email")
         language = cache_data.get("language", "en")
         darkmode = cache_data.get("darkmode", False)
+        # A pending token records the submitted patch separately from the
+        # normalized choices for a new subscriber. Older tokens may have only
+        # `categories`; tokens without either key preserve existing choices.
+        raw_patch = cache_data.get("categories_patch", cache_data.get("categories"))
+        categories_patch = raw_patch if isinstance(raw_patch, dict) else {}
+        categories = normalize_newsletter_categories(cache_data.get("categories"))
         
         if not email or not hashed_email:
             logger.error("Invalid cache data for newsletter confirmation token")
@@ -348,11 +366,12 @@ async def newsletter_confirm(
         is_ignored = await check_ignored_email(hashed_email, directus_service)
         if is_ignored:
             logger.info(f"Newsletter confirmation attempt from ignored email: {hashed_email[:16]}...")
-            # Delete from cache and return success to avoid revealing
+            # Discard the token without activating an ignored address. Use the
+            # same generic failure shown for unusable confirmation links.
             await cache_service.delete(cache_key)
             return NewsletterConfirmResponse(
-                success=True,
-                message="Subscription confirmed."
+                success=False,
+                message="Unable to confirm this subscription link. Please subscribe again."
             )
         
         # Encrypt email for storage
@@ -367,45 +386,52 @@ async def newsletter_confirm(
         
         now = datetime.now(timezone.utc).isoformat()
         
-        if response.status_code == 200:
-            response_data = response.json()
-            items = response_data.get("data", [])
-            
-            if items:
-                # Update existing subscriber (re-confirmation)
-                subscriber_id = items[0].get("id")
-                update_url = f"{directus_service.base_url}/items/{collection_name}/{subscriber_id}"
-                
-                # Generate unsubscribe token if not already present (store plaintext for direct lookup)
-                existing_token = items[0].get("unsubscribe_token")
-                if not existing_token:
-                    # Generate new plaintext token
-                    existing_token = secrets.token_urlsafe(32)
-                
-                update_payload = {
-                    "encrypted_email_address": encrypted_email,
-                    "confirmed_at": now,
-                    "language": language,
-                    "darkmode": darkmode,
-                    "unsubscribe_token": existing_token
-                }
-                await directus_service._make_api_request("PATCH", update_url, json=update_payload)
-                logger.info(f"Updated existing newsletter subscriber: {hashed_email[:16]}...")
-            else:
-                # Create new subscriber (only created after confirmation)
-                # Generate plaintext unsubscribe token for persistent unsubscribe link (stored in cleartext for direct lookup)
-                unsubscribe_token = secrets.token_urlsafe(32)
-                create_payload = {
-                    "encrypted_email_address": encrypted_email,
-                    "hashed_email": hashed_email,
-                    "confirmed_at": now,
-                    "subscribed_at": now,
-                    "language": language,
-                    "darkmode": darkmode,
-                    "unsubscribe_token": unsubscribe_token
-                }
-                await directus_service.create_item(collection_name, create_payload)
-                logger.info(f"Created new newsletter subscriber: {hashed_email[:16]}...")
+        if response.status_code != 200:
+            raise RuntimeError("Newsletter subscriber lookup failed during confirmation")
+
+        response_data = response.json()
+        items = response_data.get("data", [])
+
+        if items:
+            # Update existing subscriber (re-confirmation)
+            subscriber_id = items[0].get("id")
+            update_url = f"{directus_service.base_url}/items/{collection_name}/{subscriber_id}"
+            categories = apply_newsletter_category_update(items[0].get("categories"), categories_patch)
+
+            # Generate unsubscribe token if not already present (store plaintext for direct lookup)
+            existing_token = items[0].get("unsubscribe_token")
+            if not existing_token:
+                existing_token = secrets.token_urlsafe(32)
+
+            update_payload = {
+                "encrypted_email_address": encrypted_email,
+                "confirmed_at": now,
+                "language": language,
+                "darkmode": darkmode,
+                "unsubscribe_token": existing_token,
+                "categories": categories,
+            }
+            update_response = await directus_service._make_api_request("PATCH", update_url, json=update_payload)
+            if update_response.status_code not in (200, 204):
+                raise RuntimeError("Newsletter subscriber update failed during confirmation")
+            logger.info(f"Updated existing newsletter subscriber: {hashed_email[:16]}...")
+        else:
+            # Create new subscriber only after confirmation.
+            unsubscribe_token = secrets.token_urlsafe(32)
+            create_payload = {
+                "encrypted_email_address": encrypted_email,
+                "hashed_email": hashed_email,
+                "confirmed_at": now,
+                "subscribed_at": now,
+                "language": language,
+                "darkmode": darkmode,
+                "unsubscribe_token": unsubscribe_token,
+                "categories": categories,
+            }
+            created, _created_data = await directus_service.create_item(collection_name, create_payload)
+            if not created:
+                raise RuntimeError("Newsletter subscriber creation failed during confirmation")
+            logger.info(f"Created new newsletter subscriber: {hashed_email[:16]}...")
 
         # Determine and persist user_registration_status by cross-referencing directus_users.
         # Uses hashed_email (same SHA-256/base64 algorithm) so no decryption is needed.

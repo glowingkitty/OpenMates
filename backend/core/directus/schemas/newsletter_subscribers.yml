@@ -52,4 +52,4 @@ newsletter_subscribers:
     categories:
       type: json
       nullable: true
-      note: "Per-category newsletter preferences. Keys: updates_and_announcements (default true), tips_and_tricks (default true), daily_inspirations (default false). NULL means the subscriber signed up before category toggles shipped — treat as defaults. Dispatcher filters sends by meta.category; users manage toggles at Settings → Newsletter."
+      note: "Per-category newsletter preferences. Canonical keys: openmates_events (default true), software_updates (default true), apple_beta_updates (default false). Legacy keys remain readable for migration. NULL means approved defaults. Dispatcher filters sends by meta.category; users manage toggles at Settings → Newsletter."

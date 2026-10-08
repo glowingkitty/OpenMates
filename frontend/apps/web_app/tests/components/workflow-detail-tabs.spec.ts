@@ -3,6 +3,7 @@
 export {};
 
 import type { Page } from '@playwright/test';
+import { waitForComponentPreview } from '../helpers/component-preview';
 
 const { expect, test } = require('../helpers/cookie-audit');
 
@@ -48,6 +49,24 @@ test.describe('Workflow detail tabs', () => {
 		await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
 		await expect(page.getByTestId('workflow-view-tabs')).toHaveCount(0);
 		for (const id of ['workflow-export', 'delete-workflow', 'run-workflow', 'workflow-share']) {
+			await expect(page.getByTestId(id)).toHaveCount(0);
+		}
+		await page.getByTestId('workspace-detail-title').click();
+		await expect(page.getByRole('textbox', { name: 'Workflow name' })).toHaveCount(0);
+		const closed = page.evaluate(() => new Promise<void>(resolve => window.addEventListener('workflow-preview-close', () => resolve(), { once: true })));
+		await page.getByTestId('workflow-detail-back').click();
+		await closed;
+	});
+	// contract-test: direct surface=gui.web assertions=workflows-ui.workspace.guest-template-preview
+	test('preview-only template detail exposes a readable identity and no owner actions', async ({ page }: { page: Page }) => {
+		await page.setViewportSize({ width: 430, height: 844 });
+		await page.goto(preview('previewOnly'), { waitUntil: 'domcontentloaded' });
+		await waitForComponentPreview(page);
+		await expect(page.getByTestId('workspace-detail-header')).toBeVisible();
+		await expect(page.getByTestId('workspace-detail-title')).toHaveText('Daily planning reminder');
+		await expect(page.getByTestId('workspace-detail-description')).toContainText('A morning message');
+		await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
+		for (const id of ['workflow-detail-metadata', 'workflow-view-tabs', 'workflow-export', 'delete-workflow', 'run-workflow', 'workflow-share']) {
 			await expect(page.getByTestId(id)).toHaveCount(0);
 		}
 		await page.getByTestId('workspace-detail-title').click();

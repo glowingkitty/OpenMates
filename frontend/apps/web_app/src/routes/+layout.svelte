@@ -27,12 +27,13 @@
 	let loaded = $state(false);
 	let { children } = $props();
 	let isSeoRoute = $derived(
-		['/example', '/intro', '/legal', '/events', '/announcements', '/tips'].some((path) =>
+		['/landing', '/example', '/intro', '/legal', '/events', '/announcements', '/tips'].some((path) =>
 			page.url.pathname === path || page.url.pathname.startsWith(`${path}/`)
 		) || /^\/(?:de\/)?(?:news|blog|social)(?:\/|$)/.test(page.url.pathname)
 	);
 	let MetaTagsComponent = $state<Component | null>(null);
 	let ConnectionStatusControllerComponent = $state<Component | null>(null);
+	let themeInitialized = $state(false);
 	const TRANSLATION_STARTUP_TIMEOUT_MS = 5000;
 	const OPENMATES_FAVICONS = [
 		{ key: 'primary', rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
@@ -131,6 +132,12 @@
 	}
 
 	onMount(async () => {
+		// Preserve the pre-paint theme until the persisted preference is ready.
+		// Async metadata startup must never expose the theme store's light default.
+		initializeTheme();
+		themeInitialized = true;
+		initializeUiFont();
+		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
 		if (!isSeoRoute) {
 			const [metaTags, connectionStatusController, metaConfig, serverStatus] = await Promise.all([
 				import('@repo/ui/components/MetaTags.svelte'),
@@ -153,11 +160,6 @@
 			subtree: true
 		});
 		window.addEventListener('focus', ensureOpenMatesFavicons);
-
-		initializeTheme();
-		initializeUiFont();
-		// Furry Mode is disabled until any furry art is made by human artists.
-		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
 
 		try {
 			await Promise.race([
@@ -321,7 +323,7 @@
 
 	// Watch theme changes and update document attribute
 	$effect(() => {
-		if (browser) {
+		if (browser && themeInitialized) {
 			document.documentElement.setAttribute('data-theme', $theme);
 			applyBrowserChromeTheme($theme);
 		}

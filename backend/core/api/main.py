@@ -1360,6 +1360,11 @@ def create_app() -> FastAPI:
     trusted_hosts = os.getenv("TRUSTED_PROXY_IPS", "*").split(",")
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted_hosts)
 
+    # The standalone website can call only the credentialless public newsletter
+    # lifecycle; all other routes retain the existing first-party CORS list.
+    from backend.core.api.app.utils.newsletter_public_origin import PublicNewsletterCORSMiddleware
+    app.add_middleware(PublicNewsletterCORSMiddleware)
+
     # Include routers
     # By default, all routers are excluded from OpenAPI schema (include_in_schema=False)
     # Only routers explicitly marked with include_in_schema=True will appear in API documentation

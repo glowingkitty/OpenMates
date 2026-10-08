@@ -260,7 +260,7 @@
           },
         ]
       : []),
-    ...(isLoggedIn && workflowsEnabled
+    ...(workflowsEnabled
       ? [
           {
             id: "/#workflows",

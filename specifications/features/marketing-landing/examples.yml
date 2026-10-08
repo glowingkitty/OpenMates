@@ -1,44 +1,84 @@
 schema_version: 1
-specification: feature.marketing-landing@1
+specification: feature.marketing-landing@2
 scrolling:
-  - id: visitor-controls-reading-time
-    given: Alex opens /landing while signed out and JavaScript is unavailable.
-    when: Alex reads the privacy section and then scrolls to Workflows.
-    then: Both sections remain readable in the server-rendered page, without automatic slide changes or login.
+- id: visitor-controls-reading-time
+  given: Alex opens the standalone website while signed out and JavaScript is unavailable.
+  when: Alex reads the privacy section and scrolls to Workflows at their own pace.
+  then: All sections and public links remain readable without login, automatic slides or a chat shell.
+- id: website-client-boundary
+  given: The standalone website is built for deployment separately from the web app.
+  when: Its emitted browser modules and transferred JavaScript are inspected.
+  then: The build contains public-site UI and content only; it contains no app authentication, chat
+    sync, account database or message editor, and its compressed client size is reported.
 layout:
-  - id: laptop-feature-sections
-    given: Alex opens /landing on a laptop.
-    when: Alex scrolls through the feature sections.
-    then: The five sections follow the Figma order, show distinct category icons, and place feature copy beside the associated screenshots.
-  - id: phone-feature-sections
-    given: Sam opens /landing on a phone.
-    when: Sam explores the hero, features, and publication rows.
-    then: Copy and images stack into a readable page, all links remain reachable, and the page has no horizontal overflow.
+- id: laptop-feature-sections
+  given: Alex opens the website on a laptop with normal motion enabled.
+  when: Alex scrolls through its five feature sections.
+  then: Large device-framed screenshots and copy follow the required order, with restrained transitions,
+    the composer fixed to the viewport bottom, and newsletter signup before events.
+- id: phone-reduced-motion
+  given: Sam opens the website on a phone with reduced motion enabled.
+  when: Sam explores the hero, features and publication rows.
+  then: Readable static copy and device images stack without horizontal page overflow; links remain
+    reachable and scrolling controls the reading pace.
 destinations:
-  - id: temporary-dev-destinations
-    given: Alex opens https://app.dev.openmates.org/landing before the domains are separated.
-    when: Alex selects Explore Apps, Explore Workflows, Login/Signup, or Learn more about privacy.
-    then: Apps and Workflows open the matching dev-app workspaces in new tabs, Login/Signup opens the dev-app account interface, and Learn more opens the blog index.
-  - id: separate-app-destinations
-    given: The landing deployment is configured with https://app.openmates.org as its app destination and https://openmates.org as its website destination.
-    when: Alex follows an app link or a blog link; Sam follows an app link from landing.dev.openmates.org without a destination override.
-    then: Alex reaches the appropriate production domain, Sam reaches app.dev.openmates.org, and a non-HTTP destination is rejected.
+- id: website-app-links
+  given: Alex visits landing.dev.openmates.org while signed out.
+  when: Alex selects the icon-only workspace links, Explore Apps, Explore Workflows, an official
+    social icon or the TestFlight testing link.
+  then: Workspace links reach the matching dev app; Explore and social links open new tabs; the TestFlight
+    link scrolls to newsletter signup. No header workspace is marked active.
+- id: account-destination
+  given: The production website targets app.openmates.org; Alex is already signed in with completed
+    signup, while Sam is signed out and Jo has incomplete signup.
+  when: They follow Login/Signup to the app, including after a cold start.
+  then: Alex sees Chats without the signup screen flashing, Sam sees account signup/login, and Jo
+    resumes the incomplete signup stage. Blog links stay on openmates.org and non-HTTP origin overrides
+    are rejected.
 composer:
-  - id: cold-start-focus
-    given: Alex has an unsent draft in the web app and opens /landing in a new tab.
-    when: Alex activates the hero's message-input link and the web app finishes starting.
-    then: The real composer receives focus, the draft remains intact, and no message is sent.
+- id: cold-start-focus
+  given: Alex has an unsent draft in the web app and opens the public website in another tab.
+  when: Alex activates the fixed message-input link and the app finishes starting.
+  then: The real composer receives focus, the draft remains intact and no message is sent.
 screenshots:
-  - id: real-safe-product-images
-    given: The authenticated personal dev account displays the shared Berlin-events and privacy examples plus its Workflows workspace.
-    when: Screenshots are prepared for the landing page.
-    then: The published images show the real product views with descriptive alternative text, exclude personal identity and unrelated chat content, and do not label mobile web captures as native iPhone UI.
+- id: real-safe-device-images
+  given: The personal dev account displays events, privacy and Workflows, and the same chat on desktop
+    and mobile web.
+  when: These views and the public OpenMates repository are prepared as website images.
+  then: Large phone/laptop SVG frames contain matching real captures, including cross-device and
+    open-source sections; images have useful alternative text, omit private account details and label
+    mobile web truthfully.
 public_content:
-  - id: current-publication-links
-    given: OpenMates has published news and blog posts and a future free community event.
-    when: Alex opens their cards from /landing.
-    then: Each card opens its real public page and the events row shows only upcoming free events.
-  - id: no-upcoming-events
-    given: Every event in the published event list has finished or requires payment.
-    when: Alex reaches Upcoming free OpenMates events.
-    then: The page shows an honest empty state and a link to the events page, with no invented upcoming event.
+- id: all-upcoming-events-and-human-detail
+  given: Published events include an ongoing free workshop, a future paid meetup and a finished event.
+  when: Alex scrolls the events row and opens a card; Jo opens its public SEO page in a normal browser.
+  then: Both unfinished events appear, the finished event does not, no Browse link appears, and both
+    visitors reach the real app event detail while the SEO document remains readable to crawlers.
+- id: public-website-content-and-empty-events
+  given: News releases and blog posts are published, and all events have finished.
+  when: Sam visits the website news, blog and privacy/terms pages and scrolls to events.
+  then: News and blog retain their published content, legal pages show the full readable documents
+    without a chat shell, and events show an honest empty state.
+hero:
+- id: one-seamless-capability-rail
+  given: Alex opens the hero on a laptop and leaves it running for several complete cycles.
+  when: Every available app with a skill or focus mode passes through, along with Docs.
+  then: Only one icon row appears with faded edges, no visible resets or jumps, and a matching highlighted
+    prompt such as Find local events, Write a letter or Find train connections; OpenMates, Projects
+    and Tasks never appear.
+- id: responsive-prompt-and-scroll-cue
+  given: Sam views the hero at phone and large-desktop widths.
+  when: The highlighted app changes and Sam watches the scroll cue.
+  then: Icons fill the available space up to the size cap, the tailed user bubble fades and scales
+    from its bottom-right without moving, and both chevrons align with text while opacity smoothly
+    cycles from 0.3 to 0.8.
+preferences:
+- id: dark-startup-without-flash
+  given: Alex previously chose dark theme and opens the website or /landing on a cold start.
+  when: The initial page appears and client startup completes.
+  then: The page stays dark throughout with no light flash.
+- id: language-only-selection
+  given: Sam opens the current-language control in the public header.
+  when: Sam selects Deutsch and later reloads the page.
+  then: The panel offers supported-language names only, the preference persists and available public
+    translations apply; there are no account, payment, chat or synchronization settings.

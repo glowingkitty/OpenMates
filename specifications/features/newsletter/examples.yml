@@ -1,15 +1,15 @@
 schema_version: 1
-specification: feature.newsletter@1
+specification: feature.newsletter@2
 
 double_opt_in:
-  - id: subscribe-awaits-recipient-confirmation
-    given: {email_valid: true, origin_allowed: true, already_confirmed: false}
-    when: subscribe
-    expect: {confirmation_message_dispatched: true, confirmed_subscription_created: false}
-  - id: confirmation-activates-subscription
-    given: {confirmation_token_valid: true, token_not_expired: true}
-    when: confirm
-    expect: {confirmed_subscription_created: true, welcome_message_dispatched: true}
+  - id: selected-categories-await-recipient-confirmation
+    given: A visitor enters a valid email and selects OpenMates events and Apple app beta updates, leaving software updates unchecked.
+    when: The visitor requests the newsletter and has not yet opened the confirmation email.
+    then: A confirmation message is sent, the three choices remain attached to the pending token, and no confirmed subscription or active category preference is created.
+  - id: confirmation-activates-selected-categories
+    given: That visitor opens the unexpired recipient-held confirmation link.
+    when: The confirmation token succeeds.
+    then: The subscriber becomes active with events on, software updates off, and Apple app beta updates on, and a welcome message is sent.
 
 unsubscribe_resubscribe:
   - id: recipient-unsubscribes-then-returns
@@ -18,16 +18,14 @@ unsubscribe_resubscribe:
     expect: {first_subscription_removed: true, second_subscription_confirmed: true}
 
 privacy_boundaries:
-  - id: durable-subscriber-record
-    given: {subscription_confirmed: true}
-    expect: {hashed_email_present: true, encrypted_email_present: true, plaintext_email_present: false}
-  - id: ignored-or-existing-email-is-not-enumerable
-    given: {subscription_state: ignored_or_existing}
-    when: subscribe
-    expect: {public_response_reveals_private_state: false}
-  - id: invalid-token-does-not-mutate
-    given: {confirmation_or_unsubscribe_token_valid: false}
-    expect: {subscription_state_changed: false}
+  - id: neutral-response-and-private-storage
+    given: Three visitors submit a new address, an ignored address, and an already subscribed address.
+    when: They request newsletter signup and the new visitor later confirms.
+    then: All three receive the same neutral signup response, while the confirmed record stores a hash and encrypted email address without durable plaintext email.
+  - id: invalid-recipient-token-does-not-mutate
+    given: A visitor has an invalid confirmation or unsubscribe token.
+    when: The visitor tries to confirm or unsubscribe.
+    then: No subscription state changes and no subscriber identity is disclosed.
 
 surface_parity:
   - id: web-and-cli-use-canonical-lifecycle
@@ -40,20 +38,22 @@ surface_parity:
     given: {surface: apple}
     expect: {subscribe_and_categories_supported: true, token_link_web_handoff_allowed: true}
 
+standalone_confirmation:
+  - id: public-confirmation-shows-signal-after-success
+    given: A visitor without an OpenMates account submitted the standalone newsletter form and received a valid confirmation link.
+    when: The visitor opens the standalone confirmation page and the recipient-held token succeeds.
+    then: The page confirms the active subscription and offers the Signal group link; the earlier signup acknowledgment did not offer it.
+  - id: failed-token-and-existing-app-link
+    given: A confirmation token is expired, while an older valid confirmation link still points to app newsletter settings.
+    when: The expired token is opened on the standalone page or the older valid link is opened in the app.
+    then: The standalone page does not show a Signal invitation or activate a subscription, and the older app link still confirms through the same canonical token route.
+
 category_migration:
-  - id: confirmed-subscriber-with-default-legacy-preferences
-    given: {confirmed_subscription: true, categories: null}
-    when: categories_are_normalized
-    expect: {openmates_events: true, software_updates: true}
-  - id: legacy-updates-opt-out-is-preserved
-    given: {confirmed_subscription: true, categories: {updates_and_announcements: false}}
-    when: categories_are_migrated
-    expect: {openmates_events: false, software_updates: false}
-  - id: explicit-new-preferences-win
-    given: {categories: {updates_and_announcements: false, openmates_events: true, software_updates: false}}
-    when: categories_are_normalized
-    expect: {openmates_events: true, software_updates: false}
-  - id: unknown-campaign-category-fails-closed
-    given: {campaign_category: unrecognized_category}
-    when: recipient_eligibility_is_checked
-    expect: {eligible: false}
+  - id: defaults-and-legacy-opt-out
+    given: One confirmed subscriber has no saved category map and another explicitly disabled the legacy updates category.
+    when: Their preferences are normalized for delivery.
+    then: The first receives events and software updates but no Apple app beta updates; the second remains opted out of events and software updates, and receives no Apple app beta updates.
+  - id: explicit-choices-and-unknown-category
+    given: A confirmed subscriber explicitly enabled events and Apple app beta updates, disabled software updates, and also has a legacy updates opt-out.
+    when: Preferences are normalized and a campaign's category is checked.
+    then: The explicit choices win, the Apple beta campaign is eligible, and an unknown campaign category is never eligible.

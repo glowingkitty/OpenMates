@@ -1,0 +1,6 @@
+@import '@fontsource-variable/lexend-deca/index.css';
+@import '@repo/public-site/tokens/generated/theme.generated.css';
+:root { font-family: 'Lexend Deca Variable', sans-serif; color-scheme: light dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--color-grey-0); color: var(--color-font-primary); }
+a { color: inherit; }

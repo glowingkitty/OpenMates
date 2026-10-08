@@ -159,6 +159,7 @@
 	let lastStartedRunId = $state<string | null>(null);
 	let workflowImportInput = $state<HTMLInputElement | null>(null);
 	let draggingWorkflowFile = $state(false);
+	let guestTemplate = $state<{ item: WorkflowContinueItem; graph: WorkflowGraph; description: string } | null>(null);
 
 	let recentWorkflows = $derived.by(() => {
 		const sorted = sortWorkflowContinue(workflows, workflowClockMs);
@@ -196,12 +197,12 @@
 	);
 	let canLoadWorkflows = $derived(routeReady && $authStore.isAuthenticated && workflowsEnabled);
 	let canRenderWorkflowData = $derived(routeReady && $authStore.isAuthenticated);
-	let showManageView = $derived(canRenderWorkflowData && (isManageView || !!provisionalFullscreen));
+	let showManageView = $derived((canRenderWorkflowData && (isManageView || !!provisionalFullscreen)) || (!canRenderWorkflowData && !!guestTemplate));
 	let visibleWorkflowGreetingName = $derived(
 		canRenderWorkflowData ? workflowGreetingName : 'there'
 	);
 	let visibleWorkflowLandingItems = $derived(canRenderWorkflowData ? workflowLandingItems : []);
-	let visibleBrowseItems = $derived(canRenderWorkflowData ? browseItems : []);
+	let visibleBrowseItems = $derived(canRenderWorkflowData ? browseItems : workflowTemplateItems);
 	let editorActivationReady = $derived(
 		editorGraph && selectedWorkflow?.binding_requirements?.every(requirement => selectedWorkflow?.completed_binding_requirements?.some(completed => completed.type === requirement.type && completed.node_id === requirement.node_id)) !== false
 			? workflowGraphReady(editorGraph, { requireSchedule: true }) : false
@@ -279,8 +280,10 @@
 			return;
 		}
 
-		projectWorkflowTarget = consumeProjectWorkflowTarget();
-		if (projectWorkflowTarget) blankCreatorOpen = true;
+		if ($authStore.isAuthenticated) {
+			projectWorkflowTarget = consumeProjectWorkflowTarget();
+			if (projectWorkflowTarget) blankCreatorOpen = true;
+		}
 		syncWorkflowHashFromLocation();
 		window.addEventListener('hashchange', syncWorkflowHashFromLocation);
 		window.addEventListener('popstate', syncWorkflowHashFromLocation);
@@ -697,7 +700,6 @@
 	}
 
 	async function createWorkflowFromTemplate(item: WorkflowContinueItem): Promise<void> {
-		if (!canLoadWorkflows) return;
 		const graph = item.id === 'website-changes' ? websiteChangesGraph({
 			question: $text('workflows.templates.website_changes_question'),
 			summaryPrompt: $text('workflows.templates.website_changes_prompt'),
@@ -710,6 +712,11 @@
 			trigger.config = { ...trigger.config, schedule: { ...(trigger.config?.schedule as Record<string, unknown>), timezone } };
 		}
 		const description = item.id === 'website-changes' ? $text('workflows.templates.website_changes_description') : workflowTemplates.find(template => template.id === item.id)?.description;
+		if (!$authStore.isAuthenticated) {
+			guestTemplate = { item, graph, description: description ?? item.summary ?? '' };
+			return;
+		}
+		if (!canLoadWorkflows) return;
 		await createWorkflow(item.title, graph, false, description);
 	}
 
@@ -1369,17 +1376,11 @@
 		<h1>Workflows unavailable</h1>
 		<p>Workflows are disabled on this server.</p>
 	</main>
-{:else if routeReady && !$authStore.isAuthenticated}
-	<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
-	<main class="workflows-route-state" data-testid="workflows-auth-required">
-		<h1>Workflows</h1>
-		<p>Please log in to create, manage, and run server-side workflows.</p>
-	</main>
 {:else}
 	<div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
 		<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
 		<div class="chat-container workflows-container" class:menu-open={$panelState.isSettingsOpen}>
-			<div class="workflow-sidebar-shell" class:drawer-open={$panelState.isActivityHistoryOpen} inert={!$panelState.isActivityHistoryOpen}>
+			{#if canRenderWorkflowData}<div class="workflow-sidebar-shell" class:drawer-open={$panelState.isActivityHistoryOpen} inert={!$panelState.isActivityHistoryOpen}>
 				<WorkflowSidebar
 					onClose={() => panelState.closeChats()}
 					onSelect={(workflow) => {
@@ -1387,7 +1388,7 @@
 						panelState.closeChats();
 					}}
 				/>
-			</div>
+			</div>{/if}
 			<main
 				class="active-chat-container workflows-start"
 				class:management-view={showManageView}
@@ -1409,13 +1410,14 @@
 						actionItemsTestId="workflow-mixed-row"
 						itemTestId="workflow-landing-card"
 						showReportIssue
-						showAllMode={browseMode !== 'recent'}
+						showComposer={canRenderWorkflowData}
+						showAllMode={!canRenderWorkflowData || browseMode !== 'recent'}
 						contentSlotVisible={partialNotice !== null && partialWorkflowIds.length > 1}
 						showAllLabel="Show my workflows"
 						showAllTestId="workflows-show-all"
 						browseLabel="Show templates"
 						browseTestId="workflows-show-templates"
-						allItemsHeading={browseMode === 'templates' ? 'Templates' : 'My workflows'}
+						allItemsHeading={!canRenderWorkflowData || browseMode === 'templates' ? 'Templates' : 'My workflows'}
 						allItems={visibleBrowseItems}
 						allItemsViewTestId="all-workflows-view"
 						allItemsGridTestId="all-workflows-grid"
@@ -1425,11 +1427,11 @@
 						searchTestId="workflows-search"
 						onShowAll={showAllWorkflowCards}
 						onBrowse={showWorkflowTemplates}
-						onBackToRecent={showRecentWorkflowCards}
-						onSearchAll={showWorkflowSearchUnavailable}
+						onBackToRecent={canRenderWorkflowData ? showRecentWorkflowCards : undefined}
+						onSearchAll={canRenderWorkflowData ? showWorkflowSearchUnavailable : undefined}
 						onContinueItem={continueWorkflowFromCard}
 						onActionItem={startWorkflowFromCard}
-						onAllItem={browseMode === 'templates' ? createWorkflowFromTemplate : continueWorkflowFromCard}
+						onAllItem={!canRenderWorkflowData || browseMode === 'templates' ? createWorkflowFromTemplate : continueWorkflowFromCard}
 					>
 						<svelte:fragment slot="top-right">
 							{#if browseMode === 'workflows'}
@@ -1493,7 +1495,27 @@
 					>
 						<div class="management-grid" inert={editorComposerFocused} class:composer-background-dimmed={editorComposerFocused}>
 							<section class="workflow-detail" data-testid="workflow-detail">
-								{#if provisionalFullscreen}
+								{#if guestTemplate && !canRenderWorkflowData}
+									<WorkflowDetailPage
+										title={guestTemplate.item.title}
+										description={guestTemplate.description}
+										category={guestTemplate.item.category ?? 'general_knowledge'}
+										icon={guestTemplate.item.icon ?? 'workflow'}
+										enabled={false} canEnable={false} canRun={false} saving={false} provisional
+										activeTab="template"
+										onTabChange={() => undefined} onToggleEnabled={() => undefined}
+										onRunWorkflow={() => undefined} onDeleteWorkflow={() => undefined}
+										onOpenHome={() => { guestTemplate = null; }}
+										onOpenShare={() => undefined} onExport={() => undefined}
+										onOpenRuns={() => undefined} runsHref=""
+										onUpdateIdentity={async () => undefined} onDraftIdentity={() => undefined}
+									/>
+									<div id="tabpanel-template" data-testid="workflow-template-panel" role="tabpanel" aria-label="Workflow template">
+										<div data-testid="workflow-editor">
+											<WorkflowGraphRenderer graph={guestTemplate.graph} readOnly onChange={() => undefined} onSave={null}/>
+										</div>
+									</div>
+								{:else if provisionalFullscreen}
 									<WorkflowDetailPage
 										title={provisionalFullscreen.title}
 										description={provisionalFullscreen.description ?? ''}
@@ -1709,7 +1731,7 @@
 					</div>
 				{/if}
 
-				{#if blankCreatorOpen}
+				{#if canRenderWorkflowData && blankCreatorOpen}
 					<div
 						class="blank-creator-backdrop"
 						data-testid="workflow-blank-creator"
@@ -1758,11 +1780,9 @@
 					</div>
 				{/if}
 			</main>
-			<div class="settings-wrapper">
-				{#if routeReady && $authStore.isAuthenticated}
-					<Settings isLoggedIn={true} />
-				{/if}
-			</div>
+			{#if canRenderWorkflowData}<div class="settings-wrapper">
+				<Settings isLoggedIn={true} />
+			</div>{/if}
 		</div>
 	</div>
 {/if}

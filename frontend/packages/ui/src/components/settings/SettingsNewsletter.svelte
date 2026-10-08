@@ -18,22 +18,22 @@ changes to the documentation (to keep the documentation up to date).
     import { notificationStore } from '../../stores/notificationStore';
 
     // Category toggles
-    type CategoryKey = 'updates_and_announcements' | 'tips_and_tricks' | 'daily_inspirations';
+    type CategoryKey = 'openmates_events' | 'software_updates' | 'apple_beta_updates';
     const CATEGORY_ORDER: CategoryKey[] = [
-        'updates_and_announcements',
-        'tips_and_tricks',
-        'daily_inspirations',
+        'openmates_events',
+        'software_updates',
+        'apple_beta_updates',
     ];
     let categoriesLoaded = $state(false);
     let categoryPrefs = $state<Record<CategoryKey, boolean>>({
-        updates_and_announcements: true,
-        tips_and_tricks: true,
-        daily_inspirations: false,
+        openmates_events: true,
+        software_updates: true,
+        apple_beta_updates: false,
     });
     let savedPrefs = $state<Record<CategoryKey, boolean>>({
-        updates_and_announcements: true,
-        tips_and_tricks: true,
-        daily_inspirations: false,
+        openmates_events: true,
+        software_updates: true,
+        apple_beta_updates: false,
     });
     let isSaving = $state(false);
     let hasUnsavedChanges = $derived(

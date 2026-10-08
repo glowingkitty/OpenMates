@@ -18,11 +18,12 @@ from backend.core.api.app.utils.newsletter_utils import (
 
 
 # contract-test: direct surface=rest_api assertions=newsletter.categories.default-and-migration
-def test_missing_preferences_default_canonical_events_and_software_updates_on() -> None:
-    assert NEWSLETTER_CATEGORIES == ("openmates_events", "software_updates")
+def test_missing_preferences_default_beta_off() -> None:
+    assert NEWSLETTER_CATEGORIES == ("openmates_events", "software_updates", "apple_beta_updates")
     assert DEFAULT_NEWSLETTER_CATEGORIES == {
         "openmates_events": True,
         "software_updates": True,
+        "apple_beta_updates": False,
     }
     assert normalize_newsletter_categories(None) == DEFAULT_NEWSLETTER_CATEGORIES
 
@@ -34,6 +35,7 @@ def test_legacy_updates_opt_out_maps_both_canonical_categories_off() -> None:
     assert normalized == {
         "openmates_events": False,
         "software_updates": False,
+        "apple_beta_updates": False,
     }
 
 
@@ -50,6 +52,7 @@ def test_explicit_canonical_values_win_over_legacy_aliases() -> None:
     assert normalized == {
         "openmates_events": True,
         "software_updates": False,
+        "apple_beta_updates": False,
     }
 
 
@@ -59,6 +62,8 @@ def test_delivery_allows_canonical_and_legacy_aliases_but_unknown_fails_closed()
 
     assert is_subscriber_allowed_for_category(categories, "openmates_events") is True
     assert is_subscriber_allowed_for_category(categories, "software_updates") is False
+    assert is_subscriber_allowed_for_category(categories, "apple_beta_updates") is False
+    assert is_subscriber_allowed_for_category({**categories, "apple_beta_updates": True}, "apple_beta_updates") is True
     assert is_subscriber_allowed_for_category(categories, "updates_and_announcements") is False
     assert is_subscriber_allowed_for_category(categories, "tips_and_tricks") is False
     assert is_subscriber_allowed_for_category(categories, "daily_inspirations") is True
@@ -75,4 +80,5 @@ def test_partial_updates_change_only_supplied_canonical_keys() -> None:
     assert updated == {
         "openmates_events": True,
         "software_updates": False,
+        "apple_beta_updates": False,
     }

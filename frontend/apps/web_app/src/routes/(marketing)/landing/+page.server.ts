@@ -1,8 +1,10 @@
 import { env } from '$env/dynamic/public';
-import { getAllOpenMatesEvents } from '../../../../../../packages/ui/src/data/openmatesEvents';
+import { env as serverEnv } from '$env/dynamic/private';
+import { getUpcomingOpenMatesEventCards } from '@repo/public-site/data/events';
 import type { NewsroomItem } from '@repo/ui/components/newsroom/types';
 import type { LandingPublication } from '@repo/ui/components/landing/landingPageContent';
 import { getLandingOrigins } from '$lib/landingOrigins';
+import { getBackendUrl } from '$lib/backendUrl';
 import { loadPublicationPage } from '$lib/server/publications';
 import { isOfficialOpenMatesPublicationHost } from '$lib/server/publicationHosting';
 import type { PageServerLoad } from './$types';
@@ -23,19 +25,10 @@ export const load: PageServerLoad = ({ url, setHeaders }) => {
 		image: item.media?.type === 'image' ? item.media.url : item.media?.posterUrl,
 		label: item.publishedLabel
 	});
-	const now = Date.now();
-	const events = getAllOpenMatesEvents()
-		.filter((event) => !event.is_paid && Date.parse(event.date_end) >= now)
-		.sort((a, b) => Date.parse(a.date_start) - Date.parse(b.date_start))
-		.slice(0, 2)
-		.map((event): LandingPublication => ({
-			id: event.id, title: event.title, description: event.summary,
-			href: `${origins.websiteBaseUrl}/events/${event.slug}`,
-			image: event.image_url,
-			label: new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'Europe/Berlin' }).format(new Date(event.date_start))
-		}));
+	const events = getUpcomingOpenMatesEventCards(new Date(), origins.appBaseUrl);
 	return {
 		...origins,
+		apiBaseUrl: env.PUBLIC_API_URL || serverEnv.VITE_API_URL || getBackendUrl(url),
 		news: publicationPage?.surface.newsItems.slice(0, 2).map(toCard) ?? [],
 		posts: publicationPage?.surface.blogItems.slice(0, 2).map(toCard) ?? [],
 		events,

@@ -136,6 +136,7 @@
 	let bfcacheRestoreHandler: ((event: PageTransitionEvent) => void) | null = null; // Store BFCache restore handler for cleanup
 	let globalOpenSearchShortcutHandler: ((event: KeyboardEvent) => void) | null = null; // Persistent Cmd/Ctrl+F handler
 	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
+	let authSessionValidated = $state(false);
 	// Native hash navigation can precede SvelteKit's page.url update. Keep the
 	// selected workspace in sync before any asynchronous deep-link work starts.
 	let workspaceHash = $state(browser ? window.location.hash : page.url.hash);
@@ -562,6 +563,7 @@
 		// If forced logout is in progress (master key missing after page reload with stayLoggedIn=false),
 		// we should NOT resume signup because the user's session is being cleared
 		if (
+			authSessionValidated &&
 			$authStore.isAuthenticated &&
 			$userProfile.last_opened &&
 			isSignupPath($userProfile.last_opened) &&
@@ -1707,6 +1709,20 @@
 		processSettingsDeepLink(hash, { preserveHash: true });
 	}
 
+	function handleSignupDeepLink(step: string): void {
+		const savedStage = $authStore.isAuthenticated && isSignupPath($userProfile.last_opened ?? '')
+			? $userProfile.last_opened : null;
+		if ($authStore.isAuthenticated && !savedStage) {
+			isInSignupProcess.set(false);
+			loginInterfaceOpen.set(false);
+			if (browser) replaceState(window.location.pathname + window.location.search, {});
+			return;
+		}
+		currentSignupStep.set(savedStage ? getStepFromPath(savedStage) : step);
+		isInSignupProcess.set(true);
+		loginInterfaceOpen.set(true);
+	}
+
 	/**
 	 * Handle pending deep link processing after successful login
 	 * This handles cases where user opened a deep link while not authenticated
@@ -1717,11 +1733,7 @@
 		const handlers: DeepLinkHandlers = {
 			onChat: handleChatDeepLink,
 			onSettings: (path: string, fullHash: string) => processSettingsDeepLink(fullHash),
-			onSignup: (step: string) => {
-				currentSignupStep.set(step);
-				isInSignupProcess.set(true);
-				loginInterfaceOpen.set(true);
-			},
+			onSignup: handleSignupDeepLink,
 			onEmbed: handleEmbedDeepLink,
 			onPair: (token: string) => {
 				// User just logged in — now open the confirm-pair settings page.
@@ -2115,8 +2127,8 @@
 		// This handles cases where user closed tab/browser with stayLoggedIn=false
 		await checkAndClearMasterKeyOnLoad();
 
-		// PRIORITY 1: Check last_opened for signup step BEFORE processing hash
-		// Load user profile first to check last_opened
+		// Load the local profile for optimistic navigation. Signup stages from this
+		// cache are not authoritative until the session check below completes.
 		await loadUserProfileFromDB();
 
 		// Initialise push notification service (registers SW, refreshes permission state,
@@ -2124,10 +2136,6 @@
 		pushNotificationService.initialize().catch((err) => {
 			console.error('[+page.svelte] Push notification service init failed:', err);
 		});
-
-		const initialProfile = $userProfile;
-		const hasSignupInLastOpened =
-			initialProfile?.last_opened && isSignupPath(initialProfile.last_opened);
 
 		// CRITICAL: Set optimistic auth state BEFORE processing deep links
 		// This ensures settings deep links that require auth (like account/delete) work correctly in new tabs
@@ -2295,30 +2303,9 @@
 		// Now check auth state after optimistic loading (used throughout onMount)
 		const isAuth = $authStore.isAuthenticated;
 
-		// Check if forced logout is in progress (set earlier when master key is missing)
-		const isForcedLogoutAtStartup = get(forcedLogoutInProgress);
-
-		// CRITICAL: Only resume signup if NOT in forced logout state
-		// If master key is missing (stayLoggedIn=false reload), we should NOT resume signup
-		// because the user's session is being cleared and they need to start fresh
-		if (hasSignupInLastOpened && !isForcedLogoutAtStartup) {
-			// PRIORITY 1: last_opened signup step takes absolute priority - skip hash processing
-			const step = getStepFromPath(initialProfile.last_opened);
-			currentSignupStep.set(step);
-			isInSignupProcess.set(true);
-			loginInterfaceOpen.set(true);
-			console.debug(
-				`[+page.svelte] [PRIORITY 1] Found signup step in last_opened: ${step} - skipping hash processing`
-			);
-			originalHashChatId = null; // No hash processing when signup is in last_opened
-		} else if (isForcedLogoutAtStartup && hasSignupInLastOpened) {
-			// User had signup in progress but was force-logged out (master key missing)
-			// Clear the signup state and show login/demo instead
-			console.debug(
-				`[+page.svelte] [FORCED LOGOUT] Found signup step in last_opened but master key is missing - skipping signup resume`
-			);
-			// Don't set signup state - let the normal logout flow handle showing login/demo
-		} else {
+		// Process the requested hash now, but defer signup intent until checkAuth()
+		// has reconciled the cached profile with the server's saved stage.
+		{
 			// UNIFIED APPROACH: Always process through deep link handler (including empty hash)
 			// This ensures all chat loading goes through one consistent system
 			console.debug(
@@ -2384,7 +2371,8 @@
 			// chat hash here invokes onNoHash and can restore a draft or welcome chat,
 			// which overwrites the workspace fragment during a reload.
 			if (originalWorkspaceHashRoute.workspace === 'chats') {
-				await processDeepLink(hashToProcess, handlers);
+				// Signup intent waits for authoritative auth hydration below.
+				if (!hashToProcess.startsWith('#signup/')) await processDeepLink(hashToProcess, handlers);
 			}
 			if (originalWorkspaceHashRoute.workspace !== 'chats') {
 				processWorkspaceSettingsPath(originalHash);
@@ -2493,30 +2481,11 @@
 			'[+page.svelte] Shared chat cleanup skipped - shared chats persist until explicitly deleted'
 		);
 
-		// CRITICAL: Check for signup hash in URL BEFORE initialize() to ensure hash-based signup state takes precedence
-		// This ensures signup flow opens immediately on page reload if URL has #signup/ hash
-		// The hash takes precedence over last_opened from IndexedDB and checkAuth() logic
+		// Remember signup intent before initialize(), but resolve it only after
+		// checkAuth() so a completed signed-in account never sees a signup flash.
 		let hasSignupHash = false;
 		if (!hasGiftCardHash && window.location.hash.startsWith('#signup/')) {
 			hasSignupHash = true;
-			// Handle signup deep linking - open login interface and set signup step
-			console.debug(
-				`[+page.svelte] Found signup deep link in URL (before initialize): ${window.location.hash}`
-			);
-
-			// Extract step from hash (e.g., #signup/credits -> credits)
-			const signupHash = window.location.hash.substring(1); // Remove leading #
-			const step = getStepFromPath(signupHash);
-
-			console.debug(
-				`[+page.svelte] Setting signup step to: ${step} from hash: ${window.location.hash}`
-			);
-
-			// Set signup step and open login interface BEFORE initialize() runs
-			// This ensures checkAuth() won't override these values
-			currentSignupStep.set(step);
-			isInSignupProcess.set(true);
-			loginInterfaceOpen.set(true);
 		}
 
 		// CRITICAL: Mark sync completed IMMEDIATELY to prevent "Loading chats..." flash
@@ -2774,6 +2743,7 @@
 		} else {
 			await authInitialization;
 		}
+		authSessionValidated = true;
 		console.debug('[+page.svelte] initialize() finished (cryptoReady resolved in parallel)');
 		// NOW safe to consume the shared chat redirect flag from sessionStorage.
 		// checkAuth() (called inside initialize()) has already had a chance to read it.
@@ -2782,21 +2752,14 @@
 			console.debug('[+page.svelte] Consumed openmates_shared_chat_redirect after initialize()');
 		}
 
-		// CRITICAL: Re-check signup hash AFTER initialize() completes
-		// This ensures hash-based signup state persists even if checkAuth() reset it
-		// The hash takes absolute precedence over last_opened
+		// Resolve signup intent after authoritative authentication. An account
+		// still in signup keeps its saved stage; a completed account enters Chats.
 		if (hasSignupHash && window.location.hash.startsWith('#signup/')) {
-			console.debug(
-				`[+page.svelte] Re-applying signup hash state after initialize(): ${window.location.hash}`
-			);
-			const signupHash = window.location.hash.substring(1); // Remove leading #
-			const step = getStepFromPath(signupHash);
-			currentSignupStep.set(step);
-			isInSignupProcess.set(true);
-			loginInterfaceOpen.set(true);
-			console.debug(
-				`[+page.svelte] Re-applied signup state: step=${step}, isInSignupProcess=true, loginInterfaceOpen=true`
-			);
+			const step = getStepFromPath(window.location.hash.substring(1));
+			handleSignupDeepLink(step);
+			if ($authStore.isAuthenticated && !isSignupPath($userProfile.last_opened ?? '')) {
+				deepLinkProcessed = false;
+			}
 		}
 
 		// CRITICAL: Chat deep links are already processed at the very start of onMount
@@ -3319,9 +3282,7 @@
 			},
 			onSignup: (step: string) => {
 				deepLinkProcessed = true; // Mark that a deep link was processed
-				currentSignupStep.set(step);
-				isInSignupProcess.set(true);
-				loginInterfaceOpen.set(true);
+				handleSignupDeepLink(step);
 				// Clear the hash after processing to keep URL clean
 				replaceState(window.location.pathname + window.location.search, {});
 			},

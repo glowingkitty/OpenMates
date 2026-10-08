@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import rawManifest from '../publications/publicationManifest.v1.json';
+import rawManifest from '@repo/public-site/publications/publicationManifest.v1.json';
 import { parsePublicPublicationManifest } from './publicationManifest';
 
 describe('public publication manifest', () => {

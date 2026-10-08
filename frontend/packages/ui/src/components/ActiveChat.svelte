@@ -62,7 +62,6 @@ import { storageArchiveFetch } from "../config/api";
     import { 
         isInSignupProcess, 
         currentSignupStep, 
-        getStepFromPath, 
         isLoggingOut, 
         forcedLogoutInProgress,
         isSignupPath,
@@ -11701,25 +11700,8 @@ import { storageArchiveFetch } from "../config/api";
                 }
             }
             
-            // Check if the user is in the middle of a signup process (based on last_opened)
-            // Only rely on explicit signup paths to avoid forcing passkey users back into OTP setup
-            if ($authStore.isAuthenticated && isSignupPath($userProfile.last_opened)) {
-                console.debug("User detected in signup process:", {
-                    last_opened: $userProfile.last_opened,
-                    tfa_enabled: $userProfile.tfa_enabled
-                });
-                // Set the signup process state to true so the signup component shows in Login
-                isInSignupProcess.set(true);
-                
-                // Open login interface to show signup flow
-                loginInterfaceOpen.set(true);
-                
-                // Extract step from last_opened to ensure we're on the right step
-                const step = getStepFromPath($userProfile.last_opened);
-                console.debug("Setting signup step to:", step);
-                currentSignupStep.set(step);
-            }
-            
+            // Session validation owns signup resumption. The profile here may still
+            // contain an optimistic cached stage from a completed account.
             // CRITICAL FALLBACK: Keep logged-out users on the new-chat welcome screen
             // if no chat is loaded. Intro/demo chats remain reachable from cards/sidebar.
             // Only load if:

@@ -214,7 +214,9 @@
         "components/map-load-recovery.spec.ts",
         "components/newsroom-surface.spec.ts",
         "components/marketing-landing.spec.ts",
+        "components/public-newsletter.spec.ts",
         "marketing-landing-route.spec.ts",
+        "landing-guest-workflows.spec.ts",
         "settings-chat-viewport.spec.ts",
         "components/report-issue-confirmation.spec.ts",
         "components/settings-usage-overview.spec.ts",
@@ -308,7 +310,8 @@
         "components/ai-model-cache-pricing.spec.ts",
         "components/app-skill-model-cache-pricing.spec.ts",
         "components/settings-usage-cache-receipt.spec.ts",
-        "components/chat-message-team-attribution.spec.ts"
+        "components/chat-message-team-attribution.spec.ts",
+        "website-public-routes.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"
@@ -383,7 +386,6 @@
         "cli-provision-auth-accounts.spec.ts",
         "connected-account-calendar-live-oauth.spec.ts",
         "dev-smoke/dev-smoke-reachability.spec.ts",
-        "newsletter-flow.spec.ts",
         "prod-smoke/prod-smoke-reachability.spec.ts",
         "proton-bridge-live.spec.ts",
         "reminder-email.spec.ts",
@@ -447,7 +449,8 @@
         "workflow-email-digest.spec.ts",
         "chat-response-email.spec.ts",
         "notification-email-migration.spec.ts",
-        "teams-invite-acceptance.spec.ts"
+        "teams-invite-acceptance.spec.ts",
+        "newsletter-flow.spec.ts"
       ]
     },
     "storage_accountability_integration": {
@@ -613,6 +616,7 @@
         "teams-billing-address.spec.ts",
         "storage-offline-cache-logout.spec.ts",
         "billing-reservation-summary.spec.ts",
+        "landing-auth-links.spec.ts",
         "teams-resource-context.spec.ts",
         "cli-team-tasks-real.spec.ts"
       ],
@@ -978,16 +982,6 @@
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_BASE_URL"
-      ]
-    },
-    "newsletter-flow.spec.ts": {
-      "dependency": "real_brevo_delivery_and_gmail_reader",
-      "next_action": "For newsletter: subscribe \u2192 confirm \u2192 unsubscribe \u2192 re-subscribe, provision dedicated approved Brevo delivery and Gmail inbox-reader credentials plus fresh per-run aliases. The current provider sends Brevo HTTP, so adding SMTP Mailpit alone does not preserve the original real delivery assertions. Core signup Redis verification is not email-delivery proof.",
-      "user_input_required": true,
-      "source_environment_names": [
-        "GMAIL_TEST_ADDRESS",
-        "PLAYWRIGHT_TEST_BASE_URL",
-        "SIGNUP_TEST_EMAIL_DOMAINS"
       ]
     },
     "pdf-flow.spec.ts": {

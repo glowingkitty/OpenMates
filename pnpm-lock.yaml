@@ -129,6 +129,9 @@ importers:
       '@fontsource-variable/lexend-deca':
         specifier: ^5.2.9
         version: 5.2.10
+      '@repo/public-site':
+        specifier: workspace:*
+        version: link:../../packages/public-site
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -208,6 +211,46 @@ importers:
       web-vitals:
         specifier: ^5.3.0
         version: 5.3.0
+
+  frontend/apps/website:
+    dependencies:
+      '@fontsource-variable/lexend-deca':
+        specifier: ^5.2.9
+        version: 5.2.10
+      '@repo/public-site':
+        specifier: workspace:*
+        version: link:../../packages/public-site
+      markdown-it:
+        specifier: 14.3.2
+        version: 14.3.2
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@sveltejs/adapter-vercel':
+        specifier: ^6.3.3
+        version: 6.3.3(@sveltejs/kit@2.70.2(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.10(@typescript-eslint/types@8.61.0))(vite@7.3.6(@types/node@24.5.2)(terser@5.44.0)(yaml@2.9.0)))(svelte@5.56.10(@typescript-eslint/types@8.61.0))(typescript@5.9.2)(vite@7.3.6(@types/node@24.5.2)(terser@5.44.0)(yaml@2.9.0)))(rollup@4.59.0)
+      '@sveltejs/kit':
+        specifier: 2.70.2
+        version: 2.70.2(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.10(@typescript-eslint/types@8.61.0))(vite@7.3.6(@types/node@24.5.2)(terser@5.44.0)(yaml@2.9.0)))(svelte@5.56.10(@typescript-eslint/types@8.61.0))(typescript@5.9.2)(vite@7.3.6(@types/node@24.5.2)(terser@5.44.0)(yaml@2.9.0))
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^6.2.4
+        version: 6.2.4(svelte@5.56.10(@typescript-eslint/types@8.61.0))(vite@7.3.6(@types/node@24.5.2)(terser@5.44.0)(yaml@2.9.0))
+      '@types/markdown-it':
+        specifier: ^14.1.2
+        version: 14.1.2
+      svelte:
+        specifier: 5.56.10
+        version: 5.56.10(@typescript-eslint/types@8.61.0)
+      svelte-check:
+        specifier: ^4.6.0
+        version: 4.6.0(picomatch@4.0.4)(svelte@5.56.10(@typescript-eslint/types@8.61.0))(typescript@5.9.2)
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+      vite:
+        specifier: ^7.3.6
+        version: 7.3.6(@types/node@24.5.2)(terser@5.44.0)(yaml@2.9.0)
 
   frontend/packages/eslint-config:
     devDependencies:
@@ -328,6 +371,18 @@ importers:
         specifier: ^4.1.11
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/coverage-v8@4.1.11)(jsdom@25.0.1)(vite@7.3.6(@types/node@24.5.2)(terser@5.44.0)(yaml@2.9.0))
 
+  frontend/packages/public-site:
+    dependencies:
+      '@sveltejs/kit':
+        specifier: 2.70.2
+        version: 2.70.2(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.10(@typescript-eslint/types@8.61.0))(vite@7.3.6(@types/node@24.5.2)(terser@5.44.0)(yaml@2.9.0)))(svelte@5.56.10(@typescript-eslint/types@8.61.0))(typescript@5.9.2)(vite@7.3.6(@types/node@24.5.2)(terser@5.44.0)(yaml@2.9.0))
+      markdown-it:
+        specifier: 14.3.2
+        version: 14.3.2
+      yaml:
+        specifier: 2.9.0
+        version: 2.9.0
+
   frontend/packages/secret-scanner:
     dependencies:
       ahocorasick:
@@ -408,6 +463,9 @@ importers:
       '@repo/pairing-crypto':
         specifier: workspace:*
         version: link:../pairing-crypto
+      '@repo/public-site':
+        specifier: workspace:*
+        version: link:../public-site
       '@repo/upload-privacy':
         specifier: workspace:*
         version: link:../upload-privacy
@@ -6010,7 +6068,7 @@ snapshots:
       https-proxy-agent: 7.0.6
       node-fetch: 2.7.0
       nopt: 8.1.0
-      semver: 7.8.2
+      semver: 7.8.5
       tar: 7.5.21
     transitivePeerDependencies:
       - encoding
@@ -6202,13 +6260,13 @@ snapshots:
       '@remotion/timeline-utils': 4.0.512
       '@rspack/core': 1.7.11
       '@rspack/plugin-react-refresh': 1.6.1(react-refresh@0.18.0)
-      css-loader: 7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(postcss@8.5.23))
+      css-loader: 7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.23))
       esbuild: 0.28.1
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       react-refresh: 0.18.0
       remotion: 4.0.512(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      style-loader: 4.0.0(webpack@5.105.0(postcss@8.5.23))
+      style-loader: 4.0.0(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.23))
       webpack: 5.105.0(esbuild@0.28.1)(postcss@8.5.23)
     transitivePeerDependencies:
       - '@minify-html/node'
@@ -7839,7 +7897,7 @@ snapshots:
       utrie: 1.0.2
     optional: true
 
-  css-loader@7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(postcss@8.5.23)):
+  css-loader@7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.23)):
     dependencies:
       icss-utils: 5.1.0(postcss@8.5.23)
       postcss: 8.5.23
@@ -8879,7 +8937,7 @@ snapshots:
       lodash.isstring: 4.0.1
       lodash.once: 4.1.1
       ms: 2.1.3
-      semver: 7.8.2
+      semver: 7.8.5
 
   jspdf@4.2.1:
     dependencies:
@@ -9217,7 +9275,7 @@ snapshots:
   normalize-package-data@6.0.2:
     dependencies:
       hosted-git-info: 7.0.2
-      semver: 7.8.2
+      semver: 7.8.5
       validate-npm-package-license: 3.0.4
 
   npm-run-path@4.0.1:
@@ -9962,7 +10020,7 @@ snapshots:
     dependencies:
       boundary: 2.0.0
 
-  style-loader@4.0.0(webpack@5.105.0(postcss@8.5.23)):
+  style-loader@4.0.0(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.23)):
     dependencies:
       webpack: 5.105.0(esbuild@0.28.1)(postcss@8.5.23)
 

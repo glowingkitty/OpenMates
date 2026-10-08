@@ -171,7 +171,8 @@
     "uuid": "^13.0.1",
     "vite": "^7.3.6",
     "yaml": "^2.9.0",
-    "@repo/upload-privacy": "workspace:*"
+    "@repo/upload-privacy": "workspace:*",
+    "@repo/public-site": "workspace:*"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

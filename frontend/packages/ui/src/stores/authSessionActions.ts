@@ -485,89 +485,17 @@ async function performAuthCheck(
       devicePasswordCredentialVersion.set(null);
       deviceVerificationReason.set(null);
 
-      // CRITICAL: Check URL hash directly - hash takes absolute precedence over everything
-      // This ensures hash-based signup state works even if set after checkAuth() starts
-      let hasSignupHash = false;
-      let hashStep: string | null = null;
-      if (
-        typeof window !== "undefined" &&
-        window.location.hash.startsWith("#signup/")
-      ) {
-        hasSignupHash = true;
-        const signupHash = window.location.hash.substring(1); // Remove leading #
-        hashStep = getStepFromPath(signupHash);
-        console.debug(
-          "checkAuth() found signup hash in URL:",
-          window.location.hash,
-          "-> step:",
-          hashStep,
-        );
-      }
-
-      // Check if signup state was already set from URL hash (hash takes precedence)
-      // If isInSignupProcess is already true, it means the hash was processed before initialize()
-      // and we should NOT override it based on last_opened
-      const signupStateFromHash = hasSignupHash || get(isInSignupProcess);
-
-      // A user is in signup flow if:
-      // 1. URL hash indicates signup (hash takes absolute precedence), OR
-      // 2. Signup state was already set from URL hash, OR
-      // 3. last_opened starts with '/signup/' or '#signup/' (explicit signup path)
-      // NOTE: Do NOT infer signup from tfa_enabled=false to avoid forcing passkey users into OTP setup
-      const inSignupFlow =
-        hasSignupHash ||
-        signupStateFromHash ||
-        isSignupPath(data.user.last_opened);
-
-      if (inSignupFlow) {
-        // If hash is present, use hash step (hash takes absolute precedence)
-        if (hasSignupHash && hashStep) {
-          console.debug("Setting signup state from URL hash:", hashStep);
-          currentSignupStep.set(hashStep);
-          isInSignupProcess.set(true);
-          loginInterfaceOpen.set(true);
-        } else if (!signupStateFromHash) {
-          // Only update signup state if it wasn't already set from hash
-          // This ensures hash-based signup state takes precedence
-          console.debug("User is in signup process:", {
-            last_opened: data.user.last_opened,
-            tfa_enabled: data.user.tfa_enabled,
-          });
-          // Determine step from last_opened (hash-based paths) to resume precisely
-          const step = getStepFromPath(data.user.last_opened);
-          currentSignupStep.set(step);
-          isInSignupProcess.set(true);
-          // CRITICAL: Open login interface to show signup flow on page reload
-          // This ensures the signup flow is visible immediately when the page reloads
-          loginInterfaceOpen.set(true);
-          console.debug(
-            "Set signup step to:",
-            step,
-            "and opened login interface",
-          );
-        } else {
-          console.debug(
-            "Signup state already set from URL hash, preserving it",
-          );
-        }
+      // A validated account's persisted stage is authoritative. A signup URL
+      // can start the guest flow, but must never reopen signup for a completed
+      // account or move an unfinished account away from its saved stage.
+      if (isSignupPath(data.user.last_opened)) {
+        currentSignupStep.set(getStepFromPath(data.user.last_opened));
+        isInSignupProcess.set(true);
+        loginInterfaceOpen.set(true);
       } else {
-        // Only clear signup state if it wasn't set from hash
-        // CRITICAL: Don't clear signup state if user is currently in signup process
-        // This prevents clearing signup state if checkAuth runs before user profile loads
-        if (!signupStateFromHash) {
-          // Check if signup state is already set (e.g., from login() function)
-          // If it is, preserve it - user profile might load asynchronously
-          const currentInSignup = get(isInSignupProcess);
-          if (!currentInSignup) {
-            // Signup state is not set - safe to clear
-            isInSignupProcess.set(false);
-          } else {
-            // Signup state is already set - preserve it
-            // This handles the case where login() set it but checkAuth() runs before profile loads
-            console.debug(
-              "[AuthSessionActions] Preserving existing signup state (user profile may load asynchronously)",
-            );
-          }
+        isInSignupProcess.set(false);
+        if (typeof window !== "undefined" && window.location.hash.startsWith("#signup/")) {
+          loginInterfaceOpen.set(false);
         }
       }
 

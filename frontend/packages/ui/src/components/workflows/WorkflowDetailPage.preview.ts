@@ -33,4 +33,10 @@ export const variants = {
     saving: true, provisional: true,
     onOpenHome: () => window.dispatchEvent(new CustomEvent('workflow-preview-close')),
   },
+  previewOnly: {
+    ...defaultProps,
+    title: 'Daily planning reminder', description: 'A morning message to choose your priorities for the day',
+    enabled: false, canEnable: false, canRun: false, saving: false, provisional: true,
+    onOpenHome: () => window.dispatchEvent(new CustomEvent('workflow-preview-close')),
+  },
 };

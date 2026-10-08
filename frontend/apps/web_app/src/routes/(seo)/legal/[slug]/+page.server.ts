@@ -1,79 +1,42 @@
-// frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.server.ts
-//
-// Server-side loader for legal document SEO pages at /legal/{slug}.
-// Accepts slugs: privacy, terms, imprint.
-//
-// ARCHITECTURE — Static SEO page with browser redirect:
-//   1. Resolves title/description from the English i18n locale (no backend call).
-//   2. Renders HTML with OG meta tags that crawlers and link-preview bots index.
-//   3. Human browsers are redirected to the SPA via onMount in +page.svelte.
-//      The SPA then calls setActiveChat which uses replaceState to restore the
-//      /legal/{slug} path — so the URL stays clean after the redirect round-trip.
-
+import { env } from '$env/dynamic/public';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getLegalChatBySlug } from '@repo/ui';
-import { resolveI18nKey as t } from '@repo/ui/src/demo_chats/resolveI18nServer';
+import { buildPrivacyPolicyContent, buildTermsOfUseContent, buildImprintContent } from '@repo/public-site/legal/buildLegalContent';
+import { legalTranslate } from '@repo/public-site/legal/legalLocale';
+import { privacyPolicyChat } from '@repo/public-site/legal/documents/privacy-policy';
+import { termsOfUseChat } from '@repo/public-site/legal/documents/terms-of-use';
+import { imprintChat } from '@repo/public-site/legal/documents/imprint';
+import MarkdownIt from 'markdown-it';
 import { getSiteOrigin } from '$lib/backendUrl';
 
-const LEGAL_SLUGS = ['privacy', 'terms', 'imprint'] as const;
-type LegalSlug = (typeof LEGAL_SLUGS)[number];
+const markdown = new MarkdownIt({ html: false, linkify: true });
+const definitions = {
+  privacy: { chat: privacyPolicyChat, build: buildPrivacyPolicyContent },
+  terms: { chat: termsOfUseChat, build: buildTermsOfUseContent },
+  imprint: { chat: imprintChat, build: (t: (key: string) => string) => buildImprintContent(t) }
+} as const;
 
-function isLegalSlug(slug: string): slug is LegalSlug {
-	return (LEGAL_SLUGS as readonly string[]).includes(slug);
-}
-
-export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
-	const { slug } = params;
-
-	if (!isLegalSlug(slug)) {
-		error(404, 'Legal document not found');
-	}
-
-	const chat = getLegalChatBySlug(slug);
-	if (!chat) {
-		error(404, 'Legal document not found');
-	}
-
-	const hostname = url.hostname;
-	const isDevHost =
-		hostname.includes('.dev.') ||
-		hostname.startsWith('dev.') ||
-		hostname.endsWith('.vercel.app') ||
-		hostname === 'localhost' ||
-		hostname === '127.0.0.1';
-
-	setHeaders({
-		'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800'
-	});
-
-	const siteOrigin = getSiteOrigin(url);
-	const canonicalUrl = `${siteOrigin}/legal/${slug}`;
-
-	const title = t(chat.title);
-	// Description is stored under metadata.legal_{slug}.description
-	const descriptionKey = `metadata.legal_${slug.replace('-', '_')}.description`;
-	const description = t(descriptionKey);
-
-	const jsonLd = {
-		'@context': 'https://schema.org',
-		'@type': 'WebPage',
-		name: title,
-		description,
-		url: canonicalUrl,
-		author: { '@type': 'Organization', name: 'OpenMates', url: siteOrigin },
-		publisher: { '@type': 'Organization', name: 'OpenMates', url: siteOrigin },
-		mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl }
-	};
-
-	return {
-		slug,
-		title,
-		description,
-		keywords: chat.keywords,
-		canonicalUrl,
-		jsonLd: JSON.stringify(jsonLd),
-		isDevHost,
-		spaUrl: `${siteOrigin}/#chat-id=${encodeURIComponent(chat.chat_id)}`
-	};
+export const load: PageServerLoad = ({ params, setHeaders, url, request }) => {
+  if (!(params.slug in definitions)) error(404, 'Legal document not found');
+  const slug = params.slug as keyof typeof definitions;
+  const definition = definitions[slug];
+  const locale = url.searchParams.get('lang') === 'de' || (!url.searchParams.has('lang') && request.headers.get('accept-language')?.toLowerCase().startsWith('de')) ? 'de' : 'en';
+  const t = (key: string) => legalTranslate(locale, key);
+  const title = t(definition.chat.title);
+  const description = t(definition.chat.description);
+  const body = definition.build(t, { lastUpdated: definition.chat.metadata.lastUpdated, locale });
+  let websiteOrigin = getSiteOrigin(url);
+  if (env.PUBLIC_LANDING_WEBSITE_URL) {
+    try {
+      const configured = new URL(env.PUBLIC_LANDING_WEBSITE_URL);
+      if (configured.protocol === 'http:' || configured.protocol === 'https:') websiteOrigin = configured.origin;
+    } catch {
+      // Serve the legal document from this app until a valid website origin is configured.
+    }
+  }
+  const canonicalUrl = `${websiteOrigin}/legal/${slug}`;
+  const isDevHost = websiteOrigin !== url.origin || url.hostname.includes('.dev.') || url.hostname.startsWith('dev.') || url.hostname.endsWith('.vercel.app') || url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: title, description, url: canonicalUrl, inLanguage: locale, publisher: { '@type': 'Organization', name: 'OpenMates', url: websiteOrigin } });
+  setHeaders({ 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800' });
+  return { slug, locale, title, description, keywords: definition.chat.keywords, bodyHtml: markdown.render(body), canonicalUrl, websiteOrigin, jsonLd, isDevHost };
 };

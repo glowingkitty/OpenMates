@@ -1,17 +1,19 @@
 schema_version: 1
 id: feature.workflows-ui
-version: 8
+version: 9
 status: draft
 title: Workflows Web UI
 summary: >
-  The authenticated Workflows web workspace presents a calm, visual automation
-  environment with a recommendation-led start screen, a category-gradient
-  Workflow identity header, compact Template and Runs tabs, a centered vertical graph
+  The Workflows web workspace lets signed-out visitors inspect built-in templates.
+  Authenticated owners use a calm visual automation environment with a
+  recommendation-led start screen, a category-gradient Workflow identity header,
+  compact Template and Runs tabs, a centered vertical graph
   editor, immutable version inspection, and the compact ruler timeline and shared
   execution-node cards shown in the supplied runs.pdf design.
 
 scope:
   includes:
+    - Signed-out access to the Workflows workspace from header navigation, with built-in template browsing and read-only detail plus a sign-in/create action.
     - The authenticated /workflows start workspace, title-first draft entry, prioritized recent Workflow cards, separate template browsing, Show my workflows, and visible Search affordance.
     - The complete visual composition of the Workflow detail header, Template and Runs tab switch, graph canvas, node cards, dirty state, version timeline, run timeline, and execution detail.
     - Persisted disabled title drafts, in-place node editing, per-node Save and discard, unsaved-node navigation protection, read-only historical inspection, restore-as-new, and contextual run cancellation.
@@ -19,9 +21,10 @@ scope:
     - Exporting a saved Workflow from Show more and importing Workflow files from Project uploads or the Workflows start composer.
     - Natural-language and voice Workflow authoring in the workspace, including validated node previews, Stop, partial-result feedback and undo.
   excludes:
+    - Anonymous Workflow execution, scheduled or chat-delivery actions, and access to owned Workflow records or controls.
     - Global app chrome, chat-sidebar content, profile imagery, recommendation copy, and example Workflow data that do not alter the contracted Workflows layout.
     - Workflow execution, encryption, retention, API, CLI, SDK, and chat-delivery semantics owned by feature.workflows.
-    - Shared top-level workspace navigation and base start-shell behavior owned by feature.workspace-shell.
+    - Shared top-level workspace navigation mechanics and styling, and base start-shell behavior, owned by feature.workspace-shell.
     - Public Workflow marketplace behavior and Apple-native Workflow UI.
     - Workflow sharing management in the web UI. A future implementation belongs in the regular settings Share menu; existing runtime and CLI sharing APIs are unchanged.
 
@@ -495,8 +498,13 @@ assertions:
     depends_on: [models.WorkflowWorkspaceStart, examples.workflow_continue_priority]
   - id: workflows-ui.workspace.owned-library-and-templates
     type: behavior
-    must: Show my workflows opens the shared responsive grid containing all owned Workflows, sorted by the later of creation and update time descending. A dropdown at the upper inline end offers Last updated and Running next first; the latter places enabled Workflows with future scheduled runs first in next-run order, then all remaining Workflows in recency order. Show templates opens a separate grid through the same browsing and return controls. Templates never appear among owned continuation cards; selecting one creates a new disabled owned Workflow and opens its Template for review, without enabling or executing it. Built-in templates use validated executable graphs.
+    must: Show my workflows opens the shared responsive grid containing all owned Workflows, sorted by the later of creation and update time descending. A dropdown at the upper inline end offers Last updated and Running next first; the latter places enabled Workflows with future scheduled runs first in next-run order, then all remaining Workflows in recency order. Show templates opens a separate grid through the same browsing and return controls. Templates never appear among owned continuation cards; selecting one while authenticated creates a new disabled owned Workflow and opens its Template for review, without enabling or executing it. Built-in templates use validated executable graphs.
     depends_on: [models.WorkflowWorkspaceStart, examples.workflow_library_templates]
+  - id: workflows-ui.workspace.guest-template-preview
+    type: behavior
+    must: >
+      When Workflows are enabled, a signed-out visitor can open the Workflows workspace from the header, browse the built-in template catalog, and inspect a template's readable graph without creating an owned Workflow. The guest surface offers a sign-in/create action and does not request owned Workflow data or expose save, import, enable, run, schedule, or other mutating controls. The existing built-in scheduled and chat-delivery templates cannot execute anonymously. Authentication retains the existing behavior in which selecting a template creates a disabled owned copy for review.
+    depends_on: [examples.guest_template_preview]
   - id: workflows-ui.workspace.title-first-draft
     type: behavior
     must: Submitting a valid short title from the Workflow composer persists and opens a disabled draft in Template, while empty input creates nothing, each node Save immediately persists its graph edit, and unavailable AI or voice authoring never implies success. The centered composer placeholder is exactly 'Enter a name for a new workflow'; no extra top-right blank-workflow button is added.
@@ -657,7 +665,7 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [visual_language, route_motion_contract, workflow_identity, workspace_start, workspace_start_layout, workflow_continue_priority, workflow_library_templates, detail_header, detail_header_contract, detail_tabs, template_editing, template_step_selector, node_card_contract, unsaved_navigation, version_history, version_selector_contract, run_history, responsive_accessibility, mvp_authoring, ask_ai_authoring, schedule_preview, message_budget, run_deletion, workflow_file_export, workflow_project_import, workflow_composer_import, option_check, for_each, chat_owned]
+  required_groups: [visual_language, route_motion_contract, workflow_identity, workspace_start, workspace_start_layout, workflow_continue_priority, workflow_library_templates, guest_template_preview, detail_header, detail_header_contract, detail_tabs, template_editing, template_step_selector, node_card_contract, unsaved_navigation, version_history, version_selector_contract, run_history, responsive_accessibility, mvp_authoring, ask_ai_authoring, schedule_preview, message_budget, run_deletion, workflow_file_export, workflow_project_import, workflow_composer_import, option_check, for_each, chat_owned]
 
 approval:
   source: User-approved Figma/PDF workflow v1 plan, Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b

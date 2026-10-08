@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/process-docs.js && vite dev",
-    "prebuild": "pnpm --dir ../../packages/ui build",
+    "prebuild": "pnpm --dir ../../packages/ui build && pnpm --dir ../../packages/public-site build",
     "build": "node scripts/process-docs.js && vite build && node scripts/audit-example-seo.js",
     "build:vscode": "node scripts/process-docs.js && node scripts/build-vscode.js",
     "build:docs": "node scripts/process-docs.js",
@@ -28,7 +28,8 @@
     "dompurify": "^3.4.16",
     "markdown-it": "^14.3.1",
     "svelte-i18n": "^4.0.1",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "@repo/public-site": "workspace:*"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.11.3",

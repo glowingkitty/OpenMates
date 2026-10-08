@@ -198,6 +198,7 @@ RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC = {
     "recovery-key-settings.spec.ts": 18,
     "settings-change-email.spec.ts": 19,
     "api-keys-flow.spec.ts": 20,
+    "landing-auth-links.spec.ts": 21,
 }
 RESERVED_PLAYWRIGHT_ACCOUNT_SLOTS = frozenset(RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.values())
 NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS = tuple(

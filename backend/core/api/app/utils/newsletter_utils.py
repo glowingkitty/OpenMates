@@ -25,6 +25,7 @@ NewsletterUserStatus = Literal["not_signed_up", "signup_incomplete", "signup_com
 NEWSLETTER_CATEGORIES = (
     "openmates_events",
     "software_updates",
+    "apple_beta_updates",
 )
 
 # Default category preferences. Applied when a subscriber row has
@@ -32,6 +33,7 @@ NEWSLETTER_CATEGORIES = (
 DEFAULT_NEWSLETTER_CATEGORIES = {
     "openmates_events": True,
     "software_updates": True,
+    "apple_beta_updates": False,
 }
 
 LEGACY_NEWSLETTER_CATEGORY_DEFAULTS = {

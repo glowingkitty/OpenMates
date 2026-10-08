@@ -6,11 +6,11 @@ export {};
  *
  * Tests the complete newsletter flow:
  *   1. Subscribe via Settings > Newsletter (unauthenticated user) — UI tested
- *   2. Receive confirmation email via Gmail
- *   3. Follow Brevo tracking link to extract confirm token from hash
+ *   2. Receive confirmation email through the isolated inbox or Gmail
+ *   3. Resolve the recipient link and extract its confirmation token
  *   4. Call confirm API directly — verify success response
- *   5. Receive "confirmed/welcome" email via Gmail
- *   6. Follow Brevo tracking link to extract unsubscribe token from hash
+ *   5. Receive "confirmed/welcome" email
+ *   6. Resolve the recipient link and extract unsubscribe token
  *   7. Call unsubscribe API directly — verify success response
  *   8. Re-subscribe with same email — verifies the flow is repeatable (UI tested)
  *
@@ -19,9 +19,8 @@ export {};
  *     hashchange handler opens Settings → newsletter component mounts → $effect
  *     fires once (succeeds, token deleted from Redis), then the component remounts
  *     due to the settings panel animation → $effect fires again (fails, token gone).
- *   - The Brevo tracking link is single-use: following it in a browser navigates to
- *     the production SPA (openmates.org), which is the wrong environment for dev tests.
- *     We follow the link only once to capture the hash/token, then use the token directly.
+ *   - Recipient links may use the old app hash or the standalone confirmation path.
+ *     We resolve tracking redirects without loading the token destination in a browser.
  *   - The subscribe UI step (step 1 and step 8) fully tests the user-facing path.
  *     The confirm/unsubscribe are backend operations triggered by email links; their
  *     API contracts are validated directly here.
@@ -35,12 +34,16 @@ export {};
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
+const { createHash, randomBytes } = require('node:crypto');
+const { execFileSync } = require('node:child_process');
+const { existsSync } = require('node:fs');
+const path = require('node:path');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	createEmailClient,
-	checkEmailQuota
+	createSignupEmailClient,
+	checkSignupEmailQuota
 } = require('./signup-flow-helpers');
 
 // ---------------------------------------------------------------------------
@@ -50,9 +53,29 @@ const {
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS ?? '';
 const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
 // Derive API base URL: app.dev.openmates.org → api.dev.openmates.org
-const API_BASE_URL = BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.');
+const API_BASE_URL = (process.env.OPENMATES_E2E_API_URL || BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.')).replace(/\/$/, '');
+const NEWSLETTER_RATE_WINDOW_MS = 60_000;
+const NEWSLETTER_RATE_CLOCK_MARGIN_MS = 3_000;
+let latestNewsletterSubscribeAttemptAt = 0;
 
 const [FIRST_DOMAIN] = SIGNUP_TEST_EMAIL_DOMAINS.split(',').map((d: string) => d.trim());
+
+// Both cases share the API's 2/minute IP quota. Record real browser POST attempts,
+// then let the full quota window drain between cases. A retry starts a fresh
+// worker, so its in-memory timestamp is unavailable and needs a full window.
+test.describe.configure({ mode: 'serial' });
+test.beforeEach(async ({ page }: { page: any }, testInfo: any) => {
+	testInfo.setTimeout(900_000);
+	const waitMs = testInfo.retry > 0
+		? NEWSLETTER_RATE_WINDOW_MS + NEWSLETTER_RATE_CLOCK_MARGIN_MS
+		: Math.max(0, latestNewsletterSubscribeAttemptAt + NEWSLETTER_RATE_WINDOW_MS + NEWSLETTER_RATE_CLOCK_MARGIN_MS - Date.now());
+	if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
+	page.on('request', (request: any) => {
+		if (request.method() === 'POST' && new URL(request.url()).pathname === '/v1/newsletter/subscribe') {
+			latestNewsletterSubscribeAttemptAt = Date.now();
+		}
+	});
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -100,62 +123,48 @@ async function subscribeViaUI(page: any, email: string, log: any): Promise<void>
 	expect(successText.toLowerCase()).toMatch(/check your email|confirm|subscrib/i);
 }
 
-/**
- * Resolve a Brevo click-tracking URL to its final destination WITHOUT loading
- * it in a browser. Uses fetch with redirect:'manual' to follow the HTTP
- * redirects, then parses the HTML meta-refresh / JS redirect to extract the
- * final URL with the token hash.
- *
- * This avoids the problem where the SPA at the redirect target processes the
- * hash and consumes the confirmation token before the spec can use it.
- */
-async function extractTokenHashFromBrevoLink(
-	_page: any,
+/** Extract a recipient-held token without visiting its one-use destination. */
+function tokenFromRecipientUrl(candidate: string, action: 'confirm' | 'unsubscribe'): string | null {
+	const parsed = new URL(candidate.replaceAll('&amp;', '&'));
+	const legacy = parsed.hash.match(new RegExp(`^#settings/newsletter/${action}/([^?&#]+)$`));
+	const standalone = action === 'confirm'
+		? parsed.pathname.match(/^\/newsletter\/confirm\/([^/]+)\/?$/)
+		: null;
+	const encoded = legacy?.[1] || standalone?.[1];
+	return encoded ? decodeURIComponent(encoded) : null;
+}
+
+async function extractNewsletterToken(
 	trackingUrl: string,
+	action: 'confirm' | 'unsubscribe',
 	log: any
 ): Promise<string | null> {
-	log(`Resolving Brevo tracking URL via HTTP (no browser)...`);
-
-	try {
-		// Follow redirects manually to capture the final URL
-		let url = trackingUrl;
-		for (let i = 0; i < 10; i++) {
-			const resp = await fetch(url, { redirect: 'manual' });
-			const location = resp.headers.get('location');
-			if (location) {
-				url = location;
-				const hashMatch = url.match(/(#settings\/newsletter\/(?:confirm|unsubscribe)\/[^&\s"]+)/);
-				if (hashMatch) {
-					log(`Found token hash in redirect location: ${hashMatch[1].substring(0, 60)}...`);
-					return hashMatch[1];
-				}
-				continue;
-			}
-
-			// No redirect header — check the HTML body for meta-refresh or JS redirect
-			const body = await resp.text();
-
-			// Check for hash in any URL in the response body
-			const bodyMatch = body.match(/(?:href|url|location)[=\s'"]*[^'"]*?(#settings\/newsletter\/(?:confirm|unsubscribe)\/[^&\s"']+)/i);
-			if (bodyMatch) {
-				log(`Found token hash in response body: ${bodyMatch[1].substring(0, 60)}...`);
-				return bodyMatch[1];
-			}
-
-			// Check for full URL with hash
-			const fullUrlMatch = body.match(/https?:\/\/[^"'\s]+(#settings\/newsletter\/(?:confirm|unsubscribe)\/[^"'\s]+)/);
-			if (fullUrlMatch) {
-				log(`Found token hash in full URL in body: ${fullUrlMatch[1].substring(0, 60)}...`);
-				return fullUrlMatch[1];
-			}
-
-			break;
+	let url = trackingUrl;
+	for (let i = 0; i < 10; i++) {
+		const token = tokenFromRecipientUrl(url, action);
+		if (token) return token;
+		const response = await fetch(url, { redirect: 'manual' });
+		const location = response.headers.get('location');
+		if (location) {
+			url = new URL(location, url).href;
+			continue;
 		}
-	} catch (err: any) {
-		log(`HTTP resolve failed: ${err?.message}. Trying browser fallback...`);
+		const body = await response.text();
+		for (const candidate of body.match(/https?:\/\/[^\s"'<>]+/g) ?? []) {
+			try {
+				const found = tokenFromRecipientUrl(candidate, action);
+				if (found) return found;
+			} catch { /* A non-URL fragment in tracking HTML is irrelevant. */ }
+		}
+		const legacy = body.match(new RegExp(`#settings/newsletter/${action}/([A-Za-z0-9_-]+)`));
+		if (legacy) return legacy[1];
+		if (action === 'confirm') {
+			const standalone = body.match(/\/newsletter\/confirm\/([A-Za-z0-9_-]+)/);
+			if (standalone) return standalone[1];
+		}
+		break;
 	}
-
-	log(`WARNING: Could not extract hash from Brevo tracking URL via HTTP.`);
+	log(`Could not resolve the ${action} recipient link without visiting its destination.`);
 	return null;
 }
 
@@ -187,7 +196,7 @@ function extractNewsletterLink(message: any, anchorTextPattern: RegExp, log: any
 	const anchors = extractAnchors(htmlBody);
 	for (const { text, href } of anchors) {
 		if (anchorTextPattern.test(text)) {
-			log(`Found anchor "${text}" → ${href.substring(0, 80)}...`);
+			log(`Found newsletter recipient anchor "${text}".`);
 			return href;
 		}
 	}
@@ -206,7 +215,7 @@ async function callConfirmApi(
 	log: any
 ): Promise<{ success: boolean; message: string }> {
 	const url = `${API_BASE_URL}/v1/newsletter/confirm/${encodeURIComponent(token)}`;
-	log(`Calling confirm API: ${url.substring(0, 80)}...`);
+	log('Calling confirm API with the recipient-held token.');
 	const response = await fetch(url, {
 		method: 'GET',
 		headers: { Accept: 'application/json' }
@@ -227,7 +236,7 @@ async function callUnsubscribeApi(
 	log: any
 ): Promise<{ success: boolean; message: string }> {
 	const url = `${API_BASE_URL}/v1/newsletter/unsubscribe/${encodeURIComponent(token)}`;
-	log(`Calling unsubscribe API: ${url.substring(0, 80)}...`);
+	log('Calling unsubscribe API with the recipient-held token.');
 	const response = await fetch(url, {
 		method: 'GET',
 		headers: { Accept: 'application/json' }
@@ -239,9 +248,106 @@ async function callUnsubscribeApi(
 	return data;
 }
 
+/** Read only the disposable subscriber's confirmed category row. */
+function readIsolatedConfirmedCategories(email: string): Record<string, boolean> | null {
+	if (process.env.OPENMATES_CI_ISOLATED !== '1' || process.env.OPENMATES_CI_MAILPIT_URL !== 'http://127.0.0.1:8025') {
+		throw new Error('Newsletter category inspection requires isolated CI.');
+	}
+	const sourceRoot = process.env.OPENMATES_CI_SOURCE_ROOT || path.resolve(__dirname, '../../../..');
+	const compose = path.join(sourceRoot, 'test-results/ci-private/compose.json');
+	if (!existsSync(compose)) throw new Error('Isolated compose fixture is missing.');
+	const hash = createHash('sha256').update(email.toLowerCase().trim()).digest('base64');
+	const sql = "SELECT categories::text FROM public.newsletter_subscribers WHERE hashed_email = :'hashed_email' AND confirmed_at IS NOT NULL LIMIT 1;";
+	const output = execFileSync('docker', [
+		'compose', '-f', compose, 'exec', '-T', 'cms-database', 'sh', '-ec',
+		'export PGPASSWORD="$POSTGRES_PASSWORD"; exec psql -X -q -A -t -v ON_ERROR_STOP=1 -v hashed_email="$1" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f -',
+		'sh', hash
+	], { cwd: sourceRoot, encoding: 'utf8', input: sql, timeout: 30_000 });
+	return output.trim() ? JSON.parse(output.trim()) : null;
+}
+
+/** Wait for a fresh confirmation in the isolated inbox, excluding earlier mail for this address. */
+async function waitForNextIsolatedConfirmation(email: string, previousToken: string, log: any): Promise<string> {
+	const deadline = Date.now() + 120_000;
+	while (Date.now() < deadline) {
+		const response = await fetch('http://127.0.0.1:8025/api/v1/messages?limit=100', { signal: AbortSignal.timeout(10_000) });
+		if (!response.ok) throw new Error(`Mailpit list failed (${response.status}).`);
+		const listing = await response.json();
+		for (const item of listing.messages || []) {
+			if (!item.To?.some((to: { Address: string }) => to.Address?.toLowerCase() === email)) continue;
+			const fullResponse = await fetch(`http://127.0.0.1:8025/api/v1/message/${encodeURIComponent(item.ID)}`, { signal: AbortSignal.timeout(10_000) });
+			if (!fullResponse.ok) throw new Error(`Mailpit message read failed (${fullResponse.status}).`);
+			const full = await fullResponse.json();
+			const link = extractNewsletterLink({ html: { body: full.HTML || '' } }, /confirm/i, log);
+			if (!link) continue;
+			const token = await extractNewsletterToken(link, 'confirm', log);
+			if (token && token !== previousToken) return token;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+	}
+	throw new Error('Timed out waiting for a new newsletter confirmation email.');
+}
+
 // ---------------------------------------------------------------------------
 // Test
 // ---------------------------------------------------------------------------
+
+// contract-test: direct surface=gui.web assertions=newsletter.lifecycle.double-opt-in,newsletter.categories.default-and-migration,newsletter.surface.standalone-confirmation
+test('landing newsletter confirms selected Apple beta and software preferences', async ({ page }: { page: any }) => {
+	test.setTimeout(300_000);
+	test.skip(process.env.OPENMATES_CI_ISOLATED !== '1' || process.env.OPENMATES_CI_MAILPIT_URL !== 'http://127.0.0.1:8025',
+		'Requires the disposable isolated newsletter API and inbox.');
+	const emailClient = createSignupEmailClient();
+	if (!emailClient || emailClient.provider !== 'mailpit') throw new Error('Isolated Mailpit inbox is required.');
+	const email = `ci-inbox+nl${randomBytes(6).toString('hex')}@example.com`;
+	const initialChoices = { openmates_events: true, software_updates: true, apple_beta_updates: false };
+	const choices = { openmates_events: true, software_updates: false, apple_beta_updates: true };
+	const log = createSignupLogger('LANDING_NEWSLETTER');
+	const requestedAfter = new Date(Date.now() - 5000).toISOString();
+	await page.goto(new URL('/landing', BASE_URL).href);
+	const form = page.getByTestId('landing-newsletter');
+	await expect(form).toBeVisible();
+	await expect(form.getByRole('checkbox', { name: /Apple app beta updates/ })).not.toBeChecked();
+	await form.getByLabel('Email address').fill(email);
+	const subscribed = page.waitForResponse((response: any) =>
+		new URL(response.url()).pathname === '/v1/newsletter/subscribe' && response.request().method() === 'POST');
+	await form.getByRole('button', { name: 'Subscribe', exact: true }).click();
+	const response = await subscribed;
+	expect(new URL(response.url()).origin).toBe(new URL(API_BASE_URL).origin);
+	expect(response.request().postDataJSON().categories).toEqual(initialChoices);
+	expect((await response.json()).success).toBe(true);
+	await expect(form.getByTestId('newsletter-requested')).toBeVisible();
+	expect(readIsolatedConfirmedCategories(email)).toBeNull();
+	const message = await emailClient.waitForMessage({
+		sentTo: email, subjectContains: 'confirm', receivedAfter: requestedAfter, timeoutMs: 120_000
+	});
+	const link = extractNewsletterLink(message, /confirm/i, log);
+	if (!link) throw new Error('Confirmation recipient link is missing.');
+	const token = await extractNewsletterToken(link, 'confirm', log);
+	if (!token) throw new Error('Confirmation recipient token is missing.');
+	const confirmed = await callConfirmApi(token, log);
+	expect(confirmed.success).toBe(true);
+	expect(readIsolatedConfirmedCategories(email)).toEqual(initialChoices);
+
+	// A confirmed address must receive a fresh token, with preferences unchanged until it is used.
+	await page.goto(new URL('/landing', BASE_URL).href);
+	const updateForm = page.getByTestId('landing-newsletter');
+	await expect(updateForm).toBeVisible();
+	await updateForm.getByRole('checkbox', { name: 'Software updates', exact: true }).uncheck();
+	await updateForm.getByRole('checkbox', { name: /Apple app beta updates/ }).check();
+	await updateForm.getByLabel('Email address').fill(email);
+	const updateRequested = page.waitForResponse((item: any) =>
+		new URL(item.url()).pathname === '/v1/newsletter/subscribe' && item.request().method() === 'POST');
+	await updateForm.getByRole('button', { name: 'Subscribe', exact: true }).click();
+	const updateResponse = await updateRequested;
+	expect(updateResponse.request().postDataJSON().categories).toEqual(choices);
+	expect((await updateResponse.json()).success).toBe(true);
+	expect(readIsolatedConfirmedCategories(email)).toEqual(initialChoices);
+	const updateToken = await waitForNextIsolatedConfirmation(email, token, log);
+	const updateConfirmed = await callConfirmApi(updateToken, log);
+	expect(updateConfirmed.success).toBe(true);
+	expect(readIsolatedConfirmedCategories(email)).toEqual(choices);
+});
 
 // contract-test: direct surface=gui.web assertions=newsletter.lifecycle.double-opt-in,newsletter.lifecycle.unsubscribe-resubscribe
 test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async ({
@@ -252,19 +358,20 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	test.slow();
 	test.setTimeout(900000); // 15 min ceiling
 
-	test.skip(!SIGNUP_TEST_EMAIL_DOMAINS, 'SIGNUP_TEST_EMAIL_DOMAINS is required.');
+	test.skip(!SIGNUP_TEST_EMAIL_DOMAINS && !process.env.OPENMATES_CI_MAILPIT_URL,
+		'A disposable inbox address or SIGNUP_TEST_EMAIL_DOMAINS is required.');
 
-	const emailClient = createEmailClient();
-	test.skip(!emailClient, 'Gmail credentials are required.');
+	const emailClient = createSignupEmailClient();
+	test.skip(!emailClient, 'An isolated inbox or Gmail credentials are required.');
 
-	const quota = await checkEmailQuota();
+	const quota = await checkSignupEmailQuota();
 	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
 
 	const log = createSignupLogger('NEWSLETTER_FLOW');
 	const screenshot = createStepScreenshotter(log);
 	await archiveExistingScreenshots(log);
 
-	const { deleteAllMessages, waitForMessage } = emailClient!;
+	const { waitForMessage } = emailClient!;
 
 	// Unique time-based Gmail alias.
 	const now = new Date();
@@ -272,13 +379,14 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	// Include seconds so two runs in the same minute get different addresses
 	const localPart = `nl${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 	const gmailTestAddress = process.env.GMAIL_TEST_ADDRESS;
-	const testEmail = gmailTestAddress && gmailTestAddress.includes('@')
+	const testEmail = emailClient?.provider === 'mailpit'
+		? `ci-inbox+nl${randomBytes(6).toString('hex')}@example.com`
+		: gmailTestAddress && gmailTestAddress.includes('@')
 		? `${gmailTestAddress.split('@')[0]}+${localPart}@${gmailTestAddress.split('@')[1]}`
 		: `${localPart}@${FIRST_DOMAIN}`;
 	log(`Test email address: ${testEmail}`);
 
-	await deleteAllMessages();
-	log('Email inbox cleared.');
+	if (emailClient?.provider === 'gmail') await emailClient.deleteAllMessages();
 
 	// -------------------------------------------------------------------------
 	// STEP 1: Subscribe via Settings > Newsletter UI
@@ -295,7 +403,7 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	await screenshot(page, '03-subscribe-success');
 
 	// -------------------------------------------------------------------------
-	// STEP 2: Receive confirmation email and extract the Brevo tracking link
+	// STEP 2: Receive confirmation email and extract its recipient link
 	// -------------------------------------------------------------------------
 	log('Waiting for confirmation email (up to 5 min)...');
 	let confirmEmail: any;
@@ -320,23 +428,15 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	}
 
 	// -------------------------------------------------------------------------
-	// STEP 3: Follow the Brevo link to extract the confirmation token
+	// STEP 3: Resolve the recipient link without consuming the token
 	// -------------------------------------------------------------------------
-	log('Following Brevo confirm link to extract token...');
-	const confirmHash = await extractTokenHashFromBrevoLink(page, confirmTrackingUrl, log);
+	log('Resolving confirmation recipient link...');
+	const confirmToken = await extractNewsletterToken(confirmTrackingUrl, 'confirm', log);
 	await screenshot(page, '04-after-brevo-follow');
 
-	if (!confirmHash) {
-		throw new Error('Could not extract confirmation hash from Brevo redirect.');
+	if (!confirmToken) {
+		throw new Error('Could not extract the confirmation token from the email link.');
 	}
-
-	// Extract just the token from "#settings/newsletter/confirm/{token}"
-	const confirmTokenMatch = confirmHash.match(/^#settings\/newsletter\/confirm\/(.+)$/);
-	if (!confirmTokenMatch) {
-		throw new Error(`Unexpected hash format: "${confirmHash}"`);
-	}
-	const confirmToken = confirmTokenMatch[1];
-	log(`Confirm token extracted: ${confirmToken.substring(0, 20)}...`);
 
 	// -------------------------------------------------------------------------
 	// STEP 4: Call the confirm API directly — verify success
@@ -351,8 +451,7 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	log('Confirmation successful.');
 
 	// Clear inbox before waiting for the welcome email
-	await deleteAllMessages();
-	log('Inbox cleared before waiting for welcome email.');
+	if (emailClient?.provider === 'gmail') await emailClient.deleteAllMessages();
 	const sentAfterConfirm = new Date(Date.now() - 5000).toISOString();
 
 	// -------------------------------------------------------------------------
@@ -381,28 +480,21 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	}
 
 	// -------------------------------------------------------------------------
-	// STEP 6: Follow the Brevo unsubscribe link to extract the token
+	// STEP 6: Resolve the unsubscribe link without consuming the token
 	// -------------------------------------------------------------------------
-	log('Following Brevo unsubscribe link to extract token...');
+	log('Resolving unsubscribe recipient link...');
 
 	// Navigate back to BASE_URL first so we're on the right domain before following the
 	// Brevo link (which will redirect to openmates.org — that's fine, we only need the hash)
 	await page.goto(BASE_URL);
 	await page.waitForLoadState('networkidle');
 
-	const unsubscribeHash = await extractTokenHashFromBrevoLink(page, unsubscribeTrackingUrl, log);
+	const unsubscribeToken = await extractNewsletterToken(unsubscribeTrackingUrl, 'unsubscribe', log);
 	await screenshot(page, '05-after-unsubscribe-brevo-follow');
 
-	if (!unsubscribeHash) {
-		throw new Error('Could not extract unsubscribe hash from Brevo redirect.');
+	if (!unsubscribeToken) {
+		throw new Error('Could not extract the unsubscribe token from the email link.');
 	}
-
-	const unsubscribeTokenMatch = unsubscribeHash.match(/^#settings\/newsletter\/unsubscribe\/(.+)$/);
-	if (!unsubscribeTokenMatch) {
-		throw new Error(`Unexpected unsubscribe hash format: "${unsubscribeHash}"`);
-	}
-	const unsubscribeToken = unsubscribeTokenMatch[1];
-	log(`Unsubscribe token extracted: ${unsubscribeToken.substring(0, 20)}...`);
 
 	// -------------------------------------------------------------------------
 	// STEP 7: Call the unsubscribe API directly — verify success
@@ -425,12 +517,12 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	await screenshot(page, '06-homepage-resubscribe');
 
 	await openNewsletterSettings(page, log);
+	const sentAfterResubscribe = new Date(Date.now() - 5000).toISOString();
 	await subscribeViaUI(page, testEmail, log);
 	await screenshot(page, '07-resubscribe-success');
 
 	// Verify a new confirmation email arrives
-	await deleteAllMessages();
-	const sentAfterResubscribe = new Date(Date.now() - 5000).toISOString();
+	if (emailClient?.provider === 'gmail') await emailClient.deleteAllMessages();
 	log('Waiting for re-subscribe confirmation email (up to 5 min)...');
 	let resubEmail: any;
 	try {
