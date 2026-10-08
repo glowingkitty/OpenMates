@@ -1425,7 +1425,7 @@ def run_e2e(
                                     "failure": accountability_retention_error})
                 # Playwright may exit successfully after a retry. Retain the first
                 # failed receipt attempt's bounded API window in that case too.
-                if name == "storage-recovery-canonical-receipts.spec.ts":
+                if name in {"storage-recovery-canonical-receipts.spec.ts", "native-cache-selected-tools.spec.ts"}:
                     try:
                         spec_result["recovery_api_trace"] = capture_recovery_receipt_api_diagnostics(
                             report, index
@@ -1433,7 +1433,7 @@ def run_e2e(
                     except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
                         spec_result["recovery_api_trace_error"] = type(exc).__name__
                 if spec_result["exit_code"] and not (artifact or component or node_probe_only):
-                    if name in {"storage-recovery-replay.spec.ts", "storage-recovery-canonical-receipts.spec.ts"}:
+                    if name in {"storage-recovery-replay.spec.ts", "storage-recovery-canonical-receipts.spec.ts", "native-cache-selected-tools.spec.ts"}:
                         try:
                             spec_result["recovery_ai_trace"] = capture_recovery_ai_diagnostics(
                                 report, index
@@ -1544,10 +1544,11 @@ def capture_recovery_ai_diagnostics(report: dict, index: int) -> list[dict[str, 
 
 
 def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[dict[str, object]]:
-    """Retain bounded API logs for only the two failed canonical receipt cases."""
+    """Retain bounded API logs for only allowlisted receipt and cache cases."""
     titles = {
         "legacy connection preserves typed rows while completing the existing v1 final job",
         "saved code embed and version diff replay with canonical ciphertext acknowledgements",
+        "native cache keeps selected math tools and settled billing across five chat turns",
     }
     private = RESULTS / "ci-private"
     private.mkdir(parents=True, exist_ok=True, mode=0o700)

@@ -13,6 +13,38 @@ import pytest
 from scripts import ci_environment
 
 
+def test_failed_native_cache_retains_only_bounded_private_api_window(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    calls = []
+
+    def compose(*args, **kwargs):
+        calls.append((args, kwargs))
+        return SimpleNamespace(stdout="private-native-diagnostic-sentinel")
+
+    monkeypatch.setattr(runner, "compose", compose)
+    failure = {"status": "failed", "startTime": "2026-10-08T13:00:00Z", "duration": 1000}
+    report = {"suites": [{"specs": [
+        {"title": "native cache keeps selected math tools and settled billing across five chat turns",
+         "tests": [{"results": [failure, {**failure, "status": "passed"}]}]},
+        {"title": "unrelated failed case", "tests": [{"results": [failure]}]},
+    ]}]}
+
+    summaries = runner.capture_recovery_receipt_api_diagnostics(report, 0)
+    assert summaries == [{"exception_class": "none", "function": "none", "line": 0}]
+    assert len(calls) == 1
+    args, kwargs = calls[0]
+    assert args == ("logs", "--no-color", "--since", "2026-10-08T12:59:58+00:00",
+                    "--until", "2026-10-08T13:00:06+00:00", "--tail", "2000", "api")
+    assert kwargs == {"capture": True, "timeout": 90}
+    retained = tmp_path / "ci-private" / "recovery-api-spec-0-result-0.log"
+    assert retained.read_text() == "private-native-diagnostic-sentinel"
+    assert retained.stat().st_mode & 0o777 == 0o600
+    assert "private-native-diagnostic-sentinel" not in json.dumps(summaries)
+
+
 def _runner_profile(tmp_path, monkeypatch, **options):
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
