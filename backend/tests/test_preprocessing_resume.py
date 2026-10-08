@@ -15,6 +15,7 @@ _MODULE_PATH = Path(__file__).resolve().parents[1] / "apps" / "ai" / "tasks" / "
 class PreprocessingResult(BaseModel):
     can_proceed: bool = False
     selected_main_llm_model_id: str | None = None
+    selected_main_llm_thinking_level: str | None = None
     relevant_app_skills: list[str] | None = None
     selected_app_ids: list[str] | None = Field(default=None, exclude=True)
     relevant_rules: list[dict] | None = Field(default=None, exclude=True)
@@ -72,7 +73,8 @@ def _request(**changes):
 def _decision():
     return PreprocessingResult(
         can_proceed=True,
-        selected_main_llm_model_id="google/gemini-2.5-flash",
+        selected_main_llm_model_id="google/gemini-3.8-flash",
+        selected_main_llm_thinking_level="LOW",
         relevant_app_skills=["web-search"],
         selected_app_ids=["web"],
         relevant_rules=[{"id": "private", "revision": "r1", "document": "secret rule body"}],
@@ -96,6 +98,7 @@ async def test_internal_continuation_reuses_decisions_without_private_rule_body(
     assert loaded is not None
     result, apps, refresh_project = loaded
     assert result.relevant_app_skills == ["web-search"]
+    assert result.selected_main_llm_thinking_level == "LOW"
     assert result.selected_app_ids == ["web"]
     assert result.relevant_rules == [{"id": "private", "revision": "r1"}]
     assert result.relevant_workflows == [{"workflow_id": "workflow-1", "current_version_id": "v1"}]

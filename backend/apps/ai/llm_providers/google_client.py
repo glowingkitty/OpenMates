@@ -81,6 +81,17 @@ def _clamp_temperature_for_thinking_model(model_id: str, temperature: float) -> 
     return temperature
 
 
+def _google_thinking_config(model_id: str, thinking_level: Optional[str]) -> types.ThinkingConfig:
+    """Keep the approved Gemini 3.8 Flash profile off unrelated Google models."""
+
+    if model_id == "gemini-3.8-flash" and thinking_level in {"LOW", "MEDIUM", "HIGH"}:
+        return types.ThinkingConfig(
+            include_thoughts=True,
+            thinking_level=types.ThinkingLevel(thinking_level),
+        )
+    return types.ThinkingConfig(include_thoughts=True)
+
+
 # --- Pydantic Models for Structured Google Response (remain compatible) ---
 
 class GoogleUsageMetadata(BaseModel):
@@ -596,6 +607,7 @@ async def invoke_google_ai_studio_chat_completions(
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
     stream: bool = False,
+    thinking_level: Optional[str] = None,
 ) -> Union[UnifiedGoogleResponse, AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata]]]:
     """
     Google AI Studio (Gemini API) client using `google-genai` API-key auth.
@@ -655,9 +667,7 @@ async def invoke_google_ai_studio_chat_completions(
         # text (missing thought: true tag) into the response as regular text.
         effective_temperature = _clamp_temperature_for_thinking_model(model_id, temperature)
         generation_config = types.GenerateContentConfig(
-            thinking_config=types.ThinkingConfig(
-                include_thoughts=True  # Include thoughts in output so we can stream them
-            ),
+            thinking_config=_google_thinking_config(normalized_model_id, thinking_level),
             temperature=effective_temperature,
             max_output_tokens=max_tokens,
             system_instruction=system_prompt,
@@ -959,7 +969,8 @@ async def invoke_google_chat_completions(
     max_tokens: Optional[int] = None,
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
-    stream: bool = False
+    stream: bool = False,
+    thinking_level: Optional[str] = None,
 ) -> Union[UnifiedGoogleResponse, AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata]]]:
     if not _google_client_initialized:
         if secrets_manager:
@@ -1021,9 +1032,7 @@ async def invoke_google_chat_completions(
         # text (missing thought: true tag) into the response as regular text.
         effective_temperature = _clamp_temperature_for_thinking_model(model_id, temperature)
         generation_config = types.GenerateContentConfig(
-            thinking_config=types.ThinkingConfig(
-                include_thoughts=True  # Include thoughts in output so we can stream them
-            ),
+            thinking_config=_google_thinking_config(normalized_model_id, thinking_level),
             temperature=effective_temperature,
             max_output_tokens=max_tokens,
             system_instruction=system_prompt,

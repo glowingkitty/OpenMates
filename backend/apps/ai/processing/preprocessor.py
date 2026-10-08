@@ -10,7 +10,7 @@ import asyncio
 import json
 import logging
 import re
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Literal, Optional
 import datetime # For current date/time in system prompt
 
 from backend.core.api.app.services.cache import CacheService # Corrected import path
@@ -53,6 +53,7 @@ from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_
 from backend.apps.ai.processing.model_routing import (
     MOST_DEMANDING_TIER,
     APPROVED_REQUEST_TIERS,
+    automatic_profile_thinking_level,
     default_profile_for_tier,
     normalize_request_tier,
     tier_preference_key,
@@ -1302,6 +1303,9 @@ class PreprocessingResult(BaseModel):
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
     selected_main_llm_model_name: Optional[str] = None # Added
+    selected_main_llm_thinking_level: Optional[Literal["LOW", "MEDIUM", "HIGH"]] = Field(
+        None, description="Server-selected reasoning level for the automatic default model profile.",
+    )
 
     # Model selection with fallbacks (from intelligent model selector)
     selected_secondary_model_id: Optional[str] = None
@@ -2926,6 +2930,11 @@ async def handle_preprocessing(
                 selected_llm_for_main_name = skill_config.default_llms.main_processing_simple_name
 
             model_selection_reason = f"Hardcoded from skill_config (auto-selection disabled, complexity={complexity_val})"
+
+    selected_llm_thinking_level = (
+        automatic_profile_thinking_level(complexity_val, selected_llm_for_main_id)
+        if not model_override_applied else None
+    )
     
     # --- Validate llm_response_temp field (range: 0.0-2.0) ---
     llm_response_temp_val = llm_analysis_args.get("llm_response_temp", 0.4)
@@ -3822,6 +3831,7 @@ async def handle_preprocessing(
         requires_advice_disclaimer=requires_disclaimer,  # Hardcoded disclaimer type to inject (or None if not needed)
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,
+        selected_main_llm_thinking_level=selected_llm_thinking_level,
         selected_secondary_model_id=selected_secondary_model_id,  # Secondary fallback model from leaderboard selection
         selected_fallback_model_id=selected_fallback_model_id,  # Final fallback model (hardcoded reliable default)
         model_selection_reason=model_selection_reason,  # Explanation of model selection for debugging

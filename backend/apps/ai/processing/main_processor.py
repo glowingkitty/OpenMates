@@ -3349,6 +3349,7 @@ async def handle_main_processing(
         )
         preprocessing_results.selected_main_llm_model_id = IMAGE_CHAT_SAFE_MODEL_ID
         preprocessing_results.selected_main_llm_model_name = IMAGE_CHAT_SAFE_MODEL_NAME
+        preprocessing_results.selected_main_llm_thinking_level = None
         preprocessing_results.selected_secondary_model_id = None
 
     wikipedia_reference_context = ""
@@ -5551,6 +5552,11 @@ async def handle_main_processing(
                     message_history=current_message_history,
                     model_id=current_model_id,  # Use current_model_id from fallback list
                     temperature=preprocessing_results.llm_response_temp,
+                    thinking_level=(
+                        getattr(preprocessing_results, "selected_main_llm_thinking_level", None)
+                        if current_model_id == preprocessing_results.selected_main_llm_model_id
+                        else None
+                    ),
                     secrets_manager=secrets_manager,
                     tools=iteration_tools,
                     tool_choice=current_tool_choice,

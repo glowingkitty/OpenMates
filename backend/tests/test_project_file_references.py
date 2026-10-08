@@ -5,6 +5,7 @@ import sys
 from types import ModuleType, SimpleNamespace
 
 import pytest
+from toon_format import decode
 
 from backend.apps.ai.processing.project_file_references import (
     build_project_file_reference_preview, publish_project_file_reference_preview,
@@ -60,6 +61,69 @@ def test_content_search_uses_same_reference_embed_without_snippet() -> None:
         "source_id": "remote-source", "path": "docs/README.md", "line": 5,
     }]
     assert "PRIVATE_MATCH" not in json.dumps(preview)
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.no-server-decryption-authority,projects.files.search-scoped
+@pytest.mark.asyncio
+@pytest.mark.parametrize("skill,target,expected_target", [
+    ("project_search_files", "files", "files"),
+    ("project_search_text", "content", "content"),
+    ("project_search_files", "arbitrary-client-value", None),
+])
+async def test_noncomposite_project_search_embed_serializes_target_and_locations_only(skill, target, expected_target):
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    preview = build_project_file_reference_preview(
+        context=context(skill), result_status="completed",
+        completed_results=[{"status": "completed", "source_id": "remote-source",
+                            "content": "PRIVATE_FILE_BYTES", "matches": [{
+                                "path": "README.md", "line": 2, "snippet": "PRIVATE_SEARCH_SNIPPET",
+                            }]}],
+    )
+    assert preview is not None
+    sent = []
+
+    class ProjectMetadataCache:
+        async def get_discovered_apps_metadata(self):
+            return {"projects": SimpleNamespace(embed_types=[
+                SimpleNamespace(skill_id="search", child_type=None),
+            ])}
+
+    async def encrypt(value, _key):
+        return "encrypted:" + value, None
+
+    async def send(**kwargs):
+        sent.append(kwargs)
+        return True
+
+    service = EmbedService.__new__(EmbedService)
+    service.cache_service = ProjectMetadataCache()
+    service.encryption_service = SimpleNamespace(encrypt_with_user_key=encrypt)
+    service.send_embed_data_to_client = send
+    service._schedule_embed_persistence_fallback = lambda _embed_id: None
+    created = await service.create_embeds_from_skill_results(
+        app_id="projects", skill_id="search", results=preview["results"],
+        chat_id="chat", message_id="message", user_id="owner", user_id_hash="owner-hash",
+        user_vault_key_id="vault-key", request_metadata={
+            "query": preview["query"], "search_target": target,
+            "private_metadata": "PRIVATE_METADATA",
+        },
+    )
+    assert created is not None and created["child_embed_ids"] == []
+    assert len(sent) == 1
+    serialized = sent[0]["content_toon"]
+    content = decode(serialized)
+    if expected_target is None:
+        assert "search_target" not in content
+    else:
+        assert content["search_target"] == expected_target
+    assert content["results"] == preview["results"]
+    expected_fields = {"app_id", "skill_id", "results", "result_count", "status",
+                       "embed_ref", "query"}
+    if expected_target is not None:
+        expected_fields.add("search_target")
+    assert set(content) == expected_fields
+    assert "PRIVATE_" not in serialized
 
 
 # contract-test: supporting surface=gui.web assertions=projects.files.no-server-decryption-authority

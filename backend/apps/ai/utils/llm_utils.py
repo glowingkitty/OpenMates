@@ -34,6 +34,7 @@ from backend.apps.ai.llm_providers.openai_shared import (
     UnifiedOpenAIResponse,
     _sanitize_schema_for_llm_providers,
 )
+from backend.apps.ai.processing.model_routing import DEFAULT_TIER_MODEL_PROFILES
 from backend.apps.ai.utils.timeout_utils import (
     stream_with_first_chunk_timeout,
     PREPROCESSING_TIMEOUT_SECONDS,
@@ -65,6 +66,23 @@ from toon_format import decode, encode
 logger = logging.getLogger(__name__)
 
 NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS = {"google", "google_ai_studio"}
+
+
+def _google_profile_thinking_level(
+    logical_model_id: str, server_model_id: str, requested_level: str | None,
+) -> str | None:
+    """Forward only an approved automatic profile to the same native Google model."""
+
+    if not any(
+        profile["model"] == logical_model_id and profile["thinking_level"] == requested_level
+        for profile in DEFAULT_TIER_MODEL_PROFILES.values()
+    ):
+        return None
+    server_provider, separator, actual_model_id = server_model_id.partition("/")
+    if (separator and server_provider in NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS
+            and logical_model_id.split("/", 1)[-1] == actual_model_id):
+        return requested_level
+    return None
 FRONTEND_RENDER_ONLY_JSON_TYPES = {"sub_chat_batch"}
 FRONTEND_RENDER_ONLY_JSON_FENCE_RE = re.compile(r"```json\s*\n(?P<body>\s*\{.*?\}\s*)\n```", re.DOTALL)
 PROVIDER_STREAM_ERROR_PREFIX = "[ERROR"
@@ -1746,6 +1764,7 @@ async def call_main_llm_stream(
     prompt_cache_key: Optional[str] = None,
     pre_dispatch_admission: Optional[Callable[[str, Optional[int]], Awaitable[int]]] = None,
     customer_cache_pricing_enabled: bool = False,
+    thinking_level: Optional[str] = None,
 ) -> AsyncIterator[str]:
     # Anonymous accounting reserves one dispatched attempt at a time. Returning
     # failures to its caller preserves ambiguous holds and makes any retry earn
@@ -2059,6 +2078,11 @@ async def call_main_llm_stream(
                 "max_tokens": max_tokens,
                 "stream": True,
             }
+            _retry_thinking_level = _google_profile_thinking_level(
+                original_model_id, _retry_server_model_id, thinking_level,
+            )
+            if _retry_thinking_level:
+                _retry_input["thinking_level"] = _retry_thinking_level
             _retry_attempt_id = uuid.uuid4().hex
             _retry_pricing = config_manager.get_model_pricing(*original_model_id.split("/", 1)) if "/" in original_model_id else None
             _retry_tariff = (
@@ -2212,6 +2236,11 @@ async def call_main_llm_stream(
             "max_tokens": max_tokens,
             "stream": True
         }
+        server_thinking_level = _google_profile_thinking_level(
+            original_model_id, server_model_id, thinking_level,
+        )
+        if server_thinking_level:
+            server_llm_input_details["thinking_level"] = server_thinking_level
         
         # For openrouter, if the original model has provider_overrides configured, 
         # we need to pass the original model_id (e.g., "alibaba/qwen3-235b-a22b-2507") 

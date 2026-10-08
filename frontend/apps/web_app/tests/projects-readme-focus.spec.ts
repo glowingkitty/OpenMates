@@ -274,8 +274,12 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       catch { /* Ignore control frames. */ }
     });
     let chatUrl: string | null = null;
+    let fixtureAudit: { project_id?: string; source_id?: string } | null = null;
+    let scenarioFailure: unknown = null;
+    let fixtureCleanupFailure: string | null = null;
     try {
       const fixture = await waitForFixtureEvent(bridge, 'fixture_ready');
+      fixtureAudit = { project_id: fixture.project_id, source_id: fixture.source_id };
       expect(fixture).toMatchObject({ project_name: 'OpenMates', path_privacy_verified: true });
       expect(fixture.project_id).toBeTruthy();
       console.log('[README] Disposable connected Project ready.');
@@ -302,11 +306,31 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       expect(await currentAuthority(page)).toBeNull();
       expect(received.filter(event => event.type === 'project_file_operation_request')).toHaveLength(0);
       console.log('[README] Rejection kept Project authority and file access blocked.');
+      console.log('[README] Deleting rejected chat.');
       await deleteActiveChat(page);
+      console.log('[README] Rejected-chat cleanup returned.');
       chatUrl = null;
 
-      await startNewChat(page);
+      // The cleanup helper opens Chats to delete the row. On phone the open
+      // sidebar covers the composer-side New Chat button until explicitly closed.
+      const openSidebar = page.locator('.sidebar:not(.closed)');
+      if (await openSidebar.count()) {
+        console.log('[README] Closing Chats sidebar after cleanup.');
+        const sidebarClose = openSidebar.getByTestId('activity-history-wrapper')
+          .locator('button.icon_close.top-button.right');
+        await expect(sidebarClose).toBeVisible({ timeout: 5_000 });
+        await sidebarClose.click({ timeout: 5_000 });
+      }
+      await expect(page.locator('.sidebar')).toHaveClass(/closed/, { timeout: 5_000 });
+      console.log('[README] Chats sidebar closed; starting accepted chat.');
+      page.setDefaultTimeout(10_000);
+      try {
+        await startNewChat(page);
+      } finally {
+        page.setDefaultTimeout(0);
+      }
       await waitForChatReady(page);
+      console.log('[README] Accepted chat editor ready.');
       await page.bringToFront();
       await page.evaluate(() => window.dispatchEvent(new Event('focus')));
       await page.evaluate(() => {
@@ -321,7 +345,9 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         }).observe(document.body, { childList: true, characterData: true, subtree: true });
       });
       acceptedTurnStartedAt = Date.now();
+      console.log('[README] Sending accepted README request.');
       await sendMessage(page, PROMPT);
+      console.log('[README] Accepted README request sent.');
       chatUrl = page.url();
       acceptedChatId = await currentChatId(page);
       const secondPreflight = sent.filter(event => event.type === 'chat_turn_preflight').at(-1);
@@ -364,6 +390,10 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         return [{
           skill: String(decoded.skill_id),
           embedId: event.payload.embed_id,
+          topLevelFields: Object.keys(decoded).sort(),
+          referenceFields: [...new Set(rows.flatMap(row => Object.keys(row)))].sort(),
+          referenceCount: rows.length,
+          compositeParent: Array.isArray(decoded.embed_ids),
           allowedFields: Object.keys(decoded).every(key => allowedTopLevel.has(key))
             && rows.length > 0
             && rows.every(row => Object.keys(row).every(key => allowedReference.has(key))
@@ -403,8 +433,16 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       }
       const projectEmbedSummaries = finishedProjectEmbeds();
       expect(projectEmbedSummaries.map(summary => summary.skill)).toContain('read');
-      expect(projectEmbedSummaries.every(summary => summary.allowedFields && summary.readmeReference
-        && summary.properQuery && summary.properSearchTarget && !summary.containsFileBytes)).toBe(true);
+      const invalidReferenceSummaries = projectEmbedSummaries.flatMap((summary, index) =>
+        summary.allowedFields && summary.readmeReference && summary.properQuery
+          && summary.properSearchTarget && !summary.containsFileBytes ? [] : [{
+            index, skill: summary.skill, compositeParent: summary.compositeParent,
+            referenceCount: summary.referenceCount, topLevelFields: summary.topLevelFields,
+            referenceFields: summary.referenceFields, allowedFields: summary.allowedFields,
+            readmeReference: summary.readmeReference, properQuery: summary.properQuery,
+            properSearchTarget: summary.properSearchTarget, containsFileBytes: summary.containsFileBytes,
+          }]);
+      expect(invalidReferenceSummaries, 'Project reference shape and privacy checks (field names only)').toEqual([]);
       const referenceEmbedId = projectEmbedSummaries.find(summary => summary.skill === 'read')?.embedId;
       expect(referenceEmbedId).toBeTruthy();
       projectReferenceEmbedId = referenceEmbedId ?? null;
@@ -473,8 +511,10 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       expect((await projectFileState(page, projectId, sourceId)).itemCount).toBe(beforeOpen.itemCount);
       expect(received.filter(event => event.type === 'send_embed_data')).toHaveLength(savedEmbedEvents);
       console.log('[README] Disconnected source reports unavailable without a cached file copy.');
+    } catch (error) {
+      scenarioFailure = error;
     } finally {
-      if (acceptedTurnStartedAt !== null) {
+      if (acceptedTurnStartedAt !== null || fixtureAudit !== null) {
         const first = (type: string, direction: RetrievalEvent['direction'], operation?: string) =>
           retrievalEvents.find(event => event.type === type && event.direction === direction
             && (!operation || event.operation === operation))?.at_epoch_ms ?? null;
@@ -486,7 +526,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
             measurement_basis: 'Baseline milestones came from dev backend logs; after milestones use browser receipt and observed WebSocket frames.',
             baseline: RETRIEVAL_BASELINE,
             after: {
-              accepted_turn_started_at_utc: new Date(acceptedTurnStartedAt).toISOString(),
+              accepted_turn_started_at_utc: acceptedTurnStartedAt === null ? null : new Date(acceptedTurnStartedAt).toISOString(),
               focus_activated_at_utc: focusActivatedAt === null ? null : new Date(focusActivatedAt).toISOString(),
               filename_search_requested_at_utc: first('project_file_operation_request', 'received', 'search') === null
                 ? null : new Date(first('project_file_operation_request', 'received', 'search') as number).toISOString(),
@@ -504,6 +544,10 @@ test.describe('Plain-language Project README access (real inference, dev only)',
               task_ids: [...new Set(retrievalEvents.map(event => event.task_id).filter(Boolean))],
               note: 'Collect actual model and preprocessing token totals from this dev run’s correlated backend usage logs; they are not sent to the browser.',
             },
+            fixture_audit: {
+              project_id: fixtureAudit?.project_id ?? null,
+              source_id: fixtureAudit?.source_id ?? null,
+            },
             visible_progress_labels: await page.evaluate(() =>
               (window as Window & { projectProgressLabels?: string[] }).projectProgressLabels ?? []).catch(() => []),
             wire_timeline: retrievalEvents,
@@ -516,16 +560,46 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         await page.goto(chatUrl, { waitUntil: 'domcontentloaded' }).catch(() => undefined);
         await deleteActiveChat(page);
       }
-      if (bridge.exitCode === null) {
-        const bridgeExit = new Promise<void>(resolvePromise => {
-          const timeout = setTimeout(resolvePromise, 5_000);
-          bridge.once('exit', () => { clearTimeout(timeout); resolvePromise(); });
+      if (bridge.exitCode === null && bridge.signalCode === null) {
+        const waitForBridgeClose = (timeoutMs: number) => new Promise<{ code: number | null; signal: NodeJS.Signals | null } | null>(resolvePromise => {
+          const onClose = (code: number | null, signal: NodeJS.Signals | null) => {
+            clearTimeout(timeout);
+            resolvePromise({ code, signal });
+          };
+          const timeout = setTimeout(() => {
+            bridge.off('close', onClose);
+            resolvePromise(null);
+          }, timeoutMs);
+          bridge.once('close', onClose);
         });
+        const gracefulExit = waitForBridgeClose(45_000);
         bridge.kill('SIGTERM');
-        await bridgeExit;
-        if (bridge.exitCode === null) bridge.kill('SIGKILL');
+        const outcome = await gracefulExit;
+        if (outcome === null) {
+          bridge.kill('SIGKILL');
+          await waitForBridgeClose(5_000);
+          fixtureCleanupFailure = 'fixture bridge did not finish cleanup within 45 seconds';
+        } else if (outcome.code !== 0) {
+          fixtureCleanupFailure = `fixture bridge exited unsuccessfully (${outcome.code ?? outcome.signal ?? 'unknown'})`;
+        }
+      } else if (bridge.exitCode !== 0) {
+        fixtureCleanupFailure = `fixture bridge had already exited unsuccessfully (${bridge.exitCode ?? bridge.signalCode ?? 'unknown'})`;
+      }
+      if (fixtureCleanupFailure) console.error(`[README] ${fixtureCleanupFailure}`);
+      if (fixtureAudit) {
+        await test.info().attach('readme-fixture-cleanup', {
+          body: JSON.stringify({
+            project_id: fixtureAudit.project_id,
+            source_id: fixtureAudit.source_id,
+            clean_exit: fixtureCleanupFailure === null,
+            failure: fixtureCleanupFailure,
+          }),
+          contentType: 'application/json',
+        });
       }
       rmSync(stateDir, { recursive: true, force: true });
     }
+    if (scenarioFailure) throw scenarioFailure;
+    if (fixtureCleanupFailure) throw new Error(fixtureCleanupFailure);
   });
 });

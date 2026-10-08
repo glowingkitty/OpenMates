@@ -1369,6 +1369,36 @@ def test_diff_prompt_skips_when_no_prior_embed_reference_exists() -> None:
     assert asyncio.run(_has_diffable_embeds_for_prompt(request)) is False
 
 
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
+@pytest.mark.parametrize("model_id,level,expected", [
+    ("google/gemini-3.8-flash", "LOW", "LOW"),
+    ("google/gemini-3.8-flash", None, None),
+])
+async def test_main_model_call_forwards_only_saved_profile_choice(monkeypatch, model_id, level, expected) -> None:
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams=[["Answer."]], preprocessing_overrides={
+            "selected_main_llm_model_id": model_id,
+            "selected_main_llm_thinking_level": level,
+        },
+    )
+    assert len(calls) == 1
+    assert calls[0]["thinking_level"] == expected
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
+async def test_image_reroute_clears_automatic_profile_level(monkeypatch) -> None:
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams=[["Answer."]], preprocessing_overrides={
+            "selected_main_llm_model_id": "google/gemini-3.8-flash",
+            "selected_main_llm_thinking_level": "LOW",
+            "relevant_app_skills": ["images-view"],
+        },
+    )
+    assert len(calls) == 1
+    assert calls[0]["model_id"] == main_processor.IMAGE_CHAT_SAFE_MODEL_ID
+    assert calls[0]["thinking_level"] is None
+
+
 # contract-test: supporting surface=rest_api assertions=app-memories.transparency.loaded-set,app-memories.privacy.client-encrypted
 @pytest.mark.parametrize("source", ["app", "project"])
 async def test_memory_receipt_describes_only_guides_in_actual_dispatched_prompt(monkeypatch, source) -> None:

@@ -32,6 +32,45 @@ else:
     AllServersFailedError = llm_utils.AllServersFailedError
 
 
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
+@pytest.mark.parametrize("server_id,expected_level", [
+    ("google_ai_studio/gemini-3.8-flash", "LOW"),
+    ("google/gemini-3.8-flash", "LOW"),
+    ("google_ai_studio/gemini-3.5-flash-lite", None),
+    ("openrouter/google/gemini-3.8-flash", None),
+])
+def test_main_stream_forwards_profile_only_to_matching_native_google_server(
+    monkeypatch, server_id, expected_level,
+) -> None:
+    calls = []
+
+    async def provider(**kwargs):
+        calls.append(kwargs)
+
+        async def stream():
+            yield "Answer"
+
+        return stream()
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _provider: provider)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config",
+                        lambda _model: (server_id.split("/", 1)[0], server_id))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _model: [])
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
+    monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model: False)
+
+    async def run():
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="task", model_id="google/gemini-3.8-flash", system_prompt="system",
+            message_history=[{"role": "user", "content": "hello"}], temperature=1.0,
+            thinking_level="LOW",
+        )]
+
+    assert asyncio.run(run()) == ["Answer"]
+    assert len(calls) == 1
+    assert calls[0].get("thinking_level") == expected_level
+
+
 def test_call_main_llm_stream_falls_back_after_empty_provider_stream(monkeypatch):
     calls = []
 

@@ -6888,6 +6888,9 @@ class EmbedService:
                     for key in ["query", "expression", "provider", "providers", "url", "languages", "country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
                         if key in safe_request_metadata:
                             content_with_metadata[key] = safe_request_metadata[key]
+                    if app_id == "projects" and skill_id == "search":
+                        if safe_request_metadata.get("search_target") in {"files", "content"}:
+                            content_with_metadata["search_target"] = safe_request_metadata["search_target"]
                 owner_pii_mappings = EmbedService._extract_finance_owner_pii_mappings(
                     app_id,
                     skill_id,

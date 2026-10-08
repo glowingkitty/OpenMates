@@ -19,7 +19,7 @@ _DECISION_FIELDS = frozenset({
     "misuse_risk_score", "load_app_settings_and_memories", "relevant_embedded_previews",
     "icon_names", "relevant_app_skills",
     "relevant_focus_modes", "selected_mate_id", "selected_main_llm_model_id",
-    "selected_main_llm_model_name", "selected_secondary_model_id",
+    "selected_main_llm_model_name", "selected_main_llm_thinking_level", "selected_secondary_model_id",
     "selected_fallback_model_id", "filtered_cn_models",
     "output_language", "requires_advice_disclaimer", "user_requested_skills_only",
     "user_requested_focus_only",

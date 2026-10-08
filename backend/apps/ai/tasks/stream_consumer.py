@@ -9,6 +9,7 @@ import time
 import json
 import httpx
 import asyncio
+from contextlib import contextmanager
 from typing import Dict, Any, List, Optional, AsyncIterator, Union
 
 from celery.exceptions import SoftTimeLimitExceeded
@@ -135,6 +136,31 @@ ASSISTANT_RESPONSE_TIMESTAMP_OFFSET_SECONDS = 1
 SUB_CHAT_PENDING_TTL_SECONDS = 60 * 60 * 24
 SUB_CHAT_PENDING_KEY_PREFIX = "sub_chat_pending"
 SUB_CHAT_PARENT_STATUS_MESSAGE = "I've started the sub-chats and will continue once they finish."
+
+
+@contextmanager
+def _project_file_finalization_stage(stage: str, enabled: bool):
+    """Retain content-free timings for the Project-file response critical path."""
+    if not enabled:
+        yield
+        return
+    if stage not in {"recovery", "summary", "billing", "persistence", "validation", "ticket", "marker"}:
+        raise ValueError("Unreviewed Project-file finalization stage")
+    started_at = time.monotonic()
+    outcome = "ok"
+    try:
+        yield
+    except asyncio.CancelledError:
+        outcome = "cancelled"
+        raise
+    except BaseException:
+        outcome = "error"
+        raise
+    finally:
+        logger.info(
+            "ai_project_file_finalization stage=%s duration_ms=%.1f outcome=%s",
+            stage, (time.monotonic() - started_at) * 1000, outcome,
+        )
 
 
 async def _dispatch_ai_embed_task(
@@ -9957,6 +9983,7 @@ async def _consume_main_processing_stream(
                 exc_info=True
             )
     
+    project_file_finalization_started_at = time.monotonic() if project_file_reference_output else None
     log_msg_suffix = f"Total chunks: {stream_chunk_count}. Aggregated response length: {len(aggregated_response)}."
     if speech_tracker is not None:
         speech_tracker.observe(aggregated_response, is_final=True)
@@ -10018,40 +10045,42 @@ async def _consume_main_processing_stream(
     )
 
     recovery_job = None
-    if (
-        _recovery_inference_task_id(request_data)
-        and not awaiting_sub_chats_completion
-        and not request_data.awaiting_async_skill_continuation
-    ):
-        recovery_job = await _persist_sealed_recovery_job(
-            directus_service=directus_service,
-            request_data=request_data,
-            task_id=task_id,
-            content=aggregated_response,
-            category=preprocessing_result.category or "general_knowledge",
-            model_name=stream_model_name,
-            cache_service=cache_service,
+    with _project_file_finalization_stage("recovery", project_file_reference_output):
+        if (
+            _recovery_inference_task_id(request_data)
+            and not awaiting_sub_chats_completion
+            and not request_data.awaiting_async_skill_continuation
+        ):
+            recovery_job = await _persist_sealed_recovery_job(
+                directus_service=directus_service,
+                request_data=request_data,
+                task_id=task_id,
+                content=aggregated_response,
+                category=preprocessing_result.category or "general_knowledge",
+                model_name=stream_model_name,
+                cache_service=cache_service,
+            )
+    with _project_file_finalization_stage("summary", project_file_reference_output):
+        completion_summary = _sub_chat_completion_summary(
+            explicit_summary=explicit_sub_chat_completion_summary,
+            aggregated_response=aggregated_response,
+            awaiting_sub_chats_completion=awaiting_sub_chats_completion,
         )
-    completion_summary = _sub_chat_completion_summary(
-        explicit_summary=explicit_sub_chat_completion_summary,
-        aggregated_response=aggregated_response,
-        awaiting_sub_chats_completion=awaiting_sub_chats_completion,
-    )
-    if completion_summary is not None and request_data.is_sub_chat and _recovery_inference_task_id(request_data):
-        await _persist_sealed_typed_output(
-            directus_service=directus_service, request_data=request_data,
-            cache_service=cache_service,
-            inference_task_id=_recovery_inference_task_id(request_data),
-            subject_id=_assistant_message_id(task_id, request_data),
-            output_kind="summary", output_version=request_data.assistant_response_source_revision,
-            content={"summary": completion_summary},
-        )
+        if completion_summary is not None and request_data.is_sub_chat and _recovery_inference_task_id(request_data):
+            await _persist_sealed_typed_output(
+                directus_service=directus_service, request_data=request_data,
+                cache_service=cache_service,
+                inference_task_id=_recovery_inference_task_id(request_data),
+                subject_id=_assistant_message_id(task_id, request_data),
+                output_kind="summary", output_version=request_data.assistant_response_source_revision,
+                content={"summary": completion_summary},
+            )
     
     billing_info = {}
     billing_error = None
     if should_bill:
         try:
-            with ai_phase_span("finalize.billing"):
+            with _project_file_finalization_stage("billing", project_file_reference_output), ai_phase_span("finalize.billing"):
                 billing_info = await _handle_normal_billing(
                     usage, preprocessing_result, request_data, task_id, log_prefix,
                     cumulative_input_tokens=cumulative_input_tokens,
@@ -10097,7 +10126,7 @@ async def _consume_main_processing_stream(
         # This ensures the message exists in history (even if empty) for proper context
         # Empty responses can occur due to errors, interruptions, or harmful content filtering
         try:
-            with ai_phase_span("finalize.persistence"):
+            with _project_file_finalization_stage("persistence", project_file_reference_output), ai_phase_span("finalize.persistence"):
                 await _update_chat_metadata(
                     request_data=request_data,
                     category=category,
@@ -10155,7 +10184,7 @@ async def _consume_main_processing_stream(
     elif not user_vault_key_id:
         logger.error(f"{log_prefix} CRITICAL: User vault key ID not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
 
-    with ai_phase_span("finalize.validation"):
+    with _project_file_finalization_stage("validation", project_file_reference_output), ai_phase_span("finalize.validation"):
         await _finalize_legacy_cutover_before_final_marker(
             request_data=request_data,
             billing_error=billing_error,
@@ -10169,7 +10198,8 @@ async def _consume_main_processing_stream(
     # transfers the marker; the ticket preserves the actual completion timestamp.
     if (aggregated_response and not was_revoked_during_stream
             and not was_soft_limited_during_stream and not terminal_failure_applies):
-        await mint_response_summary_completion(request_data, task_id)
+        with _project_file_finalization_stage("ticket", project_file_reference_output):
+            await mint_response_summary_completion(request_data, task_id)
 
     # Publish final marker only after the AI cache write has been attempted and
     # legacy recovery admission is authorized. The browser sends
@@ -10219,13 +10249,18 @@ async def _consume_main_processing_stream(
         else:
             final_payload["recovery_job_id"] = recovery_job["job_id"]
             final_payload["recovery_protocol_version"] = 1
-    with ai_phase_span("finalize.marker"):
+    with _project_file_finalization_stage("marker", project_file_reference_output), ai_phase_span("finalize.marker"):
         await _publish_to_redis(
             cache_service, redis_channel_name, final_payload, log_prefix,
             f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
         )
         if completion_timing:
             completion_timing.mark_final_marker()
+    if project_file_finalization_started_at is not None:
+        logger.info(
+            "ai_project_file_finalization stage=total duration_ms=%.1f outcome=ok",
+            (time.monotonic() - project_file_finalization_started_at) * 1000,
+        )
     
     if completion_summary is not None:
         await _record_sub_chat_completion_and_maybe_continue_parent(

@@ -75,6 +75,32 @@ def test_routing_uses_approved_google_profiles_for_all_three_auto_tiers() -> Non
     }
 
 
+# contract-test: direct surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles,ai-model-routing.precedence.chat-over-tier-over-auto
+@pytest.mark.parametrize("tier,level", [
+    ("simple", "LOW"), ("complex", "MEDIUM"), ("most_demanding", "HIGH"),
+])
+def test_automatic_profile_applies_only_when_selected_model_matches(tier: str, level: str) -> None:
+    routing = _routing_module()
+    automatic = routing.resolve_model_routing(
+        classified_tier=tier, chat_model_preference="auto", tier_preferences={},
+        automatic_model="google/gemini-3.8-flash",
+    )
+    assert automatic.thinking_level == level
+    assert routing.resolve_model_routing(
+        classified_tier=tier, chat_model_preference="auto", tier_preferences={},
+        automatic_model="google/gemini-3.5-flash-lite",
+    ).thinking_level is None
+    assert routing.resolve_model_routing(
+        classified_tier=tier, chat_model_preference="google/gemini-3.8-flash",
+        tier_preferences={}, automatic_model="google/gemini-3.8-flash",
+    ).thinking_level is None
+    assert routing.resolve_model_routing(
+        classified_tier=tier, chat_model_preference="auto",
+        tier_preferences={tier: "google/gemini-3.8-flash"},
+        automatic_model="google/gemini-3.8-flash",
+    ).thinking_level is None
+
+
 # contract-test: direct surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto
 def test_exact_chat_model_bypasses_only_model_tier_selection() -> None:
     """An exact chat choice skips tier-model routing, not unrelated preprocessing."""

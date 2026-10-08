@@ -72,6 +72,13 @@ def default_profile_for_tier(tier: RequestTier) -> dict[str, str]:
     return DEFAULT_TIER_MODEL_PROFILES[normalize_request_tier(tier)]
 
 
+def automatic_profile_thinking_level(tier: RequestTier, model_id: str | None) -> str | None:
+    """Apply a tier's reasoning profile only to its automatically chosen model."""
+
+    profile = default_profile_for_tier(tier)
+    return profile["thinking_level"] if model_id == profile["model"] else None
+
+
 def explicit_api_model_override(
     user_preferences: Mapping[str, Any] | None,
     existing_model_override: str | None,
@@ -139,6 +146,7 @@ def resolve_model_routing(
             chat_model_preference=AUTO_CHAT_MODEL_PREFERENCE,
             complexity_classifier_used_for_model=True,
             source="automatic_selection",
+            thinking_level=automatic_profile_thinking_level(tier, automatic_model),
         )
 
     profile = default_profile_for_tier(tier)
