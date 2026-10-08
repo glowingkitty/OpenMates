@@ -1,0 +1,2792 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-07'
+generated_at: '2026-10-08T00:20:26+00:00'
+range:
+  since: '2026-10-07T00:00:00+00:00'
+  until: '2026-10-08T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 28
+  section_counts:
+    features: 6
+    bug_fixes: 18
+    improvements: 0
+    docs: 4
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 20
+  dev_only_items: 28
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: open terminal controls with mouse clicks'
+    section: features
+    commits:
+    - 5a283e0b2
+    authored_at: '2026-10-07T17:49:16+00:00'
+    changed_paths:
+    - DESIGN.md
+    - docs/plans/tui-pointer/plan.yml
+    - frontend/apps/web_app/tests/cli-tui-pointer-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiAppsWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiCarousel.ts
+    - frontend/packages/openmates-cli/src/tuiEmbedPreviews.ts
+    - frontend/packages/openmates-cli/src/tuiHome.ts
+    - frontend/packages/openmates-cli/src/tuiInteractiveQuestions.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiMarkdown.ts
+    - frontend/packages/openmates-cli/src/tuiPointer.ts
+    - frontend/packages/openmates-cli/src/tuiPointerActions.ts
+    - frontend/packages/openmates-cli/src/tuiProjectsWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiTasksWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiTerminal.ts
+    - frontend/packages/openmates-cli/src/tuiText.ts
+    - frontend/packages/openmates-cli/src/tuiWorkflowWorkspace.ts
+    - frontend/packages/openmates-cli/tests/tuiPointer.test.ts
+    - frontend/packages/openmates-cli/tests/tuiPointerChat.test.ts
+    - frontend/packages/openmates-cli/tests/tuiPointerWorkspaces.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTasksWorkspace.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTerminal.test.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    - specifications/features/terminal-pointer/examples.yml
+    - specifications/features/terminal-pointer/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(billing): add scoped cache tariffs and automatic-summary receipts'
+    section: features
+    commits:
+    - 8adcdd12d
+    authored_at: '2026-10-07T17:13:47+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/modelsMetadata.json
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatSettingsUsageModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSettingsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerModelDetails.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeModelCatalog.swift
+    - apple/OpenMatesTests/ChatSettingsParityTests.swift
+    - apple/OpenMatesTests/NativeModelCatalogTests.swift
+    - apple/OpenMatesUITests/ChatSettingsParityUITests.swift
+    - backend/apps/ai/llm_providers/cerebras_client.py
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/model_usage_tracker.py
+    - backend/apps/ai/processing/summary_billing.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/llm_usage_receipt.py
+    - backend/core/api/app/services/sub_chat_orchestration_service.py
+    - backend/core/api/app/services/team_billing_service.py
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/test/storage-billing.test.js
+    - backend/core/directus/schemas/billing_reservations.yml
+    - backend/providers/openai.yml
+    - backend/scripts/verify_llm_cache_cli.py
+    - backend/shared/python_utils/billing_utils.py
+    - backend/tests/test_authenticated_ai_reservation_bridge.py
+    - backend/tests/test_billing_reservation_intent.py
+    - backend/tests/test_cache_customer_scope_gate.py
+    - backend/tests/test_llm_cache_accounting.py
+    - backend/tests/test_summary_billing_bridge.py
+    - backend/tests/test_usage_entries.py
+    - backend/tests/test_verify_llm_cache_cli.py
+    - docs/plans/llm-cache-pricing/before-after.md
+    - docs/plans/llm-cache-pricing/plan.yml
+    - frontend/apps/web_app/tests/billing-reservation-summary.spec.ts
+    - frontend/apps/web_app/tests/components/ai-model-cache-pricing.spec.ts
+    - frontend/apps/web_app/tests/components/app-skill-model-cache-pricing.spec.ts
+    - frontend/apps/web_app/tests/components/apps-skill-form.spec.ts
+    - frontend/apps/web_app/tests/components/settings-usage-cache-receipt.spec.ts
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/apps/AppsSkillForm.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsSkillForm.svelte
+    - frontend/packages/ui/src/components/settings/AiAskModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.preview.ts
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/data/modelsMetadata.d.ts
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/settings/ai_ask.yml
+    - frontend/packages/ui/src/i18n/sources/settings/usage.yml
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/automaticSummaryPricing.ts
+    - frontend/packages/ui/src/utils/cachePricingAvailability.test.ts
+    - frontend/packages/ui/src/utils/cachePricingAvailability.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:ios, platform:macos, platform:teams'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add scrollable Figma landing page'
+    section: features
+    commits:
+    - dbab85b37
+    authored_at: '2026-10-07T16:08:10+00:00'
+    changed_paths:
+    - docs/architecture/web-app-landing-domain-split.md
+    - docs/plans/scrollable-landing-page/plan.yml
+    - frontend/apps/web_app/src/lib/landingOrigins.test.ts
+    - frontend/apps/web_app/src/lib/landingOrigins.ts
+    - frontend/apps/web_app/src/routes/(marketing)/+layout@.svelte
+    - frontend/apps/web_app/src/routes/(marketing)/landing/+page.server.ts
+    - frontend/apps/web_app/src/routes/(marketing)/landing/+page.svelte
+    - frontend/apps/web_app/src/routes/(marketing)/landing/+page.ts
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+    - frontend/apps/web_app/static/landing/screenshots/events-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/events-mobile.webp
+    - frontend/apps/web_app/static/landing/screenshots/hero-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/hero-mobile.webp
+    - frontend/apps/web_app/static/landing/screenshots/privacy-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/privacy-mobile.webp
+    - frontend/apps/web_app/static/landing/screenshots/workflows-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/workflows-mobile.webp
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/marketing-landing-route.spec.ts
+    - frontend/apps/web_app/vercel.json
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/landing/LandingPage.preview.ts
+    - frontend/packages/ui/src/components/landing/LandingPage.svelte
+    - frontend/packages/ui/src/components/landing/landingPageContent.ts
+    - frontend/packages/ui/src/services/__tests__/landingComposerDeepLink.test.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/stores/composerFocusStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: replace connection and sync notifications with header status'
+    section: features
+    commits:
+    - bd56fe67b
+    authored_at: '2026-10-07T15:17:00+00:00'
+    changed_paths:
+    - DESIGN.md
+    - docs/architecture/frontend/web-app.md
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/tests/components/connection-status-preview.spec.ts
+    - frontend/apps/web_app/tests/connection-status.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/ConnectionStatusController.svelte
+    - frontend/packages/ui/src/components/ConnectionStatusIndicator.preview.ts
+    - frontend/packages/ui/src/components/ConnectionStatusIndicator.svelte
+    - frontend/packages/ui/src/components/ConnectionStatusPreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/ConnectionStatusPreviewHarness.svelte
+    - frontend/packages/ui/src/components/ConnectionStatusSlot.preview.ts
+    - frontend/packages/ui/src/components/ConnectionStatusSlot.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/OfflineBanner.svelte
+    - frontend/packages/ui/src/components/OfflineIndicator.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersSyncTeamContext.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/stores/__tests__/chatSyncActivityStore.test.ts
+    - frontend/packages/ui/src/stores/__tests__/connectionFeedbackStore.test.ts
+    - frontend/packages/ui/src/stores/chatSyncActivityStore.ts
+    - frontend/packages/ui/src/stores/connectionFeedbackStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add verified cache accounting and billing reservations'
+    section: features
+    commits:
+    - 09a946b2f
+    authored_at: '2026-10-07T12:14:32+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/modelsMetadata.json
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatSettingsUsageModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSettingsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerModelDetails.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeModelCatalog.swift
+    - apple/OpenMatesTests/ChatSettingsParityTests.swift
+    - apple/OpenMatesTests/NativeModelCatalogTests.swift
+    - apple/OpenMatesUITests/ChatSettingsParityUITests.swift
+    - backend/apps/ai/llm_providers/anthropic_client.py
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/apps/ai/llm_providers/anthropic_shared.py
+    - backend/apps/ai/llm_providers/bedrock_client.py
+    - backend/apps/ai/llm_providers/bedrock_shared.py
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/llm_providers/mistral_client.py
+    - backend/apps/ai/llm_providers/openai_client.py
+    - backend/apps/ai/llm_providers/openai_responses.py
+    - backend/apps/ai/llm_providers/openai_shared.py
+    - backend/apps/ai/processing/jev_decisions.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/model_usage_tracker.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/openai_compat.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/api/app/services/llm_usage_receipt.py
+    - backend/core/api/app/services/sub_chat_orchestration_service.py
+    - backend/core/api/app/services/team_billing_service.py
+    - backend/core/api/app/services/team_data_portability_service.py
+    - backend/core/api/app/services/usage_archive_service.py
+    - backend/core/api/app/tasks/billing_settlement_tasks.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/index.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/test/storage-billing.test.js
+    - backend/core/directus/schemas/billing_reservations.yml
+    - backend/core/directus/schemas/teams.yml
+    - backend/core/directus/schemas/usage.yml
+    - backend/core/directus/setup/migrate_sub_chat_orchestration_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/providers/anthropic.yml
+    - backend/providers/google.yml
+    - backend/providers/mistral.yml
+    - backend/providers/openai.yml
+    - backend/scripts/verify_llm_cache_cli.py
+    - backend/scripts/verify_llm_cache_usage.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/shared/python_schemas/llm_usage.py
+    - backend/shared/python_utils/billing_utils.py
+    - backend/tests/test_ai_fallback_billing.py
+    - backend/tests/test_authenticated_ai_reservation_bridge.py
+    - backend/tests/test_billing_settlement_reliability.py
+    - backend/tests/test_llm_cache_accounting.py
+    - backend/tests/test_llm_provider_cache_usage.py
+    - backend/tests/test_llm_utils_chat_direction_privacy.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_openai_gpt56_models.py
+    - backend/tests/test_rest_api_core.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - backend/tests/test_teams_billing.py
+    - backend/tests/test_typesafe_decisions.py
+    - backend/tests/test_usage_entries.py
+    - docs/plans/llm-cache-pricing/before-after.md
+    - docs/plans/llm-cache-pricing/cache-pricing.html
+    - docs/plans/llm-cache-pricing/implementation-design.yml
+    - docs/plans/llm-cache-pricing/plan.yml
+    - docs/plans/llm-cache-pricing/scenarios.csv
+    - docs/plans/llm-cache-pricing/simulate.py
+    - frontend/apps/web_app/tests/billing-reservation-summary.spec.ts
+    - frontend/apps/web_app/tests/components/ai-model-cache-pricing.spec.ts
+    - frontend/apps/web_app/tests/components/settings-usage-cache-receipt.spec.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/apps/AppsSkillForm.svelte
+    - frontend/packages/ui/src/components/chats/__tests__/chatUsageRows.test.ts
+    - frontend/packages/ui/src/components/chats/chatUsageRows.ts
+    - frontend/packages/ui/src/components/settings/AiAskModelDetails.preview.ts
+    - frontend/packages/ui/src/components/settings/AiAskModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/data/modelsMetadata.d.ts
+    - frontend/packages/ui/src/i18n/sources/settings/ai_ask.yml
+    - frontend/packages/ui/src/i18n/sources/settings/usage.yml
+    - frontend/packages/ui/src/types/apps.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/cachePricingAvailability.test.ts
+    - frontend/packages/ui/src/utils/cachePricingAvailability.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/billing/examples.yml
+    - specifications/features/billing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:ios, platform:macos, platform:teams'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add deterministic daily Git code-change statistics'
+    section: features
+    commits:
+    - 32f3016ec
+    authored_at: '2026-10-07T10:49:04+00:00'
+    changed_paths:
+    - scripts/git_daily_stats.py
+    - scripts/tests/test_git_daily_stats.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: keep chat viewport fixed when opening settings'
+    section: bug_fixes
+    commits:
+    - 7c0ce5f53
+    authored_at: '2026-10-07T19:52:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/marketing-landing-route.spec.ts
+    - frontend/apps/web_app/tests/settings-chat-viewport.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Team billing context and usage exports'
+    section: bug_fixes
+    commits:
+    - 1baaca20e
+    authored_at: '2026-10-07T17:02:13+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/project_authoring_service.py
+    - backend/core/api/app/services/project_recommendation_service.py
+    - backend/core/api/app/services/team_billing_service.py
+    - backend/shared/python_utils/team_skill_billing.py
+    - backend/tests/test_apps_workspace_team_execution.py
+    - backend/tests/test_preprocessor_context_startup.py
+    - backend/tests/test_project_authoring.py
+    - backend/tests/test_teams_billing.py
+    - frontend/apps/web_app/tests/components/billing-context-preview.spec.ts
+    - frontend/apps/web_app/tests/helpers/team-usage-fixture.ts
+    - frontend/apps/web_app/tests/teams-billing-address.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/billing/SettingsTeamBilling.svelte
+    - frontend/packages/ui/src/services/__tests__/billingContext.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/billingContext.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:teams'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: read final Anthropic usage counters'
+    section: bug_fixes
+    commits:
+    - be15805b8
+    authored_at: '2026-10-07T16:29:50+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/tests/test_llm_provider_cache_usage.py
+    - backend/tests/test_provider_usage_extraction.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retire orphan reminders and report invalid workflow runs'
+    section: bug_fixes
+    commits:
+    - 14332f608
+    authored_at: '2026-10-07T16:19:23+00:00'
+    changed_paths:
+    - backend/apps/reminder/tasks.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/scripts/fetch_lmarena_rankings.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/ci_service_error_regressions.py
+    - backend/tests/test_leaderboard_resilience.py
+    - backend/tests/test_reminder_deleted_owner.py
+    - backend/tests/test_storage_capacity_replay.py
+    - backend/tests/test_tasks_api_security.py
+    - backend/tests/test_workflow_scheduler_contract.py
+    - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:reminder
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/reminder/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:reminder'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore CLI publication checks after recovery changes'
+    section: bug_fixes
+    commits:
+    - c6241249f
+    authored_at: '2026-10-07T15:57:56+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/draft-sync.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - frontend/packages/openmates-cli/tests/tuiCancellation.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve completed CLI replies during historical recovery'
+    section: bug_fixes
+    commits:
+    - 707e5f10d
+    authored_at: '2026-10-07T15:20:26+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: publish original project file references after reads'
+    section: bug_fixes
+    commits:
+    - 01107756f
+    authored_at: '2026-10-07T14:41:43+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/project_file_references.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_project_file_reference_stream.py
+    - backend/tests/test_project_file_references.py
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: provision uploads for full Teams management CI'
+    section: bug_fixes
+    commits:
+    - 02af4acc9
+    authored_at: '2026-10-07T14:35:27+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: match Teams identity to Figma and verify full management flows'
+    section: bug_fixes
+    commits:
+    - 7a6e4b1e7
+    authored_at: '2026-10-07T14:34:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/team-context-picker-preview.spec.ts
+    - frontend/apps/web_app/tests/components/teams-invite-form.spec.ts
+    - frontend/apps/web_app/tests/helpers/settings-readiness.ts
+    - frontend/apps/web_app/tests/teams-flow.spec.ts
+    - frontend/apps/web_app/tests/teams-invite-acceptance.spec.ts
+    - frontend/apps/web_app/tests/teams-management-flow.spec.ts
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsTeamInvite.svelte
+    - frontend/packages/ui/src/components/settings/TeamInviteForm.preview.ts
+    - frontend/packages/ui/src/components/teams/TeamAvatar.svelte
+    - frontend/packages/ui/src/components/teams/TeamProfileBadge.svelte
+    - frontend/packages/ui/src/components/teams/TeamProfileBadgePreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/teams/TeamProfileBadgePreviewHarness.svelte
+    - frontend/packages/ui/src/components/teams/TeamWorkspaceIdentity.preview.ts
+    - frontend/packages/ui/src/components/teams/TeamWorkspaceIdentity.svelte
+    - frontend/packages/ui/src/components/teams/TeamWorkspaceIdentityPreviewHarness.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: gate project README requests behind focus consent'
+    section: bug_fixes
+    commits:
+    - 4f3a2a8da
+    authored_at: '2026-10-07T14:13:46+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/project_file_references.py
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/projects/app.yml
+    - backend/tests/test_project_file_references.py
+    - backend/tests/test_project_focus_requests.py
+    - frontend/apps/web_app/tests/components/project-file-references.spec.ts
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+    - frontend/packages/ui/src/components/embeds/projects/ProjectReferenceEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/projects/ProjectReferenceEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/projects/ProjectReferenceEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/projects/ProjectReferenceEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/projects/projectReferenceData.ts
+    - frontend/packages/ui/src/components/embeds/projects/projectReferenceEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/app_skills/projects.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - frontend/packages/ui/src/services/hostedProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/projectFileJobExecutor.ts
+    - frontend/packages/ui/src/utils/iconNameResolver.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/project_remote_access_live.mjs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:projects
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/projects/app.yml
+    - id: embed:projects:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: embed:projects:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:projects, embed:projects:read, embed:projects:search, platform:projects,
+      skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: close recovery and health reporting gaps'
+    section: bug_fixes
+    commits:
+    - 46b8b89e0
+    authored_at: '2026-10-07T14:04:26+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/directus/health_event_methods.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/tests/test_chat_content_batch_handler.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    - backend/tests/test_health_event_methods.py
+    - backend/tests/test_health_status_alerts.py
+    - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
+    - frontend/apps/web_app/tests/storage-recovery-fixtures.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: start CLI recovery discovery before noninteractive sync'
+    section: bug_fixes
+    commits:
+    - 9846895f0
+    authored_at: '2026-10-07T13:38:34+00:00'
+    changed_paths:
+    - backend/scripts/verify_llm_cache_cli.py
+    - docs/plans/llm-cache-pricing/plan.yml
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputWs.test.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: honor candidate upload requirements in isolated CI'
+    section: bug_fixes
+    commits:
+    - 30d75fb31
+    authored_at: '2026-10-07T11:24:51+00:00'
+    changed_paths:
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_environment.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: pin isolated CI Vault to verified mirror'
+    section: bug_fixes
+    commits:
+    - 938ce0a6c
+    authored_at: '2026-10-07T10:49:54+00:00'
+    changed_paths:
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_environment.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: autoplay call visuals and reduce clip delivery latency'
+    section: bug_fixes
+    commits:
+    - 356edc265
+    authored_at: '2026-10-07T10:48:09+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/video_call_experiment.py
+    - backend/shared/providers/fal/h3_turbo.py
+    - backend/tests/test_video_call_experiment.py
+    - docs/architecture/video-call-experiment.md
+    - docs/plans/video-call-experiment/plan.yml
+    - frontend/apps/web_app/tests/components/video-call-panel.spec.ts
+    - frontend/apps/web_app/tests/fixtures/video-call-clip-audio.mp4
+    - frontend/apps/web_app/tests/fixtures/video-call-clip-audio.webm
+    - frontend/packages/ui/src/components/videocall/VideoCallPanel.preview.ts
+    - frontend/packages/ui/src/components/videocall/VideoCallPanel.svelte
+    - frontend/packages/ui/src/components/videocall/callAudio.test.ts
+    - frontend/packages/ui/src/components/videocall/callAudio.ts
+    - frontend/packages/ui/src/components/videocall/callController.test.ts
+    - frontend/packages/ui/src/components/videocall/callController.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render readable encrypted Apple notification previews'
+    section: bug_fixes
+    commits:
+    - c9a739865
+    authored_at: '2026-10-07T10:25:32+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/tests/test_push_notification_preview.py
+    - specifications/features/apple-notifications/examples.yml
+    - specifications/features/apple-notifications/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: match Teams domain row typography to Figma'
+    section: bug_fixes
+    commits:
+    - 7a55b2b3e
+    authored_at: '2026-10-07T00:55:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/settings-teams-icons.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsTeams.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: omit empty Teams settings icon slots'
+    section: bug_fixes
+    commits:
+    - 8f47cb7f0
+    authored_at: '2026-10-07T00:38:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/settings-teams-icons.spec.ts
+    - frontend/packages/ui/src/components/SettingsItem.svelte
+    - frontend/packages/ui/src/components/settings/SettingsTeams.preview.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs(billing): record inactive cache rollout verification'
+    section: docs
+    commits:
+    - 72b8c00cc
+    authored_at: '2026-10-07T17:21:46+00:00'
+    changed_paths:
+    - docs/plans/llm-cache-pricing/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record landing verification and architecture'
+    section: docs
+    commits:
+    - 8576d145a
+    authored_at: '2026-10-07T16:16:34+00:00'
+    changed_paths:
+    - docs/architecture/frontend/web-app.md
+    - docs/plans/scrollable-landing-page/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Turbo experiment autoplay verification'
+    section: docs
+    commits:
+    - 6b408199d
+    authored_at: '2026-10-07T10:53:22+00:00'
+    changed_paths:
+    - docs/plans/video-call-experiment/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record verified Teams web implementation'
+    section: docs
+    commits:
+    - 61b780002
+    authored_at: '2026-10-07T01:06:19+00:00'
+    changed_paths:
+    - docs/plans/teams-web-2026-10/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: keep chat viewport fixed when opening settings'
+    commits:
+    - 7c0ce5f53
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: open terminal controls with mouse clicks'
+    commits:
+    - 5a283e0b2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs(billing): record inactive cache rollout verification'
+    commits:
+    - 72b8c00cc
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(billing): add scoped cache tariffs and automatic-summary receipts'
+    commits:
+    - 8adcdd12d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve Team billing context and usage exports'
+    commits:
+    - 1baaca20e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: read final Anthropic usage counters'
+    commits:
+    - be15805b8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: retire orphan reminders and report invalid workflow runs'
+    commits:
+    - 14332f608
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:reminder
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/reminder/app.yml
+  - title: 'docs: record landing verification and architecture'
+    commits:
+    - 8576d145a
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add scrollable Figma landing page'
+    commits:
+    - dbab85b37
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore CLI publication checks after recovery changes'
+    commits:
+    - c6241249f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve completed CLI replies during historical recovery'
+    commits:
+    - 707e5f10d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: replace connection and sync notifications with header status'
+    commits:
+    - bd56fe67b
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: publish original project file references after reads'
+    commits:
+    - 01107756f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: provision uploads for full Teams management CI'
+    commits:
+    - 02af4acc9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: match Teams identity to Figma and verify full management flows'
+    commits:
+    - 7a6e4b1e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: gate project README requests behind focus consent'
+    commits:
+    - 4f3a2a8da
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:projects
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/projects/app.yml
+    - id: embed:projects:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: embed:projects:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'fix: close recovery and health reporting gaps'
+    commits:
+    - 46b8b89e0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: start CLI recovery discovery before noninteractive sync'
+    commits:
+    - 9846895f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add verified cache accounting and billing reservations'
+    commits:
+    - 09a946b2f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: honor candidate upload requirements in isolated CI'
+    commits:
+    - 30d75fb31
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record Turbo experiment autoplay verification'
+    commits:
+    - 6b408199d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: pin isolated CI Vault to verified mirror'
+    commits:
+    - 938ce0a6c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add deterministic daily Git code-change statistics'
+    commits:
+    - 32f3016ec
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: autoplay call visuals and reduce clip delivery latency'
+    commits:
+    - 356edc265
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: render readable encrypted Apple notification previews'
+    commits:
+    - c9a739865
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record verified Teams web implementation'
+    commits:
+    - 61b780002
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: match Teams domain row typography to Figma'
+    commits:
+    - 7a55b2b3e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: omit empty Teams settings icon slots'
+    commits:
+    - 8f47cb7f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat(billing): add scoped cache tariffs and automatic-summary receipts'
+    commits:
+    - 8adcdd12d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: gate project README requests behind focus consent'
+    commits:
+    - 4f3a2a8da
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:projects
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/projects/app.yml
+    - id: embed:projects:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: embed:projects:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'feat: add verified cache accounting and billing reservations'
+    commits:
+    - 09a946b2f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: keep chat viewport fixed when opening settings'
+    commits:
+    - 7c0ce5f53
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: open terminal controls with mouse clicks'
+    commits:
+    - 5a283e0b2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat(billing): add scoped cache tariffs and automatic-summary receipts'
+    commits:
+    - 8adcdd12d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve Team billing context and usage exports'
+    commits:
+    - 1baaca20e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: read final Anthropic usage counters'
+    commits:
+    - be15805b8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: retire orphan reminders and report invalid workflow runs'
+    commits:
+    - 14332f608
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:reminder
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/reminder/app.yml
+    newsletter_ready: false
+  - title: 'feat: add scrollable Figma landing page'
+    commits:
+    - dbab85b37
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore CLI publication checks after recovery changes'
+    commits:
+    - c6241249f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve completed CLI replies during historical recovery'
+    commits:
+    - 707e5f10d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: replace connection and sync notifications with header status'
+    commits:
+    - bd56fe67b
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: publish original project file references after reads'
+    commits:
+    - 01107756f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: match Teams identity to Figma and verify full management flows'
+    commits:
+    - 7a6e4b1e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: gate project README requests behind focus consent'
+    commits:
+    - 4f3a2a8da
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:projects
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/projects/app.yml
+    - id: embed:projects:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: embed:projects:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: close recovery and health reporting gaps'
+    commits:
+    - 46b8b89e0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: start CLI recovery discovery before noninteractive sync'
+    commits:
+    - 9846895f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add verified cache accounting and billing reservations'
+    commits:
+    - 09a946b2f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: autoplay call visuals and reduce clip delivery latency'
+    commits:
+    - 356edc265
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: render readable encrypted Apple notification previews'
+    commits:
+    - c9a739865
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: match Teams domain row typography to Figma'
+    commits:
+    - 7a55b2b3e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: omit empty Teams settings icon slots'
+    commits:
+    - 8f47cb7f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 7c0ce5f531400fc615fc93b666f5b5eac7e824d4
+    short_sha: 7c0ce5f53
+    authored_at: '2026-10-07T19:52:50+00:00'
+    subject: 'fix: keep chat viewport fixed when opening settings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/marketing-landing-route.spec.ts
+    - frontend/apps/web_app/tests/settings-chat-viewport.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 5a283e0b20ea40cd1f6a846270259f9b69e1f309
+    short_sha: 5a283e0b2
+    authored_at: '2026-10-07T17:49:16+00:00'
+    subject: 'feat: open terminal controls with mouse clicks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - DESIGN.md
+    - docs/plans/tui-pointer/plan.yml
+    - frontend/apps/web_app/tests/cli-tui-pointer-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiAppsWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiCarousel.ts
+    - frontend/packages/openmates-cli/src/tuiEmbedPreviews.ts
+    - frontend/packages/openmates-cli/src/tuiHome.ts
+    - frontend/packages/openmates-cli/src/tuiInteractiveQuestions.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiMarkdown.ts
+    - frontend/packages/openmates-cli/src/tuiPointer.ts
+    - frontend/packages/openmates-cli/src/tuiPointerActions.ts
+    - frontend/packages/openmates-cli/src/tuiProjectsWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiTasksWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiTerminal.ts
+    - frontend/packages/openmates-cli/src/tuiText.ts
+    - frontend/packages/openmates-cli/src/tuiWorkflowWorkspace.ts
+    - frontend/packages/openmates-cli/tests/tuiPointer.test.ts
+    - frontend/packages/openmates-cli/tests/tuiPointerChat.test.ts
+    - frontend/packages/openmates-cli/tests/tuiPointerWorkspaces.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTasksWorkspace.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTerminal.test.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    - specifications/features/terminal-pointer/examples.yml
+    - specifications/features/terminal-pointer/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 72b8c00cc9472352226bb0c7e27bfcd86e97f501
+    short_sha: 72b8c00cc
+    authored_at: '2026-10-07T17:21:46+00:00'
+    subject: 'docs(billing): record inactive cache rollout verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/llm-cache-pricing/plan.yml
+    related_feature_ids: []
+  - sha: 8adcdd12db72fb4a04fe89003e41b5b5581768b2
+    short_sha: 8adcdd12d
+    authored_at: '2026-10-07T17:13:47+00:00'
+    subject: 'feat(billing): add scoped cache tariffs and automatic-summary receipts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/modelsMetadata.json
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatSettingsUsageModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSettingsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerModelDetails.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeModelCatalog.swift
+    - apple/OpenMatesTests/ChatSettingsParityTests.swift
+    - apple/OpenMatesTests/NativeModelCatalogTests.swift
+    - apple/OpenMatesUITests/ChatSettingsParityUITests.swift
+    - backend/apps/ai/llm_providers/cerebras_client.py
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/model_usage_tracker.py
+    - backend/apps/ai/processing/summary_billing.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/llm_usage_receipt.py
+    - backend/core/api/app/services/sub_chat_orchestration_service.py
+    - backend/core/api/app/services/team_billing_service.py
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/test/storage-billing.test.js
+    - backend/core/directus/schemas/billing_reservations.yml
+    - backend/providers/openai.yml
+    - backend/scripts/verify_llm_cache_cli.py
+    - backend/shared/python_utils/billing_utils.py
+    - backend/tests/test_authenticated_ai_reservation_bridge.py
+    - backend/tests/test_billing_reservation_intent.py
+    - backend/tests/test_cache_customer_scope_gate.py
+    - backend/tests/test_llm_cache_accounting.py
+    - backend/tests/test_summary_billing_bridge.py
+    - backend/tests/test_usage_entries.py
+    - backend/tests/test_verify_llm_cache_cli.py
+    - docs/plans/llm-cache-pricing/before-after.md
+    - docs/plans/llm-cache-pricing/plan.yml
+    - frontend/apps/web_app/tests/billing-reservation-summary.spec.ts
+    - frontend/apps/web_app/tests/components/ai-model-cache-pricing.spec.ts
+    - frontend/apps/web_app/tests/components/app-skill-model-cache-pricing.spec.ts
+    - frontend/apps/web_app/tests/components/apps-skill-form.spec.ts
+    - frontend/apps/web_app/tests/components/settings-usage-cache-receipt.spec.ts
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/apps/AppsSkillForm.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsSkillForm.svelte
+    - frontend/packages/ui/src/components/settings/AiAskModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.preview.ts
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/data/modelsMetadata.d.ts
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/settings/ai_ask.yml
+    - frontend/packages/ui/src/i18n/sources/settings/usage.yml
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/automaticSummaryPricing.ts
+    - frontend/packages/ui/src/utils/cachePricingAvailability.test.ts
+    - frontend/packages/ui/src/utils/cachePricingAvailability.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - platform:ios
+    - platform:macos
+    - platform:teams
+  - sha: 1baaca20ef9ac452e716a54ac99e994a44c6f4a2
+    short_sha: 1baaca20e
+    authored_at: '2026-10-07T17:02:13+00:00'
+    subject: 'fix: preserve Team billing context and usage exports'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/project_authoring_service.py
+    - backend/core/api/app/services/project_recommendation_service.py
+    - backend/core/api/app/services/team_billing_service.py
+    - backend/shared/python_utils/team_skill_billing.py
+    - backend/tests/test_apps_workspace_team_execution.py
+    - backend/tests/test_preprocessor_context_startup.py
+    - backend/tests/test_project_authoring.py
+    - backend/tests/test_teams_billing.py
+    - frontend/apps/web_app/tests/components/billing-context-preview.spec.ts
+    - frontend/apps/web_app/tests/helpers/team-usage-fixture.ts
+    - frontend/apps/web_app/tests/teams-billing-address.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/billing/SettingsTeamBilling.svelte
+    - frontend/packages/ui/src/services/__tests__/billingContext.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/billingContext.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - platform:teams
+  - sha: be15805b82e7d3a5f5829c8d07c91db98fdb176a
+    short_sha: be15805b8
+    authored_at: '2026-10-07T16:29:50+00:00'
+    subject: 'fix: read final Anthropic usage counters'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/tests/test_llm_provider_cache_usage.py
+    - backend/tests/test_provider_usage_extraction.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 14332f60877f93cc08914daf0f53a1c0ac61edd7
+    short_sha: 14332f608
+    authored_at: '2026-10-07T16:19:23+00:00'
+    subject: 'fix: retire orphan reminders and report invalid workflow runs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/reminder/tasks.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/scripts/fetch_lmarena_rankings.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/ci_service_error_regressions.py
+    - backend/tests/test_leaderboard_resilience.py
+    - backend/tests/test_reminder_deleted_owner.py
+    - backend/tests/test_storage_capacity_replay.py
+    - backend/tests/test_tasks_api_security.py
+    - backend/tests/test_workflow_scheduler_contract.py
+    - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:reminder
+  - sha: 8576d145ab31758e5d8ca474404de3934cfc3a58
+    short_sha: 8576d145a
+    authored_at: '2026-10-07T16:16:34+00:00'
+    subject: 'docs: record landing verification and architecture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/frontend/web-app.md
+    - docs/plans/scrollable-landing-page/plan.yml
+    related_feature_ids: []
+  - sha: dbab85b377120afa9c43894f1221edf581fd20c0
+    short_sha: dbab85b37
+    authored_at: '2026-10-07T16:08:10+00:00'
+    subject: 'feat: add scrollable Figma landing page'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/web-app-landing-domain-split.md
+    - docs/plans/scrollable-landing-page/plan.yml
+    - frontend/apps/web_app/src/lib/landingOrigins.test.ts
+    - frontend/apps/web_app/src/lib/landingOrigins.ts
+    - frontend/apps/web_app/src/routes/(marketing)/+layout@.svelte
+    - frontend/apps/web_app/src/routes/(marketing)/landing/+page.server.ts
+    - frontend/apps/web_app/src/routes/(marketing)/landing/+page.svelte
+    - frontend/apps/web_app/src/routes/(marketing)/landing/+page.ts
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+    - frontend/apps/web_app/static/landing/screenshots/events-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/events-mobile.webp
+    - frontend/apps/web_app/static/landing/screenshots/hero-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/hero-mobile.webp
+    - frontend/apps/web_app/static/landing/screenshots/privacy-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/privacy-mobile.webp
+    - frontend/apps/web_app/static/landing/screenshots/workflows-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/workflows-mobile.webp
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/marketing-landing-route.spec.ts
+    - frontend/apps/web_app/vercel.json
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/landing/LandingPage.preview.ts
+    - frontend/packages/ui/src/components/landing/LandingPage.svelte
+    - frontend/packages/ui/src/components/landing/landingPageContent.ts
+    - frontend/packages/ui/src/services/__tests__/landingComposerDeepLink.test.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/stores/composerFocusStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: c6241249f9117a7adf8edc60120b948b26812c31
+    short_sha: c6241249f
+    authored_at: '2026-10-07T15:57:56+00:00'
+    subject: 'fix: restore CLI publication checks after recovery changes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/draft-sync.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - frontend/packages/openmates-cli/tests/tuiCancellation.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 707e5f10de834190046d04024c422a93cd2be664
+    short_sha: 707e5f10d
+    authored_at: '2026-10-07T15:20:26+00:00'
+    subject: 'fix: preserve completed CLI replies during historical recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: bd56fe67bf3593f09c2b74ace05c1e9c05648286
+    short_sha: bd56fe67b
+    authored_at: '2026-10-07T15:17:00+00:00'
+    subject: 'feat: replace connection and sync notifications with header status'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - DESIGN.md
+    - docs/architecture/frontend/web-app.md
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/tests/components/connection-status-preview.spec.ts
+    - frontend/apps/web_app/tests/connection-status.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/ConnectionStatusController.svelte
+    - frontend/packages/ui/src/components/ConnectionStatusIndicator.preview.ts
+    - frontend/packages/ui/src/components/ConnectionStatusIndicator.svelte
+    - frontend/packages/ui/src/components/ConnectionStatusPreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/ConnectionStatusPreviewHarness.svelte
+    - frontend/packages/ui/src/components/ConnectionStatusSlot.preview.ts
+    - frontend/packages/ui/src/components/ConnectionStatusSlot.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/OfflineBanner.svelte
+    - frontend/packages/ui/src/components/OfflineIndicator.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersSyncTeamContext.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/stores/__tests__/chatSyncActivityStore.test.ts
+    - frontend/packages/ui/src/stores/__tests__/connectionFeedbackStore.test.ts
+    - frontend/packages/ui/src/stores/chatSyncActivityStore.ts
+    - frontend/packages/ui/src/stores/connectionFeedbackStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 01107756fc8d15afbb59b91567aa9ac2abdc8534
+    short_sha: 01107756f
+    authored_at: '2026-10-07T14:41:43+00:00'
+    subject: 'fix: publish original project file references after reads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/project_file_references.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_project_file_reference_stream.py
+    - backend/tests/test_project_file_references.py
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 02af4acc95e669e4a19299f970b997eeb6d6006a
+    short_sha: 02af4acc9
+    authored_at: '2026-10-07T14:35:27+00:00'
+    subject: 'fix: provision uploads for full Teams management CI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    related_feature_ids: []
+  - sha: 7a6e4b1e7f49de81116761cb03b36a9571ce7d04
+    short_sha: 7a6e4b1e7
+    authored_at: '2026-10-07T14:34:48+00:00'
+    subject: 'fix: match Teams identity to Figma and verify full management flows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/team-context-picker-preview.spec.ts
+    - frontend/apps/web_app/tests/components/teams-invite-form.spec.ts
+    - frontend/apps/web_app/tests/helpers/settings-readiness.ts
+    - frontend/apps/web_app/tests/teams-flow.spec.ts
+    - frontend/apps/web_app/tests/teams-invite-acceptance.spec.ts
+    - frontend/apps/web_app/tests/teams-management-flow.spec.ts
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsTeamInvite.svelte
+    - frontend/packages/ui/src/components/settings/TeamInviteForm.preview.ts
+    - frontend/packages/ui/src/components/teams/TeamAvatar.svelte
+    - frontend/packages/ui/src/components/teams/TeamProfileBadge.svelte
+    - frontend/packages/ui/src/components/teams/TeamProfileBadgePreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/teams/TeamProfileBadgePreviewHarness.svelte
+    - frontend/packages/ui/src/components/teams/TeamWorkspaceIdentity.preview.ts
+    - frontend/packages/ui/src/components/teams/TeamWorkspaceIdentity.svelte
+    - frontend/packages/ui/src/components/teams/TeamWorkspaceIdentityPreviewHarness.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 4f3a2a8dae9620d978b1122351c478fc753bf528
+    short_sha: 4f3a2a8da
+    authored_at: '2026-10-07T14:13:46+00:00'
+    subject: 'fix: gate project README requests behind focus consent'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/project_file_references.py
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/projects/app.yml
+    - backend/tests/test_project_file_references.py
+    - backend/tests/test_project_focus_requests.py
+    - frontend/apps/web_app/tests/components/project-file-references.spec.ts
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+    - frontend/packages/ui/src/components/embeds/projects/ProjectReferenceEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/projects/ProjectReferenceEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/projects/ProjectReferenceEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/projects/ProjectReferenceEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/projects/projectReferenceData.ts
+    - frontend/packages/ui/src/components/embeds/projects/projectReferenceEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/app_skills/projects.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - frontend/packages/ui/src/services/hostedProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/projectFileJobExecutor.ts
+    - frontend/packages/ui/src/utils/iconNameResolver.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/project_remote_access_live.mjs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:projects
+    - embed:projects:read
+    - embed:projects:search
+    - platform:projects
+    - skill:ai:ask
+  - sha: 46b8b89e0d6ff5dfc5e12b4786a206857399db41
+    short_sha: 46b8b89e0
+    authored_at: '2026-10-07T14:04:26+00:00'
+    subject: 'fix: close recovery and health reporting gaps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/directus/health_event_methods.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/tests/test_chat_content_batch_handler.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    - backend/tests/test_health_event_methods.py
+    - backend/tests/test_health_status_alerts.py
+    - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
+    - frontend/apps/web_app/tests/storage-recovery-fixtures.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 9846895f0846c64255c19e3938401494282f2a5b
+    short_sha: 9846895f0
+    authored_at: '2026-10-07T13:38:34+00:00'
+    subject: 'fix: start CLI recovery discovery before noninteractive sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/verify_llm_cache_cli.py
+    - docs/plans/llm-cache-pricing/plan.yml
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputWs.test.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 09a946b2fe82be4745b15514e202a85b7ff19fe7
+    short_sha: 09a946b2f
+    authored_at: '2026-10-07T12:14:32+00:00'
+    subject: 'feat: add verified cache accounting and billing reservations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/modelsMetadata.json
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatSettingsUsageModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSettingsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerModelDetails.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeModelCatalog.swift
+    - apple/OpenMatesTests/ChatSettingsParityTests.swift
+    - apple/OpenMatesTests/NativeModelCatalogTests.swift
+    - apple/OpenMatesUITests/ChatSettingsParityUITests.swift
+    - backend/apps/ai/llm_providers/anthropic_client.py
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/apps/ai/llm_providers/anthropic_shared.py
+    - backend/apps/ai/llm_providers/bedrock_client.py
+    - backend/apps/ai/llm_providers/bedrock_shared.py
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/llm_providers/mistral_client.py
+    - backend/apps/ai/llm_providers/openai_client.py
+    - backend/apps/ai/llm_providers/openai_responses.py
+    - backend/apps/ai/llm_providers/openai_shared.py
+    - backend/apps/ai/processing/jev_decisions.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/model_usage_tracker.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/openai_compat.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/api/app/services/llm_usage_receipt.py
+    - backend/core/api/app/services/sub_chat_orchestration_service.py
+    - backend/core/api/app/services/team_billing_service.py
+    - backend/core/api/app/services/team_data_portability_service.py
+    - backend/core/api/app/services/usage_archive_service.py
+    - backend/core/api/app/tasks/billing_settlement_tasks.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/index.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/test/storage-billing.test.js
+    - backend/core/directus/schemas/billing_reservations.yml
+    - backend/core/directus/schemas/teams.yml
+    - backend/core/directus/schemas/usage.yml
+    - backend/core/directus/setup/migrate_sub_chat_orchestration_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/providers/anthropic.yml
+    - backend/providers/google.yml
+    - backend/providers/mistral.yml
+    - backend/providers/openai.yml
+    - backend/scripts/verify_llm_cache_cli.py
+    - backend/scripts/verify_llm_cache_usage.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/shared/python_schemas/llm_usage.py
+    - backend/shared/python_utils/billing_utils.py
+    - backend/tests/test_ai_fallback_billing.py
+    - backend/tests/test_authenticated_ai_reservation_bridge.py
+    - backend/tests/test_billing_settlement_reliability.py
+    - backend/tests/test_llm_cache_accounting.py
+    - backend/tests/test_llm_provider_cache_usage.py
+    - backend/tests/test_llm_utils_chat_direction_privacy.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_openai_gpt56_models.py
+    - backend/tests/test_rest_api_core.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - backend/tests/test_teams_billing.py
+    - backend/tests/test_typesafe_decisions.py
+    - backend/tests/test_usage_entries.py
+    - docs/plans/llm-cache-pricing/before-after.md
+    - docs/plans/llm-cache-pricing/cache-pricing.html
+    - docs/plans/llm-cache-pricing/implementation-design.yml
+    - docs/plans/llm-cache-pricing/plan.yml
+    - docs/plans/llm-cache-pricing/scenarios.csv
+    - docs/plans/llm-cache-pricing/simulate.py
+    - frontend/apps/web_app/tests/billing-reservation-summary.spec.ts
+    - frontend/apps/web_app/tests/components/ai-model-cache-pricing.spec.ts
+    - frontend/apps/web_app/tests/components/settings-usage-cache-receipt.spec.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/apps/AppsSkillForm.svelte
+    - frontend/packages/ui/src/components/chats/__tests__/chatUsageRows.test.ts
+    - frontend/packages/ui/src/components/chats/chatUsageRows.ts
+    - frontend/packages/ui/src/components/settings/AiAskModelDetails.preview.ts
+    - frontend/packages/ui/src/components/settings/AiAskModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/data/modelsMetadata.d.ts
+    - frontend/packages/ui/src/i18n/sources/settings/ai_ask.yml
+    - frontend/packages/ui/src/i18n/sources/settings/usage.yml
+    - frontend/packages/ui/src/types/apps.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/cachePricingAvailability.test.ts
+    - frontend/packages/ui/src/utils/cachePricingAvailability.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/billing/examples.yml
+    - specifications/features/billing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - platform:ios
+    - platform:macos
+    - platform:teams
+  - sha: 30d75fb3146b20bf29aec674f26aa74bed7d519e
+    short_sha: 30d75fb31
+    authored_at: '2026-10-07T11:24:51+00:00'
+    subject: 'fix: honor candidate upload requirements in isolated CI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_environment.py
+    related_feature_ids: []
+  - sha: 6b408199dea6a47a7bdeb909e5cc92f821166934
+    short_sha: 6b408199d
+    authored_at: '2026-10-07T10:53:22+00:00'
+    subject: 'docs: record Turbo experiment autoplay verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/video-call-experiment/plan.yml
+    related_feature_ids: []
+  - sha: 938ce0a6cec16112477e6b47bc0feb4098f8d240
+    short_sha: 938ce0a6c
+    authored_at: '2026-10-07T10:49:54+00:00'
+    subject: 'fix: pin isolated CI Vault to verified mirror'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_environment.py
+    related_feature_ids: []
+  - sha: 32f3016ec9d65185ff56922ef2d09c64341f4eca
+    short_sha: 32f3016ec
+    authored_at: '2026-10-07T10:49:04+00:00'
+    subject: 'feat: add deterministic daily Git code-change statistics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/git_daily_stats.py
+    - scripts/tests/test_git_daily_stats.py
+    related_feature_ids: []
+  - sha: 356edc26599983e5d636b5a8f16872ef6ccea04e
+    short_sha: 356edc265
+    authored_at: '2026-10-07T10:48:09+00:00'
+    subject: 'fix: autoplay call visuals and reduce clip delivery latency'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/video_call_experiment.py
+    - backend/shared/providers/fal/h3_turbo.py
+    - backend/tests/test_video_call_experiment.py
+    - docs/architecture/video-call-experiment.md
+    - docs/plans/video-call-experiment/plan.yml
+    - frontend/apps/web_app/tests/components/video-call-panel.spec.ts
+    - frontend/apps/web_app/tests/fixtures/video-call-clip-audio.mp4
+    - frontend/apps/web_app/tests/fixtures/video-call-clip-audio.webm
+    - frontend/packages/ui/src/components/videocall/VideoCallPanel.preview.ts
+    - frontend/packages/ui/src/components/videocall/VideoCallPanel.svelte
+    - frontend/packages/ui/src/components/videocall/callAudio.test.ts
+    - frontend/packages/ui/src/components/videocall/callAudio.ts
+    - frontend/packages/ui/src/components/videocall/callController.test.ts
+    - frontend/packages/ui/src/components/videocall/callController.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: c9a739865ba9685890ddb686cf51877dedfac343
+    short_sha: c9a739865
+    authored_at: '2026-10-07T10:25:32+00:00'
+    subject: 'fix: render readable encrypted Apple notification previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/tests/test_push_notification_preview.py
+    - specifications/features/apple-notifications/examples.yml
+    - specifications/features/apple-notifications/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 61b78000289bc52ec4f08389bedee9b63ef46691
+    short_sha: 61b780002
+    authored_at: '2026-10-07T01:06:19+00:00'
+    subject: 'docs: record verified Teams web implementation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/teams-web-2026-10/plan.yml
+    related_feature_ids: []
+  - sha: 7a55b2b3ecadd70e3e51dcf40027ef015fd4aea4
+    short_sha: 7a55b2b3e
+    authored_at: '2026-10-07T00:55:51+00:00'
+    subject: 'fix: match Teams domain row typography to Figma'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/settings-teams-icons.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsTeams.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 8f47cb7f0a0579461664c23cda6d21f61a9bd302
+    short_sha: 8f47cb7f0
+    authored_at: '2026-10-07T00:38:17+00:00'
+    subject: 'fix: omit empty Teams settings icon slots'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/settings-teams-icons.spec.ts
+    - frontend/packages/ui/src/components/SettingsItem.svelte
+    - frontend/packages/ui/src/components/settings/SettingsTeams.preview.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on AI billing infrastructure, terminal interactivity, and UI status reporting. Key updates include
+    the implementation of LLM cache accounting, mouse-driven terminal controls, and a new scrollable landing page.
+  released_changes: []
+  bug_fixes:
+  - text: The chat viewport now remains fixed when opening settings to prevent layout shifts.
+    evidence:
+      commits:
+      - 7c0ce5f53
+    release_status: dev_only
+  - text: CLI reliability was improved by starting recovery discovery before non-interactive sync and preserving completed
+      replies during historical recovery.
+    evidence:
+      commits:
+      - 9846895f0
+      - 46b8b89e0
+      - 707e5f10d
+      - c6241249f
+    release_status: dev_only
+  - text: Encrypted Apple notification previews are now rendered in a readable format.
+    evidence:
+      commits:
+      - c9a739865
+    release_status: dev_only
+  - text: Video call visuals now support autoplay and benefit from reduced clip delivery latency.
+    evidence:
+      commits:
+      - 356edc265
+    release_status: dev_only
+  unreleased_progress:
+  - text: AI billing infrastructure was expanded with scoped cache tariffs, automatic-summary receipts, and verified cache
+      accounting.
+    evidence:
+      commits:
+      - 8adcdd12d
+      - 09a946b2f
+      - be15805b8
+    release_status: dev_only
+  - text: OpenMates added support for opening terminal controls using mouse clicks.
+    evidence:
+      commits:
+      - 5a283e0b2
+    release_status: dev_only
+  - text: A scrollable landing page based on Figma designs was implemented.
+    evidence:
+      commits:
+      - dbab85b37
+    release_status: dev_only
+  - text: Connection and sync notifications were replaced with a persistent header status indicator.
+    evidence:
+      commits:
+      - bd56fe67b
+    release_status: dev_only
+  - text: Work continued on the disabled Teams feature, including identity matching, billing context preservation, and typography
+      refinements.
+    evidence:
+      commits:
+      - 1baaca20e
+      - 7a6e4b1e7
+      - 7a55b2b3e
+      - 8f47cb7f0
+    release_status: dev_only
+  - text: The disabled Projects feature received updates to project file references and focus-gated README requests.
+    evidence:
+      commits:
+      - 4f3a2a8da
+      - 01107756f
+    release_status: dev_only
+  internal_progress:
+  - text: Deterministic daily Git code-change statistics were added to the project scripts.
+    evidence:
+      commits:
+      - 32f3016ec
+    release_status: dev_only
+  - text: CI environment stability was improved by pinning the isolated Vault mirror and provisioning uploads for Teams management
+      testing.
+    evidence:
+      commits:
+      - 938ce0a6c
+      - 30d75fb31
+      - 02af4acc9
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: AI Cache Billing Infrastructure
+      evidence:
+        commits:
+        - 8adcdd12d
+        - 09a946b2f
+      reason: These billing infrastructure changes are currently dev_only and not ready for public communication.
+    - text: Terminal Mouse Controls
+      evidence:
+        commits:
+        - 5a283e0b2
+      reason: Terminal pointer support is currently dev_only.
+    - text: Scrollable Landing Page
+      evidence:
+        commits:
+        - dbab85b37
+      reason: The new landing page is dev_only and not yet live on main.
+    rationale: All user-facing features and improvements from this period are currently in dev_only status and have not reached
+      the main branch for public release.
+  social_video_recommendations:
+  - idea: Demonstrate the new mouse-driven terminal controls within the OpenMates CLI.
+    priority: medium
+    reason: This is a highly visual improvement to the developer experience.
+    evidence:
+      commits:
+      - 5a283e0b2
+  - idea: A scroll-through of the new Figma-based landing page.
+    priority: low
+    reason: Provides a look at the updated marketing direction, though it is still unreleased.
+    evidence:
+      commits:
+      - dbab85b37
+  quality_notes:
+  - Extensive test coverage was added for the new billing and CLI recovery logic.
+  - UI parity with Figma designs was a focus for the landing page and Teams settings.
+  validation_warnings: []
