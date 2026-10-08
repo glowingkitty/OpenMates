@@ -54,8 +54,8 @@ class ModelSelectionResult:
 
 # Default fallback models (always available, reliable)
 # These MUST include provider prefix for billing/routing to work
-DEFAULT_FALLBACK_MODEL = "anthropic/claude-sonnet-5"  # Reliable Claude Sonnet
-DEFAULT_FALLBACK_MODEL_ALT = "anthropic/claude-haiku-4-5-20251001"  # Fast, affordable fallback
+DEFAULT_FALLBACK_MODEL = "anthropic/claude-sonnet-5-5"  # Reliable Claude Sonnet
+DEFAULT_FALLBACK_MODEL_ALT = "anthropic/claude-haiku-5-5"  # Fast, affordable fallback
 
 # Task area to leaderboard category mapping
 TASK_AREA_CATEGORIES = {
@@ -69,24 +69,25 @@ TASK_AREA_CATEGORIES = {
 # Models considered economical (for simple tasks)
 # These are model_id values from leaderboard (without provider prefix)
 ECONOMICAL_MODELS = {
-    "claude-haiku-4-5-20251001",  # Fast, affordable Claude
+    "claude-haiku-5-5",           # Fast, affordable Claude
     "gemini-3.5-flash-lite",      # Fastest, cheapest Gemini
     "gemini-3-flash-preview",     # Fast Gemini
     "gemini-flash-latest",        # Fast Gemini
     "gpt-oss-120b",               # Cheaper GPT
+    "gpt-6-luna",                 # Fast, affordable GPT
 }
 
 # Models considered premium (for complex tasks or when user is unhappy)
 # These are model_id values from leaderboard (without provider prefix)
 PREMIUM_MODELS = {
     "gpt-6-astra",                    # Most capable GPT
+    "gpt-6.1-sol",                  # High-capability GPT
+    "gpt-5.6-terra",                # Balanced reasoning GPT
     "claude-fable-5-1",               # Latest max-capability Claude
-    "claude-fable-5",                 # Most capable Claude
-    "claude-opus-5",                  # Latest Opus
-    "claude-sonnet-5",                # Latest Sonnet
+    "claude-opus-5-5",                # Latest Opus
+    "claude-sonnet-5-5",              # Latest Sonnet
     "gemini-3.7-flash",              # Top Gemini Flash
     "gemini-3.5-flash",              # Mid-tier Gemini alternative to Pro
-    "gpt-5.4",                       # Top GPT
 }
 
 # Cache for allow_auto_select settings (loaded once per process)

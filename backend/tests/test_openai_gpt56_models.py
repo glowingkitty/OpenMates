@@ -1,10 +1,10 @@
 # contract-test-file: infrastructure
 # backend/tests/test_openai_gpt56_models.py
 #
-# Purpose: pins the OpenAI GPT-5.6 provider catalog and request payload
-# mapping. Sol Max is an OpenMates catalog variant, not a separate upstream
-# OpenAI model, so the direct OpenAI SDK payload must route it to gpt-5.6-sol
-# with max reasoning effort.
+# Purpose: pins the retained GPT-5.6 Terra provider catalog entry and legacy
+# request payload mapping. Sol Max was an OpenMates catalog variant, not a
+# separate upstream OpenAI model, so historical synthetic routing tests keep
+# covering its gpt-5.6-sol mapping with max reasoning effort.
 # Spec: docs/specs/gpt-5-6-openai-model-variants/spec.yml
 
 import asyncio
@@ -178,6 +178,23 @@ def _openai_model_by_id() -> Dict[str, Dict[str, Any]]:
     return {model["id"]: model for model in provider["models"] if isinstance(model, dict)}
 
 
+def _provider_with_legacy_gpt56_models() -> Dict[str, Any]:
+    """Exercise legacy request mapping without restoring retired catalog entries."""
+    provider = _load_openai_provider()
+    existing_ids = {model["id"] for model in provider["models"] if isinstance(model, dict)}
+    for model_id, expected in EXPECTED_GPT56_MODELS.items():
+        if model_id in existing_ids:
+            continue
+        provider["models"].append({
+            "id": model_id,
+            "default_server": "openai",
+            "servers": [{"id": "openai", "model_id": expected["upstream_model_id"], "region": "US"}],
+            "reasoning": model_id != "gpt-5.6-luna",
+            "reasoning_effort": expected["reasoning_effort"],
+        })
+    return provider
+
+
 def _module(name: str, **attrs: Any) -> types.ModuleType:
     module = types.ModuleType(name)
     for attr, value in attrs.items():
@@ -328,7 +345,9 @@ def _load_llm_utils_with_stubs(monkeypatch: pytest.MonkeyPatch, openai_provider:
 def test_gpt56_catalog_entries_define_routing_pricing_and_capabilities() -> None:
     models = _openai_model_by_id()
 
-    for model_id, expected in EXPECTED_GPT56_MODELS.items():
+    assert {model_id for model_id in EXPECTED_GPT56_MODELS if model_id in models} == {"gpt-5.6-terra"}
+    for model_id in ("gpt-5.6-terra",):
+        expected = EXPECTED_GPT56_MODELS[model_id]
         model = models[model_id]
         assert model["name"] == expected["name"]
         assert model["country_origin"] == "US"
@@ -391,7 +410,7 @@ def test_gpt56_payload_uses_catalog_upstream_model_and_reasoning_effort(
     expected_reasoning_effort: str,
     stream: bool,
 ) -> None:
-    provider = _load_openai_provider()
+    provider = _provider_with_legacy_gpt56_models()
     model_by_id = {model["id"]: model for model in provider["models"] if isinstance(model, dict)}
     stub = _StubClient()
 
@@ -429,7 +448,7 @@ def test_gpt56_payload_uses_catalog_upstream_model_and_reasoning_effort(
 
 
 def test_gpt56_stream_payload_uses_catalog_upstream_model_and_reasoning_effort(monkeypatch: pytest.MonkeyPatch) -> None:
-    provider = _load_openai_provider()
+    provider = _provider_with_legacy_gpt56_models()
     model_by_id = {model["id"]: model for model in provider["models"] if isinstance(model, dict)}
     stub = _StubClient()
 
@@ -516,7 +535,7 @@ def test_gpt56_luna_tool_payload_disables_reasoning_effort(
     monkeypatch: pytest.MonkeyPatch,
     stream: bool,
 ) -> None:
-    provider = _load_openai_provider()
+    provider = _provider_with_legacy_gpt56_models()
     model_by_id = {model["id"]: model for model in provider["models"] if isinstance(model, dict)}
     stub = _StubClient()
     tools = [

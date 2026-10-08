@@ -57,7 +57,8 @@
         output: model?.pricing?.output_tokens_per_credit,
     });
     const cachePricingActive = $derived(isCachePricingDisplayActive(model?.cache_pricing, model?.default_server, standardRates));
-    const longContextBand = $derived(model?.pricing?.context_bands?.over_272k);
+    const longContextBandKey = $derived(model?.default_server === 'anthropic' ? 'over_100k' : 'over_272k');
+    const longContextBand = $derived(model?.pricing?.context_bands?.[longContextBandKey]);
     const longContextPricingActive = $derived(isLongContextPricingDisplayActive(model?.cache_pricing, model?.default_server, standardRates, longContextBand));
     const automaticSummaryPricing = $derived(cachePricingActive ? getAutomaticSummaryPricing() : null);
 
@@ -323,8 +324,8 @@
                     {/if}
                     {#if longContextPricingActive && longContextBand}
                         <div class="long-context-pricing" data-testid="app-model-long-context-tier">
-                            <h4 class="pricing-tier-title">{$text('settings.ai_ask.ai_ask_model_details.over_272k_pricing')}</h4>
-                            <p class="cache-pricing-note">{$text('settings.ai_ask.ai_ask_model_details.over_272k_explanation')}</p>
+                            <h4 class="pricing-tier-title">{$text(`settings.ai_ask.ai_ask_model_details.${longContextBandKey}_pricing`)}</h4>
+                            <p class="cache-pricing-note">{$text(`settings.ai_ask.ai_ask_model_details.${longContextBandKey}_explanation`)}</p>
                             <div class="pricing-row"><span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.uncached_input')}</span><span class="pricing-value">{tokenPrice(longContextBand.input_tokens_per_credit)}</span></div>
                             <div class="pricing-row"><span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.cache_read')}</span><span class="pricing-value">{tokenPrice(longContextBand.cache_read_tokens_per_credit)}</span></div>
                             <div class="pricing-row"><span class="pricing-type">{$text(`settings.ai_ask.ai_ask_model_details.${model.cache_pricing?.write_billing === 'included_in_input' ? 'cache_write' : 'cache_write_5m'}`)}</span><span class="pricing-value">{model.cache_pricing?.write_billing === 'included_in_input' ? $text('settings.ai_ask.ai_ask_model_details.included_in_input') : tokenPrice(longContextBand.cache_write_tokens_per_credit)}</span></div>

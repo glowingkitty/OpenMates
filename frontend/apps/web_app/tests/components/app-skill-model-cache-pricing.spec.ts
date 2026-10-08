@@ -7,6 +7,22 @@ const preview = (variant: string) => `/dev/preview/settings/AppSkillModelDetails
 
 test.describe('App skill model long-context pricing preview', () => {
   // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
+  test('Haiku catalog shows standard and over-100k prices with five-minute writes', async ({ page }) => {
+    await page.goto(preview('catalog-haiku'));
+    await waitForComponentPreview(page);
+
+    await expect(page.getByTestId('app-model-pricing-cache-read-row')).toContainText('33000');
+    await expect(page.locator('.pricing-tier-title').first()).toContainText('Standard');
+    await expect(page.getByTestId('app-model-pricing-cache-write-row')).toContainText('2640');
+    await expect(page.getByTestId('app-model-pricing-cache-write-1h-row')).toHaveCount(0);
+    const tier = page.getByTestId('app-model-long-context-tier');
+    await expect(tier).toContainText('Over 100,000 input tokens');
+    await expect(tier).toContainText('6600');
+    await expect(tier).toContainText('528');
+    await expect(tier).toContainText('132');
+    await expect(tier).toContainText('whole request');
+  });
+  // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
   test('shows the active long-context rates and included cache writes', async ({ page }) => {
     await page.goto(preview('long-context-active'));
     await waitForComponentPreview(page);

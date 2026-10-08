@@ -1,4 +1,5 @@
 # backend/tests/test_preprocessor.py
+# contract-test-file: infrastructure
 #
 # Unit tests for preprocessor pure functions: onboarding trigger detection
 # across 20 languages, and text content sanitization.
@@ -19,6 +20,7 @@ try:
         _contains_repo_search_intent_in_user_history,
         _request_has_image_upload_embed,
         _resolve_override_model_provider,
+        _usable_chat_model_reference,
         IMAGE_CHAT_SAFE_MODEL_ID,
         IMAGE_CHAT_SAFE_MODEL_NAME,
         _latest_assistant_category_from_history,
@@ -67,22 +69,41 @@ class FakeConfigManager:
                 "models": [
                     {
                         "id": "qwen3-235b-a22b-2507",
-                        "servers": [{"id": "cerebras"}, {"id": "openrouter"}],
+                        "for_app_skill": "ai.ask",
+                        "name": "Qwen 3",
+                        "default_server": "cerebras",
+                        "servers": [{"id": "cerebras", "model_id": "qwen3-235b-a22b-2507"}, {"id": "openrouter", "model_id": "qwen3-235b-a22b-2507"}],
                     }
                 ]
             },
             "openai": {
                 "models": [
                     {
-                        "id": "gpt-5.4",
-                        "servers": [{"id": "openai"}],
+                        "id": "gpt-6.1-sol",
+                        "name": "GPT-6.1 Sol",
+                        "for_app_skill": "ai.ask",
+                        "default_server": "openai",
+                        "servers": [{"id": "openai", "model_id": "gpt-6.1-sol"}],
                     }
                 ]
             },
+            "anthropic": {"models": [{
+                "id": "claude-sonnet-5-5",
+                "name": "Claude Sonnet 5.5",
+                "for_app_skill": "ai.ask",
+                "default_server": "anthropic",
+                "servers": [{"id": "anthropic", "model_id": "claude-sonnet-5-5"}],
+            }]},
         }
 
     def get_provider_config(self, provider_id: str):
         return self.provider_configs.get(provider_id)
+
+    def get_model_pricing(self, provider_id: str, model_id: str):
+        for model in self.provider_configs.get(provider_id, {}).get("models", []):
+            if model.get("id") == model_id or model_id in model.get("aliases", []):
+                return model
+        return None
 
     def find_provider_for_model(self, model_id: str):
         for provider_id, provider_config in self.provider_configs.items():
@@ -105,12 +126,44 @@ def test_resolve_override_model_provider_normalizes_server_id():
 
 def test_resolve_override_model_provider_keeps_direct_provider_id():
     result = _resolve_override_model_provider(
-        "gpt-5.4",
+        "gpt-6.1-sol",
         "openai",
         FakeConfigManager(),
     )
 
     assert result == "openai"
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preferences.exclusive-tier-defaults,ai-model-routing.catalog.capability-recommendation-variants
+def test_retired_user_default_is_ignored_but_retained_preference_applies():
+    config = FakeConfigManager()
+    assert _usable_chat_model_reference("openai/gpt-5.4", config) is None
+    assert _usable_chat_model_reference("anthropic/claude-sonnet-5", config) is None
+    assert _usable_chat_model_reference("openai/gpt-6.1-sol", config) == (
+        "openai/gpt-6.1-sol", "GPT-6.1 Sol",
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.catalog.capability-recommendation-variants
+@pytest.mark.parametrize("model_ref", [
+    "openai/gpt-5.4",  # Fully qualified @ai-model:openai/gpt-5.4
+    "anthropic/claude-sonnet-5",  # @ai-model:claude-sonnet-5:anthropic
+    "openai/gpt-image-2",  # A valid provider, but not an ai.ask model
+])
+def test_retired_or_non_chat_explicit_model_cannot_be_routed(model_ref):
+    config = FakeConfigManager()
+    config.provider_configs["openai"]["models"].append({
+        "id": "gpt-image-2", "name": "GPT Image 2", "for_app_skill": "images.generate",
+        "default_server": "openai", "servers": [{"id": "openai", "model_id": "gpt-image-2"}],
+    })
+    assert _usable_chat_model_reference(model_ref, config) is None
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.catalog.capability-recommendation-variants
+def test_chat_model_requires_usable_declared_default_server():
+    config = FakeConfigManager()
+    config.provider_configs["openai"]["models"][0]["servers"] = []
+    assert _usable_chat_model_reference("openai/gpt-6.1-sol", config) is None
 
 
 # ===========================================================================
@@ -416,8 +469,8 @@ class TestImageUploadEmbedDetection:
         assert _request_has_image_upload_embed(request) is False
 
     def test_safe_model_matches_image_reroute_contract(self):
-        assert IMAGE_CHAT_SAFE_MODEL_ID == "anthropic/claude-haiku-4-5-20251001"
-        assert IMAGE_CHAT_SAFE_MODEL_NAME == "Claude Haiku 4.5"
+        assert IMAGE_CHAT_SAFE_MODEL_ID == "anthropic/claude-haiku-5-5"
+        assert IMAGE_CHAT_SAFE_MODEL_NAME == "Claude Haiku 5.5"
 
 
 # ===========================================================================

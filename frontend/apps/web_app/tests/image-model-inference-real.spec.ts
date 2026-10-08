@@ -54,65 +54,71 @@ type ModelCase = {
 const MODELS: ModelCase[] = [
 	{
 		provider: 'anthropic',
-		model: 'claude-haiku-4-5-20251001',
+		model: 'claude-haiku-5-5',
 		label: 'claude-haiku',
-		expectedGeneratedBy: /Claude Haiku 4\.5|claude-haiku-4-5-20251001/i
+		expectedGeneratedBy: /Claude Haiku 5\.5|claude-haiku-5-5/i
 	},
 	{
 		provider: 'anthropic',
-		model: 'claude-sonnet-4-6',
+		model: 'claude-sonnet-5-5',
 		label: 'claude-sonnet',
-		expectedGeneratedBy: /Claude Sonnet 4\.6|claude-sonnet-4-6/i
+		expectedGeneratedBy: /Claude Sonnet 5\.5|claude-sonnet-5-5/i
 	},
 	{
 		provider: 'anthropic',
-		model: 'claude-opus-4-6',
-		label: 'claude-opus-46',
-		expectedGeneratedBy: /Claude Opus 4\.6|claude-opus-4-6/i
+		model: 'claude-opus-5-5',
+		label: 'claude-opus',
+		expectedGeneratedBy: /Claude Opus 5\.5|claude-opus-5-5/i
 	},
 	{
 		provider: 'anthropic',
-		model: 'claude-opus-4-7',
-		label: 'claude-opus-47',
-		expectedGeneratedBy: /Claude Opus 4\.7|claude-opus-4-7/i
-	},
-	{
-		provider: 'anthropic',
-		model: 'claude-opus-4-8',
-		label: 'claude-opus-48',
-		expectedGeneratedBy: /Claude Opus 4\.8|claude-opus-4-8/i
+		model: 'claude-fable-5-1',
+		label: 'claude-fable',
+		expectedGeneratedBy: /Claude Fable 5\.1|claude-fable-5-1/i
 	},
 	{
 		provider: 'openai',
-		model: 'gpt-5.5',
-		label: 'gpt-55',
-		expectedGeneratedBy: /GPT-5\.5|gpt-5\.5/i
+		model: 'gpt-6.1-sol',
+		label: 'gpt-61-sol',
+		expectedGeneratedBy: /GPT-6\.1 Sol|gpt-6\.1-sol/i
 	},
 	{
 		provider: 'openai',
-		model: 'gpt-5.4',
-		label: 'gpt-54',
-		expectedGeneratedBy: /GPT-5\.4|gpt-5\.4/i
+		model: 'gpt-6-astra',
+		label: 'gpt-6-astra',
+		expectedGeneratedBy: /GPT-6 Astra|gpt-6-astra/i
+	},
+	{
+		provider: 'openai',
+		model: 'gpt-6-luna',
+		label: 'gpt-6-luna',
+		expectedGeneratedBy: /GPT-6 Luna|gpt-6-luna/i
+	},
+	{
+		provider: 'openai',
+		model: 'gpt-5.6-terra',
+		label: 'gpt-56-terra',
+		expectedGeneratedBy: /GPT-5\.6 Terra|gpt-5\.6-terra/i
 	},
 	{
 		provider: 'google',
 		model: 'gemini-3-flash-preview',
 		label: 'gemini-flash',
-		expectedGeneratedBy: /Claude Haiku 4\.5|claude-haiku-4-5-20251001/i,
+		expectedGeneratedBy: /Claude Haiku 5\.5|claude-haiku-5-5/i,
 		expectsReroute: true
 	},
 	{
 		provider: 'google',
 		model: 'gemini-3.7-flash',
 		label: 'gemini-36-flash',
-		expectedGeneratedBy: /Claude Haiku 4\.5|claude-haiku-4-5-20251001/i,
+		expectedGeneratedBy: /Claude Haiku 5\.5|claude-haiku-5-5/i,
 		expectsReroute: true
 	},
 	{
 		provider: 'google',
 		model: 'gemini-3.5-flash',
 		label: 'gemini-35-flash',
-		expectedGeneratedBy: /Claude Haiku 4\.5|claude-haiku-4-5-20251001/i,
+		expectedGeneratedBy: /Claude Haiku 5\.5|claude-haiku-5-5/i,
 		expectsReroute: true
 	}
 ];

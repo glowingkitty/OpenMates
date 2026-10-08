@@ -56,7 +56,7 @@ def test_real_provider_catalogue_supplies_current_text_image_video_and_audio_con
     context = build_ai_model_catalogue_context(
         provider_configs, ["llm", "image", "video", "audio"], today=date(2026, 9, 29)
     )
-    assert "GPT-6 Sol" in context
+    assert "GPT-6.1 Sol" in context
     assert "Claude Opus 5.5" in context
     assert "GPT Image 2" in context
     assert "Veo 3.1" in context

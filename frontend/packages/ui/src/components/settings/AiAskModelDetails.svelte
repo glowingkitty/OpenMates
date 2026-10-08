@@ -37,7 +37,8 @@
         output: model?.pricing?.output_tokens_per_credit,
     });
     const cachePricingActive = $derived(isCachePricingDisplayActive(model?.cache_pricing, model?.default_server, standardRates));
-    const longContextBand = $derived(model?.pricing?.context_bands?.over_272k);
+    const longContextBandKey = $derived(model?.default_server === 'anthropic' ? 'over_100k' : 'over_272k');
+    const longContextBand = $derived(model?.pricing?.context_bands?.[longContextBandKey]);
     const longContextPricingActive = $derived(isLongContextPricingDisplayActive(model?.cache_pricing, model?.default_server, standardRates, longContextBand));
     const automaticSummaryPricing = $derived(cachePricingActive ? getAutomaticSummaryPricing() : null);
     const disabledModels = $derived($userProfile.disabled_ai_models ?? []);
@@ -170,8 +171,8 @@
                     {/if}
                     {#if longContextPricingActive && longContextBand}
                         <div class="long-context-pricing" data-testid="ai-model-long-context-tier">
-                            <h4 class="pricing-tier-title">{$text('settings.ai_ask.ai_ask_model_details.over_272k_pricing')}</h4>
-                            <p class="cache-pricing-note" data-testid="ai-model-long-context-explanation">{$text('settings.ai_ask.ai_ask_model_details.over_272k_explanation')}</p>
+                            <h4 class="pricing-tier-title">{$text(`settings.ai_ask.ai_ask_model_details.${longContextBandKey}_pricing`)}</h4>
+                            <p class="cache-pricing-note" data-testid="ai-model-long-context-explanation">{$text(`settings.ai_ask.ai_ask_model_details.${longContextBandKey}_explanation`)}</p>
                             <div class="ai-row-list">
                                 <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.uncached_input')} subtitleBottom={longContextBand.input_tokens_per_credit ? priceValue(longContextBand.input_tokens_per_credit) : $text('settings.ai_ask.ai_ask_model_details.unavailable')} data-testid="ai-model-long-context-input-row" />
                                 <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.cache_read')} subtitleBottom={longContextBand.cache_read_tokens_per_credit ? priceValue(longContextBand.cache_read_tokens_per_credit) : $text('settings.ai_ask.ai_ask_model_details.unavailable')} data-testid="ai-model-long-context-cache-read-row" />

@@ -557,9 +557,7 @@ def test_implicit_read_bound_requires_known_host_rates_output_and_reported_usage
 
 
 @pytest.mark.parametrize("model_id", [
-    "gpt-6-astra", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna",
-    "gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-sol-max",
-    "gpt-5.5", "gpt-5.4",
+    "gpt-6-astra", "gpt-6.1-sol", "gpt-6-luna", "gpt-5.6-terra",
 ])
 def test_openai_long_context_catalog_units_match_approved_multipliers(model_id: str) -> None:
     frozen = snapshot_model_tariff(_active_openai_model(model_id))
@@ -650,7 +648,7 @@ def test_openai_long_context_missing_cache_counter_uses_long_ordinary_input() ->
 
 
 def test_openai_long_context_activation_rejects_malformed_or_missing_band() -> None:
-    model = _active_openai_model("gpt-6-sol")
+    model = _active_openai_model("gpt-6.1-sol")
     model["pricing"]["context_bands"]["over_272k"]["min_input_tokens"] = 272_000
     with pytest.raises(BillingError, match="boundary"):
         snapshot_model_tariff(model)
@@ -660,6 +658,91 @@ def test_openai_long_context_activation_rejects_malformed_or_missing_band() -> N
         snapshot_model_tariff(model)
     model["pricing"].pop("context_bands")
     with pytest.raises(BillingError, match="lacks a customer band"):
+        snapshot_model_tariff(model)
+
+
+def test_anthropic_haiku_long_context_uses_inclusive_cached_and_tool_input() -> None:
+    tariff = snapshot_model_tariff(_provider_model("anthropic", "claude-haiku-5-5"))
+    base = tariff["pricing"]["tokens"]
+    for category, row in base.items():
+        band_unit = tariff["pricing"]["context_bands"]["over_100k"]["tokens"][category]["per_credit_unit"]
+        assert Fraction(Decimal(str(band_unit))) == Fraction(Decimal(str(row["per_credit_unit"]))) / 5
+
+    # Anthropic's native input includes ordinary prompt and tool-result input;
+    # cache reads and writes are added to get the inclusive threshold total.
+    for native_input, expected_total, expected_band in (
+        (99_800, 100_000, "standard"),
+        (99_801, 100_001, "over_100k"),
+    ):
+        usage = normalize_provider_usage(
+            {"input_tokens": native_input, "output_tokens": 20,
+             "cache_read_input_tokens": 100, "cache_creation_input_tokens": 100,
+             "cache_creation_5m_input_tokens": 100, "cache_creation_1h_input_tokens": 0},
+            model_id="anthropic/claude-haiku-5-5", provider_kind="anthropic",
+            inference_host="anthropic",
+        )
+        assert usage.input_total == expected_total
+        band, rates = select_customer_context_band(
+            model_pricing_details=tariff, inference_host="anthropic", input_total=usage.input_total,
+        )
+        assert band == expected_band
+        assert rates["input"]["per_credit_unit"] == (3300 if expected_band == "standard" else 660)
+
+
+def test_anthropic_haiku_attempts_freeze_receipt_rates_and_supplier_costs() -> None:
+    model = _provider_model("anthropic", "claude-haiku-5-5")
+    frozen = snapshot_model_tariff(model)
+    tracker = ModelUsageTracker()
+    usages = []
+    for attempt_id, native_input in (("at-100k", 99_800), ("over-100k", 99_801)):
+        usage = normalize_provider_usage(
+            {"input_tokens": native_input, "output_tokens": 20,
+             "cache_read_input_tokens": 100, "cache_creation_input_tokens": 100,
+             "cache_creation_5m_input_tokens": 100, "cache_creation_1h_input_tokens": 0},
+            model_id="anthropic/claude-haiku-5-5", provider_kind="anthropic",
+            inference_host="anthropic", attempt_id=attempt_id, tariff_snapshot=frozen,
+        )
+        tracker.record_reported_usage(model_id=usage.model_id, normalized_usage=usage)
+        usages.append(usage)
+
+    model["pricing"]["tokens"]["input"]["per_credit_unit"] = 1
+    model["pricing"]["context_bands"]["over_100k"]["tokens"]["input"]["per_credit_unit"] = 1
+    receipt = build_model_usage_breakdown(tracker.usage_by_model, _lookup(model))
+    assert [entry["context_band"] for entry in receipt["entries"]] == ["standard", "over_100k"]
+    assert [entry["billing_mode"] for entry in receipt["entries"]] == ["cache_aware", "cache_aware"]
+    assert [entry["rates"]["input"] for entry in receipt["entries"]] == ["3300", "660"]
+    assert [entry["rates"]["cache_read"] for entry in receipt["entries"]] == ["33000", "6600"]
+    assert [entry["rates"]["cache_write"] for entry in receipt["entries"]] == ["2640", "528"]
+    assert [entry["rates"]["output"] for entry in receipt["entries"]] == ["660", "132"]
+    assert all(entry["rates"]["cache_write_1h"] is None for entry in receipt["entries"])
+    assert all(entry["pricing_version"] == frozen["pricing_version"] for entry in receipt["entries"])
+    assert all(bucket["tariff_snapshot"] == frozen for bucket in tracker.usage_by_model)
+    assert receipt["credits_charged"] == 181
+    validate_public_llm_usage_receipt(receipt)
+
+    for usage, expected in (
+        (usages[0], "0.0100035"),
+        (usages[1], "0.050018"),
+    ):
+        supplier = calculate_cache_aware_supplier_cost(
+            usage=usage.to_bucket(), model_pricing_details=frozen,
+            inference_host="anthropic",
+        )
+        assert supplier["complete"] is True
+        assert Decimal(supplier["cost_usd"]) == Decimal(expected)
+
+
+@pytest.mark.parametrize("change,match", [
+    (lambda model: model["pricing"]["context_bands"]["over_100k"].update(min_input_tokens=100_000), "boundary"),
+    (lambda model: model["pricing"]["context_bands"]["over_100k"].update(eligible_hosts=["aws_bedrock"]), "host"),
+    (lambda model: model["pricing"]["context_bands"]["over_100k"]["tokens"]["output"].update(per_credit_unit=133), "multiplier"),
+    (lambda model: model["pricing"]["context_bands"]["over_100k"]["tokens"]["cache_write_1h"].update(per_credit_unit=331), "multiplier"),
+    (lambda model: model["pricing"].pop("context_bands"), "lacks a customer band"),
+])
+def test_anthropic_haiku_rejects_malformed_or_missing_customer_band(change, match: str) -> None:
+    model = _provider_model("anthropic", "claude-haiku-5-5")
+    change(model)
+    with pytest.raises(BillingError, match=match):
         snapshot_model_tariff(model)
 
 

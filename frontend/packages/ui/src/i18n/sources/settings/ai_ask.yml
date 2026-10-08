@@ -1614,6 +1614,14 @@ ai_ask_model_details.over_272k_explanation:
   context: Explains that cached input counts toward the long-context threshold and selected rates cover the entire request
   en: Total input includes cached input. Above 272,000 input tokens, these rates apply to the whole request.
   de: Die gesamte Eingabe umfasst auch zwischengespeicherte Eingaben. Bei mehr als 272.000 Eingabe-Token gelten diese Preise für die gesamte Anfrage.
+ai_ask_model_details.over_100k_pricing:
+  context: Token pricing tier for a request with more than 100000 total input tokens
+  en: Over 100,000 input tokens
+  de: Über 100.000 Eingabe-Token
+ai_ask_model_details.over_100k_explanation:
+  context: Explains that cached input counts toward the 100000-token threshold and selected rates cover the entire request
+  en: Total input includes cached input. Above 100,000 input tokens, these rates apply to the whole request.
+  de: Die gesamte Eingabe umfasst auch zwischengespeicherte Eingaben. Bei mehr als 100.000 Eingabe-Token gelten diese Preise für die gesamte Anfrage.
 ai_ask_model_details.cache_write:
   context: Generic cache write label when retention is implicit and billed in ordinary input
   en: Cache write

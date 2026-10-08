@@ -35,7 +35,7 @@ def test_catalog_routes_preview_with_authoritative_discounted_costs():
     model = _model()
     assert model["name"] == "Mistral Large 4"
     assert model["release_date"] == "2026-10-06"
-    assert model["capability_level"] == "max"
+    assert model["capability_level"] == "high"
     assert model["reasoning"] is True
     assert model["reasoning_effort"] == "high"
     assert model["input_types"] == ["text", "image"]

@@ -21,16 +21,15 @@ export interface ModelPricing {
   cache_read_tokens_per_credit?: number;
   cache_write_tokens_per_credit?: number;
   cache_write_1h_tokens_per_credit?: number;
-  context_bands?: {
-    over_272k?: {
+  context_bands?: Partial<Record<'over_100k' | 'over_272k', {
       min_input_tokens: number;
       eligible_hosts: string[];
       input_tokens_per_credit?: number;
       cache_read_tokens_per_credit?: number;
       cache_write_tokens_per_credit?: number;
+      cache_write_1h_tokens_per_credit?: number;
       output_tokens_per_credit?: number;
-    };
-  };
+    }>>;
   per_unit?: ModelPricingPerUnit;
   per_minute?: number;
   per_second?: number;

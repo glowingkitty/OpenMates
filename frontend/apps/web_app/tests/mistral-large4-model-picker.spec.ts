@@ -32,7 +32,7 @@ test('Mistral selector reflects curated capabilities and visibility', async ({ p
 		await expect(menu.getByTestId('composer-model-name').locator('strong').filter({ hasText: hiddenName })).toHaveCount(0);
 	}
 	for (const [name, level] of [
-		[/^Mistral Large 4$/, 'max'],
+		[/^Mistral Large 4$/, 'high'],
 		[/^Mistral Medium 3\.5$/, 'medium'],
 		[/^Mistral Small 4$/, 'low'],
 	] as const) {
@@ -42,7 +42,7 @@ test('Mistral selector reflects curated capabilities and visibility', async ({ p
 
 	const model = menu.getByTestId('composer-model-row').filter({ has: page.getByTestId('composer-model-name').locator('strong').filter({ hasText: /^Mistral Large 4$/ }) });
 	await expect(model).toHaveCount(1);
-	await expect(model.getByTestId('composer-model-capability')).toHaveAttribute('data-level', 'max');
+	await expect(model.getByTestId('composer-model-capability')).toHaveAttribute('data-level', 'high');
 	await model.getByTestId('composer-model-toggle').click();
 	await expect(selector).toHaveAttribute('aria-label', /Model selection: Mistral Large 4/i);
 });

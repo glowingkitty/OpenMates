@@ -242,23 +242,44 @@ describe("parseMentions", () => {
   });
 
   describe("models", () => {
+    it("lists only the retained Claude and OpenAI chat models", () => {
+      assert.deepEqual(
+        CHAT_MODELS.filter((model) => model.id.startsWith("claude-")).map((model) => model.id).sort(),
+        ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"].sort(),
+      );
+      assert.deepEqual(
+        CHAT_MODELS.filter((model) => model.id.startsWith("gpt-")).map((model) => model.id).sort(),
+        ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna", "gpt-5.6-terra", "gpt-oss-120b"].sort(),
+      );
+    });
+
+    it("does not resolve retired Claude and OpenAI mentions", () => {
+      for (const mention of [
+        "@Claude-Fable-5", "@Claude-Opus-5", "@Claude-Sonnet-5", "@Claude-Haiku-4.5",
+        "@GPT-6-Sol", "@GPT-5.4", "@GPT-5.6-Luna", "@GPT-5.6-Sol", "@GPT-5.6-Sol-Max", "@GPT-OSS-20b",
+      ]) {
+        const result = parseMentions(`${mention} explain this`, testContext);
+        assert.equal(result.resolved.length, 0, mention);
+      }
+    });
+
     it("resolves model name to wire syntax", () => {
       const result = parseMentions(
-        "@Claude-Opus-5 explain this code",
+        "@Claude-Opus-5.5 explain this code",
         testContext,
       );
       assert.equal(result.resolved.length, 1);
       assert.equal(result.resolved[0].type, "model");
-      assert.equal(result.resolved[0].wireSyntax, "@ai-model:claude-opus-5");
+      assert.equal(result.resolved[0].wireSyntax, "@ai-model:claude-opus-5-5");
     });
 
     it("resolves model id directly", () => {
       const result = parseMentions(
-        "@gpt-5.4 what's the weather?",
+        "@gpt-6.1-sol what's the weather?",
         testContext,
       );
       assert.equal(result.resolved.length, 1);
-      assert.equal(result.resolved[0].wireSyntax, "@ai-model:gpt-5.4");
+      assert.equal(result.resolved[0].wireSyntax, "@ai-model:gpt-6.1-sol");
     });
 
     it("resolves current GPT, Claude, and Mistral display names", () => {
@@ -266,12 +287,12 @@ describe("parseMentions", () => {
         ["@GPT-6-Astra", "gpt-6-astra"],
         ["@GPT-6.1-Sol", "gpt-6.1-sol"],
         ["@GPT-6-Luna", "gpt-6-luna"],
-        ["@GPT-6-Sol", "gpt-6-sol"],
-        ["@GPT-5.6-Luna", "gpt-5.6-luna"],
         ["@GPT-5.6-Terra", "gpt-5.6-terra"],
-        ["@GPT-5.6-Sol", "gpt-5.6-sol"],
-        ["@GPT-5.6-Sol-Max", "gpt-5.6-sol-max"],
+        ["@GPT-OSS-120b", "gpt-oss-120b"],
+        ["@Claude-Fable-5.1", "claude-fable-5-1"],
         ["@Claude-Opus-5.5", "claude-opus-5-5"],
+        ["@Claude-Sonnet-5.5", "claude-sonnet-5-5"],
+        ["@Claude-Haiku-5.5", "claude-haiku-5-5"],
         ["@Mistral-Large-4", "mistral-large-4:mistral"],
         ["@Mistral-Medium-3.5", "mistral-medium-latest:mistral"],
         ["@Mistral-Small-4", "mistral-small-latest:mistral"],

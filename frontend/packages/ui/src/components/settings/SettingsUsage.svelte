@@ -1917,10 +1917,10 @@ Usage Settings - View usage statistics and export usage data
                                 <span class="entry-detail-label">{llmEntry.purpose === 'summary' ? `${$text('settings.usage.cache_receipt_automatic_summary')} · ` : ''}{llmEntry.model_id} · {llmEntry.inference_host ?? $text('settings.ai_ask.ai_ask_model_details.unavailable')}</span>
                                 <span class="entry-detail-value">{$text('settings.usage.cache_receipt_pricing_version')}: {llmEntry.pricing_version}</span>
                             </div>
-                            {#if llmEntry.context_band === 'standard' || llmEntry.context_band === 'over_272k'}
+                            {#if llmEntry.context_band === 'standard' || llmEntry.context_band === 'over_100k' || llmEntry.context_band === 'over_272k'}
                                 <div class="entry-detail-row entry-detail-sub" data-testid="usage-llm-context-band">
                                     <span class="entry-detail-label">{$text('settings.usage.cache_receipt_context_band')}</span>
-                                    <span class="entry-detail-value">{$text(`settings.ai_ask.ai_ask_model_details.${llmEntry.context_band === 'over_272k' ? 'over_272k_pricing' : 'standard_pricing'}`)}</span>
+                                    <span class="entry-detail-value">{$text(`settings.ai_ask.ai_ask_model_details.${llmEntry.context_band === 'standard' ? 'standard' : llmEntry.context_band}_pricing`)}</span>
                                 </div>
                             {/if}
                             {#if llmEntry.billing_mode === 'ordinary_input'}

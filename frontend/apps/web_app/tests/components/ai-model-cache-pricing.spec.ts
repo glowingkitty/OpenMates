@@ -17,6 +17,7 @@ test.describe('AI model cache pricing preview', () => {
       await expect(page.getByTestId('ai-model-automatic-summary')).toContainText('billed separately only when needed');
       if (provider === 'anthropic') {
         await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Cache write (5 min)');
+        await expect(page.getByTestId('ai-model-pricing-cache-write-1h-row')).toHaveCount(0);
       } else {
         await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Included in ordinary input');
       }
@@ -27,12 +28,32 @@ test.describe('AI model cache pricing preview', () => {
   }
 
   // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
+  test('Haiku catalog shows standard rates and its over-100k tier on Anthropic', async ({ page }) => {
+    await page.goto('/dev/preview/settings/AiAskModelDetails?variant=catalog-haiku&theme=light&background=%23dbeafe&width=768&chrome=0');
+    await waitForComponentPreview(page);
+
+    await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('3300');
+    await expect(page.getByTestId('ai-model-pricing-section')).toContainText('Standard');
+    await expect(page.getByTestId('ai-model-pricing-cache-read-row')).toContainText('33000');
+    await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('2640');
+    await expect(page.getByTestId('ai-model-pricing-output-row')).toContainText('660');
+    await expect(page.getByTestId('ai-model-pricing-cache-write-1h-row')).toHaveCount(0);
+    const tier = page.getByTestId('ai-model-long-context-tier');
+    await expect(tier).toContainText('Over 100,000 input tokens');
+    await expect(page.getByTestId('ai-model-long-context-explanation')).toContainText('whole request');
+    await expect(page.getByTestId('ai-model-long-context-input-row')).toContainText('660');
+    await expect(page.getByTestId('ai-model-long-context-cache-read-row')).toContainText('6600');
+    await expect(page.getByTestId('ai-model-long-context-cache-write-row')).toContainText('528');
+    await expect(page.getByTestId('ai-model-long-context-output-row')).toContainText('132');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
   test('shows separate read and write rates only for an active fixture', async ({ page }) => {
     await page.goto('/dev/preview/settings/AiAskModelDetails?variant=cache-active&theme=light&background=%23dbeafe&width=768&chrome=0');
     await waitForComponentPreview(page);
 
     await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('Uncached input');
-    await expect(page.getByTestId('ai-model-pricing-cache-read-row')).toContainText('350');
+    await expect(page.getByTestId('ai-model-pricing-cache-read-row')).toContainText('1400');
     await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('28');
     await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Cache write (5 min)');
     await expect(page.getByTestId('ai-model-pricing-cache-write-1h-row')).toContainText('17');

@@ -81,8 +81,8 @@ logger = logging.getLogger(__name__)
 SOFTWARE_DEVELOPMENT_CATEGORY = "software_development"
 USER_ROLE = "user"
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
-IMAGE_CHAT_SAFE_MODEL_ID = "anthropic/claude-haiku-4-5-20251001"
-IMAGE_CHAT_SAFE_MODEL_NAME = "Claude Haiku 4.5"
+IMAGE_CHAT_SAFE_MODEL_ID = "anthropic/claude-haiku-5-5"
+IMAGE_CHAT_SAFE_MODEL_NAME = "Claude Haiku 5.5"
 IMAGE_CHAT_EXCLUDED_PROVIDER_IDS = {"google"}
 IMAGE_UPLOAD_REF_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 
@@ -127,6 +127,31 @@ def _resolve_override_model_provider(model_id: str, override_provider: Optional[
             return resolved_provider
 
     return override_provider
+
+
+def _usable_chat_model_reference(model_ref: Any, config_manager_obj: Any) -> Optional[tuple[str, str]]:
+    """Resolve a requested chat model against the current routable catalogue."""
+    if not isinstance(model_ref, str) or model_ref.count("/") != 1:
+        return None
+    provider_id, model_id = model_ref.split("/", 1)
+    if not provider_id or not model_id:
+        return None
+    model = config_manager_obj.get_model_pricing(provider_id, model_id)
+    if not isinstance(model, dict) or model.get("for_app_skill") != "ai.ask":
+        return None
+    canonical_id = model.get("id")
+    default_server = model.get("default_server")
+    if not isinstance(canonical_id, str) or not canonical_id or not default_server:
+        return None
+    if not any(
+        isinstance(server, dict)
+        and server.get("id") == default_server
+        and isinstance(server.get("model_id"), str)
+        and server["model_id"].strip()
+        for server in model.get("servers") or []
+    ):
+        return None
+    return f"{provider_id}/{canonical_id}", model.get("name") or canonical_id
 
 REPO_SEARCH_ACTION_PATTERN = re.compile(
     r"\b(search|find|look\s+for|discover|show\s+me|list|recommend|suggest)\b",
@@ -2586,15 +2611,14 @@ async def handle_preprocessing(
             f"model_id={override_model_id}, provider={override_provider}"
         )
 
-        # For now, we accept the user's model_id directly if it contains a provider prefix
-        # If it doesn't, we try to infer from the config or use the specified provider
+        # Resolve the provider first, then verify the resulting model against the current chat catalogue.
         if "/" in override_model_id:
-            # User provided full model reference (e.g., "anthropic/claude-opus-4-5-20251101")
+            # User provided full model reference (e.g., "anthropic/claude-opus-5-5")
             selected_llm_for_main_id = override_model_id
             # Extract model ID without provider prefix and look up human-readable name
             raw_model_id = override_model_id.split("/")[-1]
             provider_id = override_model_id.split("/")[0]
-            # Look up human-readable name from config (e.g., "Claude Haiku 4.5" instead of "claude-haiku-4-5-20251001")
+            # Look up human-readable name from config (e.g., "Claude Haiku 5.5" instead of "claude-haiku-5-5")
             selected_llm_for_main_name = config_manager.get_model_display_name(raw_model_id, provider_id) or raw_model_id
             model_override_applied = True
             model_selection_reason = f"User override: {selected_llm_for_main_id}"
@@ -2613,7 +2637,7 @@ async def handle_preprocessing(
                     f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
                 )
         elif override_provider:
-            # User provided model + provider (e.g., @ai-model:claude-opus-4-5:anthropic)
+            # User provided model + provider (e.g., @ai-model:claude-opus-5-5:anthropic)
             resolved_override_provider = _resolve_override_model_provider(override_model_id, override_provider, config_manager)
             if resolved_override_provider and resolved_override_provider != override_provider:
                 logger.info(
@@ -2682,6 +2706,26 @@ async def handle_preprocessing(
                 model_override_applied = True
                 model_selection_reason = f"Unresolved user override {override_model_id}; fallback to {DEFAULT_FALLBACK_MODEL}"
 
+        # The parser accepts authored model IDs that may have since been removed.
+        # Keep the existing explicit-override fallback, but never dispatch a
+        # retired model or a non-chat model to its old provider.
+        validated_override = _usable_chat_model_reference(selected_llm_for_main_id, config_manager)
+        if validated_override:
+            selected_llm_for_main_id, selected_llm_for_main_name = validated_override
+        else:
+            logger.warning(
+                f"{log_prefix} USER_OVERRIDE: Model '{selected_llm_for_main_id}' is not a routable "
+                f"chat model in the current catalogue. Falling back to {DEFAULT_FALLBACK_MODEL}."
+            )
+            selected_llm_for_main_id = DEFAULT_FALLBACK_MODEL
+            fallback_provider, fallback_model_id = DEFAULT_FALLBACK_MODEL.split("/", 1)
+            selected_llm_for_main_name = (
+                config_manager.get_model_display_name(fallback_model_id, fallback_provider)
+                or fallback_model_id
+            )
+            model_override_applied = True
+            model_selection_reason = f"Invalid user override {override_model_id}; fallback to {DEFAULT_FALLBACK_MODEL}"
+
         logger.info(
             f"{log_prefix} USER_OVERRIDE: Final model selection (after override): "
             f"{selected_llm_for_main_id} (Name: {selected_llm_for_main_name})"
@@ -2693,30 +2737,33 @@ async def handle_preprocessing(
     if not model_override_applied:
         user_default_key = tier_preference_key(complexity_val)
         user_default_model = (request_data.user_preferences or {}).get(user_default_key)
-        if user_default_model and "/" in user_default_model:
-            # Resolve human-readable display name from provider config
-            provider_part, model_id_part = user_default_model.split("/", 1)
-            resolved_name = config_manager.get_model_display_name(model_id_part, provider_part)
-            selected_llm_for_main_id = user_default_model
-            selected_llm_for_main_name = resolved_name if resolved_name else model_id_part
-            model_override_applied = True
-            model_selection_reason = f"User default ({user_default_key}): {user_default_model}"
-            logger.info(
-                f"{log_prefix} USER_DEFAULT_MODEL: Applying user default model "
-                f"({user_default_key}={user_default_model}, complexity={complexity_val}). "
-                f"Name: {selected_llm_for_main_name}"
-            )
-            if has_image_upload_embed and _is_google_model(selected_llm_for_main_id):
+        if user_default_model:
+            validated_default = _usable_chat_model_reference(user_default_model, config_manager)
+            if not validated_default:
                 logger.warning(
-                    f"{log_prefix} IMAGE_MODEL_GUARD: Replacing Google user default "
-                    f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
+                    f"{log_prefix} USER_DEFAULT_MODEL: Ignoring unavailable or unroutable "
+                    f"chat model ({user_default_key}={user_default_model}); using automatic selection."
                 )
-                selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
-                selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
-                model_selection_reason = (
-                    f"Image upload guard: replaced user default {user_default_model} "
-                    f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
+            else:
+                selected_llm_for_main_id, selected_llm_for_main_name = validated_default
+                model_override_applied = True
+                model_selection_reason = f"User default ({user_default_key}): {selected_llm_for_main_id}"
+                logger.info(
+                    f"{log_prefix} USER_DEFAULT_MODEL: Applying user default model "
+                    f"({user_default_key}={selected_llm_for_main_id}, complexity={complexity_val}). "
+                    f"Name: {selected_llm_for_main_name}"
                 )
+                if has_image_upload_embed and _is_google_model(selected_llm_for_main_id):
+                    logger.warning(
+                        f"{log_prefix} IMAGE_MODEL_GUARD: Replacing Google user default "
+                        f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
+                    )
+                    selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
+                    selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
+                    model_selection_reason = (
+                        f"Image upload guard: replaced user default {user_default_model} "
+                        f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
+                    )
 
     # --- Use Intelligent Model Selector if no user override ---
     if not model_override_applied:

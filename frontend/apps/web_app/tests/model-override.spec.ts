@@ -35,8 +35,8 @@ const {
 const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
-const SHOULD_SKIP_GPT54_LIVE = !process.env.E2E_USE_MOCKS && !process.env.TEST_LIVE_RECORD;
-const GPT54_LIVE_SKIP_REASON = 'GPT-5.4 live OpenAI route is quota-dependent; deterministic coverage runs via recorded fixtures.';
+const SHOULD_SKIP_OPENAI_LIVE = !process.env.E2E_USE_MOCKS && !process.env.TEST_LIVE_RECORD;
+const OPENAI_LIVE_SKIP_REASON = 'Real OpenAI inference runs only in the explicitly enabled dev live recording; CI uses replay fixtures.';
 
 async function focusMessageEditor(messageEditor: any): Promise<void> {
 	await messageEditor.click();
@@ -85,7 +85,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
  * verifies the model appears, and presses Tab to autocomplete.
  *
  * @param page - Playwright page object
- * @param modelSearchTerm - Partial model name to search (e.g., "qwen3" or "gpt-5.4")
+ * @param modelSearchTerm - Partial model name to search (e.g., "qwen3" or "gpt-6.1-sol")
  * @param expectedModelDisplayName - Expected model name in dropdown (for verification)
  * @param logCheckpoint - Logging function
  * @param takeStepScreenshot - Screenshot function
@@ -385,19 +385,19 @@ test('select qwen model via @ mention dropdown', async ({ page }: { page: any })
 });
 
 /**
- * Test: Select GPT-5.4 model via @ mention dropdown and verify it's used.
+ * Test: Select GPT-6.1 Sol model via @ mention dropdown and verify it's used.
  *
  * Flow:
- * 1. Type "@gpt-5.4" in message input
- * 2. Verify "GPT-5.4" appears in MentionDropdown
+ * 1. Type "@gpt-6.1-sol" in message input
+ * 2. Verify "GPT-6.1 Sol" appears in MentionDropdown
  * 3. Press Tab to autocomplete
  * 4. Type "Capital city of Germany? short answer please."
  * 5. Send message
- * 6. Verify response shows "GPT-5.4" in generated-by text
+ * 6. Verify response shows "GPT-6.1 Sol" in generated-by text
  */
 // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
-test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any }) => {
-	test.skip(SHOULD_SKIP_GPT54_LIVE, GPT54_LIVE_SKIP_REASON);
+test('select gpt-6.1-sol model via @ mention dropdown', async ({ page }: { page: any }) => {
+	test.skip(SHOULD_SKIP_OPENAI_LIVE, OPENAI_LIVE_SKIP_REASON);
 
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -424,7 +424,7 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
 
 	await archiveExistingScreenshots(logCheckpoint);
 
-	logCheckpoint('Starting GPT-5.4 model mention test.', { email: TEST_EMAIL });
+	logCheckpoint('Starting GPT-6.1 Sol model mention test.', { email: TEST_EMAIL });
 
 	// Login
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
@@ -432,20 +432,17 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
 	// Start a new chat
 	await startNewChat(page, logCheckpoint);
 
-	// Select GPT-5.4 via @ mention dropdown
-	// Search term "gpt-5.4" should find "GPT-5.4" in the dropdown
+	// Select GPT-6.1 Sol via @ mention dropdown.
 	await selectModelViaMentionDropdown(
 		page,
-		'gpt-5.4',
-		'GPT-5.4',
+		'gpt-6.1-sol',
+		'GPT-6.1 Sol',
 		logCheckpoint,
 		takeStepScreenshot,
 		'gpt'
 	);
 
-	// Type the question and send. Math question instead of geography because the
-	// gpt-5.4 provider repeatedly errors on the "Capital city of Germany" prompt
-	// during recording (chat.an_error_occured). (OPE-354)
+	// The replay fixture contains a synthetic arithmetic answer for routing proof.
 	await typeQuestionAndSend(
 		page,
 		'What is 7 + 7? Answer with just the number.',
@@ -455,11 +452,10 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
 		'model_override_gpt54'
 	);
 
-	// Wait for response and verify GPT-5.4 model was used
-	// The generated-by text should contain "GPT-5.4" (case-insensitive)
+	// Wait for the response and verify the selected model label.
 	const response = await waitForResponseAndVerifyModel(
 		page,
-		/gpt-?5\.?4/i,
+		/gpt-?6\.?1[ -]?sol/i,
 		logCheckpoint,
 		takeStepScreenshot,
 		'gpt'
@@ -472,7 +468,7 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
 	// Cleanup
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'gpt-cleanup');
 
-	logCheckpoint('GPT-5.4 model mention test completed successfully.');
+	logCheckpoint('GPT-6.1 Sol model mention test completed successfully.');
 });
 
 /**
@@ -482,12 +478,12 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
  * 1. Login once
  * 2. Test Qwen: Select via @qwen, send question, verify response
  * 3. Delete chat
- * 4. Test GPT-5.4: Select via @gpt-5.4, send question, verify response
+ * 4. Test GPT-6.1 Sol: Select via @gpt-6.1-sol, send question, verify response
  * 5. Delete chat
  */
 // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
-test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: { page: any }) => {
-	test.skip(SHOULD_SKIP_GPT54_LIVE, GPT54_LIVE_SKIP_REASON);
+test('switch between qwen and gpt-6.1-sol via @ mention dropdown', async ({ page }: { page: any }) => {
+	test.skip(SHOULD_SKIP_OPENAI_LIVE, OPENAI_LIVE_SKIP_REASON);
 
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -554,14 +550,14 @@ test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: 
 
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'switch-qwen-cleanup');
 
-	// --- Test 2: GPT-5.4 ---
-	logCheckpoint('--- Testing GPT-5.4 model via @ mention ---');
+	// --- Test 2: GPT-6.1 Sol ---
+	logCheckpoint('--- Testing GPT-6.1 Sol model via @ mention ---');
 	await startNewChat(page, logCheckpoint);
 
 	await selectModelViaMentionDropdown(
 		page,
-		'gpt-5.4',
-		'GPT-5.4',
+		'gpt-6.1-sol',
+		'GPT-6.1 Sol',
 		logCheckpoint,
 		takeStepScreenshot,
 		'switch-gpt'
@@ -578,14 +574,14 @@ test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: 
 
 	const gptResponse = await waitForResponseAndVerifyModel(
 		page,
-		/gpt-?5\.?4/i,
+		/gpt-?6\.?1[ -]?sol/i,
 		logCheckpoint,
 		takeStepScreenshot,
 		'switch-gpt'
 	);
 
 	expect(gptResponse).toContain('10');
-	logCheckpoint('GPT-5.4 test passed: response contains "10".');
+	logCheckpoint('GPT-6.1 Sol test passed: response contains "10".');
 
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'switch-gpt-cleanup');
 

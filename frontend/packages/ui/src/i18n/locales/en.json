@@ -16833,6 +16833,12 @@
         "over_272k_explanation": {
           "text": "Total input includes cached input. Above 272,000 input tokens, these rates apply to the whole request."
         },
+        "over_100k_pricing": {
+          "text": "Over 100,000 input tokens"
+        },
+        "over_100k_explanation": {
+          "text": "Total input includes cached input. Above 100,000 input tokens, these rates apply to the whole request."
+        },
         "cache_write": {
           "text": "Cache write"
         },

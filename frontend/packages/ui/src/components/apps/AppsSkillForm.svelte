@@ -67,11 +67,12 @@
       cache_write_1h: amount(data(tokens.cache_write_1h).per_credit_unit) ?? undefined,
       output: amount(data(tokens.output).per_credit_unit) ?? undefined,
     };
-    const over272k = data(data(pricing.context_bands).over_272k);
-    const overTokens = data(over272k.tokens);
+    const bandKey = defaultHost === 'anthropic' ? 'over_100k' : 'over_272k';
+    const bandSource = data(data(pricing.context_bands)[bandKey]);
+    const overTokens = data(bandSource.tokens);
     const longContextBand = {
-      min_input_tokens: amount(over272k.min_input_tokens) ?? undefined,
-      eligible_hosts: Array.isArray(over272k.eligible_hosts) ? over272k.eligible_hosts.filter((host): host is string => typeof host === 'string') : [],
+      min_input_tokens: amount(bandSource.min_input_tokens) ?? undefined,
+      eligible_hosts: Array.isArray(bandSource.eligible_hosts) ? bandSource.eligible_hosts.filter((host): host is string => typeof host === 'string') : [],
       input_tokens_per_credit: amount(data(overTokens.input).per_credit_unit) ?? undefined,
       cache_read_tokens_per_credit: amount(data(overTokens.cache_read).per_credit_unit) ?? undefined,
       cache_write_tokens_per_credit: amount(data(overTokens.cache_write).per_credit_unit) ?? undefined,
@@ -98,8 +99,8 @@
       }
     }
     if (longContextActive) {
-      lines.push($text('settings.ai_ask.ai_ask_model_details.over_272k_pricing'));
-      lines.push($text('settings.ai_ask.ai_ask_model_details.over_272k_explanation'));
+      lines.push($text(`settings.ai_ask.ai_ask_model_details.${bandKey}_pricing`));
+      lines.push($text(`settings.ai_ask.ai_ask_model_details.${bandKey}_explanation`));
       for (const [category, label, unit] of [
         ['input', 'uncached_input', 'input_tokens'],
         ['cache_read', 'cache_read', 'input_tokens'],

@@ -10,7 +10,7 @@
  *
  * Resolution order for each @token:
  *   1. Model alias (@best, @fast)
- *   2. Model name (@Claude-Opus-5 → @ai-model:claude-opus-5)
+ *   2. Model name (@Claude-Opus-5.5 → @ai-model:claude-opus-5-5)
  *   3. Mate name (@Sophia → @mate:software_development)
  *   4. Skill (@Code-Get-Docs → @skill:code:get_docs)
  *   5. Focus mode (@Web-Research → @focus:web:research)
@@ -164,22 +164,14 @@ export const MODEL_ALIASES: Record<string, string> = {
  */
 export const CHAT_MODELS: ModelInfo[] = [
   { id: "claude-fable-5-1", name: "Claude Fable 5.1" },
-  { id: "claude-fable-5", name: "Claude Fable 5" },
   { id: "claude-opus-5-5", name: "Claude Opus 5.5" },
-  { id: "claude-opus-5", name: "Claude Opus 5" },
-  { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
-  { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
+  { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
+  { id: "claude-haiku-5-5", name: "Claude Haiku 5.5" },
   { id: "gpt-6-astra", name: "GPT-6 Astra" },
   { id: "gpt-6.1-sol", name: "GPT-6.1 Sol" },
   { id: "gpt-6-luna", name: "GPT-6 Luna" },
-  { id: "gpt-6-sol", name: "GPT-6 Sol" },
-  { id: "gpt-5.4", name: "GPT-5.4" },
-  { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
   { id: "gpt-5.6-terra", name: "GPT-5.6 Terra" },
-  { id: "gpt-5.6-sol", name: "GPT-5.6 Sol" },
-  { id: "gpt-5.6-sol-max", name: "GPT-5.6 Sol Max" },
   { id: "gpt-oss-120b", name: "GPT-OSS-120b" },
-  { id: "gpt-oss-20b", name: "GPT-OSS-20b" },
   { id: "gemma-4-31b", name: "Gemma 4 31B" },
   { id: "gemini-3-flash-preview", name: "Gemini 3 Flash" },
   { id: "gemini-3.8-flash", name: "Gemini 3.8 Flash" },
@@ -357,7 +349,7 @@ export async function resolveWikipediaMentions(
 
 /**
  * Normalize a display name for comparison.
- * "Claude Opus 5" → "claude-opus-5"
+ * "Claude Opus 5.5" → "claude-opus-5-5"
  * "Code-Get-Docs" → "code-get-docs"
  */
 function normalize(name: string): string {

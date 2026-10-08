@@ -70,7 +70,7 @@ def validate_public_llm_usage_receipt(receipt: Any) -> dict[str, Any]:
             raise ValueError("Invalid cache write billing mode")
         if "billing_mode" in entry and entry["billing_mode"] not in {"cache_aware", "ordinary_input"}:
             raise ValueError("Invalid LLM usage billing mode")
-        if "context_band" in entry and entry["context_band"] not in ("standard", "over_272k"):
+        if "context_band" in entry and entry["context_band"] not in ("standard", "over_272k", "over_100k"):
             raise ValueError("Invalid LLM usage context band")
         if "purpose" in entry and entry["purpose"] != "summary":
             raise ValueError("Invalid LLM usage purpose")

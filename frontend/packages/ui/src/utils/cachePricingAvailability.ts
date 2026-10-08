@@ -35,6 +35,7 @@ export interface LongContextPricingBand {
   input_tokens_per_credit?: number;
   cache_read_tokens_per_credit?: number;
   cache_write_tokens_per_credit?: number;
+  cache_write_1h_tokens_per_credit?: number;
   output_tokens_per_credit?: number;
 }
 
@@ -47,8 +48,9 @@ export function isLongContextPricingDisplayActive(
   today = new Date().toISOString().slice(0, 10),
 ): boolean {
   if (!isCachePricingDisplayActive(policy, defaultHost, standardRates, today)) return false;
-  if (band?.min_input_tokens !== 272001 || defaultHost !== 'openai' ||
-    band.eligible_hosts?.length !== 1 || band.eligible_hosts[0] !== 'openai') return false;
+  const expectedThreshold = defaultHost === 'openai' ? 272001 : defaultHost === 'anthropic' ? 100001 : null;
+  if (expectedThreshold === null || band?.min_input_tokens !== expectedThreshold ||
+    band.eligible_hosts?.length !== 1 || band.eligible_hosts[0] !== defaultHost) return false;
   for (const rate of [standardRates.input, standardRates.output]) {
     if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) return false;
   }

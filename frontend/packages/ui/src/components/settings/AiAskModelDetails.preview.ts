@@ -1,6 +1,6 @@
 import { modelsMetadata } from '../../data/modelsMetadata';
 
-const model = modelsMetadata.find(candidate => candidate.id === 'claude-fable-5');
+const model = modelsMetadata.find(candidate => candidate.id === 'claude-fable-5-1');
 const includedModel = modelsMetadata.find(candidate => candidate.id === 'gpt-6.1-sol');
 if (!model?.default_server || !model.pricing?.cache_read_tokens_per_credit || !model.pricing.cache_write_tokens_per_credit) {
   throw new Error('Cache pricing preview model is missing proposed rates');
@@ -16,7 +16,8 @@ export default { modelId: model.id };
 export const variants = {
   'catalog-google': { modelId: 'gemini-3.8-flash' },
   'catalog-openai': { modelId: 'gpt-6.1-sol' },
-  'catalog-anthropic': { modelId: 'claude-sonnet-5' },
+  'catalog-anthropic': { modelId: 'claude-sonnet-5-5' },
+  'catalog-haiku': { modelId: 'claude-haiku-5-5' },
   'catalog-mistral': { modelId: 'mistral-small-latest' },
   'cache-active': {
     modelOverride: {

@@ -168,22 +168,25 @@ function parseProviderYaml(providerId, filePath) {
         const rate = model.pricing?.tokens?.[category]?.per_credit_unit;
         if (typeof rate === "number" && rate > 0) pricing[field] = rate;
       }
-      const over272k = model.pricing?.context_bands?.over_272k;
-      if (over272k && typeof over272k === "object") {
+      for (const bandName of ["over_100k", "over_272k"]) {
+        const source = model.pricing?.context_bands?.[bandName];
+        if (!source || typeof source !== "object") continue;
         const band = {
-          min_input_tokens: over272k.min_input_tokens,
-          eligible_hosts: over272k.eligible_hosts,
+          min_input_tokens: source.min_input_tokens,
+          eligible_hosts: source.eligible_hosts,
         };
         for (const [category, field] of [
           ["input", "input_tokens_per_credit"],
           ["cache_read", "cache_read_tokens_per_credit"],
           ["cache_write", "cache_write_tokens_per_credit"],
+          ["cache_write_1h", "cache_write_1h_tokens_per_credit"],
           ["output", "output_tokens_per_credit"],
         ]) {
-          const rate = over272k.tokens?.[category]?.per_credit_unit;
+          const rate = source.tokens?.[category]?.per_credit_unit;
           if (typeof rate === "number" && Number.isFinite(rate) && rate > 0) band[field] = rate;
         }
-        pricing.context_bands = { over_272k: band };
+        pricing.context_bands ??= {};
+        pricing.context_bands[bandName] = band;
       }
       if (model.pricing?.per_unit) {
         pricing.per_unit = {
@@ -405,16 +408,15 @@ export interface ModelPricing {
     cache_read_tokens_per_credit?: number;
     cache_write_tokens_per_credit?: number;
     cache_write_1h_tokens_per_credit?: number;
-    context_bands?: {
-        over_272k?: {
+    context_bands?: Partial<Record<'over_100k' | 'over_272k', {
             min_input_tokens: number;
             eligible_hosts: string[];
             input_tokens_per_credit?: number;
             cache_read_tokens_per_credit?: number;
             cache_write_tokens_per_credit?: number;
+            cache_write_1h_tokens_per_credit?: number;
             output_tokens_per_credit?: number;
-        };
-    };
+        }>>;
     /** Per-unit pricing (e.g., credits per image or per megapixel) */
     per_unit?: ModelPricingPerUnit;
     /** Credits charged per minute of audio (audio transcription models) */

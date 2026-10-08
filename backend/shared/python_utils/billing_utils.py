@@ -25,6 +25,7 @@ ModelPricingDetails = PricingConfig
 MINIMUM_CREDITS_CHARGED = 1
 OVERDRAFT_LIMIT_CREDITS = -500
 OPENAI_LONG_CONTEXT_MIN_INPUT_TOKENS = 272_001
+ANTHROPIC_LONG_CONTEXT_MIN_INPUT_TOKENS = 100_001
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 
@@ -233,17 +234,36 @@ def select_customer_context_band(
     )
     if inference_host == "openai" and "over_272k" in supplier_bands and not bands:
         raise BillingError("OpenAI long-context supplier price lacks a customer band")
+    anthropic_supplier_bands = (
+        (model_pricing_details.get("supplier_cost_profiles", {}).get("anthropic", {})
+         .get("context_bands") or {})
+    )
+    if inference_host == "anthropic" and "over_100k" in anthropic_supplier_bands and not bands:
+        raise BillingError("Anthropic long-context supplier price lacks a customer band")
     if bands is None:
         return None, base_rates
-    if not isinstance(bands, dict) or set(bands) != {"over_272k"}:
+    if not isinstance(bands, dict) or set(bands) not in ({"over_272k"}, {"over_100k"}):
         raise BillingError("Unsupported customer context bands")
-    band = bands["over_272k"]
+    band_name = next(iter(bands))
+    anthropic_band = band_name == "over_100k"
+    band = bands[band_name]
     if not isinstance(band, dict) or set(band) != {"min_input_tokens", "eligible_hosts", "tokens"}:
-        raise BillingError("Invalid OpenAI customer context band")
+        raise BillingError(
+            "Invalid Anthropic customer context band" if anthropic_band
+            else "Invalid OpenAI customer context band"
+        )
+    min_input_tokens = (
+        ANTHROPIC_LONG_CONTEXT_MIN_INPUT_TOKENS if anthropic_band
+        else OPENAI_LONG_CONTEXT_MIN_INPUT_TOKENS
+    )
+    eligible_hosts = ["anthropic"] if anthropic_band else ["openai"]
     if (type(band["min_input_tokens"]) is not int
-            or band["min_input_tokens"] != OPENAI_LONG_CONTEXT_MIN_INPUT_TOKENS
-            or band["eligible_hosts"] != ["openai"]):
-        raise BillingError("Invalid OpenAI customer context boundary or host")
+            or band["min_input_tokens"] != min_input_tokens
+            or band["eligible_hosts"] != eligible_hosts):
+        raise BillingError(
+            "Invalid Anthropic customer context boundary or host" if anthropic_band
+            else "Invalid OpenAI customer context boundary or host"
+        )
     band_rates = band["tokens"]
     if not isinstance(base_rates, dict) or not isinstance(band_rates, dict) or set(band_rates) != set(base_rates):
         raise BillingError("Customer context band categories do not match the base tariff")
@@ -260,16 +280,18 @@ def select_customer_context_band(
             raise BillingError("Invalid customer context band token unit") from exc
         if not base_unit.is_finite() or base_unit <= 0 or not band_unit.is_finite() or band_unit <= 0:
             raise BillingError("Invalid customer context band token unit")
-        expected = (
-            Fraction(base_unit) * Fraction(2, 3) // 1
-            if category == "output" else Fraction(base_unit) / 2
-        )
+        if anthropic_band:
+            expected = Fraction(base_unit) / 5
+        elif category == "output":
+            expected = Fraction(base_unit) * Fraction(2, 3) // 1
+        else:
+            expected = Fraction(base_unit) / 2
         if Fraction(band_unit) != expected:
             raise BillingError("Customer context band does not match the approved multiplier")
     if inference_host not in band["eligible_hosts"]:
         return None, base_rates
     return (
-        ("over_272k", band_rates)
+        (band_name, band_rates)
         if input_total >= band["min_input_tokens"] else ("standard", base_rates)
     )
 
@@ -434,6 +456,9 @@ def calculate_cache_aware_supplier_cost(
     output = int(usage.get("output_tokens") or 0)
     if context_band is None and inference_host == "openai" and total > 272_000:
         context_band = "over_272k"
+    if (context_band is None and inference_host == "anthropic" and total > 100_000
+            and "over_100k" in (profile.get("context_bands") or {})):
+        context_band = "over_100k"
     context_rates = (profile.get("context_bands") or {}).get(context_band or "standard", {})
     tier_rates = (profile.get("service_tiers") or {}).get(service_tier or "standard", {})
     if context_band not in (None, "standard") and not context_rates:

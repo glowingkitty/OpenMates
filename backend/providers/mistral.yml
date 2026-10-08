@@ -25,7 +25,7 @@ models:
     country_origin: "FR"
     for_app_skill: "ai.ask"
     release_date: "2026-10-06"
-    capability_level: "max" # Product rating; parity with other Max models remains provisional.
+    capability_level: "high"
     allow_auto_select: true
     reasoning: true
     reasoning_effort: "high"

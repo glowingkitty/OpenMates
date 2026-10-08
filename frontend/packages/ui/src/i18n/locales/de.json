@@ -16013,6 +16013,12 @@
         "over_272k_explanation": {
           "text": "Die gesamte Eingabe umfasst auch zwischengespeicherte Eingaben. Bei mehr als 272.000 Eingabe-Token gelten diese Preise für die gesamte Anfrage."
         },
+        "over_100k_pricing": {
+          "text": "Über 100.000 Eingabe-Token"
+        },
+        "over_100k_explanation": {
+          "text": "Die gesamte Eingabe umfasst auch zwischengespeicherte Eingaben. Bei mehr als 100.000 Eingabe-Token gelten diese Preise für die gesamte Anfrage."
+        },
         "cache_write": {
           "text": "Cache-Schreibvorgang"
         },

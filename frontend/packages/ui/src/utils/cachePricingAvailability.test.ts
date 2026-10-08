@@ -58,4 +58,21 @@ describe('cache pricing catalog admission', () => {
     expect(isLongContextPricingDisplayActive(openaiPolicy, 'openai', standardRates, { ...band, cache_write_tokens_per_credit: undefined }, '2026-10-07')).toBe(false);
     expect(isLongContextPricingDisplayActive(openaiPolicy, 'openai', { ...standardRates, input: undefined }, band, '2026-10-07')).toBe(false);
   });
+
+  // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
+  it('admits Haiku only at the 100001-token Anthropic threshold', () => {
+    const standardRates = { ...rates, input: 3300, output: 660 };
+    const band = {
+      min_input_tokens: 100001,
+      eligible_hosts: ['anthropic'],
+      input_tokens_per_credit: 660,
+      cache_read_tokens_per_credit: 6600,
+      cache_write_tokens_per_credit: 528,
+      output_tokens_per_credit: 132,
+    };
+    expect(isLongContextPricingDisplayActive(verified, 'anthropic', standardRates, band, '2026-10-08')).toBe(true);
+    expect(isLongContextPricingDisplayActive(verified, 'anthropic', standardRates, { ...band, min_input_tokens: 100000 }, '2026-10-08')).toBe(false);
+    expect(isLongContextPricingDisplayActive(verified, 'anthropic', standardRates, { ...band, eligible_hosts: ['openai'] }, '2026-10-08')).toBe(false);
+    expect(isLongContextPricingDisplayActive(verified, 'anthropic', standardRates, { ...band, cache_read_tokens_per_credit: undefined }, '2026-10-08')).toBe(false);
+  });
 });

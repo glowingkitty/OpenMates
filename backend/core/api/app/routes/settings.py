@@ -5467,6 +5467,7 @@ def _validate_app_skill_model_defaults(defaults: Dict[str, Optional[str]]) -> Di
     return cleaned
 
 
+# First-party, authenticated owner settings; no inference or credit spend.
 @router.post("/ai-model-defaults", response_model=SimpleSuccessResponse, include_in_schema=False)
 @limiter.limit("30/minute")
 async def update_ai_model_defaults(
@@ -5483,12 +5484,12 @@ async def update_ai_model_defaults(
     take precedence over auto-selection (ModelSelector), but are overridden by an
     explicit @mention in the message.
 
-    Model ID format: "provider/model_id" (e.g., "anthropic/claude-haiku-4-5-20251001").
+    Model ID format: "provider/model_id" (e.g., "anthropic/claude-haiku-5-5").
     Pass null (or omit) to reset a tier to auto-select.
     """
     user_id = current_user.id
 
-    # Validate model IDs — must be either None (auto-select) or contain a "/" separator
+    # Reject retired and non-chat models before persisting a tier preference.
     for field_name, value in [
         ("default_ai_model_simple", request_data.default_ai_model_simple),
         ("default_ai_model_complex", request_data.default_ai_model_complex),
@@ -5497,8 +5498,10 @@ async def update_ai_model_defaults(
         if value is not None and "/" not in value:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid model ID for '{field_name}': must be in 'provider/model_id' format (e.g. 'anthropic/claude-haiku-4-5-20251001')."
+                detail=f"Invalid model ID for '{field_name}': must be in 'provider/model_id' format (e.g. 'anthropic/claude-haiku-5-5')."
             )
+        if value is not None:
+            _validate_app_skill_model_defaults({"ai.ask": value})
 
     provided_fields = request_data.model_fields_set
 

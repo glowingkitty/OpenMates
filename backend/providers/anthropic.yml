@@ -90,75 +90,6 @@ models:
       tool_use: true
       streaming: true
 
-  - id: "claude-fable-5" # Official Claude API model ID
-    name: "Claude Fable 5"
-    description: "Anthropic's most capable widely released model for long-running agents and frontier reasoning."
-    country_origin: "US"
-    for_app_skill: "ai.ask"
-    release_date: "2026-06-09"
-    capability_level: "max"
-    allow_auto_select: true
-    external_ids:
-      lmarena: "claude-fable-5"
-      openrouter: "anthropic/claude-fable-5"
-    search_aliases:
-      - "fable 5"
-      - "claude 5 fable"
-      - "claude-fable-5"
-      - "best claude"
-    input_types:
-      - text
-      - image
-    output_types:
-      - text
-    reasoning: true
-    default_server: "anthropic"
-    servers:
-      - id: "anthropic"
-        name: "Anthropic API"
-        model_id: "claude-fable-5"
-        region: "US"
-    pricing:
-      tokens:
-        input:
-          per_credit_unit: 35
-        cache_read:
-          per_credit_unit: 350
-        cache_write:
-          per_credit_unit: 28
-        cache_write_1h:
-          per_credit_unit: 17
-        output:
-          per_credit_unit: 7
-    cache_pricing:
-      enabled: false
-      write_billing: separate
-      eligible_hosts: [anthropic]
-      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
-      reviewed_on: "2026-10-06"
-      status: proposed_pending_provider_evidence
-      requires_cache_write_metric: true
-      requires_cache_retention_metric: true
-    costs:
-      input_per_million_token:
-        price: 10.00
-        currency: USD
-        max_context: 1000000
-      output_per_million_token:
-        price: 50.00
-        currency: USD
-        max_context: 1000000
-      cache_write_per_million_token:
-        price: 12.50
-        currency: USD
-      cache_write_1h_per_million_token:
-        price: 20.0
-        currency: USD
-      cache_read_per_million_token:
-        price: 1.00
-        currency: USD
-
-  # Pricing verified 2026-09-23 against the official Claude Opus 5.5 model page.
   - id: "claude-opus-5-5" # Official Claude API model ID
     name: "Claude Opus 5.5"
     description: "Anthropic's high-capability model for long-running agentic coding and knowledge work."
@@ -228,92 +159,21 @@ models:
       tool_use: true
       streaming: true
 
-  - id: "claude-opus-5" # Official Claude API model ID
-    name: "Claude Opus 5"
-    description: "Latest Opus model for complex agentic coding, enterprise work, and deep reasoning."
+  - id: "claude-sonnet-5-5" # Official Claude API model ID
+    name: "Claude Sonnet 5.5"
+    description: "The best combination of speed and intelligence, with adaptive thinking and 1M-token context."
     country_origin: "US"
     for_app_skill: "ai.ask"
-    release_date: "2026-06-09"
-    capability_level: "high"
-    allow_auto_select: true
-    external_ids:
-      lmarena: "claude-opus-5"
-      openrouter: "anthropic/claude-opus-5"
-    search_aliases:
-      - "opus 5"
-      - "claude 5 opus"
-      - "claude-opus-5"
-      - "opus 4.8"
-      - "claude-opus-4-8"
-    input_types:
-      - text
-      - image
-    output_types:
-      - text
-    reasoning: true
-    default_server: "anthropic"
-    servers:
-      - id: "anthropic"
-        name: "Anthropic API"
-        model_id: "claude-opus-5"
-        region: "US"
-    pricing:
-      tokens:
-        input:
-          per_credit_unit: 70
-        cache_read:
-          per_credit_unit: 700
-        cache_write:
-          per_credit_unit: 56
-        cache_write_1h:
-          per_credit_unit: 35
-        output:
-          per_credit_unit: 15
-    cache_pricing:
-      enabled: false
-      write_billing: separate
-      eligible_hosts: [anthropic]
-      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
-      reviewed_on: "2026-10-06"
-      status: proposed_pending_provider_evidence
-      requires_cache_write_metric: true
-      requires_cache_retention_metric: true
-    costs:
-      input_per_million_token:
-        price: 5.00
-        currency: USD
-        max_context: 1000000
-      output_per_million_token:
-        price: 25.00
-        currency: USD
-        max_context: 1000000
-      cache_write_per_million_token:
-        price: 6.25
-        currency: USD
-      cache_write_1h_per_million_token:
-        price: 10.0
-        currency: USD
-      cache_read_per_million_token:
-        price: 0.50
-        currency: USD
-
-  - id: "claude-sonnet-5" # Official Claude API model ID
-    name: "Claude Sonnet 5"
-    description: "Latest Sonnet model with strong intelligence, fast latency, and 1M-token context."
-    country_origin: "US"
-    for_app_skill: "ai.ask"
-    release_date: "2026-06-09"
+    release_date: "2026-09-28"
     capability_level: "medium"
     allow_auto_select: true
     external_ids:
-      lmarena: "claude-sonnet-5"
-      openrouter: "anthropic/claude-sonnet-5"
+      lmarena: "claude-sonnet-5-5"
+      openrouter: "anthropic/claude-sonnet-5-5"
     search_aliases:
-      - "sonnet 5"
-      - "claude 5 sonnet"
-      - "claude-sonnet-5"
-      - "sonnet 4.6"
-      - "claude-sonnet-4-6"
+      - "sonnet 5.5"
+      - "claude 5.5 sonnet"
+      - "claude-sonnet-5-5"
     input_types:
       - text
       - image
@@ -324,33 +184,32 @@ models:
     servers:
       - id: "anthropic"
         name: "Anthropic API"
-        model_id: "claude-sonnet-5"
+        model_id: "claude-sonnet-5-5"
         region: "US"
     pricing:
       tokens:
         input:
           per_credit_unit: 170
         cache_read:
-          per_credit_unit: 1700
+          per_credit_unit: 3400
         cache_write:
           per_credit_unit: 136
         cache_write_1h:
           per_credit_unit: 85
         output:
           per_credit_unit: 35
-    # Reviewed 2026-10-07 against the current Claude Sonnet 5 model card.
-    # The earlier 2026-08-31 promotional-expiry comment was stale; the
-    # current listed $2/$10 MTok input/output rates remain configured.
+    # Pricing verified 2026-10-08 against the official Sonnet 5.5 model card.
     cache_pricing:
       enabled: true
       write_billing: separate
       eligible_hosts: [anthropic]
-      source_url: https://platform.claude.com/docs/en/models/sonnet-5/overview
+      source_url: https://platform.claude.com/docs/en/models/sonnet-5-5/overview
       reviewed_on: "2026-10-08"
       status: verified_for_activation
       expires_on: "2026-11-08"
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
+      cache_write_1h_hosts: [] # Current direct-API controls create only 5m entries.
     costs:
       input_per_million_token:
         price: 2.00
@@ -367,403 +226,112 @@ models:
         price: 4.0
         currency: USD
       cache_read_per_million_token:
-        price: 0.20
-        currency: USD
-
-  - id: "claude-haiku-4-5-20251001" # Official model ID
-    name: "Claude Haiku 4.5"
-    description: "Fastest and most affordable Claude model. Ideal for simple tasks and health checks."
-    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
-    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    release_date: "2025-10-15" # Model release date (Claude Haiku 4.5 official release)
-    capability_level: "low"
-    # Allow this model to be selected by the intelligent auto-selection system.
-    allow_auto_select: true
-    external_ids: # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "claude-haiku-4-5-20251001" # Exact LMArena model name (if listed)
-      openrouter: "anthropic/claude-haiku-4-5-20251001"
-    input_types:
-      - text
-      - image
-    output_types:
-      - text
-    default_server: "aws_bedrock" # Default server: AWS Bedrock (EU), with Anthropic API as fallback
-    servers:
-      - id: "aws_bedrock"
-        name: "AWS Bedrock"
-        model_id: "eu.anthropic.claude-haiku-4-5-20251001-v1:0" # EU inference profile ID for Converse API
-        aws_region: "eu-central-1"
-        region: "EU"
-      - id: "anthropic"
-        name: "Anthropic API"
-        model_id: "claude-haiku-4-5-20251001" # Direct API uses the model ID as-is
-        region: "US" # Server region for UI display
-    pricing: # Model-specific base pricing (example structure)
-      tokens:
-        input:
-          per_credit_unit: 350 # 1 credit per 350 input tokens (cheaper than Sonnet)
-        cache_read:
-          per_credit_unit: 3500
-        cache_write:
-          per_credit_unit: 280
-        cache_write_1h:
-          per_credit_unit: 175
-        output:
-          per_credit_unit: 70 # 1 credit per 70 output tokens (cheaper than Sonnet)
-    cache_pricing:
-      enabled: false
-      write_billing: separate
-      eligible_hosts: [aws_bedrock, anthropic]
-      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
-      reviewed_on: "2026-10-06"
-      status: proposed_pending_provider_evidence
-      requires_cache_write_metric: true
-      requires_cache_retention_metric: true
-    costs:
-      input_per_million_token:
-        price: 1.00
-        currency: USD
-        max_context: 200000 # Max context window for Claude 4 Haiku
-      output_per_million_token:
-        price: 5.00
-        currency: USD
-        max_context: 200000
-      cache_write_per_million_token:
-        price: 1.25
-        currency: USD
-      cache_write_1h_per_million_token:
-        price: 2.0
-        currency: USD
-      cache_read_per_million_token:
         price: 0.10
         currency: USD
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
 
-  - id: "claude-sonnet-4-6" # Official model ID
-    name: "Claude Sonnet 4.6"
-    description: "Optimal balance of intelligence, cost, and speed."
-    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
-    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    release_date: "2026-02-18" # Model release date
-    capability_level: "medium"
-    allow_auto_select: false
-    show_in_mentions: false
-    external_ids: # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "claude-sonnet-4-6" # Exact LMArena model name
-      openrouter: "anthropic/claude-sonnet-4-6"
-    # Search aliases allow users to find this model by searching for previous version names
+  # Haiku rates apply to the entire request; cached input counts toward 100,000.
+  - id: claude-haiku-5-5
+    name: Claude Haiku 5.5
+    description: Fast, affordable Claude for high-volume classification, extraction, routing, and everyday
+      tasks.
+    country_origin: US
+    for_app_skill: ai.ask
+    release_date: '2026-10-07'
+    capability_level: low
+    allow_auto_select: true
+    external_ids:
+      lmarena: claude-haiku-5-5
+      openrouter: anthropic/claude-haiku-5-5
     search_aliases:
-      - "sonnet 4.5"
-      - "claude 4.5 sonnet"
-      - "claude-sonnet-4-5"
-      - "claude-sonnet-4-5-20250929"
+    - haiku 5.5
+    - claude 5.5 haiku
+    - claude-haiku-5-5
     input_types:
-      - text
-      - image
+    - text
+    - image
     output_types:
-      - text
-    default_server: "aws_bedrock" # Default server: AWS Bedrock (EU), with Anthropic API as fallback
+    - text
+    reasoning: true
+    default_server: anthropic
     servers:
-      - id: "anthropic"
-        name: "Anthropic API"
-        model_id: "claude-sonnet-4-6" # Direct API uses the model ID as-is
-        region: "US" # Server region for UI display
-      - id: "aws_bedrock"
-        name: "AWS Bedrock"
-        model_id: "eu.anthropic.claude-sonnet-4-6" # EU inference profile ID for Converse API
-        aws_region: "eu-central-1"
-        region: "EU"
-      # OpenRouter removed — Anthropic models should only use Anthropic's own infrastructure
-      # (Anthropic API + AWS Bedrock). If both fail, model fallback in main_processor handles it.
-    pricing: # Model-specific base pricing
+    - id: anthropic
+      name: Anthropic API
+      model_id: claude-haiku-5-5
+      region: US
+    pricing:
       tokens:
         input:
-          per_credit_unit: 110 # 1 credit per 110 input tokens
+          per_credit_unit: 3300
         cache_read:
-          per_credit_unit: 1100
+          per_credit_unit: 33000
         cache_write:
-          per_credit_unit: 88
+          per_credit_unit: 2640
         cache_write_1h:
-          per_credit_unit: 55
+          per_credit_unit: 1650
         output:
-          per_credit_unit: 20 # 1 credit per 20 output tokens
+          per_credit_unit: 660
+      context_bands:
+        over_100k:
+          min_input_tokens: 100001
+          eligible_hosts:
+          - anthropic
+          tokens:
+            input:
+              per_credit_unit: 660
+            cache_read:
+              per_credit_unit: 6600
+            cache_write:
+              per_credit_unit: 528
+            cache_write_1h:
+              per_credit_unit: 330
+            output:
+              per_credit_unit: 132
     cache_pricing:
       enabled: true
       write_billing: separate
-      eligible_hosts: [anthropic, aws_bedrock]
-      source_url: https://platform.claude.com/docs/en/models/sonnet-4-6/overview
-      reviewed_on: "2026-10-08"
+      eligible_hosts:
+      - anthropic
+      source_url: https://platform.claude.com/docs/en/models/haiku-5-5/overview
+      reviewed_on: '2026-10-08'
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: '2026-11-08'
       requires_cache_write_metric: true
-      requires_cache_retention_metric: false
-      cache_write_1h_hosts: [] # Current Anthropic/Bedrock controls create only 5m entries.
+      requires_cache_retention_metric: true
+      cache_write_1h_hosts: []
     costs:
       input_per_million_token:
-        price: 3.00
+        price: 0.1
         currency: USD
-        max_context: 200000 # Max context window for Claude Sonnet 4.6
+        max_context: 1000000
       output_per_million_token:
-        price: 15.00
+        price: 0.5
         currency: USD
-        max_context: 200000
+        max_context: 1000000
       cache_write_per_million_token:
-        price: 3.75
+        price: 0.125
         currency: USD
       cache_write_1h_per_million_token:
-        price: 6.0
+        price: 0.2
         currency: USD
       cache_read_per_million_token:
-        price: 0.30
+        price: 0.01
         currency: USD
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
     supplier_cost_profiles:
-      aws_bedrock:
-        region: EU
-        multiplier: 1.10
-
-  - id: "claude-opus-4-6" # Official model ID
-    name: "Claude Opus 4.6"
-    description: "Most powerful Claude model for highly complex tasks, research, and creative writing."
-    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
-    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    release_date: "2026-02-06" # Model release date
-    capability_level: "high"
-    allow_auto_select: false
-    show_in_mentions: false
-    external_ids: # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "claude-opus-4-6" # Exact LMArena model name
-      openrouter: "anthropic/claude-opus-4-6"
-    # Search aliases allow users to find this model by searching for previous version names
-    # e.g., typing "4.5" or "opus 4.5" in the @ mention dropdown will still find this model
-    search_aliases:
-      - "opus 4.5"
-      - "claude 4.5 opus"
-      - "4.5"
-      - "claude-opus-4-5"
-    input_types:
-      - text
-      - image
-    output_types:
-      - text
-    default_server: "aws_bedrock" # Default server: AWS Bedrock (EU), with Anthropic API as fallback
-    servers:
-      - id: "anthropic"
-        name: "Anthropic API"
-        model_id: "claude-opus-4-6" # Direct API uses the model ID as-is
-        region: "US" # Server region for UI display
-      - id: "aws_bedrock"
-        name: "AWS Bedrock"
-        model_id: "eu.anthropic.claude-opus-4-6-v1" # EU inference profile ID for Converse API
-        aws_region: "eu-central-1"
-        region: "EU"
-      # OpenRouter removed — Anthropic models should only use Anthropic's own infrastructure
-      # (Anthropic API + AWS Bedrock). If both fail, model fallback in main_processor handles it.
-    pricing: # Model-specific base pricing (same as Opus 4.5)
-      tokens:
-        input:
-          per_credit_unit: 70 # 1 credit per 70 input tokens
-        cache_read:
-          per_credit_unit: 700
-        cache_write:
-          per_credit_unit: 56
-        cache_write_1h:
-          per_credit_unit: 35
-        output:
-          per_credit_unit: 15 # 1 credit per 15 output tokens
-    cache_pricing:
-      enabled: false
-      write_billing: separate
-      eligible_hosts: [anthropic, aws_bedrock]
-      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
-      reviewed_on: "2026-10-06"
-      status: proposed_pending_provider_evidence
-      requires_cache_write_metric: true
-      requires_cache_retention_metric: true
-    costs:
-      input_per_million_token:
-        price: 5.00
-        currency: USD
-        max_context: 200000 # Max context window
-      output_per_million_token:
-        price: 25.00
-        currency: USD
-        max_context: 200000
-      cache_write_per_million_token:
-        price: 6.25
-        currency: USD
-      cache_write_1h_per_million_token:
-        price: 10.0
-        currency: USD
-      cache_read_per_million_token:
-        price: 0.50
-        currency: USD
-
-  - id: "claude-opus-4-7" # Official model ID
-    name: "Claude Opus 4.7"
-    description: "Most capable Claude model with step-change improvement in agentic coding, 1M context (new tokenizer), 128k max output, and adaptive thinking."
-    country_origin: "US"
-    for_app_skill: "ai.ask"
-    release_date: "2026-04-16"
-    capability_level: "high"
-    allow_auto_select: false
-    show_in_mentions: false
-    external_ids:
-      lmarena: "claude-opus-4-7"
-      openrouter: "anthropic/claude-opus-4-7"
-    search_aliases:
-      - "opus 4.6"
-      - "claude 4.6 opus"
-      - "opus 4.5"
-      - "claude 4.5 opus"
-      - "claude-opus-4-6"
-      - "claude-opus-4-5"
-    input_types:
-      - text
-      - image
-    output_types:
-      - text
-    # NOTE: temperature parameter is deprecated for this model — handled in anthropic_direct_api.py
-    default_server: "anthropic" # Bedrock is in research preview; use Anthropic Direct as default
-    servers:
-      - id: "anthropic"
-        name: "Anthropic API"
-        model_id: "claude-opus-4-7"
-        region: "US"
-      - id: "aws_bedrock"
-        name: "AWS Bedrock"
-        model_id: "eu.anthropic.claude-opus-4-7" # Research preview on AWS
-        aws_region: "eu-central-1"
-        region: "EU"
-    pricing: # Same pricing as Opus 4.6
-      tokens:
-        input:
-          per_credit_unit: 70
-        cache_read:
-          per_credit_unit: 700
-        cache_write:
-          per_credit_unit: 56
-        cache_write_1h:
-          per_credit_unit: 35
-        output:
-          per_credit_unit: 15
-    cache_pricing:
-      enabled: false
-      write_billing: separate
-      eligible_hosts: [anthropic, aws_bedrock]
-      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
-      reviewed_on: "2026-10-06"
-      status: proposed_pending_provider_evidence
-      requires_cache_write_metric: true
-      requires_cache_retention_metric: true
-    costs:
-      input_per_million_token:
-        price: 5.00
-        currency: USD
-        max_context: 1000000 # 1M context window (new tokenizer)
-      output_per_million_token:
-        price: 25.00
-        currency: USD
-        max_context: 1000000
-      cache_write_per_million_token:
-        price: 6.25
-        currency: USD
-      cache_write_1h_per_million_token:
-        price: 10.0
-        currency: USD
-      cache_read_per_million_token:
-        price: 0.50
-        currency: USD
-
-  - id: "claude-opus-4-8" # Official Claude API model ID
-    name: "Claude Opus 4.8"
-    description: "Anthropic's latest Opus model for highly complex reasoning, coding, and agentic work. Supported via the direct Claude API."
-    country_origin: "US"
-    for_app_skill: "ai.ask"
-    release_date: "2026-05-28"
-    capability_level: "high"
-    allow_auto_select: false
-    show_in_mentions: false
-    external_ids:
-      lmarena: "claude-opus-4-8"
-    search_aliases:
-      - "opus 4.8"
-      - "claude 4.8 opus"
-      - "claude-opus-4.8"
-      - "opus 4.7"
-      - "claude 4.7 opus"
-    input_types:
-      - text
-      - image
-    output_types:
-      - text
-    reasoning: true
-    default_server: "anthropic"
-    servers:
-      - id: "anthropic"
-        name: "Anthropic API"
-        model_id: "claude-opus-4-8"
-        region: "US"
-    pricing: # Same token pricing as Opus 4.7 per Anthropic model overview
-      tokens:
-        input:
-          per_credit_unit: 70
-        cache_read:
-          per_credit_unit: 700
-        cache_write:
-          per_credit_unit: 56
-        cache_write_1h:
-          per_credit_unit: 35
-        output:
-          per_credit_unit: 15
-    cache_pricing:
-      enabled: false
-      write_billing: separate
-      eligible_hosts: [anthropic]
-      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
-      reviewed_on: "2026-10-06"
-      status: proposed_pending_provider_evidence
-      requires_cache_write_metric: true
-      requires_cache_retention_metric: true
-    costs:
-      input_per_million_token:
-        price: 5.00
-        currency: USD
-        max_context: 1000000
-      output_per_million_token:
-        price: 25.00
-        currency: USD
-        max_context: 1000000
-      cache_write_per_million_token:
-        price: 6.25
-        currency: USD
-      cache_write_1h_per_million_token:
-        price: 10.0
-        currency: USD
-      cache_read_per_million_token:
-        price: 0.50
-        currency: USD
-
-# Pricing Formula:
-# 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
-# 2. Tokens per credit = credit_value_usd / cost_per_token
-#
-# Where:
-# - credit_value_usd = 0.001 (110 USD / 110,000 credits)
-# - markup = 3 (3x your cost)
-#
-# Simplified: tokens_per_credit = 0.001 / ((your_cost_per_million * 3) / 1,000,000)
-# Or even simpler: tokens_per_credit = 333.33 / your_cost_per_million
-#
-# Examples:
-# - Input ($3.00/M): 333.33 / 3.00 = 111 tokens/credit → round to 150
-# - Output ($15.00/M): 333.33 / 15.00 = 22 tokens/credit → round to 20
-
-# FOR PER-UNIT PRICING (images, API calls, etc.):
-# 1. Your price to user = your_cost_per_unit * markup
-# 2. Credits per unit = your_price_to_user / credit_value_usd
-#
-# Simplified: credits_per_unit = (your_cost_per_unit * 3) / 0.001
-# Or even simpler: credits_per_unit = your_cost_per_unit * 3000
-#
-# Per-Unit Examples:
-# - Image ($0.04 each): 0.04 * 3000 = 120 credits per image
-# - API call ($0.01 each): 0.01 * 3000 = 30 credits per call
+      anthropic:
+        context_bands:
+          over_100k:
+            input: 5
+            cache_read: 5
+            cache_write: 5
+            cache_write_1h: 5
+            output: 5

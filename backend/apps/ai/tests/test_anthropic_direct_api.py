@@ -32,6 +32,8 @@ except ImportError:
         ("claude-fable-5-1", "Fable 5.1 is online."),
         ("claude-fable-5", "Fable 5 is online."),
         ("claude-opus-5-5", "Opus 5.5 is online."),
+        ("claude-sonnet-5-5", "Sonnet 5.5 is online."),
+        ("claude-haiku-5-5", "Haiku 5.5 is online."),
         ("claude-opus-5", "Opus 5 is online."),
         ("claude-sonnet-5", "Sonnet 5 is online."),
         ("claude-opus-4-8", "Opus 4.8 is online."),
@@ -74,6 +76,76 @@ def test_adaptive_thinking_models_omit_deprecated_temperature(model_id, expected
         assert request_kwargs["model"] == model_id
         assert "temperature" not in request_kwargs
 
+    asyncio.run(run())
+
+
+@pytest.mark.skipif(not HAS_ANTHROPIC_DIRECT_API, reason="Anthropic direct API dependencies not installed")
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize("model_id,choice", [
+    ("claude-sonnet-5-5", "auto"),
+    ("claude-haiku-5-5", "any"),
+])
+def test_current_claude_models_use_supported_tool_choice(model_id, choice, stream):
+    async def run():
+        client = MagicMock()
+        tool = SimpleNamespace(type="tool_use", id="weather-call", name="weather", input={})
+        client.messages.create.return_value = [
+            SimpleNamespace(type="content_block_start", index=0, content_block=tool),
+            SimpleNamespace(type="content_block_stop", index=0),
+        ] if stream else SimpleNamespace(
+            usage=SimpleNamespace(input_tokens=1, output_tokens=1),
+            content=[tool],
+        )
+        response = await invoke_direct_api(
+            task_id="test-current-claude-tools", model_id=model_id,
+            messages=[{"role": "user", "content": "Check the weather"}],
+            anthropic_client=client, tool_choice="required", stream=stream,
+            tools=[{"type": "function", "function": {
+                "name": "weather", "description": "Check weather",
+                "parameters": {"type": "object", "properties": {}},
+            }}],
+        )
+        if stream:
+            _ = [item async for item in response]
+        else:
+            assert response.success
+        assert client.messages.create.call_args.kwargs["tool_choice"] == {"type": choice}
+        assert "temperature" not in client.messages.create.call_args.kwargs
+    asyncio.run(run())
+
+
+@pytest.mark.skipif(not HAS_ANTHROPIC_DIRECT_API, reason="Anthropic direct API dependencies not installed")
+@pytest.mark.parametrize("stream", [False, True])
+def test_sonnet_required_delegation_rejects_text_only_but_retains_usage(stream):
+    async def run():
+        client = MagicMock()
+        usage = SimpleNamespace(input_tokens=20, output_tokens=5)
+        client.messages.create.return_value = [
+            SimpleNamespace(type="message_start", message=SimpleNamespace(usage=usage, id="test-response")),
+            SimpleNamespace(type="content_block_delta", index=0, delta=SimpleNamespace(type="text_delta", text="I will skip delegation.")),
+        ] if stream else SimpleNamespace(
+            usage=usage, content=[SimpleNamespace(type="text", text="I will skip delegation.")],
+        )
+        response = await invoke_direct_api(
+            task_id="test-required-delegation", model_id="claude-sonnet-5-5",
+            messages=[{"role": "user", "content": "Delegate this research"}],
+            anthropic_client=client, tool_choice="required", stream=stream,
+            tools=[{"type": "function", "function": {
+                "name": "start_sub_chats", "parameters": {"type": "object", "properties": {}},
+            }}],
+        )
+        if stream:
+            received = []
+            with pytest.raises(IOError, match="omitted the required tool call"):
+                async for item in response:
+                    received.append(item)
+            assert len(received) == 1
+            assert received[0].input_tokens == 20
+        else:
+            assert not response.success
+            assert response.direct_message_content is None
+            assert "required tool call" in response.error_message
+            assert response.usage.input_tokens == 20
     asyncio.run(run())
 
 

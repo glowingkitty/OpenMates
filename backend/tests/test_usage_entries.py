@@ -275,7 +275,7 @@ async def test_create_usage_entry_saves_image_to_html_tokens_and_duration_second
 
 
 # contract-test: direct surface=rest_api assertions=billing.usage.receipt-token-breakdown
-@pytest.mark.parametrize("context_band", [None, "standard", "over_272k"])
+@pytest.mark.parametrize("context_band", [None, "standard", "over_272k", "over_100k"])
 @pytest.mark.parametrize("purpose", [None, "summary"])
 @pytest.mark.anyio
 async def test_llm_receipt_is_encrypted_and_available_through_both_owner_scoped_readers(context_band: str | None, purpose: str | None) -> None:

@@ -15,7 +15,7 @@ PROVIDERS = Path(__file__).resolve().parents[1] / "providers"
 ACTIVE = {
     "google": {"gemini-3.7-flash", "gemini-3.8-flash"},
     "openai": {"gpt-6.1-sol", "gpt-6-luna"},
-    "anthropic": {"claude-sonnet-5", "claude-sonnet-4-6"},
+    "anthropic": {"claude-sonnet-5-5", "claude-haiku-5-5"},
     "mistral": {"mistral-small-latest"},
 }
 SUPPLIER_COST_KEYS = {
@@ -99,7 +99,7 @@ def test_active_category_prices_cover_configured_supplier_costs(provider: str, m
      {"input_tokens": 1000, "uncached_input_tokens": 600,
       "cache_read_input_tokens": 400, "cache_creation_input_tokens": None, "output_tokens": 20},
      400, 0),
-    ("anthropic", "claude-sonnet-5", "anthropic",
+    ("anthropic", "claude-sonnet-5-5", "anthropic",
      {"input_tokens": 600, "uncached_input_tokens": 100, "cache_creation_input_tokens": 200,
       "cache_creation_5m_input_tokens": 200, "cache_creation_1h_input_tokens": 0,
       "cache_read_input_tokens": 300, "output_tokens": 20},

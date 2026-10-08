@@ -72,6 +72,7 @@ async def invoke_direct_api(
             "claude-fable-5",
             "claude-opus-5",
             "claude-sonnet-5",
+            "claude-haiku-5-5",
             "claude-opus-4-7",
             "claude-opus-4-8",
         ))
@@ -85,16 +86,26 @@ async def invoke_direct_api(
             request_kwargs["tools"] = anthropic_tools
             if tool_choice and tool_choice != "auto":
                 if tool_choice == "required":
-                    request_kwargs["tool_choice"] = {"type": "any"}
+                    # Sonnet 5.5 rejects forced tool choice. Enforce the
+                    # caller's required-tool contract on the response below.
+                    choice = "auto" if bare_model.startswith("claude-sonnet-5-5") else "any"
+                    request_kwargs["tool_choice"] = {"type": choice}
                 elif tool_choice == "none":
                     request_kwargs["tool_choice"] = {"type": "auto"}
 
         logger.debug(f"{log_prefix} Request prepared with caching optimizations.")
 
+        require_tool = bool(anthropic_tools and tool_choice == "required" and bare_model.startswith("claude-sonnet-5-5"))
         if stream:
-            return _iterate_direct_api_stream(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix, tools=tools)
+            response_stream = _iterate_direct_api_stream(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix, tools=tools)
+            return _require_tool_call_stream(response_stream) if require_tool else response_stream
         else:
-            return await _process_direct_api_response(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix, tools=tools)
+            response = await _process_direct_api_response(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix, tools=tools)
+            if require_tool and response.success and not response.tool_calls_made:
+                response.success = False
+                response.direct_message_content = None
+                response.error_message = "Anthropic response omitted the required tool call"
+            return response
 
     except Exception as e:
         err_msg = f"Error during direct API request preparation: {e}"
@@ -102,6 +113,31 @@ async def invoke_direct_api(
         if stream:
             raise ValueError(err_msg)
         return UnifiedAnthropicResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
+
+
+async def _require_tool_call_stream(
+    response_stream: AsyncIterator[Union[str, ParsedAnthropicToolCall, AnthropicUsageMetadata]],
+) -> AsyncIterator[Union[str, ParsedAnthropicToolCall, AnthropicUsageMetadata]]:
+    """Withhold a text-only answer when Sonnet cannot force a required tool."""
+    pending: List[Union[str, ParsedAnthropicToolCall, AnthropicUsageMetadata]] = []
+    tool_seen = False
+    async for item in response_stream:
+        if not tool_seen:
+            if not isinstance(item, ParsedAnthropicToolCall):
+                pending.append(item)
+                continue
+            tool_seen = True
+            for buffered in pending:
+                yield buffered
+            pending.clear()
+        yield item
+    if not tool_seen:
+        # Preserve paid provider usage for settlement, but never present the
+        # unsolicited text as a successful answer to a required-tool request.
+        for buffered in pending:
+            if isinstance(buffered, AnthropicUsageMetadata):
+                yield buffered
+        raise IOError("Anthropic response omitted the required tool call")
 
 
 async def _process_direct_api_response(
