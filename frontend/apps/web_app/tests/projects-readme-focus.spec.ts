@@ -607,7 +607,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
             await deleteObservedChatAndWaitForAck(page, cleanupChatId, received);
             console.log('[README] Final disposable chat deletion acknowledged.');
           } catch (error) {
-            chatCleanupFailure = `disposable chat deletion was not acknowledged: ${String(error)}`;
+            chatCleanupFailure = `disposable chat cleanup did not confirm server tombstone and local row removal: ${String(error)}`;
             console.error(`[README] ${chatCleanupFailure}`);
           }
         }

@@ -967,6 +967,9 @@ async function runServeFixture(client, fixture) {
       team_id: fixture.teamId ?? null,
       path_privacy_verified: true,
     })}\n`);
+    // Keep the fixture process alive after SIGUSR1 stops the CLI. The test still
+    // needs to exercise an offline source before SIGTERM starts fixture cleanup.
+    const keepFixtureAlive = setInterval(() => {}, 60_000);
     await new Promise((resolvePromise) => {
       process.on("SIGUSR2", () => {
         const path = mode === "serve-workflow" ? "src/portable_remote.workflow.yml" : "src/remote-demo.ts";
@@ -1018,7 +1021,7 @@ async function runServeFixture(client, fixture) {
       });
       process.once("SIGINT", resolvePromise);
       process.once("SIGTERM", resolvePromise);
-    });
+    }).finally(() => clearInterval(keepFixtureAlive));
   } finally {
     if (!bridgeStopped) await stopForegroundCli(child);
     if (originalSourceStore) writeFileSync(sourceStorePath, originalSourceStore);

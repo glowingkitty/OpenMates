@@ -10,6 +10,7 @@ import type { ChatSynchronizationService } from "../chatSyncService";
 import { draftEditorUIState, initialDraftEditorState } from "../drafts/draftState";
 import {
   handleChatDraftUpdatedImpl,
+  handleChatDeletedImpl,
   handleDraftDeletedImpl,
   handleEncryptedChatMetadataImpl,
   handleChatMessageConfirmedImpl,
@@ -40,6 +41,8 @@ const mocks = vi.hoisted(() => ({
   chatListCache: {
     upsertChat: vi.fn(),
     removeChat: vi.fn(),
+    markChatDeleted: vi.fn(),
+    getContextVersion: vi.fn(),
     markDirty: vi.fn(),
     invalidateLastMessage: vi.fn(),
   },
@@ -718,6 +721,7 @@ describe("handleChatDraftUpdatedImpl", () => {
     expect(mocks.chatDB.deleteChat).toHaveBeenCalledWith("remote-draft-only");
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
     expect(mocks.chatListCache.removeChat).toHaveBeenCalledWith("remote-draft-only");
+    expect(mocks.chatListCache.markChatDeleted).not.toHaveBeenCalled();
     expect(mocks.chatMetadataCache.invalidateChat).toHaveBeenCalledWith("remote-draft-only");
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: "chatDeleted", detail: { chat_id: "remote-draft-only" } }),
@@ -773,6 +777,67 @@ describe("handleChatDraftUpdatedImpl", () => {
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: "chatUpdated", detail: { chat_id: "established-with-draft", type: "draft_deleted" } }),
     );
+  });
+});
+
+describe("handleChatDeletedImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.chatListCache.getContextVersion.mockReturnValue(1);
+    mocks.chatDB.deleteChat.mockResolvedValue(undefined);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.deletion.partial-window-not-authoritative
+  it("fences an authoritative tombstone without a mounted sidebar listener", async () => {
+    const service = new EventTarget() as ChatSynchronizationService;
+    const dispatch = vi.spyOn(service, "dispatchEvent");
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "remote-deleted" });
+
+    await handleChatDeletedImpl(service, { chat_id: "remote-deleted", tombstone: true });
+
+    expect(mocks.chatDB.deleteChat).toHaveBeenCalledWith("remote-deleted");
+    expect(mocks.chatListCache.markChatDeleted).toHaveBeenCalledWith("remote-deleted");
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
+      type: "chatDeleted", detail: { chat_id: "remote-deleted" },
+    }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.deletion.partial-window-not-authoritative
+  it("fences and dispatches a tombstone after optimistic IndexedDB deletion", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.getChat.mockResolvedValue(null);
+
+    await handleChatDeletedImpl(service, { chat_id: "already-deleted", tombstone: true });
+
+    expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+    expect(mocks.chatListCache.markChatDeleted).toHaveBeenCalledWith("already-deleted");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: "chatDeleted", detail: { chat_id: "already-deleted" },
+    }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.deletion.partial-window-not-authoritative
+  it("does not fence a non-tombstone deletion notification", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+    await handleChatDeletedImpl(service, { chat_id: "draft-promoted", tombstone: false });
+
+    expect(mocks.chatListCache.markChatDeleted).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.deletion.partial-window-not-authoritative
+  it("does not carry an old context tombstone into the next account or team", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.getChat.mockImplementation(async () => {
+      mocks.chatListCache.getContextVersion.mockReturnValue(2);
+      return null;
+    });
+
+    await handleChatDeletedImpl(service, { chat_id: "old-context", tombstone: true });
+
+    expect(mocks.chatListCache.markChatDeleted).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
 });
 

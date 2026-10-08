@@ -662,7 +662,9 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		const contextTeamId = $activeTeamId;
 
 		// 1. Process real chats from IndexedDB (exclude public chats - they come from visiblePublicChats, and sub-chats - they are rendered nested)
-		const processedRealChats = uniqueChatsById([...allChatsFromDB, ...$runningChatGroups.map(group => group.chat)])
+		const processedRealChats = uniqueChatsById(chatListCache.filterDeletedChats([
+			...allChatsFromDB, ...$runningChatGroups.map(group => group.chat)
+		]))
 			.filter(chat =>
 				(chat.team_id ?? null) === contextTeamId &&
 				!isLegalChat(chat.chat_id) &&
@@ -748,7 +750,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		// ORDER MATTERS: We put processedRealChats first so that dynamic demo chats (which have group_key='examples')
 		// are preferred over hardcoded visiblePublicChats (which might have group_key='intro')
 		// olderChatsFromServer are appended last — these are in-memory-only older chats loaded on demand
-		const contextOlderChats = olderChatsFromServer.filter(
+		const contextOlderChats = chatListCache.filterDeletedChats(olderChatsFromServer).filter(
 			(chat) => (chat.team_id ?? null) === contextTeamId
 		);
 		const contextPublicChats = contextTeamId ? [] : filteredPublicChats;
@@ -1193,10 +1195,13 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	const handleChatDeletedEvent = async (event: CustomEvent<{ chat_id: string }>) => {
 		console.debug(`[Chats] Chat deleted event received for chat_id: ${event.detail.chat_id}`);
 		const chatWasSelected = selectedChatId === event.detail.chat_id;
+		// chatDeleted also covers draft-only shells that can later be promoted
+		// under the same ID. Only a server chat_deleted tombstone is permanent.
 		chatListCache.removeChat(event.detail.chat_id);
+		_chatUpsertsDuringDbRead.delete(event.detail.chat_id);
 		const cached = chatListCache.getCache(false);
 		if (cached) {
-			allChatsFromDB = cached;
+			allChatsFromDB = chatListCache.filterDeletedChats(cached);
 		} else {
 			allChatsFromDB = allChatsFromDB.filter(c => c.chat_id !== event.detail.chat_id);
 			chatListCache.markDirty();
@@ -3061,9 +3066,15 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		// Fetch chats from IDB. On initial cold-boot mount a limit of 20 is passed so we only
 		// read the most-recently-edited chats — Phase 2 sync will load the full set shortly after.
 		// All other callers (sync events, chat updates) pass no limit to get the complete set.
-		const chatsFromDb = mergeDbSnapshotWithInFlightUpserts(
-			await chatDB.getAllChats(undefined, limit ? { limit } : undefined)
-		);
+		const readVersion = chatListCache.getContextVersion();
+		const dbSnapshot = await chatDB.getAllChats(undefined, limit ? { limit } : undefined);
+		// A prior account/team context cannot commit its snapshot. Deletions in
+		// this context are filtered at setCache so other chats from the read survive.
+		if (readVersion !== chatListCache.getContextVersion()) {
+			console.debug('[Chats] Discarding chat-list read after context change');
+			return;
+		}
+		const chatsFromDb = mergeDbSnapshotWithInFlightUpserts(dbSnapshot);
 		console.debug(`[Chats] chatDB.getAllChats() returned ${chatsFromDb.length} chats`);
 
 		// CRITICAL: Post-read auth check. If auth flipped to false during the async IDB read
@@ -3080,8 +3091,8 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			return;
 		}
 		
-		chatListCache.setCache(chatsFromDb); // Update global cache, including pending upserts queued before cache init
-		allChatsFromDB = chatListCache.getCache(false) ?? chatsFromDb; // Use the merged cache snapshot for reactive updates
+		if (!chatListCache.setCacheIfUnchanged(chatsFromDb, readVersion)) return;
+		allChatsFromDB = chatListCache.getCache(false) ?? chatListCache.filterDeletedChats(chatsFromDb);
 		console.debug(`[Chats] Updated internal chat list. Count: ${allChatsFromDB.length}`); // Corrected variable
 		
 		// Debug: Log first few chat IDs if available

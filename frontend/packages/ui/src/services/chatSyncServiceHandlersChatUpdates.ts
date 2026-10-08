@@ -1575,7 +1575,8 @@ export async function handleChatDeletedImpl(
     return;
   }
 
-  if (payload.tombstone) {
+  if (payload.tombstone === true) {
+    const contextVersion = chatListCache.getContextVersion();
     try {
       // Clean up pending deletion entry if this chat was queued for offline deletion.
       // The server has now confirmed the deletion, so we can remove it from the queue.
@@ -1596,21 +1597,11 @@ export async function handleChatDeletedImpl(
           `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} deleted from IndexedDB`,
         );
 
-        // Dispatch event to update UI since this is a deletion from another device
-        serviceInstance.dispatchEvent(
-          new CustomEvent("chatDeleted", {
-            detail: { chat_id: payload.chat_id },
-          }),
-        );
-        console.debug(
-          `[ChatSyncService:ChatUpdates] chatDeleted event dispatched for chat ${payload.chat_id}`,
-        );
       } else {
         // Chat already deleted - this was an optimistic delete from this device
         console.debug(
           `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} already deleted (optimistic delete from this device)`,
         );
-        // No need to dispatch event - it was already dispatched during optimistic delete
       }
     } catch (error) {
       console.error(
@@ -1618,6 +1609,14 @@ export async function handleChatDeletedImpl(
         error,
       );
     }
+    if (contextVersion !== chatListCache.getContextVersion()) return;
+    // The authoritative tombstone must fence cache reads even if the sidebar
+    // was unmounted or the optimistic IndexedDB deletion already ran.
+    chatListCache.markChatDeleted(payload.chat_id);
+    serviceInstance.dispatchEvent(
+      new CustomEvent("chatDeleted", { detail: { chat_id: payload.chat_id } }),
+    );
+    console.debug(`[ChatSyncService:ChatUpdates] chatDeleted event dispatched for chat ${payload.chat_id}`);
   }
 }
 

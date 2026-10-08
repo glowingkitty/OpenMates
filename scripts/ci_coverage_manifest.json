@@ -287,6 +287,7 @@
         "components/workflow-choice-loop.spec.ts",
         "components/workflow-chat-embed.spec.ts",
         "components/chat-project-navigation.spec.ts",
+        "components/chat-list-deletion.spec.ts",
         "components/project-chat-previews.spec.ts",
         "components/project-file-references.spec.ts",
         "components/settings-storage-overview.spec.ts",
