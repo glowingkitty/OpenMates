@@ -147,6 +147,7 @@ async def _trigger_continuation_without_focus(
             "user_id": user_id,
             "user_id_hash": user_id_hash,
             "message_history": message_history,
+            "preprocessing_resume_ref": pending_context.get("preprocessing_resume_ref"),
             "chat_has_title": chat_has_title,
             "is_incognito": is_incognito,
             "mate_id": mate_id,

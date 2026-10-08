@@ -35,7 +35,11 @@ async def discover_rule_metadata(request: Any, directus: Any, cache: Any,
         request._preselected_rule_project_activation = (binding or {}).get("activation_id")
         catalog = await _rules(request, directus, cache, eligible_app_ids)
         result = []
-        for rule in catalog[:MAX_RULE_CANDIDATES]:
+        # Newly authorized Project guides must not be displaced by the bounded
+        # public app catalogue. Stable sorting preserves order within each scope.
+        for rule in sorted(catalog, key=lambda item: item.source != "project"):
+            if len(result) >= MAX_RULE_CANDIDATES:
+                break
             entry = {key: getattr(rule, key) for key in
                      ("id", "title", "description", "when_to_use", "revision", "source", "app_id", "project_id")}
             if len(json.dumps([*result, entry], ensure_ascii=True)) <= MAX_DISCOVERY_CHARS:

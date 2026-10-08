@@ -821,6 +821,7 @@ def _build_pending_app_settings_memories_context(
         "recovery_turn_id": getattr(request_data, "recovery_turn_id", None),
         "recovery_public_key": getattr(request_data, "recovery_public_key", None),
         "chat_key_version": getattr(request_data, "chat_key_version", None),
+        "preprocessing_resume_ref": getattr(request_data, "preprocessing_resume_ref", None),
     }
 
 # Four tool-enabled passes followed by one answer-only pass. Recovery first
@@ -3513,6 +3514,8 @@ async def handle_main_processing(
      
     # Add app deep linking instruction so the AI uses correct relative hash links
     # Only include when apps are available (no point linking to apps that don't exist)
+    selected_app_ids = getattr(preprocessing_results, "selected_app_ids", None)
+    selected_app_ids = set(selected_app_ids) if selected_app_ids is not None else None
     if discovered_apps_metadata and (request_data.user_preferences or {}).get("apps_enabled") is not False:
         prompt_parts.append(base_instructions.get("base_app_deep_linking_instruction", ""))
     
@@ -3565,13 +3568,21 @@ async def handle_main_processing(
     elif always_include_skills:
         if preselected_skills is None:
             preselected_skills = set()
-        skills_to_add = set(always_include_skills) - preselected_skills
+        # An app chosen by stage one may keep its configured helper skills.
+        # Uploaded images still need their viewer even when no app was chosen.
+        scoped_always_include = {
+            skill for skill in always_include_skills
+            if selected_app_ids is None
+            or any(skill.startswith(f"{app_id}-") for app_id in selected_app_ids)
+            or (skill == "images-view" and getattr(request_data, "has_image_upload_embed", False))
+        }
+        skills_to_add = scoped_always_include - preselected_skills
         if skills_to_add:
             logger.info(
                 f"{log_prefix} [SKILL_HARDENING] Adding always-include skills to preselected set: {skills_to_add}. "
-                f"These skills are configured to always be available regardless of preprocessing."
+                "These helper skills belong to apps selected for this turn."
             )
-        preselected_skills = preselected_skills | set(always_include_skills)
+        preselected_skills = preselected_skills | scoped_always_include
         logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
 
     # === COMPANION SKILLS ===
@@ -3584,6 +3595,11 @@ async def handle_main_processing(
             preselected_skills,
             exact_request=user_requested_skills_only,
         )
+        if selected_app_ids is not None:
+            expanded_preselected_skills = preselected_skills | {
+                skill for skill in expanded_preselected_skills
+                if any(skill.startswith(f"{app_id}-") for app_id in selected_app_ids)
+            }
         companions_to_add = expanded_preselected_skills - preselected_skills
         if companions_to_add:
             logger.info(
@@ -3860,8 +3876,12 @@ async def handle_main_processing(
                         continue
                     # Embed-type match — skip skill preselection, fall through to category check
                 else:
-                    # Standard gating: skip if app has skills but none were preselected
-                    if app_metadata.skills and preselected_skills and not app_has_preselected_skill:
+                    # Stage one chose the apps whose ordinary instructions can
+                    # enter this turn. An empty skill set no longer means all apps.
+                    if selected_app_ids is not None and app_id not in selected_app_ids:
+                        continue
+                    if (app_metadata.skills and not app_has_preselected_skill
+                            and (selected_app_ids is not None or preselected_skills)):
                         continue
 
                 # Check if instruction has category filtering
@@ -4745,7 +4765,8 @@ async def handle_main_processing(
             cache_service=cache_service, async_task_id=request_id,
             request_data=request_data, skill_config_dict=skill_config_dict,
             app_id="system", skill_id="activate_focus_mode", tool_name="activate_focus_mode",
-            tool_arguments={"focus_id": focus_id}, requires_current_turn=True,
+            tool_arguments={"focus_id": focus_id}, preprocessing_result=preprocessing_results,
+            requires_current_turn=True,
             defer_until_initial_response_complete=True, ttl_seconds=PROJECT_FOCUS_REQUEST_TTL,
         )
         pending = await ProjectFocusRequestService(cache_service, directus_service).create_pending(
@@ -4919,6 +4940,7 @@ async def handle_main_processing(
                     "recovery_turn_id": request_data.recovery_turn_id,
                     "recovery_public_key": request_data.recovery_public_key,
                     "chat_key_version": request_data.chat_key_version,
+                    "preprocessing_resume_ref": getattr(request_data, "preprocessing_resume_ref", None),
                     "parent_id": request_data.parent_id,
                     "is_sub_chat": request_data.is_sub_chat,
                     "orchestration_id": request_data.orchestration_id,
@@ -6526,11 +6548,8 @@ async def handle_main_processing(
                 yield phase_state_marker()
             break
 
-        # This iteration produced tool calls — the loop will continue with at least one
-        # more LLM call to process the tool results.  Each such additional call re-sends
-        # the full conversation history plus the new tool results, contributing real token
-        # costs that we must bill.  Counting extra iterations here lets us surface this
-        # information to the user in the usage detail view.
+        # Tool calls normally trigger another model pass. Count that extra pass
+        # here, then undo the count if a client job pauses this loop instead.
         tool_inference_iterations += 1
         logger.info(
             f"{log_prefix} [CUMULATIVE_TOKENS] Tool calls detected — incrementing tool_inference_iterations "
@@ -6549,77 +6568,79 @@ async def handle_main_processing(
             assistant_content=final_buffered_text_for_turn,
         )
 
+        async def cancel_suppressed_placeholder(tool_call: Any, guard_name: str) -> None:
+            placeholder = inline_placeholder_embeds.get(tool_call.tool_call_id)
+            if not (placeholder and cache_service and user_vault_key_id and directus_service):
+                return
+            try:
+                from backend.core.api.app.services.embed_service import EmbedService
+
+                embed_service = EmbedService(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                )
+                app_id, skill_id = tool_resolver_map.get(
+                    tool_call.function_name, ("unknown", "unknown"),
+                )
+                placeholders = (
+                    placeholder.get("placeholders", [])
+                    if isinstance(placeholder, dict) and placeholder.get("multiple")
+                    else [placeholder]
+                )
+                embed_ids = [
+                    item["embed_id"] for item in placeholders
+                    if isinstance(item, dict) and item.get("embed_id")
+                ]
+                for embed_id in embed_ids:
+                    await embed_service.update_embed_status_to_cancelled(
+                        embed_id=embed_id, app_id=app_id, skill_id=skill_id,
+                        chat_id=request_data.chat_id, message_id=request_data.message_id,
+                        user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                        user_vault_key_id=user_vault_key_id, task_id=task_id,
+                        log_prefix=log_prefix,
+                    )
+                if embed_ids:
+                    logger.info(
+                        "%s [%s] Cancelled %s placeholder(s) for suppressed tool '%s'",
+                        log_prefix, guard_name, len(embed_ids), tool_call.function_name,
+                    )
+            except Exception:
+                logger.warning(
+                    "%s [%s] Failed to cancel placeholder for '%s'",
+                    log_prefix, guard_name, tool_call.function_name, exc_info=True,
+                )
+
         # === FOCUS MODE EXCLUSIVITY GUARD ===
         # When activate_focus_mode is in the tool-call batch, it MUST run
-        # exclusively — no other app skills should execute in the same turn.
+        # exclusively — no other tool should execute in the same turn.
         # The LLM sometimes emits focus mode activation alongside regular
-        # skills (e.g. web-search) in a single parallel tool-call batch.
+        # tools (e.g. web-search or a Project file read) in one call batch.
         # Without this guard, the focus mode's `return` would abandon the
-        # other skills mid-execution, leaving orphaned placeholder embeds.
+        # other tools mid-execution, leaving orphaned placeholder embeds.
         # See: docs/architecture/focus-modes.md, issue e85778c8
-        _focus_mode_in_batch = any(
-            tool_resolver_map.get(tc.function_name, (None, None))[1] == "activate_focus_mode"
-            for tc in tool_calls_for_this_turn
+        primary_focus_call = next(
+            (tc for tc in tool_calls_for_this_turn
+             if tool_resolver_map.get(tc.function_name, (None, None))[1] == "activate_focus_mode"),
+            None,
         )
-        if _focus_mode_in_batch and len(tool_calls_for_this_turn) > 1:
+        if primary_focus_call and len(tool_calls_for_this_turn) > 1:
             _non_focus_tools = [
                 tc for tc in tool_calls_for_this_turn
-                if tool_resolver_map.get(tc.function_name, (None, None))[0] != "system"
+                if tc is not primary_focus_call
             ]
             if _non_focus_tools:
                 logger.info(
                     f"{log_prefix} [FOCUS_EXCLUSIVITY] activate_focus_mode in batch with "
-                    f"{len(_non_focus_tools)} app skill(s): "
+                    f"{len(_non_focus_tools)} other tool(s): "
                     f"{[tc.function_name for tc in _non_focus_tools]}. "
-                    f"Suppressing app skills — focus mode takes priority."
+                    f"Suppressing other tools — focus mode takes priority."
                 )
                 for _suppressed_tc in _non_focus_tools:
                     _sup_tool_call_id = _suppressed_tc.tool_call_id
                     _sup_tool_name = _suppressed_tc.function_name
 
-                    # Cancel any placeholder embeds that were streamed for the suppressed tool
-                    _sup_placeholder = inline_placeholder_embeds.get(_sup_tool_call_id)
-                    if _sup_placeholder and cache_service and user_vault_key_id and directus_service:
-                        try:
-                            from backend.core.api.app.services.embed_service import EmbedService
-                            _focus_guard_embed_svc = EmbedService(
-                                cache_service=cache_service,
-                                directus_service=directus_service,
-                                encryption_service=encryption_service
-                            )
-                            _sup_resolved = tool_resolver_map.get(_sup_tool_name, ("unknown", "unknown"))
-                            _sup_embed_ids = []
-                            if isinstance(_sup_placeholder, dict) and _sup_placeholder.get("multiple"):
-                                for _p in _sup_placeholder.get("placeholders", []):
-                                    _eid = _p.get("embed_id") if isinstance(_p, dict) else None
-                                    if _eid:
-                                        _sup_embed_ids.append(_eid)
-                            elif isinstance(_sup_placeholder, dict) and "embed_id" in _sup_placeholder:
-                                _sup_embed_ids.append(_sup_placeholder["embed_id"])
-
-                            for _eid in _sup_embed_ids:
-                                await _focus_guard_embed_svc.update_embed_status_to_cancelled(
-                                    embed_id=_eid,
-                                    app_id=_sup_resolved[0],
-                                    skill_id=_sup_resolved[1],
-                                    chat_id=request_data.chat_id,
-                                    message_id=request_data.message_id,
-                                    user_id=request_data.user_id,
-                                    user_id_hash=request_data.user_id_hash,
-                                    user_vault_key_id=user_vault_key_id,
-                                    task_id=task_id,
-                                    log_prefix=log_prefix
-                                )
-                            if _sup_embed_ids:
-                                logger.info(
-                                    f"{log_prefix} [FOCUS_EXCLUSIVITY] Cancelled {len(_sup_embed_ids)} placeholder(s) "
-                                    f"for suppressed tool '{_sup_tool_name}'"
-                                )
-                        except Exception as _fe:
-                            logger.warning(
-                                f"{log_prefix} [FOCUS_EXCLUSIVITY] Failed to cancel placeholder for "
-                                f"'{_sup_tool_name}': {_fe}"
-                            )
+                    await cancel_suppressed_placeholder(_suppressed_tc, "FOCUS_EXCLUSIVITY")
 
                     # Add a synthetic tool response so the LLM's tool_call is properly closed
                     current_message_history.append({
@@ -6632,15 +6653,47 @@ async def handle_main_processing(
                         })
                     })
 
-                # Filter the batch to only keep system tools (focus mode)
-                tool_calls_for_this_turn = [
-                    tc for tc in tool_calls_for_this_turn
-                    if tool_resolver_map.get(tc.function_name, (None, None))[0] == "system"
-                ]
+                tool_calls_for_this_turn = [primary_focus_call]
                 logger.info(
                     f"{log_prefix} [FOCUS_EXCLUSIVITY] Proceeding with {len(tool_calls_for_this_turn)} "
-                    f"system tool(s) only: {[tc.function_name for tc in tool_calls_for_this_turn]}"
+                    f"focus tool(s) only: {[tc.function_name for tc in tool_calls_for_this_turn]}"
                 )
+
+        # A client-executed Project file operation pauses this inference turn.
+        # Other tools from the same model batch would spend credits and append
+        # results only to transient history, which the async continuation cannot
+        # recover. Execute one file operation; the continuation replans the
+        # original user request after its actual client result arrives.
+        primary_project_call = next(
+            (tc for tc in tool_calls_for_this_turn
+             if tool_resolver_map.get(tc.function_name, (None, None))[0] == "system"
+             and tool_resolver_map.get(tc.function_name, (None, None))[1]
+             in PROJECT_FILE_TOOL_TO_OPERATION),
+            None,
+        )
+        if primary_project_call and len(tool_calls_for_this_turn) > 1:
+            suppressed_project_batch = [
+                tc for tc in tool_calls_for_this_turn if tc is not primary_project_call
+            ]
+            for suppressed_call in suppressed_project_batch:
+                await cancel_suppressed_placeholder(suppressed_call, "PROJECT_FILE_EXCLUSIVITY")
+                current_message_history.append({
+                    "tool_call_id": suppressed_call.tool_call_id,
+                    "role": "tool",
+                    "name": suppressed_call.function_name,
+                    "content": json.dumps({
+                        "status": "deferred",
+                        "reason": (
+                            "A Project file operation is pending. Reconsider this tool after "
+                            "the client returns the file result."
+                        ),
+                    }),
+                })
+            tool_calls_for_this_turn = [primary_project_call]
+            logger.info(
+                "%s [PROJECT_FILE_EXCLUSIVITY] Deferred %s other tool(s) until file completion",
+                log_prefix, len(suppressed_project_batch),
+            )
 
         # One chat request must produce one atomic Workflow authoring instruction.
         # All tool calls are known here, before any skill in this turn dispatches.
@@ -7333,6 +7386,12 @@ async def handle_main_processing(
 
                                 operation_arguments = dict(parsed_args) if isinstance(parsed_args, dict) else {}
                                 requested_source_id = operation_arguments.pop("source_id", None)
+                                if operation == "search":
+                                    # The model sees two separate search tools. Pin the executor
+                                    # target here so an extra model-supplied field cannot change it.
+                                    operation_arguments["target"] = (
+                                        "files" if skill_id == "project_search_files" else "content"
+                                    )
                                 dispatch_focus = dict(current_focus)
                                 if requested_source_id is not None:
                                     source = await directus_service.project.get_source(
@@ -7363,8 +7422,10 @@ async def handle_main_processing(
                                     skill_id=skill_id,
                                     tool_name=skill_id,
                                     tool_arguments=operation_arguments,
+                                    preprocessing_result=preprocessing_results,
                                     ttl_seconds=PROJECT_FILE_OPERATION_PAYLOAD_TTL_SECONDS,
                                     requires_current_turn=True,
+                                    defer_until_initial_response_complete=True,
                                 )
                                 operation_service = ProjectFileOperationService(cache_service)
                                 try:
@@ -7578,6 +7639,7 @@ async def handle_main_processing(
                                     "recovery_turn_id": request_data.recovery_turn_id,
                                     "recovery_public_key": request_data.recovery_public_key,
                                     "chat_key_version": request_data.chat_key_version,
+                                    "preprocessing_resume_ref": getattr(request_data, "preprocessing_resume_ref", None),
                                     "parent_id": request_data.parent_id,
                                     "is_sub_chat": request_data.is_sub_chat,
                                     "orchestration_id": request_data.orchestration_id,
@@ -8401,6 +8463,7 @@ async def handle_main_processing(
                                 connected_account_directory=getattr(request_data, "connected_account_directory", None),
                                 reason=str(permission_error),
                                 task_id=task_id,
+                                preprocessing_resume_ref=getattr(request_data, "preprocessing_resume_ref", None),
                             )
                             if request_id:
                                 yield {"__awaiting_connected_account_permission__": True, "request_id": request_id}
@@ -8721,6 +8784,7 @@ async def handle_main_processing(
                                 skill_id=skill_id,
                                 tool_name=tool_name,
                                 tool_arguments=parsed_args if isinstance(parsed_args, dict) else {},
+                                preprocessing_result=preprocessing_results,
                                 inline_wait_deadline=inline_wait_deadline,
                                 requires_current_turn=is_remote_command,
                                 defer_until_initial_response_complete=(
@@ -10304,6 +10368,17 @@ async def handle_main_processing(
                 "ignore_fields_for_inference": ignore_fields_for_inference  # Store for follow-up requests
             }
             current_message_history.append(tool_response_message)
+
+        if pending_project_operation_id:
+            # The client job will resume this turn through its cached continuation.
+            # Finish usage accounting below without another model iteration whose
+            # only possible answer would be a redundant waiting message.
+            tool_inference_iterations -= 1
+            logger.info(
+                "%s Project file operation %s dispatched; yielding to client completion",
+                log_prefix, pending_project_operation_id,
+            )
+            break
 
         if focus_phase_runtimes and await evaluate_active_phases(
             "tools", f"{request_data.message_id}:{iteration}:tools", current_message_history,

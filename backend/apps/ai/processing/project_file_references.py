@@ -14,7 +14,8 @@ def build_project_file_reference_preview(
 ) -> dict[str, Any] | None:
     """Project an accepted file completion onto a bounded storage allowlist."""
     skill_id = context.get("skill_id")
-    if context.get("app_id") != "system" or skill_id not in {"project_search_files", "project_read_text"}:
+    search_tools = {"project_search_files", "project_search_text"}
+    if context.get("app_id") != "system" or skill_id not in search_tools | {"project_read_text"}:
         return None
     if result_status != "completed":
         return None
@@ -27,14 +28,14 @@ def build_project_file_reference_preview(
                       if row.get("project_id") == project_id), {})
     project_name = str(candidate.get("name") or "Project")[:160]
     arguments = context.get("tool_arguments") or {}
-    query = str(arguments.get("query") if skill_id == "project_search_files"
+    query = str(arguments.get("query") if skill_id in search_tools
                 else arguments.get("path") or "")[:640]
     references: list[dict[str, Any]] = []
     seen: set[tuple[str, str | None, str | None, int | None]] = set()
     for result in completed_results:
         if result.get("status") != "completed":
             continue
-        rows = result.get("matches", []) if skill_id == "project_search_files" else [result]
+        rows = result.get("matches", []) if skill_id in search_tools else [result]
         if not isinstance(rows, list):
             continue
         source_id = result.get("source_id")
@@ -73,9 +74,14 @@ def build_project_file_reference_preview(
             references.append(reference)
     if not references:
         return None
-    return {"project_id": project_id, "project_name": project_name, "query": query,
-            "skill_id": "search" if skill_id == "project_search_files" else "read",
-            "results": references[:100]}
+    preview = {
+        "project_id": project_id, "project_name": project_name, "query": query,
+        "skill_id": "search" if skill_id in search_tools else "read",
+        "results": references[:100],
+    }
+    if skill_id in search_tools:
+        preview["search_target"] = "files" if skill_id == "project_search_files" else "content"
+    return preview
 
 
 async def publish_project_file_reference_preview(
@@ -115,7 +121,12 @@ async def publish_project_file_reference_preview(
         chat_id=request_data.chat_id, message_id=request_data.message_id,
         user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
         user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
-        request_metadata={"query": preview.get("query", "")},
+        request_metadata={
+            "query": preview.get("query", ""),
+            **({"search_target": preview["search_target"]}
+               if preview.get("skill_id") == "search"
+               and preview.get("search_target") in {"files", "content"} else {}),
+        },
     )
     if not created:
         raise RuntimeError("Project file reference preview publication failed")

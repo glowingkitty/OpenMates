@@ -86,6 +86,7 @@ import { storageArchiveFetch } from "../config/api";
 
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
+    import { projectFileProgressKey, type ProjectFileProgress, type ProjectFileProgressPhase } from '../services/projectFileProgress';
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
     import { pruneDecryptedMessageWindow, shouldPreserveExpandedMessageWindow } from '../utils/messageWindowPruning';
@@ -4221,6 +4222,15 @@ import { storageArchiveFetch } from "../config/api";
     // centered status indicator in ChatHistory.
     // Lifecycle: sending → processing (real-time step cards) → typing → null (streaming)
     let processingPhase = $state<ProcessingPhase>(null);
+    let projectFileProgress = $state<ProjectFileProgress | null>(null);
+    let projectFileProgressClearTimer: ReturnType<typeof setTimeout> | null = null;
+    $effect(() => {
+        if (projectFileProgress && projectFileProgress.chatId !== currentChat?.chat_id) {
+            projectFileProgress = null;
+            if (projectFileProgressClearTimer) clearTimeout(projectFileProgressClearTimer);
+            projectFileProgressClearTimer = null;
+        }
+    });
     // The composer indicator starts only after the server accepts this exact turn.
     // Keep it separate from the centered step-card phase so both surfaces can evolve
     // without a delayed acknowledgement replacing known typing information.
@@ -6436,6 +6446,10 @@ import { storageArchiveFetch } from "../config/api";
         // Its change will trigger re-evaluation of this derived value.
         void _aiTaskStateTrigger;
 
+        if (projectFileProgress?.chatId === currentChat?.chat_id) {
+            return [$text(`embeds.projects.progress.${projectFileProgressKey(projectFileProgress)}`)];
+        }
+
         if (typingStatusIsTerminal) return [];
         
         // The accepted-turn selection is composer-only. Once exact typing metadata
@@ -6528,6 +6542,8 @@ import { storageArchiveFetch } from "../config/api";
     // 'sending', 'processing', and 'waiting_for_user' are no longer shown at the bottom.
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
+
+        if (projectFileProgress?.chatId === currentChat?.chat_id) return 'processing';
 
         if (typingStatusIsTerminal) return null;
         
@@ -12602,6 +12618,11 @@ import { storageArchiveFetch } from "../config/api";
             status?: string;
         }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
+                if (['cancelled', 'timed_out', 'failed'].includes(event.detail.status ?? '')) {
+                    projectFileProgress = null;
+                    if (projectFileProgressClearTimer) clearTimeout(projectFileProgressClearTimer);
+                    projectFileProgressClearTimer = null;
+                }
                 const feedbackTurn = processingFeedbackTurn;
                 if (feedbackTurn && !matchesProcessingFeedbackTerminal(feedbackTurn, event.detail)) return;
                 _aiTaskStateTrigger++;
@@ -13066,6 +13087,38 @@ import { storageArchiveFetch } from "../config/api";
         chatSyncService.addEventListener('chatCompressionStarted', compressionStartedHandler);
         chatSyncService.addEventListener('chatCompressionCompleted', compressionCompletedHandler);
         chatSyncService.addEventListener('chatCompressionCheckpointStored', compressionCheckpointStoredHandler);
+        const projectFileProgressHandler = ((event: CustomEvent<{
+            chatId: string; operationId: string; operation?: string; searchTarget?: string; phase: ProjectFileProgressPhase;
+        }>) => {
+            const update = event.detail;
+            if (update.chatId !== currentChat?.chat_id || !update.operationId) return;
+            if (['completed', 'failed', 'awaiting_approval', 'waiting_for_executor', 'conflict'].includes(update.phase)) {
+                if (projectFileProgress?.operationId !== update.operationId) return;
+                if (projectFileProgressClearTimer) clearTimeout(projectFileProgressClearTimer);
+                projectFileProgressClearTimer = null;
+                if (update.phase === 'failed') {
+                    projectFileProgress = null;
+                    return;
+                }
+                projectFileProgress = { ...projectFileProgress, phase: update.phase };
+                if (update.phase === 'completed' || update.phase === 'conflict') {
+                    projectFileProgressClearTimer = setTimeout(() => {
+                        if (projectFileProgress?.operationId === update.operationId) projectFileProgress = null;
+                        projectFileProgressClearTimer = null;
+                    }, update.phase === 'conflict' ? 2500 : 1200);
+                }
+                return;
+            }
+            if (update.phase === 'available' && projectFileProgress?.operationId === update.operationId
+                && projectFileProgress.phase === 'running') return;
+            if (projectFileProgressClearTimer) clearTimeout(projectFileProgressClearTimer);
+            projectFileProgressClearTimer = null;
+            projectFileProgress = {
+                chatId: update.chatId, operationId: update.operationId,
+                operation: update.operation ?? '', searchTarget: update.searchTarget ?? '', phase: update.phase,
+            };
+        }) as EventListenerCallback;
+        chatSyncService.addEventListener('projectFileProgress', projectFileProgressHandler);
         chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
@@ -13494,6 +13547,9 @@ import { storageArchiveFetch } from "../config/api";
             unsubscribeDraftState(); // Unsubscribe from draft state
             chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListenerCallback); // Remove listener
             chatSyncService.removeEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
+            chatSyncService.removeEventListener('projectFileProgress', projectFileProgressHandler);
+            if (projectFileProgressClearTimer) clearTimeout(projectFileProgressClearTimer);
+            projectFileProgressClearTimer = null;
             chatSyncService.removeEventListener('chatCompressionStarted', compressionStartedHandler);
             chatSyncService.removeEventListener('chatCompressionCompleted', compressionCompletedHandler);
             chatSyncService.removeEventListener('chatCompressionCheckpointStored', compressionCheckpointStoredHandler);

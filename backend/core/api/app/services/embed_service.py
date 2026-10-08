@@ -6737,6 +6737,9 @@ class EmbedService:
                 if safe_request_metadata:
                     if "query" in safe_request_metadata:
                         parent_content["query"] = safe_request_metadata["query"]
+                    if app_id == "projects" and skill_id == "search":
+                        if safe_request_metadata.get("search_target") in {"files", "content"}:
+                            parent_content["search_target"] = safe_request_metadata["search_target"]
                     if "provider" in safe_request_metadata:
                         parent_content["provider"] = safe_request_metadata["provider"]
                     if "providers" in safe_request_metadata:

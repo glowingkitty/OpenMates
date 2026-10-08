@@ -33,8 +33,7 @@ instructions:
   - instruction: |
       **Project Skills**
       - Use Projects create when the user asks to start or organize a durable workspace project.
-      - Use Projects search when the user asks to find an existing project.
-      - Project content is client-side encrypted. Do not invent server-visible project search results.
+      - Project content is client-side encrypted. Use authorized Project Focus file tools for file work.
 skills:
   - id: create
     anonymous_access: authenticated
@@ -61,26 +60,3 @@ skills:
           description: Optional project description.
       required:
         - name
-
-  - id: search
-    anonymous_access: authenticated
-    name_translation_key: projects.skills.search
-    description_translation_key: projects.skills.search.description
-    icon_image: search.svg
-    preprocessor_hint: >
-      Search the user's encrypted projects through a connected capable client.
-      Do not use server-visible metadata as a private project-content fallback.
-    providers:
-      - name: OpenMates
-        no_api_key: true
-    pricing:
-      fixed: 1
-    class_path: backend.apps.projects.skills.search_skill.SearchSkill
-    tool_schema:
-      type: object
-      properties:
-        query:
-          type: string
-          description: Private project text to search for on a connected client.
-      required:
-        - query

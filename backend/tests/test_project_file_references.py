@@ -42,6 +42,24 @@ def test_remote_search_persists_locations_without_any_file_content_or_key():
                                    "source_id": "remote-source", "path": "README.md", "line": 2}]
     assert "DO_NOT_COPY" not in json.dumps(preview)
     assert preview["query"] == "README"
+    assert preview["search_target"] == "files"
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.no-server-decryption-authority,projects.files.search-scoped
+def test_content_search_uses_same_reference_embed_without_snippet() -> None:
+    preview = build_project_file_reference_preview(
+        context=context("project_search_text"), result_status="completed",
+        completed_results=[{"status": "completed", "source_id": "remote-source",
+                            "matches": [{"path": "docs/README.md", "line": 5,
+                                         "snippet": "PRIVATE_MATCH"}]}],
+    )
+    assert preview["skill_id"] == "search"
+    assert preview["search_target"] == "content"
+    assert preview["results"] == [{
+        "project_id": "project", "project_name": "OpenMates",
+        "source_id": "remote-source", "path": "docs/README.md", "line": 5,
+    }]
+    assert "PRIVATE_MATCH" not in json.dumps(preview)
 
 
 # contract-test: supporting surface=gui.web assertions=projects.files.no-server-decryption-authority
@@ -124,6 +142,10 @@ async def test_publication_rechecks_current_project_and_strips_unexpected_fields
     assert await publish_project_file_reference_preview(**args) == "reference"
     assert calls[0]["results"] == [{"project_id": "project", "path": "README.md", "embed_id": "original"}]
     assert "DO_NOT_COPY" not in json.dumps(calls[0])
+    preview.update(skill_id="search", search_target="content", query="needle")
+    assert await publish_project_file_reference_preview(**args) == "reference"
+    assert calls[1]["request_metadata"] == {"query": "needle", "search_target": "content"}
+    assert "DO_NOT_COPY" not in json.dumps(calls[1])
 
 
 # contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent,projects.files.search-scoped

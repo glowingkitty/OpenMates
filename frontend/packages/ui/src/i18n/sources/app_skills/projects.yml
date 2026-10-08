@@ -94,6 +94,16 @@ skills.search.description:
   sv: Hitta krypterade projekt via en kapabel ansluten klient.
   he: מציאת פרויקטים מוצפנים דרך לקוח מחובר מתאים.
   verified_by_human: []
+skills.search_files:
+  context: Name on a Project reference card produced by a filename or path search
+  en: Search files
+  de: Dateien suchen
+  verified_by_human: []
+skills.search_text:
+  context: Name on a Project reference card produced by a file content search
+  en: Search text
+  de: Text suchen
+  verified_by_human: []
 skills.read:
   context: Skill name for reading a file in a Project
   en: Read Project File

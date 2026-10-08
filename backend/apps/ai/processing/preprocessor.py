@@ -362,6 +362,23 @@ def _with_deepseek_utility_fallback(fallbacks: List[str]) -> List[str]:
     ] + [DEEPSEEK_V4_FLASH_FALLBACK]
 
 
+def _selected_apps_with_skill_owners(
+    shortlisted_apps: Optional[List[str]],
+    relevant_skills: List[str],
+    available_apps: List[str],
+) -> Optional[List[str]]:
+    """Retain deterministic tool owners without inventing an app shortlist on fallback."""
+    if shortlisted_apps is None:
+        return None
+    selected = [app_id for app_id in shortlisted_apps if app_id in available_apps]
+    for skill_id in relevant_skills:
+        owner = next((app_id for app_id in sorted(available_apps, key=len, reverse=True)
+                      if skill_id.startswith(f"{app_id}-")), None)
+        if owner and owner not in selected:
+            selected.append(owner)
+    return selected
+
+
 def _build_skill_resolver_map(available_skill_ids: List[str]) -> Dict[str, str]:
     """Map common LLM-emitted skill identifier variants to valid IDs."""
     skill_resolver_map: Dict[str, str] = {}
@@ -433,11 +450,13 @@ def _latest_user_text_from_history(message_history: List[Any]) -> str:
         if isinstance(msg, dict):
             role = msg.get("role")
             content = msg.get("content")
+            sender_name = msg.get("sender_name")
         else:
             role = getattr(msg, "role", None)
             content = getattr(msg, "content", None)
+            sender_name = getattr(msg, "sender_name", None)
 
-        if role == USER_ROLE and isinstance(content, str):
+        if role == USER_ROLE and sender_name != "async_tool_result" and isinstance(content, str):
             return content
     return ""
 
@@ -1259,6 +1278,7 @@ class PreprocessingResult(BaseModel):
     rejection_reason: Optional[str] = None # This will serve as error_type
     enable_subchats: bool = False # Whether sub-chats are enabled for this request.
     ai_model_topics: List[str] = Field(default_factory=list, description="AI model families whose current catalogue context is relevant to this request.")
+    selected_app_ids: Optional[List[str]] = Field(None, exclude=True, description="Transient Jev app shortlist plus deterministic tool owners; None means the legacy fallback did not shortlist apps.")
 
     harmful_or_illegal_score: Optional[float] = Field(None, description="Harmfulness score (1-10).")
     category: Optional[str] = Field(None, description="Identified category/topic of the request.")
@@ -1535,51 +1555,14 @@ async def _emit_preprocessing_step(
         logger.warning(f"{log_prefix} Failed to emit preprocessing_step '{step}': {e}")
 
 
-async def handle_preprocessing(
+async def check_preprocessing_credits(
     request_data: AskSkillRequest,
-    base_instructions: Dict[str, Any],
-    skill_config: AskSkillDefaultConfig,
     cache_service: CacheService,
-    secrets_manager: SecretsManager, # Added SecretsManager
-    directus_service: DirectusService, # Added DirectusService for reuse
-    encryption_service: EncryptionService, # Added EncryptionService for reuse
-    user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None,
-    discovered_apps_metadata: Optional[Dict[str, AppYAML]] = None,  # AppYAML metadata for tool preselection
-    user_overrides: Optional[UserOverrides] = None,  # User overrides from @ mentioning syntax
-    preprocessing_stream_channel: Optional[str] = None,  # Redis channel for real-time step events
-    is_new_chat: bool = False  # True if this is the first message in a new chat (no title yet)
-) -> PreprocessingResult:
-    """
-    Handles the preprocessing of an AI skill request.
-
-    After the main LLM call resolves, emits real-time step events via Redis to the
-    preprocessing_stream_channel so the frontend can display each preprocessing step
-    as it completes (title generated, mate selected, model selected).
-    Steps that are skipped (e.g., user override, existing chat) are not shown.
-
-    Args:
-        request_data: The AskSkillRequest Pydantic model.
-        base_instructions: Loaded content from base_instructions.yml.
-        skill_config: The parsed default_config for the specific skill (e.g., AskSkill).
-        user_app_settings_and_memories_metadata: Metadata about available user app settings/memories (app_id -> list of item_keys).
-        cache_service: Instance of CacheService for fetching user credits.
-        secrets_manager: Instance of SecretsManager.
-        directus_service: Instance of DirectusService for reuse.
-        encryption_service: Instance of EncryptionService for reuse.
-        preprocessing_stream_channel: Redis channel for publishing real-time preprocessing step events.
-        is_new_chat: True if this is the first message (title generation step applies).
-
-    Returns:
-        PreprocessingResult: A Pydantic model containing the results of the preprocessing.
-    """
+    directus_service: DirectusService,
+    encryption_service: Optional[EncryptionService] = None,
+) -> Optional[PreprocessingResult]:
+    """Recheck live billing eligibility before preprocessing or snapshot reuse."""
     log_prefix = f"Preprocessor (ChatID: {request_data.chat_id}, MsgID: {request_data.message_id}):"
-    logger.info(f"{log_prefix} Starting preprocessing.")
-    user_system_language = (
-        request_data.user_preferences.get("language", "en")
-        if request_data.user_preferences
-        else "en"
-    )
-
     # --- Credit Check (skip if payment disabled - self-hosted mode) ---
     # Check if payment is enabled before performing credit checks
     # In self-hosted mode, users can use the system without credit restrictions
@@ -1806,6 +1789,61 @@ async def handle_preprocessing(
                 logger.warning(f"{log_prefix} Could not retrieve cached user data for user_id: {request_data.user_id}, but continuing (self-hosted mode).")
     # --- End Credit Check ---
  
+    return None
+
+
+async def handle_preprocessing(
+    request_data: AskSkillRequest,
+    base_instructions: Dict[str, Any],
+    skill_config: AskSkillDefaultConfig,
+    cache_service: CacheService,
+    secrets_manager: SecretsManager, # Added SecretsManager
+    directus_service: DirectusService, # Added DirectusService for reuse
+    encryption_service: EncryptionService, # Added EncryptionService for reuse
+    user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None,
+    discovered_apps_metadata: Optional[Dict[str, AppYAML]] = None,  # AppYAML metadata for tool preselection
+    user_overrides: Optional[UserOverrides] = None,  # User overrides from @ mentioning syntax
+    selected_app_ids: Optional[List[str]] = None,  # Reuse stage-one app shortlist after authorized Focus activation
+    preprocessing_stream_channel: Optional[str] = None,  # Redis channel for real-time step events
+    is_new_chat: bool = False  # True if this is the first message in a new chat (no title yet)
+) -> PreprocessingResult:
+    """
+    Handles the preprocessing of an AI skill request.
+
+    After the main LLM call resolves, emits real-time step events via Redis to the
+    preprocessing_stream_channel so the frontend can display each preprocessing step
+    as it completes (title generated, mate selected, model selected).
+    Steps that are skipped (e.g., user override, existing chat) are not shown.
+
+    Args:
+        request_data: The AskSkillRequest Pydantic model.
+        base_instructions: Loaded content from base_instructions.yml.
+        skill_config: The parsed default_config for the specific skill (e.g., AskSkill).
+        user_app_settings_and_memories_metadata: Metadata about available user app settings/memories (app_id -> list of item_keys).
+        cache_service: Instance of CacheService for fetching user credits.
+        secrets_manager: Instance of SecretsManager.
+        directus_service: Instance of DirectusService for reuse.
+        encryption_service: Instance of EncryptionService for reuse.
+        preprocessing_stream_channel: Redis channel for publishing real-time preprocessing step events.
+        is_new_chat: True if this is the first message (title generation step applies).
+
+    Returns:
+        PreprocessingResult: A Pydantic model containing the results of the preprocessing.
+    """
+    log_prefix = f"Preprocessor (ChatID: {request_data.chat_id}, MsgID: {request_data.message_id}):"
+    logger.info(f"{log_prefix} Starting preprocessing.")
+    user_system_language = (
+        request_data.user_preferences.get("language", "en")
+        if request_data.user_preferences
+        else "en"
+    )
+
+    credit_rejection = await check_preprocessing_credits(
+        request_data, cache_service, directus_service, encryption_service,
+    )
+    if credit_rejection is not None:
+        return credit_rejection
+
     # Build the preprocessing-only projection before expensive URL sanitization.
     # The main processor continues to receive request_data.message_history unchanged.
     try:
@@ -1879,7 +1917,8 @@ async def handle_preprocessing(
     from backend.apps.ai.utils.llm_utils import truncate_message_history_to_token_budget
     PREPROCESSING_MAX_HISTORY_TOKENS = 120000
     latest_projected_user = next(
-        (message for message in reversed(sanitized_message_history) if message.get("role") == "user"),
+        (message for message in reversed(sanitized_message_history)
+         if message.get("role") == "user" and message.get("sender_name") != "async_tool_result"),
         None,
     )
     sanitized_message_history = truncate_message_history_to_token_budget(
@@ -2269,14 +2308,10 @@ async def handle_preprocessing(
     }
 
     decision_model = getattr(skill_config.default_llms, "decision_model", None)
-    initial_rule_metadata: List[Dict[str, Any]] = []
     initial_workflow_metadata: List[Dict[str, Any]] = []
     if decision_model and (request_data.user_preferences or {}).get("workflow_ai") is not True:
         from backend.apps.ai.processing.context_preselection import discover_rule_metadata, discover_workflow_metadata
-        initial_rule_metadata, initial_workflow_metadata = await asyncio.gather(
-            discover_rule_metadata(request_data, directus_service, cache_service, list(discovered_apps_metadata or {})),
-            discover_workflow_metadata(request_data, cache_service),
-        )
+        initial_workflow_metadata = await discover_workflow_metadata(request_data, cache_service)
     llm_call_result: Optional[LLMPreprocessingCallResult] = None
     if (request_data.user_preferences or {}).get("workflow_ai") is True:
         # The Workflow graph already chose the source app and values. Keep credit,
@@ -2300,6 +2335,35 @@ async def handle_preprocessing(
     elif decision_model:
         try:
             logger.info(f"{log_prefix} Firing Jev bounded preprocessing decisions via {decision_model}.")
+            from backend.apps.ai.processing.agentic_context import fresh_project
+            authorized_project = await fresh_project(request_data, directus_service, cache_service)
+            available_app_ids = list(discovered_apps_metadata or {})
+            forced_app_ids: List[str] = []
+            if user_overrides:
+                forced_app_ids.extend(app_id for app_id, skill_id in user_overrides.skills
+                                      if f"{app_id}-{skill_id}" in available_skill_ids)
+                forced_app_ids.extend(app_id for app_id, focus_id in user_overrides.focus_modes
+                                      if f"{app_id}-{focus_id}" in available_focus_mode_ids)
+                forced_app_ids.extend(app_id for app_id, memory_id, _ in user_overrides.memory_categories
+                                      if memory_id in (user_app_settings_and_memories_metadata or {}).get(app_id, []))
+                forced_app_ids.extend(app_id for app_id, category_id, _ in user_overrides.memory_entries
+                                      if category_id in (user_app_settings_and_memories_metadata or {}).get(app_id, []))
+            explicit_skills = _resolve_explicit_skill_mentions_from_latest_user_text(
+                request_data.message_history, available_skill_ids,
+            ) + _resolve_explicit_natural_search_intent(
+                request_data.message_history, available_skill_ids,
+            )
+            forced_app_ids.extend(
+                app_id for skill_id in explicit_skills for app_id in available_app_ids
+                if skill_id.startswith(f"{app_id}-")
+            )
+            forced_app_ids = list(dict.fromkeys(forced_app_ids))
+
+            async def load_scoped_rule_metadata(app_ids: List[str]) -> List[Dict[str, Any]]:
+                return await discover_rule_metadata(
+                    request_data, directus_service, cache_service, app_ids,
+                )
+
             decision_arguments = await decide_preprocessing_with_jev(
                 model_id=decision_model,
                 telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
@@ -2313,10 +2377,14 @@ async def handle_preprocessing(
                 conversation_summary=bounded_chat_summary,
                 previous_category=previous_category,
                 is_first_message=is_first_message,
-                available_rules=initial_rule_metadata,
+                available_rules_loader=load_scoped_rule_metadata,
                 available_workflows=initial_workflow_metadata,
                 effective_focus={"id": request_data.active_focus_id,
                                  "phase": ((request_data.focus_phase_state or {}).get(request_data.active_focus_id or "") or {}).get("phase_id")},
+                available_apps=available_app_ids,
+                forced_app_ids=forced_app_ids,
+                selected_app_ids=selected_app_ids,
+                authorized_project_id=(authorized_project or {}).get("project_id"),
             )
             llm_call_result = LLMPreprocessingCallResult(
                 arguments=decision_arguments,
@@ -2365,6 +2433,7 @@ async def handle_preprocessing(
     # logs or raw preprocessing receipts.
     preselected_rule_snapshots = llm_analysis_args.pop("relevant_rules", None)
     preselected_workflow_snapshots = llm_analysis_args.pop("relevant_workflows", None)
+    preselected_app_ids = llm_analysis_args.pop("selected_app_ids", None)
     ai_model_topics = complete_ai_model_topics(
         llm_analysis_args.get("ai_model_topics"),
         request_data.current_user_content or (
@@ -3710,6 +3779,16 @@ async def handle_preprocessing(
         and "web-search" not in validated_relevant_skills
     ):
         validated_relevant_skills.append("web-search")
+
+    # Existing deterministic guards and explicit requests can add skills after
+    # Jev's second stage. Keep their app instructions and Focus continuation in
+    # scope. A generative fallback has no app shortlist and retains its legacy
+    # all-app context by carrying None rather than an empty shortlist.
+    final_selected_app_ids = _selected_apps_with_skill_owners(
+        preselected_app_ids if isinstance(preselected_app_ids, list) else None,
+        validated_relevant_skills,
+        list(discovered_apps_metadata or {}),
+    )
     
     # Use validated values instead of raw llm_analysis_args values
     # This ensures all fields meet their constraints and prevents downstream errors
@@ -3720,6 +3799,7 @@ async def handle_preprocessing(
         category=validated_category or "general_knowledge",  # Use validated category, fallback to general_knowledge if None
         enable_subchats=enable_subchats_val,  # Set whether sub-chats are enabled for this request
         ai_model_topics=ai_model_topics,
+        selected_app_ids=final_selected_app_ids,
         topic_area=_normalize_topic_area(llm_analysis_args.get("topic_area")),
         topic_shift=llm_analysis_args.get("topic_shift") if isinstance(llm_analysis_args.get("topic_shift"), str) else None,
         llm_response_temp=llm_response_temp_val,  # Use validated temperature (clamped to 0.0-2.0)

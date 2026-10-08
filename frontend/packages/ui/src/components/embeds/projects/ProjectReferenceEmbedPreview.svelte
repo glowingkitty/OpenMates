@@ -17,6 +17,10 @@
   let currentStatus = $state<Props['status']>('processing');
   $effect(() => { currentContent = content; currentStatus = status; });
   const query = $derived(stringField(currentContent.query) || $text('embeds.projects.references.files_fallback'));
+  const searchTarget = $derived(stringField(currentContent.search_target));
+  const skillName = $derived(skillId === 'search' && (searchTarget === 'files' || searchTarget === 'content')
+    ? $text(`app_skills.projects.skills.search_${searchTarget === 'files' ? 'files' : 'text'}`)
+    : $text(`app_skills.projects.skills.${skillId}`));
   const refs = $derived(projectFileReferences(currentContent));
   const projectName = $derived(refs[0]?.project_name || stringField(currentContent.project_name) || '');
   const title = $derived(projectName
@@ -30,7 +34,7 @@
 
 <UnifiedEmbedPreview
   {id} appId="projects" {skillId} skillIconName={skillId === 'read' ? 'project' : 'search'}
-  appIconName="project" skillName={$text(`app_skills.projects.skills.${skillId}`)}
+  appIconName="project" {skillName}
   status={currentStatus} {isMobile} {onFullscreen} showStatus={true} showSkillIcon={true}
   onEmbedDataUpdated={(update) => { currentContent = update.decodedContent; currentStatus = update.status as Props['status']; }}
 >

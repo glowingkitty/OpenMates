@@ -39,6 +39,20 @@ async def test_discovery_contains_no_rule_body_and_reload_after_revocation_is_em
     assert await context_preselection.reload_preselected_rules(request, None, None, ["code"], metadata) == []
 
 
+# contract-test: supporting surface=rest_api assertions=rules.ownership.encrypted-custom
+@pytest.mark.asyncio
+async def test_authorized_project_guide_survives_bounded_app_rule_catalog(monkeypatch):
+    app_rules = [guide(f"app:code:rule-{index}") for index in range(30)]
+    project_rule = guide("project-guide", source="project", app_id=None, project_id="p1")
+    monkeypatch.setattr(context_preselection, "_rules", AsyncMock(return_value=[*app_rules, project_rule]))
+    metadata = await context_preselection.discover_rule_metadata(
+        SimpleNamespace(), None, None, ["code"],
+    )
+    assert len(metadata) == context_preselection.MAX_RULE_CANDIDATES
+    assert metadata[0]["id"] == "project-guide"
+    assert {row["id"] for row in metadata[1:]} == {rule.id for rule in app_rules[:23]}
+
+
 # contract-test: supporting surface=rest_api assertions=workflows.chat.relevance-discovery
 @pytest.mark.asyncio
 async def test_workflow_reload_rejects_changed_version_before_graph_loading(monkeypatch):

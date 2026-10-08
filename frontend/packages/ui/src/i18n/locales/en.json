@@ -2057,6 +2057,12 @@
             "text": "Find encrypted projects through a capable connected client."
           }
         },
+        "search_files": {
+          "text": "Search files"
+        },
+        "search_text": {
+          "text": "Search text"
+        },
         "read": {
           "text": "Read Project File",
           "description": {
@@ -8713,6 +8719,38 @@
         },
         "files_fallback": {
           "text": "Files"
+        }
+      },
+      "progress": {
+        "preparing": {
+          "text": "Preparing Project file access…"
+        },
+        "search_files": {
+          "text": "Searching Project files…"
+        },
+        "search_text": {
+          "text": "Searching Project text…"
+        },
+        "read": {
+          "text": "Reading Project file…"
+        },
+        "list": {
+          "text": "Listing Project files…"
+        },
+        "working": {
+          "text": "Working with Project files…"
+        },
+        "ready": {
+          "text": "Project result ready…"
+        },
+        "approval": {
+          "text": "Waiting for Project file approval…"
+        },
+        "waiting_source": {
+          "text": "Waiting for Project file source…"
+        },
+        "conflict": {
+          "text": "Project file changed; checking again…"
         }
       }
     }

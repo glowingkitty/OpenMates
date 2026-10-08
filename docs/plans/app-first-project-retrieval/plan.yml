@@ -1,0 +1,63 @@
+schema_version: 2
+profile: concise
+id: app-first-project-retrieval
+title: App-first preprocessing and fast Project retrieval
+status: implementing
+goal: >-
+  Implement and test the agreed processing changes, ensure processing speed is
+  drastically improved and token usage reduced, and give a numerical before/after
+  comparison and video proof of the original Project README request.
+authorization:
+  source: Five sequential questions answered in this Codex chat on 2026-10-08.
+  decisions:
+    - Apply app-first preprocessing across all apps; stage 1 can select multiple relevant apps and stage 2 selects their skills plus other required preprocessing outputs.
+    - Repeat affected selection when focus activation introduces new authorized context; Project-specific context remains hidden before consent.
+    - Remove all separate AI injection-scanning requests for Project file results, preserving local privacy masking and deterministic access controls.
+    - Expose separate Search files and Search text tools backed by the existing bounded client search executor; remove unfinished legacy Projects search execution.
+    - Show UI progress during file jobs and resume the model on results without waiting-only model calls.
+  task: 6c2b7b9e-e472-421c-9f1f-0c76bfa51723
+  session: 6aa3
+scope:
+  in:
+    - Two bounded routing phases with explicit overrides and required global decisions preserved.
+    - Trusted reuse within the same user turn and targeted refresh after newly authorized focus context.
+    - Focus-scoped typed file operations and reference-only result previews.
+    - Exact README scenario, rejection and offline checks, latency/token measurements and retained recordings.
+  out:
+    - Terminal risk-review or explanation redesign.
+    - New providers, changing answer models, production deployment, and broad unrelated privacy/UI repairs.
+references:
+  contracts:
+    - projects.files.search-scoped
+    - projects.files.search-consistent
+    - projects.files.executor-wait
+    - projects.files.chat-focus-required
+    - projects.focus.inferred-consent
+    - projects.files.no-server-decryption-authority
+    - ai-model-routing.precedence.chat-over-tier-over-auto
+  contract_note: >-
+    Existing contracts define bounded filename/content search, consent, encryption,
+    and no model tokens for waiting. These changes implement internal routing and
+    execution tactics without editing Specification semantics. The earlier single-stage
+    optimization Plan remains historical; this chat explicitly approved app-first routing.
+checks:
+  required:
+    - Focused backend tests for app routing, trusted continuation, scope freshness, target mapping and absence of output scanning.
+    - Focused frontend unit checks and isolated browser coverage for actual progress and reference rendering.
+    - Scoped dev deployment followed by the exact real-inference README request using disposable fixtures and leased runtime/account.
+    - Compare post-focus latency, main-model iterations and reported Jev/main token usage with the retained baseline; do not sum overlapping phases.
+    - Deliver all retained browser recordings, including failures and retries, with a concise numerical comparison.
+evidence:
+  baseline:
+    environment: dev
+    revision: 01107756fc8d15afbb59b91567aa9ac2abdc8534
+    receipt: /tmp/openmates-6aa3-readme-latency-analysis.json
+    post_focus_final_ms: 59975.189
+    post_focus_reference_ms: 41931.680
+    main_iterations: 6
+    main_input_tokens: 98865
+    main_output_tokens: 3180
+    preprocessing_input_tokens: 67364
+    preprocessing_output_tokens: 10247
+    note: One successful dev observation; reported input includes cached input and is not provider-invoice reconciliation.
+  after: pending

@@ -73,3 +73,28 @@ def test_project_reference_stream_does_not_publish_file_body_as_code_embed(
         FakeEmbedService.create_code_embed_placeholder.assert_awaited_once()
         assert any(call.kwargs.get("code_content") == file_body.rstrip("\n")
                    for call in FakeEmbedService.update_code_embed_content.await_args_list)
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.executor-wait
+def test_dispatched_file_job_empty_interim_response_is_not_replaced_with_error(monkeypatch) -> None:
+    async def main_stream(**kwargs):
+        kwargs["request_data"].awaiting_async_skill_continuation = True
+        if False:
+            yield ""
+
+    monkeypatch.setattr(stream_consumer, "handle_main_processing", main_stream)
+    monkeypatch.setattr(stream_consumer.celery_config.app, "AsyncResult",
+                        lambda _: SimpleNamespace(state="STARTED"))
+    request = AskSkillRequest(
+        chat_id="chat-1", message_id="message-1", user_id="user-1",
+        user_id_hash="hash-1", message_history=[], is_incognito=True,
+    )
+    response, *_ = asyncio.run(stream_consumer._consume_main_processing_stream(
+        task_id="task-1", request_data=request,
+        preprocessing_result=PreprocessingResult(can_proceed=True),
+        base_instructions={}, directus_service=SimpleNamespace(),
+        encryption_service=SimpleNamespace(), user_vault_key_id="vault-1",
+        all_mates_configs=[], discovered_apps_metadata={}, cache_service=None,
+    ))
+    assert response == ""
+    assert request.awaiting_async_skill_continuation is True

@@ -66,8 +66,8 @@ async def test_team_chat_member_precheck_uses_spendable_credits(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_normal_account_discovers_rules_and_workflows_before_decision(monkeypatch):
-    """A normal paid account reaches the first decision with both catalogs."""
+async def test_normal_account_discovers_rules_only_after_app_selection(monkeypatch):
+    """The Jev stage-one boundary sees no Rule catalogue and loads selected apps."""
     class DecisionBoundaryReached(Exception):
         pass
 
@@ -94,6 +94,8 @@ async def test_normal_account_discovers_rules_and_workflows_before_decision(monk
 
     async def decision(**kwargs):
         decision_calls.append(kwargs)
+        discover_rules.assert_not_awaited()
+        assert await kwargs["available_rules_loader"](["code"]) == rules
         raise RuntimeError("Stop after observing the decision boundary")
 
     async def stop_before_fallback_inference(**_kwargs):
@@ -117,11 +119,12 @@ async def test_normal_account_discovers_rules_and_workflows_before_decision(monk
             base_instructions={"preprocess_request_tool": {"function": {"parameters": {"required": []}}}},
             skill_config=config, cache_service=cache, secrets_manager=None,
             directus_service=None, encryption_service=None,
+            discovered_apps_metadata={"code": SimpleNamespace(skills=[], focuses=[])},
         )
 
     cache.get_user_by_id.assert_awaited_once_with("user-test")
-    discover_rules.assert_awaited_once_with(request, None, cache, [])
+    discover_rules.assert_awaited_once_with(request, None, cache, ["code"])
     discover_workflows.assert_awaited_once_with(request, cache)
     assert len(decision_calls) == 1
-    assert decision_calls[0]["available_rules"] == rules
+    assert "available_rules" not in decision_calls[0]
     assert decision_calls[0]["available_workflows"] == workflows

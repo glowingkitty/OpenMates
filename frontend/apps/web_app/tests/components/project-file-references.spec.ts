@@ -18,7 +18,7 @@ test('project search preview names the project, uses its icon, and opens fullscr
     const preview = page.getByTestId('project-reference-preview');
     await expect(preview).toContainText('“README” in OpenMates');
     await expect(preview).toContainText('2 file references');
-    await expect(page.getByTestId('embed-basic-infos-bar')).toContainText('Search Projects');
+    await expect(page.getByTestId('embed-basic-infos-bar')).toContainText('Search files');
     const card = page.getByTestId('embed-preview');
     const icon = page.getByTestId('embed-app-icon-mask').first();
     await expect(icon).toBeVisible();
@@ -52,6 +52,15 @@ test('legacy empty results and processing have honest states', async ({ page }) 
   await expect(page.getByTestId('project-reference-preview')).toContainText('No file references found');
   await open(page, 'ProjectReferenceEmbedPreview', 'processing');
   await expect(page.getByTestId('project-reference-preview')).toContainText('Waiting for Project results');
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.files.connected-embed-previews
+test('content search and legacy Project references retain distinct skill labels', async ({ page }) => {
+  await open(page, 'ProjectReferenceEmbedPreview', 'textSearch');
+  await expect(page.getByTestId('embed-basic-infos-bar')).toContainText('Search text');
+  await expect(page.getByTestId('project-reference-preview')).toContainText('“README” in OpenMates');
+  await open(page, 'ProjectReferenceEmbedPreview', 'legacyEmpty');
+  await expect(page.getByTestId('embed-basic-infos-bar')).toContainText('Search Projects');
 });
 
 // contract-test: supporting surface=gui.web assertions=projects.files.no-server-decryption-authority,projects.files.connected-embed-previews

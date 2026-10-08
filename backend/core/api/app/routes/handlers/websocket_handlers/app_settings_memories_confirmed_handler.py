@@ -501,6 +501,7 @@ async def _trigger_continuation(
             "user_id": user_id,
             "user_id_hash": user_id_hash,
             "message_history": message_history,
+            "preprocessing_resume_ref": pending_context.get("preprocessing_resume_ref"),
             "current_user_content": current_user_content,
             "chat_has_title": chat_has_title,
             "current_chat_title": current_chat_title,

@@ -126,6 +126,7 @@ class ProjectFileOperationService:
             "team_id": project_focus.get("team_id"),
             "source_id": source_id,
             "operation": operation,
+            "search_target": arguments.get("target", "content") if operation == "search" else None,
             "state": "WAITING_FOR_EXECUTOR",
             "created_at": created_at,
             "wait_started_at": int(episode["wait_started_at"]),
@@ -599,7 +600,7 @@ class ProjectFileOperationService:
                 raise ProjectFileOperationError("invalid_update_file_arguments")
 
     def public_summary(self, job: dict[str, Any]) -> dict[str, Any]:
-        return {
+        summary = {
             "protocol_version": 1,
             "operation_id": job["operation_id"],
             "chat_id": job["chat_id"],
@@ -610,6 +611,9 @@ class ProjectFileOperationService:
             "state": str(job["state"]).lower(),
             "expires_at": job["pause_at"],
         }
+        if job.get("operation") == "search" and job.get("search_target") in {"files", "content"}:
+            summary["search_target"] = job["search_target"]
+        return summary
 
     async def _save_job(self, job: dict[str, Any]) -> None:
         await self.cache.set(

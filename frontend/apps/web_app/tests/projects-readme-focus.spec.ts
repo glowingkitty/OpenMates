@@ -45,6 +45,7 @@ interface FixtureEvent {
 interface SocketEvent {
   type?: string;
   payload?: {
+    task_id?: string;
     operation?: string;
     operation_id?: string;
     embed_id?: string;
@@ -56,6 +57,33 @@ interface SocketEvent {
     inference_request?: { project_focus_candidates?: Array<{ project_id?: string }> };
   };
 }
+
+interface RetrievalEvent {
+  at_utc: string;
+  at_epoch_ms: number;
+  direction: 'sent' | 'received';
+  type: string;
+  operation?: string;
+  target?: string;
+  status?: string;
+  task_id?: string;
+  embed_id?: string;
+}
+
+// Fixed observed baseline from the retained 2026-10-07 dev run. The browser
+// can time the new run, while model token totals require correlated backend logs.
+const RETRIEVAL_BASELINE = {
+  deployed_revision: '01107756fc8d15afbb59b91567aa9ac2abdc8534',
+  focus_to_reference_ms: 41931.68,
+  focus_to_final_marker_ms: 59975.189,
+  main_input_tokens: 98865,
+  main_output_tokens: 3180,
+  preprocessing_input_tokens: 67364,
+  preprocessing_output_tokens: 10247,
+  combined_reported_input_tokens: 166229,
+  main_model_iterations: 6,
+  continuation_count: 3,
+};
 
 function requireDirectDevInference(): void {
   if (process.env.CI || process.env.GITHUB_ACTIONS || process.env.OPENMATES_CI_ISOLATED === '1') {
@@ -205,13 +233,36 @@ test.describe('Plain-language Project README access (real inference, dev only)',
     bridge.stderr.resume();
     const sent: SocketEvent[] = [];
     const received: SocketEvent[] = [];
+    const retrievalEvents: RetrievalEvent[] = [];
+    let acceptedTurnStartedAt: number | null = null;
+    let focusActivatedAt: number | null = null;
+    let turnCompletedAt: number | null = null;
+    let acceptedChatId: string | null = null;
+    let projectReferenceEmbedId: string | null = null;
+    const recordEvent = (direction: RetrievalEvent['direction'], event: SocketEvent) => {
+      if (acceptedTurnStartedAt === null || !event.type || ![
+        'chat_turn_preflight', 'project_file_operation_request', 'project_file_operation_result',
+        'send_embed_data', 'ai_typing_ended', 'post_processing_completed',
+      ].includes(event.type)) return;
+      const at = Date.now();
+      retrievalEvents.push({
+        at_utc: new Date(at).toISOString(), at_epoch_ms: at, direction, type: event.type,
+        ...(event.payload?.operation ? { operation: event.payload.operation } : {}),
+        ...(event.payload?.arguments?.target ? { target: event.payload.arguments.target } : {}),
+        ...(event.payload?.status ? { status: event.payload.status } : {}),
+        ...(event.payload?.task_id ? { task_id: event.payload.task_id } : {}),
+        ...(event.payload?.embed_id ? { embed_id: event.payload.embed_id } : {}),
+      });
+    };
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Network.enable');
     cdp.on('Network.webSocketFrameSent', ({ response }: { response: { payloadData: string } }) => {
-      try { sent.push(JSON.parse(response.payloadData) as SocketEvent); } catch { /* Ignore control frames. */ }
+      try { const event = JSON.parse(response.payloadData) as SocketEvent; sent.push(event); recordEvent('sent', event); }
+      catch { /* Ignore control frames. */ }
     });
     cdp.on('Network.webSocketFrameReceived', ({ response }: { response: { payloadData: string } }) => {
-      try { received.push(JSON.parse(response.payloadData) as SocketEvent); } catch { /* Ignore control frames. */ }
+      try { const event = JSON.parse(response.payloadData) as SocketEvent; received.push(event); recordEvent('received', event); }
+      catch { /* Ignore control frames. */ }
     });
     let chatUrl: string | null = null;
     try {
@@ -249,8 +300,21 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       await waitForChatReady(page);
       await page.bringToFront();
       await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+      await page.evaluate(() => {
+        const progressWindow = window as Window & { projectProgressLabels?: string[] };
+        progressWindow.projectProgressLabels = [];
+        let previous = '';
+        new MutationObserver(() => {
+          const indicator = document.querySelector('[data-testid="chat-processing-indicator"]');
+          const text = indicator?.getClientRects().length ? indicator.textContent?.trim() ?? '' : '';
+          if (text && text !== previous) progressWindow.projectProgressLabels?.push(text);
+          previous = text;
+        }).observe(document.body, { childList: true, characterData: true, subtree: true });
+      });
+      acceptedTurnStartedAt = Date.now();
       await sendMessage(page, PROMPT);
       chatUrl = page.url();
+      acceptedChatId = await currentChatId(page);
       const secondPreflight = sent.filter(event => event.type === 'chat_turn_preflight').at(-1);
       expect(secondPreflight?.payload?.inference_request?.project_focus_candidates?.some(candidate => candidate.project_id === fixture.project_id)).toBe(true);
       await expect(page.getByTestId('focus-progress-bar')).toBeVisible({ timeout: 240_000 });
@@ -259,6 +323,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       expect(received.filter(event => event.type === 'project_file_operation_request')).toHaveLength(0);
       await expect(page.getByTestId('focus-pill').getByTestId('focus-pill-label')).toHaveText('Work on OpenMates', { timeout: 60_000 });
       await expect.poll(() => currentAuthority(page), { timeout: 30_000 }).toMatchObject({ project_id: fixture.project_id });
+      focusActivatedAt = Date.now();
       console.log('[README] Countdown activated the selected Project.');
       await expect.poll(() => received.some(event => event.type === 'project_file_operation_request'
         && event.payload?.operation === 'read_text' && event.payload.arguments?.path === 'README.md'), {
@@ -266,6 +331,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       }).toBe(true);
       const filenameSearches = received.filter(event => event.type === 'project_file_operation_request'
         && event.payload?.operation === 'search');
+      expect(filenameSearches.every(event => event.payload?.arguments?.target === 'files')).toBe(true);
       expect(filenameSearches.every(event => /readme/i.test(event.payload?.arguments?.query ?? ''))).toBe(true);
       await expect.poll(() => {
         const read = received.find(event => event.type === 'project_file_operation_request'
@@ -274,7 +340,10 @@ test.describe('Plain-language Project README access (real inference, dev only)',
           && event.payload?.operation_id === read?.payload?.operation_id && event.payload?.status === 'completed')
           ?.payload?.result?.content;
       }, { message: 'the remote README must be read successfully', timeout: 180_000 }).toBe(README_CONTENT);
+      expect(await page.evaluate(() => (window as Window & { projectProgressLabels?: string[] }).projectProgressLabels ?? []))
+        .toEqual(expect.arrayContaining([expect.stringMatching(/(?:Listing|Searching|Reading) Project (?:files?|text)/)]));
       await waitForTurnCompletion(page);
+      turnCompletedAt = Date.now();
       const referencePreview = page.getByTestId('project-reference-preview').first();
       await expect(referencePreview).toBeVisible({ timeout: 30_000 });
       await expect(referencePreview).toContainText('OpenMates');
@@ -296,7 +365,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         const decoded = decodeToon(event.payload.content, { strict: false }) as Record<string, unknown>;
         if (decoded.app_id !== 'projects' || !['search', 'read'].includes(String(decoded.skill_id))) return [];
         const rows = Array.isArray(decoded.results) ? decoded.results as Array<Record<string, unknown>> : [];
-        const allowedTopLevel = new Set(['app_id', 'skill_id', 'results', 'result_count', 'status', 'embed_ref', 'query']);
+        const allowedTopLevel = new Set(['app_id', 'skill_id', 'results', 'result_count', 'status', 'embed_ref', 'query', 'search_target']);
         const allowedReference = new Set(['project_id', 'project_name', 'source_id', 'path', 'embed_id', 'line', 'team_id']);
         return [{
           skill: String(decoded.skill_id),
@@ -307,15 +376,17 @@ test.describe('Plain-language Project README access (real inference, dev only)',
           readmeReference: rows.some(row => row.project_id === fixture.project_id
             && row.source_id === fixture.source_id && row.path === 'README.md'),
           properQuery: /readme/i.test(String(decoded.query ?? '')),
+          properSearchTarget: decoded.skill_id !== 'search' || decoded.search_target === 'files',
           containsFileBytes: JSON.stringify(decoded).includes('# Connected project')
             || JSON.stringify(decoded).includes('Connected diagram'),
         }];
       });
       expect(projectEmbedSummaries.map(summary => summary.skill)).toContain('read');
       expect(projectEmbedSummaries.every(summary => summary.allowedFields && summary.readmeReference
-        && summary.properQuery && !summary.containsFileBytes)).toBe(true);
+        && summary.properQuery && summary.properSearchTarget && !summary.containsFileBytes)).toBe(true);
       const referenceEmbedId = await referencePreview.locator('xpath=ancestor::*[@data-embed-id][1]').getAttribute('data-embed-id');
       expect(referenceEmbedId).toBeTruthy();
+      projectReferenceEmbedId = referenceEmbedId;
       const storedReference = await page.evaluate(async (embedId: string) => {
         const open = indexedDB.open('chats_db');
         const db = await new Promise<IDBDatabase>((resolvePromise, reject) => {
@@ -377,6 +448,43 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       expect(received.filter(event => event.type === 'send_embed_data')).toHaveLength(savedEmbedEvents);
       console.log('[README] Disconnected source reports unavailable without a cached file copy.');
     } finally {
+      if (acceptedTurnStartedAt !== null) {
+        const first = (type: string, direction: RetrievalEvent['direction'], operation?: string) =>
+          retrievalEvents.find(event => event.type === type && event.direction === direction
+            && (!operation || event.operation === operation))?.at_epoch_ms ?? null;
+        const referenceAt = retrievalEvents.find(event => event.type === 'send_embed_data'
+          && event.direction === 'received' && event.embed_id === projectReferenceEmbedId)?.at_epoch_ms ?? null;
+        await test.info().attach('readme-retrieval-metrics', {
+          body: JSON.stringify({
+            schema: 'openmates.readme_retrieval_metrics.v1',
+            measurement_basis: 'Baseline milestones came from dev backend logs; after milestones use browser receipt and observed WebSocket frames.',
+            baseline: RETRIEVAL_BASELINE,
+            after: {
+              accepted_turn_started_at_utc: new Date(acceptedTurnStartedAt).toISOString(),
+              focus_activated_at_utc: focusActivatedAt === null ? null : new Date(focusActivatedAt).toISOString(),
+              filename_search_requested_at_utc: first('project_file_operation_request', 'received', 'search') === null
+                ? null : new Date(first('project_file_operation_request', 'received', 'search') as number).toISOString(),
+              read_requested_at_utc: first('project_file_operation_request', 'received', 'read_text') === null
+                ? null : new Date(first('project_file_operation_request', 'received', 'read_text') as number).toISOString(),
+              first_reference_at_utc: referenceAt === null ? null : new Date(referenceAt).toISOString(),
+              turn_completed_at_utc: turnCompletedAt === null ? null : new Date(turnCompletedAt).toISOString(),
+              focus_to_reference_ms: focusActivatedAt !== null && referenceAt !== null ? referenceAt - focusActivatedAt : null,
+              focus_to_completion_ms: focusActivatedAt !== null && turnCompletedAt !== null ? turnCompletedAt - focusActivatedAt : null,
+              model_token_totals: null,
+              combined_reported_input_tokens: null,
+            },
+            backend_token_lookup: {
+              chat_id: acceptedChatId,
+              task_ids: [...new Set(retrievalEvents.map(event => event.task_id).filter(Boolean))],
+              note: 'Collect actual model and preprocessing token totals from this dev run’s correlated backend usage logs; they are not sent to the browser.',
+            },
+            visible_progress_labels: await page.evaluate(() =>
+              (window as Window & { projectProgressLabels?: string[] }).projectProgressLabels ?? []).catch(() => []),
+            wire_timeline: retrievalEvents,
+          }, null, 2),
+          contentType: 'application/json',
+        });
+      }
       await cdp.detach().catch(() => undefined);
       if (chatUrl) {
         await page.goto(chatUrl, { waitUntil: 'domcontentloaded' }).catch(() => undefined);

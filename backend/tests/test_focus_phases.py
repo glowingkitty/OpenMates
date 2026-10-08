@@ -640,7 +640,9 @@ def test_main_transition_preserves_mate_permissions_and_recovery_prompt(assigned
     """
     import ast
     from types import SimpleNamespace
-    from backend.apps.ai.processing.project_file_tools import build_project_focus_prompt
+    from backend.apps.ai.processing.project_file_tools import (
+        build_project_focus_prompt, without_unscoped_project_search,
+    )
 
     class Runtime(FocusPhaseRuntime):
         async def evaluate(self, **kwargs):
@@ -687,7 +689,9 @@ def test_main_transition_preserves_mate_permissions_and_recovery_prompt(assigned
     wrapper.body[0].body[0] = helper
     scope = dict(focus_phase_runtimes=[runtime], request_data=request, secrets_manager=None,
         phase_prompt=phase_prompt, active_project_focus=project_focus, active_project_sources=[],
-        build_project_focus_prompt=build_project_focus_prompt, user_requested_skills_only=False,
+        build_project_focus_prompt=build_project_focus_prompt,
+        without_unscoped_project_search=without_unscoped_project_search,
+        user_requested_skills_only=False,
         assigned_app_ids=assigned_apps, discovered_apps_metadata={app: SimpleNamespace(
             skills=[SimpleNamespace(id="search")]) for app in ["web", "code", "jobs"]},
         generate_tools_from_apps=generate, translation_service=None, task_queue_blocks_plan_tools=False,

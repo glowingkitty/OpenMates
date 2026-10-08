@@ -251,6 +251,7 @@ async def _async_focus_mode_auto_confirm(
             "agentic_context_ref": pending_context.get("agentic_context_ref"),
             "agentic_context_request_id": pending_context.get("agentic_context_request_id"),
             "agentic_context_turn_id": pending_context.get("agentic_context_turn_id"),
+            "preprocessing_resume_ref": pending_context.get("preprocessing_resume_ref"),
             "active_focus_id": focus_id,  # Focus mode is NOW active for this continuation
             **{key: pending_context.get(key, []) for key in (
                 "accepted_plan_context", "project_focus_documents", "project_focus_catalog", "custom_rule_documents",

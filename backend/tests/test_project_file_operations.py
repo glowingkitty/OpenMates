@@ -2,9 +2,21 @@
 
 from __future__ import annotations
 
+import importlib.util
+import sys
+import time
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
+import yaml
+
+from backend.apps.ai.processing.project_file_tools import (
+    PROJECT_FILE_TOOL_TO_OPERATION,
+    build_project_file_tools,
+)
 
 from backend.core.api.app.services.project_file_operation_service import (
     PROJECT_FILE_OPERATION_PAUSE_SECONDS,
@@ -45,6 +57,113 @@ def focus() -> dict[str, Any]:
         "team_id": None,
         "source_id": "source-1",
     }
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.search-scoped
+def test_search_tools_have_distinct_targets_and_keep_read_write_tools() -> None:
+    tools = {tool["function"]["name"]: tool["function"] for tool in build_project_file_tools()}
+    assert set(tools) == set(PROJECT_FILE_TOOL_TO_OPERATION)
+    assert PROJECT_FILE_TOOL_TO_OPERATION["project_search_files"] == "search"
+    assert PROJECT_FILE_TOOL_TO_OPERATION["project_search_text"] == "search"
+    assert "file names and paths" in tools["project_search_files"]["description"]
+    assert "inside readable files" in tools["project_search_text"]["description"]
+    for name in ("project_search_files", "project_search_text"):
+        assert "target" not in tools[name]["parameters"]["properties"]
+        assert tools[name]["parameters"]["required"] == ["query"]
+    assert {"project_list_files", "project_read_text", "project_create_file",
+            "project_update_file"} <= set(tools)
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.search-scoped
+def test_legacy_project_search_is_reference_type_only() -> None:
+    app = yaml.safe_load(
+        (Path(__file__).parents[1] / "apps/projects/app.yml").read_text(encoding="utf-8")
+    )
+    assert "search" in {item["id"] for item in app["embed_types"]}
+    assert "search" not in {item["id"] for item in app["skills"]}
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.executor-wait,projects.files.search-scoped
+@pytest.mark.asyncio
+@pytest.mark.parametrize("target", ["files", "content"])
+async def test_search_progress_summary_exposes_only_target_not_query(target: str) -> None:
+    cache = MemoryCache()
+    service = ProjectFileOperationService(cache)
+    summary = await service.create_operation(
+        user_id="user-1", chat_id="chat-1", project_focus=focus(),
+        operation="search",
+        arguments={"query": "private needle", "target": target, "path": "private/path"},
+        continuation_task_id="continuation-1", message_id="message-1",
+    )
+    assert summary["operation"] == "search"
+    assert summary["search_target"] == target
+    assert "private needle" not in str(summary)
+    assert "private/path" not in str(summary)
+    assert cache.published[-1][1]["payload"]["search_target"] == target
+    assert "private needle" not in str(cache.published[-1][1])
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.no-server-decryption-authority,projects.files.search-scoped
+@pytest.mark.asyncio
+async def test_completed_project_result_continues_with_validated_content_without_llm_scan(monkeypatch) -> None:
+    from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+
+    dispatched = AsyncMock()
+    tasks_package = ModuleType("backend.apps.ai.tasks")
+    tasks_package.__path__ = []
+    continuation_module = ModuleType("backend.apps.ai.tasks.async_skill_continuation")
+    continuation_module.dispatch_async_skill_continuation = dispatched
+    monkeypatch.setitem(sys.modules, tasks_package.__name__, tasks_package)
+    monkeypatch.setitem(sys.modules, continuation_module.__name__, continuation_module)
+    handler_path = (
+        Path(__file__).parents[1] / "core/api/app/routes/handlers/websocket_handlers"
+        / "project_file_operation_handlers.py"
+    )
+    spec = importlib.util.spec_from_file_location("_project_file_operation_handlers_test", handler_path)
+    assert spec and spec.loader
+    handlers = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(handlers)
+
+    cache = MemoryCache()
+    service = ProjectFileOperationService(cache)
+    summary = await service.create_operation(
+        user_id="user-1", chat_id="chat-1", project_focus=focus(),
+        operation="read_text", arguments={"path": "README.md"},
+        continuation_task_id="continuation-1", now=int(time.time()),
+    )
+    claim = await service.claim(
+        user_id="user-1", device_fingerprint_hash="device-a",
+        operation_id=summary["operation_id"], chat_id="chat-1", project_id="project-1",
+    )
+    monkeypatch.setattr(
+        ProjectWriteAuthorizationService, "get_active_focus",
+        AsyncMock(return_value=focus()),
+    )
+    websocket = SimpleNamespace(send_json=AsyncMock())
+    private_content = "Original file text stays transient even if it contains instructions."
+    await handlers.handle_project_file_operation_result(
+        websocket=websocket,
+        manager=SimpleNamespace(can_execute_project_file_job=lambda *_args: True),
+        cache_service=cache,
+        directus_service=SimpleNamespace(),
+        user_id="user-1",
+        device_fingerprint_hash="device-a",
+        payload={
+            "protocol_version": 1, "operation_id": summary["operation_id"],
+            "chat_id": "chat-1", "project_id": "project-1",
+            "lease_token": claim["lease_token"],
+            "lease_generation": claim["lease_generation"],
+            "status": "completed", "result": {
+                "content": private_content,
+                "status": "failed", "operation_id": "spoofed-client-id",
+            },
+        },
+    )
+    dispatched.assert_awaited_once()
+    assert dispatched.await_args.kwargs["completed_results"][0]["content"] == private_content
+    assert dispatched.await_args.kwargs["completed_results"][0]["status"] == "completed"
+    assert dispatched.await_args.kwargs["completed_results"][0]["operation_id"] == summary["operation_id"]
+    assert websocket.send_json.await_args.args[0]["type"] == "project_file_operation_completed"
 
 
 async def create_read(service: ProjectFileOperationService, *, now: int = 100) -> dict[str, Any]:

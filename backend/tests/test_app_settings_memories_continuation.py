@@ -51,6 +51,7 @@ class _FakeCache:
             "chat_key_version": 1,
             "chat_id": "chat-1",
             "message_id": "message-1",
+            "preprocessing_resume_ref": "server-owned-routing-ref",
             "user_id_hash": "user-hash-1",
             "mate_id": "mate-1",
             "active_focus_id": "focus-1",
@@ -129,6 +130,7 @@ def test_app_settings_memories_continuation_preserves_request_context(monkeypatc
     assert request_payload["has_image_upload_embed"] is True
     assert request_payload["app_settings_memories_metadata"] == ["code-preferred_technologies"]
     assert request_payload["is_app_settings_memories_continuation"] is True
+    assert request_payload["preprocessing_resume_ref"] == "server-owned-routing-ref"
     assert cache.deleted == [("chat-1", "user-1")]
 
     assert request_payload["recovery_inference_task_id"] == "original-task-1"

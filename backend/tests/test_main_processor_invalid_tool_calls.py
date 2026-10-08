@@ -275,6 +275,8 @@ async def _run_mocked_protocol_guard_main_processor(
     request_overrides=None,
     preprocessing_overrides=None,
     cache_service=None,
+    directus_service=None,
+    discovered_apps_metadata=None,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -431,11 +433,11 @@ async def _run_mocked_protocol_guard_main_processor(
             request_data,
             preprocessing_results,
             {},
-            None,
+            directus_service,
             None,
             None,
             [],
-            discovered_apps_metadata={},
+            discovered_apps_metadata=discovered_apps_metadata or {},
             cache_service=cache_service,
             user_overrides=SimpleNamespace(skills=None, wikipedia_references=[]),
         )
@@ -630,6 +632,164 @@ async def test_final_no_tools_turn_keeps_answer_without_executing_provider_tool_
     assert len(calls) == 1
     assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
     assert not any(isinstance(chunk, dict) and chunk.get("__main_processing_failure__") for chunk in output)
+
+
+async def _run_project_dispatch_batch(monkeypatch, tool_batch):
+    from backend.core.api.app.services import project_file_operation_service as service_module
+    from backend.core.api.app.services.project_write_authorization_service import (
+        ProjectWriteAuthorizationService,
+    )
+
+    focus = {
+        "project_id": "project-1", "focus_id": "focus-1",
+        "focus_id_hash": "focus-hash", "instruction": "", "team_id": None,
+    }
+    monkeypatch.setattr(
+        ProjectWriteAuthorizationService, "get_active_focus",
+        AsyncMock(return_value=focus),
+    )
+    operation_calls = []
+
+    class FakeOperationService:
+        def __init__(self, _cache):
+            pass
+
+        async def create_operation(self, **kwargs):
+            operation_calls.append(kwargs)
+            return {"operation_id": kwargs["operation_id"], "operation": kwargs["operation"]}
+
+        async def get_job(self, **_kwargs):
+            return {"episode_id": "episode-1"}
+
+        async def publish_available(self, _record):
+            return True
+
+    monkeypatch.setattr(service_module, "ProjectFileOperationService", FakeOperationService)
+    tasks_package = types.ModuleType("backend.apps.ai.tasks")
+    tasks_package.__path__ = []
+    continuation_module = types.ModuleType("backend.apps.ai.tasks.async_skill_continuation")
+    cached_context = AsyncMock()
+    continuation_module.cache_async_skill_continuation_context = cached_context
+    continuation_module.async_skill_continuation_key = lambda operation_id: f"continuation:{operation_id}"
+    operation_tasks = types.ModuleType("backend.core.api.app.tasks.project_file_operation_tasks")
+    operation_tasks.schedule_project_file_operation_deadlines = Mock()
+    monkeypatch.setitem(sys.modules, tasks_package.__name__, tasks_package)
+    monkeypatch.setitem(sys.modules, continuation_module.__name__, continuation_module)
+    monkeypatch.setitem(sys.modules, operation_tasks.__name__, operation_tasks)
+
+    loop = asyncio.get_running_loop()
+    client = loop.create_future()
+    client.set_result(None)
+    cache = SimpleNamespace(
+        client=client, get=AsyncMock(return_value=None),
+        set=AsyncMock(return_value=True), delete=AsyncMock(return_value=True),
+    )
+    directus = SimpleNamespace(project=SimpleNamespace(list_sources=AsyncMock(return_value=[])))
+    web_execution = AsyncMock(side_effect=AssertionError("Web skill must wait for the file continuation"))
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", web_execution)
+    user_intent = "Read README and search the web after the Project file result arrives."
+    web_tool = {"type": "function", "function": {"name": "web-search", "description": "Search web."}}
+    output, model_calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": name, "arguments": arguments, "tool_call_id": f"call-{index}"}
+          for index, (name, arguments) in enumerate(tool_batch)],
+         ["The model should wait for actual client results."]],
+        cache_service=cache,
+        directus_service=directus,
+        generated_tools=[web_tool] if any(name == "web-search" for name, _ in tool_batch) else None,
+        discovered_apps_metadata={
+            "web": SimpleNamespace(skills=[SimpleNamespace(id="search")], instructions=[], focuses=[]),
+        } if any(name == "web-search" for name, _ in tool_batch) else None,
+        request_overrides={
+            "client_capabilities": ["project_file_jobs"],
+            "current_user_content": user_intent,
+            "message_history": [{"role": "user", "content": user_intent}],
+        },
+        preprocessing_overrides={
+            "selected_app_ids": ["projects", "web"],
+            "relevant_app_skills": ["web-search"],
+        },
+    )
+    return output, model_calls, operation_calls, cached_context, web_execution, user_intent
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.executor-wait,projects.files.search-scoped
+@pytest.mark.parametrize(
+    ("tool_name", "expected_target"),
+    [("project_search_files", "files"), ("project_search_text", "content")],
+)
+async def test_project_file_dispatch_yields_without_waiting_only_model_call(
+    monkeypatch, tool_name: str, expected_target: str,
+) -> None:
+    output, model_calls, operation_calls, cached_context, web_execution, _ = (
+        await _run_project_dispatch_batch(
+            monkeypatch, [(tool_name, {"query": "README", "target": "wrong"})],
+        )
+    )
+    assert len(model_calls) == 1
+    assert operation_calls[0]["operation"] == "search"
+    assert operation_calls[0]["arguments"]["target"] == expected_target
+    assert cached_context.await_args.kwargs["defer_until_initial_response_complete"] is True
+    assert cached_context.await_args.kwargs["requires_current_turn"] is True
+    web_execution.assert_not_awaited()
+    assert not any(isinstance(chunk, str) and "should wait" in chunk for chunk in output)
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.executor-wait,projects.files.search-scoped
+async def test_mixed_project_and_web_batch_defers_web_until_file_result(monkeypatch) -> None:
+    output, model_calls, operation_calls, cached_context, web_execution, user_intent = (
+        await _run_project_dispatch_batch(
+            monkeypatch,
+            [("web-search", {"requests": [{"query": "public docs"}]}),
+             ("project_read_text", {"path": "README.md"})],
+        )
+    )
+    assert len(model_calls) == 1
+    assert len(operation_calls) == 1
+    assert operation_calls[0]["operation"] == "read_text"
+    web_execution.assert_not_awaited()
+    cached_context.assert_awaited_once()
+    assert cached_context.await_args.kwargs["request_data"].message_history[0]["content"] == user_intent
+    assert not any(isinstance(chunk, str) and "should wait" in chunk for chunk in output)
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.executor-wait
+async def test_multiple_project_jobs_dispatch_only_first(monkeypatch) -> None:
+    _output, model_calls, operation_calls, cached_context, web_execution, _ = (
+        await _run_project_dispatch_batch(
+            monkeypatch,
+            [("project_list_files", {"path": "docs"}),
+             ("project_read_text", {"path": "README.md"})],
+        )
+    )
+    assert len(model_calls) == 1
+    assert [call["operation"] for call in operation_calls] == ["list"]
+    cached_context.assert_awaited_once()
+    web_execution.assert_not_awaited()
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_stage_one_app_shortlist_limits_ordinary_main_prompt_instructions(monkeypatch) -> None:
+    def metadata(instruction: str):
+        return SimpleNamespace(
+            instructions=[SimpleNamespace(
+                instruction=instruction, for_embed_types=[], categories=[],
+            )],
+            skills=[], focuses=[],
+        )
+
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Answer."]],
+        discovered_apps_metadata={
+            "selected": metadata("SELECTED_APP_INSTRUCTION"),
+            "unrelated": metadata("UNRELATED_APP_INSTRUCTION"),
+        },
+        preprocessing_overrides={"selected_app_ids": ["selected"]},
+    )
+    assert len(calls) == 1
+    prompt = calls[0]["system_prompt"]
+    assert "SELECTED_APP_INSTRUCTION" in prompt
+    assert "UNRELATED_APP_INSTRUCTION" not in prompt
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated

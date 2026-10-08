@@ -87,6 +87,7 @@ def _request():
         message_history=[
             AIHistoryMessage(role="user", content="Search social media for privacy AI", created_at=1),
         ],
+        current_user_content="Search social media for privacy AI",
         chat_has_title=True,
         mate_id="mate-1",
         client_capabilities=["project_file_jobs", "remote_command_jobs"],
@@ -96,6 +97,7 @@ def _request():
         recovery_turn_id="turn-1",
         recovery_public_key="public-key-1",
         chat_key_version=4,
+        preprocessing_resume_ref="server-owned-routing-ref",
     )
 
 
@@ -177,6 +179,8 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
     assert request_payload["is_async_skill_continuation"] is True
     assert request_payload["original_user_message_id"] == "message-1"
     assert request_payload["async_skill_task_id"] == "async-task-1"
+    assert request_payload["preprocessing_resume_ref"] == "server-owned-routing-ref"
+    assert request_payload["current_user_content"] == "Search social media for privacy AI"
     assert request_payload["recovery_task_id"] is None
     assert request_payload["recovery_inference_task_id"] == "recovery-inference-1"
     assert request_payload["recovery_preflight_id"] == "preflight-1"
@@ -365,6 +369,14 @@ async def test_continue_mode_defers_completion_until_initial_response_finishes(m
         completed_results=[{"status": "succeeded", "output": "done"}],
     ) is None
     assert fake_celery_app.sent == []
+
+    # The original ask can reach its drain while its active marker still exists.
+    # The completion must remain available for the drain after queue handoff.
+    assert await async_skill_continuation.dispatch_deferred_async_skill_continuations(
+        cache_service=cache, user_id="user-1", chat_id="chat-1"
+    ) == []
+    assert async_skill_continuation.async_skill_deferred_completion_key("remote-command-1") in cache.values
+    assert async_skill_continuation.async_skill_deferred_index_key("user-1", "chat-1") in cache.values
 
     cache.active_task = None
     dispatched = await async_skill_continuation.dispatch_deferred_async_skill_continuations(

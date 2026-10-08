@@ -89,6 +89,7 @@ async def cache_async_skill_continuation_context(
     skill_id: str,
     tool_name: str,
     tool_arguments: dict[str, Any],
+    preprocessing_result: Any = None,
     inline_wait_deadline: Optional[float] = None,
     requires_current_turn: bool = False,
     defer_until_initial_response_complete: bool = False,
@@ -97,6 +98,12 @@ async def cache_async_skill_continuation_context(
     """Store the original ask context for a later async skill completion."""
     if not cache_service or not async_task_id:
         return
+
+    if preprocessing_result is not None and not request_data.preprocessing_resume_ref:
+        from backend.apps.ai.tasks.preprocessing_resume import store_preprocessing_resume
+        request_data.preprocessing_resume_ref = await store_preprocessing_resume(
+            cache_service, request_data, preprocessing_result,
+        )
 
     context = {
         "request_data": request_data.model_dump(mode="json"),
@@ -239,6 +246,7 @@ async def dispatch_async_skill_continuation(
         user_id=original_request.user_id,
         user_id_hash=original_request.user_id_hash,
         message_history=continuation_history,
+        current_user_content=original_request.current_user_content,
         chat_has_title=original_request.chat_has_title,
         current_chat_title=original_request.current_chat_title,
         is_incognito=original_request.is_incognito,
@@ -262,6 +270,7 @@ async def dispatch_async_skill_continuation(
             original_request.original_user_message_id or original_request.message_id
         ),
         async_skill_task_id=async_task_id,
+        preprocessing_resume_ref=original_request.preprocessing_resume_ref,
         recovery_inference_task_id=(
             original_request.recovery_task_id
             or original_request.recovery_inference_task_id
@@ -317,7 +326,11 @@ async def dispatch_deferred_async_skill_continuations(
     """Dispatch completions held while the initial response owned the chat."""
     index_key = async_skill_deferred_index_key(user_id, chat_id)
     pending = list(await cache_service.get(index_key) or [])
+    get_active_task = getattr(cache_service, "get_active_ai_task", None)
+    if get_active_task and await get_active_task(chat_id):
+        return []
     dispatched: list[str] = []
+    retained: list[str] = []
     for async_task_id in pending:
         result_key = async_skill_deferred_completion_key(str(async_task_id))
         completion = await cache_service.get(result_key)
@@ -330,10 +343,19 @@ async def dispatch_deferred_async_skill_continuations(
             result_status=str(completion.get("result_status") or "finished"),
             request_metadata=completion.get("request_metadata") or {},
         )
-        await cache_service.delete(result_key)
         if continuation_id:
+            await cache_service.delete(result_key)
             dispatched.append(continuation_id)
-    await cache_service.delete(index_key)
+        elif await cache_service.get(async_skill_continuation_key(str(async_task_id))):
+            # A new active task may have appeared after the first marker check.
+            # Keep this completion so a later drain can safely dispatch it.
+            retained.append(str(async_task_id))
+        else:
+            await cache_service.delete(result_key)
+    if retained:
+        await cache_service.set(index_key, retained, ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS)
+    else:
+        await cache_service.delete(index_key)
     return dispatched
 
 

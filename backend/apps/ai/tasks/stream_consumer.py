@@ -812,6 +812,7 @@ async def _dispatch_sub_chat_parent_continuation(
         recovery_turn_id=original_request.recovery_turn_id,
         recovery_public_key=original_request.recovery_public_key,
         chat_key_version=original_request.chat_key_version,
+        preprocessing_resume_ref=original_request.preprocessing_resume_ref,
         parent_id=original_request.parent_id,
         is_sub_chat=original_request.is_sub_chat,
         orchestration_id=original_request.orchestration_id,
@@ -9116,6 +9117,7 @@ async def _consume_main_processing_stream(
         and not awaiting_sub_chat_confirmation
         and not awaiting_sub_chats_completion
         and not awaiting_user_input
+        and not request_data.awaiting_async_skill_continuation
     ):
         if fake_tool_calls_filtered:
             # We filtered fake tool calls and the LLM didn't produce any other content

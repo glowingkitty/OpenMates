@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from fastapi import WebSocket
@@ -240,26 +239,19 @@ async def handle_project_file_operation_result(
             )
             return
 
-        safe_result = await _sanitize_project_result_for_model(
-            outcome.get("result", submitted.result),
-            operation_id=submitted.operation_id,
-            cache_service=cache_service,
-            secrets_manager=getattr(websocket.app.state, "secrets_manager", None),
-        )
-        if safe_result is None:
-            safe_result = {
-                "output_withheld": True,
-                "reason": "OUTPUT_SAFETY_UNAVAILABLE",
-            }
+        # settle() has already validated the bounded, scoped client result.
+        # Project file text is trusted only as tool data in this continuation;
+        # avoid a second LLM scan of private file contents here.
+        validated_result = outcome.get("result", submitted.result)
         await dispatch_async_skill_continuation(
             cache_service=cache_service,
             async_task_id=continuation_id,
             completed_results=[
                 {
+                    **validated_result,
                     "operation_id": submitted.operation_id,
                     "operation": outcome["job"].get("operation"),
                     "status": submitted.status,
-                    **safe_result,
                 }
             ],
             result_status=submitted.status,
@@ -340,33 +332,6 @@ async def handle_project_file_operation_reject(
         await _send_error(websocket, payload, exc)
     finally:
         _end_ws_span(span, token)
-
-
-async def _sanitize_project_result_for_model(
-    result: dict[str, Any],
-    *,
-    operation_id: str,
-    cache_service: Any,
-    secrets_manager: Any,
-) -> dict[str, Any] | None:
-    """Always scan the complete client result before autonomous continuation."""
-    from backend.apps.ai.processing.content_sanitization import sanitize_external_content
-
-    serialized = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
-    sanitized = await sanitize_external_content(
-        serialized,
-        content_type="text",
-        task_id=f"project_file_result_{operation_id}",
-        secrets_manager=secrets_manager,
-        cache_service=cache_service,
-    )
-    if not sanitized:
-        return None
-    try:
-        parsed = json.loads(sanitized)
-    except (TypeError, ValueError, json.JSONDecodeError):
-        return None
-    return parsed if isinstance(parsed, dict) else None
 
 
 async def _send_error(websocket: WebSocket, payload: dict[str, Any], exc: Exception) -> None:

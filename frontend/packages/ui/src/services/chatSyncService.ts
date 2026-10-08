@@ -13,6 +13,7 @@ import { phasedSyncState } from "../stores/phasedSyncStateStore";
 import { chatSyncActivity } from "../stores/chatSyncActivityStore";
 import { activeChatFocusStore } from "../stores/activeChatFocusStore";
 import { activeChatStore } from "../stores/activeChatStore";
+import { phaseFromProjectFileResult } from "./projectFileProgress";
 import {
   activeTeamId,
   activeTeamContext,
@@ -861,6 +862,12 @@ export class ChatSynchronizationService extends EventTarget {
       throw new Error("Project file executor is unavailable");
     }
     await webSocketService.sendMessage(event, payload);
+    if (event === "project_file_operation_result" || event === "project_file_operation_reject") {
+      this.dispatchEvent(new CustomEvent("projectFileProgress", { detail: {
+        chatId, operationId: payload.operation_id,
+        phase: event === "project_file_operation_result" ? phaseFromProjectFileResult(payload.status) : "failed",
+      } }));
+    }
   };
 
   public commitProjectFileRevision = async (
@@ -953,6 +960,14 @@ export class ChatSynchronizationService extends EventTarget {
       !this.projectFileExecutor
     )
       return;
+    const job = payload as Record<string, unknown>;
+    const searchTarget = job.search_target ?? (job.arguments as Record<string, unknown> | undefined)?.target;
+    this.dispatchEvent(new CustomEvent("projectFileProgress", { detail: {
+      chatId, operationId: job.operation_id,
+      operation: job.operation,
+      searchTarget: searchTarget === "files" || searchTarget === "content" ? searchTarget : undefined,
+      phase: kind === "request" ? "running" : "available",
+    } }));
     try {
       await this.projectFileExecutor[kind](payload);
     } catch {
@@ -1132,6 +1147,14 @@ export class ChatSynchronizationService extends EventTarget {
     });
     webSocketService.on("project_file_operation_request", (payload) => {
       void this.forwardProjectFileExecutorEvent("request", payload);
+    });
+    webSocketService.on("project_file_operation_paused", (payload) => {
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) return;
+      const job = payload as Record<string, unknown>;
+      if (typeof job.chat_id !== "string" || activeChatStore.get() !== job.chat_id) return;
+      this.dispatchEvent(new CustomEvent("projectFileProgress", { detail: {
+        chatId: job.chat_id, operationId: job.operation_id, phase: "failed",
+      } }));
     });
     webSocketService.on("commit_embed_revision_result", (payload) => {
       this.handleProjectFileCommitResult(payload);

@@ -10,6 +10,7 @@ from typing import Any
 PROJECT_FILE_TOOL_TO_OPERATION = {
     "project_list_files": "list",
     "project_search_files": "search",
+    "project_search_text": "search",
     "project_read_text": "read_text",
     "project_create_file": "create_file",
     "project_update_file": "update_file",
@@ -131,22 +132,37 @@ def build_project_file_tools() -> list[dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "project_search_files",
-                "description": "Search text across readable files in the active Project.",
+                "description": "Search file names and paths in the active Project.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "query": {"type": "string", "minLength": 1},
-                        "target": {
+                        "mode": {"type": "string", "enum": ["literal", "regex"], "default": "literal"},
+                        "path": path_property,
+                        "glob": {
                             "type": "string",
-                            "enum": ["files", "content"],
-                            "default": "content",
-                            "description": "Search file paths or readable file contents.",
+                            "description": (
+                                "Optional Project-relative glob limiting matched paths. Supports only *, **, and ?; "
+                                "character classes and brace expansion are unsupported."
+                            ),
                         },
-                        "mode": {
-                            "type": "string",
-                            "enum": ["literal", "regex"],
-                            "default": "literal",
-                        },
+                        "max_results": {"type": "integer", "minimum": 1, "maximum": 100},
+                        "source_id": source_property,
+                    },
+                    "required": ["query"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "project_search_text",
+                "description": "Search text inside readable files in the active Project.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "minLength": 1},
+                        "mode": {"type": "string", "enum": ["literal", "regex"], "default": "literal"},
                         "path": path_property,
                         "glob": {
                             "type": "string",

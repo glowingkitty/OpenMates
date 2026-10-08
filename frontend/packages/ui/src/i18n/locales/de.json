@@ -2041,6 +2041,12 @@
             "text": "Verschlüsselte Projekte über einen geeigneten verbundenen Client finden."
           }
         },
+        "search_files": {
+          "text": "Dateien suchen"
+        },
+        "search_text": {
+          "text": "Text suchen"
+        },
         "read": {
           "text": "Projektdatei lesen",
           "description": {
@@ -8668,6 +8674,38 @@
         },
         "files_fallback": {
           "text": "Dateien"
+        }
+      },
+      "progress": {
+        "preparing": {
+          "text": "Projektdateizugriff wird vorbereitet…"
+        },
+        "search_files": {
+          "text": "Projektdateien werden durchsucht…"
+        },
+        "search_text": {
+          "text": "Projekttext wird durchsucht…"
+        },
+        "read": {
+          "text": "Projektdatei wird gelesen…"
+        },
+        "list": {
+          "text": "Projektdateien werden aufgelistet…"
+        },
+        "working": {
+          "text": "Projektdateien werden bearbeitet…"
+        },
+        "ready": {
+          "text": "Projektergebnis bereit…"
+        },
+        "approval": {
+          "text": "Warte auf Freigabe der Projektdatei…"
+        },
+        "waiting_source": {
+          "text": "Warte auf Projektdateiquelle…"
+        },
+        "conflict": {
+          "text": "Projektdatei geändert; wird erneut geprüft…"
         }
       }
     }

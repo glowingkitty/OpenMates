@@ -138,6 +138,7 @@ class AskSkillRequest(BaseModel):
     is_async_skill_continuation: bool = Field(default=False, description="True when a client-executed async skill result is re-entering inference.")
     original_user_message_id: Optional[str] = Field(default=None, description="Original user turn that created the async skill job.")
     async_skill_task_id: Optional[str] = Field(default=None, description="Stable async operation or execution id completed by this continuation.")
+    preprocessing_resume_ref: Optional[str] = Field(default=None, max_length=128, description="Opaque server-created routing snapshot reference for an internal continuation; never itself grants authority.")
     awaiting_async_skill_continuation: bool = Field(default=False, description="True when this response dispatched a client job and must not seal the interim assistant output as terminal recovery.")
     is_sub_chat_continuation: bool = Field(default=False, description="True if this task is a continuation after waited sub-chats completed. The user message was already persisted before the sub-chat pause.")
     recovery_consumed_child_ids: List[str] = Field(default_factory=list, description="Internal child identities whose sealed synthesis inputs are carried by this continuation.")

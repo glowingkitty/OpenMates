@@ -2172,21 +2172,72 @@ async def _async_process_ai_skill_ask_task(
             )
             is_new_chat_for_preprocessing = not request_data.chat_has_title
 
-            with ai_phase_span("preprocess"):
-                preprocessing_result = await handle_preprocessing(
-                    request_data=request_data, # This now contains chat_has_title boolean flag from the client
-                    skill_config=skill_config,
-                    base_instructions=base_instructions,
-                    cache_service=cache_service_instance,
-                    secrets_manager=secrets_manager,
-                    directus_service=directus_service_instance, # Passed for reuse
-                    encryption_service=encryption_service_instance, # Passed for reuse
-                    user_app_settings_and_memories_metadata=user_app_memories_metadata,
-                    discovered_apps_metadata=discovered_apps_metadata,  # Pass discovered apps for tool preselection
-                    user_overrides=user_overrides,  # Pass user overrides from @ mentioning syntax
-                    preprocessing_stream_channel=preprocessing_stream_channel,  # Channel for real-time step streaming
-                    is_new_chat=is_new_chat_for_preprocessing  # Whether title generation step applies
+            # A continuation may carry an opaque reference created by the original
+            # worker. Recheck the current Project focus before comparing contexts:
+            # a Project consent can expose private specialists and rules mid-turn.
+            if request_data.preprocessing_resume_ref and (
+                request_data.is_async_skill_continuation
+                or request_data.is_focus_mode_continuation
+                or request_data.is_app_settings_memories_continuation
+                or request_data.is_connected_account_permission_continuation
+                or request_data.is_sub_chat_continuation
+            ) and not request_data.is_incognito:
+                from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+                try:
+                    request_data.active_project_focus = await ProjectWriteAuthorizationService(
+                        directus_service_instance, cache_service_instance,
+                    ).get_active_focus(user_id=request_data.user_id, chat_id=request_data.chat_id)
+                except Exception:
+                    logger.warning("[Task ID: %s] Fresh Project context unavailable; rerouting", task_id)
+                    request_data.preprocessing_resume_ref = None
+                    request_data.active_project_focus = None
+                if request_data.active_project_focus:
+                    focus = request_data.active_project_focus
+                    request_data.current_project = {
+                        key: focus.get(key) for key in (
+                            "project_id", "project_id_hash", "team_id", "team_id_hash"
+                        )
+                    }
+
+            from backend.apps.ai.tasks.preprocessing_resume import (
+                load_preprocessing_resume, store_preprocessing_resume,
+            )
+            resume = await load_preprocessing_resume(cache_service_instance, request_data)
+            selected_app_ids = resume[1] if resume and resume[2] else None
+            if resume and not resume[2]:
+                from backend.apps.ai.processing.preprocessor import check_preprocessing_credits
+                credit_rejection = await check_preprocessing_credits(
+                    request_data, cache_service_instance, directus_service_instance,
+                    encryption_service_instance,
                 )
+                preprocessing_result = credit_rejection or resume[0]
+                request_data._preselected_rule_project_activation = (
+                    (request_data.active_project_focus or {}).get("activation_id")
+                )
+                logger.info("[Task ID: %s] Reused current-turn preprocessing decisions", task_id)
+
+            if preprocessing_result is None:
+                with ai_phase_span("preprocess"):
+                    preprocessing_result = await handle_preprocessing(
+                        request_data=request_data,
+                        skill_config=skill_config,
+                        base_instructions=base_instructions,
+                        cache_service=cache_service_instance,
+                        secrets_manager=secrets_manager,
+                        directus_service=directus_service_instance,
+                        encryption_service=encryption_service_instance,
+                        user_app_settings_and_memories_metadata=user_app_memories_metadata,
+                        discovered_apps_metadata=discovered_apps_metadata,
+                        user_overrides=user_overrides,
+                        preprocessing_stream_channel=preprocessing_stream_channel,
+                        is_new_chat=is_new_chat_for_preprocessing,
+                        selected_app_ids=selected_app_ids,
+                    )
+                new_ref = await store_preprocessing_resume(
+                    cache_service_instance, request_data, preprocessing_result,
+                )
+                if new_ref:
+                    request_data.preprocessing_resume_ref = new_ref
 
             # --- TEST RECORD: capture preprocessing result ---
             if _fixture_recorder and preprocessing_result:
@@ -2839,15 +2890,6 @@ async def _async_process_ai_skill_ask_task(
     # This allows the next message to start processing while post-processing continues in parallel
     # Post-processing is independent (only generates suggestions) and doesn't conflict with starting new tasks
     if cache_service_instance:
-        from backend.apps.ai.tasks.async_skill_continuation import (
-            dispatch_deferred_async_skill_continuations,
-        )
-        await dispatch_deferred_async_skill_continuations(
-            cache_service=cache_service_instance,
-            user_id=request_data.user_id,
-            chat_id=request_data.chat_id,
-        )
-        
         # Check for queued messages and process them
         # This implements the queue system: when main processing completes, process any queued messages
         queued_lease = None
@@ -3153,6 +3195,18 @@ async def _async_process_ai_skill_ask_task(
                 logger.warning(f"[Task ID: {task_id}] Queued messages found but could not extract content for combining")
         else:
             logger.debug(f"[Task ID: {task_id}] No queued messages found for chat {request_data.chat_id}")
+
+        # The queue handoff above clears this task's active marker when no newer
+        # user turn is queued. Only then can a completed async job start its own
+        # continuation without racing the original response.
+        from backend.apps.ai.tasks.async_skill_continuation import (
+            dispatch_deferred_async_skill_continuations,
+        )
+        await dispatch_deferred_async_skill_continuations(
+            cache_service=cache_service_instance,
+            user_id=request_data.user_id,
+            chat_id=request_data.chat_id,
+        )
 
     # --- Step 3: Post-Processing (Generate Suggestions and Metadata) ---
     # Post-processing continues even when revoked - we still have a partial response to process
