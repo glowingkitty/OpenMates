@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: video-call-experiment
 title: Gemini Voice And H3 Turbo Experiment
-status: implementing
+status: verified
 goal: >
   Implement a first test to see how well such a system can actually work, before
   spending more time on it: a basic /experiment/videocall page for Gemini voice
@@ -93,7 +93,7 @@ verification:
     - User explicitly requested desktop-only testing on 2026-10-06; responsive test execution and phone smoke are waived for this experiment delivery. Responsive implementation and focused coverage remain available.
   required:
     - Specification and Plan validation.
-    - Focused backend tests for auth, usage, inactivity, admission and accepted-job cleanup.
+    - Focused backend tests for auth, usage, request-driven clips, retained frames, admission and accepted-job cleanup.
     - Focused frontend checks for transport and media lifecycle.
     - Isolated component-preview Playwright before experiment route Playwright.
     - Download/upload all existing CI recordings and include returned video links in chat.
@@ -110,10 +110,11 @@ verification_evidence:
   backend: 38 focused mocked route/provider/billing tests passed, including request-driven clips, repeated tool IDs, held-frame reuse after failure, missing-frame refusal without a paid fallback, continuous voice, binary delivery and stop fencing; Ruff passed.
   frontend: Eleven focused audio/controller tests passed, including held frames across requests, audio-only state after completion or failure, independent decoded ambience, binary delivery and explicit-stop fencing; changed-path ESLint and panel compilation passed.
   component:
-    source: aaf8995424b9a880cc2cb5c93c5eca98abc2eb80
-    request: 3329de66db47afaa120efcc4bc5c0856f0eda78e68b3065faa4530c11ce01235
-    run: 37609177663
-    result: Five desktop cases passed without retries with synthetic clips, including delayed muted autoplay with audible decoded ambience under the default browser policy, simultaneous speech, idle drain and explicit close; captures reviewed and all five recordings uploaded.
+    source: f4f20b3d89e0ab00f86bac69c5f82b355bffba4a
+    request: 6773bed37ab234116ab7ecd3358ced2d37d69bd59e62393d0e9001b8b4b166e8
+    run: 37804354423
+    result: Five desktop cases passed without retries or skips with synthetic clips, including delayed muted autoplay with audible decoded ambience, independent stop/allow controls, and held final frames with continuous voice through two visual generations; the held-frame capture was reviewed and all five recordings uploaded.
+    retrieval: Initial artifact download was blocked by the host disk guard; capacity was recovered while preserving backup data, then the same completed run was retrieved and uploaded without rerunning tests.
     source_scope: Product code and desktop coverage stayed frozen after this candidate; later changes only record verification evidence.
   responsive: Execution waived by the user; the separate responsive spec remains available.
   provider_limits: No automated real fal requests were made. Further automated verification is not a deployment gate; the user will evaluate the deployed experiment.
@@ -123,9 +124,9 @@ verification_evidence:
     result: Failed during test collection in the existing module loader; no route tests or recordings ran. The user waived this run as a deployment gate.
     retrieval: Artifact download hit the host disk-budget limit; the GitHub failure log confirms no tests executed.
   deployment:
-    code_commit: 356edc26599983e5d636b5a8f16872ef6ccea04e
-    backend: Dev API and dependent workers refreshed together with binary media delivery, mandatory speech-free prompts and earlier bounded continuation; all services healthy (docker-cc39a660).
-    frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall is published with muted autoplay and independent decoded ambience (Vercel CZJN7YM2um4ypWJ6YSciZHaZNjii).
+    code_commit: 4f32e900951d40a6e47f238a009dae3e17a1ef7f
+    backend: Dev API and dependent workers refreshed together with request-driven held-frame continuation and WHEN_IDLE voice acknowledgements; all services running and healthy (docker-38e61729).
+    frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall is published with retained final frames and continuous voice across multiple visual requests (Vercel 3uHBAPQEPdjmCwVmcYFpqTQwgiwW).
     connection_route: Operator applied the managed Caddy update; the authenticated call WebSocket reaches the backend.
   gemini_live_probe:
     result: The exact candidate accepted setup and returned native PCM audio, output transcription, turn completion and modality-level usage.
