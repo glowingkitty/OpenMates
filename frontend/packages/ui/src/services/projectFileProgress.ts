@@ -11,6 +11,14 @@ export interface ProjectFileProgress {
   phase: ProjectFileProgressPhase;
 }
 
+/** A landing page has neither a chat nor progress; absent IDs must never match. */
+export function projectFileProgressMatchesChat(
+  progress: ProjectFileProgress | null,
+  chatId: string | null | undefined,
+): progress is ProjectFileProgress {
+  return Boolean(progress && chatId && progress.chatId === chatId);
+}
+
 export function phaseFromProjectFileResult(status: unknown): ProjectFileProgressPhase {
   switch (status) {
     case "completed":

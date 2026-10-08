@@ -191,6 +191,8 @@ test.describe('Plain-language Project README access (real inference, dev only)',
   test.describe.configure({ retries: 0 });
   test.beforeAll(requireDirectDevInference);
   test.beforeEach(async ({ page }: { page: Page }) => {
+    // The budget covers login and fixture setup as well as the inference turn.
+    test.setTimeout(900_000);
     await skipIfFeaturesDisabled(test, page, ['platform:projects']);
     page.on('response', (response) => {
       if (new URL(response.url()).pathname === '/v1/auth/login') {
@@ -202,7 +204,6 @@ test.describe('Plain-language Project README access (real inference, dev only)',
 
   // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent,projects.files.chat-focus-required,projects.files.no-server-decryption-authority
   test('ordinary README request waits for consent, reads after activation, and stays blocked after rejection', async ({ page }: { page: Page }) => {
-    test.setTimeout(900_000);
     const stateDir = mkdtempSync(join(tmpdir(), 'openmates-readme-focus-'));
     const deviceIdentity = `cli:readme-focus:${randomUUID()}`;
     chmodSync(stateDir, 0o700);

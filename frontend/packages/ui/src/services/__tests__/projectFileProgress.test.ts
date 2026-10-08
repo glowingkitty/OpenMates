@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { phaseFromProjectFileResult, projectFileProgressKey, type ProjectFileProgress } from "../projectFileProgress";
+import { phaseFromProjectFileResult, projectFileProgressKey, projectFileProgressMatchesChat, type ProjectFileProgress } from "../projectFileProgress";
 
 const running: ProjectFileProgress = {
   chatId: "active-chat", operationId: "operation-1", operation: "search",
@@ -7,6 +7,15 @@ const running: ProjectFileProgress = {
 };
 
 describe("Project file progress", () => {
+  // contract-test: supporting surface=gui.web assertions=projects.files.chat-focus-required
+  it("does not match absent progress and chat on the landing page", () => {
+    expect(projectFileProgressMatchesChat(null, null)).toBe(false);
+    expect(projectFileProgressMatchesChat(null, undefined)).toBe(false);
+    expect(projectFileProgressMatchesChat(null, "chat-1")).toBe(false);
+    expect(projectFileProgressMatchesChat(running, null)).toBe(false);
+    expect(projectFileProgressMatchesChat(running, "chat-2")).toBe(false);
+    expect(projectFileProgressMatchesChat(running, "active-chat")).toBe(true);
+  });
   // contract-test: supporting surface=gui.web assertions=projects.files.chat-focus-required,projects.files.connected-embed-previews
   it("keeps approval and executor waits visible until an explicit terminal result", () => {
     expect(phaseFromProjectFileResult("awaiting_approval")).toBe("awaiting_approval");

@@ -86,7 +86,7 @@ import { storageArchiveFetch } from "../config/api";
 
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
-    import { projectFileProgressKey, type ProjectFileProgress, type ProjectFileProgressPhase } from '../services/projectFileProgress';
+    import { projectFileProgressKey, projectFileProgressMatchesChat, type ProjectFileProgress, type ProjectFileProgressPhase } from '../services/projectFileProgress';
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
     import { pruneDecryptedMessageWindow, shouldPreserveExpandedMessageWindow } from '../utils/messageWindowPruning';
@@ -6446,7 +6446,7 @@ import { storageArchiveFetch } from "../config/api";
         // Its change will trigger re-evaluation of this derived value.
         void _aiTaskStateTrigger;
 
-        if (projectFileProgress?.chatId === currentChat?.chat_id) {
+        if (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id)) {
             return [$text(`embeds.projects.progress.${projectFileProgressKey(projectFileProgress)}`)];
         }
 
@@ -6543,7 +6543,7 @@ import { storageArchiveFetch } from "../config/api";
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
 
-        if (projectFileProgress?.chatId === currentChat?.chat_id) return 'processing';
+        if (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id)) return 'processing';
 
         if (typingStatusIsTerminal) return null;
         

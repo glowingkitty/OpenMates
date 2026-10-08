@@ -11,6 +11,19 @@ async function open(page: import('@playwright/test').Page, component: string, va
   await waitForComponentPreview(page);
 }
 
+// contract-test: supporting surface=gui.web assertions=projects.files.chat-focus-required,message-input.actions.visibility
+test('empty-chat welcome hydrates without a Project operation', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/dev/preview/ActiveChatFocusFixture?chrome=0&theme=dark&background=%23171717&width=390');
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('active-chat-container')).toBeVisible();
+  await expect(page.getByTestId('landing-intro-expanded')).toBeVisible();
+  await expect(page.getByTestId('message-input-wrapper')).toHaveCount(1);
+  expect(pageErrors).toEqual([]);
+});
+
 // contract-test: supporting surface=gui.web assertions=projects.files.connected-embed-previews
 test('project search preview names the project, uses its icon, and opens fullscreen on phone and desktop', async ({ page }) => {
   for (const width of [390, 1100]) {
