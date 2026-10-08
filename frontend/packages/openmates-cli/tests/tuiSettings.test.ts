@@ -19,6 +19,30 @@ const setup = (c: OpenMatesClient = client(), owner = "account-a:personal") => {
 };
 const shown = (state: ReturnType<typeof createTuiSettingsState>) => renderTuiSettings(state, 48).map(lineText).join("\n");
 
+// contract-test: supporting surface=cli assertions=terminal-settings.operations.validated-and-owner-scoped
+test("settings displays only route-relevant account and operation values", async () => {
+  const account = {
+    id: "private-account-id", account_id: "private-billing-id", is_admin: true,
+    key_iv: "private-key-iv", salt: "private-salt", credential_version: 2,
+    username: "alice", email: "alice@example.com", language: "en", timezone: "UTC",
+  };
+  const { state, ctx } = setup(client({ whoAmI: async () => account }));
+  await openTuiSettingsPage(state, "interface/language", ctx);
+  assert.match(shown(state), /Current values:\n {2}Language code: en/);
+  assert.doesNotMatch(shown(state), /private-|credential|is admin|account id|alice@example.com|Timezone:/i);
+  await openTuiSettingsPage(state, "account/info", ctx);
+  assert.match(shown(state), /Username: alice/);
+  assert.match(shown(state), /Email: alice@example.com/);
+  assert.doesNotMatch(shown(state), /private-|credential|is admin|account id/i);
+  state.lastResult["account/info"] = { success: true, refresh_token: "private-result-token", account_id: "private-result-id" };
+  assert.doesNotMatch(shown(state), /Operation details|private-result/);
+  state.route = "developers/api-keys";
+  state.data["developers/api-keys"] = { api_keys: [{ id: "key-1", name: "SDK key", key_prefix: "sk-api-secret", encrypted_master_key: "private-master", full_access: true }] };
+  assert.match(shown(state), /SDK key/);
+  assert.match(shown(state), /Key ID: key-1/);
+  assert.doesNotMatch(shown(state), /sk-api-secret|private-master|key prefix/i);
+});
+
 // contract-test: supporting surface=cli assertions=terminal-settings.navigation.web-hierarchy-and-capabilities
 test("settings uses nested web routes, readable profile and actionable browser destinations", async () => {
   const { state, ctx } = setup();

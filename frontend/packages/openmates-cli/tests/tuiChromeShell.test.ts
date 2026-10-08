@@ -122,6 +122,23 @@ test('settings splits left at wide widths, goes fullscreen when narrow and prese
   assert.equal(state.input,'Kept message');assert.equal(state.focus,'composer');assert.equal(state.sidebarOpen,true);
 });
 
+// contract-test: supporting surface=cli assertions=terminal-settings.shell.responsive-and-restorable,terminal-pointer.viewport-coherent
+test('closing split Settings produces a clean full-width frame without its old divider',()=>{
+  const {state}=setup();state.screen='chat';state.activeChatId='chat';
+  state.activeChat={id:'chat',title:'Full width after close'} as typeof state.activeChat;
+  state.messages=[{role:'user',content:'A chat message'}];state.sidebarOpen=false;
+  state.settings=createTuiSettingsState('owner');state.settingsRestore={focus:'composer',sidebarOpen:false};state.focus='settings';
+  const split=stripAnsi(renderTuiFrame(state,160,30)).split('\n');
+  const dividerColumn=split[12]?.indexOf('│')??-1;
+  assert.ok(dividerColumn>=0,'split frame has a settings divider');
+  closeTuiSettings(state);
+  const full=stripAnsi(renderTuiFrame(state,160,30)).split('\n');
+  assert.equal(full.length,30);
+  assert.ok(full.every(row=>cells(row)===160));
+  assert.ok(full.slice(5,24).every(row=>Array.from(row)[dividerColumn]!=='│'),'old settings divider is gone in the completed frame');
+  assert.match(full.join('\n'),/Full width after close/);
+});
+
 // contract-test: supporting surface=cli assertions=terminal-settings.operations.validated-and-owner-scoped
 test('a render after an owner change removes every old settings value and secret',()=>{
   const {state}=setup();state.settings=createTuiSettingsState('old');state.settings.profile.username='Old private owner';

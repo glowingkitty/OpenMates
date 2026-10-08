@@ -31,18 +31,18 @@ const contract={
 const settingsContract={
 	id:'cli-tui-settings-real-terminal',title:'Chat settings, QR sharing and responsive Settings',surface:'cli',devices:[PROFILE],
 	transcript:[
-		{id:'configure',text:'Chat settings includes Plan, Tasks, Files, Usage and Share; Generate Link remains explicit.',checkpoint:'share-open',devices:[PROFILE]},
-		{id:'qr',text:'Choose Show QR code for a local share code; a small terminal offers a resize or copy fallback.',checkpoint:'share-qr-wide',devices:[PROFILE]},
-		{id:'native',text:'Language is a native setting, while Devices explains its browser flow.',checkpoint:'devices',devices:[PROFILE]},
-		{id:'restore',text:'Close Settings to return to the chat with the unsent draft preserved.',checkpoint:'settings-closed',devices:[PROFILE]},
-		{id:'logout',text:'Confirming logout removes the owner chat and draft from the terminal.',checkpoint:'logout-cleared',devices:[PROFILE]},
+		{id:'configure',text:'Choose expiration, password and sensitive-data settings before generating a link.',checkpoint:'share-open',devices:[PROFILE]},
+		{id:'qr',text:'Share offers a complete QR code, resize guidance and a copyable link.',checkpoint:'share-qr-open',devices:[PROFILE]},
+		{id:'devices',text:'Device approval uses the browser.',checkpoint:'devices',devices:[PROFILE]},
+		{id:'restore',text:'Closing Settings preserves the unsent draft.',checkpoint:'settings-closed',devices:[PROFILE]},
+		{id:'logout',text:'Logout clears the private chat and draft.',checkpoint:'logout-cleared',devices:[PROFILE]},
 	],
 	assertions:[
-		{id:'terminal-chrome.share.explicit-and-private',checkpoint:'share-open',visual:'Chat settings reaches private Share configuration without creating a link; Generate Link and QR remain explicit choices.',devices:[PROFILE]},
-		{id:'terminal-pointer.viewport-coherent',checkpoint:'share-qr-wide',visual:'A real Show QR code click produces the complete local matrix; a narrow resize offers a usable fallback and Back remains clickable.',devices:[PROFILE]},
-		{id:'terminal-settings.navigation.web-hierarchy-and-capabilities',checkpoint:'devices',visual:'Paired-session Account controls stay hidden; Interface and Language are native pages; Devices explains the browser flow.',devices:[PROFILE]},
-		{id:'terminal-settings.shell.responsive-and-restorable',checkpoint:'settings-closed',visual:'Wide and narrow layouts keep the route and edit; Close restores the chat and unsent composer draft.',devices:[PROFILE]},
-		{id:'terminal-settings.operations.validated-and-owner-scoped',checkpoint:'logout-cleared',visual:'Confirmed logout immediately clears the isolated owner chat and draft; invalid native field validation is checked before save.',devices:[PROFILE]},
+		{id:'terminal-chrome.share.explicit-and-private',checkpoint:'share-open',visual:'Share initially shows expiration, password, sensitive-data choices and Generate Link, followed by explicit link actions.',devices:[PROFILE]},
+		{id:'terminal-pointer.viewport-coherent',checkpoint:'share-qr-open',visual:'Share shows a complete QR matrix with Back and Copy controls; the narrow view offers resize or copy guidance.',devices:[PROFILE]},
+		{id:'terminal-settings.navigation.web-hierarchy-and-capabilities',checkpoint:'devices',visual:'Devices explains browser approval and provides Open web destination.',devices:[PROFILE]},
+		{id:'terminal-settings.shell.responsive-and-restorable',checkpoint:'settings-closed',visual:'The settled full-width chat is restored with Keep this unsent draft in its composer.',devices:[PROFILE]},
+		{id:'terminal-settings.operations.validated-and-owner-scoped',checkpoint:'logout-cleared',visual:'The signed-out examples view says Session ended and no longer shows the private chat or draft.',devices:[PROFILE]},
 	],tutorial:contract.tutorial,
 };
 
@@ -185,21 +185,14 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 			{name:'chat-files',click:{text:'  Files'},wait_for:'Open or download an embedded result.',hold_ms:150},
 			{name:'chat-usage',click:{text:'  Usage'},wait_for:'No usage entries for this chat.',hold_ms:150},
 			{name:'chat-share-tab',click:{text:'  Share'},wait_for:'Share chat',hold_ms:150},
-			{name:'share-open',click:{text:'Share chat'},wait_for:'Share settings',hold_ms:150},
-			{name:'share-generated',click:{text:'Generate Link'},wait_for:'Copy Link',hold_ms:350},
-			{name:'share-qr-open',click:{text:'Show QR code'},wait_for:'Share QR code',hold_ms:350},
-			{name:'share-qr-narrow',resize:{width:640,height:360},wait_for:'QR needs',hold_ms:250},
-			{name:'share-qr-wide',resize:{width:1280,height:720},wait_for:'Back to share',hold_ms:300},
-			{name:'share-qr-back',click:{text:'Back to share'},wait_for:'Share settings',hold_ms:150},
-			{name:'share-url',click:{text:'Show URL'},wait_for:'Share URL',hold_ms:200},
-			{name:'url-close',key:'Escape',wait_for:'× Close',wait_for_absent:'Share URL',hold_ms:150},
+			{name:'chat-settings-close',key:'Escape',wait_for:'× Close',wait_for_absent:'Chat settings ·',hold_ms:250},
 			{name:'download-open',click:{text:'Download'},wait_for:'Download to this CLI machine',hold_ms:150},
 			{name:'save-prompt',click:{text:'Save'},wait_for:'Overwrite existing file?',hold_ms:200},
 			{name:'file-saved',click:{text:'Overwrite existing file?'},wait_for:'Saved on this CLI machine:',hold_ms:250},
 			{name:'draft',text:'Keep this unsent draft',hold_ms:250},
 			{name:'settings-root',click:{text:'Settings'},wait_for:'Settings  /  Settings',hold_ms:300},
 			{name:'interface',click:{text:'Interface'},wait_for:'Settings  /  Interface',hold_ms:200},
-			{name:'language',click:{text:'Language'},wait_for:'Language code: en',hold_ms:250},
+			{name:'language',click:{text:'Language'},wait_for:'Language code: en',hold_ms:350},
 			{name:'field-edit',click:{text:'Language code:'},wait_for:'[edit]',hold_ms:150},
 			{name:'invalid-text',text:'invalid',wait_for:'Save changes',hold_ms:150},
 			{name:'edit-end',key:'Return',hold_ms:150},
@@ -209,13 +202,28 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 			{name:'invalid-save',click:{text:'Save changes'},wait_for:'Error:',hold_ms:200},
 			{name:'back-interface',click:{text:'Back to Interface'},wait_for:'Settings  /  Interface',hold_ms:200},
 			{name:'back-root',click:{text:'Back to Settings'},wait_for:'Settings  /  Settings',hold_ms:150},
-			{name:'developers',click:{text:'Developers'},wait_for:'Settings  /  Developers',hold_ms:180},
-			{name:'devices',click:{text:'Devices'},wait_for:'Settings  /  Devices',hold_ms:200},
-			{name:'settings-closed',click:{text:'Close Settings'},wait_for:chat.title,hold_ms:300},
+			{name:'pre-share-settings-closed',click:{text:'Close Settings'},wait_for:'Keep this unsent draft',wait_for_absent:'Settings  /',hold_ms:500},
+			// The canonical walkthrough starts at the settled Share state. Keep
+			// every earlier native-setting/export interaction in the raw recording.
+			{name:'share-open-action',click:{text:'Share'},wait_for:'Share settings',hold_ms:400},
+			{name:'share-open',wait_for:'Share settings',hold_ms:4000},
+			{name:'share-generated',click:{text:'Generate Link'},wait_for:'Copy Link',hold_ms:500},
+			{name:'share-qr-action',click:{text:'Show QR code'},wait_for:'Share QR code',hold_ms:400},
+			{name:'share-qr-open',wait_for:'Share QR code',hold_ms:2000},
+			{name:'share-qr-narrow',resize:{width:640,height:360},wait_for:'QR needs',hold_ms:2500},
+			{name:'share-qr-wide',resize:{width:1280,height:720},wait_for:'Back to share',hold_ms:2000},
+			{name:'share-qr-back',click:{text:'Back to share'},wait_for:'Share settings',hold_ms:250},
+			{name:'share-url',click:{text:'Show URL'},wait_for:'Share URL',hold_ms:1000},
+			{name:'url-close',key:'Escape',wait_for:'× Close',wait_for_absent:'Share URL',hold_ms:350},
+			{name:'settings-for-devices',click:{text:'Settings'},wait_for:'Settings  /  Settings',hold_ms:200},
+			{name:'developers',click:{text:'Developers'},wait_for:'Settings  /  Developers',hold_ms:200},
+			{name:'devices',click:{text:'Devices'},wait_for:'Settings  /  Devices',hold_ms:2500},
+			{name:'settings-close-action',click:{text:'Close Settings'},wait_for:'Keep this unsent draft',wait_for_absent:'Settings  /',hold_ms:400},
+			{name:'settings-closed',wait_for:'Keep this unsent draft',hold_ms:2500},
 			{name:'logout-settings',click:{text:'Settings'},wait_for:'Settings  /  Settings',hold_ms:200},
-			{name:'logout-confirmation',click:{text:'Log out'},wait_for:'Log out of this CLI session?',hold_ms:200},
-			{name:'logout-cleared',click:{text:'Confirm'},wait_for:'Session ended. Sign in to reopen your work.',
-				wait_for_absent:chat.title,hold_ms:300},
+			{name:'logout-confirmation',click:{text:'Log out'},wait_for:'Log out of this CLI session?',hold_ms:250},
+			{name:'logout-action',click:{text:'Confirm'},wait_for:'Session ended. Sign in to reopen your work.',wait_for_absent:chat.title,hold_ms:400},
+			{name:'logout-cleared',wait_for:'Session ended. Sign in to reopen your work.',wait_for_absent:chat.title,hold_ms:2500},
 			{name:'exit-command',text:'/exit'},
 			{name:'exit',key:'Return'},
 		];
@@ -243,6 +251,9 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 		expect(frame(settingsRecording,'settings-root')).not.toMatch(/\d+\.\s+Account\b/);
 		expect(frame(settingsRecording,'settings-root')).toContain(chat.title);
 		expect(frame(settingsRecording,'language')).toContain('Changes the web app language.');
+		for(const name of ['language','field-edit','narrow','wide-again']) {
+			expect(settingsPanelText(settingsRecording,name)).not.toMatch(/account id:|is admin:|key iv:|credential version:|user email salt:|invoice counter:|auto topup/i);
+		}
 		expect(frame(settingsRecording,'field-edit')).toContain('[edit]');
 		expect(frame(settingsRecording,'invalid-text')).toContain('invalid');
 		expect(frame(settingsRecording,'narrow')).toContain('Settings  /  Language');
@@ -252,6 +263,9 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 		expect(settingsPanelText(settingsRecording,'devices')).toContain('Device approval is available in the browser.');
 		expect(frame(settingsRecording,'devices')).toContain('Open web destination');
 		expect(frame(settingsRecording,'settings-closed')).toContain('Keep this unsent draft');
+		const oldDivider=settingsRecording.frame('language')[2].indexOf('│');
+		expect(oldDivider).toBeGreaterThan(0);
+		for(const row of settingsRecording.frame('settings-closed'))expect(row[oldDivider]).not.toBe('│');
 		expect(frame(settingsRecording,'logout-confirmation')).toContain('Confirm');
 		expect(frame(settingsRecording,'logout-confirmation')).toContain('Cancel');
 		expect(frame(settingsRecording,'logout-cleared')).toContain('Session ended. Sign in to reopen your work.');

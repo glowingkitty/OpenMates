@@ -380,33 +380,58 @@ export async function handleTuiSettingsKey(ctx: TuiSettingsContext, chunk: strin
   return true;
 }
 
-function displayValue(key: string, value: unknown): string {
-  if (isSecret(key)) return "[hidden]";
-  if (value === null || value === undefined || value === "") return "—";
+// Server responses contain internal account, crypto and billing fields. Only
+// these route-specific user-facing values may enter the terminal frame.
+const summaryFields: Record<string, readonly [string, string][]> = {
+  "account/info": [["username", "Username"], ["email", "Email"], ["timezone", "Timezone"], ["language", "Language"]],
+  "account/storage": [["used_bytes", "Used bytes"], ["total_bytes", "Total bytes"], ["file_count", "Files"]],
+  "account/chats": [["chat_count", "Chats"], ["message_count", "Messages"]],
+  "billing/overview": [["credits", "Credits"], ["balance", "Balance"], ["currency", "Currency"]],
+  "billing/usage": [["total_credits", "Credits used"], ["total_cost", "Total cost"], ["currency", "Currency"]],
+};
+const listFields: Record<string, { key: string; fields: readonly [string, string][] }> = {
+  "account/storage/files": { key: "files", fields: [["filename", "File"], ["id", "File ID"], ["size", "Bytes"]] },
+  "billing/invoices": { key: "invoices", fields: [["id", "Invoice ID"], ["date", "Date"], ["status", "Status"], ["amount", "Amount"], ["currency", "Currency"]] },
+  "billing/bank-transfer": { key: "orders", fields: [["id", "Order ID"], ["status", "Status"], ["credits", "Credits"], ["amount", "Amount"], ["currency", "Currency"]] },
+  "billing/gift-cards": { key: "gift_cards", fields: [["id", "Gift card ID"], ["credits", "Credits"], ["status", "Status"]] },
+  "billing/gift-cards/bank-transfer": { key: "orders", fields: [["id", "Order ID"], ["status", "Status"], ["credits", "Credits"]] },
+  "developers/api-keys": { key: "api_keys", fields: [["name", "Name"], ["id", "Key ID"], ["full_access", "Full access"], ["expires_at", "Expires"]] },
+  "settings_memories/list": { key: "memories", fields: [["title", "Title"], ["id", "Memory ID"]] },
+};
+const resultFields: Record<string, readonly [string, string][]> = {
+  "billing/bank-transfer": [["order_id", "Order ID"], ["payment_reference", "Reference"], ["iban", "IBAN"], ["recipient", "Recipient"], ["amount", "Amount"], ["currency", "Currency"]],
+  "billing/gift-cards/bank-transfer": [["order_id", "Order ID"], ["payment_reference", "Reference"], ["iban", "IBAN"], ["recipient", "Recipient"], ["amount", "Amount"], ["currency", "Currency"]],
+  "billing/gift-cards": [["credits", "Credits redeemed"]],
+};
+function scalarValue(value: unknown): string | null {
   if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (typeof value === "number" || typeof value === "string") return safeText(value);
-  if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? "" : "s"}`;
-  return `${Object.keys(asObject(value)).length} fields`;
+  if (typeof value === "string" || typeof value === "number") return safeText(value) || null;
+  return null;
 }
-
-function dataLines(value: unknown, width: number, depth = 0): string[] {
-  const entries = Array.isArray(value) ? value.slice(0, 30).map((item, index): [string, unknown] => [String(index + 1), item]) : Object.entries(asObject(value)).slice(0, 30);
-  if (!entries.length) return ["  No values yet."];
-  return entries.flatMap(([key, item]) => {
-    if (isSecret(key)) return [];
-    const label = safeText(key).replaceAll("_", " ");
-    if (Array.isArray(item) && depth < 1) return [
-      `  ${label}: ${item.length} item${item.length === 1 ? "" : "s"}`,
-      ...dataLines(item, width, depth + 1),
-    ];
-    if (item && typeof item === "object" && !Array.isArray(item)) {
-      const row = asObject(item);
-      const nested = asObject(row.data);
-      const name = row.name ?? row.title ?? nested.name ?? nested.title ?? row.filename ?? row.id ?? `Item ${key}`;
-      return wrapCells(`  ${safeText(name)} · ${Object.entries(row).filter(([k, v]) => !isSecret(k) && k !== "name" && k !== "title" && (typeof v === "string" || typeof v === "number" || typeof v === "boolean")).slice(0, 3).map(([k, v]) => `${k.replaceAll("_", " ")}: ${displayValue(k, v)}`).join(" · ")}`, width);
-    }
-    return wrapCells(`  ${label}: ${displayValue(key, item)}`, width);
+function allowedRows(value: unknown, fields: readonly [string, string][], width: number): string[] {
+  const record = asObject(value);
+  return fields.flatMap(([key, label]) => {
+    const shown = scalarValue(record[key]);
+    return shown === null ? [] : wrapCells(`  ${label}: ${shown}`, width);
   });
+}
+function settingsDataLines(page: SettingsPage, value: unknown, width: number, result = false): string[] {
+  if (result) return allowedRows(value, resultFields[page.route] ?? [], width);
+  if (page.save && page.defaults && page.fields) {
+    const defaults = page.defaults(value);
+    return allowedRows(defaults, page.fields.map(({ id, label }) => [id, label]), width);
+  }
+  const summary = summaryFields[page.route];
+  if (summary) return allowedRows(value, summary, width);
+  const list = listFields[page.route];
+  if (!list) return [];
+  const collection = Array.isArray(value) ? value : asObject(value)[list.key];
+  if (!Array.isArray(collection)) return [];
+  return [`  ${collection.length} item${collection.length === 1 ? "" : "s"}`,
+    ...collection.slice(0, 20).flatMap((item, index) => {
+      const detail = allowedRows(item, list.fields, width);
+      return detail.length ? [`  ${index + 1}.`, ...detail] : [];
+    })];
 }
 
 function line(text: string, action?: string, selected = false): TuiLine {
@@ -459,8 +484,14 @@ export function renderTuiSettings(state: TuiSettingsState, width: number): TuiLi
     lines.push("", ...wrapCells(page.webReason ?? "This action requires the browser.", width));
     const index = ids.indexOf("web"); lines.push(line(`${index + 1}. Open web destination`, "web", state.selection === index), ...wrapCells(settingsWebDestination(state.webUrl, page.webOnly), width));
   }
-  if (state.data[page.route] !== undefined && !page.webOnly) lines.push("", "Current values:", ...dataLines(state.data[page.route], width));
-  if (state.lastResult[page.route] !== undefined) lines.push("", "Operation details:", ...dataLines(state.lastResult[page.route], width));
+  if (state.data[page.route] !== undefined && !page.webOnly) {
+    const values = settingsDataLines(page, state.data[page.route], width);
+    if (values.length) lines.push("", "Current values:", ...values);
+  }
+  if (state.lastResult[page.route] !== undefined) {
+    const values = settingsDataLines(page, state.lastResult[page.route], width, true);
+    if (values.length) lines.push("", "Operation details:", ...values);
+  }
   if (state.oneTimeSecret) {
     const index = ids.indexOf("reveal-secret");
     lines.push("", line(`${index + 1}. ${state.secretRevealed ? "Hide" : "Reveal"} new API key`, "reveal-secret", state.selection === index));
