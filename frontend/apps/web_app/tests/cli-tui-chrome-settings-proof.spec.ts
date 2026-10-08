@@ -193,7 +193,7 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 			{name:'settings-root',click:{text:'Settings'},wait_for:'Settings  /  Settings',hold_ms:300},
 			{name:'interface',click:{text:'Interface'},wait_for:'Settings  /  Interface',hold_ms:200},
 			{name:'language',click:{text:'Language'},wait_for:'Language code: en',hold_ms:350},
-			{name:'field-edit',click:{text:'Language code:'},wait_for:'[edit]',hold_ms:150},
+			{name:'field-edit',click:{text:'Language code:',occurrence:0},wait_for:'[edit]',hold_ms:150},
 			{name:'invalid-text',text:'invalid',wait_for:'Save changes',hold_ms:150},
 			{name:'edit-end',key:'Return',hold_ms:150},
 			{name:'narrow',resize:{width:650,height:600},hold_ms:350},
