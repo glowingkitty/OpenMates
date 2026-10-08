@@ -80,6 +80,64 @@ def test_interactive_plan_runs_cli_directly_and_validates_bounded_inputs(tmp_pat
         module.load_input_plan(path)
 
 
+
+def test_settled_screen_markers_preserve_bounded_hold_without_synthetic_input(tmp_path: Path) -> None:
+    module = load_module()
+    path = tmp_path / "settled-input.json"
+    steps = [
+        {"name": "share-open-action", "key": "Return", "wait_for": "Share settings"},
+        {"name": "share-open", "hold_ms": 4000},
+        {"name": "share-qr-open", "hold_ms": 2000},
+        {"name": "settings-closed", "hold_ms": 2500},
+        {"name": "logout-cleared", "hold_ms": 2500},
+    ]
+    path.write_text(json.dumps({"steps": steps}), encoding="utf-8")
+    assert module.load_input_plan(path) == steps
+
+
+
+def test_settled_screen_driver_records_hold_without_new_output_or_synthetic_input(tmp_path: Path, monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    module = load_module()
+    plan = tmp_path / "hold-plan.json"
+    plan.write_text(json.dumps({"steps": [{"name": "settled", "hold_ms": 2500}]}), encoding="utf-8")
+    transcript = tmp_path / "transcript.txt"
+    transcript.write_text("Share settings\n", encoding="utf-8")
+    before = transcript.read_bytes()
+    commands: list[list[str]] = []
+    sleeps: list[float] = []
+
+    def fake_run(argv, **_kwargs):
+        commands.append(argv)
+        return SimpleNamespace(returncode=0, stdout="42\n" if "search" in argv else "", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    monkeypatch.setattr(module.time, "sleep", sleeps.append)
+    checkpoints = module.drive_terminal_inputs(
+        steps=module.load_input_plan(plan), transcript_path=transcript, display=":91",
+        terminal=SimpleNamespace(poll=lambda: None), started_at=module.time.monotonic(),
+        xdotool_binary="xdotool",
+    )
+    assert 2.5 in sleeps
+    assert transcript.read_bytes() == before
+    assert [(point["name"], point["transcript_offset"]) for point in checkpoints] == [("settled", len(before))]
+    assert not any(action in command for command in commands for action in ["key", "type", "click", "mousedown", "mouseup"])
+    assert sum("windowsize" in command for command in commands) == 1, "only the initial window setup may resize"
+
+
+@pytest.mark.parametrize("hold", [None, 0, -1, True, "4000", 100_000])
+def test_settled_screen_markers_reject_missing_invalid_or_unbounded_holds(tmp_path: Path, hold) -> None:
+    module = load_module()
+    path = tmp_path / "invalid-hold.json"
+    step = {"name": "settled"}
+    if hold is not None:
+        step["hold_ms"] = hold
+    path.write_text(json.dumps({"steps": [step]}), encoding="utf-8")
+    with pytest.raises(module.CliCaptureError):
+        module.load_input_plan(path)
+
+
 def test_pointer_proof_key_sequence_passes_recorder_validation(tmp_path: Path) -> None:
     module = load_module()
     path = tmp_path / "pointer-input.json"

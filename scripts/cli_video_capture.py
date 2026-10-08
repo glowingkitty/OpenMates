@@ -83,8 +83,12 @@ def load_input_plan(path: Path) -> list[dict[str, Any]]:
             raise CliCaptureError("Terminal input step names must be unique slugs")
         names.add(name)
         input_count = sum(field in step for field in ("text", "key", "wheel", "click", "resize"))
-        if input_count != 1 and not (input_count == 0 and "wait_for" in step):
-            raise CliCaptureError(f"Step {name} needs exactly one input, or only a wait_for marker")
+        # A named hold after a ready action records a settled screen without
+        # requiring output to be emitted again or sending a synthetic input.
+        hold = step.get("hold_ms")
+        hold_marker = isinstance(hold, int) and not isinstance(hold, bool) and hold > 0
+        if input_count != 1 and not (input_count == 0 and ("wait_for" in step or hold_marker)):
+            raise CliCaptureError(f"Step {name} needs exactly one input, a wait_for marker or a positive bounded hold")
         if "text" in step:
             value = step["text"]
             if not isinstance(value, str) or not value or len(value) > 256 or "\n" in value or "\r" in value:
