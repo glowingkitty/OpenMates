@@ -4,9 +4,10 @@
  * The controller implements the same interface as the production controller.
  * Preview actions mutate only in-memory state and never request a microphone.
  */
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { initialCallState, type CallControllerLike, type CallState } from './callController';
 import { CallAudio } from './callAudio';
+import { text } from '../../i18n/translations';
 import clipA from '../../../../../apps/web_app/tests/fixtures/video-call-clip-a.mp4?url';
 import clipB from '../../../../../apps/web_app/tests/fixtures/video-call-clip-b.mp4?url';
 import audioClip from '../../../../../apps/web_app/tests/fixtures/video-call-clip-audio.webm?url';
@@ -33,7 +34,11 @@ class PreviewCallController implements CallControllerLike {
         if (detail.type === 'idle') this.update({ videoDraining: true, videoPending: false });
         if (detail.type === 'idle_pending') this.update({ videoDraining: true, videoPending: true });
         if (detail.type === 'complete' && this.state.visualsAllowed) this.update({ videoStatus: this.hasUnplayedClip() ? 'playing' : 'off', videoPending: false });
-        if (detail.type === 'unavailable' && this.state.visualsAllowed) this.update({ videoStatus: this.hasUnplayedClip() ? 'playing' : 'off', videoPending: false });
+        if (detail.type === 'unavailable' && this.state.visualsAllowed) this.update({ error: get(text)('videocall.visual_unavailable'), videoStatus: this.hasUnplayedClip() ? 'playing' : 'off', videoPending: false });
+        if (detail.type === 'time_limit' && this.state.status === 'live') {
+          this.audio?.stop(); this.audio = null; this.drainComplete = false; this.playedClips.clear();
+          this.update({ status: 'ended', endReason: 'time_limit', error: null, elapsedSeconds: this.state.maxDurationSeconds, videoDraining: false, videoStatus: 'off', videoPending: false, clips: [], userSpeaking: false, modelSpeaking: false });
+        }
         if (detail.type === 'drain_complete') { this.drainComplete = true; this.update({ videoPending: false }); this.finishDrain(); }
         if (detail.type === 'audio_interrupted') this.update({ modelSpeaking: false });
         if (detail.type === 'model_speaking') this.update({ modelSpeaking: true, userSpeaking: false });
@@ -46,11 +51,11 @@ class PreviewCallController implements CallControllerLike {
           for (const playedId of this.playedClips) {
             if (!clips.some((clip) => clip.id === playedId)) this.playedClips.delete(playedId);
           }
-          this.update({ clips, videoPending: false, videoStatus: 'playing' });
+          this.update({ clips, error: null, videoPending: false, videoStatus: 'playing' });
         }
         if (detail.type === 'ready_audio' || detail.type === 'ready_mp4_audio') {
           if (this.state.status !== 'live' || !this.state.visualsAllowed) return;
-          this.update({ clips: [{ id: detail.type, url: detail.type === 'ready_audio' ? audioClip : mp4AudioClip, durationSeconds: 1.5 }], videoPending: false, videoStatus: 'playing' });
+          this.update({ clips: [{ id: detail.type, url: detail.type === 'ready_audio' ? audioClip : mp4AudioClip, durationSeconds: 1.5 }], error: null, videoPending: false, videoStatus: 'playing' });
         }
       });
     }
@@ -72,11 +77,11 @@ class PreviewCallController implements CallControllerLike {
     this.audio = new CallAudio(() => {}, () => {});
     this.audio.unlock();
     this.drainComplete = false; this.playedClips.clear(); this.nextClipId = 1;
-    this.update({ status: 'live', error: null, elapsedSeconds: 1, clips: [], visualsAllowed: true, videoStatus: 'off', videoPending: false, videoDraining: false, transcripts: [{ role: 'model', text: 'Hi! What would you like to explore?', final: true }] });
+    this.update({ status: 'live', endReason: null, error: null, elapsedSeconds: 1, clips: [], visualsAllowed: true, videoStatus: 'off', videoPending: false, videoDraining: false, transcripts: [{ role: 'model', text: 'Hi! What would you like to explore?', final: true }] });
   }
   stopVisuals() { this.drainComplete = false; this.playedClips.clear(); this.update({ visualsAllowed: false, videoDraining: false, videoStatus: 'off', videoPending: false, clips: [] }); }
   allowVisuals() { this.drainComplete = false; this.update({ visualsAllowed: true, videoDraining: false, videoStatus: 'queued' }); }
-  hangup() { this.audio?.stop(); this.audio = null; this.drainComplete = false; this.playedClips.clear(); this.update({ status: 'ended', videoDraining: false, videoStatus: 'off', videoPending: false, clips: [] }); }
+  hangup() { this.audio?.stop(); this.audio = null; this.drainComplete = false; this.playedClips.clear(); this.update({ status: 'ended', endReason: null, error: null, videoDraining: false, videoStatus: 'off', videoPending: false, clips: [], userSpeaking: false, modelSpeaking: false }); }
   sendVideoFrame() { /* Preview transport is inert. */ }
   sendContinuationFrame(clipId: string) { window.dispatchEvent(new CustomEvent('video-call-preview-continuation', { detail: clipId })); }
   videoPlaybackEnded(clipId: string) {

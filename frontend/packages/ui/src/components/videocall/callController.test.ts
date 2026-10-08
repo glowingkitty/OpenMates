@@ -64,6 +64,38 @@ describe('video call session state', () => {
     controller.dispose();
   });
 
+  // contract-test: direct surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.user-stop
+  it('marks the two-minute limit as normal completion while preserving terminal errors', () => {
+    const expired = new VideoCallController();
+    emit(expired, { type: 'ready', max_duration_seconds: 120 });
+    emit(expired, { type: 'error', code: 'video_unavailable' });
+    expect(get(expired).error).toBe('A visual is unavailable. Voice continues.');
+    emit(expired, { type: 'ended', reason: 'time_limit' });
+    expect(get(expired)).toMatchObject({ status: 'ended', endReason: 'time_limit', elapsedSeconds: 120, error: null, clips: [] });
+
+    const failed = new VideoCallController();
+    emit(failed, { type: 'ready', max_duration_seconds: 120 });
+    emit(failed, { type: 'error', code: 'provider_failure' });
+    expect(get(failed)).toMatchObject({ status: 'error', endReason: null, error: 'The call is unavailable right now. Please try again.' });
+
+    const hungUp = new VideoCallController();
+    emit(hungUp, { type: 'ready', max_duration_seconds: 120 });
+    hungUp.hangup();
+    expect(get(hungUp)).toMatchObject({ status: 'ended', endReason: null, error: null });
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.experiment.generated-visuals,video-call.experiment.live-voice
+  it('clears a recoverable visual warning when a later clip succeeds', () => {
+    const controller = new VideoCallController();
+    emit(controller, { type: 'ready' });
+    emit(controller, { type: 'error', code: 'video_unavailable' });
+    expect(get(controller)).toMatchObject({ status: 'live', videoStatus: 'off', error: 'A visual is unavailable. Voice continues.' });
+    emit(controller, { type: 'video.ready', clip_id: 'recovered', data: btoa('abcd') });
+    expect(get(controller)).toMatchObject({ status: 'live', videoStatus: 'playing', error: null });
+    expect(get(controller).clips.map((clip) => clip.id)).toEqual(['recovered']);
+    controller.dispose();
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.generated-visuals
   it('accumulates streamed transcript fragments, keeps voice live on visual failure, and releases clips', () => {
     const controller = new VideoCallController();

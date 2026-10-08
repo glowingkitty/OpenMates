@@ -198,6 +198,11 @@ ended:
   en: Call ended. Your audio and visuals were released.
   de: Anruf beendet. Audio und Video wurden freigegeben.
   verified_by_human: []
+time_limit_reached:
+  context: Normal call completion after the two-minute video experiment limit
+  en: The two-minute experiment limit was reached. Your call has ended.
+  de: Das Zwei-Minuten-Limit des Experiments wurde erreicht. Dein Anruf ist beendet.
+  verified_by_human: []
 start:
   context: Start first call button
   en: Start call

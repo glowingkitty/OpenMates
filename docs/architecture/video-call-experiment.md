@@ -67,7 +67,11 @@ visual failure and continues voice without submitting a text-only paid fallback.
 User Close video clears the held scene, fences late results and blocks new visual
 requests until explicitly re-enabled. Hangup, expiry and disconnect release
 retained media and stop further paid work. The experiment ends after two minutes and does not reconnect
-automatically. Wide screens show transcript and video together; narrow screens
+automatically. Normal expiry shows an explicit two-minute-limit completion notice;
+successful visual delivery clears any earlier recoverable visual warning. Normal
+termination logs record the reason, elapsed time and ephemeral call ID; terminal
+failure logs retain those fields with the exception type and origin, without
+transcripts, media or provider payloads. Wide screens show transcript and video together; narrow screens
 retain call controls and transcript access over the video experience.
 
 MP4 files and browser Blob URLs are transient. Server downloads accept bounded

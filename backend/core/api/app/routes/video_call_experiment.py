@@ -629,6 +629,7 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 last_auth_check = now
                             if now - started >= MAX_SECONDS:
                                 await send({"type": "ended", "reason": "time_limit"})
+                                logger.info("Video call ended reason=time_limit elapsed=%.1fs call_id=%s", now - started, call_id)
                                 break
                             if visuals_allowed and pending_prompts and (active_video is None or active_video.done()):
                                 active_video = asyncio.create_task(generate_visual(pending_prompts.popleft(), segment_epoch))
@@ -688,6 +689,7 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                     latest_clip_id = None
                                 elif event_type == "hangup":
                                     await send({"type": "ended", "reason": "user"})
+                                    logger.info("Video call ended reason=user elapsed=%.1fs call_id=%s", time.monotonic() - started, call_id)
                                     break
                                 else:
                                     raise ValueError("Unknown call event")
@@ -767,7 +769,11 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         origin = frames[-1] if frames else None
         # Function/line identify the validation branch without logging the
         # exception text, provider payload, transcript or captured media.
-        logger.warning("Video call ended with %s at %s:%s", type(exc).__name__, origin.name if origin else "unknown", origin.lineno if origin else 0)
+        logger.warning(
+            "Video call ended with %s at %s:%s elapsed=%.1fs call_id=%s",
+            type(exc).__name__, origin.name if origin else "unknown", origin.lineno if origin else 0,
+            time.monotonic() - started, call_id,
+        )
         try:
             # Media cleanup fences background sends before this handler. A
             # connected caller must still receive the terminal call error.

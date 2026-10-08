@@ -31,6 +31,7 @@ export interface CallUsage {
 }
 export interface CallState {
   status: CallStatus;
+  endReason: 'time_limit' | null;
   error: string | null;
   elapsedSeconds: number;
   maxDurationSeconds: number;
@@ -58,7 +59,7 @@ export interface CallControllerLike extends Readable<CallState> {
 }
 
 export const initialCallState: CallState = {
-  status: 'idle', error: null, elapsedSeconds: 0, maxDurationSeconds: 120,
+  status: 'idle', endReason: null, error: null, elapsedSeconds: 0, maxDurationSeconds: 120,
   visualsAllowed: true, videoStatus: 'off', videoPending: false, videoDraining: false, clips: [], transcripts: [], usage: null,
   userSpeaking: false, modelSpeaking: false,
 };
@@ -168,7 +169,7 @@ export class VideoCallController implements CallControllerLike {
       URL.revokeObjectURL(expired.url);
       this.playedClipIds.delete(expired.id);
     }
-    this.update({ clips: clips.slice(-4), videoStatus: 'playing', videoPending: false });
+    this.update({ clips: clips.slice(-4), error: null, videoStatus: 'playing', videoPending: false });
   }
 
   private handleBinaryVideo(data: ArrayBuffer): void {
@@ -268,7 +269,7 @@ export class VideoCallController implements CallControllerLike {
         this.finish('error');
         break;
       case 'ended':
-        this.finish('ended');
+        this.finish('ended', message.reason === 'time_limit' ? 'time_limit' : null);
         break;
     }
   }
@@ -327,7 +328,7 @@ export class VideoCallController implements CallControllerLike {
     this.send({ type: 'allow_visuals' });
   }
 
-  private finish(status: 'ended' | 'error'): void {
+  private finish(status: 'ended' | 'error', endReason: 'time_limit' | null = null): void {
     if (this.ticker) clearInterval(this.ticker);
     this.ticker = null;
     this.audio?.stop();
@@ -336,7 +337,11 @@ export class VideoCallController implements CallControllerLike {
     this.socket?.close();
     this.socket = null;
     this.clearVisuals();
-    this.update({ status, userSpeaking: false, modelSpeaking: false });
+    this.update({
+      status, endReason, error: status === 'ended' ? null : this.state.error,
+      elapsedSeconds: endReason === 'time_limit' ? this.state.maxDurationSeconds : this.state.elapsedSeconds,
+      userSpeaking: false, modelSpeaking: false,
+    });
   }
 
   hangup(): void {

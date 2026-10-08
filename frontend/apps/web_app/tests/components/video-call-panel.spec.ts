@@ -84,6 +84,23 @@ test.describe('Video call experiment panel', () => {
     await expect(page.getByText('Call ended. Your audio and visuals were released.')).toBeVisible();
   });
 
+  // contract-test: direct surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.user-stop
+  test('shows a normal two-minute limit notice and releases live controls', async ({ page }) => {
+    await page.goto(preview());
+    await waitForComponentPreview(page);
+    await page.getByTestId('call-start').click();
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'unavailable' } })));
+    await expect(page.getByText('A visual is unavailable. Voice continues.')).toBeVisible();
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'time_limit' } })));
+    await expect(page.getByText('The two-minute experiment limit was reached. Your call has ended.')).toBeVisible();
+    await expect(page.getByText('A visual is unavailable. Voice continues.')).toHaveCount(0);
+    await expect(page.getByTestId('call-timer')).toContainText('2:00');
+    await expect(page.getByTestId('call-hangup')).toHaveCount(0);
+    await expect(page.getByTestId('call-stop-video')).toHaveCount(0);
+    await expect(page.getByTestId('call-video')).toHaveCount(0);
+    await expect(page.getByTestId('call-start')).toBeVisible();
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.experiment.billing,video-call.experiment.generated-visuals,video-call.experiment.user-stop
   test('shows server rates and lets the caller stop and allow visuals independently', async ({ page }) => {
     await page.goto(preview('visuals'));

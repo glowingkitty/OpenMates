@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: video-call-experiment
 title: Gemini Voice And H3 Turbo Experiment
-status: verified
+status: implementing
 goal: >
   Implement a first test to see how well such a system can actually work, before
   spending more time on it: a basic /experiment/videocall page for Gemini voice
@@ -108,7 +108,8 @@ verification:
 
 verification_evidence:
   backend: 38 focused mocked route/provider/billing tests passed, including request-driven clips, repeated tool IDs, held-frame reuse after failure, missing-frame refusal without a paid fallback, continuous voice, binary delivery and stop fencing; Ruff passed.
-  frontend: Eleven focused audio/controller tests passed, including held frames across requests, audio-only state after completion or failure, independent decoded ambience, binary delivery and explicit-stop fencing; changed-path ESLint and panel compilation passed.
+  frontend: Thirteen focused audio/controller tests passed, including held frames across requests, audio-only state after completion or failure, independent decoded ambience, binary delivery, explicit-stop fencing, clear time-limit completion and recovery from a stale visual warning; changed-path ESLint, translation generation and panel compilation passed.
+  termination_diagnostics: Normal time-limit and user-hangup paths now log reason, elapsed time and ephemeral call ID. Sanitized terminal failure logs include elapsed time and call ID for correlation. This logging-only backend update passed compilation, Ruff and diff checks; provider behavior, billing and the two-minute limit are unchanged.
   component:
     source: f4f20b3d89e0ab00f86bac69c5f82b355bffba4a
     request: 6773bed37ab234116ab7ecd3358ced2d37d69bd59e62393d0e9001b8b4b166e8

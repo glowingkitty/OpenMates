@@ -230,7 +230,7 @@
 
   {#if state.status === 'idle' || state.status === 'ended' || state.status === 'error'}
     <div class="start-area">
-      {#if state.status === 'ended'}<p role="status">{$text('videocall.ended')}</p>{/if}
+      {#if state.status === 'ended'}<p role="status">{$text(state.endReason === 'time_limit' ? 'videocall.time_limit_reached' : 'videocall.ended')}</p>{/if}
       {#if state.error}<p class="error" role="alert">{state.error}</p>{/if}
       <button class="start-button" type="button" onclick={() => void controller.start()} data-testid="call-start">{state.status === 'idle' ? $text('videocall.start') : $text('videocall.restart')}</button>
       <p class="privacy">{$text('videocall.privacy')}</p>
