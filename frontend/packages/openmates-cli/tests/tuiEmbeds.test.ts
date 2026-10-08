@@ -90,7 +90,7 @@ test('header title is bold, nav omits chat title and active workspace has a colo
 });
 test('composer caret follows Unicode, wrapping and cursor editing on large workspaces',async()=>{
   const state=createInitialTuiState();state.focus='composer';state.input='漢🧪abc';state.inputCursor=3;
-  assert.deepEqual(tuiComposerCursor(state,160,24),{row:21,column:38});
+  assert.deepEqual(tuiComposerCursor(state,160,24),{row:20,column:38},'AI action row reserves one composer line');
   state.workspace='tasks';state.screen='tasks';assert.deepEqual(tuiComposerCursor(state,240,24),{row:21,column:78});
   state.input='one\ntwo\nthree\nfour\nfive';state.inputCursor=1;
   const rows=stripAnsi(renderTuiFrame(state,160,24)).split('\n');assert.ok(rows.some(row=>row.includes('> one')));assert.ok(!rows.some(row=>row.includes('five')));

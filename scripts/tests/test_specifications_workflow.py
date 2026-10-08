@@ -168,6 +168,71 @@ def test_registry_rejects_duplicate_global_assertion_ids(tmp_path):
 
 
 # contract-test: tooling
+@pytest.mark.parametrize("history_first", [True, False])
+def test_registry_migrates_assertion_to_named_successor_and_keeps_unique_history(tmp_path, history_first):
+    module = load_module()
+    specifications_root = tmp_path / "specifications"
+    history_root = "a-history" if history_first else "z-history"
+    active_root = "z-active" if history_first else "a-active"
+    history = write_bundle(
+        specifications_root / history_root,
+        specification_id="feature.old",
+        assertion_id="shared.assertion",
+    )
+    history_path = history / "specification.yml"
+    old_specification = yaml.safe_load(history_path.read_text(encoding="utf-8"))
+    old_specification["status"] = "superseded"
+    old_specification["superseded_by"] = "feature.current@1"
+    old_specification["assertions"][0]["must"] = "  Invalid requests are\n rejected before execution.  "
+    old_specification["assertions"].append({
+        "id": "historical.only",
+        "type": "validation",
+        "must": "Historical behavior is retained in the old bundle.",
+    })
+    history_path.write_text(yaml.safe_dump(old_specification, sort_keys=False), encoding="utf-8")
+    write_bundle(
+        specifications_root / active_root,
+        specification_id="feature.current",
+        assertion_id="shared.assertion",
+    )
+
+    registry = module.build_registry(specifications_root)
+
+    assert registry["specifications"]["feature.old"]["status"] == "superseded"
+    assert registry["specifications"]["feature.old"]["superseded_by"] == "feature.current@1"
+    assert registry["specifications"]["feature.current"]["status"] == "approved"
+    assert set(registry["assertions"]) == {"shared.assertion", "historical.only"}
+    assert registry["assertions"]["shared.assertion"]["specification"] == "feature.current@1"
+    assert registry["assertions"]["historical.only"]["specification"] == "feature.old@1"
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("change", ["missing_successor", "wrong_successor", "changed_type", "changed_must"])
+def test_registry_rejects_incompatible_historical_assertion_migration(tmp_path, change):
+    module = load_module()
+    specifications_root = tmp_path / "specifications"
+    history = write_bundle(
+        specifications_root, specification_id="feature.old", assertion_id="shared.assertion",
+    )
+    write_bundle(
+        specifications_root / "successor", specification_id="feature.current", assertion_id="shared.assertion",
+    )
+    history_path = history / "specification.yml"
+    old_specification = yaml.safe_load(history_path.read_text(encoding="utf-8"))
+    old_specification["status"] = "superseded"
+    if change != "missing_successor":
+        old_specification["superseded_by"] = "feature.current@1" if change != "wrong_successor" else "feature.other@1"
+    if change == "changed_type":
+        old_specification["assertions"][0]["type"] = "failure"
+    if change == "changed_must":
+        old_specification["assertions"][0]["must"] = "A different requirement."
+    history_path.write_text(yaml.safe_dump(old_specification, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(module.SpecificationError, match="duplicate assertion id|invalid superseded_by"):
+        module.build_registry(specifications_root)
+
+
+# contract-test: tooling
 def test_examples_change_invalidates_bundle_fingerprint(tmp_path):
     module = load_module()
     bundle = write_bundle(tmp_path / "specifications")

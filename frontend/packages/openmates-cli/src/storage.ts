@@ -429,6 +429,7 @@ function clearSessionLocked(): void {
     rmSync(filePath);
   }
   rmSync(join(getStateDir(), "tui_workspace_cache.json"), { force: true });
+  rmSync(join(getStateDir(), "chat_model_preferences.json"), { force: true });
   if (cleanupError) throw cleanupError;
 }
 

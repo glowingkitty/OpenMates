@@ -19,7 +19,7 @@ const inspiration={id:"daily",phrase:"Make room for the next idea",title:"A dail
 const chat=(i:number)=>({id:`chat-${i}`,shortId:`C${i}`,title:`Conversation ${i}`,summary:`Summary ${i}`,category:"technology",mateName:null,updatedAt:null});
 const app=(id:string,name:string):TuiApp=>({id,name,description:`${name} description`,category:"general_knowledge",skills:[],focusModes:[],settingsMemories:[]});
 
-// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent,terminal-ui.offline.cache-first
 test("opening a cached chat renders messages before slow draft lookup and preserves new input", async () => {
   const state=createInitialTuiState();state.signedIn=true;
   let draft!:(value:{markdown:string})=>void;
@@ -40,7 +40,7 @@ test("opening a cached chat renders messages before slow draft lookup and preser
   assert.equal(state.input,'New text');
 });
 
-// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent,terminal-ui.offline.cache-first
 test("startup renders cached chats before background sync and preserves the selected chat when sync finishes", async () => {
   const state=createInitialTuiState();state.signedIn=true;
   let sync!:(page:unknown)=>void, inspiration!:(list:unknown[])=>void;
@@ -74,7 +74,7 @@ test("startup renders cached chats before background sync and preserves the sele
   inspiration([]);await loading;
 });
 
-// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent,terminal-ui.offline.cache-first
 test("cold startup shows verified synced previews while saved output recovery is still pending", async () => {
   const state=createInitialTuiState();state.signedIn=true;
   let finish!:(page:unknown)=>void;
@@ -97,7 +97,7 @@ test("cold startup shows verified synced previews while saved output recovery is
   finish({chats:[chat(3)]});await loading;assert.deepEqual(state.recentChats,[]);
 });
 
-// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent,terminal-ui.offline.cache-first
 test("failed sync keeps cached chats usable and a cold failure stops loading without waiting for inspiration", async () => {
   for(const cached of [[],[chat(1)]]) {
     const state=createInitialTuiState();state.signedIn=true;
@@ -117,7 +117,7 @@ test("failed sync keeps cached chats usable and a cold failure stops loading wit
   }
 });
 
-// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent,terminal-ui.offline.cache-first
 test("cached chat sync failures keep their actionable status in either activity failure order", async () => {
   for(const activityFirst of [false,true]) {
     const state=createInitialTuiState();state.signedIn=true;
@@ -137,7 +137,7 @@ test("cached chat sync failures keep their actionable status in either activity 
   }
 });
 
-// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent,terminal-ui.offline.cache-first
 test("cached sync failure preserves an existing user action error", async () => {
   const state=createInitialTuiState();state.signedIn=true;state.status='Could not open selected embed. Use /embed to retry.';
   await loadHomeData(state,{
@@ -148,7 +148,7 @@ test("cached sync failure preserves an existing user action error", async () => 
   assert.equal(state.status,'Could not open selected embed. Use /embed to retry.');
 });
 
-// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent,terminal-ui.offline.cache-first
 test("late cached home data cannot restore private chats after account reset", async () => {
   let cached!:(page:unknown)=>void,syncs=0;
   const state=createInitialTuiState();state.signedIn=true;
@@ -161,7 +161,7 @@ test("late cached home data cannot restore private chats after account reset", a
   assert.deepEqual(state.recentChats,[]);assert.equal(syncs,0);
 });
 
-// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,terminal-ui.workspaces.web-aligned
 test("authenticated default home loads inspiration username and horizontal keyboard-selected chats",async()=>{
   const state=createInitialTuiState();state.signedIn=true;
   await loadHomeData(state,{getDailyInspirations:async()=>[inspiration],whoAmI:async()=>({username:"Alex"}),listChats:async()=>({chats:[chat(1),chat(2),chat(3),chat(4)]})} as never,()=>{});
@@ -189,6 +189,7 @@ test("late home data cannot repopulate decrypted state after account reset",asyn
   assert.equal(state.username,null);assert.equal(state.signedIn,false);
 });
 
+// contract-test: supporting surface=cli assertions=terminal-ui.workspaces.web-aligned
 test("every workspace has shared colored inspiration and Apps shows web headings without a composer",()=>{
   for(const workspace of ["chats","projects","workflows","tasks","apps"] as const){
     const state=createInitialTuiState();state.workspace=workspace;state.screen=workspace;state.focus="content";
@@ -397,7 +398,7 @@ test("remembered items and due chats precede recents while dated embeds obey the
   assert.equal(homeContinueItems(state,now+48*3600000).some(item=>item.kind==='embed' && item.embedId==='Soon event'),false);
 });
 
-// contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,cli.surface.semantic-parity
+// contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,cli.surface.semantic-parity,terminal-ui.home.upcoming-only
 test("saved event highlights end at date_end or date_start and hide invalid dates",()=>{
   const state=createInitialTuiState(),now=Date.parse("2026-10-06T12:00:00Z");
   state.signedIn=true;state.recentChats=[chat(1)];
@@ -420,7 +421,7 @@ test("saved event highlights end at date_end or date_start and hide invalid date
   assert.equal(homeContinueItems(state,now).at(-1)?.kind,"chat");
 });
 
-// contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,cli.surface.semantic-parity
+// contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,cli.surface.semantic-parity,terminal-ui.home.upcoming-only
 test("saved items with explicit end times expire across apps while undated items keep reminder eligibility",()=>{
   const state=createInitialTuiState(),now=Date.parse("2026-10-06T12:00:00Z");state.signedIn=true;
   const memory=(id:string,appId:string,data:Record<string,unknown>)=>({id,app_id:appId,
@@ -437,7 +438,7 @@ test("saved items with explicit end times expire across apps while undated items
   assert.deepEqual(ids(now+1001),["Undated note"]);
 });
 
-// contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,cli.surface.semantic-parity
+// contract-test: supporting surface=cli assertions=continue-carousel.saved-item.start-time-gated,cli.surface.semantic-parity,terminal-ui.home.upcoming-only
 test("idle home rerenders at event expiry and keeps the next selected item",async()=>{
   const state=createInitialTuiState();state.signedIn=true;state.recentChats=[chat(1)];
   const now=Date.now(),end=new Date(now+80).toISOString();

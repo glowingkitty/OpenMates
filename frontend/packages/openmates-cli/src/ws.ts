@@ -831,7 +831,7 @@ export class OpenMatesWsClient {
   }
 
   waitForMessage(
-    expectedType: string,
+    expectedType: string | readonly string[],
     predicate?: (payload: unknown) => boolean,
     timeoutMs = 20_000,
   ): Promise<WsEnvelope> {
@@ -852,7 +852,7 @@ export class OpenMatesWsClient {
             reject(protocolError);
             return;
           }
-          if (parsed.type !== expectedType) {
+          if (!(Array.isArray(expectedType) ? expectedType.includes(parsed.type) : parsed.type === expectedType)) {
             return;
           }
           if (predicate && !predicate(parsed.payload)) {

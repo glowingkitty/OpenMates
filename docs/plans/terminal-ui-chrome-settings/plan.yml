@@ -1,0 +1,31 @@
+schema_version: 2
+profile: concise
+id: terminal-ui-chrome-settings
+title: Fullscreen terminal navigation and responsive settings
+status: implementing
+goal: Since we have clickable elements, add the web app breadcrumbs, close, share, copy, download, more
+  and back controls to chat and embed fullscreen headers, plus top-right Settings opening on the left
+  in split view when wide enough and fullscreen otherwise. Ensure one single TUI specification, then implement.
+specifications:
+- feature.terminal-ui@1
+approval:
+  confirmation: explicit_user_confirmation
+  fingerprint: f763d91f38570ae87752eac8c243de8a963826241b01349831f2650d1e60d13c
+  context: User explicitly requested consolidation then implementation after reviewing the complete fullscreen/settings
+    scope; existing pointer assertion IDs and earlier implemented requirements are preserved.
+task: b635ba39-4329-497b-89f1-e2e67be7e812
+scope:
+  in:
+  - Functional contextual fullscreen controls, origin-preserving back and close.
+  - Explicit private share configuration, supported copy/export with fallback and overwrite confirmation.
+  - Responsive left settings panel with web hierarchy and capability-aware native or web-only pages.
+  - Responsive chat and embed header sizes with horizontally centered identity and action content.
+  - One consolidated terminal Specification; retain existing terminal interactions and caching.
+  out:
+  - New backend APIs, sharing encryption changes, web/Apple product edits or browser checkout emulation.
+verification:
+- Focused TUI unit tests, CLI lint and build.
+- Source-bound isolated GitHub terminal E2E recording with real clicks, keyboard and resize.
+- Authenticated disposable-fixture dev CLI proof of centered headers at narrow and wide widths when isolated CI cannot start the terminal.
+- Download/upload and deliver all captured CI videos.
+- Scoped dev deployment and installed CLI source verification.

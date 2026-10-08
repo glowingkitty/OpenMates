@@ -18,6 +18,11 @@ export {
   reconcileAuthoritativeChats,
 } from "./client.js";
 export { serializeToYaml, getExtForLang } from "./cli.js";
+export { createChatModelPreferences } from "./chatModelPreferences.js";
+export type {
+  ChatModelCatalog, ChatModelCatalogEntry, ChatModelPreferenceState, ChatModelPreferences,
+  ChatModelSelection, ChatModelValidation,
+} from "./chatModelPreferences.js";
 export {
   projectAssistantSpeech,
   selectAssistantMessagesForSpeech,

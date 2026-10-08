@@ -78,6 +78,18 @@ import { registerRemoteCommandOriginClient, type DecryptedRemoteCommandEvent, ty
 import type { ProjectReadApprovalRequest, ProjectWriteApprovalRequest } from "../../ui/src/services/projectFileJobExecutor.js";
 import type { HostedProjectFileHead } from "../../ui/src/services/hostedProjectFileExecutor.js";
 export type { ProjectReadApprovalRequest, ProjectWriteApprovalRequest } from "../../ui/src/services/projectFileJobExecutor.js";
+
+function parseCliChatModelPreference(payload: unknown): { ciphertext: string; version: number } | null {
+  if (!payload || typeof payload !== "object") throw new Error("Invalid chat model preference response.");
+  const record = (payload as Record<string, unknown>).preference;
+  if (record === null) return null;
+  if (!record || typeof record !== "object") throw new Error("Invalid chat model preference response.");
+  const value = record as Record<string, unknown>;
+  if (typeof value.encrypted_selected_ai_model !== "string" ||
+      !Number.isSafeInteger(value.preference_v) || (value.preference_v as number) < 1)
+    throw new Error("Invalid chat model preference response.");
+  return { ciphertext: value.encrypted_selected_ai_model, version: value.preference_v as number };
+}
 import {
   OpenMatesWsClient,
   WebSocketProtocolError,
@@ -9952,6 +9964,68 @@ export class OpenMatesClient {
     const response = await this.http.get("/v1/apps/metadata?include_unavailable=true", this.getCliRequestHeaders());
     if (!response.ok) throw new Error(`Apps catalog failed with HTTP ${response.status}`);
     return response.data;
+  }
+
+  /** Public model-picker sources. The normal Apps list reflects configured routes. */
+  async getChatModelCatalogSources(): Promise<{
+    all: unknown; available: unknown; routes: unknown; health: unknown;
+  }> {
+    const request = async (path: string): Promise<unknown> => {
+      const response = await this.http.get(path, this.getCliRequestHeaders());
+      if (!response.ok) throw new Error(`Model catalog failed with HTTP ${response.status}`);
+      return response.data;
+    };
+    const [all, available, routes, health] = await Promise.all([
+      request("/v1/apps/metadata?include_unavailable=true"),
+      request("/v1/apps/metadata"),
+      request("/v1/models"),
+      request("/v1/health").catch(() => null),
+    ]);
+    return { all, available, routes, health };
+  }
+
+  /** Fetches only opaque per-user/chat preference ciphertext over the existing WS contract. */
+  async getChatModelPreference(chatId: string, teamId: string | null = this.resolveTeamContext()): Promise<{
+    ciphertext: string; version: number;
+  } | null> {
+    if (!chatId.trim()) throw new Error("Chat ID is required.");
+    const { ws } = await this.openWsClient({ taskUpdateJobs: false });
+    try {
+      const response = ws.waitForMessage("chat_model_preference", payload =>
+        !!payload && typeof payload === "object" &&
+        (payload as Record<string, unknown>).chat_id === chatId, 10_000);
+      void response.catch(() => {});
+      await ws.sendAsync("get_chat_model_preference", {
+        chat_id: chatId, ...(teamId ? { team_id: teamId } : {}),
+      });
+      const frame = await response;
+      return parseCliChatModelPreference(frame.payload);
+    } finally { ws.close(); }
+  }
+
+  /** CAS conflict returns null; callers reconcile and retry with the remote version. */
+  async compareAndSetChatModelPreference(
+    chatId: string, ciphertext: string, expectedVersion: number,
+    teamId: string | null = this.resolveTeamContext(),
+  ): Promise<{ ciphertext: string; version: number } | null> {
+    if (!chatId.trim() || !ciphertext || !Number.isSafeInteger(expectedVersion) || expectedVersion < 0)
+      throw new Error("Invalid chat model preference update.");
+    const { ws } = await this.openWsClient({ taskUpdateJobs: false });
+    try {
+      const response = ws.waitForMessage(
+        ["chat_model_preference_updated", "chat_model_preference_conflict"],
+        payload => !!payload && typeof payload === "object" &&
+          (payload as Record<string, unknown>).chat_id === chatId, 10_000,
+      );
+      void response.catch(() => {});
+      await ws.sendAsync("update_chat_model_preference", {
+        chat_id: chatId, encrypted_selected_ai_model: ciphertext,
+        expected_preference_v: expectedVersion, ...(teamId ? { team_id: teamId } : {}),
+      });
+      const frame = await response;
+      return frame.type === "chat_model_preference_conflict"
+        ? null : parseCliChatModelPreference(frame.payload);
+    } finally { ws.close(); }
   }
 
   /** The same public form, availability, and pricing contract used by Apps on web. */

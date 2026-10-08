@@ -1,0 +1,253 @@
+schema_version: 1
+id: feature.terminal-ui
+version: 1
+status: draft
+title: OpenMates Terminal UI
+summary: The terminal UI follows the OpenMates web app across workspaces, rich chat content, offline browsing,
+  pointer and keyboard navigation, fullscreen actions and responsive settings.
+scope:
+  includes:
+  - Left-click or tap activation in terminals that emit supported mouse reports, including over SSH.
+  - Visible workspace navigation, sidebar entries, cards, tabs, workflow nodes and runs, embed and wiki
+    links, and existing form and question controls.
+  - Composer focus, accurate targets after scrolling or resizing, keyboard fallback, and native text selection.
+  - Chat and embed fullscreen breadcrumbs, back, close, and contextual action menus.
+  - Capability-aware Share, Copy, Download, and More controls with keyboard and pointer access.
+  - A top-right Settings entry and a left-side split or fullscreen settings panel.
+  - Web-equivalent settings groups, nested navigation, and terminal-native views and controls for existing
+    supported CLI settings operations.
+  - Existing web-aligned workspace homes, horizontal cards, project tabs, workflow graph and runs, and
+    responsive task Kanban.
+  - Existing locally decrypted recent-chat and workspace caches with background synchronization.
+  - Rich message formatting, assistant identities, actionable links, interactive questions, app-colored
+    previews and text-only results views.
+  excludes:
+  - Hover effects, drag and drop, task reordering, touch gestures not translated into terminal mouse reports,
+    and changes to the underlying object workflows.
+  - New server endpoints, changes to sharing cryptography, or changes to feature-owned account, billing,
+    team, memory, or settings operation semantics.
+  - Reproducing browser or operating-system capabilities inside the terminal, such as passkey dialogs
+    or card-payment checkout.
+  - Changes to web or Apple UI, terminal font sizing, or marketing video production.
+  related_contracts:
+  - feature.settings-ui owns the graphical settings shell and explicitly excludes CLI settings command
+    behavior; its hierarchy and contextual visibility are references for this terminal shell.
+  - feature.chat-share-settings owns graphical chat sharing controls and explicitly excludes CLI; existing
+    sharing operations and privacy boundaries remain authoritative.
+  - surface.cli owns canonical object IDs, encryption boundaries, settings command capabilities, and explicit
+    local download destinations.
+  - feature.chat-navigation supplies navigation guidance but currently marks CLI parity as not required
+    and does not define terminal click handling.
+assertions:
+- id: terminal-pointer.visible-action-parity
+  type: behavior
+  surfaces:
+  - cli
+  must: 'A left click or terminal-generated tap on a visible interactive element activates its existing
+    keyboard action once. Workspace labels switch workspaces; sidebar entries, cards, workflow nodes and
+    runs, and embed or wiki links open their existing destinations; tabs switch sections; form and question
+    controls focus or change their drafts. Clicking the composer focuses it without sending. Save, Send
+    and confirmation controls retain their existing validation, busy locks and confirmation requirements.
+
+    '
+  depends_on:
+  - examples.visible_actions
+- id: terminal-pointer.viewport-coherent
+  type: behavior
+  surfaces:
+  - cli
+  must: 'Click targets match the currently displayed terminal cells after scrolling, resizing, carousel
+    movement or background updates, including clipped cards and wide characters. Hidden elements and blank
+    space have no action. An open dialog, action palette, question editor or narrow sidebar overlay prevents
+    clicks from activating obscured content.
+
+    '
+  depends_on:
+  - examples.viewport_targets
+- id: terminal-pointer.lifecycle-selection-safe
+  type: failure
+  surfaces:
+  - cli
+  must: 'Keyboard navigation remains usable when a terminal does not send mouse reports. Right and middle
+    clicks, drag and motion reports, modified clicks, and button release reports do not activate elements;
+    mouse reports never become composer text. Existing wheel scrolling is preserved. Native text selection
+    remains available through the existing selection mode, which releases mouse capture and prevents click
+    activation. Exit, errors and suspension for external commands release mouse capture and restore the
+    terminal; resuming restores the appropriate mouse or text-selection mode.
+
+    '
+  depends_on:
+  - examples.terminal_lifecycle
+- id: terminal-ui.workspaces.web-aligned
+  type: behavior
+  surfaces:
+  - cli
+  must: Workspace navigation visibly marks the active workspace and keyboard focus. Chats, Apps, Projects
+    and Workflows use keyboard and pointer navigable horizontal cards. Project details expose centered
+    identity and Overview, Files and Tasks tabs; Workflows expose their graph, editable typed configuration
+    and Runs. Tasks use responsive Kanban columns with the web status colors, bold headings and an unambiguous
+    selected task. Wide workspaces use available width while the centered message input keeps its existing
+    maximum width. The sidebar starts closed; backgrounds and headers use solid colors.
+  depends_on:
+  - examples.workspace_parity
+- id: terminal-ui.offline.cache-first
+  type: failure
+  surfaces:
+  - cli
+  must: Recent chats and opened chat histories render available owner-decrypted cached data immediately
+    and synchronize in the background. Projects, files, workflows, runs and tasks use their existing owner-scoped
+    workspace caches for quick switching and offline browsing. Offline or failed synchronization preserves
+    available content and offers a usable retry; account or team changes never reveal another owner’s
+    cached data.
+  depends_on:
+  - examples.offline_workspaces
+- id: terminal-ui.chat.rich-content
+  type: behavior
+  surfaces:
+  - cli
+  must: Chat titles are bold, assistant labels use their named mate category, and history renders emphasis
+    and headings with terminal styling rather than exposed Markdown syntax. Wiki and embed links identify
+    their usable /wiki and short /embed commands. Each message shows only its own embed previews, in a
+    horizontal carousel. App-colored previews place the app and skill in a bottom information bar and
+    reproduce the textual preview information, including shortened audio transcripts. Results views provide
+    usable text-only map, calendar and list modes. Interactive questions expose typed, keyboard and pointer
+    controls with explicit submission. Escape returns from a chat as well as from an embed.
+  depends_on:
+  - examples.rich_chat
+- id: terminal-ui.home.upcoming-only
+  type: behavior
+  surfaces:
+  - cli
+  must: Saved time-bound embeds appear before recent chats only while upcoming or currently happening.
+    An item with a known end time disappears after that end; when no end is known it is no longer highlighted
+    after its start. Ordinary chat history and saved-result browsing remain available.
+  depends_on:
+  - examples.upcoming_embeds
+- id: terminal-chrome.navigation.origin-preserved
+  type: behavior
+  surfaces:
+  - cli
+  must: 'Chat and embed fullscreen headers identify the current context with readable, actionable breadcrumbs
+    and Back and Close controls. Returning from an embed restores its actual originating view; returning
+    from a chat restores its parent project or Chats workspace as appropriate. Closing a view never deletes
+    its object. Navigation preserves the underlying composer draft and usable scroll and selection context.
+    Escape dismisses the innermost menu or dialog before closing the fullscreen view.
+
+    '
+  depends_on:
+  - examples.fullscreen_navigation
+- id: terminal-chrome.actions.contextual-and-functional
+  type: behavior
+  surfaces:
+  - cli
+  must: 'Fullscreen headers expose the web-equivalent actions supported by the current chat or embed,
+    including Share and, where the content supports them, Copy and Download. More holds secondary actions
+    or actions moved out of a narrow header. Actions are functional, visibly focusable, and keyboard and
+    pointer operable; unsupported actions are not presented as working buttons. Copy uses the appropriate
+    text or link and provides a selectable fallback when clipboard delivery cannot be confirmed. Downloads
+    use the appropriate existing export or original-file operation, show the destination on the machine
+    running the CLI, and confirm before overwriting an existing file.
+
+    '
+  depends_on:
+  - examples.header_actions
+- id: terminal-chrome.share.explicit-and-private
+  type: behavior
+  surfaces:
+  - cli
+  must: 'Share on private content opens contextual sharing settings without creating a link immediately.
+    Existing expiration, password, sensitive-data, authorization, and encryption rules apply; link creation
+    requires the explicit Generate Link action. Existing public links can be reused. Generated links support
+    Copy and an explicit Show URL action. Private link keys and passwords are not exposed in ordinary
+    status messages, logs, command histories, or backend plaintext.
+
+    '
+  depends_on:
+  - examples.sharing
+- id: terminal-settings.shell.responsive-and-restorable
+  type: behavior
+  surfaces:
+  - cli
+  must: 'Settings is a clickable and keyboard-reachable entry at the top right. It opens on the left alongside
+    the existing view when both areas remain readable, and occupies the available view at narrower terminal
+    widths. The settings panel replaces an overlapping chat sidebar rather than stacking two left menus.
+    Resizing preserves the settings route and draft fields while rebuilding visible click targets. Narrow
+    fullscreen settings blocks interactions with obscured content. Back and Close remain usable; closing
+    restores the prior view, composer draft, and usable focus and scroll context. The message input retains
+    its current maximum width.
+
+    '
+  depends_on:
+  - examples.settings_layout
+- id: terminal-settings.navigation.web-hierarchy-and-capabilities
+  type: behavior
+  surfaces:
+  - cli
+  must: 'The settings root and nested pages follow the web app''s human-readable groups and parent-child
+    navigation, show available profile and account context, and visibly identify the active destination.
+    Authentication, role, session restrictions, hosting mode, and actual CLI capabilities determine available
+    operations. Supported settings open terminal-native pages; browser-only flows are clearly identified
+    with an actionable web destination rather than fake terminal controls. Interface preferences that
+    affect the web app are labeled accordingly when they cannot affect the terminal. Unknown or unavailable
+    routes provide a usable parent or root destination. Dynamic chat or embed sharing routes are not ordinary
+    root settings sections.
+
+    '
+  depends_on:
+  - examples.settings_navigation
+- id: terminal-settings.operations.validated-and-owner-scoped
+  type: failure
+  surfaces:
+  - cli
+  must: 'Terminal-native settings present readable values and typed controls for existing supported CLI
+    operations instead of raw protocol JSON or an external command prompt. Edits, immediate-apply toggles,
+    Save actions, and destructive confirmations retain their owning feature''s validation and confirmation
+    behavior. Busy controls cannot duplicate an operation, and persisted success is reported only after
+    acknowledgement. Errors or offline failures remain recoverable without discarding unrelated drafts.
+    Account or team changes prevent old-owner settings data or pending responses from appearing in the
+    new context.
+
+    '
+  depends_on:
+  - examples.settings_operations
+applies_to:
+  rest_api:
+    required: false
+    role: Existing first-party settings, sharing, and export operations remain unchanged.
+  cli:
+    required: true
+    parity: source_of_truth
+    role: Owns terminal chrome, responsive settings presentation, and interaction wiring.
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+    role: Existing client operations retain their feature contracts.
+  gui:
+    required: false
+    implementations:
+      web:
+        required: false
+      apple:
+        required: false
+    role: The web app supplies action availability and settings hierarchy references; no GUI behavior
+      changes.
+examples:
+  file: examples.yml
+  required_groups:
+  - visible_actions
+  - viewport_targets
+  - terminal_lifecycle
+  - fullscreen_navigation
+  - header_actions
+  - sharing
+  - settings_layout
+  - settings_navigation
+  - settings_operations
+  - workspace_parity
+  - offline_workspaces
+  - rich_chat
+  - upcoming_embeds

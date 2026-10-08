@@ -1,0 +1,28 @@
+schema_version: 2
+profile: concise
+id: terminal-ui-composer
+title: Web-aligned terminal composer and model selection
+status: implementing
+goal: Bring the TUI message input closer to the web app version, especially the AI model selector.
+specifications:
+- feature.terminal-ui@1
+- feature.ai-model-routing@3
+task: d1b67803-c00a-4811-bb17-69e209393096
+scope:
+  in:
+  - Centered composer with its existing maximum width, native attachment control and Send action.
+  - Auto and exact-model selection through a responsive provider-first keyboard and pointer picker.
+  - Available catalog data, readable capability and model details, preserved message drafts and cursor.
+  - Existing encrypted user/chat selection semantics, cache-first restore, background synchronization and unavailable-model recovery.
+  - Model mention synchronization and use of the selected model when sending.
+  out:
+  - New backend endpoints or changes to model routing, sharing or account authorization semantics.
+  - Emulating GUI camera, microphone or browser-only attachment tools in the terminal.
+decisions:
+- Keep one terminal UI Specification; reuse the shared AI model routing Specification for model-selection semantics.
+- Browser-local model disabling has no supported CLI data source; use the available catalog and health data exposed to the CLI.
+verification:
+- Focused model preference and TUI unit tests, lint and CLI build.
+- Isolated GitHub web-reference capture and composer integration coverage; provider credentials are required for the live model catalog.
+- Use the previously authorized authenticated dev CLI for a disposable-chat real-terminal recording of selection, resize, encrypted persistence and cold restore when isolated CI has no provider credentials.
+- Deliver all captured CI videos and verify the installed CLI matches the deployed source.

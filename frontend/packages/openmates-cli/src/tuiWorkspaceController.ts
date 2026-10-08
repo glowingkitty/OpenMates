@@ -1,5 +1,8 @@
 /** Workspace navigation and forms reuse the encrypted client contracts. */
 import { parseEmbedContentObject, type OpenMatesClient, type UserTaskStatus } from "./client.js";
+import {captureTuiView,closeTuiFullscreen,fullscreenHeaderControls,isTuiFullscreen} from './tuiFullscreenChrome.js';
+import {handleHeaderKey,handleHeaderCommand,openHeaderAction} from './tuiHeaderActions.js';
+import {openTuiSettings,closeTuiSettings,handleSettingsCommand,handleSettingsKey} from './tuiSettingsShell.js';
 import { randomUUID } from "node:crypto";
 import type { TuiState, TuiScreen, TuiWorkspace } from "./tuiRenderer.js";
 import type { TuiTerminal, TerminalKey } from "./tuiTerminal.js";
@@ -26,10 +29,12 @@ import { buildTuiResultsViewData, type TuiResultsViewMode } from './tuiResultsVi
 import { currentInspiration, homeContinueItems, isWorkspaceHome, loadHomeData, workspaceInspirations } from "./tuiHome.js";
 import { loadTuiApps, homeTuiApps, loadTuiAppsSkill, buildTuiAppsSkillForm, prepareTuiAppsSkillRun, buildTuiAppsRunConfirmation, executeTuiAppsSkill, loadTuiAppsResults, loadTuiAppsResult, loadTuiAppsWorkflows } from "./tuiAppsWorkspace.js";
 import { loadCachedTuiWorkspace, invalidateCachedTuiWorkspace, writeCachedTuiWorkspace, readCachedTuiWorkspace, captureTuiWorkspaceOwner } from './tuiCachedWorkspaces.js';
+import {isTuiAiComposer,type TuiModelSelectorShell} from './tuiModelSelectorShell.js';
 
 export type WorkspaceContext = {
   state: TuiState; client: OpenMatesClient; terminal: TuiTerminal; render: () => void;
   command: (command: string) => Promise<void>; send: (message: string,options?:{questionAnswer?:boolean}) => Promise<void>;
+  modelShell?: TuiModelSelectorShell;
 };
 
 function chatDraftKey(state: TuiState) { return state.screen === "example" ? `example:${state.activeExample?.chat.id}` : state.activeChatId ?? "new"; }
@@ -42,6 +47,7 @@ export function rememberDraft(state: TuiState): void {
   if (state.workspace === "chats" && !state.input.startsWith("/")) state.drafts[chatDraftKey(state)] = state.input;
 }
 export function route(state: TuiState, workspace: TuiWorkspace, screen: TuiScreen): number {
+  if(state.settings)closeTuiSettings(state);
   if (state.input) rememberDraft(state);
   state.workspace = workspace; state.screen = screen;
   state.navigationIndex = WORKSPACES.indexOf(workspace); state.focus = workspace === "chats" && !["start","chats"].includes(screen) ? "composer" : "content";
@@ -49,11 +55,13 @@ export function route(state: TuiState, workspace: TuiWorkspace, screen: TuiScree
   state.sidebarIndex = 0;
   state.homeShowAll = false;state.homeSelectionMoved=false;
   state.status = null;
-  state.form = null; state.workflowEdit = null;state.questionEditor=null;
+  state.form = null; state.workflowEdit = null;state.questionEditor=null;state.chrome=null;
+  state.headerActionIndex=0;
   state.textSelection = false;
   return ++state.routeVersion;
 }
 function newChat(state: TuiState): void {
+  state.chatOrigin=null;
   route(state, "chats", "start");
   state.activeChatId = null; state.activeChat = null; state.activeExample = null;
   state.messages = []; state.headerState = "new"; state.headerError = null; state.followUpSuggestions = [];
@@ -75,6 +83,7 @@ async function recent(context: WorkspaceContext): Promise<void> {
 
 export async function openSavedChat(context: WorkspaceContext, id: string): Promise<void> {
   const {state, client, render} = context;
+  if(state.screen!=="chat"||state.activeChatId!==id)state.chatOrigin=captureTuiView(state);
   const request = route(state, "chats", "chat");
   const ownerCurrent = captureTuiWorkspaceOwner(client);
   let ownedChatId = id;
@@ -291,6 +300,24 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
   const name = space < 0 ? command : command.slice(0, space);
   const arg = space < 0 ? "" : command.slice(space + 1).trim();
   switch (name) {
+    case "/model": if(context.modelShell)await context.modelShell.open();return true;
+    case "/model-action": if(context.modelShell)await context.modelShell.action(arg);return true;
+    case "/attach": {
+      if(!isTuiAiComposer(state))return true;
+      if(!client.hasSession()){state.status="Sign in to attach a local file.";render();return true;}
+      state.form={kind:"composer-attach",title:"Attach a local file",fieldIndex:0,
+        fields:[{name:"path",label:"Explicit path (./, ../, ~/ or /)",value:"",required:true}]};
+      render();return true;
+    }
+    case "/settings": await openTuiSettings(context,arg);return true;
+    case "/settings-close": closeTuiSettings(state);render();return true;
+    case "/settings-action": await handleSettingsCommand(context,arg);return true;
+    case "/header": await openHeaderAction(context,arg);return true;
+    case "/header-action": await handleHeaderCommand(context,arg);return true;
+    case "/back":
+    case "/close":
+      if(state.chrome)state.chrome=null;else if(state.settings)closeTuiSettings(state);else if(!closeTuiFullscreen(state))await handleWorkspaceKey(context,"",{name:"escape"});
+      render();return true;
     case "/context": {
       const events = state.messages.filter(message => message.role === "system").map(message => parseChatContextContent(message.content)).filter(event => event !== null);
       const index = Number(arg || events.length) - 1;
@@ -466,14 +493,14 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
       const data=buildTuiResultsViewData(descriptor,{...exampleEmbedMap(state),...state.chatEmbeds});
       const mode=(modeText||state.resultsViewModes[key]||data.availableModes[0]||'list') as TuiResultsViewMode;
       if(data.entries.length&&!data.availableModes.includes(mode))throw Error(`This results view has no ${mode==='calendar'?'dated':mode==='map'?'mapped':'available'} results.`);
-      if(state.screen!=='results-view')state.resultsViewOrigin={screen:state.screen,workspace:state.workspace,focus:state.focus,selectedIndex:state.selectedIndex,scrollOffset:state.scrollOffset,filter:state.filter,input:state.input};
+      if(state.screen!=='results-view')state.resultsViewOrigin=captureTuiView(state);
       state.resultsViewModes[key]=mode;state.activeResultsView=key;
       route(state,state.workspace,'results-view');state.focus='content';render();return true;
     }
     case "/wiki": {
       if(!arg)throw Error('Use /wiki <article-title>, for example /wiki Apple_Watch.');
       const languageMatch=/^([a-z]{2,10}):(.+)$/i.exec(arg),language=languageMatch?.[1]??'en',title=languageMatch?.[2]??arg;
-      if(state.screen!=='embed')state.embedOrigin={screen:state.screen,workspace:state.workspace,focus:state.focus,selectedIndex:state.selectedIndex,scrollOffset:state.scrollOffset,filter:state.filter,input:state.input};
+      if(state.screen!=='embed')state.embedOrigin=captureTuiView(state);
       const request=route(state,state.workspace,'embed');state.detailEmbed=null;state.embedChoices=[];state.detailTitle=title.replaceAll('_',' ');
       state.detailLines=['Loading Wikipedia article…'];state.focus='content';render();
       try {
@@ -491,7 +518,7 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
       registerChatEmbedAliases(state);
       const target=state.embedAliases[arg];
       const id=target?.embedId??arg;
-      if(state.screen!=="embed")state.embedOrigin={screen:state.screen,workspace:state.workspace,focus:state.focus,selectedIndex:state.selectedIndex,scrollOffset:state.scrollOffset,filter:state.filter,input:state.input};
+      if(state.screen!=="embed")state.embedOrigin=captureTuiView(state);
       const request = route(state, state.workspace, "embed"); state.detailTitle = "Embeds";state.detailEmbed=null;state.focus="content";
       state.detailLines=["Loading saved embed…"];render();
       if (!arg) {
@@ -601,6 +628,15 @@ async function saveForm(context: WorkspaceContext): Promise<void> {
   const request=state.routeVersion,ownerCurrent=captureTuiWorkspaceOwner(client),current=()=>ownerCurrent()&&request===state.routeVersion&&state.form===form;
   form.busy = true; form.error = undefined; render();
   try {
+    if (form.kind === "composer-attach") {
+      const path=formValue(form,"path").trim();
+      if(!/^(?:\.\.?\/|~\/|\/)[^\s@]+$/.test(path))throw new Error("Use one explicit local path without spaces: ./, ../, ~/ or /.");
+      if(!current())return;
+      const cursor=state.inputCursor??state.input.length,before=state.input.slice(0,cursor),after=state.input.slice(cursor);
+      const inserted=`${before&&!/\s$/.test(before)?" ":""}@${path}${after&&!/^\s/.test(after)?" ":""}`;
+      state.input=before+inserted+after;state.inputCursor=before.length+inserted.length;
+      rememberDraft(state);state.form=null;state.focus="composer";return;
+    }
     if (form.kind === "app-skill-input") {
       if(!state.activeAppSkill)throw new Error("This skill is no longer open.");
       state.appPreparedRun=prepareTuiAppsSkillRun(state.activeAppSkill,form);state.form=buildTuiAppsRunConfirmation(state.appPreparedRun);render();return;
@@ -678,20 +714,38 @@ async function saveForm(context: WorkspaceContext): Promise<void> {
 
 export async function handleWorkspaceKey(context: WorkspaceContext, chunk: string, key: TerminalKey): Promise<boolean> {
   const {state, render, client} = context;
-  if(key.ctrl&&key.name==='g'){
-    state.questionEditor=null;state.textSelection=false;state.focus='navigation';state.navigationIndex=WORKSPACES.indexOf(state.workspace);render();return true;
+  if(state.modelSelector?.open&&context.modelShell)return context.modelShell.key(chunk,key);
+  if(key.meta&&key.name==='m'&&isTuiAiComposer(state)&&!state.form&&!state.settings&&!state.chrome&&!state.paletteOpen){
+    if(context.modelShell)await context.modelShell.open();return true;
   }
-  if(state.focus!=='navigation'&&await handleQuestionKey(context,chunk,key))return true;
-  if(state.focus==='navigation'&&['left','right','return','escape'].includes(key.name??'')){
-    if(key.name==='left'||key.name==='right')state.navigationIndex=(state.navigationIndex+(key.name==='left'?-1:1)+WORKSPACES.length)%WORKSPACES.length;
-    else if(key.name==='return'){state.paletteOpen=false;await context.command(`/${WORKSPACES[state.navigationIndex]}`);}
-    else state.focus=state.screen==='chat'||state.screen==='example'?'composer':'content';
-    render();return true;
+  if(key.ctrl&&key.name==='g'){
+    if(state.chrome&&'busy' in state.chrome&&state.chrome.busy)return true;
+    state.chrome=null;
+    state.questionEditor=null;state.textSelection=false;state.focus='navigation';state.navigationIndex=WORKSPACES.indexOf(state.workspace);render();return true;
   }
   if (key.ctrl && key.name === 'y') { state.textSelection = !state.textSelection;render();return true; }
   if (state.textSelection) {
     if(key.name==='escape'){state.textSelection=false;render();}
     return true;
+  }
+  if(state.chrome&&state.focus!=='navigation'&&await handleHeaderKey(context,chunk,key))return true;
+  if(state.settings&&state.focus!=='navigation'&&await handleSettingsKey(context,chunk,key))return true;
+  if(key.meta&&key.name==='h'&&isTuiFullscreen(state)){state.focus='header';state.headerActionIndex=0;render();return true;}
+  if(state.focus==='header'){
+    const controls=fullscreenHeaderControls(state,Math.max(1,context.terminal.width-4));
+    if(key.name==='left'||key.name==='right'||key.name==='tab')state.headerActionIndex=(state.headerActionIndex+(key.name==='left'||key.shift?-1:1)+controls.length)%controls.length;
+    else if(key.name==='return'){const control=controls[state.headerActionIndex];if(control)await context.command(control.command);}
+    else if(key.name==='escape'){closeTuiFullscreen(state);}
+    else if(key.ctrl&&key.name==='y')state.textSelection=!state.textSelection;
+    else return true;
+    render();return true;
+  }
+  if(state.focus!=='navigation'&&await handleQuestionKey(context,chunk,key))return true;
+  if(state.focus==='navigation'&&['left','right','return','escape'].includes(key.name??'')){
+    if(key.name==='left'||key.name==='right')state.navigationIndex=(state.navigationIndex+(key.name==='left'?-1:1)+WORKSPACES.length+1)%(WORKSPACES.length+1);
+    else if(key.name==='return'){state.paletteOpen=false;await context.command(state.navigationIndex===WORKSPACES.length?"/settings":`/${WORKSPACES[state.navigationIndex]}`);}
+    else state.focus=state.settings?'settings':state.screen==='chat'||state.screen==='example'?'composer':'content';
+    render();return true;
   }
   if (state.form) {
     const form = state.form, field = form.fields[form.fieldIndex];
@@ -770,21 +824,13 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     else if(state.screen==="app-result"){state.screen=state.activeAppSkill?"app-skill":"app";state.appSkillTab="embeds";state.appTab="embeds";state.focus="content";state.scrollOffset=0;}
     else if(state.screen==="app-skill"){state.screen="app";state.appTab="skills";state.focus="content";state.scrollOffset=0;}
     else if(state.screen==="app"){state.screen="apps";state.focus="content";state.scrollOffset=0;}
-    else if (state.screen === "embed" || state.screen === "results-view") {
-      const origin=state.screen==='results-view'?state.resultsViewOrigin:state.embedOrigin;
-      if(state.screen==='results-view')state.resultsViewOrigin=null;else state.embedOrigin=null;
-      state.detailEmbed=null;state.embedChoices=[];
-      if(origin){state.screen=origin.screen;state.workspace=origin.workspace;state.focus=origin.focus;state.selectedIndex=origin.selectedIndex;state.scrollOffset=origin.scrollOffset;state.filter=origin.filter;state.input=origin.input;state.inputCursor=null;}
-      else {state.screen=state.workspace==="projects"?"project":"chats";state.focus="content";}
-      ++state.routeVersion;
-    }
-    else if(state.screen==='chat'||state.screen==='example') { newChat(state);state.focus='content'; }
+    else if (closeTuiFullscreen(state)) { /* Restore the actual origin and its draft. */ }
     else { state.input = ""; state.focus = state.workspace === "chats" ? "composer" : "content"; }
     render(); return true;
   }
   if (key.name === "tab") {
     if (state.input.startsWith("/")) {const choices = TUI_ACTIONS.filter((a) => a.command.startsWith(state.input)); if (choices.length) state.input = choices[state.paletteIndex % choices.length].command + " ";}
-    else {const focuses = ["content","composer",...(isWorkspaceHome(state)?["inspiration"]:[]),...(state.sidebarOpen?["sidebar"]:[]),"navigation"] as TuiState["focus"][]; state.focus = focuses[(focuses.indexOf(state.focus) + (key.shift ? -1 : 1) + focuses.length) % focuses.length];}
+    else {const focuses = ["content","composer",...(isWorkspaceHome(state)?["inspiration"]:[]),...(state.sidebarOpen?["sidebar"]:[]),...(isTuiFullscreen(state)?["header"]:[]),"navigation"] as TuiState["focus"][]; state.focus = focuses[(focuses.indexOf(state.focus) + (key.shift ? -1 : 1) + focuses.length) % focuses.length];}
     render(); return true;
   }
   if(state.focus==="inspiration"){
@@ -949,7 +995,12 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     if (key.ctrl && key.name === "e") {state.inputCursor=state.input.length;render();return true;}
     if (key.name === "backspace") {const before=eraseGrapheme(state.input.slice(0,cursor));state.input=before+state.input.slice(cursor);state.inputCursor=before.length;rememberDraft(state);render();return true;}
     if ((key.meta && key.name === "return") || key.ctrl && key.name === "j") {state.input=state.input.slice(0,cursor)+"\n"+state.input.slice(cursor);state.inputCursor=cursor+1;rememberDraft(state);render();return true;}
-    if (key.name === "paste" || !key.ctrl && !key.meta && chunk && chunk >= " ") {const text=terminalText(chunk);state.input=state.input.slice(0,cursor)+text+state.input.slice(cursor);state.inputCursor=cursor+text.length;rememberDraft(state);render();return true;}
+    if (key.name === "paste" || !key.ctrl && !key.meta && chunk && chunk >= " ") {
+      const text=terminalText(chunk);state.input=state.input.slice(0,cursor)+text+state.input.slice(cursor);state.inputCursor=cursor+text.length;rememberDraft(state);
+      if (context.modelShell && isTuiAiComposer(state) && /\s/.test(text) && !state.input.startsWith("/"))
+        await context.modelShell.consumeMention(state.input);
+      render();return true;
+    }
   }
   return false;
 }

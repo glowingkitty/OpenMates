@@ -26,6 +26,7 @@ import {
   programmaticQuickstart,
   rankExamples,
   renderTuiFrame,
+  resetEndedTuiSession,
   TUI_INTERESTS,
   type TuiState,
 } from "./tuiRenderer.js";
@@ -42,6 +43,8 @@ import { tuiComposerCursor } from './tuiLayout.js';
 import {pointerTargetAt} from './tuiPointer.js';
 import {handleTuiPointer} from './tuiPointerActions.js';
 import { registerChatEmbedAliases, hydrateChatEmbedPreviews } from './tuiEmbeds.js';
+import {createChatModelPreferences} from './chatModelPreferences.js';
+import {createTuiModelSelectorShell,isTuiAiComposer,type TuiModelSelectorShell} from './tuiModelSelectorShell.js';
 
 export type CliDefaultMode = "tui" | "quickstart";
 export type TuiResult = { action: "exit" | "signup" | "restart" };
@@ -70,6 +73,8 @@ export async function runTui(
   let stopActivity: (() => void) | undefined;
   let activityTimer: ReturnType<typeof setTimeout> | undefined;
   let refreshingActivity = false;
+  let modelShell:TuiModelSelectorShell|null=null;
+  const modelPreferences=createChatModelPreferences(client);
   const refreshActivity = async () => {
     if (closed || state.startup || refreshingActivity || !state.signedIn) return;
     refreshingActivity = true;
@@ -80,21 +85,27 @@ export async function runTui(
   const activityAnimation = setInterval(() => {
     if (!closed && state.runningChatIds.length) { state.activityFrame = (state.activityFrame + 1) % 4; render(); }
   }, 250);
-  const render = () => {
-    if (closed) return;
-    if (state.screen !== "chat") client.clearInteractiveChatViewer();
-    if (state.signedIn && typeof client.hasSession === "function" && !client.hasSession()) {
-      state.homeAbortController?.abort();
-      Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
-      Object.assign(state, createInitialTuiState(), {routeVersion: state.routeVersion + 1, homeLoadVersion:state.homeLoadVersion+1,status: "Session ended. Sign in to reopen your work."});
+  const syncSessionView = () => {
+    if (typeof client.hasSession === "function" && resetEndedTuiSession(state, client.hasSession())) {
+      client.clearInteractiveChatViewer();
       hydrateExamples(state);
     }
+  };
+  const render = () => {
+    if (closed) return;
+    syncSessionView();
+    modelShell?.sync();
+    if (state.screen !== "chat") client.clearInteractiveChatViewer();
     if (renderTimer) return;
     renderTimer = setTimeout(() => {
       renderTimer = null;
+      if (closed) return;
+      syncSessionView();
       terminal.render(renderTuiFrame(state, terminal.width, terminal.height, { colorMode: terminal.colorMode, ascii: terminal.ascii }),tuiComposerCursor(state,terminal.width,terminal.height),state.textSelection);
     }, 16);
   };
+
+  modelShell=createTuiModelSelectorShell({state,client,preferences:modelPreferences,render});
 
   const stopHomeSync=startHomeSync(state,client,render,()=>closed);
 
@@ -103,6 +114,7 @@ export async function runTui(
     state.homeAbortController?.abort();
     Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
     stopHomeSync();stopActivity?.(); clearTimeout(activityTimer); clearInterval(activityPoll); clearInterval(activityAnimation);
+    modelShell?.dispose();
     client.endInteractiveViewerSession();
     if (renderTimer) clearTimeout(renderTimer);
     renderTimer = null;
@@ -129,9 +141,9 @@ export async function runTui(
   terminal.onKey((chunk, key) => {
     if (key.ctrl && key.name === "c") { finish({ action: "exit" }); return; }
     void (async () => {
-      if(key.name==='mouseclick'){await handleKey({chunk,key,state,client,terminal,render,finish});return;}
+      if(key.name==='mouseclick'){await handleKey({chunk,key,state,client,terminal,render,finish,modelShell:modelShell!});return;}
       if (await startup.handleKey(chunk, key)) return;
-      await handleKey({ chunk, key, state, client, terminal, render, finish });
+      await handleKey({ chunk, key, state, client, terminal, render, finish, modelShell:modelShell! });
     })().catch((error) => {
       state.status = error instanceof Error ? error.message : String(error);
       render();
@@ -149,8 +161,9 @@ async function handleKey(params: {
   terminal: TuiTerminal;
   render: () => void;
   finish: (result: TuiResult) => void;
+  modelShell?:TuiModelSelectorShell;
 }): Promise<void> {
-  const { chunk, key, state, client, terminal, render, finish } = params;
+  const { chunk, key, state, client, terminal, render, finish, modelShell } = params;
   if (key.ctrl && key.name === "c") {
     finish({ action: "exit" });
     return;
@@ -158,18 +171,20 @@ async function handleKey(params: {
   if (state.privacyOffer && key.name === "f7") { state.privacyOffer = false; render(); return; }
   if (state.privacyOffer && key.name === "f6") {
     const draft = state.input, cursor = state.inputCursor;
-    await handleCommand({ command: "/privacy install", state, client, terminal, render, finish });
+    await handleCommand({ command: "/privacy install", state, client, terminal, render, finish, modelShell });
     state.input = draft; state.inputCursor = cursor; rememberDraft(state); render(); return;
   }
   const context: WorkspaceContext = {
     state, client, terminal, render,
-    command: (command) => handleCommand({command,state,client,terminal,render,finish}),
-    send: (message, options) => sendTuiMessage({message,state,client,render,questionAnswer:options?.questionAnswer}),
+    command: (command) => handleCommand({command,state,client,terminal,render,finish,modelShell}),
+    send: (message, options) => sendTuiMessage({message,state,client,render,modelShell,questionAnswer:options?.questionAnswer}),
+    modelShell,
   };
   if(key.name==='mouseclick'){
     if(!key.mouse||key.ctrl||key.meta||key.shift)return;
     const action=pointerTargetAt(state,key.mouse.column,key.mouse.row,terminal.width,terminal.height);
     if(action)await handleTuiPointer(context,action,(text,pressed)=>handleKey({...params,chunk:text,key:pressed}));
+    else if(state.modelSelector?.open){await modelShell?.action('close');}
     return;
   }
   if (await handleWorkspaceKey(context, chunk, key)) return;
@@ -277,7 +292,7 @@ async function handleKey(params: {
   }
   if (key.name === "return") {
     if (state.isBusy && state.workspace === "chats" && !state.input.startsWith('/')) return;
-    await handleEnter({ state, client, terminal, render, finish });
+    await handleEnter({ state, client, terminal, render, finish, modelShell });
     return;
   }
   if (state.screen === "workflow" || state.screen === "workflows" || state.screen === "tasks" || state.screen === "task") {
@@ -295,11 +310,12 @@ async function handleEnter(params: {
   terminal: TuiTerminal;
   render: () => void;
   finish: (result: TuiResult) => void;
+  modelShell?:TuiModelSelectorShell;
 }): Promise<void> {
-  const { state, client, terminal, render, finish } = params;
+  const { state, client, terminal, render, finish, modelShell } = params;
   if (state.input.startsWith("/")) {
     const command = state.input.trim(); state.input = ""; state.inputCursor = null;
-    await handleCommand({command,state,client,terminal,render,finish}); return;
+    await handleCommand({command,state,client,terminal,render,finish,modelShell}); return;
   }
   if (state.screen === "interests") {
     openExamples(state);
@@ -327,10 +343,10 @@ async function handleEnter(params: {
   const text = state.input.trim();
   if (!text) return;
   if (text.startsWith("/")) {
-    await handleCommand({ command: text, state, client, terminal, render, finish });
+    await handleCommand({ command: text, state, client, terminal, render, finish, modelShell });
     return;
   }
-  await sendTuiMessage({ message: text, state, client, render });
+  await sendTuiMessage({ message: text, state, client, render, modelShell });
 }
 
 async function handleCommand(params: {
@@ -340,10 +356,11 @@ async function handleCommand(params: {
   terminal: TuiTerminal;
   render: () => void;
   finish: (result: TuiResult) => void;
+  modelShell?:TuiModelSelectorShell;
 }): Promise<void> {
-  const { command, state, client, terminal, render, finish } = params;
+  const { command, state, client, terminal, render, finish, modelShell } = params;
   client.clearInteractiveChatViewer();
-  if (await handleWorkspaceCommand({state,client,terminal,render,command:(next)=>handleCommand({...params,command:next}),send:(message,options)=>sendTuiMessage({message,state,client,render,questionAnswer:options?.questionAnswer})},command)) return;
+  if (await handleWorkspaceCommand({state,client,terminal,render,command:(next)=>handleCommand({...params,command:next}),send:(message,options)=>sendTuiMessage({message,state,client,render,modelShell,questionAnswer:options?.questionAnswer}),modelShell},command)) return;
   const [name, ...parts] = command.split(/\s+/);
   const arg = parts.join(" ");
   rememberDraft(state);
@@ -467,9 +484,20 @@ async function sendTuiMessage(params: {
   state: TuiState;
   client: OpenMatesClient;
   render: () => void;
+  modelShell?:TuiModelSelectorShell;
 }): Promise<void> {
-  const { message, state, client, render } = params;
+  const { state, client, render } = params;
   if (state.isBusy) return;
+  const resolved = !params.questionAnswer && params.modelShell
+    ? await params.modelShell.consumeMention(params.message, true) : { message: params.message, blocked: false };
+  if (resolved.blocked) return;
+  const message = resolved.message.trim();
+  if (!message) return;
+  const modelSelection=!params.questionAnswer&&isTuiAiComposer(state)&&client.hasSession()
+    ? params.modelShell?.selectionForSend()??null : "auto";
+  if(modelSelection===null){state.status="Model selection is loading. Retry or choose Auto before sending.";render();return;}
+  const separator=modelSelection.indexOf('/');
+  const modelDirective=separator>0?`@ai-model:${modelSelection.slice(separator+1)}:${modelSelection.slice(0,separator)} `:"";
   client.clearInteractiveChatViewer();
   state.isBusy = true;
   state.status = "Preparing message…"; render();
@@ -497,6 +525,7 @@ async function sendTuiMessage(params: {
   state.drafts[draftKey] = ""; state.input = ""; state.inputCursor = null;
   const anonymousHistory = history ?? messages.filter((m) => m.role !== "system").map((m) => ({message_id:randomUUID(),role:m.role as "user"|"assistant",content:m.content,sender_name:m.title??(m.role==="user"?"User":"Assistant"),created_at:Math.floor(Date.now()/1000)}));
   state.activeChatId = chatId; state.headerState = existingChatId ? "ready" : "loading"; state.headerError = null;
+  if(!existingChatId)params.modelShell?.adoptNewChat(chatId);
   if (!existingChatId) state.activeChat = null;
   state.screen = "chat";
   state.aiTaskId = null;
@@ -504,7 +533,7 @@ async function sendTuiMessage(params: {
   const userMessage = { role: "user" as const, content: prepared.message, embedIds: prepared.preparedEmbeds.map((embed) => embed.embedId) };
   state.messages.push(userMessage);
   const privacyCallbacks = {
-    onPrivacyPrepared: (safe: string) => { userMessage.content = safe; render(); },
+    onPrivacyPrepared: (safe: string) => { userMessage.content = safe.replace(/^@ai-model:[^\s]+\s*/,""); render(); },
     onPrivacyProgress: (done: number, total: number) => { if (state.messages === messages) { state.status = `Offline personal-data scan: ${Math.floor(done * 100 / total)}%`; render(); } },
   };
   const assistantMessage = { role: "assistant" as const, content: "", title: "Assistant" };
@@ -527,7 +556,7 @@ async function sendTuiMessage(params: {
       }
     } else {
       const result = await client.sendMessage({
-        message: prepared.message,
+        message: modelDirective && !/@(?:ai-model|best-model):/.test(prepared.message) ? modelDirective+prepared.message : prepared.message,
         interactiveHuman: true,
         ...privacyCallbacks,
         piiMappings: prepared.piiMappings,
@@ -557,6 +586,7 @@ async function sendTuiMessage(params: {
       assistantMessage.content = result.assistant;
       if (state.messages === messages) {
         state.activeChatId = result.chatId; state.followUpSuggestions = result.followUpSuggestions ?? [];
+        if(!existingChatId)void params.modelShell?.persistCreatedChat(result.chatId,modelSelection);
         // A completed reply must release send controls even if viewer sync is offline.
         if (state.screen === "chat") void client.setInteractiveChatViewer(result.chatId).catch(() => {});
         if (result.mateName) assistantMessage.title = result.mateName;

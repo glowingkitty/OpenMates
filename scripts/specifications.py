@@ -299,20 +299,46 @@ def _required_surface_paths(bundle: SpecificationBundle) -> list[str]:
 def build_registry(specifications_root: Path) -> dict[str, Any]:
     specifications: dict[str, Any] = {}
     assertions: dict[str, Any] = {}
-    for bundle in discover_bundles(specifications_root):
+    bundles = discover_bundles(specifications_root)
+    by_versioned_id = {bundle.versioned_id: bundle for bundle in bundles}
+    for bundle in bundles:
         if bundle.specification_id in specifications:
             raise SpecificationError(f"duplicate Specification id: {bundle.specification_id}")
+        successor = bundle.specification.get("superseded_by")
+        if successor is not None:
+            if bundle.status != "superseded" or not isinstance(successor, str) or successor not in by_versioned_id:
+                raise SpecificationError(f"invalid superseded_by for {bundle.versioned_id}: {successor}")
+            if by_versioned_id[successor].status == "superseded":
+                raise SpecificationError(f"superseded_by must name an active Specification: {successor}")
         specifications[bundle.specification_id] = {
             "version": bundle.version,
             "status": bundle.status,
             "path": str(bundle.path.relative_to(Path(specifications_root))),
             "fingerprint": bundle.fingerprint,
             "required_applies_to": _required_surface_paths(bundle),
+            **({"superseded_by": successor} if successor is not None else {}),
         }
+    # Register active owners before historical bundles, regardless of path order.
+    # Unique historical assertions retain their existing index/evidence mapping.
+    migrated_ids: set[str] = set()
+    active_contracts: dict[str, tuple[str, str]] = {}
+    ordered = [bundle for bundle in bundles if bundle.status != "superseded"]
+    ordered.extend(bundle for bundle in bundles if bundle.status == "superseded")
+    for bundle in ordered:
         for assertion in bundle.specification["assertions"]:
             assertion_id = assertion["id"]
             if assertion_id in assertions:
-                raise SpecificationError(f"duplicate assertion id: {assertion_id}")
+                existing = assertions[assertion_id]
+                if (
+                    bundle.status != "superseded"
+                    or bundle.specification.get("superseded_by") != existing["specification"]
+                    or assertion_id in migrated_ids
+                    or active_contracts.get(assertion_id)
+                    != (assertion["type"], " ".join(assertion["must"].split()))
+                ):
+                    raise SpecificationError(f"duplicate assertion id: {assertion_id}")
+                migrated_ids.add(assertion_id)
+                continue
             dependencies = assertion.get("depends_on") or ["models", "examples", "surfaces"]
             dependency_values = {
                 dependency: _resolve_bundle_dependency(bundle, dependency)
@@ -325,6 +351,8 @@ def build_registry(specifications_root: Path) -> dict[str, Any]:
                 "fingerprint": _canonical_hash(assertion, dependency_values),
                 "required_applies_to": _required_surface_paths(bundle),
             }
+            if bundle.status != "superseded":
+                active_contracts[assertion_id] = (assertion["type"], " ".join(assertion["must"].split()))
     return {"schema_version": 1, "specifications": specifications, "assertions": assertions}
 
 

@@ -11,7 +11,9 @@ export type TuiPointerAction =
 export type TuiPointerTarget = {column:number;row:number;width:number;action:TuiPointerAction};
 type PointerFrame = {width:number;height:number;route:number;screen:TuiState['screen'];workspace:TuiState['workspace'];signedIn:boolean;overlay:unknown;targets:TuiPointerTarget[]};
 const frames=new WeakMap<TuiState,PointerFrame>();
-const overlay=(state:TuiState)=>state.questionEditor??state.form??(state.paletteOpen?'palette':null)??(state.sidebarOpen?'sidebar':null);
+const overlay=(state:TuiState)=>state.questionEditor??state.form??state.chrome??state.settings??
+  (state.modelSelector?.open ? `model:${state.modelSelector.generation}:${state.modelSelector.page}:${state.modelSelector.providerId}:${state.modelSelector.detailId}:${state.modelSelector.selectedIndex}:${state.modelSelector.selection}:${state.modelSelector.ready}:${state.modelSelector.busy}:${state.modelSelector.models.map(model=>model.id).join(',')}` : null)??
+  (state.paletteOpen?'palette':null)??(state.sidebarOpen?'sidebar':null);
 export function beginPointerFrame(state:TuiState,width:number,height:number):void {
   frames.set(state,{width,height,route:state.routeVersion,screen:state.screen,workspace:state.workspace,signedIn:state.signedIn,overlay:overlay(state),targets:[]});
 }
@@ -20,6 +22,7 @@ export function pointerLine(line:TuiLine,action:TuiPointerAction):TuiLine {
 }
 export function addPointerTarget(state:TuiState,column:number,row:number,width:number,action:TuiPointerAction):void {
   const frame=frames.get(state);if(!frame||row<0||row>=frame.height)return;
+  if(state.modelSelector?.open && !(action.kind==='command' && (action.command==='/model' || action.command.startsWith('/model-action '))))return;
   const left=Math.max(0,column),right=Math.min(frame.width,column+width);
   if(right>left)frame.targets.push({column:left,row,width:right-left,action});
 }
@@ -27,5 +30,9 @@ export function pointerTargetAt(state:TuiState,column:number,row:number,width:nu
   const frame=frames.get(state);
   if(!frame||state.textSelection||state.startup||state.privacyOffer||frame.width!==width||frame.height!==height||
     frame.route!==state.routeVersion||frame.screen!==state.screen||frame.workspace!==state.workspace||frame.signedIn!==state.signedIn||frame.overlay!==overlay(state))return null;
-  return frame.targets.findLast(target=>target.row===row&&column>=target.column&&column<target.column+target.width)?.action??null;
+  for(let index=frame.targets.length-1;index>=0;index--){
+    const target=frame.targets[index];
+    if(target.row===row&&column>=target.column&&column<target.column+target.width)return target.action;
+  }
+  return null;
 }

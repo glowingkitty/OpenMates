@@ -57,7 +57,7 @@ describe("cached TUI workspace loading", () => {
     assert.equal(await readCachedTuiWorkspace(client,'projects:old-mutation'),null);
     live={...original};saveSession(live,{replace:true});
   });
-  // contract-test: supporting surface=cli assertions=projects.surface.semantic-parity,workflows.surface.semantic-parity,tasks.surface.semantic-parity
+  // contract-test: supporting surface=cli assertions=projects.surface.semantic-parity,workflows.surface.semantic-parity,tasks.surface.semantic-parity,terminal-ui.offline.cache-first
   it("publishes an encrypted snapshot before the refresh resolves", async () => {
     const key = "projects:adapter-warm";
     assert.equal(await writeCachedTuiWorkspace(client, key, ["saved"]), true);

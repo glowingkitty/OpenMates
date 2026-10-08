@@ -34,11 +34,16 @@ import { chatResultsViews, messageResultsViews } from './tuiChatResults.js';
 import { parseChatContextContent, chatContextSummary } from "./chatContextEvents.js";
 import type { ProjectFocusCountdown } from "./projectFocusCountdown.js";
 import {chatQuestions, messageQuestions, renderQuestionCard, type TuiQuestionEditor} from './tuiInteractiveQuestions.js';
+import {fenceTuiSettingsView} from './tuiSettingsShell.js';
+import type {TuiSettingsState} from './tuiSettings.js';
+import type {TuiModelSelectorState} from './tuiModelSelector.js';
+import type {TuiChromeState} from './tuiHeaderActions.js';
+import {fullscreenHeaderLines,type TuiViewOrigin} from './tuiFullscreenChrome.js';
 import {beginPointerFrame,pointerLine} from './tuiPointer.js';
 
 export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chats" | "chat" | "embed" | "results-view" | "apps" | "app" | "app-skill" | "app-result" | "projects" | "project" | "workflows" | "workflow" | "tasks" | "task" | "status";
 export type TuiWorkspace = "chats" | "apps" | "projects" | "tasks" | "workflows";
-export type TuiFocus = "composer" | "content" | "inspiration" | "sidebar" | "navigation";
+export type TuiFocus = "composer" | "content" | "inspiration" | "sidebar" | "navigation" | "settings" | "header";
 
 export type TuiMessage = {
   id?: string;
@@ -56,6 +61,13 @@ export type TuiWorkflowEdit = {
 };
 
 export type TuiState = {
+  modelSelector:TuiModelSelectorState|null;
+  settings:TuiSettingsState|null;
+  settingsOwnerCurrent:(()=>boolean)|null;
+  settingsRestore:{focus:TuiFocus;sidebarOpen:boolean}|null;
+  chrome:TuiChromeState|null;
+  chatOrigin:TuiViewOrigin|null;
+  headerActionIndex:number;
   questionEditor:TuiQuestionEditor|null;
   textSelection: boolean;
   chatEmbeds: Record<string, DecryptedEmbed>;
@@ -78,7 +90,7 @@ export type TuiState = {
   homeContextKey: string | null;
   continueData: {memories: import("./client.js").DecryptedMemoryEntry[]; reminders: Array<Record<string,unknown>>} | null;
   detailEmbed: DecryptedEmbed | null;
-  embedOrigin: {screen:TuiScreen;workspace:TuiWorkspace;focus:TuiFocus;selectedIndex:number;scrollOffset:number;filter:string;input:string} | null;
+  embedOrigin: TuiViewOrigin | null;
   embedChoices: string[];
   apps: TuiApp[];
   activeApp: TuiApp | null;
@@ -184,6 +196,8 @@ export const TUI_INTERESTS = [
 
 export function createInitialTuiState(): TuiState {
   return {
+    modelSelector:null,
+    settings:null,settingsOwnerCurrent:null,settingsRestore:null,chrome:null,chatOrigin:null,headerActionIndex:0,
     questionEditor:null,
     textSelection:false,chatEmbeds:{},chatEmbedLoads:new Set(),embedAliases:{},chatSelectedEmbedId:null,username:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeChatsLoading:false,homeAbortController:null,homeError:null,homeLoadVersion:0,homeShowAll:false,homeSelectionMoved:false,homeContextKey:null,continueData:null,detailEmbed:null,embedOrigin:null,embedChoices:[],
     apps:[],activeApp:null,activeAppSkill:null,appTab:"skills",appSkillTab:"overview",appResults:{items:[],hasMore:false,offset:0},
@@ -277,15 +291,29 @@ export function rankExamples(
     .map((entry) => entry.example);
 }
 
+/** Invalidate private views and pending responses when an interactive session ends. */
+export function resetEndedTuiSession(state: TuiState, hasSession: boolean): boolean {
+  if (!state.signedIn || hasSession) return false;
+  state.homeAbortController?.abort();
+  Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
+  const routeVersion = state.routeVersion + 1, homeLoadVersion = state.homeLoadVersion + 1;
+  Object.assign(state, createInitialTuiState(), {routeVersion, homeLoadVersion, status: "Session ended. Sign in to reopen your work."});
+  return true;
+}
+
 export function renderTuiFrame(state: TuiState, width: number, height: number, options: { colorMode?: TuiColorMode; ascii?: boolean } = {}): string {
+  fenceTuiSettingsView(state);
   beginPointerFrame(state,width,height);
   if (state.startup || state.privacyOffer) return renderStartupFrame(state, width, height, options.colorMode ?? "none");
   const bodyWidth = workspaceGeometry(state, width).contentWidth;
-  const stickyRows=state.screen==="embed"?3:state.screen==="results-view"?2:state.screen==="project"&&state.activeProject?renderProjectIdentity(state.activeProject,{width:bodyWidth}).length+renderProjectTabs(state.projectTab,bodyWidth).length:
+  const header=fullscreenHeaderLines(state,bodyWidth);
+  const embedHero=state.screen==="embed"?renderEmbedHero(state,bodyWidth,height):null;
+  const stickyRows=state.screen==="embed"?embedHero!.length+1:state.screen==="results-view"?2:state.screen==="project"&&state.activeProject?renderProjectIdentity(state.activeProject,{width:bodyWidth}).length+renderProjectTabs(state.projectTab,bodyWidth).length:
     state.screen==="app"&&state.activeApp?renderTuiAppIdentity(state.activeApp,bodyWidth).length+renderTuiAppTabs(state.appTab,bodyWidth).length:
     state.screen==="app-skill"&&state.activeAppSkill?renderTuiAppsSkillIdentity(state.activeAppSkill,bodyWidth).length+renderTuiAppsSkillTabs(state.appSkillTab,bodyWidth).length:
     state.screen==="workflow"&&state.activeWorkflow?renderWorkflowIdentity(state.activeWorkflow,{width:bodyWidth,run:state.workflowTab==="runs"?state.workflowRuns[state.selectedWorkflowRunIndex]:undefined}).length+(bodyWidth<36?7:4):0;
-  return renderWorkspaceFrame(state, width, height, renderBody(state, bodyWidth,height), { ...options,stickyRows, headerRows: state.screen === "chat" || state.screen === "example" ? renderChatHeader(state, bodyWidth).length : undefined });
+  return renderWorkspaceFrame(state, width, height, [...header,...renderBody(state, bodyWidth,height,embedHero??undefined)],
+    { ...options,stickyRows:stickyRows+header.length,stickyFallbackRows:embedHero?header.length:undefined });
 }
 
 function renderStartupFrame(state: TuiState, width: number, height: number, colorMode: TuiColorMode): string {
@@ -340,10 +368,10 @@ function appsHomeCommandLine(showAll:boolean,width:number):TuiLine {
     {text:shownSearch,action:shownSearch.startsWith('/search')?{kind:'command',command:'/search'}:undefined},
   ]};
 }
-function renderBody(state: TuiState, width: number,height:number): TuiLine[] {
-  return renderScreenBody(state, width, height);
+function renderBody(state: TuiState, width: number,height:number,embedHero?:TuiLine[]): TuiLine[] {
+  return renderScreenBody(state, width, height, embedHero);
 }
-function renderScreenBody(state: TuiState, width: number,height:number): TuiLine[] {
+function renderScreenBody(state: TuiState, width: number,height:number,embedHero?:TuiLine[]): TuiLine[] {
   switch (state.screen) {
     case "help":
       return renderHelp(width);
@@ -352,9 +380,9 @@ function renderScreenBody(state: TuiState, width: number,height:number): TuiLine
     case "examples":
       return renderExamples(state, width);
     case "example":
-      return renderExampleChat(state, width);
+      return renderExampleChat(state, width, height);
     case "chat":
-      return renderChat(state, width);
+      return renderChat(state, width, height);
     case "chats":
       return renderHomeChatCards(state,width,height);
     case "apps": {
@@ -396,13 +424,12 @@ function renderScreenBody(state: TuiState, width: number,height:number): TuiLine
         ]}] : ['Results view unavailable. Escape returns to the chat.'];
     }
     case "embed": {
-      const app=state.detailEmbed?.appId ?? "", gradient=APP_GRADIENTS[app] ?? PRIMARY_GRADIENT;
-      const title=state.detailTitle || "Embed";
-      const header=[title, state.detailEmbed ? `${state.detailEmbed.type?.replaceAll("-"," ") ?? "Saved item"} · ${state.detailEmbed.embedId.slice(0,8)}` : "Saved embeds"];
-      return [...coloredHero(header,header.length,gradient),"",...(state.embedChoices.length ? state.embedChoices.map((alias,index)=>
+      const header=embedHero??renderEmbedHero(state,width,height);
+      const details=(state.embedChoices.length ? state.embedChoices.map((alias,index)=>
         pointerLine(`${index===state.selectedIndex?">":" "} /embed ${alias} · Enter open`,
-          {kind:'command',command:`/embed ${alias}`})) : state.detailLines)].flatMap(line=>
+          {kind:'command',command:`/embed ${alias}`})) : state.detailLines).flatMap(line=>
         wrap(lineText(line),width).map(text=>typeof line==='string'?text:{...line,text,spans:undefined}));
+      return [...header,"",...details];
     }
     case "workflows":
       return [...homeHeader(state,width,height),...renderWorkflowCarousel(state.workflows.filter(w=>w.title.toLowerCase().includes(state.filter.toLowerCase())),width,state.selectedIndex,state.focus==='content')];
@@ -533,12 +560,12 @@ function renderExamples(state: TuiState, width: number): string[] {
   return lines.flatMap((line) => wrap(line, width));
 }
 
-function renderExampleChat(state: TuiState, width: number): TuiLine[] {
+function renderExampleChat(state: TuiState, width: number, height: number): TuiLine[] {
   const convo = state.activeExample;
   if (!convo) return renderExamples(state, width);
   const embeds = new Map(Object.entries(exampleEmbedMap(state)));
   const lines = [
-    ...renderChatHeader(state, width),
+    ...renderChatHeader(state, width, height),
     `Example chat: ${convo.chat.title ?? convo.chat.slug}`,
     "",
   ];
@@ -559,8 +586,8 @@ function renderExampleChat(state: TuiState, width: number): TuiLine[] {
   return lines.flatMap<TuiLine>(line=>typeof line==='string'?wrap(line,width):[line]);
 }
 
-function renderChat(state: TuiState, width: number): TuiLine[] {
-  const lines = renderChatHeader(state, width);
+function renderChat(state: TuiState, width: number, height: number): TuiLine[] {
+  const lines = renderChatHeader(state, width, height);
   let contextIndex = 0, viewOffset = 0, questionOffset=0;
   for (const message of state.messages) {
     const event = message.role === "system" ? parseChatContextContent(message.content) : null;
@@ -589,7 +616,33 @@ function renderChat(state: TuiState, width: number): TuiLine[] {
   return lines.flatMap<TuiLine>(line=>typeof line==='string'?wrap(line,width):[line]);
 }
 
-export function renderChatHeader(state: TuiState, width: number): TuiLine[] {
+function renderEmbedHero(state:TuiState,width:number,height:number):TuiLine[] {
+  const app=state.detailEmbed?.appId??"",gradient=APP_GRADIENTS[app]??PRIMARY_GRADIENT;
+  const title=state.detailTitle||"Embed";
+  const subtitle=state.detailEmbed?`${state.detailEmbed.type?.replaceAll("-"," ")??"Saved item"} · ${state.detailEmbed.embedId.slice(0,8)}`:"Saved embeds";
+  return centeredHero(title,subtitle,"",width,height,gradient.start);
+}
+
+/** Terminal-sized equivalent of the centered, solid-color web ChatHeader/EmbedHeader banners. */
+function centeredHero(title:string,subtitle:string,meta:string,width:number,height:number,background:string):TuiLine[] {
+  width=Math.max(1,width);
+  const textWidth=Math.max(1,Math.min(72,width-(width>=30?4:0)));
+  const padding=height>=28&&width>=48?2:height>=18&&width>=28?1:0;
+  const titleRows=wrapCells(title,textWidth).slice(0,height<16?1:2);
+  const subtitleRows=height<12||!subtitle?[]:wrapCells(subtitle,textWidth).slice(0,height<20?1:2);
+  const metaText=height>=14&&width>=20?truncateCells(meta,textWidth):"";
+  const core=[...titleRows.map(text=>({text,bold:true})),...subtitleRows.map(text=>({text})),...(metaText?[{text:metaText}]:[])];
+  const minimum=padding===2?7:padding===1?5:0;
+  const extra=Math.max(0,minimum-core.length-padding*2);
+  const rows:Array<{text:string;bold?:boolean}>=[
+    ...Array.from({length:padding+Math.floor(extra/2)},()=>({text:""})),
+    ...core,
+    ...Array.from({length:padding+Math.ceil(extra/2)},()=>({text:""})),
+  ];
+  return rows.map(row=>({text:centeredCarouselText(row.text,width),background,bold:row.bold}));
+}
+
+export function renderChatHeader(state: TuiState, width: number, height=24): TuiLine[] {
   const chat = state.screen === "example" ? state.activeExample?.chat : state.activeChat;
   const title = state.headerState === "loading" && !chat?.title ? state.status === "Loading chat…" ? "Loading chat…" : "Creating new chat…"
     : state.headerState === "error" ? state.headerError || "Could not send message"
@@ -601,7 +654,7 @@ export function renderChatHeader(state: TuiState, width: number): TuiLine[] {
   const when = timestamp ? `Started ${relativeTime(timestamp)}` : "";
   const meta = [category, when, badges, state.selectedProjectId && state.activeProject?.name].filter(Boolean).join("  ·  ");
   const background=chatBackgroundFor(state);
-  return ['',...wrap(`  ${title}`,width).map(text=>({text,bold:true})),...wrap(`  ${summary}`,width).slice(0,2),meta?truncateCells(`  ${meta}`,width):'', ''].map(row=>typeof row==='string'?{text:row,background}:{...row,background});
+  return centeredHero(title,summary,meta,width,height,background);
 }
 
 function chatBackgroundFor(state:TuiState):string { return chatBackground(state.screen==='example'?state.activeExample?.chat.category:state.activeChat?.category); }

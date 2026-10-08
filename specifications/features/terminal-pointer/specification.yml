@@ -1,9 +1,12 @@
 schema_version: 1
 id: feature.terminal-pointer
 version: 1
-status: draft
+status: superseded
+superseded_by: feature.terminal-ui@1
 title: Terminal Pointer Interaction
 summary: >
+  Superseded by feature.terminal-ui@1; its stable pointer assertions continue
+  in the single active terminal UI contract.
   OpenMates terminal controls support mouse clicks and terminal-generated touch
   taps using the same actions as keyboard navigation.
 

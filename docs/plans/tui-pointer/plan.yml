@@ -7,10 +7,12 @@ goal: >
   Implement clicking on elements in the OpenMates TUI when used in a terminal
   on a GUI device such as a Mac or tablet.
 specifications:
-  - feature.terminal-pointer@1
+  - feature.terminal-ui@1
 approval:
   confirmation: explicit_user_confirmation
-  fingerprint: f8c88e1d4413dcc072cc7bb1db60a39cc78da437278c5670e9f119b40a4b65e7
+  fingerprint: f763d91f38570ae87752eac8c243de8a963826241b01349831f2650d1e60d13c
+  legacy_pointer_fingerprint: f8c88e1d4413dcc072cc7bb1db60a39cc78da437278c5670e9f119b40a4b65e7
+  context: Consolidated into the single TUI specification under explicit user instruction.
 task: 584ffc7a-8fd5-4db1-a3d2-4326b7fb31ba
 scope:
   in:

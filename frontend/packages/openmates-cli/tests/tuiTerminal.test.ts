@@ -63,7 +63,7 @@ test("suspend detaches key input and frame rendering during external auth, then 
   assert.ok(written().includes("\x1b[?1049l"));
 });
 
-// contract: feature.terminal-pointer@1 terminal-pointer.lifecycle-selection-safe, terminal-pointer.visible-action-parity
+// contract: feature.terminal-ui@1 terminal-pointer.lifecycle-selection-safe, terminal-pointer.visible-action-parity
 test("fragmented SGR left press emits one zero-based click while wheels and paste retain their meaning", async () => {
   const {input,terminal,written}=fakeTerminal(),keys:Array<{text:string;name?:string;mouse?:TerminalKey["mouse"]}>=[];
   terminal.enter();terminal.onKey((text,key)=>keys.push({text,name:key.name,mouse:key.mouse}));
@@ -83,7 +83,7 @@ test("fragmented SGR left press emits one zero-based click while wheels and past
   terminal.leave();assert.ok(written().includes("\x1b[?1000l\x1b[?1006l"));
 });
 
-// contract: feature.terminal-pointer@1 terminal-pointer.lifecycle-selection-safe
+// contract: feature.terminal-ui@1 terminal-pointer.lifecycle-selection-safe
 test("mouse releases, other buttons, motion, modifiers, and invalid coordinates cannot activate a click", async () => {
   const {input, terminal} = fakeTerminal();
   const names: string[] = [];
@@ -100,7 +100,7 @@ test("mouse releases, other buttons, motion, modifiers, and invalid coordinates 
   terminal.leave();
 });
 
-// contract: feature.terminal-pointer@1 terminal-pointer.lifecycle-selection-safe
+// contract: feature.terminal-ui@1 terminal-pointer.lifecycle-selection-safe
 test("incomplete and oversized reports stay out of composer input across suspension and selection", async () => {
   const {input, terminal, written} = fakeTerminal();
   const keys: Array<{text: string; name?: string}> = [];
@@ -122,7 +122,7 @@ test("incomplete and oversized reports stay out of composer input across suspens
   assert.ok(written().endsWith("\x1b[?1049l"));
 });
 
-// contract: feature.terminal-pointer@1 terminal-pointer.lifecycle-selection-safe
+// contract: feature.terminal-ui@1 terminal-pointer.lifecycle-selection-safe
 test("timed-out mouse fragments cannot leak trailing bytes or consume a later paste", async () => {
   const {input, terminal} = fakeTerminal();
   const keys: Array<{text: string; name?: string}> = [];

@@ -2,6 +2,7 @@
 import type {WorkspaceContext} from './tuiWorkspaceController.js';
 import type {TerminalKey} from './tuiTerminal.js';
 import type {TuiPointerAction} from './tuiPointer.js';
+import {closeTuiSettings} from './tuiSettingsShell.js';
 import {handleQuestionPointer} from './tuiInteractiveQuestions.js';
 import {sidebarPointerIds} from './tuiLayout.js';
 import {paletteActions} from './tuiActions.js';
@@ -14,6 +15,15 @@ export async function handleTuiPointer(context:WorkspaceContext,action:TuiPointe
   keyboard:(chunk:string,key:TerminalKey)=>Promise<void>):Promise<void> {
   const {state,render}=context;
   if(state.textSelection||state.startup||state.privacyOffer)return;
+  if(state.modelSelector?.open && !(action.kind==='command' && (action.command==='/model' || action.command.startsWith('/model-action ')))){
+    await context.command('/model-action close');
+    return;
+  }
+  if(state.settings&&!(action.kind==='command'&&action.command.startsWith('/settings'))){
+    // Only visible main-pane targets exist in a split view; narrow settings has
+    // no underlying targets. Returning focus restores the view before its action.
+    closeTuiSettings(state);
+  }
   if(action.kind==='question'){await handleQuestionPointer(context,action);return;}
   if(action.kind==='command'){await context.command(action.command);return;}
   if(action.kind==='focus'){state.focus=action.focus;render();return;}

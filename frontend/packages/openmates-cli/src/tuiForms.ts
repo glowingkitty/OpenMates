@@ -5,6 +5,8 @@ export type TuiFormField = {
   value: string;
   options?: string[];
   multiline?: boolean;
+  /** Sensitive values are never echoed in the terminal frame. */
+  secret?: boolean;
   /** Schema metadata lets the terminal editor explain and validate typed inputs. */
   valueType?: "string" | "number" | "integer" | "boolean" | "object" | "array";
   required?: boolean;
