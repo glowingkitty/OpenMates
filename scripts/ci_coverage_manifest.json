@@ -427,6 +427,7 @@
         "copy-message-flow.spec.ts",
         "embed-diff-editing.spec.ts",
         "models3d-search.spec.ts",
+        "native-cache-selected-tools.spec.ts",
         "skill-code-docs.spec.ts",
         "skill-math-calculate.spec.ts",
         "skill-news-search.spec.ts",
