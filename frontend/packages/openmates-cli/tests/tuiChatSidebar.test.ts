@@ -65,6 +65,34 @@ test('an activity response from the previous account cannot publish', async () =
   assert.deepEqual(state.runningChatIds, ['child']);
 });
 
+// contract-test: supporting surface=cli assertions=chat-navigation.activity.global-running,terminal-settings.operations.validated-and-owner-scoped
+test('a session lost during pending activity never reads its old key or publishes private rows', async () => {
+  for (const rejects of [false, true]) {
+    const state = fixture(); let signedIn = true, keyReads = 0;
+    let finish!: (value: { ids: string[]; chats: [] }) => void;
+    let fail!: (reason: Error) => void;
+    const pending = new Promise<{ ids: string[]; chats: [] }>((resolve, reject) => { finish = resolve; fail = reject; });
+    const client = {
+      hasSession: () => signedIn,
+      getActiveTeamId: () => null,
+      getMasterKeyBytes: () => { keyReads++; if (!signedIn) throw new Error('Not logged in'); return Buffer.alloc(32, 1); },
+      getChatActivity: () => pending,
+    };
+    let renders = 0;
+    const refresh = refreshTuiChatSidebar(state, client as never, () => { renders++; });
+    assert.equal(keyReads, 1);
+    signedIn = false;
+    if (rejects) fail(new Error('Session expired')); else finish({ ids: ['old-owner-chat'], chats: [] });
+    await assert.doesNotReject(refresh);
+    assert.equal(keyReads, 1, 'late response and rejection paths must not read a vanished session key');
+    assert.deepEqual(state.runningChatIds, ['child']);
+    assert.equal(state.status, null);
+    assert.equal(renders, 0);
+    await assert.doesNotReject(refreshTuiChatSidebar(state, client as never, () => { renders++; }));
+    assert.equal(keyReads, 1, 'a stale signed-in view cannot start another owner request');
+  }
+});
+
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.activity.global-running
 test('background activity failures preserve the cached-chat sync status', async () => {
   const state = fixture();

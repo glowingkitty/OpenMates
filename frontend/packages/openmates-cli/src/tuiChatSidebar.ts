@@ -121,20 +121,32 @@ export function moveTuiChatSidebarSelection(state: TuiState, amount: number, edg
   state.sidebarIndex = selectable[next] ?? 0;
 }
 export async function refreshTuiChatSidebar(state: TuiState, client: OpenMatesClient, render: () => void, includeProjects = false): Promise<void> {
-  if (!state.signedIn) return;
+  if (!state.signedIn || (typeof client.hasSession === 'function' && !client.hasSession())) return;
   const activityRequest = ++state.chatActivityLoadVersion;
   const projectRequest = includeProjects ? ++state.chatSidebarLoadVersion : state.chatSidebarLoadVersion;
   const team = typeof client.getActiveTeamId === 'function' ? client.getActiveTeamId() : null;
-  const master = typeof client.getMasterKeyBytes === 'function' ? Buffer.from(client.getMasterKeyBytes()) : null;
-  const current = () => state.signedIn && (typeof client.getActiveTeamId !== 'function' || client.getActiveTeamId() === team) &&
-    (!master || master.equals(Buffer.from(client.getMasterKeyBytes())));
+  let master: Buffer | null = null;
+  try {
+    master = typeof client.getMasterKeyBytes === 'function' ? Buffer.from(client.getMasterKeyBytes()) : null;
+  } catch (error) {
+    // A session can disappear between the initial check and key capture.
+    if (typeof client.hasSession === 'function' && !client.hasSession()) return;
+    throw error;
+  }
+  const current = () => {
+    try {
+      if (!state.signedIn || (typeof client.hasSession === 'function' && !client.hasSession())) return false;
+      return (typeof client.getActiveTeamId !== 'function' || client.getActiveTeamId() === team) &&
+        (!master || master.equals(Buffer.from(client.getMasterKeyBytes())));
+    } catch { return false; }
+  };
   if (typeof client.getChatActivity === 'function') {
     try {
       const activity = await client.getChatActivity();
       if (current() && activityRequest === state.chatActivityLoadVersion) { updateTuiChatSidebar(state, () => { state.runningChatIds = activity.ids; state.activityChats = activity.chats; }); render(); }
     } catch { if (current() && !state.status) { state.status = 'Running chat status unavailable.'; render(); } }
   }
-  if (includeProjects && typeof client.listProjects === 'function') {
+  if (includeProjects && current() && typeof client.listProjects === 'function') {
     const summaries = (await loadTuiProjects(client)).filter(project => !project.archived), projects: TuiProject[] = [];
     for (let start = 0; start < summaries.length; start += 4) projects.push(...await Promise.all(summaries.slice(start, start + 4).map(project => loadTuiProject(client, project.id, true))));
     const linkedIds = [...new Set(projects.flatMap(project => project.items.filter(item => item.type === 'chat').map(item => item.targetId)))];

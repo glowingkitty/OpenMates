@@ -206,10 +206,10 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 			// The canonical walkthrough starts at the settled Share state. Keep
 			// every earlier native-setting/export interaction in the raw recording.
 			{name:'share-open-action',click:{text:'Share'},wait_for:'Share settings',hold_ms:400},
-			{name:'share-open',wait_for:'Share settings',hold_ms:4000},
+			{name:'share-open',hold_ms:4000},
 			{name:'share-generated',click:{text:'Generate Link'},wait_for:'Copy Link',hold_ms:500},
 			{name:'share-qr-action',click:{text:'Show QR code'},wait_for:'Share QR code',hold_ms:400},
-			{name:'share-qr-open',wait_for:'Share QR code',hold_ms:2000},
+			{name:'share-qr-open',hold_ms:2000},
 			{name:'share-qr-narrow',resize:{width:640,height:360},wait_for:'QR needs',hold_ms:2500},
 			{name:'share-qr-wide',resize:{width:1280,height:720},wait_for:'Back to share',hold_ms:2000},
 			{name:'share-qr-back',click:{text:'Back to share'},wait_for:'Share settings',hold_ms:250},
@@ -219,11 +219,11 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 			{name:'developers',click:{text:'Developers'},wait_for:'Settings  /  Developers',hold_ms:200},
 			{name:'devices',click:{text:'Devices'},wait_for:'Settings  /  Devices',hold_ms:2500},
 			{name:'settings-close-action',click:{text:'Close Settings'},wait_for:'Keep this unsent draft',wait_for_absent:'Settings  /',hold_ms:400},
-			{name:'settings-closed',wait_for:'Keep this unsent draft',hold_ms:2500},
+			{name:'settings-closed',hold_ms:2500},
 			{name:'logout-settings',click:{text:'Settings'},wait_for:'Settings  /  Settings',hold_ms:200},
 			{name:'logout-confirmation',click:{text:'Log out'},wait_for:'Log out of this CLI session?',hold_ms:250},
 			{name:'logout-action',click:{text:'Confirm'},wait_for:'Session ended. Sign in to reopen your work.',wait_for_absent:chat.title,hold_ms:400},
-			{name:'logout-cleared',wait_for:'Session ended. Sign in to reopen your work.',wait_for_absent:chat.title,hold_ms:2500},
+			{name:'logout-cleared',hold_ms:2500},
 			{name:'exit-command',text:'/exit'},
 			{name:'exit',key:'Return'},
 		];

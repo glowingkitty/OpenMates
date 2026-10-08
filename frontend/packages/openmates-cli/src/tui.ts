@@ -79,7 +79,17 @@ export async function runTui(
     if (closed || state.startup || refreshingActivity || !state.signedIn) return;
     refreshingActivity = true;
     try { await refreshTuiChatSidebar(state, client, render); }
-    finally { refreshingActivity = false; }
+    catch {
+      // Polling is fire-and-forget. Keep the TUI alive on a transient failure;
+      // render() fences private views if the session ended during the request.
+      if (!closed && client.hasSession() && !state.status) {
+        state.status = 'Running chat status unavailable.';
+        render();
+      }
+    } finally {
+      refreshingActivity = false;
+      if (!closed && !client.hasSession()) render();
+    }
   };
   const activityPoll = setInterval(() => { void refreshActivity(); }, 30_000);
   const activityAnimation = setInterval(() => {
