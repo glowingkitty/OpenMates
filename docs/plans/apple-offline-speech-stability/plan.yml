@@ -137,8 +137,10 @@ evidence:
   - Build 96 adds a macOS notification service extension and migrates only the existing notification private key
     to the shared data-protection Keychain without replacing its recipient. Signed archive checks must prove
     matching app-group and Keychain capabilities. A real encrypted notification while the Mac app is backgrounded
-    or closed must prove extension invocation, readable response preview and Open chat routing before iOS upload;
-    parser, synthetic crypto and Simulator passes alone do not prove OS delivery.
+    or closed must prove extension invocation, readable response preview and Open chat routing to establish real
+    macOS OS delivery; parser, synthetic crypto and Simulator passes alone do not prove it. The latest explicit
+    user order is iOS with embedded Watch first, then macOS, superseding the earlier before-iOS notification gate.
+    Unverified physical notification delivery remains disclosed; no delivery pass is asserted.
   - TestFlight 0.27.0 (91) is available for iOS with its Watch companion and universal macOS. Its signed archives
     and availability receipts are retained. Later consolidated fixes and the two selected neural speech laboratories
     are assigned build 92 and are not included in build 91.
@@ -565,7 +567,7 @@ tasks:
   - T-NATIVE-4
   dependencies: []
   blockers:
-  - Pending source-bound UI/release evidence and missing matching Specification approval records.
+  - Root-owned build96 signed archive/export/upload receipts remain pending; physical-device qualification gaps are disclosed separately.
   follow_up_tasks: []
   ownership:
     files:
@@ -587,11 +589,132 @@ attempts:
   recorded_at: '2026-10-07'
 handoff:
   current_task_id: TASK-8137
-  next_action: Finish source-bound scoped UI gates, resolve matching Specification approval admission, then run
-    approved unified signing/export/upload and scoped publication.
-  command: Root release coordinator uses scripts/apple_testflight_release.py and scripts/sessions.py with the final
-    frozen receipts.
-  expected_outcome: Reviewed scoped dev publication and source-bound unified Apple release evidence.
-  last_verified_commit: 234ff583686c7a832845a8a65ba82c1217a2e7f4
+  next_action: >-
+    Root completes signed build96 iOS/iPadOS with embedded Watch archive/export/upload first,
+    then macOS, in the latest explicit user order. The seamless offline AI follow-up below
+    records planning only and must not change the frozen build96 source.
+  command: Root release coordinator uses scripts/apple_testflight_release.py with the frozen source-bound receipts.
+  expected_outcome: Source-bound Apple release receipts and honest delivery/device qualification limits.
+  last_verified_commit: 987ec61db56da8a74c83d87a1c9c1dae7cb1839d
+  published_dev:
+    commit: 987ec61db56da8a74c83d87a1c9c1dae7cb1839d
+    status: published_and_vercel_ready
+    source_paths: 171
+    derived_specification_paths: 3
+    gates: Normal specification, lint, translation build and translation validation passed; no bypass flags.
+    limits: Seven inferred related web Apple specs were not run in the publication session; no new native pass is claimed.
+  frozen_release:
+    source_content_sha256: ed222235d3297a9939971d02709a47c2a6b7c4289a7c1dcb5d3f9ef5e7901656
+    source_file_count: 1725
+    task_provenance_head: 234ff583686c7a832845a8a65ba82c1217a2e7f4
+    distinction: The published dev commit and frozen task provenance HEAD are distinct; archive identity is bound by content.
   blocker:
-    reason: Final current-source UI/release and Specification approval admission remain pending.
+    reason: Root-owned signed build96 archive/export/upload outcomes remain pending at this handoff snapshot; no TestFlight availability is asserted.
+
+seamless_offline_ai_followup_2026_10_08:
+  status: proposed
+  goal_source: Direct user request in this Codex chat on 2026-10-08.
+  goal: >-
+    Make offline speech to text, text to speech and personal-data anonymization
+    seamless on supported Apple devices. Bundle offline transcription in the
+    iOS/iPadOS/macOS app; inform users truthfully about local audio processing.
+    Offer enhanced anonymization only where background preparation can avoid a
+    noticeable Send delay, with storage-aware consent and the requested reminder flow.
+  existing_contracts:
+  - feature.apple-local-model-lab
+  - feature.assistant-response-speech
+  - feature.pii-protection
+  - feature.notifications
+  - feature.settings-ui
+  implementation_scope: >-
+    This records the requested next design, not a build96 implementation or an
+    approval of a future changed Specification fingerprint. Extend existing
+    applicable contracts before their production behavior changes. Do not restore
+    rejected TTS engines or Apple system voices.
+  current_evidence:
+    stt: Production streams Voxtral to the server and uploads recordings; Whisper large-v3 is a downloaded lab only.
+    tts: Provider-generated audio is production; Supertonic3 local-first resident playback remains pending.
+    pii: Optional 1269572251-byte ExecuTorch XNNPACK model is integrated; regex remains local and active.
+    pii_m1: Cold load 3.94 seconds; warm isolated scans 2.65, 2.14 and 2.02 seconds; sampled peak RSS about 1.24 GiB.
+    limits: No physical iPhone/iPad/Watch local-model speed, sustained battery, or voice-quality qualification.
+  sequence:
+  - stage: Bundled offline transcription on iOS/iPadOS/macOS
+    work: >-
+      Qualify bundled multilingual Whisper/Core ML assets and tokenizer for
+      supported devices, including a bounded smaller baseline if required. Wire
+      microphone PCM into incremental transcript decoding with VAD, generation
+      fencing, editable partials/finals, cancellation and memory-pressure eviction.
+      Prefer retained warm resources while a recording-capable composer is active.
+      Make transcript-only recording fully local: no realtime socket, batch upload
+      or audio attachment transmission. Any optional recording-sharing or server
+      fallback must be separately explicit and reflected in the privacy message.
+    notice: >-
+      On first eligible message-field activation, use the existing notification
+      banner to explain offline transcription and no audio transmission only when
+      the verified local-only route is actually selected and ready.
+    check: >-
+      Airplane-mode first launch, typed/streamed transcript edits, no outbound audio
+      traffic, cancellation, long recordings, multilingual quality and cold/warm
+      latency on real iPhone, iPad and Apple Silicon Mac. Qualify Intel separately
+      or clearly disclose its support limit; do not inherit the arm64 lab guard silently.
+  - stage: Local-first Supertonic3 response playback
+    work: >-
+      Preserve explicit verified downloads and approved voice/language mapping.
+      After a chat is fully opened and idle, prepare an installed selected engine
+      off the main actor; retain its single-owner sessions within a measured memory
+      budget. Stream bounded semantic speech chunks, cancel safely on scope/voice
+      changes and evict under memory pressure. Keep explicit provider fallback
+      separate from a local-only mode.
+    check: First audible audio, cold/warm preparation, continuous playback, voice quality, repeated chat switching and concurrent PII memory.
+  - stage: Enhanced anonymization qualification before proactive prompts
+    work: >-
+      Optimize debounced latest-revision background preparation and reuse exact
+      draft/model/options/account-context results at Send. Investigate safe
+      overlap-aware window reuse without weakening tokenizer offsets, entity
+      boundaries or privacy correctness. Evaluate a dedicated equivalent Core ML
+      export with measured placement; the current XNNPACK artifact is CPU-only.
+      Never skip an incomplete exact outgoing-revision check to disguise latency.
+    proposed_latency_budget: >-
+      Qualify a device/model/language/text-length envelope using p95 residual Send
+      delay at most 100 ms for an already prepared draft and at most 200 ms for
+      representative last-second edits. These are proposed usability targets,
+      not measured promises or a new approved product contract.
+    current_decision: >-
+      Existing measured M1 CPU inference does not pass a no-noticeable-delay
+      qualification. Until a device envelope passes, show only a one-time
+      informational banner pointing to Privacy settings, not an activation recommendation.
+  - stage: Eligible-device download consent state machine
+    storage: >-
+      Preserve at least 8 GiB free on iOS/iPadOS and 12 GiB on macOS in addition
+      to package-specific staging, install/compilation/cache and replacement
+      headroom. Recheck before transfer and installation. Free disk does not
+      establish RAM, allocatable app memory or sustained inference eligibility.
+    copy: Use the verified current manifest size, approximately 1.27 GB for Privacy Filter, rather than an inaccurate 1 GB promise.
+    states:
+    - First eligible composer activation offers Maybe later and Activate; never download before Activate.
+    - Maybe later snoozes until at least 24 hours have elapsed; only a later composer activation may offer Ignore and Activate.
+    - Ignore suppresses further activation prompts and shows one one-time banner explaining activation in Privacy settings.
+    - Activate enters existing pinned download/progress/cancel/retry flow and enables the model only after verification and readiness.
+    - An unqualified device gets only the one-time Privacy settings information; installed opted-in models still retain exact-send correctness.
+    persistence: Per-user and per-device; Team switches must not repeat prompts. Ignore survives model updates unless the user changes the preference explicitly.
+    check: Clock boundaries, duplicate focus events, relaunch, account/Team switching, capacity changes, interrupted downloads and readiness failures.
+  - stage: Watch-specific speech qualification
+    work: >-
+      Keep the optional multilingual 79.4 MB tiny Whisper experiment separate
+      from the 629.5 MB phone/Mac candidate. Measure physical supported Watches
+      for sustained real-time factor, transcript update cadence, accuracy, memory,
+      thermal limits and battery. If standalone Watch fails, design an explicit
+      paired-iPhone local inference option; audio crosses devices but not OpenMates.
+      Public Apple Speech framework availability must not be inferred from Siri.
+    rule: Do not promise the same large Whisper model or near-real-time Watch support without device evidence.
+  alternatives:
+    voxtral: >-
+      Apache-2.0 open weights are available. The current experimental 4-bit
+      M-series Metal checkpoint is about 4.42 GB, not a small drop-in Whisper
+      replacement; evaluate it separately on Mac after the existing offline
+      Whisper route is qualified. No iPhone/iPad/Watch performance is established.
+  verification_policy:
+  - Extend existing native control-flow/privacy tests and relevant E2E contract assertions; use synthetic audio/text for deterministic checks.
+  - Real on-device benchmarks and listening checks establish performance/quality separately from fixture or Simulator passes.
+  - Record exact OS/device/model revision, compute placement, p50/p95 timings, working memory, thermal/power conditions and network traces.
+  - Keep all model preparation, inference and diagnostics off the UI thread and exclude raw audio, transcript, spans, keys and personal identifiers from logs.
