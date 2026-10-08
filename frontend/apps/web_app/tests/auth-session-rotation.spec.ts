@@ -7,7 +7,7 @@ const { createHash } = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
-const { getTestAccount } = require('./signup-flow-helpers');
+const { getTestAccount, generateTotp } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
@@ -38,11 +38,124 @@ function expireIsolatedAccessWindow(token: string): void {
 	});
 }
 
+function challengeIsolatedSession(token: string): void {
+	const sourceRoot = process.env.OPENMATES_CI_SOURCE_ROOT;
+	if (process.env.OPENMATES_CI_ISOLATED !== '1' || !sourceRoot) {
+		throw new Error('Risk fixture requires the disposable isolated CI backend.');
+	}
+	const composeFile = path.join(sourceRoot, 'test-results/ci-private/compose.json');
+	if (!fs.existsSync(composeFile)) throw new Error('Isolated compose fixture is missing.');
+	// Seed only a challenge on this disposable token. Approval must use the real
+	// enrolled-factor endpoint below; no refresh token enters process arguments.
+	const digest = createHash('sha256').update(token).digest('hex');
+	const fixture = [
+		'import asyncio, re, sys',
+		'from backend.core.api.app.services.cache import CacheService',
+		'from backend.core.api.app.services.directus import DirectusService',
+		'from backend.core.api.app.services.session_security_state import COLLECTION, get_session_state',
+		'digest = sys.stdin.read().strip()',
+		'assert re.fullmatch("[a-f0-9]{64}", digest)',
+		'async def main():',
+		'    cache = CacheService()',
+		'    directus = DirectusService(cache_service=cache)',
+		'    try:',
+		'        state = await get_session_state(directus, digest)',
+		'        assert state and not state.get("risk_pending")',
+		'        assert await directus._update_item(COLLECTION, state["id"], {"risk_pending": True, "strong_verified_at": None, "proof_method": None}, admin_required=True)',
+		'        await cache.delete("auth:session-state:" + digest)',
+		'    finally:',
+		'        await directus.close()',
+		'        await cache.close()',
+		'asyncio.run(main())'
+	].join('\n');
+	execFileSync('docker', ['compose', '-f', composeFile, 'exec', '-T', 'api', 'python', '-c', fixture], {
+		input: digest, stdio: ['pipe', 'pipe', 'pipe'], timeout: 30000
+	});
+}
+
 async function refreshCookie(context: any): Promise<string> {
 	const cookie = (await context.cookies()).find((value: any) => value.name === 'auth_refresh_token');
 	if (!cookie?.value) throw new Error('Authenticated refresh cookie is missing.');
 	return cookie.value;
 }
+
+// contract-test: direct surface=rest_api assertions=auth.session.risk-reauth,auth.session.authoritative-enforcement,auth.session.isolation
+test('durable pending risk on a known device with unchanged country requires proof before issuing a WS token', async ({ page, playwright, browser }: any) => {
+	test.setTimeout(180000);
+	test.skip(process.env.OPENMATES_CI_ISOLATED !== '1', 'Requires the disposable isolated CI backend.');
+	const credentials = getTestAccount();
+	skipWithoutCredentials(test, credentials.email, credentials.password, credentials.otpKey);
+	await loginToTestAccount(page, undefined, undefined, { waitForEditor: true, credentials });
+	const apiUrl = process.env.OPENMATES_E2E_API_URL;
+	if (!apiUrl || new URL(apiUrl).hostname !== 'localhost') {
+		throw new Error('Risk fixture requires the runner-local API.');
+	}
+	const sessionId = await page.evaluate(() => sessionStorage.getItem('session_id'));
+	if (!sessionId) throw new Error('Browser session ID is missing.');
+	const userAgent = await page.evaluate(() => navigator.userAgent);
+	const origin = new URL(page.url()).origin;
+	const siblingContext = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL, userAgent });
+	const clients: any[] = [];
+	async function holding(token: string): Promise<any> {
+		const client = await playwright.request.newContext({
+			baseURL: apiUrl, userAgent,
+			extraHTTPHeaders: { Origin: origin, Cookie: `auth_refresh_token=${token}` }
+		});
+		clients.push(client);
+		return client;
+	}
+	async function session(client: any): Promise<any> {
+		return client.post('/v1/auth/session', { data: { session_id: sessionId } });
+	}
+	try {
+		const siblingPage = await siblingContext.newPage();
+		await loginToTestAccount(siblingPage, undefined, undefined, { waitForEditor: true, credentials });
+		const siblingClient = await holding(await refreshCookie(siblingContext));
+		const currentToken = await refreshCookie(page.context());
+		const currentClient = await holding(currentToken);
+		// Establish a successful baseline using exactly the same cookie, headers,
+		// session ID and source address as the subsequent challenged requests.
+		const baseline = await session(currentClient);
+		expect(baseline.status()).toBe(200);
+		const baselineBody = await baseline.json();
+		expect(baselineBody.success).toBe(true);
+		expect(baselineBody.re_auth_required).toBeNull();
+		expect(baselineBody.ws_token).toEqual(expect.any(String));
+		challengeIsolatedSession(currentToken);
+
+		for (let attempt = 0; attempt < 2; attempt += 1) {
+			const challenged = await session(currentClient);
+			expect(challenged.status()).toBe(200);
+			const body = await challenged.json();
+			expect(body.success).toBe(false);
+			expect(body.re_auth_required).toBe('2fa');
+			expect(body.re_auth_reason).toBe('session_verification');
+			expect(body.ws_token).toBeNull();
+			expect((await currentClient.get('/v1/auth/sessions')).status()).toBe(401);
+			expect((await siblingClient.get('/v1/auth/sessions')).status()).toBe(200);
+		}
+
+		// Account-wide replay protection also covers prior logins. Advance to a
+		// fresh window and use its accepted next step for a real verification.
+		await page.waitForTimeout((30 - Math.floor(Date.now() / 1000) % 30) * 1000 + 2000);
+		const verified = await currentClient.post('/v1/auth/2fa/verify/device', {
+			data: { tfa_code: generateTotp(credentials.otpKey, 1) }
+		});
+		expect(verified.status()).toBe(200);
+		expect((await verified.json()).success).toBe(true);
+		const resumed = await session(currentClient);
+		expect(resumed.status()).toBe(200);
+		const resumedBody = await resumed.json();
+		expect(resumedBody.success).toBe(true);
+		expect(resumedBody.re_auth_required).toBeNull();
+		expect(resumedBody.ws_token).toEqual(expect.any(String));
+		expect((await currentClient.get('/v1/auth/sessions')).status()).toBe(200);
+		expect((await siblingClient.get('/v1/auth/sessions')).status()).toBe(200);
+	} finally {
+		await Promise.all(clients.map((client) => client.dispose()));
+		await siblingContext.close();
+	}
+});
 
 // contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.authoritative-enforcement,auth.session.isolation
 // contract-test: direct surface=gui.web assertions=auth.session.lifecycle

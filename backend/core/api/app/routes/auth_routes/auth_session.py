@@ -29,7 +29,10 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 from backend.core.api.app.utils.invite_code import get_signup_requirements
 from backend.core.api.app.utils.ws_token import create_ws_token
-from backend.core.api.app.services.session_security_state import set_session_risk_pending
+from backend.core.api.app.services.session_security_state import (
+    get_session_state_cached,
+    set_session_risk_pending,
+)
 from backend.core.api.app.services.password_v2 import has_password_v2_record
 
 router = APIRouter()
@@ -75,6 +78,10 @@ async def get_session(
     Validate session using cache and perform risk assessment based on device fingerprint,
     including optional client-side signals.
     Triggers 2FA re-auth if risk score is high.
+
+    First-party cookie session surface: durable authority is bound to the
+    authenticated user. Pending verification permits challenge discovery only,
+    without granting WebSocket access or changing sibling session authority.
     """
     try:
         logger.info("Processing POST /session")
@@ -145,6 +152,16 @@ async def get_session(
                 require_invite_code=require_invite_code  # Include the invite code requirement
              )
 
+        # Basic auth intentionally permits pending risk so clients can discover
+        # the challenge. The durable ledger remains authoritative even if this
+        # request has returned to a previously trusted device or country.
+        security_state = await get_session_state_cached(
+            directus_service, cache_service,
+            hashlib.sha256(refresh_token.encode()).hexdigest(),
+            user_id=user_id,
+        )
+        risk_pending = bool(security_state and security_state.get("risk_pending"))
+
         # Step 2: Generate current fingerprint hash and detailed geo data
         
         # Extract session_id from the request body
@@ -204,8 +221,10 @@ async def get_session(
             re_auth_reason = "location_change"
         elif is_new_device_hash:
             re_auth_reason = "new_device"
+        elif risk_pending:
+            re_auth_reason = "session_verification"
 
-        if is_new_device_hash or is_country_change:
+        if risk_pending or is_new_device_hash or is_country_change:
             tfa_enabled = user_data.get("tfa_enabled", False)
             
             if tfa_enabled:
@@ -235,7 +254,8 @@ async def get_session(
                     auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
                     has_accepted_refund_policy=bool(user_data.get("consent_withdrawal_waiver_timestamp"))
                 )
-                await set_session_risk_pending(directus_service, cache_service, refresh_token, user_id, True)
+                if not risk_pending:
+                    await set_session_risk_pending(directus_service, cache_service, refresh_token, user_id, True)
                 return SessionResponse(
                     success=False, # Indicate session is not fully valid *yet*
                     message="Device verification required",
@@ -305,7 +325,8 @@ async def get_session(
                     auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
                     has_accepted_refund_policy=bool(user_data.get("consent_withdrawal_waiver_timestamp"))
                 )
-                await set_session_risk_pending(directus_service, cache_service, refresh_token, user_id, True)
+                if not risk_pending:
+                    await set_session_risk_pending(directus_service, cache_service, refresh_token, user_id, True)
                 return SessionResponse(
                     success=False, # Indicate session is not fully valid *yet*
                     message="Passkey verification required",
@@ -317,6 +338,14 @@ async def get_session(
                     require_invite_code=require_invite_code
                 )
             
+            if risk_pending:
+                # Removing a factor cannot approve an outstanding challenge.
+                return SessionResponse(
+                    success=False,
+                    message="Session verification required",
+                    re_auth_reason=re_auth_reason,
+                    require_invite_code=require_invite_code,
+                )
             logger.debug(f"User {user_id[:6]} does not require re-auth (no 2FA and no passkeys).")
         else:
              logger.debug(f"User {user_id[:6]} does not require re-auth (device already known, no country change).")
