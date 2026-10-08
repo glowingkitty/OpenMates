@@ -139,7 +139,7 @@ SUB_CHAT_PARENT_STATUS_MESSAGE = "I've started the sub-chats and will continue o
 
 
 @contextmanager
-def _project_file_finalization_stage(stage: str, enabled: bool):
+def _project_file_finalization_stage(stage: str, enabled: bool, *, log_prefix: str = ""):
     """Retain content-free timings for the Project-file response critical path."""
     if not enabled:
         yield
@@ -158,8 +158,8 @@ def _project_file_finalization_stage(stage: str, enabled: bool):
         raise
     finally:
         logger.info(
-            "ai_project_file_finalization stage=%s duration_ms=%.1f outcome=%s",
-            stage, (time.monotonic() - started_at) * 1000, outcome,
+            "%s ai_project_file_finalization stage=%s duration_ms=%.1f outcome=%s",
+            log_prefix, stage, (time.monotonic() - started_at) * 1000, outcome,
         )
 
 
@@ -10045,7 +10045,7 @@ async def _consume_main_processing_stream(
     )
 
     recovery_job = None
-    with _project_file_finalization_stage("recovery", project_file_reference_output):
+    with _project_file_finalization_stage("recovery", project_file_reference_output, log_prefix=log_prefix):
         if (
             _recovery_inference_task_id(request_data)
             and not awaiting_sub_chats_completion
@@ -10060,7 +10060,7 @@ async def _consume_main_processing_stream(
                 model_name=stream_model_name,
                 cache_service=cache_service,
             )
-    with _project_file_finalization_stage("summary", project_file_reference_output):
+    with _project_file_finalization_stage("summary", project_file_reference_output, log_prefix=log_prefix):
         completion_summary = _sub_chat_completion_summary(
             explicit_summary=explicit_sub_chat_completion_summary,
             aggregated_response=aggregated_response,
@@ -10080,7 +10080,7 @@ async def _consume_main_processing_stream(
     billing_error = None
     if should_bill:
         try:
-            with _project_file_finalization_stage("billing", project_file_reference_output), ai_phase_span("finalize.billing"):
+            with _project_file_finalization_stage("billing", project_file_reference_output, log_prefix=log_prefix), ai_phase_span("finalize.billing"):
                 billing_info = await _handle_normal_billing(
                     usage, preprocessing_result, request_data, task_id, log_prefix,
                     cumulative_input_tokens=cumulative_input_tokens,
@@ -10126,7 +10126,7 @@ async def _consume_main_processing_stream(
         # This ensures the message exists in history (even if empty) for proper context
         # Empty responses can occur due to errors, interruptions, or harmful content filtering
         try:
-            with _project_file_finalization_stage("persistence", project_file_reference_output), ai_phase_span("finalize.persistence"):
+            with _project_file_finalization_stage("persistence", project_file_reference_output, log_prefix=log_prefix), ai_phase_span("finalize.persistence"):
                 await _update_chat_metadata(
                     request_data=request_data,
                     category=category,
@@ -10184,7 +10184,7 @@ async def _consume_main_processing_stream(
     elif not user_vault_key_id:
         logger.error(f"{log_prefix} CRITICAL: User vault key ID not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
 
-    with _project_file_finalization_stage("validation", project_file_reference_output), ai_phase_span("finalize.validation"):
+    with _project_file_finalization_stage("validation", project_file_reference_output, log_prefix=log_prefix), ai_phase_span("finalize.validation"):
         await _finalize_legacy_cutover_before_final_marker(
             request_data=request_data,
             billing_error=billing_error,
@@ -10198,7 +10198,7 @@ async def _consume_main_processing_stream(
     # transfers the marker; the ticket preserves the actual completion timestamp.
     if (aggregated_response and not was_revoked_during_stream
             and not was_soft_limited_during_stream and not terminal_failure_applies):
-        with _project_file_finalization_stage("ticket", project_file_reference_output):
+        with _project_file_finalization_stage("ticket", project_file_reference_output, log_prefix=log_prefix):
             await mint_response_summary_completion(request_data, task_id)
 
     # Publish final marker only after the AI cache write has been attempted and
@@ -10249,7 +10249,7 @@ async def _consume_main_processing_stream(
         else:
             final_payload["recovery_job_id"] = recovery_job["job_id"]
             final_payload["recovery_protocol_version"] = 1
-    with _project_file_finalization_stage("marker", project_file_reference_output), ai_phase_span("finalize.marker"):
+    with _project_file_finalization_stage("marker", project_file_reference_output, log_prefix=log_prefix), ai_phase_span("finalize.marker"):
         await _publish_to_redis(
             cache_service, redis_channel_name, final_payload, log_prefix,
             f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
@@ -10258,8 +10258,8 @@ async def _consume_main_processing_stream(
             completion_timing.mark_final_marker()
     if project_file_finalization_started_at is not None:
         logger.info(
-            "ai_project_file_finalization stage=total duration_ms=%.1f outcome=ok",
-            (time.monotonic() - project_file_finalization_started_at) * 1000,
+            "%s ai_project_file_finalization stage=total duration_ms=%.1f outcome=ok",
+            log_prefix, (time.monotonic() - project_file_finalization_started_at) * 1000,
         )
     
     if completion_summary is not None:

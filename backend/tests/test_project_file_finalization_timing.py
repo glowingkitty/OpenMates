@@ -18,15 +18,21 @@ def _record_stage_logs(monkeypatch):
 # contract-test: tooling
 def test_project_file_finalization_stage_reports_failure_without_request_data(monkeypatch):
     records = _record_stage_logs(monkeypatch)
+    trusted_prefix = "[Task ID: task-123, ChatID: chat-456] _consume_main_processing_stream:"
     with pytest.raises(RuntimeError):
-        with stream_consumer._project_file_finalization_stage("persistence", True):
+        with stream_consumer._project_file_finalization_stage("persistence", True, log_prefix=trusted_prefix):
             raise RuntimeError("private response text")
 
     assert len(records) == 1
+    assert records[0].startswith(trusted_prefix + " ai_project_file_finalization ")
     assert "stage=persistence" in records[0]
     assert "outcome=error" in records[0]
     assert "duration_ms=" in records[0]
     assert "private response text" not in records[0]
+    with pytest.raises(ValueError):
+        with stream_consumer._project_file_finalization_stage("private response text", True, log_prefix=trusted_prefix):
+            pass
+    assert len(records) == 1
 
 
 # contract-test: tooling
