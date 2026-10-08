@@ -72,7 +72,7 @@ acceptance_criteria:
   text: The website client excludes app runtime modules, renders full public/legal content and the
     approved responsive landing UI.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: playwright
   verification_ids: [T-COMPONENT, T-WEBSITE-PUBLIC, T-BUILD]
@@ -81,16 +81,16 @@ acceptance_criteria:
   text: Selected categories activate only after confirmation, Signal follows success, and guest templates
     expose no owned actions or API requests.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: playwright
-  verification_ids: [T-NEWSLETTER, T-NEWSLETTER-FLOW, T-WORKFLOW-COMP]
+  verification_ids: [T-NEWSLETTER, T-NEWSLETTER-FLOW, T-WORKFLOW-COMP, T-GUEST-ROUTE]
 - id: AC-3
   scenario: S-1
   text: App destinations, event forwarding and saved theme startup behave correctly, with dev publication
     and exact Vercel guidance.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: playwright
   verification_ids: [T-ROUTE, T-EVENTS, T-AUTH]
@@ -318,17 +318,46 @@ tests:
     evidence:
       status: passed
       command: landing-auth-links.spec.ts
-      run_id: '37823605775'
-      subject_commit: 873323641d4600cc30e3ac1ef129ee0c2265208a
-      timestamp: '2026-10-08T18:24:51.947Z'
+      run_id: '37830440341'
+      subject_commit: 450f65efa7b3816472f0a060a536cbbd9acc860e
+      timestamp: '2026-10-08T19:18:52.216Z'
       execution_environment: isolated_github_ci
-      harness_commit: f7fdcd2a04b233e8fab1e568f81a449ca6f84258
+      harness_commit: f4279f353df9ff8f7af2eaf8fa117dde69c68f14
       profile: e2e
-      artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/37823605775/artifacts/11571125543]
+      artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/37830440341/artifacts/11573666989]
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+- id: T-GUEST-ROUTE
+  type: playwright
+  file: frontend/apps/web_app/tests/landing-guest-workflows.spec.ts
+  command: Isolated integrated guest workflow navigation
+  covers: [AC-2]
+  assertions: [Signed-out landing opens the existing read-only workflow template workspace]
+  red_phase:
+    required: false
+    expected: fail
+    evidence: {status: not_recorded}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: landing-guest-workflows.spec.ts
+      run_id: '37830416054'
+      subject_commit: 450f65efa7b3816472f0a060a536cbbd9acc860e
+      timestamp: '2026-10-08T19:18:22.618Z'
+      execution_environment: isolated_github_ci
+      harness_commit: f4279f353df9ff8f7af2eaf8fa117dde69c68f14
+      profile: e2e
+      artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/37830416054/artifacts/11574031139]
   execution_environment: isolated_github_ci
   target: isolated_github_ci
 implementation_state:
-  subject_commit: 873323641d4600cc30e3ac1ef129ee0c2265208a
+  subject_commit: bb9589cf6a41d61b0c64dcd0e5dc8945878373ab
+  publication_candidate: 86ad6b54b186bab746f306b076a9a93e50fc54aa
+  scope_status: implemented_and_dev_verified
+  deployment_receipt: /tmp/a753-lint-fixed-deploy-result.json
+  smoke_receipt: /tmp/a753-final-deployed-review.json
 approvals:
   specification:
     status: approved
@@ -343,7 +372,9 @@ tasks:
   external_task_id: 6273200a-d511-4156-86a4-3490281deb65
   title: Standalone website implementation; live status remains in OpenMates Tasks
   status: in_progress
-  phase: working_tasks
+  phase: running_checks
+  implementation_status: complete
+  remaining_administration: Live Task completion and final recording delivery by parent.
   covers:
     scenarios:
     - S-1
@@ -365,6 +396,7 @@ tasks:
   - T-WORKFLOW-COMP
   - T-NEWSLETTER-FLOW
   - T-AUTH
+  - T-GUEST-ROUTE
   dependencies: []
   blockers: []
   follow_up_tasks: []
@@ -378,12 +410,12 @@ attempts:
   task_id: TASK-1
   approach: Parallel implementation within disjoint ownership and focused component proof before route
     verification.
-  outcome: planned
+  outcome: succeeded
   recorded_at: '2026-10-08'
 handoff:
   current_task_id: TASK-1
-  next_action: Scoped dev deploy, reviewed laptop/mobile smoke, and deliver all retained recordings.
+  next_action: Deliver all 90 uploaded recording links in final response and close the live Task; preserve historical CI subject IDs.
   command: python3 scripts/plan_validate.py docs/plans/standalone-website/plan.yml
   expected_outcome: A slim independently deployable website with verified UI and Vercel instructions.
   blocker: null
-  last_verified_commit: f44de34a1accbe4f6bf984ee196e16b2627ab11e
+  last_verified_commit: bb9589cf6a41d61b0c64dcd0e5dc8945878373ab
