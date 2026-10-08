@@ -117,8 +117,8 @@ struct WatchTaskDetailView: View {
             .accessibilityIdentifier(isEditing ? "watch-task-editor-scroll" : "watch-task-detail-scroll")
             if isEditing && expandedChoice == nil { saveControls }
         }
-        .foregroundStyle(Color.grey0)
-        .background(Color.grey100)
+        .foregroundStyle(WatchWorkspacePalette.foreground)
+        .background(WatchWorkspacePalette.background)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(isEditing ? "watch-task-editor" : "watch-task-detail")
     }
@@ -130,7 +130,7 @@ struct WatchTaskDetailView: View {
             Text(WatchTaskCopy.group(item.group)).font(.omXs)
                 .foregroundStyle(accent(item.group))
                 .accessibilityIdentifier("watch-task-detail-status")
-            Text(WatchTaskCopy.priority(item.priority)).font(.omMicro).foregroundStyle(Color.grey30)
+            Text(WatchTaskCopy.priority(item.priority)).font(.omMicro).foregroundStyle(WatchWorkspacePalette.foreground)
                 .accessibilityIdentifier("watch-task-detail-priority")
             detail(WatchTaskCopy.description, value: item.description, id: "description")
             detail(WatchLocalization.text("watch.task.context"), value: item.latestInstruction, id: "context")
@@ -180,12 +180,12 @@ struct WatchTaskDetailView: View {
                 fieldLabel(WatchTaskCopy.title)
                 TextField(WatchTaskCopy.title, text: $draft.title)
                     .font(.omXs).textFieldStyle(.plain).padding(.spacing3)
-                    .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius4))
+                    .background(WatchWorkspacePalette.surface, in: RoundedRectangle(cornerRadius: .radius4))
                     .accessibilityIdentifier("watch-task-title-input")
                 fieldLabel(WatchTaskCopy.description)
                 TextField(WatchTaskCopy.description, text: $draft.description, axis: .vertical)
                     .lineLimit(1...3).font(.omXs).textFieldStyle(.plain).padding(.spacing3)
-                    .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius4))
+                    .background(WatchWorkspacePalette.surface, in: RoundedRectangle(cornerRadius: .radius4))
                     .accessibilityIdentifier("watch-task-description-input")
             }
             .disabled(service.isSavingTask)
@@ -204,7 +204,7 @@ struct WatchTaskDetailView: View {
                 Button(action: cancel) {
                     Text(WatchTaskCopy.cancel).font(.omXs).frame(maxWidth: .infinity)
                         .padding(.vertical, .spacing3)
-                        .background(Color.grey90, in: Capsule())
+                        .background(WatchWorkspacePalette.surface, in: Capsule())
                 }
                 .buttonStyle(.plain).disabled(service.isSavingTask)
                 .accessibilityIdentifier("watch-task-edit-cancel")
@@ -212,7 +212,7 @@ struct WatchTaskDetailView: View {
                     Task { await save() }
                 } label: {
                     Group {
-                        if service.isSavingTask { ProgressView().tint(Color.grey0) }
+                        if service.isSavingTask { ProgressView().tint(WatchWorkspacePalette.foreground) }
                         else { Text(WatchTaskCopy.save).font(.omXs.weight(.semibold)) }
                     }
                     .frame(maxWidth: .infinity).padding(.vertical, .spacing3)
@@ -225,7 +225,7 @@ struct WatchTaskDetailView: View {
             }
         }
         .padding(.spacing3)
-        .background(Color.grey100)
+        .background(WatchWorkspacePalette.background)
     }
 
     private func choice(_ title: String, value: String, id: String) -> some View {
@@ -241,7 +241,7 @@ struct WatchTaskDetailView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading).padding(.spacing3)
-            .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius4))
+            .background(WatchWorkspacePalette.surface, in: RoundedRectangle(cornerRadius: .radius4))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("watch-task-edit-\(id)")
@@ -255,14 +255,14 @@ struct WatchTaskDetailView: View {
                 if selected { Icon("check", size: .spacing4) }
             }
             .padding(.spacing3).frame(maxWidth: .infinity)
-            .background(selected ? Color.buttonPrimary : Color.grey90,
+            .background(selected ? Color.buttonPrimary : WatchWorkspacePalette.surface,
                         in: RoundedRectangle(cornerRadius: .radius4))
         }
         .buttonStyle(.plain).accessibilityIdentifier(id)
     }
 
     private func fieldLabel(_ text: String) -> some View {
-        Text(text).font(.omMicro).foregroundStyle(Color.grey30)
+        Text(text).font(.omMicro).foregroundStyle(WatchWorkspacePalette.foreground)
     }
 
     @ViewBuilder private func detail(_ title: String, value: String, id: String) -> some View {

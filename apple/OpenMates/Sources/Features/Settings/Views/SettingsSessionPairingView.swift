@@ -378,21 +378,24 @@ struct AppleWatchPairAuthorizeView: View {
                         Button(AppStrings.pairApproveWatchLogin) { approve() }
                             .buttonStyle(OMPrimaryButtonStyle())
                             .disabled(isApproving || needsStepUp || bridge.pendingRequest == nil)
+                            .accessibilityIdentifier("watch-pair-approve-button")
                     }
                 }
                 .padding(.spacing8)
             }
         }
         .task(id: bridge.pendingRequest?.token) {
+            isApproving = false
             emailChallenge = nil
             emailCode = ""
             stepUpPassword = ""
             stepUpCode = ""
             needsStepUp = false
-            guard let profile = bridge.pendingRequest?.serverProfile else { return }
-            stepUpMethods = try? await PairV2Runtime.stepUpMethods(serverProfile: profile)
+            guard bridge.pendingRequest != nil else { return }
+            stepUpMethods = try? await bridge.stepUpMethodsForPendingRequest()
         }
         .onDisappear {
+            if bridge.pendingRequest != nil { bridge.denyPendingRequest() }
             stepUpPassword = ""
             stepUpCode = ""
             emailCode = ""
@@ -401,15 +404,18 @@ struct AppleWatchPairAuthorizeView: View {
     }
 
     private func approve() {
+        guard let request = bridge.pendingRequest else { return }
         isApproving = true
         Task {
             do {
                 try await bridge.approvePendingRequest(authManager: authManager)
-                onDone()
+                if bridge.completedRequestToken == request.token { onDone() }
             } catch APIError.httpError(let status, _) where status == 401 || status == 403 || status == 428 {
+                guard bridge.pendingRequest == request else { return }
                 needsStepUp = true
                 errorMessage = nil
             } catch {
+                guard bridge.pendingRequest == request else { return }
                 errorMessage = error.localizedDescription
                 NativeDiagnostics.error("Watch pair approval failed", category: "settings.security")
             }

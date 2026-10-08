@@ -25,7 +25,7 @@ struct DevSidebarComponentFixture: View {
     @State private var lastActiveID: String?
     private let userChats: [Chat]
     private let publicSections: [ChatSidebarSection]
-    private let drafts = ["sidebar-draft": "A local draft kept in memory"]
+    private let drafts = ["sidebar-draft": "A local draft kept in memory", "sidebar-pure-draft": "A preview without a generated title"]
 
     init(variant: String) {
         self.variant = variant
@@ -37,7 +37,7 @@ struct DevSidebarComponentFixture: View {
         let store = ChatStore()
         store.performWithoutPersistence {
             store.upsertChats(users + sections.flatMap(\.chats))
-            for chat in users {
+            for chat in users where (chat.messagesV ?? 0) > 0 {
                 store.setMessages(for: chat.id, messages: [Message(id: "\(chat.id)-message", chatId: chat.id, role: .user,
                     content: "A deterministic local transcript about telescope lenses.", encryptedContent: nil,
                     createdAt: "2026-09-12T12:00:00Z", updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)])
@@ -224,7 +224,8 @@ struct DevSidebarComponentFixture: View {
         [DevHistoryWelcomeData.chat("sidebar-pinned", title: "Telescope research", pinned: true),
          DevHistoryWelcomeData.chat("sidebar-draft", title: "A weekend in Berlin", draft: 1),
          DevHistoryWelcomeData.chat("sidebar-long", title: "Understanding the performance of a long conversation and its many source previews"),
-         DevHistoryWelcomeData.chat("sidebar-final", title: "Latest local conversation")]
+         DevHistoryWelcomeData.chat("sidebar-final", title: "Latest local conversation"),
+         DevHistoryWelcomeData.chat("sidebar-pure-draft", messages: 0, draft: 1)]
     }
     private static let fixtureNow = Date(timeIntervalSince1970: 1_789_214_400) // 2026-09-12 12:00 UTC
     private static var fixtureCalendar: Calendar {

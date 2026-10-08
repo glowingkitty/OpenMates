@@ -237,6 +237,8 @@ final class ChatSettingsParityTests: XCTestCase {
         XCTAssertNil(receipt.entries[0].purpose)
         XCTAssertEqual(receipt.entries[0].rates.input?.text, "82.5")
         XCTAssertEqual(receipt.entries[0].pricedInputTokens, 50)
+        XCTAssertEqual(receipt.entries[0].cacheCreation5mInputTokens, 20)
+        XCTAssertEqual(receipt.entries[0].categoryCredits.cacheWrite1h.text, "0")
         XCTAssertEqual(row.systemPromptTokens, 40)
         XCTAssertNil(receipt.entries[0].rates.cacheWrite1h)
         XCTAssertEqual(receipt.roundingAdjustment.text, "0.07")
@@ -250,6 +252,13 @@ final class ChatSettingsParityTests: XCTestCase {
         XCTAssertEqual(summaryRow.llmUsageBreakdown?.entries[0].purpose, "summary")
         XCTAssertEqual(summaryRow.llmUsageBreakdown?.entries[0].rates.input?.text, "1100")
         XCTAssertEqual(summaryRow.llmUsageBreakdown?.entries[0].rates.output?.text, "130")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=billing.usage.receipt-token-breakdown
+    func testReceiptDecodesOneHourCacheRateWithSnakeCaseStrategy() throws {
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let rates = try decoder.decode(LLMUsageBreakdown.Rates.self, from: Data(#"{"cache_write_1h":"350"}"#.utf8))
+        XCTAssertEqual(rates.cacheWrite1h?.text, "350")
     }
 
     // contract-test: supporting surface=gui.apple assertions=billing.usage.receipt-token-breakdown

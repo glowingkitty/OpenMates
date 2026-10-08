@@ -432,9 +432,24 @@ struct OpenMatesWidgetBundle: WidgetBundle {
         WorkflowsWidget()
         if #available(iOS 18.0, macOS 26.0, *) { OpenMatesControlsBundle().body }
         #if os(iOS)
-        if #available(iOS 16.2, *) { OpenMatesLiveActivity() }
+        if #available(iOS 16.2, *) { registeredLiveActivity }
         #endif
     }
+    #if os(iOS)
+    @available(iOS 16.2, *)
+    private var registeredLiveActivity: some Widget {
+        // WidgetBundleBuilder has no buildEither and supports only #available
+        // optional branches. Both imperative returns use its same non-generic
+        // erased availability wrapper, preserving one opaque underlying type.
+        if #available(iOS 18.0, *) {
+            return WidgetBundleBuilder.buildOptional(
+                WidgetBundleBuilder.buildLimitedAvailability(OpenMatesMirroredLiveActivity()))
+        } else {
+            return WidgetBundleBuilder.buildOptional(
+                WidgetBundleBuilder.buildLimitedAvailability(OpenMatesLiveActivity()))
+        }
+    }
+    #endif
 }
 
 // MARK: - Previews

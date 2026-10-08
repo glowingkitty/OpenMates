@@ -65,7 +65,8 @@ def make_archive(root: Path, platform: str, version: str = "0.21.0", build: int 
         })
         (watch / "OpenMatesWatch").write_bytes(b"watch-binary")
     else:
-        for name, suffix in [("OpenMatesShareExtension_macOS", "sharemacos"), ("OpenMatesWidget_macOS", "widgetmacos")]:
+        for name, suffix in [("OpenMatesShareExtension_macOS", "sharemacos"), ("OpenMatesWidget_macOS", "widgetmacos"),
+                             ("OpenMatesNotificationService_macOS", "notification-servicemacos")]:
             write_plist(app / f"Contents/PlugIns/{name}.appex/Contents/Info.plist", {
                 "CFBundleIdentifier": f"org.openmates.app.{suffix}",
             })
@@ -79,6 +80,12 @@ def extension_entitlements(bundle: Path) -> dict:
             "com.apple.security.network.client": True,
             "com.apple.security.application-groups": ["group.org.openmates.app.shared"],
             "keychain-access-groups": ["TEAMID.org.openmates.app.widgetmacos", "TEAMID.org.openmates.app"],
+        }
+    if bundle.name == "OpenMatesNotificationService_macOS.appex":
+        return {
+            "com.apple.security.app-sandbox": True,
+            "com.apple.security.application-groups": ["group.org.openmates.app.shared"],
+            "keychain-access-groups": ["TEAMID.org.openmates.app.notification-servicemacos", "TEAMID.org.openmates.app"],
         }
     return {"com.apple.security.app-sandbox": True}
 
@@ -212,7 +219,7 @@ def test_release_lock_prevents_concurrent_uploads(tmp_path: Path) -> None:
         first.close()
 
 
-def test_macos_stamping_signs_both_extensions_before_parent_with_own_entitlements(tmp_path: Path, monkeypatch) -> None:
+def test_macos_stamping_signs_all_extensions_before_parent_with_own_entitlements(tmp_path: Path, monkeypatch) -> None:
     release = load_module()
     calls = []
     monkeypatch.setattr(release, "run_logged", lambda command, log_path, timeout: calls.append(command))
@@ -224,10 +231,11 @@ def test_macos_stamping_signs_both_extensions_before_parent_with_own_entitlement
 
     assert "OpenMatesShareExtension_macOS.appex" in calls[0][-1]
     assert calls[1][-1].endswith("OpenMatesWidget_macOS.appex")
-    assert calls[2][-1].endswith("OpenMates.app")
+    assert calls[2][-1].endswith("OpenMatesNotificationService_macOS.appex")
+    assert calls[3][-1].endswith("OpenMates.app")
     assert all("--entitlements" in command for command in calls)
     assert all("--deep" not in command for command in calls)
-    with Path(calls[2][-2]).open("rb") as handle:
+    with Path(calls[3][-2]).open("rb") as handle:
         app_entitlements = plistlib.load(handle)
     with Path(calls[1][-2]).open("rb") as handle:
         widget_entitlements = plistlib.load(handle)
@@ -246,6 +254,9 @@ def test_macos_stamping_signs_both_extensions_before_parent_with_own_entitlement
     assert share_entitlements["keychain-access-groups"] == [
         "TEAMID.org.openmates.app.sharemacos", "TEAMID.org.openmates.app"
     ]
+    with Path(calls[2][-2]).open("rb") as handle:
+        notification_entitlements = plistlib.load(handle)
+    assert notification_entitlements == extension_entitlements(Path("OpenMatesNotificationService_macOS.appex"))
     assert widget_entitlements == extension_entitlements(Path("OpenMatesWidget_macOS.appex"))
     project = (SCRIPT.parent.parent / "apple/project.yml").read_text()
     widget_target = project.split("  OpenMatesWidget_macOS:\n", 1)[1].split("\n  OpenMatesUITests:", 1)[0]
@@ -273,7 +284,8 @@ def test_macos_stamping_signs_only_archive_onnx_copy_before_parent(
     release.stamp_unsigned_macos_archive(archive, tmp_path / "stamp.log", "TEAMID")
 
     expected = [str(app / "Contents/PlugIns/OpenMatesShareExtension_macOS.appex"),
-                str(app / "Contents/PlugIns/OpenMatesWidget_macOS.appex")]
+                str(app / "Contents/PlugIns/OpenMatesWidget_macOS.appex"),
+                str(app / "Contents/PlugIns/OpenMatesNotificationService_macOS.appex")]
     if has_framework:
         expected.append(str(framework))
     expected.append(str(app))
@@ -307,6 +319,7 @@ def test_macos_stamping_onnx_signing_failure_stops_before_parent(tmp_path: Path,
 @pytest.mark.parametrize("bundle_path", [
     "Contents", "Contents/PlugIns/OpenMatesShareExtension_macOS.appex/Contents",
     "Contents/PlugIns/OpenMatesWidget_macOS.appex/Contents",
+    "Contents/PlugIns/OpenMatesNotificationService_macOS.appex/Contents",
 ])
 def test_macos_stamping_rejects_wrong_bundle_identity_before_any_signing(tmp_path: Path, monkeypatch, bundle_path: str) -> None:
     release = load_module()
@@ -387,6 +400,7 @@ def test_macos_archive_rejects_missing_or_unresolved_apns_entitlement(tmp_path: 
     def signed_entitlements(bundle: Path) -> dict:
         if bundle.name == "OpenMates.app":
             return {
+                "keychain-access-groups": ["TEAMID.org.openmates.app"],
                 "com.apple.security.app-sandbox": True,
                 "com.apple.security.files.user-selected.read-only": True,
                 "com.apple.security.device.audio-input": True,
@@ -413,6 +427,7 @@ def test_macos_archive_rejects_missing_dev_passkey_domain(tmp_path: Path, monkey
     def signed_entitlements(bundle: Path) -> dict:
         if bundle.name == "OpenMates.app":
             return {
+                "keychain-access-groups": ["TEAMID.org.openmates.app"],
                 "com.apple.security.app-sandbox": True,
                 "com.apple.security.files.user-selected.read-only": True,
                 "com.apple.security.device.audio-input": True,
@@ -435,6 +450,7 @@ def test_resumed_macos_archive_rejects_missing_dev_passkey_domain(tmp_path: Path
     def signed_entitlements(bundle: Path) -> dict:
         if bundle.name == "OpenMates.app":
             return {
+                "keychain-access-groups": ["TEAMID.org.openmates.app"],
                 "com.apple.security.app-sandbox": True,
                 "com.apple.security.files.user-selected.read-only": True,
                 "com.apple.security.device.audio-input": True,
@@ -459,6 +475,7 @@ def test_archive_rejects_missing_shared_link_domains(tmp_path: Path, monkeypatch
     def signed_entitlements(bundle: Path) -> dict:
         if bundle.name == "OpenMates.app":
             return {
+                "keychain-access-groups": ["TEAMID.org.openmates.app"],
                 "com.apple.security.app-sandbox": True,
                 "com.apple.security.files.user-selected.read-only": True,
                 "com.apple.security.device.audio-input": True,
@@ -846,3 +863,42 @@ def test_ios_onnx_packaging_rejects_unknown_runtime_before_mutation(tmp_path: Pa
     with pytest.raises(release.ReleaseError, match="supported Mach-O"):
         release.normalize_ios_onnx_packaging(archive, tmp_path / "normalization.log")
     assert info.read_bytes() == before
+
+
+@pytest.mark.parametrize("key,value,error", [
+    ("com.apple.security.app-sandbox", False, "notification service.*App Sandbox"),
+    ("com.apple.security.application-groups", [], "notification service.*app-group"),
+    ("keychain-access-groups", ["TEAMID.org.openmates.app.notification-servicemacos"], "notification service.*keychain"),
+    ("keychain-access-groups", ["OTHER.org.openmates.app.notification-servicemacos", "OTHER.org.openmates.app"], "notification service.*keychain"),
+])
+@pytest.mark.parametrize("resumed", [False, True])
+def test_macos_notification_service_requires_shared_key_signing_for_new_and_resumed_archives(
+    tmp_path: Path, monkeypatch, key: str, value: object, error: str, resumed: bool,
+) -> None:
+    release = load_module()
+    archive = make_archive(tmp_path, "macos")
+    notification = extension_entitlements(Path("OpenMatesNotificationService_macOS.appex"))
+    notification[key] = value
+    app = release.resolved_macos_entitlements(
+        SCRIPT.parent.parent / "apple/OpenMates/Resources/OpenMatesMacOS.entitlements", "TEAMID", "org.openmates.app")
+    monkeypatch.setattr(release, "signed_entitlements", lambda bundle: (
+        app if bundle.name == "OpenMates.app" else notification if bundle.name == "OpenMatesNotificationService_macOS.appex"
+        else extension_entitlements(bundle)))
+    identity = {"tree_sha256": "unchanged"}
+    monkeypatch.setattr(release, "validate_archive", lambda *args: identity)
+    with pytest.raises(release.ReleaseError, match=error):
+        if resumed:
+            release.validate_resumed_archive(archive, "macos", "0.27.0", 95, {"archive_identity": identity})
+        else:
+            release.validate_release_entitlements(archive, "macos")
+
+
+def test_macos_stamping_rejects_missing_notification_service_before_any_signing(tmp_path: Path, monkeypatch) -> None:
+    release = load_module()
+    archive = make_archive(tmp_path, "macos")
+    (archive / "Products/Applications/OpenMates.app/Contents/PlugIns/OpenMatesNotificationService_macOS.appex/Contents/Info.plist").unlink()
+    calls = []
+    monkeypatch.setattr(release, "run_logged", lambda *args, **kwargs: calls.append(args))
+    with pytest.raises(release.ReleaseError, match="Invalid or missing plist"):
+        release.stamp_unsigned_macos_archive(archive, tmp_path / "stamp.log", "TEAMID")
+    assert calls == []

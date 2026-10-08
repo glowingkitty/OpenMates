@@ -6,6 +6,9 @@
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.completion.recovery-takeover, chats.persistence.client-encrypted, chats.message.identity-idempotent
 
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.background.complete-sealed-recovery, storage.background.saved-output-retention, storage.surface.semantic-parity
+
 import CryptoKit
 import Foundation
 
@@ -25,6 +28,7 @@ final class ChatCompletionRecoveryCoordinator {
     private struct AttemptContext {
         let ownerId: String
         let generation: Int
+        let scopeIdentity: String
     }
     // Retry beyond the server's 60-second lease without spinning or depending
     // on a new broadcast. A reconnect starts a fresh bounded retry window.
@@ -36,6 +40,8 @@ final class ChatCompletionRecoveryCoordinator {
     private var activeOwnerId: String?
     private var generation = 0
     private var isTransportConnected = true
+    private var foreground = NativeRecoveryForegroundPolicy(isForeground: true)
+    private let recoveryScopeIdentity: () -> String
     private var scheduledRetries: [String: () -> Void] = [:]
     private var retryAttempts: [String: Int] = [:]
     private var versionRefreshJobs = Set<String>()
@@ -79,8 +85,10 @@ final class ChatCompletionRecoveryCoordinator {
         now: @escaping () -> Date = Date.init,
         scheduleRetry: RetryScheduler? = nil,
         persistSnapshot: ((String, [Message]) -> Void)? = nil,
-        authoritativeMessagesVersion: ((String, String) async throws -> Int)? = nil
+        authoritativeMessagesVersion: ((String, String) async throws -> Int)? = nil,
+        recoveryScopeIdentity: @escaping () -> String = { "" }
     ) {
+        self.recoveryScopeIdentity = recoveryScopeIdentity
         self.authoritativeMessagesVersion = authoritativeMessagesVersion
         self.currentOwnerSnapshot = currentOwnerSnapshot
         self.recoveryQueue = recoveryQueue
@@ -140,6 +148,10 @@ final class ChatCompletionRecoveryCoordinator {
                     throw RecoveryError.staleContext
                 }
                 return version
+            },
+            recoveryScopeIdentity: {
+                let team = TeamWorkspaceContext.shared.snapshot
+                return "\(ServerProfile.current())|\(OfflineStore.shared.scopeGeneration)|\(team.epoch)"
             }
         )
         (transport as? WebSocketManager)?.configureMetadataRecovery(chatStore: chatStore)
@@ -217,14 +229,15 @@ final class ChatCompletionRecoveryCoordinator {
               generation == expectedGeneration, isTransportConnected else { throw RecoveryError.notReady }
         bindOwner(owner)
         restorePendingJobs(ownerId: owner)
-        return AttemptContext(ownerId: owner, generation: generation)
+        return AttemptContext(ownerId: owner, generation: generation, scopeIdentity: recoveryScopeIdentity())
     }
 
     private func validate(_ context: AttemptContext) async throws {
         guard generation == context.generation, activeOwnerId == context.ownerId,
-              isTransportConnected, !Task.isCancelled,
+              isTransportConnected, foreground.canRecover, context.scopeIdentity == recoveryScopeIdentity(), !Task.isCancelled,
               await isDeviceEligible(), await authenticatedOwnerId() == context.ownerId,
-              generation == context.generation else { throw RecoveryError.staleContext }
+              generation == context.generation, context.scopeIdentity == recoveryScopeIdentity(),
+              foreground.canRecover else { throw RecoveryError.staleContext }
     }
 
     private func remember(_ entry: PendingAssistantResponseQueue.Entry, ownerId: String) {
@@ -241,7 +254,8 @@ final class ChatCompletionRecoveryCoordinator {
         for rawJob in jobs {
             guard let job = Self.availableJob(from: rawJob),
                   !IncognitoChatSession.isIncognitoChatId(job.chatId),
-                  !persistedJobIds.contains(job.jobId) else { continue }
+                  !persistedJobIds.contains(job.jobId),
+                  pendingJobs[job.jobId] == nil || pendingJobs[job.jobId] == job else { continue }
             // Local ciphertext may precede its server acknowledgement, and
             // bounded queue metadata can be missing after a cold launch. Only
             // this job's validated terminal receipt proves canonical commitment.
@@ -269,16 +283,61 @@ final class ChatCompletionRecoveryCoordinator {
 
     func handleTransportDisconnected() {
         generation += 1
+        foreground.disconnected()
         isTransportConnected = false
         retainedLeases.removeAll()
         cancelRetries()
         jobsInProgress.removeAll()
     }
 
-    func handleTransportConnected() async {
+    func handleTransportConnected(requiresForegroundAcknowledgement: Bool = false, socketGeneration: Int = 0) async {
         isTransportConnected = true
+        if requiresForegroundAcknowledgement { foreground.connected(socketGeneration: socketGeneration) }
+        else {
+            foreground.connected(socketGeneration: socketGeneration)
+            foreground.announce(isForeground: true, socketGeneration: socketGeneration)
+            foreground.acknowledge(isForeground: true, socketGeneration: socketGeneration)
+        }
         retryAttempts.removeAll()
         await flushPendingJobs()
+    }
+
+    func lifecycleWillSend(isForeground: Bool, socketGeneration: Int) {
+        let epoch = foreground.generation
+        foreground.announce(isForeground: isForeground, socketGeneration: socketGeneration)
+        if foreground.generation != epoch { pauseInFlightRecovery() }
+    }
+
+    func handleLifecycleAcknowledgement(_ payload: [String: Any], socketGeneration: Int) async {
+        guard let isForeground = payload["is_foreground"] as? Bool else { return }
+        foreground.acknowledge(isForeground: isForeground, socketGeneration: socketGeneration)
+        if foreground.canRecover { await flushPendingJobs() }
+    }
+
+    private func pauseInFlightRecovery() {
+        generation += 1
+        retainedLeases.removeAll()
+        cancelRetries()
+        jobsInProgress.removeAll()
+        // Keep stable job identity, queue entries, and exact prepared ciphertext.
+    }
+
+    var needsForegroundAcknowledgement: Bool {
+        foreground.isForeground && foreground.phase == .awaitingAcknowledgement
+    }
+
+    func handleRecoveryError(_ payload: [String: Any]) {
+        guard let code = payload["code"] as? String,
+              let jobID = payload["job_id"] as? String, pendingTerminalJobs[jobID] != nil else { return }
+        switch NativeRecoveryForegroundPolicy.failure(code: code) {
+        case .foregroundRequired:
+            foreground.deferUntilForegroundAcknowledgement()
+            pauseInFlightRecovery()
+        case .capabilityRequired:
+            foreground.markUnsupported()
+            pauseInFlightRecovery()
+        case .other: break
+        }
     }
 
     func reset() {
@@ -297,6 +356,7 @@ final class ChatCompletionRecoveryCoordinator {
         terminalJobIdsByMessageId.removeAll()
         pendingTerminalJobs.removeAll()
         activeOwnerId = nil
+        foreground = NativeRecoveryForegroundPolicy()
         isInitialSyncReady = false
     }
 
@@ -338,7 +398,7 @@ final class ChatCompletionRecoveryCoordinator {
     }
 
     private func flushPendingJobs() async {
-        guard isInitialSyncReady, isChatKeyReady(), let attempt = try? await context(), isInitialSyncReady else { return }
+        guard foreground.canRecover, isInitialSyncReady, isChatKeyReady(), let attempt = try? await context(), isInitialSyncReady else { return }
         for entry in Array(pendingTerminalJobs.values) where chatKey(entry.chatId) != nil {
             guard (try? await validate(attempt)) != nil else { return }
             guard let jobId = entry.recoveryJobId, pendingTerminalJobs[jobId] != nil,
@@ -696,7 +756,8 @@ final class ChatCompletionRecoveryCoordinator {
                 switch code {
                 case "lease_conflict", "lease_tenure_exhausted", "stale_lease",
                      "version_conflict", "messages_version_conflict",
-                     "recovery_job_not_found", "recovery_job_expired": return code
+                     "recovery_job_not_found", "recovery_job_expired",
+                     "recovery_requires_foreground", "client_capability_required": return code
                 default: return "remote-rejection"
                 }
             }

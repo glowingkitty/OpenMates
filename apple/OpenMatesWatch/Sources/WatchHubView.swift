@@ -16,6 +16,14 @@
 
 import SwiftUI
 
+enum WatchWorkspacePalette {
+    // Watch greys are generated in ascending brightness; workspace surfaces
+    // have fixed dark roles independently of the system color scheme.
+    static let foreground = Color.white
+    static let background = Color.black
+    static let surface = Color(red: 0.18, green: 0.19, blue: 0.20)
+}
+
 private enum WatchHubPalette {
     // The Watch artboard uses a fixed blue navigation accent across themes.
     static let blue = Color(red: 79.0 / 255, green: 117.0 / 255, blue: 216.0 / 255)
@@ -232,6 +240,7 @@ struct WatchHubView: View {
         writesAllowed: @escaping @MainActor @Sendable () -> Bool = { true },
         notificationRoute: WatchNotificationRoute? = nil,
         fixtureTasks: [WatchTaskListItem]? = nil,
+        fixtureTasksError: Bool = false,
         fixtureWorkflows: [WatchWorkflowListItem]? = nil,
         workflowDetailService: WatchWorkflowDetailService? = nil,
         onNavigationBusyChange: @escaping (Bool) -> Void = { _ in },
@@ -250,7 +259,7 @@ struct WatchHubView: View {
         self.onNavigationBusyChange = onNavigationBusyChange
         _dataService = StateObject(wrappedValue: WatchHubDataService(
             userId: currentUserId,
-            fixtureTasks: fixtureTasks,
+            fixtureTasks: fixtureTasks, fixtureTasksError: fixtureTasksError,
             fixtureWorkflows: fixtureWorkflows,
             currentAccountID: currentAccountID, writesAllowed: writesAllowed
         ))
@@ -306,7 +315,7 @@ struct WatchHubView: View {
                         .font(.omXs)
                         .fontWeight(.semibold)
                         .multilineTextAlignment(.center)
-                        .foregroundStyle(Color.grey0)
+                        .foregroundStyle(WatchWorkspacePalette.foreground)
                     if showsSettingsDeveloperOptions {
                         Button {
                             self.popupMessage = nil
@@ -316,10 +325,10 @@ struct WatchHubView: View {
                                 Text(WatchHubCopy.developers).font(.omMicro)
                                 Text(WatchWhisperCopy.title).font(.omXs.weight(.semibold))
                             }
-                            .foregroundStyle(Color.grey0)
+                            .foregroundStyle(WatchWorkspacePalette.foreground)
                             .padding(.vertical, .spacing2)
                             .frame(maxWidth: .infinity)
-                            .background(Color.grey80, in: RoundedRectangle(cornerRadius: .radius4))
+                            .background(WatchWorkspacePalette.surface, in: RoundedRectangle(cornerRadius: .radius4))
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("watch-settings-developer-whisper")
@@ -328,7 +337,7 @@ struct WatchHubView: View {
                         Text(WatchHubCopy.done)
                             .font(.omXs)
                             .fontWeight(.bold)
-                            .foregroundStyle(Color.grey0)
+                            .foregroundStyle(WatchWorkspacePalette.foreground)
                             .frame(maxWidth: .infinity, minHeight: 30)
                             .background(WatchHubPalette.blue, in: Capsule())
                     }
@@ -337,7 +346,7 @@ struct WatchHubView: View {
                 }
                 .padding(12)
                 .frame(maxWidth: 158)
-                .background(Color.grey90, in: RoundedRectangle(cornerRadius: 18))
+                .background(WatchWorkspacePalette.surface, in: RoundedRectangle(cornerRadius: 18))
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("watch-hub-phone-popup")
             }
@@ -357,6 +366,12 @@ struct WatchHubView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             dataService.setBackgroundSyncAllowed(phase == .active && !foregroundNavigationBusy)
+            if phase == .active {
+                Task {
+                    guard scenePhase == .active, currentAccountID() == currentUserId else { return }
+                    await chatRuntime.refresh()
+                }
+            }
         }
         .onDisappear {
             dataService.setBackgroundSyncAllowed(false)
@@ -406,7 +421,7 @@ struct WatchHubView: View {
                             .minimumScaleFactor(0.75)
                         Spacer(minLength: 0)
                     }
-                    .foregroundStyle(Color.grey0)
+                    .foregroundStyle(WatchWorkspacePalette.foreground)
                     .padding(.leading, 27)
                     .padding(.trailing, 6)
                     .frame(height: 60)
@@ -432,11 +447,11 @@ struct WatchHubView: View {
             if isSearching {
                 TextField(WatchHubCopy.search, text: $searchText)
                     .font(.omXs)
-                    .foregroundStyle(Color.grey0)
+                    .foregroundStyle(WatchWorkspacePalette.foreground)
                     .tint(WatchHubPalette.blue)
                     .padding(.horizontal, .spacing3)
                     .frame(height: 28)
-                    .background(Color.grey90, in: Capsule())
+                    .background(WatchWorkspacePalette.surface, in: Capsule())
                     .padding(.horizontal, .spacing3)
                     .accessibilityIdentifier("watch-hub-search-input")
             }
@@ -466,7 +481,7 @@ struct WatchHubView: View {
                     .fill()
                     .frame(width: 24, height: 14)
             }
-            .foregroundStyle(Color.grey0)
+            .foregroundStyle(WatchWorkspacePalette.foreground)
             .padding(.horizontal, 13)
             .frame(width: 106, height: 42)
             .background(WatchHubPalette.blue, in: Capsule())
@@ -541,22 +556,22 @@ struct WatchHubView: View {
                     RoundedRectangle(cornerRadius: .radius1)
                         .fill(taskAccent(group)).frame(width: 4, height: 25)
                     Text(groupTitle(group)).font(.omSmall.weight(.bold))
-                    Text("(\(items.count))").font(.omMicro).foregroundStyle(Color.grey30)
+                    Text("(\(items.count))").font(.omMicro).foregroundStyle(WatchWorkspacePalette.foreground)
                 }
-                .foregroundStyle(Color.grey0)
+                .foregroundStyle(WatchWorkspacePalette.foreground)
                 .accessibilityIdentifier("watch-task-group-\(group.id)")
                 if dataService.isLoadingTasks && dataService.tasks.isEmpty { statusText(WatchHubCopy.loading) }
-                else if dataService.tasksError { statusText(WatchStrings.offlineBanner) }
+                else if dataService.tasksError { statusText(WatchStrings.offlineBanner).accessibilityIdentifier("watch-task-offline") }
                 if items.isEmpty && !dataService.isLoadingTasks { statusText(WatchHubCopy.emptyTasks) }
                 ForEach(items) { item in
                     Button { selectedTask = item } label: {
                         Text(item.title)
                             .font(.omXs.weight(.medium))
-                            .foregroundStyle(Color.grey0)
+                            .foregroundStyle(WatchWorkspacePalette.foreground)
                             .lineLimit(3)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.spacing3)
-                            .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius4))
+                            .background(WatchWorkspacePalette.surface, in: RoundedRectangle(cornerRadius: .radius4))
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("watch-task-row-\(item.id)")
@@ -604,12 +619,12 @@ struct WatchHubView: View {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: WatchWorkflowBadge.symbol(for: workflow))
                             .font(.omXs)
-                            .foregroundStyle(Color.grey0)
+                            .foregroundStyle(WatchWorkspacePalette.foreground)
                             .frame(width: 30, height: 30)
                             .background(WatchWorkflowBadge.gradient(for: workflow), in: Circle())
                         Text(workflow.title)
                             .font(WatchHubType.workflow)
-                            .foregroundStyle(Color.grey0)
+                            .foregroundStyle(WatchWorkspacePalette.foreground)
                             .lineLimit(2)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -624,7 +639,7 @@ struct WatchHubView: View {
     private func statusText(_ value: String) -> some View {
         Text(value)
             .font(.omXs)
-            .foregroundStyle(Color.grey30)
+            .foregroundStyle(WatchWorkspacePalette.foreground)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.vertical, 12)
     }

@@ -146,9 +146,32 @@ extension EnvironmentValues {
     }
 }
 
+/// Hosts supply expansion and focus actions; the field owns the sticky control
+/// and native editor lane from its single measured overflow state.
+struct ComposerFullscreenControlHandler: @unchecked Sendable {
+    var isEnabled = true
+    var action: (@MainActor () -> Void)? = nil
+
+    func isVisible(compact: Bool, fullscreen: Bool, contentOverflows: Bool) -> Bool {
+        isEnabled && !compact && (fullscreen || contentOverflows)
+    }
+}
+
+private struct ComposerFullscreenControlHandlerKey: EnvironmentKey {
+    static var defaultValue: ComposerFullscreenControlHandler { ComposerFullscreenControlHandler() }
+}
+
+extension EnvironmentValues {
+    var composerFullscreenControlHandler: ComposerFullscreenControlHandler {
+        get { self[ComposerFullscreenControlHandlerKey.self] }
+        set { self[ComposerFullscreenControlHandlerKey.self] = newValue }
+    }
+}
+
 struct OMMessageInputField<ActionButtons: View>: View {
     @Environment(\.composerFieldMaximumHeight) private var maximumFieldHeight
     @Environment(\.composerFullscreen) private var fullscreen
+    @Environment(\.composerFullscreenControlHandler) private var fullscreenControl
     @Environment(\.workspacePromptEditorIdentifier) private var editorIdentifier
     @Environment(\.workspacePromptEditorEditable) private var workspaceEditorEditable
     @ObservedObject var session: NativeComposerSession
@@ -179,7 +202,10 @@ struct OMMessageInputField<ActionButtons: View>: View {
     // Text and media share the trailing control lane. Narrow media previews
     // fit that lane instead of introducing a blank row above the document.
     private var topReservedHeight: CGFloat { 0 }
-    private var controlVisible: Bool { !compact && (fullscreen || nativeContentOverflows) }
+    private var controlVisible: Bool {
+        fullscreenControl.isVisible(compact: compact, fullscreen: fullscreen,
+            contentOverflows: nativeContentOverflows)
+    }
     private var reservesControlLane: Bool { controlVisible }
     private var maximumUnscrolledEditorHeight: CGFloat {
         if fullscreen { return editorViewportHeight }
@@ -257,6 +283,9 @@ struct OMMessageInputField<ActionButtons: View>: View {
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(Color.clear)
                 .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+                // Recognize empty-field taps behind the editor/action controls.
+                // An ancestor recognizer also competes with their real taps.
+                .onTapGesture { isFocused.wrappedValue = true }
                 .accessibilityElement()
                 .accessibilityLabel(AppStrings.chatMessageInput)
                 .accessibilityHint(accessibilityHint)
@@ -337,6 +366,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .zIndex(3)
             }
+
         }
         .frame(
             maxWidth: .infinity,
@@ -345,16 +375,35 @@ struct OMMessageInputField<ActionButtons: View>: View {
         )
         .background(Color.greyBlue, in: RoundedRectangle(cornerRadius: cornerRadius))
         .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
-        // The attachment menu extends above this field; a parent contentShape
-        // would make its visible menu rows impossible to tap.
-        .onTapGesture {
-            isFocused.wrappedValue = true
-        }
-        .simultaneousGesture(
-            TapGesture().onEnded {
-                isFocused.wrappedValue = true
+        .overlay(alignment: .topTrailing) {
+            if controlVisible, let action = fullscreenControl.action {
+                #if canImport(UIKit)
+                // A UIKit button has one concrete 44pt AX/hit rectangle, like
+                // the UIKit editor. Keep this overlay on the bounded field so
+                // inline attachments do not shift the control's top inset.
+                NativeComposerFullscreenButton(fullscreen: fullscreen, action: action)
+                    .frame(width: MessageComposerMetric.expandControlSize,
+                        height: MessageComposerMetric.expandControlSize)
+                    .padding(.top, MessageComposerMetric.expandControlTopInset)
+                    .padding(.trailing, MessageComposerMetric.expandControlTrailingInset)
+                #else
+                Button(action: action) {
+                    Icon(fullscreen ? "minimize" : "fullscreen", size: 20)
+                        .foregroundStyle(LinearGradient.primary)
+                        .frame(width: 30, height: 30)
+                        .frame(width: MessageComposerMetric.expandControlSize,
+                            height: MessageComposerMetric.expandControlSize)
+                        .contentShape(.interaction, Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, MessageComposerMetric.expandControlTopInset)
+                .padding(.trailing, MessageComposerMetric.expandControlTrailingInset)
+                .help(Text(fullscreen ? AppStrings.exitFullscreen : AppStrings.enterFullscreen))
+                .accessibilityLabel(fullscreen ? AppStrings.exitFullscreen : AppStrings.enterFullscreen)
+                .accessibilityIdentifier("message-input-fullscreen-button")
+                #endif
             }
-        )
+        }
         .animation(.easeInOut(duration: 0.25), value: compact)
     }
 }

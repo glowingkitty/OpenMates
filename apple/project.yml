@@ -94,6 +94,7 @@ targets:
       - path: OpenMates/Sources
         excludes:
           - "**/*.generated.swift"
+      # Includes NativeImageRaster.swift for this app/extension upload boundary.
       - path: OpenMatesShared
       - path: OpenMatesWatch/Sources/WatchHubDataService.swift
       - path: OpenMatesWatch/Sources/WatchWorkflowDetailService.swift
@@ -229,6 +230,30 @@ targets:
           - org.openmates.app.composeChat
           - org.openmates.app.browseChats
         NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
+        NSSupportsLiveActivities: true
+        NSCameraUsageDescription: OpenMates uses the camera when you choose to attach a photo
+          to a chat.
+        NSPhotoLibraryUsageDescription: OpenMates uses your photo library when you choose
+          an image to attach to a chat.
+        UIApplicationShortcutItems:
+        - UIApplicationShortcutItemIconSymbolName: checklist
+          UIApplicationShortcutItemTitle: New task
+          UIApplicationShortcutItemType: org.openmates.new-task
+        - UIApplicationShortcutItemIconSymbolName: square.and.pencil
+          UIApplicationShortcutItemTitle: Ask
+          UIApplicationShortcutItemType: org.openmates.ask
+        - UIApplicationShortcutItemIconSymbolName: mic
+          UIApplicationShortcutItemTitle: Record request
+          UIApplicationShortcutItemType: org.openmates.record-request
+        - UIApplicationShortcutItemIconSymbolName: camera
+          UIApplicationShortcutItemTitle: Ask About Photo
+          UIApplicationShortcutItemType: org.openmates.ask-about-photo
+        - UIApplicationShortcutItemIconSymbolName: magnifyingglass
+          UIApplicationShortcutItemTitle: Search
+          UIApplicationShortcutItemType: org.openmates.search
+        - UIApplicationShortcutItemIconSymbolName: eye.slash
+          UIApplicationShortcutItemTitle: Incognito Ask
+          UIApplicationShortcutItemType: org.openmates.incognito-ask
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
@@ -273,12 +298,16 @@ targets:
       - target: OpenMatesNotificationService
         platforms: [iOS]
         embed: true
+      - target: OpenMatesNotificationService_macOS
+        platforms: [macOS]
+        embed: true
 
   OpenMatesNotificationService:
     type: app-extension
     platform: iOS
     sources:
       - path: OpenMatesNotificationService
+        excludes: [MacInfo.plist, OpenMatesNotificationServiceMacOS.entitlements]
       - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
       - path: OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
     settings:
@@ -297,6 +326,33 @@ targets:
           - $(AppIdentifierPrefix)org.openmates.app
         com.apple.security.application-groups:
           - group.org.openmates.app.shared
+
+  # macOS decrypts private APNs previews even when the containing app is closed.
+  OpenMatesNotificationService_macOS:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: OpenMatesNotificationService
+        excludes: [Info.plist, OpenMatesNotificationService.entitlements]
+      - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
+      - path: OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
+    settings:
+      base:
+        APPLICATION_EXTENSION_API_ONLY: YES
+        INFOPLIST_FILE: OpenMatesNotificationService/MacInfo.plist
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.notification-servicemacos
+        CODE_SIGN_ENTITLEMENTS: OpenMatesNotificationService/OpenMatesNotificationServiceMacOS.entitlements
+        SWIFT_VERSION: "6.0"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks"
+    entitlements:
+      path: OpenMatesNotificationService/OpenMatesNotificationServiceMacOS.entitlements
+      properties:
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)$(CFBundleIdentifier)
+          - $(AppIdentifierPrefix)org.openmates.app
+        com.apple.security.application-groups:
+          - group.org.openmates.app.shared
+        com.apple.security.app-sandbox: true
 
   # Independent watchOS app — starts with standalone target plumbing; auth/chat UI lands in later spec tasks.
   OpenMatesWatch:
@@ -318,6 +374,9 @@ targets:
       - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
       - path: OpenMates/Sources/Core/Crypto/ShareLinkCrypto.swift
       - path: OpenMates/Sources/Core/Models/EmbedModels.swift
+      - path: OpenMates/Sources/Core/Services/EmbedVersionHistory.swift
+      - path: OpenMates/Sources/Core/Services/EmbedVersionPatch.swift
+      - path: OpenMates/Sources/Features/Embeds/Views/EmbedVersionHistoryView.swift
       - path: OpenMates/Sources/Core/Networking/APIClient.swift
       - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
       - path: OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
@@ -424,6 +483,7 @@ targets:
     platform: iOS
     sources:
       - path: OpenMatesShareExtension
+      # Includes NativeImageRaster.swift for this app/extension upload boundary.
       - path: OpenMatesShared
       - path: OpenMates/Sources/Core/Crypto/CryptoManager.swift
       - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
@@ -460,6 +520,7 @@ targets:
     platform: macOS
     sources:
       - path: OpenMatesShareExtensionMacOS
+      # Includes NativeImageRaster.swift for this app/extension upload boundary.
       - path: OpenMatesShared
       - path: OpenMates/Sources/Core/Crypto/CryptoManager.swift
       - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
@@ -498,6 +559,7 @@ targets:
         excludes: [MacInfo.plist]
       - path: OpenMates/Sources/Core/LiveActivities/OpenMatesLiveActivityAttributes.swift
       - path: OpenMates/Sources/Core/LiveActivities/UpcomingMemoryActivityNavigation.swift
+      - path: OpenMates/Sources/Core/LiveActivities/UpcomingMemorySmallActivityView.swift
       - path: OpenMates/Sources/Shared/Extensions/WidgetTasksData.swift
       - path: OpenMates/Sources/Shared/Extensions/WidgetWorkflowsData.swift
       - path: OpenMates/Sources/Shared/Extensions/WidgetWorkflowEntity.swift

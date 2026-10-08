@@ -2882,6 +2882,7 @@
     }
   },
   "apps_workspace": {},
+  "artifact_history": {},
   "audio": {
     "playback_progress": {
       "text": "音声再生の進行状況"
@@ -3152,6 +3153,9 @@
       "privacy_personal_data": {
         "text": "プライバシー・個人データ"
       }
+    },
+    "open_chat": {
+      "text": "チャットを開く"
     },
     "new_chat": {
       "text": "新しいチャット"
@@ -4205,6 +4209,9 @@
       "text": "チャット履歴"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "個人とすべてのチーム"
+      },
       "placeholder": {
         "text": "チャットと設定を検索..."
       },

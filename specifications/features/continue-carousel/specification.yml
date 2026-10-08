@@ -58,13 +58,11 @@ applies_to:
     parity: semantic
     implementations:
       web: {required: true}
-      apple: {required: false, role: The native client does not currently expose this web Continue carousel.}
-    exceptions:
-      - id: apple-continue-carousel-out-of-scope
-        implementation: apple
-        reason: This contract governs the authenticated web start-screen carousel only.
-        equivalent_outcome: A future native equivalent must not promote dated items before their own configured eligibility window.
+      apple: {required: true, role: The native authenticated start screen shares saved-item and reminder eligibility with web.}
 
 examples:
   file: examples.yml
   required_groups: [saved_item_window, chat_reminder_window]
+
+approval_source:
+  instruction: Direct user authorization in the current TASK-8137 Codex thread on 2026-10-06 to implement native upcoming saved embed promotion after Mac95 installation.

@@ -2882,6 +2882,7 @@
     }
   },
   "apps_workspace": {},
+  "artifact_history": {},
   "audio": {
     "playback_progress": {
       "text": "Kemajuan pemutaran audio"
@@ -3152,6 +3153,9 @@
       "privacy_personal_data": {
         "text": "privasi & data pribadi"
       }
+    },
+    "open_chat": {
+      "text": "Buka obrolan"
     },
     "new_chat": {
       "text": "Obrolan baru"
@@ -4205,6 +4209,9 @@
       "text": "Riwayat obrolan"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "Pribadi dan semua tim"
+      },
       "placeholder": {
         "text": "Cari obrolan dan pengaturan..."
       },

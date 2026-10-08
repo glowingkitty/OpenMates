@@ -15,6 +15,9 @@ enum EmbedStatus: String, Codable, Sendable {
     case cancelled
 }
 
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.versions.metadata-and-payload, storage.versions.bounded-reconstruction
+
 // MARK: - Embed record
 
 struct EmbedVersionMetadata: Identifiable, Codable, Equatable, Sendable {
@@ -32,6 +35,17 @@ struct EmbedVersionMetadata: Identifiable, Codable, Equatable, Sendable {
         case hasSnapshot = "has_snapshot"
         case hasPatch = "has_patch"
         case contentHash = "content_hash"
+    }
+}
+
+extension EmbedVersionMetadata {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        versionNumber = try c.decode(Int.self, forKey: .versionNumber)
+        createdAt = try c.decodeIfPresent(Int.self, forKey: .createdAt) ?? 0
+        hasSnapshot = try c.decode(Bool.self, forKey: .hasSnapshot)
+        hasPatch = try c.decode(Bool.self, forKey: .hasPatch)
+        contentHash = try c.decodeIfPresent(String.self, forKey: .contentHash)
     }
 }
 

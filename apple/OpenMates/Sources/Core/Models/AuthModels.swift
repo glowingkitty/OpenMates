@@ -2,6 +2,8 @@
 // Used for login, lookup, session, and device verification flows.
 // Specification: specifications/features/auth/specification.yml
 // Assertions: auth.lookup.anti-enumeration, auth.login.method-convergence
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.pairing.private-session
 
 import Foundation
 
@@ -244,7 +246,8 @@ struct PairV2StepUpMethods: Decodable {
     private enum CodingKeys: String, CodingKey {
         case hasPasskey
         case hasPassword
-        case has2Fa = "has2fa"
+        // APIClient converts has_2fa to has2Fa before CodingKeys lookup.
+        case has2Fa
     }
 
     enum Method { case passkey, password, otp }

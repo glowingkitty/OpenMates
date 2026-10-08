@@ -464,6 +464,8 @@ enum AppStrings {
     static var searchResultsLabel: String { L("chats.search.results_label") }
     static var searchGoToMessage: String { L("chats.search.go_to_message") }
     static var searchTagMatch: String { L("chats.search.tag_match") }
+    static var searchAllContexts: String { L("chats.search.scope_all_teams") }
+    static var personalContext: String { L("settings.personal_context") }
     static var today: String { L("activity.today") }
     static var yesterday: String { L("activity.yesterday") }
     static var previous7Days: String { L("activity.previous_7_days") }
@@ -527,7 +529,7 @@ enum AppStrings {
     static var interestsSelect: String { L("chat.interests.select_interests") }
     static var profilePicture: String { L("settings.account.profile_picture") }
     static var usage: String { L("settings.usage") }
-    static var storage: String { L("settings.storage") }
+    static var storage: String { L("settings.storage.storage_title") }
     static var importChats: String { L("settings.account.import_title") }
     static var exportData: String { L("settings.export_data") }
     static var exportDescription: String { L("settings.account.export_description") }
@@ -655,6 +657,65 @@ enum AppStrings {
     static var photoWrongFormat: String { L("settings.account.profile_picture.wrong_format") }
     static var photoRejected: String { L("settings.profile_image_not_allowed") }
     static var accountDeleted: String { L("settings.account_deleted") }
+    // Authoritative storage summaries and bounded warning scopes.
+    static var storageMeasuredAt: String { L("settings.storage.storage_measured_at") }
+    static var storageFreeTier: String { L("settings.storage.storage_free_tier_label") }
+    static var storageBillable: String { L("settings.storage.storage_billable") }
+    static var storageWeeklyCost: String { L("settings.storage.storage_weekly_cost") }
+    static var storageNextBilling: String { L("settings.storage.storage_next_billing") }
+    static var storageLastBilled: String { L("settings.storage.storage_last_billed") }
+    static var storagePersonalPolicy: String { L("settings.storage.storage_pricing_policy") }
+    static var storageLogicalBreakdown: String { L("settings.storage.storage_logical_breakdown") }
+    static var storageWithinFreeTier: String { L("settings.storage.storage_within_free_tier") }
+    static var storageInvoiceNotice: String { L("settings.storage.storage_invoice_notice") }
+    static var storageWarnings: String { L("settings.storage.storage_notices_delivered") }
+    static var storageDeadline: String { L("settings.storage.storage_notice_deadline") }
+    static var storageNoticeMore: String { L("settings.storage.storage_notice_load_more") }
+    static var storageUnitType: String { L("settings.storage.storage_unit_type") }
+    static var storageUnitOldest: String { L("settings.storage.storage_unit_oldest") }
+    static var storageUnitSize: String { L("settings.storage.storage_unit_size") }
+    static var teamStorageTitle: String { L("settings.team_storage_title") }
+    static var teamStoragePolicy: String { L("settings.team_storage_policy") }
+    static var teamStorageFreeTier: String { L("settings.team_storage_free_tier") }
+    static var teamStoragePreview: String { L("settings.team_storage_preview") }
+    static var teamStoragePaymentDue: String { L("settings.team_storage_payment_due") }
+    static var teamStorageError: String { L("settings.team_storage_error") }
+    static var storageOutstanding: String { L("settings.storage.storage_outstanding") }
+    static var storageExpiryDue: String { L("settings.storage.storage_expiry_due") }
+    static var storageExpiryDisabled: String { L("settings.storage.storage_expiry_disabled") }
+    static var storageInvoicePeriod: String { L("settings.storage.storage_invoice_period") }
+    static var storageInvoiceStatus: String { L("settings.storage.storage_invoice_status") }
+    static var storageMoreInvoices: String { L("settings.storage.storage_more_invoices") }
+    static var storageMoreUnits: String { L("settings.storage.storage_more_units") }
+    static func storageCreditsPerWeek(_ credits: Int) -> String {
+        LocalizationManager.shared.text("settings.storage.storage_credits_per_week", replacements: ["credits": "\(credits)"])
+    }
+    static func storageNoticeHeading(team: Bool) -> String { L(team ? "settings.team_storage_notice_title" : "settings.storage.storage_notice_heading") }
+    static func storageNoticePolicy(team: Bool) -> String { L(team ? "settings.team_storage_notice_policy" : "settings.storage.storage_notice_policy") }
+    static func storageNoticeEmpty(team: Bool) -> String { L(team ? "settings.team_storage_notice_empty" : "settings.storage.storage_notice_empty") }
+    static func storageNoticeError(team: Bool) -> String { L(team ? "settings.team_storage_notice_error" : "settings.storage.storage_notice_error") }
+    static func storageReview(team: Bool) -> String { L(team ? "settings.team_storage_review" : "settings.storage.storage_notice_manual_review") }
+    static func storageUnitLabel(_ kind: String) -> String { L("settings.storage.storage_unit_\(kind)") }
+    static func storageInvoiceState(_ state: String) -> String {
+        switch state {
+        case "paid", "waived", "unpaid": L("settings.storage.storage_invoice_\(state)")
+        default: L("settings.storage.storage_invoice_pending")
+        }
+    }
+    static func storageLogicalCategory(_ category: String) -> String {
+        let name: String
+        switch category {
+        case "chat_pages": name = "saved_chats"
+        case "chat_oversized": name = "large_messages"
+        case "cold_chat_graphs": name = "older_chats"
+        case "sealed_recovery": name = "pending_outputs"
+        case "embed_versions": name = "artifact_history"
+        case "legacy_uploads": return L("settings.storage.storage_unit_upload")
+        default: return L("settings.storage.storage_category_other")
+        }
+        return L("settings.storage.storage_category_\(name)")
+    }
+
     static var storageLoading: String { L("settings.storage.storage_loading") }
     static var storageError: String { L("settings.storage.storage_error") }
     static var storageBreakdown: String { L("settings.storage.storage_breakdown_title") }

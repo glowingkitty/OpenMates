@@ -16,6 +16,9 @@
 // Specification: specifications/features/apple-live-activities/specification.yml
 // Assertions: apple-live-activities.processing.widget, apple-live-activities.lifecycle.isolation
 
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.cold.independent-message-pages, storage.compression.incremental-archive, storage.surface.semantic-parity
+
 import Foundation
 import SwiftUI
 import CryptoKit
@@ -913,6 +916,7 @@ final class ChatViewModel: ObservableObject {
             rawMessages = mergeForegroundMessages(rawMessages, preserving: allMessages, chatId: loadedChat.id)
         }
         var hydrationEmbeds = syncedEmbeds
+        var remoteDecryptedProjection: [Message] = []
         if rawMessages.isEmpty {
             rawMessages = offlineStore.loadLatestMessageWindow(chatId: loadedChat.id)
         }
@@ -930,6 +934,7 @@ final class ChatViewModel: ObservableObject {
                 guard generation == loadGeneration, chat?.id == loadedChat.id,
                       scopeGeneration == accountScopeGeneration() else { return }
                 remoteHistory = RemoteHistory(page)
+                remoteDecryptedProjection = page.decryptedProjection
                 rawMessages = mergeForegroundMessages(foregroundPageMessages(page),
                     preserving: chatStore?.messages(for: loadedChat.id) ?? [], chatId: loadedChat.id)
                 // Foreground pages remain in this reader. Sending them through
@@ -975,7 +980,8 @@ final class ChatViewModel: ObservableObject {
                                               destination: destination)
         let selectedTail = visibleWindowEndIndex == allMessages.count
         let selectionGeneration = explicitWindowNavigationGeneration
-        let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: loadedChat.id)
+        let decryptedMessages = await decryptRemoteWindow(visibleRawMessages, chatId: loadedChat.id,
+            projection: remoteDecryptedProjection)
         openingMetrics.initialMessagesDecrypted = decryptedMessages.count
         guard isCurrentRemoteRead(readFence) else { return }
         restoreActiveStreamInRawHistory(chatId: loadedChat.id)
@@ -1227,19 +1233,25 @@ final class ChatViewModel: ObservableObject {
     /// Ensure the chat key is available (load from master key if not cached).
     private func ensureChatKey(for chat: Chat) async {
         guard !ChatKeyManager.shared.hasKey(for: chat.id),
-              let encryptedChatKey = chat.encryptedChatKey else { return }
-
-        // Try to load master key and unwrap this chat's key
-        guard let userId = await AuthManager.currentUserId(),
-              let masterKey = try? await CryptoManager.shared.loadMasterKey(for: userId) else {
-            return
+              let userId = await AuthManager.currentUserId(),
+              let masterKey = try? await CryptoManager.shared.loadMasterKey(for: userId) else { return }
+        if let encryptedChatKey = chat.encryptedChatKey,
+           await ChatKeyManager.shared.loadChatKey(chatId: chat.id, encryptedChatKey: encryptedChatKey, masterKey: masterKey) { return }
+        // Continue only while resolving one selected chat's key; never fetch the transcript.
+        // Limit the work of a failed legacy key lookup and keep it explicitly retryable.
+        var before: String?
+        for _ in 0..<8 {
+            do {
+                let page = try await ChatMessageWindowClient.fetchWrappers(chatId: chat.id, teamId: chat.teamId, beforeId: before, expectedOwnerId: userId)
+                if await ChatKeyManager.shared.loadChatKey(chatId: chat.id, wrappers: page.wrappers, masterKey: masterKey) { return }
+                if let oversized = page.oversizedWrapperId {
+                    let exact = try await ChatMessageWindowClient.fetchWrappers(chatId: chat.id, teamId: chat.teamId, exactWrapperId: oversized, expectedOwnerId: userId)
+                    if await ChatKeyManager.shared.loadChatKey(chatId: chat.id, wrappers: exact.wrappers, masterKey: masterKey) { return }
+                    before = oversized
+                } else if page.hasMoreBefore, let next = page.startCursor { before = next }
+                else { return }
+            } catch { return }
         }
-
-        await ChatKeyManager.shared.loadChatKey(
-            chatId: chat.id,
-            encryptedChatKey: encryptedChatKey,
-            masterKey: masterKey
-        )
     }
 
     /// Decrypt encrypted message content and identity using the per-chat key.
@@ -1421,7 +1433,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func initialRemoteQuery(anchor: String?) -> ChatMessageWindowQuery {
-        .init(direction: anchor == nil ? .latest : .around, limit: ChatHistoryWindowPolicy.capacity,
+        .init(direction: anchor == nil ? .latest : .around, limit: 20,
               anchorMessageId: anchor, respectCompressionBoundary: false)
     }
 
@@ -1474,20 +1486,57 @@ final class ChatViewModel: ObservableObject {
                                    generation: Int, fallbackMissingAnchor: Bool = true) async throws -> ChatMessageWindowPage {
         let fence = remoteReadFence(chatId: chatId, generation: generation)
         guard isCurrentRemoteRead(fence), fence.team.teamID == teamId else { throw ChatMessageWindowError.staleContext }
-        let page = try await messageWindowFetcher(chatId, teamId, query).validated(chatId: chatId, query: query)
+        var page = try await messageWindowFetcher(chatId, teamId, query).validated(chatId: chatId, query: query)
+        guard isCurrentRemoteRead(fence) else { throw ChatMessageWindowError.staleContext }
+        // A failed body must not commit the page cursor or certify terminal identity.
+        let decrypted = await decryptMessages(foregroundPageMessages(page), chatId: chatId)
+        try validateRemoteDecryption(decrypted, source: foregroundPageMessages(page))
+        page.decryptedProjection = decrypted
         guard isCurrentRemoteRead(fence) else { throw ChatMessageWindowError.staleContext }
         if fallbackMissingAnchor && query.direction == .around && !page.anchorFound {
             var latest = query; latest.direction = .latest; latest.anchorMessageId = nil
-            let fallback = try await messageWindowFetcher(chatId, teamId, latest).validated(chatId: chatId, query: latest)
+            var fallback = try await messageWindowFetcher(chatId, teamId, latest).validated(chatId: chatId, query: latest)
+            guard isCurrentRemoteRead(fence) else { throw ChatMessageWindowError.staleContext }
+            let fallbackDecrypted = await decryptMessages(foregroundPageMessages(fallback), chatId: chatId)
+            try validateRemoteDecryption(fallbackDecrypted, source: foregroundPageMessages(fallback))
+            fallback.decryptedProjection = fallbackDecrypted
             guard isCurrentRemoteRead(fence) else { throw ChatMessageWindowError.staleContext }
             return fallback
         }
         return page
     }
 
+    private func decryptRemoteWindow(_ source: [Message], chatId: String, projection: [Message]) async -> [Message] {
+        let available = Dictionary((messages + projection).map { ($0.id, $0) }, uniquingKeysWith: { _, fresh in fresh })
+        let reusable = source.compactMap { row -> Message? in
+            guard let decrypted = available[row.id], decrypted.chatId == row.chatId,
+                  decrypted.role == row.role, decrypted.encryptedContent == row.encryptedContent,
+                  decrypted.createdAt == row.createdAt, decrypted.updatedAt == row.updatedAt,
+                  decrypted.encryptedThinkingContent == row.encryptedThinkingContent,
+                  decrypted.encryptedPIIMappings == row.encryptedPIIMappings,
+                  decrypted.encryptedSenderName == row.encryptedSenderName,
+                  decrypted.encryptedCategory == row.encryptedCategory,
+                  decrypted.encryptedModelName == row.encryptedModelName,
+                  row.encryptedContent != nil || row.content == decrypted.content,
+                  decrypted.content != nil else { return nil }
+            return decrypted
+        }
+        let reusedIDs = Set(reusable.map(\.id))
+        let required = source.filter { !reusedIDs.contains($0.id) }
+        let missing = required.isEmpty ? [] : await decryptMessages(required, chatId: chatId)
+        let byID = Dictionary((reusable + missing).map { ($0.id, $0) }, uniquingKeysWith: { _, fresh in fresh })
+        return source.compactMap { byID[$0.id] }
+    }
+
+    private func validateRemoteDecryption(_ decrypted: [Message], source: [Message]) throws {
+        guard decrypted.count == source.count,
+              zip(decrypted, source).allSatisfy({ $0.0.id == $0.1.id && $0.0.chatId == $0.1.chatId
+                  && $0.0.content != nil }) else { throw ChatMessageWindowError.decryptionFailed }
+    }
+
     private func remoteQuery(_ destination: ChatHistoryWindowDestination) -> ChatMessageWindowQuery? {
         guard let remoteHistory, remoteHistory.chatId == chat?.id else { return nil }
-        var query = ChatMessageWindowQuery(limit: ChatHistoryWindowPolicy.capacity, respectCompressionBoundary: false)
+        var query = ChatMessageWindowQuery(limit: 20, respectCompressionBoundary: false)
         switch destination {
         case .older where remoteHistory.hasOlder && visibleWindowStartIndex < ChatHistoryWindowPolicy.stride:
             query.direction = .before; query.before = remoteHistory.start
@@ -1542,6 +1591,21 @@ final class ChatViewModel: ObservableObject {
                     nextRemote = RemoteHistory(page)
                     if query.afterBeginning { nextRemote.hasOlder = false }
                 }
+                let cachePendingIDs = foregroundPendingIDs(chatId: chatId, actionType: "send_message")
+                    .union(pendingStreamingCompletionIDs(chatId: chatId))
+                let retained = ChatMessageWindowPage.retainedForeground(source, newest: query.direction != .before,
+                    pendingIds: cachePendingIDs)
+                let retainedIDs = Set(retained.map(\.id))
+                let savedRetained = retained.filter { $0.encryptedContent != nil && $0.isStreaming != true && !cachePendingIDs.contains($0.id) }
+                if let first = savedRetained.first, let last = savedRetained.last {
+                    let firstCursor = try ChatMessageWindowPage.cursor(for: first)
+                    let lastCursor = try ChatMessageWindowPage.cursor(for: last)
+                    let evicted = source.filter { !retainedIDs.contains($0.id) }
+                    if try evicted.contains(where: { try ChatMessageWindowPage.precedes(ChatMessageWindowPage.cursor(for: $0), firstCursor) }) { nextRemote.hasOlder = true }
+                    if try evicted.contains(where: { try ChatMessageWindowPage.precedes(lastCursor, ChatMessageWindowPage.cursor(for: $0)) }) { nextRemote.hasNewer = true }
+                    nextRemote.start = firstCursor; nextRemote.end = lastCursor
+                }
+                source = retained
                 var current = visibleWindowStartIndex..<visibleWindowEndIndex
                 if let oldFirstId, let index = source.firstIndex(where: { $0.id == oldFirstId }) {
                     current = index..<min(source.count, index + messages.count)
@@ -1549,7 +1613,8 @@ final class ChatViewModel: ObservableObject {
                 let resolvedDestination: ChatHistoryWindowDestination = query.afterBeginning ? .oldest : destination
                 let range = ChatHistoryWindowPolicy.range(in: source, destination: resolvedDestination, current: current) ?? 0..<0
                 let visible = Array(source[range])
-                let decrypted = await decryptMessages(visible, chatId: chatId)
+                let decrypted = await decryptRemoteWindow(visible, chatId: chatId, projection: page.decryptedProjection)
+                try validateRemoteDecryption(decrypted, source: visible)
                 guard isCurrentRemoteRead(fence), isCurrentWindowRequest(chatId: chatId, generation: generation,
                     requestGeneration: requestGeneration, scopeGeneration: scopeGeneration) else { return }
                 // Resolve exact terminal identity before preserving live rows;

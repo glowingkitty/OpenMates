@@ -16,6 +16,72 @@ final class ChatNavigationParityUITests: XCTestCase {
         #endif
     }
 
+    // contract-test: direct surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible,workspace-shell.nav.released-surfaces-visible,chat-navigation.open.local-first-coherent
+    func testWorkspaceNavigationImmediatelyClearsActiveChatAndRestoresHeader() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-workspace-sidebar-fixture", "--ui-test-nav-callback-diagnostics"]
+        app.launch()
+        // Authentication and encrypted fixture seeding precede navigation.
+        // Wait for their rendered ready state before starting the five-second
+        // active-chat transition checks below.
+        let metricsQuery = app.descendants(matching: .any).matching(identifier: "chat-navigation-order-metrics")
+            .matching(NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@",
+                "selected-chat-id=ui-test-current-chat", "active-chat-id=ui-test-current-chat"))
+        _ = try NativeUITestElementResolution.requireVisible(
+            metricsQuery, in: app, timeout: 60, actionable: false)
+        let metrics = app.descendants(matching: .any).matching(identifier: "chat-navigation-order-metrics").firstMatch
+        _ = try waitForMetric("active-chat-id", equals: "ui-test-current-chat", in: metrics)
+        try assertHeaderTitle("Current Chat", in: app)
+        func select(_ id: String) throws {
+            let query = app.buttons.matching(identifier: id)
+            if NativeUITestElementResolution.visible(query, in: app) == nil {
+                if let picker = NativeUITestElementResolution.visible(app.buttons.matching(identifier: "workspace-switcher"), in: app) {
+                    let beforeScreen = XCTAttachment(screenshot: app.screenshot())
+                    let beforeAX = XCTAttachment(string: app.debugDescription)
+                    picker.tap()
+                    let expanded = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                        picker.exists && picker.value as? String == "expanded"
+                    }, object: picker)
+                    let result = XCTWaiter.wait(for: [expanded], timeout: 5)
+                    if result != .completed {
+                        beforeScreen.name = "workspace-picker-before-tap-screen"
+                        beforeAX.name = "workspace-picker-before-tap-AX"
+                        beforeScreen.lifetime = .keepAlways; beforeAX.lifetime = .keepAlways
+                        add(beforeScreen); add(beforeAX)
+                        let afterScreen = XCTAttachment(screenshot: app.screenshot())
+                        let afterAX = XCTAttachment(string: app.debugDescription)
+                        afterScreen.name = "workspace-picker-after-tap-screen"
+                        afterAX.name = "workspace-picker-after-tap-AX"
+                        afterScreen.lifetime = .keepAlways; afterAX.lifetime = .keepAlways
+                        add(afterScreen); add(afterAX)
+                    }
+                    let diagnostic = app.descendants(matching: .any)["workspace-picker-debug-state"].firstMatch
+                    XCTAssertEqual(result, .completed,
+                        "Actual picker tap must expand before resolving its workspace row. " + (diagnostic.exists ? diagnostic.label : "diagnostic missing"))
+                } else {
+                    try NativeUITestElementResolution.requireVisible(app.buttons.matching(identifier: "sidebar-toggle"), in: app).tap()
+                }
+            }
+            try NativeUITestElementResolution.requireVisible(query, in: app).tap()
+        }
+        try select("tasks-nav-link")
+        XCTAssertTrue(app.descendants(matching: .any)["tasks-workspace"].waitForExistence(timeout: 5))
+        // Five seconds is below the old 25-second heartbeat, so a passing
+        // result proves navigation itself relinquished active-chat visibility.
+        _ = try waitForMetric("active-chat-id", equals: "none", in: metrics)
+        _ = try waitForMetric("selected-chat-id", equals: "ui-test-current-chat", in: metrics)
+        try select("chats-nav-link")
+        _ = try waitForMetric("active-chat-id", equals: "ui-test-current-chat", in: metrics)
+        try assertHeaderTitle("Current Chat", in: app)
+        let header = try NativeUITestElementResolution.requireVisible(
+            app.staticTexts.matching(identifier: "chat-header-title"), in: app, actionable: false)
+        XCTAssertEqual(header.label, "Current Chat")
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Workspace return retains current chat header and visibility owner"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
     // contract-test: direct surface=gui.apple assertions=workspace-shell.nav.released-surfaces-visible
     func testCompactWorkspaceMenuOpensAboveRealChatAndNavigates() throws {
         let app = XCUIApplication()

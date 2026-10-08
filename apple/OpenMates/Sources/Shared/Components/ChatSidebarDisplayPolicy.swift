@@ -3,6 +3,28 @@
 import Foundation
 
 enum ChatSidebarDisplayPolicy {
+    /// Default web history retains every scoped, visible top-level metadata
+    /// row, including untitled shells and legacy archived rows. The caller
+    /// separately removes public, organized and running chats.
+    static func isRootUserChatEligible(_ chat: Chat, teamID: String?) -> Bool {
+        !chat.isRetiredBundledIntro && !chat.isHiddenFromNormalSurfaces &&
+            chat.teamId == teamID && chat.parentId == nil && chat.isSubChat != true
+    }
+
+    /// The web draft-only row has no title/profile, only its status and preview.
+    static func isDraftOnly(_ chat: Chat, preview: String?) -> Bool {
+        let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let hasTitle = !title.isEmpty && title.lowercased() != "untitled chat"
+        let hasDraft = chat.hasNonEmptyDraft == true || (chat.draftV ?? 0) > 0 || preview?.isEmpty == false
+        return hasDraft && !hasTitle && (chat.messagesV ?? 0) == 0 && chat.lastVisibleMessageId == nil
+    }
+
+    /// Web category badges hide while processing and cap their numeral at 9+.
+    static func unreadBadgeText(count: Int, processing: Bool, draftOnly: Bool) -> String? {
+        guard count > 0, !processing, !draftOnly else { return nil }
+        return count > 9 ? "9+" : String(count)
+    }
+
     static let initialLimit = 11
     static let increment = 20
     static let timeGroupOrder = ["today", "yesterday", "previous_7_days", "previous_30_days"]
@@ -98,7 +120,7 @@ enum ChatSidebarDisplayPolicy {
         var rows: [String: [Chat]] = [:]
         var encountered: [String] = []
         for chat in chats {
-            let key = groupKey(for: chat.lastMessageDate, now: now, calendar: calendar)
+            let key = groupKey(for: chat.sidebarActivityDate, now: now, calendar: calendar)
             if rows[key] == nil { encountered.append(key) }
             rows[key, default: []].append(chat)
         }

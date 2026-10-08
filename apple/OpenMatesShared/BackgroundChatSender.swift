@@ -1388,10 +1388,8 @@ actor BackgroundChatSender {
     func uploadAttachment(data: Data, filename: String, contentType: String, chatId: String) async throws -> BackgroundUploadFileResponse {
         _ = try await currentAuthenticatedUser()
         let boundary = UUID().uuidString
-        var body = Data()
-        appendMultipartField(name: "file", filename: filename, contentType: contentType, data: data, boundary: boundary, to: &body)
-        appendMultipartField(name: "chat_id", value: chatId, boundary: boundary, to: &body)
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        let body = try Self.makeAttachmentUploadBody(data: data, filename: filename,
+            contentType: contentType, chatId: chatId, boundary: boundary)
 
         let uploadURL = ServerConfiguration.current.uploadBaseURL.appendingPathComponent("v1/upload/file")
         var request = URLRequest(url: uploadURL)
@@ -1845,7 +1843,21 @@ actor BackgroundChatSender {
         return text
     }
 
-    private func appendMultipartField(
+    /// Production Share upload assembly: strip raster source metadata before
+    /// constructing the bytes assigned to the outbound request. Other file
+    /// formats retain their current behavior until TASK-1854 covers them.
+    nonisolated static func makeAttachmentUploadBody(data: Data, filename: String,
+        contentType: String, chatId: String, boundary: String) throws -> Data {
+        let prepared = try NativeImageRaster.prepareUpload(data: data, filename: filename, contentType: contentType)
+        var body = Data()
+        appendMultipartField(name: "file", filename: prepared.filename, contentType: prepared.contentType,
+            data: prepared.data, boundary: boundary, to: &body)
+        appendMultipartField(name: "chat_id", value: chatId, boundary: boundary, to: &body)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        return body
+    }
+
+    private nonisolated static func appendMultipartField(
         name: String,
         filename: String,
         contentType: String,
@@ -1862,13 +1874,13 @@ actor BackgroundChatSender {
         body.append("\r\n".data(using: .utf8)!)
     }
 
-    private func safeMultipartHeaderValue(_ value: String) -> String {
+    private nonisolated static func safeMultipartHeaderValue(_ value: String) -> String {
         value.map { character -> String in
             character == "\r" || character == "\n" || character == "\"" ? "_" : String(character)
         }.joined()
     }
 
-    private func appendMultipartField(
+    private nonisolated static func appendMultipartField(
         name: String,
         value: String,
         boundary: String,

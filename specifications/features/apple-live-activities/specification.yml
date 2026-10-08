@@ -8,11 +8,12 @@ summary: Supported lock screens display background download progress and upcomin
 scope:
   includes:
   - Native ActivityKit download progress, verified completion notifications and upcoming saved memory embeds.
+  - Compact mirrored Live Activity presentation on supported paired Apple Watch Smart Stack systems.
   - Native iOS, iPadOS and macOS WidgetKit Active chats snapshots with quick-open and View all links.
   excludes:
   - Live Activities for processing chats.
   - Guarantees of OS presentation or suspension-time local callbacks.
-  - Private memory titles/details and Apple Watch/macOS Live Activity UI.
+  - Private memory titles/details and macOS Live Activity UI.
 relationships:
   related_specifications:
   - feature.apple-local-model-lab
@@ -36,7 +37,7 @@ assertions:
 - id: apple-live-activities.memories.upcoming
   type: behavior
   must: A saved event, appointment or trip embed with an explicit timezone-aware upcoming timestamp is eligible within
-    four hours. Eligible memories appear in chronological order with generic localized lock-screen text and their times.
+    four hours. Supported paired Watch systems provide a compact small-family mirrored presentation with generic labels, time and truthful total; OS presentation remains system-controlled. Eligible memories appear in chronological order with generic localized lock-screen text and their times.
     When multiple items are upcoming, supported interactive Live Activities provide Previous and Next controls and
     a current-item count, preserving the selected eligible item across updates. Platforms without interaction show
     the earliest eligible item. Navigation pages stay within the ActivityKit payload budget; overflow retains the
@@ -45,7 +46,7 @@ assertions:
     supporting scheduled local Live Activities, the four-hour window can begin while the app is suspended; earlier
     systems reconcile while active. Date-only, cancelled, completed, expired or removed memories are excluded.
   depends_on:
-  - examples.memories
+  - examples.memories_review
 - id: apple-live-activities.lifecycle.isolation
   type: privacy
   must: Activity state contains generic memory/download labels, timing, counts and opaque scope identity without medical
@@ -97,4 +98,4 @@ examples:
   - widget
 approval_source:
   instruction: Direct user instruction in codex thread 01a0eeac-16cd-7ff1-941a-5d1fb4908fae on 2026-10-03. Implementation
-    is explicitly authorized; no separate fingerprint approval is claimed.
+    is explicitly authorized; no separate fingerprint approval is claimed. Watch small-family presentation is additionally authorized by the user in the current TASK-8137 Codex thread on 2026-10-06.

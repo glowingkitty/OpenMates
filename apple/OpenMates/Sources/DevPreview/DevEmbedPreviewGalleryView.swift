@@ -96,7 +96,9 @@ struct DevPreviewRootView: View {
             DevChatSharePreviewView()
         case .embedShare:
             #if os(iOS)
-            if ProcessInfo.processInfo.arguments.contains("--dev-upcoming-memory-live-activity-fixture") {
+            if ProcessInfo.processInfo.arguments.contains("--dev-welcome-continue-fixture") {
+                DevWelcomeContinueFixture()
+            } else if ProcessInfo.processInfo.arguments.contains("--dev-upcoming-memory-live-activity-fixture") {
                 DevUpcomingMemoryLiveActivityFixture()
             } else {
                 existingEmbedSharePreview

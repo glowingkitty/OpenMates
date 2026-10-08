@@ -49,7 +49,30 @@ final class ChatStore: ObservableObject {
 
     // MARK: - Chat operations
 
-    func upsertChat(_ chat: Chat) {
+    private func hydrateUnread(_ incoming: Chat) -> Chat {
+        var chat = incoming
+        if UnreadMessagesStore.shared.isConfigured, let count = chat.unreadCount {
+            UnreadMessagesStore.shared.setUnread(chatId: chat.id, count: count, teamID: chat.teamId)
+            chat.unreadCount = UnreadMessagesStore.shared.getUnreadCount(chatId: chat.id, teamID: chat.teamId)
+        }
+        return chat
+    }
+
+    func updateUnreadCount(chatId: String, count: Int) {
+        guard var chat = chat(for: chatId) else { return }
+        let unread = UnreadMessagesStore.shared
+        let normalized = unread.isActivelyViewing(chatID: chatId, teamID: chat.teamId) ? 0 : max(0, count)
+        if chat.unreadCount == normalized {
+            // Reconcile the badge if needed without sorting/persisting the same chat.
+            unread.setUnread(chatId: chatId, count: normalized, teamID: chat.teamId)
+            return
+        }
+        chat.unreadCount = normalized
+        upsertChat(chat)
+    }
+
+    func upsertChat(_ incomingChat: Chat) {
+        let chat = hydrateUnread(incomingChat)
         let persisted: Chat
         if let index = chats.firstIndex(where: { $0.id == chat.id }) {
             logMetadataMerge(existing: chats[index], incoming: chat)
@@ -85,7 +108,8 @@ final class ChatStore: ObservableObject {
         }
         var persisted: [Chat] = []
         persisted.reserveCapacity(newChats.count)
-        for chat in newChats {
+        for incomingChat in newChats {
+            let chat = hydrateUnread(incomingChat)
             if let index = indexByChatId[chat.id] {
                 logMetadataMerge(existing: nextChats[index], incoming: chat)
                 nextChats[index] = mergeRecoveredMetadata(current: nextChats[index], incoming: chat, authoritative: authoritativeMetadata)
@@ -558,14 +582,15 @@ final class ChatStore: ObservableObject {
     }
 
     private func chatSortPrecedes(_ a: Chat, _ b: Chat) -> Bool {
+        if (a.isPinned == true) != (b.isPinned == true) { return a.isPinned == true }
         let aHasDraft = a.hasNonEmptyDraft == true
         let bHasDraft = b.hasNonEmptyDraft == true
         if aHasDraft != bHasDraft {
             return aHasDraft
         }
 
-        let aDate = a.lastMessageDate ?? .distantPast
-        let bDate = b.lastMessageDate ?? .distantPast
+        let aDate = a.sidebarActivityDate ?? Date(timeIntervalSince1970: 0)
+        let bDate = b.sidebarActivityDate ?? Date(timeIntervalSince1970: 0)
         if aDate != bDate {
             return aDate > bDate
         }
@@ -576,7 +601,7 @@ final class ChatStore: ObservableObject {
             return aServerOrder < bServerOrder
         }
 
-        return (a.updatedDate ?? .distantPast) > (b.updatedDate ?? .distantPast)
+        return (a.updatedDate ?? Date(timeIntervalSince1970: 0)) > (b.updatedDate ?? Date(timeIntervalSince1970: 0))
     }
 
     private func sortedMessages(for chatId: String) -> [Message] {
@@ -657,7 +682,8 @@ private extension Chat {
             isHiddenCandidate: isHiddenCandidate,
             teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: hasNonEmptyDraft,
-            clearedDraftV: clearedDraftV
+            clearedDraftV: clearedDraftV,
+            unreadCount: unreadCount
         )
     }
 
@@ -701,7 +727,8 @@ private extension Chat {
             isHiddenCandidate: isHiddenCandidate,
             teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: hasNonEmptyDraft,
-            clearedDraftV: clearedDraftV
+            clearedDraftV: clearedDraftV,
+            unreadCount: unreadCount
         )
     }
 
@@ -747,7 +774,8 @@ extension Chat {
             isHiddenCandidate: isHiddenCandidate,
             teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: hasNonEmptyDraft,
-            clearedDraftV: clearedDraftV
+            clearedDraftV: clearedDraftV,
+            unreadCount: unreadCount
         )
     }
 
@@ -793,7 +821,8 @@ private extension Chat {
             isHiddenCandidate: isHiddenCandidate,
             teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: draftVersion == 0 ? false : hasNonEmptyDraft,
-            clearedDraftV: clearedDraftV
+            clearedDraftV: clearedDraftV,
+            unreadCount: unreadCount
         )
     }
 
@@ -891,7 +920,8 @@ private extension Chat {
             isHiddenCandidate: incoming.isHiddenCandidate ?? isHiddenCandidate,
             teamId: incoming.teamId ?? teamId, isSharedByOthers: incoming.isSharedByOthers ?? isSharedByOthers,
             hasNonEmptyDraft: resolvedPresence,
-            clearedDraftV: resolvedClearedVersion
+            clearedDraftV: resolvedClearedVersion,
+            unreadCount: incoming.unreadCount ?? unreadCount
         )
     }
 
@@ -934,7 +964,8 @@ private extension Chat {
             isHiddenCandidate: isHiddenCandidate,
             teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: hasNonEmptyDraft,
-            clearedDraftV: clearedDraftV
+            clearedDraftV: clearedDraftV,
+            unreadCount: unreadCount
         )
     }
 
@@ -977,7 +1008,8 @@ private extension Chat {
             isHiddenCandidate: isHiddenCandidate,
             teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: hasNonEmptyDraft,
-            clearedDraftV: clearedDraftV
+            clearedDraftV: clearedDraftV,
+            unreadCount: unreadCount
         )
     }
 }

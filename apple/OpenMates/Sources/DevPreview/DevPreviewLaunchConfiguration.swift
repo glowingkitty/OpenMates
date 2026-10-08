@@ -83,6 +83,7 @@ enum DevPreviewComponent: String, CaseIterable, Hashable {
     case projects
     case workflows
     case notification
+    case storage
     case sharedRecipient = "shared-recipient"
 
     var descriptor: DevPreviewComponentDescriptor { DevPreviewComponentRegistry.descriptor(for: self) }
@@ -129,17 +130,19 @@ enum DevPreviewComponentRegistry {
         case .history:
             return .init(component: component, webComponentPath: "ChatHistory", nativeRendererNames: ["ChatView", "MessageBubble"], variants: ["default", "long", "mixed", "workspace"], hostSupport: .componentHost)
         case .dailyInspiration:
-            return .init(component: component, webComponentPath: "DailyInspirationBanner", nativeRendererNames: ["InspirationCard", "DevDailyInspirationFixture"], variants: ["default", "narrow", "wide", "short", "read-only"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "DailyInspirationBanner", nativeRendererNames: ["InspirationCard", "DevDailyInspirationFixture"], variants: ["default", "narrow", "wide", "short", "read-only", "long-title", "wiki"], hostSupport: .componentHost)
         case .welcome:
             return .init(component: component, webComponentPath: "ActiveChat", nativeRendererNames: ["WelcomeContinuationCarousel", "WelcomeContinuationLayout", "DevChatContinuationLayoutFixture"], variants: ["default", "empty", "continuation"], hostSupport: .componentHost)
         case .login:
-            return .init(component: component, webComponentPath: "Login", nativeRendererNames: ["AuthLoginHeading", "EmailLookupForm", "PasswordLoginForm"], variants: ["default", "email", "password", "otp", "error", "lookup-error", "password-error", "passkey-lifecycle"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "Login", nativeRendererNames: ["AuthLoginHeading", "EmailLookupForm", "PasswordLoginForm", "AppleWatchPairAuthorizeView"], variants: ["default", "email", "password", "otp", "error", "lookup-error", "password-error", "passkey-lifecycle", "watch-pair-approval"], hostSupport: .componentHost)
         case .signup:
             return .init(component: component, webComponentPath: "signup/Signup", nativeRendererNames: ["NativeSignupForm", "SignupBasicsFormView", "SignupConfirmEmailStep", "SignupPasswordStep"], variants: ["default", "basics", "error", "loading", "unavailable", "confirm-email", "secure-account", "password", "creation-uncertain", "passkey", "passkey-prf-error", "passkey-cancel", "passkey-uncertain"], hostSupport: .componentHost)
         case .tasks:
             return .init(component: component, webComponentPath: "tasks/TasksPage", nativeRendererNames: ["TasksWorkspaceView", "TaskDetailView", "PlanDetailView", "TasksSidebarView"], variants: ["default", "manyBacklog", "plans", "supplementary-load-failure", "task-load-failure"], hostSupport: .componentHost)
         case .projects:
             return .init(component: component, webComponentPath: "projects/ProjectsPage", nativeRendererNames: ["ProjectsWorkspaceView", "ProjectsSidebarView"], variants: ["default", "landing", "folders", "readme", "tasks", "connectedSource", "localFolderSource", "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource", "sidebar", "chats"], hostSupport: .componentHost)
+        case .storage:
+            return .init(component: component, webComponentPath: "settings/SettingsTeams", nativeRendererNames: ["StoragePersonalSummaryView", "TeamStorageStatusView", "StorageNoticeView"], variants: ["default", "personal", "current", "unpaid", "disabled", "manual-review", "selection-fencing"], hostSupport: .componentHost)
         case .notification:
             return .init(component: component, webComponentPath: "Notification", nativeRendererNames: ["InAppNotificationCard"], variants: ["default", "connection", "progress", "stack"], hostSupport: .componentHost)
         case .sharedRecipient:

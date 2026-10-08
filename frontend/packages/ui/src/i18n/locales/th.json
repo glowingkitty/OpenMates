@@ -2882,6 +2882,7 @@
     }
   },
   "apps_workspace": {},
+  "artifact_history": {},
   "audio": {
     "playback_progress": {
       "text": "ความคืบหน้าของการเล่นเสียง"
@@ -3152,6 +3153,9 @@
       "privacy_personal_data": {
         "text": "ความเป็นส่วนตัวและข้อมูลส่วนบุคคล"
       }
+    },
+    "open_chat": {
+      "text": "เปิดแชท"
     },
     "new_chat": {
       "text": "แชทใหม่"
@@ -4205,6 +4209,9 @@
       "text": "ประวัติแชท"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "ส่วนตัวและทุกทีม"
+      },
       "placeholder": {
         "text": "ค้นหาแชทและการตั้งค่า..."
       },

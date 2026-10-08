@@ -7,6 +7,8 @@
 import SwiftUI
 #if os(iOS)
 import UIKit
+#elseif os(macOS)
+import AppKit
 #endif
 
 // Observe draft changes within the sidebar subtree, never the entire app shell.
@@ -163,19 +165,10 @@ private struct ChatSidebarRowButton: View {
     let onSelect: () -> Void
     let onShowActions: (() -> Void)?
     @State private var hovering = false
-    @GestureState private var holdingForActions = false
-    @State private var suppressSelection = false
-    #if os(iOS)
     @State private var selectionGate = SidebarRowSelectionGate()
-    #endif
-    @State private var holdMoved = false
     var body: some View {
         Button {
-            #if os(iOS)
             if !selectionGate.suppressSelection { onSelect() }
-            #else
-            if !suppressSelection { onSelect() }
-            #endif
         } label: {
             ChatListRow(chat: chat, suppliedDraftPreview: draftPreview, processing: processing, activeSubChatCount: activeSubChatCount)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -197,52 +190,23 @@ private struct ChatSidebarRowButton: View {
                 if opensActions { onShowActions?() }
                 resetHoldAfterRelease()
             }))
-            #else
-            // A draggable row must not present the custom menu during the lift.
-            // Complete a stationary hold on release; travel belongs to drag/drop.
-            .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.5, maximumDistance: 10)
-                    .sequenced(before: DragGesture(minimumDistance: 0))
-                    .updating($holdingForActions) { value, holding, _ in
-                        switch value {
-                        case .first(let recognized): holding = recognized
-                        case .second(let recognized, _): holding = recognized
-                        }
-                    }
-                    .onChanged { value in
-                        switch value {
-                        case .first(true): NativeDragDiagnostics.record("sidebar.hold.first"); suppressSelection = true
-                        case .second(true, let drag):
-                            NativeDragDiagnostics.record("sidebar.hold.second")
-                            suppressSelection = true
-                            if let drag, hypot(drag.translation.width, drag.translation.height) > 10 { holdMoved = true }
-                        default: break
-                        }
-                    }
-                    .onEnded { value in
-                        NativeDragDiagnostics.record("sidebar.hold.ended")
-                        if case .second(true, let drag) = value,
-                           !holdMoved, drag.map({ hypot($0.translation.width, $0.translation.height) <= 10 }) ?? true {
-                            onShowActions?()
-                        }
-                        resetHoldAfterRelease()
-                    }
-            )
-            .onChange(of: holdingForActions) { _, holding in
-                if !holding { NativeDragDiagnostics.record("sidebar.hold.released"); resetHoldAfterRelease() }
-            }
+            #elseif os(macOS)
+            // Observe native mouse events without installing a competing
+            // SwiftUI DragGesture, which intercepts ordinary Button clicks.
+            .background(SidebarStationaryMouseHoldObserver(onSuppressSelection: {
+                selectionGate.suppressSelection = true
+            }, onRelease: { opensActions in
+                if opensActions { onShowActions?() }
+                resetHoldAfterRelease()
+            }))
             #endif
             .accessibilityAddTraits(selected ? .isSelected : [])
     }
     private func resetHoldAfterRelease() {
         // Keep the release's Button action suppressed, then permit the next tap.
         // GestureState also resets here when the native drag interaction cancels.
-        #if os(iOS)
         let gate = selectionGate
         DispatchQueue.main.async { gate.suppressSelection = false }
-        #else
-        DispatchQueue.main.async { suppressSelection = false; holdMoved = false }
-        #endif
     }
 }
 
@@ -400,6 +364,66 @@ private struct SidebarStationaryHoldObserver: UIViewRepresentable {
             if releasing && hadActiveSequence { reader?.onRelease(false) }
         }
         override func reset() { super.reset(); invalidate(releasing: true) }
+    }
+}
+#endif
+
+#if os(macOS)
+/// A transparent event observer always returns the original event. It neither
+/// recognizes a drag nor competes with the Button/native drag source.
+private struct SidebarStationaryMouseHoldObserver: NSViewRepresentable {
+    let onSuppressSelection: () -> Void
+    let onRelease: (Bool) -> Void
+    func makeNSView(context: Context) -> Reader { Reader() }
+    func updateNSView(_ view: Reader, context: Context) {
+        view.onSuppressSelection = onSuppressSelection; view.onRelease = onRelease
+    }
+    static func dismantleNSView(_ view: Reader, coordinator: ()) { view.detach() }
+    final class Reader: NSView {
+        var onSuppressSelection: () -> Void = {}
+        var onRelease: (Bool) -> Void = { _ in }
+        private var monitor: Any?
+        private var tracking = SidebarStationaryHoldTracking()
+        private var active = false
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow(); detach()
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { [weak self] event in
+                self?.observe(event)
+                return event
+            }
+        }
+        func detach() {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+            if active { active = false; onRelease(false) }
+        }
+        private func observe(_ event: NSEvent) {
+            guard event.window === window else { return }
+            let point = convert(event.locationInWindow, from: nil)
+            switch event.type {
+            case .leftMouseDown:
+                guard !isHiddenOrHasHiddenAncestor, visibleRect.contains(point) else { return }
+                // Native drag tracking can consume its release event. A new
+                // click must clear that sequence's retained suppression.
+                if active { onRelease(false) }
+                active = true
+                tracking.begin(at: point, time: event.timestamp)
+            case .leftMouseDragged:
+                guard active else { return }
+                tracking.record(point)
+                if tracking.moved { onSuppressSelection() }
+            case .leftMouseUp:
+                guard active else { return }
+                tracking.record(point)
+                active = false
+                let opensActions = tracking.opensActions(at: event.timestamp)
+                if opensActions || tracking.moved { onSuppressSelection() }
+                onRelease(opensActions)
+            default: break
+            }
+        }
     }
 }
 #endif

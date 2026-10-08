@@ -172,6 +172,8 @@ final class AppQuickActionCenter {
 struct SharedSocketWindowOwnership {
     private(set) var windowIDs: [UUID] = []
     private(set) var reconnectWorkCount = 0
+    private(set) var visibleWindowIDs = Set<UUID>()
+    private(set) var keyWindowIDs = Set<UUID>()
 
     mutating func register(_ id: UUID) {
         if !windowIDs.contains(id) { windowIDs.append(id) }
@@ -179,6 +181,14 @@ struct SharedSocketWindowOwnership {
 
     mutating func unregister(_ id: UUID) {
         windowIDs.removeAll { $0 == id }
+        visibleWindowIDs.remove(id)
+        keyWindowIDs.remove(id)
+    }
+
+    mutating func updateVisibility(_ id: UUID, isVisible: Bool, isKey: Bool) {
+        guard windowIDs.contains(id) else { return }
+        if isVisible { visibleWindowIDs.insert(id) } else { visibleWindowIDs.remove(id) }
+        if isVisible && isKey { keyWindowIDs.insert(id) } else { keyWindowIDs.remove(id) }
     }
 
     func ownsSharedSync(_ id: UUID) -> Bool { windowIDs.first == id }
@@ -220,6 +230,13 @@ final class AppSessionCoordinator: ObservableObject {
     func unregisterWindow(_ id: UUID) {
         windowOwnership.unregister(id)
     }
+
+    func updateWindowVisibility(_ id: UUID, isVisible: Bool, isKey: Bool) {
+        windowOwnership.updateVisibility(id, isVisible: isVisible, isKey: isKey)
+    }
+
+    var hasVisibleChatWindow: Bool { !windowOwnership.visibleWindowIDs.isEmpty }
+    var hasKeyChatWindow: Bool { !windowOwnership.keyWindowIDs.isEmpty }
 
     func ownsSharedSync(_ id: UUID) -> Bool {
         windowOwnership.ownsSharedSync(id)
@@ -296,6 +313,23 @@ final class AppSessionCoordinator: ObservableObject {
     }
 }
 
+#if DEBUG
+/// Unit-test host startup is not a product session. UI tests launch the product
+/// in a separate app process and retain its normal explicit fixture/auth flows.
+enum NativeUnitTestHostPolicy {
+    static func suppressAutomaticStartup(environment: [String: String],
+        loadedBundlePaths: [String], hasXCTestCase: Bool) -> Bool {
+        loadedBundlePaths.contains { URL(fileURLWithPath: $0).lastPathComponent == "OpenMatesTests.xctest" }
+            || (environment["XCTestConfigurationFilePath"] != nil && hasXCTestCase)
+    }
+    static var isUnitTestHost: Bool {
+        suppressAutomaticStartup(environment: ProcessInfo.processInfo.environment,
+            loadedBundlePaths: Bundle.allBundles.map { $0.bundleURL.path },
+            hasXCTestCase: NSClassFromString("XCTestCase") != nil)
+    }
+}
+#endif
+
 @main
 struct OpenMatesApp: App {
     private static let mainWindowID = "openmates-main-window"
@@ -317,7 +351,7 @@ struct OpenMatesApp: App {
         FontRegistration.registerFonts()
         #if DEBUG
         // Isolated component fixtures must not start account telemetry.
-        if DevPreviewLaunchConfiguration.current != nil { return }
+        if DevPreviewLaunchConfiguration.current != nil || NativeUnitTestHostPolicy.isUnitTestHost { return }
         #endif
         NativeMetricKitReporter.shared.start()
     }
@@ -355,7 +389,8 @@ struct OpenMatesApp: App {
                     #if DEBUG
                     // Includes invalid preview configuration: show its error instead
                     // of accidentally restoring the real account behind the fixture.
-                    guard DevPreviewLaunchConfiguration.current == nil else { return }
+                    guard DevPreviewLaunchConfiguration.current == nil,
+                          !NativeUnitTestHostPolicy.isUnitTestHost else { return }
                     #endif
                     NativeDiagnostics.info("Apple app runtime starting", category: "app_lifecycle")
                     NativePerformanceMonitor.shared.startSampling()
@@ -369,7 +404,8 @@ struct OpenMatesApp: App {
                 }
                 .onChange(of: authManager.state) { _, newState in
                     #if DEBUG
-                    guard DevPreviewLaunchConfiguration.current == nil else { return }
+                    guard DevPreviewLaunchConfiguration.current == nil,
+                          !NativeUnitTestHostPolicy.isUnitTestHost else { return }
                     #endif
                     if case .authenticated = newState {
                         NativeLogForwarder.shared.startDefaultTelemetry()

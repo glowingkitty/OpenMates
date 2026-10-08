@@ -3251,6 +3251,44 @@
       "text": "Choose a location and dates."
     }
   },
+  "artifact_history": {
+    "title": {
+      "text": "Version history"
+    },
+    "loaded": {
+      "text": "{count} versions loaded"
+    },
+    "more": {
+      "text": "Show more"
+    },
+    "current": {
+      "text": "Current version v{version}"
+    },
+    "historical": {
+      "text": "Viewing historical version v{version}"
+    },
+    "empty": {
+      "text": "No version history available yet."
+    },
+    "readonly": {
+      "text": "Read-only history"
+    },
+    "snapshot_required": {
+      "text": "This version is waiting for a readable snapshot. Retry when it becomes available."
+    },
+    "access_changed": {
+      "text": "History access changed. Reopen this artifact and retry."
+    },
+    "too_large": {
+      "text": "This version exceeds this device’s history read limit."
+    },
+    "failed": {
+      "text": "Version history could not be loaded. Retry."
+    },
+    "select": {
+      "text": "Select a version to load its content."
+    }
+  },
   "audio": {
     "playback_progress": {
       "text": "Audio playback progress"
@@ -3556,6 +3594,9 @@
       "privacy_personal_data": {
         "text": "privacy & personal data"
       }
+    },
+    "open_chat": {
+      "text": "Open chat"
     },
     "new_chat": {
       "text": "New chat"
@@ -4877,6 +4918,9 @@
       "text": "Chat history"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "Personal and all Teams"
+      },
       "placeholder": {
         "text": "Search chats, settings & apps..."
       },
@@ -16771,6 +16815,24 @@
         "cache_pricing_explanation": {
           "text": "Cache reads reuse earlier input at a lower price. Cache writes create it and may cost more. These rates apply to normal authenticated personal and team chats. Billing for workflows and orchestrated subchats remains unchanged. Your receipt shows the usage charged."
         },
+        "automatic_summary_title": {
+          "text": "Automatic long-chat summaries"
+        },
+        "automatic_summary_explanation": {
+          "text": "In normal authenticated personal and team chats, automatic long-chat summaries are billed separately only when needed. If no summary runs, there is no summary charge. Billing for workflows and orchestrated subchats remains unchanged. Your receipt shows the rates used."
+        },
+        "automatic_summary_fallback": {
+          "text": "Fallback"
+        },
+        "standard_pricing": {
+          "text": "Standard"
+        },
+        "over_272k_pricing": {
+          "text": "Over 272,000 input tokens"
+        },
+        "over_272k_explanation": {
+          "text": "Total input includes cached input. Above 272,000 input tokens, these rates apply to the whole request."
+        },
         "cache_write": {
           "text": "Cache write"
         },
@@ -16806,24 +16868,6 @@
         },
         "enable_model": {
           "text": "Enable model"
-        },
-        "automatic_summary_title": {
-          "text": "Automatic long-chat summaries"
-        },
-        "automatic_summary_explanation": {
-          "text": "In normal authenticated personal and team chats, automatic long-chat summaries are billed separately only when needed. If no summary runs, there is no summary charge. Billing for workflows and orchestrated subchats remains unchanged. Your receipt shows the rates used."
-        },
-        "automatic_summary_fallback": {
-          "text": "Fallback"
-        },
-        "standard_pricing": {
-          "text": "Standard"
-        },
-        "over_272k_pricing": {
-          "text": "Over 272,000 input tokens"
-        },
-        "over_272k_explanation": {
-          "text": "Total input includes cached input. Above 272,000 input tokens, these rates apply to the whole request."
         }
       }
     },
@@ -19342,6 +19386,9 @@
       "cache_receipt_title": {
         "text": "LLM billing receipt"
       },
+      "cache_receipt_automatic_summary": {
+        "text": "Automatic long-chat summary"
+      },
       "cache_receipt_source": {
         "text": "Usage source"
       },
@@ -19365,6 +19412,9 @@
       },
       "cache_receipt_pricing_version": {
         "text": "Pricing version"
+      },
+      "cache_receipt_context_band": {
+        "text": "Pricing tier"
       },
       "cache_receipt_raw": {
         "text": "Raw credits"
@@ -19446,12 +19496,6 @@
       },
       "context_unavailable": {
         "text": "Original context unavailable"
-      },
-      "cache_receipt_automatic_summary": {
-        "text": "Automatic long-chat summary"
-      },
-      "cache_receipt_context_band": {
-        "text": "Pricing tier"
       }
     },
     "apps": {
@@ -22741,7 +22785,7 @@
         "text": "Measured at"
       },
       "storage_pricing_policy": {
-        "text": "Personal storage includes 1 GiB free. Each started GiB above that costs 3 credits per week, billed on Sundays at 03:00 UTC. Uploads, saved chat history, large messages, older chat archives, outputs waiting to sync, and artifact history count toward storage. Team storage billing is not enabled."
+        "text": "Personal storage includes 1 GiB free. Each started GiB above that costs 3 credits per week, billed on Sundays at 03:00 UTC. Uploads, saved chat history, large messages, older chat archives, outputs waiting to sync, and artifact history count toward storage. Each Team has a separate 1 GiB allowance."
       },
       "storage_logical_breakdown": {
         "text": "Chat and artifact storage"
@@ -22793,6 +22837,39 @@
       },
       "storage_notice_error": {
         "text": "Could not load the affected storage units. Please try again."
+      },
+      "storage_outstanding": {
+        "text": "Outstanding credits"
+      },
+      "storage_expiry_due": {
+        "text": "The removal deadline has been reached. The server checks payment and safe removal eligibility; listed data is not confirmed removed."
+      },
+      "storage_expiry_disabled": {
+        "text": "Automatic removal is currently disabled."
+      },
+      "storage_invoice_period": {
+        "text": "Invoice period begins"
+      },
+      "storage_invoice_status": {
+        "text": "Invoice status"
+      },
+      "storage_more_invoices": {
+        "text": "Additional invoices are not shown in this bounded summary."
+      },
+      "storage_more_units": {
+        "text": "Additional affected units are available through the payment notice."
+      },
+      "storage_invoice_paid": {
+        "text": "Paid"
+      },
+      "storage_invoice_waived": {
+        "text": "Waived"
+      },
+      "storage_invoice_unpaid": {
+        "text": "Unpaid"
+      },
+      "storage_invoice_pending": {
+        "text": "Pending"
       }
     },
     "team_invitation": {

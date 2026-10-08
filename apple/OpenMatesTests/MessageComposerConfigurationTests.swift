@@ -48,6 +48,28 @@ final class MessageComposerConfigurationTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
+    func testFullscreenControlTracksInlineOverflowAndStaysReachableInFullscreen() {
+        let handler = ComposerFullscreenControlHandler()
+        XCTAssertFalse(handler.isVisible(compact: false, fullscreen: false, contentOverflows: false),
+            "Empty, short, and fully visible inline content must not expose Expand")
+        XCTAssertTrue(handler.isVisible(compact: false, fullscreen: false, contentOverflows: true))
+        XCTAssertTrue(handler.isVisible(compact: false, fullscreen: true, contentOverflows: false),
+            "Collapse stays reachable after fullscreen makes the document fit")
+        XCTAssertFalse(handler.isVisible(compact: false, fullscreen: false, contentOverflows: false),
+            "Reducing or clearing an inline document must remove its control and lane")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
+    func testCompactAndOverlayComposersHideTheFullscreenControlAndItsLane() {
+        let handler = ComposerFullscreenControlHandler()
+        XCTAssertFalse(handler.isVisible(compact: true, fullscreen: false, contentOverflows: true))
+        XCTAssertFalse(handler.isVisible(compact: true, fullscreen: true, contentOverflows: true))
+        let overlayHandler = ComposerFullscreenControlHandler(isEnabled: false)
+        XCTAssertFalse(overlayHandler.isVisible(compact: false, fullscreen: false, contentOverflows: true))
+        XCTAssertFalse(overlayHandler.isVisible(compact: false, fullscreen: true, contentOverflows: true))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
     func testCollapsedTextEditorShowsAtMostThreeLinesBeforeScrolling() {
         let twoLineContentHeight =
             (MessageComposerMetric.editorVerticalInset * 2) + (MessageComposerMetric.editorLineHeight * 2)

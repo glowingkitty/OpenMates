@@ -6,6 +6,44 @@ import UIKit
 
 @MainActor
 final class AppDeepLinkRoutingTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=storage.surface.semantic-parity,storage.cold.shared-team-authorized,settings-ui.shell.lifecycle-and-routing
+    func testTeamStorageEmailDestinationRetainsExactTeamAndAuthenticationGate() throws {
+        let handler = DeepLinkHandler()
+        let host = ServerConfiguration.current.selectedDomain
+        let teamID = "00000000-0000-4000-8000-000000000132"
+        // Exact first-party link issued by team_storage_billing_tasks._deliver_warning.
+        let url = try XCTUnwrap(URL(string: "https://\(host)/#settings/teams/\(teamID)"))
+        XCTAssertTrue(DeepLinkHandler.shouldInterceptAppURL(url, selectedDomain: host))
+        handler.handle(url: url)
+        XCTAssertEqual(handler.pendingSettingsPath, "teams/" + teamID)
+        let route = SettingsDeepLinkRoute(try XCTUnwrap(handler.pendingSettingsPath))
+        XCTAssertEqual(route.topLevel, "teams"); XCTAssertEqual(route.childID, teamID)
+        XCTAssertTrue(route.hasNativeChild); XCTAssertTrue(route.requiresAuthentication)
+        XCTAssertFalse(route.canOpen(authenticated: false, admin: false))
+        XCTAssertTrue(route.canOpen(authenticated: true, admin: false))
+        XCTAssertNil(handler.pendingChatId); XCTAssertNil(handler.pendingMessageText)
+        XCTAssertNil(handler.pendingAppId)
+        // Settings membership/billing role checks remain in the account-fenced
+        // controller/service, rather than granting authority from this URL.
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=storage.surface.semantic-parity,storage.cold.shared-team-authorized,settings-ui.shell.lifecycle-and-routing
+    func testTeamStorageRoutingTracksSuccessiveTeamIDsAndRejectsForeignHost() throws {
+        let handler = DeepLinkHandler()
+        let host = ServerConfiguration.current.selectedDomain
+        for teamID in ["00000000-0000-4000-8000-000000000132", "00000000-0000-4000-8000-000000000133"] {
+            handler.handle(url: try XCTUnwrap(URL(string: "https://\(host)/#settings/teams/\(teamID)")))
+            XCTAssertEqual(SettingsDeepLinkRoute(try XCTUnwrap(handler.pendingSettingsPath)).childID, teamID)
+            handler.clearPending()
+            XCTAssertNil(handler.pendingSettingsPath)
+        }
+        let foreign = try XCTUnwrap(URL(string: "https://foreign.example/#settings/teams/00000000-0000-4000-8000-000000000132"))
+        XCTAssertFalse(DeepLinkHandler.shouldInterceptAppURL(foreign, selectedDomain: host))
+        handler.handle(url: foreign)
+        XCTAssertNil(handler.pendingSettingsPath)
+        XCTAssertNil(handler.pendingSharedBrowserURL)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-tasks-widget.links,tasks.detail.embed-responsive
     func testIssuedWidgetURLRetainsColdRequestAndCreatesFreshIdentityForRepeatedTaskTap() throws {
         let handler = DeepLinkHandler()

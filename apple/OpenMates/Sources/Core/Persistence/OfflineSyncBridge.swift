@@ -464,6 +464,9 @@ final class OfflineSyncBridge: ObservableObject {
 
             do {
                 switch action.actionType {
+                case "chat_read_status_update":
+                    guard let wsManager, wsManager.connectionState == .connected else { return }
+                    try await wsManager.send(WSOutboundMessage(type: "chat_read_status_update", payload: payload))
                 case "send_message":
                     try await replaySendMessage(payload)
                 case "delete_message":
@@ -591,9 +594,9 @@ enum OfflineRecentChatPolicy {
         "\(chat.messagesV ?? 0)|\(recency(of: chat))"
     }
 
-    static func cohort(from chats: [Chat]) -> [Chat] {
+    static func cohort(from chats: [Chat], teamID: String? = nil) -> [Chat] {
         Array(chats.filter {
-            $0.parentId == nil && $0.isSubChat != true && !$0.isHiddenFromNormalSurfaces
+            $0.teamId == teamID && $0.parentId == nil && $0.isSubChat != true && !$0.isHiddenFromNormalSurfaces
                 && !IncognitoChatSession.isIncognitoChatId($0.id)
                 && !$0.id.hasPrefix("demo-") && !$0.id.hasPrefix("example-")
                 && !$0.id.hasPrefix("announcements-")

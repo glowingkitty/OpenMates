@@ -802,6 +802,10 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
+        NativeDiagnostics.event("notification_presented", category: "push_notifications", flags: [
+            "remote_push": notification.request.trigger is UNPushNotificationTrigger,
+            "local_request": notification.request.trigger == nil
+        ])
         return [.banner, .sound, .badge]
     }
 
@@ -810,6 +814,10 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        NativeDiagnostics.event("notification_response", category: "push_notifications", flags: [
+            "remote_push": response.notification.request.trigger is UNPushNotificationTrigger,
+            "local_request": response.notification.request.trigger == nil
+        ])
         let userInfo = response.notification.request.content.userInfo
         let watchMessage = Dictionary(uniqueKeysWithValues: userInfo.compactMap { key, value -> (String, Any)? in
             guard let key = key as? String else { return nil }

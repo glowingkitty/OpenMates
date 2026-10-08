@@ -34,7 +34,8 @@ final class BackgroundChatNotificationUITests: XCTestCase {
         }
         XCTAssertEqual(editor.value as? String, "", "Preserve any unrelated existing draft")
         guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
-        let prompt = "apple-watch-notification-6dc7: Reply with exactly WATCH6DC7 completed."
+        let responseMarker = "WATCH6DC7-\(UUID().uuidString.prefix(8)) completed"
+        let prompt = "apple-watch-notification-6dc7: Reply with exactly \(responseMarker)."
         app.typeText(prompt)
         XCTAssertEqual(editor.value as? String, prompt)
         let send = app.buttons["send-button"]
@@ -43,18 +44,94 @@ final class BackgroundChatNotificationUITests: XCTestCase {
         XCUIDevice.shared.press(.home)
         let board = springBoard()
         let delivered = board.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS %@ OR label == %@", "WATCH6DC7 completed", notificationBody)
+            NSPredicate(format: "label CONTAINS %@", responseMarker)
         ).firstMatch
         XCTAssertTrue(delivered.waitForExistence(timeout: 120),
-                      "No actual completion notification appeared after backgrounding the DEV app")
+                      "No decrypted completion preview appeared after backgrounding the DEV app; generic fallback is insufficient")
+        let notificationPreview = delivered.label
+        XCTAssertTrue(notificationPreview.contains(responseMarker), "The system preview must contain this response start")
+        XCTAssertNotEqual(notificationPreview, notificationBody, "Generic fallback does not prove encrypted preview delivery")
+        for internalMarker in ["```", "app_skill_use", "embed_id", "embed_ref", "json_embed"] {
+            XCTAssertFalse(notificationPreview.contains(internalMarker),
+                           "System notification exposed an internal message marker")
+        }
         attachScreenshot(named: "Actual DEV completion notification after background")
-        delivered.tap()
+        try openDeliveredNotification(delivered, on: board)
         XCTAssertTrue(RealAccountUITestSupport.accessibilityElement(
             in: app, identifier: "message-user", labelContaining: prompt
         ).waitForExistence(timeout: 30), "The notification must open this sent chat")
         XCTAssertTrue(RealAccountUITestSupport.accessibilityElement(
-            in: app, identifier: "message-assistant", labelContaining: "WATCH6DC7 completed"
+            in: app, identifier: "message-assistant", labelContaining: responseMarker
         ).waitForExistence(timeout: 30))
+    }
+
+    // Opt-in actual DEV inference, completion and APNs path. Expected display
+    // text comes from the operator's approved real skill scenario, never an
+    // injected payload or a fabricated provider result. Missing configuration is
+    // a skip and must not be recorded as proof of skill/inline-embed delivery.
+    // contract-test: direct surface=gui.apple assertions=apple-notifications.preview.readable,apple-notifications.payload.privacy-safe,apple-notifications.action.routing-coherent
+    func testLiveDevSkillPreviewPreservesHumanPrefixResponseAndInlineImages() throws {
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        func configuration(_ key: String) throws -> String {
+            guard let value = RealAccountTestCredentials.configurationValue(for: key), !value.isEmpty else {
+                throw XCTSkip("Approved real skill preview scenario is not configured")
+            }
+            return value
+        }
+        let prompt = try configuration("OPENMATES_NOTIFICATION_PREVIEW_PROMPT")
+        let expectedPrefix = try configuration("OPENMATES_NOTIFICATION_PREVIEW_EXPECTED_PREFIX")
+        let responseStart = try configuration("OPENMATES_NOTIFICATION_PREVIEW_EXPECTED_RESPONSE_START")
+        let imageMarker = try configuration("OPENMATES_NOTIFICATION_PREVIEW_EXPECTED_IMAGE_MARKER")
+        XCTAssertNotNil(expectedPrefix.range(of: #"^.+ \| .+ & [1-9][0-9]* other app skills$"#, options: .regularExpression),
+                        "The declared scenario must include a first human app/skill prefix and additional-skill count")
+        XCTAssertNotNil(imageMarker.range(of: #"^\[[1-9][0-9]* Images\]$"#, options: .regularExpression),
+                        "The declared scenario must include actual inline image output")
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(extraArguments: ["--ui-test-fresh-new-chat"])
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        RealAccountUITestSupport.openNewChatIfNeeded(app: app)
+        guard let editor = RealAccountUITestSupport.waitForMessageEditor(in: app, timeout: 20) else {
+            XCTFail("The live DEV chat composer did not open")
+            return
+        }
+        XCTAssertEqual(editor.value as? String, "", "Preserve any unrelated existing draft")
+        guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
+        app.typeText(prompt)
+        XCTAssertEqual(editor.value as? String, prompt)
+        let send = app.buttons["send-button"]
+        XCTAssertTrue(send.waitForExistence(timeout: 5))
+        send.tap()
+        XCUIDevice.shared.press(.home)
+        let board = springBoard()
+        let delivered = board.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", responseStart)).firstMatch
+        XCTAssertTrue(delivered.waitForExistence(timeout: 120), "Actual encrypted skill completion preview was not delivered")
+        let preview = delivered.label
+        XCTAssertTrue(preview.hasPrefix(expectedPrefix + "\n\n"), "Human skill prefix and paragraph separation are missing")
+        XCTAssertTrue(preview.contains(responseStart), "Readable response start is missing")
+        XCTAssertTrue(preview.contains(imageMarker), "Actual inline image output must use its human count marker")
+        for internalMarker in ["```", "app_skill_use", "embed_id", "embed_ref", "json_embed"] {
+            XCTAssertFalse(preview.contains(internalMarker), "System notification exposed an internal message marker")
+        }
+        XCTAssertNotEqual(preview, notificationBody, "Generic fallback does not prove encrypted skill preview delivery")
+        attachScreenshot(named: "Actual DEV encrypted skill prefix response and inline images")
+        try openDeliveredNotification(delivered, on: board)
+        XCTAssertTrue(RealAccountUITestSupport.accessibilityElement(
+            in: app, identifier: "message-user", labelContaining: prompt
+        ).waitForExistence(timeout: 30), "Translated Open chat action must select this actual sent chat")
+        XCTAssertTrue(RealAccountUITestSupport.accessibilityElement(
+            in: app, identifier: "message-assistant", labelContaining: responseStart
+        ).waitForExistence(timeout: 30))
+    }
+
+    private func openDeliveredNotification(_ notification: XCUIElement, on board: XCUIApplication) throws {
+        notification.press(forDuration: 1)
+        let expectedAction = RealAccountTestCredentials.configurationValue(for: "OPENMATES_NOTIFICATION_OPEN_CHAT_LABEL") ?? "Open chat"
+        XCTAssertNotEqual(expectedAction, "chat.open_chat", "The expected notification action must be translated")
+        let openChat = board.buttons[expectedAction]
+        XCTAssertTrue(openChat.waitForExistence(timeout: 5), "System notification did not expose the translated Open chat action")
+        XCTAssertFalse(board.buttons["chat.open_chat"].exists, "System notification exposed an untranslated action key")
+        attachScreenshot(named: "Actual DEV translated Open chat action")
+        openChat.tap()
     }
 
     // contract-test: direct surface=gui.apple assertions=apple-notifications.payload.privacy-safe,apple-notifications.action.routing-coherent,apple-notifications.delivery.idempotent-visible

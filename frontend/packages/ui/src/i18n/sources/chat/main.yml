@@ -1,3 +1,27 @@
+open_chat:
+  context: Notification action that opens the corresponding chat
+  en: Open chat
+  de: Chat öffnen
+  zh: 打开聊天
+  es: Abrir chat
+  fr: Ouvrir le chat
+  pt: Abrir chat
+  ru: Открыть чат
+  ja: チャットを開く
+  ko: 채팅 열기
+  it: Apri chat
+  tr: Sohbeti aç
+  vi: Mở trò chuyện
+  id: Buka obrolan
+  pl: Otwórz chat
+  nl: Chat openen
+  ar: فتح المحادثة
+  hi: चैट खोलें
+  th: เปิดแชท
+  cs: Otevřít chat
+  sv: Öppna chatt
+  he: "פתח צ'אט"
+  verified_by_human: []
 new_chat:
   context: Button label for creating a new chat
   en: New chat

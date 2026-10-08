@@ -10,12 +10,22 @@ import XCTest
 
 @MainActor
 final class SettingsModesParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible,settings-ui.parity.web-apple-shell
+    func testTeamContextMenuBoundsReserveTriggerAndViewportMargin() {
+        XCTAssertEqual(SettingsTeamMenuBounds.maximumHeight(viewportHeight: 900), 480)
+        XCTAssertEqual(SettingsTeamMenuBounds.maximumHeight(viewportHeight: 320), 252)
+        XCTAssertEqual(SettingsTeamMenuBounds.maximumHeight(viewportHeight: 68), 0)
+        XCTAssertEqual(SettingsTeamMenuBounds.maximumHeight(viewportHeight: 40), 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
     func testLearningModeClientUsesCanonicalBackendRoutes() {
         XCTAssertEqual(LearningModeAPIClient.statusPath, "/v1/learning-mode")
         XCTAssertEqual(LearningModeAPIClient.activationPath, "/v1/learning-mode/activate")
         XCTAssertEqual(LearningModeAPIClient.deactivationPath, "/v1/learning-mode/deactivate")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.navigation.contextual-availability,settings-ui.parity.web-apple-shell
     func testGuestLearningModeStateIsSessionLocal() {
         let firstSession = LearningModeGuestSession()
         firstSession.activate(ageGroup: .age13To15)
@@ -29,6 +39,7 @@ final class SettingsModesParityTests: XCTestCase {
         XCTAssertNil(nextSession.status.ageGroup)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
     func testLearningModePayloadsUseBackendSchema() throws {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -67,6 +78,7 @@ final class SettingsModesParityTests: XCTestCase {
         XCTAssertEqual(learningMode["source"] as? String, "anonymous_session")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
     func testAccountControllerRefreshesAuthoritativeFailedAttemptsAfterDeactivationError() async {
         let client = LearningModeClientStub(
             statuses: [
@@ -91,6 +103,7 @@ final class SettingsModesParityTests: XCTestCase {
         XCTAssertEqual(client.loadCallCount, 2)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing,message-input.privacy-context
     func testIncognitoExplainerSeenStatePersistsOnlyThroughInjectedDeviceStore() {
         let suiteName = "SettingsModesParityTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

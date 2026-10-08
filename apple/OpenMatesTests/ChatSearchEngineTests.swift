@@ -5,6 +5,88 @@ import XCTest
 
 @MainActor
 final class ChatSearchEngineTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=teams.context.full-switch-local,teams.membership.role-gated
+    func testPersonalStorePublicationThenAllRestoresTeamResultsAndNarrowingRemovesRowsImmediately() async throws {
+        let controller = ChatSearchController(); defer { controller.cancel() }
+        var scope = "personal"
+        func result(_ ids: [String]) -> ChatSearchResults {
+            let rows = ids.map { id in
+                let chat = Chat(id: id, title: "Berlin", lastMessageAt: nil, createdAt: "2026-10-07T12:00:00Z",
+                    updatedAt: nil, isArchived: false, isPinned: false, appId: "ai", encryptedTitle: nil, encryptedChatKey: nil,
+                    teamId: id == "personal" ? nil : "team-a")
+                return ChatSearchResult(id: id, chat: chat, decryptedTitle: "Berlin", titleMatch: true,
+                    messageSnippets: [], metadataSnippets: [], sortDate: .distantPast)
+            }
+            return .init(groups: [.init(id: "scope", title: "Synthetic", items: rows)], totalCount: rows.count)
+        }
+        controller.changeScope(allowing: ["personal"])
+        controller.schedule(query: "Berlin", immediately: true, isCurrent: { scope == "personal" }) { _ in result(["personal"]) }
+        try await waitUntil { controller.results.totalCount == 1 && !controller.isSearching }
+        // A store publication retains Personal IDs, then suspends that scope's
+        // same-query refresh at the commit window covered by the regression.
+        controller.retainResults(for: ["personal"])
+        var oldPersonal: CheckedContinuation<ChatSearchResults, Never>?
+        let suspended = expectation(description: "old Personal query suspended")
+        controller.schedule(query: "Berlin", storeChanged: true, immediately: true, isCurrent: { scope == "personal" }) { _ in
+            await withCheckedContinuation { oldPersonal = $0; suspended.fulfill() }
+        }
+        await fulfillment(of: [suspended], timeout: 3)
+        XCTAssertNotNil(oldPersonal)
+        scope = "all"; controller.changeScope(allowing: ["personal", "team"])
+        controller.schedule(query: "Berlin", immediately: true, isCurrent: { scope == "all" }) { _ in result(["personal", "team"]) }
+        try await waitUntil { controller.results.totalCount == 2 && !controller.isSearching }
+        oldPersonal?.resume(returning: result(["personal"]))
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(Set(controller.results.groups.flatMap(\.items).map(\.id)), ["personal", "team"])
+        scope = "personal"; controller.changeScope(allowing: ["personal"])
+        XCTAssertEqual(controller.results.groups.flatMap(\.items).map(\.id), ["personal"], "Narrowing removes other Teams before a replacement search finishes")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.isolation,teams.membership.role-gated
+    func testSpotlightIdentifierSurvivesColdLaunchButRejectsOtherAccountsAndServers() {
+        let identifier = SpotlightIndexer.chatIdentifier(chatID: "retained-team-chat", accountID: "synthetic-account", server: .development)
+        XCTAssertEqual(SpotlightIndexer.chatID(for: identifier, accountID: "synthetic-account", server: .development), "retained-team-chat")
+        XCTAssertNil(SpotlightIndexer.chatID(for: identifier, accountID: "other-account", server: .development))
+        XCTAssertNil(SpotlightIndexer.chatID(for: identifier, accountID: "synthetic-account", server: .production))
+        XCTAssertFalse(identifier.contains("synthetic-account"))
+        XCTAssertNil(SpotlightIndexer.chatID(for: "chat-retained-team-chat", accountID: "synthetic-account", server: .development))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=teams.context.full-switch-local,teams.membership.role-gated
+    func testSpotlightIncludesRetainedPersonalAndEveryReadableTeamBeyondOldGlobalCap() {
+        var chats = (0..<101).map { id in
+            Chat(id: "personal-\(id)", title: "Synthetic", lastMessageAt: nil, createdAt: "2026-10-07T12:00:00Z",
+                updatedAt: nil, isArchived: false, isPinned: false, appId: "ai", encryptedTitle: nil, encryptedChatKey: nil)
+        }
+        for (id, teamID) in [("first", "team-a"), ("second", "team-b"), ("revoked", "team-c")] {
+            var chat = Chat(id: id, title: "Synthetic", lastMessageAt: nil, createdAt: "2026-10-07T12:00:00Z",
+                updatedAt: nil, isArchived: false, isPinned: false, appId: "ai", encryptedTitle: nil, encryptedChatKey: nil)
+            chat.teamId = teamID; chats.append(chat)
+        }
+        chats.append(Chat(id: "example-public", title: "Public", lastMessageAt: nil, createdAt: "2026-10-07T12:00:00Z",
+            updatedAt: nil, isArchived: false, isPinned: false, appId: "ai", encryptedTitle: nil, encryptedChatKey: nil))
+        let rows = SpotlightIndexer.authorizedChats(chats, readableTeamIDs: ["team-a", "team-b"])
+        XCTAssertEqual(rows.count, 103)
+        XCTAssertEqual(Set(rows.suffix(2).map(\.id)), ["first", "second"])
+        XCTAssertFalse(SpotlightIndexer.authorizedChats(chats, readableTeamIDs: ["team-a"]).contains { $0.id == "second" })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=teams.membership.role-gated,teams.context.full-switch-local
+    func testSearchDefaultsToPersonalAndEveryReadableTeamAndDropsRevokedRows() {
+        func chat(_ id: String, teamID: String?) -> Chat {
+            var chat = Chat(id: id, title: "Shared query", lastMessageAt: nil, createdAt: "2026-10-07T12:00:00Z",
+                updatedAt: nil, isArchived: false, isPinned: false, appId: "ai", encryptedTitle: nil, encryptedChatKey: nil)
+            chat.teamId = teamID
+            return chat
+        }
+        let corpus = [chat("personal", teamID: nil), chat("first", teamID: "team-a"), chat("second", teamID: "team-b"), chat("revoked", teamID: "team-c")]
+        XCTAssertEqual(ChatSearchContextPolicy.eligible(corpus, readableTeamIDs: ["team-a", "team-b"]).map(\.id), ["personal", "first", "second"])
+        XCTAssertEqual(ChatSearchContextPolicy.eligible(corpus, selectedScope: "personal", readableTeamIDs: ["team-a", "team-b"]).map(\.id), ["personal"])
+        XCTAssertEqual(ChatSearchContextPolicy.eligible(corpus, selectedScope: "team-b", readableTeamIDs: ["team-a", "team-b"]).map(\.id), ["second"])
+        XCTAssertEqual(ChatSearchContextPolicy.eligible(corpus, readableTeamIDs: ["team-a"]).map(\.id), ["personal", "first"])
+        XCTAssertTrue(ChatSearchContextPolicy.eligible(corpus, selectedScope: "team-b", readableTeamIDs: ["team-a"]).isEmpty)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.suggestions.contextual,message-input.privacy-context
     func testSettledSameQueryRefreshKeepsRowsButReplacementQueryClearsThemAndRejectsLateRefresh() async throws {
         let controller = ChatSearchController()

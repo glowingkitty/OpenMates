@@ -6,6 +6,8 @@
 // content out of continuation links and exposes only compact display fields for
 // Watch UI and deterministic unit tests.
 
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.versions.metadata-and-payload, storage.versions.bounded-reconstruction
 import Foundation
 import CryptoKit
 import CoreFoundation
@@ -124,6 +126,7 @@ struct WatchEmbedPreviewModel: Equatable, Identifiable, Sendable {
     let visual: WatchEmbedPreviewVisual
     var detailContent: WatchEmbedDetailContent = .empty
     var previewSymbolAssetName: String? = nil
+    var currentVersion: Int = 1
 
     var hasPreviewVisual: Bool {
         if state == .processing || detailContent.imageData != nil || detailContent.imageURL != nil { return true }
@@ -373,6 +376,7 @@ enum WatchEmbedPreviewMapper {
             appId: appId,
             skillId: skillId,
             embedIds: embedIds,
+            versionNumber: raw["version_number"]?.value as? Int,
             createdAt: nil
         )
     }
@@ -406,7 +410,8 @@ enum WatchEmbedPreviewMapper {
             continuation: WatchEmbedContinuation(chatId: chatId, embedId: embed.id),
             visual: visual(for: family, raw: raw, allEmbedRecords: allEmbedRecords, embed: embed),
             detailContent: family == .unsupported || state == .error ? .empty : WatchEmbedDetailContent.make(for: embed, family: family, allRecords: allEmbedRecords, chatId: chatId),
-            previewSymbolAssetName: GeneratedWebEmbedPreviewIconPolicy.name(for: embed)
+            previewSymbolAssetName: GeneratedWebEmbedPreviewIconPolicy.name(for: embed),
+            currentVersion: embed.versionNumber ?? (raw["version_number"]?.value as? Int) ?? 1
         )
     }
 
@@ -1047,30 +1052,8 @@ enum WatchEmbedHydration {
         let plaintext: String
         let type: String
         if payload["already_encrypted"] as? Bool == true || payload["encryption_mode"] as? String == "client" {
-            let wrappers = payload["embed_keys"] as? [[String: Any]] ?? []
-            let hashedEmbedID = hash(embedID)
-            let hashedChatID = hash(chatID)
-            let hashedAccountID = hash(accountID)
-            var openedKey: SymmetricKey?
-            for row in wrappers {
-                guard row["hashed_embed_id"] as? String == hashedEmbedID,
-                      let encryptedKey = row["encrypted_embed_key"] as? String else { continue }
-                let wrappingKey: SymmetricKey?
-                switch row["key_type"] as? String {
-                case "master":
-                    guard row["hashed_user_id"] as? String == hashedAccountID else { continue }
-                    wrappingKey = masterKey
-                case "chat":
-                    guard row["hashed_chat_id"] as? String == hashedChatID else { continue }
-                    wrappingKey = chatKey
-                default: continue
-                }
-                guard let wrappingKey,
-                      let key = try? ComposerEmbedCrypto.unwrapKey(encryptedKey, using: wrappingKey),
-                      key.withUnsafeBytes({ $0.count }) == 32 else { continue }
-                openedKey = key; break
-            }
-            guard let key = openedKey else { throw WatchChatRuntimeError.missingChatKey }
+            let key = try versionKey(payload: payload, embedID: embedID, chatID: chatID,
+                accountID: accountID, masterKey: masterKey, chatKey: chatKey)
             plaintext = try ComposerEmbedCrypto.decryptContent(content, using: key)
             if let decryptedType = try? ComposerEmbedCrypto.decryptContent(rawType, using: key) { type = decryptedType }
             else if rawType == "app_skill_use" || rawType == "app-skill-use" || EmbedType.normalized(rawValue: rawType) != nil { type = rawType }
@@ -1085,10 +1068,44 @@ enum WatchEmbedHydration {
         guard !fields.isEmpty else { throw WatchChatRuntimeError.historyUnavailable }
         fields["type"] = type
         fields["embed_id"] = embedID
+        if let version = payload["version_number"] as? Int { fields["version_number"] = version }
         if let embedIDs = payload["embed_ids"], !(embedIDs is NSNull) { fields["embed_ids"] = embedIDs }
         if let parentID = payload["parent_embed_id"], !(parentID is NSNull) { fields["parent_embed_id"] = parentID }
         return WatchEmbedRef(id: embedID, type: type, status: payload["status"] as? String ?? "finished",
                              data: fields.mapValues(AnyCodable.init))
+    }
+
+    /// Unwrap only this referenced embed's current account/chat key. Never persist
+    /// this key or derive authority from its creating chat's origin hash.
+    static func versionKey(payload: [String: Any], embedID: String, chatID: String,
+                           accountID: String, masterKey: SymmetricKey, chatKey: SymmetricKey?) throws -> SymmetricKey {
+        guard payload["embed_id"] as? String == embedID,
+              payload["user_id"] as? String == accountID else { throw WatchChatRuntimeError.missingChatKey }
+        let wrappers = payload["embed_keys"] as? [[String: Any]] ?? []
+        let hashedEmbedID = hash(embedID)
+        let hashedChatID = hash(chatID)
+        let hashedAccountID = hash(accountID)
+        var openedKey: SymmetricKey?
+        for row in wrappers {
+            guard row["hashed_embed_id"] as? String == hashedEmbedID,
+                  let encryptedKey = row["encrypted_embed_key"] as? String else { continue }
+            let wrappingKey: SymmetricKey?
+            switch row["key_type"] as? String {
+            case "master":
+                guard row["hashed_user_id"] as? String == hashedAccountID else { continue }
+                wrappingKey = masterKey
+            case "chat":
+                guard row["hashed_chat_id"] as? String == hashedChatID else { continue }
+                wrappingKey = chatKey
+            default: continue
+            }
+            guard let wrappingKey,
+                  let key = try? ComposerEmbedCrypto.unwrapKey(encryptedKey, using: wrappingKey),
+                  key.withUnsafeBytes({ $0.count }) == 32 else { continue }
+            openedKey = key; break
+        }
+        guard let key = openedKey else { throw WatchChatRuntimeError.missingChatKey }
+        return key
     }
 
     static func prepareStorage(payload: [String: Any], embedID: String, chatID: String, messageID: String,

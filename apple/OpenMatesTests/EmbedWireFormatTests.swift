@@ -276,6 +276,26 @@ final class EmbedWireFormatTests: XCTestCase {
     }
     #endif
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testWikipediaBadgeUsesGeneratedStudyGradientInsteadOfDefaultBlue() throws {
+        let appID = try XCTUnwrap(EmbedType.wiki.appId)
+        XCTAssertEqual(appID, "study")
+        let badge = AppIconView.gradient(forAppId: appID)
+        let token = LinearGradient.appStudy
+        let badgeGradient = try XCTUnwrap(Mirror(reflecting: badge).descendant("gradient") as? Gradient)
+        let tokenGradient = try XCTUnwrap(Mirror(reflecting: token).descendant("gradient") as? Gradient)
+        let defaultGradient = try XCTUnwrap(Mirror(reflecting: LinearGradient.primary).descendant("gradient") as? Gradient)
+        XCTAssertEqual(badgeGradient.stops, tokenGradient.stops)
+        XCTAssertNotEqual(badgeGradient.stops, defaultGradient.stops)
+        let badgeStart = try XCTUnwrap(Mirror(reflecting: badge).descendant("startPoint") as? UnitPoint)
+        let tokenStart = try XCTUnwrap(Mirror(reflecting: token).descendant("startPoint") as? UnitPoint)
+        let badgeEnd = try XCTUnwrap(Mirror(reflecting: badge).descendant("endPoint") as? UnitPoint)
+        let tokenEnd = try XCTUnwrap(Mirror(reflecting: token).descendant("endPoint") as? UnitPoint)
+        XCTAssertEqual(badgeStart, tokenStart)
+        XCTAssertEqual(badgeEnd, tokenEnd)
+        XCTAssertEqual(AppIconView.iconName(forAppId: appID), "study")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
     func testSheetBadgeUsesWebSheetsGradientAndCanonicalIcon() throws {
         let badge = AppIconView.gradient(forAppId: "sheets")

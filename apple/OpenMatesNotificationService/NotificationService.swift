@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.payload.privacy-safe
 // Notification Service Extension for private APNs previews.
 // APNs receives only safe fallback alert text from the backend.
 // This extension decrypts optional device-targeted preview ciphertext from the
@@ -7,6 +9,7 @@
 import UserNotifications
 import OSLog
 
+@available(macOS 10.14, iOS 10.0, *)
 final class NotificationService: UNNotificationServiceExtension {
     private static let logger = Logger(subsystem: "org.openmates.app", category: "notification_service")
     private var contentHandler: ((UNNotificationContent) -> Void)?

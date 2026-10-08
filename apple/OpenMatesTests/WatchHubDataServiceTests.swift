@@ -4,6 +4,30 @@ import XCTest
 @testable import OpenMates
 
 final class WatchHubDataServiceTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open
+    func testPullRefreshRequiresFingerTopOverscrollAndOneRelease() {
+        var pull = WatchPullRefreshGesture()
+        pull.observe(topOffset: 80)
+        XCTAssertFalse(pull.release(), "Crown or programmatic movement must not refresh")
+        pull.begin()
+        pull.observe(topOffset: -120)
+        pull.observe(topOffset: -20)
+        XCTAssertFalse(pull.release(), "Dragging down from the middle is ordinary scrolling")
+        pull.begin()
+        pull.observe(topOffset: 47)
+        XCTAssertFalse(pull.release(), "A small pull must not refresh")
+        pull.begin()
+        pull.observe(topOffset: .nan)
+        pull.observe(topOffset: 60)
+        pull.observe(topOffset: 0)
+        XCTAssertTrue(pull.release(), "A released top pull survives native bounce settling")
+        XCTAssertFalse(pull.release(), "One pull produces only one request")
+        pull.begin()
+        pull.observe(topOffset: 60)
+        pull.cancel()
+        XCTAssertFalse(pull.release(), "Disappearance cancels an unfinished gesture")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-watch.lists.read-only-private
     func testNonemptyTaskListDecodesWithAPIClientSnakeCaseStrategy() throws {
         let data = Data(#"{"tasks":[{"task_id":"task-123","source":"user","workflow_id":"workflow-456","title":null,"encrypted_task_key":"wrapped-key","encrypted_title":"encrypted-title","status":"todo","position":2,"updated_at":1700000000}]}"#.utf8)

@@ -1,3 +1,7 @@
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
+// Specification: specifications/architecture/sync/specification.yml
+// Assertions: sync.surface.semantic-parity
 import XCTest
 #if os(iOS)
 import UIKit
@@ -160,6 +164,47 @@ final class WebSocketReconnectTests: XCTestCase {
         await fulfillment(of: [nextAttempt!], timeout: 0.05)
         XCTAssertEqual(validations, 10)
         XCTAssertEqual(attempts, 11)
+        let exhaustedGeneration = manager.transportGeneration
+        for token in ["rotated-token-10", "externally-rotated-token-11", "externally-rotated-token-12"] {
+            manager.connect(sessionId: "synthetic-session", token: token)
+            XCTAssertEqual(manager.connectionState, .disconnected,
+                "Validation/foreground callbacks must not rearm an exhausted logical session")
+        }
+        XCTAssertEqual(manager.transportGeneration, exhaustedGeneration,
+            "Suppressed attempts must not invalidate pending recovery or ciphertext ownership")
+        XCTAssertEqual(manager.debugCurrentAuthToken, "rotated-token-10")
+        XCTAssertEqual(validations, 10)
+        XCTAssertEqual(attempts, 11)
+        nextAttempt = nil
+        manager.disconnect()
+        manager.connect(sessionId: "synthetic-session", token: "fresh-login-token")
+        XCTAssertEqual(manager.connectionState, .connecting,
+            "Explicit reconnect after sign-in must admit a fresh budget")
+        XCTAssertEqual(attempts, 12)
+        manager.disconnect()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.isolation
+    func testNewLogicalSessionCanConnectAfterPreviousSessionExhaustsRetries() async {
+        let manager = WebSocketManager()
+        manager.debugReconnectDelay = 0
+        var attempts = 0
+        var nextAttempt: XCTestExpectation?
+        manager.debugConnectionAttempt = { attempts += 1; nextAttempt?.fulfill() }
+        manager.connect(sessionId: "exhausted-session", token: "initial-token")
+        for attempt in 1...10 {
+            nextAttempt = expectation(description: "bounded retry \(attempt)")
+            manager.debugFailCurrentConnection(authenticationRejected: true)
+            await fulfillment(of: [nextAttempt!], timeout: 1)
+        }
+        nextAttempt = nil
+        manager.debugFailCurrentConnection(authenticationRejected: true)
+        XCTAssertEqual(manager.connectionState, .disconnected)
+        XCTAssertEqual(attempts, 11)
+        manager.connect(sessionId: "replacement-session", token: "new-session-token")
+        XCTAssertEqual(manager.connectionState, .connecting)
+        XCTAssertEqual(manager.debugCurrentAuthToken, "new-session-token")
+        XCTAssertEqual(attempts, 12, "A sibling/replacement native session must not inherit the old exhaustion")
         manager.disconnect()
     }
 
@@ -181,8 +226,8 @@ final class WebSocketReconnectTests: XCTestCase {
         XCTAssertEqual(manager.connectionState, .disconnected)
         XCTAssertEqual(attempts, 1)
     }
-    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle
-    func testRejectedTransportWaitsForValidationThenUsesRotatedCredentials() async {
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+    func testRejectedTransportWaitsForValidationThenUsesRotatedCredentials() async throws {
         let manager = WebSocketManager()
         manager.debugReconnectDelay = 0
         var pending: CheckedContinuation<WebSocketManager.SessionRecoveryResult, Never>?
@@ -196,13 +241,49 @@ final class WebSocketReconnectTests: XCTestCase {
             await withCheckedContinuation { pending = $0 }
         }
         manager.connect(sessionId: "synthetic-session", token: "old-token")
+        try assertSignedTokenRequest(manager, sessionID: "synthetic-session", token: manager.debugCurrentAuthToken)
         manager.debugFailCurrentConnection(authenticationRejected: true)
         while pending == nil { await Task.yield() }
         XCTAssertEqual(attempts, 1, "Rejected credentials must not be retried during validation")
         pending?.resume(returning: .authenticated(sessionID: "synthetic-session", token: "rotated-token"))
         await fulfillment(of: [recovered], timeout: 1)
         XCTAssertEqual(manager.debugCurrentAuthToken, "rotated-token")
+        try assertSignedTokenRequest(manager, sessionID: "synthetic-session", token: manager.debugCurrentAuthToken)
         manager.disconnect()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+    func testAbsentSignedTokenRetainsCookieTransportWithoutInventingQueryCredentials() throws {
+        let manager = WebSocketManager()
+        let profile = ServerProfile.current()
+        let tokens: [String?] = [nil, ""]
+        for token in tokens {
+            let request = try XCTUnwrap(manager.connectionRequest(profile: profile,
+                sessionID: "synthetic-session", token: token, origin: profile.webBaseURL.absoluteString))
+            XCTAssertTrue(request.httpShouldHandleCookies)
+            let query = try XCTUnwrap(URLComponents(url: XCTUnwrap(request.url), resolvingAgainstBaseURL: false))
+            XCTAssertFalse(query.queryItems?.contains { $0.name == "token" } ?? false)
+        }
+    }
+
+    private func assertSignedTokenRequest(_ manager: WebSocketManager, sessionID: String, token: String?,
+        file: StaticString = #filePath, line: UInt = #line) throws {
+        let profile = ServerProfile.current()
+        let request = try XCTUnwrap(manager.connectionRequest(profile: profile, sessionID: sessionID,
+            token: token, origin: profile.webBaseURL.absoluteString), file: file, line: line)
+        XCTAssertFalse(request.httpShouldHandleCookies,
+            "Fresh query credentials must not be shadowed by automatic cookie aliases", file: file, line: line)
+        XCTAssertNil(request.value(forHTTPHeaderField: "Cookie"), file: file, line: line)
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Origin"), profile.webBaseURL.absoluteString, file: file, line: line)
+        for (header, value) in APIClient.nativeClientHeaders {
+            XCTAssertEqual(request.value(forHTTPHeaderField: header), value, file: file, line: line)
+        }
+        let query = try XCTUnwrap(URLComponents(url: XCTUnwrap(request.url), resolvingAgainstBaseURL: false),
+            file: file, line: line)
+        XCTAssertTrue(query.queryItems?.first { $0.name == "token" }?.value == token, file: file, line: line)
+        XCTAssertTrue(query.queryItems?.first { $0.name == "sessionId" }?.value == sessionID, file: file, line: line)
+        XCTAssertFalse(query.queryItems?.first { $0.name == "client_capabilities" }?.value?
+            .split(separator: ",").contains("typed_recovery_outputs_v2") ?? false, file: file, line: line)
     }
 
     // contract-test: supporting surface=gui.apple assertions=auth.session.authoritative-enforcement
@@ -321,6 +402,20 @@ final class WebSocketReconnectTests: XCTestCase {
             manager.disconnect()
             session.invalidateAndCancel()
         }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation,sync.surface.semantic-parity
+    func testUnitHostStartupDoesNotRestoreAProductSessionWhileUIAppRemainsEnabled() {
+        XCTAssertTrue(NativeUnitTestHostPolicy.suppressAutomaticStartup(environment: [:],
+            loadedBundlePaths: ["/synthetic/OpenMatesTests.xctest"], hasXCTestCase: false))
+        XCTAssertTrue(NativeUnitTestHostPolicy.suppressAutomaticStartup(
+            environment: ["XCTestConfigurationFilePath": "/synthetic/unit.xctestconfiguration"],
+            loadedBundlePaths: [], hasXCTestCase: true))
+        XCTAssertFalse(NativeUnitTestHostPolicy.suppressAutomaticStartup(
+            environment: ["XCTestConfigurationFilePath": "/synthetic/ui.xctestconfiguration"],
+            loadedBundlePaths: ["/synthetic/OpenMatesUITests.xctest"], hasXCTestCase: false))
+        XCTAssertFalse(NativeUnitTestHostPolicy.suppressAutomaticStartup(environment: [:],
+            loadedBundlePaths: [], hasXCTestCase: false))
     }
 
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity

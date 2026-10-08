@@ -1,3 +1,5 @@
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
 // Real AuthManager session-validation transitions with a local transport.
 // The error paths must preserve cached identity and avoid any Keychain/network IO.
 import XCTest
@@ -15,6 +17,34 @@ import XCTest
         await auth.validateSessionAfterOfflineBootstrap()
         XCTAssertEqual(auth.state, .authenticated)
         XCTAssertEqual(auth.currentUser?.id, "cached-account")
+        XCTAssertEqual(auth.sessionValidationState, .requiresReauthentication(reason: "session_expired"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement,auth.session.isolation
+    func testForbiddenRefreshAfterOnlineAuthenticationStopsRecoveryAndPreservesCachedIdentity() async throws {
+        var validations = 0
+        let accepted = try sessionResponse(account: "cached-account", token: "previously-valid-token")
+        let auth = AuthManager(sessionValidator: { _, _ in
+            validations += 1
+            if validations == 1 { return accepted }
+            throw APIError.httpError(status: 403, message: "Rejected refresh")
+        }, profileCacheWriter: { _ in }, sessionMasterKeyAvailable: { _ in true },
+            sessionScopeActivator: { _ in })
+        auth.currentUser = try user("cached-account")
+        auth.state = .authenticated
+        await auth.validateSessionAfterOfflineBootstrap()
+        XCTAssertEqual(auth.sessionValidationState, .onlineAuthenticated)
+        XCTAssertEqual(auth.webSocketToken, "previously-valid-token")
+        let onlineContext = try XCTUnwrap(auth.sessionRecoveryContext)
+        await AuthManager.recoverRejectedRequest(onlineContext)
+        XCTAssertEqual(auth.sessionValidationState, .requiresReauthentication(reason: "session_expired"))
+        XCTAssertNil(auth.webSocketToken)
+        XCTAssertEqual(auth.currentUser?.id, "cached-account")
+        XCTAssertEqual(auth.state, .authenticated, "Cached encrypted history must remain accessible")
+        let rejectedContext = try XCTUnwrap(auth.sessionRecoveryContext)
+        await AuthManager.recoverRejectedRequest(onlineContext)
+        await AuthManager.recoverRejectedRequest(rejectedContext)
+        XCTAssertEqual(validations, 2, "Neither stale nor current rejection callbacks may revive rejected credentials")
         XCTAssertEqual(auth.sessionValidationState, .requiresReauthentication(reason: "session_expired"))
     }
 

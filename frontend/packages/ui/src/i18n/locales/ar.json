@@ -2882,6 +2882,7 @@
     }
   },
   "apps_workspace": {},
+  "artifact_history": {},
   "audio": {
     "playback_progress": {
       "text": "تقدم تشغيل الصوت"
@@ -3152,6 +3153,9 @@
       "privacy_personal_data": {
         "text": "الخصوصية والبيانات الشخصية"
       }
+    },
+    "open_chat": {
+      "text": "فتح المحادثة"
     },
     "new_chat": {
       "text": "محادثة جديدة"
@@ -4205,6 +4209,9 @@
       "text": "سجل المحادثات"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "الشخصي وجميع الفرق"
+      },
       "placeholder": {
         "text": "البحث في الدردشات والإعدادات..."
       },

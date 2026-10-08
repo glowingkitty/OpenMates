@@ -11,6 +11,235 @@ final class WatchFlowUITests: XCTestCase {
     }
 
     @MainActor
+    // contract-test: direct surface=gui.apple assertions=apple-watch.chats.browse-search-open,apple-watch.hub.compact-navigation
+    func testChatListRefreshesFromRealTopPullAndForegroundReturn() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-chat-refresh"]
+        app.launch()
+        let chats = app.buttons["watch-hub-select-chat"]
+        XCTAssertTrue(chats.waitForExistence(timeout: 12))
+        chats.tap()
+        let row = app.buttons["watch-chat-row-watch-refresh-chat"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        let beforePull = refreshRevision(in: app)
+        XCTAssertGreaterThan(beforePull, 0, "The synthetic API must render the initial production list revision")
+        let list = app.scrollViews["watch-chat-list"]
+        XCTAssertTrue(list.exists)
+        // watchOS reports the retained ScrollView's AX frame as the whole
+        // app. Its real scrolling lane begins below the pinned chat header.
+        let header = app.buttons["watch-chats-heading"]
+        XCTAssertTrue(header.exists)
+        let visibleList = list.frame.intersection(app.frame)
+        let top = max(visibleList.minY, header.frame.maxY)
+        let pullViewport = CGRect(x: visibleList.minX, y: top,
+            width: visibleList.width, height: visibleList.maxY - top)
+        XCTAssertGreaterThan(pullViewport.height, 80)
+        let x = pullViewport.minX + pullViewport.width * 0.12
+        let start = CGPoint(x: x, y: pullViewport.minY + 8)
+        let end = CGPoint(x: x, y: pullViewport.maxY - 20)
+        XCTAssertTrue(pullViewport.contains(start)); XCTAssertTrue(pullViewport.contains(end))
+        XCTAssertGreaterThan(start.y, header.frame.maxY)
+        XCTAssertLessThan(start.y, row.frame.minY, "Start in the real top gutter above the first conversation")
+        let origin = app.coordinate(withNormalizedOffset: .zero)
+        origin.withOffset(CGVector(dx: start.x - app.frame.minX, dy: start.y - app.frame.minY))
+            .press(forDuration: 0.1, thenDragTo: origin.withOffset(
+                CGVector(dx: end.x - app.frame.minX, dy: end.y - app.frame.minY)))
+        waitForRefresh(after: beforePull, in: app)
+        XCTAssertTrue(row.exists)
+        XCTAssertTrue(header.isHittable, "Refresh must retain the pinned workspace navigation header")
+        XCTAssertFalse(app.otherElements["watch-chat-thread"].exists)
+        keepScreenshot("Watch chat list after actual pull refresh")
+        let beforeForeground = refreshRevision(in: app)
+        XCUIDevice.shared.press(.home)
+        let backgrounded = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.state == .runningBackground || app.state == .runningBackgroundSuspended
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [backgrounded], timeout: 5), .completed)
+        app.activate()
+        waitForRefresh(after: beforeForeground, in: app)
+        XCTAssertTrue(app.scrollViews["watch-chat-list"].exists)
+        XCTAssertFalse(app.otherElements["watch-chat-thread"].exists)
+        keepScreenshot("Watch chat list after foreground refresh")
+    }
+
+    @MainActor
+    // contract-test: direct surface=gui.apple assertions=apple-watch.hub.compact-navigation,apple-watch.lists.read-only-private
+    func testWorkspaceAndTasksRetainWhiteOnDarkContrastInLightScheme() {
+        assertWorkspaceTaskContrast(light: true)
+    }
+
+    @MainActor
+    // contract-test: direct surface=gui.apple assertions=apple-watch.hub.compact-navigation,apple-watch.lists.read-only-private
+    func testWorkspaceAndTasksRetainWhiteOnDarkContrastInDarkScheme() {
+        assertWorkspaceTaskContrast(light: false)
+    }
+
+    @MainActor
+    // contract-test: direct surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
+    func testPairingRetainsBlackBackgroundAndLightInkInLightScheme() {
+        assertPairingContrast(light: true)
+    }
+
+    @MainActor
+    // contract-test: direct surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
+    func testPairingRetainsBlackBackgroundAndLightInkInDarkScheme() {
+        assertPairingContrast(light: false)
+    }
+
+    @MainActor private func assertPairingContrast(light: Bool) {
+        let app = XCUIApplication()
+        let scheme = light ? "--ui-test-watch-light-scheme" : "--ui-test-watch-dark-scheme"
+        let states: [(argument: String, label: String, button: String?)] = [
+            ("--ui-test-watch-pair-initiating", "watch-pair-generating-label", nil),
+            ("--ui-test-watch-pair-waiting", "watch-pair-confirm-iphone-title", "watch-pair-login-without-iphone-button"),
+            ("--ui-test-watch-pair-cloud-short-url", "watch-pair-url", "watch-pair-self-host-button"),
+            ("--ui-test-watch-pair-selfhost-short-url", "watch-pair-url", "watch-pair-use-production-button"),
+            ("--ui-test-watch-pair-code-entry", "watch-pair-code-prompt", "watch-pair-pin-keyboard"),
+            ("--ui-test-watch-pair-selfhost-entry", "watch-pair-self-host-prompt", "watch-pair-self-host-keyboard"),
+            ("--ui-test-watch-pair-initiation-failed", "watch-pair-error-message", "watch-pair-refresh-button"),
+            ("--ui-test-watch-pair-selfhost-initiation-failed", "watch-pair-error-message", "watch-pair-use-production-button"),
+        ]
+        for state in states {
+            app.launchArguments = [state.argument, scheme]
+            app.launch()
+            let text = app.staticTexts[state.label]
+            XCTAssertTrue(text.waitForExistence(timeout: 12), state.argument)
+            let ink = renderedPixels(in: text.frame, app: app)
+            XCTAssertGreaterThan(ink.lightInk, 30, "Pairing text must render white/grey: \(state.argument)")
+            assertBlackBackground(in: app)
+            if let identifier = state.button {
+                let control = app.buttons[identifier]
+                for _ in 0..<4 where !control.isHittable { app.scrollViews.firstMatch.swipeUp() }
+                XCTAssertTrue(control.isHittable, "Pairing control must stay reachable: \(identifier)")
+                if !identifier.hasSuffix("keyboard") {
+                    XCTAssertGreaterThan(renderedPixels(in: control.frame, app: app).lightInk, 30,
+                        "Pairing control label must render white/grey: \(identifier)")
+                } else {
+                    assertBottomKeyboardTray(control, in: app)
+                }
+            }
+            keepScreenshot("Watch pairing \(state.argument) \(light ? "light" : "dark") scheme")
+            app.terminate()
+        }
+    }
+
+    @MainActor private func assertBlackBackground(in app: XCUIApplication) {
+        let pixels = renderedPixels(in: app.frame, app: app)
+        XCTAssertGreaterThan(pixels.black, pixels.total / 2,
+            "Watch production surfaces must retain a black background")
+    }
+
+    @MainActor private func assertBlackBackgroundAboveWorkspaceSelector(in app: XCUIApplication) {
+        let firstRow = app.buttons["watch-hub-select-chat"]
+        XCTAssertTrue(firstRow.exists)
+        // WatchHubView places 16pt of blue selector padding above its first
+        // 60pt row. Sample the app background above that blue component and
+        // to the left of the system clock, inside the actual Watch canvas.
+        let selectorTop = firstRow.frame.minY - 16
+        let region = CGRect(x: app.frame.minX + app.frame.width * 0.08,
+            y: app.frame.minY + 4, width: app.frame.width * 0.35,
+            height: selectorTop - app.frame.minY - 8)
+        XCTAssertGreaterThan(region.width, 16)
+        XCTAssertGreaterThan(region.height, 8, "Selector must leave its visible top background lane")
+        XCTAssertTrue(app.frame.contains(region))
+        XCTAssertLessThan(region.maxY, selectorTop)
+        let pixels = renderedPixels(in: region, app: app)
+        XCTAssertGreaterThan(pixels.black, pixels.total / 2,
+            "Background outside the approved blue selector must remain black")
+    }
+
+    @MainActor private func refreshRevision(in app: XCUIApplication) -> Int {
+        let label = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Refresh revision ")).firstMatch
+        return Int(label.label.split(separator: " ").last ?? "") ?? -1
+    }
+
+    @MainActor private func waitForRefresh(after revision: Int, in app: XCUIApplication) {
+        XCTAssertGreaterThan(revision, 0)
+        let changed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            self.refreshRevision(in: app) > revision
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [changed], timeout: 8), .completed,
+            "The production refresh path must fetch and render a newer chat revision")
+    }
+
+    @MainActor private func assertWorkspaceTaskContrast(light: Bool) {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-hub-lists", "--ui-test-watch-hub-offline",
+            light ? "--ui-test-watch-light-scheme" : "--ui-test-watch-dark-scheme"]
+        app.launch()
+        let tasks = app.buttons["watch-hub-select-tasks"]
+        XCTAssertTrue(tasks.waitForExistence(timeout: 12))
+        assertWhitePixels(in: tasks.frame, app: app)
+        assertBlackBackgroundAboveWorkspaceSelector(in: app)
+        keepScreenshot("Watch workspace selector \(light ? "light" : "dark") scheme")
+        tasks.tap()
+        let card = app.buttons["watch-task-row-backlog-0"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        let header = app.buttons["watch-hub-section-selector"]
+        XCTAssertTrue(header.isHittable)
+        assertWhitePixels(in: header.frame, app: app)
+        let group = app.otherElements["watch-task-group-backlog"]
+        let groupText = app.staticTexts["Backlog"]
+        XCTAssertTrue(group.exists || groupText.exists)
+        assertWhitePixels(in: group.exists ? group.frame : groupText.frame, app: app)
+        let offline = app.staticTexts["watch-task-offline"]
+        XCTAssertTrue(offline.exists)
+        assertWhitePixels(in: offline.frame, app: app)
+        let column = app.scrollViews["watch-task-column-backlog"]
+        if card.frame.maxY > column.frame.maxY {
+            column.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.85))
+                .press(forDuration: 0.1, thenDragTo: column.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.3)))
+        }
+        XCTAssertTrue(card.isHittable)
+        XCTAssertGreaterThanOrEqual(card.frame.minY, column.frame.minY - 1)
+        XCTAssertLessThanOrEqual(card.frame.maxY, column.frame.maxY + 1)
+        let pixels = renderedPixels(in: card.frame, app: app)
+        XCTAssertGreaterThan(pixels.white, 30, "Task card must render white title text")
+        XCTAssertGreaterThan(pixels.darkGray, pixels.total / 2, "Task card must render a dark gray surface")
+        keepScreenshot("Watch offline task board \(light ? "light" : "dark") scheme")
+    }
+
+    @MainActor private func assertWhitePixels(in rect: CGRect, app: XCUIApplication) {
+        XCTAssertGreaterThan(renderedPixels(in: rect, app: app).white, 30, "Visible workspace/task ink must be white")
+    }
+
+    @MainActor private func renderedPixels(in rect: CGRect, app: XCUIApplication) -> (white: Int, darkGray: Int, black: Int, lightInk: Int, total: Int) {
+        guard let source = CGImageSourceCreateWithData(XCUIScreen.main.screenshot().pngRepresentation as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            XCTFail("Missing Watch screenshot"); return (0, 0, 0, 0, 0)
+        }
+        let visible = rect.intersection(app.frame)
+        XCTAssertFalse(visible.isNull)
+        let scaleX = CGFloat(image.width) / app.frame.width
+        let scaleY = CGFloat(image.height) / app.frame.height
+        let cropRect = CGRect(x: (visible.minX - app.frame.minX) * scaleX,
+            y: (visible.minY - app.frame.minY) * scaleY,
+            width: visible.width * scaleX, height: visible.height * scaleY).integral
+        guard let crop = image.cropping(to: cropRect), crop.width > 0, crop.height > 0 else {
+            XCTFail("Missing visible contrast crop"); return (0, 0, 0, 0, 0)
+        }
+        var rgba = [UInt8](repeating: 0, count: crop.width * crop.height * 4)
+        let rendered = rgba.withUnsafeMutableBytes { bytes -> Bool in
+            guard let context = CGContext(data: bytes.baseAddress, width: crop.width, height: crop.height,
+                bitsPerComponent: 8, bytesPerRow: crop.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(crop, in: CGRect(x: 0, y: 0, width: crop.width, height: crop.height))
+            return true
+        }
+        XCTAssertTrue(rendered)
+        var white = 0, gray = 0, black = 0, lightInk = 0
+        for index in stride(from: 0, to: rgba.count, by: 4) {
+            let channels = [Int(rgba[index]), Int(rgba[index + 1]), Int(rgba[index + 2])]
+            let low = channels.min()!, high = channels.max()!
+            if low >= 220 { white += 1 }
+            if high <= 12 { black += 1 }
+            if low >= 145 && high - low <= 20 { lightInk += 1 }
+            if low >= 25 && high <= 90 && high - low <= 15 { gray += 1 }
+        }
+        return (white, gray, black, lightInk, crop.width * crop.height)
+    }
+
+    @MainActor
     // contract-test: direct surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
     func testPairInitiationFailureOffersSelfHostedServerBeforeAnyTokenExists() {
         let app = XCUIApplication()

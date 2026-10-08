@@ -68,6 +68,7 @@ struct AppIconView: View {
         case "photos": return .appPhotos
         case "videos": return .appVideos
         case "docs": return .appDocs
+        case "study": return .appStudy
         case "sheets": return .appSheets
         case "diagrams": return .appDiagrams
         case "models3d": return .app3dmodels

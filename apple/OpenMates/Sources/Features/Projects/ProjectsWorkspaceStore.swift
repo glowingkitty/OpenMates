@@ -5,6 +5,8 @@
 // Web source: frontend/packages/ui/src/services/projectReadme.ts, projectService.ts
 // Specification: specifications/features/projects/specification.yml
 // Assertions: projects.access.explicit-context, projects.files.search-scoped, projects.files.connected-embed-previews, projects.surface.semantic-parity
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.versions.metadata-and-payload, storage.versions.bounded-reconstruction, storage.cold.shared-team-authorized
 import CryptoKit
 import Combine
 import Foundation
@@ -716,6 +718,27 @@ final class ProjectsWorkspaceStore: ObservableObject {
         }
         try await validateFence(fence)
         return record
+    }
+
+    func artifactHistorySession(embedID: String) async -> EmbedVersionHistorySession? {
+        guard let project = selectedProject, let accountID,
+              let item = items.first(where: { $0.kind == "embed" && $0.targetID == embedID }) else { return nil }
+        let requestGeneration = generation
+        let fence = ProjectsWorkspaceFence(accountID: accountID)
+        do {
+            let session = try await service.artifactHistorySession(item, project: project, fence: fence)
+            let validate: () async throws -> Void = { [weak self] in
+                try await session.validate(); try Task.checkCancellation()
+                guard let self, self.generation == requestGeneration, self.selectedProjectID == project.id,
+                      self.items.contains(where: { $0.id == item.id && $0.targetID == embedID }) else { throw CancellationError() }
+            }
+            try await validate()
+            return EmbedVersionHistorySession(fetch: { path in
+                try await validate(); let data = try await session.fetch(path); try await validate(); return data
+            }, decrypt: { ciphertext in
+                try await validate(); let text = try await session.decrypt(ciphertext); try await validate(); return text
+            }, validate: validate, context: session.context)
+        } catch { return nil }
     }
 
     /// Hydrate only cards that SwiftUI has placed on screen. Plaintext remains

@@ -5,6 +5,64 @@ import CryptoKit
 @testable import OpenMates
 
 final class ChatSidebarDisplayPolicyTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testSidebarUnreadBadgeMatchesWebCountCapAndProcessingSuppression() {
+        XCTAssertNil(ChatSidebarDisplayPolicy.unreadBadgeText(count: 0, processing: false, draftOnly: false))
+        XCTAssertNil(ChatSidebarDisplayPolicy.unreadBadgeText(count: -1, processing: false, draftOnly: false))
+        XCTAssertEqual(ChatSidebarDisplayPolicy.unreadBadgeText(count: 1, processing: false, draftOnly: false), "1")
+        XCTAssertEqual(ChatSidebarDisplayPolicy.unreadBadgeText(count: 9, processing: false, draftOnly: false), "9")
+        XCTAssertEqual(ChatSidebarDisplayPolicy.unreadBadgeText(count: 10, processing: false, draftOnly: false), "9+")
+        XCTAssertNil(ChatSidebarDisplayPolicy.unreadBadgeText(count: 1, processing: true, draftOnly: false))
+        XCTAssertNil(ChatSidebarDisplayPolicy.unreadBadgeText(count: 1, processing: false, draftOnly: true))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.activity.global-running,chats.surface.semantic-parity
+    @MainActor
+    func testRunningRootsPreserveActivityEncounterOrderAndDeduplicateChildren() {
+        let first = chat("old-root", age: 30), second = chat("new-root", age: 0)
+        let child = Chat(id: "child", title: nil, lastMessageAt: nil, createdAt: "2026-09-12T12:00:00Z",
+            updatedAt: nil, isArchived: false, isPinned: false, appId: nil, encryptedTitle: nil,
+            encryptedChatKey: nil, parentId: first.id)
+        var policy = ActiveChatsPolicy()
+        policy.start(.init(chatID: child.id, turnID: "first-task"), now: now)
+        policy.start(.init(chatID: second.id, turnID: "second-task"), now: now)
+        policy.start(.init(chatID: first.id, turnID: "third-task"), now: now)
+        policy.adopt(chatID: child.id, provisional: "first-task", server: "assistant-id", now: now)
+        XCTAssertEqual(NativeChatActivityStore.orderedRootIDs(
+            processingChatIDs: policy.orderedItems.map(\.chatID), chats: [second, child, first]),
+            [first.id, second.id], "Activity encounter order wins over chat timestamps and record insertion order")
+        policy.finish(chatID: child.id, turnID: "assistant-id")
+        XCTAssertEqual(NativeChatActivityStore.orderedRootIDs(
+            processingChatIDs: policy.orderedItems.map(\.chatID), chats: [first, second, child]), [second.id, first.id])
+        XCTAssertEqual(NativeChatActivityStore.orderedRootIDs(processingChatIDs: [child.id, second.id],
+            chats: [first, second], ancestry: [child.id: first.id]), [first.id, second.id])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    @MainActor
+    func testRootHistoryKeepsShellsAndLegacyArchivedRowsBeforeBoundedSortProjection() {
+        func row(_ id: String, archived: Bool = false, pinned: Bool = false,
+                 draft: Bool = false, hidden: Bool = false, parent: String? = nil, team: String? = nil) -> Chat {
+            Chat(id: id, title: nil, lastMessageAt: nil, createdAt: "2026-09-12T12:00:00Z", updatedAt: nil,
+                 isArchived: archived, isPinned: pinned, appId: nil, encryptedTitle: nil, encryptedChatKey: nil,
+                 messagesV: 0, draftV: draft ? 1 : 0, parentId: parent,
+                 isHidden: hidden, teamId: team, hasNonEmptyDraft: draft)
+        }
+        let records = [row("shell"), row("archived", archived: true), row("draft", draft: true),
+            row("pin", archived: true, pinned: true), row("hidden", hidden: true),
+            row("child", parent: "shell"), row("team", team: "other-team")]
+        let store = ChatStore()
+        store.performWithoutPersistence { store.upsertChats(records, serverSortOrder: ["shell", "archived"]) }
+        let eligible = store.sortedChats.filter { ChatSidebarDisplayPolicy.isRootUserChatEligible($0, teamID: nil) }
+        XCTAssertEqual(eligible.map(\.id), ["pin", "draft", "shell", "archived"])
+        let bounded = ChatSidebarDisplayPolicy.visibleChats(sortedUserChats: eligible, limit: 3,
+            selectedChatID: "archived", lastActiveChatID: nil)
+        XCTAssertEqual(bounded.map(\.id), ["pin", "draft", "archived"],
+            "The retained archived row must use the same bounded active replacement as other web rows")
+        XCTAssertEqual(Set(bounded.map(\.id)).count, 3)
+        XCTAssertEqual(ChatSidebarDisplayPolicy.initialLimit, 11)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chat-navigation.projects.organize
     func testSidebarStationaryHoldRejectsShortAndReturnedDragsAndResets() {
         var hold = SidebarStationaryHoldTracking()
@@ -15,6 +73,54 @@ final class ChatSidebarDisplayPolicyTests: XCTestCase {
         XCTAssertFalse(hold.opensActions(at: 101), "Returning a drag must not open stationary actions")
         hold.begin(at: CGPoint(x: 40, y: 50), time: 102)
         XCTAssertFalse(hold.moved); XCTAssertTrue(hold.opensActions(at: 102.5))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
+    func testPureDraftPresentationHasNoGeneratedTitleOrProfile() {
+        func row(title: String?, messages: Int = 0, draft: Int = 1, visible: String? = nil) -> Chat {
+            Chat(id: "synthetic-draft", title: title, lastMessageAt: nil, createdAt: "2026-10-06T12:00:00Z", updatedAt: nil,
+                 isArchived: false, isPinned: false, appId: nil, encryptedTitle: nil, encryptedChatKey: nil,
+                 messagesV: messages, draftV: draft, lastVisibleMessageId: visible)
+        }
+        XCTAssertTrue(ChatSidebarDisplayPolicy.isDraftOnly(row(title: nil), preview: "A local draft"))
+        XCTAssertTrue(ChatSidebarDisplayPolicy.isDraftOnly(row(title: " Untitled Chat "), preview: nil), "Pending decryption still shows Draft, never New Chat")
+        XCTAssertTrue(ChatSidebarDisplayPolicy.isDraftOnly(row(title: nil, draft: 0), preview: "Local draft"))
+        XCTAssertFalse(ChatSidebarDisplayPolicy.isDraftOnly(row(title: "Real conversation"), preview: "Unsent followup"))
+        XCTAssertFalse(ChatSidebarDisplayPolicy.isDraftOnly(row(title: nil, messages: 2), preview: "Unsent followup"))
+        XCTAssertFalse(ChatSidebarDisplayPolicy.isDraftOnly(row(title: nil, visible: "sent-message"), preview: "Unsent followup"))
+        XCTAssertFalse(ChatSidebarDisplayPolicy.isDraftOnly(row(title: nil, draft: 0), preview: nil))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    @MainActor
+    func testSidebarSortAndGroupsUseOverallActivityWithPinnedDraftAndLegacyFallbacks() {
+        func row(_ id: String, message: String? = "2026-09-12T12:00:00Z", activity: String? = nil,
+                 pinned: Bool = false, draft: Bool = false, updated: String? = nil) -> Chat {
+            Chat(id: id, title: id, lastMessageAt: message, createdAt: "2026-09-12T12:00:00Z", updatedAt: updated,
+                 lastEditedOverallTimestamp: activity, isArchived: false, isPinned: pinned, appId: nil,
+                 encryptedTitle: nil, encryptedChatKey: nil, hasNonEmptyDraft: draft)
+        }
+        let older = row("older", activity: "2026-09-11T12:00:00Z")
+        let newer = row("newer", message: "2026-09-10T12:00:00Z", activity: "2026-09-12T12:00:00Z")
+        let pinned = row("pinned", activity: "2026-09-01T12:00:00Z", pinned: true)
+        let draft = row("draft", activity: "2026-09-02T12:00:00Z", draft: true)
+        let store = ChatStore()
+        store.performWithoutPersistence { store.upsertChats([older, newer, pinned, draft]) }
+        XCTAssertEqual(store.sortedChats.map(\.id), ["pinned", "draft", "newer", "older"])
+        let groups = ChatSidebarDisplayPolicy.groups([older, newer], now: now, calendar: utc)
+        XCTAssertEqual(groups.map(\.key), ["today", "yesterday"])
+        XCTAssertEqual(groups.flatMap(\.chats).map(\.id), ["newer", "older"])
+        XCTAssertEqual(row("legacy").sidebarActivityDate, row("legacy").lastMessageDate)
+        XCTAssertNil(row("missing", message: nil).sidebarActivityDate)
+        let tied = ChatStore()
+        tied.performWithoutPersistence { tied.upsertChats([
+            row("old-update", message: nil, updated: "2026-09-10T12:00:00Z"),
+            row("new-update", message: nil, updated: "2026-09-12T12:00:00Z")]) }
+        XCTAssertEqual(tied.sortedChats.map(\.id), ["new-update", "old-update"])
+        tied.performWithoutPersistence {
+            tied.upsertChats([], serverSortOrder: ["old-update"])
+        }
+        XCTAssertEqual(tied.sortedChats.map(\.id), ["old-update", "new-update"], "Server order wins tied/missing activity timestamps before update time")
     }
 
     private let now = Date(timeIntervalSince1970: 1_789_214_400)

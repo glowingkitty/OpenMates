@@ -2882,6 +2882,7 @@
     }
   },
   "apps_workspace": {},
+  "artifact_history": {},
   "audio": {
     "playback_progress": {
       "text": "音频播放进度"
@@ -3152,6 +3153,9 @@
       "privacy_personal_data": {
         "text": "隐私与个人数据"
       }
+    },
+    "open_chat": {
+      "text": "打开聊天"
     },
     "new_chat": {
       "text": "新聊天"
@@ -4205,6 +4209,9 @@
       "text": "聊天记录"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "个人和所有团队"
+      },
       "placeholder": {
         "text": "搜索聊天和设置..."
       },

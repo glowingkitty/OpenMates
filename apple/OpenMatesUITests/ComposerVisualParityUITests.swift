@@ -987,6 +987,20 @@ final class ComposerVisualParityUITests: XCTestCase {
 // Actual retained native TextKit coordinates, rather than an empty SwiftUI box.
 // The DEBUG payload contains only rectangles/offset, never message text.
 enum NativeComposerRenderedLayoutAssertions {
+    // XCTest predicate expectations defer their first AX evaluation. Probe now
+    // and charge that probe against the SAME deadline, so a valid two-second
+    // snapshot does not lose a three-second budget to an initial poll delay.
+    static func waitForRenderedCondition(timeout: TimeInterval, object: Any?,
+                                         condition: @escaping () -> Bool) -> XCTWaiter.Result {
+        let deadline = Date().addingTimeInterval(timeout)
+        guard timeout > 0 else { return .timedOut }
+        let readyNow = condition()
+        let remaining = deadline.timeIntervalSinceNow
+        guard remaining > 0 else { return .timedOut }
+        if readyNow { return .completed }
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in condition() }, object: object)
+        return XCTWaiter.wait(for: [ready], timeout: remaining)
+    }
     static func payload(_ field: XCUIElement) -> [String: Any]? {
         guard let value = field.value as? String,
               let split = value.range(of: ";native-layout="),
@@ -1004,47 +1018,106 @@ enum NativeComposerRenderedLayoutAssertions {
               rect.width > 0, rect.height > 0 else { return nil }
         return rect
     }
-    static func rect(_ key: String, in payload: [String: Any], editor: XCUIElement) -> CGRect? {
-        guard editor.exists, let local = localRect(key, in: payload),
+    static func rect(_ key: String, in payload: [String: Any]) -> CGRect? {
+        guard let local = localRect(key, in: payload),
               let bounds = localRect("bounds", in: payload), let viewport = viewport(payload),
               local.minX.isFinite, local.minY.isFinite, local.width.isFinite, local.height.isFinite,
               bounds.minX.isFinite, bounds.minY.isFinite else { return nil }
         return local.offsetBy(dx: viewport.minX - bounds.minX, dy: viewport.minY - bounds.minY)
     }
-    static func rightEdge(_ payload: [String: Any], editor: XCUIElement) -> CGFloat? {
-        guard editor.exists, let right = payload["right"] as? NSNumber,
+    static func rightEdge(_ payload: [String: Any]) -> CGFloat? {
+        guard let right = payload["right"] as? NSNumber,
               let bounds = localRect("bounds", in: payload), let viewport = viewport(payload),
               right.doubleValue.isFinite, bounds.minX.isFinite else { return nil }
         return viewport.minX + CGFloat(right.doubleValue) - bounds.minX
     }
     static func isBeside(_ control: XCUIElement, field: XCUIElement, editor: XCUIElement) -> Bool {
-        guard editor.exists, let data = payload(field), let viewport = viewport(data),
-              field.frame.contains(viewport), let first = rect("first", in: data, editor: editor),
-              let right = rightEdge(data, editor: editor), first.height > 0 else { return false }
-        return field.frame.contains(control.frame) && viewport.minY <= control.frame.minY
-            && first.minY < control.frame.maxY && first.maxY > control.frame.minY
-            && first.minY - viewport.minY < control.frame.height / 2
-            && first.maxX + 4 <= control.frame.minX && right + 4 <= control.frame.minX
+        guard editor.exists, let data = payload(field) else { return false }
+        let fieldFrame = field.frame
+        let controlFrame = control.frame
+        guard let viewport = viewport(data), fieldFrame.contains(viewport),
+              let first = rect("first", in: data), let right = rightEdge(data), first.height > 0 else { return false }
+        return fieldFrame.contains(controlFrame) && viewport.minY <= controlFrame.minY
+            && first.minY < controlFrame.maxY && first.maxY > controlFrame.minY
+            && first.minY - viewport.minY < controlFrame.height / 2
+            && first.maxX + 4 <= controlFrame.minX && right + 4 <= controlFrame.minX
+    }
+    // Geometry math consumes one captured value/frame pair. It must not query AX
+    // again for every converted coordinate inside the three-second readiness poll.
+    static func selectedCaretClears(_ data: [String: Any], fieldFrame: CGRect,
+                                    controlFrame: CGRect, requiresScroll: Bool) -> Bool {
+        guard let viewport = viewport(data), fieldFrame.contains(viewport),
+              let selected = rect("selected", in: data),
+              let offset = data["offset"] as? NSNumber, offset.doubleValue.isFinite,
+              let right = rightEdge(data) else { return false }
+        return (!requiresScroll || offset.doubleValue > 0) && viewport.insetBy(dx: -2, dy: -2).contains(selected)
+            && selected.maxX + 4 <= controlFrame.minX && right + 4 <= controlFrame.minX
     }
     static func assertBeside(_ control: XCUIElement, field: XCUIElement, editor: XCUIElement,
                              file: StaticString = #filePath, line: UInt = #line) {
-        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            control.exists && field.exists && editor.exists && isBeside(control, field: field, editor: editor)
-        }, object: field)
-        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 3), .completed,
+        let result = waitForRenderedCondition(timeout: 3, object: field) {
+            control.exists && field.exists && isBeside(control, field: field, editor: editor)
+        }
+        XCTAssertEqual(result, .completed,
             "Actual first line must start at top-left beside the icon with a clear native right lane. field=\(field.frame) editor=\(editor.frame) control=\(control.frame) value=\(String(describing: field.value))", file: file, line: line)
     }
     static func assertSelectedCaretClears(_ control: XCUIElement, field: XCUIElement, editor: XCUIElement,
                                           requiresScroll: Bool = true, file: StaticString = #filePath, line: UInt = #line) {
-        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            guard editor.exists, field.exists, let data = payload(field), let viewport = viewport(data),
-                  field.frame.contains(viewport), let selected = rect("selected", in: data, editor: editor),
-                  let offset = data["offset"] as? NSNumber, offset.doubleValue.isFinite,
-                  let right = rightEdge(data, editor: editor) else { return false }
-            return (!requiresScroll || offset.doubleValue > 0) && viewport.insetBy(dx: -2, dy: -2).contains(selected)
-                && selected.maxX + 4 <= control.frame.minX && right + 4 <= control.frame.minX
-        }, object: field)
-        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 3), .completed,
+        let result = waitForRenderedCondition(timeout: 3, object: field) {
+            guard editor.exists, field.exists, let data = payload(field) else { return false }
+            return selectedCaretClears(data, fieldFrame: field.frame, controlFrame: control.frame,
+                                       requiresScroll: requiresScroll)
+        }
+        XCTAssertEqual(result, .completed,
             "Real native multiline scrolling must keep the selected caret visible and outside the sticky icon lane", file: file, line: line)
+    }
+}
+
+// Pure geometry coverage: no application launch, fixture, credential, or inference.
+final class NativeComposerRenderedGeometryTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
+    func testRenderedConditionProbesImmediatelyAndRetainsItsDeadline() {
+        var probes = 0
+        XCTAssertEqual(NativeComposerRenderedLayoutAssertions.waitForRenderedCondition(timeout: 3, object: nil) {
+            probes += 1
+            return true
+        }, .completed)
+        XCTAssertEqual(probes, 1)
+        XCTAssertEqual(NativeComposerRenderedLayoutAssertions.waitForRenderedCondition(timeout: 0, object: nil) {
+            XCTFail("An expired deadline must never start another readiness query")
+            return true
+        }, .timedOut)
+    }
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
+    func testCapturedCaretGeometryPreservesVisibilityScrollAndStickyLaneChecks() {
+        let data: [String: Any] = [
+            "viewport": [8, 332.66666666666663, 386, 104.66666666666663],
+            "bounds": [0, 128.33333333333334, 386, 104.66666666666666],
+            "selected": [99.66666666666667, 192.33333333333334, 2, 27.333333333333332],
+            "offset": 128.33333333333334, "right": 318.0
+        ]
+        let field = CGRect(x: 8, y: 320, width: 386, height: 170)
+        let control = CGRect(x: 335, y: 342.6666666666667, width: 44, height: 44)
+        func clears(_ payload: [String: Any], fieldFrame: CGRect? = nil,
+                    controlFrame: CGRect? = nil, requiresScroll: Bool = true) -> Bool {
+            NativeComposerRenderedLayoutAssertions.selectedCaretClears(payload, fieldFrame: fieldFrame ?? field,
+                controlFrame: controlFrame ?? control, requiresScroll: requiresScroll)
+        }
+        XCTAssertTrue(clears(data), "Retained ui-phone11 caret is inside its real viewport and clears the native lane")
+        var changed = data
+        changed["offset"] = 0.0
+        XCTAssertFalse(clears(changed), "Collapsed proof still requires actual native scrolling")
+        XCTAssertTrue(clears(changed, requiresScroll: false), "Expanded proof alone allows no scroll")
+        changed = data
+        changed["selected"] = [330.0, 192.33333333333334, 2.0, 27.333333333333332]
+        XCTAssertFalse(clears(changed), "A caret inside the icon lane remains a failure")
+        changed = data
+        changed["selected"] = [99.66666666666667, 260.0, 2.0, 27.333333333333332]
+        XCTAssertFalse(clears(changed), "A caret below the viewport remains a failure")
+        changed = data
+        changed["right"] = 330.0
+        XCTAssertFalse(clears(changed), "Native text right edge must retain its four-point icon gap")
+        XCTAssertFalse(clears(data, fieldFrame: CGRect(x: 8, y: 350, width: 386, height: 100)),
+                       "A viewport outside the field remains a failure")
     }
 }

@@ -1,9 +1,13 @@
+// Web source: components/settings/TeamContextPicker.svelte
+// Specification: specifications/features/teams/specification.yml
+// Assertions: teams.context.full-switch-local
 import SwiftUI
 
 // Matches the compact selector inside SettingsMainHeader's banner.
 struct TeamWorkspaceContextSelector: View {
     @ObservedObject var context: TeamWorkspaceContext
     var isCollapsed = false
+    @State private var avatarData: Data?
 
     init(context: TeamWorkspaceContext = .shared, isCollapsed: Bool = false) {
         self.context = context
@@ -22,39 +26,23 @@ struct TeamWorkspaceContextSelector: View {
                                                      startPoint: .topLeading, endPoint: .bottomTrailing))
                                 .frame(width: 26, height: 26)
                                 .overlay {
-                                    Icon("team", size: 14)
-                                        .foregroundStyle(Color.fontButton)
+                                    if let avatarData, let image = platformImage(avatarData) {
+                                        image.resizable().scaledToFill().frame(width: 26, height: 26).clipShape(Circle())
+                                    } else {
+                                        Icon(team.profileImageMetadata.iconName, size: 14).foregroundStyle(Color.fontButton)
+                                    }
                                 }
                                 .overlay(Circle().strokeBorder(Color.fontButton.opacity(0.9), lineWidth: 2))
                                 .accessibilityHidden(true)
                                 .accessibilityIdentifier("profile-open-active-team-avatar")
                         }
 
-                        Menu {
-                            Button(AppStrings.teamContextPersonal) {
-                                Task { await context.selectTeam(nil) }
-                            }
-                            ForEach(context.teams) { team in
-                                Button(team.name) {
-                                    Task { await context.selectTeam(team.id) }
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: 7) {
-                                Text(context.selectedTeam?.name ?? AppStrings.teamContextPersonal)
-                                    .lineLimit(1)
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 9, weight: .bold))
-                            }
-                            .font(Font.custom("Lexend Deca", size: 12).weight(.bold))
-                            .foregroundStyle(Color.fontButton)
-                            .padding(.leading, 12)
-                            .padding(.trailing, 10)
-                            .frame(height: 30)
-                            .background(Color.fontButton.opacity(0.16), in: Capsule())
-                            .overlay(Capsule().strokeBorder(Color.fontButton.opacity(0.42), lineWidth: 1))
-                        }
-                        .disabled(context.isLoading)
+                        OMDropdown(title: AppStrings.teamContextSwitch,
+                            options: [OMDropdownOption("", label: AppStrings.teamContextPersonal)] + context.teams.map { OMDropdownOption($0.id, label: $0.name) },
+                            selection: Binding(get: { context.teamID ?? "" }, set: { value in
+                                Task { await context.selectTeam(value.isEmpty ? nil : value) }
+                            }), disabled: context.isLoading && context.teams.isEmpty,
+                            controlHeight: 30)
                         .accessibilityLabel(AppStrings.teamContextSwitch)
                         .accessibilityIdentifier("team-context-dropdown")
                     }
@@ -71,6 +59,24 @@ struct TeamWorkspaceContextSelector: View {
                 .accessibilityIdentifier("profile-team-context-switcher")
             }
         }
+        .task(id: "\(context.teamID ?? "")|\(context.selectedTeam?.updatedAt ?? 0)|\(context.contextEpoch)") {
+            avatarData = nil
+            guard let team = context.selectedTeam, let accountID = context.loadedAccountID else { return }
+            let snapshot = context.snapshot
+            let data = try? await SettingsTeamsService().avatar(team: team, fence: TeamWorkspaceFence(accountID: accountID))
+            guard context.isCurrent(snapshot) else { return }
+            avatarData = data
+        }
+    }
+
+    private func platformImage(_ data: Data) -> Image? {
+        #if os(iOS)
+        return UIImage(data: data).map { Image(uiImage: $0) }
+        #elseif os(macOS)
+        return NSImage(data: data).map { Image(nsImage: $0) }
+        #else
+        return nil
+        #endif
     }
 
     private static func avatarColor(_ raw: String) -> Color {

@@ -710,6 +710,22 @@ def validate_release_entitlements(path: Path, platform: str) -> None:
             or keychains[1] != keychains[0].removesuffix(".widgetmacos")):
         raise ReleaseError("macOS widget archive is missing its scoped and shared keychain entitlements")
 
+    notification = app / "Contents" / "PlugIns" / "OpenMatesNotificationService_macOS.appex"
+    notification_entitlements = signed_entitlements(notification)
+    if notification_entitlements.get("com.apple.security.app-sandbox") is not True:
+        raise ReleaseError("macOS notification service archive is missing the App Sandbox entitlement")
+    notification_groups = notification_entitlements.get("com.apple.security.application-groups")
+    if not isinstance(notification_groups, list) or "group.org.openmates.app.shared" not in notification_groups:
+        raise ReleaseError("macOS notification service archive is missing the shared app-group entitlement")
+    notification_keychains = notification_entitlements.get("keychain-access-groups")
+    app_keychains = entitlements.get("keychain-access-groups") or []
+    if (not isinstance(notification_keychains, list) or len(notification_keychains) != 2
+            or not isinstance(notification_keychains[0], str)
+            or not notification_keychains[0].endswith(f".{BUNDLE_ID}.notification-servicemacos")
+            or notification_keychains[1] != notification_keychains[0].removesuffix(".notification-servicemacos")
+            or notification_keychains[1] not in app_keychains):
+        raise ReleaseError("macOS notification service archive is missing its scoped and shared keychain entitlements")
+
 
 def validate_shared_link_domains(associated: object) -> None:
     required = {"applinks:openmates.org", "applinks:app.openmates.org", "applinks:app.dev.openmates.org"}
@@ -855,6 +871,8 @@ def stamp_unsigned_macos_archive(path: Path, log_path: Path, team_id: str) -> No
          "apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements", "macos-share-entitlements.plist"),
         (plugins / "OpenMatesWidget_macOS.appex", f"{BUNDLE_ID}.widgetmacos",
          "apple/OpenMatesWidget/MacWidget.entitlements", "macos-widget-entitlements.plist"),
+        (plugins / "OpenMatesNotificationService_macOS.appex", f"{BUNDLE_ID}.notification-servicemacos",
+         "apple/OpenMatesNotificationService/OpenMatesNotificationServiceMacOS.entitlements", "macos-notification-entitlements.plist"),
         (app, BUNDLE_ID, "apple/OpenMates/Resources/OpenMatesMacOS.entitlements", "macos-app-entitlements.plist"),
     )
     # Validate all identities before mutating a signature. Extensions keep their

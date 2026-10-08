@@ -105,6 +105,7 @@ struct Chat: Identifiable, Decodable, Sendable {
     let draftV: Int?
     /// Presence, not version: nil means an older/partial snapshot omitted draft content.
     var hasNonEmptyDraft: Bool?
+    var unreadCount: Int?
     var clearedDraftV: Int?
     let metadataV: Int?
     let lastVisibleMessageId: String?
@@ -161,8 +162,10 @@ struct Chat: Identifiable, Decodable, Sendable {
         teamId: String? = nil,
         isSharedByOthers: Bool? = nil,
         hasNonEmptyDraft: Bool? = nil,
-        clearedDraftV: Int? = nil
+        clearedDraftV: Int? = nil,
+        unreadCount: Int? = nil
     ) {
+        self.unreadCount = unreadCount
         self.id = id
         self.title = title
         self.lastMessageAt = lastMessageAt
@@ -237,6 +240,8 @@ struct Chat: Identifiable, Decodable, Sendable {
         messagesV = try container.decodeIfPresent(Int.self, forKey: .messagesV)
         titleV = try container.decodeIfPresent(Int.self, forKey: .titleV)
         draftV = try container.decodeIfPresent(Int.self, forKey: .draftV)
+        unreadCount = try container.decodeIfPresent(Int.self, forKey: .unreadCount)
+            ?? container.decodeIfPresent(Int.self, forKey: .unreadCountSnake)
         clearedDraftV = try container.decodeIfPresent(Int.self, forKey: .clearedDraftV)
         if container.contains(.encryptedDraftMd) {
             hasNonEmptyDraft = try container.decodeIfPresent(String.self, forKey: .encryptedDraftMd)?.isEmpty == false
@@ -325,6 +330,8 @@ struct Chat: Identifiable, Decodable, Sendable {
         case messagesV
         case titleV
         case draftV
+        case unreadCount
+        case unreadCountSnake = "unread_count"
         case clearedDraftV
         case encryptedDraftMd
         case metadataV
@@ -368,6 +375,12 @@ struct Chat: Identifiable, Decodable, Sendable {
 
     var isHiddenFromNormalSurfaces: Bool {
         isHidden == true || isHiddenCandidate == true
+    }
+
+    /// Sidebar sorting/grouping use the web overall edit timestamp. Older
+    /// snapshots without that field retain their message-time fallback.
+    var sidebarActivityDate: Date? {
+        lastEditedOverallTimestamp.flatMap(Self.parseDate) ?? lastMessageDate
     }
 
     var lastMessageDate: Date? {

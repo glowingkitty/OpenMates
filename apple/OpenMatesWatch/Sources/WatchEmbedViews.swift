@@ -14,6 +14,9 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+// Web source: frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.versions.metadata-and-payload, storage.versions.bounded-reconstruction
 import SwiftUI
 import MapKit
 import CryptoKit
@@ -356,9 +359,11 @@ struct WatchEmbedFullscreenView: View {
     private let markdown: [WatchRenderedMarkdownBlock]
 
     var loadAudio: ((WatchEmbedPreviewModel) async throws -> Data)? = nil
+    var loadHistory: ((WatchEmbedPreviewModel) -> EmbedVersionHistorySession?)? = nil
+    @StateObject private var versionHistory = EmbedVersionHistoryController()
 
-    init(model: WatchEmbedPreviewModel, loadAudio: ((WatchEmbedPreviewModel) async throws -> Data)? = nil, onOpenDevice: @escaping (WatchEmbedPreviewModel) -> Void, onClose: @escaping () -> Void) {
-        self.model = model; self.loadAudio = loadAudio; self.onOpenDevice = onOpenDevice; self.onClose = onClose
+    init(model: WatchEmbedPreviewModel, loadAudio: ((WatchEmbedPreviewModel) async throws -> Data)? = nil, loadHistory: ((WatchEmbedPreviewModel) -> EmbedVersionHistorySession?)? = nil, onOpenDevice: @escaping (WatchEmbedPreviewModel) -> Void, onClose: @escaping () -> Void) {
+        self.model = model; self.loadAudio = loadAudio; self.loadHistory = loadHistory; self.onOpenDevice = onOpenDevice; self.onClose = onClose
         markdown = WatchMarkdownParser.blocks(model.detailContent.text ?? "").map(WatchRenderedMarkdownBlock.init)
     }
 
@@ -397,6 +402,9 @@ struct WatchEmbedFullscreenView: View {
                 .zIndex(1)
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: .spacing3) {
+                        if versionHistory.requiresVersionContent {
+                            EmbedHistoricalVersionContent(history: versionHistory)
+                        } else {
                         if model.family == .audioRecording || model.family == .audio {
                             WatchAudioPlaybackControl(model: model, loadAudio: loadAudio, fullscreen: true)
                                 // Keep the player clear of the pinned close
@@ -441,6 +449,12 @@ struct WatchEmbedFullscreenView: View {
                             Text(WatchLocalization.text("embeds.watch_preview_unavailable")).font(.omSmall)
                                 .accessibilityIdentifier("watch-embed-fullscreen-unavailable")
                         }
+                        }
+                        if model.currentVersion > 1 {
+                            EmbedVersionHistoryTimeline(history: versionHistory, reopen: {
+                                await versionHistory.open(embedID: model.id, currentVersion: model.currentVersion, session: loadHistory?(model))
+                            })
+                        }
                         Button { onOpenDevice(model) } label: {
                             Text(WatchLocalization.text("watch.hub.open_on_phone"))
                                 .font(.omSmall.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 34)
@@ -455,11 +469,16 @@ struct WatchEmbedFullscreenView: View {
             .padding(.spacing3).background(Color.grey0).foregroundStyle(Color.fontPrimary)
             .accessibilityHidden(child != nil).allowsHitTesting(child == nil)
             if let child {
-                WatchEmbedFullscreenView(model: child, loadAudio: loadAudio, onOpenDevice: onOpenDevice, onClose: { self.child = nil })
+                WatchEmbedFullscreenView(model: child, loadAudio: loadAudio, loadHistory: loadHistory, onOpenDevice: onOpenDevice, onClose: { self.child = nil })
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.grey0).ignoresSafeArea(edges: .top)
         .environment(\.colorScheme, .dark)
+        .task(id: "\(model.id):\(model.currentVersion)") {
+            guard model.currentVersion > 1 else { versionHistory.reset(); return }
+            await versionHistory.open(embedID: model.id, currentVersion: model.currentVersion, session: loadHistory?(model))
+        }
+        .onDisappear { versionHistory.reset() }
         .onChange(of: model.detailContent.children) { _, updated in
             if let id = child?.id, let refreshed = updated.first(where: { $0.id == id }) { child = refreshed }
         }

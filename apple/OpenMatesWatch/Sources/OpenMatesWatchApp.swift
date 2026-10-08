@@ -7,7 +7,8 @@
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.registration.lifecycle
 // Specification: specifications/features/apple-watch/specification.yml
-// Assertions: apple-watch.tasks.edit-private, apple-watch.workflows.compact-editor
+// Assertions: apple-watch.tasks.edit-private, apple-watch.workflows.compact-editor,
+//             apple-watch.pairing.iphone-first-fallback, apple-watch.hub.compact-navigation
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/Header.svelte
@@ -33,6 +34,7 @@ struct OpenMatesWatchApp: App {
 
     var body: some Scene {
         WindowGroup {
+            Group {
             #if DEBUG && targetEnvironment(simulator)
             if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-workflow-save-failure") {
                 WatchWorkflowUITestFixtureView(failFirstSave: true)
@@ -102,6 +104,8 @@ struct OpenMatesWatchApp: App {
                     selectedChatId: nil,
                     initialSearchText: "no matching chat"
                 )
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-pair-initiating") {
+                WatchPairLoginView(authStore: WatchAuthStore(), uiTestFixture: .initiating)
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-pair-waiting") {
                 WatchPairLoginView(authStore: WatchAuthStore(), uiTestFixture: .iphoneConfirm)
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-pair-cloud-short-url") {
@@ -116,6 +120,8 @@ struct OpenMatesWatchApp: App {
                 WatchPairLoginView(authStore: WatchAuthStore(), uiTestFixture: .selfHostedInitiationFailed)
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-pair-code-entry") {
                 WatchPairLoginView(authStore: WatchAuthStore(), uiTestFixture: .pairCodeEntry)
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-refresh") {
+                WatchChatRefreshUITestFixtureView()
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-hub-lists") {
                 WatchHubUITestFixtureView()
             } else {
@@ -123,6 +129,16 @@ struct OpenMatesWatchApp: App {
             }
 #else
             WatchRootView()
+#endif
+            }
+            // Every route, including loading and pairing, keeps the Watch
+            // appearance black regardless of the paired iPhone system theme.
+            .foregroundStyle(WatchWorkspacePalette.foreground)
+            .background(WatchWorkspacePalette.background.ignoresSafeArea())
+            .preferredColorScheme(.dark)
+#if DEBUG && targetEnvironment(simulator)
+            // Exercise production colors with an inherited light scheme too.
+            .environment(\.colorScheme, ProcessInfo.processInfo.arguments.contains("--ui-test-watch-light-scheme") ? .light : .dark)
 #endif
         }
     }
@@ -356,6 +372,7 @@ private struct WatchHubUITestFixtureView: View {
             currentUserId: WatchWorkflowDetailFixtures.accountID,
             currentAccountID: { WatchWorkflowDetailFixtures.accountID },
             fixtureTasks: Self.tasks,
+            fixtureTasksError: ProcessInfo.processInfo.arguments.contains("--ui-test-watch-hub-offline"),
             fixtureWorkflows: [
                 WatchWorkflowListItem(
                     id: "workflow-one", title: "Weekly AI events", enabled: true,
@@ -373,6 +390,7 @@ private struct WatchHubUITestFixtureView: View {
             onOpenSettings: {},
             onCreate: { _ in }
         )
+        .environment(\.colorScheme, ProcessInfo.processInfo.arguments.contains("--ui-test-watch-light-scheme") ? .light : .dark)
         .overlay(alignment: .bottom) {
             if let openedItem {
                 Text("\(openedItem.kind.rawValue):\(openedItem.id)")

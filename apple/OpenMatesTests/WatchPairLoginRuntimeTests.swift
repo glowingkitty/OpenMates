@@ -339,7 +339,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         let watchSectionEnd = try XCTUnwrap(source.range(of: "#endif", range: delegateStart.upperBound..<source.endIndex))
         let delegateSource = source[delegateStart.lowerBound..<watchSectionEnd.lowerBound]
         XCTAssertTrue(delegateSource.contains("WatchPairLoginConnectivityPayload.parseApproval(message)"))
-        XCTAssertTrue(delegateSource.contains("bridge.approvalHandler?(approval)"))
+        XCTAssertTrue(delegateSource.contains("bridge.receiveApproval(approval)"))
         XCTAssertTrue(delegateSource.contains("WatchPairLoginConnectivityPayload.parseAcknowledgment(message)"))
         XCTAssertTrue(delegateSource.contains("bridge.acknowledgmentHandler?(acknowledgment)"))
     }
@@ -425,5 +425,324 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
 
     private func rawData(from key: SymmetricKey) -> Data {
         key.withUnsafeBytes { Data($0) }
+    }
+}
+
+
+#if os(iOS)
+// Supporting proof: real PhoneWatchLoginBridge, synthetic transport/time/account.
+@MainActor
+final class WatchPhonePairApprovalTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback,apple-watch.pairing.private-session
+    func testUnreachableAndAsynchronousErrorRetryWithoutReauthorizing() async throws {
+        let h = try Harness()
+        h.offer()
+        let flight = Task { try await h.bridge.approvePendingRequest(authManager: h.auth) }
+        await settle { h.bridge.hasPendingApproval }
+        XCTAssertEqual(h.authorizations, 1)
+        XCTAssertEqual(h.sends, 0)
+        XCTAssertNotNil(h.bridge.pendingRequest)
+        h.reachable = true
+        await settle { h.sends > 0 }
+        XCTAssertFalse(h.bridge.pinReceiptReceived)
+        XCTAssertTrue(h.bridge.hasPendingApproval)
+        h.delivers = true
+        await settle { h.bridge.pinReceiptReceived }
+        XCTAssertEqual(h.authorizations, 1)
+        XCTAssertNotNil(h.bridge.pendingRequest, "PIN receipt alone must not dismiss pairing")
+        h.status = "completed"
+        try await Task.sleep(for: .milliseconds(30))
+        XCTAssertTrue(h.bridge.hasPendingApproval, "Server completion precedes durable acknowledgement")
+        h.status = "acknowledged"
+        try await flight.value
+        XCTAssertEqual(h.bridge.completedRequestToken, "ABC123")
+        XCTAssertNil(h.bridge.pendingRequest)
+        XCTAssertFalse(h.bridge.hasPendingApproval)
+        XCTAssertEqual(h.remoteCancellations, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback,apple-watch.pairing.private-session
+    func testLostPINReplyAfterWatchAuthenticationCompletesViaBoundedReceiptReplay() async throws {
+        let h = try Harness()
+        h.reachable = true
+        h.dropsFirstReceipt = true
+        h.offer()
+        let flight = Task { try await h.bridge.approvePendingRequest(authManager: h.auth) }
+        await settle { h.receipts.count == 1 }
+        XCTAssertEqual(h.status, "acknowledged")
+        XCTAssertTrue(h.bridge.hasPendingApproval, "Server acknowledgement alone cannot replace PIN receipt")
+        XCTAssertFalse(h.bridge.pinReceiptReceived)
+        XCTAssertEqual(h.authorizations, 1)
+        XCTAssertEqual(h.sends, 2)
+        // The second send matched the same production receiver receipt cache;
+        // it reapplied neither the PIN nor PAKE. Release that cached receipt.
+        h.receipts[0]("ABC123")
+        try await flight.value
+        XCTAssertEqual(h.bridge.completedRequestToken, "ABC123")
+        XCTAssertEqual(h.authorizations, 1)
+        XCTAssertNil(h.bridge.pendingRequest)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback,apple-watch.pairing.private-session
+    func testConcurrentAcceptWaitsForOneApprovalAndOneCompletion() async throws {
+        let h = try Harness()
+        h.offer()
+        let first = Task { try await h.bridge.approvePendingRequest(authManager: h.auth) }
+        await settle { h.bridge.hasPendingApproval }
+        let second = Task { try await h.bridge.approvePendingRequest(authManager: h.auth) }
+        try await Task.sleep(for: .milliseconds(30))
+        XCTAssertEqual(h.authorizations, 1)
+        h.reachable = true
+        h.delivers = true
+        h.status = "acknowledged"
+        try await first.value
+        try await second.value
+        XCTAssertEqual(h.authorizations, 1)
+        XCTAssertEqual(h.bridge.completedRequestToken, "ABC123")
+        XCTAssertEqual(h.remoteCancellations, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback,apple-watch.pairing.private-session
+    func testWrongAndLateReceiptCannotClearReplacementApproval() async throws {
+        let h = try Harness()
+        h.reachable = true
+        h.holdsReply = true
+        h.offer()
+        let oldFlight = Task { try await h.bridge.approvePendingRequest(authManager: h.auth) }
+        await settle { h.receipts.count == 1 }
+        let oldReply = h.receipts[0]
+        oldReply("DEF456")
+        XCTAssertFalse(h.bridge.pinReceiptReceived)
+        await settle { h.receipts.count >= 2 }
+        let delayed = h.receipts[1]
+        h.offer(token: "DEF456")
+        let newFlight = Task { try await h.bridge.approvePendingRequest(authManager: h.auth) }
+        await settle { h.authorizations == 2 && h.receipts.count >= 3 }
+        delayed("ABC123")
+        XCTAssertFalse(h.bridge.pinReceiptReceived)
+        XCTAssertEqual(h.bridge.pendingRequest?.token, "DEF456")
+        h.receipts.last?("DEF456")
+        XCTAssertTrue(h.bridge.pinReceiptReceived)
+        h.receipts.last?("DEF456")
+        XCTAssertTrue(h.bridge.pinReceiptReceived, "Duplicate receipt is idempotent")
+        h.status = "acknowledged"
+        try await newFlight.value
+        do { try await oldFlight.value; XCTFail("Replaced request must fail") } catch {}
+        XCTAssertEqual(h.bridge.completedRequestToken, "DEF456")
+        XCTAssertEqual(h.authorizations, 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback,apple-watch.pairing.private-session
+    func testBackendExpiryLogoutCancelAndProfileFenceWipeApproval() async throws {
+        for fence in ["expiry", "logout", "cancel", "profile", "account"] {
+            let h = try Harness()
+            h.offer()
+            let flight = Task { try await h.bridge.approvePendingRequest(authManager: h.auth) }
+            await settle { h.bridge.hasPendingApproval }
+            switch fence {
+            case "expiry": h.now = h.expiresAt
+            case "logout": h.auth.state = .unauthenticated
+            case "cancel": h.bridge.denyPendingRequest()
+            case "profile": h.profile = .production
+            default: h.auth.currentUser = try Harness.user("other-fixture-user")
+            }
+            await settle { !h.bridge.hasPendingApproval && h.bridge.pendingRequest == nil }
+            h.reachable = true
+            h.delivers = true
+            do { try await flight.value; XCTFail("Fenced request must fail: \(fence)") } catch {}
+            XCTAssertEqual(h.sends, 0, fence)
+            XCTAssertNil(h.bridge.completedRequestToken, fence)
+            await settle { h.remoteCancellations >= 1 }
+            XCTAssertEqual(h.authorizations, 1, fence)
+            await settle { h.relayCancelled }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback,apple-watch.pairing.private-session
+    func testTransientAuthorizerPollErrorKeepsApprovalUntilMatchingReceiptAndAck() async throws {
+        let h = try Harness()
+        h.reachable = true
+        h.delivers = true
+        h.pollFails = true
+        h.offer()
+        let flight = Task { try await h.bridge.approvePendingRequest(authManager: h.auth) }
+        await settle { h.bridge.pinReceiptReceived && h.polls >= 2 }
+        XCTAssertTrue(h.bridge.hasPendingApproval)
+        XCTAssertNotNil(h.bridge.pendingRequest)
+        h.pollFails = false
+        h.status = "acknowledged"
+        try await flight.value
+        XCTAssertEqual(h.authorizations, 1)
+        XCTAssertEqual(h.sends, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
+    func testReceiverRejectsMalformedPINAndStaleAttemptAndReceiptContainsNoPIN() {
+        let approval = WatchPairLoginApproval(token: "ABC123", pin: "ABC346")
+        for status in [PairLoginStatus.waiting, .ready] {
+            XCTAssertTrue(WatchPairLoginConnectivityPayload.canReceiveApproval(approval, token: "ABC123", status: status))
+        }
+        XCTAssertFalse(WatchPairLoginConnectivityPayload.canReceiveApproval(approval, token: "DEF456", status: .ready))
+        XCTAssertFalse(WatchPairLoginConnectivityPayload.canReceiveApproval(
+            WatchPairLoginApproval(token: "ABC123", pin: "123456"), token: "ABC123", status: .ready))
+        for status in [PairLoginStatus.failed, .expired, .generating] {
+            XCTAssertFalse(WatchPairLoginConnectivityPayload.canReceiveApproval(approval, token: "ABC123", status: status))
+        }
+        let receipt = WatchPairLoginConnectivityPayload.approvalReceiptMessage(token: "ABC123")
+        XCTAssertEqual(WatchPairLoginConnectivityPayload.parseApprovalReceipt(receipt), "ABC123")
+        XCTAssertNil(receipt["pin"])
+        XCTAssertFalse(WatchPairLoginConnectivityPayload.containsForbiddenSecretKeys(receipt))
+        var corrupt = receipt
+        corrupt["pin"] = "ABC346"
+        XCTAssertNil(WatchPairLoginConnectivityPayload.parseApprovalReceipt(corrupt))
+    }
+
+    private func settle(_ predicate: () -> Bool, file: StaticString = #filePath, line: UInt = #line) async {
+        for _ in 0..<500 {
+            if predicate() { return }
+            try? await Task.sleep(for: .milliseconds(2))
+        }
+        XCTAssertTrue(predicate(), "Expected bridge transition", file: file, line: line)
+    }
+
+    @MainActor private final class Harness {
+        let auth = AuthManager()
+        private(set) var bridge: PhoneWatchLoginBridge!
+        var now = 10_000
+        var expiresAt = 10_030
+        var profile = ServerProfile.development
+        var reachable = false
+        var delivers = false
+        var holdsReply = false
+        var dropsFirstReceipt = false
+        var receiverReceipt = WatchPairApprovalReceiptCache()
+        var pollFails = false
+        var status = "approved"
+        var authorizations = 0
+        var sends = 0
+        var polls = 0
+        var remoteCancellations = 0
+        var relayCancelled = false
+        var receipts: [@MainActor (String?) -> Void] = []
+
+        static func user(_ id: String) throws -> UserProfile {
+            let data = try JSONSerialization.data(withJSONObject: ["id": id, "username": "pair-fixture"])
+            return try JSONDecoder().decode(UserProfile.self, from: data)
+        }
+
+        init() throws {
+            auth.currentUser = try Self.user("pair-fixture-user")
+            auth.state = .authenticated
+            var dependencies = PhoneWatchPairDependencies()
+            dependencies.usesConnectivity = false
+            dependencies.offersNotification = false
+            dependencies.profile = { [weak self] in self?.profile ?? .development }
+            dependencies.now = { [weak self] in self?.now ?? 0 }
+            dependencies.reachable = { [weak self] in self?.reachable ?? false }
+            dependencies.authorize = { [weak self] _, _ in
+                guard let self else { throw CancellationError() }
+                self.authorizations += 1
+                let relay = Task { [weak self] in
+                    do { try await Task.sleep(for: .seconds(60)) } catch {}
+                    self?.relayCancelled = Task.isCancelled
+                }
+                return PairV2Authorization(pin: "ABC346", expiresAt: self.expiresAt, relayTask: relay)
+            }
+            dependencies.poll = { [weak self] _ in
+                guard let self else { throw CancellationError() }
+                self.polls += 1
+                if self.pollFails { throw URLError(.networkConnectionLost) }
+                return PairV2AuthorizerPoll(status: self.status, expiresAt: self.expiresAt,
+                                           receiverRequest: nil, receiverFinish: nil)
+            }
+            dependencies.cancel = { [weak self] _ in self?.remoteCancellations += 1 }
+            dependencies.send = { [weak self] approval, completion in
+                guard let self else { completion(nil); return }
+                self.sends += 1
+                if self.dropsFirstReceipt {
+                    if self.sends == 1 {
+                        guard self.receiverReceipt.remember(approval, profile: .development,
+                            expiresAt: self.expiresAt, now: self.now) else { completion(nil); return }
+                        self.status = "acknowledged"
+                        completion(nil)
+                    } else if self.receiverReceipt.matches(approval, profile: .development, now: self.now) {
+                        self.receipts.append(completion)
+                    } else { completion(nil) }
+                } else if self.holdsReply { self.receipts.append(completion) }
+                else { completion(self.delivers ? approval.token : nil) }
+            }
+            dependencies.pause = { try await Task.sleep(for: .milliseconds(10)) }
+            bridge = PhoneWatchLoginBridge(dependencies: dependencies)
+            bridge.start(isAuthenticated: { [weak self] in self?.auth.state == .authenticated })
+        }
+
+        func offer(token: String = "ABC123") {
+            bridge.receive(WatchPairLoginRequest(token: token,
+                pairURLString: "https://app.dev.openmates.org/#pair=\(token)", deviceName: "Fixture Watch",
+                serverProfile: .development, createdAt: now))
+        }
+    }
+}
+#endif
+
+
+// Supporting policy proof used by the Watch bridge after releasing its view.
+@MainActor
+final class WatchPairApprovalReceiptCacheTests: XCTestCase {
+    private let original = WatchPairLoginApproval(token: "ABC123", pin: "ABC346")
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback,apple-watch.pairing.private-session
+    func testAcceptedReceiptReplaysOnlyIdenticalTokenPINAndServer() {
+        var cache = WatchPairApprovalReceiptCache()
+        XCTAssertFalse(cache.matches(original, profile: .development, now: 10))
+        XCTAssertTrue(cache.remember(original, profile: .development, expiresAt: 100, now: 10))
+        XCTAssertTrue(cache.matches(original, profile: .development, now: 99))
+        XCTAssertFalse(cache.matches(WatchPairLoginApproval(token: "DEF456", pin: original.pin), profile: .development, now: 20))
+        XCTAssertFalse(cache.matches(WatchPairLoginApproval(token: original.token, pin: "DEF346"), profile: .development, now: 20))
+        XCTAssertFalse(cache.matches(original, profile: .production, now: 20))
+        XCTAssertFalse(cache.remember(WatchPairLoginApproval(token: original.token, pin: "DEF346"),
+                                     profile: .development, expiresAt: 100, now: 20))
+        XCTAssertTrue(cache.matches(original, profile: .development, now: 20))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
+    func testActualExpiryCannotExtendOrReviveReceipt() {
+        var cache = WatchPairApprovalReceiptCache()
+        XCTAssertFalse(cache.remember(original, profile: .development, expiresAt: 10, now: 10))
+        XCTAssertNil(cache.expiresAt)
+        XCTAssertTrue(cache.remember(original, profile: .development, expiresAt: 100, now: 10))
+        XCTAssertFalse(cache.remember(original, profile: .development, expiresAt: 200, now: 20),
+                       "A late duplicate cannot replace backend expiry with arrival TTL")
+        XCTAssertEqual(cache.expiresAt, 100)
+        XCTAssertFalse(cache.matches(original, profile: .development, now: 100))
+        cache.prune(profile: .development, now: 100)
+        XCTAssertNil(cache.expiresAt)
+        XCTAssertFalse(cache.matches(original, profile: .development, now: 99), "Expired receipt cannot revive")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
+    func testReplacementLogoutAndProfileChangeDiscardPreviouslyAcceptedReceipt() {
+        var cache = WatchPairApprovalReceiptCache()
+        XCTAssertTrue(cache.remember(original, profile: .development, expiresAt: 100, now: 10))
+        cache.clear() // Production bridge new-attempt/logout hooks use this operation.
+        XCTAssertFalse(cache.matches(original, profile: .development, now: 20))
+        let replacement = WatchPairLoginApproval(token: "DEF456", pin: "DEF346")
+        XCTAssertTrue(cache.remember(replacement, profile: .development, expiresAt: 90, now: 20))
+        XCTAssertFalse(cache.matches(original, profile: .development, now: 20))
+        XCTAssertTrue(cache.matches(replacement, profile: .development, now: 20))
+        cache.prune(profile: .production, now: 20)
+        XCTAssertNil(cache.expiresAt)
+        XCTAssertFalse(cache.matches(replacement, profile: .development, now: 20))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
+    func testServerEquivalenceAndMalformedPINRespectExistingContract() {
+        var cache = WatchPairApprovalReceiptCache()
+        XCTAssertFalse(cache.remember(WatchPairLoginApproval(token: "ABC123", pin: "123456"),
+                                     profile: .development, expiresAt: 100, now: 10))
+        XCTAssertTrue(cache.remember(original, profile: .custom(domain: "app.dev.openmates.org"), expiresAt: 100, now: 10))
+        XCTAssertTrue(cache.matches(original, profile: .development, now: 20))
+        cache.prune(profile: .development, now: 20)
+        XCTAssertEqual(cache.expiresAt, 100)
     }
 }

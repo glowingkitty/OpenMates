@@ -2882,6 +2882,7 @@
     }
   },
   "apps_workspace": {},
+  "artifact_history": {},
   "audio": {
     "playback_progress": {
       "text": "Tiến độ phát lại âm thanh"
@@ -3152,6 +3153,9 @@
       "privacy_personal_data": {
         "text": "quyền riêng tư & dữ liệu cá nhân"
       }
+    },
+    "open_chat": {
+      "text": "Mở trò chuyện"
     },
     "new_chat": {
       "text": "Trò chuyện mới"
@@ -4205,6 +4209,9 @@
       "text": "Lịch sử chat"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "Cá nhân và tất cả nhóm"
+      },
       "placeholder": {
         "text": "Tìm kiếm cuộc trò chuyện và cài đặt..."
       },

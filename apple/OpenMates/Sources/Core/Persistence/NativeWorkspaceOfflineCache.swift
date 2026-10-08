@@ -86,6 +86,13 @@ actor NativeWorkspaceOfflineCache {
             in: .userDomainMask)[0].appendingPathComponent("OpenMates/workspace-ciphertext", isDirectory: true)
     }
 
+    func purge(scope: NativeWorkspaceOfflineScope) throws {
+        // Namespace contains recoverable server snapshots, never send journals.
+        let url = directory.appendingPathComponent(scope.directoryID, isDirectory: true)
+        if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+        if activeScope?.directoryID == scope.directoryID { snapshots.removeAll(); revisions.removeAll() }
+    }
+
     func configure(scope: NativeWorkspaceOfflineScope, masterKey: SymmetricKey) {
         if activeScope == scope, key == masterKey { return }
         activeScope = scope
@@ -535,5 +542,270 @@ enum NativeWorkspaceOfflineRuntime {
         pauseMaintenance()
         maintenancePolicy.reset()
         await NativeWorkspaceOfflineCache.shared.deactivate()
+    }
+}
+
+/// Refresh all readable contexts without selecting them or invalidating the
+/// foreground cache actor. This only reads explicit account/Team routes.
+@MainActor
+enum TeamWorkspaceOfflineRetention {
+    static let chatMetadataChanged = Notification.Name("OpenMates.allContextChatMetadataChanged")
+    private static var task: Task<Void, Never>?
+    private static var operation = UUID()
+
+    typealias Transport = @MainActor (String, TeamWorkspaceFence) async throws -> Data
+    typealias Membership = @MainActor (String, TeamWorkspaceFence) async throws -> TeamWorkspaceTeam
+
+    static func refresh(fence: TeamWorkspaceFence, teams: [TeamWorkspaceTeam], removedIDs: Set<String>) {
+        task?.cancel()
+        let token = UUID(); operation = token
+        task = Task(priority: .utility) {
+            do {
+                try await fence.check()
+                guard let key = try await CryptoManager.shared.loadMasterKey(for: fence.accountID) else { return }
+                try await retain(fence: fence, teams: teams, removedIDs: removedIDs, masterKey: key,
+                    cache: NativeWorkspaceOfflineCache(), transport: { path, fence in
+                        try await APIClient.shared.request(.get, path: path, serverProfile: fence.server,
+                            expectedAccountID: fence.accountID, expectedScope: fence.scope)
+                    }, membership: { id, fence in try await TeamWorkspaceService().getTeam(id, fence: fence) },
+                    isCurrent: { operation == token }, revoke: { id, fence in
+                        await TeamWorkspaceContext.shared.revokeCachedTeam(id, fence: fence)
+                    }, publishChats: { rows, fence in
+                        try await fence.check()
+                        OfflineStore.shared.persistChats(rows)
+                        NotificationCenter.default.post(name: chatMetadataChanged, object: nil,
+                            userInfo: ["accountID": fence.accountID, "scope": fence.scope, "server": fence.server])
+                    })
+            } catch { /* Offline or scope changed: previous ciphertext remains intact. */ }
+            if operation == token { task = nil }
+        }
+    }
+
+    /// Injectable reader; tests use private directories and transports only. The
+    /// foreground singleton is never reconfigured by the all-context traversal.
+    static func retain(fence: TeamWorkspaceFence, teams: [TeamWorkspaceTeam], removedIDs: Set<String>,
+                       masterKey: SymmetricKey, cache: NativeWorkspaceOfflineCache,
+                       transport: @escaping Transport, membership: @escaping Membership,
+                       isCurrent: @escaping @MainActor () -> Bool = { true },
+                       revoke: @escaping @MainActor (String, TeamWorkspaceFence) async -> Void = { _, _ in },
+                       publishChats: @escaping @MainActor ([Chat], TeamWorkspaceFence) async throws -> Void = { _, _ in }) async throws {
+        let readable = Set(teams.filter(\.canRead).map(\.id))
+        func check() async throws {
+            try await fence.check(); try Task.checkCancellation()
+            guard isCurrent() else { throw CancellationError() }
+        }
+        for id in removedIDs { try await check(); try await cache.purge(scope: scope(teamID: id, fence: fence)) }
+        for id in [String?.none] + readable.sorted().map(Optional.some) {
+            try await check()
+            let captured = scope(teamID: id, fence: fence)
+            do {
+                if let id { guard try await membership(id, fence).canRead else { throw TeamWorkspaceError.unavailableTeam } }
+                await cache.configure(scope: captured, masterKey: masterKey)
+                let namespaces = ["chat-metadata", "workflows", "user-tasks", "user-plans", "projects"] + (id == nil ? [] : ["team-management", "team-summary", "team-images"])
+                for namespace in namespaces {
+                    try await check()
+                    do {
+                        let currentTeam: TeamWorkspaceTeam?
+                        if let id { currentTeam = try await membership(id, fence) } else { currentTeam = nil }
+                        let revision = try await cache.beginRefresh(namespace: namespace, scope: captured)
+                        let responses = try await collect(namespace: namespace, teamID: id, fence: fence, transport: transport, managementTeam: currentTeam)
+                        try await check()
+                        if let id {
+                            let authorized = try await membership(id, fence)
+                            guard authorized.canRead else { throw TeamWorkspaceError.unavailableTeam }
+                            if ["team-management", "team-summary"].contains(namespace), authorized.role != currentTeam?.role { throw CancellationError() }
+                        }
+                        try await cache.commit(namespace: namespace, responses: responses, scope: captured, revision: revision,
+                            complete: namespace != "chat-metadata")
+                        if namespace == "chat-metadata", let data = responses.values.first {
+                            try await check()
+                            try await publishChats(decodeChatMetadata(data, teamID: id), fence)
+                        }
+                    } catch {
+                        try await check()
+                        if isRevocation(error), let id {
+                            // A role-only endpoint denial does not revoke readable
+                            // membership. Only the authoritative membership read can.
+                            do {
+                                guard try await membership(id, fence).canRead else { throw TeamWorkspaceError.unavailableTeam }
+                            } catch {
+                                if isRevocation(error) {
+                                    try await cache.purge(scope: captured); await revoke(id, fence); break
+                                }
+                                throw error
+                            }
+                        }
+                        // Other namespace failures leave the previous complete blob.
+                    }
+                    await Task.yield()
+                }
+            } catch {
+                try await check()
+                if isRevocation(error), let id {
+                    try await cache.purge(scope: captured); await revoke(id, fence)
+                }
+            }
+        }
+    }
+
+    /// The native REST chat list is a bounded authorized metadata page, not a
+    /// complete account history receipt. Its wrappers are scoped by the server.
+    static func decodeChatMetadata(_ data: Data, teamID: String?) throws -> [Chat] {
+        guard let raw = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let rows = raw["chats"] as? [[String: Any]], rows.count <= 100 else { throw TeamWorkspaceError.invalidResponse }
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        var seen: Set<String> = []
+        return try rows.map { source in
+            guard let id = source["id"] as? String, !id.isEmpty, seen.insert(id).inserted,
+                  source["team_id"] == nil || source["team_id"] is NSNull || source["team_id"] as? String == teamID else { throw TeamWorkspaceError.invalidResponse }
+            var row = source
+            if let teamID { row["team_id"] = teamID } else { row.removeValue(forKey: "team_id") }
+            let chatHash = ChatKeyWrapperRecord.hashedChatId(for: id)
+            let recipientHash = teamID.map { SHA256.hash(data: Data($0.utf8)).map { String(format: "%02x", $0) }.joined() }
+            let wrappers = (source["chat_key_wrappers"] as? [[String: Any]] ?? []).filter { wrapper in
+                (wrapper["hashed_chat_id"] as? String) == chatHash &&
+                    (wrapper["key_type"] as? String) == (teamID == nil ? "master" : "team") &&
+                    (recipientHash == nil || wrapper["hashed_team_id"] as? String == recipientHash) &&
+                    ((wrapper["expires_at"] as? Double).map { $0 > Date().timeIntervalSince1970 } ?? true)
+            }.sorted { left, right in
+                let l = (left["team_key_epoch"] as? Int ?? 0, left["wrapper_version"] as? Int ?? 0, left["id"] as? String ?? "")
+                let r = (right["team_key_epoch"] as? Int ?? 0, right["wrapper_version"] as? Int ?? 0, right["id"] as? String ?? "")
+                return l > r
+            }
+            if let encrypted = wrappers.first?["encrypted_chat_key"] as? String { row["encrypted_chat_key"] = encrypted }
+            // No plaintext title/profile is accepted into this background cache.
+            for key in ["title", "category", "icon", "chat_summary"] { row.removeValue(forKey: key) }
+            return try decoder.decode(Chat.self, from: JSONSerialization.data(withJSONObject: row))
+        }
+    }
+
+    private static func isRevocation(_ error: Error) -> Bool {
+        if case TeamWorkspaceError.unavailableTeam = error { return true }
+        if case APIError.httpError(let status, _) = error { return [401, 403, 404].contains(status) }
+        return false
+    }
+
+    private static func scope(teamID: String?, fence: TeamWorkspaceFence) -> NativeWorkspaceOfflineScope {
+        .init(accountID: fence.accountID, server: fence.server.apiBaseURL.absoluteString,
+            teamID: teamID, accountGeneration: fence.scope, teamEpoch: TeamWorkspaceContext.shared.contextEpoch)
+    }
+
+    private static func get(_ path: String, teamID: String?, fence: TeamWorkspaceFence, transport: @escaping Transport) async throws -> Data {
+        try await fence.check(); try Task.checkCancellation()
+        let scopedPath = UserTasksPaths.scoped(path, teamID: teamID)
+        let captured = scope(teamID: teamID, fence: fence)
+        let identity = captured.directoryID + captured.accountGeneration.uuidString + String(captured.teamEpoch) + scopedPath
+        let data = try await NativeWorkspaceRequestFlights.shared.perform(identity: identity) {
+            try await transport(scopedPath, fence)
+        }
+        try await fence.check(); try Task.checkCancellation()
+        return data
+    }
+
+    private static func paged(_ base: String, collection: String, idKey: String,
+                              teamID: String?, fence: TeamWorkspaceFence, transport: @escaping Transport) async throws -> Data {
+        var pages = NativeWorkspaceInventoryPages()
+        repeat {
+            var path = base + "?paginate=true&limit=500"
+            if let cursor = pages.nextCursor { path += "&cursor=" + UserTasksPaths.escaped(cursor) }
+            try pages.append(await get(path, teamID: teamID, fence: fence, transport: transport), collection: collection, idKey: idKey)
+        } while !pages.isComplete
+        return try pages.snapshot(collection: collection)
+    }
+
+    private static func collect(namespace: String, teamID: String?, fence: TeamWorkspaceFence, transport: @escaping Transport,
+                                managementTeam: TeamWorkspaceTeam? = nil) async throws -> [String: Data] {
+        if namespace == "chat-metadata" {
+            let path = UserTasksPaths.scoped("/v1/chats?limit=100&offset=0", teamID: teamID)
+            let data = try await get(path, teamID: nil, fence: fence, transport: transport)
+            _ = try decodeChatMetadata(data, teamID: teamID)
+            return [path: data]
+        }
+        if namespace == "team-management" {
+            guard let team = managementTeam, team.canRead else { throw TeamWorkspaceError.unavailableTeam }
+            let membersPath = SettingsTeamsService.path(team.id, suffix: "members")
+            let members = try await get(membersPath, teamID: nil, fence: fence, transport: transport)
+            guard let raw = try JSONSerialization.jsonObject(with: members) as? [String: Any], raw["members"] is [[String: Any]] else { throw TeamWorkspaceError.invalidResponse }
+            var responses = [membersPath: members]
+            if team.canManage {
+                let invitesPath = SettingsTeamsService.path(team.id, suffix: "invites")
+                let invites = try await get(invitesPath, teamID: nil, fence: fence, transport: transport)
+                guard let raw = try JSONSerialization.jsonObject(with: invites) as? [String: Any], raw["invites"] is [[String: Any]] else { throw TeamWorkspaceError.invalidResponse }
+                let detailPath = String(SettingsTeamsService.path(team.id, suffix: "").dropLast())
+                let detail = try await get(detailPath, teamID: nil, fence: fence, transport: transport)
+                guard let raw = try JSONSerialization.jsonObject(with: detail) as? [String: Any], raw["team"] is [String: Any] else { throw TeamWorkspaceError.invalidResponse }
+                responses[invitesPath] = invites; responses[detailPath] = detail
+            }
+            return responses
+        }
+        if namespace == "team-summary" {
+            guard let team = managementTeam, team.canRead else { throw TeamWorkspaceError.unavailableTeam }
+            let memoriesPath = SettingsTeamsService.path(team.id, suffix: "memories")
+            let memories = try await get(memoriesPath, teamID: nil, fence: fence, transport: transport)
+            guard let raw = try JSONSerialization.jsonObject(with: memories) as? [String: Any], raw["memories"] is [Any] else { throw TeamWorkspaceError.invalidResponse }
+            var responses = [memoriesPath: memories]
+            if team.canViewBilling {
+                let path = SettingsTeamsService.path(team.id, suffix: "billing")
+                let billing = try await get(path, teamID: nil, fence: fence, transport: transport)
+                guard let raw = try JSONSerialization.jsonObject(with: billing) as? [String: Any], raw["billing"] is [String: Any] else { throw TeamWorkspaceError.invalidResponse }
+                responses[path] = billing
+            }
+            return responses
+        }
+        if namespace == "team-images" {
+            guard let team = managementTeam, team.canRead else { throw TeamWorkspaceError.unavailableTeam }
+            let path = SettingsTeamsService.path(team.id, suffix: "profile-image")
+            guard team.profileImageMetadata.mode == "uploaded", team.profileImageMetadata.imageURL == path else { return [:] }
+            let data = try await get(path, teamID: nil, fence: fence, transport: transport)
+            guard data.count <= 5 * 1_024 * 1_024, NativeImageRaster.uprightImage(from: data) != nil else { throw TeamWorkspaceError.invalidResponse }
+            return [path: data]
+        }
+        let collection = ["workflows": "workflows", "user-tasks": "tasks", "user-plans": "plans", "projects": "projects"][namespace]!
+        let idKey = ["workflows": "id", "user-tasks": "task_id", "user-plans": "plan_id", "projects": "project_id"][namespace]!
+        let base = "/v1/" + namespace
+        let list: Data
+        if namespace == "user-tasks" || namespace == "user-plans" {
+            list = try await paged(base, collection: collection, idKey: idKey, teamID: teamID, fence: fence, transport: transport)
+        } else { list = try await get(base, teamID: teamID, fence: fence, transport: transport) }
+        guard let json = try JSONSerialization.jsonObject(with: list) as? [String: Any],
+              let rows = json[collection] as? [[String: Any]] else { throw TeamWorkspaceError.invalidResponse }
+        var responses = [UserTasksPaths.scoped(base, teamID: teamID): list]
+        for row in rows {
+            if let returnedTeam = row["team_id"] as? String, returnedTeam != teamID { throw TeamWorkspaceError.invalidResponse }
+            guard let id = row[idKey] as? String else { throw TeamWorkspaceError.invalidResponse }
+            let path = base + "/" + UserTasksPaths.escaped(id)
+            if namespace == "workflows" {
+                let detail = try await get(path, teamID: teamID, fence: fence, transport: transport)
+                guard let payload = try JSONSerialization.jsonObject(with: detail) as? [String: Any],
+                      let workflow = payload["workflow"] as? [String: Any], workflow["id"] as? String == id,
+                      workflow["current_version_id"] as? String == row["current_version_id"] as? String else { throw TeamWorkspaceError.invalidResponse }
+                responses[UserTasksPaths.scoped(path, teamID: teamID)] = detail
+            } else if namespace == "projects" {
+                for suffix in ["items", "sources", "settings"] {
+                    let route = path + "/" + suffix
+                    responses[UserTasksPaths.scoped(route, teamID: teamID)] = try NativeWorkspaceOfflineRuntime.sanitizedResponse(await get(route, teamID: teamID, fence: fence, transport: transport))
+                }
+            } else if namespace == "user-plans" {
+                for (suffix, name) in [("assumptions", "assumptions"), ("criteria", "criteria"), ("verification", "verifications"), ("reference-patterns", "reference_patterns")] {
+                    let route = path + "/" + suffix
+                    responses[UserTasksPaths.scoped(route, teamID: teamID)] = try await paged(route, collection: name, idKey: "id", teamID: teamID, fence: fence, transport: transport)
+                }
+            } else {
+                if teamID == nil {
+                    let route = path + "/dependencies"
+                    responses[route] = try await get(route, teamID: teamID, fence: fence, transport: transport)
+                }
+                var cursor: String?; var seen: Set<String> = []
+                repeat {
+                    let route = UserTasksPaths.activity(id, teamID: teamID, cursor: cursor)
+                    let page = try await get(route, teamID: nil, fence: fence, transport: transport)
+                    guard let raw = try JSONSerialization.jsonObject(with: page) as? [String: Any] else { throw TeamWorkspaceError.invalidResponse }
+                    responses[route] = page
+                    cursor = raw["next_cursor"] as? String
+                    if let cursor, !seen.insert(cursor).inserted { throw TeamWorkspaceError.invalidResponse }
+                } while cursor != nil
+            }
+        }
+        return responses
     }
 }

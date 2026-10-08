@@ -76,11 +76,6 @@ final class UpcomingMemoryLiveActivityBridge {
     private var notificationsEnabled = false
     private var configured = false
     private var isForeground = false
-    private var generation = UUID()
-    private var loading: Task<Void, Never>?
-    private lazy var service = SettingsMemoryService(liveActivitySnapshot: { [weak self] snapshot in
-        self?.accept(snapshot)
-    })
 
     /// Root calls this on authentication, account, server, team and opt-in changes.
     /// Authorization is checked again by the ActivityKit coordinator before use.
@@ -94,9 +89,6 @@ final class UpcomingMemoryLiveActivityBridge {
         let changed = !configured || next != currentScope || self.notificationsEnabled != notificationsEnabled
         guard changed else { return }
         configured = true
-        generation = UUID()
-        loading?.cancel(); loading = nil
-        service.cancel()
         entries = []; acceptedRevision = 0
         currentScope = next
         self.notificationsEnabled = notificationsEnabled
@@ -111,14 +103,10 @@ final class UpcomingMemoryLiveActivityBridge {
         isForeground = true
         if currentScope != nil && notificationsEnabled && acceptedRevision > 0 { reconcile() }
         startLoading()
-        if let loading { await loading.value }
     }
 
     func background() {
         isForeground = false
-        generation = UUID()
-        loading?.cancel(); loading = nil
-        service.cancel()
     }
 
     func accept(_ snapshot: SettingsMemoryLiveActivitySnapshot) {
@@ -131,16 +119,14 @@ final class UpcomingMemoryLiveActivityBridge {
 
     private func startLoading() {
         #if os(iOS)
-        guard isForeground, currentScope != nil, notificationsEnabled, loading == nil else { return }
-        let token = generation
-        loading = Task { [weak self] in
-            guard let self, !Task.isCancelled else { return }
-            await self.service.load()
-            guard self.generation == token else { return }
-            self.loading = nil
-        }
+        guard isForeground, currentScope != nil, notificationsEnabled else { return }
+        // Shared scoped inventory publishes unsanitized data only to Continue's
+        // RAM cache and sanitized timing-only data to this bridge.
+        WelcomeContinueService.shared.becameActive()
         #endif
     }
+
+    func reevaluateDates() { if isForeground { reconcile() } }
 
     private func reconcile() {
         UpcomingMemoryLiveActivityCoordinator.shared.reconcile(entries: entries,

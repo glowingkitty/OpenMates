@@ -272,7 +272,7 @@ final class WatchHubDataService: ObservableObject {
     private var backgroundSyncAllowed = false
     @Published private(set) var isSavingTask = false
 
-    init(userId: String?, fixtureTasks: [WatchTaskListItem]? = nil,
+    init(userId: String?, fixtureTasks: [WatchTaskListItem]? = nil, fixtureTasksError: Bool = false,
          fixtureWorkflows: [WatchWorkflowListItem]? = nil,
          currentAccountID: @escaping @MainActor @Sendable () -> String? = { nil },
          taskDependencies: WatchTaskDependencies? = nil,
@@ -287,6 +287,7 @@ final class WatchHubDataService: ObservableObject {
         taskProfile = ServerProfile.current()
         usesFixture = fixtureTasks != nil || fixtureWorkflows != nil
         tasks = fixtureTasks ?? []
+        tasksError = usesFixture && fixtureTasksError
         workflows = fixtureWorkflows ?? []
     }
 
@@ -598,5 +599,32 @@ final class WatchHubDataService: ObservableObject {
                 level: .warning, error: error
             )
         }
+    }
+}
+
+/// Arms only from actual positive top overscroll while a finger is tracking.
+/// Crown movement and downward scrolling from the middle cannot request refresh.
+struct WatchPullRefreshGesture {
+    static let threshold = 48.0
+    private(set) var isTracking = false
+    private(set) var isArmed = false
+
+    mutating func begin() {
+        guard !isTracking else { return }
+        isTracking = true
+        isArmed = false
+    }
+    mutating func observe(topOffset: Double) {
+        guard isTracking, topOffset.isFinite else { return }
+        if topOffset >= Self.threshold { isArmed = true }
+    }
+    mutating func release() -> Bool {
+        let refresh = isTracking && isArmed
+        cancel()
+        return refresh
+    }
+    mutating func cancel() {
+        isTracking = false
+        isArmed = false
     }
 }

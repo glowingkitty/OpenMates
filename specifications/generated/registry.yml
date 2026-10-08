@@ -302,7 +302,7 @@ specifications:
     version: 1
     status: draft
     path: features/apple-live-activities
-    fingerprint: 795cd1510219bed1fed33a0fe60a39dff623618d4ab58709be999332d9f81e66
+    fingerprint: d286f290e0c8089943a5ad7b87a64d88d64f265904148493d1838562f2935024
     required_applies_to:
     - gui.apple
   feature.apple-local-model-lab:
@@ -464,9 +464,10 @@ specifications:
     version: 1
     status: draft
     path: features/continue-carousel
-    fingerprint: d21998fd97820ba16ed29b4feb2e9792db7762fd79d7c630a04c60731fb9061b
+    fingerprint: 86edb596a5aef60389d65256bfca1ee992cd2bcddce55d77c0701dff0f0a5658
     required_applies_to:
     - gui.web
+    - gui.apple
   feature.daily-inspiration:
     version: 1
     status: approved
@@ -4098,7 +4099,7 @@ assertions:
     specification: feature.apple-live-activities@1
     specification_id: feature.apple-live-activities
     type: behavior
-    fingerprint: 19b8ae42d4e696dc511d5e082bee00f563c6470a5d1abe1bb524f594685f41b4
+    fingerprint: 3a010b830a2d4bee635dddfaaf9e1461351d13e7ec01a72baa63b4254a118b93
     required_applies_to:
     - gui.apple
   apple-live-activities.lifecycle.isolation:
@@ -5901,16 +5902,18 @@ assertions:
     specification: feature.continue-carousel@1
     specification_id: feature.continue-carousel
     type: behavior
-    fingerprint: 1d0fe20c2ab2b67b3060016162d2f4712f5b1b6e9305ecafcdb885e8295c81bf
+    fingerprint: f11dd4ed82a1ab9b4616e85ceb6d1764e4be0bc7ea31ccdff1070887356fcbac
     required_applies_to:
     - gui.web
+    - gui.apple
   continue-carousel.chat.reminder-gated:
     specification: feature.continue-carousel@1
     specification_id: feature.continue-carousel
     type: behavior
-    fingerprint: 4627ae98b38336cc0f39e9c17d76053789a204fa3ae5eb869c79c43ba447bf52
+    fingerprint: 327a9c4819f2d3cd5440ac6aebf875f7a1819b8cc15fe4c08e9c2f3af7e93fe5
     required_applies_to:
     - gui.web
+    - gui.apple
   daily-inspiration.authenticated-continuity:
     specification: feature.daily-inspiration@1
     specification_id: feature.daily-inspiration

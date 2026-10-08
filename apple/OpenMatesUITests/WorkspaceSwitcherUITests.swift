@@ -1,3 +1,5 @@
+// Specification: specifications/architecture/sync/specification.yml
+// Assertions: sync.surface.semantic-parity
 import XCTest
 
 @MainActor
@@ -7,6 +9,40 @@ final class WorkspaceSwitcherUITests: XCTestCase {
         #if os(iOS)
         XCUIDevice.shared.orientation = .portrait
         #endif
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chats.surface.semantic-parity
+    func testHeaderConnectionIconsStayBeforeProfileAndReconnectRemainsActionable() {
+        for state in ["offline", "reconnecting", "syncing"] {
+            let app = XCUIApplication()
+            app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-disable-auth-cache",
+                "--ui-test-connection-status", state, "-AppleLanguages", "(en)"]
+            app.launch()
+            let indicator = app.descendants(matching: .any).matching(identifier: "connection-status-indicator").firstMatch
+            XCTAssertTrue(indicator.waitForExistence(timeout: 15))
+            XCTAssertEqual(indicator.value as? String, state)
+            XCTAssertFalse(indicator.label.isEmpty)
+            let profile = app.buttons["settings-button"]
+            XCTAssertTrue(profile.waitForExistence(timeout: 5))
+            let beforeGeometry = XCTAttachment(screenshot: app.screenshot())
+            beforeGeometry.name = "header-connection-\(state)-before-geometry"
+            beforeGeometry.lifetime = .keepAlways; add(beforeGeometry)
+            let accessibility = XCTAttachment(string: app.debugDescription)
+            accessibility.name = "header-connection-\(state)-accessibility"
+            accessibility.lifetime = .keepAlways; add(accessibility)
+            XCTAssertEqual(indicator.frame.width, 30, accuracy: 1)
+            XCTAssertEqual(indicator.frame.height, 30, accuracy: 1)
+            XCTAssertLessThanOrEqual(indicator.frame.maxX, profile.frame.minX)
+            if state == "reconnecting" {
+                let retry = app.buttons["connection-status-retry"]
+                XCTAssertTrue(retry.isHittable, "Actual reconnect action retains its header hit target")
+                retry.tap()
+                XCTAssertTrue(indicator.exists, "Explicit retry cannot hide a still-broken connection")
+            }
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "header-connection-\(state)"; screenshot.lifetime = .keepAlways; add(screenshot)
+            app.terminate()
+        }
     }
 
     // contract-test: direct surface=gui.apple assertions=workspace-shell.nav.released-surfaces-visible

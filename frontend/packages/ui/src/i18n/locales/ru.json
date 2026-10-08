@@ -2882,6 +2882,7 @@
     }
   },
   "apps_workspace": {},
+  "artifact_history": {},
   "audio": {
     "playback_progress": {
       "text": "Прогресс воспроизведения аудио"
@@ -3152,6 +3153,9 @@
       "privacy_personal_data": {
         "text": "конфиденциальность и личные данные"
       }
+    },
+    "open_chat": {
+      "text": "Открыть чат"
     },
     "new_chat": {
       "text": "Новый чат"
@@ -4205,6 +4209,9 @@
       "text": "История чатов"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "Личное и все команды"
+      },
       "placeholder": {
         "text": "Поиск чатов и настроек..."
       },

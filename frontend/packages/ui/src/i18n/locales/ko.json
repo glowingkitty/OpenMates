@@ -2882,6 +2882,7 @@
     }
   },
   "apps_workspace": {},
+  "artifact_history": {},
   "audio": {
     "playback_progress": {
       "text": "오디오 재생 진행 상황"
@@ -3152,6 +3153,9 @@
       "privacy_personal_data": {
         "text": "개인정보 및 데이터"
       }
+    },
+    "open_chat": {
+      "text": "채팅 열기"
     },
     "new_chat": {
       "text": "새 채팅"
@@ -4205,6 +4209,9 @@
       "text": "채팅 기록"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "개인 및 모든 팀"
+      },
       "placeholder": {
         "text": "채팅 및 설정 검색..."
       },

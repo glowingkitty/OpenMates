@@ -1,3 +1,5 @@
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.versions.metadata-and-payload, storage.versions.bounded-reconstruction
 // Watch chat list, transcript, and composer shell.
 // Provides the dark Watch-native chat surface for the standalone watchOS client
 // without using stock List/Form/navigation chrome. Runtime state is supplied by
@@ -15,7 +17,8 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/apple-watch/specification.yml
-// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.compact-layout
+// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.compact-layout,
+//             apple-watch.pairing.iphone-first-fallback, apple-watch.pairing.private-session
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible
 
@@ -206,7 +209,7 @@ struct WatchChatShellView: View {
             }
 #endif
             guard startsNetworkTasks else { return }
-            phoneBridge.start(onApproval: { _ in }, onAcknowledgment: { _ in })
+            phoneBridge.startAuthenticatedTransport()
             await runtime.refresh()
             WatchPushNotificationManager.shared.viewedChatID = isVisible ? runtime.selectedChatId : nil
             runtime.setVisibleChatID(isVisible ? runtime.selectedChatId : nil)
@@ -307,7 +310,7 @@ private struct WatchChatListView: View {
             .accessibilityIdentifier("watch-chats-heading")
             .zIndex(1)
 
-            ScrollView {
+            WatchPullRefreshScrollView(action: { await runtime.refresh() }) {
                 LazyVStack(alignment: .leading, spacing: .spacing3) {
                     HStack(spacing: 0) {
                         Button {
@@ -410,7 +413,6 @@ private struct WatchChatListView: View {
                 .padding(.horizontal, .spacing4)
                 .padding(.bottom, .spacing5)
             }
-            .accessibilityIdentifier("watch-chat-list")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WatchChatPalette.background)
@@ -460,7 +462,7 @@ private struct WatchChatThreadView: View {
             if let sharingChat {
                 WatchChatShareView(chat: sharingChat, context: shareContext, dependencies: shareDependencies, onClose: { self.sharingChat = nil })
             } else if let continuationEmbed {
-                WatchEmbedFullscreenView(model: continuationEmbed, loadAudio: { try await runtime.audioPlaybackData(for: $0) }, onOpenDevice: { model in
+                WatchEmbedFullscreenView(model: continuationEmbed, loadAudio: { try await runtime.audioPlaybackData(for: $0) }, loadHistory: { runtime.artifactHistorySession(for: $0) }, onOpenDevice: { model in
                     sendEmbedOpenNotification(model)
                     closeEmbedFullscreen()
                 }, onClose: closeEmbedFullscreen)
@@ -1210,5 +1212,165 @@ struct WatchMessageWindowUITestView: View {
     var body: some View {
         WatchChatShellView(runtime: runtime).task { await runtime.prepareMessageWindowFixture() }
     }
+}
+#endif
+
+private struct WatchPullTopOffset: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+/// watchOS exposes RefreshAction but does not promise a native pull control for
+/// ScrollView. Observe its actual top overscroll, then refresh on finger release.
+private struct WatchPullRefreshScrollView<Content: View>: View {
+    let action: @MainActor () async -> Void
+    private let content: () -> Content
+    @State private var coordinateSpace = UUID()
+    @State private var gesture = WatchPullRefreshGesture()
+    @State private var topOffset: CGFloat = 0
+    @State private var refreshRevision = 0
+    @State private var isRefreshing = false
+
+    init(action: @escaping @MainActor () async -> Void, @ViewBuilder content: @escaping () -> Content) {
+        self.action = action
+        self.content = content
+    }
+
+    var body: some View {
+        GeometryReader { viewport in
+            if #available(watchOS 11.0, *) {
+                scrollView(viewportHeight: viewport.size.height)
+                    .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                        // Read the native viewport, including rubber-band
+                        // overscroll, rather than a content preference that
+                        // watchOS can coalesce while its scroll recognizer owns
+                        // the finger. Insets define the resting top position.
+                        max(0, -geometry.contentOffset.y - geometry.contentInsets.top)
+                    } action: { _, offset in
+                        observe(offset)
+                    }
+                    .onScrollPhaseChange { _, phase in
+                        switch phase {
+                        case .tracking, .interacting:
+                            guard !isRefreshing else { return }
+                            gesture.begin()
+                            gesture.observe(topOffset: Double(topOffset))
+                        case .decelerating, .idle:
+                            release()
+                        case .animating:
+                            gesture.cancel()
+                        @unknown default:
+                            gesture.cancel()
+                        }
+                    }
+            } else {
+                // watchOS 10 has no native scroll geometry/phase callbacks.
+                scrollView(viewportHeight: viewport.size.height)
+                    .onPreferenceChange(WatchPullTopOffset.self) { observe($0) }
+                    .simultaneousGesture(DragGesture(minimumDistance: 10)
+                        .onChanged { _ in
+                            guard !isRefreshing else { return }
+                            gesture.begin()
+                            gesture.observe(topOffset: Double(topOffset))
+                        }
+                        .onEnded { _ in release() })
+            }
+        }
+    }
+
+    private func scrollView(viewportHeight: CGFloat) -> some View {
+        ScrollView(.vertical) {
+            content()
+                .frame(minHeight: viewportHeight, alignment: .top)
+                .background {
+                    GeometryReader { geometry in
+                        Color.clear.preference(key: WatchPullTopOffset.self,
+                            value: geometry.frame(in: .named(coordinateSpace)).minY)
+                    }
+                }
+        }
+        .accessibilityIdentifier("watch-chat-list")
+        .coordinateSpace(name: coordinateSpace)
+        .scrollBounceBehavior(.always)
+        .overlay(alignment: .top) {
+            if isRefreshing {
+                ProgressView().tint(.white)
+                    .padding(6).background(Color.black, in: Capsule())
+                    .accessibilityIdentifier("watch-chat-refresh-progress")
+            } else if gesture.isArmed {
+                Image(systemName: "arrow.clockwise").foregroundStyle(.white)
+                    .padding(6).background(Color.black, in: Capsule())
+                    .accessibilityIdentifier("watch-chat-refresh-armed")
+            }
+        }
+        .task(id: refreshRevision) {
+            guard refreshRevision > 0 else { return }
+            defer { isRefreshing = false }
+            await action()
+        }
+        .onDisappear { gesture.cancel() }
+    }
+
+    private func observe(_ offset: CGFloat) {
+        topOffset = offset
+        guard !isRefreshing else { return }
+        gesture.observe(topOffset: Double(offset))
+    }
+
+    private func release() {
+        guard !isRefreshing, gesture.release() else { return }
+        isRefreshing = true
+        refreshRevision &+= 1
+    }
+}
+
+#if DEBUG && targetEnvironment(simulator)
+/// Synthetic transport exercises the production list refresh path without an
+/// account, phone session, network request, or fixture-only refresh button.
+struct WatchChatRefreshUITestFixtureView: View {
+    @StateObject private var runtime: WatchChatRuntime
+    init() {
+        _runtime = StateObject(wrappedValue: WatchChatRuntime(
+            api: WatchChatRefreshFixtureAPI(),
+            cache: WatchChatOfflineCache(directory: FileManager.default.temporaryDirectory
+                .appendingPathComponent("watch-refresh-fixture-" + UUID().uuidString)),
+            crypto: WatchChatRefreshFixtureCrypto(), syncSocket: nil))
+    }
+    var body: some View {
+        WatchHubView(chatRuntime: runtime, currentUserId: nil, fixtureTasks: [], fixtureWorkflows: [],
+            onOpenItem: { _ in }, onOpenSettings: {}, onCreate: { _ in })
+    }
+}
+
+private actor WatchChatRefreshFixtureAPI: WatchChatAPI {
+    private var revision = 0
+    func fetchRecentChats(limit: Int, offset: Int, context: WatchChatRequestContext) async throws -> [WatchRemoteChat] {
+        try await context.check()
+        guard offset == 0 else { return [] }
+        revision += 1
+        return [WatchRemoteChat(id: "watch-refresh-chat", title: "Refresh revision \(revision)",
+            lastMessageAt: "1800000000", updatedAt: nil, chatSummary: nil, isPinned: false,
+            encryptedTitle: nil, encryptedChatSummary: nil, encryptedChatKey: nil)]
+    }
+    func fetchMessages(chatId: String, context: WatchChatRequestContext) async throws -> [WatchRemoteMessage] { [] }
+    func fetchMessagesVersion(chatId: String, context: WatchChatRequestContext) async throws -> Int? { nil }
+    func uploadAudioRecording(data: Data, filename: String, chatId: String, context: WatchChatRequestContext) async throws -> WatchUploadedAudio { throw WatchChatRuntimeError.audioUploadFailed }
+    func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String, context: WatchChatRequestContext) async throws -> WatchTranscriptionMetadata? { throw WatchChatRuntimeError.audioUploadFailed }
+}
+
+@MainActor
+private final class WatchChatRefreshFixtureCrypto: WatchChatCrypto {
+    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary? {
+        WatchChatSummary(id: chat.id, title: chat.title, lastMessageAt: chat.lastMessageAt,
+            preview: nil, isPinned: false, encryptedTitle: nil, encryptedPreview: nil, encryptedChatKey: nil)
+    }
+    func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage {
+        WatchChatMessage(id: message.id, chatId: message.chatId, role: message.role, content: message.content,
+            encryptedContent: nil, createdAt: message.createdAt, isPending: false)
+    }
+    func encryptText(_ text: String, for chat: WatchChatSummary) async throws -> String { throw WatchChatRuntimeError.missingChatKey }
+    func createChat() async throws -> WatchChatSummary { throw WatchChatRuntimeError.missingChatKey }
+    func recoveryPublicKey(for chat: WatchChatSummary) async throws -> String { throw WatchChatRuntimeError.missingChatKey }
+    func encryptedAudioEmbed(_ embed: WatchPendingAudioEmbed, chat: WatchChatSummary, messageId: String) async throws -> [[String: Any]] { throw WatchChatRuntimeError.missingChatKey }
 }
 #endif

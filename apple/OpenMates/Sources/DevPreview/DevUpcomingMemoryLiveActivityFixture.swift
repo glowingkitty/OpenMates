@@ -76,6 +76,9 @@ struct DevUpcomingMemoryLiveActivityFixture: View {
     var body: some View {
         VStack(spacing: .spacing4) {
             if let state = driver.current {
+                UpcomingMemorySmallActivityView(state: state, kind: "upcoming", isStale: false)
+                    .padding(8).frame(width: 176, height: 140).background(Color.grey0)
+                    .accessibilityIdentifier("upcoming-small-fixture-container")
                 VStack(alignment: .leading, spacing: .spacing2) {
                     Text(state.title)
                     Text(state.detail)
@@ -91,9 +94,12 @@ struct DevUpcomingMemoryLiveActivityFixture: View {
                 })
             }
             Text(driver.route).accessibilityIdentifier("upcoming-live-fixture-route")
-            Button("Remove first") { driver.removeFirst() }.accessibilityIdentifier("upcoming-live-fixture-remove")
-            Button("Overflow") { driver.overflow() }.accessibilityIdentifier("upcoming-live-fixture-overflow")
-            Button("Switch owner") { driver.switchOwner() }.accessibilityIdentifier("upcoming-live-fixture-switch-owner")
+            Button { driver.removeFirst() } label: { Text("Remove first").frame(minHeight: 44).contentShape(Rectangle()) }
+                .buttonStyle(.plain).accessibilityIdentifier("upcoming-live-fixture-remove")
+            Button { driver.overflow() } label: { Text("Overflow").frame(minHeight: 44).contentShape(Rectangle()) }
+                .buttonStyle(.plain).accessibilityIdentifier("upcoming-live-fixture-overflow")
+            Button { driver.switchOwner() } label: { Text("Switch owner").frame(minHeight: 44).contentShape(Rectangle()) }
+                .buttonStyle(.plain).accessibilityIdentifier("upcoming-live-fixture-switch-owner")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .contain)

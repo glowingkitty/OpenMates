@@ -3,6 +3,14 @@ import CryptoKit
 @testable import OpenMates
 
 final class LiveActivityPolicyTests: XCTestCase {
+    #if os(iOS)
+    // contract-test: supporting surface=gui.apple assertions=apple-live-activities.memories.upcoming
+    func testApplicationDeclaresActivityKitCapability() {
+        XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "NSSupportsLiveActivities") as? Bool, true,
+            "ActivityKit cannot publish without the application capability")
+    }
+    #endif
+
     // contract-test: supporting surface=gui.apple assertions=apple-live-activities.download.progress
     func testAggregateDownloadIncludesVerificationAndRejectsStaleOperation() {
         var policy = LocalModelLiveActivityPolicy()
@@ -62,14 +70,22 @@ final class LiveActivityPolicyTests: XCTestCase {
         let verificationObserved = expectation(description: "store delivered verification activity")
         let backgroundProgress = expectation(description: "store delivered background transfer progress")
         let verification = expectation(description: "store reached verification")
+        var observedBackgroundProgress = false
+        var observedVerification = false
         let store = LocalModelStore(catalog: try JSONEncoder().encode(LocalModelCatalog(models: [manifest])),
             root: root, downloader: downloading, verifyExisting: false,
             activityEvents: { event in
                 coordinator.handle(event)
                 if case let .progress(_, _, value) = event {
                     if value.phase == .transfer, value.transferredBytes == file.sizeBytes / 4 { initialProgress.fulfill() }
-                    if value.phase == .transfer, value.transferredBytes >= file.sizeBytes / 2 { backgroundProgress.fulfill() }
-                    if value.phase == .verification { verificationObserved.fulfill() }
+                    if value.phase == .transfer, value.transferredBytes >= file.sizeBytes / 2, !observedBackgroundProgress {
+                        observedBackgroundProgress = true
+                        backgroundProgress.fulfill()
+                    }
+                    if value.phase == .verification, !observedVerification {
+                        observedVerification = true
+                        verificationObserved.fulfill()
+                    }
                 }
             }, beforeVerification: {
                 verification.fulfill()

@@ -190,9 +190,25 @@ actor APIClient {
                              expectedAccountID: expectedAccountID, expectedScope: expectedScope)
     }
 
+    func uploadTeamProfileImage(data: Data, encryptedMetadata: String, teamID: String,
+                                serverProfile: ServerProfile, expectedAccountID: String, expectedScope: UUID,
+                                expectedTeamContext: APIRequestTeamContext) async throws -> Data {
+        try await checkTeamContext(expectedTeamContext)
+        let response = try await uploadFile(data: data, filename: "team-profile.jpg", contentType: "image/jpeg",
+            optionalChatID: nil, serverProfile: serverProfile, expectedAccountID: expectedAccountID,
+            expectedScope: expectedScope, endpoint: "v1/upload/team-profile-image",
+            formFields: ["team_id": teamID, "encrypted_profile_image_metadata": encryptedMetadata],
+            expectedTeamContext: expectedTeamContext)
+        try await checkUploadContext(accountID: expectedAccountID, scope: expectedScope, profile: serverProfile)
+        try await checkTeamContext(expectedTeamContext)
+        return response
+    }
+
     private func uploadFile(data: Data, filename: String, contentType: String,
                             optionalChatID: String?, serverProfile: ServerProfile? = nil,
-                            expectedAccountID: String? = nil, expectedScope: UUID? = nil) async throws -> Data {
+                            expectedAccountID: String? = nil, expectedScope: UUID? = nil,
+                            endpoint: String = "v1/upload/file", formFields: [String: String] = [:],
+                            expectedTeamContext: APIRequestTeamContext? = nil) async throws -> Data {
         #if os(watchOS)
         let capturedAccountID = expectedAccountID
         let scope = expectedScope ?? UUID()
@@ -207,19 +223,20 @@ actor APIClient {
         // Filenames remain exact, including Project/workflow relative paths.
         let prepared = try NativeImageRaster.prepareUpload(data: data, filename: filename, contentType: contentType)
         let body = try Self.makeUploadBody(data: prepared.data, filename: prepared.filename,
-            contentType: prepared.contentType, chatID: optionalChatID, boundary: boundary)
+            contentType: prepared.contentType, chatID: optionalChatID, boundary: boundary, formFields: formFields)
         #else
         let body = try Self.makeUploadBody(data: data, filename: filename,
-            contentType: contentType, chatID: optionalChatID, boundary: boundary)
+            contentType: contentType, chatID: optionalChatID, boundary: boundary, formFields: formFields)
         #endif
         // Check the account immediately before each attempt: a refreshed cookie
         // must never upload the previous account's private file bytes.
         let profile = serverProfile ?? ServerProfile.current()
-        let uploadURL = profile.uploadBaseURL.appendingPathComponent("v1/upload/file")
+        let uploadURL = profile.uploadBaseURL.appendingPathComponent(endpoint)
         let authenticationURL = profile.apiBaseURL
         let originURL = profile.webBaseURL
 
         try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
+        try await checkTeamContext(expectedTeamContext)
         let request = Self.makeUploadRequest(
             uploadURL: uploadURL,
             authenticationURL: authenticationURL,
@@ -229,6 +246,7 @@ actor APIClient {
             pinCookies: optionalChatID == nil
         )
         try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
+        try await checkTeamContext(expectedTeamContext)
         try Task.checkCancellation()
         do {
             // A retry must use the credential produced by recovery, rather
@@ -236,6 +254,7 @@ actor APIClient {
             return try await execute(request, using: uploadSession, awaitUnauthorizedRecovery: true)
         } catch where Self.shouldRetryUpload(after: error) {
             try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
+            try await checkTeamContext(expectedTeamContext)
             let retryRequest = Self.makeUploadRequest(
                 uploadURL: uploadURL,
                 authenticationURL: authenticationURL,
@@ -245,6 +264,7 @@ actor APIClient {
                 pinCookies: optionalChatID == nil
             )
             try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
+            try await checkTeamContext(expectedTeamContext)
             try Task.checkCancellation()
             return try await execute(retryRequest, using: uploadSession)
         }
@@ -291,7 +311,7 @@ actor APIClient {
     }
 
     static func makeUploadBody(data: Data, filename: String, contentType: String,
-                               chatID: String?, boundary: String) throws -> Data {
+                               chatID: String?, boundary: String, formFields: [String: String] = [:]) throws -> Data {
         let forbidden = CharacterSet.controlCharacters
         guard !filename.isEmpty, filename.rangeOfCharacter(from: forbidden) == nil,
               !contentType.isEmpty, contentType.rangeOfCharacter(from: forbidden) == nil,
@@ -309,6 +329,12 @@ actor APIClient {
             body.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
             body.append("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n".data(using: .utf8)!)
             body.append(Data(chatID.utf8))
+        }
+        for (name, value) in formFields.sorted(by: { $0.key < $1.key }) {
+            guard ["team_id", "encrypted_profile_image_metadata"].contains(name),
+                  value.rangeOfCharacter(from: .controlCharacters) == nil else { throw APIError.invalidResponse }
+            body.append(Data("\r\n--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n".utf8))
+            body.append(Data(value.utf8))
         }
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
         return body
@@ -367,6 +393,9 @@ actor APIClient {
     func uploadFileForVerifiedWatchSession(data: Data, filename: String, contentType: String,
         chatId: String, serverProfile: ServerProfile,
         validate: @escaping @MainActor @Sendable () throws -> Void) async throws -> Data {
+        // Watch image uploads stay unsupported until this transport can use
+        // the shared raster sanitizer. Existing microphone audio is unchanged.
+        try Self.validateVerifiedWatchUpload(filename: filename, contentType: contentType)
         let boundary = UUID().uuidString
         let body = try Self.makeUploadBody(data: data, filename: filename,
             contentType: contentType, chatID: chatId, boundary: boundary)
@@ -375,6 +404,15 @@ actor APIClient {
             boundary: boundary, body: body, cookieStorage: cookieStorage)
         return try await execute(request, using: uploadSession, cookieAuthority: validate,
                                  authenticationURL: serverProfile.apiBaseURL)
+    }
+
+    nonisolated static func validateVerifiedWatchUpload(filename: String, contentType: String) throws {
+        let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "gif", "heic", "heif", "bmp", "webp",
+            "tif", "tiff", "svg", "avif", "dng", "ico"]
+        let ext = (filename as NSString).pathExtension.lowercased()
+        guard !contentType.lowercased().hasPrefix("image/"), !imageExtensions.contains(ext) else {
+            throw APIError.invalidResponse
+        }
     }
 
     func requestForWatchPush(_ method: HTTPMethod, path: String, serverProfile: ServerProfile,

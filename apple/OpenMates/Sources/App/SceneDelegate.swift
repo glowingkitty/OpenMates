@@ -363,6 +363,9 @@ private struct ExternalDisplayAppSceneView: View {
                         .allowsHitTesting(false)
                 }
                 .task {
+                    #if DEBUG
+                    guard !NativeUnitTestHostPolicy.isUnitTestHost else { return }
+                    #endif
                     await locManager.restoreSavedLanguage()
                     await authManager.checkSession()
                 }

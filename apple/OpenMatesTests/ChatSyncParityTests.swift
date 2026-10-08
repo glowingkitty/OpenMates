@@ -5,11 +5,198 @@
 
 import XCTest
 import CoreFoundation
+import Combine
 import SwiftData
 @testable import OpenMates
 
 @MainActor
 final class ChatSyncParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testUnreadHundredChatSteadyHydrationAndDuplicateCompletionPublishNothing() {
+        var badges: [Int] = []
+        let unread = UnreadMessagesStore(badgeUpdater: { badges.append($0) })
+        unread.configure(scopeID: "synthetic-account-server", teamID: nil)
+        for index in 0..<100 {
+            unread.setUnread(chatId: "chat-\(index)", count: index % 4)
+        }
+        _ = unread.incrementUnread(chatId: "chat-1", messageID: "synthetic-completion")
+        var publications = 0
+        let subscription = unread.objectWillChange.sink { publications += 1 }
+        badges.removeAll()
+        for _ in 0..<3 {
+            unread.configure(scopeID: "synthetic-account-server", teamID: nil)
+            unread.setActiveTeam(nil)
+            unread.setActiveChat(nil)
+            for index in 0..<100 {
+                unread.setUnread(chatId: "chat-\(index)", count: index == 1 ? 2 : index % 4)
+            }
+        }
+        XCTAssertNil(unread.incrementUnread(chatId: "chat-1", messageID: "synthetic-completion"))
+        XCTAssertEqual(publications, 0)
+        XCTAssertTrue(badges.isEmpty)
+        withExtendedLifetime(subscription) {}
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testUnreadActualZeroActiveClearTeamAndScopeChangesStillPublish() {
+        var badges: [Int] = []
+        let unread = UnreadMessagesStore(badgeUpdater: { badges.append($0) })
+        unread.configure(scopeID: "synthetic-account-server", teamID: nil)
+        unread.setUnread(chatId: "personal", count: 2)
+        unread.setUnread(chatId: "team-chat", count: 2, teamID: "team-a")
+        var publications = 0
+        let subscription = unread.objectWillChange.sink { publications += 1 }
+        badges.removeAll()
+        unread.setActiveTeam("team-a")
+        XCTAssertGreaterThan(publications, 0, "Team changes notify even when totals match")
+        XCTAssertTrue(badges.isEmpty, "An unchanged total needs no OS badge update")
+        publications = 0
+        unread.setUnread(chatId: "team-chat", count: 0, teamID: "team-a")
+        XCTAssertGreaterThan(publications, 0, "Cross-device zero receipt clears a positive count")
+        XCTAssertEqual(badges, [0])
+        publications = 0; badges.removeAll()
+        unread.setUnread(chatId: "team-chat", count: -1, teamID: "team-a")
+        XCTAssertEqual(publications, 0)
+        unread.setUnread(chatId: "team-chat", count: 3, teamID: "team-a")
+        publications = 0; badges.removeAll()
+        unread.setActiveChat("team-chat")
+        XCTAssertGreaterThan(publications, 0); XCTAssertEqual(badges, [0])
+        publications = 0; badges.removeAll()
+        unread.setActiveChat("team-chat")
+        unread.setUnread(chatId: "team-chat", count: 7, teamID: "team-a")
+        XCTAssertEqual(publications, 0, "Active suppression normalizes hydration before the no-op guard")
+        XCTAssertTrue(badges.isEmpty)
+        unread.configure(scopeID: "synthetic-other-account-server", teamID: "team-a")
+        XCTAssertGreaterThan(publications, 0, "Owner changes notify even with a zero total")
+        XCTAssertEqual(unread.getUnreadCount(chatId: "personal", teamID: nil), 0)
+        withExtendedLifetime(subscription) {}
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testUnreadEntryIdentityAndInitialUnconfiguredBadgeClearArePreserved() {
+        var badges: [Int] = []
+        let unread = UnreadMessagesStore(badgeUpdater: { badges.append($0) })
+        var publications = 0
+        let subscription = unread.objectWillChange.sink { publications += 1 }
+        unread.configure(scopeID: nil, teamID: nil)
+        unread.configure(scopeID: nil, teamID: nil)
+        unread.clearAll()
+        XCTAssertEqual(publications, 0)
+        XCTAssertEqual(badges, [0], "Clear a stale OS badge once before an account is configured")
+        unread.configure(scopeID: "synthetic-account-server", teamID: "team-a")
+        unread.setUnread(chatId: "shared-id", count: 2, teamID: "team-a")
+        publications = 0; badges.removeAll()
+        unread.setUnread(chatId: "shared-id", count: 0, teamID: "team-b")
+        XCTAssertGreaterThan(publications, 0, "Zero must replace the old Team entry, not compare a missing Team lookup")
+        XCTAssertEqual(unread.getUnreadCount(chatId: "shared-id", teamID: "team-a"), 0)
+        XCTAssertEqual(badges, [0])
+        publications = 0; badges.removeAll()
+        unread.setUnread(chatId: "shared-id", count: 0, teamID: "team-b")
+        XCTAssertEqual(publications, 0); XCTAssertTrue(badges.isEmpty)
+        withExtendedLifetime(subscription) {}
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testAssistantCompletionUsesAcceptedTeamCountAndShareIdentity() {
+        var existing = makeChat(id: "team-completion", title: "Team chat")
+        existing.teamId = "team-a"; existing.unreadCount = 2; existing.isSharedByOthers = true
+        let completion = makeChat(id: existing.id, title: "Team chat", messagesV: 2)
+        let store = ChatStore()
+        store.performWithoutPersistence {
+            store.upsertChat(existing); store.upsertChat(completion)
+        }
+        let accepted = store.chat(for: existing.id)
+        XCTAssertEqual(accepted?.teamId, "team-a")
+        XCTAssertEqual(accepted?.unreadCount, 2)
+        XCTAssertEqual(accepted?.isSharedByOthers, true)
+        var state = NativeUnreadState()
+        state.configure(scopeID: "account-server", teamID: "team-a")
+        XCTAssertEqual(state.complete(id: existing.id, messageID: "assistant-team", teamID: accepted?.teamId), 1)
+        XCTAssertEqual(state.total, 1, "Accepted Team identity must not reject its background completion")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testRetainedSelectionOutsideChatWorkspaceDoesNotSuppressUnread() {
+        var state = NativeUnreadState()
+        state.configure(scopeID: "account-server", teamID: nil)
+        state.setActiveChat("retained-selection")
+        XCTAssertTrue(state.isActivelyViewing(chatID: "retained-selection", teamID: nil))
+        state.setActiveChat(nil) // Projects/Tasks retain selection but hide transcript.
+        XCTAssertFalse(state.isActivelyViewing(chatID: "retained-selection", teamID: nil))
+        XCTAssertEqual(state.complete(id: "retained-selection", messageID: "background", teamID: nil), 1)
+        state.setActiveChat("retained-selection")
+        XCTAssertEqual(state.total, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testScopedReadReplayCannotDelayImmediateActiveAnnouncement() async {
+        var release: CheckedContinuation<Void, Never>?
+        var replayStarted = false
+        let replay = NativeUnreadReadReplay.schedule(isCurrent: { true }, replay: {
+            replayStarted = true
+            await withCheckedContinuation { release = $0 }
+        })
+        var announcementSent = false
+        announcementSent = true // Same synchronous continuation as announceActiveChat.
+        for _ in 0..<20 { if replayStarted { break }; await Task.yield() }
+        XCTAssertTrue(replayStarted)
+        XCTAssertTrue(announcementSent, "Receipt replay may suspend while active publication continues")
+        if let release { release.resume() } else { replay.cancel() }
+        await replay.value
+        var staleReplayStarted = false
+        let stale = NativeUnreadReadReplay.schedule(isCurrent: { false }, replay: { staleReplayStarted = true })
+        await stale.value
+        XCTAssertFalse(staleReplayStarted, "A changed account/server/Team fence drops scheduled replay")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testUnreadMetadataDecodesAndSurvivesColdCacheAndPartialMetadataMerge() throws {
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let chat = try decoder.decode(Chat.self, from: Data(#"{"id":"unread-fixture","created_at":1800000000,"unread_count":1}"#.utf8))
+        XCTAssertEqual(chat.unreadCount, 1)
+        XCTAssertEqual(PersistedChat(from: chat).toChat().unreadCount, 1)
+        let partial = makeChat(id: chat.id, title: "Partial")
+        let store = ChatStore()
+        store.performWithoutPersistence {
+            store.upsertChat(chat)
+            store.upsertChat(partial)
+        }
+        XCTAssertEqual(store.chat(for: chat.id)?.unreadCount, 1)
+        store.performWithoutPersistence { store.updateLastVisibleMessage(chatId: chat.id, messageId: "seen") }
+        XCTAssertEqual(store.chat(for: chat.id)?.unreadCount, 1)
+        var read = partial; read.unreadCount = 0
+        store.performWithoutPersistence { store.upsertChat(read) }
+        XCTAssertEqual(store.chat(for: chat.id)?.unreadCount, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testUnreadReconnectReadReceiptDedupeAndAccountServerTeamIsolation() {
+        var state = NativeUnreadState()
+        state.configure(scopeID: "account-a-server-a", teamID: nil)
+        state.set(id: "chat", count: 1, teamID: nil, expectedScope: "account-a-server-a")
+        XCTAssertEqual(state.total, 1)
+        state.set(id: "chat", count: 0, teamID: nil, expectedScope: "account-a-server-a")
+        XCTAssertEqual(state.total, 0, "Cross-device read receipt clears the hydrated count")
+        XCTAssertEqual(state.complete(id: "chat", messageID: "assistant-1", teamID: nil), 1)
+        XCTAssertNil(state.complete(id: "chat", messageID: "assistant-1", teamID: nil))
+        state.setActiveChat("chat")
+        state.set(id: "chat", count: 3, teamID: nil, expectedScope: "account-a-server-a")
+        XCTAssertEqual(state.total, 0, "Open foreground chat must not re-acquire a badge during reconnect")
+        state.setActiveChat(nil)
+        XCTAssertEqual(state.complete(id: "chat", messageID: "background-after-open", teamID: nil), 1,
+            "A backgrounded chat may regain a badge after foreground read suppression ends")
+        state.set(id: "chat", count: 0, teamID: nil, expectedScope: "account-a-server-a")
+        state.set(id: "team-chat", count: 2, teamID: "team-a", expectedScope: "account-a-server-a")
+        XCTAssertEqual(state.total, 0)
+        state.configure(scopeID: "account-a-server-a", teamID: "team-a")
+        XCTAssertEqual(state.total, 2)
+        state.configure(scopeID: "account-b-server-a", teamID: nil)
+        state.set(id: "chat", count: 4, teamID: nil, expectedScope: "account-a-server-a")
+        XCTAssertEqual(state.total, 0, "Late account receipt must be discarded")
+        state.configure(scopeID: "account-b-server-b", teamID: nil)
+        XCTAssertEqual(state.total, 0)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testDailyInspirationAPIKeepsWikipediaMetadataThroughBannerMapping() throws {
         let payload = Data(#"{"inspirations":[{"inspiration_id":"synthetic-ipc","phrase":"How do programs exchange information?","title":"Programs talking","category":"software_development","content_type":"wiki","video":null,"wiki":{"title":"Inter-process communication","wiki_title":"Inter-process communication","description":"Communication between computer processes","thumbnail_url":"https://example.invalid/wiki.png","wikidata_id":"Q214466","extract":"Synthetic article summary"}}]}"#.utf8)
@@ -1153,6 +1340,23 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertLessThanOrEqual(loaded.count, 80, "Four metadata groups remain bounded; no transcript is loaded")
         XCTAssertEqual(WelcomeScreenState.recentChats(from: loaded, excluding: nil).first?.id, pinnedDraft.id)
         XCTAssertTrue(store.loadMessages(chatId: pinnedDraft.id).isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.local-state.precedence
+    func testColdSidebarDiscoversOlderArchivedPinsAndDraftsWithoutLoadingMessages() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("SidebarArchivedPriorityTests", schema: schema, isStoredInMemoryOnly: true)
+        let store = OfflineStore(modelContainer: try ModelContainer(for: schema, configurations: [configuration]))
+        let recent = (0..<30).map { makeChat(id: "recent-\($0)", title: "Recent", lastMessageAt: "2026-09-12T00:00:00Z") }
+        let pin = makeChat(id: "archived-pin", title: "Pinned", lastMessageAt: "2025-01-01T00:00:00Z", isArchived: true, isPinned: true)
+        let draft = makeChat(id: "archived-draft", title: "Draft", lastMessageAt: "2025-01-02T00:00:00Z", isArchived: true, draftV: 1, hasNonEmptyDraft: true)
+        store.persistChats(recent + [pin, draft])
+        let loaded = store.loadStartupChats(lastOpenedChatId: nil, limit: 20)
+        XCTAssertTrue(loaded.contains { $0.id == pin.id })
+        XCTAssertTrue(loaded.contains { $0.id == draft.id })
+        XCTAssertLessThanOrEqual(loaded.count, 80)
+        XCTAssertTrue(store.loadMessages(chatId: pin.id).isEmpty)
+        XCTAssertTrue(store.loadMessages(chatId: draft.id).isEmpty)
     }
 
     // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent

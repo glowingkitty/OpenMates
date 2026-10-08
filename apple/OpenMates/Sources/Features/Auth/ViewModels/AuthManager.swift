@@ -1,6 +1,8 @@
 // Central auth state manager — mirrors the web app's authStore.ts.
 // Handles login flows (password, passkey, recovery key, backup code),
 // session persistence, and device verification state.
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.registration.lifecycle
 // Specification: specifications/features/auth/specification.yml
 // Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation, auth.lookup.anti-enumeration, auth.login.method-convergence
 
@@ -764,6 +766,7 @@ final class AuthManager: ObservableObject {
         AppSessionCoordinator.shared.resetTransientRuntime()
         await clearComposerDraftsForLogout()
         OfflineStore.shared.deactivate()
+        NotificationPreviewCrypto.clearPrivateKey()
         if let userId = currentUser?.id {
             try? await crypto.deleteMasterKey(for: userId)
         }
@@ -791,6 +794,7 @@ final class AuthManager: ObservableObject {
         AppSessionCoordinator.shared.resetTransientRuntime()
         await clearComposerDraftsForLogout()
         OfflineStore.shared.deactivate()
+        NotificationPreviewCrypto.clearPrivateKey()
         if let userId = currentUser?.id {
             try? await crypto.deleteMasterKey(for: userId)
         } else {

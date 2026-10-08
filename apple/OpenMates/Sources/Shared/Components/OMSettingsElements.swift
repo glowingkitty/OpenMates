@@ -8,6 +8,9 @@
 // Specification: specifications/features/settings-ui/specification.yml
 // Assertions: settings-ui.composition.canonical-and-accessible, settings-ui.parity.web-apple-shell
 
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.surface.semantic-parity
+
 import SwiftUI
 
 extension Color {
@@ -155,5 +158,26 @@ struct OMSettingsTextInput: View {
         .accessibilityLabel(label)
         .accessibilityIdentifier(identifier)
         .padding(.horizontal, .spacing5)
+    }
+}
+
+// Web source: settings/elements/SettingsProgressBar.svelte — .progress-track
+// is 0.5rem high with a 0.25rem radius and 0.625rem horizontal inset.
+struct OMSettingsProgressBar: View {
+    let value: Double
+    var warning = false
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: .radius1).fill(Color.grey20)
+                RoundedRectangle(cornerRadius: .radius1)
+                    .fill(warning ? Color.warning : Color.settingsPrimaryStart)
+                    .frame(width: geometry.size.width * min(1, max(0, value / 100)))
+            }
+        }
+        .frame(height: .spacing4)
+        .padding(.horizontal, .spacing5)
+        .accessibilityLabel(AppStrings.storage)
+        .accessibilityValue("\(Int(min(100, max(0, value))))%")
     }
 }

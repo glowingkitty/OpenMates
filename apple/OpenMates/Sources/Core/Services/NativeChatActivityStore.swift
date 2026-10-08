@@ -108,6 +108,23 @@ final class NativeChatActivityStore: ObservableObject {
         }
         return counts
     }
+    /// The accepted activity policy retains the first-observed task sequence;
+    /// never rebuild display order from processingIDs, which is an unordered set.
+    func orderedRootIDs(chats: [Chat]) -> [String] {
+        Self.orderedRootIDs(processingChatIDs: policy.orderedItems.map(\.chatID), chats: chats, ancestry: ancestry)
+    }
+
+    static func orderedRootIDs(processingChatIDs: [String], chats: [Chat], ancestry: [String: String] = [:]) -> [String] {
+        let rows = Dictionary(chats.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var seen: Set<String> = [], result: [String] = []
+        for id in processingChatIDs {
+            var root = id, visited: Set<String> = []
+            while visited.insert(root).inserted, let parent = rows[root]?.parentId ?? ancestry[root] { root = parent }
+            if seen.insert(root).inserted { result.append(root) }
+        }
+        return result
+    }
+
     func rootIDs(chats: [Chat]) -> Set<String> {
         let rows = Dictionary(chats.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return Set(processingIDs.map { id in

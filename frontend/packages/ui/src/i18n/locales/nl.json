@@ -2882,6 +2882,7 @@
     }
   },
   "apps_workspace": {},
+  "artifact_history": {},
   "audio": {
     "playback_progress": {
       "text": "Voortgang audioweergave"
@@ -3152,6 +3153,9 @@
       "privacy_personal_data": {
         "text": "privacy & persoonsgegevens"
       }
+    },
+    "open_chat": {
+      "text": "Chat openen"
     },
     "new_chat": {
       "text": "Nieuwe chat"
@@ -4205,6 +4209,9 @@
       "text": "Chatgeschiedenis"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "Persoonlijk en alle teams"
+      },
       "placeholder": {
         "text": "Zoek chats en instellingen..."
       },

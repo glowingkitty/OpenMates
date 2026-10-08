@@ -12,6 +12,10 @@ completion:
   then: At most one allowed completion notification is scheduled; cancellation and installed-asset restoration produce
     none.
 memories:
+- id: paired-watch-small-family
+  given: An authorized upcoming saved-memory Live Activity is active on iPhone paired with a supported Apple Watch.
+  when: The system presents the mirrored small family in Smart Stack.
+  then: Compact generic labels, start time, countdown and truthful total fit the Watch presentation without private titles or notes; OS presentation is verified separately from detached layout coverage.
 - id: upcoming-versus-date-only
   given: Saved event and appointment embeds have explicit times within four hours, while another trip has only a date.
   when: The decrypted memory snapshot is reconciled.
@@ -47,3 +51,23 @@ widget:
   then: Exact completion removes only its current turn, old receipts preserve newer runs, unchanged progress
     publication remains bounded, and logout invalidates the encrypted snapshot. Without fresh evidence, the widget
     explicitly becomes stale and expires rather than claiming knowledge of background completion.
+
+# Two review scenarios consolidate the five unchanged historical memories cases above.
+memories_review:
+- id: eligible-navigation-budget-and-removal
+  given: Three saved events or appointments have explicit timezone-aware times within four hours, another trip is
+    date-only, and further eligible entries exceed the ActivityKit payload budget.
+  when: The decrypted memory snapshot is reconciled, the user selects Next and Previous, and the selected item is
+    removed.
+  then: The activity admits timed eligible entries in chronological order, excludes the date-only trip, navigates
+    eligible items with a truthful total, preserves or replaces selection with an eligible remaining item, and keeps
+    the encoded state within its budget with View all for overflow. Stale account or activity identities cannot
+    change the current activity, and private titles and details stay absent.
+- id: scheduled-window-and-paired-watch-presentation
+  given: An eligible saved memory starts more than four hours later; the iPhone is paired with a supported Apple
+    Watch and the OS authorizes Live Activities.
+  when: The memory is reconciled and the app suspends; a supported system later presents the mirrored small family
+    in Smart Stack.
+  then: Systems supporting scheduled Live Activities schedule locally for four hours before the start; older systems
+    update only while active. The Watch presentation fits compact generic labels, start time, countdown and truthful
+    total without private titles or notes. Actual OS presentation is verified separately from detached layout coverage.

@@ -21,6 +21,12 @@ struct DevAuthFormFixture: View {
     var body: some View {
         if configuration.component == .signup {
             DevSignupFlowFixture(configuration: configuration)
+        } else if configuration.variant == "watch-pair-approval" {
+            #if os(iOS)
+            DevWatchPairApprovalFixture()
+            #else
+            Text("This synthetic iPhone approval preview requires iOS.").font(.omSmall)
+            #endif
         } else if configuration.variant == "passkey-lifecycle" {
             DevPasskeyLifecycleFixture()
         } else {

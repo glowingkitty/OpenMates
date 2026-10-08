@@ -3,6 +3,9 @@
 // Pydantic responses. This layer intentionally exposes failures to callers so
 // settings views can render explicit loading, success, and error states.
 
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.cold.discoverable-bounded, storage.surface.semantic-parity
+
 import Foundation
 
 actor AccountSecurityService {
@@ -200,6 +203,25 @@ actor AccountSecurityService {
 
     func storageOverview() async throws -> StorageOverview {
         try await api.request(.get, path: "/v1/settings/storage")
+    }
+
+    @MainActor
+    func storageNotice(fence: TeamWorkspaceFence, after: String? = nil) async throws -> StorageNotice {
+        try await fence.check()
+        let path = try StorageNoticePaging.path(base: "/v1/settings/storage/notice", limit: 20, after: after)
+        let response: StorageNotice = try await APIClient.shared.request(.get, path: path, serverProfile: fence.server,
+            expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        try await fence.check()
+        return response
+    }
+
+    @MainActor
+    func storageOverview(fence: TeamWorkspaceFence) async throws -> StorageOverview {
+        try await fence.check()
+        let response: StorageOverview = try await APIClient.shared.request(.get, path: "/v1/settings/storage", serverProfile: fence.server,
+            expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        try await fence.check()
+        return response
     }
 
     func storageFiles(category: String) async throws -> [StorageFileRecord] {
@@ -431,6 +453,12 @@ struct StorageOverview: Decodable {
     let nextBillingDate: Int?
     let lastBilledAt: Int?
     let breakdown: [StorageCategoryRecord]
+    // Optional additions preserve the old file-only response contract.
+    let logicalS3Bytes: Int?
+    let meteringCategories: [String: Int]?
+    let meteringSourceVersion: String?
+    let meteringPolicyVersion: String?
+    let measurementAt: Int?
 }
 
 struct StorageCategoryRecord: Identifiable, Decodable {

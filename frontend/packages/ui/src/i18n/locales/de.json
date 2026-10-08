@@ -3230,6 +3230,44 @@
       "text": "Wähle einen Ort und die gewünschten Tage."
     }
   },
+  "artifact_history": {
+    "title": {
+      "text": "Versionsverlauf"
+    },
+    "loaded": {
+      "text": "{count} Versionen geladen"
+    },
+    "more": {
+      "text": "Mehr anzeigen"
+    },
+    "current": {
+      "text": "Aktuelle Version v{version}"
+    },
+    "historical": {
+      "text": "Historische Version v{version}"
+    },
+    "empty": {
+      "text": "Noch kein Versionsverlauf verfügbar."
+    },
+    "readonly": {
+      "text": "Schreibgeschützter Verlauf"
+    },
+    "snapshot_required": {
+      "text": "Diese Version wartet auf einen lesbaren Snapshot. Versuche es erneut, sobald er verfügbar ist."
+    },
+    "access_changed": {
+      "text": "Der Zugriff auf den Verlauf hat sich geändert. Öffne dieses Artefakt erneut und versuche es noch einmal."
+    },
+    "too_large": {
+      "text": "Diese Version überschreitet das Leselimit dieses Geräts für den Verlauf."
+    },
+    "failed": {
+      "text": "Der Versionsverlauf konnte nicht geladen werden. Versuche es erneut."
+    },
+    "select": {
+      "text": "Wähle eine Version, um ihren Inhalt zu laden."
+    }
+  },
   "audio": {
     "playback_progress": {
       "text": "Audio-Wiedergabefortschritt"
@@ -3535,6 +3573,9 @@
       "privacy_personal_data": {
         "text": "Datenschutz & persönliche Daten"
       }
+    },
+    "open_chat": {
+      "text": "Chat öffnen"
     },
     "new_chat": {
       "text": "Neuer Chat"
@@ -4832,6 +4873,9 @@
       "text": "Chatverlauf"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "Persönlich und alle Teams"
+      },
       "placeholder": {
         "text": "Chats, Einstellungen & Apps suchen..."
       },
@@ -15951,6 +15995,24 @@
         "cache_pricing_explanation": {
           "text": "Cache-Lesezugriffe verwenden frühere Eingaben zu einem niedrigeren Preis erneut. Cache-Schreibzugriffe legen sie an und können mehr kosten. Diese Preise gelten für normale angemeldete persönliche und Team-Chats. Die Abrechnung von Workflows und orchestrierten Unterchats bleibt unverändert. Dein Nutzungsbeleg zeigt die berechnete Nutzung."
         },
+        "automatic_summary_title": {
+          "text": "Automatische Zusammenfassungen langer Chats"
+        },
+        "automatic_summary_explanation": {
+          "text": "In normalen angemeldeten persönlichen und Team-Chats werden automatische Zusammenfassungen langer Chats nur bei Bedarf separat abgerechnet. Wenn keine Zusammenfassung erstellt wird, fallen dafür keine Credits an. Die Abrechnung von Workflows und orchestrierten Unterchats bleibt unverändert. Dein Nutzungsbeleg zeigt die verwendeten Preise."
+        },
+        "automatic_summary_fallback": {
+          "text": "Ersatzmodell"
+        },
+        "standard_pricing": {
+          "text": "Standard"
+        },
+        "over_272k_pricing": {
+          "text": "Über 272.000 Eingabe-Token"
+        },
+        "over_272k_explanation": {
+          "text": "Die gesamte Eingabe umfasst auch zwischengespeicherte Eingaben. Bei mehr als 272.000 Eingabe-Token gelten diese Preise für die gesamte Anfrage."
+        },
         "cache_write": {
           "text": "Cache-Schreibvorgang"
         },
@@ -15986,24 +16048,6 @@
         },
         "enable_model": {
           "text": "Modell aktivieren"
-        },
-        "automatic_summary_title": {
-          "text": "Automatische Zusammenfassungen langer Chats"
-        },
-        "automatic_summary_explanation": {
-          "text": "In normalen angemeldeten persönlichen und Team-Chats werden automatische Zusammenfassungen langer Chats nur bei Bedarf separat abgerechnet. Wenn keine Zusammenfassung erstellt wird, fallen dafür keine Credits an. Die Abrechnung von Workflows und orchestrierten Unterchats bleibt unverändert. Dein Nutzungsbeleg zeigt die verwendeten Preise."
-        },
-        "automatic_summary_fallback": {
-          "text": "Ersatzmodell"
-        },
-        "standard_pricing": {
-          "text": "Standard"
-        },
-        "over_272k_pricing": {
-          "text": "Über 272.000 Eingabe-Token"
-        },
-        "over_272k_explanation": {
-          "text": "Die gesamte Eingabe umfasst auch zwischengespeicherte Eingaben. Bei mehr als 272.000 Eingabe-Token gelten diese Preise für die gesamte Anfrage."
         }
       }
     },
@@ -18522,6 +18566,9 @@
       "cache_receipt_title": {
         "text": "LLM-Abrechnungsbeleg"
       },
+      "cache_receipt_automatic_summary": {
+        "text": "Automatische Zusammenfassung eines langen Chats"
+      },
       "cache_receipt_source": {
         "text": "Quelle der Tokenzahlen"
       },
@@ -18545,6 +18592,9 @@
       },
       "cache_receipt_pricing_version": {
         "text": "Preisversion"
+      },
+      "cache_receipt_context_band": {
+        "text": "Preisstufe"
       },
       "cache_receipt_raw": {
         "text": "Credits vor Rundung"
@@ -18626,12 +18676,6 @@
       },
       "context_unavailable": {
         "text": "Ursprünglicher Kontext nicht verfügbar"
-      },
-      "cache_receipt_automatic_summary": {
-        "text": "Automatische Zusammenfassung eines langen Chats"
-      },
-      "cache_receipt_context_band": {
-        "text": "Preisstufe"
       }
     },
     "apps": {
@@ -21912,7 +21956,7 @@
         "text": "Gemessen am"
       },
       "storage_pricing_policy": {
-        "text": "Persönlicher Speicher umfasst 1 GiB kostenlos. Jedes angefangene GiB darüber kostet 3 Credits pro Woche; die Abrechnung erfolgt sonntags um 03:00 UTC. Uploads, gespeicherte Chatverläufe, große Nachrichten, ältere Chatarchive, auf Synchronisierung wartende Ergebnisse und Artefaktversionen zählen zum Speicher. Die Abrechnung von Team-Speicher ist nicht aktiviert."
+        "text": "Persönlicher Speicher umfasst 1 GiB kostenlos. Jedes angefangene GiB darüber kostet 3 Credits pro Woche; die Abrechnung erfolgt sonntags um 03:00 UTC. Uploads, gespeicherte Chatverläufe, große Nachrichten, ältere Chatarchive, auf Synchronisierung wartende Ergebnisse und Artefaktversionen zählen zum Speicher. Jedes Team hat ein separates Kontingent von 1 GiB."
       },
       "storage_logical_breakdown": {
         "text": "Chat- und Artefaktspeicher"
@@ -21964,6 +22008,39 @@
       },
       "storage_notice_error": {
         "text": "Die betroffenen Speichereinheiten konnten nicht geladen werden. Bitte versuche es erneut."
+      },
+      "storage_outstanding": {
+        "text": "Ausstehende Credits"
+      },
+      "storage_expiry_due": {
+        "text": "Die Entfernungsfrist ist erreicht. Der Server prüft Zahlung und sichere Entfernung; aufgeführte Daten gelten nicht als entfernt."
+      },
+      "storage_expiry_disabled": {
+        "text": "Automatische Entfernung ist derzeit deaktiviert."
+      },
+      "storage_invoice_period": {
+        "text": "Abrechnungszeitraum beginnt"
+      },
+      "storage_invoice_status": {
+        "text": "Rechnungsstatus"
+      },
+      "storage_more_invoices": {
+        "text": "Weitere Rechnungen werden in dieser begrenzten Übersicht nicht angezeigt."
+      },
+      "storage_more_units": {
+        "text": "Weitere betroffene Speichereinheiten sind im Zahlungshinweis verfügbar."
+      },
+      "storage_invoice_paid": {
+        "text": "Bezahlt"
+      },
+      "storage_invoice_waived": {
+        "text": "Erlassen"
+      },
+      "storage_invoice_unpaid": {
+        "text": "Unbezahlt"
+      },
+      "storage_invoice_pending": {
+        "text": "Ausstehend"
       }
     },
     "team_invitation": {

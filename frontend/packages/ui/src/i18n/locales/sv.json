@@ -2882,6 +2882,7 @@
     }
   },
   "apps_workspace": {},
+  "artifact_history": {},
   "audio": {
     "playback_progress": {
       "text": "Framsteg för ljuduppspelning"
@@ -3152,6 +3153,9 @@
       "privacy_personal_data": {
         "text": "integritet & personuppgifter"
       }
+    },
+    "open_chat": {
+      "text": "Öppna chatt"
     },
     "new_chat": {
       "text": "Ny chatt"
@@ -4205,6 +4209,9 @@
       "text": "Chatthistorik"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "Personligt och alla team"
+      },
       "placeholder": {
         "text": "Sök chattar och inställningar..."
       },

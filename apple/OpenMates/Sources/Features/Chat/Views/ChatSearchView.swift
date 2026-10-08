@@ -7,6 +7,12 @@
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.suggestions.contextual
 // The shared engine also backs typed-message composer suggestions.
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte: frontend/packages/ui/src/components/chats/search/SearchBar.svelte
+//         frontend/packages/ui/src/components/chats/search/SearchResults.svelte
+// Service: frontend/packages/ui/src/services/searchService.ts
+// Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
 import Foundation
 import SwiftUI
@@ -23,10 +29,21 @@ enum ChatSearchMetadata {
     }
 }
 
+enum ChatSearchContextPolicy {
+    static func eligible(_ chats: [Chat], selectedScope: String = "all", readableTeamIDs: Set<String>) -> [Chat] {
+        chats.filter { chat in
+            let authorized = chat.teamId == nil || chat.teamId.map(readableTeamIDs.contains) == true
+            let selected = selectedScope == "all" || (selectedScope == "personal" ? chat.teamId == nil : chat.teamId == selectedScope)
+            return authorized && selected && !chat.isRetiredBundledIntro && !chat.isHiddenFromNormalSurfaces
+        }
+    }
+}
+
 struct ChatSearchSelection: Equatable {
     let chatId: String
     let messageId: String?
     let query: String
+    var teamID: String? = nil
 }
 
 struct ChatSearchView: View {
@@ -39,6 +56,8 @@ struct ChatSearchView: View {
     var draftPreviews: [String: String] = [:]
     var allowsOfflineContent = true
 
+    @ObservedObject private var teamContext = TeamWorkspaceContext.shared
+    @State private var selectedScope = "all"
     @State private var query = ""
     @StateObject private var searchController = ChatSearchController()
     @State private var metadataTask: Task<Void, Never>?
@@ -46,12 +65,25 @@ struct ChatSearchView: View {
     @FocusState private var isFocused: Bool
 
     private var offlineStore: OfflineStore? { allowsOfflineContent ? OfflineStore.shared : nil }
+    private var eligibleChats: [Chat] {
+        let readable = Set(teamContext.teams.filter(\.canRead).map(\.id))
+        return ChatSearchContextPolicy.eligible(chatStore.chats, selectedScope: selectedScope, readableTeamIDs: readable)
+    }
+
     private var results: ChatSearchResults { searchController.results }
     private var isSearching: Bool { searchController.isSearching }
 
     var body: some View {
         VStack(spacing: 0) {
             searchBar
+            OMDropdown(title: AppStrings.search,
+                options: [OMDropdownOption("all", label: AppStrings.searchAllContexts), OMDropdownOption("personal", label: AppStrings.personalContext)] + teamContext.teams.filter(\.canRead).map { OMDropdownOption($0.id, label: $0.name) },
+                selection: $selectedScope)
+                .padding(.horizontal, .spacing5).accessibilityIdentifier("search-context-scope")
+                .onChange(of: selectedScope) { _, _ in
+                    searchController.changeScope(allowing: Set(eligibleChats.map(\.id)))
+                    scheduleSearch()
+                }
 
             if isSearching && results.totalCount == 0 {
                 searchStatusRow(AppStrings.loading)
@@ -67,18 +99,29 @@ struct ChatSearchView: View {
         .background(Color.grey0)
         .onAppear {
             isFocused = true
-            originalContentChatIds = Set(chats.map(\.id))
+            originalContentChatIds = Set(eligibleChats.map(\.id))
             // Only scoped metadata is warmed; opening search never downloads
             // message history. Re-evaluate the current query as titles arrive.
             metadataTask = Task { @MainActor in
                 await prepareSearchMetadata()
                 guard !Task.isCancelled else { return }
+                originalContentChatIds.formUnion(eligibleChats.map(\.id))
                 scheduleSearch()
             }
         }
         .onReceive(chatStore.$chats) { currentChats in
-            searchController.retainResults(for: Set(currentChats.filter { !$0.isRetiredBundledIntro && !$0.isHiddenFromNormalSurfaces }.map(\.id)))
+            searchController.retainResults(for: Set(eligibleChats.map(\.id)))
             scheduleSearch(storeChanged: true)
+        }
+        .onReceive(teamContext.$rosterEpoch.dropFirst()) { _ in
+            searchController.retainResults(for: Set(eligibleChats.map(\.id)))
+            metadataTask?.cancel()
+            metadataTask = Task { @MainActor in
+                await prepareSearchMetadata()
+                guard !Task.isCancelled else { return }
+                originalContentChatIds.formUnion(eligibleChats.map(\.id))
+                scheduleSearch(storeChanged: true)
+            }
         }
         .onDisappear {
             searchController.cancel()
@@ -189,7 +232,7 @@ struct ChatSearchView: View {
     private func searchChatResult(_ result: ChatSearchResult) -> some View {
         VStack(alignment: .leading, spacing: .spacing1) {
             Button {
-                onSelectResult(.init(chatId: result.chat.id, messageId: nil, query: query))
+                onSelectResult(.init(chatId: result.chat.id, messageId: nil, query: query, teamID: result.chat.teamId))
             } label: {
                 ChatListRow(chat: result.chat, suppliedDraftPreview: draftPreviews[result.chat.id])
                     .background(activeChatId == result.chat.id ? Color.buttonPrimary.opacity(0.12) : Color.clear)
@@ -220,7 +263,7 @@ struct ChatSearchView: View {
 
     private func snippetButton(_ snippet: ChatSearchSnippet, chatId: String) -> some View {
         Button {
-            onSelectResult(.init(chatId: chatId, messageId: snippet.messageId, query: query))
+            onSelectResult(.init(chatId: chatId, messageId: snippet.messageId, query: query, teamID: chatStore.chat(for: chatId)?.teamId))
         } label: {
             VStack(alignment: .leading, spacing: .spacing1) {
                 if let label = snippet.sourceLabel {
@@ -249,7 +292,7 @@ struct ChatSearchView: View {
 
     private func metadataSnippetButton(_ snippet: ChatMetadataSnippet, chatId: String) -> some View {
         Button {
-            onSelectResult(.init(chatId: chatId, messageId: nil, query: query))
+            onSelectResult(.init(chatId: chatId, messageId: nil, query: query, teamID: chatStore.chat(for: chatId)?.teamId))
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: .spacing2) {
                 Text(snippet.sourceLabel.uppercased())
@@ -273,17 +316,20 @@ struct ChatSearchView: View {
     private func scheduleSearch(storeChanged: Bool = false, immediately: Bool = false) {
         let scope = OfflineStore.shared.scopeGeneration
         let team = TeamWorkspaceContext.shared.snapshot
+        let rosterEpoch = teamContext.rosterEpoch
+        let resultScope = selectedScope
+        let corpus = eligibleChats
         let server = ServerProfile.current().apiBaseURL
         let language = LocalizationManager.shared.currentLanguage
         let isCurrent: @MainActor () -> Bool = {
             scope == OfflineStore.shared.scopeGeneration &&
                 server == ServerProfile.current().apiBaseURL &&
                 language == LocalizationManager.shared.currentLanguage &&
-                ComposerSearchSuggestionsController.isTeamContextCurrent(team)
+                ComposerSearchSuggestionsController.isTeamContextCurrent(team) && rosterEpoch == teamContext.rosterEpoch && resultScope == selectedScope
         }
         searchController.schedule(query: query, storeChanged: storeChanged,
             immediately: immediately, isCurrent: isCurrent) { nextQuery in
-            try await ChatSearchEngine.searchAsync(query: nextQuery, chats: chatStore.chats,
+            try await ChatSearchEngine.searchAsync(query: nextQuery, chats: corpus,
                 chatStore: chatStore, offlineStore: offlineStore,
                 offlineContentChatIds: originalContentChatIds, isCurrent: isCurrent)
         }
@@ -337,6 +383,14 @@ final class ChatSearchController: ObservableObject {
         allowedResultChatIDs = chatIDs
         let retained = retainingAllowedResults(results)
         if retained.totalCount != results.totalCount { results = retained }
+    }
+
+    /// Scope transitions immediately remove inaccessible rows and invalidate an
+    /// old same-query pass, while retaining still-readable rows during refresh.
+    func changeScope(allowing chatIDs: Set<String>) {
+        retainResults(for: chatIDs)
+        task?.cancel(); task = nil; generation = UUID()
+        pendingRefresh = false; currentRunIsCurrent = { true }; isSearching = false
     }
 
     private func retainingAllowedResults(_ value: ChatSearchResults) -> ChatSearchResults {
@@ -526,6 +580,15 @@ enum ChatSearchEngine {
                     includeMessages: needsMessages, includeEmbeds: embeds.isEmpty)
                 if needsMessages { messages = content.messages }
                 if embeds.isEmpty { embeds = content.embeds }
+            }
+        }
+        // Keep decrypted search material ephemeral; never write it back to disk.
+        if let key = ChatKeyManager.shared.key(for: chat.id) {
+            for index in messages.indices {
+                try Task.checkCancellation()
+                if messages[index].content?.isEmpty != false, let encrypted = messages[index].encryptedContent {
+                    messages[index].content = try? await CryptoManager.shared.decryptContent(base64String: encrypted, key: key)
+                }
             }
         }
         return Snapshot(chat: chat, messages: messages, embeds: embeds,

@@ -39,6 +39,24 @@ final class UpcomingMemoryLiveActivityUITests: XCTestCase {
         next.tap()
         assertValue("total=30;pages=24;selected=2", element: navigation)
     }
+    // contract-test: direct surface=gui.apple assertions=apple-live-activities.memories.upcoming,apple-live-activities.lifecycle.isolation
+    func testSharedSmartStackLayoutFitsWatchBoundsAndKeepsPrivateTextAbsent() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embed-share", "--dev-upcoming-memory-live-activity-fixture", "--ui-test-disable-auth-cache"]
+        app.launch()
+        let container = app.descendants(matching: .any).matching(identifier: "upcoming-small-fixture-container").firstMatch
+        XCTAssertTrue(container.waitForExistence(timeout: 10))
+        let time = app.descendants(matching: .any).matching(identifier: "upcoming-small-start").firstMatch
+        let total = app.staticTexts["upcoming-small-total"]
+        XCTAssertTrue(time.exists); XCTAssertTrue(total.exists)
+        XCTAssertTrue(container.frame.contains(time.frame)); XCTAssertTrue(container.frame.contains(total.frame))
+        XCTAssertEqual(total.label, "3")
+        XCTAssertFalse(app.staticTexts["Private fixture medical title"].exists)
+        XCTAssertFalse(app.staticTexts["Private fixture medical notes"].exists)
+        let snapshot = XCTAttachment(screenshot: app.screenshot()); snapshot.name = "Shared Watch Smart Stack layout"
+        snapshot.lifetime = .keepAlways; add(snapshot)
+    }
+
     private func assertValue(_ value: String, element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
         let predicate = NSPredicate(format: "value == %@", value)
         let result = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: 5)

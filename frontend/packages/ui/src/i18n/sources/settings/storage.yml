@@ -1027,8 +1027,8 @@ storage_measured_at:
 
 storage_pricing_policy:
   context: Storage settings logical billing and payment notice disclosure
-  en: "Personal storage includes 1 GiB free. Each started GiB above that costs 3 credits per week, billed on Sundays at 03:00 UTC. Uploads, saved chat history, large messages, older chat archives, outputs waiting to sync, and artifact history count toward storage. Team storage billing is not enabled."
-  de: "Persönlicher Speicher umfasst 1 GiB kostenlos. Jedes angefangene GiB darüber kostet 3 Credits pro Woche; die Abrechnung erfolgt sonntags um 03:00 UTC. Uploads, gespeicherte Chatverläufe, große Nachrichten, ältere Chatarchive, auf Synchronisierung wartende Ergebnisse und Artefaktversionen zählen zum Speicher. Die Abrechnung von Team-Speicher ist nicht aktiviert."
+  en: "Personal storage includes 1 GiB free. Each started GiB above that costs 3 credits per week, billed on Sundays at 03:00 UTC. Uploads, saved chat history, large messages, older chat archives, outputs waiting to sync, and artifact history count toward storage. Each Team has a separate 1 GiB allowance."
+  de: "Persönlicher Speicher umfasst 1 GiB kostenlos. Jedes angefangene GiB darüber kostet 3 Credits pro Woche; die Abrechnung erfolgt sonntags um 03:00 UTC. Uploads, gespeicherte Chatverläufe, große Nachrichten, ältere Chatarchive, auf Synchronisierung wartende Ergebnisse und Artefaktversionen zählen zum Speicher. Jedes Team hat ein separates Kontingent von 1 GiB."
   verified_by_human: []
 
 storage_logical_breakdown:
@@ -1131,4 +1131,70 @@ storage_notice_error:
   context: Storage settings logical billing and payment notice disclosure
   en: "Could not load the affected storage units. Please try again."
   de: "Die betroffenen Speichereinheiten konnten nicht geladen werden. Bitte versuche es erneut."
+  verified_by_human: []
+
+storage_outstanding:
+  context: Native storage settlement disclosure; backend owns payment and removal decisions
+  en: "Outstanding credits"
+  de: "Ausstehende Credits"
+  verified_by_human: []
+
+storage_expiry_due:
+  context: Native storage settlement disclosure; backend owns payment and removal decisions
+  en: "The removal deadline has been reached. The server checks payment and safe removal eligibility; listed data is not confirmed removed."
+  de: "Die Entfernungsfrist ist erreicht. Der Server prüft Zahlung und sichere Entfernung; aufgeführte Daten gelten nicht als entfernt."
+  verified_by_human: []
+
+storage_expiry_disabled:
+  context: Native storage settlement disclosure; backend owns payment and removal decisions
+  en: "Automatic removal is currently disabled."
+  de: "Automatische Entfernung ist derzeit deaktiviert."
+  verified_by_human: []
+
+storage_invoice_period:
+  context: Native storage settlement disclosure; backend owns payment and removal decisions
+  en: "Invoice period begins"
+  de: "Abrechnungszeitraum beginnt"
+  verified_by_human: []
+
+storage_invoice_status:
+  context: Native storage settlement disclosure; backend owns payment and removal decisions
+  en: "Invoice status"
+  de: "Rechnungsstatus"
+  verified_by_human: []
+
+storage_more_invoices:
+  context: Native storage settlement disclosure; backend owns payment and removal decisions
+  en: "Additional invoices are not shown in this bounded summary."
+  de: "Weitere Rechnungen werden in dieser begrenzten Übersicht nicht angezeigt."
+  verified_by_human: []
+
+storage_more_units:
+  context: Native storage settlement disclosure; backend owns payment and removal decisions
+  en: "Additional affected units are available through the payment notice."
+  de: "Weitere betroffene Speichereinheiten sind im Zahlungshinweis verfügbar."
+  verified_by_human: []
+
+storage_invoice_paid:
+  context: Native storage settlement disclosure; backend owns payment and removal decisions
+  en: "Paid"
+  de: "Bezahlt"
+  verified_by_human: []
+
+storage_invoice_waived:
+  context: Native storage settlement disclosure; backend owns payment and removal decisions
+  en: "Waived"
+  de: "Erlassen"
+  verified_by_human: []
+
+storage_invoice_unpaid:
+  context: Native storage settlement disclosure; backend owns payment and removal decisions
+  en: "Unpaid"
+  de: "Unbezahlt"
+  verified_by_human: []
+
+storage_invoice_pending:
+  context: Native storage settlement disclosure; backend owns payment and removal decisions
+  en: "Pending"
+  de: "Ausstehend"
   verified_by_human: []

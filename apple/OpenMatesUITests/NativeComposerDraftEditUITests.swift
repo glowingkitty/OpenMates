@@ -18,7 +18,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         #endif
     }
 
-    // contract-test: supporting surface=gui.apple assertions=message-input.send.ownership
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testEditCancelRestoresTheOriginalMessageContent() throws {
         let app = launchMessageEditFixture()
 
@@ -38,7 +38,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         attachScreenshot(name: "Native composer edit cancel restores original content")
     }
 
-    // contract-test: supporting surface=gui.apple assertions=message-input.send.ownership
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testEditSaveCommitsOnlyTheEditedMessageContent() throws {
         let app = launchMessageEditFixture()
 
@@ -195,24 +195,61 @@ final class NativeComposerDraftEditUITests: XCTestCase {
     func testAcceptedSendClosesExpandedComposerAndDismissesKeyboard() {
         let app = launchComposerSendFixture(outcome: "accepted")
         let editor = editor(in: app)
-        editor.tap()
-        let fullscreen = app.buttons["message-input-fullscreen-button"]
-        XCTAssertFalse(fullscreen.exists, "An empty focused editor has no overflow action")
+        guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
+        let absentControl = app.buttons["message-input-fullscreen-button"]
+        XCTAssertFalse(absentControl.exists, "An empty focused editor has no overflow action")
         let shortDraft = "Synthetic composer send"
         editor.typeText(shortDraft)
-        XCTAssertFalse(fullscreen.exists, "A single short line must not expose Expand")
-        let continuation = "\nSecond line\nThird line\nFourth line\nFifth line"
+        XCTAssertFalse(absentControl.exists, "A single short line must not expose Expand")
+        let continuation = "\nSecond line\nThird line\nFourth line\nFifth line\nSixth line\nSeventh line\nEighth line"
         let draft = shortDraft + continuation
         editor.typeText(continuation)
         XCTAssertEqual(editor.value as? String, draft)
-        XCTAssertTrue(fullscreen.waitForExistence(timeout: 5)); XCTAssertTrue(fullscreen.isHittable)
+        // The absence probe predates this conditional native control. Resolve
+        // its rendered Button role after insertion, then require its real frame
+        // and hit target within the same existing five-second readiness budget.
+        let fullscreen = app.buttons.matching(identifier: "message-input-fullscreen-button").firstMatch
+        let renderedControl = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard fullscreen.exists else { return false }
+            // One rendered frame per evaluation: each property access otherwise
+            // triggers another AX round trip inside the five-second budget.
+            let frame = fullscreen.frame
+            return abs(frame.width - 44) <= 1 && abs(frame.height - 44) <= 1 && fullscreen.isHittable
+        }, object: fullscreen)
+        let renderedResult = XCTWaiter.wait(for: [renderedControl], timeout: 5)
+        let field = element(in: app, identifier: "message-field")
+        attachScreenshot(name: "Accepted collapsed overflowing composer exposes Expand")
+        if renderedResult != .completed {
+            let roleMatches = app.buttons.matching(identifier: "message-input-fullscreen-button").allElementsBoundByIndex
+            let allMatches = app.descendants(matching: .any)
+                .matching(identifier: "message-input-fullscreen-button").allElementsBoundByIndex
+            func snapshots(_ elements: [XCUIElement]) -> String {
+                elements.map {
+                    "role=\($0.elementType.rawValue);frame=\($0.frame);hittable=\($0.isHittable);native=\($0.value as? String ?? "missing");\($0.debugDescription)"
+                }
+                    .joined(separator: "\n")
+            }
+            let hierarchy = XCTAttachment(string:
+                "absentProbe=\(absentControl.debugDescription)\nrendered=\(fullscreen.debugDescription)\nbuttons=\(snapshots(roleMatches))\nallRoles=\(snapshots(allMatches))\nfield=\(field.value as? String ?? "missing")\n\(app.debugDescription)")
+            hierarchy.name = "Accepted overflow control before geometry assertions"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+        }
+        XCTAssertEqual(renderedResult, .completed, "Expand must render its actual 44pt hit target within five seconds")
+        XCTAssertEqual(app.buttons.matching(identifier: "message-input-fullscreen-button").count, 1,
+                       "Expand must expose one live control, without a retained duplicate")
+        XCTAssertEqual(fullscreen.frame.width, 44, accuracy: 1)
+        XCTAssertEqual(fullscreen.frame.height, 44, accuracy: 1)
+        XCTAssertTrue(field.frame.contains(fullscreen.frame), "Overflow control must render inside its own field")
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(fullscreen.frame), "Expand must remain inside the visible app window")
+        XCTAssertTrue(fullscreen.isHittable, "Visible Expand must expose its actual interaction rectangle")
+        NativeComposerRenderedLayoutAssertions.assertSelectedCaretClears(fullscreen, field: field, editor: editor)
         let collapsedEditorHeight = editor.frame.height
         fullscreen.tap()
         expectation(for: NSPredicate { _, _ in editor.frame.height > collapsedEditorHeight }, evaluatedWith: editor)
         waitForExpectations(timeout: 3)
-        editor.tap()
+        guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-        let field = element(in: app, identifier: "message-field")
         let expandedHeight = field.frame.height
         NativeComposerRenderedLayoutAssertions.assertBeside(fullscreen, field: field, editor: editor)
         NativeComposerRenderedLayoutAssertions.assertSelectedCaretClears(fullscreen, field: field, editor: editor, requiresScroll: false)
@@ -222,6 +259,9 @@ final class NativeComposerDraftEditUITests: XCTestCase {
 
         expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: fullscreen)
         expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.keyboards.firstMatch)
+        // Logical AX absence precedes the field's rendered collapse animation.
+        // Require the existing geometry criterion within the same send budget.
+        expectation(for: NSPredicate { _, _ in field.frame.height < expandedHeight - 40 }, evaluatedWith: field)
         waitForExpectations(timeout: 8)
         XCTAssertLessThan(field.frame.height, expandedHeight - 40)
         XCTAssertFalse(app.menuItems["Copy"].exists, "An accepted send must leave no selected text menu")
@@ -232,32 +272,81 @@ final class NativeComposerDraftEditUITests: XCTestCase {
     func testRejectedSendRetainsDraftExpansionAndKeyboardFocus() {
         let app = launchComposerSendFixture(outcome: "rejected")
         let editor = editor(in: app)
-        editor.tap()
-        let fullscreen = app.buttons["message-input-fullscreen-button"]
-        XCTAssertFalse(fullscreen.exists, "An empty focused editor has no overflow action")
+        guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
+        let absentControl = app.buttons["message-input-fullscreen-button"]
+        XCTAssertFalse(absentControl.exists, "An empty focused editor has no overflow action")
         let shortDraft = "Synthetic rejected draft"
         editor.typeText(shortDraft)
-        XCTAssertFalse(fullscreen.exists, "A single short line must not expose Expand")
-        let continuation = "\nSecond line\nThird line\nFourth line\nFifth line"
+        XCTAssertFalse(absentControl.exists, "A single short line must not expose Expand")
+        let continuation = "\nSecond line\nThird line\nFourth line\nFifth line\nSixth line\nSeventh line\nEighth line"
         let draft = shortDraft + continuation
         editor.typeText(continuation)
         XCTAssertEqual(editor.value as? String, draft)
-        XCTAssertTrue(fullscreen.waitForExistence(timeout: 5)); XCTAssertTrue(fullscreen.isHittable)
+        // The absence probe predates this conditional native control. Resolve
+        // its rendered Button role after insertion, then require its real frame
+        // and hit target within the same existing five-second readiness budget.
+        let fullscreen = app.buttons.matching(identifier: "message-input-fullscreen-button").firstMatch
+        let renderedControl = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard fullscreen.exists else { return false }
+            // One rendered frame per evaluation: each property access otherwise
+            // triggers another AX round trip inside the five-second budget.
+            let frame = fullscreen.frame
+            return abs(frame.width - 44) <= 1 && abs(frame.height - 44) <= 1 && fullscreen.isHittable
+        }, object: fullscreen)
+        let renderedResult = XCTWaiter.wait(for: [renderedControl], timeout: 5)
+        let field = element(in: app, identifier: "message-field")
+        attachScreenshot(name: "Rejected collapsed overflowing composer exposes Expand")
+        if renderedResult != .completed {
+            let roleMatches = app.buttons.matching(identifier: "message-input-fullscreen-button").allElementsBoundByIndex
+            let allMatches = app.descendants(matching: .any)
+                .matching(identifier: "message-input-fullscreen-button").allElementsBoundByIndex
+            func snapshots(_ elements: [XCUIElement]) -> String {
+                elements.map {
+                    "role=\($0.elementType.rawValue);frame=\($0.frame);hittable=\($0.isHittable);native=\($0.value as? String ?? "missing");\($0.debugDescription)"
+                }
+                    .joined(separator: "\n")
+            }
+            let hierarchy = XCTAttachment(string:
+                "absentProbe=\(absentControl.debugDescription)\nrendered=\(fullscreen.debugDescription)\nbuttons=\(snapshots(roleMatches))\nallRoles=\(snapshots(allMatches))\nfield=\(field.value as? String ?? "missing")\n\(app.debugDescription)")
+            hierarchy.name = "Rejected overflow control before geometry assertions"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+        }
+        XCTAssertEqual(renderedResult, .completed, "Expand must render its actual 44pt hit target within five seconds")
+        XCTAssertEqual(app.buttons.matching(identifier: "message-input-fullscreen-button").count, 1,
+                       "Expand must expose one live control, without a retained duplicate")
+        XCTAssertEqual(fullscreen.frame.width, 44, accuracy: 1)
+        XCTAssertEqual(fullscreen.frame.height, 44, accuracy: 1)
+        XCTAssertTrue(field.frame.contains(fullscreen.frame), "Overflow control must render inside its own field")
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(fullscreen.frame), "Expand must remain inside the visible app window")
+        XCTAssertTrue(fullscreen.isHittable, "Visible Expand must expose its actual interaction rectangle")
+        NativeComposerRenderedLayoutAssertions.assertSelectedCaretClears(fullscreen, field: field, editor: editor)
         let collapsedEditorHeight = editor.frame.height
         fullscreen.tap()
         expectation(for: NSPredicate { _, _ in editor.frame.height > collapsedEditorHeight }, evaluatedWith: editor)
         waitForExpectations(timeout: 3)
-        editor.tap()
-        let field = element(in: app, identifier: "message-field")
+        guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
         let expandedHeight = field.frame.height
         NativeComposerRenderedLayoutAssertions.assertBeside(fullscreen, field: field, editor: editor)
         NativeComposerRenderedLayoutAssertions.assertSelectedCaretClears(fullscreen, field: field, editor: editor, requiresScroll: false)
-        app.buttons["send-button"].tap()
+        let send = app.buttons["send-button"]
+        XCTAssertTrue(send.isEnabled, "A rejected fixture must exercise an enabled production Send action")
+        XCTAssertTrue(send.isHittable, "Send must expose its real interaction target before testing rejection")
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(send.frame), "Send must remain inside the visible app window")
+        send.tap()
+        XCTAssertEqual(editor.value as? String, draft, "Preparation/rejection must keep the original editor, not clear it before durable acceptance")
 
         let outcome = element(in: app, identifier: "composer-send-fixture-outcome")
-        expectation(for: NSPredicate(format: "label == %@", "rejected"), evaluatedWith: outcome)
-        expectation(for: NSPredicate(format: "value == %@", draft), evaluatedWith: editor)
-        waitForExpectations(timeout: 8)
+        let rejected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "rejected"), object: outcome)
+        let retainedDraft = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", draft), object: editor)
+        let sendResult = XCTWaiter.wait(for: [rejected, retainedDraft], timeout: 8)
+        if sendResult != .completed {
+            let phase = XCTAttachment(string: "label=\(outcome.label);\(outcome.value as? String ?? "missing")")
+            phase.name = "Rejected production Send dispatch phase"
+            phase.lifetime = .keepAlways
+            add(phase)
+        }
+        XCTAssertEqual(sendResult, .completed, "Production Send must reject within eight seconds and retain the exact draft")
         XCTAssertTrue(fullscreen.exists)
         XCTAssertGreaterThanOrEqual(field.frame.height, expandedHeight - 8)
         XCTAssertTrue(app.keyboards.firstMatch.exists)
@@ -356,6 +445,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-composer-send", outcome]
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        app.launchArguments.append("--ui-test-composer-control-diagnostics")
         app.launch()
         XCTAssertTrue(app.textViews["message-editor"].firstMatch.waitForExistence(timeout: 12))
         return app

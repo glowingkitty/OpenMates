@@ -9,6 +9,102 @@ import XCTest
 @testable import OpenMates
 
 final class ChatCompletionRecoveryTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=storage.background.complete-sealed-recovery,storage.surface.semantic-parity
+    func testForegroundPolicySeparatesLegacyAcknowledgementFromTypedDiscovery() {
+        var legacy = NativeRecoveryForegroundPolicy(isForeground: true)
+        legacy.connected(socketGeneration: 4)
+        XCTAssertFalse(legacy.canRecover)
+        legacy.acknowledge(isForeground: true, socketGeneration: 4)
+        XCTAssertTrue(legacy.canRecover, "v1 never receives a typed completion fence")
+        var typed = NativeRecoveryForegroundPolicy(isForeground: true, requiresCompletedDiscovery: true)
+        typed.connected(socketGeneration: 4)
+        typed.discoveryCompleted(status: "completed", socketGeneration: 4)
+        XCTAssertFalse(typed.canRecover, "A pre-ACK discovery cannot unlock replay")
+        typed.acknowledge(isForeground: true, socketGeneration: 4)
+        typed.discoveryCompleted(status: "failed", socketGeneration: 4)
+        XCTAssertFalse(typed.canRecover)
+        typed.discoveryCompleted(status: "completed", socketGeneration: 3)
+        XCTAssertFalse(typed.canRecover)
+        typed.discoveryCompleted(status: "completed", socketGeneration: 4)
+        XCTAssertTrue(typed.canRecover)
+        XCTAssertFalse(NativeRecoveryProtocolSupport.typedOutputsV2,
+            "Policy and crypto fixtures alone never qualify all typed writers")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=storage.background.complete-sealed-recovery,storage.background.saved-output-retention
+    func testBlurReconnectAndCapabilityErrorsRemainSeparate() {
+        var policy = NativeRecoveryForegroundPolicy(isForeground: true, requiresCompletedDiscovery: true)
+        policy.connected(socketGeneration: 2)
+        policy.acknowledge(isForeground: true, socketGeneration: 2)
+        policy.discoveryCompleted(status: "completed", socketGeneration: 2)
+        policy.announce(isForeground: false, socketGeneration: 2)
+        policy.acknowledge(isForeground: true, socketGeneration: 2)
+        XCTAssertFalse(policy.canRecover)
+        policy.announce(isForeground: true, socketGeneration: 2)
+        policy.discoveryCompleted(status: "completed", socketGeneration: 2)
+        XCTAssertFalse(policy.canRecover)
+        policy.disconnected()
+        policy.connected(socketGeneration: 3)
+        policy.acknowledge(isForeground: true, socketGeneration: 2)
+        XCTAssertFalse(policy.canRecover)
+        policy.acknowledge(isForeground: true, socketGeneration: 3)
+        policy.discoveryCompleted(status: "completed", socketGeneration: 3)
+        XCTAssertTrue(policy.canRecover)
+        XCTAssertEqual(NativeRecoveryForegroundPolicy.failure(code: "recovery_requires_foreground"), .foregroundRequired)
+        XCTAssertEqual(NativeRecoveryForegroundPolicy.failure(code: "client_capability_required"), .capabilityRequired)
+        policy.markUnsupported()
+        policy.announce(isForeground: false, socketGeneration: 3)
+        policy.announce(isForeground: true, socketGeneration: 3)
+        policy.acknowledge(isForeground: true, socketGeneration: 3)
+        policy.discoveryCompleted(status: "completed", socketGeneration: 3)
+        XCTAssertEqual(policy.phase, .unsupported)
+        XCTAssertFalse(policy.canRecover)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=storage.background.saved-output-retention,chats.persistence.client-encrypted,chats.completion.recovery-takeover
+    @MainActor
+    func testBackgroundPauseRetainsExactPreparedCiphertextUntilCurrentForegroundAck() async throws {
+        let clock = RecoveryManualScheduler()
+        let fixture = try await makeRecoveryFixture(persistWasAlreadyCommitted: true, scheduler: clock)
+        fixture.transport.replaceSecondClaimWithNewLease()
+        fixture.transport.responseErrors["recovery_job_persisted"] = [WebSocketError.messageTimeout]
+        await fixture.coordinator.markInitialSyncReady()
+        await fixture.coordinator.handleTransportConnected(requiresForegroundAcknowledgement: true, socketGeneration: 8)
+        await fixture.coordinator.handleLifecycleAcknowledgement(["is_foreground": true], socketGeneration: 8)
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        XCTAssertEqual(clock.activeCount, 1)
+        fixture.coordinator.lifecycleWillSend(isForeground: false, socketGeneration: 8)
+        XCTAssertEqual(clock.activeCount, 0)
+        await fixture.coordinator.handleChatKeyAvailabilityChanged()
+        XCTAssertEqual(fixture.transport.sentTypes.filter { $0 == "recovery_job_persist" }.count, 1)
+        XCTAssertTrue(fixture.coordinator.ownsRecoveryPersistence(messageId: RecoveryVector.shared.assistantMessageId))
+        fixture.coordinator.lifecycleWillSend(isForeground: true, socketGeneration: 8)
+        await fixture.coordinator.handleLifecycleAcknowledgement(["is_foreground": true], socketGeneration: 7)
+        XCTAssertTrue(fixture.persisted.committedMessagesVersions.isEmpty)
+        await fixture.coordinator.handleLifecycleAcknowledgement(["is_foreground": true], socketGeneration: 8)
+        let writes = zip(fixture.transport.sentTypes, fixture.transport.sentPayloads)
+            .filter { $0.0 == "recovery_job_persist" }.map { $0.1 }
+        XCTAssertEqual(writes.count, 2)
+        XCTAssertTrue(NSDictionary(dictionary: writes[0]["encrypted_assistant_message"] as? [String: Any] ?? [:])
+            .isEqual(to: writes[1]["encrypted_assistant_message"] as? [String: Any] ?? [:]))
+        XCTAssertEqual(fixture.persisted.committedMessagesVersions, [8])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=storage.background.saved-output-retention,chats.message.identity-idempotent
+    @MainActor
+    func testChangedRediscoveredJobCannotReplaceRetainedIdentity() async throws {
+        let clock = RecoveryManualScheduler()
+        let fixture = try await makeRecoveryFixture(claimFailures: [WebSocketError.remote(code: "lease_conflict")], scheduler: clock)
+        await fixture.coordinator.markInitialSyncReady()
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        var changed = (fixture.availability["jobs"] as? [[String: Any]]) ?? []
+        changed[0]["turn_id"] = "different-turn"
+        await fixture.coordinator.handleAvailableJobs(["jobs": changed])
+        await clock.advanceNext()
+        XCTAssertEqual(fixture.persisted.committedMessagesVersions, [8],
+            "The original exact identity survives an incompatible availability broadcast")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
     @MainActor
     func testSavedChatCommitsTheExactPreflightInferencePayload() async throws {

@@ -256,6 +256,16 @@ struct CompactWorkspacePicker: View {
 #endif
     }
     @State private var expanded = false
+#if DEBUG
+    @State private var debugToggleCount = 0
+    @State private var debugCloseReason = "initial"
+    private var debugNavigationEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-nav-callback-diagnostics")
+    }
+    private var debugNavigationLabel: String {
+        "toggle-count=\(debugToggleCount);expanded=\(expanded);close-reason=\(debugCloseReason);viewport=\(viewportSize.width)x\(viewportSize.height)"
+    }
+#endif
     @FocusState private var focusedWorkspace: WorkspaceDestination?
     let selectedWorkspace: WorkspaceDestination
     let viewportSize: CGSize
@@ -274,12 +284,24 @@ struct CompactWorkspacePicker: View {
             .frame(width: triggerWidth, height: 44)
             .overlay(alignment: .top) {
                 ZStack(alignment: .top) {
+#if DEBUG
+                    if debugNavigationEnabled {
+                        Text(debugNavigationLabel)
+                            .font(.omMicro)
+                            .frame(width: 1, height: 1)
+                            .opacity(0.01)
+                            .allowsHitTesting(false)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityIdentifier("workspace-picker-debug-state")
+                            .accessibilityLabel(debugNavigationLabel)
+                    }
+#endif
                     if expanded {
                         Color.black.opacity(0.72)
                             .frame(width: viewportSize.width, height: max(44, viewportSize.height))
                             .offset(y: 0)
                             .contentShape(Rectangle())
-                            .onTapGesture { close() }
+                            .onTapGesture { close(reason: "outside") }
                             .accessibilityHidden(true)
                             .transition(.opacity)
                     }
@@ -314,7 +336,7 @@ struct CompactWorkspacePicker: View {
                         .accessibilityIdentifier("workspace-switcher")
                         .accessibilityLabel(selectedWorkspace.label)
                         .accessibilityValue(expanded ? "expanded" : "collapsed")
-                        .onKeyPress(.escape) { guard expanded else { return .ignored }; close(); return .handled }
+                        .onKeyPress(.escape) { guard expanded else { return .ignored }; close(reason: "escape"); return .handled }
                         .zIndex(1)
                         if expanded {
                             ScrollView(.vertical, showsIndicators: panelHeight < WorkspaceSwitcherLayoutPolicy.expandedHeight) {
@@ -363,17 +385,31 @@ struct CompactWorkspacePicker: View {
                     .accessibilityValue(reduceMotion ? "reduced-motion" : "animated")
                 }
             }
-            .onChange(of: selectedWorkspace) { _, _ in close() }
-            .onChange(of: viewportSize) { _, _ in close() }
-            .onDisappear { expanded = false }
+            .onChange(of: selectedWorkspace) { _, _ in close(reason: "workspace") }
+            .onChange(of: viewportSize) { _, _ in close(reason: "viewport") }
+            .onDisappear {
+#if DEBUG
+                if debugNavigationEnabled { debugCloseReason = "disappear" }
+#endif
+                expanded = false
+            }
     }
 
     private func togglePicker() {
+#if DEBUG
+        if debugNavigationEnabled {
+            debugToggleCount += 1
+            if expanded { debugCloseReason = "toggle" }
+        }
+#endif
         withAnimation(expanded ? closeAnimation : openAnimation) { expanded.toggle() }
         focusedWorkspace = selectedWorkspace
     }
 
-    private func close() {
+    private func close(reason: String = "selection") {
+#if DEBUG
+        if debugNavigationEnabled { debugCloseReason = reason }
+#endif
         withAnimation(closeAnimation) { expanded = false }
         focusedWorkspace = selectedWorkspace
     }

@@ -7,7 +7,7 @@
 // Specification: specifications/features/chat-navigation/specification.yml
 // Assertions: chat-navigation.open.local-first-coherent, chat-navigation.empty-new-chat.excluded
 // Specification: specifications/features/message-input/specification.yml
-// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context, message-input.suggestions.contextual
+// Assertions: message-input.layout.responsive-parity, message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context, message-input.suggestions.contextual
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.layout.responsive-history, chats.streaming.progressive-presentation, chats.rendering.assistant-document-convergence, chats.surface.semantic-parity
 // Specification: specifications/features/apple-notifications/specification.yml
@@ -407,6 +407,14 @@ enum ChatTypingPresentation {
     }
 }
 
+/// Clear only the accepted snapshot, never edits made during an awaited send.
+enum ComposerAcceptedSendSnapshotPolicy {
+    static func shouldClear(accepted: Bool, submittedRevision: Int, currentRevision: Int,
+                            submittedDocument: ComposerDocumentV1, currentDocument: ComposerDocumentV1) -> Bool {
+        accepted && submittedRevision == currentRevision && submittedDocument == currentDocument
+    }
+}
+
 struct ChatView: View {
     #if DEBUG
     var isolatedHistory = false
@@ -524,7 +532,6 @@ struct ChatView: View {
     @State private var highlightComment = ""
     @State private var explanationChatID: String?
     @State private var chatViewportHeight: CGFloat = 0
-    @State private var composerContentOverflows = false
     @State private var chatContainerWidth: CGFloat = 0
     @State private var historyNavigationTask: Task<Void, Never>?
     @State private var historyNavigationID = UUID()
@@ -570,6 +577,9 @@ struct ChatView: View {
     @State private var stopButtonPulsing = false
     @State private var deferredSocketConnectedEpoch = 0
     @State private var isInputFocused = false
+    #if DEBUG
+    @State private var composerSendFixturePhases: [String] = ["idle"]
+    #endif
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.layoutDirection) private var layoutDirection
@@ -808,7 +818,8 @@ struct ChatView: View {
                   chatId == expectedChatID,
                   socket.transportGeneration == expectedTransport,
                   receipt.matches(scope: OfflineStore.shared.scopeGeneration, transport: socket.transportGeneration),
-                  let boundary = RememberMessageDraft.latestBoundary(fields.fields, chatID: expectedChatID) else { return }
+                  RememberMessageDraft.latestBoundary(fields.fields, chatID: expectedChatID) != nil,
+                  let boundary = OfflineStore.shared.compressionBoundary(chatID: expectedChatID) else { return }
             compressedMessageBoundary = max(compressedMessageBoundary ?? boundary, boundary)
         }
     }
@@ -829,8 +840,7 @@ struct ChatView: View {
         .onReceive(NotificationCenter.default.publisher(for: .wsSyncEvent)) { note in
             receiveCompressionCheckpoint(note)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .wsMessageReceived)) { note in
-            guard note.userInfo?["type"] as? String == "chat_compression_checkpoint_stored" else { return }
+        .onReceive(NotificationCenter.default.publisher(for: .compressionCheckpointPersisted)) { note in
             receiveCompressionCheckpoint(note)
         }
         .onReceive(NotificationCenter.default.publisher(for: .chatKeyMaterialAvailable)) { _ in
@@ -3184,6 +3194,7 @@ struct ChatView: View {
                 Text(viewModel.error == nil ? "ready" : "rejected")
                     .font(.omMicro)
                     .accessibilityIdentifier("composer-send-fixture-outcome")
+                    .accessibilityValue(composerSendFixtureDiagnostic)
                 if ProcessInfo.processInfo.arguments.contains("--ui-test-composer-processing-recovery") {
                     Button {
                         Task { @MainActor in await viewModel.recoverIsolatedProcessingFixture() }
@@ -3313,28 +3324,11 @@ struct ChatView: View {
             }
             .environment(\.composerFieldMaximumHeight, chatViewportHeight > 0 ? maximumViewportFieldHeight : nil)
             .environment(\.composerFullscreen, isComposerExpanded)
-            .onPreferenceChange(ComposerNativeOverflowPreferenceKey.self) { composerContentOverflows = $0 }
-            .overlay(alignment: .topTrailing) {
-                if !overlayActive && (isComposerExpanded || composerContentOverflows) {
-                    Button {
-                        isComposerExpanded.toggle()
-                        isInputFocused = false
-                    } label: {
-                        Icon(isComposerExpanded ? "minimize" : "fullscreen", size: 20)
-                            .foregroundStyle(LinearGradient.primary)
-                            .frame(width: 30, height: 30)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-                    .padding(.top, 10)
-                    .padding(.trailing, 15)
-                    .help(Text(isComposerExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen))
-                    .accessibilityLabel(isComposerExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen)
-                    .accessibilityIdentifier("message-input-fullscreen-button")
-                    .zIndex(10)
-                }
-            }
+            .environment(\.composerFullscreenControlHandler,
+                ComposerFullscreenControlHandler(isEnabled: !overlayActive, action: {
+                    isComposerExpanded.toggle()
+                    isInputFocused = false
+                }))
 
             if let queuedMessageText = viewModel.streamingLifecycle.queuedMessageText {
                 Text(queuedMessageText)
@@ -4362,10 +4356,38 @@ struct ChatView: View {
         }
     }
 
+    #if DEBUG
+    // Synthetic-fixture-only phases/booleans: no text, account, key or server data.
+    // No timers or layout probes; only actual dispatch transitions publish state.
+    private func recordComposerSendFixturePhase(_ phase: String) {
+        guard chatId == "dev-chat-opening-large",
+              ProcessInfo.processInfo.arguments.contains("--ui-test-composer-send"),
+              composerSendFixturePhases.last != phase else { return }
+        composerSendFixturePhases = Array((composerSendFixturePhases + [phase]).suffix(20))
+    }
+    private var composerSendFixtureDiagnostic: String {
+        "phases=\(composerSendFixturePhases.joined(separator: ","));foreground=\(piiComposerForeground);sceneActive=\(scenePhase == .active);paneVisible=\(parentPaneVisible);public=\(isDemoOrLegalChat || isExampleChat);verifying=\(isVerifyingPIISend);focused=\(isInputFocused);modelReady=\(modelHost.controller?.isReady == true);chatReady=\(viewModel.chat?.id == chatId)"
+    }
+    #endif
+
     private func sendMessage() {
-        guard !isVerifyingPIISend else { return }
-        guard !retryDeferredComposerSendIfNeeded() else { return }
+        #if DEBUG
+        recordComposerSendFixturePhase("entered")
+        #endif
+        guard !isVerifyingPIISend else {
+            #if DEBUG
+            recordComposerSendFixturePhase("blocked-verifying")
+            #endif
+            return
+        }
+        guard !retryDeferredComposerSendIfNeeded() else {
+            #if DEBUG
+            recordComposerSendFixturePhase("deferred-retry")
+            #endif
+            return
+        }
         let document = composerSession.controller.document
+        let documentRevision = composerSession.revision
         let decision = ComposerSubmitPolicy.decision(
             document: document,
             platform: .desktop,
@@ -4375,45 +4397,72 @@ struct ChatView: View {
             conversionInFlight: false
         )
         if case .deferred = decision {
+            #if DEBUG
+            recordComposerSendFixturePhase("deferred-document")
+            #endif
             queueDeferredComposerSend(document: document)
             return
         }
-        guard decision == .submit else { return }
+        guard decision == .submit else {
+            #if DEBUG
+            recordComposerSendFixturePhase("blocked-submit-policy")
+            #endif
+            return
+        }
         isVerifyingPIISend = true
+        #if DEBUG
+        recordComposerSendFixturePhase("scheduled")
+        #endif
         let owner = piiComposerContext
         let options = piiPrivacySettingsStore.detectionOptions()
         let exclusions = piiExclusions
         let originals = excludedPIIOriginals(in: document, excludedIds: exclusions)
         Task { @MainActor in
-            await sendVerifiedComposerMessage(document: document, owner: owner, options: options,
+            await sendVerifiedComposerMessage(document: document, documentRevision: documentRevision, owner: owner, options: options,
                                               exclusions: exclusions, excludedOriginals: originals)
             if piiComposerContext == owner { isVerifyingPIISend = false }
         }
     }
 
-    private func sendVerifiedComposerMessage(document: ComposerDocumentV1, owner: ComposerPIIContext,
+    private func sendVerifiedComposerMessage(document: ComposerDocumentV1, documentRevision: Int, owner: ComposerPIIContext,
         options: PIIDetectionOptions, exclusions: Set<String>, excludedOriginals: Set<String>) async {
-        guard owner == piiComposerContext, piiComposerForeground else { return }
+        guard owner == piiComposerContext, piiComposerForeground else {
+            #if DEBUG
+            recordComposerSendFixturePhase("blocked-foreground-context")
+            #endif
+            return
+        }
+        #if DEBUG
+        recordComposerSendFixturePhase("verification-begin")
+        #endif
+
         let redaction: ComposerDocumentPIIRedactionResult
-        let originalText: String
         let text: String
         let documentNodeIDs = document.nodes.filter { $0.kind == "embed" }.map(\.id)
         let composerEmbeds = documentNodeIDs.compactMap { resolvedComposerEmbeds[$0] }
         let rewriteMappings = PIIDetector.mergePIIMappings(cumulativePIIMappings + composerEmbeds.flatMap(\.piiMappings))
         let piiMappings: [PIIMapping]
         do {
-            originalText = try ComposerMarkdownAdapter.serialize(document)
             let rewrite = ComposerPIIDecorations.rewriteKnownPIIPlaceholders(
                 document: document,
                 mappings: rewriteMappings,
                 excludedOriginals: excludedOriginals
             )
+            #if DEBUG
+            recordComposerSendFixturePhase("verification-await")
+            #endif
             redaction = await piiDetectionCoordinator.verifiedRedaction(
                 document: rewrite.document, excludedIds: exclusions,
                 excludedOriginals: excludedOriginals, options: options, context: owner)
+            #if DEBUG
+            recordComposerSendFixturePhase("verification-returned")
+            #endif
             text = try ComposerMarkdownAdapter.serialize(redaction.document)
             piiMappings = PIIDetector.mergePIIMappings(rewrite.appliedMappings + redaction.mappings)
         } catch {
+            #if DEBUG
+            recordComposerSendFixturePhase("serialization-failed")
+            #endif
             NativeDiagnostics.error(
                 "Composer send serialization failed: \(type(of: error))",
                 category: "apple_composer"
@@ -4422,83 +4471,113 @@ struct ChatView: View {
             return
         }
         guard viewModel.chat?.id == chatId, owner == piiComposerContext,
-              options == piiPrivacySettingsStore.detectionOptions(), piiComposerForeground else { return }
+              options == piiPrivacySettingsStore.detectionOptions(), piiComposerForeground else {
+            #if DEBUG
+            recordComposerSendFixturePhase("blocked-post-verification")
+            #endif
+            return
+        }
         let editingID = editingContextMessage?.id
         let sendingOwner = ComposerModelSendOwnership(server: ServerProfile.current().apiBaseURL.absoluteString,
             accountGeneration: OfflineStore.shared.scopeGeneration, chatID: chatId)
         let routingGeneration = modelHost.sendGeneration
         let dispatchFence = ComposerPIIDispatchFence(context: owner, options: options)
-        let wasInputFocused = isInputFocused
-        let clearsSnapshot = composerSession.controller.document == document
-        if clearsSnapshot {
-            messageText = ""; detectedPIIMatches = []; piiExclusions = []; piiExcludedValues = []; mentionQuery = nil
-        }
-        let clearedRevision = clearsSnapshot ? composerSession.revision : nil
+        // Keep the original composer and encrypted draft through preparation.
+        // Clearing here would autosave an empty draft and delete a draft-only
+        // chat before the pipeline can durably retain/insert its user message.
         followsStreamingResponse = true
         viewModel.error = nil
 
-        Task { @MainActor in
-            let routedText: String
-            do {
-                routedText = try await modelHost.textForSend(text, expectedGeneration: routingGeneration)
-                guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
-                    accountGeneration: OfflineStore.shared.scopeGeneration, chatID: viewModel.chat?.id) else { return }
-            }
-            catch {
-                guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
-                    accountGeneration: OfflineStore.shared.scopeGeneration, chatID: viewModel.chat?.id) else { return }
-                viewModel.error = LocalizationManager.shared.text("enter_message.model_selector.unavailable_reset")
-                if composerSession.revision == clearedRevision {
-                    messageText = originalText
-                    if wasInputFocused { isInputFocused = true }
-                }
-                return
-            }
-            guard dispatchFence.permits(currentContext: piiComposerContext,
-                currentOptions: piiPrivacySettingsStore.detectionOptions(),
-                foreground: piiComposerForeground, cancelled: Task.isCancelled) else {
-                guard owner == piiComposerContext else { return }
-                if dispatchFence.mayRestoreClearedDraft(currentContext: piiComposerContext,
-                    clearedRevision: clearedRevision, currentRevision: composerSession.revision) {
-                    try? composerSession.loadDocument(document)
-                    if wasInputFocused { isInputFocused = true }
-                    piiExclusions = exclusions; piiExcludedValues = excludedOriginals
-                    updatePIIMatches(for: messageText)
-                }
-                stopFollowingStreamingResponse()
-                return
-            }
-            let accepted = await viewModel.sendMessage(
-                routedText,
-                piiMappings: piiMappings,
-                excludedPIIOriginals: excludedOriginals,
-                broadcastToSiblings: broadcastToSiblingSubChats,
-                composerEmbeds: composerEmbeds.isEmpty ? nil : composerEmbeds,
-                editingMessageID: editingID
-            )
+        // Await dispatch so the outer PII submit gate remains held throughout.
+        let routedText: String
+        do {
+            NativeDiagnostics.event("composer_send_model_routing", category: "apple_composer")
+            #if DEBUG
+            recordComposerSendFixturePhase("routing-await")
+            #endif
+            routedText = try await modelHost.textForSend(text, expectedGeneration: routingGeneration)
             guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
-                accountGeneration: OfflineStore.shared.scopeGeneration, chatID: viewModel.chat?.id) else { return }
-            if !accepted || viewModel.error != nil {
-                stopFollowingStreamingResponse()
-                if composerSession.revision == clearedRevision {
-                    messageText = originalText
-                    if wasInputFocused { isInputFocused = true }
-                }
-                if let editingID, !viewModel.containsMessageForEdit(editingID), editingContextMessage?.id == editingID {
-                    // The suffix was accepted before a send failure. Preserve
-                    // the replacement draft for an ordinary encrypted retry.
-                    editingContextMessage = nil; preEditDraft = nil
-                }
-            } else {
-                // A later draft belongs to the next send. Do not dismiss its
-                // selection or keyboard when the previous dispatch completes.
-                if composerSession.revision == clearedRevision { dismissAcceptedComposer() }
-                if editingContextMessage?.id == editingID { editingContextMessage = nil; preEditDraft = nil }
-                for nodeID in documentNodeIDs {
-                    resolvedComposerEmbeds.removeValue(forKey: nodeID)
-                }
-                if composerSession.revision == clearedRevision { try? await DraftService.shared.clearDraft(chatId: sendingOwner.chatID) }
+                accountGeneration: OfflineStore.shared.scopeGeneration, chatID: viewModel.chat?.id) else {
+                #if DEBUG
+                recordComposerSendFixturePhase("blocked-routing-ownership")
+                #endif
+                return
             }
+        }
+        catch {
+            #if DEBUG
+            recordComposerSendFixturePhase("routing-failed")
+            #endif
+            guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
+                accountGeneration: OfflineStore.shared.scopeGeneration, chatID: viewModel.chat?.id) else {
+                #if DEBUG
+                recordComposerSendFixturePhase("blocked-routing-ownership")
+                #endif
+                return
+            }
+            viewModel.error = LocalizationManager.shared.text("enter_message.model_selector.unavailable_reset")
+            return
+        }
+        guard dispatchFence.permits(currentContext: piiComposerContext,
+            currentOptions: piiPrivacySettingsStore.detectionOptions(),
+            foreground: piiComposerForeground, cancelled: Task.isCancelled) else {
+            #if DEBUG
+            recordComposerSendFixturePhase("blocked-dispatch-fence")
+            #endif
+            guard owner == piiComposerContext else { return }
+            stopFollowingStreamingResponse()
+            return
+        }
+        NativeDiagnostics.event("composer_send_pipeline_begin", category: "apple_composer")
+        #if DEBUG
+        recordComposerSendFixturePhase("pipeline-await")
+        #endif
+        let accepted = await viewModel.sendMessage(
+            routedText,
+            piiMappings: piiMappings,
+            excludedPIIOriginals: excludedOriginals,
+            broadcastToSiblings: broadcastToSiblingSubChats,
+            composerEmbeds: composerEmbeds.isEmpty ? nil : composerEmbeds,
+            editingMessageID: editingID
+        )
+        #if DEBUG
+        recordComposerSendFixturePhase("pipeline-returned")
+        #endif
+        NativeDiagnostics.event("composer_send_pipeline_finished", category: "apple_composer",
+            flags: ["accepted": accepted, "has_error": viewModel.error != nil])
+        guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
+            accountGeneration: OfflineStore.shared.scopeGeneration, chatID: viewModel.chat?.id) else { return }
+        if !accepted || viewModel.error != nil {
+            #if DEBUG
+            recordComposerSendFixturePhase("rejected")
+            #endif
+            stopFollowingStreamingResponse()
+            if let editingID, !viewModel.containsMessageForEdit(editingID), editingContextMessage?.id == editingID {
+                // The suffix was accepted before a send failure. Preserve
+                // the replacement draft for an ordinary encrypted retry.
+                editingContextMessage = nil; preEditDraft = nil
+            }
+        } else {
+            // A later draft belongs to the next send. Do not dismiss its
+            // selection or keyboard when the previous dispatch completes.
+            let clearsSnapshot = ComposerAcceptedSendSnapshotPolicy.shouldClear(
+                accepted: accepted, submittedRevision: documentRevision, currentRevision: composerSession.revision,
+                submittedDocument: document, currentDocument: composerSession.controller.document)
+            if clearsSnapshot {
+                #if DEBUG
+                recordComposerSendFixturePhase("accepted-clear")
+                #endif
+                draftSaveTask?.cancel()
+                suppressNextDraftSave = true
+                messageText = ""; detectedPIIMatches = []; piiExclusions = []; piiExcludedValues = []; mentionQuery = nil
+                dismissAcceptedComposer()
+            }
+            if editingContextMessage?.id == editingID { editingContextMessage = nil; preEditDraft = nil }
+            let retainedNodeIDs = Set(composerSession.controller.document.nodes.map(\.id))
+            for nodeID in documentNodeIDs where !retainedNodeIDs.contains(nodeID) {
+                resolvedComposerEmbeds.removeValue(forKey: nodeID)
+            }
+            if clearsSnapshot { try? await DraftService.shared.clearDraft(chatId: sendingOwner.chatID) }
         }
     }
 

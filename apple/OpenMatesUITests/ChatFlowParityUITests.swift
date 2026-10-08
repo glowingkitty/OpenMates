@@ -46,10 +46,15 @@ final class ChatFlowParityUITests: XCTestCase {
                        "Continuation indentation must not push the inline reference away from the paragraph edge")
         XCTAssertLessThan(events.frame.width, fixture.frame.width * 0.6,
                           "An inline reference must hug its icon and label, not stretch across the paragraph")
+        let openedReference = app.staticTexts["markdown-repair-opened-reference"]
+        XCTAssertTrue(openedReference.waitForExistence(timeout: 5))
+        XCTAssertEqual(openedReference.label, "none")
         screenZen.tap()
-        XCTAssertEqual(app.staticTexts["markdown-repair-opened-reference"].label, "apps.apple.com-JJi")
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", "apps.apple.com-JJi"), object: openedReference)], timeout: 5), .completed)
         events.tap()
-        XCTAssertEqual(app.staticTexts["markdown-repair-opened-reference"].label, "events-JJi")
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", "events-JJi"), object: openedReference)], timeout: 5), .completed)
         attachScreenshot(name: "Assistant nested Markdown and explicit Events break")
     }
 

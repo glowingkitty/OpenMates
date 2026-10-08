@@ -22,6 +22,7 @@ import SwiftUI
 
 struct ChatListRow: View {
     let chat: Chat
+    @ObservedObject private var unreadStore = UnreadMessagesStore.shared
     let processing: Bool
     let activeSubChatCount: Int
     let suppliedDraftPreview: String?
@@ -96,13 +97,8 @@ struct ChatListRow: View {
         return formattedDraftPreview
     }
 
-    private var titleForDisplay: String {
-        let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if title.isEmpty, let draftPreview {
-            return draftPreview
-        }
-        return chat.displayTitle
-    }
+    private var isDraftOnly: Bool { ChatSidebarDisplayPolicy.isDraftOnly(chat, preview: formattedDraftPreview) }
+    private var titleForDisplay: String { isDraftOnly ? AppStrings.draftBadge : chat.displayTitle }
 
     var body: some View {
         HStack(spacing: 16) {
@@ -114,6 +110,8 @@ struct ChatListRow: View {
                     .accessibilityHidden(true)
             }
 
+            if !isDraftOnly {
+            Group {
             if processing { ChatProcessingWheel() }
             else if let descriptor = publicIconDescriptor {
                 Circle()
@@ -153,11 +151,29 @@ struct ChatListRow: View {
                     .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 2)
             }
 
+            }
+            // Web .unread-badge: 21px circle, bottom/right -2px, small medium text.
+            .overlay(alignment: .bottomTrailing) {
+                if let text = ChatSidebarDisplayPolicy.unreadBadgeText(
+                    count: unreadStore.getUnreadCount(chatId: chat.id), processing: processing, draftOnly: isDraftOnly) {
+                    Text(text)
+                        .font(.omSmall).fontWeight(.medium).foregroundStyle(.white)
+                        .frame(width: 21, height: 21)
+                        .background(Circle().fill(Color.buttonPrimary))
+                        .overlay { Circle().stroke(Color.grey0, lineWidth: 2) }
+                        .offset(x: 2, y: 2)
+                        .accessibilityIdentifier("unread-badge")
+                }
+            }
+            .accessibilityIdentifier("chat-row-profile")
+            }
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(titleForDisplay)
-                    .font(.omP)
+                    .font(isDraftOnly ? .omXs : .omP)
                     .fontWeight(.medium)
-                    .foregroundStyle(Color.fontPrimary)
+                    .foregroundStyle(isDraftOnly ? Color.fontTertiary : Color.fontPrimary)
+                    .accessibilityIdentifier(isDraftOnly ? "chat-draft-status" : "chat-row-title")
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 2)
 
@@ -165,10 +181,11 @@ struct ChatListRow: View {
                     Text(LocalizationManager.shared.text(activeSubChatCount == 1 ? "chats.activity.subchats_single" : "chats.activity.subchats", replacements: ["count": String(activeSubChatCount)]))
                         .font(.omXs).foregroundStyle(Color.fontSecondary).accessibilityIdentifier("running-subchat-count")
                 }
-                if let preview = draftPreview, preview != titleForDisplay {
+                if let preview = isDraftOnly ? formattedDraftPreview : draftPreview, preview != titleForDisplay {
                     Text(preview)
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontTertiary)
+                        .font(isDraftOnly ? .omP : .omXs)
+                        .foregroundStyle(isDraftOnly ? Color.fontPrimary : Color.fontTertiary)
+                        .accessibilityIdentifier("chat-draft-preview")
                         .lineLimit(1)
 
                 }
@@ -188,7 +205,7 @@ struct ChatListRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(isSubChatRow ? "sub-chat-item" : "chat-item-wrapper")
         .accessibilityValue(accessibilityValue)
-        .accessibilityLabel("\(titleForDisplay)\(isSubChatRow ? ", sub-chat" : "")\(chat.isPinned == true ? ", pinned" : "")")
+        .accessibilityLabel("\(titleForDisplay)\(isDraftOnly ? formattedDraftPreview.map { ": " + $0 } ?? "" : "")\(isSubChatRow ? ", sub-chat" : "")\(chat.isPinned == true ? ", pinned" : "")")
         .accessibilityHint("Double tap to open, long press for options")
     }
 }

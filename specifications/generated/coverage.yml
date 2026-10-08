@@ -20,5 +20,5 @@ surface_parity:
     required: 755
     proven: 0
   gui.apple:
-    required: 552
+    required: 554
     proven: 0

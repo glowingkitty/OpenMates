@@ -10,11 +10,20 @@ import AppIntents
 
 @available(iOS 16.2, *)
 struct OpenMatesLiveActivity: Widget {
-    var body: some WidgetConfiguration {
+    var body: some WidgetConfiguration { configuration }
+    fileprivate var configuration: some WidgetConfiguration {
         ActivityConfiguration(for: OpenMatesLiveActivityAttributes.self) { context in
-            OpenMatesActivityContent(state: context.state, kind: context.attributes.kind, identity: context.attributes.identity, isStale: context.isStale)
-                .padding()
-                .widgetURL(activityURL(kind: context.attributes.kind))
+            Group {
+                if #available(iOS 18.0, *) {
+                    OpenMatesActivityFamilyContent(state: context.state, kind: context.attributes.kind,
+                        identity: context.attributes.identity, isStale: context.isStale)
+                } else {
+                    OpenMatesActivityContent(state: context.state, kind: context.attributes.kind,
+                        identity: context.attributes.identity, isStale: context.isStale)
+                }
+            }
+            .padding()
+            .widgetURL(activityURL(kind: context.attributes.kind))
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) { Image(systemName: symbol(context.attributes.kind)) }
@@ -47,6 +56,32 @@ struct OpenMatesLiveActivity: Widget {
         switch kind {
         case "download": return "arrow.down.circle"
         default: return "calendar"
+        }
+    }
+}
+
+// WidgetConfiguration has no type eraser for conditional opaque branches.
+// The bundle registers exactly one version for the running system.
+@available(iOS 18.0, *)
+struct OpenMatesMirroredLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        OpenMatesLiveActivity().configuration.supplementalActivityFamilies([.small, .medium])
+    }
+}
+
+// iOS 18/watchOS 11 Smart Stack family. Generic labels and timestamps only.
+@available(iOS 18.0, *)
+private struct OpenMatesActivityFamilyContent: View {
+    @Environment(\.activityFamily) private var family
+    let state: OpenMatesLiveActivityAttributes.ContentState
+    let kind: String
+    let identity: String
+    let isStale: Bool
+    var body: some View {
+        if family == .small {
+            UpcomingMemorySmallActivityView(state: state, kind: kind, isStale: isStale)
+        } else {
+            OpenMatesActivityContent(state: state, kind: kind, identity: identity, isStale: isStale)
         }
     }
 }

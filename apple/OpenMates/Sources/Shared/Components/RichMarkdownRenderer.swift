@@ -4944,7 +4944,7 @@ struct DevAssistantMarkdownRepairFixture: View {
     * **How...:** Customize each pause before opening an app.
     * **Best for:** A free customizable option.
     """
-    @State private var openedReference = ""
+    @State private var openedReference = "none"
     private static let references = ["apps.apple.com-JJi": "ScreenZen", "events-JJi": "Events"].mapValues { title in
         EmbedRecord(id: title == "ScreenZen" ? "apps.apple.com-JJi" : "events-JJi", type: "website", status: .finished,
             data: .raw(["title": AnyCodable(title), "url": AnyCodable("https://example.com/result")]),

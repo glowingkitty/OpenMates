@@ -52,7 +52,11 @@ enum RealAccountUITestSupport {
         }
     }
 
-    static func logIn(app: XCUIApplication, credentials: RealAccountTestCredentials) {
+    static func logIn(
+        app: XCUIApplication,
+        credentials: RealAccountTestCredentials,
+        submitPasswordUsingKeyboard: Bool = false
+    ) {
         let loginSignupButton = app.buttons["header-login-signup-btn"]
         let loginTab = app.buttons["auth-login-tab"]
         if !loginTab.waitForExistence(timeout: 2),
@@ -85,6 +89,15 @@ enum RealAccountUITestSupport {
 
         let passwordInput = waitForPasswordInput(app: app)
         guard focusForTextEntry(passwordInput, in: app, identifier: "password-input") else { return }
+        if submitPasswordUsingKeyboard {
+            // Opt-in for phone readiness: AX snapshots can omit the already
+            // focused SecureField. Type exactly once, then invoke its real
+            // production onSubmit path; never retry/append based on missing AX.
+            app.typeText(credentials.password + "\n")
+            submitPasswordAndOtpIfNeeded(app: app, credentials: credentials, passwordAlreadySubmitted: true)
+            XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 25))
+            return
+        }
         app.typeText(credentials.password)
         let loginButton = app.buttons["login-button"]
         let passwordAccepted = NSPredicate { _, _ in
@@ -303,17 +316,23 @@ enum RealAccountUITestSupport {
             .firstMatch
     }
 
-    private static func submitPasswordAndOtpIfNeeded(app: XCUIApplication, credentials: RealAccountTestCredentials) {
+    private static func submitPasswordAndOtpIfNeeded(
+        app: XCUIApplication,
+        credentials: RealAccountTestCredentials,
+        passwordAlreadySubmitted: Bool = false
+    ) {
         let loginButton = app.buttons["login-button"]
-        XCTAssertTrue(loginButton.waitForExistence(timeout: 10))
-        XCTAssertTrue(loginButton.isEnabled, "Password form must be valid before submission")
-        guard loginButton.isEnabled else { return }
-        // The landscape keyboard can cover the button. Use the production
-        // SecureField onSubmit path while its confirmed input remains focused.
-        if loginButton.isHittable && app.frame.contains(loginButton.frame) {
-            loginButton.tap()
-        } else {
-            app.typeText("\n")
+        if !passwordAlreadySubmitted {
+            XCTAssertTrue(loginButton.waitForExistence(timeout: 10))
+            XCTAssertTrue(loginButton.isEnabled, "Password form must be valid before submission")
+            guard loginButton.isEnabled else { return }
+            // The landscape keyboard can cover the button. Use the production
+            // SecureField onSubmit path while its confirmed input remains focused.
+            if loginButton.isHittable && app.frame.contains(loginButton.frame) {
+                loginButton.tap()
+            } else {
+                app.typeText("\n")
+            }
         }
 
         let tfaInput = app.textFields["tfa-code-input"]

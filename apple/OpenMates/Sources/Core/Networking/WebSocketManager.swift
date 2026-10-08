@@ -10,7 +10,10 @@
 // Specification: specifications/features/auth/specification.yml
 // Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
 // Specification: specifications/architecture/sync/specification.yml
-// Assertions: sync.surface.semantic-parity
+// Assertions: sync.surface.semantic-parity, sync.startup.bounded-phases, sync.access.first-party-authenticated
+
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.background.complete-sealed-recovery, storage.background.saved-output-retention, storage.surface.semantic-parity
 
 import CryptoKit
 import Foundation
@@ -25,6 +28,8 @@ import AppKit
 @MainActor
 final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDelegate {
     @Published private(set) var connectionState: ConnectionState = .disconnected
+    @Published private(set) var isPhasedSyncActive = false
+    private var phasedSyncActivityAttempt = 0
 
     private var webSocketTask: URLSessionWebSocketTask?
     private var pingTimer: Timer?
@@ -106,6 +111,24 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             additionalCapabilities: metadataRecoveryCoordinator == nil ? [] : ["chat_metadata_recovery"])
     }
 
+    /// A fresh signed ws_token selects this fenced session. The server gives
+    /// any refresh cookie precedence over that query token, so automatic cookie
+    /// aliases must not shadow it. Nil/empty tokens retain legacy cookie auth.
+    func connectionRequest(profile: ServerProfile, sessionID: String, token: String?, origin: String) -> URLRequest? {
+        guard let url = connectionURL(profile: profile, sessionID: sessionID, token: token) else { return nil }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 30
+        request.setValue(origin, forHTTPHeaderField: "Origin")
+        APIClient.nativeClientHeaders.forEach { key, value in
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        if let token, !token.isEmpty {
+            request.httpShouldHandleCookies = false
+            request.setValue(nil, forHTTPHeaderField: "Cookie")
+        }
+        return request
+    }
+
     func configureSyncStateProvider(_ provider: @escaping () -> SyncClientState) {
         syncStateProvider = provider
     }
@@ -116,6 +139,14 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         syncState: SyncClientState = .empty
     ) {
         let nextKey = ConnectionKey(sessionId: sessionId, token: token)
+        // Validation completion and foreground callbacks also call connect().
+        // They must not reopen an exhausted logical session merely because
+        // /session returned another ws_token. Explicit disconnect or a new
+        // native session admits a fresh retry budget without clearing caches.
+        if activeConnectionKey?.sessionId == nextKey.sessionId,
+           reconnectAttempts > maxReconnectAttempts, !shouldReconnect {
+            return
+        }
         if activeConnectionKey == nextKey {
             switch connectionState {
             case .connected:
@@ -139,6 +170,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         reconnectTask = nil
         rejectAllWaiters()
         connectionGeneration += 1
+        isPhasedSyncActive = false
+        phasedSyncActivityAttempt += 1
         streamEventDispatcher.reset()
         if activeConnectionKey?.sessionId != nextKey.sessionId {
             embedStreamCoordinator?.reset()
@@ -187,14 +220,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 isCancelled: Task.isCancelled
             ) else { return }
             guard ServerProfile.current() == connectingProfile, baseURL == connectingProfile.apiBaseURL,
-                  let url = connectionURL(profile: connectingProfile, sessionID: sessionId, token: token) else { return }
-
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 30
-            request.setValue(origin, forHTTPHeaderField: "Origin")
-            APIClient.nativeClientHeaders.forEach { key, value in
-                request.setValue(value, forHTTPHeaderField: key)
-            }
+                  let request = connectionRequest(profile: connectingProfile, sessionID: sessionId,
+                      token: token, origin: origin) else { return }
 
             let connectingTask = session.webSocketTask(with: request)
             webSocketTask = connectingTask
@@ -221,12 +248,13 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             #if os(macOS)
             // A socket can reconnect while every chat window is inactive. The
             // server defaults each new connection to foreground until told otherwise.
-            if !NSApp.isActive {
+            if !NSApp.isActive || !AppSessionCoordinator.shared.hasVisibleChatWindow {
                 await announceMacBackgroundStateIfConnected()
             }
             #endif
             traceNativeStartupSync("phase=socketRecoveryStart")
-            await recoveryCoordinator?.handleTransportConnected()
+            await recoveryCoordinator?.handleTransportConnected(requiresForegroundAcknowledgement: true,
+                socketGeneration: connectionGeneration)
             await metadataRecoveryCoordinator?.connectedToTransport()
             traceNativeStartupSync("phase=socketRecoveryReturned")
             let currentSyncState = syncStateProvider?() ?? activeSyncState
@@ -241,13 +269,17 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             guard generation == connectionGeneration else { return }
             await embedStreamCoordinator?.transportConnected()
             await CodeRunOutputStore.shared.flushPendingUploads()
+            await retryPendingCompressionCheckpoints()
         }
     }
 
     func disconnect() {
+        recoveryCoordinator?.handleTransportDisconnected()
         metadataRecoveryCoordinator?.reset()
         rejectAllWaiters()
         connectionGeneration += 1
+        isPhasedSyncActive = false
+        phasedSyncActivityAttempt += 1
         streamEventDispatcher.reset()
         embedStreamCoordinator?.transportDisconnected()
         // A waiter belongs to the socket/session that sent its request. Resume
@@ -278,11 +310,21 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     func send(_ message: WSOutboundMessage) async throws {
         guard let webSocketTask else { throw WebSocketError.notConnected }
+        observeRecoveryLifecycleSend(message)
         let data = try message.encodedData()
         guard let json = String(data: data, encoding: .utf8) else {
             throw WebSocketError.encodingFailed
         }
         try await webSocketTask.send(.string(json))
+    }
+
+    func recoveryLifecycleChanged(isForeground: Bool) {
+        recoveryCoordinator?.lifecycleWillSend(isForeground: isForeground, socketGeneration: connectionGeneration)
+    }
+
+    private func observeRecoveryLifecycleSend(_ message: WSOutboundMessage) {
+        guard message.type == "native_client_lifecycle", let value = message.payload?["is_foreground"]?.value as? Bool else { return }
+        recoveryLifecycleChanged(isForeground: value)
     }
 
     #if os(macOS)
@@ -305,6 +347,19 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     func configureRecoveryCoordinator(_ coordinator: ChatCompletionRecoveryCoordinator) {
         recoveryCoordinator = coordinator
+    }
+
+    /// Keys may arrive after reconnect. Call again from scoped key hydration;
+    /// journal restoration never rebuilds its ciphertext or committed identity.
+    func retryPendingCompressionCheckpoints() async {
+        let scope = OfflineStore.shared.scopeGeneration
+        let server = ServerProfile.current()
+        let team = TeamWorkspaceContext.shared.snapshot
+        let transport = connectionGeneration
+        guard connectionState == .connected,
+              let captured = await MessageHighlightRuntimeScope.capture(scope: scope, server: server, team: team),
+              connectionGeneration == transport else { return }
+        await MessageCompressionCheckpointRuntime.retryPending(socket: self, captured: captured, transport: transport)
     }
 
     var advertisedClientCapabilities: [String] {
@@ -382,6 +437,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             // Final synchronous fence runs inside the queued sender, after all
             // awaits and immediately before encryption payload reaches the socket.
             try preSendValidation?()
+            self.observeRecoveryLifecycleSend(message)
             let data = try message.encodedData()
             guard let json = String(data: data, encoding: .utf8) else { throw WebSocketError.encodingFailed }
             try await boundSocket.send(.string(json))
@@ -458,10 +514,24 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         clientSuggestionsCount: Int = 0,
         clientEmbedIds: [String] = []
     ) async throws {
-        try await send(Self.phasedSyncMessage(
-            clientChatVersions: clientChatVersions, clientChatIds: clientChatIds,
-            clientSuggestionsCount: clientSuggestionsCount, clientEmbedIds: clientEmbedIds
-        ))
+        phasedSyncActivityAttempt += 1
+        let attempt = phasedSyncActivityAttempt
+        let generation = connectionGeneration
+        isPhasedSyncActive = true
+        do {
+            try await send(Self.phasedSyncMessage(
+                clientChatVersions: clientChatVersions, clientChatIds: clientChatIds,
+                clientSuggestionsCount: clientSuggestionsCount, clientEmbedIds: clientEmbedIds
+            ))
+        } catch {
+            if generation == connectionGeneration, attempt == phasedSyncActivityAttempt { isPhasedSyncActive = false }
+            throw error
+        }
+    }
+
+    static func completesPersonalPhasedSync(_ fields: [String: Any]) -> Bool {
+        fields["phase"] as? String == "all" && fields["team_id"] as? String == nil
+            && (fields["context_epoch"] as? NSNumber)?.intValue == 0
     }
 
     static func phasedSyncMessage(
@@ -608,6 +678,17 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         AssistantSpeechAppRuntime.shared.receive(type: msg.type, fields: msg.fields, from: self)
         ProjectWorkspaceReviewRuntime.shared.receive(type: msg.type, fields: msg.fields, from: self)
         if msg.type == "error" {
+            recoveryCoordinator?.handleRecoveryError(msg.fields)
+            if msg.fields["code"] as? String == "recovery_requires_foreground",
+               recoveryCoordinator?.needsForegroundAcknowledgement == true {
+                let socketGeneration = connectionGeneration
+                Task { @MainActor [weak self] in
+                    guard let self, self.connectionGeneration == socketGeneration,
+                          self.recoveryCoordinator?.needsForegroundAcknowledgement == true else { return }
+                    try? await self.send(WSOutboundMessage(type: "native_client_lifecycle",
+                        payload: ["is_foreground": true, "client_type": "apple"]))
+                }
+            }
             rejectWaiters(with: msg.fields)
         }
         resolveWaiters(type: msg.type, payload: msg.fields)
@@ -843,6 +924,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
              "phased_sync_complete", "sync_status_response",
              "offline_sync_complete", "chat_content_batch_response",
              "code_run_outputs_sync_ready":
+            if msg.type == "phased_sync_complete", Self.completesPersonalPhasedSync(msg.fields) {
+                isPhasedSyncActive = false
+                phasedSyncActivityAttempt += 1
+            }
             socketTimings.recordSyncEvent()
             traceNativeStartupSync("phase=syncEventReceived type=\(msg.type)")
             NotificationCenter.default.post(
@@ -896,6 +981,15 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             NotificationCenter.default.post(name: .paymentCompleted, object: nil)
 
         case "native_client_lifecycle_ack":
+            let socketGeneration = connectionGeneration
+            Task { @MainActor [weak self] in
+                guard let self, self.connectionGeneration == socketGeneration else { return }
+                await self.recoveryCoordinator?.handleLifecycleAcknowledgement(msg.fields, socketGeneration: socketGeneration)
+            }
+
+        case "recovery_outputs_available", "recovery_outputs_discovery_complete":
+            // No typed replay path is qualified: never fetch, claim, persist, or
+            // acknowledge these records. A v2 crypto fixture is insufficient.
             break
 
         case "metadata_jobs_available":
@@ -905,7 +999,13 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             break
 
         case "recovery_jobs_available":
-            Task { await recoveryCoordinator?.handleAvailableJobs(msg.fields) }
+            let socketGeneration = connectionGeneration
+            let scope = OfflineStore.shared.scopeGeneration
+            Task { @MainActor [weak self] in
+                guard let self, self.connectionGeneration == socketGeneration,
+                      OfflineStore.shared.scopeGeneration == scope else { return }
+                await self.recoveryCoordinator?.handleAvailableJobs(msg.fields)
+            }
 
         case "chat_turn_preflight_ack", "recovery_job_claimed", "recovery_job_persisted":
             break
@@ -1080,6 +1180,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         connectTask = nil
         rejectAllWaiters()
         connectionGeneration += 1
+        isPhasedSyncActive = false
+        phasedSyncActivityAttempt += 1
         streamEventDispatcher.reset()
         embedStreamCoordinator?.transportDisconnected()
         let reconnectGeneration = connectionGeneration
@@ -2571,6 +2673,7 @@ struct WebSocketResponse: @unchecked Sendable {
 // MARK: - Notifications
 
 extension Notification.Name {
+    static let compressionCheckpointPersisted = Notification.Name("openmates.compressionCheckpointPersisted")
     static let wsMessageReceived = Notification.Name("openmates.wsMessageReceived")
     static let wsSyncEvent = Notification.Name("openmates.wsSyncEvent")
     static let wsEmbedUpdate = Notification.Name("openmates.wsEmbedUpdate")

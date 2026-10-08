@@ -13,7 +13,8 @@
 // Assertions: apple-notifications.registration.lifecycle, apple-notifications.action.routing-coherent,
 //             apple-notifications.delivery.idempotent-visible
 // Specification: specifications/features/apple-watch/specification.yml
-// Assertions: apple-watch.tasks.edit-private, apple-watch.workflows.compact-editor
+// Assertions: apple-watch.tasks.edit-private, apple-watch.workflows.compact-editor,
+//             apple-watch.pairing.iphone-first-fallback, apple-watch.hub.compact-navigation
 
 import SwiftUI
 
@@ -32,7 +33,7 @@ struct WatchRootView: View {
 
     var body: some View {
         ZStack {
-            Color.grey100
+            WatchWorkspacePalette.background
                 .ignoresSafeArea()
 
             switch authStore.state {
@@ -71,7 +72,7 @@ struct WatchRootView: View {
                     )
                     .environment(\.watchEmbedAccountID, authStore.currentUser?.id)
                     .id("\(authStore.currentUser?.id ?? ""):\(WatchChatAccountLifecycle.generation):\(ServerProfile.current().apiBaseURL.absoluteString):\(runtimeRevision)")
-                    .task { phoneBridge.start(onApproval: { _ in }, onAcknowledgment: { _ in }) }
+                    .task { phoneBridge.startAuthenticatedTransport() }
                 } else {
                     loadingView
                 }
@@ -84,8 +85,15 @@ struct WatchRootView: View {
             configureChatRuntime()
             await push.refresh()
         }
-        .onChange(of: authStore.state) { _, _ in configureChatRuntime() }
-        .onChange(of: authStore.currentUser?.id) { _, _ in configureChatRuntime() }
+        .onChange(of: authStore.state) { _, state in
+            if state == .authenticated { phoneBridge.startAuthenticatedTransport() }
+            else { phoneBridge.clearPairingReceipts() }
+            configureChatRuntime()
+        }
+        .onChange(of: authStore.currentUser?.id) { old, current in
+            if old != nil && old != current { phoneBridge.clearPairingReceipts() }
+            configureChatRuntime()
+        }
         .onChange(of: authStore.webSocketToken) { _, _ in configureChatRuntime() }
         .onChange(of: scenePhase) { _, phase in
             push.isActive = phase == .active
@@ -165,14 +173,14 @@ struct WatchRootView: View {
                 .frame(width: .iconSizeXl, height: .iconSizeXl)
                 .overlay {
                     Circle()
-                        .stroke(Color.grey0.opacity(0.82), lineWidth: 2)
+                        .stroke(WatchWorkspacePalette.foreground.opacity(0.82), lineWidth: 2)
                         .padding(.spacing2)
                 }
                 .accessibilityHidden(true)
 
             ProgressView()
                 .controlSize(.small)
-                .tint(Color.grey0)
+                .tint(WatchWorkspacePalette.foreground)
                 .accessibilityIdentifier("watch-root-loading-indicator")
         }
     }

@@ -11,6 +11,32 @@ import CryptoKit
 
 @MainActor
 final class ChatSendPipelineParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
+    func testAcceptedSendClearsOnlyUneditedSnapshotAndRejectedPreparationKeepsDraft() async {
+        let composer = NativeComposerSession(canonicalMarkdown: "Synthetic pending draft")
+        let document = composer.controller.document
+        let revision = composer.revision
+        await Task.yield() // Model/encryption/retention awaits must not clear it.
+        XCTAssertEqual(composer.canonicalMarkdown, "Synthetic pending draft")
+        XCTAssertFalse(ComposerAcceptedSendSnapshotPolicy.shouldClear(accepted: false,
+            submittedRevision: revision, currentRevision: composer.revision,
+            submittedDocument: document, currentDocument: composer.controller.document))
+        XCTAssertTrue(ComposerAcceptedSendSnapshotPolicy.shouldClear(accepted: true,
+            submittedRevision: revision, currentRevision: composer.revision,
+            submittedDocument: document, currentDocument: composer.controller.document))
+        composer.replaceMarkdown("Later draft belongs to the next send")
+        XCTAssertFalse(ComposerAcceptedSendSnapshotPolicy.shouldClear(accepted: true,
+            submittedRevision: revision, currentRevision: composer.revision,
+            submittedDocument: document, currentDocument: composer.controller.document))
+        XCTAssertEqual(composer.canonicalMarkdown, "Later draft belongs to the next send")
+        XCTAssertFalse(ComposerAcceptedSendSnapshotPolicy.shouldClear(accepted: true,
+            submittedRevision: revision, currentRevision: revision + 1,
+            submittedDocument: document, currentDocument: document), "Retyping identical content is still a newer editor revision")
+        XCTAssertFalse(ComposerAcceptedSendSnapshotPolicy.shouldClear(accepted: true,
+            submittedRevision: revision, currentRevision: revision,
+            submittedDocument: document, currentDocument: composer.controller.document), "Both revision and semantic snapshot must match")
+    }
+
     private func storageEmbed(content: String?, disposition: ComposerEmbedStorageDisposition = .requiredEncryptedBundle) -> ComposerPendingEmbed {
         let source = ComposerPendingEmbed.document(filename: "synthetic.txt", textContent: "Synthetic attachment", piiMappings: [])
         return ComposerPendingEmbed(id: "synthetic-embed", type: source.type, referenceType: source.referenceType,
@@ -492,6 +518,64 @@ final class ChatSendPipelineParityTests: XCTestCase {
         registration.refresh(token: "rotated-token")
         await fulfillment(of: [completed], timeout: 1)
         XCTAssertEqual(tokens, ["old-token", "rotated-token"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testNativeWindowVisibilityPreservesOtherWindowAndPublishesLastWindowBackground() {
+        var ownership = SharedSocketWindowOwnership()
+        let first = UUID(), second = UUID()
+        ownership.register(first); ownership.register(second)
+        ownership.updateVisibility(first, isVisible: true, isKey: true)
+        ownership.updateVisibility(second, isVisible: true, isKey: false)
+        func action() -> NativeMacWindowVisibilityPolicy.Publication {
+            NativeMacWindowVisibilityPolicy.publication(appIsActive: true,
+                hasVisibleWindow: !ownership.visibleWindowIDs.isEmpty,
+                hasKeyWindow: !ownership.keyWindowIDs.isEmpty)
+        }
+        // Minimize the key window: visible second window still keeps the app
+        // completion-capable, but no chat is presently the key active chat.
+        ownership.updateVisibility(first, isVisible: false, isKey: false)
+        XCTAssertEqual(action(), .clearActiveChat)
+        ownership.updateVisibility(second, isVisible: true, isKey: true)
+        XCTAssertEqual(action(), .preserveOtherOwner)
+        ownership.unregister(first)
+        XCTAssertEqual(action(), .preserveOtherOwner, "Closing another window must not clear the key owner's chat")
+        ownership.updateVisibility(second, isVisible: false, isKey: false)
+        XCTAssertEqual(action(), .background, "Last minimized window is background even while NSApp remains active")
+        ownership.updateVisibility(second, isVisible: true, isKey: true)
+        XCTAssertEqual(action(), .preserveOtherOwner, "Restoring the key window resumes its ownership")
+        ownership.unregister(second)
+        XCTAssertEqual(action(), .background, "Last closed window is background even while NSApp remains active")
+        ownership.updateVisibility(second, isVisible: true, isKey: true)
+        XCTAssertEqual(action(), .background, "Late detached-window callbacks cannot reacquire ownership")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testNativeWindowResignBecomeKeyHandoffPreservesCurrentOwner() {
+        var ownership = SharedSocketWindowOwnership()
+        let first = UUID(), second = UUID()
+        ownership.register(first); ownership.register(second)
+        ownership.updateVisibility(first, isVisible: true, isKey: true)
+        ownership.updateVisibility(second, isVisible: true, isKey: false)
+        ownership.updateVisibility(first, isVisible: true, isKey: false)
+        ownership.updateVisibility(second, isVisible: true, isKey: true)
+        XCTAssertEqual(ownership.keyWindowIDs, [second])
+        XCTAssertEqual(NativeMacWindowVisibilityPolicy.publication(appIsActive: true,
+            hasVisibleWindow: !ownership.visibleWindowIDs.isEmpty, hasKeyWindow: !ownership.keyWindowIDs.isEmpty), .preserveOtherOwner)
+        XCTAssertEqual(NativeMacWindowVisibilityPolicy.publication(appIsActive: false,
+            hasVisibleWindow: true, hasKeyWindow: true), .background, "Application deactivation wins over retained window state")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testNativeActiveChatClearEncodesExplicitNullAndSelectedChatUsesString() throws {
+        for chatID in [nil, "synthetic-current-chat"] as [String?] {
+            let bytes = try NativeActiveChatAnnouncement.message(chatID: chatID).encodedData()
+            let wire = try XCTUnwrap(JSONSerialization.jsonObject(with: bytes) as? [String: Any])
+            let payload = try XCTUnwrap(wire["payload"] as? [String: Any])
+            XCTAssertEqual(wire["type"] as? String, "set_active_chat")
+            if let chatID { XCTAssertEqual(payload["chat_id"] as? String, chatID) }
+            else { XCTAssertTrue(payload["chat_id"] is NSNull, "Clear must be an explicit JSON null, not an omitted or boxed Optional") }
+        }
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation

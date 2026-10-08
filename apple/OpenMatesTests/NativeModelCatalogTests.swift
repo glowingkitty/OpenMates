@@ -128,8 +128,11 @@ final class NativeModelCatalogTests: XCTestCase {
         XCTAssertFalse(try model(standardChanges: ["input_tokens_per_credit": 0]).longContextPricesActive(today: "2026-10-07"))
         XCTAssertFalse(try model(standardChanges: ["output_tokens_per_credit": 0]).longContextPricesActive(today: "2026-10-07"))
         XCTAssertFalse(try model(host: "other").longContextPricesActive(today: "2026-10-07"))
-        XCTAssertFalse(try model(policyChanges: ["write_billing": "separate"]).longContextPricesActive(today: "2026-10-07"))
-        XCTAssertTrue(try model(policyChanges: ["write_billing": "separate"], bandChanges: ["cache_write_tokens_per_credit": 12]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertFalse(try model(policyChanges: ["write_billing": "separate"], standardChanges: ["cache_write_tokens_per_credit": 12]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertFalse(try model(policyChanges: ["write_billing": "separate"], bandChanges: ["cache_write_tokens_per_credit": 12]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertFalse(try model(policyChanges: ["write_billing": "separate"], bandChanges: ["cache_write_tokens_per_credit": 12], standardChanges: ["cache_write_tokens_per_credit": 0]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertFalse(try model(policyChanges: ["write_billing": "separate"], bandChanges: ["cache_write_tokens_per_credit": 0], standardChanges: ["cache_write_tokens_per_credit": 12]).longContextPricesActive(today: "2026-10-07"))
+        XCTAssertTrue(try model(policyChanges: ["write_billing": "separate"], bandChanges: ["cache_write_tokens_per_credit": 12], standardChanges: ["cache_write_tokens_per_credit": 12]).longContextPricesActive(today: "2026-10-07"))
     }
 
     // contract-test: supporting surface=gui.apple assertions=ai-model-routing.catalog.public-read-only

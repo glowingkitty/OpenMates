@@ -49,7 +49,7 @@ struct DevComponentPreviewView: View {
         let allowedKeys: Set<String>
         switch component {
         case .login, .signup, .history, .sidebar, .welcome, .followUpSuggestions, .tasks, .projects: allowedKeys = []
-        case .notification, .sharedRecipient, .workspaceSwitcher, .dailyInspiration: allowedKeys = []
+        case .notification, .sharedRecipient, .workspaceSwitcher, .dailyInspiration, .storage: allowedKeys = []
         case .workflows:
             allowedKeys = []
             guard ["short-template", "home"].contains(configuration.variant) else {
@@ -349,6 +349,8 @@ private struct DevComponentPreviewCanvas: View {
     @ViewBuilder
     private func component(viewport: CGSize) -> some View {
         switch configuration.component {
+        case .storage:
+            DevStoragePreviewFixture(variant: configuration.variant)
         case .workspaceSwitcher:
             DevWorkspaceSwitcherFixture(viewport: viewport, reducedMotion: configuration.variant == "reduced-motion", shortViewport: configuration.variant == "short-viewport", startsWide: configuration.variant == "wide")
         case .sharedRecipient:

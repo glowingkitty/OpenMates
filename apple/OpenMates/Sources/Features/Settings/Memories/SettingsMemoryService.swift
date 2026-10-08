@@ -76,7 +76,10 @@ final class SettingsMemoryService: ObservableObject {
          teamContext: @escaping () -> APIRequestTeamContext = {
             .init(epoch: TeamWorkspaceContext.shared.contextEpoch, teamID: TeamWorkspaceContext.shared.teamID)
          }, observesSync: Bool = true,
-         liveActivitySnapshot: @escaping LiveActivitySnapshot = { UpcomingMemoryLiveActivityBridge.shared.accept($0) }) {
+         liveActivitySnapshot: @escaping LiveActivitySnapshot = {
+             UpcomingMemoryLiveActivityBridge.shared.accept($0)
+             WelcomeContinueService.shared.accept($0)
+         }) {
         self.liveActivitySnapshot = liveActivitySnapshot
         self.environment = environment; self.teamContext = teamContext
         self.transport = transport ?? { method, path, data, context in

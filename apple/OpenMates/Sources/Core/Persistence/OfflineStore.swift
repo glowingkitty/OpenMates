@@ -11,6 +11,9 @@
 // Specification: specifications/features/apple-recent-offline-chats/specification.yml
 // Assertions: apple-offline.recent-cohort, apple-offline.local-first, apple-offline.interruption-isolation, apple-offline.snapshot-integrity
 
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.privacy.ciphertext-boundary, storage.surface.semantic-parity
+
 import CryptoKit
 import Foundation
 import SwiftData
@@ -44,6 +47,7 @@ final class PersistedChat {
     var draftV: Int?
     var hasNonEmptyDraft: Bool?
     var clearedDraftV: Int?
+    var unreadCount: Int?
     var metadataV: Int?
     var createdAt: String
     var updatedAt: String?
@@ -53,6 +57,9 @@ final class PersistedChat {
     var offlineContentServerCount: Int?
     var offlineContentRowCount: Int?
     var offlineSupplementalContentJSON: Data?
+    // Local-only sealed checkpoint retry journal. Separate from incoming snapshot
+    // JSON so sync replacement cannot erase or resurrect an acknowledged write.
+    var checkpointPendingWritesJSON: Data?
     var parentId: String?
     var isSubChat: Bool?
     var subChatSettingsJSON: Data?
@@ -92,6 +99,7 @@ final class PersistedChat {
         self.titleV = chat.titleV
         self.draftV = chat.draftV
         self.hasNonEmptyDraft = chat.hasNonEmptyDraft
+        self.unreadCount = chat.unreadCount
         self.clearedDraftV = chat.clearedDraftV
         self.metadataV = chat.metadataV
         self.createdAt = chat.createdAt
@@ -137,7 +145,7 @@ final class PersistedChat {
             isPrivate: isPrivate,
             teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: hasNonEmptyDraft,
-            clearedDraftV: clearedDraftV
+            clearedDraftV: clearedDraftV, unreadCount: unreadCount
         )
     }
 }
@@ -476,6 +484,7 @@ final class OfflineStore: ObservableObject {
         modelContainer = container
         modelContext = container.mainContext
         activeScopeId = scope
+        if self === Self.shared { UnreadMessagesStore.shared.configure(scopeID: scope, teamID: nil) }
         updatePendingCount()
     }
 
@@ -489,6 +498,7 @@ final class OfflineStore: ObservableObject {
         modelContext = nil
         modelContainer = nil
         activeScopeId = nil
+        if self === Self.shared { UnreadMessagesStore.shared.configure(scopeID: nil, teamID: nil) }
         pendingActionCount = 0
     }
 
@@ -636,6 +646,7 @@ final class OfflineStore: ObservableObject {
                 existing.messagesV = chat.messagesV
                 existing.titleV = max(storedTitleVersion, incomingTitleVersion)
                 existing.draftV = chat.draftV
+                existing.unreadCount = chat.unreadCount ?? existing.unreadCount
                 existing.clearedDraftV = chat.clearedDraftV
                 existing.metadataV = max(existing.metadataV ?? 0, chat.metadataV ?? 0)
                 existing.hasNonEmptyDraft = chat.hasNonEmptyDraft ?? (chat.draftV == 0 ? false : existing.hasNonEmptyDraft)
@@ -837,13 +848,14 @@ final class OfflineStore: ObservableObject {
         // cold launch. Supplement metadata for each priority class, independently
         // of the sidebar cap. No message or embed history is loaded here.
         let priorityPredicates: [Predicate<PersistedChat>] = [
-            #Predicate { $0.isPinned && $0.hasNonEmptyDraft == true && !$0.isArchived },
-            #Predicate { $0.isPinned && ($0.hasNonEmptyDraft == nil || $0.hasNonEmptyDraft == false) && !$0.isArchived },
-            #Predicate { !$0.isPinned && $0.hasNonEmptyDraft == true && !$0.isArchived }
+            #Predicate { $0.isPinned && $0.hasNonEmptyDraft == true },
+            #Predicate { $0.isPinned && ($0.hasNonEmptyDraft == nil || $0.hasNonEmptyDraft == false) },
+            #Predicate { !$0.isPinned && $0.hasNonEmptyDraft == true }
         ]
         var seen = Set(chats.map(\.id))
         for predicate in priorityPredicates {
             var priority = FetchDescriptor<PersistedChat>(predicate: predicate, sortBy: [
+                SortDescriptor(\.lastEditedOverallTimestamp, order: .reverse),
                 SortDescriptor(\.lastMessageAt, order: .reverse),
                 SortDescriptor(\.updatedAt, order: .reverse),
                 SortDescriptor(\.id, order: .reverse)
@@ -1091,25 +1103,69 @@ final class OfflineStore: ObservableObject {
         try context.save()
     }
 
-    func storeCompressionCheckpoint(_ checkpoint: [String: Any], chatID: String, scope: UUID) throws {
-        guard scope == scopeGeneration, let context = modelContext,
-              let id = checkpoint["id"] as? String,
-              let ciphertext = checkpoint["encrypted_summary"] as? String, !ciphertext.isEmpty,
-              let boundary = checkpoint["compressed_up_to_timestamp"] as? Int else { throw OfflineStoreDraftError.staleSession }
+    func retainCompressionCheckpointJournal(_ encryptedJournal: String, chatID: String,
+                                           checkpointID: String, scope: UUID) throws {
+        guard scope == scopeGeneration, let context = modelContext, !encryptedJournal.isEmpty else {
+            throw OfflineStoreDraftError.staleSession
+        }
         let target = chatID
         let descriptor = FetchDescriptor<PersistedChat>(predicate: #Predicate { $0.id == target })
-        guard let row = try context.fetch(descriptor).first else { return }
+        guard let row = try context.fetch(descriptor).first else { throw OfflineStoreDraftError.staleSession }
+        var journals = try row.checkpointPendingWritesJSON.map { try JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
+        if let retained = journals[checkpointID] {
+            guard retained == encryptedJournal else { throw MessageCompressionCheckpointError.changedBoundary }
+            // A preceding failed save can leave the same value staged in this
+            // context; retry the disk commit before allowing network dispatch.
+            try context.save()
+            return
+        }
+        journals[checkpointID] = encryptedJournal
+        row.checkpointPendingWritesJSON = try JSONEncoder().encode(journals)
+        try context.save()
+    }
+
+    func loadCompressionCheckpointJournal(chatID: String, checkpointID: String, scope: UUID) throws -> String? {
+        guard scope == scopeGeneration, let context = modelContext else { throw OfflineStoreDraftError.staleSession }
+        let target = chatID
+        let descriptor = FetchDescriptor<PersistedChat>(predicate: #Predicate { $0.id == target })
+        guard let row = try context.fetch(descriptor).first, let bytes = row.checkpointPendingWritesJSON else { return nil }
+        return try JSONDecoder().decode([String: String].self, from: bytes)[checkpointID]
+    }
+
+    /// Loads only encrypted pending-write metadata, never chat transcripts.
+    func loadCompressionCheckpointJournals(scope: UUID) throws -> [MessageCompressionCheckpointJournalRecord] {
+        guard scope == scopeGeneration, let context = modelContext else { throw OfflineStoreDraftError.staleSession }
+        let descriptor = FetchDescriptor<PersistedChat>(predicate: #Predicate { $0.checkpointPendingWritesJSON != nil })
+        var records: [MessageCompressionCheckpointJournalRecord] = []
+        for row in try context.fetch(descriptor) {
+            guard let bytes = row.checkpointPendingWritesJSON else { continue }
+            let journals = try JSONDecoder().decode([String: String].self, from: bytes)
+            records += journals.map { .init(chatID: row.id, checkpointID: $0.key, encryptedJournal: $0.value) }
+        }
+        return records
+    }
+
+    func storeCompressionCheckpoint(_ checkpoint: [String: Any], chatID: String, scope: UUID, clearingPendingCheckpointID: String? = nil) throws {
+        guard scope == scopeGeneration, let context = modelContext else { throw OfflineStoreDraftError.staleSession }
+        let encrypted = try MessageCompressionCheckpointDiskRow.encryptedFields(checkpoint, chatID: chatID)
+        let id = encrypted["id"] as? String
+        let target = chatID
+        let descriptor = FetchDescriptor<PersistedChat>(predicate: #Predicate { $0.id == target })
+        guard let row = try context.fetch(descriptor).first else { throw OfflineStoreDraftError.staleSession }
         var fields = row.offlineSupplementalContentJSON.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
         var byChat = fields["compression_checkpoints_by_chat_id"] as? [String: Any] ?? [:]
         var checkpoints = byChat[chatID] as? [[String: Any]] ?? []
-        // Only protocol ciphertext and opaque metadata cross the disk boundary.
-        var encrypted: [String: Any] = ["id": id, "chat_id": chatID, "encrypted_summary": ciphertext, "compressed_up_to_timestamp": boundary]
-        for key in ["compressed_message_count", "summary_token_estimate", "key_version", "created_at", "updated_at"] {
-            if let value = checkpoint[key] { encrypted[key] = value }
-        }
+        // Preserve exact stable boundary and manifest alongside ciphertext.
         checkpoints.removeAll { $0["id"] as? String == id }; checkpoints.append(encrypted)
         byChat[chatID] = checkpoints; fields["compression_checkpoints_by_chat_id"] = byChat
         row.offlineSupplementalContentJSON = try JSONSerialization.data(withJSONObject: fields)
+        if let clearingPendingCheckpointID {
+            guard clearingPendingCheckpointID == id else { throw MessageCompressionCheckpointError.invalidReceipt }
+            var journals = try row.checkpointPendingWritesJSON.map { try JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
+            journals.removeValue(forKey: clearingPendingCheckpointID)
+            row.checkpointPendingWritesJSON = journals.isEmpty ? nil : try JSONEncoder().encode(journals)
+        }
+        // Canonical row and journal retirement share one SwiftData commit.
         try context.save()
     }
 

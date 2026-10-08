@@ -2882,6 +2882,7 @@
     }
   },
   "apps_workspace": {},
+  "artifact_history": {},
   "audio": {
     "playback_progress": {
       "text": "Průběh přehrávání zvuku"
@@ -3152,6 +3153,9 @@
       "privacy_personal_data": {
         "text": "soukromí a osobní údaje"
       }
+    },
+    "open_chat": {
+      "text": "Otevřít chat"
     },
     "new_chat": {
       "text": "Nový chat"
@@ -4205,6 +4209,9 @@
       "text": "Historie chatu"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "Osobní a všechny týmy"
+      },
       "placeholder": {
         "text": "Hledat chaty a nastavení..."
       },

@@ -2342,6 +2342,31 @@ activity_history:
   he: היסטוריית צ'אט
   verified_by_human: []
 
+search.scope_all_teams:
+  context: Apple global chat search scope label for Personal and every readable joined Team; searches locally retained encrypted data
+  en: Personal and all Teams
+  de: Persönlich und alle Teams
+  zh: 个人和所有团队
+  es: Personal y todos los equipos
+  fr: Personnel et toutes les équipes
+  pt: Pessoal e todas as equipes
+  ru: Личное и все команды
+  ja: 個人とすべてのチーム
+  ko: 개인 및 모든 팀
+  it: Personale e tutti i team
+  tr: Kişisel ve tüm ekipler
+  vi: Cá nhân và tất cả nhóm
+  id: Pribadi dan semua tim
+  pl: Osobiste i wszystkie zespoły
+  nl: Persoonlijk en alle teams
+  ar: الشخصي وجميع الفرق
+  hi: निजी और सभी टीमें
+  th: ส่วนตัวและทุกทีม
+  cs: Osobní a všechny týmy
+  sv: Personligt och alla team
+  he: אישי וכל הצוותים
+  verified_by_human: []
+
 search.placeholder:
   context: Placeholder text for the search input bar in the chat list sidebar
   en: Search chats, settings & apps...

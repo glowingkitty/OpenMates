@@ -209,6 +209,44 @@ final class HistoryWelcomeComponentUITests: XCTestCase {
         XCTAssertTrue(selectedID.waitForExistence(timeout: 5)); XCTAssertEqual(selectedID.label, "sidebar-long")
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.drafts.preview-persistence
+    func testSidebarPureDraftShowsOnlyDraftAndPreviewAndRemainsAddressable() {
+        let app = launchSidebar("account")
+        let more = app.buttons["load-more-chats"]
+        XCTAssertTrue(more.waitForExistence(timeout: 5)); more.tap()
+        let draft = sidebarRow("sidebar-pure-draft", app: app)
+        XCTAssertTrue(draft.waitForExistence(timeout: 5))
+        XCTAssertTrue(draft.label.contains("Draft"))
+        XCTAssertTrue(draft.label.contains("A preview without a generated title"))
+        XCTAssertFalse(draft.label.contains("New Chat"))
+        XCTAssertFalse(draft.descendants(matching: .any)["chat-row-title"].exists)
+        XCTAssertFalse(draft.descendants(matching: .any)["chat-row-profile"].exists)
+        draft.tap()
+        XCTAssertTrue(app.staticTexts["sidebar-fixture-selected-id"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["sidebar-fixture-selected-id"].label, "sidebar-pure-draft")
+        app.buttons["sidebar-fixture-reopen"].tap()
+        let titled = sidebarRow("sidebar-long", app: app)
+        XCTAssertTrue(titled.waitForExistence(timeout: 5)); titled.tap()
+        XCTAssertEqual(app.staticTexts["sidebar-fixture-selected-id"].label, "sidebar-long")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testSidebarPhysicalClicksSwitchBetweenDistinctRows() {
+        let app = launchSidebar("account")
+        for id in ["sidebar-pinned", "sidebar-draft", "sidebar-pinned"] {
+            let row = sidebarRow(id, app: app)
+            XCTAssertTrue(row.waitForExistence(timeout: 5)); XCTAssertTrue(row.isHittable)
+            // Coordinate events exercise the Button's physical hit path, rather
+            // than an accessibility press that can bypass competing gestures.
+            row.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.5)).tap()
+            let selected = app.staticTexts["sidebar-fixture-selected-id"]
+            let changed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", id), object: selected)
+            XCTAssertEqual(XCTWaiter.wait(for: [changed], timeout: 5), .completed)
+            XCTAssertEqual(selected.label, id)
+            app.buttons["sidebar-fixture-reopen"].tap()
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testSidebarSearchUsesActualInMemoryEngineAndOpensMatchingConversation() {
         let app = launchSidebar("account")

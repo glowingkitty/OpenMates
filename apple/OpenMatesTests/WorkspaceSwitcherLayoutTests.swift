@@ -1,3 +1,5 @@
+// Specification: specifications/architecture/sync/specification.yml
+// Assertions: sync.surface.semantic-parity, sync.startup.bounded-phases, sync.access.first-party-authenticated
 import XCTest
 @testable import OpenMates
 
@@ -56,6 +58,78 @@ final class WorkspaceSwitcherLayoutTests: XCTestCase {
             XCTAssertTrue(NativeHeaderSyncActivityPolicy.isActive(authenticated: true,
                 initialSyncComplete: phase != 0, prefetching: phase == 1, flushing: phase == 2))
         }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chats.surface.semantic-parity
+    func testHeaderConnectionFeedbackPrioritizesOfflineAndReconnectWithWebDelays() {
+        var policy = NativeConnectionFeedbackPolicy()
+        var input = NativeConnectionFeedbackInputs(online: false, authenticated: false,
+            checkingAuth: false, connected: false, syncing: false)
+        policy.update(input, now: 0)
+        XCTAssertEqual(policy.state, .offline, "Guests also see airplane while offline")
+        input.online = true
+        policy.update(input, now: 1)
+        XCTAssertEqual(policy.state, .idle)
+        input.authenticated = true
+        policy.update(input, now: 2)
+        policy.update(input, now: 4.99)
+        XCTAssertEqual(policy.state, .idle)
+        policy.update(input, now: 5)
+        XCTAssertEqual(policy.state, .reconnecting, "Connecting/disconnected/exhausted states retain feedback")
+        input.connected = true; input.syncing = true
+        policy.update(input, now: 6)
+        policy.update(input, now: 6.59)
+        XCTAssertEqual(policy.state, .idle)
+        policy.update(input, now: 6.61)
+        XCTAssertEqual(policy.state, .syncing)
+        input.online = false
+        policy.update(input, now: 7)
+        XCTAssertEqual(policy.state, .offline, "Reconnect and sync must not hide offline")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chats.surface.semantic-parity
+    func testBriefSyncAndDisconnectedChurnDoNotCreateTimerDrivenSyncActivity() {
+        var policy = NativeConnectionFeedbackPolicy()
+        var input = NativeConnectionFeedbackInputs(online: true, authenticated: true,
+            checkingAuth: false, connected: true, syncing: true)
+        policy.update(input, now: 0)
+        input.syncing = false
+        policy.update(input, now: 0.5)
+        policy.update(input, now: 100)
+        XCTAssertEqual(policy.state, .idle)
+        XCTAssertNil(policy.nextUpdateDelay(now: 100))
+        input.connected = false
+        policy.update(input, now: 101)
+        policy.update(input, now: 102)
+        policy.update(input, now: 104)
+        XCTAssertEqual(policy.state, .reconnecting, "Transport substates cannot restart the presentation debounce")
+        input.authenticated = false
+        policy.update(input, now: 105)
+        XCTAssertEqual(policy.state, .idle, "Logout clears authenticated connection feedback")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.startup.bounded-phases,sync.access.first-party-authenticated
+    @MainActor func testSyncActivityCompletionRequiresCurrentFullPersonalScope() {
+        XCTAssertTrue(WebSocketManager.completesPersonalPhasedSync(["phase": "all", "context_epoch": 0]))
+        XCTAssertFalse(WebSocketManager.completesPersonalPhasedSync(["phase": "metadata", "context_epoch": 0]))
+        XCTAssertFalse(WebSocketManager.completesPersonalPhasedSync(["phase": "all", "context_epoch": 1]))
+        XCTAssertFalse(WebSocketManager.completesPersonalPhasedSync(["phase": "all"]))
+        XCTAssertFalse(WebSocketManager.completesPersonalPhasedSync(["phase": "all", "context_epoch": 0, "team_id": "other-team"]))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testForegroundGraceSuppressesOnlyPresentationAndExpiresAfterTenSeconds() {
+        var policy = NativeConnectionFeedbackPolicy()
+        let input = NativeConnectionFeedbackInputs(online: true, authenticated: true,
+            checkingAuth: false, connected: false, syncing: false)
+        policy.update(input, now: 0); policy.update(input, now: 3)
+        XCTAssertEqual(policy.state, .reconnecting)
+        policy.resume(now: 4); policy.update(input, now: 4)
+        XCTAssertEqual(policy.state, .idle)
+        policy.update(input, now: 13.9)
+        XCTAssertEqual(policy.state, .idle)
+        policy.update(input, now: 14)
+        XCTAssertEqual(policy.state, .reconnecting, "Grace must not hide a persistently broken connection")
     }
 
 }

@@ -12,6 +12,8 @@
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/projects/specification.yml
 // Assertions: projects.access.explicit-context, projects.files.no-server-decryption-authority
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.versions.metadata-and-payload, storage.versions.bounded-reconstruction, storage.cold.shared-team-authorized
 import CryptoKit
 import Combine
 import SwiftUI
@@ -65,9 +67,14 @@ protocol ProjectsWorkspaceServing: Sendable {
     func deleteProject(_ project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws
     func readStoredFile(_ item: ProjectWorkspaceItem, project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> [String: Any]
     func openLinkedEmbed(_ item: ProjectWorkspaceItem, project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> EmbedRecord
+    func artifactHistorySession(_ item: ProjectWorkspaceItem, project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> EmbedVersionHistorySession
 }
 
 extension ProjectsWorkspaceServing {
+    func artifactHistorySession(_ item: ProjectWorkspaceItem, project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> EmbedVersionHistorySession {
+        throw ProjectsWorkspaceError.missingProjectKey
+    }
+
     func chatNavigationContents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents {
         let contents = try await contents(project: project, fence: fence)
         return .init(folders: contents.folders, items: contents.items.filter { $0.kind == "chat" }, sources: [])
@@ -81,6 +88,9 @@ extension ProjectsWorkspaceServing {
 
 @MainActor
 final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
+    // A bounded memory-only key cache reuses the exact Project wrapper already
+    // opened for the displayed artifact. Timeline pagination fetches no head.
+    private var artifactHistoryKeys: [String: (key: SymmetricKey, fence: ProjectsWorkspaceFence)] = [:]
     private struct ProjectListResponse: Decodable, Sendable { let projects: [ProjectWorkspaceRecord] }
     private struct ProjectResponse: Decodable { let project: ProjectWorkspaceRecord }
     private struct ContentsResponse: Decodable, Sendable {
@@ -596,11 +606,39 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
         let skillID = content["skill_id"] as? String
         let parentID = content["parent_embed_id"] as? String
         let embedIDs = content["embed_ids"] as? String
+        if artifactHistoryKeys.count >= 32, let oldest = artifactHistoryKeys.keys.first {
+            artifactHistoryKeys.removeValue(forKey: oldest)
+        }
+        artifactHistoryKeys[project.id + ":" + item.targetID] = (embedKey, fence)
         return EmbedRecord(id: item.targetID, type: type, status: head.status ?? .finished,
             data: .raw(content.mapValues { AnyCodable($0) }), parentEmbedId: parentID,
             appId: appID, skillId: skillID, embedIds: embedIDs,
             versionNumber: revision, createdAt: head.createdAt.map(String.init))
     }
+    func artifactHistorySession(_ item: ProjectWorkspaceItem, project: ProjectWorkspaceProject,
+                                fence: ProjectsWorkspaceFence) async throws -> EmbedVersionHistorySession {
+        try await fence.check()
+        guard item.kind == "embed", project.teamId == fence.teamContext.teamID,
+              let saved = artifactHistoryKeys[project.id + ":" + item.targetID],
+              saved.fence.accountID == fence.accountID, saved.fence.scope == fence.scope,
+              saved.fence.serverProfile == fence.serverProfile,
+              saved.fence.teamContext.epoch == fence.teamContext.epoch else {
+            throw ProjectsWorkspaceError.missingProjectKey
+        }
+        let key = saved.key
+        return EmbedVersionHistorySession(fetch: { path in
+            try await fence.check()
+            let data: Data = try await APIClient.shared.request(.get, path: path, serverProfile: fence.serverProfile,
+                expectedAccountID: fence.accountID, expectedScope: fence.scope,
+                expectedTeamContext: .init(epoch: fence.teamContext.epoch, teamID: fence.teamContext.teamID))
+            try await fence.check(); return data
+        }, decrypt: { ciphertext in
+            try await fence.check()
+            let text = try await CryptoManager.shared.decryptContent(base64String: ciphertext, key: key)
+            try await fence.check(); return text
+        }, validate: { try await fence.check() }, context: EmbedVersionReadContext(projectID: project.id, teamID: project.teamId))
+    }
+
 }
 
 

@@ -18,6 +18,180 @@ import SwiftUI
 #if canImport(UIKit)
 import UIKit
 
+// SwiftUI probes size before committing bounds. Only a bounded measurement can
+// change overflow, and the latest valid result supersedes any queued result.
+@MainActor
+final class NativeComposerOverflowPublication {
+    typealias Scheduler = (@escaping @MainActor () -> Void) -> Void
+    private let schedule: Scheduler
+    private var pendingValue: Bool?
+    private var pendingBinding: Binding<Bool>?
+    private var scheduled = false
+
+    init(schedule: @escaping Scheduler = { operation in DispatchQueue.main.async(execute: operation) }) {
+        self.schedule = schedule
+    }
+
+    static func accepts(width: CGFloat) -> Bool {
+        width.isFinite && width > 0 && width < .greatestFiniteMagnitude
+    }
+
+    func submit(_ measurement: Bool?, to binding: Binding<Bool>) {
+        guard let measurement else { return }
+        // Update first: an equal-to-current true must cancel an already queued
+        // false. Checking binding equality before this point loses that correction.
+        pendingValue = measurement
+        pendingBinding = binding
+        guard !scheduled else { return }
+        guard binding.wrappedValue != measurement else {
+            pendingValue = nil
+            pendingBinding = nil
+            return
+        }
+        scheduled = true
+        schedule { [weak self] in
+            guard let self else { return }
+            self.scheduled = false
+            guard let value = self.pendingValue, let binding = self.pendingBinding else { return }
+            self.pendingValue = nil
+            self.pendingBinding = nil
+            if binding.wrappedValue != value { binding.wrappedValue = value }
+        }
+    }
+}
+
+// One real UIKit interaction/accessibility owner beside the native editor.
+// Artwork remains the same web SVG/gradient; its hosting view owns no hit target.
+struct NativeComposerFullscreenButton: UIViewRepresentable {
+    let fullscreen: Bool
+    let action: () -> Void
+
+    func makeUIView(context: Context) -> NativeComposerFullscreenUIKitButton {
+        NativeComposerFullscreenUIKitButton()
+    }
+
+    func updateUIView(_ button: NativeComposerFullscreenUIKitButton, context: Context) {
+        button.onPress = action
+        #if DEBUG
+        button.diagnosticUpdateCount += 1
+        #endif
+        button.accessibilityIdentifier = "message-input-fullscreen-button"
+        button.accessibilityLabel = fullscreen ? AppStrings.exitFullscreen : AppStrings.enterFullscreen
+        button.artwork.rootView = NativeComposerFullscreenArtwork(fullscreen: fullscreen)
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize,
+        uiView: NativeComposerFullscreenUIKitButton, context: Context) -> CGSize? {
+        CGSize(width: MessageComposerMetric.expandControlSize, height: MessageComposerMetric.expandControlSize)
+    }
+}
+
+struct NativeComposerFullscreenArtwork: View {
+    let fullscreen: Bool
+    var body: some View {
+        Icon(fullscreen ? "minimize" : "fullscreen", size: 20)
+            .foregroundStyle(LinearGradient.primary)
+            .frame(width: 30, height: 30)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+final class NativeComposerFullscreenUIKitButton: UIButton {
+    let artwork = UIHostingController(rootView: NativeComposerFullscreenArtwork(fullscreen: false))
+    var onPress: () -> Void = { }
+    #if DEBUG
+    var diagnosticUpdateCount = 0
+    private var diagnosticLayoutCount = 0
+    private var diagnosticWindowMoveCount = 0
+
+    // Synthetic-fixture geometry only; no labels, draft, account or content.
+    // Computed on demand without timers or observable/global publication.
+    var diagnosticGeometry: [String: Any] {
+        func rect(_ value: CGRect) -> [Any] {
+            [value.minX, value.minY, value.width, value.height].map {
+                $0.isFinite ? NSNumber(value: Double($0)) : "nonfinite" as Any
+            }
+        }
+        var parents: [[String: Any]] = []
+        var ancestor: UIView? = self
+        for _ in 0..<10 {
+            guard let view = ancestor else { break }
+            parents.append(["class": String(describing: type(of: view)),
+                "frame": rect(view.frame), "bounds": rect(view.bounds),
+                "hidden": view.isHidden, "alpha": view.alpha,
+                "clips": view.clipsToBounds, "axElement": view.isAccessibilityElement,
+                "axChildrenHidden": view.accessibilityElementsHidden])
+            ancestor = view.superview
+        }
+        let points = [CGPoint(x: bounds.midX, y: bounds.midY),
+            CGPoint(x: 1, y: 1), CGPoint(x: bounds.width - 1, y: bounds.height - 1)]
+        let hitOwners: [[String: Any]] = points.map { point in
+            let hit = window?.hitTest(convert(point, to: window), with: nil)
+            return ["class": hit.map { String(describing: type(of: $0)) } ?? "none",
+                "ownsButton": hit === self, "point": [point.x, point.y]]
+        }
+        return ["hitOwners": hitOwners, "frame": rect(frame), "bounds": rect(bounds),
+            "viewport": rect(convert(bounds, to: window)),
+            "axFrame": rect(accessibilityFrame), "windowAttached": window != nil,
+            "updates": diagnosticUpdateCount, "layouts": diagnosticLayoutCount,
+            "windowMoves": diagnosticWindowMoveCount, "parents": parents]
+    }
+
+    // Changing counters belong only to on-demand reads, never the bound
+    // field value: publishing them would itself drive another SwiftUI update.
+    var boundDiagnosticGeometry: [String: Any] {
+        diagnosticGeometry.filter { !["updates", "layouts", "windowMoves"].contains($0.key) }
+    }
+
+    override var accessibilityValue: String? {
+        get {
+            guard ProcessInfo.processInfo.arguments.contains("--ui-test-composer-control-diagnostics"),
+                  let data = try? JSONSerialization.data(withJSONObject: diagnosticGeometry, options: [.sortedKeys]) else {
+                return super.accessibilityValue
+            }
+            return String(data: data, encoding: .utf8)
+        }
+        set { super.accessibilityValue = newValue }
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        diagnosticWindowMoveCount += 1
+    }
+    #endif
+
+    init() {
+        super.init(frame: CGRect(origin: .zero, size: CGSize(
+            width: MessageComposerMetric.expandControlSize, height: MessageComposerMetric.expandControlSize)))
+        backgroundColor = .clear
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+        artwork.view.backgroundColor = .clear
+        artwork.view.isUserInteractionEnabled = false
+        artwork.view.accessibilityElementsHidden = true
+        addSubview(artwork.view)
+        addTarget(self, action: #selector(press), for: .touchUpInside)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override var intrinsicContentSize: CGSize {
+        CGSize(width: MessageComposerMetric.expandControlSize, height: MessageComposerMetric.expandControlSize)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        #if DEBUG
+        diagnosticLayoutCount += 1
+        #endif
+        artwork.view.frame = CGRect(x: (bounds.width - 30) / 2,
+            y: (bounds.height - 30) / 2, width: 30, height: 30)
+    }
+
+    @objc private func press() { onPress() }
+}
+
 struct NativeComposerEditorView: UIViewRepresentable {
     @ObservedObject var session: NativeComposerSession
     let isFocused: Binding<Bool>
@@ -59,7 +233,12 @@ struct NativeComposerEditorView: UIViewRepresentable {
         guard let width = proposal.width else { return nil }
         context.coordinator.reservesControlLane = reservesControlLane
         context.coordinator.applyControlLane(to: uiView)
-        publishOverflow(context.coordinator.measuredOverflow(uiView, width: width, limit: maximumUnscrolledHeight))
+        let proposedOverflow = context.coordinator.overflowMeasurement(uiView, width: width, limit: maximumUnscrolledHeight)
+        #if DEBUG
+        context.coordinator.recordOverflowProbe(uiView, stage: "proposal", width: width,
+            limit: maximumUnscrolledHeight, result: proposedOverflow)
+        #endif
+        context.coordinator.publishOverflow(proposedOverflow, to: contentOverflows)
         let intrinsic = resolvedHeight(for: uiView, width: width)
         // The field proposes its bounded editor lane, not a shell around a short
         // intrinsic text view. Keep intrinsic measurement independent for collapse.
@@ -77,7 +256,12 @@ struct NativeComposerEditorView: UIViewRepresentable {
         context.coordinator.onSubmit = onSubmit
         context.coordinator.adapter.updatePIIDecorations(piiDecorations, onExclude: onExcludePII)
         context.coordinator.adapter.synchronize(textView)
-        publishOverflow(context.coordinator.measuredOverflow(textView, width: textView.bounds.width, limit: maximumUnscrolledHeight))
+        let nativeOverflow = context.coordinator.overflowMeasurement(textView, width: textView.bounds.width, limit: maximumUnscrolledHeight)
+        #if DEBUG
+        context.coordinator.recordOverflowProbe(textView, stage: "native", width: textView.bounds.width,
+            limit: maximumUnscrolledHeight, result: nativeOverflow)
+        #endif
+        context.coordinator.publishOverflow(nativeOverflow, to: contentOverflows)
         context.coordinator.updateScrollFade(textView)
         textView.isEditable = isEditable
         if textView.bounds.width > 0 {
@@ -99,14 +283,6 @@ struct NativeComposerEditorView: UIViewRepresentable {
             for: contentSize.height,
             containsEmbed: containsEmbed
         )
-    }
-
-    private func publishOverflow(_ value: Bool) {
-        guard contentOverflows.wrappedValue != value else { return }
-        DispatchQueue.main.async {
-            guard contentOverflows.wrappedValue != value else { return }
-            contentOverflows.wrappedValue = value
-        }
     }
 
     private func publishLayoutDiagnostic(_ value: String) {
@@ -150,16 +326,79 @@ struct NativeComposerEditorView: UIViewRepresentable {
         var onLayoutDiagnostic: (String) -> Void = { _ in }
         private var lastLayoutDiagnostic: String?
         private let overflowCache = NativeComposerOverflowCache()
+        private let overflowPublication = NativeComposerOverflowPublication()
+
+        func overflowMeasurement(_ view: UITextView, width: CGFloat, limit: CGFloat) -> Bool? {
+            guard NativeComposerOverflowPublication.accepts(width: width) else {
+                #if DEBUG
+                lastOverflowMeasurement = ["unmeasuredWidth": true]
+                #endif
+                return nil
+            }
+            return measuredOverflow(view, width: width, limit: limit)
+        }
+
+        func publishOverflow(_ measurement: Bool?, to binding: Binding<Bool>) {
+            overflowPublication.submit(measurement, to: binding)
+        }
+        #if DEBUG
+        private var overflowProbeHistory: [[String: Any]] = []
+        private var lastOverflowMeasurement: [String: Any] = [:]
+
+        func recordOverflowProbe(_ view: UITextView, stage: String,
+            width: CGFloat, limit: CGFloat, result: Bool?) {
+            guard ProcessInfo.processInfo.arguments.contains("--ui-test-composer-control-diagnostics") else { return }
+            func number(_ value: CGFloat) -> Any {
+                value.isFinite ? NSNumber(value: Double(value)) : "nonfinite" as Any
+            }
+            var entry = lastOverflowMeasurement
+            entry["stage"] = stage
+            entry["width"] = number(width)
+            entry["limit"] = number(limit)
+            entry["actualWidth"] = number(view.bounds.width)
+            entry["actualHeight"] = number(view.bounds.height)
+            entry["rightInset"] = number(view.textContainerInset.right)
+            entry["reservesLane"] = reservesControlLane
+            entry["measurementValid"] = result != nil
+            if let result { entry["result"] = result }
+            else { entry["result"] = "unmeasured" }
+            // Proposal/native provenance and cache hits are useful evidence,
+            // but do not make an otherwise identical geometry/result a change.
+            let incidental = ["stage", "cached", "measuredHeight", "compensation"]
+            let state = entry.filter { !incidental.contains($0.key) }
+            if let previous = overflowProbeHistory.last {
+                let previousState = previous.filter { !incidental.contains($0.key) }
+                if NSDictionary(dictionary: state).isEqual(to: previousState) { return }
+            }
+            overflowProbeHistory.append(entry)
+            if overflowProbeHistory.count > 16 { overflowProbeHistory.removeFirst() }
+        }
+        #endif
 
         func measuredOverflow(_ view: UITextView, width: CGFloat, limit: CGFloat) -> Bool {
-            guard width > 0, view.textStorage.length > 0 else { return false }
+            guard width > 0, view.textStorage.length > 0 else {
+                #if DEBUG
+                lastOverflowMeasurement = ["invalidWidth": width <= 0, "empty": view.textStorage.length == 0]
+                #endif
+                return false
+            }
             let key = overflowCache.key(revision: adapter.synchronizedRevision, storage: view.textStorage,
                 width: width, limit: limit, linePadding: view.textContainer.lineFragmentPadding)
-            if let value = overflowCache.value(for: key) { return value }
+            if let value = overflowCache.value(for: key) {
+                #if DEBUG
+                lastOverflowMeasurement = ["cached": true]
+                #endif
+                return value
+            }
             // Proposed-width compensation measures the SAME native view at its
             // full physical width without modifying live insets/bounds/selection.
             let compensation = view.textContainerInset.right - MessageComposerMetric.editorHorizontalInset
             let height = view.sizeThatFits(CGSize(width: width + compensation, height: .greatestFiniteMagnitude)).height
+            #if DEBUG
+            lastOverflowMeasurement = ["cached": false,
+                "measuredHeight": height.isFinite ? NSNumber(value: Double(height)) : "nonfinite" as Any,
+                "compensation": compensation]
+            #endif
             return overflowCache.store(height > limit + 1, for: key)
         }
 
@@ -207,11 +446,30 @@ struct NativeComposerEditorView: UIViewRepresentable {
                 let selected = textView.caretRect(for: textView.selectedTextRange?.end ?? textView.beginningOfDocument)
                 let right = textView.bounds.maxX - textView.textContainerInset.right - textView.textContainer.lineFragmentPadding
                 let viewport = textView.convert(textView.bounds, to: textView.window)
-                let payload: [String: Any] = ["viewport": [viewport.minX, viewport.minY, viewport.width, viewport.height],
+                var payload: [String: Any] = ["viewport": [viewport.minX, viewport.minY, viewport.width, viewport.height],
                     "first": [first.minX, first.minY, first.width, first.height],
                     "selected": [selected.minX, selected.minY, selected.width, selected.height],
                     "right": right, "offset": textView.contentOffset.y,
                     "bounds": [textView.bounds.minX, textView.bounds.minY, textView.bounds.width, textView.bounds.height]]
+                if ProcessInfo.processInfo.arguments.contains("--ui-test-composer-control-diagnostics"),
+                   let window = textView.window {
+                    var remaining: [UIView] = [window]
+                    var visited = 0
+                    var controls: [[String: Any]] = []
+                    // Bound traversal; only this dedicated control's numerical
+                    // geometry enters the existing synthetic field diagnostic.
+                    while let view = remaining.popLast(), visited < 1024 {
+                        visited += 1
+                        if let control = view as? NativeComposerFullscreenUIKitButton {
+                            controls.append(control.boundDiagnosticGeometry)
+                        }
+                        remaining.append(contentsOf: view.subviews)
+                    }
+                    payload["overflowProbes"] = overflowProbeHistory
+                    payload["fullscreenControls"] = controls
+                    payload["controlProbeVisited"] = visited
+                    payload["controlProbeTruncated"] = !remaining.isEmpty
+                }
                 if let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
                    let value = String(data: data, encoding: .utf8), value != lastLayoutDiagnostic {
                     lastLayoutDiagnostic = value; onLayoutDiagnostic(value)

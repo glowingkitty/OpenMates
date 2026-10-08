@@ -30,13 +30,13 @@ scope:
     local microphone tests.
   out:
   - Backend Project connectivity assigned to another chat.
-  - Automatic production speech rerouting or unselected neural runtime integration.
+  - Unselected neural runtime integration or automatic restoration of rejected engines.
   - Raw audio, transcript, credentials or private chat content in diagnostics.
 recommendation:
-  default: Supertonic3 and exact KittenMini0.8 selected for developer testing only. Pocket TTS, Apple system voice testing and Kokoro remain removed.
-  optional_candidate: Optional explicit pinned downloads and local lab playback are approved. Kitten uses the publisher pure Swift BuiltinPhonemizer; CE/eSpeak/GPL data are excluded. The selected adapters are included in the next consolidated build92; native synthesis and developer UI evidence are required before release.
+  default: Supertonic3 is the selected production-first local speech direction. KittenTTS Mini0.8 is completely removed at the user's explicit request; Pocket TTS, Apple system voice testing and Kokoro remain removed.
+  optional_candidate: Explicit verified Supertonic downloads, local-first production playback, provider fallback, deferred resident preparation and chunk streaming are authorized. Historical developer-only selection and build92 notes below are evidence of earlier work, not the current engine selection. Source-matched native evidence and signed release checks remain required.
   existing_kokoro: Removed at the user's explicit instruction; no automatic restoration.
-  alternatives: Selected engines still need blind listening and physical-device validation. KittenTTS2 and NeuTTS remain research only.
+  alternatives: Supertonic quality and physical-device behavior remain subject to measured validation. Rejected Kitten engines must not be restored.
   experimental_alternative: Desktop benchmarks and small download sizes do not establish human voice quality or iPhone reliability.
 sequence:
 - step: Repair Mac laboratory input access.
@@ -69,7 +69,7 @@ sequence:
   limitation: Reconnecting banners alone do not identify an internet outage or a heartbeat timeout.
 - step: Research the next offline speech comparison.
   work: Remove rejected Pocket TTS source, assets registration and build linkage. Compare current primary-source
-    alternatives and implement the user-selected Supertonic3/KittenMini0.8 developer tests. Use explicit verified offline assets, stock voices and ephemeral input/playback; expose the Kitten pure Swift phonemizer limitation. Blind listening/device measurements remain separate verification. Production routing remains unchanged and Apple voices stay removed.
+    alternatives and implement the user-selected Supertonic3 production-first direction with explicit verified assets, provider fallback, deferred resident preparation and chunk streaming. Remove Kitten completely. Blind listening/device measurements remain separate verification; rejected Apple voices stay removed.
   measures:
   - time to first audio
   - cold load
@@ -134,6 +134,11 @@ evidence:
     laboratory: Supported download controls, advancing transfer/verification, interrupted Privacy Filter retry,
       installed Apple voice playback, cancellation and cleanup passed focused UI checks.
   release_gates:
+  - Build 96 adds a macOS notification service extension and migrates only the existing notification private key
+    to the shared data-protection Keychain without replacing its recipient. Signed archive checks must prove
+    matching app-group and Keychain capabilities. A real encrypted notification while the Mac app is backgrounded
+    or closed must prove extension invocation, readable response preview and Open chat routing before iOS upload;
+    parser, synthetic crypto and Simulator passes alone do not prove OS delivery.
   - TestFlight 0.27.0 (91) is available for iOS with its Watch companion and universal macOS. Its signed archives
     and availability receipts are retained. Later consolidated fixes and the two selected neural speech laboratories
     are assigned build 92 and are not included in build 91.
@@ -316,11 +321,25 @@ production_pii:
 approvals:
   specification:
     status: approved
-    approved_at: "2026-10-06"
-    source: "Existing approved bundle batch apple-stability-existing-user-scope-2026-10-06; no new Specification assertions."
+    approved_at: "2026-10-07"
+    basis: Explicit user approval of the Apple Live Activities exact-document review in this Codex thread.
+    fingerprints:
+      feature.apple-live-activities: d286f290e0c8089943a5ad7b87a64d88d64f265904148493d1838562f2935024
+  continue_parity:
+    status: authorized_existing_scope
+    authorized_at: "2026-10-08"
+    specification: feature.continue-carousel@1
+    basis: >
+      The user directed that Continue behavior belongs in an existing specification,
+      without a separate specification or redundant review. feature.continue-carousel@1
+      already exists on dev and owns these saved-item and chat timing assertions;
+      extend that existing owner for Apple parity. Preserve both assertion IDs and
+      the frozen native coverage. This records implementation authorization, not
+      acknowledgement of the corrected fingerprint's separate review document.
   plan:
-    status: not_required
-    reason: "Existing direct user instructions in goal_source and approvals authorize this scope; schema normalization does not change intent."
+    status: approved
+    approved_at: "2026-10-03"
+    basis: Existing direct user implementation instruction, followed by explicit Kitten removal and Supertonic production-first follow-ups on 2026-10-05; no new scope approval is asserted.
   current_speech_selection: The user retains Supertonic3 and explicitly removed KittenTTS Mini0.8 on2026-10-05, superseding the earlier testing selection. Pocket remains removed. Local-first production playback, explicit download/provider fallback, deferred resident preparation and chunk streaming are approved follow-ups; their implementation remains pending.
   watch_offline_and_rendering: Direct user instruction on 2026-10-03 for background twenty-chat synchronization,
     fifty tasks per status, workflow/run viewing, smaller default text, message zoom and read-only fullscreen embeds.
@@ -375,181 +394,204 @@ mac_debug_2026_10_06:
   followup_screenshots: Audio-only bubble sizing/play triangle, weather label, selection-menu theme/dismissal, workflow node/timeline status and image orientation/reference/cache failure are under focused verification against current source. These are not yet native runtime passes.
   privacy: TASK-1854 tracks client-side metadata stripping with original filenames and workflow paths preserved. Outbound image/file byte verification is required; no complete privacy claim yet.
 
-# Structured index of existing accepted intent; narrative scope and limitations above remain authoritative.
+# Executable compatibility records; historical evidence above remains unchanged.
+implementation_state:
+  subject_commit: 234ff583686c7a832845a8a65ba82c1217a2e7f4
+  note: Dirty task source; native and archive receipts must bind the final frozen source. Historical evidence below
+    does not verify current bytes.
 scenarios:
 - id: S-1
-  title: Optional local speech progress and recovery
+  title: Speech selection
   given:
-  - Existing optional local model laboratory with explicitly selected assets.
+  - The user selected Supertonic and removed Kitten.
   when:
-  - Download, cancel, recover, and compare cold/warm local speech on the selected devices.
+  - Speech source and explicit download/playback controls are reviewed.
   then:
-  - Progress and cancellation remain responsive; physical-device quality and reliability require the measurements
-    already described in sequence.
+  - Kitten remains absent; Supertonic production-first work retains verification and provider fallback.
 - id: S-2
-  title: Encrypted offline chat and workspace continuity
+  title: Offline workspace and navigation
   given:
-  - Existing accepted twenty-chat cohort and scoped workflow/task/plan/project metadata.
+  - The account has scoped encrypted recent chats and workspace metadata.
   when:
-  - Reopen the accepted offline cohort and navigate its cached workspace surfaces.
+  - The user navigates recent chats or workspace data while disconnected.
   then:
-  - Account isolation and bounded complete snapshots preserve local-first navigation; physical Watch and iPhone
-    verification remains separate.
+  - The approved bounded cohort and scoped metadata remain available with honest completeness.
 - id: S-3
-  title: Daily Mac responsiveness and connection diagnosis
+  title: Background progress and privacy
   given:
-  - Installed Mac release and the existing privacy-safe connection timeline.
+  - The OS authorizes supported background presentation.
   when:
-  - Measure the same daily navigation and reconnect behavior with exact installed source identity.
+  - A pinned model transfer or eligible upcoming saved memory progresses.
   then:
-  - Correlate server close categories with client lifecycle and resource samples before selecting an auth or performance
-    repair.
+  - Download/memory Live Activities and independent completion notifications follow approved privacy boundaries.
+- id: S-4
+  title: Scoped parity and delivery
+  given:
+  - The reviewed scoped fixes are frozen on current dev context.
+  when:
+  - Focused native/UI checks and unified Apple packaging run against those bytes.
+  then:
+  - Approved composer, workspace, Watch and privacy behavior is source-bound in the release receipts.
 acceptance_criteria:
 - id: AC-1
   scenario: S-1
-  text: The selected speech laboratory preserves explicit downloads, bounded cancellation, and truthful phase progress;
-    blind listening and physical-device reliability remain pending.
+  text: Current speech selection and removal match the explicit user instructions.
   required: true
   status: pending
   coverage_status: covered
   verification_scope: apple
   verification_ids:
-  - T-SPEECH-DEVICE
+  - T-NATIVE-1
 - id: AC-2
   scenario: S-2
-  text: The accepted encrypted offline chat and workspace cohort remains complete within its existing storage bounds
-    and account scope.
+  text: Twenty-chat retention, bounded Watch task/run data and account/server/Team isolation retain approved behavior.
   required: true
   status: pending
   coverage_status: covered
   verification_scope: apple
   verification_ids:
-  - T-OFFLINE-DEVICE
+  - T-NATIVE-2
 - id: AC-3
   scenario: S-3
-  text: Daily Mac responsiveness and repeated connection loss are measured on the installed release; a close cause
-    is claimed only when correlated evidence identifies it.
+  text: Processing-chat Live Activities remain removed; widgets and completion notifications remain separate.
   required: true
   status: pending
   coverage_status: covered
   verification_scope: apple
   verification_ids:
-  - T-MAC-CONNECTION
+  - T-NATIVE-3
+- id: AC-4
+  scenario: S-4
+  text: Relevant scoped checks, source identity, entitlements and unified signed Apple release gates are retained.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: apple
+  verification_ids:
+  - T-NATIVE-4
 tests:
-- id: T-SPEECH-DEVICE
+- id: T-NATIVE-1
   type: manual
   assertions:
-  - Progress and cancellation remain responsive; physical-device quality and reliability require the measurements
-    already described in sequence.
+  - Speech selection/removal and local-first follow-ups; physical-device quality remains separately unverified.
   covers:
   - AC-1
   red_phase:
     required: false
-    expected: Existing retained observations establish the failure or missing device evidence; do not repeat known
-      reproductions.
+    expected: Existing observations retained below; no duplicate reproduction.
     evidence:
-      status: not_required
-      reason: Retain the existing sequence and delivery observations above.
+      source: Historical evidence sections below
   green_phase:
     required: true
-    expected: pass
+    expected: Source-matched scoped verification and retained receipts.
     evidence:
       status: pending
-      reason: Partial native/GUI/helper checks do not establish the complete physical-device or daily-use criterion.
-- id: T-OFFLINE-DEVICE
+      owner: root release coordinator
+- id: T-NATIVE-2
   type: manual
   assertions:
-  - Account isolation and bounded complete snapshots preserve local-first navigation; physical Watch and iPhone
-    verification remains separate.
+  - Existing native retention, traversal, isolation and local-first UI coverage.
   covers:
   - AC-2
   red_phase:
     required: false
-    expected: Existing retained observations establish the failure or missing device evidence; do not repeat known
-      reproductions.
+    expected: Existing observations retained below; no duplicate reproduction.
     evidence:
-      status: not_required
-      reason: Retain the existing sequence and delivery observations above.
+      source: Historical evidence sections below
   green_phase:
     required: true
-    expected: pass
+    expected: Source-matched scoped verification and retained receipts.
     evidence:
       status: pending
-      reason: Partial native/GUI/helper checks do not establish the complete physical-device or daily-use criterion.
-- id: T-MAC-CONNECTION
+      owner: root release coordinator
+- id: T-NATIVE-3
   type: manual
   assertions:
-  - Correlate server close categories with client lifecycle and resource samples before selecting an auth or performance
-    repair.
+  - Existing transfer, Activity lifecycle, notification and widget coverage; signed capability and actual delivery
+    evidence.
   covers:
   - AC-3
   red_phase:
     required: false
-    expected: Existing retained observations establish the failure or missing device evidence; do not repeat known
-      reproductions.
+    expected: Existing observations retained below; no duplicate reproduction.
     evidence:
-      status: not_required
-      reason: Retain the existing sequence and delivery observations above.
+      source: Historical evidence sections below
   green_phase:
     required: true
-    expected: pass
+    expected: Source-matched scoped verification and retained receipts.
     evidence:
       status: pending
-      reason: Partial native/GUI/helper checks do not establish the complete physical-device or daily-use criterion.
-implementation_state:
-  subject_commit: a947eaa11889f13037cf1f8c3a67d0594b2202dc
-  status: implementing
-  note: Metadata normalization indexes the existing accepted narrative only. Mac release 94 stays frozen; its installation/performance
-    checks and pending physical-device work remain owned by the root task.
-decisions:
-- id: D-EXISTING-SCOPE
-  status: active
-  decision: Retain the accepted narrative scope and every existing device/performance limitation.
-  reason: User authorization permits mechanical schema repair, not new product intent or invented verification.
-  decided_at: '2026-10-06'
+      owner: root release coordinator
+- id: T-NATIVE-4
+  type: manual
+  assertions:
+  - Root-owned focused native/UI lanes and signed iOS/embedded Watch/universal macOS archive/export/upload checks.
+  covers:
+  - AC-4
+  red_phase:
+    required: false
+    expected: Existing observations retained below; no duplicate reproduction.
+    evidence:
+      source: Historical evidence sections below
+  green_phase:
+    required: true
+    expected: Source-matched scoped verification and retained receipts.
+    evidence:
+      status: pending
+      owner: root release coordinator
 tasks:
 - id: TASK-8137
-  title: Apple offline speech and connection stability
+  title: Complete the approved Apple stability and scoped release work
   status: in_progress
-  phase: working_tasks
+  phase: running_checks
   covers:
     scenarios:
     - S-1
     - S-2
     - S-3
+    - S-4
     acceptance_criteria:
     - AC-1
     - AC-2
     - AC-3
+    - AC-4
   expected_files:
-  - apple/OpenMates
-  - docs/plans/apple-offline-speech-stability
+  - apple/
+  - scripts/apple_testflight_release.py
   verification_ids:
-  - T-SPEECH-DEVICE
-  - T-OFFLINE-DEVICE
-  - T-MAC-CONNECTION
+  - T-NATIVE-1
+  - T-NATIVE-2
+  - T-NATIVE-3
+  - T-NATIVE-4
   dependencies: []
-  blockers: []
+  blockers:
+  - Pending source-bound UI/release evidence and missing matching Specification approval records.
   follow_up_tasks: []
   ownership:
     files:
-    - docs/plans/apple-offline-speech-stability/plan.yml
+    - apple/
+    - scripts/apple_testflight_release.py
     shared_files: []
-    note: OpenMates Tasks remains the status authority; root owns native builds, installation and performance measurements.
+decisions:
+- id: D-CURRENT-SPEECH
+  status: active
+  decision: Remove Kitten completely and retain Supertonic as the production-first local speech direction.
+  reason: Direct user correction supersedes the earlier laboratory selection.
+  decided_at: '2026-10-05'
 attempts:
-- id: A-PUBLICATION-SCHEMA
+- id: ATTEMPT-CURRENT-RELEASE
   task_id: TASK-8137
-  outcome: blocked
-  approach: Normal reviewed-candidate scoped publication; dependency prerequisites were restored, then missing legacy
-    metadata stopped the Specification gate before publication.
-  recorded_at: '2026-10-06'
+  outcome: planned
+  approach: Use final source-matched focused native/UI checks and unified signed release receipts; preserve earlier
+    observations below.
+  recorded_at: '2026-10-07'
 handoff:
   current_task_id: TASK-8137
-  next_action: Publish the scoped reviewed candidate through the normal helper, then correlate the existing root-owned
-    Mac measurement with bounded watcher categories.
-  command: 'python3 scripts/sessions.py deploy --session 6ae2 --title "fix: complete Apple stability and scoped
-    image recovery" --message "Use the reviewed publication packet and exact scoped paths."'
-  expected_outcome: A scoped dev publication receipt; pending native device/performance work remains incomplete
-    until measured.
-  last_verified_commit: a947eaa11889f13037cf1f8c3a67d0594b2202dc
-  blocker: null
+  next_action: Finish source-bound scoped UI gates, resolve matching Specification approval admission, then run
+    approved unified signing/export/upload and scoped publication.
+  command: Root release coordinator uses scripts/apple_testflight_release.py and scripts/sessions.py with the final
+    frozen receipts.
+  expected_outcome: Reviewed scoped dev publication and source-bound unified Apple release evidence.
+  last_verified_commit: 234ff583686c7a832845a8a65ba82c1217a2e7f4
+  blocker:
+    reason: Final current-source UI/release and Specification approval admission remain pending.

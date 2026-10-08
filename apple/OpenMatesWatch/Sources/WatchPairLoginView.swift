@@ -19,6 +19,7 @@ import SwiftUI
 private let watchPairLoginDiagnosticsCategory = "watch_pair_login"
 
 enum WatchPairLoginFixtureState: Equatable {
+    case initiating
     case iphoneConfirm
     case cloudShortURL
     case selfHostedShortURL
@@ -35,6 +36,8 @@ final class WatchPairLoginState: ObservableObject {
     @Published var pairURLString: String?
     @Published var status: PairLoginStatus = .generating
     @Published var pin = ""
+    var receiverExpiresAt: Int?
+    var phonePINAccepted = false
     @Published var errorMessage: String?
     @Published var isSubmitting = false
     @Published var showsManualFallback = false
@@ -69,6 +72,8 @@ final class WatchPairLoginState: ObservableObject {
         pairURLString = nil
         status = .generating
         pin = ""
+        receiverExpiresAt = nil
+        phonePINAccepted = false
         errorMessage = nil
         isSubmitting = false
         showsManualFallback = false
@@ -99,8 +104,13 @@ struct WatchPairLoginView: View {
         self.uiTestFixture = uiTestFixture
         let state = WatchPairLoginState()
         if let uiTestFixture {
+            // Synthetic Cloud routes must not inherit a previously selected
+            // custom server from the simulator's persisted profile store.
+            state.serverProfile = .production
             state.token = "WATCH42"
             switch uiTestFixture {
+            case .initiating:
+                state.token = nil
             case .iphoneConfirm:
                 state.pairURLString = "https://openmates.org/#pair=WATCH42"
                 state.status = .waiting
@@ -135,7 +145,7 @@ struct WatchPairLoginView: View {
     var body: some View {
         GeometryReader { geometry in
         ZStack {
-            Color.grey100.ignoresSafeArea()
+            WatchWorkspacePalette.background.ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: .spacing4) {
@@ -171,7 +181,7 @@ struct WatchPairLoginView: View {
                             Text(WatchStrings.pairRefresh)
                                 .font(.omSmall)
                                 .fontWeight(.semibold)
-                                .foregroundStyle(Color.fontButton)
+                                .foregroundStyle(WatchWorkspacePalette.foreground)
                                 .padding(.horizontal, .spacing4)
                                 .padding(.vertical, .spacing2)
                                 .background(LinearGradient.primary)
@@ -226,17 +236,18 @@ struct WatchPairLoginView: View {
             VStack(spacing: .spacing2) {
                 ProgressView()
                     .controlSize(.small)
-                    .tint(Color.grey0)
+                    .tint(WatchWorkspacePalette.foreground)
                 Text(WatchStrings.pairGenerating)
                     .font(.omXs)
-                    .foregroundStyle(Color.grey0.opacity(0.82))
+                    .foregroundStyle(WatchWorkspacePalette.foreground.opacity(0.82))
                     .multilineTextAlignment(.center)
+                    .accessibilityIdentifier("watch-pair-generating-label")
             }
         case .waiting:
             if !pairState.showsManualFallback, !pairState.phoneRequestSent {
                 Text(WatchStrings.pairWaiting)
                     .font(.omXs)
-                    .foregroundStyle(Color.grey0.opacity(0.82))
+                    .foregroundStyle(WatchWorkspacePalette.foreground.opacity(0.82))
                     .multilineTextAlignment(.center)
                     .accessibilityIdentifier("watch-pair-waiting-label")
             }
@@ -258,7 +269,7 @@ struct WatchPairLoginView: View {
             Text(WatchStrings.pairEnterCodePrompt)
                 .font(.omSmall)
                 .fontWeight(.bold)
-                .foregroundStyle(Color.grey0)
+                .foregroundStyle(WatchWorkspacePalette.foreground)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 145)
                 .padding(.top, CGFloat.spacing12 + CGFloat.spacing3)
@@ -268,11 +279,11 @@ struct WatchPairLoginView: View {
                 TextField(WatchStrings.pairPinPlaceholder, text: $pairState.pin)
                     .font(.omP)
                     .fontWeight(.bold)
-                    .foregroundStyle(Color.fontPrimary)
+                    .foregroundStyle(WatchWorkspacePalette.foreground)
                     .multilineTextAlignment(.center)
                     .padding(.vertical, .spacing2)
                     .padding(.horizontal, .spacing3)
-                    .background(Color.grey0)
+                    .background(WatchWorkspacePalette.surface)
                     .clipShape(RoundedRectangle(cornerRadius: .radius4))
                     .focused($pinFieldFocused)
                     .onAppear { pinFieldFocused = true }
@@ -284,7 +295,7 @@ struct WatchPairLoginView: View {
             if pairState.isSubmitting {
                 Text(WatchStrings.pairLoggingIn)
                     .font(.omXs)
-                    .foregroundStyle(Color.grey0.opacity(0.72))
+                    .foregroundStyle(WatchWorkspacePalette.foreground.opacity(0.72))
                     .multilineTextAlignment(.center)
             } else if let errorMessage = pairState.errorMessage {
                 messageBox(text: errorMessage)
@@ -304,7 +315,7 @@ struct WatchPairLoginView: View {
             Text(WatchStrings.pairConfirmOnIphone)
                 .font(.omSmall)
                 .fontWeight(.bold)
-                .foregroundStyle(Color.grey0)
+                .foregroundStyle(WatchWorkspacePalette.foreground)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 140)
                 .accessibilityIdentifier("watch-pair-confirm-iphone-title")
@@ -317,7 +328,7 @@ struct WatchPairLoginView: View {
                 Text(WatchStrings.pairTapShortURL)
                     .font(.omSmall)
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color.grey0.opacity(0.82))
+                    .foregroundStyle(WatchWorkspacePalette.foreground.opacity(0.82))
                     .multilineTextAlignment(.center)
             }
             .buttonStyle(.plain)
@@ -340,7 +351,7 @@ struct WatchPairLoginView: View {
             Text(WatchStrings.pairSelfHostedDomainPrompt)
                 .font(.omSmall)
                 .fontWeight(.bold)
-                .foregroundStyle(Color.grey0)
+                .foregroundStyle(WatchWorkspacePalette.foreground)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 150)
                 .padding(.top, CGFloat.spacing12 + CGFloat.spacing3)
@@ -349,11 +360,11 @@ struct WatchPairLoginView: View {
             if domainEditorVisible {
                 TextField(WatchStrings.pairSelfHostedPlaceholder, text: $pairState.customDomain)
                     .font(.omSmall)
-                    .foregroundStyle(Color.fontPrimary)
+                    .foregroundStyle(WatchWorkspacePalette.foreground)
                     .multilineTextAlignment(.center)
                     .padding(.vertical, .spacing2)
                     .padding(.horizontal, .spacing2)
-                    .background(Color.grey0)
+                    .background(WatchWorkspacePalette.surface)
                     .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
                     .focused($domainFieldFocused)
                     .onAppear { domainFieldFocused = true }
@@ -384,7 +395,7 @@ struct WatchPairLoginView: View {
         Text(title)
             .font(.omTiny)
             .fontWeight(.semibold)
-            .foregroundStyle(Color.fontButton)
+            .foregroundStyle(WatchWorkspacePalette.foreground)
             .multilineTextAlignment(.center)
             .padding(.horizontal, .spacing3)
             .padding(.vertical, .spacing2)
@@ -417,10 +428,10 @@ struct WatchPairLoginView: View {
                     Text(WatchStrings.pairLoginViaShortURL)
                         .font(.omSmall)
                         .fontWeight(.bold)
-                        .foregroundStyle(Color.grey0)
+                        .foregroundStyle(WatchWorkspacePalette.foreground)
 
                     (Text(shortPairURLParts(pairURLString).domainAndPath + "\n")
-                        .foregroundColor(.grey0)
+                        .foregroundColor(WatchWorkspacePalette.foreground)
                      + Text(shortPairURLParts(pairURLString).pairCode)
                         .foregroundColor(Color(hex: 0x5A85EB)))
                         .font(.omH3)
@@ -454,7 +465,7 @@ struct WatchPairLoginView: View {
                 HStack(spacing: .spacing1) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Color.grey100)
+                        .foregroundStyle(WatchWorkspacePalette.background)
                         .frame(width: 20, height: 20)
                         .background(Color(hex: 0x7096EF), in: Circle())
                     Text(title)
@@ -475,7 +486,7 @@ struct WatchPairLoginView: View {
                 .foregroundStyle(Color(hex: 0x5A85EB))
                 .frame(maxWidth: .infinity)
                 .frame(height: 74)
-                .background(Color.grey80)
+                .background(WatchWorkspacePalette.surface)
                 .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
         }
         .buttonStyle(.plain)
@@ -485,10 +496,11 @@ struct WatchPairLoginView: View {
     private func messageBox(text: String) -> some View {
         Text(text)
             .font(.omXs)
-            .foregroundStyle(Color.grey0)
+            .foregroundStyle(WatchWorkspacePalette.foreground)
             .multilineTextAlignment(.center)
             .padding(.spacing2)
             .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("watch-pair-error-message")
             .background(Color.error.opacity(0.35))
             .clipShape(RoundedRectangle(cornerRadius: .radius4))
     }
@@ -524,7 +536,7 @@ struct WatchPairLoginView: View {
                 Text(WatchStrings.pairSelfHostedEdition)
                     .font(.omSmall)
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color.grey0.opacity(0.72))
+                    .foregroundStyle(WatchWorkspacePalette.foreground.opacity(0.72))
                     .multilineTextAlignment(.center)
             }
             .buttonStyle(.plain)
@@ -545,7 +557,7 @@ struct WatchPairLoginView: View {
                 Text(WatchStrings.pairOfficialCloudEdition)
                     .font(.omSmall)
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color.grey0.opacity(0.72))
+                    .foregroundStyle(WatchWorkspacePalette.foreground.opacity(0.72))
                     .multilineTextAlignment(.center)
             }
             .buttonStyle(.plain)
@@ -560,6 +572,7 @@ struct WatchPairLoginView: View {
             Task { await PairV2Runtime.cancel(token: oldToken, serverProfile: oldProfile) }
         }
         let serverProfile = serverProfile ?? pairState.serverProfile
+        phoneBridge.clearPairingReceipts()
         let generation = pairState.beginAttempt(serverProfile: serverProfile)
         NativeDiagnostics.info(
             "phase=view.initiate.start generation=\(generation) force=\(force) serverKind=\(serverProfile.diagnosticsKind)",
@@ -633,6 +646,12 @@ struct WatchPairLoginView: View {
                     guard !Task.isCancelled,
                           pairState.attemptState.accepts(generation: generation, serverProfile: serverProfile),
                           pairState.token == token else { return }
+                    pairState.receiverExpiresAt = response.expiresAt
+                    if pairState.phonePINAccepted {
+                        phoneBridge.rememberAcceptedApproval(
+                            WatchPairLoginApproval(token: token, pin: pairState.pin),
+                            profile: serverProfile, expiresAt: response.expiresAt)
+                    }
                     if response.status == "approved" {
                         pairState.fallbackTask?.cancel()
                         pairState.showsManualFallback = false
@@ -643,6 +662,9 @@ struct WatchPairLoginView: View {
                         )
                         if pairState.pin.count == 6 { submitPinIfReady() }
                     } else if ["failed", "cancelled"].contains(response.status) {
+                        phoneBridge.clearPairingReceipts()
+                        pairState.pin = ""
+                        pairState.phonePINAccepted = false
                         pairState.fallbackTask?.cancel()
                         pairState.status = .expired
                         NativeDiagnostics.warning(
@@ -659,6 +681,9 @@ struct WatchPairLoginView: View {
                         "phase=view.poll.failed generation=\(generation) serverKind=\(serverProfile.diagnosticsKind) errorType=\(type(of: error))",
                         category: watchPairLoginDiagnosticsCategory
                     )
+                    phoneBridge.clearPairingReceipts()
+                    pairState.pin = ""
+                    pairState.phonePINAccepted = false
                     pairState.errorMessage = error.localizedDescription
                     pairState.status = .failed
                     return
@@ -741,14 +766,19 @@ struct WatchPairLoginView: View {
         }
     }
 
-    private func handlePhoneApproval(_ approval: WatchPairLoginApproval) {
-        guard approval.token == pairState.token else {
+    private func handlePhoneApproval(_ approval: WatchPairLoginApproval) -> Bool {
+        guard pairState.activeTokenServerProfile == pairState.serverProfile,
+              WatchPairLoginConnectivityPayload.canReceiveApproval(
+                approval, token: pairState.token, status: pairState.status) else {
             NativeDiagnostics.warning(
                 "phase=view.phoneApproval.ignored reason=tokenMismatch",
                 category: watchPairLoginDiagnosticsCategory
             )
-            return
+            return false
         }
+        let now = Int(Date().timeIntervalSince1970)
+        if let expiresAt = pairState.receiverExpiresAt, expiresAt <= now { return false }
+        if pairState.phonePINAccepted && pairState.pin != approval.pin { return false }
         NativeDiagnostics.info(
             "phase=view.phoneApproval.received status=\(pairState.status)",
             category: watchPairLoginDiagnosticsCategory
@@ -756,7 +786,14 @@ struct WatchPairLoginView: View {
         pairState.fallbackTask?.cancel()
         pairState.fallbackTask = nil
         pairState.pin = approval.pin
+        pairState.phonePINAccepted = true
+        // Before the first receiver poll, buffer the PIN without acknowledging
+        // receipt. The next poll supplies the actual attempt expiry for replay.
+        guard let expiresAt = pairState.receiverExpiresAt else { return false }
+        let accepted = phoneBridge.rememberAcceptedApproval(approval,
+            profile: pairState.serverProfile, expiresAt: expiresAt)
         if pairState.status == .ready { submitPinIfReady() }
+        return accepted
     }
 
     private func connectSelfHostedServer() {
@@ -794,15 +831,18 @@ struct WatchPairLoginView: View {
                 try await authStore.completePairLogin(result) {
                     try await PairLoginRuntime.acknowledge(token: token, serverProfile: serverProfile)
                 }
+                pairState.pin = ""
             } catch PairLoginRuntimeError.completeFailed(let kind) {
                 guard pairState.token == token,
                       pairState.activeTokenServerProfile == serverProfile,
                       pairState.serverProfile == serverProfile else { return }
+                phoneBridge.clearPairingReceipts()
                 handlePairCompleteFailure(kind)
             } catch {
                 guard pairState.token == token,
                       pairState.activeTokenServerProfile == serverProfile,
                       pairState.serverProfile == serverProfile else { return }
+                phoneBridge.clearPairingReceipts()
                 pairState.errorMessage = error.localizedDescription
                 pairState.pin = ""
                 pairState.status = .failed

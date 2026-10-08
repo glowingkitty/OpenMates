@@ -6,6 +6,13 @@
 import CryptoKit
 import Foundation
 
+// In-memory ownership for the existing authorizer relay; no PIN persistence.
+struct PairV2Authorization: Sendable {
+    let pin: String
+    let expiresAt: Int
+    let relayTask: Task<Void, Never>
+}
+
 enum PairSessionDeadlineStore {
     private static let userKey = "openmates.apple.pair_deadline_user"
     private static let deadlineKey = "openmates.apple.pair_deadline_seconds"
@@ -400,6 +407,15 @@ enum PairV2Runtime {
         token: String, currentUser: UserProfile, authorizerDeviceName: String,
         autoLogoutMinutes: Int?, serverProfile: ServerProfile
     ) async throws -> String {
+        try await startAuthorization(token: token, currentUser: currentUser,
+            authorizerDeviceName: authorizerDeviceName, autoLogoutMinutes: autoLogoutMinutes,
+            serverProfile: serverProfile).pin
+    }
+
+    static func startAuthorization(
+        token: String, currentUser: UserProfile, authorizerDeviceName: String,
+        autoLogoutMinutes: Int?, serverProfile: ServerProfile
+    ) async throws -> PairV2Authorization {
         let info: PairV2InfoResponse = try await APIClient.shared.request(
             .get, path: "\(prefix)/info/\(token)", serverProfile: serverProfile
         )
@@ -438,7 +454,8 @@ enum PairV2Runtime {
             "registrationResponse": try PairOpaque.field(registrationResponse, "registrationResponse"),
             "identifiers": context.identifiers
         ])
-        Task {
+        try Task.checkCancellation()
+        let relayTask = Task {
             do {
                 try await serveAuthorizer(
                     token: token, context: context,
@@ -453,7 +470,7 @@ enum PairV2Runtime {
                 )
             }
         }
-        return pin
+        return PairV2Authorization(pin: pin, expiresAt: approved.expiresAt, relayTask: relayTask)
     }
 
     private static func serveAuthorizer(

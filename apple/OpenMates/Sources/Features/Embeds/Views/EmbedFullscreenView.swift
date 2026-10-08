@@ -8,10 +8,13 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift, TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.versions.metadata-and-payload, storage.versions.bounded-reconstruction
 import SwiftUI
 
 struct EmbedFullscreenView: View {
     let embed: EmbedRecord
+    var chatId: String? = nil
     let childEmbeds: [EmbedRecord]
     let allEmbedRecords: [String: EmbedRecord]
     var onOpenEmbed: (EmbedRecord, EmbedRecord) -> Void = { _, _ in }
@@ -22,16 +25,18 @@ struct EmbedFullscreenView: View {
         embed: EmbedRecord,
         childEmbeds: [EmbedRecord],
         allEmbedRecords: [String: EmbedRecord] = [:],
+        chatId: String? = nil,
         onOpenEmbed: @escaping (EmbedRecord, EmbedRecord) -> Void = { _, _ in }
     ) {
         self.embed = embed
+        self.chatId = chatId
         self.childEmbeds = childEmbeds
         self.allEmbedRecords = allEmbedRecords
         self.onOpenEmbed = onOpenEmbed
     }
 
-    @State private var selectedVersionNumber: Int?
-    @State private var restoreConfirmVersion: Int?
+    @StateObject private var versionHistory = EmbedVersionHistoryController()
+    @ObservedObject private var historyWorkspace = TeamWorkspaceContext.shared
 
     private var embedType: EmbedType? {
         EmbedType.normalized(rawValue: embed.type)
@@ -72,6 +77,11 @@ struct EmbedFullscreenView: View {
             .padding(.top, .spacing5)
 
         }
+        .task(id: "\(embed.id):\(historyWorkspace.contextEpoch):\(currentVersionNumber)") {
+            guard currentVersionNumber > 1 else { versionHistory.reset(); return }
+            await openVersionHistory()
+        }
+        .onDisappear { versionHistory.reset() }
     }
 
     // MARK: - Header banner with gradient
@@ -212,6 +222,9 @@ struct EmbedFullscreenView: View {
 
     private var contentArea: some View {
         VStack(alignment: .leading, spacing: .spacing4) {
+            if versionHistory.requiresVersionContent {
+                EmbedHistoricalVersionContent(history: versionHistory)
+            } else {
             EmbedContentView(
                 embed: embed,
                 mode: .fullscreen,
@@ -220,6 +233,7 @@ struct EmbedFullscreenView: View {
                     onOpenEmbed(child, embed)
                 }
             )
+            }
         }
         .padding(embedType == .webWebsite ? 0 : .spacing6)
     }
@@ -235,113 +249,16 @@ struct EmbedFullscreenView: View {
         return nil
     }
 
-    private var timelineVersions: [EmbedVersionMetadata] {
-        if !embed.versionHistory.isEmpty { return embed.versionHistory }
-        guard currentVersionNumber > 1 else { return [] }
-        return (1...currentVersionNumber).map {
-            EmbedVersionMetadata(versionNumber: $0, createdAt: 0, hasSnapshot: $0 == 1, hasPatch: $0 > 1, contentHash: nil)
-        }
-    }
+    private var shouldShowVersionTimeline: Bool { currentVersionNumber > 1 }
 
-    private var selectedVersion: Int {
-        selectedVersionNumber ?? currentVersionNumber
-    }
-
-    private var shouldShowVersionTimeline: Bool {
-        timelineVersions.count > 1
+    private func openVersionHistory() async {
+        let session = await EmbedVersionHistorySession.capture(embed: embed, chatID: chatId, allEmbeds: allEmbedRecords)
+        await versionHistory.open(embedID: embed.id, currentVersion: currentVersionNumber, session: session)
     }
 
     private var versionTimeline: some View {
-        VStack(alignment: .leading, spacing: .spacing4) {
-            HStack {
-                Text("Version history")
-                    .font(.omSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.fontPrimary)
-                Spacer()
-                Text("\(timelineVersions.count) versions")
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: .spacing3) {
-                    ForEach(timelineVersions) { version in
-                        let isSelected = version.versionNumber == selectedVersion
-                        let isCurrent = version.versionNumber == currentVersionNumber
-                        Button {
-                            selectedVersionNumber = version.versionNumber
-                            restoreConfirmVersion = nil
-                        } label: {
-                            VStack(spacing: .spacing2) {
-                                Circle()
-                                    .fill(isCurrent ? Color.buttonPrimary : (isSelected ? Color.buttonPrimary : Color.grey30))
-                                    .frame(width: 10, height: 10)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.buttonPrimary.opacity(isSelected ? 0.25 : 0), lineWidth: 6)
-                                    )
-                                Text("v\(version.versionNumber)")
-                                    .font(.omMicro)
-                                    .foregroundStyle(isSelected ? Color.buttonPrimary : Color.fontSecondary)
-                            }
-                            .padding(.horizontal, .spacing4)
-                            .padding(.vertical, .spacing3)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("embed-version-dot-\(version.versionNumber)")
-                    }
-                }
-                .padding(.vertical, .spacing2)
-            }
-
-            HStack(spacing: .spacing3) {
-                Text(versionTimelineStatusText)
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-                Spacer()
-                if selectedVersion != currentVersionNumber && !embed.versionHistoryReadonly {
-                    Button {
-                        restoreConfirmVersion = restoreConfirmVersion == selectedVersion ? nil : selectedVersion
-                    } label: {
-                        Text(restoreConfirmVersion == selectedVersion ? "Confirm restore v\(selectedVersion)" : "Restore v\(selectedVersion)")
-                            .font(.omXs)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(Color.buttonPrimary)
-                            .padding(.horizontal, .spacing5)
-                            .padding(.vertical, .spacing3)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: .radius3)
-                                    .stroke(Color.buttonPrimary, lineWidth: 1)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("embed-version-restore-button")
-                }
-            }
-
-            if embed.versionHistoryReadonly {
-                Text("Read-only shared history")
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-                    .accessibilityIdentifier("embed-version-readonly")
-            }
-        }
-        .padding(.spacing5)
-        .background(Color.grey10)
-        .clipShape(RoundedRectangle(cornerRadius: .radius5))
-        .overlay(
-            RoundedRectangle(cornerRadius: .radius5)
-                .stroke(Color.grey25, lineWidth: 1)
-        )
-        .padding(.horizontal, .spacing6)
-        .padding(.bottom, .spacing5)
-        .accessibilityIdentifier("embed-version-timeline")
-    }
-
-    private var versionTimelineStatusText: String {
-        if selectedVersion == currentVersionNumber { return "Current version v\(currentVersionNumber)" }
-        return "Viewing historical version v\(selectedVersion)"
+        EmbedVersionHistoryTimeline(history: versionHistory, reopen: { await openVersionHistory() })
+            .padding(.horizontal, .spacing6).padding(.bottom, .spacing5)
     }
 
     private var websiteRawData: [String: AnyCodable] {
@@ -500,6 +417,17 @@ struct EmbedFullscreenView: View {
     }
 
     private func copyContent() {
+        if versionHistory.requiresVersionContent {
+            guard let text = versionHistory.content else { return }
+            #if os(iOS)
+            UIPasteboard.general.string = text
+            #elseif os(macOS)
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+            #endif
+            return
+        }
+
         #if os(iOS)
         if let data = embed.data, case .raw(let dict) = data {
             let text = dict.map { "\($0.key): \($0.value.value)" }.joined(separator: "\n")

@@ -11,6 +11,8 @@
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+//          frontend/packages/ui/src/components/settings/TeamQuickAction.svelte
+//          frontend/packages/ui/src/components/settings/TeamContextPicker.svelte
 //          frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
 //          frontend/packages/ui/src/components/settings/AppDetailsHeader.svelte
 //          frontend/packages/ui/src/components/settings/settingsRoutes.ts
@@ -616,32 +618,27 @@ struct SettingsView: View {
                         row(.pricing, AppStrings.settingsPricing, icon: "pricing")
                     }
 
-                    // Incognito toggle — web: SettingsItem type="quickaction" (flat icon, no bg)
+                    // Web: TeamQuickAction first, then single-line quick actions.
                     if isAuthenticated {
-                        OMSettingsToggleRow(
-                            title: AppStrings.settingsIncognito,
-                            subtitle: incognitoSession.isEnabled ? AppStrings.enabled : AppStrings.disabled,
-                            icon: "incognito",
-                            isOn: Binding(
-                                get: { incognitoSession.isEnabled },
-                                set: { handleIncognitoToggle($0) }
-                            )
-                        )
-                        .accessibilityIdentifier("incognito-toggle-wrapper")
-                    }
+                        SettingsTeamQuickAction(context: teamContext ?? .shared, viewportHeight: scrollFrame.size.height,
+                            openTeams: { navigateTo(.teams) },
+                            createTeam: {
+                                navigateTo(.teams)
+                                activeDeepLinkRoute = SettingsDeepLinkRoute("teams/new")
+                                activeDeepLinkRevision += 1
+                            })
+                        .zIndex(10)
 
-                    if isAuthenticated {
-                        OMSettingsToggleRow(
-                            title: AppStrings.learningMode,
-                            subtitle: learningModeStatus.enabled ? AppStrings.learningModeActive : AppStrings.learningModeInactive,
-                            icon: "study",
-                            isOn: Binding(
-                                get: { learningModeStatus.enabled },
-                                set: { _ in navigateTo(.learningMode) }
-                            ),
-                            disabled: accountLearningMode.isLoading
-                        )
-                        .accessibilityIdentifier("learning-mode-toggle-wrapper")
+                        SettingsHomeQuickAction(title: AppStrings.settingsIncognito, icon: "incognito",
+                            identifier: "incognito-toggle-wrapper",
+                            isOn: Binding(get: { incognitoSession.isEnabled }, set: { handleIncognitoToggle($0) }),
+                            action: { handleIncognitoToggle(!incognitoSession.isEnabled) })
+
+                        SettingsHomeQuickAction(title: AppStrings.learningMode, icon: "study",
+                            identifier: "learning-mode-toggle-wrapper",
+                            isOn: Binding(get: { learningModeStatus.enabled }, set: { _ in navigateTo(.learningMode) }),
+                            disabled: accountLearningMode.isLoading,
+                            action: { navigateTo(.learningMode) })
                     }
 
                     row(.ai, AppStrings.settingsAI, icon: "ai")
@@ -650,7 +647,6 @@ struct SettingsView: View {
 
                     if isAuthenticated {
                         row(.projects, AppStrings.projects, icon: "project")
-                        row(.teams, AppStrings.localized("settings.teams"), icon: "team")
                     }
 
                     row(.mates, AppStrings.settingsMates, icon: "mates")
@@ -2714,4 +2710,199 @@ final class IsolatedSettingsAccountClient: LearningModeClientProtocol {
     func loadStatus() async throws -> LearningModeStatus { throw Unavailable() }
     func activate(passcode: String, ageGroup: LearningModeAgeGroup) async throws -> LearningModeStatus { throw Unavailable() }
     func deactivate(passcode: String) async throws -> LearningModeStatus { throw Unavailable() }
+}
+
+
+// SettingsItem type=quickaction: one gradient title and a separate toggle target.
+private struct SettingsHomeQuickAction: View {
+    let title: String
+    let icon: String
+    let identifier: String
+    @Binding var isOn: Bool
+    var disabled = false
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: .spacing6) {
+            Button(action: action) {
+                HStack(spacing: .spacing6) {
+                    Icon(icon, size: 22).foregroundStyle(LinearGradient.primary)
+                        .frame(width: 44, height: 44)
+                        .background(LinearGradient(colors: [.grey20, .grey30], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                    Text(title).font(.omP).fontWeight(.medium).foregroundStyle(LinearGradient.primary)
+                    Spacer(minLength: 0)
+                }.contentShape(Rectangle())
+            }.buttonStyle(.plain).disabled(disabled)
+                .accessibilityLabel(title)
+                .accessibilityIdentifier(identifier + "-action")
+            OMToggle(isOn: $isOn, disabled: disabled, accessibilityIdentifier: identifier)
+                .accessibilityLabel(title)
+        }
+        .padding(.horizontal, .spacing5).padding(.vertical, .spacing2)
+        .opacity(disabled ? 0.5 : 1)
+    }
+}
+
+// TeamQuickAction and TeamContextPicker share the existing authorized context.
+private struct SettingsTeamQuickAction: View {
+    @ObservedObject var context: TeamWorkspaceContext
+    let viewportHeight: CGFloat
+    let openTeams: () -> Void
+    let createTeam: () -> Void
+    @State private var pickerOpen = false
+    @State private var expanded = false
+    @State private var recentTeamID: String?
+
+    private var readableTeams: [TeamWorkspaceTeam] {
+        let values = context.teams.filter(\.canRead)
+        return values.filter { $0.id == recentTeamID } + values.filter { $0.id != recentTeamID }
+    }
+
+    var body: some View {
+        HStack(spacing: .spacing6) {
+            Button(action: openTeams) {
+                HStack(spacing: .spacing6) {
+                    Icon("team", size: 22).foregroundStyle(LinearGradient.primary)
+                        .frame(width: 44, height: 44)
+                        .background(LinearGradient(colors: [.grey20, .grey30], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                    Text(AppStrings.teamsTitle).font(.omP).fontWeight(.medium).foregroundStyle(LinearGradient.primary)
+                    Spacer(minLength: 0)
+                }.contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityIdentifier("team-quick-open")
+            Button { pickerOpen.toggle(); expanded = false } label: {
+                HStack(spacing: .spacing2) {
+                    SettingsTeamContextAvatar(team: context.selectedTeam, size: 24, context: context)
+                    Icon("chevron-down", size: 10).foregroundStyle(Color.fontButton)
+                }.padding(.spacing1).frame(minWidth: .spacing24, minHeight: .spacing16)
+                    .background(LinearGradient.primary).clipShape(Capsule())
+            }.buttonStyle(.plain).disabled(context.isLoading && context.teams.isEmpty)
+                .accessibilityLabel(AppStrings.settingsQuickSwitchTeam)
+                .accessibilityValue(context.selectedTeam?.name ?? AppStrings.settingsQuickPersonal)
+                .accessibilityIdentifier("team-quick-context-dropdown")
+            OMToggle(isOn: Binding(get: { context.teamID != nil }, set: { _ in toggleContext() }),
+                disabled: context.isLoading && context.teams.isEmpty,
+                accessibilityIdentifier: "team-quick-toggle")
+                .accessibilityLabel(AppStrings.teamsTitle)
+        }
+        .padding(.horizontal, .spacing5).padding(.vertical, .spacing2)
+        .overlay(alignment: .topTrailing) {
+            if pickerOpen {
+                ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: .spacing6) {
+                    ForEach(expanded ? readableTeams : Array(readableTeams.prefix(5))) { team in
+                        contextOption(team.id, label: team.name, team: team)
+                    }
+                    contextOption(nil, label: AppStrings.settingsQuickPersonal, team: nil)
+                    if readableTeams.count > 5 && !expanded {
+                        Button(AppStrings.settingsQuickMoreTeams) { expanded = true }.buttonStyle(.plain)
+                            .accessibilityIdentifier("team-context-show-more")
+                    }
+                    Button { pickerOpen = false; createTeam() } label: {
+                        HStack(spacing: .spacing4) { Icon("create", size: 22).frame(width: 39, height: 39); Text(AppStrings.teamsNewTeam) }
+                    }.buttonStyle(.plain).accessibilityIdentifier("team-context-new-team")
+                }
+                .font(.omP).fontWeight(.bold).foregroundStyle(Color.fontButton)
+                .padding(.spacing6)
+                }
+                .frame(width: 185, height: SettingsTeamMenuBounds.maximumHeight(viewportHeight: viewportHeight))
+                .accessibilityIdentifier("team-context-menu-scroll")
+                .background(LinearGradient.primary).clipShape(RoundedRectangle(cornerRadius: .radius8))
+                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+                .padding(.trailing, .spacing5).offset(y: 52)
+                .accessibilityIdentifier("team-context-menu")
+            }
+        }
+        .onAppear { recentTeamID = context.teamID }
+        .onChange(of: context.teamID) { _, id in if let id { recentTeamID = id }; pickerOpen = false }
+        .onChange(of: context.loadedAccountID) { _, _ in recentTeamID = nil; pickerOpen = false }
+        .onChange(of: context.rosterEpoch) { _, _ in
+            if let recentTeamID, !context.teams.contains(where: { $0.id == recentTeamID && $0.canRead }) { self.recentTeamID = nil }
+        }
+    }
+
+    private func contextOption(_ id: String?, label: String, team: TeamWorkspaceTeam?) -> some View {
+        Button {
+            pickerOpen = false
+            if let id { recentTeamID = id }
+            Task { await context.selectTeam(id) }
+        } label: {
+            HStack(spacing: .spacing4) {
+                SettingsTeamContextAvatar(team: team, size: 39, context: context)
+                Text(label).lineLimit(1)
+            }.frame(maxWidth: .infinity, alignment: .leading)
+        }.buttonStyle(.plain)
+            .accessibilityIdentifier(id.map { "team-context-option-" + $0 } ?? "team-context-personal")
+    }
+
+    private func toggleContext() {
+        pickerOpen = false
+        if context.teamID != nil { Task { await context.selectTeam(nil) } }
+        else if let team = readableTeams.first { recentTeamID = team.id; Task { await context.selectTeam(team.id) } }
+        else { createTeam() }
+    }
+}
+
+struct SettingsTeamContextAvatar: View {
+    let team: TeamWorkspaceTeam?
+    let size: CGFloat
+    @ObservedObject var context: TeamWorkspaceContext = .shared
+    @State private var data: Data?
+
+    var body: some View {
+        Circle().fill(LinearGradient.omGradient(start: team.map { avatarColor($0.profileImageMetadata.backgroundColor) } ?? Color.fontButton.opacity(0.25), end: Color(hex: 0x5A85EB))).frame(width: size, height: size)
+            .overlay {
+                if let data, let image = image(data) {
+                    image.resizable().scaledToFill().frame(width: size, height: size).clipShape(Circle())
+                } else {
+                    Icon(team?.profileImageMetadata.iconName ?? "user", size: size / 2).foregroundStyle(Color.fontButton)
+                }
+            }
+            .overlay(Circle().strokeBorder(Color.fontButton.opacity(0.4), lineWidth: 1))
+            .accessibilityHidden(true)
+            .task(id: "\(team?.id ?? "")|\(team?.updatedAt ?? 0)|\(context.contextEpoch)") {
+                data = nil
+                guard let team, let accountID = context.loadedAccountID else { return }
+                let snapshot = context.snapshot
+                let loaded = try? await SettingsTeamsService().avatar(team: team, fence: TeamWorkspaceFence(accountID: accountID))
+                guard !Task.isCancelled, context.isCurrent(snapshot), context.teams.contains(where: { $0.id == team.id && $0.canRead }) else { return }
+                data = loaded
+            }
+    }
+    private func avatarColor(_ raw: String) -> Color {
+        guard raw.hasPrefix("#") else { return Color(hex: 0x4D73FF) }
+        let digits = String(raw.dropFirst())
+        let normalized: String
+        switch digits.count {
+        case 3, 4: normalized = digits.prefix(3).map { "\($0)\($0)" }.joined()
+        case 6, 8: normalized = String(digits.prefix(6))
+        default: return Color(hex: 0x4D73FF)
+        }
+        return Color(hex: UInt32(normalized, radix: 16) ?? 0x4D73FF)
+    }
+    private func image(_ data: Data) -> Image? {
+        #if os(iOS)
+        return UIImage(data: data).map { Image(uiImage: $0) }
+        #elseif os(macOS)
+        return NSImage(data: data).map { Image(nsImage: $0) }
+        #else
+        return nil
+        #endif
+    }
+}
+
+private extension AppStrings {
+    static var settingsQuickPersonal: String { localized("settings.personal_context") }
+    static var settingsQuickSwitchTeam: String { localized("settings.switch_team_context") }
+    static var settingsQuickMoreTeams: String { localized("settings.show_more_teams") }
+}
+
+
+// Web: max-height:min(30rem,calc(100vh - 1rem)); native additionally reserves
+// the52pt trigger row so its below-trigger overlay fits inside the scroll canvas.
+enum SettingsTeamMenuBounds {
+    static func maximumHeight(viewportHeight: CGFloat) -> CGFloat {
+        min(CGFloat.spacing24 * 10, max(0, viewportHeight - 52 - CGFloat.spacing8))
+    }
 }

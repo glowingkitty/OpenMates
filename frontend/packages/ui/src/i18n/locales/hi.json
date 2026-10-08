@@ -2882,6 +2882,7 @@
     }
   },
   "apps_workspace": {},
+  "artifact_history": {},
   "audio": {
     "playback_progress": {
       "text": "ऑडियो प्लेबैक प्रगति"
@@ -3152,6 +3153,9 @@
       "privacy_personal_data": {
         "text": "प्राइवेसी और पर्सनल डेटा"
       }
+    },
+    "open_chat": {
+      "text": "चैट खोलें"
     },
     "new_chat": {
       "text": "नई चैट"
@@ -4205,6 +4209,9 @@
       "text": "चैट इतिहास"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "निजी और सभी टीमें"
+      },
       "placeholder": {
         "text": "चैट और सेटिंग खोजें..."
       },

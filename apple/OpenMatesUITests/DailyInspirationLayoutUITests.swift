@@ -1,9 +1,34 @@
 // Layout regression proof uses real InspirationCard and EmbedPreviewCard.
 import XCTest
+import CoreGraphics
+import ImageIO
 
 @MainActor
 final class DailyInspirationLayoutUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testInspirationSurvivesInactiveSceneAndKeepsContentAndActionGeometry() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "daily-inspiration", "--dev-preview-variant", "wide",
+            "--dev-preview-theme", "light", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let card = element(app, "daily-inspiration-card")
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        let phrase = element(app, "daily-inspiration-phrase")
+        let originalPhrase = phrase.label
+        let originalFrame = card.frame
+        #if os(iOS)
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        #endif
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertEqual(phrase.label, originalPhrase)
+        XCTAssertEqual(card.frame.width, originalFrame.width, accuracy: 1)
+        XCTAssertEqual(card.frame.height, originalFrame.height, accuracy: 1)
+        let cta = element(app, "daily-inspiration-cta-text")
+        XCTAssertTrue(cta.exists); XCTAssertTrue(cta.isHittable)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
     func testWikipediaInspirationShowsPreviewAndOpensArticleWithoutStartingChat() {
         let app = XCUIApplication()
@@ -16,6 +41,7 @@ final class DailyInspirationLayoutUITests: XCTestCase {
         XCTAssertTrue(wiki.waitForExistence(timeout: 15), "Wikipedia cards must join the real compact preview phase")
         XCTAssertTrue(wiki.isHittable)
         XCTAssertTrue(banner.frame.contains(wiki.frame))
+        assertWikipediaStudyGradient(app, wiki: wiki)
         let snapshot = XCTAttachment(screenshot: app.screenshot())
         snapshot.name = "Wikipedia daily inspiration preview"
         snapshot.lifetime = .keepAlways
@@ -124,6 +150,56 @@ final class DailyInspirationLayoutUITests: XCTestCase {
         }
         XCTAssertEqual(outcome, .completed, "An actual tap on read-only inspiration must not deliver its callback")
         XCTAssertEqual(result.label, "ready")
+    }
+
+    private func assertWikipediaStudyGradient(_ app: XCUIApplication, wiki: XCUIElement) {
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            (self.previewBounds(app, "circle")?.width ?? 0) > 0
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed)
+        guard let card = previewBounds(app, "card"), let localCircle = previewBounds(app, "circle") else {
+            return XCTFail("Production Wikipedia badge geometry must be available")
+        }
+        XCTAssertEqual(card.width, wiki.frame.width, accuracy: 1)
+        XCTAssertEqual(card.height, wiki.frame.height, accuracy: 1)
+        let circle = localCircle.offsetBy(dx: wiki.frame.minX - card.minX, dy: wiki.frame.minY - card.minY)
+        XCTAssertTrue(wiki.frame.contains(circle), "Study circle must remain fully visible inside Wiki card")
+        let screenshot = wiki.screenshot()
+        guard let source = CGImageSourceCreateWithData(screenshot.pngRepresentation as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            return XCTFail("Missing rendered Wikipedia screenshot")
+        }
+        let window = wiki.frame
+        func rgb(at fraction: CGFloat) -> [Int]? {
+            // Sample inside opposite circle edges, outside the central white glyph.
+            let point = CGPoint(x: circle.minX + circle.width * fraction, y: circle.midY)
+            let rect = CGRect(x: (point.x - window.minX) * CGFloat(image.width) / window.width - 1,
+                y: (point.y - window.minY) * CGFloat(image.height) / window.height - 1, width: 3, height: 3).integral
+            guard let crop = image.cropping(to: rect) else { return nil }
+            var rgba = [UInt8](repeating: 0, count: crop.width * crop.height * 4)
+            let rendered = rgba.withUnsafeMutableBytes { bytes -> Bool in
+                guard let context = CGContext(data: bytes.baseAddress, width: crop.width, height: crop.height,
+                    bitsPerComponent: 8, bytesPerRow: crop.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+                context.draw(crop, in: CGRect(x: 0, y: 0, width: crop.width, height: crop.height))
+                return true
+            }
+            guard rendered else { return nil }
+            return (0..<3).map { channel in
+                stride(from: channel, to: rgba.count, by: 4).reduce(0) { $0 + Int(rgba[$1]) } / (crop.width * crop.height)
+            }
+        }
+        guard let left = rgb(at: 0.2), let right = rgb(at: 0.8) else {
+            return XCTFail("Missing actual Study circle pixels")
+        }
+        for sample in [left, right] {
+            XCTAssertGreaterThan(sample[0], 210, "Study badge must visibly render the web orange gradient")
+            XCTAssertGreaterThan(sample[0] - sample[1], 90)
+            XCTAssertGreaterThan(sample[0] - sample[2], 160, "Default blue must never replace Study")
+            XCTAssertLessThan(sample[2], 30)
+        }
+        XCTAssertGreaterThan(left[0] - right[0], 6, "Badge must retain the Study gradient, not a flat orange fill")
+        XCTAssertGreaterThan(left[1] - right[1], 10)
     }
 
     private func previewBounds(_ app: XCUIApplication, _ key: String) -> CGRect? {

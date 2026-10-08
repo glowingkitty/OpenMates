@@ -43,6 +43,14 @@ struct LLMUsageBreakdown: Decodable {
         let rates: Rates
         let categoryCredits: Categories
         let rawCredits: ReceiptDecimal
+        // JSONDecoder.convertFromSnakeCase capitalizes the letters after digits.
+        private enum CodingKeys: String, CodingKey {
+            case modelId, purpose, inferenceHost, pricingVersion, contextBand, writeBilling, billingMode, billedInputTokens
+            case inputTokens, uncachedInputTokens, cacheReadInputTokens, cacheCreationInputTokens
+            case cacheCreation5mInputTokens = "cacheCreation5MInputTokens"
+            case cacheCreation1hInputTokens = "cacheCreation1HInputTokens"
+            case outputTokens, rates, categoryCredits, rawCredits
+        }
         var usesOrdinaryInputFallback: Bool { billingMode == "ordinary_input" }
         var pricedInputTokens: Int { billedInputTokens ?? (usesOrdinaryInputFallback ? inputTokens : uncachedInputTokens) }
     }
@@ -52,6 +60,10 @@ struct LLMUsageBreakdown: Decodable {
         let cacheWrite: ReceiptDecimal?
         let cacheWrite1h: ReceiptDecimal?
         let output: ReceiptDecimal?
+        private enum CodingKeys: String, CodingKey {
+            case input, cacheRead, cacheWrite, output
+            case cacheWrite1h = "cacheWrite1H"
+        }
     }
     struct Categories: Decodable {
         let input: ReceiptDecimal
@@ -59,6 +71,10 @@ struct LLMUsageBreakdown: Decodable {
         let cacheWrite: ReceiptDecimal
         let cacheWrite1h: ReceiptDecimal
         let output: ReceiptDecimal
+        private enum CodingKeys: String, CodingKey {
+            case input, cacheRead, cacheWrite, output
+            case cacheWrite1h = "cacheWrite1H"
+        }
     }
     struct ReceiptDecimal: Decodable, Equatable {
         let text: String

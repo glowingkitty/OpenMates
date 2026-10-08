@@ -1,5 +1,7 @@
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity, chats.rendering.inline-entity-interaction, chats.persistence.client-encrypted
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.privacy.ciphertext-boundary, storage.integrity.observable-reconcilable, storage.surface.semantic-parity
 // Edit message — inline editing of user messages with save/cancel controls.
 // Mirrors the web app's message edit flow: editable text field replaces the message bubble,
 // delegates Save to the ordinary encrypted send pipeline.
@@ -263,37 +265,152 @@ struct NativeMessageForkPanel: View {
 /// Plain summaries never become disk rows or Remember eligibility evidence.
 @MainActor
 enum MessageCompressionCheckpointRuntime {
+    private struct Pending {
+        let captured: MessageHighlightRuntimeScope
+        let chatID: String
+        let keyFingerprint: Data
+        let deletionVersion: Int
+        let writer: MessageCompressionCheckpointWriter
+    }
+    private static var pending: [String: Pending] = [:]
+
+    private static func isCurrent(_ entry: Pending, socket: WebSocketManager, transport: Int) async -> Bool {
+        let accountID = await AuthManager.currentUserId()
+        guard entry.captured.scope == OfflineStore.shared.scopeGeneration,
+              entry.captured.server == ServerProfile.current(),
+              TeamWorkspaceContext.shared.isCurrent(entry.captured.team),
+              entry.captured.team.teamID == nil || TeamWorkspaceContext.shared.selectedTeam?.canContribute == true,
+              socket.transportGeneration == transport, entry.captured.accountID == accountID,
+              OfflineStore.shared.chatDeletionVersion(entry.chatID) == entry.deletionVersion,
+              let key = ChatKeyManager.shared.key(for: entry.chatID) else { return false }
+        return Data(SHA256.hash(data: key.withUnsafeBytes { Data($0) })) == entry.keyFingerprint
+    }
+
+    private static func binding(_ captured: MessageHighlightRuntimeScope) -> MessageCompressionCheckpointJournalBinding {
+        .init(accountID: captured.accountID, server: captured.server.apiBaseURL.absoluteString, teamID: captured.team.teamID)
+    }
+
+    private static func restoredWriter(chatID: String, checkpointID: String, captured: MessageHighlightRuntimeScope,
+                                       key: SymmetricKey) throws -> MessageCompressionCheckpointWriter {
+        guard let sealed = try OfflineStore.shared.loadCompressionCheckpointJournal(
+            chatID: chatID, checkpointID: checkpointID, scope: captured.scope) else { return .init() }
+        let journal = try MessageCompressionCheckpointJournal.open(sealed, using: key, binding: binding(captured),
+            chatID: chatID, checkpointID: checkpointID)
+        return .init(prepared: journal.prepared)
+    }
+
+    private static func retain(_ prepared: MessageCompressionCheckpointPrepared, entry: Pending, key: SymmetricKey) throws {
+        if let sealed = try OfflineStore.shared.loadCompressionCheckpointJournal(
+            chatID: entry.chatID, checkpointID: prepared.checkpointID, scope: entry.captured.scope) {
+            let retained = try MessageCompressionCheckpointJournal.open(sealed, using: key, binding: binding(entry.captured),
+                chatID: entry.chatID, checkpointID: prepared.checkpointID)
+            guard retained.prepared == prepared else { throw MessageCompressionCheckpointError.changedBoundary }
+            try OfflineStore.shared.retainCompressionCheckpointJournal(sealed, chatID: entry.chatID,
+                checkpointID: prepared.checkpointID, scope: entry.captured.scope)
+            return
+        }
+        let journal = MessageCompressionCheckpointJournal(binding: binding(entry.captured), prepared: prepared)
+        try OfflineStore.shared.retainCompressionCheckpointJournal(journal.sealed(using: key), chatID: entry.chatID,
+            checkpointID: prepared.checkpointID, scope: entry.captured.scope)
+    }
+
     static func consume(type: String, fields: [String: Any], socket: WebSocketManager,
                         captured: MessageHighlightRuntimeScope, transport: Int) async {
-        func current() async -> Bool {
-            let accountID = await AuthManager.currentUserId()
-            return captured.scope == OfflineStore.shared.scopeGeneration && captured.server == ServerProfile.current()
-                && TeamWorkspaceContext.shared.isCurrent(captured.team) && socket.transportGeneration == transport
-                && captured.accountID == accountID
-        }
-        guard await current(), let chatID = fields["chat_id"] as? String,
+        // Fanout stored events are not pending-write proof. Only the registered
+        // exact request waiter below may persist its validated canonical row.
+        guard type == "chat_compression_completed", let chatID = fields["chat_id"] as? String,
               !IncognitoChatSession.isIncognitoChatId(chatID) else { return }
         do {
-            if type == "chat_compression_checkpoint_stored" {
-                guard let checkpoint = fields["checkpoint"] as? [String: Any], await current() else { return }
-                try OfflineStore.shared.storeCompressionCheckpoint(checkpoint, chatID: chatID, scope: captured.scope)
-            } else if type == "chat_compression_completed" {
-                guard fields["error"] == nil, let summary = fields["summary_content"] as? String, !summary.isEmpty,
-                      let id = fields["summary_message_id"] as? String, let key = ChatKeyManager.shared.key(for: chatID) else { return }
-                let encrypted = try await CryptoManager.shared.encryptContent(summary, key: key)
-                guard await current() else { return }
-                var payload: [String: Any] = ["chat_id": chatID, "checkpoint_id": id, "encrypted_summary": encrypted,
-                    "compressed_up_to_timestamp": fields["compressed_up_to_timestamp"] as? Int ?? 0,
-                    "compressed_message_count": fields["compressed_message_count"] as? Int ?? 0,
-                    "created_at": Int(Date().timeIntervalSince1970)]
-                payload["summary_token_estimate"] = fields["summary_token_estimate"]
-                _ = try await socket.sendAndWait(WSOutboundMessage(type: "store_chat_compression_checkpoint", payload: payload),
-                    responseTypes: ["chat_compression_checkpoint_stored"], matching: {
-                        $0["chat_id"] as? String == chatID && ($0["checkpoint"] as? [String: Any])?["id"] as? String == id
-                    }, beforeSend: { guard await current() else { throw MessageContextActionError.staleContext } })
+            let proposal = try MessageCompressionCheckpointProposal(fields: fields)
+            guard let summary = fields["summary_content"] as? String, !summary.isEmpty,
+                  let key = ChatKeyManager.shared.key(for: chatID) else { return }
+            pending = pending.filter { $0.value.captured.scope == captured.scope }
+            let identity = "\(captured.scope.uuidString):\(chatID):\(proposal.checkpointID)"
+            let entry: Pending
+            if let retained = pending[identity], retained.captured == captured {
+                entry = retained
+            } else {
+                entry = Pending(captured: captured, chatID: chatID, keyFingerprint: Data(SHA256.hash(data: key.withUnsafeBytes { Data($0) })),
+                    deletionVersion: OfflineStore.shared.chatDeletionVersion(chatID),
+                    writer: try restoredWriter(chatID: chatID, checkpointID: proposal.checkpointID, captured: captured, key: key))
+                pending[identity] = entry
             }
+            guard await isCurrent(entry, socket: socket, transport: transport) else { return }
+            try await entry.writer.save(proposal: proposal, summary: summary, keyVersion: fields["key_version"] as? Int,
+                encrypt: { try await CryptoManager.shared.encryptContent($0, key: key) },
+                request: { payload, matches in
+                    let receipt = try await socket.sendAndWait(
+                        WSOutboundMessage(type: "store_chat_compression_checkpoint", payload: payload),
+                        responseTypes: ["chat_compression_checkpoint_stored"], matching: matches,
+                        beforeSend: {
+                            guard await isCurrent(entry, socket: socket, transport: transport) else { throw MessageContextActionError.staleContext }
+                        })
+                    return receipt.fields
+                }, validate: {
+                    guard await isCurrent(entry, socket: socket, transport: transport) else { throw MessageContextActionError.staleContext }
+                }, retain: { try retain($0, entry: entry, key: key) }, persist: {
+                    try OfflineStore.shared.storeCompressionCheckpoint($0, chatID: chatID, scope: captured.scope,
+                        clearingPendingCheckpointID: proposal.checkpointID)
+                    notifyPersisted($0, chatID: chatID, scope: captured.scope, transport: transport)
+                })
+        } catch MessageCompressionCheckpointError.writeInProgress {
+            // An identical event can race its existing registered waiter.
         } catch {
             NativeDiagnostics.warning("compression_checkpoint_store_failed", category: "chat")
         }
+    }
+
+    /// Call after authenticated reconnection with the new transport generation.
+    /// Reuses the retained payload; neither summary encryption nor request ID is rebuilt.
+    static func retryPending(socket: WebSocketManager, captured: MessageHighlightRuntimeScope, transport: Int) async {
+        let accountID = await AuthManager.currentUserId()
+        guard captured.scope == OfflineStore.shared.scopeGeneration, captured.server == ServerProfile.current(),
+              TeamWorkspaceContext.shared.isCurrent(captured.team), socket.transportGeneration == transport,
+              accountID == captured.accountID else { return }
+        pending = pending.filter { $0.value.captured.scope == captured.scope }
+        do {
+            for record in try OfflineStore.shared.loadCompressionCheckpointJournals(scope: captured.scope) {
+                let identity = "\(captured.scope.uuidString):\(record.chatID):\(record.checkpointID)"
+                if let existing = pending[identity], existing.captured == captured { continue }
+                guard let key = ChatKeyManager.shared.key(for: record.chatID) else { continue }
+                // Wrong account, Team or rotated key never adopts or erases the journal.
+                guard let writer = try? restoredWriter(chatID: record.chatID, checkpointID: record.checkpointID, captured: captured, key: key) else { continue }
+                pending[identity] = Pending(captured: captured, chatID: record.chatID,
+                    keyFingerprint: Data(SHA256.hash(data: key.withUnsafeBytes { Data($0) })),
+                    deletionVersion: OfflineStore.shared.chatDeletionVersion(record.chatID), writer: writer)
+            }
+        } catch {
+            NativeDiagnostics.warning("compression_checkpoint_restore_failed", category: "chat")
+        }
+        for entry in Array(pending.values) where entry.captured == captured && !entry.writer.isPersisted {
+            guard await isCurrent(entry, socket: socket, transport: transport),
+                  let key = ChatKeyManager.shared.key(for: entry.chatID), let prepared = entry.writer.prepared else { continue }
+            do {
+                try await entry.writer.retry(request: { payload, matches in
+                    let receipt = try await socket.sendAndWait(
+                        WSOutboundMessage(type: "store_chat_compression_checkpoint", payload: payload),
+                        responseTypes: ["chat_compression_checkpoint_stored"], matching: matches,
+                        beforeSend: {
+                            guard await isCurrent(entry, socket: socket, transport: transport) else { throw MessageContextActionError.staleContext }
+                        })
+                    return receipt.fields
+                }, validate: {
+                    guard await isCurrent(entry, socket: socket, transport: transport) else { throw MessageContextActionError.staleContext }
+                }, retain: { try retain($0, entry: entry, key: key) }, persist: {
+                    try OfflineStore.shared.storeCompressionCheckpoint($0, chatID: entry.chatID, scope: captured.scope,
+                        clearingPendingCheckpointID: prepared.checkpointID)
+                    notifyPersisted($0, chatID: entry.chatID, scope: captured.scope, transport: transport)
+                })
+            } catch MessageCompressionCheckpointError.writeInProgress {
+            } catch {
+                NativeDiagnostics.warning("compression_checkpoint_retry_failed", category: "chat")
+            }
+        }
+    }
+
+    private static func notifyPersisted(_ row: [String: Any], chatID: String, scope: UUID, transport: Int) {
+        NotificationCenter.default.post(name: .compressionCheckpointPersisted, object: nil,
+            userInfo: ["accountScope": scope, "transportGeneration": transport,
+                       "decoded": WebSocketResponse(fields: ["chat_id": chatID, "checkpoint": row])])
     }
 }

@@ -2882,6 +2882,7 @@
     }
   },
   "apps_workspace": {},
+  "artifact_history": {},
   "audio": {
     "playback_progress": {
       "text": "Ses oynatma ilerleme durumu"
@@ -3152,6 +3153,9 @@
       "privacy_personal_data": {
         "text": "gizlilik ve kişisel veriler"
       }
+    },
+    "open_chat": {
+      "text": "Sohbeti aç"
     },
     "new_chat": {
       "text": "Yeni sohbet"
@@ -4205,6 +4209,9 @@
       "text": "Sohbet geçmişi"
     },
     "search": {
+      "scope_all_teams": {
+        "text": "Kişisel ve tüm ekipler"
+      },
       "placeholder": {
         "text": "Sohbet ve ayarları ara..."
       },
