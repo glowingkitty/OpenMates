@@ -159,12 +159,12 @@ models:
         output:
           per_credit_unit: 90 # Based on $3.75/M output tokens introductory pricing through 2026-12-31.
     cache_pricing:
-      enabled: false
+      enabled: true
       write_billing: included_in_input
       eligible_hosts: [google_ai_studio, google]
       source_url: https://ai.google.dev/gemini-api/docs/pricing
-      reviewed_on: "2026-10-06"
-      status: proposed_pending_provider_evidence
+      reviewed_on: "2026-10-08"
+      status: verified_for_activation
       expires_on: "2026-12-31"
     costs:
       input_per_million_token:
@@ -231,12 +231,12 @@ models:
         output:
           per_credit_unit: 90 # Based on $3.75/M output tokens introductory pricing through 2026-12-31.
     cache_pricing:
-      enabled: false
+      enabled: true
       write_billing: included_in_input
       eligible_hosts: [google_ai_studio, google]
       source_url: https://ai.google.dev/gemini-api/docs/pricing
-      reviewed_on: "2026-10-06"
-      status: proposed_pending_provider_evidence
+      reviewed_on: "2026-10-08"
+      status: verified_for_activation
       expires_on: "2026-12-31"
     costs:
       input_per_million_token:

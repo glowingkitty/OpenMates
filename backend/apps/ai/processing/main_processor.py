@@ -2092,6 +2092,20 @@ def _normal_chat_cache_pricing_scope(request_data: AskSkillRequest) -> bool:
     )
 
 
+def _has_remote_image_url(value: Any) -> bool:
+    """Find provider image blocks whose token cost cannot be inferred from the URL."""
+    if isinstance(value, dict):
+        if value.get("type") == "image_url":
+            image = value.get("image_url")
+            url = image.get("url") if isinstance(image, dict) else image
+            if isinstance(url, str) and url.lower().startswith(("https://", "http://")):
+                return True
+        return any(_has_remote_image_url(child) for child in value.values())
+    if isinstance(value, list):
+        return any(_has_remote_image_url(child) for child in value)
+    return False
+
+
 def _quote_ai_iteration_credits(
     *,
     model_id: str,
@@ -2133,6 +2147,20 @@ def _quote_ai_iteration_credits(
         1,
         len(serialized_input.encode("utf-8")) + max(0, input_envelope_tokens),
     )
+    if _has_remote_image_url(message_history):
+        # A URL's byte length does not bound the provider's image token usage.
+        # Reserve the model's entire advertised input/context capacity, plus
+        # the separate output allowance below. Settlement releases unused hold.
+        costs = model_config.get("costs") or {}
+        context_limits = [
+            value for category in ("input_per_million_token", "output_per_million_token")
+            if isinstance(entry := costs.get(category), dict)
+            if isinstance(value := entry.get("max_context"), int)
+            and not isinstance(value, bool) and value > 0
+        ]
+        if not context_limits:
+            raise RuntimeError(f"AI reservation context limit is unavailable for remote image on {model_id}")
+        estimated_input_tokens = max(estimated_input_tokens, max(context_limits))
     quote_host = inference_host or model_config.get("default_server") or provider_id
     _context_band, selected_rates = select_customer_context_band(
         model_pricing_details=model_config,

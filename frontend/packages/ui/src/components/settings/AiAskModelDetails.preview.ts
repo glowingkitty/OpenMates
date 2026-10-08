@@ -11,9 +11,13 @@ if (!includedModel?.default_server || !includedModel.pricing?.cache_read_tokens_
 
 export default { modelId: model.id };
 
-// The variant copies the catalog entry. Preview routing merges this prop only
-// for ?variant=cache-active; the shared catalog remains disabled.
+// Synthetic policy variants exercise inactive/expired states independently of
+// the live catalog. Catalog variants use the published rates without overrides.
 export const variants = {
+  'catalog-google': { modelId: 'gemini-3.8-flash' },
+  'catalog-openai': { modelId: 'gpt-6.1-sol' },
+  'catalog-anthropic': { modelId: 'claude-sonnet-5' },
+  'catalog-mistral': { modelId: 'mistral-small-latest' },
   'cache-active': {
     modelOverride: {
       ...model,

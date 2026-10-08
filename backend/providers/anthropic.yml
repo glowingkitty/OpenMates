@@ -342,13 +342,13 @@ models:
     # The earlier 2026-08-31 promotional-expiry comment was stale; the
     # current listed $2/$10 MTok input/output rates remain configured.
     cache_pricing:
-      enabled: false
+      enabled: true
       write_billing: separate
       eligible_hosts: [anthropic]
       source_url: https://platform.claude.com/docs/en/models/sonnet-5/overview
-      reviewed_on: "2026-10-07"
-      status: verified_provider_usage_pending_financial_check
-      expires_on: "2026-11-07"
+      reviewed_on: "2026-10-08"
+      status: verified_for_activation
+      expires_on: "2026-11-08"
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
     costs:
@@ -487,13 +487,13 @@ models:
         output:
           per_credit_unit: 20 # 1 credit per 20 output tokens
     cache_pricing:
-      enabled: false
+      enabled: true
       write_billing: separate
       eligible_hosts: [anthropic, aws_bedrock]
-      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
-      reviewed_on: "2026-10-06"
-      status: verified_provider_usage_pending_financial_check
-      expires_on: "2026-11-06"
+      source_url: https://platform.claude.com/docs/en/models/sonnet-4-6/overview
+      reviewed_on: "2026-10-08"
+      status: verified_for_activation
+      expires_on: "2026-11-08"
       requires_cache_write_metric: true
       requires_cache_retention_metric: false
       cache_write_1h_hosts: [] # Current Anthropic/Bedrock controls create only 5m entries.

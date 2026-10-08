@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "sourceDigest": "94c61e4f166e707d92a69f7ab09914772b11e6053bfba9bd47a5e5f5bc7e17a6",
+  "sourceDigest": "6c026d81b8bc1ed94124bb44fd2da31c17c09d7d9746dbfe571cedcbb321ddba",
   "providers": [
     {
       "id": "openai",
@@ -662,16 +662,16 @@
         "cache_write_1h_tokens_per_credit": 55
       },
       "cache_pricing": {
-        "enabled": false,
+        "enabled": true,
         "write_billing": "separate",
         "eligible_hosts": [
           "anthropic",
           "aws_bedrock"
         ],
-        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
-        "reviewed_on": "2026-10-06",
-        "status": "verified_provider_usage_pending_financial_check",
-        "expires_on": "2026-11-06",
+        "source_url": "https://platform.claude.com/docs/en/models/sonnet-4-6/overview",
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
+        "expires_on": "2026-11-08",
         "requires_cache_write_metric": true,
         "requires_cache_retention_metric": false,
         "cache_write_1h_hosts": []
@@ -719,15 +719,15 @@
         "cache_write_1h_tokens_per_credit": 85
       },
       "cache_pricing": {
-        "enabled": false,
+        "enabled": true,
         "write_billing": "separate",
         "eligible_hosts": [
           "anthropic"
         ],
         "source_url": "https://platform.claude.com/docs/en/models/sonnet-5/overview",
-        "reviewed_on": "2026-10-07",
-        "status": "verified_provider_usage_pending_financial_check",
-        "expires_on": "2026-11-07",
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
+        "expires_on": "2026-11-08",
         "requires_cache_write_metric": true,
         "requires_cache_retention_metric": true
       },
@@ -1407,15 +1407,15 @@
         "cache_read_tokens_per_credit": 4500
       },
       "cache_pricing": {
-        "enabled": false,
+        "enabled": true,
         "write_billing": "included_in_input",
         "eligible_hosts": [
           "google_ai_studio",
           "google"
         ],
         "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
-        "reviewed_on": "2026-10-06",
-        "status": "proposed_pending_provider_evidence",
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
         "expires_on": "2026-12-31"
       },
       "reasoning": true
@@ -1461,15 +1461,15 @@
         "cache_read_tokens_per_credit": 4500
       },
       "cache_pricing": {
-        "enabled": false,
+        "enabled": true,
         "write_billing": "included_in_input",
         "eligible_hosts": [
           "google_ai_studio",
           "google"
         ],
         "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
-        "reviewed_on": "2026-10-06",
-        "status": "proposed_pending_provider_evidence",
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
         "expires_on": "2026-12-31"
       },
       "reasoning": true
@@ -1856,15 +1856,15 @@
         "cache_read_tokens_per_credit": 22000
       },
       "cache_pricing": {
-        "enabled": false,
+        "enabled": true,
         "write_billing": "included_in_input",
         "eligible_hosts": [
           "mistral"
         ],
         "source_url": "https://docs.mistral.ai/studio/conversations/advanced/prompt-caching",
-        "reviewed_on": "2026-10-06",
-        "status": "verified_provider_usage_pending_financial_check",
-        "expires_on": "2026-11-06"
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
+        "expires_on": "2026-11-08"
       },
       "reasoning": true
     },
@@ -2533,15 +2533,15 @@
         }
       },
       "cache_pricing": {
-        "enabled": false,
+        "enabled": true,
         "write_billing": "included_in_input",
         "eligible_hosts": [
           "openai"
         ],
-        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
-        "reviewed_on": "2026-10-06",
-        "status": "verified_provider_usage_pending_financial_check",
-        "expires_on": "2026-11-06"
+        "source_url": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
+        "expires_on": "2026-11-08"
       },
       "reasoning": true,
       "search_aliases": [
@@ -2657,15 +2657,15 @@
         }
       },
       "cache_pricing": {
-        "enabled": false,
+        "enabled": true,
         "write_billing": "included_in_input",
         "eligible_hosts": [
           "openai"
         ],
-        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
-        "reviewed_on": "2026-10-06",
-        "status": "verified_provider_usage_pending_financial_check",
-        "expires_on": "2026-11-06"
+        "source_url": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
+        "expires_on": "2026-11-08"
       },
       "reasoning": true,
       "search_aliases": [

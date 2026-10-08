@@ -14,7 +14,7 @@ task: 57852d66-e56f-4a8c-aeb4-6df78789d63f
 workspace_session: '4805'
 authorization:
   implementation: User explicitly authorized implementation after the architecture check.
-  activation: User approved the recommended safeguards and exact Billing review on 2026-10-07; activation still requires verified route telemetry and financial checks.
+  activation: User explicitly requested completion and activation on 2026-10-08, preserving ordinary processing as bundled work covered by the main-inference markup. Enable verified provider routes and run short real CLI chats with two follow-ups per provider.
 contract:
   owner: feature.billing@8
   bundle: specifications/features/billing
@@ -40,11 +40,11 @@ architecture_findings:
     - Ordinary authenticated Ask has no upfront reservation and personal settlement may cap at the existing -500-credit floor.
     - Ordinary pre/post processing remains bundled. Automatic compression was unbilled supplier work and now has an approved separately billed operation.
     - Live OpenAI responses report reads but do not report writes, despite documented paid-write pricing for newer models.
-    - Short remote image URLs can exceed a UTF-8-byte reservation quote on OpenAI and Mistral; the user decision about conservative image reservations is pending.
+    - Short remote image URLs can exceed a UTF-8-byte reservation quote on OpenAI and Mistral; conservative full-context holds now protect admission and normal settlement releases unused credits.
     - Automatic long-chat compression can exceed the debit for a cheap cached main reply; the approved separate summary operation is implemented and awaits product verification.
     - Real CLI verification encountered a cache-save failure before inference, then saved a paid answer but failed on unrelated historical key recovery; the second scoped CLI repair is approved and published as 707e5f10de834190046d04024c422a93cd2be664.
     - Workflows and orchestrated subchats use a separate budget authority that omits compression costs; the user approved keeping their existing billing for the first rollout.
-    - Generative postprocessing may resend up to 120k history tokens; its bundled supplier cost can exceed a cheap cached main reply. A separate processing-cost decision is pending before activation.
+    - Generative postprocessing may resend up to 120k history tokens; its bundled supplier cost can exceed a cheap cached main reply. User requested activation while retaining ordinary processing as bundled work. Configured main-category markup is checked; no per-turn or net-margin guarantee is claimed.
     - Live Anthropic answers exposed a streaming counter bug: terminal usage was read from delta.usage instead of event.usage, and SDK-extra cache-creation TTL dictionaries were ignored. The repair is published and a fresh two-turn CLI test verified terminal output and five-minute writes; both turns reported zero reads.
   rollout_safety:
     - All new tariffs stay disabled until decisions and route evidence are complete; inactive debits preserve existing input/output treatment.
@@ -75,6 +75,8 @@ decisions_accepted:
   - Bill automatic long-chat summarisation when applied, using provider-reported usage and a separately understandable receipt entry; ordinary pre/post stays bundled.
   - Include the second scoped CLI recovery repair: active-root key checks stay strict; unrelated unkeyed outputs remain pending without rejecting a completed current reply.
   - Roll out cache-aware pricing and separately billed summaries to normal authenticated personal/team chats first; preserve existing workflow and orchestrated subchat billing.
+  - User requested activation on 2026-10-08 and retaining ordinary processing within the main-inference markup; add no new processing fee. Continue private cost telemetry rather than hold activation on a new billing policy.
+  - Use conservative full-context image reservations as the routine safe implementation choice under the activation instruction; release unused hold at settlement.
 implementation_dependencies:
   - Complete normalized usage, frozen rates, encrypted receipts and displays without activating prices.
   - Implement the accepted safeguards, then enable only individually verified and financially checked routes.
@@ -131,11 +133,11 @@ evidence:
     - Scoped cache/long-context pricing, automatic-summary intent and receipts, normal-chat scope gate and web/native compatibility were published to dev as 8adcdd12db72fb4a04fe89003e41b5b5581768b2 with every tariff disabled. Specification, lint, translation and the 16-file pytest deployment gate passed. Source workspace safely advanced through the session helper; all seventeen affected dev services are healthy and the exact web deployment succeeded.
     - Added and read back only the four nullable summary-intent fields on the existing billing_reservations collection under a coordinated runtime operation; no unrelated schema/data migrations ran. All seventy-five existing recording links are retained and uploaded, including failures, retries and both successful real-API cases.
   pending:
-    - Remote-image reservation decision, ordinary processing-cost decision and selective pricing activation.
-    - Verify the accepted normal-chat scope gate and resolve remote-image reservations before activation on affected routes.
+    - Selective verified-route activation, generated catalog checks and scoped deployment.
+    - Verify the accepted normal-chat scope gate and conservative remote-image reservations.
     - Native parsing and pricing fixtures are updated, but execution remains unavailable under the existing Mac build/test guard.
-    - Real OpenMates CLI verification of activated category charges and encrypted receipts, after financial decisions; inactive-tariff baselines and their wallet reconciliation are complete.
-    - Native execution under an available approved Mac environment and user recording delivery.
+    - Real OpenMates CLI verification of activated category charges and encrypted receipts, with an initial natural-language request and two follow-ups per provider; compare actual charged credits with the prior flat tariff on the same reported usage.
+    - Native execution under an available approved Mac environment remains unavailable under the existing guard; deliver all new web/CLI recordings.
 research_artifacts:
   design: implementation-design.yml
   calculator: simulate.py

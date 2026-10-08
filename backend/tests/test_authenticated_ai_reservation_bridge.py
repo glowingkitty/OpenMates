@@ -203,6 +203,37 @@ async def test_openai_long_context_quote_switches_cold_input_and_output_units_at
     assert quote(272_001) == 278  # Proposed tariffs remain inert while disabled.
 
 
+@pytest.mark.parametrize("image", [
+    "https://images.example.test/photo.jpg",
+    {"url": "https://images.example.test/photo.jpg", "detail": "high"},
+])
+async def test_remote_image_quote_reserves_model_context_and_long_context_rates(monkeypatch, image):
+    pricing = _long_context_pricing()
+    pricing["costs"] = {"input_per_million_token": {"max_context": 300_000}}
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    messages = [{"role": "tool", "content": [{"type": "image_url", "image_url": image}]}]
+
+    def quote(host):
+        return main_processor._quote_ai_iteration_credits(
+            model_id="openai/model", system_prompt="system", message_history=messages,
+            tools=None, output_token_limit=60, inference_host=host,
+        )
+
+    assert quote("openai") == 760  # 300k cold input / 400, plus 60 output / 6.
+    assert quote("mistral") == 381  # Ineligible host uses base input and output rates.
+
+
+async def test_remote_image_quote_requires_configured_context_limit(monkeypatch):
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: _pricing())
+    with pytest.raises(RuntimeError, match="context limit is unavailable"):
+        main_processor._quote_ai_iteration_credits(
+            model_id="openai/model", system_prompt="system",
+            message_history=[{"role": "user", "content": [
+                {"type": "image_url", "image_url": "https://images.example.test/photo.jpg"},
+            ]}], tools=None, output_token_limit=60,
+        )
+
+
 async def test_long_context_reservation_fits_output_and_tops_up_for_actual_openai_host(monkeypatch):
     pricing = _long_context_pricing()
     monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)

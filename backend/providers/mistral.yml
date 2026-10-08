@@ -123,13 +123,13 @@ models:
         output:
           per_credit_unit: 550 # 1 credit per 550 output tokens ($0.60/M)
     cache_pricing:
-      enabled: false
+      enabled: true
       write_billing: included_in_input
       eligible_hosts: [mistral]
       source_url: https://docs.mistral.ai/studio/conversations/advanced/prompt-caching
-      reviewed_on: "2026-10-06"
-      status: verified_provider_usage_pending_financial_check
-      expires_on: "2026-11-06"
+      reviewed_on: "2026-10-08"
+      status: verified_for_activation
+      expires_on: "2026-11-08"
     costs:
       input_per_million_token:
         price: 0.15

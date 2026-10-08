@@ -4,6 +4,28 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 // playwright-account: not_required reason=isolated_component_preview
 
 test.describe('AI model cache pricing preview', () => {
+  for (const provider of ['google', 'openai', 'anthropic', 'mistral']) {
+    // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
+    test(`published ${provider} catalog shows active customer cache prices`, async ({ page }) => {
+      await page.goto(`/dev/preview/settings/AiAskModelDetails?variant=catalog-${provider}&theme=light&background=%23dbeafe&width=768&chrome=0`);
+      await waitForComponentPreview(page);
+
+      await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('Uncached input');
+      await expect(page.getByTestId('ai-model-pricing-cache-read-row')).not.toContainText('Unavailable');
+      await expect(page.getByTestId('ai-model-pricing-cache-write-row')).not.toContainText('Unavailable');
+      await expect(page.getByTestId('ai-model-cache-pricing-note')).toContainText('Your receipt shows the usage charged.');
+      await expect(page.getByTestId('ai-model-automatic-summary')).toContainText('billed separately only when needed');
+      if (provider === 'anthropic') {
+        await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Cache write (5 min)');
+      } else {
+        await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Included in ordinary input');
+      }
+      if (provider === 'openai') {
+        await expect(page.getByTestId('ai-model-long-context-tier')).toContainText('Over 272,000 input tokens');
+      }
+    });
+  }
+
   // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
   test('shows separate read and write rates only for an active fixture', async ({ page }) => {
     await page.goto('/dev/preview/settings/AiAskModelDetails?variant=cache-active&theme=light&background=%23dbeafe&width=768&chrome=0');
