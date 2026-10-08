@@ -7410,9 +7410,10 @@ private struct MacWindowTitleUpdater: NSViewRepresentable {
                          NSWindow.didMiniaturizeNotification, NSWindow.didDeminiaturizeNotification,
                          NSWindow.didChangeOcclusionStateNotification, NSWindow.willCloseNotification] {
                 observers.append(NotificationCenter.default.addObserver(forName: name, object: nextWindow, queue: .main) { [weak self] notification in
+                    let isClosing = notification.name == NSWindow.willCloseNotification
                     MainActor.assumeIsolated {
                         guard let self, let window = self.window else { return }
-                        let visible = notification.name != NSWindow.willCloseNotification && window.isVisible && !window.isMiniaturized
+                        let visible = !isClosing && window.isVisible && !window.isMiniaturized
                         self.onKeyChange(visible && window.isKeyWindow, visible)
                     }
                 })
