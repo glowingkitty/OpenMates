@@ -28,11 +28,14 @@ class KeepTemporarySkill(BaseSkill):
         self,
         workflow_id: str,
         user_id: str | None = None,
+        team_id: str | None = None,
         workflow_assistant_service: Any = None,
         workflow_service: Any = None,
         **kwargs: Any,
     ) -> KeepTemporaryResponse:
         try:
+            if team_id:
+                raise ValueError("Temporary workflows are not supported in Team chats")
             assistant = get_assistant_service(workflow_assistant_service, workflow_service)
             workflow = assistant.keep_temporary(require_user_id(user_id), workflow_id)
             return KeepTemporaryResponse(success=True, workflow=dump_model(workflow))

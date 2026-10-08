@@ -177,6 +177,18 @@ DEFAULT_APP_INTERNAL_PORT = 8000
 MAX_PARALLEL_REQUESTS = 5
 
 
+def _without_untrusted_team_context(arguments: Dict[str, Any]) -> Dict[str, Any]:
+    """Keep workspace identity out of model-supplied skill arguments."""
+    cleaned = {key: value for key, value in arguments.items() if key not in {"team_id", "_team_id"}}
+    if isinstance(cleaned.get("requests"), list):
+        cleaned["requests"] = [
+            {key: value for key, value in request.items() if key not in {"team_id", "_team_id"}}
+            if isinstance(request, dict) else request
+            for request in cleaned["requests"]
+        ]
+    return cleaned
+
+
 async def execute_skill(
     app_id: str,
     skill_id: str,
@@ -191,6 +203,7 @@ async def execute_skill(
     encryption_service: Optional[Any] = None,
     secrets_manager: Optional[Any] = None,
     is_anonymous: bool = False,
+    team_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Execute a skill in-process via the SkillRegistry, with retry logic for
@@ -217,6 +230,7 @@ async def execute_skill(
         chat_id: Optional chat ID for linking usage entries to chat sessions
         message_id: Optional message ID for linking usage entries to messages
         user_id: Optional user ID for skills that require user context
+        team_id: Validated Team ID from the authenticated chat request, if any
         skill_task_id: Optional unique ID for this skill invocation (cancellation)
         cache_service: Optional cache service for checking cancellation status
         max_retries: Maximum number of retry attempts (default: 1 = 2 total attempts)
@@ -241,7 +255,7 @@ async def execute_skill(
             raise SkillCancelledException(skill_task_id, app_id, skill_id)
 
     # Build the request body — same shape the old HTTP path used
-    request_body = arguments.copy()
+    request_body = _without_untrusted_team_context(arguments)
     if app_id == "workflows":
         # Workflow invocation context belongs to the authenticated caller.
         # Generated tool arguments cannot supply internal identities/services.
@@ -252,6 +266,8 @@ async def execute_skill(
         request_body["_message_id"] = message_id
     if user_id:
         request_body["_user_id"] = user_id
+    if team_id:
+        request_body["_team_id"] = team_id
     if cache_service:
         request_body["_cache_service"] = cache_service
     if encryption_service:
@@ -441,6 +457,7 @@ async def execute_skill_with_multiple_requests(
     encryption_service: Optional[Any] = None,
     secrets_manager: Optional[Any] = None,
     is_anonymous: bool = False,
+    team_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Executes a skill with support for multiple parallel requests and retry logic.
@@ -459,6 +476,7 @@ async def execute_skill_with_multiple_requests(
         chat_id: Optional chat ID for linking usage entries to chat sessions
         message_id: Optional message ID for linking usage entries to messages
         user_id: Optional user ID for skills that require user context (e.g., reminders)
+        team_id: Validated Team ID from the authenticated chat request, if any
         skill_task_id: Optional unique ID for this skill invocation (for cancellation)
         cache_service: Optional cache service for checking cancellation status
         max_retries: Maximum number of retry attempts (default: 1)
@@ -472,6 +490,7 @@ async def execute_skill_with_multiple_requests(
     """
     # Extract metadata fields from arguments if present (they might have been added by caller)
     # Don't modify the original arguments dict - create a copy for processing
+    arguments = _without_untrusted_team_context(arguments)
     if app_id == "workflows":
         extracted_chat_id, extracted_message_id, extracted_user_id = chat_id, message_id, user_id
         arguments = {key: value for key, value in arguments.items() if not key.startswith("_")}
@@ -508,6 +527,7 @@ async def execute_skill_with_multiple_requests(
                 encryption_service=encryption_service,
                 secrets_manager=secrets_manager,
                 is_anonymous=is_anonymous,
+                team_id=team_id,
             )
             # Skills return a response with a "results" array - return as list for consistency
             return [result]
@@ -520,6 +540,7 @@ async def execute_skill_with_multiple_requests(
                 encryption_service=encryption_service,
                 secrets_manager=secrets_manager,
                 is_anonymous=is_anonymous,
+                team_id=team_id,
             )
             return [result]
         else:
@@ -534,6 +555,7 @@ async def execute_skill_with_multiple_requests(
             encryption_service=encryption_service,
             secrets_manager=secrets_manager,
             is_anonymous=is_anonymous,
+            team_id=team_id,
         )
         return [result]
 
@@ -563,6 +585,7 @@ async def execute_skill_with_multiple_requests(
             encryption_service=encryption_service,
             secrets_manager=secrets_manager,
             is_anonymous=is_anonymous,
+            team_id=team_id,
         )
         return [result]
     
@@ -574,6 +597,7 @@ async def execute_skill_with_multiple_requests(
         encryption_service=encryption_service,
         secrets_manager=secrets_manager,
         is_anonymous=is_anonymous,
+        team_id=team_id,
     )
     return [result]
 

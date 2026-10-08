@@ -77,6 +77,25 @@ claims:
 - Partially warmed cache entries must be completed from Directus before Phase 1a reaches the client.
 - Full startup content is capped to recent parent chats; sub-chat content stays on demand.
 
+## Personal and Team context transitions
+
+Personal sync waits for authoritative account-cache priming. Returning from a
+Team resets local sync readiness and requests account cache status again; the
+existing cache-status handler starts Personal phased sync once the account cache
+is ready. Completing a phased sync does not itself prime the account cache.
+
+Team sync starts directly for the selected Team on a context switch, restored
+session, or WebSocket reconnect. Account cache notifications received while a
+Team is active cannot start another Team sync. Duplicate connected events do not
+start duplicate initial syncs. Every scoped completion still passes the active
+Team and context-epoch guard before updating local readiness.
+
+The dev E2E transport probe therefore checks account-cache priming for Personal
+and current-context phased-sync completion for Team, alongside authenticated UI,
+network availability, and the connected WebSocket. Lifecycle coverage is in
+`chatSyncServiceReconnect.test.ts`; the recorded Teams settings E2E verifies both
+Team readiness and readiness after returning to Personal.
+
 ## Sidebar activity and Project folders
 
 Sidebar activity is independent of the recent-chat sync window. Authenticated

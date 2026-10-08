@@ -116,13 +116,17 @@ async def test_natural_language_chat_saves_confirmed_disabled_workflows() -> Non
     assert response.status == "finished"
     assert response.result_count == 1
     assert response.workflow == saved
+    assert response.workflow["enabled"] is False
+    assert response.workflow["status"] == "disabled"
     assert response.results[0]["workflow_id"] == "workflow-1"
+    assert response.results[0]["run"] is None
     assert service.calls == [{
         "user_id": "user-1", "text": "Every morning, send me the weather in Graz",
         "selected_workflow_id": None, "timezone": "Europe/Vienna",
         "vault_key_id": "vault-key-1", "source_chat_id": "chat-1",
         "optimistic_save": False,
-        "idempotency_key": "chat:chat-1:message-1",
+        "idempotency_key": "chat:chat-1:message-1:saved",
+        "execution_mode": "saved", "return_outputs": None,
     }]
 
 
@@ -247,6 +251,10 @@ async def test_workflow_create_or_modify_returns_exactly_one_child_workflow_embe
             "title": "Morning weather",
             "status": "draft",
             "source_chat_id": "chat-1",
+            "lifecycle": "persisted",
+            "graph": {"nodes": [{"id": "trigger"}]},
+            "run_id": None,
+            "run": None,
         }
     ]
 

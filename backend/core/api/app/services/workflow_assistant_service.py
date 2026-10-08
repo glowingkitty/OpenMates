@@ -274,13 +274,16 @@ class WorkflowAssistantService:
         include_temporary: bool = False,
         vault_key_id: str | None = None,
         workflow_id: str | None = None,
+        team_id: str | None = None,
     ) -> list[dict[str, Any]]:
         if workflow_id:
             try:
-                detail = self.workflow_service.get_workflow(workflow_id, user_id, vault_key_id)
+                detail = self.workflow_service.get_workflow(
+                    workflow_id, user_id, vault_key_id, **({"team_id": team_id} if team_id else {})
+                )
             except WorkflowNotFoundError:
                 return []
-            if detail.lifecycle == WorkflowLifecycle.TEMPORARY and not include_temporary:
+            if detail.lifecycle == WorkflowLifecycle.TEMPORARY and (team_id or not include_temporary):
                 return []
 
             # Keep the selected graph useful for edits without sending credentials
@@ -316,13 +319,17 @@ class WorkflowAssistantService:
 
         normalized = query.strip().lower()
         results: list[dict[str, Any]] = []
-        workflows = self.workflow_service.list_workflows(user_id, vault_key_id)
-        if include_temporary:
+        workflows = self.workflow_service.list_workflows(
+            user_id, vault_key_id, **({"team_id": team_id} if team_id else {})
+        )
+        if include_temporary and not team_id:
             workflows += self.workflow_service.list_temporary_workflows(user_id, vault_key_id)
         for workflow in workflows:
             if normalized and normalized not in workflow.title.lower():
                 continue
-            detail = self.workflow_service.get_workflow(workflow.id, user_id, vault_key_id)
+            detail = self.workflow_service.get_workflow(
+                workflow.id, user_id, vault_key_id, **({"team_id": team_id} if team_id else {})
+            )
             results.append(
                 {
                     "workflow_id": workflow.id,

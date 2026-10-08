@@ -33,12 +33,15 @@ class RunSkill(BaseSkill):
         message_destination_overrides: dict[str, str] | None = None,
         return_outputs: dict[str, dict[str, str]] | None = None,
         user_id: str | None = None,
+        team_id: str | None = None,
         workflow_assistant_service: Any = None,
         workflow_service: Any = None,
         directus_service: Any = None,
         **kwargs: Any,
     ) -> RunWorkflowResponse:
         try:
+            if team_id:
+                raise ValueError("Team workflow execution is not supported")
             from types import SimpleNamespace
             from backend.core.api.app.routes.workflows import WorkflowRunRequest, _validated_invocation
             from backend.core.api.app.services.directus.directus import DirectusService

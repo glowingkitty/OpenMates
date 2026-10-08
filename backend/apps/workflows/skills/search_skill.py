@@ -37,19 +37,33 @@ class SearchSkill(BaseSkill):
         workflow_id: str | None = None,
         include_temporary: bool = False,
         user_id: str | None = None,
+        team_id: str | None = None,
         workflow_assistant_service: Any = None,
         workflow_service: Any = None,
+        directus_service: Any = None,
         user_vault_key_id: str | None = None,
         **kwargs: Any,
     ) -> SearchWorkflowsResponse:
         try:
+            owner = require_user_id(user_id)
+            if team_id:
+                owned_directus = directus_service is None
+                if owned_directus:
+                    from backend.core.api.app.services.directus.directus import DirectusService
+                    directus_service = DirectusService()
+                try:
+                    await directus_service.team.require_team_role(team_id, owner, {"owner", "admin", "member", "viewer"})
+                finally:
+                    if owned_directus:
+                        await directus_service.close()
             assistant = get_assistant_service(workflow_assistant_service, workflow_service)
             search_options = {"workflow_id": workflow_id} if workflow_id else {}
             workflows = assistant.search(
-                require_user_id(user_id),
+                owner,
                 query,
                 include_temporary=include_temporary,
                 vault_key_id=user_vault_key_id,
+                **({"team_id": team_id} if team_id else {}),
                 **search_options,
             )
             results = [_workflow_embed_result(workflow) for workflow in workflows]

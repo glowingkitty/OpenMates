@@ -27,11 +27,14 @@ class CancelPendingSkill(BaseSkill):
         self,
         pending_id: str,
         user_id: str | None = None,
+        team_id: str | None = None,
         workflow_assistant_service: Any = None,
         workflow_service: Any = None,
         **kwargs: Any,
     ) -> CancelPendingResponse:
         try:
+            if team_id:
+                raise ValueError("Pending workflow runs are not supported in Team chats")
             assistant = get_assistant_service(workflow_assistant_service, workflow_service)
             cancelled = assistant.cancel_pending(require_user_id(user_id), pending_id)
             return CancelPendingResponse(success=True, cancelled=cancelled)

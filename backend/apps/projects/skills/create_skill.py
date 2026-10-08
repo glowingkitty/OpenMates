@@ -34,13 +34,25 @@ class CreateSkill(BaseSkill):
         name: str,
         description: str | None = None,
         user_id: str | None = None,
+        team_id: str | None = None,
         chat_id: str | None = None,
         message_id: str | None = None,
+        directus_service: Any | None = None,
         **kwargs: Any,
     ) -> CreateProjectResponse:
         try:
             if not user_id:
                 raise ValueError("Project create requires an authenticated user")
+            if team_id:
+                owned_directus = directus_service is None
+                if owned_directus:
+                    from backend.core.api.app.services.directus.directus import DirectusService
+                    directus_service = DirectusService()
+                try:
+                    await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+                finally:
+                    if owned_directus:
+                        await directus_service.close()
             project_name = str(name or "").strip()
             if not project_name:
                 raise ValueError("Project create requires a name")
@@ -53,6 +65,7 @@ class CreateSkill(BaseSkill):
                     "description": str(description or ""),
                     "chat_id": chat_id,
                     "message_id": message_id,
+                    "team_id": team_id,
                     "notification_queued": False,
                 },
             )

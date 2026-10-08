@@ -50,6 +50,7 @@ class CreateOrModifySkill(BaseSkill):
         return_outputs: dict[str, dict[str, str]] | None = None,
         workflows: list[dict[str, Any]] | None = None,
         user_id: str | None = None,
+        team_id: str | None = None,
         chat_id: str | None = None,
         message_id: str | None = None,
         timezone: str | None = None,
@@ -66,6 +67,8 @@ class CreateOrModifySkill(BaseSkill):
             owner = require_user_id(user_id)
             if execution_mode not in {"saved", "run_once"}:
                 raise ValueError("execution_mode must be saved or run_once")
+            if team_id and execution_mode == "run_once":
+                raise ValueError("Team workflow execution is not supported")
             if execution_mode == "run_once" and (not chat_id or not message_id or workflow_id):
                 raise ValueError("One-time chat execution requires the current chat and message, with no selected workflow")
             if instruction is not None:
@@ -84,6 +87,7 @@ class CreateOrModifySkill(BaseSkill):
                     idempotency_key=f"chat:{chat_id}:{message_id}:{execution_mode}" if chat_id and message_id else None,
                     execution_mode=execution_mode,
                     return_outputs=return_outputs,
+                    **({"team_id": team_id} if team_id else {}),
                 )
                 if result.status == "needs_clarification":
                     return CreateOrModifyWorkflowResponse(
@@ -150,6 +154,8 @@ class CreateOrModifySkill(BaseSkill):
                 raise ValueError("Workflow create-or-modify accepts exactly one workflow per skill call")
             if execution_mode == "run_once":
                 raise ValueError("One-time chat execution requires a natural-language instruction")
+            if team_id:
+                raise ValueError("Team workflow graph proposals are not supported; use a natural-language instruction")
             workflow_title = str(title or "").strip()
             if not workflow_title:
                 raise ValueError("Workflow create-or-modify requires a title")

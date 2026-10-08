@@ -40,11 +40,13 @@ class PendingClientTaskSearchService:
         chat_id: str | None,
         message_id: str | None,
         query: str,
+        team_id: str | None = None,
     ) -> dict[str, Any]:
         return {
             "status": "waiting_for_client",
             "request_id": f"task-search-request-{uuid.uuid4()}",
             "notification_queued": False,
+            **({"team_id": team_id} if team_id else {}),
         }
 
 
@@ -55,14 +57,26 @@ class SearchSkill(BaseSkill):
         self,
         query: str,
         user_id: str | None = None,
+        team_id: str | None = None,
         chat_id: str | None = None,
         message_id: str | None = None,
         task_search_service: Any = None,
+        directus_service: Any = None,
         **kwargs: Any,
     ) -> SearchTasksResponse:
         try:
             if not user_id:
                 raise ValueError("Task search requires an authenticated user")
+            if team_id:
+                owned_directus = directus_service is None
+                if owned_directus:
+                    from backend.core.api.app.services.directus.directus import DirectusService
+                    directus_service = DirectusService()
+                try:
+                    await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member", "viewer"})
+                finally:
+                    if owned_directus:
+                        await directus_service.close()
             search_query = str(query or "").strip()
             if not search_query:
                 raise ValueError("Task search requires a query")
@@ -72,6 +86,7 @@ class SearchSkill(BaseSkill):
                 chat_id=chat_id,
                 message_id=message_id,
                 query=search_query,
+                **({"team_id": team_id} if team_id else {}),
             )
             if search.get("status") == "waiting_for_client":
                 return SearchTasksResponse(
@@ -81,9 +96,10 @@ class SearchSkill(BaseSkill):
                     pending_client_search={
                         "request_id": search.get("request_id"),
                         "notification_queued": bool(search.get("notification_queued")),
+                        **({"team_id": team_id} if team_id else {}),
                     },
                 )
-            results = [_task_search_embed_result(task) for task in search.get("results", [])]
+            results = [_task_search_embed_result(task, team_id=team_id) for task in search.get("results", [])]
             return SearchTasksResponse(
                 success=True,
                 status="finished",
@@ -96,7 +112,7 @@ class SearchSkill(BaseSkill):
             return SearchTasksResponse(success=False, query=str(query or ""), error=str(exc))
 
 
-def _task_search_embed_result(task: dict[str, Any]) -> dict[str, Any]:
+def _task_search_embed_result(task: dict[str, Any], team_id: str | None = None) -> dict[str, Any]:
     assignee_type = task.get("assignee_type") or "user"
     return {
         "type": "task",
@@ -108,4 +124,5 @@ def _task_search_embed_result(task: dict[str, Any]) -> dict[str, Any]:
         "status": task.get("status") or "todo",
         "assignee": product_assignee_from_storage(assignee_type),
         "assignee_type": assignee_type,
+        **({"team_id": team_id} if team_id else {}),
     }
