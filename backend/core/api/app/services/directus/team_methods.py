@@ -139,10 +139,11 @@ class TeamMethods:
         return team
 
     async def list_teams(self, user_id: str) -> list[dict[str, Any]]:
+        user_hash = hash_id(user_id)
         memberships = await self.directus_service.get_items(
             "team_memberships",
             params={
-                "filter[hashed_user_id][_eq]": hash_id(user_id),
+                "filter[hashed_user_id][_eq]": user_hash,
                 "filter[status][_eq]": ACTIVE_STATUS,
                 "fields": "hashed_team_id,role,status",
                 "limit": -1,
@@ -152,23 +153,67 @@ class TeamMethods:
         )
         if not isinstance(memberships, list) or not memberships:
             return []
-        teams: list[dict[str, Any]] = []
-        for membership in memberships:
-            team_hash = membership.get("hashed_team_id")
+
+        # Keep each Directus URL bounded, regardless of how many Teams a user has.
+        # The membership query above is the authorization source; neither batch
+        # can introduce a Team or wrapper outside that active membership set.
+        team_hashes = list(dict.fromkeys(
+            membership["hashed_team_id"] for membership in memberships
+            if isinstance(membership.get("hashed_team_id"), str) and membership["hashed_team_id"]
+        ))
+        teams_by_hash: dict[str, dict[str, Any]] = {}
+        wrappers_by_hash: dict[str, dict[str, Any]] = {}
+        for offset in range(0, len(team_hashes), 64):
+            chunk = team_hashes[offset:offset + 64]
+            hashed_ids = ",".join(chunk)
             rows = await self.directus_service.get_items(
                 "teams",
                 params={
-                    "filter[hashed_team_id][_eq]": team_hash,
+                    "filter[hashed_team_id][_in]": hashed_ids,
                     "filter[status][_eq]": ACTIVE_STATUS,
                     "fields": "id,team_id,hashed_team_id,slug,encrypted_name,encrypted_description,encrypted_profile_image_metadata,profile_image_s3_key,profile_image_updated_at,security_policy,status,created_at,updated_at",
-                    "limit": 1,
+                    "limit": -1,
                 },
                 no_cache=True,
                 admin_required=True,
             )
             if isinstance(rows, list):
-                wrapper = await self.get_team_key_wrapper_for_user_hash(str(team_hash), hash_id(user_id))
-                teams.extend({**row, "security_policy": normalize_security_policy(row.get("security_policy") or {}), "role": membership.get("role"), **wrapper} for row in rows)
+                for row in rows:
+                    team_hash = row.get("hashed_team_id")
+                    if team_hash in chunk and row.get("status") == ACTIVE_STATUS:
+                        teams_by_hash.setdefault(team_hash, row)
+
+            wrapper_rows = await self.directus_service.get_items(
+                "team_key_wrappers",
+                params={
+                    "filter[hashed_team_id][_in]": hashed_ids,
+                    "filter[hashed_user_id][_eq]": user_hash,
+                    "filter[status][_eq]": ACTIVE_STATUS,
+                    "fields": "hashed_team_id,hashed_user_id,team_key_epoch,encrypted_team_key,status",
+                    "limit": -1,
+                },
+                no_cache=True,
+                admin_required=True,
+            )
+            if isinstance(wrapper_rows, list):
+                for wrapper in wrapper_rows:
+                    team_hash = wrapper.get("hashed_team_id")
+                    if team_hash in chunk and wrapper.get("hashed_user_id") == user_hash and wrapper.get("status") == ACTIVE_STATUS:
+                        wrappers_by_hash.setdefault(team_hash, wrapper)
+
+        teams: list[dict[str, Any]] = []
+        for membership in memberships:
+            team_hash = membership.get("hashed_team_id")
+            row = teams_by_hash.get(team_hash) if isinstance(team_hash, str) else None
+            if row is None:
+                continue
+            wrapper = wrappers_by_hash.get(team_hash, {})
+            teams.append({
+                **row,
+                "security_policy": normalize_security_policy(row.get("security_policy") or {}),
+                "role": membership.get("role"),
+                **({"team_key_epoch": wrapper.get("team_key_epoch"), "encrypted_team_key": wrapper.get("encrypted_team_key")} if wrapper else {}),
+            })
         return teams
 
     async def get_team(self, team_id: str, user_id: str) -> dict[str, Any] | None:

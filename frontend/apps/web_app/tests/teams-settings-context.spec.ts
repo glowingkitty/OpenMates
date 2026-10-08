@@ -8,7 +8,7 @@
  */
 export {};
 
-import type { Page, Response } from '@playwright/test';
+import type { Page, Request, Response } from '@playwright/test';
 
 const { expect, test } = require('./helpers/cookie-audit');
 const {
@@ -361,6 +361,43 @@ test.describe('Teams V1 context isolation', () => {
 			expect(teamId).not.toBe('');
 
 			await page.getByTestId('banner-back-button').click();
+			await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'teams');
+			await expect(page.getByTestId('team-settings-team-row').filter({ hasText: teamName })).toBeVisible();
+			await expect(page.getByTestId('team-create-open')).toBeVisible();
+
+			// Reload the list with an existing membership. A cold settings mount must
+			// fetch its encrypted Team record and finish rendering the creation CTA.
+			let teamListFetches = 0;
+			const countTeamListFetch = (request: Request) => {
+				if (request.method() === 'GET' && new URL(request.url()).pathname === '/v1/teams') {
+					teamListFetches += 1;
+				}
+			};
+			page.on('request', countTeamListFetch);
+			try {
+				const teamListResponse = page.waitForResponse(
+					(response) => isApiPath(response, 'GET', '/v1/teams') && response.ok(),
+					{ timeout: 30000 }
+				);
+				await page.reload({ waitUntil: 'domcontentloaded' });
+				const teamListBody = (await (await teamListResponse).json()) as {
+					teams?: Array<{ team_id?: string; encrypted_name?: string }>;
+				};
+				expect(teamListBody.teams?.find((team) => team.team_id === teamId)?.encrypted_name).toBeTruthy();
+				expect(JSON.stringify(teamListBody)).not.toContain(teamName);
+				await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'teams', {
+					timeout: 30000
+				});
+				await expect(page.getByTestId('team-settings-team-row').filter({ hasText: teamName })).toBeVisible({
+					timeout: 30000
+				});
+				await expect(page.getByTestId('team-create-open')).toBeVisible({ timeout: 30000 });
+				expect(teamListFetches).toBeGreaterThan(0);
+				expect(teamListFetches).toBeLessThanOrEqual(2);
+			} finally {
+				page.off('request', countTeamListFetch);
+			}
+
 			await page.getByTestId('banner-back-button').click();
 			await expect(page.getByTestId('team-context-dropdown')).toBeVisible({ timeout: 30000 });
 			const teamSwitchFrameIndex = frames.length;
