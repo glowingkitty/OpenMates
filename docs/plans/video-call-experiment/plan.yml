@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: video-call-experiment
 title: Gemini Voice And H3 Turbo Experiment
-status: implementing
+status: verified
 goal: >
   Implement a first test to see how well such a system can actually work, before
   spending more time on it: a basic /experiment/videocall page for Gemini voice
@@ -111,11 +111,11 @@ verification_evidence:
   frontend: Thirteen focused audio/controller tests passed, including held frames across requests, audio-only state after completion or failure, independent decoded ambience, binary delivery, explicit-stop fencing, clear time-limit completion and recovery from a stale visual warning; changed-path ESLint, translation generation and panel compilation passed.
   termination_diagnostics: Normal time-limit and user-hangup paths now log reason, elapsed time and ephemeral call ID. Sanitized terminal failure logs include elapsed time and call ID for correlation. This logging-only backend update passed compilation, Ruff and diff checks; provider behavior, billing and the two-minute limit are unchanged.
   component:
-    source: f4f20b3d89e0ab00f86bac69c5f82b355bffba4a
-    request: 6773bed37ab234116ab7ecd3358ced2d37d69bd59e62393d0e9001b8b4b166e8
-    run: 37804354423
-    result: Five desktop cases passed without retries or skips with synthetic clips, including delayed muted autoplay with audible decoded ambience, independent stop/allow controls, and held final frames with continuous voice through two visual generations; the held-frame capture was reviewed and all five recordings uploaded.
-    retrieval: Initial artifact download was blocked by the host disk guard; capacity was recovered while preserving backup data, then the same completed run was retrieved and uploaded without rerunning tests.
+    source: a552992084c83a512a4a364910ef1150919f419c
+    request: 301fe08dec12178ce8bedfd3225571e29bc20a7702eaeac81a959936027b540f
+    run: 37822271234
+    result: Six desktop cases passed without retries or skips with synthetic clips, including the normal two-minute completion notice, delayed muted autoplay with audible decoded ambience, independent stop/allow controls, and held final frames with continuous voice through two visual generations; the expiry capture was reviewed and all six recordings uploaded.
+    retrieval: The completed run and all six recordings were retrieved and uploaded with the receipt's evidence command; no tests were rerun for evidence delivery.
     source_scope: Product code and desktop coverage stayed frozen after this candidate; later changes only record verification evidence.
   responsive: Execution waived by the user; the separate responsive spec remains available.
   provider_limits: No automated real fal requests were made. Further automated verification is not a deployment gate; the user will evaluate the deployed experiment.
@@ -125,9 +125,9 @@ verification_evidence:
     result: Failed during test collection in the existing module loader; no route tests or recordings ran. The user waived this run as a deployment gate.
     retrieval: Artifact download hit the host disk-budget limit; the GitHub failure log confirms no tests executed.
   deployment:
-    code_commit: 4f32e900951d40a6e47f238a009dae3e17a1ef7f
-    backend: Dev API and dependent workers refreshed together with request-driven held-frame continuation and WHEN_IDLE voice acknowledgements; all services running and healthy (docker-38e61729).
-    frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall is published with retained final frames and continuous voice across multiple visual requests (Vercel 3uHBAPQEPdjmCwVmcYFpqTQwgiwW).
+    code_commit: bcc78bc1bbad1b042f534402ed01882b10322236
+    backend: Dev API and dependent workers refreshed together with sanitized termination diagnostics; all services running and healthy (docker-d85810fb).
+    frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall is published with clear two-minute expiry messaging and recovered visual warning cleanup (Vercel DpyucU4wESAFKVt1uC549RDvEkgo). The web prebuild regenerates locales from the committed YAML source.
     connection_route: Operator applied the managed Caddy update; the authenticated call WebSocket reaches the backend.
   gemini_live_probe:
     result: The exact candidate accepted setup and returned native PCM audio, output transcription, turn completion and modality-level usage.
