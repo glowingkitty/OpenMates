@@ -364,6 +364,33 @@ describe("parseMentions", () => {
       assert.equal(result.resolved.length, 1);
       assert.equal(result.resolved[0].type, "mate");
     });
+
+    // contract-test: supporting surface=cli assertions=teams.chat.encrypted-until-invoked
+    it("preserves a configured canonical Mate mention without duplicating it", () => {
+      const result = parseMentions("@mate:software_development review this", testContext);
+      assert.equal(result.processedMessage, "@mate:software_development review this");
+      assert.deepEqual(result.unresolved, []);
+      assert.equal(result.resolved.length, 1);
+      assert.equal(result.resolved[0].wireSyntax, "@mate:software_development");
+      assert.equal(result.resolved[0].displayName, "@Sophia");
+
+      const mixedCase = parseMentions("@mate:Software_Development review this", testContext);
+      assert.equal(mixedCase.processedMessage, "@mate:software_development review this");
+      assert.deepEqual(mixedCase.unresolved, []);
+    });
+
+    // contract-test: supporting surface=cli assertions=teams.chat.encrypted-until-invoked
+    it("rejects an unknown canonical Mate instead of sending an invalid trigger", () => {
+      const result = parseMentions("@mate:unknown_person review this", testContext);
+      assert.equal(result.processedMessage, "@mate:unknown_person review this");
+      assert.equal(result.resolved.length, 0);
+      assert.equal(result.unresolved.length, 1);
+      assert.equal(result.unresolved[0].original, "@mate:unknown_person");
+
+      const inheritedKey = parseMentions("@mate:constructor review this", testContext);
+      assert.equal(inheritedKey.resolved.length, 0);
+      assert.equal(inheritedKey.unresolved[0].original, "@mate:constructor");
+    });
   });
 
   describe("skills", () => {

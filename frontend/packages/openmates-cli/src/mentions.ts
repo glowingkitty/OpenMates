@@ -431,6 +431,20 @@ function resolveToken(
   token: string,
   context: MentionContext,
 ): ResolvedMention | null {
+  const wireMateMatch = token.match(/^mate:([a-z0-9_-]+)$/i);
+  if (wireMateMatch) {
+    const categoryId = wireMateMatch[1].toLowerCase();
+    if (!Object.hasOwn(context.mates, categoryId)) return null;
+    const displayName = context.mates[categoryId];
+    if (!displayName) return null;
+    return {
+      original: `@${token}`,
+      type: "mate",
+      wireSyntax: `@mate:${categoryId}`,
+      displayName: `@${displayName}`,
+    };
+  }
+
   const wireFocusMatch = token.match(/^focus:([a-z0-9_-]+):([a-z0-9_-]+)$/i);
   if (wireFocusMatch) {
     const [, appId, focusModeId] = wireFocusMatch;

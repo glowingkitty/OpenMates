@@ -498,6 +498,22 @@ def scenario_chat(api_url: str, skip_build: bool) -> dict[str, Any]:
         require(isinstance(ai_result.get("assistant"), str) and ai_result["assistant"].strip(), "@openmates team message did not return assistant content")
         require(isinstance(ai_result.get("messageId"), str) and ai_result["messageId"], "@openmates team message did not return an assistant message ID")
 
+        mate_result = run_cli_json([
+            "chats",
+            "send",
+            "--chat",
+            chat_id,
+            "@mate:software_development Reply with exactly: team mate gate ok",
+            "--team",
+            team_id,
+            "--auto-approve-memories",
+            "--response-timeout-seconds",
+            "180",
+        ], timeout=240)
+        require(mate_result.get("chatId") == chat_id, "Canonical Mate team message returned a different chat ID")
+        require(isinstance(mate_result.get("assistant"), str) and mate_result["assistant"].strip(), "Canonical Mate team message did not return assistant content")
+        require(isinstance(mate_result.get("messageId"), str) and mate_result["messageId"], "Canonical Mate team message did not return an assistant message ID")
+
         shown = run_cli_json(["chats", "show", chat_id, "--team", team_id], timeout=120)
         chat = shown.get("chat", {}) if isinstance(shown, dict) else {}
         require(isinstance(chat.get("title"), str) and chat["title"].strip(), "Team chat title was empty after @openmates response")
