@@ -2072,6 +2072,9 @@ async def call_main_llm_stream(
                     and sanitized_cacheable_prefix
                     and _cache_checkpoint_allowed(_retry_tariff, _retry_provider_prefix)):
                 _retry_input["cacheable_system_prefix"] = sanitized_cacheable_prefix
+            if (_retry_provider_prefix == "openai" and sanitized_cacheable_prefix
+                    and _cache_checkpoint_allowed(_retry_tariff, "openai")):
+                _retry_input["cacheable_system_prefix"] = sanitized_cacheable_prefix
             if _retry_provider_prefix == "mistral" and prompt_cache_key:
                 _retry_input["prompt_cache_key"] = prompt_cache_key
             if pre_dispatch_admission is not None:
@@ -2272,6 +2275,9 @@ async def call_main_llm_stream(
         if (server_provider_prefix in {"anthropic", "aws_bedrock"}
                 and sanitized_cacheable_prefix
                 and _cache_checkpoint_allowed(tariff_snapshot, server_provider_prefix)):
+            server_llm_input_details["cacheable_system_prefix"] = sanitized_cacheable_prefix
+        if (server_provider_prefix == "openai" and sanitized_cacheable_prefix
+                and _cache_checkpoint_allowed(tariff_snapshot, "openai")):
             server_llm_input_details["cacheable_system_prefix"] = sanitized_cacheable_prefix
         if server_provider_prefix == "mistral" and prompt_cache_key:
             server_llm_input_details["prompt_cache_key"] = prompt_cache_key

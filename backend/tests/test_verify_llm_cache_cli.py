@@ -1,12 +1,17 @@
 """The live billing verifier attributes every wallet debit before claiming proof."""
 
 from copy import deepcopy
+from io import StringIO
+import json
+import sys
 
 import pytest
 
 from backend.scripts.verify_llm_cache_cli import (
-    full_input_flat_estimate, parse_cli_json, reconcile_new_usage, summarize_turns,
+    full_input_flat_estimate, parse_cli_json, reconcile_new_usage, split_chat_rows,
+    summarize_turns,
 )
+from backend.scripts import verify_llm_cache_cli
 
 
 def _chat(identifier, credits=8):
@@ -20,7 +25,7 @@ def test_wallet_proof_accounts_for_project_assessment_separately():
                   "skill_id": "project-recommendation", "source": "direct"}
     result = reconcile_new_usage([], chat + [assessment], "chat", chat, 11)
     assert result == {"chat_credits": 10, "project_recommendation_credits": 1,
-                      "wallet_debit": 11, "new_usage_entries": 3}
+                      "tool_credits": 0, "wallet_debit": 11, "new_usage_entries": 3}
 
 
 # contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
@@ -28,6 +33,27 @@ def test_resumed_proof_does_not_charge_the_saved_first_turn_again():
     first, second = _chat("first", 38), _chat("second", 2)
     result = reconcile_new_usage([first], [second, first], "chat", [first, second], 2)
     assert result["chat_credits"] == 2
+
+
+# contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
+def test_same_chat_skill_is_attributed_but_unrelated_charge_is_rejected():
+    ask = _chat("ask", 93)
+    search = {"id": "search", "credits": 10, "app_id": "web", "skill_id": "search",
+              "chat_id": "chat"}
+    project = {"id": "project", "credits": 1, "app_id": "ai",
+               "skill_id": "project-recommendation", "source": "direct"}
+    asks, tools = split_chat_rows([ask, search], "chat")
+    assert ([row["id"] for row in asks], [row["id"] for row in tools]) == (["ask"], ["search"])
+    with pytest.raises(RuntimeError, match="did not persist a receipt"):
+        summarize_turns([{**ask, "created_at": "2026-10-08T00:00:00Z"}], require_receipts=True)
+    result = reconcile_new_usage([], [ask, search, project], "chat", [ask, search], 104)
+    assert (result["chat_credits"], result["tool_credits"],
+            result["project_recommendation_credits"]) == (93, 10, 1)
+    with pytest.raises(RuntimeError, match="Unexpected new usage charge"):
+        reconcile_new_usage([], [ask, search, {**search, "id": "other", "chat_id": "elsewhere"}],
+                            "chat", [ask, search], 113)
+    with pytest.raises(RuntimeError, match="missing from account usage history"):
+        reconcile_new_usage([], [ask, project], "chat", [ask, search], 104)
 
 
 # contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
@@ -180,3 +206,73 @@ def test_expected_tariff_accepts_reported_ordinary_fallback_with_missing_metric(
     with pytest.raises(RuntimeError, match="eligible host"):
         summarize_turns([{**row, "llm_usage_breakdown": mixed}],
                         require_receipts=True, expected_tariffs=expected)
+
+
+# contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
+def test_receipt_attempt_must_match_requested_model_even_if_tariff_map_has_both():
+    row = {**_chat("ask", 7), "created_at": "2026-10-08T00:00:00Z",
+           "llm_usage_breakdown": _receipt()}
+    expected = {"test/model": {"pricing_version": "frozen-v1", "eligible_hosts": ["test-host"]},
+                "test/other": {"pricing_version": "frozen-v1", "eligible_hosts": ["test-host"]}}
+    with pytest.raises(RuntimeError, match="requested model"):
+        summarize_turns([row], require_receipts=True, expected_tariffs=expected,
+                        requested_model_id="test/other")
+
+
+# contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
+def test_verify_only_finishes_retained_chat_without_paid_cli_calls(tmp_path, monkeypatch):
+    (tmp_path / "test-project.private.json").write_text(json.dumps({"project": {"project_id": "project"}}))
+    proof_path = tmp_path / "prior.json"
+    proof_path.write_text(json.dumps({
+        "chat_id": "chat", "paid_turns": 1, "charges": [{"id": "first", "credits": 7}],
+        "project_recommendation": {"credits": 1}, "wallet_before": 775,
+        "wallet_after": 767, "turn_wallet_debits": [8],
+    }))
+    rows = []
+    for index, identifier in enumerate(("first", "second")):
+        receipt = _receipt()
+        receipt["entries"][0]["model_id"] = "openai/gpt-6.1-sol"
+        rows.append({**_chat(identifier, 7), "created_at": f"2026-10-08T00:00:0{index}Z",
+                     "llm_usage_breakdown": receipt})
+    search = {"id": "search", "credits": 10, "app_id": "web", "skill_id": "search",
+              "chat_id": "chat", "created_at": "2026-10-08T00:00:02Z"}
+    project = {"id": "project-charge", "credits": 1, "app_id": "ai",
+               "skill_id": "project-recommendation", "source": "direct"}
+    calls = []
+
+    class FakeProcess:
+        def __init__(self, invocation, **_kwargs):
+            args = invocation[invocation.index("https://api.dev.openmates.org") + 1:-1]
+            calls.append(args)
+            if args[:2] == ["chats", "show"]:
+                result = {"messages": [{"role": "assistant", "content": "answer"},
+                                       {"role": "assistant", "content": "follow-up"}]}
+            elif args[:4] == ["settings", "billing", "usage", "details"]:
+                result = {"entries": rows + [search]}
+            elif args[:3] == ["settings", "billing", "usage"]:
+                result = {"usage": rows + [search, project]}
+            elif args[:3] == ["settings", "billing", "overview"]:
+                result = {"held_credits": 0}
+            elif args == ["whoami"]:
+                result = {"credits": 750}
+            else:
+                raise AssertionError(f"Unexpected CLI command: {args}")
+            self.stdout = StringIO(json.dumps(result))
+            self.returncode = 0
+
+        def wait(self, **_kwargs):
+            return 0
+
+    monkeypatch.setattr(verify_llm_cache_cli.subprocess, "Popen", FakeProcess)
+    monkeypatch.setenv("OPENMATES_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(sys, "argv", ["verify_llm_cache_cli.py", "--phase", "verify",
+                                      "--model", "GPT-6.1-Sol", "--followup-count", "1",
+                                      "--resume-chat", "chat", "--prior-proof", str(proof_path),
+                                      "--verify-only"])
+    verify_llm_cache_cli.main()
+    assert not any(args[:2] in (["chats", "new"], ["chats", "send"]) for args in calls)
+    report = json.loads((tmp_path / "verify" / "report.json").read_text())["models"][0]
+    assert report["persisted_credits"] == 14
+    assert report["tool_credits"] == 10
+    assert report["project_recommendation_credits"] == 1
+    assert report["wallet_before"] - report["wallet_after"] == 25

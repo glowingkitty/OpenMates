@@ -467,6 +467,50 @@ def test_gpt56_stream_payload_uses_catalog_upstream_model_and_reasoning_effort(m
     assert captured["max_completion_tokens"] == 16
 
 
+# contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize("model_id", ["gpt-5.6-luna", "gpt-6-luna"])
+def test_chat_completion_cache_boundary_keeps_system_text_and_history(
+    monkeypatch: pytest.MonkeyPatch, model_id: str, stream: bool,
+) -> None:
+    stub = _StubClient()
+    monkeypatch.setattr(openai_client, "_openai_direct_client", stub)
+    monkeypatch.setattr(openai_client.config_manager, "get_model_pricing", lambda *_args: None)
+    monkeypatch.setattr(openai_client, "calculate_token_breakdown", lambda *_a, **_k: {}, raising=False)
+    messages = [
+        {"role": "system", "content": "stable rules\n\nclock 12:00"},
+        {"role": "user", "content": "A question"},
+        {"role": "assistant", "content": "First answer"},
+        {"role": "user", "content": "Follow-up"},
+    ]
+
+    async def run() -> None:
+        response = await openai_client._invoke_openai_direct_api(
+            task_id="chat-cache", model_id=model_id, messages=messages,
+            cacheable_system_prefix="stable rules", stream=stream,
+        )
+        if stream:
+            async for _chunk in response:
+                pass
+
+    asyncio.run(run())
+    sent = stub.chat.completions.captured["messages"]
+    assert sent[0]["content"] == [
+        {"type": "text", "text": "stable rules", "prompt_cache_breakpoint": {"mode": "explicit"}},
+        {"type": "text", "text": "\n\nclock 12:00"},
+    ]
+    assert "".join(part["text"] for part in sent[0]["content"]) == messages[0]["content"]
+    assert sent[1:] == messages[1:]
+    assert messages[0]["content"] == "stable rules\n\nclock 12:00"
+
+
+def test_cache_boundary_skips_unsupported_or_invalid_prefix() -> None:
+    messages = [{"role": "system", "content": "system"}, {"role": "user", "content": "question"}]
+    assert openai_client._openai_cache_messages(messages, "gpt-5.4", "system") is messages
+    assert openai_client._openai_cache_messages(messages, "gpt-6-luna", "missing") is messages
+    assert openai_client._openai_cache_messages(messages, "gpt-6-luna", None) is messages
+
+
 @pytest.mark.parametrize("stream", [False, True])
 def test_gpt56_luna_tool_payload_disables_reasoning_effort(
     monkeypatch: pytest.MonkeyPatch,
@@ -679,7 +723,7 @@ def test_main_stream_forwards_cache_hints_only_to_direct_hosts(monkeypatch: pyte
     llm_utils = _load_llm_utils_with_stubs(monkeypatch, provider)
     captured: dict[str, dict[str, Any]] = {}
     cache_policy = {
-        "enabled": True, "eligible_hosts": ["anthropic", "aws_bedrock"],
+        "enabled": True, "eligible_hosts": ["anthropic", "aws_bedrock", "openai"],
         "status": "verified_for_activation", "source_url": "https://example.com/pricing",
         "reviewed_on": "2026-10-01", "expires_on": "2099-12-31",
     }
@@ -699,15 +743,16 @@ def test_main_stream_forwards_cache_hints_only_to_direct_hosts(monkeypatch: pyte
             task_id=host, model_id=f"{host}/test-model", system_prompt="stable\n\ndynamic",
             message_history=[], temperature=0.2, cacheable_system_prefix="stable",
             prompt_cache_key="opaque-conversation-key",
+            customer_cache_pricing_enabled=True,
         )]
         assert result == ["ok"]
 
     async def run() -> None:
-        for host in ("anthropic", "aws_bedrock", "mistral", "openrouter"):
+        for host in ("anthropic", "aws_bedrock", "openai", "mistral", "openrouter"):
             await consume(host)
 
     asyncio.run(run())
-    for host in ("anthropic", "aws_bedrock"):
+    for host in ("anthropic", "aws_bedrock", "openai"):
         assert captured[host]["cacheable_system_prefix"] == "stable"
         assert "prompt_cache_key" not in captured[host]
     assert captured["mistral"]["prompt_cache_key"] == "opaque-conversation-key"
@@ -719,6 +764,8 @@ def test_main_stream_forwards_cache_hints_only_to_direct_hosts(monkeypatch: pyte
     cache_policy["enabled"] = False
     asyncio.run(consume("anthropic"))
     assert "cacheable_system_prefix" not in captured["anthropic"]
+    asyncio.run(consume("openai"))
+    assert "cacheable_system_prefix" not in captured["openai"]
     cache_policy.update({"enabled": True, "eligible_hosts": ["anthropic"]})
     asyncio.run(consume("aws_bedrock"))
     assert "cacheable_system_prefix" not in captured["aws_bedrock"]

@@ -14,7 +14,7 @@ task: 57852d66-e56f-4a8c-aeb4-6df78789d63f
 workspace_session: '4805'
 authorization:
   implementation: User explicitly authorized implementation after the architecture check.
-  activation: User explicitly requested completion and activation on 2026-10-08, preserving ordinary processing as bundled work covered by the main-inference markup. Enable verified provider routes and run short real CLI chats with two follow-ups per provider.
+  activation: User explicitly requested completion and activation on 2026-10-08, preserving ordinary processing as bundled work covered by the main-inference markup. Enable verified provider routes and run short real CLI chats with one or two follow-ups per provider, matching the latest user request.
 contract:
   owner: feature.billing@8
   bundle: specifications/features/billing
@@ -47,7 +47,7 @@ architecture_findings:
     - Generative postprocessing may resend up to 120k history tokens; its bundled supplier cost can exceed a cheap cached main reply. User requested activation while retaining ordinary processing as bundled work. Configured main-category markup is checked; no per-turn or net-margin guarantee is claimed.
     - Live Anthropic answers exposed a streaming counter bug: terminal usage was read from delta.usage instead of event.usage, and SDK-extra cache-creation TTL dictionaries were ignored. The repair is published and a fresh two-turn CLI test verified terminal output and five-minute writes; both turns reported zero reads.
   rollout_safety:
-    - All new tariffs stay disabled until decisions and route evidence are complete; inactive debits preserve existing input/output treatment.
+    - Enable only individually verified tariffs after the approved decisions, route evidence and configured category-markup checks. Inactive and expired tariffs retain ordinary input/output treatment.
     - New Anthropic/Bedrock checkpoints require an enabled frozen tariff and eligible host.
     - Missing cache counters remain unknown; no inferred cache discount or write fee is charged.
     - Vertex gross supplier liability is modeled without assuming later promotional credits.
@@ -132,11 +132,15 @@ evidence:
     - Concurrent upstream main processing and localized text were reviewed and merged in a resolved candidate without altering the bound worktree. Materialized Specification metadata, generated integrity, Python and Svelte compiler checks passed.
     - Scoped cache/long-context pricing, automatic-summary intent and receipts, normal-chat scope gate and web/native compatibility were published to dev as 8adcdd12db72fb4a04fe89003e41b5b5581768b2 with every tariff disabled. Specification, lint, translation and the 16-file pytest deployment gate passed. Source workspace safely advanced through the session helper; all seventeen affected dev services are healthy and the exact web deployment succeeded.
     - Added and read back only the four nullable summary-intent fields on the existing billing_reservations collection under a coordinated runtime operation; no unrelated schema/data migrations ran. All seventy-five existing recording links are retained and uploaded, including failures, retries and both successful real-API cases.
+    - Seven verified tariffs across Google, OpenAI, Anthropic and Mistral were activated on dev as f9c1c3733ff7a93ab82c22478e74de6cd0da19ff. Category supplier coverage and scoped image reservations passed focused checks; all seven actual-catalog pricing component cases passed isolated CI. The coordinated runtime and web deployment succeeded.
+    - Activated Gemini initial request plus two follow-ups charged 38, 39 and 40 credits, matching the full-input flat estimates. Google omitted the cached-input metric, so no discount was inferred. Saved receipts, wallet changes and zero remaining holds reconciled.
+    - Activated Anthropic initial request and one follow-up charged 164 and 89 credits versus full-input flat estimates of 147 and 149. Provider metrics reported an 11,430-token five-minute write then an 11,430-token read; all 254 wallet credits (including unchanged one-credit Project recommendation) reconciled and no holds remained.
+    - Activated Mistral initial request and one follow-up charged 6 and 5 credits versus full-input flat estimates of 6 and 6. The follow-up reported 3,984 cached tokens; all 12 wallet credits including unchanged Project recommendation reconciled and no holds remained.
+    - OpenAI completed two paid turns with settled 93- and 102-credit inference receipts and an unchanged 10-credit web search. Reanalysis of retained numeric snapshots reconciled the full 206-credit wallet debit including Project recommendation. The verifier now attributes same-chat tool costs separately without accepting unrelated charges.
+    - A concrete OpenAI cache-reuse obstacle was found: stable instructions and the changing clock shared one system content block. Direct eligible GPT-5.6+/GPT-6 now mark the stable prefix with the documented explicit breakpoint; text, order, tools, history and store=False remain intact. Independent review passed and 60 focused transport/verifier/scope tests passed.
   pending:
-    - Selective verified-route activation, generated catalog checks and scoped deployment.
-    - Verify the accepted normal-chat scope gate and conservative remote-image reservations.
     - Native parsing and pricing fixtures are updated, but execution remains unavailable under the existing Mac build/test guard.
-    - Real OpenMates CLI verification of activated category charges and encrypted receipts, with an initial natural-language request and two follow-ups per provider; compare actual charged credits with the prior flat tariff on the same reported usage.
+    - Real OpenMates CLI verification of activated category charges and encrypted receipts, with an initial natural-language request and one or two follow-ups per provider; compare actual charged credits with the prior flat tariff on the same reported usage.
     - Native execution under an available approved Mac environment remains unavailable under the existing guard; deliver all new web/CLI recordings.
 research_artifacts:
   design: implementation-design.yml

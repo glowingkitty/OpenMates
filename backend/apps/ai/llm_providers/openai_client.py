@@ -47,6 +47,29 @@ def _normalize_openai_model_id(model_id: str) -> str:
     return model_id.split("/", 1)[1] if model_id.startswith("openai/") else model_id
 
 
+def _openai_cache_messages(
+    messages: List[Dict[str, Any]], model_id: str, cacheable_system_prefix: Optional[str],
+) -> List[Dict[str, Any]]:
+    """Mark the existing stable system prefix without changing its text or order.
+
+    GPT-5.6+ accepts a content-block breakpoint in both Chat Completions and
+    Responses. Earlier models retain their existing implicit caching behavior.
+    """
+    if not (cacheable_system_prefix and messages and
+            model_id.startswith(("gpt-5.6", "gpt-6"))):
+        return messages
+    first = messages[0]
+    system_text = first.get("content")
+    if first.get("role") != "system" or not isinstance(system_text, str) or not system_text.startswith(cacheable_system_prefix):
+        return messages
+    stable_part = {"type": "text", "text": cacheable_system_prefix, "prompt_cache_breakpoint": {"mode": "explicit"}}
+    suffix = system_text[len(cacheable_system_prefix):]
+    content = [stable_part]
+    if suffix:
+        content.append({"type": "text", "text": suffix})
+    return [{**first, "content": content}, *messages[1:]]
+
+
 def _get_openai_model_config(model_id: str) -> Optional[Dict[str, Any]]:
     lookup_model_id = _normalize_openai_model_id(model_id)
     return config_manager.get_model_pricing("openai", lookup_model_id)
@@ -256,6 +279,7 @@ async def _invoke_openai_direct_api(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     catalog_model_id: Optional[str] = None,
+    cacheable_system_prefix: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     if not _openai_direct_client:
         error_msg = "OpenAI direct client is not initialized."
@@ -264,12 +288,14 @@ async def _invoke_openai_direct_api(
             raise ValueError(error_msg)
         return UnifiedOpenAIResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
+    request_model_id = _get_openai_request_model_id(model_id, catalog_model_id)
+    request_messages = _openai_cache_messages(messages, request_model_id, cacheable_system_prefix)
     if _normalize_openai_model_id(catalog_model_id or model_id) in {"gpt-6-astra", "gpt-6.1-sol"}:
         from .openai_responses import invoke_responses
         return await invoke_responses(
             client=_openai_direct_client, task_id=task_id,
-            model_id=_get_openai_request_model_id(model_id, catalog_model_id),
-            messages=messages, reasoning_effort=_get_openai_reasoning_effort(model_id, catalog_model_id),
+            model_id=request_model_id,
+            messages=request_messages, reasoning_effort=_get_openai_reasoning_effort(model_id, catalog_model_id),
             tools=_map_tools_to_openai_format(tools) if tools else None,
             tool_choice=tool_choice, max_tokens=max_tokens, stream=stream,
         )
@@ -329,7 +355,7 @@ async def _invoke_openai_direct_api(
         # Build payload with streaming enabled
         stream_payload: Dict[str, Any] = {
             "model": request_model_id,
-            "messages": messages,
+            "messages": request_messages,
             "stream": True,
             "stream_options": {"include_usage": True},
         }
@@ -538,7 +564,7 @@ async def _invoke_openai_direct_api(
 
     payload: Dict[str, Any] = {
         "model": request_model_id,
-        "messages": messages,
+        "messages": request_messages,
     }
     if reasoning_effort:
         payload["reasoning_effort"] = reasoning_effort
@@ -587,6 +613,7 @@ async def invoke_openai_chat_completions(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     catalog_model_id: Optional[str] = None,
+    cacheable_system_prefix: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     if secrets_manager and not _openai_client_initialized:
         await initialize_openai_client(secrets_manager)
@@ -620,6 +647,7 @@ async def invoke_openai_chat_completions(
             tool_choice=tool_choice,
             stream=stream,
             catalog_model_id=catalog_lookup_model_id,
+            cacheable_system_prefix=cacheable_system_prefix,
         )
 
     # AUTOMATIC FALLBACK: If primary failed (non-streaming only), try other available servers

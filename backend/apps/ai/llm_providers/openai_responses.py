@@ -33,7 +33,10 @@ def responses_input(messages: list[dict]) -> list[dict]:
                 parts = []
                 for part in content:
                     if part.get("type") == "text":
-                        parts.append({"type": "output_text" if role == "assistant" else "input_text", "text": part["text"]})
+                        text_part = {"type": "output_text" if role == "assistant" else "input_text", "text": part["text"]}
+                        if role == "system" and part.get("prompt_cache_breakpoint"):
+                            text_part["prompt_cache_breakpoint"] = part["prompt_cache_breakpoint"]
+                        parts.append(text_part)
                     elif part.get("type") == "image_url":
                         image = part["image_url"]
                         parts.append({"type": "input_image", "image_url": image["url"], "detail": image.get("detail", "auto")})

@@ -18,6 +18,12 @@ import subprocess
 import time
 
 MODELS = ["Gemini-3.8-Flash", "GPT-6.1-Sol", "Claude-Sonnet-5", "Mistral-Small-4"]
+REQUESTED_MODEL_IDS = {
+    "Gemini-3.8-Flash": "google/gemini-3.8-flash",
+    "GPT-6.1-Sol": "openai/gpt-6.1-sol",
+    "Claude-Sonnet-5": "anthropic/claude-sonnet-5",
+    "Mistral-Small-4": "mistral/mistral-small-latest",
+}
 _NODE_WARNING = re.compile(r"^\(node:\d+\) MaxListenersExceededWarning: .*$")
 
 
@@ -64,7 +70,8 @@ def full_input_flat_estimate(receipt: dict) -> int:
 
 
 def summarize_turns(rows: list[dict], *, require_receipts: bool,
-                    expected_tariffs: dict | None = None) -> list[dict]:
+                    expected_tariffs: dict | None = None,
+                    requested_model_id: str | None = None) -> list[dict]:
     """Check each persisted settled charge and expose a bounded comparison."""
     turns = []
     for row in sorted(rows, key=lambda item: (item["created_at"], item["id"])):
@@ -81,6 +88,8 @@ def summarize_turns(rows: list[dict], *, require_receipts: bool,
                 or expected_receipt_credits(receipt) != credits):
             raise RuntimeError("Receipt category arithmetic differs from committed debit")
         entries = receipt["entries"]
+        if requested_model_id and any(entry["model_id"] != requested_model_id for entry in entries):
+            raise RuntimeError("Frozen attempt did not use the requested model")
         if expected_tariffs is not None:
             if receipt.get("usage_source") != "provider_reported" or not entries:
                 raise RuntimeError("Expected-tariff proof requires provider-reported usage and frozen attempts")
@@ -115,6 +124,21 @@ def summarize_turns(rows: list[dict], *, require_receipts: bool,
     return turns
 
 
+def split_chat_rows(rows: list[dict], chat: str) -> tuple[list[dict], list[dict]]:
+    """Keep ask receipts separate from persisted same-chat tool charges."""
+    inference, tools = [], []
+    for row in rows:
+        if row.get("chat_id") != chat:
+            raise RuntimeError("Chat usage details include another chat")
+        if row.get("app_id") == "ai" and row.get("skill_id") == "ask":
+            inference.append(row)
+        elif row.get("app_id") and row.get("skill_id"):
+            tools.append(row)
+        else:
+            raise RuntimeError("Chat usage details include an unattributable charge")
+    return inference, tools
+
+
 def reconcile_new_usage(before: list[dict], after: list[dict], chat: str,
                         chat_rows: list[dict], wallet_debit: int,
                         *, known_prior_chat_ids: set[str] | None = None) -> dict:
@@ -126,24 +150,31 @@ def reconcile_new_usage(before: list[dict], after: list[dict], chat: str,
     new = [row for row in after if row["id"] not in before_ids]
     chat_ids = {row["id"] for row in chat_rows}
     inference = []
+    tool_charges = []
     recommendations = []
     for row in new:
-        if (row["id"] in chat_ids and row.get("chat_id") == chat
-                and row.get("app_id") == "ai" and row.get("skill_id") == "ask"):
-            inference.append(row)
+        if row["id"] in chat_ids and row.get("chat_id") == chat:
+            if row.get("app_id") == "ai" and row.get("skill_id") == "ask":
+                inference.append(row)
+            elif row.get("app_id") and row.get("skill_id"):
+                tool_charges.append(row)
+            else:
+                raise RuntimeError("Unattributable same-chat usage charge")
         elif (row.get("source") == "direct" and row.get("app_id") == "ai"
               and row.get("skill_id") == "project-recommendation"
               and not row.get("chat_id") and not row.get("message_id")):
             recommendations.append(row)
         else:
             raise RuntimeError("Unexpected new usage charge; cannot attribute the wallet debit")
-    if {row["id"] for row in inference} != chat_ids - before_ids:
-        raise RuntimeError("New inference charge is missing from account usage history")
+    if {row["id"] for row in inference + tool_charges} != chat_ids - before_ids:
+        raise RuntimeError("New chat charge is missing from account usage history")
     chat_credits = sum(int(row["credits"]) for row in inference)
+    tool_credits = sum(int(row["credits"]) for row in tool_charges)
     project_credits = sum(int(row["credits"]) for row in recommendations)
-    if wallet_debit != chat_credits + project_credits or chat_credits <= 0:
+    if wallet_debit != chat_credits + tool_credits + project_credits:
         raise RuntimeError("Wallet debit differs from all persisted charges")
-    return {"chat_credits": chat_credits, "project_recommendation_credits": project_credits,
+    return {"chat_credits": chat_credits, "tool_credits": tool_credits,
+            "project_recommendation_credits": project_credits,
             "wallet_debit": wallet_debit, "new_usage_entries": len(new)}
 
 
@@ -157,6 +188,8 @@ def main() -> None:
     parser.add_argument("--followup-count", type=int, choices=(1, 2), default=2)
     parser.add_argument("--resume-chat", help="Continue an already paid partial conversation")
     parser.add_argument("--prior-proof", type=Path, help="Retained numeric proof of its paid turns")
+    parser.add_argument("--verify-only", action="store_true",
+                        help="Finish verification of an already paid resumed chat without sending messages")
     parser.add_argument("--capture-script", type=Path)
     parser.add_argument("--target-commit")
     parser.add_argument("--cli-path", type=Path, help="Exact deployed source CLI build; defaults to installed openmates")
@@ -165,6 +198,8 @@ def main() -> None:
         parser.error("--capture-script requires --target-commit")
     if bool(args.resume_chat) != bool(args.prior_proof) or (args.resume_chat and not args.model):
         parser.error("--resume-chat requires --prior-proof and --model")
+    if args.verify_only and not args.resume_chat:
+        parser.error("--verify-only requires --resume-chat and --prior-proof")
     expected_tariffs = json.loads(args.expected_tariffs.read_text()) if args.expected_tariffs else None
     if expected_tariffs is not None and not isinstance(expected_tariffs, dict):
         parser.error("--expected-tariffs must contain a model-ID object map")
@@ -249,6 +284,7 @@ def main() -> None:
     starting = balance("phase-start-balance")
     report: dict = {"phase": args.phase, "starting_credits": starting, "models": []}
     for model in ([args.model] if args.model else MODELS):
+        requested_model_id = REQUESTED_MODEL_IDS[model]
         before = balance(model + "-before")
         history_before = run_cli(["settings", "billing", "usage"], model + "-history-before")["usage"]
         prior = None
@@ -261,8 +297,11 @@ def main() -> None:
             answers = [message for message in saved.get("messages", [])
                        if message.get("role") == "assistant" and message.get("content")]
             paid_turns = prior.get("paid_turns", 1)
-            if len(answers) != paid_turns or paid_turns > args.followup_count:
+            expected_answers = args.followup_count + 1 if args.verify_only else paid_turns
+            if len(answers) != expected_answers or paid_turns > expected_answers:
                 raise RuntimeError("Saved answers differ from retained paid-turn proof")
+            if args.verify_only and paid_turns < expected_answers - 1:
+                raise RuntimeError("Verify-only needs proof of all but at most one paid turn")
             first = {"modelName": answers[0].get("modelName")}
             after_first = before
         else:
@@ -279,25 +318,30 @@ def main() -> None:
             detail = run_cli(["settings", "billing", "usage", "details", "--type", "chat",
                               "--identifier", chat, "--month", month],
                              model + f"-checkpoint-{completed_turns}")
-            paid_rows = detail.get("entries", [])
+            all_rows = detail.get("entries", [])
+            paid_rows, tool_rows = split_chat_rows(all_rows, chat)
             if len(paid_rows) != completed_turns:
                 raise RuntimeError("Completed chat has missing persisted charges")
             summarize_turns(paid_rows, require_receipts=require_receipts,
-                            expected_tariffs=expected_tariffs)
+                            expected_tariffs=expected_tariffs,
+                            requested_model_id=requested_model_id)
             current_history = run_cli(["settings", "billing", "usage"],
                                       model + f"-checkpoint-history-{completed_turns}")["usage"]
-            previous_charges = prior.get("charges") or [prior["chat_ask"]] if prior else []
+            previous_charges = ((prior.get("charges") or [prior["chat_ask"]])
+                                + prior.get("tool_charges", []) if prior else [])
             delta = reconcile_new_usage(
-                history_before, current_history, chat, paid_rows, before - current_balance,
+                history_before, current_history, chat, all_rows, before - current_balance,
                 known_prior_chat_ids={row["id"] for row in previous_charges},
             )
             project_credits = (prior["project_recommendation"]["credits"] if prior else 0)
             project_credits += delta["project_recommendation_credits"]
             initial_balance = prior["wallet_before"] if prior else before
-            if initial_balance - current_balance != sum(int(row["credits"]) for row in paid_rows) + project_credits:
+            if initial_balance - current_balance != sum(int(row["credits"]) for row in all_rows) + project_credits:
                 raise RuntimeError("Checkpoint does not reconcile the full paid conversation")
             proof = {"chat_id": chat, "paid_turns": completed_turns,
                      "charges": [{"id": row["id"], "credits": int(row["credits"])} for row in paid_rows],
+                     "tool_charges": [{"id": row["id"], "credits": int(row["credits"])}
+                                      for row in tool_rows],
                      "project_recommendation": {"credits": project_credits},
                      "wallet_before": initial_balance, "wallet_after": current_balance,
                      "turn_wallet_debits": wallet_debits}
@@ -306,8 +350,8 @@ def main() -> None:
             path.chmod(0o600)
 
         followups = [
-            "How does that explain opposite seasons in the northern and southern hemispheres? Answer in two short sentences.",
-            "Give me one simple example using June and December that I could tell a child. Keep it to two sentences.",
+            "How does that explain opposite seasons in the northern and southern hemispheres? Use your existing knowledge; do not search. Answer in two short sentences.",
+            "Give me one simple example using June and December that I could tell a child. Use your existing knowledge; do not search. Keep it to two sentences.",
         ]
         wallet_positions = [before, after_first] if not prior else [before]
         wallet_debits = ((prior.get("turn_wallet_debits") or
@@ -316,7 +360,7 @@ def main() -> None:
         if not prior:
             checkpoint(1, after_first, wallet_debits)
         followup_models = []
-        for index in range(paid_turns - 1, args.followup_count):
+        for index in range(paid_turns - 1, args.followup_count if not args.verify_only else paid_turns - 1):
             followup = run_cli(["chats", "send", "--chat", chat, f"@{model} {followups[index]}",
                                 "--response-timeout-seconds", "180"],
                                model + f"-followup-{index + 1}", True)
@@ -328,28 +372,35 @@ def main() -> None:
             checkpoint(index + 2, wallet_positions[-1], wallet_debits)
             if (prior["wallet_before"] if prior else starting) - wallet_positions[-1] > 1000:
                 raise RuntimeError("Test credit budget exceeded; stopping further calls")
+        if args.verify_only:
+            if paid_turns < args.followup_count + 1:
+                wallet_debits.append(prior["wallet_after"] - before)
+            checkpoint(args.followup_count + 1, before, wallet_debits)
         after = wallet_positions[-1]
         details = run_cli(["settings", "billing", "usage", "details", "--type", "chat", "--identifier", chat, "--month", month], model + "-usage")
-        rows = details.get("entries", [])
+        all_rows = details.get("entries", [])
+        rows, tool_rows = split_chat_rows(all_rows, chat)
         if len(rows) != args.followup_count + 1:
             raise RuntimeError(f"Expected {args.followup_count + 1} inference entries, received {len(rows)}")
         total = sum(int(row["credits"]) for row in rows)
+        tool_total = sum(int(row["credits"]) for row in tool_rows)
         history_after = run_cli(["settings", "billing", "usage"], model + "-history-after")["usage"]
         if prior:
-            prior_charges = prior.get("charges") or [prior["chat_ask"]]
+            prior_charges = (prior.get("charges") or [prior["chat_ask"]]) + prior.get("tool_charges", [])
             if (any(not any(row["id"] == charge["id"]
-                            and int(row["credits"]) == charge["credits"] for row in rows)
+                            and int(row["credits"]) == charge["credits"] for row in all_rows)
                     for charge in prior_charges)
                     or prior["wallet_before"] - prior["wallet_after"]
                     != sum(charge["credits"] for charge in prior_charges)
                     + prior["project_recommendation"]["credits"]):
                 raise RuntimeError("Saved paid charges do not match retained wallet proof")
         reconciled = reconcile_new_usage(
-            history_before, history_after, chat, rows, before - after,
+            history_before, history_after, chat, all_rows, before - after,
             known_prior_chat_ids={charge["id"] for charge in prior_charges} if prior else None,
         )
         turns = summarize_turns(rows, require_receipts=require_receipts,
-                                expected_tariffs=expected_tariffs)
+                                expected_tariffs=expected_tariffs,
+                                requested_model_id=requested_model_id)
         overview = run_cli(["settings", "billing", "overview"], model + "-holds")
         if overview.get("held_credits", 0) != 0:
             raise RuntimeError("Completed requests left held credits")
@@ -357,11 +408,17 @@ def main() -> None:
         measured = {"model": model, "chat_id": chat,
                     "first_credits": turns[0]["actual_credits"],
                     "followup_credits": turns[1]["actual_credits"], "persisted_credits": total,
+                    "tool_credits": tool_total,
+                    "persisted_chat_credits": total + tool_total,
+                    "project_recommendation_credits": ((prior["project_recommendation"]["credits"] if prior else 0)
+                                                       + reconciled["project_recommendation_credits"]),
+                    "wallet_before": prior["wallet_before"] if prior else before,
+                    "wallet_after": after,
                     "first_wallet_debit": wallet_debits[0],
                     "followup_wallet_debit": sum(wallet_debits[1:]),
                     "turn_wallet_debits": wallet_debits,
                     "full_wallet_debit": (prior["wallet_before"] if prior else before) - after,
-                    "usage_entries": len(rows), "held_credits": overview.get("held_credits"),
+                    "usage_entries": len(all_rows), "held_credits": overview.get("held_credits"),
                     "first_model": first.get("modelName"), "followup_models": followup_models,
                     "resumed_paid_turns": prior_count, "reconciliation": reconciled,
                     "turns": turns,
