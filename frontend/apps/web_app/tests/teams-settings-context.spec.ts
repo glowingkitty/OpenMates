@@ -383,6 +383,10 @@ test.describe('Teams V1 context isolation', () => {
 				const teamListBody = (await (await teamListResponse).json()) as {
 					teams?: Array<{ team_id?: string; encrypted_name?: string }>;
 				};
+				expect(Array.isArray(teamListBody.teams)).toBe(true);
+				const listedTeamIds = teamListBody.teams!.map((team) => team.team_id);
+				expect(listedTeamIds.every((id) => typeof id === "string" && id.length > 0)).toBe(true);
+				expect(new Set(listedTeamIds).size, "Team settings need one keyed row per Team").toBe(listedTeamIds.length);
 				expect(teamListBody.teams?.find((team) => team.team_id === teamId)?.encrypted_name).toBeTruthy();
 				expect(JSON.stringify(teamListBody)).not.toContain(teamName);
 				await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'teams', {

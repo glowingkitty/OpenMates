@@ -157,10 +157,15 @@ class TeamMethods:
         # Keep each Directus URL bounded, regardless of how many Teams a user has.
         # The membership query above is the authorization source; neither batch
         # can introduce a Team or wrapper outside that active membership set.
-        team_hashes = list(dict.fromkeys(
-            membership["hashed_team_id"] for membership in memberships
-            if isinstance(membership.get("hashed_team_id"), str) and membership["hashed_team_id"]
-        ))
+        # A user can have legacy duplicate active membership rows. Project each
+        # Team once so the response is safe for clients keyed by team_id; the
+        # first membership retains its original position and role.
+        membership_by_hash: dict[str, dict[str, Any]] = {}
+        for membership in memberships:
+            team_hash = membership.get("hashed_team_id")
+            if isinstance(team_hash, str) and team_hash:
+                membership_by_hash.setdefault(team_hash, membership)
+        team_hashes = list(membership_by_hash)
         teams_by_hash: dict[str, dict[str, Any]] = {}
         wrappers_by_hash: dict[str, dict[str, Any]] = {}
         for offset in range(0, len(team_hashes), 64):
@@ -202,9 +207,8 @@ class TeamMethods:
                         wrappers_by_hash.setdefault(team_hash, wrapper)
 
         teams: list[dict[str, Any]] = []
-        for membership in memberships:
-            team_hash = membership.get("hashed_team_id")
-            row = teams_by_hash.get(team_hash) if isinstance(team_hash, str) else None
+        for team_hash, membership in membership_by_hash.items():
+            row = teams_by_hash.get(team_hash)
             if row is None:
                 continue
             wrapper = wrappers_by_hash.get(team_hash, {})

@@ -122,6 +122,39 @@ async def test_list_teams_batches_large_membership_without_cross_user_keys() -> 
 
 
 @pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.lifecycle.encrypted-profiled
+async def test_list_teams_deduplicates_membership_without_overriding_first_role() -> None:
+    directus = FakeDirectus()
+    methods = TeamMethods(directus)
+    user_hash = hash_id("owner")
+    first_hash = hash_id("first")
+    second_hash = hash_id("second")
+    directus.rows["team_memberships"] = [
+        {"hashed_team_id": first_hash, "hashed_user_id": user_hash, "status": "active", "role": "viewer"},
+        {"hashed_team_id": second_hash, "hashed_user_id": user_hash, "status": "active", "role": "admin"},
+        {"hashed_team_id": first_hash, "hashed_user_id": user_hash, "status": "active", "role": "owner"},
+    ]
+    directus.rows["teams"] = [
+        {"team_id": "first", "hashed_team_id": first_hash, "status": "active"},
+        {"team_id": "second", "hashed_team_id": second_hash, "status": "active"},
+    ]
+    directus.rows["team_key_wrappers"] = [
+        {"hashed_team_id": first_hash, "hashed_user_id": user_hash, "status": "active", "team_key_epoch": 1, "encrypted_team_key": "first-key"},
+        {"hashed_team_id": second_hash, "hashed_user_id": user_hash, "status": "active", "team_key_epoch": 1, "encrypted_team_key": "second-key"},
+    ]
+
+    listed = await methods.list_teams("owner")
+
+    assert [(team["team_id"], team["role"], team["encrypted_team_key"]) for team in listed] == [
+        ("first", "viewer", "first-key"), ("second", "admin", "second-key"),
+    ]
+    assert [collection for collection, _ in directus.reads] == [
+        "team_memberships", "teams", "team_key_wrappers",
+    ]
+    assert directus.reads[1][1]["filter[hashed_team_id][_in]"] == f"{first_hash},{second_hash}"
+
+
+@pytest.mark.anyio
 # contract-test: direct surface=rest_api assertions=teams.lifecycle.encrypted-profiled,teams.membership.role-gated,teams.chat-billing.team-credit-boundary
 async def test_create_team_creates_owner_membership_key_wrapper_and_zero_balance() -> None:
     directus = FakeDirectus()
