@@ -1,6 +1,6 @@
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { webSocketService } from "./websocketService";
-import type { StoreEmbedDiffPayload, StoreEmbedPayload } from "../types/chat";
+import type { Chat, StoreEmbedDiffPayload, StoreEmbedPayload } from "../types/chat";
 import { chatDB, type PendingEmbedOperation } from "./db";
 import { computeSHA256 } from "../message_parsing/utils";
 import {
@@ -11,6 +11,8 @@ import {
 const EMBED_RECEIPT_TIMEOUT_MS = 30_000;
 const MAX_ACTIVE_EMBED_RECEIPTS = 32;
 const activePendingEmbedOperations = new Map<string, Promise<void>>();
+const persistenceChatIds = new Map<string, string>();
+const MAX_PERSISTENCE_CHAT_IDS = 128;
 let pendingEmbedFlush: Promise<void> | null = null;
 let lastPendingEmbedOperationTime = 0;
 let capacityDeferred = false;
@@ -65,8 +67,65 @@ async function sendWithReceipt(
   }
 }
 
+/** Restore authorization context omitted by legacy preview updates and queued writes. */
+async function resolveEmbedPersistenceContext(payload: StoreEmbedPayload): Promise<StoreEmbedPayload> {
+  if (!payload.hashed_chat_id || (payload.app_id && payload.skill_id && payload.chat_id)) {
+    return payload;
+  }
+  const { embedStore } = await import("./embedStore");
+  const contentRef = `embed:${payload.embed_id}`;
+  const entry = await embedStore.getRawEntry(contentRef);
+  let appId = payload.app_id ?? entry?.app_id;
+  let skillId = payload.skill_id ?? entry?.skill_id;
+  if (!appId || !skillId) {
+    // Older sync paths omitted the local catalog projection. Recover it from
+    // already encrypted local content without changing the outgoing ciphertext.
+    const catalog = await embedStore.getCatalogContext(contentRef);
+    appId ??= catalog?.app_id;
+    skillId ??= catalog?.skill_id;
+    if (!catalog && entry?.has_encrypted_content && (!appId || !skillId)) {
+      throw new Error("Embed catalog context is not ready; operation remains queued for retry.");
+    }
+  }
+  // Older non-catalog embeds retain their original persistence protocol.
+  if (!appId && !skillId) return payload;
+  if (!appId || !skillId) {
+    throw new Error("Embed catalog context is not ready; operation remains queued for retry.");
+  }
+  const withChatContext = (chat: Pick<Chat, "chat_id" | "team_id">): StoreEmbedPayload => ({
+    ...payload,
+    app_id: appId,
+    skill_id: skillId,
+    chat_id: payload.chat_id ?? chat.chat_id,
+    team_id: payload.team_id !== undefined ? payload.team_id : chat.team_id ?? null,
+  });
+  const cachedChatId = persistenceChatIds.get(payload.hashed_chat_id);
+  if (cachedChatId) {
+    // Cache only identity; re-read current Team context for every write.
+    const chat = await chatDB.getRawChat(cachedChatId);
+    if (chat) return withChatContext(chat);
+    persistenceChatIds.delete(payload.hashed_chat_id);
+  }
+  let afterChatId: string | null = null;
+  do {
+    // Routing fields are available without decrypting titles or unwrapping keys.
+    const page = await chatDB.getChatsPage(afterChatId);
+    for (const chat of page.items) {
+      if (await computeSHA256(chat.chat_id) !== payload.hashed_chat_id) continue;
+      if (persistenceChatIds.size >= MAX_PERSISTENCE_CHAT_IDS) {
+        const oldest = persistenceChatIds.keys().next().value;
+        if (oldest) persistenceChatIds.delete(oldest);
+      }
+      persistenceChatIds.set(payload.hashed_chat_id, chat.chat_id);
+      return withChatContext(chat);
+    }
+    afterChatId = page.nextAfter;
+  } while (afterChatId !== null);
+  throw new Error("Embed chat context is not ready; operation remains queued for retry.");
+}
+
 async function persistCanonicalEmbedOperation(operation: PendingEmbedOperation): Promise<void> {
-  const head = operation.store_embed_payload;
+  const head = await resolveEmbedPersistenceContext(operation.store_embed_payload);
   const headReceipt = await sendWithReceipt("store_embed", "store_embed_confirmed", head as unknown as Record<string, unknown>);
   const expectedDigest = await computeSHA256(head.encrypted_content);
   if (headReceipt.embed_id !== head.embed_id || headReceipt.canonical_digest !== expectedDigest) {
