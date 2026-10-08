@@ -36,6 +36,7 @@ def _runner_profile(tmp_path, monkeypatch, **options):
     "maps-discovery-chat.spec.ts",
     "audio-recording-deferred-send.spec.ts",
     "connection-resilience.spec.ts",
+    "skill-web-search.spec.ts",
 ])
 def test_marker_chat_epoch_activates_only_fresh_idle_state(tmp_path, monkeypatch, initial, pending, spec_name):
     runner, profile, _ = _runner_profile(tmp_path, monkeypatch, ai_fixtures=True)
@@ -173,7 +174,7 @@ def test_send_and_reconnect_batch_activates_epoch_once_before_browser(tmp_path, 
     runner, _, _ = _runner_profile(tmp_path, monkeypatch, ai_fixtures=True)
     web = tmp_path / "web"
     (web / "tests").mkdir(parents=True)
-    specs = ["audio-recording-deferred-send.spec.ts", "connection-resilience.spec.ts"]
+    specs = ["skill-web-search.spec.ts", "connection-resilience.spec.ts"]
     for spec in specs:
         (web / "tests" / spec).write_text("// authenticated marker fixture")
     results = tmp_path / "results"
