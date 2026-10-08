@@ -17,7 +17,7 @@ import os
 SCENARIO = re.compile(
     r"STORAGE_CAPACITY_SCENARIO:(round|tool|child|child_worker|version_create|version_update|"
     r"recovery_embed|recovery_diff|recovery_checkpoint|recovery_save_failure|"
-    r"recovery_detached_doc)(?:\b|$)"
+    r"recovery_detached_doc|recovery_protocol)(?:\b|$)"
 )
 
 _VERSION_MARKER = re.compile(r"(?:[a-f0-9]|\[OM_PII_[A-F0-9]{32}\])+")
@@ -374,6 +374,21 @@ def generate_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | 
         ))
     if scenario == "recovery_checkpoint":
         return _main_stream(model, f"Synthetic post-checkpoint answer {fingerprint[:16]}.")
+    if scenario == "recovery_protocol":
+        from backend.apps.ai.utils.answer_recovery import ANSWER_RECOVERY_INSTRUCTION
+
+        if ANSWER_RECOVERY_INSTRUCTION in all_text:
+            return _main_stream(model, "The safe continuation is complete.")
+        fabricated = (
+            "```toon\n"
+            "type: app_skill_use\n"
+            "app_id: web\n"
+            "skill_id: search\n"
+            "query: invented provider evidence\n"
+            "```\n"
+            "Invented post-protocol prose must not be shown."
+        )
+        return _main_stream(model, "Verified prefix: The available conversation is enough. ", fabricated)
     if scenario in {"version_create", "version_update"}:
         # Tool arguments retain model-visible privacy tokens. The authorized
         # client restores them before approval and encryption; never accept a

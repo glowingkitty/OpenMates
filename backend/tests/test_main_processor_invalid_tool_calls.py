@@ -277,6 +277,7 @@ async def _run_mocked_protocol_guard_main_processor(
     cache_service=None,
     directus_service=None,
     discovered_apps_metadata=None,
+    history_budget=100_000,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -344,7 +345,7 @@ async def _run_mocked_protocol_guard_main_processor(
         "truncate_message_history_to_token_budget",
         truncate_history or (lambda history, **_kwargs: history),
     )
-    monkeypatch.setattr(main_processor, "model_history_token_budget", lambda *_args, **_kwargs: 100_000)
+    monkeypatch.setattr(main_processor, "model_history_token_budget", lambda *_args, **_kwargs: history_budget)
     monkeypatch.setattr(main_processor, "generate_tools_from_apps", lambda **_kwargs: generated_tools or [])
     monkeypatch.setattr(main_processor, "evaluate_task_queue_post_turn", no_task_queue_retry)
     monkeypatch.setattr(main_processor, "resolve_sub_chat_depth", lambda _request: 0)
@@ -816,9 +817,10 @@ async def test_main_processor_continues_safe_text_after_fabricated_protocol(monk
     assert calls[0]["tool_choice"] == "auto"
     assert calls[1]["tool_choice"] == "none"
     assert calls[1]["tools"] is None
-    assert calls[1]["message_history"][-2]["content"] == safe_prefix
+    assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[1]["system_prompt"]
+    assert safe_prefix in calls[1]["message_history"][-2]["content"]
     assert "Do not repeat" in calls[1]["message_history"][-1]["content"]
-    assert "Do not invent" in calls[1]["message_history"][-1]["content"]
+    assert "do not invent" in calls[1]["system_prompt"]
     assert not any(
         isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
         for chunk in output
@@ -840,7 +842,9 @@ async def test_main_processor_recovers_when_protocol_was_the_first_output(monkey
     assert calls[1]["tool_choice"] == "none"
     assert calls[1]["tools"] is None
     assert calls[1]["message_history"][-1]["role"] == "user"
-    assert "previous assistant output was suppressed" in calls[1]["message_history"][-1]["content"]
+    assert calls[1]["message_history"][-1]["content"] == "Compare the options."
+    assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[1]["system_prompt"]
+    assert "app_id:" not in json.dumps(calls[1]["message_history"])
     assert not any(
         isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
         for chunk in output
@@ -866,27 +870,44 @@ async def test_main_processor_bounds_repeated_protocol_and_marks_failure(monkeyp
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
-async def test_main_processor_rejects_orphaned_protocol_recovery_instruction(monkeypatch) -> None:
+async def test_main_processor_uses_configured_alternate_after_repeated_protocol(monkeypatch) -> None:
     safe_prefix = "A safe paragraph was already published.\n\n"
     protocol = "```toon\napp_id: news\nskill_id: search\nstatus: finished\n```"
+    continuation = "The verified comparison is complete."
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[safe_prefix + protocol], [protocol], [continuation]],
+        preprocessing_overrides={
+            "selected_secondary_model_id": "google/secondary",
+            "selected_fallback_model_id": "anthropic/recovery-model",
+        },
+    )
 
-    def drop_recovery_assistant_prefix(history, **_kwargs):
-        if history and history[-1].get("content", "").startswith("Continue the preceding"):
-            return history[:-2] + history[-1:]
-        return history
+    assert [call["model_id"] for call in calls] == [
+        "google/test-model", "google/test-model", "anthropic/recovery-model",
+    ]
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == safe_prefix + continuation
+    for call in calls[1:]:
+        assert call["tool_choice"] == "none"
+        assert call["tools"] is None
+        assert main_processor.ANSWER_RECOVERY_INSTRUCTION in call["system_prompt"]
+        assert "app_id:" not in json.dumps(call["message_history"])
+    assert not any(isinstance(chunk, dict) and chunk.get("__main_processing_failure__") for chunk in output)
 
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_main_processor_rejects_orphaned_protocol_recovery_context(monkeypatch) -> None:
+    safe_prefix = "A safe paragraph was already published. " * 20 + "\n\n"
+    protocol = "```toon\napp_id: news\nskill_id: search\nstatus: finished\n```"
     output, calls = await _run_mocked_protocol_guard_main_processor(
         monkeypatch,
         [[safe_prefix + protocol]],
-        truncate_history=drop_recovery_assistant_prefix,
+        history_budget=25,
     )
 
     assert "".join(chunk for chunk in output if isinstance(chunk, str)) == safe_prefix
     assert len(calls) == 1
-    assert output[-1] == {
-        "__main_processing_failure__": True,
-        "reason": "protocol_guard",
-    }
+    assert output[-1] == {"__main_processing_failure__": True, "reason": "protocol_guard"}
 
 
 def test_chat_skill_dispatch_threads_secrets_manager_context() -> None:

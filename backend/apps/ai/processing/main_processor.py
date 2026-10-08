@@ -78,11 +78,7 @@ from backend.apps.ai.utils.embeds_map_view import (
     should_include_embeds_results_view_instruction,
     should_include_embeds_map_view_hint,
 )
-from backend.apps.ai.utils.tool_protocol_guard import (
-    ToolProtocolGuard,
-    ToolProtocolRecoveryState,
-    build_tool_protocol_recovery_messages,
-)
+from backend.apps.ai.utils.tool_protocol_guard import ToolProtocolGuard
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
@@ -5085,11 +5081,10 @@ async def handle_main_processing(
     streaming_skill_count = 0  # Mirrors total_skill_calls during streaming to suppress over-budget placeholders
     budget_warning_injected = False
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
-    protocol_guard_recovery = ToolProtocolRecoveryState()
-    pending_protocol_recovery_messages: Optional[List[Dict[str, str]]] = None
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     task_queue_guard_retries = 0
     answer_recovery = AnswerRecoveryState()
+    protocol_guard_recovery_started = False
     published_answer_text: List[str] = []
     omitted_news_search_requests = 0
     
@@ -5104,13 +5099,12 @@ async def handle_main_processing(
 
     def schedule_answer_recovery(reason: str) -> bool:
         """Spend one bounded synthesis attempt, keeping the first on this model."""
-        nonlocal current_model_index, force_no_tools, pending_protocol_recovery_messages
+        nonlocal current_model_index, force_no_tools
         recovery_model = answer_recovery.next_model(current_model_id, models_to_try)
         if recovery_model is None:
             return False
         current_model_index = models_to_try.index(recovery_model)
         force_no_tools = True
-        pending_protocol_recovery_messages = None
         logger.warning(
             "%s [ANSWER_ONLY_RECOVERY] reason=%s attempt=%s model=%s; "
             "rebuilding final-answer context from completed evidence with tools disabled.",
@@ -5414,20 +5408,6 @@ async def handle_main_processing(
                         current_message_history,
                         max_tokens=current_history_budget,
                     )
-                if (
-                    pending_protocol_recovery_messages is not None
-                    and current_message_history[-len(pending_protocol_recovery_messages):]
-                    != pending_protocol_recovery_messages
-                ):
-                    logger.error(
-                        "%s [TOOL_PROTOCOL_GUARD] Model-specific history truncation split "
-                        "the recovery instruction from its context; refusing an orphaned continuation.",
-                        log_prefix,
-                    )
-                    for billing_event in await terminal_billing_usage_events():
-                        yield billing_event
-                    yield main_processing_failure("protocol_guard")
-                    return
                 current_output_token_limit = _orchestrated_ai_output_token_limit(
                     current_model_id,
                     request_data.orchestration_id,
@@ -5613,7 +5593,10 @@ async def handle_main_processing(
         if llm_stream is None:
             for billing_event in await terminal_billing_usage_events():
                 yield billing_event
-            yield main_processing_failure(preparation_failure_reason or "empty_post_tool_response")
+            yield main_processing_failure(
+                preparation_failure_reason
+                or ("protocol_guard" if protocol_guard_recovery_started else "empty_post_tool_response")
+            )
             break
 
         protocol_guard = ToolProtocolGuard()
@@ -6305,8 +6288,6 @@ async def handle_main_processing(
                 yield main_processing_failure("provider_exhausted")
                 break
 
-        pending_protocol_recovery_messages = None
-
         if iteration_usage is not None:
             usage = iteration_usage
             successful_model_id = current_model_id or preprocessing_results.selected_main_llm_model_id
@@ -6356,52 +6337,26 @@ async def handle_main_processing(
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
 
-        if answer_recovery.active and protocol_guard.detected and not tool_calls_for_this_turn:
-            if schedule_answer_recovery("protocol_guard"):
-                continue
-            for billing_event in await terminal_billing_usage_events():
-                yield billing_event
-            yield main_processing_failure("protocol_guard")
-            break
-
-        protocol_recovery_action = protocol_guard_recovery.action(
-            detected=protocol_guard.detected,
-            native_call_count=len(tool_calls_for_this_turn),
-            safe_text=final_buffered_text_for_turn,
-            has_retry_iteration=iteration < MAX_TOOL_CALL_ITERATIONS - 1,
-        )
         if protocol_guard.detected:
             logger.warning(
                 "%s [TOOL_PROTOCOL_GUARD] Suppressed model-generated tool protocol; "
-                "native_calls=%s safe_text_chars=%s recovery_action=%s",
+                "native_calls=%s safe_text_chars=%s recovery_attempts=%s",
                 log_prefix,
                 len(tool_calls_for_this_turn),
                 len(final_buffered_text_for_turn),
-                protocol_recovery_action,
+                answer_recovery.attempts,
             )
-            if protocol_recovery_action == "retry":
-                pending_protocol_recovery_messages = build_tool_protocol_recovery_messages(
-                    final_buffered_text_for_turn
-                )
-                current_message_history.extend(pending_protocol_recovery_messages)
-                force_no_tools = True
-                logger.info(
-                    "%s [TOOL_PROTOCOL_GUARD] Retrying the guarded answer once "
-                    "with tools disabled.",
-                    log_prefix,
-                )
-                continue
-            if protocol_recovery_action == "failure":
+            if not tool_calls_for_this_turn:
+                # Disabling tools alone retains the prompt that elicited the
+                # fabricated protocol. Rebuild clean answer-only context instead.
+                protocol_guard_recovery_started = True
+                if schedule_answer_recovery("protocol_guard"):
+                    continue
                 logger.error(
-                    "%s [TOOL_PROTOCOL_GUARD] Continuation was unavailable or guarded again; "
+                    "%s [TOOL_PROTOCOL_GUARD] Answer-only recovery was exhausted; "
                     "preserving published safe text and marking the response failed.",
                     log_prefix,
                 )
-                for billing_event in await terminal_billing_usage_events():
-                    yield billing_event
-                yield main_processing_failure("protocol_guard")
-                break
-            if protocol_recovery_action == "error":
                 for billing_event in await terminal_billing_usage_events():
                     yield billing_event
                 yield main_processing_failure("protocol_guard")

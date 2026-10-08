@@ -5,6 +5,8 @@
 import pytest
 
 from backend.apps.ai.testing.capacity_fixtures import generate_fixture, should_fail_child_prompt_save
+from backend.apps.ai.utils.answer_recovery import ANSWER_RECOVERY_INSTRUCTION
+from backend.apps.ai.utils.tool_protocol_guard import TOOL_PROTOCOL_CONTINUATION_PROMPT
 from backend.shared.testing.mock_context import sign_live_marker
 
 
@@ -14,7 +16,15 @@ def _response(scenario: str) -> dict:
             f"STORAGE_CAPACITY_SCENARIO:{scenario}"}], "tools": [],
     })
     assert result is not None
-    return result["response"]
+    response = result["response"]
+    assert response["type"] == "mixed_stream"
+    return {
+        **response,
+        "body": "".join(
+            chunk["value"] for chunk in response["chunks"]
+            if chunk.get("kind") == "text" and isinstance(chunk.get("value"), str)
+        ),
+    }
 
 
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
@@ -37,6 +47,55 @@ def test_recovery_fixture_checkpoint_and_failure_paths_remain_synthetic() -> Non
     })
     assert failure is not None
     assert failure["response"]["chunks"][0]["value"]["function_name"] == "start_sub_chats"
+
+
+# contract-test-file: infrastructure
+def test_protocol_fixture_requires_clean_answer_only_recovery() -> None:
+    request = {"role": "user", "content": "STORAGE_CAPACITY_SCENARIO:recovery_protocol"}
+    initial = generate_fixture("llm/gemini", {
+        "model": "gemini-test", "messages": [request],
+        "tools": [{"function": {"name": "web-search"}}],
+    })
+    assert initial is not None
+    initial_chunks = initial["response"]["chunks"]
+    assert initial_chunks[0]["value"].startswith("Verified prefix:")
+    assert "```toon" in initial_chunks[1]["value"]
+    assert not any(chunk.get("value", {}).get("function_name") == "web-search"
+                   for chunk in initial_chunks if isinstance(chunk.get("value"), dict))
+
+    initial_empty_tools = generate_fixture("llm/gemini", {
+        "model": "gemini-test", "messages": [request], "tools": [],
+    })
+    assert initial_empty_tools is not None
+    empty_tool_chunks = initial_empty_tools["response"]["chunks"]
+    assert empty_tool_chunks[0]["value"].startswith("Verified prefix:")
+    assert "```toon" in empty_tool_chunks[1]["value"]
+
+    initial_no_tools = generate_fixture("llm/gemini", {
+        "model": "gemini-test", "messages": [request], "tools": None,
+    })
+    assert initial_no_tools is not None
+    no_tool_chunks = initial_no_tools["response"]["chunks"]
+    assert no_tool_chunks[0]["value"].startswith("Verified prefix:")
+    assert "```toon" in no_tool_chunks[1]["value"]
+
+    old_retry = generate_fixture("llm/gemini", {
+        "model": "gemini-test", "messages": [request, {
+            "role": "user", "content": TOOL_PROTOCOL_CONTINUATION_PROMPT,
+        }], "tools": None,
+    })
+    assert old_retry is not None
+    retry_chunks = old_retry["response"]["chunks"]
+    assert retry_chunks[0]["value"].startswith("Verified prefix:")
+    assert "```toon" in retry_chunks[1]["value"]
+
+    clean = generate_fixture("llm/gemini", {
+        "model": "gemini-test", "messages": [request, {
+            "role": "system", "content": ANSWER_RECOVERY_INSTRUCTION,
+        }], "tools": None,
+    })
+    assert clean is not None
+    assert clean["response"]["chunks"][0]["value"] == "The safe continuation is complete."
 
 
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
