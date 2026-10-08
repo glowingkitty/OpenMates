@@ -508,3 +508,75 @@ def test_fork_initializes_missing_title_version_without_rewriting_ciphertext(tit
     assert normalized["title_v"] == (int(bool(encrypted_title)) if title_version in ("missing", None) else title_version)
     assert normalized["encrypted_title"] == encrypted_title
     assert payload.encrypted_chat_metadata == metadata
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local,teams.membership.role-gated
+@pytest.mark.anyio
+async def test_personal_chat_read_rejects_team_chat_even_for_its_creator() -> None:
+    chat_service = SimpleNamespace(
+        check_chat_ownership=AsyncMock(return_value=True),
+        get_chat_metadata=AsyncMock(return_value={
+            "id": "team-chat", "hashed_team_id": hashlib.sha256(b"team-1").hexdigest(),
+            "hashed_user_id": hashlib.sha256(b"creator").hexdigest(),
+        }),
+        get_all_messages_for_chat=AsyncMock(),
+    )
+    with pytest.raises(HTTPException) as denied:
+        await list_chat_messages(
+            chat_id="team-chat", request=_request(chat_service), team_id=None,
+            current_user=SimpleNamespace(id="creator"),
+        )
+    assert denied.value.status_code == 404
+    chat_service.get_all_messages_for_chat.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local,teams.membership.role-gated
+@pytest.mark.anyio
+async def test_team_chat_read_rejects_other_team_context_before_reading_messages() -> None:
+    chat_service = SimpleNamespace(
+        get_chat_metadata=AsyncMock(return_value={
+            "id": "team-chat", "hashed_team_id": hashlib.sha256(b"team-1").hexdigest(),
+        }),
+        get_all_messages_for_chat=AsyncMock(),
+    )
+    with pytest.raises(HTTPException) as denied:
+        await list_chat_messages(
+            chat_id="team-chat", request=_request(chat_service), team_id="team-2",
+            current_user=SimpleNamespace(id="creator"),
+        )
+    assert denied.value.status_code == 404
+    chat_service.get_all_messages_for_chat.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=teams.chat.sender-identity-layout,teams.context.full-switch-local,chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_team_message_read_preserves_author_hash_without_plaintext_and_checks_membership_first() -> None:
+    team_hash = hashlib.sha256(b"team-1").hexdigest()
+    author_hash = hashlib.sha256(b"author-1").hexdigest()
+    chat_service = SimpleNamespace(
+        get_chat_metadata=AsyncMock(return_value={"id": "team-chat", "hashed_team_id": team_hash}),
+        get_all_messages_for_chat=AsyncMock(return_value=[{
+            "id": "message-1", "chat_id": "team-chat", "role": "user",
+            "hashed_user_id": author_hash, "encrypted_content": "cipher-human-message",
+            "encrypted_sender_name": "cipher-author", "content": "private text", "sender_name": "Alice",
+        }]),
+    )
+    membership = SimpleNamespace(require_team_role=AsyncMock())
+    request = _request(chat_service, team_service=membership)
+    result = await list_chat_messages("team-chat", request, team_id="team-1",
+                                      current_user=SimpleNamespace(id="member-1"))
+    assert result[0]["hashed_user_id"] == author_hash
+    assert result[0]["encrypted_content"] == "cipher-human-message"
+    assert result[0]["encrypted_sender_name"] == "cipher-author"
+    assert "content" not in result[0]
+    assert "sender_name" not in result[0]
+    membership.require_team_role.assert_awaited_once()
+    chat_service.get_all_messages_for_chat.reset_mock()
+    chat_service.get_chat_metadata.reset_mock()
+    membership.require_team_role.side_effect = HTTPException(status_code=403, detail="Membership required")
+    with pytest.raises(HTTPException) as error:
+        await list_chat_messages("team-chat", request, team_id="team-1",
+                                current_user=SimpleNamespace(id="outsider"))
+    assert error.value.status_code == 403
+    chat_service.get_chat_metadata.assert_not_awaited()
+    chat_service.get_all_messages_for_chat.assert_not_awaited()

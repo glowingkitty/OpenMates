@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 
-from backend.core.api.app.services.directus.user_task_methods import TaskAlreadyLinkedError
+from backend.core.api.app.services.directus.user_task_methods import TaskAlreadyLinkedError, hash_id
 from backend.apps.ai.processing.task_proposals import extract_review_task_proposals
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_task_ask_pipeline
 from backend.core.api.app.models.user import User
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 TaskStatus = Literal["backlog", "todo", "in_progress", "blocked", "done"]
 AssigneeType = Literal["user", "openmates", "external_ai", "unassigned"]
 AssigneeIdentity = Literal["openmates", "codex"]
-KeyWrapperType = Literal["master", "chat", "project", "plan"]
+KeyWrapperType = Literal["master", "chat", "project", "plan", "team"]
 ExternalChatProvider = Literal["codex"]
 BlockedReasonCode = Literal[
     "needs_user_input",
@@ -66,12 +66,15 @@ class UserTaskKeyWrapperRequest(BaseModel):
     hashed_chat_id: str | None = None
     hashed_project_id: str | None = None
     hashed_plan_id: str | None = None
+    hashed_team_id: str | None = None
+    team_key_epoch: int | None = None
     created_at: int
     expires_at: int | None = None
 
 
 class UserTaskCreateRequest(BaseModel):
     task_id: str = Field(min_length=1)
+    team_id: str | None = None
     encrypted_task_key: str | None = None
     encrypted_title: str = Field(min_length=1)
     encrypted_slug: str | None = Field(default=None, min_length=1)
@@ -354,6 +357,27 @@ async def _require_task_team_role(request: Request, user_id: str, team_id: str |
         await request.app.state.directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
 
 
+async def _validate_task_create_context(request: Request, user_id: str, body: UserTaskCreateRequest, service: UserTaskService) -> None:
+    await _require_task_team_role(request, user_id, body.team_id)
+    for linked_project_id in body.linked_project_ids:
+        project = await request.app.state.directus_service.project.get_project(
+            linked_project_id, user_id, body.team_id
+        )
+        if not project:
+            raise ValueError("Task project must belong to the selected workspace")
+    if body.parent_task_id and not await service.task_methods.get_task(
+        body.parent_task_id, user_id, body.team_id
+    ):
+        raise ValueError("Task parent must belong to the selected workspace")
+    if body.team_id:
+        if not any(wrapper.key_type == "team" for wrapper in body.key_wrappers):
+            raise ValueError("Team task requires a Team key wrapper")
+        if body.primary_chat_id:
+            chat = await request.app.state.directus_service.chat.get_chat_metadata(body.primary_chat_id)
+            if not chat or chat.get("hashed_team_id") != hash_id(body.team_id):
+                raise ValueError("Task chat must belong to the selected Team")
+
+
 def _handle_task_error(exc: Exception) -> None:
     if isinstance(exc, TeamPermissionError):
         raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
@@ -614,8 +638,13 @@ async def list_user_tasks(
     if paginate:
         tasks = tasks[:limit]
     next_cursor = tasks[-1]["task_id"] if paginate and not complete else None
+    if team_id:
+        wrappers_by_task = await service.task_methods.list_team_task_key_wrappers(
+            team_id, [task["task_id"] for task in tasks],
+        )
+        tasks = [{**task, "encrypted_task_key": None, "key_wrappers": wrappers_by_task.get(task["task_id"], [])} for task in tasks]
     projections = []
-    if (not paginate or (cursor is None and team_id is None)) and not any((chat_id, external_chat_provider, external_chat_lookup_hash, project_id, assignee_hash, label_hash_values, priority_value is not None, due_before is not None)):
+    if team_id is None and (not paginate or cursor is None) and not any((chat_id, external_chat_provider, external_chat_lookup_hash, project_id, assignee_hash, label_hash_values, priority_value is not None, due_before is not None)):
         projections = await run_in_threadpool(workflow_projection_service.list_projections, current_user.id)
         if status is not None:
             projections = [projection for projection in projections if projection.status == status]
@@ -657,6 +686,7 @@ async def create_user_task(
                 raise HTTPException(status_code=403, detail="TASK_CREATOR_SESSION_REQUIRED")
             if body.external_chat_provider != creator:
                 raise HTTPException(status_code=400, detail="TASK_CREATOR_CONTEXT_REQUIRED")
+        await _validate_task_create_context(request, current_user.id, body, service)
         if not creator:
             await _require_external_assignment_eligibility(service.task_methods, current_user.id, body.model_dump())
         if body.plan_id and body.assignee_type == "openmates":
@@ -746,6 +776,7 @@ async def ask_user_tasks(
         action_type = "ask_create"
         summary = ""
         for encrypted_create in encrypted_creates:
+            await _validate_task_create_context(request, current_user.id, encrypted_create, service)
             await _require_external_assignment_eligibility(service.task_methods, current_user.id, encrypted_create.model_dump())
             if encrypted_create.plan_id and encrypted_create.assignee_type == "openmates":
                 await _ensure_linked_plan_execution(request, current_user.id, encrypted_create.model_dump())
@@ -1016,6 +1047,9 @@ async def get_user_task(
         task = await service.task_methods.get_task(task_id, current_user.id, team_id)
         if not task:
             raise HTTPException(status_code=404, detail="TASK_NOT_FOUND")
+        if team_id:
+            wrappers_by_task = await service.task_methods.list_team_task_key_wrappers(team_id, [task_id])
+            task = {**task, "encrypted_task_key": None, "key_wrappers": wrappers_by_task.get(task_id, [])}
         # Owner-scoped assignment provenance belongs to the authorized task
         # response, so detail clients never need an unrelated list record.
         try:
@@ -1192,11 +1226,14 @@ async def delete_user_task(
             return {"deleted": True, "task_id": task_id, "workflow_run": skipped_projection}
         before = await service.task_methods.get_task(task_id, current_user.id, team_id)
         if team_id:
-            raise ValueError("Team work-control task deletion is not supported in this slice")
-        async with _work_control_service(request, current_user.id).delete_guard(f"task:{task_id}") as lease:
-            if lease is not None:
-                await lease.assert_held()
+            if before and before.get("plan_id"):
+                raise ValueError("Team task with a linked plan cannot be deleted here")
             deleted = await service.task_methods.delete_task(task_id, current_user.id, version, team_id=team_id)
+        else:
+            async with _work_control_service(request, current_user.id).delete_guard(f"task:{task_id}") as lease:
+                if lease is not None:
+                    await lease.assert_held()
+                deleted = await service.task_methods.delete_task(task_id, current_user.id, version, team_id=team_id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Task not found")
         history = await _record_task_history(
@@ -1231,12 +1268,14 @@ async def complete_user_task(
         await _require_task_team_role(request, current_user.id, body.team_id)
         before = await queue_service.task_methods.get_task(task_id, current_user.id, body.team_id)
         if body.team_id:
-            raise ValueError("Team work-control task completion is not supported in this slice")
-        blockers = await _work_control_service(request, current_user.id).dependency_blockers(f"task:{task_id}")
-        if blockers:
-            raise ValueError(f"Task completion is blocked: {blockers}")
-        if before:
-            await _ensure_linked_plan_execution(request, current_user.id, before)
+            if before and before.get("plan_id"):
+                raise ValueError("Team task with a linked plan cannot be completed here")
+        else:
+            blockers = await _work_control_service(request, current_user.id).dependency_blockers(f"task:{task_id}")
+            if blockers:
+                raise ValueError(f"Task completion is blocked: {blockers}")
+            if before:
+                await _ensure_linked_plan_execution(request, current_user.id, before)
         task = await queue_service.complete_task(task_id, current_user.id, version=body.version, team_id=body.team_id)
         history = await _record_task_history(
             history_service,
@@ -1421,10 +1460,17 @@ async def list_user_task_key_wrappers(
     request: Request,
     response: Response,
     task_id: str,
+    team_id: str | None = Query(default=None),
     service: UserTaskService = Depends(get_user_task_service),
 ) -> dict[str, Any]:
-    current_user = await _current_user(request, response)
-    existing = await service.task_methods.get_task(task_id, current_user.id)
-    if not existing:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return {"key_wrappers": await service.task_methods.list_task_key_wrappers(current_user.id, task_id)}
+    current_user = await _current_session_user(request, response)
+    team_id = _unwrap_query_default(team_id)
+    try:
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        existing = await service.task_methods.get_task(task_id, current_user.id, team_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return {"key_wrappers": await service.task_methods.list_task_key_wrappers(current_user.id, task_id, team_id=team_id)}
+    except Exception as exc:
+        _handle_task_error(exc)

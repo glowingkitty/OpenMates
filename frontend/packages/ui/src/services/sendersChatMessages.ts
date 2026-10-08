@@ -48,6 +48,10 @@ import {
 } from "./projectFocusSendPreflight";
 import { deactivateProjectFocus, listProjects } from "./projectService";
 import { stageTeamNotificationPreview } from "./teamNotificationPreview";
+import { assertNoOmittedTeamTurns, loadLocalSavedHistoryForSend, loadTeamAIHistory } from "./teamAIHistory";
+import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+import { getActiveTeamContextSnapshot } from "../stores/teamStore";
+import { activeChatStore } from "../stores/activeChatStore";
 import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } from "./ordinaryTeamPreflightRetry";
 import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement } from "./preflightAcknowledgement";
 export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
@@ -749,6 +753,7 @@ export async function sendNewMessageImpl(
 	encryptedSuggestionToDelete?: string | null,
 	connectedAccountContext?: PreparedConnectedAccountSendContext,
 	projectFocusIntent?: ProjectFocusSendIntent,
+	newLocalChat?: boolean,
 ): Promise<void> {
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
 	// Check WebSocket connection status using public getter
@@ -834,6 +839,23 @@ export async function sendNewMessageImpl(
 	if (!chat) {
 		chat = await chatDB.getChat(message.chat_id);
 	}
+	const sendWorkspaceIdentity = getWorkspaceCacheIdentity();
+	const sendTeamContext = getActiveTeamContextSnapshot();
+	const sendActiveChatId = activeChatStore.get();
+	let newChatActivated = sendActiveChatId === message.chat_id;
+	const assertTeamSendScope = () => {
+		const activeChatId = activeChatStore.get();
+		if (newLocalChat && activeChatId === message.chat_id) newChatActivated = true;
+		if (!chat?.team_id || !sendWorkspaceIdentity || sendTeamContext.teamId !== chat.team_id
+			|| (!newLocalChat && sendActiveChatId !== null && sendActiveChatId !== message.chat_id)
+			|| getWorkspaceCacheIdentity() !== sendWorkspaceIdentity
+			|| getActiveTeamContextSnapshot().epoch !== sendTeamContext.epoch
+			|| (newLocalChat
+				? (activeChatId !== message.chat_id && (newChatActivated || activeChatId !== sendActiveChatId))
+				: activeChatId !== sendActiveChatId)) {
+			throw new Error("Team AI history scope changed before send");
+		}
+	};
 
 	// Personal and incognito turns always invoke AI; preserve their early gate.
 	if ((!chat?.team_id || isIncognitoChat) && await blockSendWithoutConfiguredAiModels(serviceInstance, message)) return;
@@ -1328,10 +1350,9 @@ export async function sendNewMessageImpl(
 		});
 	}
 
-	// Load local history up front for chats whose earlier turns may not be in the
-	// server-side AI cache. The durable preflight commitment must cover this
-	// history on the original request; adding it later via request_chat_history
-	// would require a second preflight for an already-committed user message.
+	// Personal and incognito AI turns keep their existing local history. Team
+	// turns skip this potentially expensive IDB decryption entirely; explicit
+	// Team invocations hydrate the authoritative transcript below.
 	let messageHistory: Message[] = [];
 	if (isIncognitoChat) {
 		try {
@@ -1347,9 +1368,10 @@ export async function sendNewMessageImpl(
 		}
 	} else {
 		try {
-			const localHistory = await chatDB.getMessagesForChat(message.chat_id);
-			if (localHistory.length > 1) {
-				messageHistory = localHistory;
+			messageHistory = await loadLocalSavedHistoryForSend(
+				message.chat_id, chat?.team_id, (id) => chatDB.getMessagesForChat(id)
+			);
+			if (messageHistory.length > 0) {
 				console.debug(
 					`[ChatSyncService:Senders] Loaded ${messageHistory.length} local messages for durable saved-chat history`
 				);
@@ -2098,6 +2120,28 @@ export async function sendNewMessageImpl(
 		});
 		let preflightInferenceRequest: SendMessagePayload = payload;
 		if (chat?.team_id) {
+			// A bounded IDB window cannot prove complete Team history after a cold
+			// sync or page eviction. Hydrate authorized ciphertext only on invocation.
+			if (shouldInvokeTeamAI) {
+				assertTeamSendScope();
+				// The initial Team chat exists only in IDB until preflight commits it.
+				// A draft shell follows the same path. Never treat a later 404 as
+				// empty history, even when its local cache is bounded or evicted.
+				const allowMissingInitialChat = newLocalChat === true
+					&& chat.messages_v === 1
+					&& await chatDB.getMessageCountForChat(message.chat_id) === 1
+					&& !!(await chatDB.getMessage(message.message_id));
+				assertTeamSendScope();
+				messageHistory = await loadTeamAIHistory({
+					chatId: message.chat_id, teamId: chat.team_id,
+					currentMessageId: message.message_id, chatKey,
+					assertScope: assertTeamSendScope,
+					allowMissingInitialChat,
+				});
+				const localTeamHistory = await chatDB.getMessagesForChat(message.chat_id);
+				assertTeamSendScope();
+				assertNoOmittedTeamTurns(localTeamHistory, messageHistory, message.message_id);
+			}
 			const teamTransport = buildTeamMessageTransport({
 				message,
 				content: contentForServer,
@@ -2121,6 +2165,7 @@ export async function sendNewMessageImpl(
 				delete payload.active_focus_id;
 			}
 			if (shouldInvokeTeamAI) {
+				assertTeamSendScope();
 				payload.team_ai_invocation = teamTransport.teamAIInvocation;
 				preflightInferenceRequest = {
 					...payload,
@@ -2185,6 +2230,7 @@ export async function sendNewMessageImpl(
 		}
 		if (!chat?.team_id || shouldInvokeTeamAI) {
 			try {
+				if (shouldInvokeTeamAI) assertTeamSendScope();
 				const { userDB } = await import("./userDB");
 				const accountId = (await userDB.getUserProfile())?.user_id;
 				if (!accountId) throw new Error("Durable turn preflight requires an authenticated account.");
@@ -2226,6 +2272,7 @@ export async function sendNewMessageImpl(
 		}
 		try {
 			const { preflight_id } = await runSerializedPreflight(async () => {
+				if (shouldInvokeTeamAI) assertTeamSendScope();
 				const acknowledgement = waitForPreflightAcknowledgement(
 					turnId, webSocketService, recordPreflightDebugStep
 				);
@@ -2286,6 +2333,7 @@ export async function sendNewMessageImpl(
 	// OTel: WebSocket dispatch span — the actual send over the wire
 	const wsDispatchSpan = tracer.startSpan('message.send.websocket_dispatch');
 	try {
+		if (shouldInvokeTeamAI) assertTeamSendScope();
 		await webSocketService.sendMessage("chat_message_added", payload);
 	} catch (error) {
 		console.error(

@@ -18,6 +18,7 @@ TEAM_EVENT_ALLOWED_FIELDS = {
             "chat_id",
             "message_id",
             "role",
+            "hashed_user_id",
             "encrypted_content",
             "encrypted_sender_name",
             "created_at",

@@ -5,7 +5,9 @@
 #
 # Spec: docs/specs/workflows-v1/spec.yml
 
+import hashlib
 import json
+from copy import deepcopy
 from typing import Any
 
 import pytest
@@ -27,8 +29,11 @@ from backend.core.api.app.services.workflow_service import (
     WORKFLOW_TEMPORARY_TTL_SECONDS,
     WorkflowFeatureDisabledError,
     WorkflowService,
+    WorkflowTeamExecutionUnavailableError,
+    _hash_owner_id,
 )
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.tests.workflow_test_utils import workflow_service
 
 
@@ -103,6 +108,8 @@ class FakeDirectusClient:
                 return False
             if condition.get("_neq") is not None and row.get(field) == condition["_neq"]:
                 return False
+            if condition.get("_null") is True and row.get(field) is not None:
+                return False
         return True
 
 
@@ -124,6 +131,9 @@ class FakeVaultEncryptionService:
         if stored is None or stored[1] != key_id:
             return None
         return stored[0]
+
+    async def encrypt_many_with_user_key(self, plaintexts: list[str], key_id: str) -> list[tuple[str, str]]:
+        return [await self.encrypt_with_user_key(plaintext, key_id) for plaintext in plaintexts]
 
 
 def rain_graph() -> dict:
@@ -263,6 +273,53 @@ def test_workflow_service_enforces_owner_isolation() -> None:
         service.get_workflow(workflow.id, "bob")
 
 
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local
+def test_workflow_creation_is_scoped_to_selected_team() -> None:
+    service = workflow_service()
+    personal = service.create_workflow("alice", "Personal", rain_graph())
+    team_a = service.create_workflow("alice", "Team A", rain_graph(), team_id="team-a")
+    team_b = service.create_workflow("alice", "Team B", rain_graph(), team_id="team-b")
+
+    assert [item.id for item in service.list_workflows("alice")] == [personal.id]
+    assert [item.id for item in service.list_workflows("alice", team_id="team-a")] == [team_a.id]
+    assert [item.id for item in service.list_workflows("alice", team_id="team-b")] == [team_b.id]
+    with pytest.raises(KeyError):
+        service.get_workflow(team_a.id, "alice")
+    with pytest.raises(KeyError):
+        service.get_workflow(team_a.id, "alice", team_id="team-b")
+    assert service.get_workflow(team_a.id, "alice", team_id="team-a").id == team_a.id
+    assert service.get_workflow(team_a.id, "bob", team_id="team-a").id == team_a.id
+    edited = service.update_workflow(team_a.id, "bob", title="Shared workflow", team_id="team-a")
+    assert edited.title == "Shared workflow"
+    assert service.get_workflow(team_a.id, "alice", team_id="team-a").title == "Shared workflow"
+    service.delete_workflow(team_a.id, "bob", team_id="team-a")
+    assert service.list_workflows("alice", team_id="team-a") == []
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local
+def test_team_workflow_activation_refuses_without_changing_record_or_trigger() -> None:
+    repository = InMemoryWorkflowRepository()
+    service = workflow_service(repository=repository)
+    workflow = service.create_workflow("alice", "Team schedule", rain_graph(), team_id="team-a")
+    before_record = deepcopy(repository.workflows[workflow.id])
+    before_trigger = deepcopy(repository.triggers)
+
+    with pytest.raises(WorkflowTeamExecutionUnavailableError):
+        service.update_workflow(workflow.id, "alice", enabled=True, team_id="team-a")
+    assert repository.workflows[workflow.id] == before_record
+    assert repository.triggers == before_trigger
+    with pytest.raises(WorkflowTeamExecutionUnavailableError):
+        service.create_workflow("alice", "Second schedule", rain_graph(), enabled=True, team_id="team-a")
+    assert [item.id for item in service.list_workflows("alice", team_id="team-a")] == [workflow.id]
+
+    # A previously moved enabled Team record can still be disabled safely.
+    repository.workflows[workflow.id]["enabled"] = True
+    disabled = service.update_workflow(workflow.id, "alice", enabled=False, team_id="team-a")
+    assert disabled.enabled is False
+    assert next(trigger for trigger in repository.triggers.values()
+                if trigger["workflow_id"] == workflow.id)["enabled"] is False
+
+
 # contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained
 def test_workflow_definition_rows_store_sensitive_content_as_encrypted_blob_refs() -> None:
     repository = InMemoryWorkflowRepository()
@@ -328,6 +385,79 @@ def test_directus_workflow_repository_persists_workflow_records_without_plaintex
     assert "Berlin" not in raw_workflow_rows
     assert "Daily rain alert" not in raw_blob_rows
     assert "Berlin" not in raw_blob_rows
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local
+def test_team_member_durable_edit_preserves_creator_owner_and_each_blob_vault_key(monkeypatch) -> None:
+    repository = DirectusWorkflowRepository(base_url="http://directus.test", token="test-token")
+    fake_client = FakeDirectusClient()
+    setattr(repository, "_client", fake_client)
+    transaction = InMemoryWorkflowRepository()
+    encryption = FakeVaultEncryptionService()
+
+    def fake_authoring_request(method, path, *, payload=None):
+        result = transaction.authoring_request(method, path, payload=payload)
+        if path == "/":
+            for item in payload["writes"]:
+                record = item["record"]
+                fake_client.collections.setdefault("workflows", {})[record["id"]] = {
+                    "id": record["id"], "workflow_id": record["id"],
+                    "hashed_user_id": record["owner_hash"], "hashed_team_id": record.get("hashed_team_id"),
+                    "status": record["status"], "record_json": record,
+                }
+            for blob in payload["blobs"]:
+                fake_client.collections.setdefault("workflow_encrypted_blobs", {})[blob["ref"]] = {
+                    "id": blob["ref"], "ref": blob["ref"], "hashed_user_id": blob["owner_hash"],
+                    "kind": blob["kind"], "ciphertext": blob["ciphertext"],
+                    "checksum": blob["checksum"], "vault_key_ref": blob.get("vault_key_ref"),
+                    "key_version": blob.get("key_version"), "created_at": blob["created_at"],
+                }
+        return result
+
+    monkeypatch.setattr(repository, "authoring_request", fake_authoring_request)
+    service = WorkflowService(repository=repository, payload_cipher=VaultWorkflowPayloadCipher(encryption))
+    blank_graph = {"version": 1, "trigger_node_id": None, "nodes": [], "edges": []}
+    created = service.create_workflow("alice", "Shared", blank_graph, vault_key_id="alice-key", team_id="team-a")
+    old_ref = fake_client.collections["workflows"][created.id]["record_json"]["encrypted_title_ref"]
+    updated = service.update_workflow(created.id, "bob", title="Edited by Bob", vault_key_id="bob-key", team_id="team-a")
+
+    assert updated.title == "Edited by Bob"
+    assert service.get_workflow(created.id, "alice", "alice-key", "team-a").title == "Edited by Bob"
+    assert service.get_workflow(created.id, "bob", "bob-key", "team-a").title == "Edited by Bob"
+    record = fake_client.collections["workflows"][created.id]["record_json"]
+    blobs = fake_client.collections["workflow_encrypted_blobs"]
+    assert record["owner_hash"] == _hash_owner_id("alice")
+    assert {blob["hashed_user_id"] for blob in blobs.values()} == {_hash_owner_id("alice")}
+    assert blobs[old_ref]["vault_key_ref"] == "alice-key"
+    assert blobs[record["encrypted_title_ref"]]["vault_key_ref"] == "bob-key"
+    with pytest.raises(KeyError):
+        service.get_workflow(created.id, "alice", "alice-key")
+    with pytest.raises(KeyError):
+        service.get_workflow(created.id, "bob", "bob-key")
+    with pytest.raises(KeyError):
+        service.get_workflow(created.id, "bob", "bob-key", "team-b")
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local
+def test_queued_workflow_commit_requires_current_team_write_role() -> None:
+    repository = DirectusWorkflowRepository(base_url="http://directus.test", token="test-token")
+    client = FakeDirectusClient()
+    repository._client = client
+    team_hash = hashlib.sha256(b"team-a").hexdigest()
+    user_hash = hashlib.sha256(b"alice").hexdigest()
+    membership = {"id": "member-1", "hashed_team_id": team_hash, "hashed_user_id": user_hash,
+                  "status": "active", "role": "member"}
+    team = {"id": "team-1", "hashed_team_id": team_hash, "status": "active"}
+    client.collections["team_memberships"] = {"member-1": membership}
+    client.collections["teams"] = {"team-1": team}
+    repository.require_team_write_role("team-a", "alice")
+    membership["role"] = "viewer"
+    with pytest.raises(TeamPermissionError):
+        repository.require_team_write_role("team-a", "alice")
+    membership["role"] = "member"
+    team["status"] = "deleted"
+    with pytest.raises(TeamPermissionError):
+        repository.require_team_write_role("team-a", "alice")
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible

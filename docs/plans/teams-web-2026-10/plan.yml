@@ -1,12 +1,12 @@
 schema_version: 2
 profile: concise
-status: verified
+status: implementing
 id: teams-web-2026-10
 title: Teams web implementation from updated Figma
 goal: "Implement and test the teams web app implementation after reviewing the updated Figma, CLI and team specification and resolving the user’s clarifying questions."
 specification_refs:
   - id: feature.teams
-    version: 2
+    version: 3
     role: primary
 scope:
   - Updated Teams creation, avatar, overview, security, member and billing settings.
@@ -16,6 +16,8 @@ scope:
   - Personal and Team optional buyer addresses, CLI purchase support, Team invoices, cards and auto-top-up.
   - Context-safe encrypted best-effort caching, configurable 100 MiB target, protected pending data and quota recovery.
   - Logout plaintext staging purge and decrypted image/audio context-switch cleanup.
+  - Team-scoped loading and persisted creation of chats, projects, tasks and workflows, with obsolete async completions fenced.
+  - Human Team collaboration without AI processing, explicit OpenMates/configured Mate invocation, and full-history speaker attribution.
 decisions:
   authorization: Seven sequential clarification answers and final explicit instruction to proceed authorize this scope; no repeat approval round.
   figma: "PzgE78TVxG0eWuEeO6o8ve:6118:63631 and 6170:68021, inspected via Figma API on 2026-10-06."
@@ -25,6 +27,8 @@ decisions:
   billing: Normal qualifying small-invoice addresses optional for Personal and Teams; Team fields initially visible, Personal collapsed.
   offline: Best-effort cached content; reliable cold-start offline shell and permanent retention are outside this implementation.
   images: Reuse Personal cropping, resizing, Sightengine and account-safety consequences.
+  team_ai_followup: "2026-10-08 user explicitly requests real two-human conversation followed by OpenMates and configured Mate invocation, with ordinary turns skipping all AI stages and invoked history preserving human speakers."
+  context_followup: "2026-10-08 user audit found missing Team scope in Projects, Tasks and Workflows loading/creation, plus chat send and Personal read boundary gaps; fix and prove actual resource ownership in isolated CI."
 verification:
   required:
     - Focused backend, web and CLI/SDK unit/lint checks.

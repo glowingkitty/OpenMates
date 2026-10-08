@@ -123,12 +123,20 @@ export async function saveWorkflowToProjectTarget(
   target: ProjectCreationTarget,
   workflowId: string,
   workflowTitle: string,
+  isCurrent: () => boolean = () => true,
 ): Promise<void> {
+  const assertCurrent = () => {
+    if (!isCurrent()) throw new Error('Workflow context changed before Project association.');
+  };
+  assertCurrent();
   const context = { teamId: target.teamId ?? null };
   const project = await getProject(target.projectId, context);
+  assertCurrent();
   const sources = await listProjectSources(project, context);
+  assertCurrent();
   const remoteSources = sources.filter(source => source.source_type.startsWith('remote_') || source.sourceSessionId);
   const contents = await getProjectContents(project, context);
+  assertCurrent();
   const existing = contents.items.find(item => item.item_type === 'workflow' && item.target_id === workflowId);
   const priorBinding = existing?.metadata.remote_workflow_file as WorkflowRemoteFileBinding | undefined;
   const sourceId = priorBinding?.source_id || target.sourceId;
@@ -141,12 +149,17 @@ export async function saveWorkflowToProjectTarget(
     const binding = priorBinding?.source_id ? priorBinding : { project_id: project.project_id, source_id: source?.source_id ?? '', folder_path: target.folderPath ?? '' };
     metadata = { ...metadata, remote_workflow_file: binding, remote_file_status: 'pending' };
     if (source) {
-      const { workflow } = await workflowApiRequest<{ workflow: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}`);
-      const result = await saveRemote(project, workflow, binding, target.teamId);
+      const workflowPath = `/v1/workflows/${encodeURIComponent(workflowId)}`;
+      const scopedWorkflowPath = target.teamId ? `${workflowPath}?team_id=${encodeURIComponent(target.teamId)}` : workflowPath;
+      const { workflow } = await workflowApiRequest<{ workflow: WorkflowDetail }>(scopedWorkflowPath);
+      assertCurrent();
+      const result = await saveRemote(project, workflow, binding, target.teamId, assertCurrent);
+      assertCurrent();
       metadata = { ...metadata, remote_workflow_file: result.binding, remote_file_status: result.status, remote_file_error: result.error };
       if (result.status !== 'saved') pending = result.error ?? result.status;
     } else pending = 'source_selection_required';
   }
+  assertCurrent();
   if (existing) await updateProjectItemMetadata(project, existing.project_item_id, metadata, context);
   else await addExistingTargetToProject(
     project,
@@ -179,27 +192,37 @@ function workflowRouteChatId(workflowId: string): string | null {
   return getHashParam(hash, 'chat-id') || null;
 }
 
-async function saveRemote(project: ProjectViewModel, workflow: WorkflowDetail, binding: WorkflowRemoteFileBinding, teamId?: string | null) {
+async function saveRemote(project: ProjectViewModel, workflow: WorkflowDetail, binding: WorkflowRemoteFileBinding, teamId?: string | null, assertCurrent: () => void = () => undefined) {
   const context = { teamId: teamId ?? null };
   const source = (await listProjectSources(project, context)).find(item => item.source_id === binding.source_id);
+  assertCurrent();
   if (source?.status === 'offline') return { status: 'pending' as const, binding, error: 'source_offline' };
   if (binding.project_id !== project.project_id) return { status: 'pending' as const, binding, error: 'project_focus_required' };
   const chatId = activeChatStore.get() || workflowRouteChatId(workflow.id);
   const focus = chatId ? await getActiveProjectFocus(chatId) : null;
+  assertCurrent();
   if (!source || !chatId || focus?.project_id !== project.project_id) return { status: 'pending' as const, binding, error: 'project_focus_required' };
   return persistWorkflowRemoteFile({ workflow, binding, expectedVersionId: workflow.current_version_id,
     serialize: stringify,
     operationId: crypto.randomUUID(),
-    currentVersion: async () => (await workflowApiRequest<{ workflow: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(workflow.id)}`)).workflow.current_version_id,
+    currentVersion: async () => {
+      assertCurrent();
+      const path = `/v1/workflows/${encodeURIComponent(workflow.id)}`;
+      return (await workflowApiRequest<{ workflow: WorkflowDetail }>(teamId ? `${path}?team_id=${encodeURIComponent(teamId)}` : path)).workflow.current_version_id;
+    },
     execute: async mutation => {
+      assertCurrent();
       const settings = await getProjectSettings(project, context);
+      assertCurrent();
       if (!settings.writeMode) return { status: 'failed', error: 'write_policy_required' };
       const approval = { projectId: project.project_id, chatId, mutation };
       if (settings.writeMode === 'always_ask') {
         if (!await requestProjectWriteApproval(approval)) return { status: 'failed', error: 'write_denied' };
+        assertCurrent();
         await approveProjectWrite(project.project_id, { chat_id: chatId, operation_id: mutation.operation_id,
           proposal_digest: await projectFileMutationDigest(project.projectKey, project.project_id, chatId, mutation) }, context);
       }
+      assertCurrent();
       const result = await requestProjectRemoteAccess<Record<string, unknown>>(project, source,
         { ownerId: get(userProfile).user_id ?? '', teamId }, mutation.operation, { chat_id: chatId, mutation });
       recordProjectFileChange(approval);

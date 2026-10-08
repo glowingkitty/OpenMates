@@ -164,12 +164,13 @@ def _validate_external_chat_context(record: dict[str, Any]) -> None:
         raise ValueError("Task must use either a native or external chat context, not both")
 
 
-def _slug_lookup_filter(user_id: str, slug_lookup_hash: str, exclude_row_id: str | None = None) -> dict[str, Any]:
+def _slug_lookup_filter(user_id: str, slug_lookup_hash: str, exclude_row_id: str | None = None, team_hash: str | None = None) -> dict[str, Any]:
     terms: list[dict[str, Any]] = [
         {"slug_lookup_hash": {"_eq": slug_lookup_hash}},
-        {"hashed_user_id": {"_eq": hash_id(user_id)}},
-        {"hashed_team_id": {"_null": True}},
+        {"hashed_team_id": {"_eq": team_hash}} if team_hash else {"hashed_user_id": {"_eq": hash_id(user_id)}},
     ]
+    if not team_hash:
+        terms.append({"hashed_team_id": {"_null": True}})
     if exclude_row_id:
         terms.append({"id": {"_neq": exclude_row_id}})
     return {"_and": terms}
@@ -229,6 +230,7 @@ def _validate_wrapper_set(
     primary_chat_hash: str | None,
     project_hashes: set[str],
     plan_hash: str | None = None,
+    team_hash: str | None = None,
     has_external_chat_context: bool = False,
 ) -> bool:
     if not wrappers:
@@ -238,6 +240,8 @@ def _validate_wrapper_set(
     chat_hashes: set[str] = set()
     wrapper_project_hashes: set[str] = set()
     plan_hashes: set[str] = set()
+    team_hashes: set[str] = set()
+    team_count = 0
     for wrapper in wrappers:
         if not _validate_wrapper_shape(wrapper, "encrypted_task_key"):
             return False
@@ -265,8 +269,19 @@ def _validate_wrapper_set(
                 logger.error("Rejected user task plan wrapper that does not match plan metadata")
                 return False
             plan_hashes.add(hashed_plan_id)
-    if master_count != 1:
-        logger.error("Rejected user task key wrapper set without exactly one master wrapper")
+        elif key_type == "team":
+            team_count += 1
+            hashed_team_id = wrapper.get("hashed_team_id")
+            if hashed_team_id != team_hash:
+                logger.error("Rejected user task team wrapper that does not match task workspace")
+                return False
+            team_hashes.add(hashed_team_id)
+    if team_hash:
+        if master_count != 0 or team_count != 1:
+            logger.error("Rejected Team task key wrapper set with a Personal master or without exactly one Team wrapper")
+            return False
+    elif master_count != 1:
+        logger.error("Rejected Personal task key wrapper set without exactly one master wrapper")
         return False
     if primary_chat_hash and primary_chat_hash not in chat_hashes:
         logger.error("Rejected user task key wrapper set missing primary chat wrapper")
@@ -276,6 +291,9 @@ def _validate_wrapper_set(
         return False
     if plan_hash and plan_hash not in plan_hashes:
         logger.error("Rejected user task key wrapper set missing linked plan wrapper")
+        return False
+    if team_hash and team_hash not in team_hashes:
+        logger.error("Rejected user task key wrapper set missing team wrapper")
         return False
     return True
 
@@ -842,6 +860,7 @@ class UserTaskMethods:
     async def create_task(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         key_wrappers = payload.pop("key_wrappers", []) or []
         linked_project_ids = payload.pop("linked_project_ids", []) or []
+        team_id = payload.pop("team_id", None)
         validate_encrypted_slug_metadata(payload, record_label="Task")
         now = payload.get("created_at") or payload.get("updated_at")
         primary_chat_id = payload.get("primary_chat_id")
@@ -850,7 +869,8 @@ class UserTaskMethods:
             raise ValueError("Task create requires version")
         record = {
             **payload,
-            "hashed_user_id": hash_id(user_id),
+            "hashed_user_id": None if team_id else hash_id(user_id),
+            "hashed_team_id": hash_id(team_id) if team_id else None,
             "status": payload.get("status") or "todo",
             "assignee_type": payload.get("assignee_type") or "user",
             "linked_project_hashes": [hash_id(project_id) for project_id in linked_project_ids if project_id],
@@ -863,15 +883,16 @@ class UserTaskMethods:
         }
         _validate_task_assignment(record, user_id=user_id)
         _validate_external_chat_context(record)
-        if key_wrappers and not _validate_wrapper_set(
+        if (team_id or key_wrappers) and not _validate_wrapper_set(
             key_wrappers,
             primary_chat_hash=record.get("hashed_primary_chat_id"),
             project_hashes=_coerce_hashes(record.get("linked_project_hashes")),
             plan_hash=hash_id(record["plan_id"]) if record.get("plan_id") else None,
+            team_hash=hash_id(team_id) if team_id else None,
             has_external_chat_context=record.get("external_chat_provider") is not None,
         ):
             return None
-        await self._ensure_slug_lookup_available(record.get("slug_lookup_hash"), user_id)
+        await self._ensure_slug_lookup_available(record.get("slug_lookup_hash"), user_id, team_hash=record.get("hashed_team_id"))
         success, data = await self.directus_service.create_item("user_tasks", record)
         if not success:
             if is_slug_unique_violation(data):
@@ -896,7 +917,9 @@ class UserTaskMethods:
         if row_id:
             await self.directus_service.delete_item("user_tasks", row_id)
 
-    async def create_task_key_wrapper(self, user_id: str, task_id: str, wrapper: dict[str, Any]) -> dict[str, Any] | None:
+    async def create_task_key_wrapper(
+        self, user_id: str, task_id: str, wrapper: dict[str, Any], *, owner_hash: str | None = None,
+    ) -> dict[str, Any] | None:
         hashed_chat_id = wrapper.get("hashed_chat_id")
         hashed_project_id = wrapper.get("hashed_project_id")
         hashed_plan_id = wrapper.get("hashed_plan_id")
@@ -905,7 +928,7 @@ class UserTaskMethods:
             return None
         record = {
             "hashed_task_id": hash_id(task_id),
-            "hashed_user_id": hash_id(user_id),
+            "hashed_user_id": owner_hash if owner_hash is not None else hash_id(user_id),
             "key_type": wrapper.get("key_type"),
             "hashed_chat_id": hashed_chat_id,
             "hashed_project_id": hashed_project_id,
@@ -965,6 +988,7 @@ class UserTaskMethods:
             primary_chat_hash=task.get("hashed_primary_chat_id"),
             project_hashes=_coerce_hashes(task.get("linked_project_hashes")),
             plan_hash=hash_id(task["plan_id"]) if task.get("plan_id") else None,
+            team_hash=task.get("hashed_team_id"),
             has_external_chat_context=task.get("external_chat_provider") is not None,
         ):
             return None
@@ -987,15 +1011,73 @@ class UserTaskMethods:
             raise RuntimeError("Failed to delete old user task key wrappers")
         return created_wrappers, existing_wrappers
 
-    async def list_task_key_wrappers(self, user_id: str, task_id: str) -> list[dict[str, Any]]:
+    async def list_task_key_wrappers(self, user_id: str, task_id: str, *, team_id: str | None = None) -> list[dict[str, Any]]:
         params = {
             "filter[hashed_task_id][_eq]": hash_id(task_id),
-            "filter[hashed_user_id][_eq]": hash_id(user_id),
             "fields": USER_TASK_KEY_WRAPPER_FIELDS,
             "limit": 50,
         }
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
+            params["filter[key_type][_eq]"] = "team"
+        else:
+            params["filter[hashed_user_id][_eq]"] = hash_id(user_id)
         response = await self.directus_service.get_items("user_task_key_wrappers", params=params, no_cache=True, admin_required=True)
         return response if isinstance(response, list) else []
+
+    async def _list_scoped_task_wrappers_for_replacement(self, task_id: str) -> list[dict[str, Any]]:
+        # Call only after get_task has authorized the Team Task. All wrapper
+        # types must be replaced, including those created by another member.
+        response = await self.directus_service.get_items(
+            "user_task_key_wrappers",
+            params={
+                "filter[hashed_task_id][_eq]": hash_id(task_id),
+                "fields": USER_TASK_KEY_WRAPPER_FIELDS,
+                "limit": -1,
+            },
+            no_cache=True, admin_required=True, raise_on_error=True,
+        )
+        if not isinstance(response, list):
+            raise RuntimeError("Team Task wrapper replacement did not return items")
+        return response
+
+    async def list_team_task_key_wrappers(self, team_id: str, task_ids: list[str]) -> dict[str, list[dict[str, Any]]]:
+        """Fetch only the selected Team wrappers for one authorized Task list page."""
+        unique_ids = list(dict.fromkeys(task_ids))
+        wrappers_by_task: dict[str, list[dict[str, Any]]] = {task_id: [] for task_id in unique_ids}
+        if not unique_ids:
+            return wrappers_by_task
+        task_by_hash = {hash_id(task_id): task_id for task_id in unique_ids}
+        team_hash = hash_id(team_id)
+        response = await self.directus_service.get_items(
+            "user_task_key_wrappers",
+            params={
+                "filter[hashed_team_id][_eq]": team_hash,
+                "filter[key_type][_eq]": "team",
+                "filter[hashed_task_id][_in]": ",".join(task_by_hash),
+                "fields": USER_TASK_KEY_WRAPPER_FIELDS,
+                "limit": len(unique_ids) * 2,
+            },
+            no_cache=True, admin_required=True, raise_on_error=True,
+        )
+        if not isinstance(response, list):
+            raise RuntimeError("Team Task key wrapper batch did not return items")
+        for wrapper in response:
+            task_id = task_by_hash.get(wrapper.get("hashed_task_id"))
+            if task_id is None or wrapper.get("hashed_team_id") != team_hash or wrapper.get("key_type") != "team":
+                continue
+            if not isinstance(wrapper.get("team_key_epoch"), int) or wrapper["team_key_epoch"] < 1:
+                continue
+            if not isinstance(wrapper.get("encrypted_task_key"), str) or not wrapper["encrypted_task_key"]:
+                continue
+            wrappers_by_task[task_id].append({
+                "key_type": "team",
+                "hashed_team_id": team_hash,
+                "team_key_epoch": wrapper["team_key_epoch"],
+                "encrypted_task_key": wrapper["encrypted_task_key"],
+                "wrapper_version": wrapper.get("wrapper_version", 1),
+            })
+        return wrappers_by_task
 
     async def create_task_execution_context(
         self,
@@ -1135,7 +1217,7 @@ class UserTaskMethods:
             return None
         update = dict(patch)
         validate_encrypted_slug_metadata(update, record_label="Task")
-        await self._ensure_slug_lookup_available(update.get("slug_lookup_hash"), user_id, exclude_row_id=existing.get("id"))
+        await self._ensure_slug_lookup_available(update.get("slug_lookup_hash"), user_id, exclude_row_id=existing.get("id"), team_hash=existing.get("hashed_team_id"))
         key_wrappers = update.pop("key_wrappers", None)
         existing_wrappers: list[dict[str, Any]] = []
         created_wrappers: list[dict[str, Any]] = []
@@ -1219,11 +1301,15 @@ class UserTaskMethods:
             primary_chat_hash=next_chat_hash,
             project_hashes=next_project_hashes,
             plan_hash=next_plan_hash,
+            team_hash=existing.get("hashed_team_id"),
             has_external_chat_context=effective_context.get("external_chat_provider") is not None,
         ):
             return None
         if key_wrappers is not None:
-            existing_wrappers = await self.list_task_key_wrappers(user_id, task_id)
+            existing_wrappers = (
+                await self._list_scoped_task_wrappers_for_replacement(task_id)
+                if team_id else await self.list_task_key_wrappers(user_id, task_id)
+            )
             for wrapper in key_wrappers:
                 created_wrapper = await self.create_task_key_wrapper(user_id, task_id, wrapper)
                 if not created_wrapper:
@@ -1282,11 +1368,11 @@ class UserTaskMethods:
             raise DuplicateObjectSlugError("Task slug already exists in this workspace")
         return updated or await self._committed_task_after_empty_update(task_id, user_id, next_version, team_id=team_id)
 
-    async def _ensure_slug_lookup_available(self, slug_lookup_hash: str | None, user_id: str, *, exclude_row_id: str | None = None) -> None:
+    async def _ensure_slug_lookup_available(self, slug_lookup_hash: str | None, user_id: str, *, exclude_row_id: str | None = None, team_hash: str | None = None) -> None:
         if not slug_lookup_hash:
             return
         params = {
-            "filter": _slug_lookup_filter(user_id, slug_lookup_hash, exclude_row_id=exclude_row_id),
+            "filter": _slug_lookup_filter(user_id, slug_lookup_hash, exclude_row_id=exclude_row_id, team_hash=team_hash),
             "fields": "id",
             "limit": 1,
         }
@@ -1365,7 +1451,11 @@ class UserTaskMethods:
     async def _restore_task_key_wrappers(self, user_id: str, task_id: str, wrappers: list[dict[str, Any]]) -> None:
         restored: list[dict[str, Any]] = []
         for wrapper in wrappers:
-            created = await self.create_task_key_wrapper(user_id, task_id, wrapper)
+            owner_hash = wrapper.get("hashed_user_id")
+            created = await self.create_task_key_wrapper(
+                user_id, task_id, wrapper,
+                **({"owner_hash": owner_hash} if isinstance(owner_hash, str) and is_sha256_hex(owner_hash) else {}),
+            )
             if not created:
                 await self._delete_key_wrappers(restored)
                 raise RuntimeError("Failed to restore old user task key wrappers")

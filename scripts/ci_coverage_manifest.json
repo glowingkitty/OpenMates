@@ -306,7 +306,8 @@
         "components/settings-avatar.spec.ts",
         "components/ai-model-cache-pricing.spec.ts",
         "components/app-skill-model-cache-pricing.spec.ts",
-        "components/settings-usage-cache-receipt.spec.ts"
+        "components/settings-usage-cache-receipt.spec.ts",
+        "components/chat-message-team-attribution.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"
@@ -610,9 +611,18 @@
         "cli-tui-rich-chat-proof.spec.ts",
         "teams-billing-address.spec.ts",
         "storage-offline-cache-logout.spec.ts",
-        "billing-reservation-summary.spec.ts"
+        "billing-reservation-summary.spec.ts",
+        "teams-resource-context.spec.ts",
+        "cli-team-tasks-real.spec.ts"
       ],
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."
+    },
+    "real_inference_dev_only": {
+      "execution": null,
+      "enabling_work": "Run only on the coordinated dev stack with isolated provisioned test accounts, bounded disposable Team credits and real inference; never dispatch to CI.",
+      "specs": [
+        "teams-chat-collaboration-real.spec.ts"
+      ]
     }
   },
   "holds": {

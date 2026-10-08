@@ -565,8 +565,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     device_fingerprint_hash,
                 )
                 return
-            active_recovery_task_id = await cache_service.get_active_ai_task(chat_id)
-            if active_recovery_task_id and (not is_team_chat or team_should_trigger_ai):
+            active_recovery_task_id = (
+                await cache_service.get_active_ai_task(chat_id)
+                if team_should_trigger_ai else None
+            )
+            if active_recovery_task_id:
                 await manager.send_personal_message(
                     {
                         "type": "error",
@@ -719,7 +722,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
                 return
 
-        if protocol_epoch >= 1:
+        if protocol_epoch >= 1 and team_should_trigger_ai:
             inference_request = {
                 key: value
                 for key, value in payload.items()
@@ -738,30 +741,27 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             inference_request["current_project"] = current_project
             inference_request["active_project_focus"] = active_project_focus
-            if team_should_trigger_ai:
-                try:
-                    recovery_enqueue_result = await enqueue_chat_turn(
-                        directus_service=directus_service,
-                        user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
-                        device_fingerprint_hash=device_fingerprint_hash,
-                        preflight_id=payload["preflight_id"],
-                        inference_request=inference_request,
-                    )
-                except ChatRecoveryProtocolError as exc:
-                    await manager.send_personal_message(
-                        {
-                            "type": "error",
-                            "payload": {
-                                "code": exc.code,
-                                "message": "Durable encrypted preflight did not authorize this request.",
-                            },
+            try:
+                recovery_enqueue_result = await enqueue_chat_turn(
+                    directus_service=directus_service,
+                    user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    preflight_id=payload["preflight_id"],
+                    inference_request=inference_request,
+                )
+            except ChatRecoveryProtocolError as exc:
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": exc.code,
+                            "message": "Durable encrypted preflight did not authorize this request.",
                         },
-                        user_id,
-                        device_fingerprint_hash,
-                    )
-                    return
-            else:
-                logger.info("Team chat message %s stored without AI dispatch because @openmates was not mentioned", message_payload_from_client.get("message_id"))
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
 
         if is_team_chat:
             active_member_hashes = await directus_service.team.list_active_member_hashes(str(team_id))
@@ -774,6 +774,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     "chat_id": chat_id,
                     "message_id": message_payload_from_client.get("message_id"),
                     "role": message_payload_from_client.get("role"),
+                    "hashed_user_id": hash_id(user_id),
                     "encrypted_content": team_transport.encrypted_content,
                     "encrypted_sender_name": message_payload_from_client.get("encrypted_sender_name"),
                     "created_at": message_payload_from_client.get("created_at"),
@@ -1054,7 +1055,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             client_timestamp_unix = int(datetime.now(timezone.utc).timestamp())
 
         # Set default sender_name for user messages
-        final_sender_name = "user" if role == "user" else "assistant"
+        final_sender_name = (
+            team_transport.ai_sender_name or "user"
+            if is_team_chat and team_should_trigger_ai and role == "user"
+            else "user" if role == "user" else "assistant"
+        )
 
         # SERVER-SIDE ENCRYPTION: Encrypt content with encryption_key_user_server (Vault)
         # This allows server to cache and access for AI while maintaining security

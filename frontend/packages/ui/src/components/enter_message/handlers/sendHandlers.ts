@@ -22,6 +22,8 @@ import { refreshAnonymousFreeUsageStatus } from "../../../stores/serverStatusSto
 import { text } from "../../../i18n/translations";
 import { createEmbedFromUrl } from "../services/urlMetadataService"; // Import URL-to-embed creation
 import { authStore } from "../../../stores/authStore"; // Import authStore for authentication check
+import { userProfile } from "../../../stores/userProfile";
+import { computeSHA256 } from "../../../message_parsing/utils";
 import { appSettingsMemoriesPermissionStore } from "../../../stores/appSettingsMemoriesPermissionStore"; // For auto-dismissing permission dialog
 import { forcedLogoutInProgress } from "../../../stores/signupState";
 import { editMessageStore, cancelEdit } from "../../../stores/editMessageStore";
@@ -48,7 +50,7 @@ import {
 import { isPreflightAcknowledgementTimeout } from "../../../services/sendersChatMessages";
 import { selectAudioTranscriptUseCorrected } from "../../embeds/audio/audioTranscriptSelection";
 import { notifyDeferredMessageFinalized } from "./deferredSendMessageEvents";
-import { activeTeamId } from "../../../stores/teamStore";
+import { getActiveTeamContextSnapshot, isActiveTeamContext } from "../../../stores/teamStore";
 import { isTeamAIInvocation, wrapTeamChatKey } from "../../../services/teamService";
 import { encryptWithChatKey } from "../../../services/cryptoService";
 import {
@@ -305,6 +307,7 @@ function createMessagePayload(
   markdown: string,
   chatId: string,
   piiMappings?: PIIMapping[],
+  senderName = "user",
 ): Message {
   // Validate markdown content
   if (!markdown || typeof markdown !== "string") {
@@ -329,7 +332,7 @@ function createMessagePayload(
     content: markdown, // Send markdown string directly to server (never Tiptap JSON!)
     status: initialStatus, // Initial status based on connection state
     created_at: Math.floor(Date.now() / 1000), // Unix timestamp in seconds
-    sender_name: "user", // Set default sender name for Phase 2 encryption
+    sender_name: senderName, // Team member identity is encrypted with the chat key before transport.
     encrypted_content: null, // Will be set during Phase 2 encryption
     // category will be set by server during preprocessing and sent back via chat_metadata_for_encryption
     // PII mappings for client-side restoration (will be encrypted during Phase 2)
@@ -504,6 +507,11 @@ export async function handleSend(
   projectFocusDocumentAtSendRequest?: unknown,
   options: { preserveDraft?: boolean } = {},
 ) {
+  // Bind this click to its workspace before URL, PII, and draft work can yield.
+  const sendContext = getActiveTeamContextSnapshot();
+  const contextIsCurrent = () => isActiveTeamContext(sendContext.teamId, sendContext.epoch);
+  const senderProfile = get(userProfile);
+  const teamSenderName = sendContext.teamId ? senderProfile.username.trim() || "Team member" : "user";
   const editorTextLength = editor && !editor.isDestroyed ? editor.getText().length : 0;
   console.info("[handleSend] Send invoked", {
     currentChatId,
@@ -531,6 +539,12 @@ export async function handleSend(
     vibrateMessageField();
     return;
   }
+  // This author marker stays in the local Message. The transport builds its own
+  // encrypted envelope and the server assigns the authoritative author hash.
+  const teamAuthorHash = sendContext.teamId && senderProfile.user_id
+    ? await computeSHA256(senderProfile.user_id)
+    : undefined;
+  if (!contextIsCurrent()) return;
 
   let projectFocusIntent: ProjectFocusSendIntent | null = null;
   try {
@@ -654,12 +668,17 @@ export async function handleSend(
     // once all embeds report finished via the embedUploadFinished window event.
     // -----------------------------------------------------------------------
 
-    const deferredTeamId = get(activeTeamId);
+    const deferredTeamId = sendContext.teamId;
     const deferredIncognitoMode = (
       await import("../../../stores/incognitoModeStore")
     ).incognitoMode.get();
     const isOrdinaryDeferredTeamChat =
       Boolean(deferredTeamId) && !isTeamAIInvocation(editor.getText());
+    if (!contextIsCurrent()) {
+      sendInProgress = false;
+      rootSpan.end();
+      return;
+    }
     if (
       isUnsupportedTeamIncognitoContext(
         deferredTeamId,
@@ -694,6 +713,7 @@ export async function handleSend(
     // Build a stub message payload with status "waiting_for_upload".
     // Content is empty string for now — the real markdown is serialized at dispatch time.
     const deferredMessageId = `${deferredChatId.slice(-10)}-${crypto.randomUUID()}`;
+    let deferredNewLocalChat = false;
     const deferredMessage: Message = {
       message_id: deferredMessageId,
       chat_id: deferredChatId,
@@ -701,7 +721,8 @@ export async function handleSend(
       content: "", // Placeholder — overwritten when deferred send fires
       status: "waiting_for_upload",
       created_at: Math.floor(Date.now() / 1000),
-      sender_name: "user",
+      sender_name: teamSenderName,
+      hashed_user_id: teamAuthorHash,
       encrypted_content: null,
     };
 
@@ -712,11 +733,27 @@ export async function handleSend(
       const incognitoChat = await incognitoChatService
         .getChat(deferredChatId)
         .catch(() => null);
+      if (!contextIsCurrent()) {
+        sendInProgress = false;
+        rootSpan.end();
+        return;
+      }
       if (incognitoChat) {
         await incognitoChatService.addMessage(deferredChatId, deferredMessage);
       } else {
         // Create chat in IndexedDB if it doesn't exist yet
         const existingDeferred = await chatDB.getChat(deferredChatId);
+        if (!contextIsCurrent()) {
+          sendInProgress = false;
+          rootSpan.end();
+          return;
+        }
+        if (existingDeferred && (existingDeferred.team_id ?? null) !== deferredTeamId) {
+          console.warn("[handleSend] Deferred chat belongs to a different workspace", { deferredChatId });
+          sendInProgress = false;
+          rootSpan.end();
+          return;
+        }
         if (!existingDeferred) {
           const nowDeferred = Math.floor(Date.now() / 1000);
           const newChatForDeferred: import("../../../types/chat").Chat = {
@@ -758,8 +795,14 @@ export async function handleSend(
                 );
               }
             }
+            if (!contextIsCurrent()) {
+              sendInProgress = false;
+              rootSpan.end();
+              return;
+            }
             await chatDB.addChat(newChatForDeferred);
             await chatDB.saveMessage(deferredMessage);
+            deferredNewLocalChat = true;
           }
           window.dispatchEvent(
             new CustomEvent("localChatListChanged", {
@@ -768,6 +811,12 @@ export async function handleSend(
           );
         } else {
           await chatDB.saveMessage(deferredMessage);
+          if (draftStateDeferred.currentChatId === deferredChatId && existingDeferred.messages_v === 0) {
+            await chatDB.updateChat({ ...existingDeferred, messages_v: 1,
+              last_edited_overall_timestamp: deferredMessage.created_at,
+              updated_at: Math.floor(Date.now() / 1000) });
+            deferredNewLocalChat = true;
+          }
         }
       }
     } catch (deferredSaveErr) {
@@ -784,6 +833,11 @@ export async function handleSend(
     // EmbedStore (with contentRef). The deferred sender reads EmbedStore when it fires.
     const { addPendingSend, removePendingSend } =
       await import("../../../stores/pendingUploadStore");
+    if (!contextIsCurrent()) {
+      sendInProgress = false;
+      rootSpan.end();
+      return;
+    }
     const embedSnapshots = new Map<
       string,
       import("../../../stores/pendingUploadStore").DeferredEmbedSnapshot
@@ -841,6 +895,7 @@ export async function handleSend(
       pendingId: `${deferredMessageId}-pending`,
       chatId: deferredChatId,
       messageId: deferredMessageId,
+      newLocalChat: deferredNewLocalChat,
       editorSnapshot: editor.getJSON(),
       embedSnapshots,
       blockingEmbedIds: stillBlockingEmbedIds,
@@ -856,6 +911,11 @@ export async function handleSend(
     // When all blocking embeds finish (notified via embedUploadFinished), the
     // deferred sender reconstructs the final markdown from editorSnapshot +
     // EmbedStore data and sends the message without needing the live editor.
+    if (!contextIsCurrent()) {
+      sendInProgress = false;
+      rootSpan.end();
+      return;
+    }
     addPendingSend(pendingContext);
 
     // Optimistically show the stub message in the chat UI immediately.
@@ -1434,6 +1494,7 @@ export async function handleSend(
     }
 
     recordSendDebugStep("authenticated_send_path_started", { currentChatId });
+    if (!contextIsCurrent()) return;
 
     // Check if there's already a chat with a draft (created during typing)
     const draftState = get(draftEditorUIState);
@@ -1488,6 +1549,12 @@ export async function handleSend(
           incognitoLookupError,
         );
       }
+    }
+
+    if (!contextIsCurrent()) return;
+    if (existingChatCheck && (existingChatCheck.team_id ?? null) !== sendContext.teamId) {
+      console.warn("[handleSend] Chat belongs to a different workspace", { chatIdToUse });
+      return;
     }
 
     let existingChatHasUsableKey = false;
@@ -1597,10 +1664,14 @@ export async function handleSend(
       markdown,
       chatIdToUse,
       piiMappingsForStorage,
+      teamSenderName,
     );
+    messagePayload.hashed_user_id = teamAuthorHash;
     didCreateMessagePayload = true;
     if (options.preserveDraft) messagePayload.preserve_draft = true;
     ((messagePayload as unknown) as Record<string, unknown>).broadcast = broadcastToSiblings;
+
+    if (!contextIsCurrent()) return;
 
     // Optimistically cache the last message so the chat list can show "Sending..." immediately
     // (prevents a brief empty chat row while active chat selection/metadata settles)
@@ -1626,7 +1697,7 @@ export async function handleSend(
 
     if (isNewChatCreation) {
       const now = Math.floor(Date.now() / 1000);
-      const teamId = get(activeTeamId);
+      const teamId = sendContext.teamId;
       const isOrdinaryTeamChat = Boolean(teamId) && !isTeamAIInvocation(markdown);
       const newChatData: import("../../../types/chat").Chat = {
         chat_id: chatIdToUse,
@@ -1663,6 +1734,8 @@ export async function handleSend(
           );
         }
       }
+
+      if (!contextIsCurrent()) return;
 
       // Duplication Flow: If this chat is from a demo, copy history messages
       if (sourceDemoId) {
@@ -1779,6 +1852,7 @@ export async function handleSend(
         );
       } else {
         // Create regular chat in IndexedDB
+        if (!contextIsCurrent()) return;
         await chatDB.addChat(newChatData); // Save new chat metadata
         await chatDB.saveMessage(messagePayload); // Save the first message separately
 
@@ -1809,6 +1883,7 @@ export async function handleSend(
       );
     } else {
       // Existing chat: Save the new message and update chat metadata
+      if (!contextIsCurrent()) return;
       // Check if it's an incognito chat
       const { incognitoChatService } =
         await import("../../../services/incognitoChatService");
@@ -1842,6 +1917,7 @@ export async function handleSend(
         );
       } else {
         // Update regular chat in IndexedDB
+        if (!contextIsCurrent()) return;
         await chatDB.saveMessage(messagePayload);
 
         // Sub-chat sibling broadcast logic
@@ -1913,6 +1989,10 @@ export async function handleSend(
 
     idbSpan.end();
 
+    // A context switch during IndexedDB work must not select the old chat in
+    // the new workspace or send an active-chat update for it.
+    if (!contextIsCurrent()) return;
+
     // If chatToUpdate is null at this point, the local DB operation failed.
     if (!chatToUpdate) {
       recordSendDebugStep("send_aborted_chat_update_missing", {
@@ -1982,6 +2062,7 @@ export async function handleSend(
     }
 
     // OTel: UI dispatch span — the moment message becomes visible
+    if (!contextIsCurrent()) return;
     const uiSpan = tracer.startSpan('message.send.ui_dispatch');
     // Dispatch for UI update (ActiveChat will pick this up)
     // The messagePayload is already defined and includes the correct chat_id
@@ -2071,6 +2152,7 @@ export async function handleSend(
 			chatIdToUse,
 			messageId: messagePayload.message_id,
 		});
+		if (!contextIsCurrent()) return;
 		await chatSyncService.sendSetActiveChat(chatIdToUse);
 		recordSendDebugStep("send_set_active_chat_complete", {
 			chatIdToUse,
@@ -2091,6 +2173,8 @@ export async function handleSend(
       return;
     }
 
+    if (!contextIsCurrent()) return;
+
     // Send message to backend via chatSyncService
     // Include encrypted suggestion for deletion if one was clicked
     const serverMessagePayload = e2eServerContentOverride
@@ -2105,6 +2189,7 @@ export async function handleSend(
 			encryptedSuggestionToDelete,
 			undefined,
 			projectFocusIntent ?? undefined,
+			isNewChatCreation || isUsingDraftChat,
 		);
     if (options.preserveDraft) {
       // A local admission guard can resolve sendNewMessage after marking the
@@ -2142,6 +2227,8 @@ export async function handleSend(
     }
 
     wsSpan.end();
+
+    if (!contextIsCurrent()) return true;
 
     const composerStillContainsSentDocument = editor.state.doc === submittedEditorDoc;
     if (!options.preserveDraft && !wasCancelledAfterSend && composerStillContainsSentDocument) {
@@ -2436,6 +2523,8 @@ export async function executeDeferredSend(
   const newStatus: Message["status"] = isConnected
     ? "sending"
     : "waiting_for_internet";
+  let deferredSenderName = "user";
+  let deferredAuthorHash: string | undefined;
 
   // Update the existing stub message in IndexedDB with real content + new status
   try {
@@ -2467,6 +2556,8 @@ export async function executeDeferredSend(
         (m) => m.message_id === readyCtx.messageId,
       );
       if (existingMsg) {
+        deferredSenderName = existingMsg.sender_name ?? "user";
+        deferredAuthorHash = existingMsg.hashed_user_id;
         Object.assign(existingMsg, updatedMessage);
         await incognitoChatService.addMessage(readyCtx.chatId, existingMsg);
       }
@@ -2474,6 +2565,8 @@ export async function executeDeferredSend(
       // Regular chat: update the message in IndexedDB
       const existingMsg = await chatDB.getMessage(readyCtx.messageId);
       if (existingMsg) {
+        deferredSenderName = existingMsg.sender_name ?? "user";
+        deferredAuthorHash = existingMsg.hashed_user_id;
         existingMsg.content = markdown;
         existingMsg.status = newStatus;
         existingMsg.pii_mappings =
@@ -2496,7 +2589,8 @@ export async function executeDeferredSend(
     content: markdown,
     status: newStatus,
     created_at: Math.floor(readyCtx.createdAt / 1000),
-    sender_name: "user",
+    sender_name: deferredSenderName,
+    hashed_user_id: deferredAuthorHash,
     encrypted_content: null,
     pii_mappings:
       piiMappingsForStorage.length > 0 ? piiMappingsForStorage : undefined,
@@ -2515,6 +2609,7 @@ export async function executeDeferredSend(
       undefined,
       undefined,
       projectFocusIntent ?? undefined,
+      readyCtx.newLocalChat === true,
     );
     console.info(
       `[executeDeferredSend] Deferred message sent for chat ${readyCtx.chatId.slice(-6)}`,

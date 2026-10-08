@@ -1,12 +1,12 @@
 schema_version: 1
-specification: feature.teams@2
+specification: feature.teams@3
 
 specification_structure:
   - id: requirements-use-canonical-assertion-ids
     input: {chapter: membership-invitations, requirement_id: teams.membership.role-gated, ui_label: Requirements}
     expect: {duplicate_requirement_record: false, canonical_assertion_id_preserved: true, chapter_placement_visible: true}
   - id: flow-is-specification-owned-rich-content
-    input: {flow_id: create-team, kind: user_flow, embed_references: [], parent_contract_revision: feature.teams@2}
+    input: {flow_id: create-team, kind: user_flow, embed_references: [], parent_contract_revision: feature.teams@3}
     expect: {independent_flow_embed_created: false, nested_fullscreen_renderable: true, independent_share_action: false}
   - id: edge-case-reuses-flow-rendering
     input: {flow_id: invite-unusable, kind: edge_case, parent_flow_id: invite-member}
@@ -112,38 +112,24 @@ team_realtime_collaboration:
     expect: {observer_receives_update: false, server_access_denied: true, managed_local_cleanup_requested: true}
 
 team_chat_privacy:
-  - id: ordinary-team-message-is-ciphertext-only
-    input: {active_context: team-1, message: 'Draft the launch notes with me.', mentions: []}
-    expect: {client_encrypts_before_send: true, server_plaintext_received: false, preprocessing_started: false, postprocessing_started: false, inference_cache_updated: false, credits_charged: 0}
-  - id: first-human-message-creates-client-title
-    input: {active_context: team-1, first_message: 'Launch checklist for the Berlin event'}
-    expect: {client_title_starts_with: 'Launch checklist for the Berlin event', title_encrypted_before_send: true, server_title_extraction_started: false}
-  - id: openmates-mention-releases-full-current-history
-    input: {active_context: team-1, history: [alice_message_1, bob_message_1, alice_message_2], message: '@openmates summarize our decisions'}
-    expect: {full_current_chat_history_sent_to_inference: true, sender_attribution_preserved: true, transient_inference_cache_replaced: true, processing_started: true}
-  - id: follow-up-without-openmates-does-not-refresh-cache
-    input: {active_context: team-1, cached_history_version: 3, new_messages: [bob_message_2, alice_message_3]}
-    expect: {encrypted_sync_succeeds: true, inference_cache_version: 3, plaintext_follow_up_sent_to_server: false}
-  - id: later-openmates-mention-refreshes-full-history
-    input: {active_context: team-1, cached_history_version: 3, current_history_version: 5, message: '@openmates update the summary'}
-    expect: {full_current_chat_history_sent_to_inference: true, inference_cache_version: 5, stale_cache_replaced: true}
-  - id: team-chat-reminder-is-visible
-    input: {surface: gui.web, active_context: team-1, chat_type: team}
-    expect: {reminder_below_header_above_first_message: true, reminder_explains_openmates_mention: true}
+  - id: ordinary-human-conversation-skips-entire-ai-pipeline
+    given: Alice and Bob are active members planning a Berlin event in an encrypted Team chat.
+    when: Alice proposes Saturday afternoon and Bob replies that he will invite volunteers, including an ordinary @alice human mention.
+    then: Both members receive encrypted messages with distinct human identities; no plaintext history reaches the server, no pre, main or post processing runs, and no credits are charged. The first message supplies a client-encrypted default title.
+  - id: explicit-ai-mentions-release-current-attributed-history
+    given: Alice and Bob have exchanged four planning messages and see the Team chat reminder explaining explicit AI invocation.
+    when: Alice asks @openmates who proposed the venue, Bob sends another ordinary update, and Alice later selects the configured Mate Sophia to review the updated plan.
+    then: Each AI invocation sends the then-current complete history with Alice and Bob identified separately; the ordinary update remains encrypted and does not refresh the transient inference cache until Sophia is explicitly selected.
 
 team_member_mentions:
-  - id: username-mention-sends-in-app-and-email
-    input: {team: team-1, sender: alice, message: '@bob please review this', recipient_status: active}
-    expect: {recipient_resolved_client_side: true, encrypted_message_synced: true, in_app_notification_sent: true, email_notification_sent_by_default: true, ai_triggered: false}
-  - id: notification-never-includes-message-plaintext
-    input: {team: team-1, recipient: bob, channels: [in_app, email]}
-    expect: {message_plaintext_in_payload: false, message_plaintext_in_email: false, private_chat_content_in_logs: false, safe_chat_link_present: true}
-  - id: removed-or-foreign-user-cannot-be-notified
-    input: {team: team-1, mentioned_user_status: removed_or_non_member}
-    expect: {notification_sent: false, email_sent: false, membership_error_visible: true}
-  - id: member-and-openmates-mentions-have-independent-effects
-    input: {team: team-1, message: '@bob @openmates summarize this'}
-    expect: {bob_notified: true, ai_triggered: true, full_current_history_sent_to_inference: true}
+  - id: human-mention-notifies-without-ai-or-private-content
+    given: Alice and Bob are active Team members while Carol has been removed.
+    when: Alice sends @bob please review this and later attempts to mention Carol.
+    then: Bob receives an in-app notification and default-on email containing a safe chat link with no private message text; Carol receives nothing. Neither human mention invokes AI, and logs and traces contain no private message content.
+  - id: human-and-configured-ai-mentions-have-independent-effects
+    given: Alice and Bob are active Team members.
+    when: Alice mentions Bob and explicitly selects Sophia in the same Team message.
+    then: Bob receives his private-content-free notification and Sophia receives the full attributed history for AI processing; an arbitrary human username alone never counts as a Mate mention.
 
 team_sender_layout:
   - id: current-user-message-stays-right-without-avatar
@@ -160,15 +146,14 @@ team_sender_layout:
     expect: {side: left, assistant_identity_visible: true, ai_badge_visible: true}
 
 team_chat_billing:
-  - id: team-chat-message-without-mention-does-not-trigger-ai
-    input: {active_context: team-1, message: 'Please review this async.', role: member}
-    expect: {human_message_saved: true, ai_triggered: false, credits_charged: 0}
-  - id: team-chat-openmates-mention-charges-team
-    input: {active_context: team-1, message: '@openmates summarize the plan', role: member, team_balance: sufficient}
-    expect: {ai_triggered: true, sender_attribution_in_context: true, team_balance_charged: true, personal_balance_untouched: true}
-  - id: insufficient-team-credit-blocks-before-personal-charge
-    input: {active_context: team-1, message: '@openmates run this', team_balance: insufficient, personal_balance: sufficient}
-    expect_error: {code: INSUFFICIENT_TEAM_CREDITS, personal_balance_charged: false, ai_triggered: false}
+  - id: only-explicit-ai-turns-charge-team-wallet
+    given: Alice and Bob are Team members with sufficient Team credits and separate Personal balances.
+    when: They exchange ordinary planning messages, then Alice asks @openmates to summarize and Bob selects Sophia to review the plan.
+    then: Ordinary messages cost no AI credits; each explicit AI turn includes both named speakers, publishes processing and the response to active members, charges only the Team, and leaves both Personal balances unchanged.
+  - id: team-authorization-and-credit-failures-stop-ai
+    given: A Team has insufficient credits while Alice has Personal credits, and Carol has a viewer role.
+    when: Alice mentions @openmates or Carol selects Sophia in the Team chat.
+    then: Alice sees insufficient Team credits and Carol sees read-only permission denial before AI processing; no Personal credits pay for either request.
 
 team_surface_parity:
   - id: rest-cli-sdk-web-lifecycle-parity

@@ -1562,7 +1562,7 @@ async def create_item(
         team_id=team_id,
     ):
         raise HTTPException(status_code=400, detail="Folder not found in project")
-    await _validate_project_target(payload["item_type"], target_id, current_user.id, directus_service)
+    await _validate_project_target(payload["item_type"], target_id, current_user.id, directus_service, team_id=team_id)
     payload["hashed_project_id"] = hash_id(project_id)
     payload["hashed_folder_id"] = hash_id(folder_id) if folder_id else None
     payload["target_id_hash"] = hash_id(target_id)
@@ -1786,9 +1786,13 @@ async def _validate_project_target(
     target_id: str,
     user_id: str,
     directus_service: DirectusService,
+    team_id: str | None = None,
 ) -> None:
     if item_type == "chat":
-        if not await directus_service.chat.check_chat_ownership(target_id, user_id):
+        chat = await directus_service.chat.get_chat_metadata(target_id, admin_required=True)
+        if not chat or chat.get("hashed_team_id") != (hash_id(team_id) if team_id else None):
+            raise HTTPException(status_code=404, detail="Chat not found")
+        if not team_id and not await directus_service.chat.check_chat_ownership(target_id, user_id):
             raise HTTPException(status_code=404, detail="Chat not found")
         return
     if item_type == "embed":
@@ -1824,7 +1828,12 @@ async def _validate_project_target(
         return
     if item_type == "workflow":
         try:
-            await run_in_threadpool(WorkflowService(DirectusWorkflowRepository()).get_workflow, target_id, user_id)
+            await run_in_threadpool(
+                WorkflowService(DirectusWorkflowRepository()).get_workflow,
+                target_id,
+                user_id,
+                team_id=team_id,
+            )
         except WorkflowNotFoundError as exc:
             raise HTTPException(status_code=404, detail="Workflow not found") from exc
 

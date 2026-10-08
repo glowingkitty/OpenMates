@@ -1367,6 +1367,27 @@ async function teamKeyForRecord(client: OpenMates, team: Record<string, unknown>
   return teamKey;
 }
 
+async function taskWrappingKey(client: OpenMates, teamId: string): Promise<Uint8Array> {
+  const team = await client.teams.get(teamId);
+  if (typeof team.encrypted_team_key !== "string" || !team.encrypted_team_key)
+    throw new OpenMatesConfigError(`Team ${teamId} is missing encrypted Team key`);
+  return teamKeyForRecord(client, team);
+}
+
+async function teamTaskRecordWithWrapper(client: OpenMates, record: UserTaskRecord, teamId: string): Promise<UserTaskRecord> {
+  const teamHash = createHash("sha256").update(teamId).digest("hex");
+  if (record.hashed_team_id !== teamHash)
+    throw new OpenMatesConfigError(`Task ${record.task_id} does not belong to Team ${teamId}`);
+  const wrappers = Array.isArray(record.key_wrappers) ? record.key_wrappers
+    : (await client.get<{ key_wrappers?: Array<Record<string, unknown>> }>(
+      `/v1/user-tasks/${encodeURIComponent(record.task_id)}/key-wrappers?team_id=${encodeURIComponent(teamId)}`)).key_wrappers;
+  const wrapper = wrappers?.find((row) => row.key_type === "team"
+    && row.hashed_team_id === teamHash && row.team_key_epoch === 1
+    && typeof row.encrypted_task_key === "string");
+  if (!wrapper) throw new OpenMatesConfigError(`Legacy Team Task ${record.task_id} has no Team key wrapper; migration is required`);
+  return { ...record, encrypted_task_key: wrapper.encrypted_task_key as string };
+}
+
 async function projectWrappingKey(client: OpenMates, options: ProjectContextOptions): Promise<{ teamId: string | null; key: Uint8Array }> {
   const { teamId } = requireProjectContext(options);
   const masterKey = await client.masterKey();
@@ -1623,7 +1644,7 @@ async function canonicalizeTaskCreateInput(client: OpenMates, input: TaskPlainCr
   return {
     ...input,
     chatId: typeof input.chatId === "string" && input.chatId ? await resolveSdkChatId(client, input.chatId) : input.chatId,
-    projectIds: input.projectIds ? await Promise.all(input.projectIds.map((projectId) => resolveSdkProjectId(client, projectId))) : input.projectIds,
+    projectIds: input.projectIds ? await Promise.all(input.projectIds.map((projectId) => resolveSdkProjectId(client, projectId, input.teamId ? { teamId: input.teamId } : { personal: true }))) : input.projectIds,
     planId: typeof input.planId === "string" && input.planId ? await resolveSdkPlanId(client, input.planId) : input.planId,
   };
 }
@@ -3762,8 +3783,10 @@ export class OpenMatesTasks {
 
   async create(input: TaskPlainCreateOptions): Promise<TaskRecord> {
     const masterKey = await this.client.masterKey();
-    const created = await this.createRaw(await buildCreateUserTaskInput(masterKey, await canonicalizeTaskCreateInput(this.client, input)));
-    return toPublicTask(await decryptUserTask(created, masterKey));
+    const teamKey = input.teamId ? await taskWrappingKey(this.client, input.teamId) : undefined;
+    const created = await this.createRaw(await buildCreateUserTaskInput(masterKey, await canonicalizeTaskCreateInput(this.client, input), teamKey));
+    const wrapped = input.teamId ? await teamTaskRecordWithWrapper(this.client, created, input.teamId) : created;
+    return toPublicTask(await decryptUserTask(wrapped, teamKey ?? masterKey));
   }
 
   async update(id: string, input: TaskPlainUpdateOptions, filters: TaskListFilters = {}): Promise<TaskRecord> {
@@ -3939,7 +3962,14 @@ export class OpenMatesTasks {
   }
 
   private async listInternal(filters: TaskListFilters): Promise<DecryptedUserTask[]> {
-    return decryptUserTasks(await this.listRaw(filters), await this.client.masterKey());
+    const records = await this.listRaw(filters);
+    const masterKey = await this.client.masterKey();
+    if (!filters.teamId) return decryptUserTasks(records, masterKey);
+    const teamKey = records.some((record) => record.source !== "workflow_run")
+      ? await taskWrappingKey(this.client, filters.teamId) : null;
+    return Promise.all(records.map(async (record) => record.source === "workflow_run"
+      ? decryptUserTask(record, masterKey)
+      : decryptUserTask(await teamTaskRecordWithWrapper(this.client, record, filters.teamId!), teamKey!)));
   }
 
   private async resolve(id: string, filters: TaskListFilters): Promise<DecryptedUserTask> {

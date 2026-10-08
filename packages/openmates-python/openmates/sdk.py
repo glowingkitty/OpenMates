@@ -1183,6 +1183,26 @@ def _normalize_history(history: Any) -> list[dict[str, Any]]:
     return []
 
 
+# Canonical Mate wire categories shipped by the backend. The SDK cannot load
+# server Mate configs at runtime, so only these selected-Mate tokens invoke AI.
+_TEAM_AI_MATE_CATEGORIES = frozenset({
+    "activism", "business_development", "cooking_food", "design",
+    "electrical_engineering", "finance", "general_knowledge", "history",
+    "legal_law", "life_coach_psychology", "maker_prototyping",
+    "marketing_sales", "medical_health", "movies_tv", "science",
+    "software_development",
+})
+_TEAM_OPENMATES_MENTION = re.compile(r"(?<![\w@])@openmates(?![\w-])", re.IGNORECASE)
+_TEAM_MATE_MENTION = re.compile(r"(?<![\w@])@mate:([a-z0-9_-]+)(?![\w-])", re.IGNORECASE)
+
+
+def _is_team_ai_invocation(content: str) -> bool:
+    if _TEAM_OPENMATES_MENTION.search(content):
+        return True
+    return any(match.group(1).casefold() in _TEAM_AI_MATE_CATEGORIES
+               for match in _TEAM_MATE_MENTION.finditer(content))
+
+
 def _format_remember_message_draft(content: str) -> str:
     trimmed = content.strip()
     if not trimmed:
@@ -3318,13 +3338,24 @@ class OpenMatesChats:
         final_message = _rewrite_remember_message_references(message, rememberable_messages) if _has_remember_message_reference(message) else message
         if encrypted_chat_metadata is not None and title is None and final_message != message:
             encrypted_chat_metadata["encrypted_title"] = _encrypt_aes_gcm_text(final_message[:80], chat_key)
+        team_sender_name = (
+            str(user.get("username") or "").strip() or (sender_name or "").strip() or "Team member"
+            if normalized_team_id else sender_name or "User"
+        )
         inference_history = [
-            *normalized_history,
-            {"role": "user", "content": final_message, **({"name": sender_name} if sender_name else {})},
+            *(
+                [{**item, "sender_name": item.get("sender_name") or item.get("name") or item.get("role")}
+                 for item in normalized_history]
+                if normalized_team_id else normalized_history
+            ),
+            {"role": "user", "content": final_message, **(
+                {"sender_name": team_sender_name} if normalized_team_id
+                else {"name": sender_name} if sender_name else {}
+            )},
         ]
         team_ai_invocation = (
             {"history": inference_history}
-            if normalized_team_id and "@openmates" in final_message.casefold()
+            if normalized_team_id and _is_team_ai_invocation(final_message)
             else None
         )
         inference_request = {
@@ -3335,9 +3366,9 @@ class OpenMatesChats:
         }
         payload = {
             "message": None if normalized_team_id else final_message,
-            "history": normalized_history,
+            "history": [] if normalized_team_id else normalized_history,
             "save_to_account": True,
-            "title": title,
+            "title": None if normalized_team_id else title,
             "focus_mode": focus_mode,
             "memory_ids": memory_ids or [],
             "model": model,
@@ -3353,7 +3384,7 @@ class OpenMatesChats:
                 "client_message_id": message_id,
                 "chat_id": saved_chat_id,
                 "encrypted_content": _encrypt_aes_gcm_text(final_message, chat_key),
-                "encrypted_sender_name": _encrypt_aes_gcm_text(sender_name or "User", chat_key),
+                "encrypted_sender_name": _encrypt_aes_gcm_text(team_sender_name, chat_key),
                 "role": "user",
                 "created_at": created_at,
                 "updated_at": created_at,

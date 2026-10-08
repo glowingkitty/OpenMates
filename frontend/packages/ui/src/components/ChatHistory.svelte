@@ -89,6 +89,10 @@ import { storageArchiveFetch } from "../config/api";
   import { chatDB } from '../services/db';
   import { chatKeyManager } from '../services/encryption/ChatKeyManager';
   import { authStore } from '../stores/authStore';
+  import { userProfile } from '../stores/userProfile';
+  import { activeTeamId } from '../stores/teamStore';
+  import { computeSHA256 } from '../message_parsing/utils';
+  import { loadTeamMembers, loadTeamMemberAvatar } from '../services/teamService';
   import { webSocketService } from '../services/websocketService';
   import { getApiEndpoint } from '../config/api';
   import { activeChatStore } from '../stores/activeChatStore';
@@ -102,6 +106,44 @@ import { storageArchiveFetch } from "../config/api";
   } from '../utils/messageWindowPruning';
 
   const FORGOTTEN_MESSAGE_PAGE_LIMIT = NORMAL_MESSAGE_PAGE_LIMIT;
+  let currentUserHash = $state<string | null>(null);
+  let teamMemberProfiles = $state<Record<string, { displayName?: string; avatarUrl?: string }>>({});
+  $effect(() => {
+    const userId = $userProfile.user_id;
+    currentUserHash = null;
+    if (!userId) return;
+    let cancelled = false;
+    void computeSHA256(userId).then((hash) => {
+      if (!cancelled) currentUserHash = hash;
+    });
+    return () => { cancelled = true; };
+  });
+  $effect(() => {
+    const teamId = $activeTeamId;
+    const chatId = currentChatId;
+    teamMemberProfiles = {};
+    if (!teamId || !chatId) return;
+    let cancelled = false;
+    const avatarUrls: string[] = [];
+    void (async () => {
+      try {
+        const members = await loadTeamMembers(teamId);
+        const entries = await Promise.all(members.map(async (member) => {
+          const hash = member.hashed_user_id || (member.user_id ? await computeSHA256(member.user_id) : null);
+          if (!hash) return null;
+          const avatarUrl = await loadTeamMemberAvatar(teamId, member).catch(() => null);
+          if (avatarUrl && cancelled) URL.revokeObjectURL(avatarUrl);
+          else if (avatarUrl) avatarUrls.push(avatarUrl);
+          return [hash, { displayName: member.profile?.display_name, avatarUrl: avatarUrl ?? undefined }] as const;
+        }));
+        if (!cancelled) teamMemberProfiles = Object.fromEntries(entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null));
+      } catch { /* The encrypted per-message sender name remains the fallback. */ }
+    })();
+    return () => {
+      cancelled = true;
+      for (const url of avatarUrls) URL.revokeObjectURL(url);
+    };
+  });
   const OLDER_MESSAGES_AUTOLOAD_THRESHOLD_PX = 180;
 
   async function startContextAuthoring(recommendation: ProjectAuthoringRecommendation): Promise<void> {
@@ -2967,7 +3009,14 @@ import { storageArchiveFetch } from "../config/api";
                     <ChatMessage
                         role={msg.role}
                         category={msg.category}
-                        sender_name={msg.sender_name}
+                        sender_name={msg.role === 'user' && msg.original_message?.hashed_user_id
+                          ? teamMemberProfiles[msg.original_message.hashed_user_id]?.displayName || msg.sender_name
+                          : msg.sender_name}
+                        remoteHumanAvatarUrl={msg.original_message?.hashed_user_id
+                          ? teamMemberProfiles[msg.original_message.hashed_user_id]?.avatarUrl : undefined}
+                        isOwnUserMessage={!$activeTeamId || (msg.original_message?.hashed_user_id
+                          ? msg.original_message.hashed_user_id === currentUserHash
+                          : msg.status === 'sending' || msg.status === 'waiting_for_internet' || msg.status === 'waiting_for_upload')}
                         model_name={msg.model_name}
                         content={msg.content as string | Record<string, unknown> | null}
                         status={msg.status}

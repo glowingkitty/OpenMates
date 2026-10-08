@@ -28,6 +28,18 @@ type ProtocolFrame = {
 	raw: string;
 };
 
+function sanitizeStartupError(value: string): string {
+	return value
+		.split('\n', 1)[0]
+		.slice(0, 1000)
+		.replace(/\b(?:https?|wss?):\/\/[^\s"'<>]+/gi, '<url>')
+		.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '<email>')
+		.replace(/\b(?:Bearer|Basic)\s+[A-Za-z0-9._~+/-]+=*/gi, '<authorization>')
+		.replace(/\b(?:access[_-]?token|refresh[_-]?token|session|password|api[_-]?key|secret|code)\s*[:=]\s*["']?[^,\s"'&]+/gi, '<credential>')
+		.replace(/[?#][A-Za-z0-9_%-][^\s"'<>]*/g, '<url-parameters>')
+		.replace(/\b[A-Za-z0-9_-]{32,}\b/g, '<opaque-value>');
+}
+
 function deriveApiUrl(baseUrl: string): string {
 	if (process.env.PLAYWRIGHT_TEST_API_URL)
 		return process.env.PLAYWRIGHT_TEST_API_URL.replace(/\/$/, '');
@@ -276,12 +288,34 @@ test.describe('Teams V1 context isolation', () => {
 		let teamId = '';
 		let flowError: unknown;
 		let cleanupError: unknown;
+		const startupErrors: Array<{ kind: 'pageerror' | 'console'; name: string; message: string }> = [];
+		let startupCaptureActive = true;
+		const onPageError = (error: Error) => {
+			if (!startupCaptureActive || startupErrors.length >= 20) return;
+			startupErrors.push({
+				kind: 'pageerror',
+				name: /^[A-Za-z]{1,32}Error$/.test(error.name) ? error.name : 'Error',
+				message: sanitizeStartupError(error.message)
+			});
+		};
+		const onConsole = (message: { type: () => string; text: () => string }) => {
+			if (!startupCaptureActive || message.type() !== 'error' || startupErrors.length >= 20) return;
+			startupErrors.push({ kind: 'console', name: 'ConsoleError', message: sanitizeStartupError(message.text()) });
+		};
+		const stopStartupCapture = () => {
+			startupCaptureActive = false;
+			page.off('pageerror', onPageError);
+			page.off('console', onConsole);
+		};
+		page.on('pageerror', onPageError);
+		page.on('console', onConsole);
 		captureProtocol(page, frames, apiUrl);
 		await installOneTeamPreflightAckDrop(page);
 
 		try {
 			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 			await loginToTestAccount(page);
+			stopStartupCapture();
 			await dismissSecurityReminderIfPresent(page);
 
 			await startNewChat(page);
@@ -434,6 +468,32 @@ test.describe('Teams V1 context isolation', () => {
 			expect(sentMessage.payload.team_ai_invocation).toBeUndefined();
 			expect(preflight.raw).not.toContain(ordinaryMessage);
 			expect(sentMessage.raw).not.toContain(ordinaryMessage);
+			const ordinaryMessageId = String(sentMessage.payload.message?.message_id ?? '');
+			expect(ordinaryMessageId).not.toBe('');
+			await waitForFrame(
+				frames,
+				sendFrameIndex,
+				'received',
+				'chat_message_confirmed',
+				(payload) => payload.chat_id === sentMessage.payload.chat_id && payload.message_id === ordinaryMessageId
+			).catch(async (error: unknown) => {
+				await test.info().attach('ordinary-team-frame-ids', {
+					body: JSON.stringify({
+						expected_chat_id: sentMessage.payload.chat_id,
+						expected_message_id: ordinaryMessageId,
+						frames: frames.slice(sendFrameIndex).map(({ direction, type, payload }) => ({
+							direction,
+							type,
+							chat_id: payload.chat_id,
+							message_id: payload.message_id,
+							turn_id: payload.turn_id,
+							code: payload.code
+						}))
+					}, null, 2),
+					contentType: 'application/json'
+				});
+				throw error;
+			});
 			const ordinaryTeamMessage = page
 				.getByTestId('message-user')
 				.filter({ hasText: ordinaryMessage })
@@ -675,6 +735,13 @@ test.describe('Teams V1 context isolation', () => {
 			).toBe(true);
 			const teamChatId = String(sentMessage.payload.chat_id ?? '');
 			expect(teamChatId).not.toBe('');
+			// The Team turn must be persisted under Team ownership, rather than
+			// merely carrying a Team badge in the UI. Personal reads of this same
+			// newly created chat are forbidden even for its human creator.
+			const personalReadOfTeamChat = await page.request.get(
+				`${apiUrl}/v1/chats/${encodeURIComponent(teamChatId)}/messages/window?limit=1`
+			);
+			expect(personalReadOfTeamChat.status()).toBe(404);
 			expect(lostAckPreflight.payload.chat_id).toBe(teamChatId);
 			await expect
 				.poll(
@@ -820,6 +887,15 @@ test.describe('Teams V1 context isolation', () => {
 		} catch (error) {
 			flowError = error;
 		} finally {
+			stopStartupCapture();
+			try {
+				await test.info().attach('sanitized-prelogin-browser-errors', {
+					body: JSON.stringify({ errors: startupErrors }),
+					contentType: 'application/json'
+				});
+			} catch (error) {
+				cleanupError = error;
+			}
 			if (teamId) {
 				try {
 					const cleanupResponse = await page.request.delete(
@@ -829,7 +905,9 @@ test.describe('Teams V1 context isolation', () => {
 						true
 					);
 				} catch (error) {
-					cleanupError = error;
+					cleanupError = cleanupError
+						? new AggregateError([cleanupError, error], 'Diagnostic attachment and Team cleanup failed')
+						: error;
 				}
 			}
 		}

@@ -6,7 +6,12 @@ the shared AI request schemas.
 """
 
 import base64
+import json
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest as AppAskSkillRequest
@@ -29,6 +34,11 @@ def test_team_chat_requires_openmates_mention_to_trigger_ai() -> None:
     assert should_trigger_team_ai("hello everyone", is_team_chat=False) is True
     assert should_trigger_team_ai("hello everyone", is_team_chat=True) is False
     assert should_trigger_team_ai("@OpenMates summarize this", is_team_chat=True) is True
+    assert should_trigger_team_ai("@mate:software_development review this", is_team_chat=True) is True
+    assert should_trigger_team_ai("@mate:unknown_person review this", is_team_chat=True) is False
+    assert should_trigger_team_ai("@Sophia review this", is_team_chat=True) is False
+    assert should_trigger_team_ai("email@openmates.org", is_team_chat=True) is False
+    assert should_trigger_team_ai("@openmates_fake", is_team_chat=True) is False
 
 
 # contract-test: supporting surface=rest_api assertions=teams.chat.sender-identity-layout
@@ -122,6 +132,7 @@ def test_ordinary_team_message_accepts_ciphertext_without_plaintext_or_ai_histor
     assert transport.encrypted_content == CLIENT_CIPHERTEXT
     assert transport.should_trigger_ai is False
     assert transport.inference_history is None
+    assert transport.ai_sender_name is None
     assert transport.mentioned_user_ids == ("bob",)
 
 
@@ -149,6 +160,99 @@ def test_openmates_requires_and_replaces_with_full_attributed_history() -> None:
         ("Alice", "First"),
         ("Bob", "@openmates summarize"),
     ]
+    assert transport.ai_sender_name == "Bob"
+
+
+# contract-test: supporting surface=rest_api assertions=teams.chat.encrypted-until-invoked,teams.chat.sender-identity-layout
+def test_known_mate_invocation_accepts_full_two_human_history() -> None:
+    transport = parse_team_message_transport(
+        {"team_id": "team-1", "team_ai_invocation": {"history": [
+            {"role": "user", "content": "Let us compare the designs", "sender_name": "Alice", "created_at": 100},
+            {"role": "user", "content": "@mate:software_development please review", "sender_name": "Bob", "created_at": 200},
+        ]}},
+        {"message_id": "message-2", "role": "user", "encrypted_content": CLIENT_CIPHERTEXT},
+    )
+    assert transport.should_trigger_ai is True
+    assert [(item.sender_name, item.content) for item in transport.inference_history or ()] == [
+        ("Alice", "Let us compare the designs"),
+        ("Bob", "@mate:software_development please review"),
+    ]
+
+
+# contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked
+@pytest.mark.asyncio
+async def test_ordinary_team_relay_skips_ai_context_and_plaintext_pipeline(monkeypatch) -> None:
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    enqueue = AsyncMock()
+    project_context = AsyncMock(side_effect=AssertionError("ordinary Team relay resolved AI Project context"))
+    capabilities = Mock(side_effect=AssertionError("ordinary Team relay resolved AI capabilities"))
+    sanitize = Mock(side_effect=AssertionError("ordinary Team relay sanitized plaintext"))
+    publisher = SimpleNamespace(publish=AsyncMock())
+    class RelayCache(SimpleNamespace):
+        @property
+        async def client(self):
+            return publisher
+
+    websocket = SimpleNamespace(send_json=AsyncMock())
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    cache = RelayCache(
+        get_active_ai_task=AsyncMock(return_value=None),
+        add_message_to_chat_history=AsyncMock(),
+        save_chat_message_and_update_versions=AsyncMock(),
+        get_ai_messages_history=AsyncMock(),
+    )
+    directus = SimpleNamespace(
+        team=SimpleNamespace(
+            require_team_role=AsyncMock(return_value={"role": "member"}),
+            list_active_member_hashes=AsyncMock(return_value={hash_id("alice-id")}),
+        ),
+        chat=SimpleNamespace(get_chat_metadata=AsyncMock(return_value={
+            "hashed_team_id": hash_id("team-1"), "messages_v": 1,
+        })),
+    )
+    encryption = SimpleNamespace(decrypt_with_user_key=AsyncMock())
+    monkeypatch.setattr(handler, "ChatRecoveryCutoverController", lambda *_: SimpleNamespace(
+        get_epoch=AsyncMock(return_value=1),
+    ))
+    monkeypatch.setattr(handler, "_ordinary_team_message_is_committed", AsyncMock(return_value=True))
+    monkeypatch.setattr(handler, "_active_project_context", project_context)
+    monkeypatch.setattr(handler, "server_client_capabilities", capabilities)
+    monkeypatch.setattr(handler, "sanitize_text_for_ascii_smuggling", sanitize)
+    monkeypatch.setattr(handler, "enqueue_chat_turn", enqueue)
+    monkeypatch.setattr(handler, "notify_team_member_mentions", AsyncMock())
+
+    await handler.handle_message_received(
+        websocket=websocket, manager=manager, cache_service=cache,
+        directus_service=directus, encryption_service=encryption,
+        user_id="alice-id", device_fingerprint_hash="device-1",
+        payload={
+            "chat_id": "chat-1", "team_id": "team-1", "protocol_version": 1,
+            "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "message": {"message_id": "message-1", "role": "user",
+                        "encrypted_content": CLIENT_CIPHERTEXT, "created_at": 100},
+        },
+    )
+
+    websocket.send_json.assert_awaited_once()
+    assert websocket.send_json.await_args.args[0]["type"] == "chat_message_confirmed"
+    publisher.publish.assert_awaited_once()
+    channel, published = publisher.publish.await_args.args
+    assert channel == f"websocket:user:{hash_id('alice-id')}"
+    event = json.loads(published)
+    assert event["payload"]["hashed_user_id"] == hash_id("alice-id")
+    assert event["payload"]["encrypted_content"] == CLIENT_CIPHERTEXT
+    assert "content" not in event["payload"]
+    manager.send_personal_message.assert_not_awaited()
+    project_context.assert_not_awaited()
+    cache.get_active_ai_task.assert_not_awaited()
+    capabilities.assert_not_called()
+    sanitize.assert_not_called()
+    enqueue.assert_not_awaited()
+    cache.add_message_to_chat_history.assert_not_awaited()
+    cache.save_chat_message_and_update_versions.assert_not_awaited()
+    cache.get_ai_messages_history.assert_not_awaited()
+    encryption.decrypt_with_user_key.assert_not_awaited()
 
 
 # contract-test: supporting surface=rest_api assertions=teams.chat.encrypted-until-invoked

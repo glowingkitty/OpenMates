@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 import { workflowWorkspaceStore, type WorkflowDetail } from '../workflowWorkspaceStore';
+import { activeTeamContext, setActiveTeamContext } from '../teamStore';
 
 vi.mock('../../config/api', () => ({ getApiEndpoint: (path: string) => `https://api.test${path}` }));
 
@@ -18,10 +19,38 @@ function deferred<T>() {
 const detail = { id: 'workflow-1', title: 'Morning update', graph: { nodes: [], edges: [] } } as unknown as WorkflowDetail;
 
 describe('workflowWorkspaceStore navigation cache', () => {
-  beforeEach(() => workflowWorkspaceStore.reset());
+  beforeEach(() => {
+    activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
+    workflowWorkspaceStore.reset();
+  });
   afterEach(() => {
     vi.restoreAllMocks();
+    activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
     workflowWorkspaceStore.reset();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local
+  it('loads and creates workflows in the selected Team, discarding a Personal response after a switch', async () => {
+    const oldList = deferred<Response>();
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementationOnce(() => oldList.promise)
+      .mockResolvedValue(json({ workflows: [{ ...detail, id: 'team-workflow' }] }));
+    const personalLoad = workflowWorkspaceStore.loadWorkflows();
+    setActiveTeamContext({ team_id: 'team-a' } as Parameters<typeof setActiveTeamContext>[0]);
+    const teamLoad = workflowWorkspaceStore.loadWorkflows();
+    oldList.resolve(json({ workflows: [detail] }));
+    await expect(personalLoad).rejects.toThrow('Workflow context changed');
+    await teamLoad;
+    expect(get(workflowWorkspaceStore).workflows.map(item => item.id)).toEqual(['team-workflow']);
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.test/v1/workflows');
+    expect(fetchMock.mock.calls[1][0]).toBe('https://api.test/v1/workflows?team_id=team-a');
+
+    fetchMock.mockResolvedValue(json({ workflow: { ...detail, id: 'created-team-workflow' } }));
+    await workflowWorkspaceStore.createWorkflow({ title: 'Team', graph: detail.graph,
+      enabled: false, runContentRetention: 'last_5', teamId: 'team-a' });
+    expect(JSON.parse(fetchMock.mock.lastCall?.[1]?.body as string).team_id).toBe('team-a');
+    await expect(workflowWorkspaceStore.createWorkflow({ title: 'Wrong project', graph: detail.graph,
+      enabled: false, runContentRetention: 'last_5', teamId: 'team-b' }))
+      .rejects.toThrow('another workspace');
   });
 
   // contract-test: supporting surface=gui.web assertions=workflows-ui.website-change.composition

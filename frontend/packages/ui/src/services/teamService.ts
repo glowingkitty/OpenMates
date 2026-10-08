@@ -12,6 +12,7 @@ import { userProfile } from "../stores/userProfile";
 import { WorkspaceQueryCache, getWorkspaceCacheIdentity } from "./workspaceQueryCache";
 import { getWorkspaceCacheEpoch, registerWorkspaceCacheClear } from "./workspaceCacheLifecycle";
 import { getActiveTeamContextSnapshot, setActiveTeamContext, TEAMS_UPDATED_EVENT } from "../stores/teamStore";
+import { matesMetadata } from "../data/matesMetadata";
 import {
   decryptChatKeyWithMasterKey,
   decryptWithEmbedKey,
@@ -157,7 +158,10 @@ export class TeamApiError extends Error {
 }
 
 export function isTeamAIInvocation(content: string): boolean {
-  return content.toLocaleLowerCase().includes("@openmates");
+  if (/(?:^|[^\w@])@openmates(?![\w-])/i.test(content)) return true;
+  const knownMateIds = new Set(matesMetadata.map((mate) => mate.id));
+  const mentions = content.matchAll(/(?:^|[^\w@])@mate:([a-z0-9_-]+)(?![\w-])/gi);
+  return Array.from(mentions).some((match) => knownMateIds.has(match[1].toLowerCase()));
 }
 
 const teamKeyCache = new Map<string, Uint8Array>();

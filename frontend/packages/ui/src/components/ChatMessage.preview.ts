@@ -187,6 +187,31 @@ export const variants = {
 		messageParts: [],
 		containerWidth: 800
 	},
+	teamOwnHuman: {
+		...defaultProps,
+		content: 'I can check the venue near Alexanderplatz.',
+		sender_name: 'Alex',
+		isOwnUserMessage: true,
+	},
+	teamRemoteHuman: {
+		...defaultProps,
+		content: 'I can invite the Berlin volunteers.',
+		sender_name: 'Sam',
+		isOwnUserMessage: false,
+	},
+	teamRemoteWithAvatar: {
+		...defaultProps,
+		content: 'I uploaded my profile image for the team.',
+		sender_name: 'Sam',
+		isOwnUserMessage: false,
+		remoteHumanAvatarUrl: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Ccircle cx="32" cy="32" r="32" fill="%234d73ff"/%3E%3C/svg%3E',
+	},
+	teamAssistant: {
+		...defaultProps,
+		role: 'assistant' as const,
+		content: 'Alex proposed checking the venue; Sam offered to invite volunteers.',
+		sender_name: 'Sophia',
+	},
 
 	/** Assistant message with category */
 	withCategory: {

@@ -24,11 +24,13 @@ from backend.core.api.app.routes.projects import (  # noqa: E402 - optional depe
     ProjectCreateRequest,
     ProjectMoveRequest,
     ProjectItemMoveRequest,
+    ProjectItemCreateRequest,
     ProjectRestoreRequest,
     ProjectSettingsUpdateRequest,
     _validate_project_target,
     ask_projects,
     create_project,
+    create_item,
     delete_project,
     delete_project_source,
     get_project,
@@ -43,9 +45,83 @@ from backend.core.api.app.routes.projects import (  # noqa: E402 - optional depe
 from backend.core.api.app.services.directus.project_methods import ProjectMethods, hash_id  # noqa: E402
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError  # noqa: E402
 from backend.core.api.app.services.project_remote_access_service import ProjectRemoteAccessService  # noqa: E402
+from backend.core.api.app.services.workflow_service import InMemoryWorkflowRepository  # noqa: E402
+from backend.tests.workflow_test_utils import workflow_service  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _project_workflow_graph() -> dict:
+    return {
+        "version": 1,
+        "trigger_node_id": "trigger",
+        "nodes": [{"id": "trigger", "type": "manual_trigger", "config": {}}],
+        "edges": [],
+    }
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+async def test_project_workflow_target_resolves_only_with_matching_team(monkeypatch: pytest.MonkeyPatch) -> None:
+    service = workflow_service(repository=InMemoryWorkflowRepository())
+    team_workflow = service.create_workflow("creator", "Team flow", _project_workflow_graph(), team_id="team-a")
+    personal_workflow = service.create_workflow("creator", "Personal flow", _project_workflow_graph())
+    monkeypatch.setattr("backend.core.api.app.routes.projects.WorkflowService", lambda repository: service)
+    monkeypatch.setattr("backend.core.api.app.routes.projects.DirectusWorkflowRepository", lambda: object())
+    directus = SimpleNamespace()
+
+    await _validate_project_target("workflow", team_workflow.id, "member", directus, team_id="team-a")
+    for workflow_id, team_id in (
+        (team_workflow.id, "team-b"),
+        (team_workflow.id, None),
+        (personal_workflow.id, "team-a"),
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            await _validate_project_target("workflow", workflow_id, "creator", directus, team_id=team_id)
+        assert exc_info.value.status_code == 404
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+async def test_project_chat_target_requires_matching_team_and_personal_ownership() -> None:
+    chat = SimpleNamespace(
+        get_chat_metadata=AsyncMock(return_value={"hashed_team_id": hash_id("team-a")}),
+        check_chat_ownership=AsyncMock(return_value=True),
+    )
+    directus = SimpleNamespace(chat=chat)
+    await _validate_project_target("chat", "chat-1", "member", directus, team_id="team-a")
+    chat.check_chat_ownership.assert_not_awaited()
+
+    for team_id in ("team-b", None):
+        with pytest.raises(HTTPException) as exc_info:
+            await _validate_project_target("chat", "chat-1", "creator", directus, team_id=team_id)
+        assert exc_info.value.status_code == 404
+
+    chat.get_chat_metadata.return_value = {"hashed_team_id": None}
+    await _validate_project_target("chat", "chat-1", "creator", directus)
+    chat.check_chat_ownership.assert_awaited_once_with("chat-1", "creator")
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+async def test_project_create_item_passes_authorized_team_to_target_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
+    role = AsyncMock(return_value={"role": "member"})
+    monkeypatch.setattr("backend.core.api.app.routes.projects._require_project_role", role)
+    target_lookup = AsyncMock()
+    monkeypatch.setattr("backend.core.api.app.routes.projects._validate_project_target", target_lookup)
+    project = SimpleNamespace(get_project=AsyncMock(return_value={"id": "project-1"}), create_item=AsyncMock(return_value={"id": "item-1"}))
+    directus = SimpleNamespace(project=project)
+    body = ProjectItemCreateRequest(
+        project_item_id="item-1", item_type="workflow", target_id="workflow-1",
+        target_id_encrypted="encrypted-id", created_at=1, updated_at=1,
+    )
+
+    result = await create_item(make_request(), "project-1", body, team_id="team-a", current_user=SimpleNamespace(id="member"), directus_service=directus)
+
+    assert result == {"item": {"id": "item-1"}}
+    target_lookup.assert_awaited_once_with("workflow", "workflow-1", "member", directus, team_id="team-a")
+    role.assert_awaited_once()
 
 
 # contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity

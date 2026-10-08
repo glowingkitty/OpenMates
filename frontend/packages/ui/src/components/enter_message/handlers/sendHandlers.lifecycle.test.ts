@@ -1,25 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Editor } from '@tiptap/core';
+import { createHash } from 'node:crypto';
+import { get } from 'svelte/store';
 
 const mocks = vi.hoisted(() => {
   const store = <T>(value: T) => ({ subscribe(run: (current: T) => void) { run(value); return () => undefined; } });
   const span = { end: vi.fn(), setAttribute: vi.fn() };
   const authState = { isAuthenticated: false };
-  const draftState = { currentChatId: 'chat-auth', isSaveInProgress: false };
-  const chatRecord = { chat_id: 'chat-auth', messages_v: 3, draft_v: 1, encrypted_chat_key: 'wrapped-key', encrypted_draft_md: 'encrypted-draft', encrypted_draft_preview: 'encrypted-preview' };
+  const teamContext = { teamId: null as string | null, epoch: 0 };
+  const draftState = { currentChatId: 'chat-auth' as string | null, isSaveInProgress: false };
+  const chatRecord = { chat_id: 'chat-auth', team_id: null as string | null, messages_v: 3, draft_v: 1, encrypted_chat_key: 'wrapped-key', encrypted_draft_md: 'encrypted-draft', encrypted_draft_preview: 'encrypted-preview' };
   const chatDB = {
     CHATS_STORE_NAME: 'chats',
-    getTransaction: vi.fn(async () => ({ objectStore: () => ({ get: () => {
+    getTransaction: vi.fn(async (): Promise<unknown> => ({ objectStore: () => ({ get: () => {
       const request: { result: typeof chatRecord; onsuccess?: () => void; onerror?: () => void } = { result: { ...chatRecord } };
       queueMicrotask(() => request.onsuccess?.());
       return request;
     } }) })),
     getChat: vi.fn(async () => ({ ...chatRecord })),
+    addChat: vi.fn(async () => undefined),
+    getMessage: vi.fn(async () => null),
     saveMessage: vi.fn(async () => undefined),
     updateChat: vi.fn(async () => undefined),
     deleteMessage: vi.fn(async () => undefined),
   };
   const chatSyncService = {
+    dispatchEvent: vi.fn(),
     getActiveAITaskIdForChat: vi.fn(() => null),
     sendSetActiveChat: vi.fn(async () => undefined),
     sendNewMessage: vi.fn(),
@@ -28,7 +34,9 @@ const mocks = vi.hoisted(() => {
   return {
     store,
     authState,
+    teamContext,
     draftState,
+    chatRecord,
     chatDB,
     chatSyncService,
     getTracer: vi.fn(() => ({ startSpan: vi.fn(() => span) })),
@@ -39,6 +47,8 @@ const mocks = vi.hoisted(() => {
     tipTapToCanonicalMarkdown: vi.fn(() => 'Send these attachments'),
     consumeClickedSuggestion: vi.fn(() => null),
     extractProjectFocusSendIntent: vi.fn(() => null),
+    wrapTeamChatKey: vi.fn(async () => 'team-wrapped-key'),
+    isTeamAIInvocation: vi.fn(() => false),
   };
 });
 
@@ -50,7 +60,7 @@ vi.mock('../../../demo_chats/convertToChat', () => ({ isPublicChat: vi.fn(() => 
 vi.mock('../../../services/tracing/setup', () => ({ getTracer: mocks.getTracer }));
 vi.mock('@tiptap/core', () => ({ Extension: { create: vi.fn() } }));
 vi.mock('../../../services/db', () => ({ chatDB: mocks.chatDB }));
-vi.mock('../../../services/encryption/ChatKeyManager', () => ({ chatKeyManager: { getKeySync: vi.fn(() => 'local-key') } }));
+vi.mock('../../../services/encryption/ChatKeyManager', () => ({ chatKeyManager: { getKeySync: vi.fn(() => 'local-key'), createKeyForNewChat: vi.fn(() => 'local-key') } }));
 vi.mock('../../../services/chatSyncService', () => ({ chatSyncService: mocks.chatSyncService }));
 vi.mock('../../../services/chatListCache', () => ({ chatListCache: { setLastMessage: vi.fn() } }));
 vi.mock('../../../stores/websocketStatusStore', () => ({ websocketStatus: mocks.store('connected') }));
@@ -64,6 +74,7 @@ vi.mock('../../../services/anonymousChatStorage', () => ({
 }));
 vi.mock('../../../stores/serverStatusStore', () => ({ refreshAnonymousFreeUsageStatus: mocks.refreshAnonymousFreeUsageStatus }));
 vi.mock('../../../stores/authStore', () => ({ authStore: { subscribe(run: (state: typeof mocks.authState) => void) { run(mocks.authState); return () => undefined; } } }));
+vi.mock('../../../stores/userProfile', () => ({ userProfile: mocks.store({ username: 'Alice', user_id: 'alice-id' }) }));
 vi.mock('../../../stores/signupState', () => ({ forcedLogoutInProgress: mocks.store(false) }));
 vi.mock('../../../stores/appSettingsMemoriesPermissionStore', () => ({ appSettingsMemoriesPermissionStore: { getCurrentRequestId: vi.fn(() => null), getCurrentChatId: vi.fn(() => null) } }));
 vi.mock('../../../stores/editMessageStore', () => ({ editMessageStore: mocks.store(null), cancelEdit: vi.fn() }));
@@ -72,8 +83,13 @@ vi.mock('../../../stores/personalDataStore', () => ({ personalDataStore: { setti
 vi.mock('../services/piiDetectionService', () => ({ detectPII: vi.fn(() => []), replacePIIWithPlaceholders: vi.fn(), createPIIMappingsForStorage: vi.fn(() => []) }));
 vi.mock('../services/placeholderRewriteService', () => ({ rewriteKnownPIIPlaceholders: vi.fn() }));
 vi.mock('../../../stores/embedPIIStore', () => ({ getActivePIIMappingsForRewrite: vi.fn(() => []) }));
-vi.mock('../../../stores/teamStore', () => ({ activeTeamId: mocks.store(null) }));
-vi.mock('../../../services/teamService', () => ({ isTeamAIInvocation: vi.fn(() => false), wrapTeamChatKey: vi.fn() }));
+vi.mock('../../../stores/teamStore', () => ({
+  activeTeamId: mocks.store(null),
+  getActiveTeamContextSnapshot: () => ({ ...mocks.teamContext }),
+  isActiveTeamContext: (teamId: string | null, epoch: number) =>
+    mocks.teamContext.teamId === teamId && mocks.teamContext.epoch === epoch,
+}));
+vi.mock('../../../services/teamService', () => ({ isTeamAIInvocation: mocks.isTeamAIInvocation, wrapTeamChatKey: mocks.wrapTeamChatKey }));
 vi.mock('../../../services/cryptoService', () => ({ encryptWithChatKey: vi.fn() }));
 vi.mock('../../../stores/incognitoModeStore', () => ({ incognitoMode: { get: vi.fn(() => false) } }));
 vi.mock('../../../services/incognitoChatService', () => ({ incognitoChatService: { getChat: vi.fn(async () => null) } }));
@@ -83,7 +99,8 @@ vi.mock('../../../services/projectFocusSendPreflight', () => ({
   ProjectFocusSendPreflightError: class ProjectFocusSendPreflightError extends Error {},
 }));
 
-import { handleSend } from './sendHandlers';
+import { executeDeferredSend, handleSend } from './sendHandlers';
+import { pendingUploadStore, removePendingSend } from '../../../stores/pendingUploadStore';
 
 function makeEditor() {
   const document = {
@@ -99,6 +116,7 @@ function makeEditor() {
   const editor = {
     isDestroyed: false,
     isEmpty: false,
+    state: { doc: document },
     getText: vi.fn(() => 'Send these attachments'),
     getJSON: vi.fn(() => document),
     view: { state: { doc: { descendants(callback: (node: { type: { name: string }; attrs: Record<string, unknown> }) => boolean): void {
@@ -180,6 +198,43 @@ describe('handleSend authenticated acceptance lifecycle', () => {
     vi.clearAllMocks();
     mocks.authState.isAuthenticated = true;
     mocks.draftState.currentChatId = 'chat-auth';
+    mocks.chatRecord.team_id = null;
+    mocks.teamContext.teamId = null;
+    mocks.teamContext.epoch = 0;
+    mocks.isTeamAIInvocation.mockReturnValue(false);
+    mocks.tipTapToCanonicalMarkdown.mockReturnValue('Send these attachments');
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,message-input.send.ownership
+  it('carries new Team chat provenance through an upload-delayed first AI invocation', async () => {
+    mocks.teamContext.teamId = 'team-one';
+    mocks.isTeamAIInvocation.mockReturnValue(true);
+    mocks.tipTapToCanonicalMarkdown.mockReturnValue('@OpenMates summarize');
+    mocks.draftState.currentChatId = null;
+    mocks.chatDB.getChat.mockResolvedValueOnce(null);
+    mocks.chatSyncService.sendNewMessage.mockResolvedValue(undefined);
+    const { editor, document } = makeEditor();
+    (document.content[1] as { attrs: Record<string, unknown> }).attrs.status = 'uploading';
+    (document.content[1] as { attrs: Record<string, unknown> }).attrs.contentRef = null;
+    const dispatch = vi.fn();
+
+    expect(await handleSend(editor, dispatch, vi.fn())).toBe(true);
+    const queued = [...get(pendingUploadStore).values()].flat();
+    expect(queued).toHaveLength(1);
+    const context = queued[0];
+    expect(context.newLocalChat).toBe(true);
+    expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+
+    try {
+      await executeDeferredSend(context);
+      expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ chat_id: context.chatId, message_id: context.messageId,
+          content: '@OpenMates summarize' }),
+        undefined, undefined, undefined, true,
+      );
+    } finally {
+      removePendingSend(context.chatId, context.pendingId);
+    }
   });
 
   // contract-test: direct surface=gui.web assertions=message-input.send.ownership
@@ -243,6 +298,7 @@ describe('handleSend authenticated acceptance lifecycle', () => {
     const result = handleSend(editor, vi.fn(), setHasContent, 'chat-auth');
     await vi.waitFor(() => expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledTimes(1));
     document.content.push({ type: 'paragraph', content: [{ type: 'text', text: 'New thought while sending' }] });
+    (editor as unknown as { state: { doc: unknown } }).state.doc = structuredClone(document);
     const editedDocument = structuredClone(document);
     accept();
     expect(await result).toBe(true);
@@ -252,5 +308,83 @@ describe('handleSend authenticated acceptance lifecycle', () => {
     expect(blur).not.toHaveBeenCalled();
     expect(setHasContent).not.toHaveBeenCalledWith(false);
     expect(mocks.clearCurrentDraft).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.chat.sender-identity-layout
+  it('keeps the real Team member name for encrypted sender attribution', async () => {
+    mocks.teamContext.teamId = 'team-one';
+    mocks.chatRecord.team_id = 'team-one';
+    mocks.chatSyncService.sendNewMessage.mockResolvedValue(undefined);
+    vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(
+      Uint8Array.from(createHash('sha256').update('alice-id').digest()).buffer,
+    );
+    const dispatch = vi.fn();
+    const { editor } = makeEditor();
+
+    expect(await handleSend(editor, dispatch, vi.fn(), 'chat-auth')).toBe(true);
+    expect(dispatch).toHaveBeenCalledWith('sendMessage', expect.objectContaining({
+      message: expect.objectContaining({
+        sender_name: 'Alice',
+        hashed_user_id: createHash('sha256').update('alice-id').digest('hex'),
+      }),
+    }));
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local
+  it('drops a send when the Team context switches during chat classification', async () => {
+    mocks.teamContext.teamId = 'team-one';
+    let releaseLookup!: () => void;
+    mocks.chatDB.getTransaction.mockImplementationOnce(() => new Promise((resolve) => {
+      releaseLookup = () => resolve({ objectStore: () => ({ get: () => {
+        const request: { result: unknown; onsuccess?: () => void } = {
+          result: { chat_id: 'chat-auth', team_id: 'team-one', messages_v: 3, encrypted_chat_key: 'wrapped-key' },
+        };
+        queueMicrotask(() => request.onsuccess?.());
+        return request;
+      } }) });
+    }));
+    const { editor, document, clearContent } = makeEditor();
+    const original = structuredClone(document);
+    const dispatch = vi.fn();
+    const pending = handleSend(editor, dispatch, vi.fn(), 'chat-auth');
+    await vi.waitFor(() => expect(releaseLookup).toBeDefined());
+    mocks.teamContext.teamId = null;
+    mocks.teamContext.epoch++;
+    releaseLookup();
+
+    expect(await pending).toBeUndefined();
+    expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+    expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalledWith('sendMessage', expect.anything());
+    expect(document).toEqual(original);
+    expect(clearContent).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local
+  it('does not create a Team chat after switching to Personal while wrapping its key', async () => {
+    mocks.teamContext.teamId = 'team-one';
+    mocks.draftState.currentChatId = null;
+    mocks.chatDB.getTransaction.mockImplementationOnce(async () => ({ objectStore: () => ({ get: () => {
+      const request: { result: null; onsuccess?: () => void } = { result: null };
+      queueMicrotask(() => request.onsuccess?.());
+      return request;
+    } }) }));
+    let releaseWrap!: (value: string) => void;
+    mocks.wrapTeamChatKey.mockImplementationOnce(() => new Promise((resolve) => { releaseWrap = resolve; }));
+    const { editor, document, clearContent } = makeEditor();
+    const original = structuredClone(document);
+    const dispatch = vi.fn();
+    const pending = handleSend(editor, dispatch, vi.fn());
+    await vi.waitFor(() => expect(releaseWrap).toBeDefined());
+    mocks.teamContext.teamId = null;
+    mocks.teamContext.epoch++;
+    releaseWrap('team-wrapped-key');
+
+    expect(await pending).toBeUndefined();
+    expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+    expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalledWith('sendMessage', expect.anything());
+    expect(document).toEqual(original);
+    expect(clearContent).not.toHaveBeenCalled();
   });
 });

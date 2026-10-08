@@ -185,6 +185,7 @@ DRAFT_FIELDS_FOR_WARMING = (
 # Fields for messages based on backend/core/directus/schemas/messages.yml
 MESSAGE_ALL_FIELDS = (
     "id,"
+    "hashed_user_id,"
     "client_message_id,"
     "chat_id,"
     "encrypted_content,"
@@ -206,6 +207,7 @@ MESSAGE_ALL_FIELDS = (
 # This avoids hard failures during login sync if Directus roles have not been updated yet.
 MESSAGE_FIELDS_NO_THINKING = (
     "id,"
+    "hashed_user_id,"
     "client_message_id,"
     "chat_id,"
     "encrypted_content,"

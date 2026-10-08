@@ -49,6 +49,7 @@
 	import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
 	import { userProfile } from '@repo/ui/stores/userProfile.ts';
 	import { WorkflowApiError } from '@repo/ui/stores/workflowWorkspaceStore.ts';
+	import { activeTeamId } from '@repo/ui/stores/teamStore';
 	import type { WorkflowBindingRequirement, WorkflowDetail, WorkflowGraph, WorkflowRun, WorkflowSummary } from '@repo/ui';
 
 
@@ -121,7 +122,7 @@
 	let aiSession = $state<WorkflowInputSession | null>(null);
 	let createdAiSession = $state<WorkflowInputSession | null>(null);
 	let createdAiWorkflowIds = $state<string[]>([]);
-	let creationSessionRestored = false;
+	let creationSessionRestored = $state(false);
 	let undoConflict = $state(false);
 	let authoringAssumptions = $state<string[]>([]);
 	let authoringAssumptionsWorkflowId = $state<string | null>(null);
@@ -140,7 +141,7 @@
 	let streamController: AbortController | null = null;
 	let interruptedSubmission: { instruction: string; workflowId?: string; key: string } | null = null;
 	let pendingPreviewTargetId = $state<string | null>(null);
-	let pendingResumeStarted = false;
+	let pendingResumeStarted = $state(false);
 	let activeEditorPreview = $derived(streamPreviewWorkflows.find(item => item.id === pendingPreviewTargetId) ?? pendingPreviewWorkflow);
 	let routeAlive = true;
 	let observedWorkflowGeneration = $state(workflowWorkspaceStore.getGeneration());
@@ -152,6 +153,9 @@
 	let blankCreatorOpen = $state(false);
 	let blankWorkflowTitle = $state('');
 	let projectWorkflowTarget = $state<ProjectCreationTarget | null>(null);
+	let observedTeamId: string | null | undefined;
+	const pendingInputKey = (teamId: string | null) => teamId ? `workflow-ai-pending:${teamId}` : 'workflow-ai-pending';
+	const lastBatchKey = (teamId: string | null) => teamId ? `workflow-ai-last-batch:${teamId}` : 'workflow-ai-last-batch';
 	let lastStartedRunId = $state<string | null>(null);
 	let workflowImportInput = $state<HTMLInputElement | null>(null);
 	let draggingWorkflowFile = $state(false);
@@ -540,13 +544,16 @@
 	$effect(() => {
 		if (!canLoadWorkflows || creationSessionRestored) return;
 		creationSessionRestored = true;
-		const raw = sessionStorage.getItem('workflow-ai-last-batch');
+		const teamId = $activeTeamId;
+		const key = lastBatchKey(teamId);
+		const raw = sessionStorage.getItem(key);
 		if (!raw) return;
 		try {
 			const saved = JSON.parse(raw) as { sessionId: string; workflowIds: string[] };
 			void getWorkflowInstruction(saved.sessionId).then(session => {
+				if ($activeTeamId !== teamId) return;
 				if (session.status !== 'executed' && !(session.status === 'draft' && session.partial_reason)) {
-					sessionStorage.removeItem('workflow-ai-last-batch');
+					sessionStorage.removeItem(key);
 					return;
 				}
 				if (session.partial_reason) {
@@ -557,16 +564,17 @@
 				createdAiWorkflowIds = saved.workflowIds;
 				authoringAssumptions = session.assumptions ?? [];
 				authoringAssumptionsWorkflowId = saved.workflowIds.length === 1 ? saved.workflowIds[0] : null;
-			}).catch(() => sessionStorage.removeItem('workflow-ai-last-batch'));
+			}).catch(() => sessionStorage.removeItem(key));
 		} catch {
-			sessionStorage.removeItem('workflow-ai-last-batch');
+			sessionStorage.removeItem(key);
 		}
 	});
 
 	$effect(() => {
 		if (!canLoadWorkflows || pendingResumeStarted) return;
 		pendingResumeStarted = true;
-		const raw = sessionStorage.getItem('workflow-ai-pending');
+		const key = pendingInputKey($activeTeamId);
+		const raw = sessionStorage.getItem(key);
 		if (!raw) return;
 		try {
 			const pending = JSON.parse(raw) as { sessionId: string; workflowId?: string };
@@ -574,7 +582,7 @@
 			pendingSaveMessage = $text('workflows.builder.ai_saving');
 			void authorWorkflow('', pending.workflowId, pending.sessionId);
 		} catch {
-			sessionStorage.removeItem('workflow-ai-pending');
+			sessionStorage.removeItem(key);
 		}
 	});
 
@@ -628,6 +636,31 @@
 		if (!workflow || hydratedEditorWorkflow === workflow || editorDirty || saving || pendingSaveSessionId || streamController || editorHasPendingDraft || workflowGraphRef?.hasPendingDraft()) return;
 		selectedRunContentRetention = workflow.run_content_retention ?? 'last_5';
 		resetEditor(workflow);
+	});
+
+	$effect(() => {
+		const teamId = $activeTeamId;
+		if (observedTeamId === undefined) {
+			observedTeamId = teamId;
+			return;
+		}
+		if (observedTeamId === teamId) return;
+		observedTeamId = teamId;
+		streamController?.abort();
+		streamController = null;
+		saving = false;
+		pendingSaveSessionId = null;
+		pendingSaveMessage = null;
+		pendingPreviewWorkflow = null;
+		streamPreviewWorkflows = [];
+		createdAiSession = null;
+		createdAiWorkflowIds = [];
+		creationSessionRestored = false;
+		pendingResumeStarted = false;
+		interruptedSubmission = null;
+		closeBlankWorkflowCreator();
+		routeError = null;
+		openWorkflowHome(true);
 	});
 
 	$effect(() => {
@@ -770,6 +803,10 @@
 
 	async function authorWorkflow(instruction: string, workflowId?: string, existingSessionId?: string): Promise<void> {
 		if (saving) return;
+		const generation = workflowWorkspaceStore.getGeneration();
+		const teamId = $activeTeamId;
+		const stillCurrent = () => routeAlive && $activeTeamId === teamId && workflowWorkspaceStore.isCurrentGeneration(generation);
+		const pendingKey = pendingInputKey(teamId);
 		const before = workflowId && selectedWorkflow?.id === workflowId ? selectedWorkflow : null;
 		authoringAssumptions = [];
 		authoringAssumptionsWorkflowId = null;
@@ -789,6 +826,7 @@
 		saving = true;
 		routeError = null;
 		const showAcceptedPreview = (event: WorkflowAcceptedPreview) => {
+			if (!stillCurrent()) return;
 			if (event.graph.version !== 2) return;
 			const preview: WorkflowDetail = {
 				id: event.metadata.workflow_id ?? (event.operation === 'update' || event.metadata.action === 'update' ? workflowId : undefined) ?? `provisional-${event.workflow_index}`,
@@ -821,6 +859,7 @@
 			let session: WorkflowInputSession;
 			if (existingSessionId) {
 				session = await getWorkflowInstruction(existingSessionId);
+				if (!stillCurrent()) return;
 			} else {
 				const key = interruptedSubmission?.instruction === instruction && interruptedSubmission.workflowId === workflowId
 					? interruptedSubmission.key : crypto.randomUUID();
@@ -830,11 +869,11 @@
 				authoringPhase = 'planning';
 				let startedSessionId: string | null = null;
 				const onEvent = (event: WorkflowInputStreamEvent) => {
-					if (!routeAlive) return;
+					if (!stillCurrent()) return;
 					if (event.type === 'started') {
 						startedSessionId = event.session_id;
 						pendingSaveSessionId = event.session_id;
-						sessionStorage.setItem('workflow-ai-pending', JSON.stringify({ sessionId: event.session_id, workflowId }));
+						sessionStorage.setItem(pendingKey, JSON.stringify({ sessionId: event.session_id, workflowId }));
 						if (stopRequested) void acknowledgeStop(event.session_id);
 					} else if (event.type === 'progress') {
 						authoringPhase = event.phase;
@@ -853,7 +892,7 @@
 				try {
 					session = await streamWorkflowInstruction(instruction, workflowId, onEvent, controller.signal, key);
 				} catch (streamError) {
-					if (!routeAlive || (controller.signal.aborted && !stopRequested)) throw streamError;
+					if (!stillCurrent() || (controller.signal.aborted && !stopRequested)) throw streamError;
 					if (controller.signal.aborted && stopRequested && startedSessionId) {
 						session = await getWorkflowInstruction(startedSessionId);
 					} else if (!startedSessionId) {
@@ -868,10 +907,12 @@
 						session = await getWorkflowInstruction(startedSessionId);
 					}
 				}
+				if (!stillCurrent()) return;
 				streamController = null;
 			}
 			let pendingChecks = 0;
 			while (session.status === 'running' || session.status === 'queued' || session.status === 'saving') {
+				if (!stillCurrent()) return;
 				pendingSaveSessionId = session.session_id;
 				pendingSaveMessage = stopRequested ? 'Stopping after the current step...' : session.message || $text('workflows.builder.ai_saving');
 				pendingPreviewWorkflow = session.preview_workflow ?? pendingPreviewWorkflow;
@@ -880,18 +921,19 @@
 				if (!stopRequested) authoringPhase = 'saving';
 				pendingPreviewTargetId = workflowId ?? null;
 				authoringAssumptions = session.assumptions ?? authoringAssumptions;
-				sessionStorage.setItem('workflow-ai-pending', JSON.stringify({ sessionId: session.session_id, workflowId }));
+				sessionStorage.setItem(pendingKey, JSON.stringify({ sessionId: session.session_id, workflowId }));
 				await new Promise(resolve => setTimeout(resolve, pendingChecks++ < 2 ? 500 : 1500));
-				if (!routeAlive) return;
+				if (!stillCurrent()) return;
 				session = await getWorkflowInstruction(session.session_id);
 			}
+			if (!stillCurrent()) return;
 			pendingSaveSessionId = null;
 			pendingSaveMessage = null;
 			pendingPreviewWorkflow = null;
 			streamPreviewWorkflows = [];
 			authoringPhase = null;
 			pendingPreviewTargetId = null;
-			sessionStorage.removeItem('workflow-ai-pending');
+			sessionStorage.removeItem(pendingKey);
 			interruptedSubmission = null;
 			stopRequested = false;
 			if (session.status === 'needs_clarification') {
@@ -932,7 +974,7 @@
 			if (created.length) {
 				createdAiSession = session;
 				createdAiWorkflowIds = created.map(item => item.id);
-				sessionStorage.setItem('workflow-ai-last-batch', JSON.stringify({ sessionId: session.session_id, workflowIds: created.map(item => item.id) }));
+				sessionStorage.setItem(lastBatchKey(teamId), JSON.stringify({ sessionId: session.session_id, workflowIds: created.map(item => item.id) }));
 				browseMode = 'recent';
 				if (created.length === 1 && committed.length === 1) {
 					authoringAssumptionsWorkflowId = created[0].id;
@@ -970,15 +1012,17 @@
 			workflowInputText = '';
 			editorInstruction = '';
 		} catch (cause) {
-			if (!(cause instanceof DOMException && cause.name === 'AbortError')) routeError = cause instanceof Error ? cause.message : $text('workflows.builder.ai_failed');
+			if (stillCurrent() && !(cause instanceof DOMException && cause.name === 'AbortError')) routeError = cause instanceof Error ? cause.message : $text('workflows.builder.ai_failed');
 		} finally {
-			streamController = null;
-			streamPreviewWorkflows = [];
-			provisionalFullscreen = null;
-			authoringScope = null;
-			pendingPreviewWorkflow = null;
-			authoringPhase = null;
-			saving = false;
+			if (stillCurrent()) {
+				streamController = null;
+				streamPreviewWorkflows = [];
+				provisionalFullscreen = null;
+				authoringScope = null;
+				pendingPreviewWorkflow = null;
+				authoringPhase = null;
+				saving = false;
+			}
 		}
 	}
 
@@ -1022,7 +1066,7 @@
 			}
 			createdAiSession = null;
 			const undoingOpenWorkflow = selectedWorkflow && createdAiWorkflowIds.includes(selectedWorkflow.id);
-			sessionStorage.removeItem('workflow-ai-last-batch');
+			sessionStorage.removeItem(lastBatchKey($activeTeamId));
 			createdAiWorkflowIds = [];
 			authoringAssumptions = [];
 			authoringAssumptionsWorkflowId = null;
@@ -1037,13 +1081,14 @@
 
 	function resumePendingSave(): void {
 		if (!pendingSaveSessionId || saving) return;
-		const raw = sessionStorage.getItem('workflow-ai-pending');
+		const key = pendingInputKey($activeTeamId);
+		const raw = sessionStorage.getItem(key);
 		if (!raw) return;
 		try {
 			const pending = JSON.parse(raw) as { sessionId: string; workflowId?: string };
 			void authorWorkflow('', pending.workflowId, pending.sessionId);
 		} catch {
-			sessionStorage.removeItem('workflow-ai-pending');
+			sessionStorage.removeItem(key);
 			pendingSaveSessionId = null;
 			pendingSaveMessage = null;
 		}
@@ -1085,6 +1130,7 @@
 	): Promise<boolean> {
 		if (!canLoadWorkflows || saving) return false;
 		const workflowProjectTarget = projectWorkflowTarget;
+		const creationGeneration = workflowWorkspaceStore.getGeneration();
 		saving = true;
 		routeError = null;
 		try {
@@ -1093,14 +1139,17 @@
 				description,
 				graph,
 				enabled,
-				runContentRetention
+				runContentRetention,
+				teamId: workflowProjectTarget?.teamId
 			});
 			// Keep the selected location for a retry when workflow creation itself fails.
+			if (!workflowWorkspaceStore.isCurrentGeneration(creationGeneration)) return false;
 			projectWorkflowTarget = null;
 			let associationWarning: string | null = null;
 			if (workflowProjectTarget) {
 				try {
-					await saveWorkflowToProjectTarget(workflowProjectTarget, workflow.id, workflow.title);
+					await saveWorkflowToProjectTarget(workflowProjectTarget, workflow.id, workflow.title,
+						() => workflowWorkspaceStore.isCurrentGeneration(creationGeneration));
 				} catch (associationError) {
 					associationWarning = projectWorkflowAssociationWarning(
 						workflowProjectTarget,
@@ -1108,12 +1157,16 @@
 					);
 				}
 			}
+			if (!workflowWorkspaceStore.isCurrentGeneration(creationGeneration)) return false;
 			await maintainTemplateProjection(workflow);
+			if (!workflowWorkspaceStore.isCurrentGeneration(creationGeneration)) return false;
 			await selectWorkflow(workflow.id);
+			if (!workflowWorkspaceStore.isCurrentGeneration(creationGeneration)) return false;
 			openWorkflowDetails(workflow.id);
 			if (associationWarning) routeError = associationWarning;
 			return true;
 		} catch (createError) {
+			if (!workflowWorkspaceStore.isCurrentGeneration(creationGeneration)) return false;
 			routeError =
 				createError instanceof Error ? createError.message : 'Failed to create workflow.';
 			return false;
@@ -1706,7 +1759,9 @@
 				{/if}
 			</main>
 			<div class="settings-wrapper">
-				<Settings isLoggedIn={$authStore.isAuthenticated} />
+				{#if routeReady && $authStore.isAuthenticated}
+					<Settings isLoggedIn={true} />
+				{/if}
 			</div>
 		</div>
 	</div>

@@ -55,6 +55,7 @@ from backend.core.api.app.services.workflow_service import (
     WorkflowNotFoundError,
     WorkflowRunNotCancellableError,
     WorkflowService,
+    WorkflowTeamExecutionUnavailableError,
     WorkflowVersionCurrentError,
     _hash_owner_id,
     validate_workflow_return_outputs,
@@ -83,13 +84,48 @@ from backend.core.api.app.services.workspace_change_history_service import Works
 from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
 
 
-router = APIRouter(prefix="/v1/workflows", tags=["Workflows"], dependencies=[Depends(ensure_workflows_enabled)])
+_TEAM_CONTEXT_ROUTES = {
+    ("GET", "/v1/workflows"),
+    ("POST", "/v1/workflows"),
+    ("GET", "/v1/workflows/capabilities"),
+    ("POST", "/v1/workflows/validate"),
+    ("GET", "/v1/workflows/{workflow_id}"),
+    ("PATCH", "/v1/workflows/{workflow_id}"),
+    ("DELETE", "/v1/workflows/{workflow_id}"),
+    ("POST", "/v1/workflows/{workflow_id}/enable"),
+    ("POST", "/v1/workflows/{workflow_id}/disable"),
+    ("GET", "/v1/workflows/{workflow_id}/versions"),
+    ("GET", "/v1/workflows/{workflow_id}/versions/{version_id}"),
+    ("POST", "/v1/workflows/{workflow_id}/versions/{version_id}/restore"),
+    ("GET", "/v1/workflows/{workflow_id}/runs"),
+    ("GET", "/v1/workflows/{workflow_id}/runs/{run_id}"),
+    ("POST", "/v1/workflows/input"),
+    ("POST", "/v1/workflows/input/stream"),
+    ("GET", "/v1/workflows/input/{session_id}"),
+    ("GET", "/v1/workflows/input/{session_id}/events"),
+    ("POST", "/v1/workflows/input/{session_id}/follow-up"),
+    ("POST", "/v1/workflows/input/{session_id}/stop"),
+    ("POST", "/v1/workflows/input/{session_id}/undo"),
+}
+
+
+def enforce_team_workflow_surface(request: Request, team_id: str | None = Query(default=None, min_length=1)) -> None:
+    """A Team query must never fall through to a Personal-only workflow route."""
+    if not team_id:
+        return
+    route = request.scope.get("route")
+    if (request.method, getattr(route, "path", None)) not in _TEAM_CONTEXT_ROUTES:
+        raise HTTPException(status_code=409, detail="TEAM_WORKFLOW_OPERATION_UNAVAILABLE")
+
+
+router = APIRouter(prefix="/v1/workflows", tags=["Workflows"], dependencies=[Depends(ensure_workflows_enabled), Depends(enforce_team_workflow_surface)])
 logger = logging.getLogger(__name__)
 _STEP_TEST_PRODUCERS: set[asyncio.Task[None]] = set()
 
 
 class WorkflowCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
+    team_id: str | None = Field(default=None, min_length=1)
     encrypted_slug: str | None = Field(default=None, min_length=1)
     slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     description: str | None = Field(default=None, max_length=2_000)
@@ -774,6 +810,10 @@ def _handle_workflow_error(exc: Exception) -> None:
         raise HTTPException(status_code=400, detail="RUN_NOT_CANCELLABLE") from exc
     if isinstance(exc, WorkflowVersionCurrentError):
         raise HTTPException(status_code=409, detail="WORKFLOW_VERSION_ALREADY_CURRENT") from exc
+    if isinstance(exc, WorkflowTeamExecutionUnavailableError):
+        raise HTTPException(status_code=409, detail={
+            "code": "TEAM_WORKFLOW_EXECUTION_UNAVAILABLE", "message": str(exc),
+        }) from exc
     if isinstance(exc, DuplicateObjectSlugError):
         raise HTTPException(status_code=409, detail="WORKFLOW_SLUG_CONFLICT") from exc
     if isinstance(exc, WorkflowTemplateProjectionStaleError):
@@ -804,6 +844,8 @@ async def _require_team_read_role(directus_service: Any, team_id: str | None, cu
 
 
 def _handle_workflow_input_error(exc: Exception) -> None:
+    if isinstance(exc, TeamPermissionError):
+        _handle_workflow_error(exc)
     if isinstance(exc, PermissionError | KeyError):
         raise HTTPException(status_code=404, detail="Workflow input session not found") from exc
     if isinstance(exc, ValueError):
@@ -852,12 +894,20 @@ async def list_workflows(
 async def create_workflow(
     request: Request,
     body: WorkflowCreateRequest,
+    team_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
     identity_service: WorkflowIdentityService = Depends(get_workflow_identity_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+    directus_service: Any = Depends(get_directus_service),
 ) -> dict[str, Any]:
     try:
+        if team_id and team_id != body.team_id:
+            raise ValueError("Workflow creation Team does not match request context")
+        if body.team_id:
+            await directus_service.team.require_team_role(body.team_id, current_user.id, {"owner", "admin", "member"})
+            if body.enabled:
+                raise WorkflowTeamExecutionUnavailableError()
         if body.lifecycle == WorkflowLifecycle.CHAT_EMBED:
             raise ValueError("Use run-once to create a chat-owned workflow")
         _prevalidate_paid_workflow_save(body.graph, enabled=body.enabled)
@@ -882,6 +932,7 @@ async def create_workflow(
             body.slug_lookup_hash,
             identity.category,
             identity.icon,
+            team_id=body.team_id,
         )
         after = workflow.model_dump(mode="json", by_alias=True)
         history = await _record_workflow_history(
@@ -1262,8 +1313,12 @@ async def start_workflow_input(
     body: WorkflowInputStartRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowInputService = Depends(get_workflow_input_service),
+    team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
+        team_id = team_id if isinstance(team_id, str) else None
+        if team_id:
+            await get_directus_service(request).team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
         result = await run_in_threadpool(
             service.start,
             user_id=current_user.id,
@@ -1276,6 +1331,7 @@ async def start_workflow_input(
             vault_key_id=current_user.vault_key_id,
             optimistic_save=body.optimistic_save,
             idempotency_key=body.idempotency_key,
+            team_id=team_id,
         )
         result = await _dispatch_queued_workflow_input(request, service, current_user, result)
         return {"session": result.model_dump(mode="json", by_alias=True)}
@@ -1319,8 +1375,15 @@ async def stream_workflow_input(
     body: WorkflowInputStartRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowInputService = Depends(get_workflow_input_service),
+    team_id: str | None = Query(default=None),
 ) -> StreamingResponse:
     """Stream validated node prefixes while planning and persist the final or partial plan."""
+    team_id = team_id if isinstance(team_id, str) else None
+    if team_id:
+        try:
+            await get_directus_service(request).team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
+        except Exception as exc:
+            _handle_workflow_error(exc)
     async def events():
         queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
         loop = asyncio.get_running_loop()
@@ -1337,6 +1400,7 @@ async def stream_workflow_input(
                     selected_project_id=body.selected_project_id, timezone=body.timezone,
                     vault_key_id=current_user.vault_key_id, optimistic_save=body.optimistic_save,
                     idempotency_key=body.idempotency_key,
+                    team_id=team_id,
                     on_event=emit,
                 )
                 result = await _dispatch_queued_workflow_input(request, service, current_user, result)
@@ -1368,12 +1432,16 @@ async def get_workflow_input_session(
     request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowInputService = Depends(get_workflow_input_service),
+    team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
+        team_id = team_id if isinstance(team_id, str) else None
+        if team_id:
+            await _require_team_read_role(get_directus_service(request), team_id, current_user)
         # A queued status response includes its renderable preview. The short
         # Dragonfly marker deliberately contains no private graph, so status
         # reads use the encrypted durable session as their source of truth.
-        result = await run_in_threadpool(service.status, session_id, current_user.id, current_user.vault_key_id)
+        result = await run_in_threadpool(service.status, session_id, current_user.id, current_user.vault_key_id, team_id)
         return {"session": result.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
         _handle_workflow_input_error(exc)
@@ -1387,9 +1455,13 @@ async def list_workflow_input_events(
     after_event_id: int = 0,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowInputService = Depends(get_workflow_input_service),
+    team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
-        events = await run_in_threadpool(service.events, session_id, after_event_id, current_user.id, current_user.vault_key_id)
+        team_id = team_id if isinstance(team_id, str) else None
+        if team_id:
+            await _require_team_read_role(get_directus_service(request), team_id, current_user)
+        events = await run_in_threadpool(service.events, session_id, after_event_id, current_user.id, current_user.vault_key_id, team_id)
         return {"events": [event.model_dump(mode="json") for event in events]}
     except Exception as exc:
         _handle_workflow_input_error(exc)
@@ -1403,14 +1475,19 @@ async def follow_up_workflow_input(
     body: WorkflowInputFollowUpRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowInputService = Depends(get_workflow_input_service),
+    team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
+        team_id = team_id if isinstance(team_id, str) else None
+        if team_id:
+            await get_directus_service(request).team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
         result = await run_in_threadpool(
             service.follow_up,
             user_id=current_user.id,
             session_id=session_id,
             text=body.text,
             vault_key_id=current_user.vault_key_id,
+            team_id=team_id,
         )
         return {"session": result.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
@@ -1424,13 +1501,18 @@ async def stop_workflow_input(
     request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowInputService = Depends(get_workflow_input_service),
+    team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
+        team_id = team_id if isinstance(team_id, str) else None
+        if team_id:
+            await get_directus_service(request).team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
         result = await run_in_threadpool(
             service.stop,
             user_id=current_user.id,
             session_id=session_id,
             vault_key_id=current_user.vault_key_id,
+            team_id=team_id,
         )
         if result.status == "stopped":
             try:
@@ -1451,13 +1533,18 @@ async def undo_workflow_input(
     request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowInputService = Depends(get_workflow_input_service),
+    team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
+        team_id = team_id if isinstance(team_id, str) else None
+        if team_id:
+            await get_directus_service(request).team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
         result = await run_in_threadpool(
             service.undo,
             user_id=current_user.id,
             session_id=session_id,
             vault_key_id=current_user.vault_key_id,
+            team_id=team_id,
         )
         return {"session": result.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
@@ -1747,15 +1834,19 @@ async def list_workflow_versions(
     request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
         if _is_shifted_direct_user_arg(request):
             service = current_user
             current_user = request
-        versions = await run_in_threadpool(service.list_workflow_versions, workflow_id, current_user.id, current_user.vault_key_id)
+        team_id = team_id if isinstance(team_id, str) else None
+        if team_id:
+            await _require_team_read_role(get_directus_service(request), team_id, current_user)
+        versions = await run_in_threadpool(service.list_workflow_versions, workflow_id, current_user.id, current_user.vault_key_id, team_id)
         return {
             "versions": [version.model_dump(mode="json") for version in versions],
-            "current_version_id": service.get_workflow(workflow_id, current_user.id, current_user.vault_key_id).current_version_id,
+            "current_version_id": service.get_workflow(workflow_id, current_user.id, current_user.vault_key_id, team_id).current_version_id,
             "retention": {"mode": "last_25_versions", "max_versions": 25},
         }
     except Exception as exc:
@@ -1770,17 +1861,22 @@ async def get_workflow_version(
     request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
         if _is_shifted_direct_user_arg(request):
             service = current_user
             current_user = request
+        team_id = team_id if isinstance(team_id, str) else None
+        if team_id:
+            await _require_team_read_role(get_directus_service(request), team_id, current_user)
         version = await run_in_threadpool(
             service.get_workflow_version_detail,
             workflow_id,
             current_user.id,
             version_id,
             current_user.vault_key_id,
+            team_id,
         )
         return {"version": version.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
@@ -1796,18 +1892,23 @@ async def restore_workflow_version(
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+    team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
         if _is_shifted_direct_user_arg(request):
             service = current_user
             current_user = request
-        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
+        team_id = team_id if isinstance(team_id, str) else None
+        if team_id:
+            await get_directus_service(request).team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
+        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id, team_id)
         workflow = await run_in_threadpool(
             service.restore_workflow_version,
             workflow_id,
             current_user.id,
             version_id,
             current_user.vault_key_id,
+            team_id,
         )
         after = workflow.model_dump(mode="json", by_alias=True)
         response = {"workflow": after}
@@ -1961,9 +2062,15 @@ async def update_workflow(
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+    team_id: str | None = Query(default=None),
+    directus_service: Any = Depends(get_directus_service),
 ) -> dict[str, Any]:
     try:
-        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
+        if team_id:
+            await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
+            if body.enabled is True:
+                raise WorkflowTeamExecutionUnavailableError()
+        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id, team_id)
         if body.graph is not None:
             _prevalidate_paid_workflow_save(body.graph, prior_graph=before.graph,
                                             enabled=before.enabled if body.enabled is None else body.enabled)
@@ -1992,6 +2099,7 @@ async def update_workflow(
             slug_lookup_hash=body.slug_lookup_hash,
             category=identity.category if identity else None,
             icon=identity.icon if identity else None,
+            team_id=team_id,
         )
         after = workflow.model_dump(mode="json", by_alias=True)
         operation = _workflow_ask_update_operation(body)
@@ -2025,10 +2133,14 @@ async def delete_workflow(
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+    team_id: str | None = Query(default=None),
+    directus_service: Any = Depends(get_directus_service),
 ) -> dict[str, Any]:
     try:
-        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
-        await run_in_threadpool(service.delete_workflow, workflow_id, current_user.id)
+        if team_id:
+            await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
+        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id, team_id)
+        await run_in_threadpool(service.delete_workflow, workflow_id, current_user.id, team_id)
         history = await _record_workflow_history(
             history_service,
             current_user.id,
@@ -2054,10 +2166,15 @@ async def enable_workflow(
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+    team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
-        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
-        workflow = await run_in_threadpool(service.update_workflow, workflow_id, current_user.id, enabled=True, vault_key_id=current_user.vault_key_id)
+        team_id = team_id if isinstance(team_id, str) else None
+        if team_id:
+            await get_directus_service(request).team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
+            raise WorkflowTeamExecutionUnavailableError()
+        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id, team_id)
+        workflow = await run_in_threadpool(service.update_workflow, workflow_id, current_user.id, enabled=True, vault_key_id=current_user.vault_key_id, team_id=team_id)
         after = workflow.model_dump(mode="json", by_alias=True)
         history = await _record_workflow_history(
             history_service,
@@ -2087,10 +2204,14 @@ async def disable_workflow(
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+    team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
-        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
-        workflow = await run_in_threadpool(service.update_workflow, workflow_id, current_user.id, enabled=False, vault_key_id=current_user.vault_key_id)
+        team_id = team_id if isinstance(team_id, str) else None
+        if team_id:
+            await get_directus_service(request).team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
+        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id, team_id)
+        workflow = await run_in_threadpool(service.update_workflow, workflow_id, current_user.id, enabled=False, vault_key_id=current_user.vault_key_id, team_id=team_id)
         after = workflow.model_dump(mode="json", by_alias=True)
         history = await _record_workflow_history(
             history_service,
@@ -2553,9 +2674,13 @@ async def list_workflow_runs(
     request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
-        runs = await run_in_threadpool(service.list_runs, workflow_id, current_user.id, current_user.vault_key_id)
+        team_id = team_id if isinstance(team_id, str) else None
+        if team_id:
+            await _require_team_read_role(get_directus_service(request), team_id, current_user)
+        runs = await run_in_threadpool(service.list_runs, workflow_id, current_user.id, current_user.vault_key_id, team_id)
         return {"runs": [item.model_dump(mode="json") for item in runs]}
     except Exception as exc:
         _handle_workflow_error(exc)
@@ -2569,9 +2694,13 @@ async def get_workflow_run(
     request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
-        run = await run_in_threadpool(service.get_run, workflow_id, run_id, current_user.id, current_user.vault_key_id)
+        team_id = team_id if isinstance(team_id, str) else None
+        if team_id:
+            await _require_team_read_role(get_directus_service(request), team_id, current_user)
+        run = await run_in_threadpool(service.get_run, workflow_id, run_id, current_user.id, current_user.vault_key_id, team_id)
         return {"run": run.model_dump(mode="json")}
     except Exception as exc:
         _handle_workflow_error(exc)

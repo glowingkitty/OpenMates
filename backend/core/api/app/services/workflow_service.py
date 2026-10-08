@@ -23,6 +23,7 @@ from datetime import date, datetime
 from typing import Any, Protocol
 
 import httpx
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 
 from backend.core.api.app.services.feature_availability_service import (
     FeatureAvailabilityService,
@@ -267,6 +268,13 @@ class WorkflowVersionCurrentError(ValueError):
 
 class WorkflowAuthoringConflictError(ValueError):
     """A workflow head changed before a complete authoring batch could commit."""
+
+
+class WorkflowTeamExecutionUnavailableError(ValueError):
+    """A Team workflow cannot be activated until Team execution is supported."""
+
+    def __init__(self) -> None:
+        super().__init__("Team workflows cannot be enabled until Team execution is available.")
 
 
 class WorkflowBindingRequirementsUnresolvedError(ValueError):
@@ -691,6 +699,22 @@ class DirectusWorkflowRepository:
 
     def list_workflows(self, user_id: str, team_id: str | None = None) -> list[dict[str, Any]]:
         return self.list_all_workflow_records(user_id=None if team_id else user_id, team_id=team_id)
+
+    def require_team_write_role(self, team_id: str, user_id: str) -> None:
+        """Recheck active Team write access at queued authoring commit time."""
+        team_hash = _hash_team_id(team_id)
+        membership = self._find_one("team_memberships", {"_and": [
+            {"hashed_team_id": {"_eq": team_hash}},
+            {"hashed_user_id": {"_eq": hash_id(user_id)}},
+            {"status": {"_eq": "active"}},
+        ]})
+        if not membership or membership.get("role") not in {"owner", "admin", "member"}:
+            raise TeamPermissionError("Team permission denied")
+        team = self._find_one("teams", {"_and": [
+            {"hashed_team_id": {"_eq": team_hash}}, {"status": {"_eq": "active"}},
+        ]})
+        if not team:
+            raise TeamPermissionError("Team permission denied")
 
     def list_all_workflow_records(self, user_id: str | None = None, team_id: str | None = None) -> list[dict[str, Any]]:
         filters: dict[str, Any] = {"status": {"_neq": WorkflowStatus.DELETED.value}}
@@ -1238,6 +1262,7 @@ class WorkflowService:
         session_id: str | None = None,
         *,
         undo_of_operation_id: str | None = None,
+        team_id: str | None = None,
     ) -> list[WorkflowDetail | None]:
         """Prepare encrypted edits, then atomically publish all heads and undo rows.
 
@@ -1266,6 +1291,12 @@ class WorkflowService:
             kind = op.get("type")
             if kind not in {"create", "update", "delete", "restore_deleted"}:
                 raise ValueError("Unsupported workflow authoring operation")
+            if team_id and kind == "restore_deleted" and op.get("enabled") is True:
+                raise WorkflowTeamExecutionUnavailableError()
+            if op.get("team_id") not in {None, team_id}:
+                raise ValueError("Workflow operation Team does not match its authoring context")
+            if team_id and kind in {"create", "update"}:
+                op["team_id"] = team_id
             workflow_id = op.get("workflow_id")
             if not isinstance(workflow_id, str) or not workflow_id:
                 raise ValueError("Each workflow authoring operation needs a workflow id")
@@ -1280,15 +1311,32 @@ class WorkflowService:
                 raise ValueError("Workflow create requires a stable initial version id")
             normalized.append(op)
         owner_hash = _hash_owner_id(user_id)
-        request_hash = "sha256:" + hashlib.sha256(_stable_json({"owner_hash": owner_hash, "operations": normalized,
-                                                                  "session_id": session_id, "undo_of": undo_of_operation_id}).encode()).hexdigest()
+        if team_id:
+            existing_owners = {
+                record["owner_hash"]
+                for op in normalized if op["type"] != "create"
+                if (record := self.repository.get_workflow_including_deleted(
+                    op["workflow_id"], user_id, team_id=team_id
+                )) is not None
+            }
+            if len(existing_owners) > 1:
+                raise ValueError("A Team authoring batch must have one storage owner")
+            if existing_owners:
+                owner_hash = existing_owners.pop()
+            if owner_hash != _hash_owner_id(user_id) and any(op["type"] == "create" for op in normalized):
+                raise ValueError("A Team batch cannot create and edit workflows with different storage owners")
+        request_identity = {"owner_hash": owner_hash, "operations": normalized,
+                            "session_id": session_id, "undo_of": undo_of_operation_id}
+        if team_id:
+            request_identity["actor_hash"] = _hash_owner_id(user_id)
+        request_hash = "sha256:" + hashlib.sha256(_stable_json(request_identity).encode()).hexdigest()
         receipt = self.repository.authoring_request("POST", "/receipt", payload={
             "owner_hash": owner_hash, "operation_id": operation_id, "request_hash": request_hash,
         })
         if receipt.get("found"):
             return self._authoring_receipt_details(receipt, vault_key_id)
 
-        stage = StagedWorkflowRepository(self.repository)
+        stage = StagedWorkflowRepository(self.repository, owner_hash=owner_hash)
         staged_service = WorkflowService(stage, self.feature_availability, self.payload_cipher)
         results: list[WorkflowDetail | None] = []
         writes: list[dict[str, Any]] = []
@@ -1297,7 +1345,7 @@ class WorkflowService:
         for index, op in enumerate(normalized):
             kind = op["type"]
             workflow_id = op["workflow_id"]
-            prior_record = self.repository.get_workflow_including_deleted(workflow_id, user_id)
+            prior_record = self.repository.get_workflow_including_deleted(workflow_id, user_id, team_id=team_id)
             expected = op.get("expected_record_version")
             if kind == "create":
                 if prior_record is not None:
@@ -1346,7 +1394,7 @@ class WorkflowService:
                     stage.save_workflow(corrected)
                     result = staged_service._detail_from_record(corrected, vault_key_id)
             elif kind == "delete":
-                staged_service.delete_workflow(workflow_id, user_id)
+                staged_service.delete_workflow(workflow_id, user_id, team_id=team_id)
                 deleted = stage.get_workflow_including_deleted(workflow_id, user_id)
                 assert deleted is not None
                 deleted["version"] = expected + 1
@@ -1366,7 +1414,7 @@ class WorkflowService:
                 stage.save_workflow(restored)
                 result = staged_service._detail_from_record(restored, vault_key_id)
 
-            record = stage.get_workflow_including_deleted(workflow_id, user_id)
+            record = stage.get_workflow_including_deleted(workflow_id, user_id, team_id=team_id)
             assert record is not None
             after = result.model_dump(mode="json") if result is not None else None
             snapshot_expiry = int(time.time()) + WORKFLOW_AUTHORING_MUTATION_TTL_SECONDS
@@ -1396,6 +1444,7 @@ class WorkflowService:
 
         self.repository.authoring_request("POST", "/", payload={
             "owner_hash": owner_hash, "operation_id": operation_id, "request_hash": request_hash,
+            "hashed_team_id": _hash_team_id(team_id) if team_id else None,
             "session_id": session_id, "undo_of_operation_id": undo_of_operation_id,
             "writes": writes, "blobs": list(stage.blobs.values()), "mutations": mutations,
             "outcomes": outcomes, "obsolete_refs": sorted(stage.deleted_blob_refs),
@@ -1421,17 +1470,27 @@ class WorkflowService:
         vault_key_id: str | None = None,
         *,
         session_id: str | None = None,
+        team_id: str | None = None,
+        workflow_id: str | None = None,
     ) -> list[WorkflowDetail | None]:
         """Undo every target or none, guarded by each postcommit version."""
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
+        owner_hash = _hash_owner_id(user_id)
+        if team_id:
+            if not workflow_id:
+                raise ValueError("Team workflow undo requires a target workflow")
+            record = self.repository.get_workflow_including_deleted(workflow_id, user_id, team_id=team_id)
+            if record is None:
+                raise WorkflowNotFoundError(workflow_id)
+            owner_hash = record["owner_hash"]
         undo_id = f"undo:{uuid.uuid5(uuid.NAMESPACE_URL, operation_id)}"
         completed_undo = self.repository.authoring_request("POST", "/operation", payload={
-            "operation_id": undo_id, "owner_hash": _hash_owner_id(user_id),
+            "operation_id": undo_id, "owner_hash": owner_hash,
         })
         if completed_undo.get("found"):
             return self._authoring_receipt_details(completed_undo, vault_key_id)
         operation = self.repository.authoring_request("POST", "/operation", payload={
-            "operation_id": operation_id, "owner_hash": _hash_owner_id(user_id),
+            "operation_id": operation_id, "owner_hash": owner_hash,
         })
         if not operation.get("found"):
             raise WorkflowNotFoundError(operation_id)
@@ -1474,7 +1533,7 @@ class WorkflowService:
                 raise WorkflowAuthoringConflictError("Workflow undo ledger contains an unsupported mutation")
         return self.apply_authoring_batch(
             user_id, inverse, undo_id, vault_key_id,
-            session_id=session_id, undo_of_operation_id=operation_id,
+            session_id=session_id, undo_of_operation_id=operation_id, team_id=team_id,
         )
 
     def list_workflows(self, user_id: str, vault_key_id: str | None = None, team_id: str | None = None) -> list[WorkflowSummary]:
@@ -1624,11 +1683,12 @@ class WorkflowService:
         user_id: str,
         version_id: str,
         vault_key_id: str | None = None,
+        team_id: str | None = None,
     ) -> WorkflowDetail:
         """Load the immutable graph pinned when an execution was accepted."""
         self.ensure_enabled()
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
-        record = self.repository.get_workflow(workflow_id, user_id)
+        record = self.repository.get_workflow(workflow_id, user_id, team_id=team_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
         version = next((item for item in record.get("versions") or [] if item.get("id") == version_id), None)
@@ -1644,10 +1704,11 @@ class WorkflowService:
         workflow_id: str,
         user_id: str,
         vault_key_id: str | None = None,
+        team_id: str | None = None,
     ) -> list[WorkflowVersionSummary]:
         self.ensure_enabled()
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
-        record = self.repository.get_workflow(workflow_id, user_id)
+        record = self.repository.get_workflow(workflow_id, user_id, team_id=team_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
         del vault_key_id
@@ -1660,9 +1721,10 @@ class WorkflowService:
         user_id: str,
         version_id: str,
         vault_key_id: str | None = None,
+        team_id: str | None = None,
     ) -> WorkflowVersionDetail:
-        workflow = self.get_workflow_version(workflow_id, user_id, version_id, vault_key_id)
-        record = self.repository.get_workflow(workflow_id, user_id)
+        workflow = self.get_workflow_version(workflow_id, user_id, version_id, vault_key_id, team_id)
+        record = self.repository.get_workflow(workflow_id, user_id, team_id=team_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
         version = next((item for item in record.get("versions") or [] if item.get("id") == version_id and item.get("pruned_at") is None), None)
@@ -1676,20 +1738,22 @@ class WorkflowService:
         user_id: str,
         version_id: str,
         vault_key_id: str | None = None,
+        team_id: str | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
-        record = self.repository.get_workflow(workflow_id, user_id)
+        record = self.repository.get_workflow(workflow_id, user_id, team_id=team_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
         if record["current_version_id"] == version_id:
             raise WorkflowVersionCurrentError("Workflow version is already current")
-        historical = self.get_workflow_version(workflow_id, user_id, version_id, vault_key_id)
+        historical = self.get_workflow_version(workflow_id, user_id, version_id, vault_key_id, team_id)
         return self.update_workflow(
             workflow_id,
             user_id,
             graph=historical.graph,
             vault_key_id=vault_key_id,
             restored_from_version_id=version_id,
+            team_id=team_id,
         )
 
     def restore_workflow_version_from_history(
@@ -1766,7 +1830,12 @@ class WorkflowService:
         initial_version_id: str | None = None,
         initial_binding_requirements: list[dict[str, Any]] | None = None,
         allow_data_dependencies: bool = False,
+        team_id: str | None = None,
     ) -> WorkflowDetail:
+        if team_id and enabled:
+            raise WorkflowTeamExecutionUnavailableError()
+        if team_id and WorkflowLifecycle(lifecycle) != WorkflowLifecycle.PERSISTED:
+            raise ValueError("Team workflows must be persisted")
         if WorkflowLifecycle(lifecycle) == WorkflowLifecycle.CHAT_EMBED:
             chat_graph = WorkflowGraph.model_validate(graph)
             if not isinstance(source_chat_id, str) or not source_chat_id.strip():
@@ -1789,12 +1858,12 @@ class WorkflowService:
                 "slug_lookup_hash": slug_lookup_hash, "category": category, "icon": icon,
                 "initial_binding_requirements": initial_binding_requirements,
                 "allow_data_dependencies": allow_data_dependencies or WorkflowGraph.model_validate(graph).version >= 2,
-            }], f"single-create:{workflow_id}:{initial_version_id}", vault_key_id)[0]
+            }], f"single-create:{workflow_id}:{initial_version_id}", vault_key_id, team_id=team_id)[0]
             assert result is not None
             return result
         self.ensure_enabled()
         if workflow_id is not None:
-            existing = self.repository.get_workflow(workflow_id, user_id)
+            existing = self.repository.get_workflow(workflow_id, user_id, team_id=team_id)
             if existing is not None:
                 if existing.get("source") != source or existing.get("current_version_id") != initial_version_id:
                     raise ValueError("Workflow idempotency key conflicts with an existing workflow")
@@ -1813,7 +1882,7 @@ class WorkflowService:
             {"encrypted_slug": encrypted_slug, "slug_lookup_hash": slug_lookup_hash},
             record_label="Workflow",
         )
-        self._ensure_workflow_slug_lookup_available(user_id, slug_lookup_hash)
+        self._ensure_workflow_slug_lookup_available(user_id, slug_lookup_hash, team_id=team_id)
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph)
         validate_workflow_composition_refs(
@@ -1860,6 +1929,7 @@ class WorkflowService:
         record = {
             "id": workflow_id,
             "owner_hash": _hash_owner_id(user_id),
+            "hashed_team_id": _hash_team_id(team_id) if team_id else None,
             "encrypted_title_ref": title_blob["ref"],
             "encrypted_title_checksum": title_blob["checksum"],
             "encrypted_slug": encrypted_slug,
@@ -1935,11 +2005,14 @@ class WorkflowService:
         known_prior: WorkflowDetail | None = None,
         new_version_id: str | None = None,
         allow_data_dependencies: bool = False,
+        team_id: str | None = None,
     ) -> WorkflowDetail:
         if isinstance(self.repository, DirectusWorkflowRepository):
-            prior_record = self.repository.get_workflow(workflow_id, user_id)
+            prior_record = self.repository.get_workflow(workflow_id, user_id, team_id=team_id)
             if prior_record is None:
                 raise WorkflowNotFoundError(workflow_id)
+            if team_id and (enabled is True or (enabled is None and prior_record.get("enabled"))):
+                raise WorkflowTeamExecutionUnavailableError()
             if prior_record.get("lifecycle") == WorkflowLifecycle.CHAT_EMBED.value:
                 raise ValueError("Chat-owned workflow definitions are immutable")
             expected = expected_record_version if expected_record_version is not None else int(prior_record["version"])
@@ -1955,7 +2028,7 @@ class WorkflowService:
                 "allow_data_dependencies": allow_data_dependencies or (
                     graph is not None and WorkflowGraph.model_validate(graph).version >= 2
                 ),
-            }], f"single-update:{workflow_id}:{new_version_id}", vault_key_id)[0]
+            }], f"single-update:{workflow_id}:{new_version_id}", vault_key_id, team_id=team_id)[0]
             assert result is not None
             return result
         self.ensure_enabled()
@@ -1964,9 +2037,11 @@ class WorkflowService:
             record_label="Workflow",
         )
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
-        record = self.repository.get_workflow(workflow_id, user_id)
+        record = self.repository.get_workflow(workflow_id, user_id, team_id=team_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
+        if team_id and (enabled is True or (enabled is None and record.get("enabled"))):
+            raise WorkflowTeamExecutionUnavailableError()
         if record.get("lifecycle") == WorkflowLifecycle.CHAT_EMBED.value:
             raise ValueError("Chat-owned workflow definitions are immutable")
         if new_version_id is not None and record.get("current_version_id") == new_version_id:
@@ -1999,7 +2074,7 @@ class WorkflowService:
                 require_schedule=True,
             )
         if slug_lookup_hash is not None:
-            self._ensure_workflow_slug_lookup_available(user_id, slug_lookup_hash, exclude_workflow_id=workflow_id)
+            self._ensure_workflow_slug_lookup_available(user_id, slug_lookup_hash, team_id=team_id, exclude_workflow_id=workflow_id)
             record["encrypted_slug"] = encrypted_slug
             record["slug_lookup_hash"] = slug_lookup_hash
 
@@ -2315,16 +2390,16 @@ class WorkflowService:
         )
         return deleted
 
-    def delete_workflow(self, workflow_id: str, user_id: str) -> bool:
+    def delete_workflow(self, workflow_id: str, user_id: str, team_id: str | None = None) -> bool:
         if isinstance(self.repository, DirectusWorkflowRepository):
-            record = self.repository.get_workflow(workflow_id, user_id)
+            record = self.repository.get_workflow(workflow_id, user_id, team_id=team_id)
             if not record:
                 raise WorkflowNotFoundError(workflow_id)
             self.apply_authoring_batch(user_id, [{"type": "delete", "workflow_id": workflow_id,
-                "expected_record_version": int(record["version"])}], str(uuid.uuid4()))
+                "expected_record_version": int(record["version"])}], str(uuid.uuid4()), team_id=team_id)
             return True
         self.ensure_enabled()
-        record = self.repository.get_workflow(workflow_id, user_id)
+        record = self.repository.get_workflow(workflow_id, user_id, team_id=team_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
         record["status"] = WorkflowStatus.DELETED.value
@@ -2424,22 +2499,37 @@ class WorkflowService:
                                          "owner_hash": _hash_owner_id(user_id), "status": "deleted"}
             return {"run_id": run_id, "status": "deleted"}
 
-    def list_runs(self, workflow_id: str, user_id: str, vault_key_id: str | None = None) -> list[WorkflowRunDetail]:
+    def list_runs(self, workflow_id: str, user_id: str, vault_key_id: str | None = None,
+                  team_id: str | None = None) -> list[WorkflowRunDetail]:
         self.ensure_enabled()
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
-        if not self.repository.get_workflow(workflow_id, user_id):
+        workflow = self.repository.get_workflow(workflow_id, user_id, team_id=team_id)
+        if not workflow:
             raise WorkflowNotFoundError(workflow_id)
-        records = sorted(self.repository.list_runs(workflow_id, user_id), key=lambda item: item.get("started_at") or 0, reverse=True)
-        statuses = self._delivery_statuses_for_workflow(workflow_id, user_id)
+        records = (self.repository.list_run_records_for_workflow(workflow_id) if team_id
+                   else self.repository.list_runs(workflow_id, user_id))
+        records = sorted((item for item in records if item.get("owner_hash") == workflow["owner_hash"]
+                          and item.get("status") != "deleted"), key=lambda item: item.get("started_at") or 0, reverse=True)
+        statuses = {} if team_id else self._delivery_statuses_for_workflow(workflow_id, user_id)
         return [self._run_detail_from_record(record, vault_key_id, statuses.get(record["id"])) for record in records]
 
-    def get_run(self, workflow_id: str, run_id: str, user_id: str, vault_key_id: str | None = None) -> WorkflowRunDetail:
+    def get_run(self, workflow_id: str, run_id: str, user_id: str, vault_key_id: str | None = None,
+                team_id: str | None = None) -> WorkflowRunDetail:
         self.ensure_enabled()
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
-        record = self.repository.get_run(workflow_id, run_id, user_id)
+        if team_id:
+            workflow = self.repository.get_workflow(workflow_id, user_id, team_id=team_id)
+            if not workflow:
+                raise WorkflowNotFoundError(workflow_id)
+            record = next((item for item in self.repository.list_run_records_for_workflow(workflow_id)
+                           if item.get("id") == run_id and item.get("owner_hash") == workflow["owner_hash"]
+                           and item.get("status") != "deleted"), None)
+        else:
+            record = self.repository.get_run(workflow_id, run_id, user_id)
         if not record:
             raise WorkflowNotFoundError(run_id)
-        return self._run_detail_from_record(record, vault_key_id, self._delivery_statuses_for_workflow(workflow_id, user_id).get(run_id))
+        statuses = {} if team_id else self._delivery_statuses_for_workflow(workflow_id, user_id)
+        return self._run_detail_from_record(record, vault_key_id, statuses.get(run_id))
 
     def request_run_cancellation(self, workflow_id: str, run_id: str, user_id: str) -> WorkflowRunDetail:
         """Record an owner cancellation request without altering the pinned run definition."""
@@ -2781,8 +2871,8 @@ class WorkflowService:
             "trigger_id": existing["trigger_id"] if existing else str(uuid.uuid4()),
             "workflow_id": workflow_record["id"],
             "version_id": workflow_record["current_version_id"],
-            "owner_hash": _hash_owner_id(user_id),
-            "owner_user_id": user_id,
+            "owner_hash": workflow_record["owner_hash"],
+            "owner_user_id": existing.get("owner_user_id", user_id) if existing else user_id,
             "hashed_project_id": None,
             "trigger_type": trigger_type,
             "source": None,

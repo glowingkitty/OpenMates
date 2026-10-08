@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 
 const OWNER_RE = /^user_sha256:[0-9a-f]{64}$/;
 const SHA_RE = /^sha256:[0-9a-f]{64}$/;
+const TEAM_RE = /^[0-9a-f]{64}$/;
 const OP_RE = /^[A-Za-z0-9._:-]{1,160}$/;
 const REF_RE = /^vault:\/\/workflows\/[A-Za-z0-9_/-]+$/;
 const TABLES = {
@@ -59,11 +60,12 @@ async function operation(database, raw) {
   return { found: true, ...receiptResult(row), mutations };
 }
 
-function validateWrite(write, owner) {
+function validateWrite(write, owner, teamHash) {
   object(write);
   const workflowId = string(write.workflow_id);
   const record = object(write.record);
-  if (record.id !== workflowId || record.owner_hash !== owner || record.hashed_team_id) fail(400, 'invalid_owner');
+  if (record.id !== workflowId || record.owner_hash !== owner
+      || (record.hashed_team_id || null) !== teamHash) fail(400, 'invalid_owner');
   const expected = write.expected_version;
   if (expected !== null) integer(expected);
   const version = integer(record.version);
@@ -170,13 +172,15 @@ function triggerRow(trigger) {
 
 async function commit(database, raw) {
   const body = identity(raw);
+  const teamHash = body.hashed_team_id || null;
+  if (teamHash !== null && !TEAM_RE.test(teamHash)) fail(400, 'invalid_request');
   if (!SHA_RE.test(string(body.request_hash, 72)) || !Array.isArray(body.writes)
       || body.writes.length < 1 || body.writes.length > 32 || !Array.isArray(body.blobs)
       || body.blobs.length > 512 || !Array.isArray(body.mutations)
       || body.mutations.length !== body.writes.length || !Array.isArray(body.outcomes)
       || body.outcomes.length !== body.writes.length
       || !Array.isArray(body.obsolete_refs || []) || (body.obsolete_refs || []).length > 512) fail(400, 'invalid_request');
-  const writes = body.writes.map((write) => validateWrite(write, body.owner_hash));
+  const writes = body.writes.map((write) => validateWrite(write, body.owner_hash, teamHash));
   if (new Set(writes.map((write) => write.workflowId)).size !== writes.length) fail(400, 'duplicate_target');
   const slugs = writes.map((write) => write.record.slug_lookup_hash).filter(Boolean);
   if (new Set(slugs).size !== slugs.length) fail(409, 'slug_conflict');
@@ -215,7 +219,8 @@ async function commit(database, raw) {
       const row = await trx(TABLES.heads).where({ workflow_id: write.workflowId }).forUpdate().first();
       if (write.expected === null) {
         if (row) fail(409, 'head_conflict');
-      } else if (!row || row.hashed_user_id !== body.owner_hash || row.hashed_team_id
+      } else if (!row || row.hashed_user_id !== body.owner_hash
+          || (row.hashed_team_id || null) !== teamHash
           || Number(row.version) !== write.expected) fail(409, 'head_conflict');
       locked.set(write.workflowId, row);
     }

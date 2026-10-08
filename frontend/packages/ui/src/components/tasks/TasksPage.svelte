@@ -16,6 +16,7 @@
   import type { DailyInspiration } from '../../stores/dailyInspirationStore';
   import { notificationStore } from '../../stores/notificationStore';
   import { userProfile } from '../../stores/userProfile';
+  import { activeTeamContext, getActiveTeamContextSnapshot } from '../../stores/teamStore';
   import { getApiUrl } from '../../config/api';
   import { getProfileImageBlobUrl } from '../../services/profileImageService';
   import { getWorkspaceCacheIdentity } from '../../services/workspaceQueryCache';
@@ -115,7 +116,7 @@
   let featureAvailabilityReady = $derived($featureAvailabilityStore.initialized && $featureAvailabilityStore.disabledById !== null);
   let hasPreviewData = $derived(previewTasks !== null || previewPlans !== null);
   let tasksEnabled = $derived(previewTasks !== null || (featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true));
-  let plansEnabled = $derived(previewPlans !== null || (!hasPreviewData && featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true));
+  let plansEnabled = $derived(previewPlans !== null || (!hasPreviewData && !$activeTeamContext.teamId && featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true));
   let isCentralTasksWorkspace = $derived(!compact);
   let isNarrowTasksWorkspace = $derived(tasksWorkspaceWidth <= 900);
   let canSplitTaskDetail = $derived(tasksPageWidth >= 1100);
@@ -136,6 +137,7 @@
   let canAssignCodex = $state(false);
   let taskRequestGeneration = 0;
   let planRequestGeneration = 0;
+  let displayedContext = getWorkspaceCacheIdentity();
   const runTaskMove = createTaskMoveSequencer();
 
   function scopeIsCurrent(requestedScope: string | null): boolean {
@@ -315,6 +317,7 @@
 
   function filters(): ListUserTasksFilters {
     return {
+      teamId: getActiveTeamContextSnapshot().teamId ?? undefined,
       projectId: projectId ?? undefined,
       chatId: chatId ?? undefined,
     };
@@ -323,7 +326,7 @@
   function broadcastTasksChanged(): void {
     if (typeof window === 'undefined') return;
     window.dispatchEvent(new CustomEvent('openmates-user-tasks-changed', {
-      detail: { chatId, projectId },
+      detail: { chatId, projectId, teamId: getActiveTeamContextSnapshot().teamId },
     }));
   }
 
@@ -372,7 +375,7 @@
     }
     const requestedScope = getWorkspaceCacheIdentity();
     try {
-      const projects = await listProjects();
+      const projects = await listProjects({ teamId: getActiveTeamContextSnapshot().teamId });
       if (!scopeIsCurrent(requestedScope)) return;
       projectNames = Object.fromEntries(projects.map((project) => [project.project_id, project.name]));
     } catch (error) {
@@ -413,11 +416,13 @@
       return;
     }
     const requestedScope = getWorkspaceCacheIdentity();
+    const teamId = getActiveTeamContextSnapshot().teamId;
     isSaving = true;
     try {
       const selectedAssignee = taskAssigneeChoice;
       const assignment = createAssigneeInput(selectedAssignee);
       const task = await createUserTask({
+        teamId,
         title: trimmedTitle,
         description: description.trim(),
         assigneeType: assignment.assigneeType,
@@ -515,6 +520,7 @@
       return false;
     }
     const requestedScope = getWorkspaceCacheIdentity();
+    const teamId = getActiveTeamContextSnapshot().teamId;
     isSaving = true;
     try {
       const selectedAssignee: TaskAssigneeChoice = requestedCodexAssignment(value)
@@ -524,6 +530,7 @@
           : 'user';
       const assignment = createAssigneeInput(selectedAssignee);
       const task = await createUserTask({
+        teamId,
         title: value,
         description: value.split(/\s+/).length > 10 ? value : '',
         assigneeType: assignment.assigneeType,
@@ -606,9 +613,11 @@
   async function handleAcceptProposal(proposal: UserTaskProposal): Promise<void> {
     if (isSaving) return;
     const requestedScope = getWorkspaceCacheIdentity();
+    const teamId = getActiveTeamContextSnapshot().teamId;
     isSaving = true;
     try {
       const task = await createUserTask({
+        teamId,
         title: proposal.title,
         description: proposal.description ?? '',
         status: proposal.status ?? 'todo',
@@ -835,6 +844,7 @@
       const scope = getWorkspaceCacheIdentity();
       if (scope === displayedScope) return;
       displayedScope = scope;
+      displayedContext = scope;
       const userId = $userProfile.user_id;
       taskRequestGeneration += 1;
       planRequestGeneration += 1;
@@ -888,6 +898,14 @@
 
   $effect(() => {
     const userId = $userProfile.user_id;
+    void $activeTeamContext;
+    const currentContext = getWorkspaceCacheIdentity();
+    if (currentContext !== displayedContext) {
+      displayedContext = currentContext;
+      taskRequestGeneration += 1;
+      planRequestGeneration += 1;
+      clearSensitiveTaskState();
+    }
     void projectId;
     void chatId;
     void tasksEnabled;
@@ -1048,6 +1066,7 @@
         {#if selectedTask}
           <TaskDetailFullscreen
             task={selectedTask}
+            teamId={selectedTask.teamId ?? undefined}
             {canAssignCodex}
             presentation="split"
             related={selectedTaskPreviewRelated}
@@ -1227,7 +1246,7 @@
   {/if}
   {/if}
   {#if selectedTask && (!isCentralTasksWorkspace || !canSplitTaskDetail)}
-    <TaskDetailFullscreen task={selectedTask} {canAssignCodex} related={selectedTaskPreviewRelated} activityEntries={hasPreviewData ? [] : undefined} onTaskChange={selectedTaskChange} onClose={() => { selectedTask = null; }} />
+    <TaskDetailFullscreen task={selectedTask} teamId={selectedTask.teamId ?? undefined} {canAssignCodex} related={selectedTaskPreviewRelated} activityEntries={hasPreviewData ? [] : undefined} onTaskChange={selectedTaskChange} onClose={() => { selectedTask = null; }} />
   {/if}
   {#if selectedWorkflowRunProjection && (!isCentralTasksWorkspace || !canSplitTaskDetail)}
     <WorkflowRunTaskDetail projection={selectedWorkflowRunProjection} presentation="overlay" onClose={() => { selectedWorkflowRunProjection = null; }} />

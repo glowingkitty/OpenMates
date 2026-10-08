@@ -87,6 +87,40 @@ test('one transaction publishes head, version, blobs, mutation and receipt once'
   assert.equal(db.tables.workflow_authoring_operations.length, 1);
 });
 
+// contract-test: supporting surface=rest_api assertions=teams.context.full-switch-local
+test('team workflow creation persists the requested context and rejects a forged context', async () => {
+  const db = new FakeDatabase();
+  const body = createBody('team-create', '00000000-0000-4000-8000-000000000006');
+  const teamHash = 'd'.repeat(64);
+  body.hashed_team_id = teamHash;
+  body.writes[0].record.hashed_team_id = teamHash;
+  await executeAuthoring(db, '/', body);
+  assert.equal(db.tables.workflows[0].hashed_team_id, teamHash);
+
+  const memberEdit = createBody('team-member-edit', body.writes[0].workflow_id);
+  memberEdit.hashed_team_id = teamHash;
+  memberEdit.writes[0].expected_version = 1;
+  memberEdit.writes[0].record.version = 2;
+  memberEdit.writes[0].record.hashed_team_id = teamHash;
+  memberEdit.outcomes[0].version = 2;
+  await executeAuthoring(db, '/', memberEdit);
+  assert.equal(db.tables.workflows[0].version, 2);
+
+  const wrongTeam = createBody('wrong-team-edit', body.writes[0].workflow_id);
+  wrongTeam.hashed_team_id = 'e'.repeat(64);
+  wrongTeam.writes[0].expected_version = 2;
+  wrongTeam.writes[0].record.version = 3;
+  wrongTeam.writes[0].record.hashed_team_id = wrongTeam.hashed_team_id;
+  wrongTeam.outcomes[0].version = 3;
+  await assert.rejects(executeAuthoring(db, '/', wrongTeam), (error) =>
+    error instanceof AuthoringError && error.code === 'head_conflict');
+
+  const forged = createBody('team-forged', '00000000-0000-4000-8000-000000000007');
+  forged.hashed_team_id = teamHash;
+  await assert.rejects(executeAuthoring(db, '/', forged), (error) =>
+    error instanceof AuthoringError && error.code === 'invalid_owner');
+});
+
 // contract-test: supporting surface=rest_api assertions=workflows.authoring.atomic-update
 test('a conflicting target leaves an earlier target unchanged', async () => {
   const db = new FakeDatabase();

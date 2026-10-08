@@ -1,19 +1,30 @@
 """Team chat AI trigger helpers.
 
 Teams V1 stores ordinary team messages without AI unless a user explicitly
-mentions OpenMates. Keeping this logic pure makes CLI, SDK, WebSocket, and tests
+mentions OpenMates or a configured Mate. Keeping this logic pure makes CLI, SDK, WebSocket, and tests
 share the same trigger contract.
 """
 
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
+import re
 from typing import Any
 
+from backend.apps.ai.utils.mate_utils import load_mates_config
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.core.api.app.services.directus.team_methods import hash_id
 from backend.shared.python_utils.client_ciphertext import validate_client_encrypted_chat_payload
 
 
-OPENMATES_MENTION = "@openmates"
+_OPENMATES_MENTION = re.compile(r"(?<![\w@])@openmates(?![\w-])", re.IGNORECASE)
+_MATE_MENTION = re.compile(r"(?<![\w@])@mate:([a-z0-9_-]+)(?![\w-])", re.IGNORECASE)
+
+
+@lru_cache(maxsize=1)
+def _known_mate_ids() -> frozenset[str]:
+    mates_dir = Path(__file__).resolve().parents[4] / "apps" / "ai" / "mates"
+    return frozenset(mate.category.casefold() for mate in load_mates_config(str(mates_dir)))
 
 
 @dataclass(frozen=True)
@@ -23,11 +34,20 @@ class TeamMessageTransport:
     inference_history: tuple[AIHistoryMessage, ...] | None
     mentioned_user_ids: tuple[str, ...]
 
+    @property
+    def ai_sender_name(self) -> str | None:
+        """Keep the invoking human's name when the encrypted turn invokes AI."""
+        return self.inference_history[-1].sender_name if self.inference_history else None
+
 
 def should_trigger_team_ai(message_content: str, *, is_team_chat: bool) -> bool:
     if not is_team_chat:
         return True
-    return OPENMATES_MENTION in (message_content or "").casefold()
+    content = message_content or ""
+    if _OPENMATES_MENTION.search(content):
+        return True
+    known_ids = _known_mate_ids()
+    return any(match.group(1).casefold() in known_ids for match in _MATE_MENTION.finditer(content))
 
 
 def parse_team_message_transport(payload: dict[str, Any], message_payload: dict[str, Any]) -> TeamMessageTransport:
@@ -57,7 +77,7 @@ def parse_team_message_transport(payload: dict[str, Any], message_payload: dict[
 
     history = tuple(AIHistoryMessage.model_validate(item) for item in invocation["history"])
     if not history or history[-1].role != "user" or not should_trigger_team_ai(history[-1].content, is_team_chat=True):
-        raise ValueError("Team AI invocation history must end with an @openmates user message")
+        raise ValueError("Team AI invocation history must end with an @openmates or known Mate mention")
     return TeamMessageTransport(encrypted_content, True, history, mentioned_user_ids)
 
 

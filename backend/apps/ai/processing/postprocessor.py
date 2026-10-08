@@ -516,7 +516,8 @@ async def handle_postprocessing(
             max_tokens=POSTPROCESSING_MAX_HISTORY_TOKENS,
         )
         
-        # Transform internal format messages to LLM format (role + content only)
+        # Retain human attribution; call_preprocessing_llm prefixes named user
+        # content when it builds the provider prompt.
         for msg in truncated_history:
             role = msg.get("role", "user")
             content = msg.get("content", "")
@@ -524,7 +525,10 @@ async def handle_postprocessing(
                 continue
             # Only include user and assistant messages (skip tool/system messages from history)
             if role in ("user", "assistant"):
-                messages.append({"role": role, "content": content if isinstance(content, str) else str(content)})
+                prompt_message = {"role": role, "content": content if isinstance(content, str) else str(content)}
+                if role == "user" and msg.get("sender_name"):
+                    prompt_message["sender_name"] = msg["sender_name"]
+                messages.append(prompt_message)
         
         logger.info(
             f"[Task ID: {task_id}] [PostProcessor] Included {len(truncated_history)} messages "

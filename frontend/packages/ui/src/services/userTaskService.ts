@@ -12,10 +12,13 @@ import {
   encryptWithEmbedKey,
   generateEmbedKey,
   wrapEmbedKeyWithChatKey,
+  unwrapEmbedKeyWithEmbedKey,
 } from "./cryptoService";
 import { getMasterKey } from "./cryptoKeyStorage";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { listProjects } from "./projectService";
+import { getTeamKey } from "./teamService";
+import { getActiveTeamContextSnapshot, isActiveTeamContext } from "../stores/teamStore";
 import { getWorkspaceCacheIdentity, WorkspaceQueryCache } from "./workspaceQueryCache";
 import { registerWorkspaceCacheClear } from "./workspaceCacheLifecycle";
 
@@ -28,7 +31,7 @@ export function taskAssigneeDisplayName(identity: UserTaskAssigneeIdentity | nul
   if (identity === "codex") return "Codex";
   return null;
 }
-export type UserTaskKeyWrapperType = "master" | "chat" | "project" | "plan";
+export type UserTaskKeyWrapperType = "master" | "chat" | "project" | "plan" | "team";
 export type WorkflowRunProjectionKind = "last_run" | "current_run" | "next_run";
 export type ExternalChatProvider = "codex";
 export type BlockedReasonCode = "needs_user_input" | "waiting_for_approval" | "missing_credentials" | "ambiguous_requirement" | "external_dependency" | "environment_unavailable" | "verification_failed" | "other";
@@ -45,6 +48,8 @@ export interface UserTaskKeyWrapperRecord {
   hashed_chat_id?: string | null;
   hashed_project_id?: string | null;
   hashed_plan_id?: string | null;
+  hashed_team_id?: string | null;
+  team_key_epoch?: number | null;
   created_at: number;
   expires_at?: number | null;
 }
@@ -67,6 +72,8 @@ export interface UserTaskUpdateProposal {
 export interface EncryptedUserTaskRecord {
   id?: string;
   task_id: string;
+  hashed_team_id?: string | null;
+  team_id?: string | null;
   encrypted_task_key?: string | null;
   encrypted_title: string;
   encrypted_description?: string | null;
@@ -125,6 +132,7 @@ export interface WorkflowRunTaskProjectionRecord {
 
 export interface UserTaskViewModel {
   task_id: string;
+  teamId?: string | null;
   title: string;
   description: string;
   tags: string[];
@@ -266,6 +274,7 @@ export function createTaskMoveSequencer(): (taskId: string, move: () => Promise<
 
 export interface CreateUserTaskInput {
   title: string;
+  teamId?: string | null;
   description?: string;
   tags?: string[];
   status?: UserTaskStatus;
@@ -394,6 +403,30 @@ function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
 
+function taskContextPath(path: string, teamId?: string | null): string {
+  return teamId ? `${path}${path.includes("?") ? "&" : "?"}${new URLSearchParams({ team_id: teamId })}` : path;
+}
+
+async function taskKeyEnvelope(record: EncryptedUserTaskRecord, teamId?: string | null): Promise<string | null> {
+  if (!teamId) return record.encrypted_task_key ?? null;
+  const teamHash = await computeSHA256(teamId);
+  const wrappers = record.key_wrappers?.filter((wrapper) =>
+    wrapper.key_type === "team" && wrapper.hashed_team_id === teamHash &&
+    Number.isInteger(wrapper.team_key_epoch) && (wrapper.team_key_epoch ?? 0) >= 1 &&
+    typeof wrapper.encrypted_task_key === "string" && wrapper.encrypted_task_key.length > 0
+  ) ?? [];
+  if (wrappers.length !== 1) throw new Error(`Team task ${record.task_id} has no unique Team key wrapper`);
+  return wrappers[0].encrypted_task_key;
+}
+
+async function taskKeyForRecord(record: EncryptedUserTaskRecord, teamId?: string | null): Promise<Uint8Array | null> {
+  const envelope = await taskKeyEnvelope(record, teamId);
+  if (!envelope) return null;
+  return teamId
+    ? unwrapEmbedKeyWithEmbedKey(envelope, await getTeamKey(teamId))
+    : decryptChatKeyWithMasterKey(envelope);
+}
+
 async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(getApiEndpoint(path), {
     credentials: "include",
@@ -472,9 +505,16 @@ async function decryptStringArray(value: string | null | undefined, key: Uint8Ar
 }
 
 async function decryptTask(record: EncryptedUserTaskRecord): Promise<UserTaskViewModel | null> {
-  if (!record.encrypted_task_key) return null;
-  const taskKey = await decryptChatKeyWithMasterKey(record.encrypted_task_key);
+  const context = getActiveTeamContextSnapshot();
+  if (record.hashed_team_id && (!context.teamId || await computeSHA256(context.teamId) !== record.hashed_team_id)) return null;
+  const teamId = record.hashed_team_id ? context.teamId : null;
+  const envelope = await taskKeyEnvelope(record, teamId);
+  if (!envelope) return null;
+  const taskKey = teamId
+    ? await unwrapEmbedKeyWithEmbedKey(envelope, await getTeamKey(teamId))
+    : await decryptChatKeyWithMasterKey(envelope);
   if (!taskKey) return null;
+  const encrypted = teamId ? { ...record, encrypted_task_key: envelope } : record;
   const tagsText = await decryptOptional(record.encrypted_tags, taskKey);
   let tags: string[] = [];
   try {
@@ -485,6 +525,7 @@ async function decryptTask(record: EncryptedUserTaskRecord): Promise<UserTaskVie
   if (typeof record.version !== "number") throw new Error(`Task ${record.task_id} is missing version.`);
   return {
     task_id: record.task_id,
+    teamId: record.hashed_team_id ? context.teamId : null,
     title: await decryptOptional(record.encrypted_title, taskKey),
     description: await decryptOptional(record.encrypted_description, taskKey),
     latestInstruction: await decryptOptional(record.encrypted_latest_instruction, taskKey),
@@ -509,8 +550,14 @@ async function decryptTask(record: EncryptedUserTaskRecord): Promise<UserTaskVie
     blockedReasonCode: (record.blocked_reason_code as BlockedReasonCode | null | undefined) ?? null,
     blockedReason: await decryptOptional(record.encrypted_blocked_reason, taskKey),
     aiExecutionState: record.ai_execution_state ?? null,
-    encrypted: record,
+    encrypted,
   };
+}
+
+function withPreviousTeamWrapper(record: EncryptedUserTaskRecord, previous?: UserTaskViewModel): EncryptedUserTaskRecord {
+  if (!previous?.teamId || record.key_wrappers ||
+      record.task_id !== previous.task_id || record.hashed_team_id !== previous.encrypted.hashed_team_id) return record;
+  return { ...record, key_wrappers: previous.encrypted.key_wrappers };
 }
 
 function isWorkflowRunTaskProjection(record: EncryptedUserTaskRecord | WorkflowRunTaskProjectionRecord): record is WorkflowRunTaskProjectionRecord {
@@ -546,18 +593,24 @@ function workflowRunTaskProjection(record: WorkflowRunTaskProjectionRecord): Wor
 
 async function buildTaskKeyWrappers(
   taskKey: Uint8Array,
-  encryptedTaskKey: string,
+  encryptedTaskKey: string | null,
   timestamp: number,
   primaryChatId: string | null,
   linkedProjectIds: string[],
+  teamId: string | null = null,
 ): Promise<UserTaskKeyWrapperRecord[]> {
-  const wrappers: UserTaskKeyWrapperRecord[] = [
-    {
-      key_type: "master",
-      encrypted_task_key: encryptedTaskKey,
-      created_at: timestamp,
-    },
-  ];
+  const wrappers: UserTaskKeyWrapperRecord[] = [];
+  if (!teamId) {
+    if (!encryptedTaskKey) throw new Error("Could not wrap task key with master key");
+    wrappers.push({ key_type: "master", encrypted_task_key: encryptedTaskKey, created_at: timestamp });
+  }
+  if (teamId) wrappers.push({
+    key_type: "team",
+    hashed_team_id: await computeSHA256(teamId),
+    team_key_epoch: 1,
+    encrypted_task_key: await wrapEmbedKeyWithChatKey(taskKey, await getTeamKey(teamId)),
+    created_at: timestamp,
+  });
   if (primaryChatId) {
     const chatKey = await chatKeyManager.getKey(primaryChatId);
     if (!chatKey) throw new Error(`Could not find chat key for primary chat ${primaryChatId}`);
@@ -570,7 +623,7 @@ async function buildTaskKeyWrappers(
   }
   if (linkedProjectIds.length === 0) return wrappers;
 
-  const projects = await listProjects();
+  const projects = await listProjects({ teamId });
   for (const projectId of linkedProjectIds) {
     const project = projects.find((candidate) => candidate.project_id === projectId);
     if (!project) throw new Error(`Could not find project key for linked project ${projectId}`);
@@ -622,7 +675,7 @@ export async function getUserTask(taskId: string): Promise<UserTaskViewModel> {
   const load = () => taskEntityCache.load(taskId, async () => {
     let data: { task: EncryptedUserTaskRecord; eligible_external_ai?: string[] };
     try {
-      data = await requestJson<{ task: EncryptedUserTaskRecord; eligible_external_ai?: string[] }>(`/v1/user-tasks/${encodeURIComponent(taskId)}`);
+      data = await requestJson<{ task: EncryptedUserTaskRecord; eligible_external_ai?: string[] }>(taskContextPath(`/v1/user-tasks/${encodeURIComponent(taskId)}`, getActiveTeamContextSnapshot().teamId));
     } catch (error) {
       if (error instanceof Error && error.message.includes('Tasks API failed (404)')) forgetTask(taskId, cacheScope);
       throw error;
@@ -630,7 +683,12 @@ export async function getUserTask(taskId: string): Promise<UserTaskViewModel> {
     if (cacheScope && cacheScope === getWorkspaceCacheIdentity() && Array.isArray(data.eligible_external_ai)) {
       taskEligibilityCache.set("owner", data.eligible_external_ai.includes("codex"));
     }
-    const task = await decryptTask(data.task);
+    const teamId = getActiveTeamContextSnapshot().teamId;
+    const taskWithCachedWrapper = withPreviousTeamWrapper(data.task, warm);
+    const taskRecord = teamId && taskWithCachedWrapper.hashed_team_id && !taskWithCachedWrapper.key_wrappers
+      ? { ...taskWithCachedWrapper, key_wrappers: await listUserTaskKeyWrappers(taskId, teamId) }
+      : taskWithCachedWrapper;
+    const task = await decryptTask(taskRecord);
     if (!task) throw new Error(`Task ${taskId} could not be decrypted`);
     const latest = peekUserTask(taskId);
     return latest && (latest.version > task.version || (latest.version === task.version && latest.updatedAt > task.updatedAt)) ? latest : task;
@@ -652,7 +710,7 @@ function taskActivityPath(taskId: string, teamId?: string, cursor?: string): str
 }
 
 async function taskKeyForActivity(task: UserTaskViewModel): Promise<Uint8Array> {
-  const taskKey = await decryptChatKeyWithMasterKey(task.encrypted.encrypted_task_key ?? "");
+  const taskKey = await taskKeyForRecord(task.encrypted, task.teamId);
   if (!taskKey) throw new Error(`Could not decrypt Task Activity key for ${task.task_id}`);
   return taskKey;
 }
@@ -698,7 +756,7 @@ export async function listUserTaskActivity(task: UserTaskViewModel, teamId?: str
   const entries: UserTaskActivityEntry[] = [];
   let cursor: string | undefined;
   do {
-    const page = await requestJson<{ entries: UserTaskActivityRecord[]; next_cursor: string | null }>(taskActivityPath(task.task_id, teamId, cursor));
+    const page = await requestJson<{ entries: UserTaskActivityRecord[]; next_cursor: string | null }>(taskActivityPath(task.task_id, teamId ?? task.teamId ?? undefined, cursor));
     entries.push(...await Promise.all(page.entries.map((record) => decryptTaskActivityEntry(task, record))));
     cursor = page.next_cursor ?? undefined;
   } while (cursor);
@@ -715,7 +773,7 @@ export async function createUserTaskActivity(task: UserTaskViewModel, input: Cre
     embed_refs: input.embedRefs ?? [],
     created_at: input.createdAt ?? nowSeconds(),
   };
-  const data = await requestJson<{ entry: UserTaskActivityRecord }>(taskActivityPath(task.task_id, input.teamId), {
+  const data = await requestJson<{ entry: UserTaskActivityRecord }>(taskActivityPath(task.task_id, input.teamId ?? task.teamId ?? undefined), {
     method: "POST",
     headers: { "X-OpenMates-Client": "web" },
     body: JSON.stringify(body),
@@ -725,7 +783,7 @@ export async function createUserTaskActivity(task: UserTaskViewModel, input: Cre
 
 export async function deleteUserTaskActivity(task: UserTaskViewModel, entryId: string, teamId?: string): Promise<UserTaskActivityEntry> {
   const params = new URLSearchParams();
-  if (teamId) params.set("team_id", teamId);
+  if (teamId ?? task.teamId) params.set("team_id", (teamId ?? task.teamId)!);
   const query = params.toString();
   const data = await requestJson<{ entry: UserTaskActivityRecord }>(
     `/v1/user-tasks/${encodeURIComponent(task.task_id)}/activity/${encodeURIComponent(entryId)}${query ? `?${query}` : ""}`,
@@ -749,17 +807,22 @@ export async function cancelWorkflowRunTaskProjection(task: WorkflowRunTaskProje
 
 export async function createUserTask(input: CreateUserTaskInput): Promise<UserTaskViewModel> {
   const cacheScope = getWorkspaceCacheIdentity();
+  const context = getActiveTeamContextSnapshot();
+  const teamId = input.teamId === undefined ? context.teamId : input.teamId;
+  if (!isActiveTeamContext(teamId, context.epoch)) throw new Error("Task workspace changed");
   if (input.primaryChatId && input.externalChat) throw new Error("A task cannot use both native chat and external chat context.");
   if (input.externalChat) assertExternalChatContext(input.externalChat);
   const taskKey = generateEmbedKey();
-  const encryptedTaskKey = await encryptChatKeyWithMasterKey(taskKey);
-  if (!encryptedTaskKey) throw new Error("Could not wrap task key with master key");
+  const encryptedTaskKey = teamId ? null : await encryptChatKeyWithMasterKey(taskKey);
+  if (!teamId && !encryptedTaskKey) throw new Error("Could not wrap task key with master key");
+  const workspaceTaskKey = teamId ? await wrapEmbedKeyWithChatKey(taskKey, await getTeamKey(teamId)) : encryptedTaskKey!;
   const timestamp = nowSeconds();
   const linkedProjectIds = input.linkedProjectIds ?? [];
   const primaryChatId = input.primaryChatId ?? null;
   const body: EncryptedUserTaskRecord = {
     task_id: crypto.randomUUID(),
-    encrypted_task_key: encryptedTaskKey,
+    encrypted_task_key: workspaceTaskKey,
+    ...(teamId ? { team_id: teamId } : {}),
     encrypted_title: await encryptWithEmbedKey(input.title, taskKey),
     encrypted_description: await encryptWithEmbedKey(input.description ?? "", taskKey),
     encrypted_tags: await encryptWithEmbedKey(JSON.stringify(input.tags ?? []), taskKey),
@@ -782,19 +845,22 @@ export async function createUserTask(input: CreateUserTaskInput): Promise<UserTa
     version: 1,
     created_at: timestamp,
     updated_at: timestamp,
-    key_wrappers: await buildTaskKeyWrappers(taskKey, encryptedTaskKey, timestamp, primaryChatId, linkedProjectIds),
+    key_wrappers: await buildTaskKeyWrappers(taskKey, encryptedTaskKey, timestamp, primaryChatId, linkedProjectIds, teamId),
   };
+  if (!isActiveTeamContext(teamId, context.epoch)) throw new Error("Task workspace changed");
   const data = await requestJson<{ task: EncryptedUserTaskRecord }>("/v1/user-tasks", {
     method: "POST",
     body: JSON.stringify(body),
   });
-  const decrypted = await decryptTask(data.task);
+  const decrypted = await decryptTask(teamId
+    ? { ...data.task, key_wrappers: data.task.key_wrappers ?? body.key_wrappers }
+    : data.task);
   if (!decrypted) throw new Error("Created task could not be decrypted");
   return rememberTask(decrypted, cacheScope);
 }
 
-export async function listUserTaskKeyWrappers(taskId: string): Promise<UserTaskKeyWrapperRecord[]> {
-  const data = await requestJson<{ key_wrappers: UserTaskKeyWrapperRecord[] }>(`/v1/user-tasks/${taskId}/key-wrappers`);
+export async function listUserTaskKeyWrappers(taskId: string, teamId?: string | null): Promise<UserTaskKeyWrapperRecord[]> {
+  const data = await requestJson<{ key_wrappers: UserTaskKeyWrapperRecord[] }>(taskContextPath(`/v1/user-tasks/${taskId}/key-wrappers`, teamId));
   return data.key_wrappers;
 }
 
@@ -844,7 +910,7 @@ export async function updateUserTask(task: UserTaskViewModel, patch: Partial<Cre
   const cacheScope = getWorkspaceCacheIdentity();
   if (patch.primaryChatId && patch.externalChat) throw new Error("A task cannot use both native chat and external chat context.");
   if (patch.externalChat) assertExternalChatContext(patch.externalChat);
-  const taskKey = await decryptChatKeyWithMasterKey(task.encrypted.encrypted_task_key ?? "");
+  const taskKey = await taskKeyForRecord(task.encrypted, task.teamId);
   if (!taskKey) throw new Error("Could not decrypt task key");
   const encryptedTaskKey = task.encrypted.encrypted_task_key;
   if (!encryptedTaskKey) throw new Error("Missing encrypted task key");
@@ -877,21 +943,23 @@ export async function updateUserTask(task: UserTaskViewModel, patch: Partial<Cre
   if (patch.linkedProjectIds !== undefined || patch.primaryChatId !== undefined || patch.externalChat !== undefined) {
     const updatedPrimaryChatId = patch.externalChat ? null : (patch.primaryChatId !== undefined ? patch.primaryChatId : task.primaryChatId);
     const updatedLinkedProjectIds = patch.linkedProjectIds !== undefined ? patch.linkedProjectIds : task.linkedProjectIds;
-    body.key_wrappers = await buildTaskKeyWrappers(taskKey, encryptedTaskKey, nowSeconds(), updatedPrimaryChatId ?? null, updatedLinkedProjectIds);
+    const masterTaskKey = task.teamId ? await encryptChatKeyWithMasterKey(taskKey) : encryptedTaskKey;
+    if (!masterTaskKey) throw new Error("Could not wrap task key with master key");
+    body.key_wrappers = await buildTaskKeyWrappers(taskKey, masterTaskKey, nowSeconds(), updatedPrimaryChatId ?? null, updatedLinkedProjectIds, task.teamId);
   }
   if (patch.dueAt !== undefined) body.due_at = patch.dueAt;
   if (patch.priority !== undefined) body.priority = patch.priority;
-  const data = await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}`, {
+  const data = await requestJson<{ task: EncryptedUserTaskRecord }>(taskContextPath(`/v1/user-tasks/${task.task_id}`, task.teamId), {
     method: "PATCH",
     body: JSON.stringify(body),
   });
-  const decrypted = await decryptTask(data.task);
+  const decrypted = await decryptTask(withPreviousTeamWrapper(data.task, task));
   if (!decrypted) throw new Error("Updated task could not be decrypted");
   return rememberTask(decrypted, cacheScope);
 }
 
-async function decryptTaskActionResponse(data: { task: EncryptedUserTaskRecord }, cacheScope: string | null): Promise<UserTaskViewModel> {
-  const decrypted = await decryptTask(data.task);
+async function decryptTaskActionResponse(data: { task: EncryptedUserTaskRecord }, cacheScope: string | null, previous: UserTaskViewModel): Promise<UserTaskViewModel> {
+  const decrypted = await decryptTask(withPreviousTeamWrapper(data.task, previous));
   if (!decrypted) throw new Error("Task action response could not be decrypted");
   return rememberTask(decrypted, cacheScope);
 }
@@ -900,8 +968,8 @@ export async function completeUserTask(task: UserTaskViewModel): Promise<UserTas
   const cacheScope = getWorkspaceCacheIdentity();
   return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/complete`, {
     method: "POST",
-    body: JSON.stringify({ version: task.version }),
-  }), cacheScope);
+    body: JSON.stringify({ version: task.version, team_id: task.teamId }),
+  }), cacheScope, task);
 }
 
 export async function blockUserTask(
@@ -910,39 +978,43 @@ export async function blockUserTask(
   blockedReason = "",
 ): Promise<UserTaskViewModel> {
   const cacheScope = getWorkspaceCacheIdentity();
-  const taskKey = await decryptChatKeyWithMasterKey(task.encrypted.encrypted_task_key ?? "");
+  const taskKey = await taskKeyForRecord(task.encrypted, task.teamId);
   if (!taskKey) throw new Error("Could not decrypt task key");
   return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/block`, {
     method: "POST",
     body: JSON.stringify({
       version: task.version,
+      team_id: task.teamId,
       blocked_reason_code: blockedReasonCode,
       ...(blockedReason ? { encrypted_blocked_reason: await encryptWithEmbedKey(blockedReason, taskKey) } : {}),
     }),
-  }), cacheScope);
+  }), cacheScope, task);
 }
 
 export async function unblockUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
   const cacheScope = getWorkspaceCacheIdentity();
   return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/unblock`, {
     method: "POST",
-    body: JSON.stringify({ version: task.version }),
-  }), cacheScope);
+    body: JSON.stringify({ version: task.version, team_id: task.teamId }),
+  }), cacheScope, task);
 }
 
 export async function skipUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
   const cacheScope = getWorkspaceCacheIdentity();
   return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/skip`, {
     method: "POST",
-    body: JSON.stringify({ version: task.version }),
-  }), cacheScope);
+    body: JSON.stringify({ version: task.version, team_id: task.teamId }),
+  }), cacheScope, task);
 }
 
 export async function reorderUserTasks(moves: ReorderUserTaskMoveInput[]): Promise<UserTaskViewModel[]> {
   const cacheScope = getWorkspaceCacheIdentity();
+  const teamId = moves[0]?.task.teamId ?? null;
+  if (moves.some((move) => (move.task.teamId ?? null) !== teamId)) throw new Error("Cannot reorder tasks across workspaces");
   const data = await requestJson<{ tasks: EncryptedUserTaskRecord[] }>("/v1/user-tasks/reorder", {
     method: "POST",
     body: JSON.stringify({
+      team_id: teamId,
       moves: moves.map((move) => ({
         task_id: move.task.task_id,
         before_task_id: move.beforeTaskId ?? undefined,
@@ -953,13 +1025,15 @@ export async function reorderUserTasks(moves: ReorderUserTaskMoveInput[]): Promi
       })),
     }),
   });
-  const decrypted = await Promise.all(data.tasks.map((task) => decryptTask(task)));
+  const previousById = new Map(moves.map((move) => [move.task.task_id, move.task]));
+  const decrypted = await Promise.all(data.tasks.map((record) => decryptTask(withPreviousTeamWrapper(record, previousById.get(record.task_id)))));
   return decrypted.filter((task): task is UserTaskViewModel => task !== null).map((task) => rememberTask(task, cacheScope));
 }
 
 export async function deleteUserTask(task: UserTaskViewModel | WorkflowRunTaskProjectionViewModel): Promise<void> {
   const cacheScope = getWorkspaceCacheIdentity();
   const params = new URLSearchParams({ version: String(task.version) });
+  if (!isWorkflowRunTaskProjectionViewModel(task) && task.teamId) params.set("team_id", task.teamId);
   await requestJson(`/v1/user-tasks/${task.task_id}?${params.toString()}`, {
     method: "DELETE",
   });
@@ -970,6 +1044,7 @@ export async function startUserTaskWithAI(task: UserTaskViewModel): Promise<User
   const cacheScope = getWorkspaceCacheIdentity();
   const body: Record<string, unknown> = {
     version: task.version,
+    team_id: task.teamId,
     updated_at: nowSeconds(),
     linked_project_ids: task.linkedProjectIds,
   };
@@ -993,7 +1068,7 @@ export async function startUserTaskWithAI(task: UserTaskViewModel): Promise<User
     method: "POST",
     body: JSON.stringify(body),
   });
-  const decrypted = await decryptTask(data.task);
+  const decrypted = await decryptTask(withPreviousTeamWrapper(data.task, task));
   if (!decrypted) throw new Error("Started task could not be decrypted");
   return rememberTask(decrypted, cacheScope);
 }

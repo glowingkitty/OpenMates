@@ -31,6 +31,7 @@ from backend.core.api.app.services.workflow_service import (
     WorkflowService,
     _hash_owner_id,
 )
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 
 
 logger = logging.getLogger(__name__)
@@ -672,6 +673,7 @@ class WorkflowInputService:
         audio_ref: dict[str, Any] | None = None,
         selected_workflow_id: str | None = None,
         selected_project_id: str | None = None,
+        team_id: str | None = None,
         timezone: str | None = None,
         vault_key_id: str | None = None,
         optimistic_save: bool = False,
@@ -688,7 +690,7 @@ class WorkflowInputService:
         started = time.perf_counter()
         resolved_vault_key_id = self._resolve_vault_key_id(user_id, vault_key_id)
         key_resolved_at = time.perf_counter()
-        stable_session_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow-input:{user_id}:{idempotency_key}")) if idempotency_key else None
+        stable_session_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow-input:{user_id}:{team_id or 'personal'}:{idempotency_key}")) if idempotency_key else None
         request_digest = (hashlib.sha256(sanitize_workflow_input_text(text)[0].encode("utf-8")).hexdigest()
                           if stable_session_id and isinstance(text, str) else None)
         if stable_session_id and self.repository is not None:
@@ -703,6 +705,7 @@ class WorkflowInputService:
                 return self._result(existing)
         session = self._create_session(
             user_id, selected_workflow_id, selected_project_id, resolved_vault_key_id,
+            team_id=team_id,
             persist_initial=not (optimistic_save and input_type == "text") and on_event is None,
             session_id=stable_session_id,
             request_digest=request_digest,
@@ -759,9 +762,10 @@ class WorkflowInputService:
         session_id: str,
         text: str,
         vault_key_id: str | None = None,
+        team_id: str | None = None,
     ) -> WorkflowInputSessionResult:
         resolved_vault_key_id = self._resolve_vault_key_id(user_id, vault_key_id)
-        session = self._require_session(session_id, user_id, resolved_vault_key_id)
+        session = self._require_session(session_id, user_id, resolved_vault_key_id, team_id)
         if session["status"] not in self._FOLLOW_UP_STATUSES:
             self._append_event(session, "follow_up_rejected", {"status": session["status"]}, status="error", vault_key_id=resolved_vault_key_id)
             return self._result(
@@ -809,7 +813,7 @@ class WorkflowInputService:
             session.pop("pending_operation_id", None)
             session.pop("queued_user_id", None)
             return result
-        except (ValueError, ValidationError, WorkflowNotFoundError) as exc:
+        except (ValueError, ValidationError, WorkflowNotFoundError, TeamPermissionError) as exc:
             logger.warning("Queued workflow commit failed for session %s with %s", session_id, type(exc).__name__)
             return self._fail_session(session, "commit_failed", "WORKFLOW_INPUT_COMMIT_FAILED",
                                       "The workflow could not be saved. Please try again.", vault_key_id, exc)
@@ -833,9 +837,10 @@ class WorkflowInputService:
         user_id: str,
         session_id: str,
         vault_key_id: str | None = None,
+        team_id: str | None = None,
     ) -> WorkflowInputSessionResult:
         resolved_vault_key_id = self._resolve_vault_key_id(user_id, vault_key_id)
-        session = self._require_session(session_id, user_id, resolved_vault_key_id)
+        session = self._require_session(session_id, user_id, resolved_vault_key_id, team_id)
         if session["status"] not in self._STOPPABLE_STATUSES:
             self._append_event(session, "stop_rejected", {"status": session["status"]}, status="error", vault_key_id=resolved_vault_key_id)
             return self._result(
@@ -864,9 +869,10 @@ class WorkflowInputService:
         user_id: str,
         session_id: str,
         vault_key_id: str | None = None,
+        team_id: str | None = None,
     ) -> WorkflowInputSessionResult:
         resolved_vault_key_id = self._resolve_vault_key_id(user_id, vault_key_id)
-        session = self._require_session(session_id, user_id, resolved_vault_key_id)
+        session = self._require_session(session_id, user_id, resolved_vault_key_id, team_id)
         mutation = self._last_undoable_mutation(session)
         if mutation is None:
             self._append_event(session, "undo_unavailable", {}, status="error", vault_key_id=resolved_vault_key_id)
@@ -880,7 +886,10 @@ class WorkflowInputService:
             if not callable(undo_batch):
                 return self._result(session, error="Batch undo is unavailable.", error_code=WORKFLOW_INPUT_UNDO_UNAVAILABLE)
             try:
-                undo_batch(user_id, mutation.operation_id, resolved_vault_key_id, session_id=session_id)
+                team_kwargs = ({"team_id": session["team_id"], "workflow_id": mutation.target_id}
+                               if session.get("team_id") else {})
+                undo_batch(user_id, mutation.operation_id, resolved_vault_key_id,
+                           session_id=session_id, **team_kwargs)
             except (ValueError, WorkflowNotFoundError):
                 self._append_event(session, "undo_conflict", {}, status="error", vault_key_id=resolved_vault_key_id)
                 return self._result(session, error="A workflow changed after the AI edit. Open version history to restore it safely.", error_code=WORKFLOW_INPUT_UNDO_CONFLICT)
@@ -893,7 +902,7 @@ class WorkflowInputService:
             return self._result(session)
         if mutation.target_type == "workflow":
             try:
-                current = self.workflow_service.get_workflow(mutation.target_id, user_id, resolved_vault_key_id)
+                current = self.workflow_service.get_workflow(mutation.target_id, user_id, resolved_vault_key_id, session.get("team_id"))
             except WorkflowNotFoundError:
                 current = None
             expected_version = (mutation.after or {}).get("current_version_id")
@@ -908,7 +917,7 @@ class WorkflowInputService:
                     error_code=WORKFLOW_INPUT_UNDO_CONFLICT,
                 )
         if mutation.type == "create_workflow":
-            self.workflow_service.delete_workflow(mutation.target_id, user_id)
+            self.workflow_service.delete_workflow(mutation.target_id, user_id, team_id=session.get("team_id"))
         elif mutation.type == "update_workflow" and mutation.before:
             self.workflow_service.update_workflow(
                 mutation.target_id,
@@ -920,6 +929,7 @@ class WorkflowInputService:
                 icon=mutation.before.get("icon"),
                 allow_data_dependencies=True,
                 vault_key_id=resolved_vault_key_id,
+                team_id=session.get("team_id"),
             )
         elif mutation.type == "link_workflow_to_project" and self.project_linker is not None:
             project_item_id = (mutation.after or {}).get("project_item_id")
@@ -946,9 +956,12 @@ class WorkflowInputService:
         session_id: str,
         user_id: str | None = None,
         vault_key_id: str | None = None,
+        team_id: str | None = None,
     ) -> WorkflowInputSessionDetail:
         session = self._get_session(session_id, user_id, vault_key_id)
         if user_id is not None and session["user_id"] != user_id:
+            raise PermissionError("Workflow input session not found")
+        if session.get("team_id") != team_id:
             raise PermissionError("Workflow input session not found")
         if user_id is not None and session.get("status") == "running" and session.get("stop_requested"):
             self._recover_stopped_session(session, vault_key_id)
@@ -994,14 +1007,17 @@ class WorkflowInputService:
         after_event_id: int = 0,
         user_id: str | None = None,
         vault_key_id: str | None = None,
+        team_id: str | None = None,
     ) -> list[WorkflowInputEvent]:
         if after_event_id < 0:
             raise ValueError("after_event_id must be greater than or equal to zero")
+        session = self._get_session(session_id, user_id, vault_key_id)
+        if session.get("team_id") != team_id:
+            raise PermissionError("Workflow input session not found")
         if user_id is not None and self.repository is not None:
             events = self.repository.list_events(session_id, user_id, after_event_id, vault_key_id)
             if events:
                 return events
-        session = self._get_session(session_id, user_id, vault_key_id)
         if user_id is not None and session["user_id"] != user_id:
             raise PermissionError("Workflow input session not found")
         return [event for event in session["events"] if event.event_id > after_event_id]
@@ -1146,7 +1162,7 @@ class WorkflowInputService:
             authored = (session.get("authoring_before") or {}).get(workflow_id)
             before = (WorkflowDetail.model_validate(authored) if isinstance(authored, dict)
                       else cached if isinstance(cached, WorkflowDetail) and cached.id == workflow_id
-                      else self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id))
+                      else self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id, session.get("team_id")))
             if plan.expected_record_version is not None and before.version != plan.expected_record_version:
                 raise ValueError("Workflow changed while the AI edit was being prepared. Reload it and retry.")
             graph = plan.graph or before.graph
@@ -1187,6 +1203,12 @@ class WorkflowInputService:
                 vault_key_id=vault_key_id,
             )
             return self._result(session)
+        if session.get("team_id"):
+            check_role = getattr(self.workflow_service.repository, "require_team_write_role", None)
+            if callable(check_role):
+                check_role(session["team_id"], session["user_id"])
+            elif isinstance(self.repository, DirectusWorkflowInputRepository):
+                raise WorkflowInputUnavailableError(WORKFLOW_INPUT_ACTION_UNAVAILABLE, "Team write authorization is unavailable.")
         if isinstance(plan, _CreateEmptyWorkflowPlan):
             if getattr(self.planner, "atomic_authoring", False):
                 return self._create_empty_workflow_atomic(session, plan, vault_key_id)
@@ -1196,6 +1218,7 @@ class WorkflowInputService:
                 session["user_id"], plan.title, graph, enabled=False,
                 source="workflow_input", source_chat_id=session.get("source_chat_id"),
                 created_by_assistant=True, vault_key_id=vault_key_id,
+                team_id=session.get("team_id"),
             )
             self._record_timing(session, "workflow_persistence_seconds", workflow_started)
             session["status"] = "draft"
@@ -1241,6 +1264,7 @@ class WorkflowInputService:
                 "source": "workflow_input", "created_by_assistant": True,
                 "source_chat_id": session.get("source_chat_id"), "allow_data_dependencies": True,
             }], operation_id, vault_key_id, before_snapshots=[None], session_id=operation_id,
+            team_id=session.get("team_id"),
         )
         if len(details) != 1 or not isinstance(details[0], WorkflowDetail):
             raise RuntimeError("Atomic blank workflow save returned no draft")
@@ -1292,7 +1316,7 @@ class WorkflowInputService:
             seen_targets.add(workflow_id)
             authored = (session.get("authoring_before") or {}).get(workflow_id)
             before = (WorkflowDetail.model_validate(authored) if isinstance(authored, dict)
-                      else self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id))
+                      else self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id, session.get("team_id")))
             if operation.expected_record_version is not None and before.version != operation.expected_record_version:
                 raise ValueError("Workflow changed while the AI edit was being prepared. Reload it and retry.")
             graph = operation.graph or before.graph
@@ -1348,8 +1372,10 @@ class WorkflowInputService:
         if not callable(commit):
             raise WorkflowInputUnavailableError(WORKFLOW_INPUT_ACTION_UNAVAILABLE, "Atomic workflow authoring is unavailable.")
         started = time.perf_counter()
+        team_kwargs = {"team_id": session["team_id"]} if session.get("team_id") else {}
         details = commit(session["user_id"], operations, operation_id, vault_key_id,
-                         before_snapshots=before_snapshots, session_id=session["id"])
+                         before_snapshots=before_snapshots, session_id=session["id"],
+                         **team_kwargs)
         self._record_timing(session, "workflow_persistence_seconds", started)
         workflows = [detail for detail in details if isinstance(detail, WorkflowDetail)]
         if len(workflows) != len(operations):
@@ -1449,6 +1475,7 @@ class WorkflowInputService:
             allow_data_dependencies=True,
             workflow_id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow-input:{session['id']}:create")) if session.get("pending_plan") else None,
             initial_version_id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow-input:{session['id']}:version")) if session.get("pending_plan") else None,
+            team_id=session.get("team_id"),
         )
         self._record_timing(session, "workflow_persistence_seconds", workflow_started)
         session["status"] = "executed"
@@ -1487,7 +1514,7 @@ class WorkflowInputService:
         before = (WorkflowDetail.model_validate(pending_before) if isinstance(pending_before, dict)
                   else WorkflowDetail.model_validate(authored) if isinstance(authored, dict)
                   else cached if isinstance(cached, WorkflowDetail) and cached.id == workflow_id
-                  else self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id))
+                  else self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id, session.get("team_id")))
         if plan.expected_record_version is not None and before.version != plan.expected_record_version:
             raise ValueError("Workflow changed while the AI edit was being prepared. Reload it and retry.")
         self._record_timing(session, "workflow_read_seconds", workflow_read_started)
@@ -1512,6 +1539,7 @@ class WorkflowInputService:
             expected_record_version=before.version,
             known_prior=before,
             new_version_id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow-input:{session['id']}:version")) if session.get("pending_plan") else None,
+            team_id=session.get("team_id"),
         )
         self._record_timing(session, "workflow_persistence_seconds", workflow_started)
         session["status"] = "executed"
@@ -1549,6 +1577,8 @@ class WorkflowInputService:
         project_id = plan.project_id or session.get("selected_project_id")
         if not project_id:
             raise ValueError("link_workflow_to_project requires project_id or a selected project")
+        if session.get("team_id"):
+            raise ValueError("Team Project linking requires a Team-scoped Project authoring target")
         workflow = self.workflow_service.get_workflow(plan.workflow_id, session["user_id"], vault_key_id)
         project_item = self.project_linker.link_workflow(
             user_id=session["user_id"],
@@ -1589,7 +1619,7 @@ class WorkflowInputService:
 
     def _planner_context(self, session: dict[str, Any], vault_key_id: str | None) -> dict[str, Any]:
         workflows = (
-            [item.model_dump(mode="json") for item in self.workflow_service.list_workflows(session["user_id"], vault_key_id)]
+            [item.model_dump(mode="json") for item in self.workflow_service.list_workflows(session["user_id"], vault_key_id, session.get("team_id"))]
             if getattr(self.planner, "requires_workflow_overview", True)
             else []
         )
@@ -1598,7 +1628,7 @@ class WorkflowInputService:
         session.pop("_selected_workflow_detail", None)
         if selected_workflow_id:
             try:
-                detail = self.workflow_service.get_workflow(selected_workflow_id, session["user_id"], vault_key_id)
+                detail = self.workflow_service.get_workflow(selected_workflow_id, session["user_id"], vault_key_id, session.get("team_id"))
                 if (session.get("_expected_workflow_version") is not None
                         and detail.version != session["_expected_workflow_version"]):
                     raise ValueError("Workflow changed before Project authoring started")
@@ -1623,9 +1653,9 @@ class WorkflowInputService:
         if getattr(self.planner, "requires_workflow_lookup", False):
             # Keep owner credentials and library contents out of model input.
             # The NL planner invokes these only after it has classified an edit.
-            context["_load_workflows"] = lambda: self.workflow_service.list_workflows(session["user_id"], vault_key_id)
+            context["_load_workflows"] = lambda: self.workflow_service.list_workflows(session["user_id"], vault_key_id, session.get("team_id"))
             def load_workflow(workflow_id: str) -> WorkflowDetail:
-                detail = self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id)
+                detail = self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id, session.get("team_id"))
                 session["_selected_workflow_detail"] = detail
                 return detail
             context["_load_workflow"] = load_workflow
@@ -1772,6 +1802,7 @@ class WorkflowInputService:
         selected_project_id: str | None,
         vault_key_id: str | None,
         *,
+        team_id: str | None = None,
         persist_initial: bool = True,
         session_id: str | None = None,
         request_digest: str | None = None,
@@ -1784,6 +1815,7 @@ class WorkflowInputService:
             "status": "running",
             "selected_workflow_id": selected_workflow_id,
             "selected_project_id": selected_project_id,
+            "team_id": team_id,
             "timezone": None,
             "authoring_metrics": None,
             "events": [],
@@ -1808,9 +1840,12 @@ class WorkflowInputService:
             self._persist_session(session, vault_key_id)
         return session
 
-    def _require_session(self, session_id: str, user_id: str, vault_key_id: str | None) -> dict[str, Any]:
+    def _require_session(self, session_id: str, user_id: str, vault_key_id: str | None,
+                         team_id: str | None = None) -> dict[str, Any]:
         session = self._get_session(session_id, user_id, vault_key_id)
         if session["user_id"] != user_id:
+            raise PermissionError("Workflow input session not found")
+        if session.get("team_id") != team_id:
             raise PermissionError("Workflow input session not found")
         return session
 
@@ -2030,6 +2065,7 @@ def _session_private_state(session: dict[str, Any]) -> dict[str, Any]:
         "selected_workflow_id": session.get("selected_workflow_id"),
         "request_digest": session.get("request_digest"),
         "selected_project_id": session.get("selected_project_id"),
+        "team_id": session.get("team_id"),
         "timezone": session.get("timezone"),
         "source_chat_id": session.get("source_chat_id"),
         "execution_mode": session.get("execution_mode", "saved"),

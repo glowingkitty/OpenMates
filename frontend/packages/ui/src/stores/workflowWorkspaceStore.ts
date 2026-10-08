@@ -8,6 +8,7 @@
 import { get, writable } from "svelte/store";
 import { getApiEndpoint } from "../config/api";
 import { registerWorkspaceCacheClear } from "../services/workspaceCacheLifecycle";
+import { getActiveTeamContextSnapshot, isActiveTeamContext } from "./teamStore";
 
 export type WorkflowNodeType =
   | "schedule_trigger"
@@ -252,6 +253,16 @@ export async function workflowApiFetch(
   accept = "application/json",
   signal?: AbortSignal,
 ): Promise<Response> {
+  const context = getActiveTeamContextSnapshot();
+  const url = new URL(path, 'https://workflow.local');
+  const explicitTeamId = url.searchParams.get('team_id');
+  if (url.searchParams.has('team_id') && explicitTeamId !== context.teamId) {
+    throw new WorkflowApiError('The selected workflow belongs to another workspace.', 409);
+  }
+  if (context.teamId && url.pathname.startsWith('/v1/workflows') && !explicitTeamId) {
+    url.searchParams.set('team_id', context.teamId);
+  }
+  const scopedPath = `${url.pathname}${url.search}${url.hash}`;
   const headers = new Headers();
   headers.set("Accept", accept);
   headers.set("Content-Type", "application/json");
@@ -260,12 +271,16 @@ export async function workflowApiFetch(
   }
   const requestInit = { method: init.method, body: init.body };
 
-  const response = await fetch(getApiEndpoint(path), {
+  const response = await fetch(getApiEndpoint(scopedPath), {
     ...requestInit,
     credentials: "include",
     headers,
     signal,
   });
+
+  if (!isActiveTeamContext(context.teamId, context.epoch)) {
+    throw new WorkflowApiError('Workflow context changed during the request.', 409);
+  }
 
   if (!response.ok) {
     const data = await response.json().catch(() => null);
@@ -326,6 +341,7 @@ export const workflowWorkspaceStore = {
     if (workflowsInFlight) return workflowsInFlight;
     const requestRevision = cacheRevision;
     const requestGeneration = cacheGeneration;
+    const context = getActiveTeamContextSnapshot();
 
     store.update((state) => ({
       ...state,
@@ -335,7 +351,7 @@ export const workflowWorkspaceStore = {
 
     const requestPromise = workflowApiRequest<{ workflows: WorkflowSummary[] }>("/v1/workflows")
       .then((data) => {
-        if (requestGeneration !== cacheGeneration) return get(store).workflows;
+        if (requestGeneration !== cacheGeneration || !isActiveTeamContext(context.teamId, context.epoch)) return get(store).workflows;
         const reusable = data.workflows.filter(workflow => workflow.lifecycle !== "chat_embed");
         store.update((state) => {
           if (requestRevision !== cacheRevision) {
@@ -362,7 +378,7 @@ export const workflowWorkspaceStore = {
         return reusable;
       })
       .catch((error) => {
-        if (requestGeneration !== cacheGeneration) throw error;
+        if (requestGeneration !== cacheGeneration || !isActiveTeamContext(context.teamId, context.epoch)) throw error;
         store.update((state) => ({
           ...state,
           listStatus: requestRevision !== cacheRevision ? state.listStatus : "error",
@@ -383,6 +399,7 @@ export const workflowWorkspaceStore = {
   async selectWorkflow(workflowId: string, options: { force?: boolean } = {}): Promise<WorkflowDetail> {
     setSelectedFromCaches(workflowId);
     const requestGeneration = cacheGeneration;
+    const context = getActiveTeamContextSnapshot();
     const current = get(store);
     const cachedDetail = current.detailsById[workflowId];
     const detailFresh = !!cachedDetail && isFresh(current.detailLoadedAtById[workflowId] ?? null);
@@ -447,6 +464,7 @@ export const workflowWorkspaceStore = {
     try {
       const workflow = await detailPromise;
       assertCurrentGeneration(requestGeneration);
+      if (!isActiveTeamContext(context.teamId, context.epoch)) throw new Error("Workflow context changed while loading.");
       if (requestRevision !== (detailRevisions.get(workflowId) ?? 0)) {
         const latest = get(store).detailsById[workflowId];
         if (!latest) throw new Error("Workflow changed while its detail was loading.");
@@ -496,8 +514,12 @@ export const workflowWorkspaceStore = {
     graph: WorkflowGraph;
     enabled: boolean;
     runContentRetention: "last_5" | "none";
+    teamId?: string | null;
   }): Promise<WorkflowDetail> {
     const requestGeneration = cacheGeneration;
+    const context = getActiveTeamContextSnapshot();
+    const teamId = input.teamId === undefined ? context.teamId : input.teamId;
+    if (teamId !== context.teamId) throw new Error("The selected Project belongs to another workspace.");
     const data = await workflowApiRequest<{ workflow: WorkflowDetail; warnings?: WorkflowAuthoringWarning[] }>("/v1/workflows", {
       method: "POST",
       body: JSON.stringify({
@@ -506,9 +528,11 @@ export const workflowWorkspaceStore = {
         graph: input.graph,
         enabled: input.enabled,
         run_content_retention: input.runContentRetention,
+        team_id: teamId,
       }),
     });
     assertCurrentGeneration(requestGeneration);
+    if (!isActiveTeamContext(context.teamId, context.epoch)) throw new Error("Workflow context changed while saving.");
     const workflow = { ...data.workflow, authoring_warnings: data.warnings ?? [] };
     this.upsertWorkflow(workflow);
     setSelectedFromCaches(workflow.id);

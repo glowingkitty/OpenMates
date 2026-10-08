@@ -1203,7 +1203,7 @@ async function handleTasks(
 
   if (subcommand === "create") {
     const title = taskTitleFromFlagsOrRest(flags, rest);
-    const input = await buildCreateUserTaskInput(masterKey, await resolveTaskCreateOptions(client, masterKey, flags, {
+    const createOptions = await resolveTaskCreateOptions(client, masterKey, flags, {
       title,
       description: typeof flags.description === "string" ? flags.description : "",
       labels: labelFlags(flags),
@@ -1216,7 +1216,10 @@ async function handleTasks(
       dueAt: parseDueAt(flags.due),
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
       slug: typeof flags.slug === "string" ? flags.slug : undefined,
-    }));
+    });
+    const teamKey = scope.teamId ? await client.getTaskTeamKey(scope.teamId) : undefined;
+    const input = await buildCreateUserTaskInput(masterKey,
+      { ...createOptions, teamId: scope.teamId ?? undefined }, teamKey);
     // resolveTaskCreateOptions already verified the actual calling Codex chat.
     // Register that genuine creator in the same mutation so a fresh account
     // needs neither a hidden bootstrap Task nor an extra eligibility request.
@@ -1231,7 +1234,7 @@ async function handleTasks(
       ? await queuedTaskMutation(client, flags, { kind: "create", taskId: input.task_id, input, creator }, scope.teamId)
       : await client.createUserTask(input, { creator });
     if (!created) return;
-    printTaskOutput(await decryptUserTask(created, masterKey), flags);
+    printTaskOutput(await client.decryptTaskContextRecord(created, scope), flags);
     return;
   }
 
@@ -1269,7 +1272,7 @@ async function handleTasks(
         throw new Error(workflowProjectionDeleteGuidance(task));
       }
       try {
-        const result = await client.deleteUserTask(task.taskId, task.version);
+        const result = await client.deleteUserTask(task.taskId, task.version, scope);
         if (flags.json === true) printJson(result);
         else console.log(`Workflow run skipped: ${task.shortId}`);
       } catch (error) {
@@ -1277,7 +1280,7 @@ async function handleTasks(
       }
       return;
     }
-    const result = await client.deleteUserTask(task.taskId, task.version);
+    const result = await client.deleteUserTask(task.taskId, task.version, scope);
     if (flags.json === true) printJson(result);
     else console.log(`Task deleted: ${task.shortId}`);
     return;
@@ -1434,7 +1437,9 @@ async function loadTasks(
   limit?: number,
 ): Promise<DecryptedUserTask[]> {
   const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, externalChatProvider: scope.externalChatProvider, externalChatLookupHash: scope.externalChatLookupHash, priority: scope.priority, teamId: scope.teamId, personal: scope.personal, limit });
-  const tasks = await decryptUserTasksForCli(records, masterKey, console.error);
+  const tasks = scope.teamId
+    ? await Promise.all(records.map((record) => client.decryptTaskContextRecord(record, scope)))
+    : await decryptUserTasksForCli(records, masterKey, console.error);
   if (tasks.length !== records.length) throw new Error("TASK_LIST_INCOMPLETE: one or more records could not be decrypted.");
   return scope.planId ? tasks.filter((task) => task.planId === scope.planId) : tasks;
 }
@@ -1451,7 +1456,7 @@ async function resolveTask(
   if (exactId && !filtered) {
     for (const lookupScope of taskLookupScopes(scope)) {
       const record = await client.getUserTask(id, {teamId: lookupScope.teamId, personal: lookupScope.personal});
-      if (record) return decryptUserTask(record, masterKey);
+      if (record) return client.decryptTaskContextRecord(record, lookupScope);
     }
     throw new Error(`Task not found: ${id}`);
   }
@@ -14877,6 +14882,8 @@ function printTasksHelp(): void {
   openmates tasks activity add <task-id|short-id> --message <text> [--as-assignee] [--delivery-id <sha256>] [--json]
   openmates tasks activity flush <task-id|short-id> [--as-assignee] [--json]
   openmates tasks activity delete <task-id|short-id> <entry-id> [--json]
+
+Context: use --personal or --team <team-id> for Task create, list, show, and delete.
 
 Chat-scoped aliases:
   openmates chats <chat-id> tasks list

@@ -134,7 +134,10 @@ class UserTaskService:
                 "updated_at": now,
             }
             if due_at is None or int(due_at) <= now:
-                return await self.start_ai(str(created.get("task_id") or payload.get("task_id")), user_id, start_patch)
+                return await self.start_ai(
+                    str(created.get("task_id") or payload.get("task_id")), user_id, start_patch,
+                    team_id=payload.get("team_id"),
+                )
             instruction = self._build_transient_ai_instruction(transient)
             chat_id = payload.get("primary_chat_id")
             if instruction and chat_id and self.execution_service:
@@ -145,6 +148,7 @@ class UserTaskService:
                     instruction=instruction,
                     current_chat_title=transient.get("plaintext_chat_title"),
                     created_at=now,
+                    team_id=payload.get("team_id"),
                 )
         return created
 

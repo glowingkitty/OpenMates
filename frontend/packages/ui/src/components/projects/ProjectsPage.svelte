@@ -37,7 +37,7 @@
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { userProfile } from '../../stores/userProfile';
-  import { getActiveTeamContextSnapshot } from '../../stores/teamStore';
+  import { getActiveTeamContextSnapshot, isActiveTeamContext, TEAM_CONTEXT_CHANGED_EVENT } from '../../stores/teamStore';
   import { computeSHA256 } from '../../message_parsing/utils';
   import { normalizeEmbedType as registryNormalizeEmbedType } from '../../data/embedRegistry.generated';
   import { hasFullscreenComponent, loadFullscreenComponent, resolveRegistryKey } from '../../services/embedFullscreenResolver';
@@ -714,19 +714,25 @@
   }
 
   async function refreshProjects(): Promise<void> {
+    const context = getActiveTeamContextSnapshot();
     isLoading = peekProjects() === undefined;
     try {
       hasLoadError = false;
-      projects = await listProjects();
+      const loaded = await listProjects({ teamId: context.teamId });
+      if (pageDisposed || !isActiveTeamContext(context.teamId, context.epoch)) return;
+      projects = loaded;
       if (selectedProject) {
-        selectedProject = projects.find((project) => project.project_id === selectedProject?.project_id) ?? selectedProject;
+        const current = projects.find((project) => project.project_id === selectedProject?.project_id);
+        if (current) selectedProject = current;
+        else clearSelectedProject();
       }
     } catch (error) {
+      if (pageDisposed || !isActiveTeamContext(context.teamId, context.epoch)) return;
       hasLoadError = true;
       console.error('[ProjectsPage] Failed to load projects:', error);
       notificationStore.error('Failed to load projects');
     } finally {
-      isLoading = false;
+      if (isActiveTeamContext(context.teamId, context.epoch)) isLoading = false;
     }
   }
 
@@ -745,12 +751,13 @@
       return;
     }
     const project = selectedProject;
+    const context = getActiveTeamContextSnapshot();
     replaceReadmeState({ status: 'loading' });
     const [contents, projectSources] = await Promise.all([
       getProjectContents(project),
       listProjectSources(project),
     ]);
-    if (selectedProject?.project_id !== project.project_id) return;
+    if (selectedProject?.project_id !== project.project_id || !isActiveTeamContext(context.teamId, context.epoch)) return;
     folders = contents.folders;
     items = contents.items;
     sources = projectSources;
@@ -766,10 +773,10 @@
       sources: projectSources,
       remoteContext: {
         ownerId: $userProfile.user_id || '',
-        teamId: getActiveTeamContextSnapshot().teamId,
+        teamId: project.teamId,
       },
     });
-    if (pageDisposed || selectedProject?.project_id !== project.project_id) {
+    if (pageDisposed || selectedProject?.project_id !== project.project_id || !isActiveTeamContext(context.teamId, context.epoch)) {
       if (loadedReadme.status === 'ready') releaseProjectReadmeImages(loadedReadme.document);
       return;
     }
@@ -802,6 +809,7 @@
   }
 
   async function selectProject(project: ProjectViewModel, updateHash = true): Promise<void> {
+    if (project.teamId !== getActiveTeamContextSnapshot().teamId) return;
     selectedProject = project;
     projectTaskOverlay = null;
     activeTab = 'overview';
@@ -817,6 +825,7 @@
   }
 
   async function selectProjectById(projectId: string, updateHash = true): Promise<void> {
+    const context = getActiveTeamContextSnapshot();
     const project = projects.find((candidate) => candidate.project_id === projectId);
     if (project) {
       await selectProject(project, updateHash);
@@ -825,9 +834,11 @@
 
     try {
       const loadedProject = await getProject(projectId);
+      if (!isActiveTeamContext(context.teamId, context.epoch)) return;
       projects = [loadedProject, ...projects.filter((candidate) => candidate.project_id !== projectId)];
       await selectProject(loadedProject, updateHash);
     } catch (error) {
+      if (!isActiveTeamContext(context.teamId, context.epoch)) return;
       console.error('[ProjectsPage] Failed to open project from hash:', error);
       notificationStore.error('Failed to open project');
       if (!updateHash) {
@@ -861,9 +872,11 @@
   async function handleCreateProject(): Promise<void> {
     const name = pendingProjectName?.trim() ?? '';
     if (!name || !newProjectWriteMode || isSaving) return;
+    const context = getActiveTeamContextSnapshot();
     isSaving = true;
     try {
-      const project = await createProject(name, newProjectWriteMode);
+      const project = await createProject(name, newProjectWriteMode, { teamId: context.teamId });
+      if (!isActiveTeamContext(context.teamId, context.epoch)) return;
       projects = [project, ...projects.filter((candidate) => candidate.project_id !== project.project_id)];
       selectedProject = project;
       currentFolder = null;
@@ -881,17 +894,20 @@
       broadcastProjectSelected(project);
       notificationStore.success('Project created');
     } catch (error) {
+      if (!isActiveTeamContext(context.teamId, context.epoch)) return;
       console.error('[ProjectsPage] Failed to create project:', error);
       notificationStore.error('Failed to create project');
     } finally {
-      isSaving = false;
+      if (isActiveTeamContext(context.teamId, context.epoch)) isSaving = false;
     }
   }
 
   async function handleDeleteProject(project: ProjectViewModel): Promise<void> {
     if (!confirm(`Delete project "${project.name}"? This removes the project organization, not the original chats or embeds.`)) return;
+    const context = getActiveTeamContextSnapshot();
     try {
-      await deleteProject(project.project_id);
+      await deleteProject(project.project_id, { teamId: project.teamId });
+      if (!isActiveTeamContext(context.teamId, context.epoch)) return;
       projects = projects.filter((candidate) => candidate.project_id !== project.project_id);
       if (selectedProject?.project_id === project.project_id) {
         clearSelectedProject();
@@ -900,6 +916,7 @@
       broadcastProjectFilesChanged(project.project_id);
       notificationStore.success('Project deleted');
     } catch (error) {
+      if (!isActiveTeamContext(context.teamId, context.epoch)) return;
       console.error('[ProjectsPage] Failed to delete project:', error);
       notificationStore.error('Failed to delete project');
     }
@@ -1872,7 +1889,7 @@
       folderId: currentFolder?.folder_id ?? null,
       folderPath: currentFolder ? localFolderPath : (remoteFolderPath ?? currentVirtualPath),
       sourceId: isRemoteTarget ? activeRemoteSourceId : null,
-      teamId: getActiveTeamContextSnapshot().teamId,
+      teamId: selectedProject.teamId,
     };
   }
 
@@ -1935,11 +1952,21 @@
       }
     });
     void refreshProjects();
+    const handleTeamContextChanged = () => {
+      clearSelectedProject();
+      newProjectName = '';
+      pendingProjectName = null;
+      newProjectWriteMode = null;
+      isSaving = false;
+      if (variant === 'main') setProjectUrlState(null, true);
+      void refreshProjects();
+    };
     const refreshVisibleProjects = () => {
       if (document.visibilityState === 'visible') void refreshProjects();
     };
     const handleProjectSelected = (event: Event) => {
       const project = (event as CustomEvent<ProjectViewModel>).detail;
+      if (project?.teamId !== getActiveTeamContextSnapshot().teamId) return;
       if (!project || selectedProject?.project_id === project.project_id) return;
       selectedProject = project;
       currentFolder = null;
@@ -1964,6 +1991,7 @@
     window.addEventListener('popstate', syncProjectHashFromLocation);
     window.addEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
     window.addEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
+    window.addEventListener(TEAM_CONTEXT_CHANGED_EVENT, handleTeamContextChanged);
     return () => {
       pageDisposed = true;
       unsubscribeProjects();
@@ -1977,6 +2005,7 @@
       window.removeEventListener('popstate', syncProjectHashFromLocation);
       window.removeEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
       window.removeEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
+      window.removeEventListener(TEAM_CONTEXT_CHANGED_EVENT, handleTeamContextChanged);
       window.clearInterval(sourceStatusTimer);
       window.clearInterval(summaryRefreshTimer);
       window.removeEventListener('focus', refreshVisibleProjects);

@@ -168,6 +168,8 @@ def _watch_message_payload(message: dict[str, Any]) -> dict[str, Any]:
         "chat_id": message.get("chat_id"),
         "role": message.get("role"),
         "encrypted_content": message.get("encrypted_content"),
+        "encrypted_sender_name": message.get("encrypted_sender_name"),
+        "hashed_user_id": message.get("hashed_user_id"),
         "created_at": _string_timestamp(message.get("created_at")) or "",
     }
 
@@ -188,6 +190,7 @@ def _encrypted_message_payload(message: str | dict[str, Any]) -> dict[str, Any] 
         return None
     record.pop("content", None)
     record.pop("text", None)
+    record.pop("sender_name", None)
     record["message_id"] = record.get("message_id") or record.get("client_message_id") or record.get("id")
     return record
 
@@ -206,7 +209,10 @@ async def _require_chat_read_access(request: Request, chat_id: str, team_id: str
     if not await chat_service.check_chat_ownership(chat_id, user_id):
         raise HTTPException(status_code=404, detail="Chat not found")
     chat = await chat_service.get_chat_metadata(chat_id, admin_required=True)
-    if not chat or chat.get("storage_state") == "deleting":
+    # This first-party encrypted read must use exactly Personal or one Team.
+    # A creator's personal owner/cache match never authorizes a Team chat read;
+    # Team access above also requires current membership and the matching Team.
+    if not chat or chat.get("storage_state") == "deleting" or chat.get("hashed_team_id"):
         raise HTTPException(status_code=404, detail="Chat not found")
     return chat
 

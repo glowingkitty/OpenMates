@@ -22,7 +22,8 @@ try:
         sanitize_quick_tip_slug,
         select_hardcoded_quick_tip_slug,
     )
-    from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult
+    from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult, _transform_message_history_for_llm
+    from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
 
@@ -288,6 +289,7 @@ class TestQuickTips:
         assert sanitize_quick_tip_slug("travel-can-add-local-context", ["travel"], "test", Logger()) == "travel-can-add-local-context"
 
 
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary
 @pytest.mark.anyio
 async def test_postprocessing_batches_metadata_translation_when_output_language_matches_ui(monkeypatch):
     """Language enforcement remains reliable without sequential translation calls."""
@@ -342,8 +344,9 @@ async def test_postprocessing_batches_metadata_translation_when_output_language_
         chat_summary="Existing summary",
         chat_tags=["jobs"],
         message_history=[
-            {"role": "user", "content": "Bitte erstelle Bewerbungsunterlagen."},
+            {"role": "user", "content": "Bitte erstelle Bewerbungsunterlagen.", "sender_name": "Alice"},
             {"role": "assistant", "content": "Gerne, ich erstelle sie."},
+            {"role": "user", "content": "Prüfe den Entwurf.", "sender_name": "Bob"},
         ],
         base_instructions={"postprocess_response_tool": {"type": "function", "function": {"name": "postprocess"}}},
         secrets_manager=None,
@@ -360,8 +363,13 @@ async def test_postprocessing_batches_metadata_translation_when_output_language_
     assert len(provider_calls) == 1
     assert provider_calls[0]["model_id"] == "google/gemini-3.5-flash-lite"
     assert provider_calls[0]["fallback_models"] == [
-        "mistral/mistral-small-latest", "google/gemini-3.5-flash-lite",
+        MISTRAL_UTILITY_MODEL, "google/gemini-3.5-flash-lite",
     ]
+    provider_history = _transform_message_history_for_llm(provider_calls[0]["message_history"])
+    assert {msg["content"] for msg in provider_history if msg["role"] == "user"} >= {
+        "[Alice]: Bitte erstelle Bewerbungsunterlagen.",
+        "[Bob]: Prüfe den Entwurf.",
+    }
     assert len(translation_calls) == 1
     assert translation_calls[0]["target_language"] == "en"
     assert translation_calls[0]["chat_summary"] == "Nutzer erstellt deutsche Bewerbungsunterlagen."

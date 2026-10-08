@@ -301,8 +301,12 @@ interface IdeaBucketPreparedIdea {
   payload: Record<string, unknown>;
 }
 
-function shouldWaitForTeamAi(message: string, teamId: string | null): boolean {
-  return !teamId || message.toLowerCase().includes("@openmates");
+export function shouldWaitForTeamAi(message: string, teamId: string | null): boolean {
+  if (!teamId) return true;
+  if (/(?:^|[^\w@])@openmates(?![\w-])/i.test(message)) return true;
+  return Array.from(message.matchAll(/(?:^|[^\w@])@mate:([a-z0-9_-]+)(?![\w-])/gi))
+    .some(match => match[1].toLowerCase() !== "onboarding_support"
+      && Object.hasOwn(MATE_NAMES, match[1].toLowerCase()));
 }
 
 const DEFAULT_TEAM_PROFILE_ICON_NAME = "users";
@@ -1036,6 +1040,7 @@ export interface UserTaskRecord {
   external_chat_lookup_hash?: string | null;
   encrypted_external_chat_id?: string | null;
   encrypted_external_chat_title?: string | null;
+  hashed_team_id?: string | null;
   key_wrappers?: Array<Record<string, unknown>>;
   linked_project_ids?: string[] | null;
   linked_project_hashes?: string[] | null;
@@ -7959,6 +7964,9 @@ export class OpenMatesClient {
     promptBudget: AiResponsePromptBudget | null;
   }> {
     const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
+    const teamSenderName = teamId
+      ? String((await this.whoAmI()).username ?? "").trim() || "Team member"
+      : "User";
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     // Full UUIDs and undefined (new chat) pass through unchanged.
     if (params.chatId && params.newChatId) {
@@ -8438,7 +8446,7 @@ export class OpenMatesClient {
         updated_at: createdAt,
       };
       encryptedUserMessage.encrypted_sender_name = await encryptWithAesGcmCombined(
-        "User",
+        teamSenderName,
         chatKeyBytes,
       );
 
@@ -8468,7 +8476,7 @@ export class OpenMatesClient {
             role: "user" as const,
             content: finalMessage,
             category: null,
-            sender_name: "User",
+            sender_name: teamSenderName,
             created_at: createdAt,
           },
         ];
@@ -11415,17 +11423,33 @@ export class OpenMatesClient {
   async decryptTaskContextRecord(record: UserTaskRecord, options: TeamContextOptions = {}) {
     const { decryptUserTask } = await import("./tasksCli.js");
     const teamId = this.resolveTeamContext(options);
-    if (!teamId) return decryptUserTask(record, this.getMasterKeyBytes());
-    const key = await this.loadTeamKeyBytes(teamId);
+    if (!teamId || record.source === "workflow_run") return decryptUserTask(record, this.getMasterKeyBytes());
+    this.requireSession();
     const teamHash = createHash("sha256").update(teamId).digest("hex");
-    const wrapper = record.key_wrappers?.find(row => row.key_type === "team" && row.hashed_team_id === teamHash && row.team_key_epoch === 1);
-    if (!key) throw new Error("This Team Task key is unavailable.");
-    if (typeof wrapper?.encrypted_task_key === "string") return decryptUserTask({ ...record, encrypted_task_key: wrapper.encrypted_task_key }, key);
-    // Legacy Team records may expose the authorized wrapper in the main field.
-    // An owner can still read their own master-wrapped record; neither path
-    // broadens the server's team-scoped Task inventory or grants write access.
-    try { return await decryptUserTask(record, key); }
-    catch { return decryptUserTask(record, this.getMasterKeyBytes()); }
+    if (record.hashed_team_id !== teamHash) throw new Error(`Task ${record.task_id} does not belong to Team ${teamId}.`);
+    let wrappers = record.key_wrappers;
+    if (!Array.isArray(wrappers)) {
+      const response = await this.http.get<{ key_wrappers?: Array<Record<string, unknown>> }>(
+        `/v1/user-tasks/${encodeURIComponent(record.task_id)}/key-wrappers?team_id=${encodeURIComponent(teamId)}`,
+        this.getCliRequestHeaders(),
+      );
+      if (!response.ok || !Array.isArray(response.data.key_wrappers)) {
+        throw new Error(`Team Task key-wrapper lookup failed with HTTP ${response.status}.`);
+      }
+      wrappers = response.data.key_wrappers;
+    }
+    const wrapper = wrappers.find(row => row.key_type === "team"
+      && row.hashed_team_id === teamHash && row.team_key_epoch === 1
+      && typeof row.encrypted_task_key === "string");
+    if (!wrapper) throw new Error("Legacy Team Task has no Team key wrapper; migration is required.");
+    const key = await this.getTaskTeamKey(teamId);
+    return decryptUserTask({ ...record, encrypted_task_key: wrapper.encrypted_task_key as string }, key);
+  }
+
+  async getTaskTeamKey(teamId: string): Promise<Uint8Array> {
+    const key = await this.loadTeamKeyBytes(teamId);
+    if (!key) throw new Error(`Team key not available for Task creation in '${teamId}'.`);
+    return key;
   }
 
   async selectProjectContext(projectId: string, input: { chat_id: string; text: string;
@@ -12150,10 +12174,10 @@ export class OpenMatesClient {
     return response.data.task;
   }
 
-  async deleteUserTask(taskId: string, version: number): Promise<{ deleted?: boolean; task_id?: string; history?: WorkspaceHistoryResult }> {
+  async deleteUserTask(taskId: string, version: number, options: TeamContextOptions = {}): Promise<{ deleted?: boolean; task_id?: string; history?: WorkspaceHistoryResult }> {
     this.requireSession();
     const response = await this.http.delete<{ deleted?: boolean; task_id?: string; history?: WorkspaceHistoryResult }>(
-      `/v1/user-tasks/${encodeURIComponent(taskId)}?version=${encodeURIComponent(String(version))}`,
+      this.appendTeamQuery(`/v1/user-tasks/${encodeURIComponent(taskId)}?version=${encodeURIComponent(String(version))}`, options),
       undefined,
       this.getCliRequestHeaders(),
     );

@@ -76,6 +76,7 @@ export interface Message {
   preserve_draft?: boolean;
   message_id: string; // Unique message identifier (Format: {last_10_chars_of_chat_id}-{uuid_v4})
   chat_id: string; // Identifier of the chat this message belongs to
+  hashed_user_id?: string; // Server-assigned author hash in authorized chat envelopes
   role: MessageRole; // 'user' for user messages, 'assistant' for AI/mate messages
   created_at: number; // Creation Unix timestamp of the message
   status: MessageStatus; // Status of the message sending process
@@ -933,6 +934,7 @@ export interface TeamChatMessageCreatedPayload {
   chat_id: string;
   message_id: string;
   role: MessageRole;
+  hashed_user_id: string;
   encrypted_content: string;
   encrypted_sender_name?: string;
   created_at?: number;

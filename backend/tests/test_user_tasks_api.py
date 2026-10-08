@@ -632,6 +632,286 @@ async def test_create_task_persists_key_wrappers_separately() -> None:
     assert wrapper_record["key_type"] == "master"
 
 
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.key-wrappers.context-scoped
+@pytest.mark.asyncio
+async def test_create_team_task_scopes_owner_and_requires_matching_team_wrapper() -> None:
+    directus = SimpleNamespace(create_item=AsyncMock(side_effect=lambda _collection, record, **_kwargs: (True, record)))
+    methods = UserTaskMethods(with_lock_cache(directus))
+    wrappers = [
+        {"key_type": "chat", "hashed_chat_id": hash_id("chat-1"), "encrypted_task_key": "cipher-chat", "created_at": 100},
+        {"key_type": "project", "hashed_project_id": hash_id("project-1"), "encrypted_task_key": "cipher-project", "created_at": 100},
+        {"key_type": "team", "hashed_team_id": hash_id("team-1"), "team_key_epoch": 1,
+         "encrypted_task_key": "cipher-team", "created_at": 100},
+    ]
+    created = await methods.create_task("user-1", task_payload(team_id="team-1", key_wrappers=wrappers))
+    assert created is not None
+    record = directus.create_item.await_args_list[0].args[1]
+    assert record["hashed_user_id"] is None
+    assert record["hashed_team_id"] == hash_id("team-1")
+    assert "team_id" not in record
+
+    directus.create_item.reset_mock()
+    rejected = await methods.create_task("user-1", task_payload(team_id="team-2", key_wrappers=wrappers))
+    assert rejected is None
+    directus.create_item.assert_not_awaited()
+
+    rejected_master = await methods.create_task("user-1", task_payload(
+        team_id="team-1",
+        key_wrappers=[{"key_type": "master", "encrypted_task_key": "cipher-master", "created_at": 100}, *wrappers],
+    ))
+    assert rejected_master is None
+    directus.create_item.assert_not_awaited()
+
+    rejected_missing = await methods.create_task("user-1", task_payload(team_id="team-1", key_wrappers=[]))
+    assert rejected_missing is None
+    directus.create_item.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=tasks.key-wrappers.context-scoped,teams.context.full-switch-local
+@pytest.mark.asyncio
+async def test_team_task_relink_replaces_other_members_wrappers_and_rollback_preserves_owner() -> None:
+    rows: list[dict] = []
+    wrappers: list[dict] = []
+    fail_update = True
+    next_id = 0
+
+    async def create_item(collection, record, **_kwargs):
+        nonlocal next_id
+        next_id += 1
+        row = {"id": f"row-{next_id}", **record}
+        (rows if collection == "user_tasks" else wrappers).append(row)
+        return True, row
+
+    async def get_items(collection, params=None, **_kwargs):
+        if collection == "user_tasks":
+            return [row for row in rows if row["task_id"] == "task-1" and row.get("hashed_team_id") == hash_id("team-1")]
+        return [row for row in wrappers if row["hashed_task_id"] == hash_id("task-1")]
+
+    async def delete_item(collection, row_id, **_kwargs):
+        target = rows if collection == "user_tasks" else wrappers
+        target[:] = [row for row in target if row["id"] != row_id]
+        return True
+
+    async def update_item_if_version(_collection, row_id, patch, _version, **_kwargs):
+        if fail_update:
+            return None
+        row = next(row for row in rows if row["id"] == row_id)
+        row.update(patch)
+        return row
+
+    directus = SimpleNamespace(
+        create_item=AsyncMock(side_effect=create_item), get_items=AsyncMock(side_effect=get_items),
+        delete_item=AsyncMock(side_effect=delete_item),
+        update_item_if_version=AsyncMock(side_effect=update_item_if_version),
+    )
+    methods = UserTaskMethods(with_lock_cache(directus))
+    team_wrapper = {"key_type": "team", "hashed_team_id": hash_id("team-1"), "team_key_epoch": 1,
+                    "encrypted_task_key": "cipher-team", "created_at": 100}
+    created = await methods.create_task("creator-a", task_payload(
+        team_id="team-1", primary_chat_id=None, linked_project_ids=[], key_wrappers=[team_wrapper],
+    ))
+    assert created is not None
+    assert wrappers[0]["hashed_user_id"] == hash_id("creator-a")
+
+    relink = {
+        "version": 1, "linked_project_ids": ["project-2"],
+        "encrypted_linked_project_ids": "cipher-project-2",
+        "key_wrappers": [team_wrapper, {"key_type": "project", "hashed_project_id": hash_id("project-2"),
+                                        "encrypted_task_key": "cipher-project", "created_at": 101}],
+    }
+    for invalid_wrappers in (
+        [{**team_wrapper, "hashed_team_id": hash_id("team-2")}, relink["key_wrappers"][1]],
+        [{"key_type": "master", "encrypted_task_key": "cipher-master", "created_at": 101}, *relink["key_wrappers"]],
+    ):
+        invalid = await methods.update_task_if_version(
+            "task-1", "member-b", {**relink, "key_wrappers": invalid_wrappers}, 1, team_id="team-1",
+        )
+        assert invalid is None
+        assert len(wrappers) == 1
+        assert wrappers[0]["hashed_user_id"] == hash_id("creator-a")
+
+    failed = await methods.update_task_if_version("task-1", "member-b", relink, 1, team_id="team-1")
+    assert failed is None
+    assert len(wrappers) == 1
+    assert wrappers[0]["hashed_user_id"] == hash_id("creator-a")
+
+    fail_update = False
+    updated = await methods.update_task_if_version("task-1", "member-b", relink, 1, team_id="team-1")
+    assert updated is not None
+    assert len(wrappers) == 2
+    assert {wrapper["key_type"] for wrapper in wrappers} == {"team", "project"}
+    assert {wrapper["hashed_user_id"] for wrapper in wrappers} == {hash_id("member-b")}
+    assert all(wrapper["hashed_team_id"] == hash_id("team-1") for wrapper in wrappers if wrapper["key_type"] == "team")
+    replacement_queries = [call.kwargs["params"] for call in directus.get_items.await_args_list
+                           if call.args[0] == "user_task_key_wrappers"]
+    assert replacement_queries and all(query.get("filter[hashed_task_id][_eq]") == hash_id("task-1") for query in replacement_queries)
+    assert all("filter[hashed_user_id][_eq]" not in query for query in replacement_queries)
+
+
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted
+@pytest.mark.asyncio
+async def test_team_task_create_requires_write_role_and_matching_project(monkeypatch) -> None:
+    monkeypatch.setattr(user_tasks, "_current_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
+    monkeypatch.setattr(user_tasks, "_record_task_history", AsyncMock(return_value={}))
+    team = SimpleNamespace(require_team_role=AsyncMock())
+    project = SimpleNamespace(get_project=AsyncMock(return_value=None))
+    request = SimpleNamespace(headers={}, app=SimpleNamespace(state=SimpleNamespace(
+        directus_service=SimpleNamespace(team=team, project=project))))
+    service = SimpleNamespace(task_methods=SimpleNamespace(eligible_external_ai=AsyncMock(return_value=[])),
+                              create_task=AsyncMock(return_value={"task_id": "task-1"}))
+    body = user_tasks.UserTaskCreateRequest(**task_payload(team_id="team-1", key_wrappers=[
+        {"key_type": "team", "hashed_team_id": hash_id("team-1"), "team_key_epoch": 1,
+         "encrypted_task_key": "cipher-team", "created_at": 100}]))
+    with pytest.raises(HTTPException) as error:
+        await user_tasks.create_user_task(request, SimpleNamespace(), body, service=service, history_service=SimpleNamespace())
+    assert error.value.status_code == 400
+    team.require_team_role.assert_awaited_once_with("team-1", "user-1", {"owner", "admin", "member"})
+    project.get_project.assert_awaited_once_with("project-1", "user-1", "team-1")
+    service.create_task.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted
+@pytest.mark.asyncio
+async def test_team_task_create_rejects_viewer_and_foreign_parent(monkeypatch) -> None:
+    monkeypatch.setattr(user_tasks, "_current_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
+    team = SimpleNamespace(require_team_role=AsyncMock(side_effect=user_tasks.TeamPermissionError("viewer")))
+    project = SimpleNamespace(get_project=AsyncMock(return_value={"project_id": "project-1"}))
+    request = SimpleNamespace(headers={}, app=SimpleNamespace(state=SimpleNamespace(
+        directus_service=SimpleNamespace(team=team, project=project))))
+    methods = SimpleNamespace(get_task=AsyncMock(return_value=None), eligible_external_ai=AsyncMock(return_value=[]))
+    service = SimpleNamespace(task_methods=methods, create_task=AsyncMock())
+    body = user_tasks.UserTaskCreateRequest(**task_payload(team_id="team-1", parent_task_id="foreign-task",
+        key_wrappers=[{"key_type": "team", "hashed_team_id": hash_id("team-1"),
+                       "team_key_epoch": 1, "encrypted_task_key": "cipher-team", "created_at": 100}]))
+    with pytest.raises(HTTPException) as denied:
+        await user_tasks.create_user_task(request, SimpleNamespace(), body, service=service, history_service=SimpleNamespace())
+    assert denied.value.status_code == 403
+    project.get_project.assert_not_awaited()
+
+    team.require_team_role.side_effect = None
+    with pytest.raises(HTTPException) as conflict:
+        await user_tasks.create_user_task(request, SimpleNamespace(), body, service=service, history_service=SimpleNamespace())
+    assert conflict.value.status_code == 400
+    methods.get_task.assert_awaited_with("foreign-task", "user-1", "team-1")
+    service.create_task.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=tasks.key-wrappers.context-scoped
+@pytest.mark.asyncio
+async def test_team_task_key_wrapper_read_requires_membership_and_returns_only_team_wrapper(monkeypatch) -> None:
+    monkeypatch.setattr(user_tasks, "_current_session_user", AsyncMock(return_value=SimpleNamespace(id="member-1")))
+    team = SimpleNamespace(require_team_role=AsyncMock())
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(team=team))))
+    methods = SimpleNamespace(get_task=AsyncMock(return_value={"task_id": "task-1"}),
+                              list_task_key_wrappers=AsyncMock(return_value=[{"key_type": "team", "encrypted_task_key": "cipher-team"}]))
+    result = await user_tasks.list_user_task_key_wrappers(
+        request, SimpleNamespace(), "task-1", team_id="team-1", service=SimpleNamespace(task_methods=methods),
+    )
+    assert result["key_wrappers"][0]["key_type"] == "team"
+    team.require_team_role.assert_awaited_once_with("team-1", "member-1", {"owner", "admin", "member", "viewer"})
+    methods.get_task.assert_awaited_once_with("task-1", "member-1", "team-1")
+    methods.list_task_key_wrappers.assert_awaited_once_with("member-1", "task-1", team_id="team-1")
+
+    team.require_team_role.side_effect = user_tasks.TeamPermissionError("removed")
+    with pytest.raises(HTTPException) as denied:
+        await user_tasks.list_user_task_key_wrappers(
+            request, SimpleNamespace(), "task-1", team_id="team-1", service=SimpleNamespace(task_methods=methods),
+        )
+    assert denied.value.status_code == 403
+    assert methods.get_task.await_count == 1
+
+
+# contract-test: supporting surface=rest_api assertions=tasks.key-wrappers.context-scoped
+@pytest.mark.asyncio
+async def test_team_task_key_wrapper_query_excludes_creator_master_wrapper() -> None:
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[{"key_type": "team", "encrypted_task_key": "cipher-team"}]))
+    methods = UserTaskMethods(directus)
+    result = await methods.list_task_key_wrappers("member-2", "task-1", team_id="team-1")
+    assert result[0]["key_type"] == "team"
+    params = directus.get_items.await_args.kwargs["params"]
+    assert params["filter[hashed_team_id][_eq]"] == hash_id("team-1")
+    assert params["filter[key_type][_eq]"] == "team"
+    assert "filter[hashed_user_id][_eq]" not in params
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local,tasks.key-wrappers.context-scoped
+@pytest.mark.asyncio
+async def test_team_task_list_batches_only_matching_team_wrappers(monkeypatch) -> None:
+    monkeypatch.setattr(user_tasks, "_current_user", AsyncMock(return_value=SimpleNamespace(id="member-1")))
+    team = SimpleNamespace(require_team_role=AsyncMock())
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(team=team))))
+    methods = SimpleNamespace(
+        list_team_task_key_wrappers=AsyncMock(return_value={
+            "task-1": [{"key_type": "team", "encrypted_task_key": "cipher-team"}], "task-2": [],
+        }),
+        eligible_external_ai=AsyncMock(return_value=[]),
+    )
+    service = SimpleNamespace(list_tasks=AsyncMock(return_value=[{"task_id": "task-1"}, {"task_id": "task-2"}]), task_methods=methods)
+    projections = SimpleNamespace(list_projections=AsyncMock())
+
+    result = await user_tasks.list_user_tasks(
+        request, SimpleNamespace(), team_id="team-1", service=service, workflow_projection_service=projections,
+    )
+
+    team.require_team_role.assert_awaited_once_with("team-1", "member-1", {"owner", "admin", "member", "viewer"})
+    methods.list_team_task_key_wrappers.assert_awaited_once_with("team-1", ["task-1", "task-2"])
+    assert result["tasks"] == [
+        {"task_id": "task-1", "encrypted_task_key": None,
+         "key_wrappers": [{"key_type": "team", "encrypted_task_key": "cipher-team"}]},
+        {"task_id": "task-2", "encrypted_task_key": None, "key_wrappers": []},
+    ]
+    projections.list_projections.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local,tasks.key-wrappers.context-scoped
+@pytest.mark.asyncio
+async def test_personal_task_list_keeps_personal_key_without_team_wrapper_query(monkeypatch) -> None:
+    monkeypatch.setattr(user_tasks, "_current_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
+    methods = SimpleNamespace(
+        list_team_task_key_wrappers=AsyncMock(), eligible_external_ai=AsyncMock(return_value=[]),
+    )
+    service = SimpleNamespace(
+        list_tasks=AsyncMock(return_value=[{"task_id": "personal-task", "encrypted_task_key": "cipher-master"}]),
+        task_methods=methods,
+    )
+    result = await user_tasks.list_user_tasks(
+        SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace())), SimpleNamespace(),
+        service=service, workflow_projection_service=SimpleNamespace(list_projections=lambda _user_id: []),
+    )
+    assert result["tasks"] == [{"task_id": "personal-task", "encrypted_task_key": "cipher-master"}]
+    methods.list_team_task_key_wrappers.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=tasks.key-wrappers.context-scoped
+@pytest.mark.asyncio
+async def test_team_task_wrapper_batch_is_empty_without_tasks_and_filters_foreign_rows() -> None:
+    team_hash = hash_id("team-1")
+    first_hash = hash_id("task-1")
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[
+        {"hashed_task_id": first_hash, "hashed_team_id": team_hash, "key_type": "team", "team_key_epoch": 1,
+         "encrypted_task_key": "cipher-team", "wrapper_version": 1, "hashed_user_id": hash_id("creator")},
+        {"hashed_task_id": first_hash, "hashed_team_id": team_hash, "key_type": "master", "encrypted_task_key": "cipher-master"},
+        {"hashed_task_id": hash_id("task-2"), "hashed_team_id": hash_id("team-2"), "key_type": "team",
+         "team_key_epoch": 1, "encrypted_task_key": "cipher-foreign"},
+    ]))
+    methods = UserTaskMethods(directus)
+    assert await methods.list_team_task_key_wrappers("team-1", []) == {}
+    directus.get_items.assert_not_awaited()
+
+    result = await methods.list_team_task_key_wrappers("team-1", ["task-1", "task-2"])
+    assert result == {
+        "task-1": [{"key_type": "team", "hashed_team_id": team_hash, "team_key_epoch": 1,
+                    "encrypted_task_key": "cipher-team", "wrapper_version": 1}],
+        "task-2": [],
+    }
+    directus.get_items.assert_awaited_once()
+    params = directus.get_items.await_args.kwargs["params"]
+    assert params["filter[hashed_team_id][_eq]"] == team_hash
+    assert params["filter[key_type][_eq]"] == "team"
+    assert set(params["filter[hashed_task_id][_in]"].split(",")) == {first_hash, hash_id("task-2")}
+    assert "filter[hashed_user_id][_eq]" not in params
+
+
 # contract-test: direct surface=rest_api assertions=tasks.project-links.encrypted,tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
 async def test_create_task_rolls_back_row_and_wrappers_when_wrapper_write_fails() -> None:
@@ -1390,29 +1670,57 @@ async def test_existing_owner_can_update_title_without_reclaiming():
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity,tasks.key-wrappers.context-scoped
 async def test_exact_task_read_keeps_team_viewer_access_and_scoped_lookup(monkeypatch):
     monkeypatch.setattr(user_tasks, "_current_session_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
     team = SimpleNamespace(require_team_role=AsyncMock())
     request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(team=team))))
     methods = SimpleNamespace(
-        get_task=AsyncMock(return_value={"task_id": "task-1", "encrypted_title": "cipher"}),
+        get_task=AsyncMock(return_value={"task_id": "task-1", "encrypted_title": "cipher", "encrypted_task_key": "personal-master"}),
+        list_team_task_key_wrappers=AsyncMock(return_value={"task-1": [{"key_type": "team", "encrypted_task_key": "team-key"}]}),
         eligible_external_ai=AsyncMock(return_value=["codex"]),
     )
     result = await user_tasks.get_user_task(request, None, "task-1", "team-1", SimpleNamespace(task_methods=methods))
     methods.get_task.assert_awaited_once_with("task-1", "user-1", "team-1")
     assert "viewer" in team.require_team_role.await_args.args[2]
     assert result["task"]["encrypted_title"] == "cipher"
+    assert result["task"]["encrypted_task_key"] is None
+    assert result["task"]["key_wrappers"] == [{"key_type": "team", "encrypted_task_key": "team-key"}]
+    methods.list_team_task_key_wrappers.assert_awaited_once_with("team-1", ["task-1"])
     assert result["eligible_external_ai"] == ["codex"]
     methods.eligible_external_ai.assert_awaited_once_with("user-1")
     methods.eligible_external_ai.side_effect = RuntimeError("eligibility unavailable")
     degraded = await user_tasks.get_user_task(request, None, "task-1", "team-1", SimpleNamespace(task_methods=methods))
-    assert degraded == {"task": {"task_id": "task-1", "encrypted_title": "cipher"}}
+    assert degraded == {"task": {"task_id": "task-1", "encrypted_title": "cipher", "encrypted_task_key": None,
+                                "key_wrappers": [{"key_type": "team", "encrypted_task_key": "team-key"}]}}
     methods.get_task.return_value = None
     with pytest.raises(HTTPException) as error:
         await user_tasks.get_user_task(request, None, "missing", "team-1", SimpleNamespace(task_methods=methods))
     assert error.value.status_code == 404
     assert methods.eligible_external_ai.await_count == 2
+    assert methods.list_team_task_key_wrappers.await_count == 2
+
+    team.require_team_role.side_effect = user_tasks.TeamPermissionError("removed")
+    with pytest.raises(HTTPException) as denied:
+        await user_tasks.get_user_task(request, None, "task-1", "team-1", SimpleNamespace(task_methods=methods))
+    assert denied.value.status_code == 403
+    assert methods.list_team_task_key_wrappers.await_count == 2
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local,tasks.key-wrappers.context-scoped
+@pytest.mark.asyncio
+async def test_exact_team_task_read_with_missing_wrapper_fails_closed(monkeypatch):
+    monkeypatch.setattr(user_tasks, "_current_session_user", AsyncMock(return_value=SimpleNamespace(id="member-1")))
+    team = SimpleNamespace(require_team_role=AsyncMock())
+    methods = SimpleNamespace(
+        get_task=AsyncMock(return_value={"task_id": "legacy-task", "encrypted_task_key": "personal-master"}),
+        list_team_task_key_wrappers=AsyncMock(return_value={"legacy-task": []}),
+        eligible_external_ai=AsyncMock(return_value=[]),
+    )
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(team=team))))
+    result = await user_tasks.get_user_task(request, None, "legacy-task", "team-1", SimpleNamespace(task_methods=methods))
+    assert result["task"]["encrypted_task_key"] is None
+    assert result["task"]["key_wrappers"] == []
 
 
 @pytest.mark.asyncio

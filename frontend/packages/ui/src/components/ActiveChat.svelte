@@ -166,7 +166,7 @@ import { storageArchiveFetch } from "../config/api";
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
-    import { activeTeam, activeTeamId, TEAM_CONTEXT_CHANGED_EVENT } from '../stores/teamStore';
+    import { activeTeam, activeTeamId, getActiveTeamContextSnapshot, isActiveTeamContext, TEAM_CONTEXT_CHANGED_EVENT } from '../stores/teamStore';
     import TeamWorkspaceIdentity from './teams/TeamWorkspaceIdentity.svelte';
     import {
         getInterestSurfaceIds,
@@ -7356,6 +7356,7 @@ import { storageArchiveFetch } from "../config/api";
      */
     async function handleSendMessage(event: CustomEvent) {
         if (warmComposerBlockedForCurrentChat) return;
+        const sendContext = getActiveTeamContextSnapshot();
         const { message, newChat, isEditSend, editCreatedAt } = event.detail as {
             message: ChatMessageModel,
             newChat?: Chat,
@@ -7440,10 +7441,10 @@ import { storageArchiveFetch } from "../config/api";
             }
             
             let hydratedMessagesForChat: ChatMessageModel[] = [];
+            let sentChat: Chat | null = newChat ?? null;
 
             // Force update currentChat immediately (fallback to DB if newChat wasn't provided)
             if (newChat) {
-                currentChat = newChat;
                 if (newChat.is_anonymous) {
                     try {
                         hydratedMessagesForChat = await anonymousChatStorage.getMessagesForChat(message.chat_id);
@@ -7457,29 +7458,32 @@ import { storageArchiveFetch } from "../config/api";
                     const { incognitoChatService } = await import('../services/incognitoChatService');
                     const incognitoChat = await incognitoChatService.getChat(message.chat_id);
                     if (incognitoChat) {
-                        currentChat = incognitoChat as Chat;
+                        sentChat = incognitoChat as Chat;
                         hydratedMessagesForChat = await incognitoChatService.getMessagesForChat(message.chat_id);
                     } else {
                         const anonymousChat = await anonymousChatStorage.getChat(message.chat_id);
                         if (anonymousChat) {
-                            currentChat = anonymousChat as Chat;
+                            sentChat = anonymousChat as Chat;
                             hydratedMessagesForChat = await anonymousChatStorage.getMessagesForChat(message.chat_id);
                         } else {
                             const dbChat = await chatDB.getChat(message.chat_id);
                             if (dbChat) {
-                                currentChat = dbChat as Chat;
+                                sentChat = dbChat as Chat;
                                 hydratedMessagesForChat = await chatDB.getMessagesForChat(message.chat_id);
                             } else {
                                 // Minimal fallback to keep UI consistent; DB should catch up shortly
-                                currentChat = { chat_id: message.chat_id } as Chat;
+                                sentChat = { chat_id: message.chat_id, team_id: sendContext.teamId } as Chat;
                             }
                         }
                     }
                 } catch (err) {
                     console.warn('[ActiveChat] Failed to load chat for sent message; using minimal fallback:', err);
-                    currentChat = { chat_id: message.chat_id } as Chat;
+                    sentChat = { chat_id: message.chat_id, team_id: sendContext.teamId } as Chat;
                 }
             }
+            if (!isActiveTeamContext(sendContext.teamId, sendContext.epoch)
+                || !sentChat || !isChatInActiveTeamContext(sentChat, sendContext.teamId)) return;
+            currentChat = sentChat;
             // For cloned-from-example chats, include the original example messages
             // so that embed references render in the cloned chat immediately
             if (currentChat?.source_demo_id && isExampleChat(currentChat.source_demo_id)) {
@@ -9476,6 +9480,7 @@ import { storageArchiveFetch } from "../config/api";
             status: 'synced',
             encrypted_content: typeof messageObj.encrypted_content === 'string' ? messageObj.encrypted_content : '',
             encrypted_sender_name: typeof messageObj.encrypted_sender_name === 'string' ? messageObj.encrypted_sender_name : undefined,
+            hashed_user_id: typeof messageObj.hashed_user_id === 'string' ? messageObj.hashed_user_id : undefined,
             encrypted_category: typeof messageObj.encrypted_category === 'string' ? messageObj.encrypted_category : undefined,
             encrypted_model_name: typeof messageObj.encrypted_model_name === 'string' ? messageObj.encrypted_model_name : undefined,
             encrypted_thinking_content: typeof messageObj.encrypted_thinking_content === 'string' ? messageObj.encrypted_thinking_content : undefined,
@@ -9708,6 +9713,7 @@ import { storageArchiveFetch } from "../config/api";
                         status: 'synced' as const,
                         encrypted_content: typeof messageObj.encrypted_content === 'string' ? messageObj.encrypted_content : '',
                         encrypted_sender_name: typeof messageObj.encrypted_sender_name === 'string' ? messageObj.encrypted_sender_name : undefined,
+                        hashed_user_id: typeof messageObj.hashed_user_id === 'string' ? messageObj.hashed_user_id : undefined,
                         encrypted_category: typeof messageObj.encrypted_category === 'string' ? messageObj.encrypted_category : undefined,
                         encrypted_model_name: typeof messageObj.encrypted_model_name === 'string' ? messageObj.encrypted_model_name : undefined,
                         user_message_id: typeof messageObj.user_message_id === 'string' ? messageObj.user_message_id : undefined,

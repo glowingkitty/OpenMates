@@ -32,11 +32,20 @@ vi.mock('../../stores/userProfile', async () => {
 	return { userProfile: writable({ user_id: 'team-cache-test-user', username: 'Mira' }) };
 });
 
-import { createTeam, createTeamEmailInvite, deleteTeam, getTeam, getTeamKey, listTeams, loadTeamBilling, loadTeamMembers, TeamRequestCancelledError, type TeamViewModel } from '../teamService';
+import { createTeam, createTeamEmailInvite, deleteTeam, getTeam, getTeamKey, isTeamAIInvocation, listTeams, loadTeamBilling, loadTeamMembers, TeamRequestCancelledError, type TeamViewModel } from '../teamService';
 import { invalidateWorkspaceCaches } from '../workspaceCacheLifecycle';
 import { getActiveTeamContextSnapshot, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../../stores/teamStore';
 
 describe('teamService', () => {
+	// contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked
+	it('invokes AI only for OpenMates or a selected known Mate, not a human username', () => {
+		expect(isTeamAIInvocation('@OpenMates summarize')).toBe(true);
+		expect(isTeamAIInvocation('@mate:software_development review')).toBe(true);
+		expect(isTeamAIInvocation('@mate:unknown_person review')).toBe(false);
+		expect(isTeamAIInvocation('@Sophia review')).toBe(false);
+		expect(isTeamAIInvocation('email@openmates.org')).toBe(false);
+		expect(isTeamAIInvocation('@openmates_fake')).toBe(false);
+	});
 	beforeEach(() => {
 		invalidateWorkspaceCaches();
 		vi.restoreAllMocks();

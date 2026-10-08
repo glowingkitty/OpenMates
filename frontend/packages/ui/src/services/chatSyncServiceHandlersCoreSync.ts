@@ -1112,6 +1112,7 @@ export async function handleChatContentBatchResponseImpl(
           message_id: messageId,
           chat_id: (message.chat_id as string) || chatId,
           role: (message.role as Message["role"]) || "user",
+          hashed_user_id: message.hashed_user_id as string | undefined,
           created_at: message.created_at as number,
           status:
             (message.status as MessageStatus) || ("delivered" as MessageStatus),

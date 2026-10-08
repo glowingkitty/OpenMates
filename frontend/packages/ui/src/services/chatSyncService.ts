@@ -1074,6 +1074,7 @@ export class ChatSynchronizationService extends EventTarget {
         message_id: payload.message_id,
         chat_id: payload.chat_id,
         role: payload.role,
+        hashed_user_id: payload.hashed_user_id,
         encrypted_content: payload.encrypted_content,
         encrypted_sender_name: payload.encrypted_sender_name,
         created_at: payload.created_at ?? Math.floor(Date.now() / 1000),
@@ -2689,6 +2690,7 @@ export class ChatSynchronizationService extends EventTarget {
     encryptedSuggestionToDelete?: string | null,
     connectedAccountContext?: ConnectedAccountSendContext,
     projectFocusIntent?: ProjectFocusSendIntent,
+    newLocalChat?: boolean,
   ): Promise<void> {
     const context = connectedAccountContext ?? await this.buildDefaultConnectedAccountSendContext();
     let preparedConnectedAccountContext: PreparedConnectedAccountSendContext | undefined;
@@ -2710,6 +2712,7 @@ export class ChatSynchronizationService extends EventTarget {
       encryptedSuggestionToDelete,
       preparedConnectedAccountContext,
       projectFocusIntent,
+      newLocalChat,
     );
   }
 

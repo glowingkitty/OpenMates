@@ -267,6 +267,22 @@ describe("project creation navigation", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local
+  it('abandons an in-flight Project association after the Workflow context switches', async () => {
+    let resolveProject!: (project: { project_id: string; projectKey: Uint8Array }) => void;
+    mocks.getProject.mockReturnValue(new Promise(resolve => { resolveProject = resolve; }));
+    let current = true;
+    const association = saveWorkflowToProjectTarget(
+      { projectId: 'project-1', projectName: 'Launch', teamId: 'team-a' },
+      'workflow-3', 'Shared', () => current,
+    );
+    current = false;
+    resolveProject({ project_id: 'project-1', projectKey: new Uint8Array(32) });
+    await expect(association).rejects.toThrow('Workflow context changed');
+    expect(mocks.addExistingTargetToProject).not.toHaveBeenCalled();
+    expect(mocks.updateProjectItemMetadata).not.toHaveBeenCalled();
+  });
+
   // contract-test: supporting surface=gui.web assertions=workflows.portability.remote-project-save
   it('retains one encrypted association and shows pending when its remote source cannot write', async () => {
     const project = { project_id: 'project-1', projectKey: new Uint8Array(32) };

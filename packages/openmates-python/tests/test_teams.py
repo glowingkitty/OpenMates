@@ -11,6 +11,7 @@ import pytest
 
 from openmates import OpenMates, OpenMatesConfigError
 from openmates.sdk import (
+    _is_team_ai_invocation,
     _create_api_key_material,
     _decrypt_aes_gcm_bytes,
     _decrypt_aes_gcm_text,
@@ -255,7 +256,11 @@ def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypat
 
 
 # contract-test: direct surface=sdks.pip assertions=teams.chat.encrypted-until-invoked,teams.workspace.surface-parity
-def test_pip_sdk_sends_ordinary_team_chat_as_ciphertext_without_inference(monkeypatch):
+@pytest.mark.parametrize("message", [
+    "private team note", "@Alice could you review this?", "email@openmates.org",
+    "@openmates_fake is a handle", "@mate:unknown_person review this",
+])
+def test_pip_sdk_sends_ordinary_team_chat_as_ciphertext_without_inference(monkeypatch, message):
     master_key = bytes([13]) * 32
     team_key = bytes([17]) * 32
     api_key, material = _create_api_key_material("pip teams chat", master_key)
@@ -300,18 +305,94 @@ def test_pip_sdk_sends_ordinary_team_chat_as_ciphertext_without_inference(monkey
 
     client = OpenMates(api_key=api_key)
     result = client.chats.send(
-        "private team note",
+        message,
         team_id="team-1",
         sender_name="Alice",
+        history=[{"role": "user", "content": "Earlier private note", "sender_name": "Bob"}],
+        title="Private team title",
         team_member_mentions=["user-2"],
     )
     assert result.raw["ai_dispatched"] is False
     payload = requests_seen[2]["json"]
     chat_key = _decrypt_aes_gcm_bytes(payload["encrypted_chat_key"], team_key)
     assert chat_key is not None
-    assert _decrypt_aes_gcm_text(payload["encrypted_user_message"]["encrypted_content"], chat_key) == "private team note"
+    assert _decrypt_aes_gcm_text(payload["encrypted_user_message"]["encrypted_content"], chat_key) == message
     assert _decrypt_aes_gcm_text(payload["encrypted_user_message"]["encrypted_sender_name"], chat_key) == "Alice"
     assert payload["inference_request"]["messages"] == []
+    assert payload["history"] == []
+    assert payload["title"] is None
+    serialized = json.dumps(payload)
+    assert message not in serialized
+    assert "Earlier private note" not in serialized
+    assert "Private team title" not in serialized
+
+
+# contract-test: direct surface=sdks.pip assertions=teams.chat.encrypted-until-invoked,teams.chat.sender-identity-layout
+def test_pip_sdk_known_mate_invokes_with_full_distinct_human_history(monkeypatch):
+    master_key = bytes([13]) * 32
+    team_key = bytes([17]) * 32
+    api_key, material = _create_api_key_material("pip teams mate", master_key)
+    encrypted_team_key = _encrypt_aes_gcm_bytes(team_key, master_key)
+    captured = {}
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, *, headers, timeout):
+        assert url.endswith("/v1/teams/team-1")
+        return FakeResponse({"team": {"team_id": "team-1", "encrypted_team_key": encrypted_team_key}})
+
+    def fake_post(url, *, json, headers, timeout):
+        if url.endswith("/v1/sdk/session"):
+            return FakeResponse({"user": {"id": "bob-id", "username": "Bob"}, "key_wrapper": {
+                "encrypted_key": material["encrypted_master_key"],
+                "salt": material["salt"], "key_iv": material["key_iv"],
+            }})
+        if url.endswith("/v1/sdk/chats"):
+            captured.update(json)
+            return FakeResponse({"task_id": "task-1"})
+        raise AssertionError(f"unexpected POST {url}")
+
+    class StopBeforeRecovery(Exception):
+        pass
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    client = OpenMates(api_key=api_key)
+    monkeypatch.setattr(client.chats, "_poll_recovery_claim", lambda *_args, **_kwargs: (_ for _ in ()).throw(StopBeforeRecovery()))
+
+    with pytest.raises(StopBeforeRecovery):
+        client.chats.send(
+            "@mate:software_development please compare our ideas",
+            team_id="team-1", sender_name="Untrusted alias",
+            history=[{"role": "user", "content": "I prefer design A", "sender_name": "Alice"}],
+        )
+
+    history = captured["team_ai_invocation"]["history"]
+    assert [(item["sender_name"], item["content"]) for item in history] == [
+        ("Alice", "I prefer design A"),
+        ("Bob", "@mate:software_development please compare our ideas"),
+    ]
+    assert captured["inference_request"]["messages"] == history
+    assert captured["history"] == []
+    chat_key = _decrypt_aes_gcm_bytes(captured["encrypted_chat_key"], team_key)
+    assert chat_key is not None
+    assert _decrypt_aes_gcm_text(captured["encrypted_user_message"]["encrypted_sender_name"], chat_key) == "Bob"
+
+
+# contract-test: supporting surface=sdks.pip assertions=teams.chat.encrypted-until-invoked
+def test_pip_sdk_team_ai_trigger_accepts_only_explicit_known_mentions():
+    assert _is_team_ai_invocation("@OpenMates summarize")
+    assert _is_team_ai_invocation("@mate:software_development review")
+    assert not _is_team_ai_invocation("@mate:onboarding_support review")
+    assert not _is_team_ai_invocation("@Sophia review")
+    assert not _is_team_ai_invocation("email@openmates.org")
 
 
 # contract-test: direct surface=sdks.pip assertions=teams.workspace.surface-parity
