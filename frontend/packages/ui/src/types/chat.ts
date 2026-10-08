@@ -749,6 +749,7 @@ export interface AIMessageUpdatePayload {
   full_content_so_far: string;
   sequence: number;
   is_final_chunk: boolean;
+  awaiting_async_skill_continuation?: boolean;
   model_name?: string | null;
   interrupted_by_soft_limit?: boolean;
   interrupted_by_revocation?: boolean;
@@ -794,6 +795,7 @@ export interface AIBackgroundResponseCompletedPayload {
   created_at?: number;
   task_id: string;
   full_content: string;
+  awaiting_async_skill_continuation?: boolean;
   model_name?: string | null;
   category?: string | null; // Mate category for proper display (icon, color)
   interrupted_by_soft_limit?: boolean;

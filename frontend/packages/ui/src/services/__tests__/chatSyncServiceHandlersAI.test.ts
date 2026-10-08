@@ -10,6 +10,9 @@ import {
   clearProcessedEmbedsTracking,
   flushPendingFinalizedEmbedsForChat,
   handleAIBackgroundResponseCompletedImpl,
+  handleAIMessageUpdateImpl,
+  handleAITaskInitiatedImpl,
+  handleAITaskCancelRequestedImpl,
   handleAIResponseStorageConfirmedImpl,
   handleAIResponseStorageFailedImpl,
   handleAITypingStartedImpl,
@@ -41,6 +44,7 @@ const mockChatDB = vi.hoisted(() => ({
 }));
 
 const mockEmbedStore = vi.hoisted(() => ({
+  cancelProcessingEmbeds: vi.fn(() => []),
   get: vi.fn(),
   put: vi.fn(),
   putEncrypted: vi.fn(),
@@ -90,6 +94,7 @@ const mockWebSocketService = vi.hoisted(() => ({
   on: vi.fn(),
   off: vi.fn(),
   send: vi.fn(),
+  notifyDataActivity: vi.fn(),
   isConnected: vi.fn(() => true),
 }));
 
@@ -408,6 +413,64 @@ describe("handleAIResponseStorageFailedImpl", () => {
   });
 });
 
+describe("async skill continuation task lifecycle", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const finalChunk = (taskId: string, awaiting = false) => ({
+    type: "ai_message_chunk" as const,
+    chat_id: "chat-1",
+    task_id: taskId,
+    message_id: `assistant-${taskId}`,
+    user_message_id: "user-1",
+    full_content_so_far: "",
+    sequence: 1,
+    is_final_chunk: true,
+    awaiting_async_skill_continuation: awaiting,
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+  it("keeps the turn active through an interim final and ignores a stale final after handoff", () => {
+    const activeAITasks = new Map<string, { taskId: string; userMessageId: string }>();
+    const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    handleAITaskInitiatedImpl(service, { chat_id: "chat-1", ai_task_id: "task-1", user_message_id: "user-1", status: "processing_started" });
+    service.dispatchEvent = vi.fn();
+
+    handleAIMessageUpdateImpl(service, finalChunk("task-1", true));
+    expect(activeAITasks.get("chat-1")?.taskId).toBe("task-1");
+    expect(mockAiTypingStore.clearTyping).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "aiMessageChunk" }));
+    expect(service.dispatchEvent).not.toHaveBeenCalledWith(expect.objectContaining({ type: "aiTaskEnded" }));
+
+    handleAITaskInitiatedImpl(service, { chat_id: "chat-1", ai_task_id: "task-2", user_message_id: "user-1", status: "processing_started" });
+    service.dispatchEvent = vi.fn();
+    handleAIMessageUpdateImpl(service, finalChunk("task-1"));
+    expect(activeAITasks.get("chat-1")?.taskId).toBe("task-2");
+    expect(mockAiTypingStore.clearTyping).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalledWith(expect.objectContaining({ type: "aiTaskEnded" }));
+
+    handleAIMessageUpdateImpl(service, finalChunk("task-2"));
+    expect(activeAITasks.has("chat-1")).toBe(false);
+    expect(mockAiTypingStore.clearTyping).toHaveBeenCalledWith("chat-1", "assistant-task-2");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "aiTaskEnded" }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+  it("still clears a pending continuation when its task is cancelled", async () => {
+    const activeAITasks = new Map<string, { taskId: string; userMessageId: string }>();
+    const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    handleAITaskInitiatedImpl(service, { chat_id: "chat-1", ai_task_id: "task-1", user_message_id: "user-1", status: "processing_started" });
+    handleAIMessageUpdateImpl(service, finalChunk("task-1", true));
+    service.dispatchEvent = vi.fn();
+
+    await handleAITaskCancelRequestedImpl(service, { task_id: "task-1", status: "revocation_sent" });
+    expect(activeAITasks.has("chat-1")).toBe(false);
+    expect(mockAiTypingStore.clearTypingForChat).toHaveBeenCalledWith("chat-1");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "aiTaskEnded" }));
+  });
+});
+
 describe("handleAIBackgroundResponseCompletedImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -415,6 +478,31 @@ describe("handleAIBackgroundResponseCompletedImpl", () => {
     mockChatDB.saveMessage.mockResolvedValue(undefined);
     mockChatDB.updateChat.mockResolvedValue(undefined);
     mockActiveChatStore.get.mockReturnValue(null);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.turn-lifecycle,chats.completion.pending-delivery
+  it("persists an interim background message without ending its pending continuation", async () => {
+    mockChatDB.getChat.mockResolvedValue({
+      chat_id: "chat-1", title: "Project read", messages_v: 1,
+      last_edited_overall_timestamp: 100,
+    });
+    const activeAITasks = new Map([["chat-1", { taskId: "task-1", userMessageId: "user-1" }]]);
+    const service = {
+      activeAITasks, dispatchEvent: vi.fn(), sendCompletedAIResponse: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleAIBackgroundResponseCompletedImpl(service, {
+      chat_id: "chat-1", message_id: "assistant-1", user_message_id: "user-1",
+      task_id: "task-1", full_content: "Interim reference",
+      awaiting_async_skill_continuation: true,
+    });
+
+    expect(mockChatDB.saveMessage).toHaveBeenCalledWith(expect.objectContaining({
+      message_id: "assistant-1", content: "Interim reference",
+    }));
+    expect(activeAITasks.get("chat-1")?.taskId).toBe("task-1");
+    expect(mockAiTypingStore.clearTyping).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalledWith(expect.objectContaining({ type: "aiTaskEnded" }));
   });
 
   // contract-test: direct surface=gui.web assertions=chats.completion.recovery-takeover,chats.completion.lease-fenced

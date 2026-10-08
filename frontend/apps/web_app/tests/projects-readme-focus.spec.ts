@@ -53,6 +53,9 @@ interface SocketEvent {
     chat_id?: string;
     arguments?: { path?: string; query?: string; target?: string };
     status?: string;
+    is_final_chunk?: boolean;
+    awaiting_async_skill_continuation?: boolean;
+    awaiting_focus_mode_continuation?: boolean;
     result?: { content?: string; matches?: Array<{ path?: string }>; entries?: Array<{ path?: string }> };
     inference_request?: { project_focus_candidates?: Array<{ project_id?: string }> };
   };
@@ -66,6 +69,8 @@ interface RetrievalEvent {
   operation?: string;
   target?: string;
   status?: string;
+  final_chunk?: boolean;
+  awaiting_async_skill_continuation?: boolean;
   task_id?: string;
   embed_id?: string;
 }
@@ -243,7 +248,8 @@ test.describe('Plain-language Project README access (real inference, dev only)',
     const recordEvent = (direction: RetrievalEvent['direction'], event: SocketEvent) => {
       if (acceptedTurnStartedAt === null || !event.type || ![
         'chat_turn_preflight', 'project_file_operation_request', 'project_file_operation_result',
-        'send_embed_data', 'ai_typing_ended', 'post_processing_completed',
+        'send_embed_data', 'ai_message_update', 'ai_background_response_completed',
+        'ai_typing_ended', 'post_processing_completed',
       ].includes(event.type)) return;
       const at = Date.now();
       retrievalEvents.push({
@@ -251,6 +257,8 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         ...(event.payload?.operation ? { operation: event.payload.operation } : {}),
         ...(event.payload?.arguments?.target ? { target: event.payload.arguments.target } : {}),
         ...(event.payload?.status ? { status: event.payload.status } : {}),
+        ...(event.payload?.is_final_chunk ? { final_chunk: true } : {}),
+        ...(event.payload?.awaiting_async_skill_continuation ? { awaiting_async_skill_continuation: true } : {}),
         ...(event.payload?.task_id ? { task_id: event.payload.task_id } : {}),
         ...(event.payload?.embed_id ? { embed_id: event.payload.embed_id } : {}),
       });
@@ -343,24 +351,9 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       }, { message: 'the remote README must be read successfully', timeout: 180_000 }).toBe(README_CONTENT);
       expect(await page.evaluate(() => (window as Window & { projectProgressLabels?: string[] }).projectProgressLabels ?? []))
         .toEqual(expect.arrayContaining([expect.stringMatching(/(?:Listing|Searching|Reading) Project (?:files?|text)/)]));
-      await waitForTurnCompletion(page);
-      turnCompletedAt = Date.now();
-      const referencePreview = page.getByTestId('project-reference-preview').first();
-      await expect(referencePreview).toBeVisible({ timeout: 30_000 });
-      await expect(referencePreview).toContainText('OpenMates');
-      await expect(referencePreview).toContainText(/readme/i);
-      console.log('[README] Original README read and reference card visible.');
       const toonModule = createRequire(resolve(REPO_ROOT, 'frontend/packages/ui/package.json')).resolve('@toon-format/toon');
       const { decode: decodeToon } = await import(pathToFileURL(toonModule).href);
-      for (const event of received) {
-        if (event.type !== 'send_embed_data' || typeof event.payload?.content !== 'string') continue;
-        const decoded = decodeToon(event.payload.content, { strict: false });
-        // A model's quotation must not become a new code/document embed,
-        // regardless of whether the Project reference card is also present.
-        expect(JSON.stringify(decoded)).not.toContain('# Connected project');
-        expect(JSON.stringify(decoded)).not.toContain('Connected diagram');
-      }
-      const projectEmbedSummaries = received.flatMap(event => {
+      const finishedProjectEmbeds = () => received.flatMap(event => {
         if (event.type !== 'send_embed_data' || event.payload?.status !== 'finished'
           || typeof event.payload.content !== 'string') return [];
         const decoded = decodeToon(event.payload.content, { strict: false }) as Record<string, unknown>;
@@ -370,6 +363,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         const allowedReference = new Set(['project_id', 'project_name', 'source_id', 'path', 'embed_id', 'line', 'team_id']);
         return [{
           skill: String(decoded.skill_id),
+          embedId: event.payload.embed_id,
           allowedFields: Object.keys(decoded).every(key => allowedTopLevel.has(key))
             && rows.length > 0
             && rows.every(row => Object.keys(row).every(key => allowedReference.has(key))
@@ -382,12 +376,43 @@ test.describe('Plain-language Project README access (real inference, dev only)',
             || JSON.stringify(decoded).includes('Connected diagram'),
         }];
       });
+      await expect.poll(() => finishedProjectEmbeds().some(summary => summary.skill === 'read'), {
+        message: 'the completed README read must publish a reference card', timeout: 180_000,
+      }).toBe(true);
+      const readRequestIndex = received.findIndex(event => event.type === 'project_file_operation_request'
+        && event.payload?.operation === 'read_text' && event.payload.arguments?.path === 'README.md');
+      expect(readRequestIndex).toBeGreaterThanOrEqual(0);
+      await expect.poll(() => received.slice(readRequestIndex + 1).some(event =>
+        (event.type === 'ai_message_update' || event.type === 'ai_background_response_completed')
+        && event.payload?.chat_id === acceptedChatId
+        && event.payload?.is_final_chunk === true
+        && !event.payload.awaiting_async_skill_continuation
+        && !event.payload.awaiting_focus_mode_continuation), {
+        message: 'the assistant must finish after the README read, not pause for another async continuation',
+        timeout: 300_000,
+      }).toBe(true);
+      await waitForTurnCompletion(page);
+      turnCompletedAt = Date.now();
+      for (const event of received) {
+        if (event.type !== 'send_embed_data' || typeof event.payload?.content !== 'string') continue;
+        const decoded = decodeToon(event.payload.content, { strict: false });
+        // A model's quotation must not become a new code/document embed,
+        // regardless of whether the Project reference card is also present.
+        expect(JSON.stringify(decoded)).not.toContain('# Connected project');
+        expect(JSON.stringify(decoded)).not.toContain('Connected diagram');
+      }
+      const projectEmbedSummaries = finishedProjectEmbeds();
       expect(projectEmbedSummaries.map(summary => summary.skill)).toContain('read');
       expect(projectEmbedSummaries.every(summary => summary.allowedFields && summary.readmeReference
         && summary.properQuery && summary.properSearchTarget && !summary.containsFileBytes)).toBe(true);
-      const referenceEmbedId = await referencePreview.locator('xpath=ancestor::*[@data-embed-id][1]').getAttribute('data-embed-id');
+      const referenceEmbedId = projectEmbedSummaries.find(summary => summary.skill === 'read')?.embedId;
       expect(referenceEmbedId).toBeTruthy();
-      projectReferenceEmbedId = referenceEmbedId;
+      projectReferenceEmbedId = referenceEmbedId ?? null;
+      const referencePreview = page.locator(`[data-embed-id="${referenceEmbedId}"]`).getByTestId('project-reference-preview');
+      await expect(referencePreview).toBeVisible({ timeout: 30_000 });
+      await expect(referencePreview).toContainText('OpenMates');
+      await expect(referencePreview).toContainText(/readme/i);
+      console.log('[README] Original README read and reference card visible.');
       const storedReference = await page.evaluate(async (embedId: string) => {
         const open = indexedDB.open('chats_db');
         const db = await new Promise<IDBDatabase>((resolvePromise, reject) => {

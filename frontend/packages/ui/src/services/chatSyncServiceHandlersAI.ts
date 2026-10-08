@@ -738,8 +738,19 @@ export function handleAIMessageUpdateImpl(
       `[ChatSyncService:AI] 🏁 FINAL CHUNK received (seq: ${payload.sequence}, total_length: ${contentLength} chars)`,
     );
 
-    // CRITICAL FIX: ALWAYS clear typing indicator when final chunk is received
-    // The typing indicator must be cleared regardless of whether we have task tracking info.
+    // The current message is final, but the user turn is still running while a
+    // client-executed skill resumes inference. The next task replaces this map
+    // entry; only a genuine final or cancellation ends the processing status.
+    if (payload.awaiting_async_skill_continuation && !payload.interrupted_by_revocation
+        && !payload.interrupted_by_soft_limit && !payload.rejection_reason) return;
+
+    const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
+    if (taskInfo && taskInfo.taskId !== payload.task_id) {
+      console.warn(`[ChatSyncService:AI] Ignoring stale final chunk for task ${payload.task_id}; ${taskInfo.taskId} is active in chat ${payload.chat_id}.`);
+      return;
+    }
+
+    // Clear typing on a terminal final even if task tracking was missed.
     // Previously, clearTyping was only called if taskInfo existed AND task IDs matched,
     // which caused the typing indicator to persist forever if:
     // 1. ai_task_initiated event was missed (websocket hiccup)
@@ -750,7 +761,6 @@ export function handleAIMessageUpdateImpl(
     );
 
     // Clean up task tracking if we have matching task info
-    const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
     if (taskInfo && taskInfo.taskId === payload.task_id) {
       serviceInstance.activeAITasks.delete(payload.chat_id);
       serviceInstance.dispatchEvent(
@@ -1079,10 +1089,15 @@ export async function handleAIBackgroundResponseCompletedImpl(
       );
     }
 
-    // Clear AI task tracking
+    // Keep the chat processing while this finalized interim message awaits a
+    // client skill continuation. A later task initiation replaces the entry.
     const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
     const taskMatchesBackgroundResponse = taskInfo?.taskId === payload.task_id;
-    if (taskMatchesBackgroundResponse) {
+    const interimContinuation = payload.awaiting_async_skill_continuation === true
+      && !payload.interrupted_by_revocation && !payload.interrupted_by_soft_limit
+      && !payload.rejection_reason;
+    const staleTask = Boolean(taskInfo && !taskMatchesBackgroundResponse);
+    if (taskMatchesBackgroundResponse && !interimContinuation) {
       serviceInstance.activeAITasks.delete(payload.chat_id);
       console.info(
         `[ChatSyncService:AI] Cleared active AI task for chat ${payload.chat_id}`,
@@ -1091,7 +1106,9 @@ export async function handleAIBackgroundResponseCompletedImpl(
 
     // Clear typing status using message_id (which is what setTyping stores as aiMessageId)
     // Previously used task_id which caused mismatch - typing indicator wouldn't clear
-    aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+    if (!interimContinuation && !staleTask) {
+      aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+    }
 
     // Dispatch chatUpdated event to notify UI (e.g., update chat list)
     // This will NOT update ActiveChat if the chat is not currently open
@@ -1107,20 +1124,22 @@ export async function handleAIBackgroundResponseCompletedImpl(
     );
 
     // Dispatch aiTaskEnded event for cleanup
-    serviceInstance.dispatchEvent(
-      new CustomEvent("aiTaskEnded", {
-        detail: {
-          chatId: payload.chat_id,
-          taskId: payload.task_id,
-          userMessageId: payload.user_message_id,
-          status: payload.interrupted_by_revocation
-            ? "cancelled"
-            : payload.interrupted_by_soft_limit
-              ? "timed_out"
-              : "completed",
-        },
-      }),
-    );
+    if (!interimContinuation && !staleTask) {
+      serviceInstance.dispatchEvent(
+        new CustomEvent("aiTaskEnded", {
+          detail: {
+            chatId: payload.chat_id,
+            taskId: payload.task_id,
+            userMessageId: payload.user_message_id,
+            status: payload.interrupted_by_revocation
+              ? "cancelled"
+              : payload.interrupted_by_soft_limit
+                ? "timed_out"
+                : "completed",
+          },
+        }),
+      );
+    }
 
     // Show notification and increment unread count for background chat completion.
     // Sub-chats run as parent-owned background workers; they should only notify when

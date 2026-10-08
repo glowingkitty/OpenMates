@@ -3730,6 +3730,19 @@ async def handle_main_processing(
             f"Published reference card: {reference}"
         )
         yield f"```json\n{reference}\n```\n\n"
+    project_reference_setup_last = time.monotonic() if reference_preview is not None else None
+
+    def mark_project_reference_setup(stage: str) -> None:
+        nonlocal project_reference_setup_last
+        if project_reference_setup_last is None:
+            return
+        now = time.monotonic()
+        logger.info(
+            "%s [PROJECT_REF_SETUP] stage=%s elapsed_ms=%.1f",
+            log_prefix, stage, (now - project_reference_setup_last) * 1000,
+        )
+        project_reference_setup_last = now
+
     if active_project_focus:
         project_instruction_focus = parse_project_phase_focus(
             active_project_focus.get("instruction") or "", active_project_focus["focus_id"])
@@ -3744,6 +3757,7 @@ async def handle_main_processing(
             effective_project_focus["instruction"] = phase_prompt(project_instruction_focus, project_runtime.state)
         project_phase_prompt_section = build_project_focus_prompt(effective_project_focus, active_project_sources)
         prompt_parts.append(project_phase_prompt_section)
+    mark_project_reference_setup("project_focus")
     suppress_task_runtime_tools = should_suppress_task_runtime_tools_for_app_skill(
         preselected_skills,
         user_requested_skills_only=user_requested_skills_only,
@@ -3775,6 +3789,7 @@ async def handle_main_processing(
             except Exception:
                 logger.error("%s Failed to resolve task tool context", log_prefix, exc_info=True)
 
+    mark_project_reference_setup("task_context")
     task_queue_blocks_plan_tools = task_context_blocks_plan_creation(task_tool_context)
     preselected_skills, removed_plan_skills = filter_plan_skills_for_task_queue(
         preselected_skills,
@@ -4069,6 +4084,7 @@ async def handle_main_processing(
         directus_service=directus_service,
         log_prefix=log_prefix,
     )
+    mark_project_reference_setup("diffable_embeds")
     if _has_diffable_embeds:
         prompt_parts.append(base_instructions.get("base_diff_editing_instruction", ""))
         logger.debug(f"{log_prefix} [DIFF_PROMPT] Injected diff editing instruction (diffable embeds in history)")
@@ -4167,6 +4183,7 @@ async def handle_main_processing(
             active_focus_prompt_text += DELEGATED_DEEP_RESEARCH_INSTRUCTION
         active_focus_prompt_section = f"--- Active Focus: {request_data.active_focus_id} ---\n{active_focus_prompt_text}\n--- End Active Focus ---"
         prompt_parts.insert(0, active_focus_prompt_section)
+    mark_project_reference_setup("catalog_focus")
 
     follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
     if not follow_up_suggestions_enabled:
@@ -4238,6 +4255,7 @@ async def handle_main_processing(
     answer_recovery_system_prompt = "\n\n".join(
         part for part in prompt_parts if part and part not in research_only_prompt_parts
     )
+    mark_project_reference_setup("prompt_assembly")
     
     # Generate tool definitions from discovered apps using the tool generator
     # Filter by preselected skills from preprocessing (architecture: only preselected skills are forwarded)
@@ -4316,6 +4334,7 @@ async def handle_main_processing(
     }
     private_candidates = {item["id"]: item for item in await agentic_context.private_focus_candidates(
         request_data, directus_service, cache_service)} if agentic_context.first_party(request_data) else {}
+    mark_project_reference_setup("private_focus_candidates")
     relevant_focus_modes = [focus for focus in relevant_focus_modes
         if not focus.startswith("project-focus:") or focus in private_candidates]
     relevant_focus_modes = [
@@ -5279,8 +5298,11 @@ async def handle_main_processing(
             answer_recovery_system_prompt += "\n\n" + section
 
     await refresh_agentic_context(initial=True)
+    mark_project_reference_setup("agentic_context")
 
     for iteration in range(max_iterations_with_recovery):
+        if iteration == 0:
+            mark_project_reference_setup("first_iteration")
         logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{max_iterations_with_recovery}, total_skill_calls={total_skill_calls}")
         # Capture newly completed results before context fitting can drop older
         # tool turns. Recovery projects from this preserved evidence, never from
@@ -5521,6 +5543,8 @@ async def handle_main_processing(
                         )
                 else:
                     admit_actual_provider = None
+                if iteration == 0 and model_fallback_attempts == 1:
+                    mark_project_reference_setup("provider_dispatch")
                 llm_stream = call_main_llm_stream(
                     task_id=task_id,
                     system_prompt=iteration_system_prompt,

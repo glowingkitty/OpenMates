@@ -47,6 +47,14 @@ checks:
     - Scoped dev deployment followed by the exact real-inference README request using disposable fixtures and leased runtime/account.
     - Compare post-focus latency, main-model iterations and reported Jev/main token usage with the retained baseline; do not sum overlapping phases.
     - Deliver all retained browser recordings, including failures and retries, with a concise numerical comparison.
+processing_flow:
+  - Jev selects relevant apps from a compact public catalogue; several apps can be selected.
+  - Jev selects skills, focus and memory metadata from those apps, alongside required global decisions. Private Project context is included only when its Project focus is active.
+  - Inferred Project focus shows the normal cancellable countdown. Activation authorizes Project context and refreshes stage two using the existing app shortlist.
+  - The main model dispatches a bounded file operation. The UI shows progress while the client or connected source executes it; the model pauses until results arrive.
+  - Client privacy masking precedes model access. Results are untrusted data, with deterministic access checks and no separate AI content scan.
+  - Same-turn continuations reuse server-owned routing decisions after fresh scope and credit checks. Changed Project context refreshes selection.
+  - Saved result embeds contain original file references only. Cloud references open the existing embed; remote references read the authorized source while it is online.
 evidence:
   baseline:
     environment: dev
