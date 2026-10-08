@@ -1582,6 +1582,7 @@ async function createSealedJob(database, raw, now) {
     if (existing) {
       if (Object.entries(identity).some(([key, value]) => existing[key] !== value)
         || (existing.state !== 'TERMINAL' && existing.sealed_payload_digest !== sealedPayloadDigest)) fail(409, 'sealed_job_mismatch');
+      await authorizedOutputChat(trx, existing.chat_id, identity.hashed_user_id);
       return { job_id: existing.id, state: existing.state, expires_at: existing.expires_at };
     }
     const preflight = await trx(PREFLIGHTS).where({ id: identity.preflight_id }).forUpdate().first();
@@ -1589,7 +1590,7 @@ async function createSealedJob(database, raw, now) {
       || preflight.hashed_user_id !== identity.hashed_user_id || preflight.chat_id !== identity.chat_id
       || preflight.turn_id !== identity.turn_id || preflight.inference_task_id !== identity.inference_task_id
       || preflight.chat_key_version !== identity.chat_key_version) fail(409, 'inference_not_running');
-    await ownedChat(trx, identity.chat_id, identity.hashed_user_id);
+    await authorizedOutputChat(trx, identity.chat_id, identity.hashed_user_id);
     const row = {
       id: jobId, ...identity, sealed_payload: sealedPayload, sealed_payload_digest: sealedPayloadDigest,
       state: 'AVAILABLE', lease_generation: 0, created_at: now,
@@ -3366,8 +3367,10 @@ async function leaseJob(database, raw, now) {
   const deviceHash = string(body.device_hash, 'invalid_device', 128);
   return database.transaction(async (trx) => {
     const row = activeJob(await trx(JOBS).where({ id: jobId }).forUpdate().first(), ownerHash, now);
+    // A sealed payload belongs to the invoking user, but a Team chat also
+    // requires that user to remain an active writer before recovery can read it.
+    const chat = await authorizedOutputChat(trx, row.chat_id, ownerHash);
     if (row.state === 'TERMINAL') {
-      const chat = await ownedChat(trx, row.chat_id, ownerHash);
       return {
         job_id: row.id,
         state: 'TERMINAL',
@@ -3403,6 +3406,7 @@ async function renewLease(database, raw, now) {
   const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
   return database.transaction(async (trx) => {
     const row = activeJob(await trx(JOBS).where({ id: jobId }).forUpdate().first(), ownerHash, now);
+    await authorizedOutputChat(trx, row.chat_id, ownerHash);
     verifyLease(row, body, now);
     const tenureEnd = new Date(row.tenure_started_at).getTime() + MAX_TENURE_MS;
     if (now.getTime() >= tenureEnd) fail(409, 'lease_tenure_exhausted');
@@ -3425,6 +3429,7 @@ async function persistTerminal(database, raw, now) {
     await requireUnfencedRecoveryAccount(trx, ownerHash);
     await lockRecoveryChats(trx, snapshot.chat_id);
     const row = activeJob(await trx(JOBS).where({ id: jobId }).forUpdate().first(), ownerHash, now);
+    const chat = await authorizedOutputChat(trx, row.chat_id, ownerHash);
     if (row.state === 'TERMINAL') {
       if (row.terminal_ciphertext_digest !== ciphertextDigest || row.assistant_message_id !== rawMessage.client_message_id) fail(409, 'terminal_identity_mismatch');
       return { job_id: row.id, state: 'TERMINAL', idempotent: true };
@@ -3435,7 +3440,6 @@ async function persistTerminal(database, raw, now) {
     const existingMessage = await trx(MESSAGES).where({ client_message_id: row.assistant_message_id }).first();
     if (existingMessage) {
       if (existingMessage.chat_id !== row.chat_id || existingMessage.hashed_user_id !== ownerHash || existingMessage.role !== 'assistant') fail(409, 'message_identity_conflict');
-      const chat = await ownedChat(trx, row.chat_id, ownerHash);
       await trx(JOBS).where({ id: row.id, lease_generation: row.lease_generation }).update({
         state: 'TERMINAL', sealed_payload: null, sealed_payload_digest: null,
         lease_token_digest: null, lease_holder_hash: null, lease_expires_at: null, tenure_started_at: null,
@@ -3445,12 +3449,11 @@ async function persistTerminal(database, raw, now) {
       await trx(PREFLIGHTS).where({ id: row.preflight_id }).update({ state: 'TERMINAL', terminal_at: now });
       return { job_id: row.id, state: 'TERMINAL', idempotent: true, committed_messages_v: chat.messages_v };
     }
-    const chat = await ownedChat(trx, row.chat_id, ownerHash);
     if (chat.messages_v !== expectedVersion) fail(409, 'version_conflict');
     await trx(MESSAGES).insert({ id: randomUUID(), ...message });
     const committedVersion = expectedVersion + 1;
     const timestamp = Math.floor(now.getTime() / 1000);
-    if (await trx(CHATS).where({ id: row.chat_id, hashed_user_id: ownerHash, messages_v: expectedVersion }).update({
+    if (await trx(CHATS).where({ ...outputChatScope(chat, ownerHash), messages_v: expectedVersion }).update({
       messages_v: committedVersion, updated_at: timestamp, last_edited_overall_timestamp: timestamp,
       last_message_timestamp: message.created_at,
     }) !== 1) fail(409, 'version_conflict');

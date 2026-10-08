@@ -1214,6 +1214,156 @@ test('lease_job supports expiry takeover with monotonic generations and rejects 
   );
 });
 
+// contract-test: direct surface=rest_api assertions=teams.workspace.surface-parity,storage.background.complete-sealed-recovery
+test('active Team member can seal, lease, and persist an AI response in a chat created by another member', async () => {
+  const member = 'd'.repeat(64);
+  const now = new Date('2029-01-01T00:00:00Z');
+  const database = fakeDatabase({
+    ...protocolSeed(),
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, hashed_team_id: TEAM_HASH,
+      encrypted_chat_key: 'wrapped-key-1', messages_v: 0 }],
+    messages: [], chat_turn_preflights: [], chat_inference_outbox: [],
+    chat_completion_recovery_jobs: [],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [{ hashed_team_id: TEAM_HASH, hashed_user_id: member,
+      status: 'active', role: 'member' }],
+  });
+  const prepared = await executeOperation(database, 'prepare_preflight', prepareBody({
+    hashed_user_id: member, hashed_team_id: TEAM_HASH,
+    encrypted_user_message: { ...userMessage(), hashed_user_id: member },
+    encrypted_chat_metadata: undefined,
+  }), now);
+  assert.equal(prepared.state, 'PREPARED');
+  await executeOperation(database, 'enqueue_inference', {
+    protocol_version: 1, preflight_id: prepared.preflight_id, hashed_user_id: member,
+    device_hash: 'device-a', inference_commitment: COMMITMENT,
+    inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+  }, new Date(now.getTime() + 1000));
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  }, new Date(now.getTime() + 2000))).state, 'RUNNING');
+  const job = {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member,
+    chat_id: CHAT_ID, turn_id: TURN_ID, preflight_id: prepared.preflight_id,
+    inference_task_id: TASK_ID, assistant_message_id: 'assistant-message-1',
+    chat_key_version: 1, sealed_payload: SEALED_PAYLOAD,
+  };
+  assert.equal((await executeOperation(database, 'create_sealed_job', job,
+    new Date(now.getTime() + 3000))).state, 'AVAILABLE');
+  const lease = await executeOperation(database, 'lease_job', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+  }, new Date(now.getTime() + 4000));
+  assert.equal(lease.sealed_payload, SEALED_PAYLOAD);
+  const terminalBody = {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+    lease_generation: lease.lease_generation, lease_token: lease.lease_token,
+    expected_messages_v: 1,
+    encrypted_assistant_message: { ...assistantMessage(), hashed_user_id: member },
+  };
+  await assert.rejects(executeOperation(database, 'persist_terminal', {
+    ...terminalBody, expected_messages_v: 0,
+  }, new Date(now.getTime() + 5000)),
+  (error) => error instanceof ProtocolError && error.code === 'version_conflict');
+  await assert.rejects(executeOperation(database, 'persist_terminal', {
+    ...terminalBody, encrypted_assistant_message: {
+      ...terminalBody.encrypted_assistant_message, client_message_id: 'wrong-assistant-id',
+    },
+  }, new Date(now.getTime() + 5000)),
+  (error) => error instanceof ProtocolError && error.code === 'message_identity_mismatch');
+  assert.equal(database.rows.messages.length, 1);
+  const response = await executeOperation(database, 'persist_terminal', terminalBody,
+    new Date(now.getTime() + 5000));
+  assert.equal(response.committed_messages_v, 2);
+  assert.equal((await executeOperation(database, 'persist_terminal', terminalBody,
+    new Date(now.getTime() + 6000))).idempotent, true);
+  assert.equal(database.rows.chats[0].hashed_user_id, OWNER);
+  assert.equal(database.rows.chats[0].messages_v, 2);
+  assert.equal(database.rows.messages[1].hashed_user_id, member);
+  assert.equal(database.rows.chat_completion_recovery_jobs[0].sealed_payload, null);
+});
+
+// contract-test: direct surface=rest_api assertions=teams.workspace.surface-parity,storage.background.complete-sealed-recovery
+test('Team recovery never leases sealed payload after membership removal or role downgrade', async () => {
+  const member = 'd'.repeat(64);
+  for (const change of [
+    { status: 'removed', role: 'member' },
+    { status: 'active', role: 'viewer' },
+    { status: 'active', role: 'member', hashed_team_id: 'e'.repeat(64) },
+  ]) {
+    const seed = leasedSeed();
+    seed.chats[0].hashed_team_id = TEAM_HASH;
+    seed.chats[0].hashed_user_id = OWNER;
+    seed.chat_turn_preflights[0].hashed_user_id = member;
+    seed.chat_completion_recovery_jobs[0].hashed_user_id = member;
+    seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+    seed.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: member, ...change }];
+    const database = fakeDatabase(seed);
+    await assert.rejects(executeOperation(database, 'lease_job', {
+      protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+    }), (error) => error instanceof ProtocolError && error.code === 'chat_not_found');
+    assert.equal(database.rows.chat_completion_recovery_jobs[0].state, 'AVAILABLE');
+    database.rows.chat_completion_recovery_jobs = [];
+    Object.assign(database.rows.chat_turn_preflights[0], {
+      hashed_user_id: member, inference_task_id: TASK_ID, chat_key_version: 1,
+    });
+    await assert.rejects(executeOperation(database, 'create_sealed_job', {
+      protocol_version: 1, job_id: JOB_ID, hashed_user_id: member,
+      chat_id: CHAT_ID, turn_id: TURN_ID, preflight_id: PREFLIGHT_ID,
+      inference_task_id: TASK_ID, assistant_message_id: 'assistant-message-1',
+      chat_key_version: 1, sealed_payload: SEALED_PAYLOAD,
+    }), (error) => error instanceof ProtocolError && error.code === 'chat_not_found');
+    assert.equal(database.rows.chat_completion_recovery_jobs.length, 0);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=teams.workspace.surface-parity,storage.background.complete-sealed-recovery
+test('removing a Team member revokes existing sealed-job replay, renewal, and terminal persistence', async () => {
+  const member = 'd'.repeat(64);
+  const now = new Date('2029-01-01T00:00:00Z');
+  const seed = leasedSeed(now);
+  seed.chats[0].hashed_team_id = TEAM_HASH;
+  seed.chat_completion_recovery_jobs[0].hashed_user_id = member;
+  seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+  seed.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: member,
+    status: 'active', role: 'member' }];
+  const database = fakeDatabase(seed);
+  const lease = await executeOperation(database, 'lease_job', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+  }, now);
+  database.rows.team_memberships[0].status = 'removed';
+  const denial = (error) => error instanceof ProtocolError && error.code === 'chat_not_found';
+  await assert.rejects(executeOperation(database, 'create_sealed_job', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member,
+    chat_id: CHAT_ID, turn_id: TURN_ID, preflight_id: PREFLIGHT_ID,
+    inference_task_id: TASK_ID, assistant_message_id: 'assistant-message-1',
+    chat_key_version: 1, sealed_payload: SEALED_PAYLOAD,
+  }, new Date(now.getTime() + 1000)), denial);
+  await assert.rejects(executeOperation(database, 'renew_lease', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+    lease_generation: lease.lease_generation, lease_token: lease.lease_token,
+  }, new Date(now.getTime() + 1000)), denial);
+  await assert.rejects(executeOperation(database, 'persist_terminal', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+    lease_generation: lease.lease_generation, lease_token: lease.lease_token,
+    expected_messages_v: 1,
+    encrypted_assistant_message: { ...assistantMessage(), hashed_user_id: member },
+  }, new Date(now.getTime() + 1000)), denial);
+  assert.equal(database.rows.chat_completion_recovery_jobs[0].state, 'LEASED');
+  assert.equal(database.rows.messages.length, 1);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+test('a Personal chat never lends a recovery job to a different user', async () => {
+  const seed = leasedSeed();
+  const member = 'd'.repeat(64);
+  seed.chat_completion_recovery_jobs[0].hashed_user_id = member;
+  const database = fakeDatabase(seed);
+  await assert.rejects(executeOperation(database, 'lease_job', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+  }), (error) => error instanceof ProtocolError && error.code === 'chat_not_found');
+  assert.equal(database.rows.chat_completion_recovery_jobs[0].state, 'AVAILABLE');
+});
+
 test('persist_terminal atomically commits ciphertext and erases recovery material, then retries idempotently', async () => {
   const database = fakeDatabase(leasedSeed());
   const now = new Date('2029-01-01T00:00:00Z');
