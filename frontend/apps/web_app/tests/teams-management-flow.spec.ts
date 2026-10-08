@@ -20,7 +20,7 @@ async function holdVisibleProofState(page: Page): Promise<void> {
 }
 
 test.describe('Teams management', () => {
-	// contract-test: direct surface=gui.web assertions=teams.lifecycle.encrypted-profiled,teams.name.transient-policy,teams.profile-image.safe-parity,teams.security.join-policy,teams.invites.fragment-key-web-flow
+	// contract-test: direct surface=gui.web assertions=teams.web.figma-context,teams.lifecycle.encrypted-profiled,teams.name.transient-policy,teams.profile-image.safe-parity,teams.security.join-policy,teams.invites.fragment-key-web-flow
 	test('creates and manages a team, then revokes a private invite link', async ({
 		page
 	}: { page: Page }, testInfo: TestInfo) => {
@@ -36,9 +36,8 @@ test.describe('Teams management', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page);
 		await page.getByTestId('profile-container').click();
-		await page.getByTestId('settings-teams-item').click();
-		await expect(page.getByTestId('team-create-open')).toBeVisible();
-		await page.getByTestId('team-create-open').click();
+		await expect(page.getByTestId('team-quick-create')).toBeVisible();
+		await page.getByTestId('team-quick-create').click();
 		await expect(page.getByTestId('settings-menu')).toHaveAttribute(
 			'data-active-view',
 			'teams/new'

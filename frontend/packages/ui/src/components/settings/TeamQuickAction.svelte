@@ -2,6 +2,8 @@
   import { text } from '../../i18n/translations';
   import type { TeamViewModel } from '../../services/teamService';
   import SettingsItem from '../SettingsItem.svelte';
+  import { Plus } from '@lucide/svelte';
+  import SettingsButton from './elements/SettingsButton.svelte';
   import TeamContextPicker from './TeamContextPicker.svelte';
 
   let {
@@ -34,14 +36,23 @@
   </span>
 {/snippet}
 
+{#snippet createButton()}
+  <span role="presentation" onclick={(event) => event.stopPropagation()} onkeydown={(event) => event.stopPropagation()}>
+    <SettingsButton variant="cta" size="sm" ariaLabel={$text('settings.teams_ui.new_team')}
+      dataTestid="team-quick-create" disabled={loading} onClick={onCreateTeam}>
+      <Plus size={22} aria-hidden="true" />
+    </SettingsButton>
+  </span>
+{/snippet}
+
 <SettingsItem
   type="quickaction"
   icon="team"
   title={$text('settings.teams')}
-  hasToggle={true}
+  hasToggle={teams.length > 0}
   checked={activeTeamId !== null}
   onClick={onOpenTeams}
   onToggleClick={handleToggle}
-  rightContent={teamPicker}
+  rightContent={teams.length > 0 ? teamPicker : createButton}
   data-testid="settings-teams-item"
 />

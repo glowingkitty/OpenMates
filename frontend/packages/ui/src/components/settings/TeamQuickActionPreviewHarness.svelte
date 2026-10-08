@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import TeamQuickAction from './TeamQuickAction.svelte';
   import type { TeamViewModel } from '../../services/teamService';
+
+  let { variant = 'joined' }: { variant?: 'joined' | 'noTeams' | 'loadingNoTeams' | 'personal' } = $props();
 
   const teams: TeamViewModel[] = [
     {
@@ -14,12 +17,13 @@
       zeroBalance: 0, createdAt: 0, updatedAt: 0, encrypted: { team_id: 'preview-team-2' },
     },
   ];
-  let activeTeamId: string | null = $state(teams[0].team_id);
+  let previewTeams = $derived(variant === 'noTeams' || variant === 'loadingNoTeams' ? [] : teams);
+  let activeTeamId: string | null = $state(untrack(() => variant === 'joined' ? teams[0].team_id : null));
   let action = $state('');
 </script>
 
 <div class="preview-surface">
-  <TeamQuickAction {teams} {activeTeamId} loading={false}
+  <TeamQuickAction teams={previewTeams} {activeTeamId} loading={variant === 'loadingNoTeams'}
     onTeamContextChange={(contextId) => { activeTeamId = contextId === 'personal' ? null : contextId; action = 'context'; }}
     onTeamToggle={() => { activeTeamId = activeTeamId ? null : teams[0].team_id; action = 'toggle'; }}
     onCreateTeam={() => { action = 'create'; }}

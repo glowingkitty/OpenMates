@@ -373,12 +373,15 @@ async function verifyContinueCarouselSurvivesReconnectChurn(page: any, context: 
 	expect(initialState.chatIds.length, 'test account needs at least one continue card for carousel stability coverage').toBeGreaterThan(0);
 
 	// The authenticated carousel must fit in the real pane below the banner.
-	for (const size of [{ width: 1366, height: 700, large: false }, { width: 1366, height: 1032, large: true }]) {
+	for (const size of [{ width: 390, height: 844, large: false }, { width: 1366, height: 700, large: false }, { width: 1366, height: 1032, large: true }]) {
 		await page.setViewportSize({ width: size.width, height: size.height });
-		const card = page.getByTestId('recent-chats-scroll-container').locator(size.large
+		const carouselElement = page.getByTestId('recent-chats-scroll-container');
+		const card = carouselElement.locator(size.large
 			? '.resume-chat-large-card, .saved-embed-continue-preview'
 			: '.resume-chat-card').first();
 		await expect(card).toBeVisible();
+		await expect(carouselElement).toHaveCSS('padding-top', size.large ? '17.5px' : '6px');
+		await expect(carouselElement).toHaveCSS('padding-bottom', size.large ? '17px' : '6px');
 		const [banner, carousel, input] = await Promise.all([
 			page.getByTestId('daily-inspiration-area').boundingBox(),
 			page.getByTestId('recent-chats-scroll-container').boundingBox(),

@@ -63,6 +63,51 @@ test.describe('Team context picker preview', () => {
 });
 
 test.describe('Teams settings quick action preview', () => {
+	// contract-test: supporting surface=gui.web assertions=teams.web.figma-context
+	test('shows only a create action for users with no teams and opens creation by click or keyboard', async ({ page }) => {
+		const url = '/dev/preview/settings/TeamQuickActionPreviewHarness?chrome=0&variant=noTeams';
+		await page.goto(url);
+		await waitForComponentPreview(page);
+		const row = page.getByTestId('settings-teams-item');
+		const create = page.getByTestId('team-quick-create');
+		await expect(row).toBeVisible();
+		await expect(create).toBeVisible();
+		await expect(create).toHaveAttribute('aria-label', 'New team');
+		await expect(create.locator('svg.lucide-plus')).toHaveAttribute('width', '22');
+		await expect(create.locator('svg.lucide-plus')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+		await expect(create.locator('svg.lucide-plus')).toHaveCSS('stroke', 'rgb(255, 255, 255)');
+		await expect(page.getByTestId('team-quick-context-dropdown')).toHaveCount(0);
+		await expect(row.getByTestId('toggle-container')).toHaveCount(0);
+		await create.click();
+		await expect(page.getByTestId('team-quick-action-result')).toHaveText('create');
+		await page.reload();
+		await waitForComponentPreview(page);
+		await create.focus();
+		await page.keyboard.press('Enter');
+		await expect(page.getByTestId('team-quick-action-result')).toHaveText('create');
+	});
+
+	// contract-test: supporting surface=gui.web assertions=teams.web.figma-context
+	test('disables quick create while no-team state is loading', async ({ page }) => {
+		await page.goto('/dev/preview/settings/TeamQuickActionPreviewHarness?chrome=0&variant=loadingNoTeams');
+		await waitForComponentPreview(page);
+		await expect(page.getByTestId('team-quick-create')).toBeDisabled();
+		await expect(page.getByTestId('team-quick-context-dropdown')).toHaveCount(0);
+		await expect(page.getByTestId('settings-teams-item').getByTestId('toggle-container')).toHaveCount(0);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=teams.web.figma-context
+	test('keeps the picker and toggle for a member using Personal', async ({ page }) => {
+		await page.goto('/dev/preview/settings/TeamQuickActionPreviewHarness?chrome=0&variant=personal');
+		await waitForComponentPreview(page);
+		const row = page.getByTestId('settings-teams-item');
+		await expect(page.getByTestId('team-quick-create')).toHaveCount(0);
+		await expect(page.getByTestId('team-quick-context-dropdown')).toContainText('Personal');
+		await expect(row.getByTestId('toggle-container')).toBeVisible();
+		await row.getByTestId('toggle-container').click();
+		await expect(page.getByTestId('team-quick-action-result')).toHaveText('toggle');
+	});
+
 	// contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local,settings-ui.composition.canonical-and-accessible
 	test('matches the Figma overlay with left-aligned choices and a plain New team action', async ({
 		page

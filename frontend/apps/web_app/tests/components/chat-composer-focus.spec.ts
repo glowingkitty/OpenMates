@@ -229,3 +229,49 @@ test.describe('Chat composer focus and draft preservation', () => {
   });
   }
 });
+
+// contract-test: supporting surface=gui.web assertions=workspace-shell.start.available-space-cards
+test('continuation cards match Apple spacing in narrow, short, and tall panes', async ({
+	page
+}) => {
+	for (const profile of [
+		{ width: 390, height: 844, large: false, theme: 'dark' },
+		{ width: 1366, height: 700, large: false, theme: 'light' },
+		{ width: 1366, height: 1032, large: true, theme: 'light' }
+	]) {
+		await page.setViewportSize({ width: profile.width, height: profile.height });
+		await page.goto(
+			`/dev/preview/ActiveChatFocusFixture?chrome=0&theme=${profile.theme}&background=%23dbeafe&width=${profile.width}`
+		);
+		await waitForComponentPreview(page);
+		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible();
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
+
+		const carousel = page.getByTestId('recent-chats-scroll-container');
+		const card = carousel
+			.locator(profile.large ? '.resume-chat-large-card' : '.resume-chat-card')
+			.first();
+		await expect(card).toBeVisible();
+		await expect(carousel).toHaveCSS('padding-top', profile.large ? '17.5px' : '6px');
+		await expect(carousel).toHaveCSS('padding-bottom', profile.large ? '17px' : '6px');
+		await page.evaluate(() => document.fonts.ready);
+		const [carouselBox, cardBox, browseBox, composerBox] = await Promise.all([
+			carousel.boundingBox(),
+			card.boundingBox(),
+			page.locator('.guest-example-link-row').boundingBox(),
+			page.getByTestId('message-input-wrapper').boundingBox()
+		]);
+		expect(carouselBox && cardBox && browseBox && composerBox).toBeTruthy();
+		expect(cardBox!.y - carouselBox!.y).toBeCloseTo(profile.large ? 17.5 : 6, 0);
+		expect(carouselBox!.y + carouselBox!.height - cardBox!.y - cardBox!.height).toBeCloseTo(
+			profile.large ? 17 : 6,
+			0
+		);
+		expect(browseBox!.y - cardBox!.y - cardBox!.height).toBeGreaterThanOrEqual(0);
+		expect(browseBox!.y - cardBox!.y - cardBox!.height).toBeLessThanOrEqual(24);
+		expect(browseBox!.y + browseBox!.height).toBeLessThanOrEqual(composerBox!.y + 1);
+		await expect(carousel).toBeInViewport();
+		await expect(page.getByTestId('guest-show-all-examples')).toBeInViewport();
+	}
+});

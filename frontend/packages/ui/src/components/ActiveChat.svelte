@@ -14029,6 +14029,7 @@ import { storageArchiveFetch } from "../config/api";
                             {#if hasContinueItems}
                                 <div
                                     class="recent-chats-scroll-container"
+                                    class:large-continue-cards={isTallViewport}
                                     data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
                                 >
@@ -14402,6 +14403,7 @@ import { storageArchiveFetch } from "../config/api";
                             {:else if !$authStore.isAuthenticated && (guestInterestContinueConfirmed || nonAuthRecentChats.some((meta) => meta.chat.is_shared_by_others)) && nonAuthRecentChats.length > 0}
                                 <div
                                     class="recent-chats-scroll-container"
+                                    class:large-continue-cards={isTallViewport}
                                     data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
                                 >
@@ -16097,7 +16099,8 @@ import { storageArchiveFetch } from "../config/api";
            so the first card starts centred relative to the chat-wrapper.
            box-sizing: border-box ensures padding is included in width: 100%
            so the element never exceeds the center-content container bounds. */
-        padding: 12px 48px 30px calc(50% - 150px);
+        /* Match the compact continuation spacing in the Apple welcome screen. */
+        padding: 6px 48px 6px calc(50% - 150px);
         box-sizing: border-box;
         pointer-events: auto;
         width: 100%;
@@ -16126,10 +16129,9 @@ import { storageArchiveFetch } from "../config/api";
         text-align: left;
     }
 
-    @media (min-height: 800px) {
-        .recent-chats-scroll-container {
-            padding: 35px 48px 34px calc(50% - 150px);
-        }
+    .recent-chats-scroll-container.large-continue-cards {
+        /* Use the rendered card mode: tall, narrow panes still show compact pills. */
+        padding: 17.5px 48px 17px calc(50% - 150px);
     }
 
     /* "+N" overflow pill matching card height */
