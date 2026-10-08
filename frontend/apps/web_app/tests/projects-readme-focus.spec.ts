@@ -14,7 +14,6 @@ const { join, resolve } = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { test, expect } = require('./helpers/cookie-audit');
 const {
-  deleteActiveChat,
   loginToTestAccount,
   sendMessage,
   startNewChat,
@@ -51,6 +50,7 @@ interface SocketEvent {
     embed_id?: string;
     content?: string;
     chat_id?: string;
+    tombstone?: boolean;
     arguments?: { path?: string; query?: string; target?: string };
     status?: string;
     is_final_chunk?: boolean;
@@ -192,6 +192,29 @@ async function waitForTurnCompletion(page: Page): Promise<void> {
   await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-processing', 'false', { timeout: 300_000 });
 }
 
+async function deleteObservedChatAndWaitForAck(page: Page, chatId: string, received: SocketEvent[]): Promise<void> {
+  const acknowledged = () => received.some(event => event.type === 'chat_deleted'
+    && event.payload?.chat_id === chatId && event.payload.tombstone === true);
+  if (acknowledged()) return;
+  const sidebar = page.locator('.sidebar');
+  await expect(sidebar).toHaveCount(1, { timeout: 10_000 });
+  if (await sidebar.evaluate(element => element.classList.contains('closed'))) {
+    await page.getByTestId('sidebar-toggle').click({ timeout: 5_000 });
+  }
+  await expect(sidebar).not.toHaveClass(/closed/, { timeout: 5_000 });
+  const row = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
+  await expect(row).toBeVisible({ timeout: 10_000 });
+  await row.click({ button: 'right', timeout: 5_000 });
+  const deleteButton = page.getByTestId('chat-context-delete');
+  await expect(deleteButton).toBeVisible({ timeout: 5_000 });
+  await deleteButton.click({ timeout: 5_000 });
+  await deleteButton.click({ timeout: 5_000 });
+  await expect.poll(acknowledged, {
+    message: 'server must acknowledge deletion of the exact disposable chat', timeout: 30_000,
+  }).toBe(true);
+  await expect(row).toHaveCount(0, { timeout: 10_000 });
+}
+
 test.describe('Plain-language Project README access (real inference, dev only)', () => {
   test.describe.configure({ retries: 0 });
   test.beforeAll(requireDirectDevInference);
@@ -276,6 +299,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
     let chatUrl: string | null = null;
     let fixtureAudit: { project_id?: string; source_id?: string } | null = null;
     let scenarioFailure: unknown = null;
+    let chatCleanupFailure: string | null = null;
     let fixtureCleanupFailure: string | null = null;
     try {
       const fixture = await waitForFixtureEvent(bridge, 'fixture_ready');
@@ -292,8 +316,12 @@ test.describe('Plain-language Project README access (real inference, dev only)',
 
       // Reject one ordinary request during the standard countdown. Its chat
       // must never gain authority or issue Project file jobs afterwards.
-      await sendMessage(page, PROMPT);
-      chatUrl = page.url();
+      try {
+        await sendMessage(page, PROMPT);
+      } finally {
+        chatUrl = page.url();
+      }
+      const rejectedChatId = await currentChatId(page);
       const preflight = sent.filter(event => event.type === 'chat_turn_preflight').at(-1);
       expect(preflight?.payload?.inference_request?.project_focus_candidates?.some(candidate => candidate.project_id === fixture.project_id)).toBe(true);
       await expect(page.getByTestId('focus-progress-bar')).toBeVisible({ timeout: 240_000 });
@@ -306,9 +334,9 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       expect(await currentAuthority(page)).toBeNull();
       expect(received.filter(event => event.type === 'project_file_operation_request')).toHaveLength(0);
       console.log('[README] Rejection kept Project authority and file access blocked.');
-      console.log('[README] Deleting rejected chat.');
-      await deleteActiveChat(page);
-      console.log('[README] Rejected-chat cleanup returned.');
+      console.log('[README] Deleting rejected chat and awaiting server tombstone.');
+      await deleteObservedChatAndWaitForAck(page, rejectedChatId, received);
+      console.log('[README] Rejected-chat deletion acknowledged.');
       chatUrl = null;
 
       // The cleanup helper opens Chats to delete the row. On phone the open
@@ -322,7 +350,20 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         await sidebarClose.click({ timeout: 5_000 });
       }
       await expect(page.locator('.sidebar')).toHaveClass(/closed/, { timeout: 5_000 });
-      console.log('[README] Chats sidebar closed; starting accepted chat.');
+      console.log('[README] Rejection case complete; loading a fresh page for the independent accepted case.');
+      // Keep this Page and its CDP Network listeners, but reset the client chat
+      // lifecycle after the rejected chat is deleted before sending again.
+      await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+      await waitForChatReady(page);
+      const refreshedSidebar = page.locator('.sidebar:not(.closed)');
+      if (await refreshedSidebar.count()) {
+        const sidebarClose = refreshedSidebar.getByTestId('activity-history-wrapper')
+          .locator('button.icon_close.top-button.right');
+        await expect(sidebarClose).toBeVisible({ timeout: 5_000 });
+        await sidebarClose.click({ timeout: 5_000 });
+      }
+      await expect(page.locator('.sidebar')).toHaveClass(/closed/, { timeout: 5_000 });
+      console.log('[README] Fresh page and chat transport ready; starting accepted chat.');
       page.setDefaultTimeout(10_000);
       try {
         await startNewChat(page);
@@ -346,9 +387,12 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       });
       acceptedTurnStartedAt = Date.now();
       console.log('[README] Sending accepted README request.');
-      await sendMessage(page, PROMPT);
+      try {
+        await sendMessage(page, PROMPT);
+      } finally {
+        chatUrl = page.url();
+      }
       console.log('[README] Accepted README request sent.');
-      chatUrl = page.url();
       acceptedChatId = await currentChatId(page);
       const secondPreflight = sent.filter(event => event.type === 'chat_turn_preflight').at(-1);
       expect(secondPreflight?.payload?.inference_request?.project_focus_candidates?.some(candidate => candidate.project_id === fixture.project_id)).toBe(true);
@@ -555,10 +599,25 @@ test.describe('Plain-language Project README access (real inference, dev only)',
           contentType: 'application/json',
         });
       }
-      await cdp.detach().catch(() => undefined);
       if (chatUrl) {
-        await page.goto(chatUrl, { waitUntil: 'domcontentloaded' }).catch(() => undefined);
-        await deleteActiveChat(page);
+        const cleanupChatId = chatUrl.match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? acceptedChatId;
+        if (cleanupChatId) {
+          try {
+            await page.goto(chatUrl, { waitUntil: 'domcontentloaded' });
+            await deleteObservedChatAndWaitForAck(page, cleanupChatId, received);
+            console.log('[README] Final disposable chat deletion acknowledged.');
+          } catch (error) {
+            chatCleanupFailure = `disposable chat deletion was not acknowledged: ${String(error)}`;
+            console.error(`[README] ${chatCleanupFailure}`);
+          }
+        }
+      }
+      await cdp.detach().catch(() => undefined);
+      if (chatCleanupFailure) {
+        await test.info().attach('readme-chat-cleanup', {
+          body: JSON.stringify({ chat_id: acceptedChatId ?? chatUrl?.match(/chat-id=([a-zA-Z0-9-]+)/)?.[1], failure: chatCleanupFailure }),
+          contentType: 'application/json',
+        });
       }
       if (bridge.exitCode === null && bridge.signalCode === null) {
         const waitForBridgeClose = (timeoutMs: number) => new Promise<{ code: number | null; signal: NodeJS.Signals | null } | null>(resolvePromise => {
@@ -600,6 +659,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       rmSync(stateDir, { recursive: true, force: true });
     }
     if (scenarioFailure) throw scenarioFailure;
+    if (chatCleanupFailure) throw new Error(chatCleanupFailure);
     if (fixtureCleanupFailure) throw new Error(fixtureCleanupFailure);
   });
 });

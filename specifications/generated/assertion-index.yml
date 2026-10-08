@@ -80595,7 +80595,7 @@ assertions:
       surface: gui.web
     - &id10189
       path: frontend/apps/web_app/tests/projects-readme-focus.spec.ts
-      line: 211
+      line: 234
       name: ordinary README request waits for consent, reads after activation, and
         stays blocked after rejection
       surface: gui.web
@@ -82291,7 +82291,7 @@ assertions:
       surface: gui.web
     - &id10386
       path: frontend/apps/web_app/tests/projects-readme-focus.spec.ts
-      line: 211
+      line: 234
       name: ordinary README request waits for consent, reads after activation, and
         stays blocked after rejection
       surface: gui.web
@@ -82543,7 +82543,7 @@ assertions:
       surface: gui.web
     - &id10400
       path: frontend/apps/web_app/tests/projects-readme-focus.spec.ts
-      line: 211
+      line: 234
       name: ordinary README request waits for consent, reads after activation, and
         stays blocked after rejection
       surface: gui.web
