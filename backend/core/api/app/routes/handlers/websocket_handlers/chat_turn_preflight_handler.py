@@ -22,7 +22,10 @@ from backend.core.api.app.services.chat_recovery_service import (
     ChatRecoveryService,
 )
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
-from backend.core.api.app.services.team_chat_ai_service import parse_team_message_transport
+from backend.core.api.app.services.team_chat_ai_service import (
+    normalize_team_ai_inference_request,
+    parse_team_message_transport,
+)
 from backend.core.api.app.services.chat_recovery_telemetry import (
     record_recovery_duration,
     start_recovery_timing,
@@ -201,31 +204,19 @@ async def handle_chat_turn_preflight(
         await send_debug_phase("cutover_completed")
         inference_request_payload = payload.get("inference_request")
         team_id = payload.get("team_id")
+        is_team_turn = isinstance(team_id, str) and bool(team_id)
         ordinary_team_turn = (
-            isinstance(team_id, str)
-            and bool(team_id)
+            is_team_turn
             and isinstance(inference_request_payload, dict)
             and inference_request_payload.get("team_ai_invocation") is None
         )
-        if cutover_state.get("protocol_epoch") == 0 and not ordinary_team_turn:
-            legacy_preflight_id = str(
-                uuid.uuid5(uuid.UUID(payload["turn_id"]), "legacy-preflight")
-            )
-            await send_response(
-                {
-                    "type": "chat_turn_preflight_ack",
-                    "payload": {
-                        "preflight_id": legacy_preflight_id,
-                        "state": "LEGACY",
-                        "turn_id": payload["turn_id"],
-                    },
-                }
-            )
-            return
-        if ordinary_team_turn:
-            if cutover_state.get("sends_paused"):
+        if is_team_turn:
+            if ordinary_team_turn and cutover_state.get("sends_paused"):
                 raise ChatRecoveryProtocolError(503, "inference_temporarily_paused")
-            message = inference_request_payload.get("message")
+            message = (
+                inference_request_payload.get("message")
+                if isinstance(inference_request_payload, dict) else None
+            )
             if not isinstance(message, dict):
                 raise ChatRecoveryProtocolError(400, "invalid_team_message_transport")
             if (
@@ -241,9 +232,26 @@ async def handle_chat_turn_preflight(
             if (
                 not isinstance(encrypted_message, dict)
                 or message.get("message_id") != payload.get("message_id")
+                or encrypted_message.get("client_message_id") != payload.get("message_id")
+                or encrypted_message.get("chat_id") != payload.get("chat_id")
                 or message.get("encrypted_content") != encrypted_message.get("encrypted_content")
             ):
                 raise ChatRecoveryProtocolError(409, "message_identity_mismatch")
+        if cutover_state.get("protocol_epoch") == 0 and not ordinary_team_turn:
+            legacy_preflight_id = str(
+                uuid.uuid5(uuid.UUID(payload["turn_id"]), "legacy-preflight")
+            )
+            await send_response(
+                {
+                    "type": "chat_turn_preflight_ack",
+                    "payload": {
+                        "preflight_id": legacy_preflight_id,
+                        "state": "LEGACY",
+                        "turn_id": payload["turn_id"],
+                    },
+                }
+            )
+            return
         encrypted_user_message = dict(payload["encrypted_user_message"])
         encrypted_user_message["hashed_user_id"] = user_id_hash
         inference_request = dict(payload["inference_request"])
@@ -282,6 +290,11 @@ async def handle_chat_turn_preflight(
                 if project_focus
                 else None
             )
+        if hashed_team_id and not ordinary_team_turn:
+            try:
+                inference_request = normalize_team_ai_inference_request(inference_request)
+            except ValueError:
+                raise ChatRecoveryProtocolError(400, "invalid_team_ai_inference_request") from None
         # The WebSocket routing hash includes the tab session ID. Ordinary Team
         # commits have no recovery job, so bind their idempotent preflight to
         # the authenticated device hash across reconnects and page reloads.

@@ -81,6 +81,38 @@ def parse_team_message_transport(payload: dict[str, Any], message_payload: dict[
     return TeamMessageTransport(encrypted_content, True, history, mentioned_user_ids)
 
 
+def normalize_team_ai_inference_request(inference_request: dict[str, Any]) -> dict[str, Any]:
+    """Bind the same validated Team history at preflight and inference enqueue.
+
+    The client supplies compact history objects. The receive handler later uses
+    AIHistoryMessage objects whose JSON form includes optional null fields.
+    Canonicalizing both requests here keeps the commitment stable without
+    excluding either the invocation or plaintext history from the HMAC.
+    """
+    message = inference_request.get("message")
+    if not isinstance(message, dict):
+        raise ValueError("Team AI inference requires a message envelope")
+    transport = parse_team_message_transport(inference_request, message)
+    if not transport.should_trigger_ai or transport.inference_history is None:
+        raise ValueError("Team AI inference requires a valid invocation")
+    canonical_history = [item.model_dump(mode="json") for item in transport.inference_history]
+    submitted_history = inference_request.get("message_history")
+    if submitted_history is not None:
+        if not isinstance(submitted_history, list):
+            raise ValueError("Team AI message history must be an array")
+        allowed_fields = set(AIHistoryMessage.model_fields)
+        if any(not isinstance(item, dict) or set(item) - allowed_fields for item in submitted_history):
+            raise ValueError("Team AI message history has unsupported fields")
+        try:
+            submitted_canonical = [AIHistoryMessage.model_validate(item).model_dump(mode="json")
+                                   for item in submitted_history]
+        except ValueError as exc:
+            raise ValueError("Team AI message history is invalid") from exc
+        if submitted_canonical != canonical_history:
+            raise ValueError("Team AI message history differs from the invocation")
+    return {**inference_request, "message_history": canonical_history}
+
+
 def format_sender_attributed_content(content: str, sender_name: str | None) -> str:
     if not sender_name:
         return content

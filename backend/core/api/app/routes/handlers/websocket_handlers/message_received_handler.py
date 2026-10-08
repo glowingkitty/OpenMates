@@ -30,7 +30,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import server_client_capabilities
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
-from backend.core.api.app.services.team_chat_ai_service import extract_team_ai_context, parse_team_message_transport, should_trigger_team_ai
+from backend.core.api.app.services.team_chat_ai_service import extract_team_ai_context, normalize_team_ai_inference_request, parse_team_message_transport, should_trigger_team_ai
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.core.api.app.services.team_realtime_service import broadcast_team_event
 from backend.core.api.app.services.team_member_mention_service import TeamMemberMentionNotificationSink, notify_team_member_mentions
@@ -743,6 +743,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             inference_request["current_project"] = current_project
             inference_request["active_project_focus"] = active_project_focus
             try:
+                if is_team_chat:
+                    inference_request = normalize_team_ai_inference_request(inference_request)
                 recovery_enqueue_result = await enqueue_chat_turn(
                     directus_service=directus_service,
                     user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
@@ -750,6 +752,15 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     preflight_id=payload["preflight_id"],
                     inference_request=inference_request,
                 )
+            except ValueError:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {
+                        "code": "invalid_team_ai_inference_request",
+                        "message": "Team AI history did not match the committed request.",
+                    }},
+                    user_id, device_fingerprint_hash,
+                )
+                return
             except ChatRecoveryProtocolError as exc:
                 await manager.send_personal_message(
                     {

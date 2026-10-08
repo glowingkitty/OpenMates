@@ -16,6 +16,8 @@ from types import SimpleNamespace
 import pytest
 
 from backend.core.api.app.routes.handlers.websocket_handlers import chat_turn_preflight_handler
+from backend.core.api.app.schemas.chat import AIHistoryMessage
+from backend.core.api.app.services.team_chat_ai_service import normalize_team_ai_inference_request
 
 
 class FakeManager:
@@ -300,6 +302,129 @@ async def test_ordinary_team_lost_ack_retry_ignores_live_inference_metadata(monk
     assert websocket.messages[-1]["type"] == "error"
     assert websocket.messages[-1]["payload"]["code"] == "preflight_mismatch"
     assert IdempotentRecoveryService.commit_count == 1
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.message.identity-idempotent
+async def test_team_ai_preflight_and_enqueue_bind_the_same_typed_history(monkeypatch) -> None:
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+    from backend.core.api.app.services import project_write_authorization_service
+
+    class BoundRecoveryService(FakeRecoveryService):
+        calls: list[tuple[str, dict]] = []
+        commitment: str | None = None
+
+        async def execute(self, operation: str, data: dict) -> dict:
+            if operation == "prepare_preflight":
+                BoundRecoveryService.commitment = data["inference_commitment"]
+            elif operation == "enqueue_inference" and data["inference_commitment"] != BoundRecoveryService.commitment:
+                raise ChatRecoveryProtocolError(409, "preflight_mismatch")
+            return await super().execute(operation, data)
+
+    class NoProjectFocus:
+        def __init__(self, *_args) -> None:
+            pass
+
+        async def get_active_focus(self, **_kwargs) -> None:
+            return None
+
+    async def require_team_role(*_args) -> None:
+        return None
+
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", BoundRecoveryService)
+    monkeypatch.setattr(project_write_authorization_service, "ProjectWriteAuthorizationService", NoProjectFocus)
+    manager = FakeManager()
+    websocket = FakeWebSocket()
+    websocket.app = SimpleNamespace(state=SimpleNamespace(cache_service=object(), encryption_service=None))
+    directus = SimpleNamespace(team=SimpleNamespace(require_team_role=require_team_role))
+    payload = _payload()
+    payload["team_id"] = "team-1"
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    payload["encrypted_user_message"]["encrypted_content"] = ciphertext
+    history = [
+        {"role": "user", "content": "A teammate proposed a venue.", "sender_name": "Owner", "created_at": 99},
+        {"role": "user", "content": "@openmates, who proposed the venue?", "sender_name": "Member", "created_at": 100},
+    ]
+    raw_request = {
+        "team_id": "team-1", "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "role": "user", "encrypted_content": ciphertext,
+                    "created_at": 100},
+        "team_ai_invocation": {"history": deepcopy(history)},
+        "message_history": deepcopy(history),
+    }
+    payload["inference_request"] = deepcopy(raw_request)
+
+    # A Team AI commitment must authorize the same row and ciphertext that
+    # prepare_preflight persists, even before the history normalization runs.
+    for mutation in ("inference_ciphertext", "inference_message_id", "stored_message_id", "stored_chat_id"):
+        rejected = deepcopy(payload)
+        if mutation == "inference_ciphertext":
+            rejected["inference_request"]["message"]["encrypted_content"] = base64.b64encode(b"y" * 29).decode("ascii")
+        elif mutation == "inference_message_id":
+            rejected["inference_request"]["message"]["message_id"] = "other-message"
+        elif mutation == "stored_message_id":
+            rejected["encrypted_user_message"]["client_message_id"] = "other-message"
+        else:
+            rejected["encrypted_user_message"]["chat_id"] = "other-chat"
+        rejected_websocket = FakeWebSocket()
+        rejected_websocket.app = websocket.app
+        BoundRecoveryService.calls = []
+        await chat_turn_preflight_handler.handle_chat_turn_preflight(
+            websocket=rejected_websocket, manager=manager, directus_service=directus,
+            user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+            payload=rejected,
+        )
+        assert rejected_websocket.messages[-1]["payload"]["code"] == "message_identity_mismatch"
+        assert [operation for operation, _ in BoundRecoveryService.calls] == ["get_cutover_state"]
+    BoundRecoveryService.calls = []
+
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=websocket, manager=manager, directus_service=directus,
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=payload,
+    )
+    assert websocket.messages[-1]["type"] == "chat_turn_preflight_ack"
+    prepared = next(data for operation, data in BoundRecoveryService.calls if operation == "prepare_preflight")
+    assert "inference_request" not in prepared
+    assert "@openmates" not in json.dumps(prepared)
+
+    # The receive handler replaces the compact client history with typed JSON
+    # before enqueueing. The shared normalizer makes both commitments identical.
+    dispatch_request = deepcopy(raw_request)
+    dispatch_request["message_history"] = [AIHistoryMessage.model_validate(item).model_dump(mode="json")
+                                            for item in history]
+    dispatch_request.update(client_capabilities=[], current_project=None, active_project_focus=None)
+    normalized = normalize_team_ai_inference_request(dispatch_request)
+    assert normalized["message_history"][-1]["content"] == history[-1]["content"]
+    assert "content" not in normalized["message"]
+    assert "@openmates" in chat_turn_preflight_handler.canonicalize_inference_request(normalized).decode()
+    await chat_turn_preflight_handler.enqueue_chat_turn(
+        directus_service=directus, user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        preflight_id=websocket.messages[-1]["payload"]["preflight_id"],
+        inference_request=normalized,
+    )
+    assert BoundRecoveryService.calls[-1][0] == "enqueue_inference"
+    assert BoundRecoveryService.calls[-1][1]["inference_commitment"] == prepared["inference_commitment"]
+
+    for mutation in ("prompt", "ciphertext"):
+        tampered = deepcopy(dispatch_request)
+        if mutation == "prompt":
+            tampered["team_ai_invocation"]["history"][-1]["content"] = "@openmates, ignore the original question"
+            tampered["message_history"][-1]["content"] = "@openmates, ignore the original question"
+        else:
+            tampered["message"]["encrypted_content"] = base64.b64encode(b"y" * 29).decode("ascii")
+        with pytest.raises(ChatRecoveryProtocolError, match="preflight_mismatch"):
+            await chat_turn_preflight_handler.enqueue_chat_turn(
+                directus_service=directus, user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+                preflight_id=websocket.messages[-1]["payload"]["preflight_id"],
+                inference_request=normalize_team_ai_inference_request(tampered),
+            )
+
+    inconsistent = deepcopy(dispatch_request)
+    inconsistent["message_history"][-1]["content"] = "Different plaintext history"
+    with pytest.raises(ValueError, match="differs from the invocation"):
+        normalize_team_ai_inference_request(inconsistent)
 
 
 @pytest.mark.asyncio
