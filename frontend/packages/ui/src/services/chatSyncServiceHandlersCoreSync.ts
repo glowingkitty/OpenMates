@@ -22,6 +22,8 @@ import {
 } from "./chatSyncMerge";
 import { unwrapTeamChatKey } from "./teamService";
 import { isActiveTeamContext } from "../stores/teamStore";
+import { consumeOfflineSyncBatch } from "./offlineSyncBatch";
+import { promoteDeferredTeamDraft } from "./drafts/draftContext";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
 import type {
   InitialSyncResponsePayload,
@@ -469,6 +471,11 @@ export async function handlePhase1LastChatImpl(
           forceIncomingEncryptedChatKey: false,
         });
         chatListCache.upsertChat(lastChat);
+        if (lastChat.team_id && lastChat.team_draft_pending_sync) {
+          void promoteDeferredTeamDraft(serviceInstance, lastChat.chat_id).catch((error) => {
+            console.warn("[ChatSyncService:CoreSync] Deferred Team draft sync failed:", error);
+          });
+        }
       }
     }
 
@@ -482,6 +489,11 @@ export async function handlePhase1LastChatImpl(
           forceIncomingEncryptedChatKey: false,
         });
         chatListCache.upsertChat(chat);
+        if (chat.team_id && chat.team_draft_pending_sync) {
+          void promoteDeferredTeamDraft(serviceInstance, chat.chat_id).catch((error) => {
+            console.warn("[ChatSyncService:CoreSync] Deferred Team draft sync failed:", error);
+          });
+        }
       }
     }
 
@@ -1300,15 +1312,22 @@ export async function handleOfflineSyncCompleteImpl(
     "[ChatSyncService:CoreSync] Received offline_sync_complete:",
     payload,
   );
-  const changes = await chatDB.getOfflineChanges();
+  const successfulIds = consumeOfflineSyncBatch(payload.batch_id, payload.successful_change_ids ?? []);
+  if (!successfulIds) return;
+  if (successfulIds.length === 0) {
+    if (payload.errors > 0) notificationStore.error(`Offline sync: ${payload.errors} changes could not be applied.`);
+    if (payload.conflicts > 0) notificationStore.warning(`Offline sync: ${payload.conflicts} changes had conflicts.`);
+    serviceInstance.dispatchEvent(new CustomEvent("offlineSyncProcessed", { detail: payload }));
+    return;
+  }
   let tx: IDBTransaction | null = null;
   try {
     tx = await chatDB.getTransaction(
       chatDB["OFFLINE_CHANGES_STORE_NAME"],
       "readwrite",
     );
-    for (const change of changes) {
-      await chatDB.deleteOfflineChange(change.change_id, tx);
+    for (const changeId of successfulIds) {
+      await chatDB.deleteOfflineChange(changeId, tx);
     }
     tx.oncomplete = () => {
       if (payload.errors > 0)

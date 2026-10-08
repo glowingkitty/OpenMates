@@ -181,13 +181,20 @@ export async function mergeServerChatWithLocal(
     localChat,
     serverChat.draft_v ?? 0,
   );
+  // A draft written before the first Team message commits has not reached the
+  // server. Its private ciphertext (or tombstone) wins over the first snapshot.
+  const pendingTeamDraft = serverChat.team_id === localChat.team_id && !keyMismatch
+    ? localChat.team_draft_pending_sync : undefined;
   const serverClearsDraft =
-    localDraftDeletionFenceApplies ||
+    (!pendingTeamDraft && localDraftDeletionFenceApplies) ||
     (serverDraftStateIsCurrent &&
-      (serverExplicitlyDeletesDraft || serverHasMessagesForLocalDraftOnlyShell));
+      !pendingTeamDraft && (serverExplicitlyDeletesDraft || serverHasMessagesForLocalDraftOnlyShell));
   const merged: Chat = {
     chat_id: serverChat.id,
     team_id: serverChat.team_id ?? localChat.team_id ?? null,
+    team_chat_pending_commit: serverChat.team_id && (serverChat.messages_v ?? 0) > 0
+      ? false : localChat.team_chat_pending_commit,
+    team_draft_pending_sync: pendingTeamDraft || undefined,
     user_id: localChat.user_id ?? currentUserId,
     encrypted_title: keyMismatch
       ? localChat.encrypted_title ?? null
@@ -203,12 +210,12 @@ export async function mergeServerChatWithLocal(
       serverChat.embed_window_start_cursor ?? localChat.embed_window_start_cursor,
     title_v: serverChat.title_v ?? localChat.title_v ?? 0,
     metadata_v: serverChat.metadata_v ?? localChat.metadata_v,
-    draft_v: serverClearsDraft
+    draft_v: pendingTeamDraft ? localDraftVersion : serverClearsDraft
       ? 0
       : serverDraftStateIsCurrent
         ? serverChat.draft_v ?? localDraftVersion
         : localDraftVersion,
-    cleared_draft_v: serverClearsDraft
+    cleared_draft_v: pendingTeamDraft ? localChat.cleared_draft_v : serverClearsDraft
       ? Math.max(
           localChat.cleared_draft_v ?? 0,
           localChat.draft_v ?? 0,
@@ -226,14 +233,14 @@ export async function mergeServerChatWithLocal(
       newestTimestamp(serverChat.updated_at, localChat.updated_at) ??
       newestTimestamp(serverChat.created_at, localChat.created_at) ??
       nowTimestamp,
-    encrypted_draft_md: serverClearsDraft
+    encrypted_draft_md: pendingTeamDraft ? localChat.encrypted_draft_md : serverClearsDraft
       ? undefined
       : serverHasDraftMarkdown && serverDraftStateIsCurrent
         ? serverChat.encrypted_draft_md ?? undefined
         : keyMismatch
           ? undefined
           : localChat.encrypted_draft_md,
-    encrypted_draft_preview: serverClearsDraft
+    encrypted_draft_preview: pendingTeamDraft ? localChat.encrypted_draft_preview : serverClearsDraft
       ? undefined
       : serverHasDraftPreview && serverDraftStateIsCurrent
         ? serverChat.encrypted_draft_preview ?? undefined

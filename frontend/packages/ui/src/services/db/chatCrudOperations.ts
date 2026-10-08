@@ -1402,6 +1402,42 @@ export async function getRawChat(
   });
 }
 
+/** Atomically change a client-only Team draft intent without replacing a newer ACK/chat row. */
+export async function setTeamDraftPendingSync(
+  dbInstance: ChatDatabaseInstance,
+  chatId: string,
+  teamId: string,
+  pending: "update" | "delete" | undefined,
+  writeGuard: () => boolean,
+  expected?: { kind: "update" | "delete"; cipher?: string | null; version?: number; clearedDraftVersion?: number },
+): Promise<Chat | null> {
+  if (get(forcedLogoutInProgress) || get(isLoggingOut) || !writeGuard()) return null;
+  await dbInstance.init();
+  if (!writeGuard()) return null;
+  const transaction = await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, "readwrite");
+  return new Promise((resolve, reject) => {
+    let updated: Chat | null = null;
+    transaction.oncomplete = () => resolve(updated);
+    transaction.onerror = () => reject(transaction.error ?? new Error("Team draft intent transaction failed"));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Team draft intent transaction aborted"));
+    const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
+    const request = store.get(chatId);
+    request.onerror = () => reject(request.error ?? new Error("Team draft intent read failed"));
+    request.onsuccess = () => {
+      const chat = request.result as Chat | undefined;
+      if (!chat || chat.team_id !== teamId || !writeGuard()) return;
+      if (expected && (chat.team_draft_pending_sync !== expected.kind ||
+        (expected.cipher !== undefined && chat.encrypted_draft_md !== expected.cipher) ||
+        (expected.version !== undefined && (chat.draft_v ?? 0) !== expected.version))) return;
+      updated = { ...chat, team_draft_pending_sync: pending,
+        cleared_draft_v: expected?.clearedDraftVersion === undefined
+          ? chat.cleared_draft_v
+          : Math.max(chat.cleared_draft_v ?? 0, expected.clearedDraftVersion) };
+      store.put(updated);
+    };
+  });
+}
+
 /**
  * Write already-encrypted chat metadata without chat-key recovery or generation.
  *
@@ -1702,6 +1738,7 @@ export async function createNewChatWithCurrentUserDraft(
   dbInstance: ChatDatabaseInstance,
   draft_content: string,
   draft_preview: string | null = null,
+  team_id: string | null = null,
 ): Promise<Chat> {
   // Log stack trace to help debug duplicate chat creation issues
   console.debug(
@@ -1726,6 +1763,8 @@ export async function createNewChatWithCurrentUserDraft(
 
   const chatToCreate: Chat = {
     chat_id: newChatId,
+    team_id,
+    team_chat_pending_commit: !!team_id,
     user_id: currentUserId || undefined,
     encrypted_title: null,
     messages_v: 0,

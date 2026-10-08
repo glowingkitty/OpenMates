@@ -9,6 +9,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService # Keep if needed
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.routes.handlers.websocket_handlers.draft_scope import draft_change_allowed
 from backend.core.api.app.tasks.celery_config import app as celery_app_instance
 # Import validation function from draft handler if needed, or redefine
 
@@ -24,34 +25,6 @@ def _cached_version_component(server_versions: Any, component: str) -> int:
         return int(value or 0)
     except (TypeError, ValueError):
         return 0
-
-
-async def _offline_draft_change_allowed(
-    directus_service: DirectusService,
-    user_id: str,
-    chat_id: str,
-) -> bool:
-    """Allow replay for owned chats and draft-only local chats; reject foreign existing chats."""
-    chat_service = getattr(directus_service, "chat", None)
-    if chat_service is None:
-        return True
-
-    try:
-        if await chat_service.check_chat_ownership(chat_id, user_id):
-            return True
-        return await chat_service.get_chat_metadata(chat_id) is None
-    except Exception as ownership_error:
-        try:
-            return await chat_service.get_chat_metadata(chat_id) is None
-        except Exception:
-            logger.error(
-                "Unable to verify offline draft replay permissions for chat %s, user %s: %s",
-                chat_id,
-                user_id,
-                ownership_error,
-                exc_info=True,
-            )
-            return False
 
 
 async def _delete_directus_user_draft_if_present(
@@ -180,6 +153,7 @@ async def handle_sync_offline_changes(
         processed_count = 0
         conflict_count = 0
         error_count = 0
+        successful_change_ids: List[str] = []
 
         for change in offline_changes:
             try:
@@ -193,17 +167,20 @@ async def handle_sync_offline_changes(
                     error_count += 1
                     continue
 
+                # Cached versions are not an authorization signal. Check every
+                # draft replay, including existing chats with warm cache entries.
+                team_id = change.get("team_id")
+                if change_type in {"draft", "delete_draft"} and not await draft_change_allowed(
+                    directus_service, user_id, chat_id, team_id,
+                ):
+                    error_count += 1
+                    continue
+
                 # 1. Fetch current server versions for the chat
                 server_versions = await cache_service.get_chat_versions(user_id, chat_id)
                 if not server_versions:
                     if change_type not in {"draft", "delete_draft"}:
                         logger.warning(f"Cannot process offline change for chat {chat_id}: Server versions not found in cache. Skipping.")
-                        error_count += 1
-                        continue
-                    if not await _offline_draft_change_allowed(directus_service, user_id, chat_id):
-                        logger.warning(
-                            f"Cannot process offline draft change for chat {chat_id}: chat exists but is not owned by user {user_id}."
-                        )
                         error_count += 1
                         continue
                     logger.info(
@@ -331,15 +308,15 @@ async def handle_sync_offline_changes(
                     if update_success is False:
                         logger.info(f"Skipped superseded offline draft update for user {user_id}, chat {chat_id}.")
                         processed_count += 1
+                        if isinstance(change.get("change_id"), str):
+                            successful_change_ids.append(change["change_id"])
                         continue
 
                     # Match update_draft_handler semantics: draft-only new chats are
                     # discoverable cross-device, but drafts do not reorder existing chats.
                     now_ts_for_draft = int(time.time())
-                    chat_exists_in_sorted_set = await _chat_exists_for_user(
-                        cache_service,
-                        user_id,
-                        chat_id,
+                    chat_exists_in_sorted_set = True if team_id else await _chat_exists_for_user(
+                        cache_service, user_id, chat_id,
                         default=server_versions is not None,
                     )
                     if not chat_exists_in_sorted_set:
@@ -347,7 +324,7 @@ async def handle_sync_offline_changes(
                         broadcast_last_edited_timestamp = now_ts_for_draft
                     else:
                         get_timestamp = getattr(cache_service, "get_chat_last_edited_overall_timestamp", None)
-                        if get_timestamp is not None:
+                        if get_timestamp is not None and not team_id:
                             try:
                                 broadcast_last_edited_timestamp = await get_timestamp(user_id, chat_id)
                             except Exception as timestamp_error:
@@ -383,7 +360,7 @@ async def handle_sync_offline_changes(
                         logger.info(f"User {user_id}: Successfully tombstoned draft in cache for chat_id: {chat_id} during offline sync.")
                     else:
                         logger.warning(f"User {user_id}: Draft cache tombstone failed for chat_id: {chat_id} during offline sync.")
-                        processed_count += 1
+                        error_count += 1
                         continue
 
                     try:
@@ -404,12 +381,14 @@ async def handle_sync_offline_changes(
                     await manager.broadcast_to_user(
                         message={
                             "type": "draft_deleted",
-                            "payload": {"chat_id": chat_id, "draft_v": deleted_draft_v},
+                            "payload": {"chat_id": chat_id, **({"team_id": team_id} if team_id else {}), "draft_v": deleted_draft_v},
                         },
                         user_id=user_id,
                         exclude_device_hash=None,
                     )
                     processed_count += 1
+                    if isinstance(change.get("change_id"), str):
+                        successful_change_ids.append(change["change_id"])
                     continue
 
                 # --- Post-Update Steps (Common for accepted changes) ---
@@ -422,6 +401,7 @@ async def handle_sync_offline_changes(
                 broadcast_payload = {
                     "event": broadcast_event,
                     "chat_id": chat_id,
+                    **({"team_id": team_id} if change_type == "draft" and team_id else {}),
                     "data": {broadcast_data_key: broadcast_data_value},
                     "versions": {client_version_key or component_key: new_cache_version}
                 }
@@ -438,6 +418,8 @@ async def handle_sync_offline_changes(
                     exclude_device_hash=None # Notify all devices, including the one that sent the offline changes
                 )
                 processed_count += 1
+                if isinstance(change.get("change_id"), str):
+                    successful_change_ids.append(change["change_id"])
 
             except Exception as e:
                 logger.error(f"Error processing offline change item {change} for user {user_id}: {e}", exc_info=True)
@@ -455,7 +437,11 @@ async def handle_sync_offline_changes(
         # Optionally send a summary confirmation back to the client device
         try:
             await manager.send_personal_message(
-                message={"type": "offline_sync_complete", "payload": {"processed": processed_count, "conflicts": conflict_count, "errors": error_count}},
+                message={"type": "offline_sync_complete", "payload": {
+                    "processed": processed_count, "conflicts": conflict_count, "errors": error_count,
+                    **({"batch_id": payload["batch_id"], "successful_change_ids": successful_change_ids}
+                       if isinstance(payload.get("batch_id"), str) else {}),
+                }},
                 user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
             )
         except Exception:

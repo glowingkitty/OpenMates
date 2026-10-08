@@ -1702,6 +1702,7 @@ export async function handleSend(
       const newChatData: import("../../../types/chat").Chat = {
         chat_id: chatIdToUse,
         team_id: teamId,
+        team_chat_pending_commit: !!teamId,
         encrypted_title: null,
         messages_v: 1, // A new chat with its first message starts at version 1
         title_v: isOrdinaryTeamChat ? 1 : 0,

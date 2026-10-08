@@ -1099,7 +1099,7 @@ export class ChatSynchronizationService extends EventTarget {
       versions: { messages_v: chat.messages_v + 1 },
       last_edited_overall_timestamp:
         payload.created_at ?? Math.floor(Date.now() / 1000),
-    });
+    }, () => this.isPayloadForActiveContext(payload));
   }
 
   private handleTeamAIProcessing(payload: TeamAIProcessingPayload): void {
@@ -2650,6 +2650,7 @@ export class ChatSynchronizationService extends EventTarget {
     draft_content: string | null,
     draft_preview?: string | null,
     expectedDraftVersion = 0,
+    expectedContext?: { teamId: string | null; epoch: number; committed: boolean },
   ) {
     await senders.sendUpdateDraftImpl(
       this,
@@ -2657,6 +2658,7 @@ export class ChatSynchronizationService extends EventTarget {
       draft_content,
       draft_preview,
       expectedDraftVersion,
+      expectedContext,
     );
   }
   public async sendUpdateEncryptedChatKey(
@@ -2665,8 +2667,8 @@ export class ChatSynchronizationService extends EventTarget {
   ) {
     await senders.sendUpdateChatKeyImpl(this, chat_id, encrypted_chat_key);
   }
-  public async sendDeleteDraft(chat_id: string) {
-    await senders.sendDeleteDraftImpl(this, chat_id);
+  public async sendDeleteDraft(chat_id: string, expectedDeferredContext?: { teamId: string | null; epoch: number; committed: boolean }) {
+    await senders.sendDeleteDraftImpl(this, chat_id, expectedDeferredContext);
   }
   /**
    * Notify the server that an uploaded file was removed from the message draft

@@ -14,6 +14,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { inspectDraftContent } from "../draftContent";
+import { activeTeamContext } from "../../../stores/teamStore";
 
 const mocks = vi.hoisted(() => {
   const initialDraftEditorState = {
@@ -254,6 +255,7 @@ function createEditor(isEmpty: boolean) {
 describe("draftSave", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
     mocks.resetDraftState();
     mocks.getEditorInstance.mockReturnValue(null);
     mocks.incognitoMode.get.mockReturnValue(false);
@@ -277,6 +279,21 @@ describe("draftSave", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("clearCurrentDraft", () => {
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,teams.context.full-switch-local
+    it("preserves a committed Team chat when its local message window is empty", async () => {
+      const editor = createEditor(true);
+      activeTeamContext.set({ team: null, teamId: "team-1", epoch: 1 });
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: "team-chat" });
+      mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-chat", team_id: "team-1", messages_v: 1, draft_v: 0 });
+      mocks.chatDB.getMessagesForChat.mockResolvedValue([]);
+
+      await clearCurrentDraft();
+
+      expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("team-chat");
+      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendDeleteChat).not.toHaveBeenCalled();
+    });
     // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,teams.context.full-switch-local
     it("does not delete a newer same-chat draft with identical content after send", async () => {
       const editor = createEditor(false);
@@ -739,6 +756,11 @@ describe("draftSave", () => {
         expect(mocks.chatDB.createNewChatWithCurrentUserDraft).toHaveBeenCalledTimes(1);
       });
       await clearCurrentDraft();
+      mocks.chatDB.getRawChat.mockResolvedValueOnce({
+        chat_id: "late-created-chat-id", messages_v: 0, draft_v: 1,
+        encrypted_title: null, encrypted_draft_md: "encrypted-data",
+        encrypted_draft_preview: "encrypted-data",
+      });
       finishPersistence({
         chat_id: "late-created-chat-id",
         draft_v: 1,
@@ -750,6 +772,32 @@ describe("draftSave", () => {
       expect(mocks.chatDB.deleteChat).toHaveBeenCalledWith("late-created-chat-id");
       expect(mocks.draftState.newlyCreatedChatIdToSelect).toBeNull();
       expect(mocks.draftState.isSaveInProgress).toBe(false);
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,teams.context.full-switch-local
+    it("clears a stale draft without deleting a committed Team chat with an empty local window", async () => {
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("Draft saved during Team switch");
+      let finishPersistence!: (chat: Record<string, unknown>) => void;
+      mocks.chatDB.createNewChatWithCurrentUserDraft.mockImplementationOnce(
+        () => new Promise((resolve) => { finishPersistence = resolve; }),
+      );
+      const saving = saveDraftDebounced(undefined, editor as never);
+      await vi.waitFor(() => expect(mocks.chatDB.createNewChatWithCurrentUserDraft).toHaveBeenCalledTimes(1));
+      activeTeamContext.set({ team: null, teamId: "team-1", epoch: 1 });
+      mocks.chatDB.getRawChat.mockResolvedValueOnce({
+        chat_id: "committed-team-chat", team_id: "team-1", messages_v: 2,
+        draft_v: 1, encrypted_draft_md: "encrypted-data", encrypted_draft_preview: null,
+      });
+      mocks.chatDB.getMessagesForChat.mockResolvedValue([]);
+      finishPersistence({ chat_id: "committed-team-chat", team_id: "team-1", messages_v: 2,
+        draft_v: 1, encrypted_draft_md: "encrypted-data", encrypted_draft_preview: null });
+      await saving;
+      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+      expect(mocks.chatDB.upsertRawChat).toHaveBeenCalledWith(expect.objectContaining({
+        chat_id: "committed-team-chat", messages_v: 2, encrypted_draft_md: null,
+      }));
     });
   });
 

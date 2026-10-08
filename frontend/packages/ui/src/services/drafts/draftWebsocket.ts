@@ -19,6 +19,7 @@ import { getEditorInstance } from "./draftCore";
 import { incomingDraftOmitsLocalEmbed } from "./draftContent";
 import { isDraftUpdateBlockedByLocalDeletion } from "../chatSyncMerge";
 import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from "../../utils/chatDraftState";
+import { activeTeamContext, isActiveTeamContext } from "../../stores/teamStore";
 
 // --- WebSocket Handlers ---
 
@@ -106,6 +107,8 @@ function shouldPreserveActiveLocalDraft(
 const handleDraftUpdated = async (
   payload: ServerChatDraftUpdatedEventPayload,
 ) => {
+  const active = get(activeTeamContext);
+  if ((payload.team_id ?? null) !== active.teamId) return;
   // Use get for synchronous access to avoid async issues within update
   const currentEditorState = get(draftEditorUIState);
 
@@ -129,6 +132,7 @@ const handleDraftUpdated = async (
 
   const { markdown: incomingMarkdown, content: decryptedDraftContent } =
     await decryptDraftMarkdown(encrypted_draft_md, "chat_draft_updated");
+  if (!isActiveTeamContext(active.teamId, active.epoch)) return;
 
   if (
     shouldPreserveActiveLocalDraft(
@@ -146,6 +150,8 @@ const handleDraftUpdated = async (
   // Update the user's draft directly within the Chat object in IndexedDB
   try {
     const chat = await chatDB.getRawChat(chat_id);
+    if (!isActiveTeamContext(active.teamId, active.epoch)) return;
+    if (chat && (chat.team_id ?? null) !== active.teamId) return;
     if (chat) {
       const localDraftVersion = chat.draft_v ?? 0;
       if (
@@ -181,6 +187,7 @@ const handleDraftUpdated = async (
       const timestamp = last_edited_overall_timestamp || Math.floor(Date.now() / 1000);
       await chatDB.upsertRawChat({
         chat_id,
+        team_id: active.teamId,
         encrypted_title: null,
         encrypted_draft_md,
         encrypted_draft_preview: data.encrypted_draft_preview || null,

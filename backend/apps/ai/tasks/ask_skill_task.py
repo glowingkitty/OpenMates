@@ -19,6 +19,7 @@ from backend.shared.python_utils.chat_failure_notifications import (
     notify_chat_failure_sync,
     terminal_class as classify_terminal_result,
 )
+from backend.shared.python_utils.team_log_correlation import team_correlation_fields
 
 import logging
 import asyncio
@@ -116,6 +117,18 @@ from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 
 
 logger = logging.getLogger(__name__)
+
+
+def _log_team_ai_pipeline_stage(request_data: AskSkillRequest, task_id: str, stage: str, status: str) -> None:
+    if request_data.team_id:
+        logger.info(
+            "Team AI pipeline correlation %s stage=%s status=%s",
+            team_correlation_fields(
+                team_id=request_data.team_id, chat_id=request_data.chat_id,
+                message_id=request_data.message_id, task_id=task_id,
+            ),
+            stage, status,
+        )
 
 
 async def _publish_project_authoring_availability(request_data: AskSkillRequest, task_id: str,
@@ -2218,6 +2231,7 @@ async def _async_process_ai_skill_ask_task(
 
             if preprocessing_result is None:
                 with ai_phase_span("preprocess"):
+                    _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "started")
                     preprocessing_result = await handle_preprocessing(
                         request_data=request_data,
                         skill_config=skill_config,
@@ -2233,6 +2247,7 @@ async def _async_process_ai_skill_ask_task(
                         is_new_chat=is_new_chat_for_preprocessing,
                         selected_app_ids=selected_app_ids,
                     )
+                    _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "completed")
                 new_ref = await store_preprocessing_resume(
                     cache_service_instance, request_data, preprocessing_result,
                 )
@@ -2725,6 +2740,7 @@ async def _async_process_ai_skill_ask_task(
         try:
             skill_config_dict = skill_config.model_dump(mode="json") if hasattr(skill_config, "model_dump") else {}
             with ai_phase_span("main"):
+                _log_team_ai_pipeline_stage(request_data, task_id, "main", "started")
                 aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
                     task_id=task_id,
                     request_data=request_data,
@@ -2746,6 +2762,7 @@ async def _async_process_ai_skill_ask_task(
                     skill_config_dict=skill_config_dict,
                     completion_timing=completion_timing,
                 )
+                _log_team_ai_pipeline_stage(request_data, task_id, "main", "completed")
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
 
             # --- TEST RECORD: capture final response and save fixture ---
@@ -3317,6 +3334,7 @@ async def _async_process_ai_skill_ask_task(
                 current_title_for_postproc = request_data.current_chat_title
 
             with ai_phase_span("postprocess"):
+                _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "started")
                 postprocessing_result = await handle_postprocessing(
                     task_id=task_id,
                     user_message=last_user_message,
@@ -3347,6 +3365,7 @@ async def _async_process_ai_skill_ask_task(
                     ),
                     decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
                 )
+                _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "completed")
 
             if postprocessing_result and is_learning_mode_enabled(effective_learning_mode_context):
                 postprocessing_result.follow_up_request_suggestions = filter_learning_mode_suggestions(

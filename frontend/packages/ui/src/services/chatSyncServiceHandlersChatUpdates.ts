@@ -30,6 +30,8 @@ import { isDraftUpdateBlockedByLocalDeletion } from "./chatSyncMerge";
 import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from "../utils/chatDraftState";
 import { get } from "svelte/store";
 import { draftEditorUIState } from "./drafts/draftState";
+import { activeTeamContext, isActiveTeamContext } from "../stores/teamStore";
+import { promoteDeferredTeamDraft } from "./drafts/draftContext";
 import {
   persistAssistantSpeechPreferenceIntent,
 } from "./assistantSpeechPreference";
@@ -382,6 +384,8 @@ export async function handleChatDraftUpdatedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: ChatDraftUpdatedPayload,
 ): Promise<void> {
+  const active = get(activeTeamContext);
+  if ((payload.team_id ?? null) !== active.teamId) return;
   console.info(
     "[ChatSyncService:ChatUpdates] Received chat_draft_updated:",
     payload,
@@ -421,6 +425,8 @@ export async function handleChatDraftUpdatedImpl(
     // chatDB.getChat() here because it decrypts chat-key metadata and can block
     // a draft-only sync shell when the chat key is unavailable or stale.
     const chat = await chatDB.getRawChat(payload.chat_id);
+    if (!isActiveTeamContext(active.teamId, active.epoch)) return;
+    if (chat && (chat.team_id ?? null) !== active.teamId) return;
     let updatedChat: Chat;
 
     if (chat) {
@@ -475,6 +481,7 @@ export async function handleChatDraftUpdatedImpl(
       );
       const newChatForDraft: Chat = {
         chat_id: payload.chat_id,
+        team_id: active.teamId,
         encrypted_title: null,
         messages_v: 0,
         title_v: 0,
@@ -531,8 +538,10 @@ export async function handleChatDraftUpdatedImpl(
  */
 export async function handleDraftDeletedImpl(
   serviceInstance: ChatSynchronizationService,
-  payload: { chat_id: string; draft_v?: number },
+  payload: { chat_id: string; team_id?: string | null; draft_v?: number },
 ): Promise<void> {
+  const active = get(activeTeamContext);
+  if ((payload.team_id ?? null) !== active.teamId) return;
   console.info(
     "[ChatSyncService:ChatUpdates] Received draft_deleted from server for chat:",
     payload.chat_id,
@@ -554,6 +563,8 @@ export async function handleDraftDeletedImpl(
     // Draft ciphertext uses the master key; classification needs raw metadata,
     // without requiring a chat key or decrypted display fields.
     const chat = await chatDB.getRawChat(payload.chat_id);
+    if (!isActiveTeamContext(active.teamId, active.epoch)) return;
+    if (chat && (chat.team_id ?? null) !== active.teamId) return;
 
     if (chat) {
       const localDraftVersion = Math.max(chat.draft_v ?? 0, chat.cleared_draft_v ?? 0);
@@ -1150,6 +1161,7 @@ export async function handleNewChatMessageImpl(
 export async function handleChatMessageReceivedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: ChatMessageReceivedPayload,
+  isCurrentContext: () => boolean = () => true,
 ): Promise<void> {
   console.info(
     "[ChatSyncService:ChatUpdates] Received chat_message_added (broadcast from server for other users/AI):",
@@ -1398,6 +1410,16 @@ export async function handleChatMessageReceivedImpl(
 
       // Dispatch with the full chat object from DB to ensure consistency
       const finalChatState = await chatDB.getChat(payload.chat_id);
+      // Team relays carry ciphertext only. saveMessage stores it safely, but
+      // ActiveChat uses newMessage directly instead of loading it from IDB.
+      // Read back the locally decrypted row before updating the open view.
+      const visibleMessage = payload.event === "team_chat_message_created"
+        ? await chatDB.getMessage(incomingMessage.message_id)
+        : incomingMessage;
+      if (!visibleMessage) {
+        throw new Error(`Saved Team message ${incomingMessage.message_id} could not be read back`);
+      }
+      if (!isCurrentContext()) return;
       console.info(
         `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} updated with messages_v: ${chatUpdate.messages_v}`,
       );
@@ -1405,14 +1427,14 @@ export async function handleChatMessageReceivedImpl(
         new CustomEvent("chatUpdated", {
           detail: {
             chat_id: payload.chat_id,
-            newMessage: incomingMessage,
+            newMessage: visibleMessage,
             chat: finalChatState || chatUpdate,
           },
         }),
       );
       await notifyBackgroundAssistantBroadcast(
         payload.chat_id,
-        incomingMessage,
+        visibleMessage,
         finalChatState || chatUpdate,
       );
     } else {
@@ -1513,9 +1535,18 @@ export async function handleChatMessageConfirmedImpl(
         chat.last_edited_overall_timestamp =
           payload.new_last_edited_overall_timestamp;
       }
+      if (chat.team_id && chat.team_chat_pending_commit && confirmedMessage?.chat_id === payload.chat_id) {
+        chat.team_chat_pending_commit = false;
+      }
       chat.updated_at = Math.floor(Date.now() / 1000);
       // Use a new transaction for updateChat
       await chatDB.updateChat(chat);
+
+      if (chat.team_id) {
+        void promoteDeferredTeamDraft(serviceInstance, payload.chat_id).catch((error) => {
+          console.warn("[ChatSyncService:ChatUpdates] Deferred Team draft sync failed:", error);
+        });
+      }
 
       // Dispatch events after successful update
       serviceInstance.dispatchEvent(

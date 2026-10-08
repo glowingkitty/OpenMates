@@ -35,6 +35,7 @@ export interface UserChatDraft {
 export interface ServerChatDraftUpdatedEventPayload {
   event: "chat_draft_updated";
   chat_id: string;
+  team_id?: string | null;
   data: {
     encrypted_draft_md: string | null; // Encrypted draft content (markdown)
     encrypted_draft_preview: string | null; // Encrypted preview text (shown in chat list on other devices)

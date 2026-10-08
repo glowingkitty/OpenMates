@@ -152,7 +152,7 @@ async function assertTeamWindow(page: Page, teamId: string, chatId: string, priv
 
 test.beforeAll(() => requireDirectDevRealInference());
 
-// contract-test: direct surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.chat.encrypted-until-invoked,teams.chat.sender-identity-layout,teams.chat-billing.team-credit-boundary
+// contract-test: direct surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.chat.encrypted-until-invoked,teams.chat.sender-identity-layout,teams.chat-billing.team-credit-boundary,teams.context.full-switch-local
 test('two Team members collaborate privately and invoke OpenMates with their full attributed history', async (
   { page, browser }: { page: Page; browser: Browser }, testInfo: TestInfo,
 ) => {
@@ -258,12 +258,37 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
       (payload) => payload.team_id === teamId);
     await memberPage.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId!)}&team-id=${encodeURIComponent(teamId)}`));
     await waitForChatReady(memberPage);
+    // Finish invitation setup before recording the actual collaboration view.
+    if (await memberPage.getByTestId('settings-menu').isVisible()) {
+      await memberPage.getByTestId('icon-button-close').click();
+    }
+    await expect(memberPage.getByTestId('settings-menu')).not.toBeVisible();
     await expect(memberPage.getByTestId('message-user').filter({ hasText: lines[0] })).toBeVisible({ timeout: 45_000 });
     await expect(memberPage.getByTestId('remote-human-message').filter({ hasText: lines[0] })
       .getByTestId('remote-human-name')).not.toBeEmpty();
+    // A member's draft is private to that account and uses the Team chat scope.
+    const memberDraftStart = memberFrames.length;
+    const ownerPrivateDraftStart = ownerFrames.length;
+    const memberEditor = memberPage.getByTestId('message-field').last().getByTestId('message-editor');
+    await fillMessageEditor(memberPage, memberEditor, lines[1]);
+    const memberDraft = await waitForFrame(memberFrames, memberDraftStart, 'sent', 'update_draft',
+      (payload) => payload.chat_id === chatId);
+    expect(memberDraft.payload.team_id).toBe(teamId);
+    expect(memberDraft.payload.encrypted_draft_md).toBeTruthy();
+    expect(JSON.stringify(memberDraft.payload)).not.toContain(lines[1]);
+    await waitForFrame(memberFrames, memberDraftStart, 'received', 'draft_update_receipt',
+      (payload) => payload.chat_id === chatId && payload.team_id === teamId && payload.success === true);
     await sendText(memberPage, lines[1]);
     await expect(page.getByTestId('remote-human-message').filter({ hasText: lines[1] }))
       .toBeVisible({ timeout: 45_000 });
+    const memberDraftDelete = await waitForFrame(memberFrames, memberDraftStart, 'sent', 'delete_draft',
+      (payload) => payload.chatId === chatId);
+    expect(memberDraftDelete.payload.team_id).toBe(teamId);
+    await waitForFrame(memberFrames, memberDraftStart, 'received', 'draft_delete_receipt',
+      (payload) => payload.chat_id === chatId && payload.team_id === teamId && payload.success === true);
+    expect(ownerFrames.slice(ownerPrivateDraftStart).filter((frame) => frame.direction === 'received' &&
+      ['chat_draft_updated', 'draft_deleted'].includes(frame.type) && frame.payload.chat_id === chatId))
+      .toHaveLength(0);
     await sendText(page, lines[2]);
     await expect(memberPage.getByTestId('remote-human-message').filter({ hasText: lines[2] }))
       .toBeVisible({ timeout: 45_000 });
@@ -370,6 +395,9 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
       .toBeGreaterThan(usageCountAfterAI);
     expect(await readTeamCredits(page, teamId)).toBeLessThan(teamCreditsAfterAI);
     expect(await readPersonalCredits(page)).toBe(personalCreditsBefore);
+    expect([...ownerFrames, ...memberFrames].filter((frame) => frame.direction === 'received' &&
+      frame.type === 'error' && frame.payload.chat_id === chatId && /permission/i.test(String(frame.payload.message))))
+      .toHaveLength(0);
   } catch (error) {
     runError = error;
   } finally {
@@ -391,6 +419,33 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
       aiEvents.set(`${stage}:${messageId}:${aiTaskId}`, { stage, message_id: messageId, ai_task_id: aiTaskId });
     }
     try {
+      // Retain only event metadata for relay diagnosis; never persist chat text,
+      // ciphertext, invitation fragments, keys, or complete protocol payloads.
+      const relevantTypes = new Set([
+        'chat_message_added', 'chat_message_confirmed', 'team_chat_message_created',
+        'chat_turn_preflight', 'team_ai_processing', 'team_ai_response_completed', 'error',
+        'update_draft', 'delete_draft', 'draft_update_receipt', 'draft_delete_receipt',
+        'chat_draft_updated', 'draft_deleted',
+      ]);
+      const protocolPath = testInfo.outputPath('team-chat-protocol-summary.json');
+      const summaries = ([['owner', ownerFrames], ['member', memberFrames]] as const).flatMap(([actor, frames]) =>
+        frames.filter((frame) => relevantTypes.has(frame.type)).map((frame) => ({
+          actor,
+          direction: frame.direction,
+          type: frame.type,
+          team_matches: frame.payload.team_id === teamId,
+          chat_matches: (frame.payload.chat_id ?? frame.payload.chatId) === chatId,
+          message_id: proofId(frame.payload.message?.message_id ?? frame.payload.message_id),
+          role: frame.payload.message?.role ?? frame.payload.role ?? null,
+          sender_hash_present: /^[0-9a-f]{64}$/.test(String(frame.payload.message?.hashed_user_id ?? frame.payload.hashed_user_id ?? '')),
+          encrypted_content_present: Boolean(frame.payload.message?.encrypted_content ?? frame.payload.encrypted_content),
+          ai_invocation_present: Boolean(frame.payload.team_ai_invocation ?? frame.payload.inference_request?.team_ai_invocation),
+          error_kind: frame.type === 'error'
+            ? (/permission/i.test(String(frame.payload.message)) ? 'permission' : 'other') : null,
+        })),
+      );
+      await writeFile(protocolPath, JSON.stringify({ schema_version: 1, events: summaries }), { mode: 0o600, flag: 'wx' });
+      await testInfo.attach('team-chat-protocol-summary.json', { path: protocolPath, contentType: 'application/json' });
       const idsPath = testInfo.outputPath('team-chat-private-proof-ids.json');
       await writeFile(idsPath, JSON.stringify({
         schema_version: 1,
@@ -423,7 +478,8 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     }
   }
   if (runError || cleanupErrors.length) {
+    const primaryFailure = runError instanceof Error ? runError.message : String(runError ?? cleanupErrors[0]?.message);
     throw new AggregateError([...(runError ? [runError] : []), ...cleanupErrors],
-      'Team chat proof, cleanup, or video capture failed');
+      `Team chat proof, cleanup, or video capture failed: ${primaryFailure}`);
   }
 });

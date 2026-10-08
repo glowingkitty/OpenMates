@@ -16,7 +16,8 @@ import { notificationStore } from "../stores/notificationStore";
 import { get } from "svelte/store";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { activeTeamContext } from "../stores/teamStore";
-import { chatSyncActivity } from "../stores/chatSyncActivityStore";
+import { resolveDraftChatContext, isDraftChatContextCurrent } from "./drafts/draftContext";
+import { beginOfflineSyncBatch, cancelOfflineSyncBatch } from "./offlineSyncBatch";
 import type {
 	OfflineChange,
 	CancelAITaskPayload,
@@ -339,11 +340,17 @@ export async function queueOfflineChangeImpl(
 	serviceInstance: ChatSynchronizationService,
 	change: Omit<OfflineChange, "change_id">
 ): Promise<void> {
+	if (change.type === "draft" || change.type === "delete_draft") {
+		const context = await resolveDraftChatContext(change.chat_id);
+		if ((change.team_id ?? null) !== context.teamId || !isDraftChatContextCurrent(context)) return;
+		if (context.teamId && !context.committed) return;
+	}
 	const fullChange: OfflineChange = {
 		...change,
 		change_id: crypto.randomUUID()
 	};
 	await chatDB.addOfflineChange(fullChange);
+	notificationStore.info(`Change saved offline. Will sync when reconnected.`, 3000);
 }
 
 export async function sendOfflineChangesImpl(): Promise<void> {
@@ -355,12 +362,27 @@ export async function sendOfflineChangesImpl(): Promise<void> {
 	}
 	const changes = await chatDB.getOfflineChanges();
 	if (changes.length === 0) return;
-	const payload: SyncOfflineChangesPayload = { changes };
-	const attempt = chatSyncActivity.beginOffline();
+	const eligible: OfflineChange[] = [];
+	for (const change of changes) {
+		try {
+			const context = await resolveDraftChatContext(change.chat_id);
+			if (!isDraftChatContextCurrent(context)) continue;
+			if ((change.team_id ?? null) !== context.teamId) continue;
+			if (context.teamId && !context.committed) continue;
+			eligible.push(change);
+		} catch { /* Keep stale-context changes queued until their workspace is active. */ }
+	}
+	if (eligible.length === 0) return;
+	const batchId = beginOfflineSyncBatch(eligible.map((change) => change.change_id));
+	if (!batchId) return;
+	notificationStore.info(
+		`Attempting to sync ${eligible.length} offline change(s)...`
+	);
+	const payload: SyncOfflineChangesPayload = { changes: eligible, batch_id: batchId };
 	try {
 		await webSocketService.sendMessage("sync_offline_changes", payload);
 	} catch (error) {
-		chatSyncActivity.clearOfflineAttempt(attempt);
+		cancelOfflineSyncBatch(batchId);
 		throw error;
 	}
 }

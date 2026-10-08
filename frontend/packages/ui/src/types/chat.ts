@@ -470,6 +470,8 @@ export interface Chat {
   chat_id: string; // Unique identifier for the chat
   user_id?: string; // Optional: User identifier associated with the chat on the client side (owner/creator)
   team_id?: string | null; // Local context marker; null/undefined means Personal
+  team_chat_pending_commit?: boolean; // Client-only fence until first Team message ACK or authoritative sync
+  team_draft_pending_sync?: "update" | "delete"; // Client-only private draft intent awaiting first Team chat commit
   title?: string; // Plaintext title (ONLY for demo chats - not encrypted)
   encrypted_title: string | null; // Encrypted title (ONLY used for storage/transmission, NEVER for display)
 
@@ -629,6 +631,7 @@ export interface ChatListItem {
 export interface OfflineChange {
   change_id: string;
   chat_id: string;
+  team_id?: string | null;
   type: "title" | "draft" | "delete_draft";
   value: string | TiptapJSON | null;
   version_before_edit: number;
@@ -657,6 +660,7 @@ export interface UpdateTitlePayload {
 
 export interface UpdateDraftPayload {
   chat_id: string;
+  team_id?: string;
   encrypted_draft_md: string | null;
   encrypted_draft_preview?: string | null;
   draft_v?: number;
@@ -664,6 +668,7 @@ export interface UpdateDraftPayload {
 
 export interface SyncOfflineChangesPayload {
   changes: OfflineChange[];
+  batch_id?: string;
 }
 
 export interface RequestChatContentBatchPayload {
@@ -682,6 +687,7 @@ export interface DeleteMessagePayload {
 
 export interface DeleteDraftPayload {
   chatId: string;
+  team_id?: string;
 }
 
 export interface SendChatMessagePayload {
@@ -903,6 +909,7 @@ export interface ChatTitleUpdatedPayload {
 export interface ChatDraftUpdatedPayload {
   event: string;
   chat_id: string;
+  team_id?: string | null;
   data: {
     encrypted_draft_md: string | null;
     encrypted_draft_preview?: string | null;
@@ -1275,6 +1282,8 @@ export interface OfflineSyncCompletePayload {
   processed: number;
   conflicts: number;
   errors: number;
+  batch_id?: string;
+  successful_change_ids?: string[];
 }
 
 // --- New Phased Sync Payloads ---

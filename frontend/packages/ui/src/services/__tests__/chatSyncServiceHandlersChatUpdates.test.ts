@@ -8,6 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
 import { draftEditorUIState, initialDraftEditorState } from "../drafts/draftState";
+import { activeTeamContext } from "../../stores/teamStore";
 import {
   handleChatDraftUpdatedImpl,
   handleChatDeletedImpl,
@@ -129,6 +130,21 @@ function setWindowHash(hash: string): void {
 }
 
 describe("handleChatMessageConfirmedImpl", () => {
+  // contract-test: supporting surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.context.full-switch-local
+  it("clears the local Team pending-commit fence only for a matching message ACK", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.updateMessageStatus.mockResolvedValue(undefined);
+    mocks.chatDB.getMessage.mockResolvedValue({ message_id: "team-message", chat_id: "team-chat", status: "synced" });
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-chat", team_id: "team-1",
+      team_chat_pending_commit: true, messages_v: 1 });
+    mocks.chatDB.updateChat.mockResolvedValue(undefined);
+    await handleChatMessageConfirmedImpl(service, {
+      chat_id: "team-chat", message_id: "team-message", new_messages_v: 1,
+    });
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(expect.objectContaining({
+      chat_id: "team-chat", team_chat_pending_commit: false,
+    }));
+  });
   // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,assistant-speech.preference.chat-scoped-default-off,chats.persistence.client-encrypted
   it("invalidates the optimistic sidebar message after confirmation", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
@@ -504,12 +520,32 @@ describe("handleEncryptedChatMetadataImpl", () => {
 describe("handleChatDraftUpdatedImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
     draftEditorUIState.set({ ...initialDraftEditorState });
     mocks.chatDB.getChat.mockResolvedValue(undefined);
     mocks.chatDB.addChat.mockResolvedValue(undefined);
     mocks.chatDB.upsertRawChat.mockResolvedValue(undefined);
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
     mocks.chatDB.deleteChat.mockResolvedValue({ deletedEmbedIds: [] });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local,drafts.persistence.local-first-encrypted
+  it("does not write a delayed Team draft broadcast into the next workspace", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    activeTeamContext.set({ team: null, teamId: "team-1", epoch: 1 });
+    let finishLookup!: (chat: unknown) => void;
+    mocks.chatDB.getRawChat.mockReturnValueOnce(new Promise((resolve) => { finishLookup = resolve; }));
+    const handling = handleChatDraftUpdatedImpl(service, {
+      event: "chat_draft_updated", chat_id: "team-chat", team_id: "team-1",
+      data: { encrypted_draft_md: "member-master-cipher", encrypted_draft_preview: null },
+      versions: { draft_v: 2 }, last_edited_overall_timestamp: 100,
+    });
+    await vi.waitFor(() => expect(mocks.chatDB.getRawChat).toHaveBeenCalledWith("team-chat"));
+    activeTeamContext.set({ team: null, teamId: null, epoch: 2 });
+    finishLookup({ chat_id: "team-chat", team_id: "team-1", draft_v: 1 });
+    await handling;
+    expect(mocks.chatDB.upsertRawChat).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=drafts.persistence.local-first-encrypted,chats.sync.key-gated-recovery
@@ -857,6 +893,95 @@ describe("handleChatMessageReceivedImpl", () => {
     );
     mocks.incognitoChatService.getChat.mockResolvedValue(null);
     setWindowHash("");
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.chat.encrypted-until-invoked,teams.chat.sender-identity-layout
+  it("renders a live Team relay from the decrypted local message", async () => {
+    const chat = {
+      chat_id: "team-chat",
+      team_id: "team-1",
+      messages_v: 1,
+      last_edited_overall_timestamp: 100,
+      updated_at: 100,
+    };
+    const decrypted = {
+      message_id: "member-reply",
+      chat_id: "team-chat",
+      role: "user" as const,
+      hashed_user_id: "member-hash",
+      content: "I can invite the local volunteers.",
+      status: "synced" as const,
+      created_at: 101,
+    };
+    mocks.chatDB.getChat.mockResolvedValue(chat);
+    mocks.chatDB.getMessage.mockResolvedValueOnce(null).mockResolvedValueOnce(decrypted);
+    mocks.activeChatStore.get.mockReturnValue("team-chat");
+    setWindowHash("#chat-id=team-chat&team-id=team-1");
+    const service = {
+      activeAITasks: new Map(),
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleChatMessageReceivedImpl(service, {
+      event: "team_chat_message_created",
+      chat_id: "team-chat",
+      message: {
+        message_id: "member-reply",
+        chat_id: "team-chat",
+        role: "user",
+        hashed_user_id: "member-hash",
+        encrypted_content: "ciphertext",
+        status: "synced",
+        created_at: 101,
+      },
+      versions: { messages_v: 2 },
+      last_edited_overall_timestamp: 101,
+    });
+
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ encrypted_content: "ciphertext" }),
+    );
+    expect(mocks.chatDB.saveMessage.mock.calls[0][0]).not.toHaveProperty("content");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "chatUpdated",
+        detail: expect.objectContaining({ newMessage: decrypted }),
+      }),
+    );
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.collaboration.realtime-team-sync
+  it("does not dispatch a Team relay after the active context changes during readback", async () => {
+    const chat = {
+      chat_id: "team-chat",
+      team_id: "team-1",
+      messages_v: 1,
+      last_edited_overall_timestamp: 100,
+      updated_at: 100,
+    };
+    mocks.chatDB.getChat.mockResolvedValue(chat);
+    mocks.chatDB.getMessage.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      message_id: "member-reply", chat_id: "team-chat", role: "user",
+      content: "Private Team message", status: "synced", created_at: 101,
+    });
+    const service = {
+      activeAITasks: new Map(),
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleChatMessageReceivedImpl(service, {
+      event: "team_chat_message_created",
+      chat_id: "team-chat",
+      message: {
+        message_id: "member-reply", chat_id: "team-chat", role: "user",
+        encrypted_content: "ciphertext", status: "synced", created_at: 101,
+      },
+      versions: { messages_v: 2 },
+      last_edited_overall_timestamp: 101,
+    }, () => false);
+
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledOnce();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.message.identity-idempotent

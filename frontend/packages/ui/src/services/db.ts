@@ -2019,6 +2019,16 @@ class ChatDatabase {
     return chatCrudOps.upsertRawChat(this, chat, transaction);
   }
 
+  async setTeamDraftPendingSync(
+    chatId: string,
+    teamId: string,
+    pending: "update" | "delete" | undefined,
+    writeGuard: () => boolean,
+    expected?: { kind: "update" | "delete"; cipher?: string | null; version?: number; clearedDraftVersion?: number },
+  ): Promise<Chat | null> {
+    return chatCrudOps.setTeamDraftPendingSync(this, chatId, teamId, pending, writeGuard, expected);
+  }
+
   async saveCurrentUserChatDraft(
     chat_id: string,
     draft_content: string | null,
@@ -2035,11 +2045,13 @@ class ChatDatabase {
   async createNewChatWithCurrentUserDraft(
     draft_content: string,
     draft_preview: string | null = null,
+    team_id: string | null = null,
   ): Promise<Chat> {
     return chatCrudOps.createNewChatWithCurrentUserDraft(
       this,
       draft_content,
       draft_preview,
+      team_id,
     );
   }
 

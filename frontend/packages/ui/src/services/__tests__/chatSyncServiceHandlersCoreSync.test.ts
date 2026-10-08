@@ -7,12 +7,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
 import type { ChatSynchronizationService } from "../chatSyncService";
 import { chatSyncActivity } from "../../stores/chatSyncActivityStore";
+import { beginOfflineSyncBatch } from "../offlineSyncBatch";
 import {
   handleChatContentBatchResponseImpl,
   handleCacheStatusResponseImpl,
   handlePhase1LastChatImpl,
   handleOfflineSyncCompleteImpl,
 } from "../chatSyncServiceHandlersCoreSync";
+import { activeTeamContext } from "../../stores/teamStore";
+import type { Chat } from "../../types/chat";
 
 const mocks = vi.hoisted(() => ({
   existingChat: {
@@ -32,6 +35,9 @@ const mocks = vi.hoisted(() => ({
   chatDB: {
     init: vi.fn(),
     getChat: vi.fn(),
+    getRawChat: vi.fn(),
+    upsertRawChat: vi.fn(),
+    setTeamDraftPendingSync: vi.fn(),
     addChat: vi.fn(),
     batchSaveMessages: vi.fn(),
     saveChatCompressionCheckpoint: vi.fn(),
@@ -68,10 +74,7 @@ const mocks = vi.hoisted(() => ({
     get: vi.fn((): string | null => null),
   },
   notificationStore: {
-    chatMessage: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    success: vi.fn(),
+    chatMessage: vi.fn(), error: vi.fn(), warning: vi.fn(), success: vi.fn(),
   },
 }));
 
@@ -87,7 +90,8 @@ vi.mock("../encryption/MessageEncryptor", () => ({
 vi.mock("../../stores/phasedSyncStateStore", () => ({
   phasedSyncState: mocks.phasedSyncState,
 }));
-vi.mock("../../stores/dailyInspirationStore", () => ({
+vi.mock("../../stores/dailyInspirationStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../stores/dailyInspirationStore")>()),
   dailyInspirationStore: mocks.dailyInspirationStore,
 }));
 vi.mock("../../stores/notificationStore", () => ({
@@ -123,11 +127,14 @@ describe("handleOfflineSyncCompleteImpl", () => {
     mocks.chatDB.getTransaction.mockResolvedValue(tx);
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     chatSyncActivity.beginOffline();
+    const batchId = beginOfflineSyncBatch(["change-1"]);
+    expect(batchId).not.toBeNull();
 
-    await handleOfflineSyncCompleteImpl(service, { processed: 0, errors: 1, conflicts: 2 });
+    await handleOfflineSyncCompleteImpl(service, { batch_id: batchId!, successful_change_ids: ["change-1"], processed: 1, errors: 1, conflicts: 2 });
     expect(get(chatSyncActivity).active).toBe(false);
     tx.oncomplete?.();
 
+    expect(mocks.chatDB.deleteOfflineChange).toHaveBeenCalledWith("change-1", tx);
     expect(mocks.notificationStore.error).toHaveBeenCalledOnce();
     expect(mocks.notificationStore.warning).toHaveBeenCalledOnce();
     expect(mocks.notificationStore.success).not.toHaveBeenCalled();
@@ -142,10 +149,13 @@ describe("handleOfflineSyncCompleteImpl", () => {
     mocks.chatDB.getTransaction.mockResolvedValue(tx);
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     chatSyncActivity.beginOffline();
+    const batchId = beginOfflineSyncBatch(["change-2"]);
+    expect(batchId).not.toBeNull();
 
-    await handleOfflineSyncCompleteImpl(service, { processed: 1, errors: 0, conflicts: 0 });
+    await handleOfflineSyncCompleteImpl(service, { batch_id: batchId!, successful_change_ids: ["change-2"], processed: 1, errors: 0, conflicts: 0 });
     tx.oncomplete?.();
 
+    expect(mocks.chatDB.deleteOfflineChange).toHaveBeenCalledWith("change-2", tx);
     expect(mocks.notificationStore.success).not.toHaveBeenCalled();
     expect(mocks.notificationStore.error).not.toHaveBeenCalled();
     expect(mocks.notificationStore.warning).not.toHaveBeenCalled();
@@ -199,6 +209,7 @@ describe("handleCacheStatusResponseImpl", () => {
 describe("handlePhase1LastChatImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
     mocks.chatDB.getChat.mockResolvedValue(mocks.existingChat);
     mocks.userDB.getUserProfile.mockResolvedValue({ user_id: "user-1" });
     mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
@@ -208,6 +219,42 @@ describe("handlePhase1LastChatImpl", () => {
       if (ciphertext === "local-encrypted-category") return "software";
       return null;
     });
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.context.full-switch-local,drafts.persistence.local-first-encrypted
+  it("promotes a persisted private Team draft when Phase 1a proves the first message committed", async () => {
+    activeTeamContext.set({ team: null, teamId: "team-1", epoch: 3 });
+    const localChat = {
+      ...mocks.existingChat, chat_id: "team-chat", team_id: "team-1",
+      messages_v: 1, draft_v: 2, team_chat_pending_commit: true,
+      team_draft_pending_sync: "update", encrypted_draft_md: "member-cipher",
+      encrypted_draft_preview: "member-preview",
+    } as Chat;
+    let persisted = localChat;
+    mocks.chatDB.getChat.mockResolvedValue(localChat);
+    mocks.chatDB.getRawChat.mockImplementation(async () => persisted);
+    mocks.chatDB.addChat.mockImplementation(async (chat) => { persisted = chat; });
+    mocks.chatDB.upsertRawChat.mockImplementation(async (chat) => { persisted = chat; });
+    mocks.chatDB.setTeamDraftPendingSync.mockImplementation(async (_chatId, _teamId, pending, guard, expected) => {
+      if (!guard() || (expected && (persisted.team_draft_pending_sync !== expected.kind ||
+        persisted.encrypted_draft_md !== expected.cipher || persisted.draft_v !== expected.version))) return null;
+      persisted = { ...persisted, team_draft_pending_sync: pending };
+      return persisted;
+    });
+    const service = { dispatchEvent: vi.fn(), sendUpdateDraft: vi.fn().mockResolvedValue(undefined) } as unknown as ChatSynchronizationService;
+
+    await handlePhase1LastChatImpl(service, {
+      chat_id: "team-chat", team_id: "team-1", context_epoch: 3,
+      chat_details: { messages_v: 1, draft_v: 0, encrypted_draft_md: null,
+        encrypted_draft_preview: null },
+      messages: null, recent_chat_metadata: [], phase: "phase1",
+    });
+    await vi.waitFor(() => expect(service.sendUpdateDraft).toHaveBeenCalledWith(
+      "team-chat", "member-cipher", "member-preview", 2,
+      { teamId: "team-1", epoch: 3, committed: true },
+    ));
+    expect(persisted.team_chat_pending_commit).toBe(false);
+    expect(persisted.team_draft_pending_sync).toBeUndefined();
   });
 
   // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases

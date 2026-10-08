@@ -34,6 +34,7 @@ from backend.core.api.app.services.team_chat_ai_service import extract_team_ai_c
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.core.api.app.services.team_realtime_service import broadcast_team_event
 from backend.core.api.app.services.team_member_mention_service import TeamMemberMentionNotificationSink, notify_team_member_mentions
+from backend.shared.python_utils.team_log_correlation import team_correlation_fields
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -783,6 +784,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 cache_service=cache_service,
                 active_member_hashes=active_member_hashes,
             )
+            if not team_transport.should_trigger_ai:
+                logger.info(
+                    "Team chat relay correlation %s ai_invoked=false",
+                    team_correlation_fields(
+                        team_id=str(team_id), chat_id=chat_id,
+                        message_id=str(message_payload_from_client["message_id"]),
+                    ),
+                )
             mentioned_active_user_ids = {
                 mentioned_user_id
                 for mentioned_user_id in team_transport.mentioned_user_ids
@@ -2547,6 +2556,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         },
                         cache_service=cache_service,
                         active_member_hashes=active_member_hashes,
+                    )
+                    logger.info(
+                        "Team AI dispatch correlation %s",
+                        team_correlation_fields(
+                            team_id=str(team_id), chat_id=chat_id,
+                            message_id=message_id, task_id=ai_task_id,
+                        ),
                     )
                 logger.debug(f"Sent 'ai_task_initiated' ack to client for task {ai_task_id}")
             else:

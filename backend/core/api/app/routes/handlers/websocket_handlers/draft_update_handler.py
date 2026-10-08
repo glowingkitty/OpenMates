@@ -9,6 +9,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.routes.handlers.websocket_handlers.draft_scope import draft_change_allowed
 from backend.core.api.app.routes.ideabucket import FORBIDDEN_IDEABUCKET_CLEARTEXT_KEYS
 from backend.core.api.app.tasks.celery_config import app as celery_app_instance
 
@@ -84,55 +85,19 @@ async def handle_update_draft(
 
         logger.info(f"Processing update_draft for user {user_id}, chat {chat_id} from device {device_fingerprint_hash}")
 
-        # Verify chat ownership
-        # CRITICAL: Allow drafts for new chats that don't exist in Directus yet
-        # When a user starts typing in a new chat, the chat is created locally but not yet in Directus.
-        # The chat is only created in Directus when the first message is sent.
-        # This matches the behavior in message_received_handler.py (lines 108-110)
-        try:
-            is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
-            if not is_owner:
-                # Check if chat exists at all - if not, treat as new chat creation (allowed)
-                chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
-                if chat_metadata:
-                    # Chat exists but user doesn't own it - reject
-                    logger.warning(f"User {user_id} attempted to update draft for chat {chat_id} they don't own. Rejecting.")
-                    await manager.send_personal_message(
-                        message={"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
-                        user_id=user_id,
-                        device_fingerprint_hash=device_fingerprint_hash
-                    )
-                    return
-                else:
-                    # Chat doesn't exist - this is a new chat creation, which is allowed
-                    logger.debug(f"Chat {chat_id} not found in database - treating as new chat draft (allowed)")
-        except Exception as e_ownership:
-            # On error checking ownership, check if chat exists
-            # If chat doesn't exist, allow draft save (new chat creation)
-            # If chat exists, reject for security (fail closed)
-            try:
-                chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
-                if chat_metadata:
-                    # Chat exists but we couldn't verify ownership - reject for security
-                    logger.error(f"Error verifying ownership for existing chat {chat_id}, user {user_id}: {e_ownership}", exc_info=True)
-                    await manager.send_personal_message(
-                        message={"type": "error", "payload": {"message": "Unable to verify chat ownership. Please try again.", "chat_id": chat_id}},
-                        user_id=user_id,
-                        device_fingerprint_hash=device_fingerprint_hash
-                    )
-                    return
-                else:
-                    # Chat doesn't exist - treat as new chat creation (allowed)
-                    logger.debug(f"Chat {chat_id} not found in database during ownership check error - treating as new chat draft (allowed)")
-            except Exception as e_metadata:
-                # Couldn't check if chat exists - reject for security
-                logger.error(f"Error checking if chat {chat_id} exists for user {user_id}: {e_metadata}", exc_info=True)
-                await manager.send_personal_message(
-                    message={"type": "error", "payload": {"message": "Unable to verify chat permissions. Please try again.", "chat_id": chat_id}},
-                    user_id=user_id,
-                    device_fingerprint_hash=device_fingerprint_hash
-                )
-                return
+        # Draft ciphertext remains private to the authenticated user. Team context
+        # authorizes the chat scope, never changes the draft encryption key.
+        team_id = payload.get("team_id")
+        if not await draft_change_allowed(directus_service, user_id, chat_id, team_id):
+            await manager.send_personal_message(
+                message={"type": "error", "payload": {
+                    "message": "You do not have permission to modify this chat.",
+                    "chat_id": chat_id,
+                }},
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash,
+            )
+            return
 
         # Basic validation - check length limits for encrypted content
         if encrypted_draft_md and len(encrypted_draft_md) > MAX_DRAFT_CHARS:  # Use existing limit for encrypted content, NOTE: does this make sense? needs update?
@@ -308,7 +273,7 @@ async def handle_update_draft(
         # last_edited_overall_timestamp for proper sorting. The frontend sorts chats
         # with drafts above non-draft chats via hasNonEmptyDraft() in chatSortUtils.ts.
         now_ts = int(time.time())
-        chat_exists_in_sorted_set = await cache_service.check_chat_exists_for_user(user_id, chat_id)
+        chat_exists_in_sorted_set = True if team_id else await cache_service.check_chat_exists_for_user(user_id, chat_id)
         if not chat_exists_in_sorted_set:
             # This is a draft-only new chat — add it to the sorted set so other devices
             # can discover it during initial sync or reconnect.
@@ -320,7 +285,7 @@ async def handle_update_draft(
 
         # Get the current score for this chat (for the broadcast payload).
         # Other devices need this timestamp when creating the chat entry locally.
-        chat_timestamp = await cache_service.get_chat_last_edited_overall_timestamp(user_id, chat_id)
+        chat_timestamp = None if team_id else await cache_service.get_chat_last_edited_overall_timestamp(user_id, chat_id)
         if chat_timestamp is None:
             chat_timestamp = now_ts
 
@@ -330,6 +295,7 @@ async def handle_update_draft(
         broadcast_payload = {
             "event": "chat_draft_updated",
             "chat_id": chat_id,
+            **({"team_id": team_id} if team_id else {}),
             "data": {
                 "encrypted_draft_md": encrypted_draft_str,
                 "encrypted_draft_preview": draft_preview_from_payload,
@@ -349,6 +315,7 @@ async def handle_update_draft(
                 "type": "draft_update_receipt",
                 "payload": {
                     "chat_id": chat_id,
+                    **({"team_id": team_id} if team_id else {}),
                     "draft_v": new_user_draft_v,
                     "success": True,
                     **draft_metadata,

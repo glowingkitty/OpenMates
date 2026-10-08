@@ -12,6 +12,8 @@ import { tipTapToCanonicalMarkdown } from "../../message_parsing/serializers"; /
 import { encryptWithMasterKey } from "../cryptoService"; // Import encryption functions
 import { chatMetadataCache } from "../chatMetadataCache"; // For cache invalidation
 import { authStore } from "../../stores/authStore"; // Import auth store to check authentication status
+import { activeTeamContext, isActiveTeamContext } from "../../stores/teamStore";
+import { isDraftOnlyChatSurface } from "../../utils/chatDraftState";
 import { isPublicChat } from "../../demo_chats/convertToChat"; // Import to detect demo/legal chats
 import {
   saveSessionStorageDraft,
@@ -378,6 +380,7 @@ export async function clearCurrentDraft(expected?: {
   const editor = getEditorInstance();
   const draftStateAtStart = get(draftEditorUIState);
   const currentChatId = draftStateAtStart.currentChatId;
+  const draftTeamContextAtStart = get(activeTeamContext);
   let expectedLiveDraftVersion = draftStateAtStart.currentUserDraftVersion;
   // A sent message may finish after the user has already begun another draft.
   // ProseMirror documents are immutable, so identity also catches retyped text
@@ -400,6 +403,7 @@ export async function clearCurrentDraft(expected?: {
     const liveEditor = getEditorInstance();
     const liveDraftState = get(draftEditorUIState);
     return !!editor && liveEditor === editor && !editor.isDestroyed &&
+      isActiveTeamContext(draftTeamContextAtStart.teamId, draftTeamContextAtStart.epoch) &&
       liveDraftState.currentChatId === currentChatId &&
       liveDraftState.currentUserDraftVersion === expectedLiveDraftVersion &&
       editorDocumentAtStart === editor.state.doc;
@@ -502,7 +506,7 @@ export async function clearCurrentDraft(expected?: {
     // Those reads can finish after a new draft was entered or persisted.
     // Never delete its chat based on the earlier empty-draft snapshot.
     if (!stillOwnsInitialDocument()) return;
-    if (chat && (!messages || messages.length === 0)) {
+    if (chat && (chat.messages_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true) && (!messages || messages.length === 0)) {
       console.info(
         `[DraftService] Chat ${currentChatId} has no messages after draft deletion. Attempting to delete chat.`,
       );
@@ -629,14 +633,13 @@ async function hasPersistedDraftAwaitingRestore(chatId: string): Promise<boolean
 
 async function discardStaleDraftWrite(chatId: string): Promise<void> {
   try {
+    const chat = await chatDB.getRawChat(chatId);
+    if (!chat) return;
     const messages = await chatDB.getMessagesForChat(chatId);
-    if (!messages || messages.length === 0) {
+    if ((chat.messages_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true) && (!messages || messages.length === 0)) {
       await chatDB.deleteChat(chatId);
       return;
     }
-
-    const chat = await chatDB.getRawChat(chatId);
-    if (!chat) return;
     await chatDB.upsertRawChat({
       ...chat,
       cleared_draft_v: Math.max(chat.cleared_draft_v ?? 0, chat.draft_v ?? 0),
@@ -667,6 +670,7 @@ export const saveDraftDebounced = debounce(
     const isAuthenticated = get(authStore).isAuthenticated;
     const currentState = get(draftEditorUIState);
     const lifecycleRevisionAtStart = draftLifecycleRevision;
+    const draftTeamContext = get(activeTeamContext);
 
     // Check save lock to prevent duplicate chat creation from concurrent saves.
     // Instead of silently dropping the save (which loses the latest content),
@@ -1081,7 +1085,7 @@ export const saveDraftDebounced = debounce(
       ? await encryptWithMasterKey(previewText)
       : null;
 
-    if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+    if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
       console.info("[DraftService] Draft save cancelled because its draft lifecycle was cleared.");
       draftEditorUIState.update((s) => ({ ...s, isSaveInProgress: false }));
       return;
@@ -1150,6 +1154,7 @@ export const saveDraftDebounced = debounce(
           const newChat = await chatDB.createNewChatWithCurrentUserDraft(
             encryptedMarkdown,
             encryptedPreview,
+            draftTeamContext.teamId,
           );
 
           console.debug(
@@ -1163,7 +1168,7 @@ export const saveDraftDebounced = debounce(
           );
           currentChatIdForOperation = newChat.chat_id; // Update for subsequent use in this function
           userDraft = newChat;
-          if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+          if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
             await discardStaleDraftWrite(currentChatIdForOperation);
             return;
           }
@@ -1244,6 +1249,8 @@ export const saveDraftDebounced = debounce(
             const nowTimestamp = Math.floor(Date.now() / 1000);
             const chatToCreate: Chat = {
               chat_id: currentChatIdForOperation, // USE THE EXISTING ID!
+              team_id: draftTeamContext.teamId,
+              team_chat_pending_commit: !!draftTeamContext.teamId,
               encrypted_title: null,
               messages_v: 0,
               title_v: 0,
@@ -1260,7 +1267,7 @@ export const saveDraftDebounced = debounce(
             await chatDB.addChat(chatToCreate);
             userDraft = chatToCreate;
 
-            if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+            if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
               await discardStaleDraftWrite(currentChatIdForOperation);
               return;
             }
@@ -1290,6 +1297,10 @@ export const saveDraftDebounced = debounce(
             return;
           }
         } else {
+          if (!isIncognitoChat && (existingChat.team_id ?? null) !== draftTeamContext.teamId) {
+            draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true, isSaveInProgress: false }));
+            return;
+          }
           // Chat exists - update it normally
           // CRITICAL: Don't save drafts for incognito chats
           if (isIncognitoChat) {
@@ -1327,7 +1338,7 @@ export const saveDraftDebounced = debounce(
             ),
           };
           await chatDB.upsertRawChat(userDraft);
-          if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+          if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
             await discardStaleDraftWrite(currentChatIdForOperation);
             return;
           }
@@ -1369,7 +1380,7 @@ export const saveDraftDebounced = debounce(
         return;
       }
 
-      if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+      if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
         console.info(
           `[DraftService] Skipping stale draft publication for cleared chat ${currentChatIdForOperation}.`,
         );
@@ -1404,12 +1415,14 @@ export const saveDraftDebounced = debounce(
           `[DraftService] Successfully sent encrypted draft to server for chat ${currentChatIdForOperation}.`,
         );
       } catch (wsError) {
+        if (!isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) return;
         console.error(
           `[DraftService] Error sending encrypted draft update via WS for chat ${currentChatIdForOperation}. Queuing encrypted draft update:`,
           wsError,
         );
         const offlineChange: Omit<OfflineChange, "change_id"> = {
           chat_id: currentChatIdForOperation,
+          ...(draftTeamContext.teamId ? { team_id: draftTeamContext.teamId } : {}),
           type: "draft",
           value: encryptedMarkdown,
           version_before_edit: versionBeforeSave,
