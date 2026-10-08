@@ -8,6 +8,7 @@
 // will find the business_development mate whose German name is "Gerd").
 
 import { modelsMetadata } from "../../../data/modelsMetadata";
+import { isEligibleLegacyAiModel } from "../../../utils/aiModelDisplay";
 import { matesMetadata } from "../../../data/matesMetadata";
 import { getProviderIconUrl } from "../../../data/providerIcons";
 import { aiModelSelectionValue } from "../../../utils/aiModelSelection";
@@ -534,7 +535,7 @@ export async function searchProjectMentions(
  *
  * **Offline-First**: If health data is unavailable (server unreachable), all models are shown.
  */
-function getModelMentionResults(): ModelMentionResult[] {
+function getModelMentionResults(includeLegacy = false): ModelMentionResult[] {
   // Get the provider health checker function
   const checkProviderHealthy = get(isProviderHealthy);
 
@@ -547,8 +548,10 @@ function getModelMentionResults(): ModelMentionResult[] {
     modelsMetadata
       // Filter to only include models for the "ai.ask" skill (excludes image generation models)
       .filter((model) => model.for_app_skill === "ai.ask")
-      // Keep deprecated-but-routable models out of suggestions.
-      .filter((model) => model.show_in_mentions !== false)
+      // Older routable models appear for a specific search, not in default suggestions.
+      .filter((model) => model.legacy_model
+        ? includeLegacy && isEligibleLegacyAiModel(model)
+        : model.show_in_mentions !== false)
       // Keep only models with at least one enabled, healthy hosting route.
       .filter((model) => model.servers?.some(
         (server) =>
@@ -1040,11 +1043,11 @@ function getAllSettingsMemoryEntryResults(): SettingsMemoryEntryMentionResult[] 
 /**
  * Get all mention results across all types (including individual entries).
  */
-export function getAllMentionResults(): AnyMentionResult[] {
+export function getAllMentionResults(includeLegacyModels = false): AnyMentionResult[] {
   return [
     getWikipediaSourceMentionResult(),
     ...getModelAliasMentionResults(),
-    ...getModelMentionResults(),
+    ...getModelMentionResults(includeLegacyModels),
     ...getMateMentionResults(),
     ...getSkillMentionResults(),
     ...getFocusModeMentionResults(),
@@ -1087,7 +1090,7 @@ export function searchMentions(
     return getDefaultMentionResults();
   }
 
-  const allResults = getAllMentionResults();
+  const allResults = getAllMentionResults(true);
 
   // Score and filter results (settings_memory / settings_memory_entry get a boost when they match)
   const scoredResults = allResults

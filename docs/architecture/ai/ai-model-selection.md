@@ -54,6 +54,18 @@ claims:
 
 A single model cannot optimally serve all request types. Simple factual questions waste money on premium models; complex coding tasks need top-tier reasoning. The selection system matches request characteristics to model strengths while filtering out models that may be censored on sensitive topics.
 
+For OpenAI and Anthropic, the composer and AI settings show the curated current
+models first. A collapsed **Show old models** section contains supported chat
+models still available via API that were released within the preceding twelve
+calendar months, including the boundary date. Older entries carry
+`legacy_model: true` and `allow_auto_select: false` in provider YAML. Release dates
+use the public launch date rather than a date embedded in an API snapshot ID.
+Confirmed API shutdowns use `api_retirement_date`; a provider's “not sooner than”
+commitment is not a shutdown date. The web picker, mentions, CLI, and backend
+availability checks apply this policy while retaining raw pricing for historical
+billing. For example, Claude Opus 4.8 (released May 28, 2026) is selectable in the
+older section on October 8, 2026.
+
 ## How It Works
 
 ```mermaid

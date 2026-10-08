@@ -51,6 +51,8 @@ export interface AIModelMetadata {
   tier: "economy" | "standard" | "premium";
   capability_level?: "low" | "medium" | "high" | "max";
   release_date?: string;
+  legacy_model?: boolean;
+  api_retirement_date?: string;
   servers?: ModelServerInfo[];
   default_server?: string;
   pricing?: ModelPricing;

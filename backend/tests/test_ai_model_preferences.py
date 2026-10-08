@@ -72,7 +72,7 @@ async def test_tier_default_writes_reject_retired_and_non_chat_models_before_sto
     directus = SimpleNamespace(update_user=AsyncMock(return_value=True))
     cache = SimpleNamespace(update_user=AsyncMock(return_value=True))
     handler = inspect.unwrap(settings.update_ai_model_defaults)
-    for model in ("anthropic/claude-haiku-4-5-20251001", "openai/gpt-6-sol", "openai/gpt-image-2"):
+    for model in ("anthropic/claude-opus-4-1-20250805", "openai/gpt-5-chat-latest", "openai/gpt-image-2"):
         with pytest.raises(HTTPException) as error:
             await handler(
                 request=SimpleNamespace(), request_data=AiModelDefaultsRequest(default_ai_model_simple=model),
@@ -82,7 +82,7 @@ async def test_tier_default_writes_reject_retired_and_non_chat_models_before_sto
     directus.update_user.assert_not_awaited()
     cache.update_user.assert_not_awaited()
 
-    for model in ("anthropic/claude-haiku-5-5", "anthropic/claude-sonnet-5-5", "openai/gpt-6.1-sol", None):
+    for model in ("anthropic/claude-haiku-5-5", "anthropic/claude-sonnet-5-5", "openai/gpt-6.1-sol", "anthropic/claude-opus-4-8", "openai/gpt-6-sol", None):
         response = await handler(
             request=SimpleNamespace(), request_data=AiModelDefaultsRequest(default_ai_model_simple=model),
             current_user=SimpleNamespace(id="owner"), directus_service=directus, cache_service=cache,

@@ -6,8 +6,11 @@
 
 import yaml
 import os
+from datetime import date
 from typing import List, Dict, Any, Optional
 import logging
+
+from backend.shared.python_utils.model_availability import is_model_available, utc_today
 
 logger = logging.getLogger(__name__)
 
@@ -186,22 +189,40 @@ class ConfigManager:
         return [feature_id.removeprefix("app:") for feature_id in disabled_features if feature_id.startswith("app:")]
 
     def get_provider_configs(self) -> Dict[str, Dict[str, Any]]:
-        """Returns all loaded provider configurations."""
-        return self._provider_configs if self._provider_configs is not None else {}
+        """Return current catalogue views without altering stored billing tariffs."""
+        today = utc_today()
+        return {
+            provider_id: self._available_provider_config(config, today)
+            for provider_id, config in (self._provider_configs or {}).items()
+        }
+
+    @staticmethod
+    def _available_provider_config(config: Dict[str, Any], today: date) -> Dict[str, Any]:
+        models = config.get("models", [])
+        if not isinstance(models, list):
+            return config
+        available = [
+            model for model in models
+            if not isinstance(model, dict) or is_model_available(model, today=today)
+        ]
+        return config if len(available) == len(models) else {**config, "models": available}
 
     def get_provider_config(self, provider_id: str) -> Optional[Dict[str, Any]]:
         """
         Returns the configuration for a specific provider.
         The provider_id should match the key used during loading (lowercase name or filename).
         """
-        return self._provider_configs.get(provider_id) if self._provider_configs else None
+        config = self._provider_configs.get(provider_id) if self._provider_configs else None
+        return self._available_provider_config(config, utc_today()) if config else None
 
     def get_model_pricing(self, provider_id: str, model_id: str) -> Optional[Dict[str, Any]]:
         """
         Retrieves all details (pricing, costs, etc.) for a specific model ID 
         from a specific provider.
         """
-        provider_config = self.get_provider_config(provider_id)
+        # Historic attempts must still resolve their original costs after a
+        # legacy model leaves the live catalogue.
+        provider_config = self._provider_configs.get(provider_id) if self._provider_configs else None
         if not provider_config:
             logger.warning(f"Provider '{provider_id}' not found when searching for model '{model_id}'.")
             return None
@@ -231,7 +252,7 @@ class ConfigManager:
             logger.warning(f"No provider configurations loaded when searching for model '{model_id}'.")
             return None
         
-        for provider_id, provider_config in self._provider_configs.items():
+        for provider_id, provider_config in self.get_provider_configs().items():
             for model in provider_config.get("models", []):
                 if isinstance(model, dict) and (model.get("id") == model_id or model_id in model.get("aliases", [])):
                     logger.info(f"Found model '{model_id}' in provider '{provider_id}'.")
@@ -261,7 +282,7 @@ class ConfigManager:
         
         # If provider_id is specified, search only that provider
         if provider_id:
-            provider_config = self.get_provider_config(provider_id)
+            provider_config = self._provider_configs.get(provider_id)
             if provider_config:
                 for model in provider_config.get("models", []):
                     if isinstance(model, dict) and (model.get("id") == model_id or model_id in model.get("aliases", [])):

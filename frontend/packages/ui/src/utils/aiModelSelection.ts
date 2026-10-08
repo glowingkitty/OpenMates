@@ -6,6 +6,7 @@
  */
 
 import { modelsMetadata, type AIModelMetadata } from '../data/modelsMetadata';
+import { isEligibleLegacyAiModel } from './aiModelDisplay';
 
 export interface AiModelAvailabilityPreferences {
     disabledModels?: readonly string[];
@@ -50,6 +51,7 @@ export function isAiModelSelectionUsable(
         && candidate.for_app_skill === 'ai.ask'
     );
     return !!model
+        && (!model.legacy_model || isEligibleLegacyAiModel(model))
         && !preferences.disabledModels?.includes(modelId)
         && !!model.servers?.some((server) =>
             !preferences.disabledServers?.[modelId]?.includes(server.id)

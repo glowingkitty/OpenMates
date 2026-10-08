@@ -13,7 +13,7 @@
     import { notificationStore } from '../../stores/notificationStore';
     import { isProviderHealthy } from '../../stores/appHealthStore';
     import { updateProfile, userProfile } from '../../stores/userProfile';
-    import { compareAiProviders, getAiProviderDisplay, getModelCapabilityLevel, getRecommendedModelForTier, getTierCapabilityLevel } from '../../utils/aiModelDisplay';
+    import { compareAiProviders, getAiProviderDisplay, getModelCapabilityLevel, getRecommendedModelForTier, getTierCapabilityLevel, splitAiProviderModels } from '../../utils/aiModelDisplay';
     import { aiModelSelectionValue } from '../../utils/aiModelSelection';
     import {
         SettingsInfoBox,
@@ -36,6 +36,7 @@
     const pathParts = $derived(activeSettingsView.split('/'));
     const tier = $derived((pathParts[2] ?? 'simple') as Tier);
     const providerId = $derived(pathParts[3] === 'provider' ? pathParts[4] : null);
+    let oldModelsVisibilityOverride = $state<{ selectionKey: string; show: boolean } | null>(null);
     const aiModels = $derived(modelsMetadata.filter((model) =>
         model.for_app_skill === 'ai.ask'
         && !$userProfile.disabled_ai_models?.includes(model.id)
@@ -44,8 +45,8 @@
             && $isProviderHealthy(server.id)
         )
     ));
-    const providerModels = $derived(providerId ? aiModels.filter((model) => model.provider_id === providerId) : []);
-    const recommendedModelId = $derived(getRecommendedModelForTier(providerModels, tier)?.id ?? null);
+    const providerModelGroups = $derived(splitAiProviderModels(providerId ? aiModels.filter((model) => model.provider_id === providerId) : []));
+    const recommendedModelId = $derived(getRecommendedModelForTier(providerModelGroups.main, tier)?.id ?? null);
     const preferenceField = $derived<PreferenceField>(
         tier === 'simple'
             ? 'default_ai_model_simple'
@@ -54,6 +55,14 @@
                 : 'default_ai_model_most_demanding'
     );
     const currentSelection = $derived($userProfile[preferenceField] ?? null);
+    const oldModelsSelectionKey = $derived(`${tier}:${providerId ?? ''}:${currentSelection ?? 'auto'}`);
+    const showOldModels = $derived(oldModelsVisibilityOverride?.selectionKey === oldModelsSelectionKey
+        ? oldModelsVisibilityOverride.show
+        : providerModelGroups.old.some((model) => aiModelSelectionValue(model) === currentSelection));
+    const providerModels = $derived([
+        ...providerModelGroups.main,
+        ...(showOldModels ? providerModelGroups.old : []),
+    ]);
     const tierCapability = $derived(getTierCapabilityLevel(tier));
     const tierCapabilityLabel = $derived($text(`settings.ai_ask.ai_ask_settings.capability_${tierCapability}`));
     const providers = $derived.by(() => {
@@ -157,6 +166,17 @@
                             onToggleClick={() => saveSelection(aiModelSelectionValue(model))}
                         />
                     {/each}
+                    {#if providerModelGroups.old.length}
+                        <button
+                            type="button"
+                            class="old-models-button"
+                            data-testid="ai-tier-show-old-models"
+                            aria-expanded={showOldModels}
+                            onclick={() => oldModelsVisibilityOverride = { selectionKey: oldModelsSelectionKey, show: !showOldModels }}
+                        >
+                            {$text(showOldModels ? 'settings.ai_ask.ai_ask_settings.hide_old_models' : 'settings.ai_ask.ai_ask_settings.show_old_models')}
+                        </button>
+                    {/if}
                 {:else}
                     {#each providers as model (model.provider_id)}
                         {@const display = getAiProviderDisplay(model.provider_id, model.provider_name)}
@@ -198,6 +218,17 @@
 
     .ai-row-list {
         gap: var(--spacing-4);
+    }
+
+    .old-models-button {
+        margin: 0 var(--spacing-10);
+        padding: var(--spacing-2) 0;
+        border: 0;
+        background: none;
+        color: var(--color-font-primary);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
     }
 
     .ai-section-title {

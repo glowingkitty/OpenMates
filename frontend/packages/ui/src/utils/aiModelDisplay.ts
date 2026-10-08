@@ -51,6 +51,42 @@ export function compareAiModels(a: AIModelMetadata, b: AIModelMetadata): number 
         || a.id.localeCompare(b.id);
 }
 
+/** Older Claude and OpenAI chat models remain selectable while their API route is active. */
+export function isEligibleLegacyAiModel(model: AIModelMetadata, today = new Date()): boolean {
+    if (!model.legacy_model || model.for_app_skill !== 'ai.ask'
+        || !['anthropic', 'openai'].includes(model.provider_id)
+        || !model.servers?.length) return false;
+
+    const dateOnly = (value: string | undefined): Date | null => {
+        if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+        const date = new Date(`${value}T00:00:00Z`);
+        return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value ? null : date;
+    };
+    const released = dateOnly(model.release_date);
+    if (!released) return false;
+    const currentDay = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+    const priorYear = today.getUTCFullYear() - 1;
+    const lastDayOfMonth = new Date(Date.UTC(priorYear, today.getUTCMonth() + 1, 0)).getUTCDate();
+    const cutoff = Date.UTC(priorYear, today.getUTCMonth(), Math.min(today.getUTCDate(), lastDayOfMonth));
+    if (released.getTime() < cutoff || released.getTime() > currentDay) return false;
+
+    if (model.api_retirement_date !== undefined) {
+        const retirement = dateOnly(model.api_retirement_date);
+        if (!retirement || retirement.getTime() <= currentDay) return false;
+    }
+    return true;
+}
+
+export function splitAiProviderModels(models: AIModelMetadata[], today = new Date()): {
+    main: AIModelMetadata[];
+    old: AIModelMetadata[];
+} {
+    return {
+        main: models.filter((model) => !model.legacy_model),
+        old: models.filter((model) => isEligibleLegacyAiModel(model, today)),
+    };
+}
+
 export function getTierCapabilityLevel(tier: AiRequestTier): AiCapabilityLevel {
     if (tier === 'simple') return 'low';
     if (tier === 'complex') return 'high';

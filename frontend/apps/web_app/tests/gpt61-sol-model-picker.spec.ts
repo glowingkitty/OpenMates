@@ -9,7 +9,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { email, password, otpKey } = getTestAccount();
 
 // contract-test: direct surface=gui.web assertions=ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.catalog.capability-recommendation-variants
-test('Claude and OpenAI selectors expose only the curated models', async ({ page }: { page: any }) => {
+test('Claude and OpenAI selectors keep curated models visible and expand recent old models', async ({ page }: { page: any }) => {
 	test.setTimeout(120000);
 	skipWithoutCredentials(test, email, password, otpKey);
 
@@ -18,20 +18,15 @@ test('Claude and OpenAI selectors expose only the curated models', async ({ page
 	const catalogueResponse = await page.request.get(`${apiUrl}/v1/models`);
 	expect(catalogueResponse.ok()).toBe(true);
 	const catalogue = (await catalogueResponse.json()).data;
-	const allowed: Record<string, string[]> = {
+	const curated: Record<string, string[]> = {
 		anthropic: ['claude-fable-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
 		openai: ['gpt-6.1-sol', 'gpt-6-astra', 'gpt-6-luna', 'gpt-5.6-terra', 'gpt-oss-120b']
 	};
-	for (const model of catalogue) {
-		if (allowed[model.owned_by]) {
-			expect(allowed[model.owned_by]).toContain(model.id.split('/')[1]);
-		}
+	const modelIds = new Set(catalogue.map((model: { id: string }) => model.id));
+	for (const [provider, ids] of Object.entries(curated)) {
+		for (const id of ids) expect(modelIds.has(`${provider}/${id}`)).toBe(true);
 	}
-	for (const retired of ['anthropic/claude-haiku-4-5-20251001', 'anthropic/claude-sonnet-5', 'openai/gpt-6-sol']) {
-		const response = await page.request.get(`${apiUrl}/v1/models/${retired}`);
-		expect(response.status()).toBe(404);
-		expect((await response.json()).error.code).toBe('model_not_found');
-	}
+	expect(modelIds.has('anthropic/claude-opus-4-8')).toBe(true);
 
 	const log = createSignupLogger('GPT61_SOL_MODEL_PICKER');
 	await loginToTestAccount(page, log, createStepScreenshotter(log, { filenamePrefix: 'gpt61-sol-model-picker' }));
@@ -52,6 +47,7 @@ test('Claude and OpenAI selectors expose only the curated models', async ({ page
 	await expect(menu.getByTestId('composer-model-name')).toHaveText([
 		'GPT-6.1 Sol', 'GPT-6 Luna', 'GPT-6 Astra', 'GPT-5.6 Terra', 'GPT-OSS-120b'
 	]);
+	await expect(menu.getByTestId('composer-model-show-old')).toBeVisible();
 	const firstRow = menu.getByTestId('composer-model-row').first();
 	await expect(firstRow.getByTestId('composer-model-name')).toHaveText('GPT-6.1 Sol');
 	await expect(firstRow.getByTestId('composer-model-capability')).toHaveAttribute('data-level', 'high');
@@ -64,6 +60,11 @@ test('Claude and OpenAI selectors expose only the curated models', async ({ page
 	await expect(menu.getByTestId('composer-model-name')).toHaveText([
 		'Claude Haiku 5.5', 'Claude Sonnet 5.5', 'Claude Opus 5.5', 'Claude Fable 5.1'
 	]);
+	await expect(menu.getByTestId('composer-model-show-old')).toHaveAttribute('aria-expanded', 'false');
+	await menu.getByTestId('composer-model-show-old').click();
+	await expect(menu.getByTestId('composer-model-row').filter({ hasText: 'Claude Opus 4.8' })).toBeVisible();
+	await menu.getByTestId('composer-model-show-old').click();
+	await expect(menu.getByTestId('composer-model-row').filter({ hasText: 'Claude Opus 4.8' })).toHaveCount(0);
 	for (const [name, level, capability] of [
 		['Claude Haiku 5.5', 'low', 'Low'], ['Claude Sonnet 5.5', 'medium', 'Medium'],
 		['Claude Opus 5.5', 'high', 'High'], ['Claude Fable 5.1', 'max', 'Maximum']

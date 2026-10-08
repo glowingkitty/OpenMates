@@ -290,7 +290,12 @@ async def _invoke_openai_direct_api(
 
     request_model_id = _get_openai_request_model_id(model_id, catalog_model_id)
     request_messages = _openai_cache_messages(messages, request_model_id, cacheable_system_prefix)
-    if _normalize_openai_model_id(catalog_model_id or model_id) in {"gpt-6-astra", "gpt-6.1-sol"}:
+    # Older Pro models require Responses; GPT-6 Sol also needs it for tools
+    # when reasoning is enabled.
+    if _normalize_openai_model_id(catalog_model_id or model_id) in {
+        "gpt-6-astra", "gpt-6.1-sol", "gpt-6-sol",
+        "gpt-5.5-pro", "gpt-5.4-pro", "gpt-5.2-pro",
+    }:
         from .openai_responses import invoke_responses
         return await invoke_responses(
             client=_openai_direct_client, task_id=task_id,

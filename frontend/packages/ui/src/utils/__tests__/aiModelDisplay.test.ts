@@ -2,7 +2,7 @@
 // Guards the Figma-defined AI provider branding and ordering contract.
 // Also verifies the deterministic capability scale derived from model metadata.
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
 import {
@@ -11,7 +11,10 @@ import {
     getAiProviderDisplay,
     getModelCapabilityLevel,
     getRecommendedModelForTier,
+    isEligibleLegacyAiModel,
+    splitAiProviderModels,
 } from '../aiModelDisplay';
+import { isAiModelSelectionUsable } from '../aiModelSelection';
 
 function model(
     providerId: string,
@@ -36,6 +39,48 @@ function model(
 }
 
 describe('AI model settings display contract', () => {
+    // contract-test: supporting surface=gui.web assertions=ai-model-routing.catalog.capability-recommendation-variants
+    it('shows only recent, unretired Claude and OpenAI legacy chat models', () => {
+        const today = new Date('2026-10-08T12:00:00Z');
+        const recent = { ...model('anthropic', 'Claude', 'high', '2026-05-28'),
+            for_app_skill: 'ai.ask', servers: [{ id: 'anthropic', name: 'Anthropic', region: 'US' as const }],
+            legacy_model: true };
+        const main = { ...recent, id: 'main', legacy_model: false };
+        expect(isEligibleLegacyAiModel(recent, today)).toBe(true);
+        expect(isEligibleLegacyAiModel({ ...recent, release_date: '2025-10-07' }, today)).toBe(false);
+        expect(isEligibleLegacyAiModel({ ...recent, release_date: '2025-10-08' }, today)).toBe(true);
+        expect(isEligibleLegacyAiModel({ ...recent, release_date: '2026-10-09' }, today)).toBe(false);
+        expect(isEligibleLegacyAiModel({ ...recent, release_date: '2026-02-30' }, today)).toBe(false);
+        expect(isEligibleLegacyAiModel({ ...recent, api_retirement_date: '2026-10-08' }, today)).toBe(false);
+        expect(isEligibleLegacyAiModel({ ...recent, api_retirement_date: '2026-10-09' }, today)).toBe(true);
+        expect(isEligibleLegacyAiModel({ ...recent, provider_id: 'google' }, today)).toBe(false);
+        expect(isEligibleLegacyAiModel({ ...recent, for_app_skill: 'images.generate' }, today)).toBe(false);
+        const leapDay = new Date('2028-02-29T12:00:00Z');
+        expect(isEligibleLegacyAiModel({ ...recent, release_date: '2027-02-28' }, leapDay)).toBe(true);
+        expect(isEligibleLegacyAiModel({ ...recent, release_date: '2027-02-27' }, leapDay)).toBe(false);
+        expect(splitAiProviderModels([main, recent], today)).toEqual({ main: [main], old: [recent] });
+    });
+
+    // contract-test: supporting surface=gui.web assertions=ai-model-routing.unavailable.notify-reset-auto
+    it('rejects an expired or retired saved legacy selection', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-10-08T12:00:00Z'));
+        try {
+            const legacy: AIModelMetadata = {
+                ...model('anthropic', 'Claude', 'high', '2026-05-28'),
+                id: 'claude-opus-4-8', for_app_skill: 'ai.ask', legacy_model: true,
+                servers: [{ id: 'anthropic', name: 'Anthropic', region: 'US' }],
+            };
+            const usable = (candidate: AIModelMetadata) => isAiModelSelectionUsable(
+                'anthropic/claude-opus-4-8', {}, () => true, [candidate],
+            );
+            expect(usable(legacy)).toBe(true);
+            expect(usable({ ...legacy, release_date: '2025-10-07' })).toBe(false);
+            expect(usable({ ...legacy, api_retirement_date: '2026-10-08' })).toBe(false);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
     // contract-test: direct surface=gui.web assertions=ai-model-routing.settings.hierarchy-canonical
     it('uses consumer-facing product brands with company attribution', () => {
         expect(getAiProviderDisplay('openai', 'OpenAI')).toMatchObject({ brandName: 'ChatGPT', companyName: 'OpenAI' });

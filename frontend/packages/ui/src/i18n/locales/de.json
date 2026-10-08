@@ -15944,6 +15944,12 @@
         "capability_max": {
           "text": "Maximale Leistungsfähigkeit"
         },
+        "show_old_models": {
+          "text": "Ältere Modelle anzeigen"
+        },
+        "hide_old_models": {
+          "text": "Ältere Modelle ausblenden"
+        },
         "provider_models_instruction": {
           "text": "Klicke auf ein Modell, um Details zu sehen. Mit dem Schalter kannst du es für KI-Anfragen ein- oder ausschließen."
         },

@@ -11,7 +11,7 @@
     import { getProviderIconUrl } from '../../data/providerIcons';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { updateProfile, userProfile } from '../../stores/userProfile';
-    import { getAiProviderDisplay, getModelCapabilityLevel } from '../../utils/aiModelDisplay';
+    import { getAiProviderDisplay, getModelCapabilityLevel, splitAiProviderModels } from '../../utils/aiModelDisplay';
     import { SettingsInfoBox, SettingsItem, SettingsPageContainer } from './elements';
 
     interface Props {
@@ -21,12 +21,19 @@
     let { activeSettingsView = '' }: Props = $props();
     const dispatch = createEventDispatcher();
     const providerId = $derived(activeSettingsView.replace('ai/provider/', ''));
-    const providerModels = $derived(
+    let expandedOldProvider = $state<string | null>(null);
+    const allProviderModels = $derived(
         modelsMetadata
             .filter((model) => model.for_app_skill === 'ai.ask' && model.provider_id === providerId)
     );
+    const providerModelGroups = $derived(splitAiProviderModels(allProviderModels));
+    const showOldModels = $derived(expandedOldProvider === providerId);
+    const providerModels = $derived([
+        ...providerModelGroups.main,
+        ...(showOldModels ? providerModelGroups.old : []),
+    ]);
     const providerDisplay = $derived(
-        getAiProviderDisplay(providerId, providerModels[0]?.provider_name ?? providerId)
+        getAiProviderDisplay(providerId, allProviderModels[0]?.provider_name ?? providerId)
     );
     const disabledModels = $derived($userProfile.disabled_ai_models ?? []);
     const isAuthenticated = $derived($authStore.isAuthenticated);
@@ -60,10 +67,10 @@
 
 <SettingsPageContainer maxWidth="wide">
     <div class="ai-provider-body">
-        {#if providerModels[0]}
+        {#if allProviderModels[0]}
             <section class="provider-identity" data-testid="ai-provider-identity">
                 <span class="provider-icon-tile" aria-hidden="true">
-                    <img src={getProviderIconUrl(providerModels[0].logo_svg)} alt="" />
+                    <img src={getProviderIconUrl(allProviderModels[0].logo_svg)} alt="" />
                 </span>
                 <h3>{providerDisplay.brandName}</h3>
                 {#if providerDisplay.brandName !== providerDisplay.companyName}
@@ -94,6 +101,17 @@
                         onToggleClick={() => toggleModel(model.id)}
                     />
                 {/each}
+                {#if providerModelGroups.old.length}
+                    <button
+                        type="button"
+                        class="old-models-button"
+                        data-testid="ai-provider-show-old-models"
+                        aria-expanded={showOldModels}
+                        onclick={() => expandedOldProvider = showOldModels ? null : providerId}
+                    >
+                        {$text(showOldModels ? 'settings.ai_ask.ai_ask_settings.hide_old_models' : 'settings.ai_ask.ai_ask_settings.show_old_models')}
+                    </button>
+                {/if}
             </div>
         </section>
     </div>
@@ -166,6 +184,17 @@
 
     .ai-row-list {
         gap: var(--spacing-4);
+    }
+
+    .old-models-button {
+        margin: 0 var(--spacing-10);
+        padding: var(--spacing-2) 0;
+        border: 0;
+        background: none;
+        color: var(--color-font-primary);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
     }
 
     .ai-section-title {

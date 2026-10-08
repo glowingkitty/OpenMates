@@ -234,6 +234,12 @@ function parseProviderYaml(providerId, filePath) {
       if (model.show_in_mentions === false) {
         modelMetadata.show_in_mentions = false;
       }
+      if (typeof model.legacy_model === "boolean") {
+        modelMetadata.legacy_model = model.legacy_model;
+      }
+      if (typeof model.api_retirement_date === "string") {
+        modelMetadata.api_retirement_date = model.api_retirement_date;
+      }
 
       // Add reasoning flag if model has it
       if (model.reasoning === true) {
@@ -314,6 +320,14 @@ function generateTypeScript(models) {
       if (model.release_date) {
         lines.push(
           `        release_date: ${JSON.stringify(model.release_date)},`,
+        );
+      }
+      if (typeof model.legacy_model === "boolean") {
+        lines.push(`        legacy_model: ${model.legacy_model},`);
+      }
+      if (model.api_retirement_date) {
+        lines.push(
+          `        api_retirement_date: ${JSON.stringify(model.api_retirement_date)},`,
         );
       }
 
@@ -459,6 +473,10 @@ export interface AIModelMetadata {
     capability_level?: 'low' | 'medium' | 'high' | 'max';
     /** Release date of the model (ISO 8601 format) */
     release_date?: string;
+    /** Whether this is a time-limited legacy ai.ask model. */
+    legacy_model?: boolean;
+    /** Confirmed API retirement date (ISO 8601 format), when known. */
+    api_retirement_date?: string;
     /** Available servers/providers for this model */
     servers?: ModelServerInfo[];
     /** Default server ID for this model */

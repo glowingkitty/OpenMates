@@ -28,6 +28,7 @@ from backend.apps.ai.skills.ask_skill import AskSkillRequest, AskSkillDefaultCon
 from pydantic import BaseModel, Field # For PreprocessingResult model
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # For type hinting
 from backend.shared.python_utils.provider_health import is_provider_healthy, map_provider_name_to_id
+from backend.shared.python_utils.model_availability import is_model_available
 
 # Import UserOverrides for @ mentioning syntax support
 from backend.core.api.app.utils.override_parser import UserOverrides
@@ -138,7 +139,7 @@ def _usable_chat_model_reference(model_ref: Any, config_manager_obj: Any) -> Opt
     if not provider_id or not model_id:
         return None
     model = config_manager_obj.get_model_pricing(provider_id, model_id)
-    if not isinstance(model, dict) or model.get("for_app_skill") != "ai.ask":
+    if not isinstance(model, dict) or model.get("for_app_skill") != "ai.ask" or not is_model_available(model):
         return None
     canonical_id = model.get("id")
     default_server = model.get("default_server")

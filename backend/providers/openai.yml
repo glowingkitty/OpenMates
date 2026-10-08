@@ -306,7 +306,7 @@ models:
     description: "OpenAI's balanced GPT-5.6 model for complex writing, analysis, coding, and multimodal chat."
     country_origin: "US"
     for_app_skill: "ai.ask"
-    release_date: "2026-08-26"
+    release_date: "2026-07-09"
     capability_level: "medium"
     allow_auto_select: true
     reasoning: true
@@ -380,6 +380,621 @@ models:
       reasoning_token_support: true
       tool_use: true
       streaming: true
+  # Legacy model details: https://developers.openai.com/api/docs/models/gpt-6-sol
+  - id: "gpt-6-sol"
+    name: "GPT-6 Sol"
+    description: "OpenAI general chat model retained for manual selection."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-09-22"
+    legacy_model: true
+    capability_level: "high"
+    allow_auto_select: false
+    reasoning: true
+    reasoning_effort: "medium"
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-6-sol"
+        region: "US"
+    pricing:
+      tokens:
+        input: { per_credit_unit: 165 }
+        cache_read: { per_credit_unit: 1650 }
+        cache_write: { per_credit_unit: 132 }
+        output: { per_credit_unit: 30 }
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 82.5 }
+            cache_read: { per_credit_unit: 825 }
+            cache_write: { per_credit_unit: 66 }
+            output: { per_credit_unit: 20 }
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/models/gpt-6-sol
+      reviewed_on: "2026-10-08"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
+    costs:
+      input_per_million_token: { price: 2, currency: USD, max_context: 1050000 }
+      cached_input_per_million_token: { price: 0.2, currency: USD, max_context: 1050000 }
+      cache_write_per_million_token: { price: 2.5, currency: USD, max_context: 1050000 }
+      output_per_million_token: { price: 10, currency: USD, max_context: 1050000 }
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            cache_write: 2
+            output: 1.5
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  # Legacy model details: https://developers.openai.com/api/docs/models/gpt-5.6-sol
+  - id: "gpt-5.6-sol"
+    name: "GPT-5.6 Sol"
+    description: "OpenAI general chat model retained for manual selection."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-07-09"
+    legacy_model: true
+    capability_level: "high"
+    allow_auto_select: false
+    reasoning: true
+    reasoning_effort: "medium"
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.6-sol"
+        region: "US"
+    pricing:
+      tokens:
+        input: { per_credit_unit: 80 }
+        cache_read: { per_credit_unit: 800 }
+        cache_write: { per_credit_unit: 64 }
+        output: { per_credit_unit: 15 }
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 40 }
+            cache_read: { per_credit_unit: 400 }
+            cache_write: { per_credit_unit: 32 }
+            output: { per_credit_unit: 10 }
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/models/gpt-5.6-sol
+      reviewed_on: "2026-10-08"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
+    costs:
+      input_per_million_token: { price: 4, currency: USD, max_context: 1050000 }
+      cached_input_per_million_token: { price: 0.4, currency: USD, max_context: 1050000 }
+      cache_write_per_million_token: { price: 5, currency: USD, max_context: 1050000 }
+      output_per_million_token: { price: 20, currency: USD, max_context: 1050000 }
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            cache_write: 2
+            output: 1.5
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  # Legacy model details: https://developers.openai.com/api/docs/models/gpt-5.6-luna
+  - id: "gpt-5.6-luna"
+    name: "GPT-5.6 Luna"
+    description: "OpenAI general chat model retained for manual selection."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-07-09"
+    legacy_model: true
+    capability_level: "low"
+    allow_auto_select: false
+    reasoning: true
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.6-luna"
+        region: "US"
+    pricing:
+      tokens:
+        input: { per_credit_unit: 1600 }
+        cache_read: { per_credit_unit: 16000 }
+        cache_write: { per_credit_unit: 1280 }
+        output: { per_credit_unit: 275 }
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 800 }
+            cache_read: { per_credit_unit: 8000 }
+            cache_write: { per_credit_unit: 640 }
+            output: { per_credit_unit: 183.33 }
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/models/gpt-5.6-luna
+      reviewed_on: "2026-10-08"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
+    costs:
+      input_per_million_token: { price: 0.2, currency: USD, max_context: 1050000 }
+      cached_input_per_million_token: { price: 0.02, currency: USD, max_context: 1050000 }
+      cache_write_per_million_token: { price: 0.25, currency: USD, max_context: 1050000 }
+      output_per_million_token: { price: 1.2, currency: USD, max_context: 1050000 }
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            cache_write: 2
+            output: 1.5
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  # Legacy model details: https://developers.openai.com/api/docs/models/gpt-5.5
+  - id: "gpt-5.5"
+    name: "GPT-5.5"
+    description: "OpenAI general chat model retained for manual selection."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-04-24"
+    legacy_model: true
+    capability_level: "high"
+    allow_auto_select: false
+    reasoning: true
+    reasoning_effort: "medium"
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.5"
+        region: "US"
+    pricing:
+      tokens:
+        input: { per_credit_unit: 65 }
+        cache_read: { per_credit_unit: 650 }
+        output: { per_credit_unit: 10 }
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 32.5 }
+            cache_read: { per_credit_unit: 325 }
+            output: { per_credit_unit: 6.66 }
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/models/gpt-5.5
+      reviewed_on: "2026-10-08"
+      status: proposed_pending_provider_evidence
+    costs:
+      input_per_million_token: { price: 5, currency: USD, max_context: 1050000 }
+      cached_input_per_million_token: { price: 0.5, currency: USD, max_context: 1050000 }
+      output_per_million_token: { price: 30, currency: USD, max_context: 1050000 }
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            output: 1.5
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  # Legacy model details: https://developers.openai.com/api/docs/models/gpt-5.5-pro
+  - id: "gpt-5.5-pro"
+    name: "GPT-5.5 Pro"
+    description: "OpenAI general chat model retained for manual selection."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-04-24"
+    legacy_model: true
+    capability_level: "max"
+    allow_auto_select: false
+    reasoning: true
+    reasoning_effort: "high"
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.5-pro"
+        region: "US"
+    pricing:
+      tokens:
+        input: { per_credit_unit: 11 }
+        output: { per_credit_unit: 1.8 }
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 5.5 }
+            output: { per_credit_unit: 1.2 }
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/models/gpt-5.5-pro
+      reviewed_on: "2026-10-08"
+      status: proposed_pending_provider_evidence
+    costs:
+      input_per_million_token: { price: 30, currency: USD, max_context: 1050000 }
+      output_per_million_token: { price: 180, currency: USD, max_context: 1050000 }
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            output: 1.5
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  # Legacy model details: https://developers.openai.com/api/docs/models/gpt-5.4
+  - id: "gpt-5.4"
+    name: "GPT-5.4"
+    description: "OpenAI general chat model retained for manual selection."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-03-05"
+    legacy_model: true
+    capability_level: "high"
+    allow_auto_select: false
+    reasoning: true
+    reasoning_effort: "none"
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.4"
+        region: "US"
+    pricing:
+      tokens:
+        input: { per_credit_unit: 130 }
+        cache_read: { per_credit_unit: 1300 }
+        output: { per_credit_unit: 20 }
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 65 }
+            cache_read: { per_credit_unit: 650 }
+            output: { per_credit_unit: 13.33 }
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/models/gpt-5.4
+      reviewed_on: "2026-10-08"
+      status: proposed_pending_provider_evidence
+    costs:
+      input_per_million_token: { price: 2.5, currency: USD, max_context: 1050000 }
+      cached_input_per_million_token: { price: 0.25, currency: USD, max_context: 1050000 }
+      output_per_million_token: { price: 15, currency: USD, max_context: 1050000 }
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            cache_read: 2
+            output: 1.5
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  # Legacy model details: https://developers.openai.com/api/docs/models/gpt-5.4-pro
+  - id: "gpt-5.4-pro"
+    name: "GPT-5.4 Pro"
+    description: "OpenAI general chat model retained for manual selection."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-03-05"
+    legacy_model: true
+    capability_level: "max"
+    allow_auto_select: false
+    reasoning: true
+    reasoning_effort: "medium"
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.4-pro"
+        region: "US"
+    pricing:
+      tokens:
+        input: { per_credit_unit: 11 }
+        output: { per_credit_unit: 1.8 }
+      context_bands:
+        over_272k:
+          min_input_tokens: 272001
+          eligible_hosts: [openai]
+          tokens:
+            input: { per_credit_unit: 5.5 }
+            output: { per_credit_unit: 1.2 }
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/models/gpt-5.4-pro
+      reviewed_on: "2026-10-08"
+      status: proposed_pending_provider_evidence
+    costs:
+      input_per_million_token: { price: 30, currency: USD, max_context: 1050000 }
+      output_per_million_token: { price: 180, currency: USD, max_context: 1050000 }
+    supplier_cost_profiles:
+      openai:
+        context_bands:
+          over_272k:
+            input: 2
+            output: 1.5
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  # Legacy model details: https://developers.openai.com/api/docs/models/gpt-5.4-mini
+  - id: "gpt-5.4-mini"
+    name: "GPT-5.4 Mini"
+    description: "OpenAI general chat model retained for manual selection."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-03-17"
+    legacy_model: true
+    capability_level: "medium"
+    allow_auto_select: false
+    reasoning: true
+    reasoning_effort: "none"
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.4-mini"
+        region: "US"
+    pricing:
+      tokens:
+        input: { per_credit_unit: 440 }
+        cache_read: { per_credit_unit: 4400 }
+        output: { per_credit_unit: 70 }
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/models/gpt-5.4-mini
+      reviewed_on: "2026-10-08"
+      status: proposed_pending_provider_evidence
+    costs:
+      input_per_million_token: { price: 0.75, currency: USD, max_context: 400000 }
+      cached_input_per_million_token: { price: 0.075, currency: USD, max_context: 400000 }
+      output_per_million_token: { price: 4.5, currency: USD, max_context: 400000 }
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  # Legacy model details: https://developers.openai.com/api/docs/models/gpt-5.4-nano
+  - id: "gpt-5.4-nano"
+    name: "GPT-5.4 nano"
+    description: "OpenAI general chat model retained for manual selection."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-03-17"
+    legacy_model: true
+    capability_level: "low"
+    allow_auto_select: false
+    reasoning: true
+    api_retirement_date: "2027-04-01"
+    reasoning_effort: "none"
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.4-nano"
+        region: "US"
+    pricing:
+      tokens:
+        input: { per_credit_unit: 1600 }
+        cache_read: { per_credit_unit: 16000 }
+        output: { per_credit_unit: 260 }
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/models/gpt-5.4-nano
+      reviewed_on: "2026-10-08"
+      status: proposed_pending_provider_evidence
+    costs:
+      input_per_million_token: { price: 0.2, currency: USD, max_context: 400000 }
+      cached_input_per_million_token: { price: 0.02, currency: USD, max_context: 400000 }
+      output_per_million_token: { price: 1.25, currency: USD, max_context: 400000 }
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  # Legacy model details: https://developers.openai.com/api/docs/models/gpt-5.2
+  - id: "gpt-5.2"
+    name: "GPT-5.2"
+    description: "OpenAI general chat model retained for manual selection."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2025-12-11"
+    legacy_model: true
+    capability_level: "high"
+    allow_auto_select: false
+    reasoning: true
+    reasoning_effort: "none"
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.2"
+        region: "US"
+    pricing:
+      tokens:
+        input: { per_credit_unit: 190 }
+        cache_read: { per_credit_unit: 1900 }
+        output: { per_credit_unit: 23 }
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/models/gpt-5.2
+      reviewed_on: "2026-10-08"
+      status: proposed_pending_provider_evidence
+    costs:
+      input_per_million_token: { price: 1.75, currency: USD, max_context: 400000 }
+      cached_input_per_million_token: { price: 0.175, currency: USD, max_context: 400000 }
+      output_per_million_token: { price: 14, currency: USD, max_context: 400000 }
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  # Legacy model details: https://developers.openai.com/api/docs/models/gpt-5.2-pro
+  - id: "gpt-5.2-pro"
+    name: "GPT-5.2 Pro"
+    description: "OpenAI general chat model retained for manual selection."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2025-12-11"
+    legacy_model: true
+    capability_level: "max"
+    allow_auto_select: false
+    reasoning: true
+    reasoning_effort: "high"
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.2-pro"
+        region: "US"
+    pricing:
+      tokens:
+        input: { per_credit_unit: 15 }
+        output: { per_credit_unit: 1.9 }
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/models/gpt-5.2-pro
+      reviewed_on: "2026-10-08"
+      status: proposed_pending_provider_evidence
+    costs:
+      input_per_million_token: { price: 21, currency: USD, max_context: 400000 }
+      output_per_million_token: { price: 168, currency: USD, max_context: 400000 }
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  # Legacy model details: https://developers.openai.com/api/docs/models/gpt-5.1
+  - id: "gpt-5.1"
+    name: "GPT-5.1"
+    description: "OpenAI general chat model retained for manual selection."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2025-11-13"
+    legacy_model: true
+    capability_level: "high"
+    allow_auto_select: false
+    reasoning: true
+    api_retirement_date: "2027-04-01"
+    reasoning_effort: "none"
+    input_types: [text, image]
+    output_types: [text]
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.1"
+        region: "US"
+    pricing:
+      tokens:
+        input: { per_credit_unit: 265 }
+        cache_read: { per_credit_unit: 2650 }
+        output: { per_credit_unit: 33 }
+    cache_pricing:
+      enabled: false
+      write_billing: included_in_input
+      eligible_hosts: [openai]
+      source_url: https://developers.openai.com/api/docs/models/gpt-5.1
+      reviewed_on: "2026-10-08"
+      status: proposed_pending_provider_evidence
+    costs:
+      input_per_million_token: { price: 1.25, currency: USD, max_context: 400000 }
+      cached_input_per_million_token: { price: 0.125, currency: USD, max_context: 400000 }
+      output_per_million_token: { price: 10, currency: USD, max_context: 400000 }
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
   - id: "gpt-oss-120b" # Model ID without provider prefix
     name: "GPT-OSS-120b"
     description: "OpenAI's open-weight 120B reasoning model, served by default through AWS Bedrock in the EU for stronger regional privacy."

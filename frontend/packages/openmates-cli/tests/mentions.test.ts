@@ -13,6 +13,7 @@ import {
   parseMentions,
   listMentionOptions,
   CHAT_MODELS,
+  isAvailableChatModel,
   MODEL_ALIASES,
   resolveWikipediaMentions,
   WikipediaMentionResolutionError,
@@ -242,25 +243,53 @@ describe("parseMentions", () => {
   });
 
   describe("models", () => {
-    it("lists only the retained Claude and OpenAI chat models", () => {
+    it("lists the current and supported legacy Claude and OpenAI chat models", () => {
       assert.deepEqual(
         CHAT_MODELS.filter((model) => model.id.startsWith("claude-")).map((model) => model.id).sort(),
-        ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"].sort(),
+        [
+          "claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5",
+          "claude-fable-5", "claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5-20251001",
+          "claude-sonnet-4-6", "claude-opus-4-6", "claude-opus-4-7", "claude-opus-4-8",
+          "claude-opus-4-5-20251101",
+        ].sort(),
       );
       assert.deepEqual(
         CHAT_MODELS.filter((model) => model.id.startsWith("gpt-")).map((model) => model.id).sort(),
-        ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna", "gpt-5.6-terra", "gpt-oss-120b"].sort(),
+        [
+          "gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna", "gpt-5.6-terra", "gpt-oss-120b",
+          "gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.5", "gpt-5.5-pro",
+          "gpt-5.4", "gpt-5.4-pro", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.2",
+          "gpt-5.2-pro", "gpt-5.1",
+        ].sort(),
       );
     });
 
-    it("does not resolve retired Claude and OpenAI mentions", () => {
-      for (const mention of [
-        "@Claude-Fable-5", "@Claude-Opus-5", "@Claude-Sonnet-5", "@Claude-Haiku-4.5",
-        "@GPT-6-Sol", "@GPT-5.4", "@GPT-5.6-Luna", "@GPT-5.6-Sol", "@GPT-5.6-Sol-Max", "@GPT-OSS-20b",
-      ]) {
+    it("does not resolve unavailable model variants", () => {
+      for (const mention of ["@GPT-5.6-Sol-Max", "@GPT-OSS-20b", "@GPT-5.3"]) {
         const result = parseMentions(`${mention} explain this`, testContext);
         assert.equal(result.resolved.length, 0, mention);
       }
+    });
+
+    it("stops resolving a legacy model on its API retirement date", () => {
+      const nano = CHAT_MODELS.find((model) => model.id === "gpt-5.4-nano")!;
+      const expiringModel = { ...nano, releaseDate: "2026-04-01" };
+      assert.equal(isAvailableChatModel(expiringModel, new Date("2027-03-31T23:59:00Z")), true);
+      assert.equal(isAvailableChatModel(expiringModel, new Date("2027-04-01T00:00:00Z")), false);
+      const retiredContext = { ...testContext, models: [{ ...nano, apiRetirementDate: "2026-10-08" }] };
+      assert.equal(parseMentions("@GPT-5.4-nano explain", retiredContext).resolved.length, 0);
+      assert.equal(listMentionOptions(retiredContext, "model").length, 0);
+    });
+
+    it("keeps legacy mentions inside the rolling twelve calendar months", () => {
+      const legacy = { id: "legacy", name: "Legacy", legacyModel: true };
+      const today = new Date("2026-10-08T12:00:00Z");
+      assert.equal(isAvailableChatModel({ ...legacy, releaseDate: "2025-10-08" }, today), true);
+      assert.equal(isAvailableChatModel({ ...legacy, releaseDate: "2025-10-07" }, today), false);
+      assert.equal(isAvailableChatModel({ ...legacy, releaseDate: "2026-10-09" }, today), false);
+      assert.equal(isAvailableChatModel({ ...legacy, releaseDate: "2026-02-30" }, today), false);
+      assert.equal(isAvailableChatModel(legacy, today), false);
+      assert.equal(isAvailableChatModel({ ...legacy, releaseDate: "2025-11-13" }, new Date("2026-11-14T00:00:00Z")), false);
     });
 
     it("resolves model name to wire syntax", () => {
@@ -293,6 +322,17 @@ describe("parseMentions", () => {
         ["@Claude-Opus-5.5", "claude-opus-5-5"],
         ["@Claude-Sonnet-5.5", "claude-sonnet-5-5"],
         ["@Claude-Haiku-5.5", "claude-haiku-5-5"],
+        ["@Claude-Fable-5", "claude-fable-5"],
+        ["@Claude-Opus-4.5", "claude-opus-4-5-20251101"],
+        ["@Claude-Haiku-4.5", "claude-haiku-4-5-20251001"],
+        ["@GPT-6-Sol", "gpt-6-sol"],
+        ["@GPT-5.6-Sol", "gpt-5.6-sol"],
+        ["@GPT-5.6-Luna", "gpt-5.6-luna"],
+        ["@GPT-5.5-Pro", "gpt-5.5-pro"],
+        ["@GPT-5.4", "gpt-5.4"],
+        ["@GPT-5.4-Mini", "gpt-5.4-mini"],
+        ["@GPT-5.2-Pro", "gpt-5.2-pro"],
+        ["@GPT-5.1", "gpt-5.1"],
         ["@Mistral-Large-4", "mistral-large-4:mistral"],
         ["@Mistral-Medium-3.5", "mistral-medium-latest:mistral"],
         ["@Mistral-Small-4", "mistral-small-latest:mistral"],

@@ -1922,6 +1922,18 @@ ai_ask_settings.capability_max:
   he: יכולת מרבית
   verified_by_human: []
 
+ai_ask_settings.show_old_models:
+  context: Button that expands older but still available chat models within one AI provider
+  en: Show old models
+  de: Ältere Modelle anzeigen
+  verified_by_human: []
+
+ai_ask_settings.hide_old_models:
+  context: Button that collapses older chat models within one AI provider
+  en: Hide old models
+  de: Ältere Modelle ausblenden
+  verified_by_human: []
+
 ai_ask_settings.provider_models_instruction:
   context: Guidance shown above the models on an AI provider-family page
   en: Click a model to see its details. Use the toggle to include or exclude it from AI requests.

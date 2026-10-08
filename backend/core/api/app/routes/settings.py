@@ -35,6 +35,7 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.utils.config_manager import config_manager
+from backend.shared.python_utils.model_availability import is_model_available
 from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, UiFontUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, TopicPreferencesEncryptedRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
@@ -5453,7 +5454,7 @@ def _validate_app_skill_model_defaults(defaults: Dict[str, Optional[str]]) -> Di
             )
         provider_id, model_id = model_ref.split("/", 1)
         model_config = config_manager.get_model_pricing(provider_id, model_id)
-        if not model_config:
+        if not model_config or not is_model_available(model_config):
             raise HTTPException(
                 status_code=400,
                 detail=f"Unknown model '{model_ref}' for '{skill_key}'.",

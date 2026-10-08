@@ -17,7 +17,10 @@ from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, Op
 
 
 @pytest.mark.parametrize("stream", [False, True])
-@pytest.mark.parametrize("model_id,reasoning_effort", [("gpt-6-astra", "xhigh"), ("gpt-6.1-sol", "medium")])
+@pytest.mark.parametrize("model_id,reasoning_effort", [
+    ("gpt-6-astra", "xhigh"), ("gpt-6.1-sol", "medium"), ("gpt-6-sol", "medium"),
+    ("gpt-5.5-pro", "high"), ("gpt-5.4-pro", "medium"), ("gpt-5.2-pro", "high"),
+])
 def test_reasoning_tool_roundtrip(stream, model_id, reasoning_effort, monkeypatch):
     from backend.apps.ai.llm_providers import openai_client
     provider = yaml.safe_load((Path(__file__).parents[1] / "providers/openai.yml").read_text())

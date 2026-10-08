@@ -16764,6 +16764,12 @@
         "capability_max": {
           "text": "Maximum capability"
         },
+        "show_old_models": {
+          "text": "Show old models"
+        },
+        "hide_old_models": {
+          "text": "Hide old models"
+        },
         "provider_models_instruction": {
           "text": "Click a model to see its details. Use the toggle to include or exclude it from AI requests."
         },

@@ -1,8 +1,8 @@
 # contract-test-file: infrastructure
 # backend/tests/test_openai_gpt56_models.py
 #
-# Purpose: pins the retained GPT-5.6 Terra provider catalog entry and legacy
-# request payload mapping. Sol Max was an OpenMates catalog variant, not a
+# Purpose: pins the retained GPT-5.6 catalogue entries and legacy request
+# payload mapping. Sol Max was an OpenMates catalog variant, not a
 # separate upstream OpenAI model, so historical synthetic routing tests keep
 # covering its gpt-5.6-sol mapping with max reasoning effort.
 # Spec: docs/specs/gpt-5-6-openai-model-variants/spec.yml
@@ -345,14 +345,20 @@ def _load_llm_utils_with_stubs(monkeypatch: pytest.MonkeyPatch, openai_provider:
 def test_gpt56_catalog_entries_define_routing_pricing_and_capabilities() -> None:
     models = _openai_model_by_id()
 
-    assert {model_id for model_id in EXPECTED_GPT56_MODELS if model_id in models} == {"gpt-5.6-terra"}
-    for model_id in ("gpt-5.6-terra",):
+    assert {model_id for model_id in EXPECTED_GPT56_MODELS if model_id in models} == {
+        "gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol",
+    }
+    for model_id in ("gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"):
         expected = EXPECTED_GPT56_MODELS[model_id]
         model = models[model_id]
         assert model["name"] == expected["name"]
         assert model["country_origin"] == "US"
         assert model["for_app_skill"] == "ai.ask"
-        assert model["allow_auto_select"] is True
+        assert model["allow_auto_select"] is (model_id == "gpt-5.6-terra")
+        if model_id == "gpt-5.6-terra":
+            assert model.get("legacy_model") is None
+        else:
+            assert model["legacy_model"] is True
         assert model["input_types"] == ["text", "image"]
         assert model["output_types"] == ["text"]
         assert model["default_server"] == "openai"
