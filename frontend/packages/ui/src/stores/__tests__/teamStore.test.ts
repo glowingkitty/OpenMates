@@ -9,6 +9,7 @@ import { get } from "svelte/store";
 import {
   activeTeamContext,
   orderTeamsByRecent,
+  reconcileTeamContextAvailability,
   setActiveTeamContext,
   TEAM_CONTEXT_CHANGED_EVENT,
 } from "../teamStore";
@@ -72,6 +73,50 @@ describe("teamStore", () => {
       epoch: selectedEpoch,
       team: { name: "Hydrated team" },
     });
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.chat.sender-identity-layout
+  it("preserves a saved Team through auth and feature startup so reloaded messages keep Team attribution", () => {
+    userProfile.update(profile => ({ ...profile, user_id: 'account-a' }));
+    setActiveTeamContext(team('team-a'));
+    const savedKey = 'openmates:active-team-id:v2:account-a';
+    expect(window.localStorage.getItem(savedKey)).toBe('team-a');
+    // A reload starts with an unknown profile, then restores this account.
+    userProfile.update(profile => ({ ...profile, user_id: null }));
+    expect(get(activeTeamContext).teamId).toBeNull();
+    userProfile.update(profile => ({ ...profile, user_id: 'account-a' }));
+    expect(get(activeTeamContext).teamId).toBe('team-a');
+    const restored = get(activeTeamContext);
+
+    expect(reconcileTeamContextAvailability(
+      { isInitialized: false, isAuthenticated: false },
+      { initialized: false, disabledById: null },
+    )).toBe('pending');
+    expect(reconcileTeamContextAvailability(
+      { isInitialized: true, isAuthenticated: true },
+      { initialized: false, disabledById: null },
+    )).toBe('pending');
+    expect(get(activeTeamContext)).toBe(restored);
+    expect(window.localStorage.getItem(savedKey)).toBe('team-a');
+
+    expect(reconcileTeamContextAvailability(
+      { isInitialized: true, isAuthenticated: true },
+      { initialized: true, disabledById: null },
+    )).toBe('available');
+    expect(get(activeTeamContext)).toBe(restored);
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local
+  it.each(['logout', 'disabled Team feature'])("clears the selected Team after %s is confirmed", (reason) => {
+    userProfile.update(profile => ({ ...profile, user_id: 'account-a' }));
+    setActiveTeamContext(team('team-a'));
+    const beforeEpoch = get(activeTeamContext).epoch;
+    const auth = { isInitialized: true, isAuthenticated: reason !== 'logout' };
+    const features = { initialized: true, disabledById: reason === 'logout' ? null : { 'platform:teams': true as const } };
+
+    expect(reconcileTeamContextAvailability(auth, features)).toBe('unavailable');
+    expect(get(activeTeamContext)).toMatchObject({ teamId: null, team: null, epoch: beforeEpoch + 1 });
+    expect(window.localStorage.getItem('openmates:active-team-id:v2:account-a')).toBeNull();
   });
 
   // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local

@@ -119,6 +119,24 @@ export function setActiveTeamContext(team: TeamViewModel | null): void {
   }
 }
 
+/** Keep the saved Team through startup until auth and feature availability are known. */
+export function reconcileTeamContextAvailability(
+  auth: { isInitialized: boolean; isAuthenticated: boolean },
+  features: { initialized: boolean; disabledById: Record<string, true> | null },
+): 'pending' | 'available' | 'unavailable' {
+  if (!auth.isInitialized) return 'pending';
+  if (!auth.isAuthenticated) {
+    setActiveTeamContext(null);
+    return 'unavailable';
+  }
+  if (!features.initialized) return 'pending';
+  if (features.disabledById?.['platform:teams'] === true) {
+    setActiveTeamContext(null);
+    return 'unavailable';
+  }
+  return 'available';
+}
+
 export function getActiveTeamContextSnapshot(): TeamContextSnapshot {
   return get(activeTeamContext);
 }

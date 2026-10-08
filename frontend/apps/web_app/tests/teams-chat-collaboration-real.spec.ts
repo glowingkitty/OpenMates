@@ -202,8 +202,9 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     const invited = page.waitForResponse((response: Response) => response.request().method() === 'POST' &&
       /\/invites$/.test(new URL(response.url()).pathname) && response.ok());
     await page.getByTestId('team-invite-submit').click();
-    const invite = (await (await invited).json()).invite as { invite_id: string; delivery_status: string };
+    const invite = (await (await invited).json()).invite as { invite_id: string; delivery_status: string; role: string };
     expect(invite.delivery_status).toBe('client_share_required');
+    expect(invite.role).toBe('member');
     await page.getByTestId('team-invite-copy-secure-link').click();
     const secureLink = await page.locator('body').getAttribute('data-secure-invite');
     expect(secureLink).toMatch(/\/teams\/invites\/[^#]+#key=[A-Za-z0-9_-]{43}$/);
@@ -240,6 +241,7 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     await waitForChatReady(page);
     await startNewChat(page);
     const personalCreditsBefore = await readPersonalCredits(page);
+    const memberPersonalCreditsBefore = await readPersonalCredits(memberPage);
     const teamCreditsBefore = await readTeamCredits(page, teamId);
     expect(await readTeamUsage(page, teamId)).toHaveLength(0);
 
@@ -299,6 +301,7 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     await assertOwnRightOfRemote(memberPage, lines[1], lines[2]);
     expect(await readTeamCredits(page, teamId)).toBe(teamCreditsBefore);
     expect(await readPersonalCredits(page)).toBe(personalCreditsBefore);
+    expect(await readPersonalCredits(memberPage)).toBe(memberPersonalCreditsBefore);
     const humanNames = [
       await page.getByTestId('remote-human-message').filter({ hasText: lines[1] }).getByTestId('remote-human-name').innerText(),
       await memberPage.getByTestId('remote-human-message').filter({ hasText: lines[2] }).getByTestId('remote-human-name').innerText(),
@@ -341,15 +344,15 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
       await expect(memberPage.getByTestId('remote-human-message').filter({ hasText: line })
         .getByTestId('remote-human-name')).toContainText(humanNames[1]);
     }
-    const aiStart = ownerFrames.length;
-    await sendText(page, '@openmates, who proposed the venue and who offered to invite volunteers for our Berlin event? Please name both teammates.');
-    const aiPreflight = await waitForFrame(ownerFrames, aiStart, 'sent', 'chat_turn_preflight',
+    const aiStart = memberFrames.length;
+    await sendText(memberPage, '@openmates, who proposed the venue and who offered to invite volunteers for our Berlin event? Please name both teammates.');
+    const aiPreflight = await waitForFrame(memberFrames, aiStart, 'sent', 'chat_turn_preflight',
       (payload) => payload.inference_request?.team_ai_invocation?.history?.length >= 5);
     const history = aiPreflight.payload.inference_request.team_ai_invocation.history as Array<{ role: string; content: string; sender_name?: string }>;
     for (const line of lines) expect(history.some((item) => item.content.includes(line))).toBe(true);
     const speakers = new Set(history.filter((item) => item.role === 'user').map((item) => item.sender_name).filter(Boolean));
     expect(speakers.size).toBe(2);
-    await waitForFrame(ownerFrames, aiStart, 'received', 'team_ai_response_completed',
+    await waitForFrame(memberFrames, aiStart, 'received', 'team_ai_response_completed',
       (payload) => payload.team_id === teamId, 180_000);
     await expect(page.getByTestId('message-assistant').last()).toContainText(/venue|volunteers/i, { timeout: 180_000 });
     const answerText = (await page.getByTestId('message-assistant').last().innerText()).toLowerCase();
@@ -360,6 +363,7 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     await expect.poll(async () => (await readTeamUsage(page, teamId!)).length, { timeout: 60_000 }).toBeGreaterThan(0);
     const usageCountAfterAI = (await readTeamUsage(page, teamId)).length;
     expect(await readPersonalCredits(page)).toBe(personalCreditsBefore);
+    expect(await readPersonalCredits(memberPage)).toBe(memberPersonalCreditsBefore);
 
     const followStart = memberFrames.length;
     await sendText(memberPage, 'Thanks. I will send the volunteers the final venue once we confirm it.');
@@ -376,6 +380,7 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     expect(await readTeamCredits(page, teamId)).toBe(teamCreditsAfterAI);
     expect(await readTeamUsage(page, teamId)).toHaveLength(usageCountAfterAI);
     expect(await readPersonalCredits(page)).toBe(personalCreditsBefore);
+    expect(await readPersonalCredits(memberPage)).toBe(memberPersonalCreditsBefore);
 
     const mateStart = ownerFrames.length;
     const assistantCountBeforeMate = await page.getByTestId('message-assistant').count();
@@ -395,6 +400,7 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
       .toBeGreaterThan(usageCountAfterAI);
     expect(await readTeamCredits(page, teamId)).toBeLessThan(teamCreditsAfterAI);
     expect(await readPersonalCredits(page)).toBe(personalCreditsBefore);
+    expect(await readPersonalCredits(memberPage)).toBe(memberPersonalCreditsBefore);
     expect([...ownerFrames, ...memberFrames].filter((frame) => frame.direction === 'received' &&
       frame.type === 'error' && frame.payload.chat_id === chatId && /permission/i.test(String(frame.payload.message))))
       .toHaveLength(0);

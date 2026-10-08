@@ -58,7 +58,7 @@ changes to the documentation (to keep the documentation up to date).
     import { isMobileView } from '../stores/uiStateStore'; // Import global isMobileView store
     import { panelState } from '../stores/panelStateStore'; // Import panelState to sync with isSettingsOpen
     import { pendingMentionStore } from '../stores/pendingMentionStore';
-    import { activeTeam, activeTeamId, orderTeamsByRecent, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../stores/teamStore';
+    import { activeTeam, activeTeamId, orderTeamsByRecent, reconcileTeamContextAvailability, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../stores/teamStore';
     import { listTeams, loadTeamBilling, subscribeTeamListRefresh, TeamRequestCancelledError, type TeamViewModel } from '../services/teamService';
     import { resolveBillingSettingsPath } from '../services/billingContext';
     // Admin status is now read directly from userProfile.is_admin (synced during login)
@@ -533,11 +533,6 @@ changes to the documentation (to keep the documentation up to date).
     let profileTeamsRefreshGeneration = 0;
     let profileTeamsAccountId: string | null = null;
     let sortedProfileTeams = $derived([...profileTeams].sort((a, b) => b.createdAt - a.createdAt));
-    let teamsFeatureEnabled = $derived(
-        $featureAvailabilityStore.initialized &&
-        $featureAvailabilityStore.disabledById?.['platform:teams'] !== true
-    );
-
     function hashToUnitInterval(seed: string): number {
         let hash = 2166136261;
         for (let i = 0; i < seed.length; i++) {
@@ -2768,13 +2763,14 @@ changes to the documentation (to keep the documentation up to date).
             profileTeamsLoading = false;
             profileTeamsLoadError = '';
         }
-        if (!$authStore.isAuthenticated || !teamsFeatureEnabled) {
+        const teamAvailability = reconcileTeamContextAvailability($authStore, $featureAvailabilityStore);
+        if (teamAvailability === 'pending') return;
+        if (teamAvailability === 'unavailable') {
             profileTeamsRefreshGeneration += 1;
             profileTeams = [];
             profileTeamsLoaded = false;
             profileTeamsLoading = false;
             profileTeamsLoadError = '';
-            setActiveTeamContext(null);
             return;
         }
 

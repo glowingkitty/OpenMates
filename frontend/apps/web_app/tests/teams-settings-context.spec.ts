@@ -557,11 +557,11 @@ test.describe('Teams V1 context isolation', () => {
 				timeout: 15000
 			});
 			// Canonical history must retain Team speaker identity for a later reload.
-			const teamWindowResponse = await page.request.get(
+			const ordinaryTeamWindowResponse = await page.request.get(
 				`${apiUrl}/v1/chats/${encodeURIComponent(String(sentMessage.payload.chat_id))}/messages/window?team_id=${encodeURIComponent(teamId)}&limit=100`
 			);
-			expect(teamWindowResponse.ok()).toBe(true);
-			const teamWindow = await teamWindowResponse.json();
+			expect(ordinaryTeamWindowResponse.ok()).toBe(true);
+			const teamWindow = await ordinaryTeamWindowResponse.json();
 			const storedTeamMessage = teamWindow.messages.find(
 				(row: { message_id: string }) => row.message_id === ordinaryMessageId
 			);
