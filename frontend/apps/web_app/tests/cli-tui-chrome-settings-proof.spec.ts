@@ -130,7 +130,7 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 			{name:'more-open',click:{text:'More'},wait_for:'More actions',hold_ms:200},
 			{name:'more-dismiss',key:'Escape',wait_for:'× Close',wait_for_absent:'More actions',hold_ms:150},
 			{name:'embed-open',click:{text:'Chrome proof code'},wait_for:'export const chromeProof',hold_ms:350},
-			{name:'embed-narrow',resize:{width:640,height:360},wait_for:'Chrome proof code',hold_ms:350},
+			{name:'embed-narrow',resize:{width:640,height:360},wait_for:'code · '+chat.embedId.slice(0,8),hold_ms:350},
 			{name:'embed-back',click:{text:'‹ Back'},wait_for:'Chrome proof code',hold_ms:250},
 			{name:'chat-return-wide',resize:{width:1280,height:720},wait_for:chat.title,hold_ms:300},
 			{name:'chat-close',click:{text:'× Close'},wait_for:'DAILY INSPIRATION',hold_ms:250},
@@ -140,8 +140,8 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 		const firstRecording=await captureProof(apiUrl,home,cli,first,contract,nestedInfo(testInfo,'header'));
 		const chatWide=centeredHeader(firstRecording,'chat-open',chat.title,'Private terminal chrome proof.','General Knowledge');
 		const chatNarrow=centeredHeader(firstRecording,'chat-narrow',chat.title,'Private terminal chrome proof.','General Knowledge');
-		const embedWide=centeredHeader(firstRecording,'embed-open','Chrome proof code',chat.embedId.slice(0,8));
-		const embedNarrow=centeredHeader(firstRecording,'embed-narrow','Chrome proof code',chat.embedId.slice(0,8));
+		const embedWide=centeredHeader(firstRecording,'embed-open','code',chat.embedId.slice(0,8));
+		const embedNarrow=centeredHeader(firstRecording,'embed-narrow','code',chat.embedId.slice(0,8));
 		expect(chatWide.columns).toBeGreaterThan(chatNarrow.columns);
 		expect(embedWide.columns).toBeGreaterThan(embedNarrow.columns);
 		expect(chatWide.rows).toBeGreaterThan(chatNarrow.rows);
