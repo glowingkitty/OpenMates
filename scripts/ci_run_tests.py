@@ -1616,12 +1616,20 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
                             cache_stages.append(stage)
                     if cache_stages:
                         summary["cache_failure_stages"] = cache_stages
-                    recache_classes = re.findall(
-                        r"Failed to replace AI history for chat [0-9a-fA-F-]{36}: ([A-Za-z_][A-Za-z_0-9]{0,79})",
+                    recache_failures = re.findall(
+                        r"Failed to replace AI history for chat [^:\r\n]{1,150}: "
+                        r"([A-Za-z_][A-Za-z_0-9]{0,79})"
+                        r"(?:; operation=(delete|prior_row_prepare|prior_row_encrypt|"
+                        r"prior_row_append|current_row_append))?",
                         safe_text,
                     )
-                    if recache_classes:
-                        summary["cache_recache_exception_class"] = recache_classes[-1]
+                    if recache_failures:
+                        exception_class, operation = recache_failures[-1]
+                        if summary["exception_class"] == "none":
+                            summary["exception_class"] = exception_class
+                        summary["cache_recache_exception_class"] = exception_class
+                        if operation:
+                            summary["cache_recache_operation"] = operation
                     summaries.append(summary)
     return summaries
 
