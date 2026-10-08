@@ -408,6 +408,9 @@ _ISOLATED_CAPACITY_BILLING_POST_PATHS = frozenset({
     "/internal/billing/reserve",
     "/internal/billing/team/reserve",
     "/internal/billing/reservation/release",
+    "/internal/billing/reservation/record-intent",
+    "/internal/billing/charge",
+    "/internal/billing/team/charge",
 })
 
 

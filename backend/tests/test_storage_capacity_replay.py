@@ -155,9 +155,9 @@ def test_generated_child_dispatch_and_completion_are_separate_phases() -> None:
         "messages": [{"role": "user", "content": call["function_arguments_parsed"]["sub_chats"][0]["prompt"]}],
         "tools": [],
     })
-    assert child["response"] == {
-        "type": "stream", "body": "Synthetic child storage result.",
-    }
+    assert child["response"]["type"] == "mixed_stream"
+    assert child["response"]["chunks"][0] == {"kind": "text", "value": "Synthetic child storage result."}
+    assert child["response"]["chunks"][-1]["class"] == "GoogleUsageMetadata"
     assert generate_fixture("llm/gemini-3.5-flash-lite", {
         "model": "gemini-3.5-flash-lite",
         "messages": [{"role": "user", "content": "STORAGE_CAPACITY_SCENARIO:child_unknown"}],
@@ -169,7 +169,7 @@ def test_generated_child_dispatch_and_completion_are_separate_phases() -> None:
                      {"role": "system", "content": "Synthetic child storage result."}],
         "tools": tools,
     })
-    assert completed["response"]["type"] == "stream"
+    assert completed["response"]["type"] == "mixed_stream"
 
 
 # contract-test: supporting surface=rest_api assertions=storage.validation.synthetic-capacity
@@ -186,8 +186,32 @@ def test_generated_parent_continuation_has_final_answer_without_child_redispatch
         ],
         "tools": [{"function": {"name": "start_sub_chats"}}],
     })
-    assert response["response"]["type"] == "stream"
-    assert response["response"]["body"].startswith("Synthetic child result")
+    assert response["response"]["type"] == "mixed_stream"
+    assert response["response"]["chunks"][0]["value"].startswith("Synthetic child result")
+    assert response["response"]["chunks"][-1]["class"] == "GoogleUsageMetadata"
+
+
+@pytest.mark.parametrize("scenario,tools,expected_first", [
+    ("recovery_embed", [], "text"),
+    ("recovery_diff", [], "text"),
+    ("tool", [{"function": {"name": "math-calculate"}}], "pydantic"),
+    ("child", [{"function": {"name": "start_sub_chats"}}], "pydantic"),
+])
+# contract-test: supporting surface=rest_api assertions=storage.validation.synthetic-capacity
+def test_successful_main_replay_reports_one_billable_usage_event(scenario, tools, expected_first) -> None:
+    fixture = generate_fixture("llm/gemini-3.5-flash-lite", {
+        "model": "gemini-3.5-flash-lite",
+        "messages": [{"role": "user", "content": f"STORAGE_CAPACITY_SCENARIO:{scenario}"}],
+        "tools": tools,
+    })
+    chunks = fixture["response"]["chunks"]
+    assert fixture["response"]["type"] == "mixed_stream"
+    assert chunks[0]["kind"] == expected_first
+    assert len(chunks) == 2
+    assert chunks[1]["class"] == "GoogleUsageMetadata"
+    assert chunks[1]["value"]["prompt_token_count"] == 100
+    assert chunks[1]["value"]["candidates_token_count"] == 40
+    assert chunks[1]["value"]["total_token_count"] == 140
 
 
 @pytest.mark.asyncio
@@ -210,12 +234,25 @@ async def test_generated_preprocess_and_stream_keep_provider_unreached(monkeypat
         chunks = [chunk async for chunk in preprocess]
         assert chunks[0].function_name == "analyze_request_properties"
         main = await wrapped(model="gemini-3.5-flash-lite", messages=prompt, stream=True)
-        answer = "".join([chunk async for chunk in main])
+        main_chunks = [chunk async for chunk in main]
+        tool = await wrapped(
+            model="gemini-3.5-flash-lite",
+            messages=[{"role": "user", "content": "STORAGE_CAPACITY_SCENARIO:tool"}],
+            tools=[{"function": {"name": "math-calculate"}}], stream=True,
+        )
+        tool_chunks = [chunk async for chunk in tool]
         receipt = get_live_mock_receipt()
     finally:
         deactivate_mock_mode()
-    assert answer.startswith("Synthetic storage response")
-    assert receipt["cache_hits"] == 2
+    assert main_chunks[0].startswith("Synthetic storage response")
+    assert type(main_chunks[-1]).__name__ in {"GoogleUsageMetadata", "OpenAIUsageMetadata"}
+    assert (getattr(main_chunks[-1], "prompt_token_count", None)
+            or getattr(main_chunks[-1], "input_tokens", None)) == 100
+    assert (getattr(main_chunks[-1], "candidates_token_count", None)
+            or getattr(main_chunks[-1], "output_tokens", None)) == 40
+    assert tool_chunks[0].function_name == "math-calculate"
+    assert type(tool_chunks[-1]) is type(main_chunks[-1])
+    assert receipt["cache_hits"] == 3
     assert receipt["cache_misses"] == 0
     assert calls == 0
 
@@ -301,6 +338,8 @@ async def test_signed_isolated_capacity_allows_only_exact_internal_http_transpor
 
     async def fake_async(_transport, request):
         dispatched.append(str(request.url))
+        if request.url.path in {"/internal/billing/charge", "/internal/billing/team/charge"}:
+            return httpx.Response(200, json={"state": "committed", "charged_credits": 1}, request=request)
         return httpx.Response(204, request=request)
 
     def fake_sync(_transport, request):
@@ -316,6 +355,9 @@ async def test_signed_isolated_capacity_allows_only_exact_internal_http_transpor
             "http://api:8000/internal/billing/reserve",
             "http://api:8000/internal/billing/team/reserve",
             "http://api:8000/internal/billing/reservation/release",
+            "http://api:8000/internal/billing/reservation/record-intent",
+            "http://api:8000/internal/billing/charge",
+            "http://api:8000/internal/billing/team/charge",
         ]
         allowed = await httpx.AsyncHTTPTransport.handle_async_request(
             object(), httpx.Request("GET", "http://cms:8055/items/chats"),
@@ -329,11 +371,25 @@ async def test_signed_isolated_capacity_allows_only_exact_internal_http_transpor
             response = await httpx.AsyncHTTPTransport.handle_async_request(
                 object(), httpx.Request("POST", url),
             )
-            assert response.status_code == 204
+            assert response.status_code == (200 if url.endswith("/charge") else 204)
         sync_response = httpx.HTTPTransport.handle_request(
             object(), httpx.Request("POST", billing_urls[0]),
         )
         assert sync_response.status_code == 204
+        from backend.apps.ai.tasks import stream_consumer
+        monkeypatch.setattr(stream_consumer, "INTERNAL_API_BASE_URL", "http://api:8000")
+        request_data = SimpleNamespace(
+            root_chat_id=None, chat_id="disposable-chat", root_turn_id=None,
+            orchestration_id=None, sub_chat_depth=0, user_id="disposable-user",
+            user_id_hash="disposable-owner-hash", api_key_hash=None, device_hash=None,
+            team_id=None, benchmark_metadata=None,
+        )
+        settlement = await stream_consumer._charge_credits(
+            "synthetic-capacity-task", request_data, 1,
+            {"input_tokens": 100, "output_tokens": 40}, "[isolated-capacity-test]",
+        )
+        assert settlement["settlement_state"] == "settled"
+        assert settlement["total_credits"] == 1
         with pytest.raises(DailyAITestBudgetExceeded, match="raw HTTP provider dispatch"):
             await httpx.AsyncHTTPTransport.handle_async_request(
                 object(), httpx.Request("GET", "https://generativelanguage.googleapis.com/v1/models"),
@@ -355,10 +411,14 @@ async def test_signed_isolated_capacity_allows_only_exact_internal_http_transpor
         blocked_billing = (
             ("GET", billing_urls[0]),
             ("DELETE", billing_urls[2]),
-            ("POST", "http://api:8000/internal/billing/charge"),
+            ("GET", billing_urls[4]),
             ("POST", "http://api:8000/internal/billing/reserve/extra"),
             ("POST", "http://api:8000/internal/billing/reserve?override=1"),
+            ("POST", "http://api:8000/internal/billing/reservation/record-intent?override=1"),
+            ("POST", "http://api:8000/internal/billing/charge?override=1"),
             ("POST", "http://api.evil:8000/internal/billing/reserve"),
+            ("POST", "http://api.evil:8000/internal/billing/reservation/record-intent"),
+            ("POST", "http://api.evil:8000/internal/billing/charge"),
             ("POST", "http://api:8000@evil.example/internal/billing/reserve"),
             ("POST", "https://api:8000/internal/billing/reserve"),
         )
@@ -385,8 +445,9 @@ async def test_signed_isolated_capacity_allows_only_exact_internal_http_transpor
         "http://vault:8200/v1/kv/data/providers/openrouter",
         *billing_urls,
         billing_urls[0],
+        billing_urls[4],
     ]
-    assert receipt["blocked_provider_calls"] == 17
+    assert receipt["blocked_provider_calls"] == 21
     assert receipt["real_provider_calls"] == 0
 
 

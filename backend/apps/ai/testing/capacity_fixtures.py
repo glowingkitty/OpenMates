@@ -155,6 +155,29 @@ def _call(name: str, arguments: dict[str, Any], *, google: bool, fingerprint: st
     }
 
 
+def _main_usage(model: str) -> dict[str, Any]:
+    """Replay one provider-style, billable usage report per synthetic main call."""
+    if "gemini" in model.lower():
+        module, cls = "backend.apps.ai.llm_providers.google_client", "GoogleUsageMetadata"
+        value = {"prompt_token_count": 100, "candidates_token_count": 40, "total_token_count": 140}
+    elif "mistral" in model.lower():
+        module, cls = "backend.apps.ai.llm_providers.mistral_client", "MistralUsage"
+        value = {"prompt_tokens": 100, "completion_tokens": 40, "total_tokens": 140}
+    elif "claude" in model.lower() or "anthropic" in model.lower():
+        module, cls = "backend.apps.ai.llm_providers.anthropic_shared", "AnthropicUsageMetadata"
+        value = {"input_tokens": 100, "output_tokens": 40, "total_tokens": 140}
+    else:
+        module, cls = "backend.apps.ai.llm_providers.openai_shared", "OpenAIUsageMetadata"
+        value = {"input_tokens": 100, "output_tokens": 40, "total_tokens": 140}
+    return {"kind": "pydantic", "module": module, "class": cls, "value": value}
+
+
+def _main_stream(model: str, *chunks: Any) -> dict[str, Any]:
+    return {"response": {"type": "mixed_stream", "body": "", "chunk_format_version": 1,
+                         "chunks": [*({"kind": "text", "value": chunk} if isinstance(chunk, str) else chunk
+                                      for chunk in chunks), _main_usage(model)]}}
+
+
 def _preprocessing_arguments(scenario: str) -> dict[str, Any]:
     return {
         "llm_response_temp": 0.4,
@@ -293,7 +316,7 @@ def generate_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | 
         return None
     google = "gemini" in model.lower()
     if scenario == "child" and "FINAL ANSWER TASK: The waited sub-chats have completed." in all_text:
-        return {"response": {"type": "stream", "body": f"Synthetic child result {fingerprint[:16]}."}}
+        return _main_stream(model, f"Synthetic child result {fingerprint[:16]}.")
     if "analyze_request_properties" in names:
         arguments = _preprocessing_arguments(scenario)
         return {"response": {
@@ -302,45 +325,43 @@ def generate_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | 
         }}
     if scenario == "child" and "start_sub_chats" in names:
         if _tool_returned(messages):
-            return {"response": {"type": "stream", "body": f"Synthetic child result {fingerprint[:16]}."}}
+            return _main_stream(model, f"Synthetic child result {fingerprint[:16]}.")
         arguments = {"execution_mode": "parallel", "sub_chats": [{
             "prompt": "Summarize this disposable synthetic storage task. STORAGE_CAPACITY_SCENARIO:child_worker",
             "title": "Summarize synthetic storage task", "category": "science", "icon": "flask-conical",
             "wait_for_completion": True,
         }]}
-        return {"response": {"type": "mixed_stream", "body": "", "chunk_format_version": 1,
-                             "chunks": [_call("start_sub_chats", arguments, google=google, fingerprint=fingerprint)]}}
+        return _main_stream(model, _call("start_sub_chats", arguments, google=google, fingerprint=fingerprint))
     if scenario == "recovery_save_failure" and "start_sub_chats" in names:
         arguments = {"execution_mode": "parallel", "sub_chats": [{
             "prompt": "Synthetic unavailable durability. STORAGE_CAPACITY_SCENARIO:recovery_save_failure",
             "title": "Verify durable save failure", "category": "science", "icon": "flask-conical",
             "wait_for_completion": True,
         }]}
-        return {"response": {"type": "mixed_stream", "body": "", "chunk_format_version": 1,
-                             "chunks": [_call("start_sub_chats", arguments, google=google, fingerprint=fingerprint)]}}
+        return _main_stream(model, _call("start_sub_chats", arguments, google=google, fingerprint=fingerprint))
     if scenario == "child_worker":
         # Ordinary child completion uses its final assistant text as the
         # orchestration summary. Main processing does not expose end_subchat.
-        return {"response": {"type": "stream", "body": "Synthetic child storage result."}}
+        return _main_stream(model, "Synthetic child storage result.")
     if scenario == "recovery_embed":
-        return {"response": {"type": "stream", "body": (
+        return _main_stream(model, (
             "```python:recovery_demo.py\n"
             "def recovery_value() -> int:\n"
             "    stable_value = 7\n"
             "    return stable_value\n"
             "```\n"
-        )}}
+        ))
     if scenario == "recovery_detached_doc":
-        return {"response": {"type": "stream", "body": (
+        return _main_stream(model, (
             "```docx_model\n"
             "{\"title\":\"Synthetic detached document\","
             "\"filename\":\"Recovery_Detached_Document.docx\","
             "\"blocks\":[{\"type\":\"heading\",\"text\":\"Synthetic detached document\"},"
             "{\"type\":\"paragraph\",\"text\":\"Durable worker output after disconnect.\"}]}\n"
             "```\n"
-        )}}
+        ))
     if scenario == "recovery_diff":
-        return {"response": {"type": "stream", "body": (
+        return _main_stream(model, (
             "```diff\n"
             "--- a/recovery_demo.py\n"
             "+++ b/recovery_demo.py\n"
@@ -350,9 +371,9 @@ def generate_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | 
             "+    stable_value = 8\n"
             "    return stable_value\n"
             "```\n"
-        )}}
+        ))
     if scenario == "recovery_checkpoint":
-        return {"response": {"type": "stream", "body": f"Synthetic post-checkpoint answer {fingerprint[:16]}."}}
+        return _main_stream(model, f"Synthetic post-checkpoint answer {fingerprint[:16]}.")
     if scenario in {"version_create", "version_update"}:
         # Tool arguments retain model-visible privacy tokens. The authorized
         # client restores them before approval and encryption; never accept a
@@ -376,9 +397,9 @@ def generate_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | 
                     or results[0].get("status") != "completed" \
                     or results[0].get("path") != "capacity.txt":
                 return None
-            return {"response": {"type": "stream", "body": f"Synthetic storage response {fingerprint[:16]}."}}
+            return _main_stream(model, f"Synthetic storage response {fingerprint[:16]}.")
         if completion is None and _tool_returned(messages):
-            return {"response": {"type": "stream", "body": f"Synthetic storage response {fingerprint[:16]}."}}
+            return _main_stream(model, f"Synthetic storage response {fingerprint[:16]}.")
         if scenario == "version_create" and "project_create_file" in names and completion is None:
             arguments = {"path": "capacity.txt", "expected_base": None, "content": new}
             name = "project_create_file"
@@ -395,15 +416,12 @@ def generate_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | 
             name = "project_update_file"
         else:
             return None
-        return {"response": {"type": "mixed_stream", "body": "", "chunk_format_version": 1,
-                             "chunks": [_call(name, arguments, google=google, fingerprint=fingerprint)]}}
+        return _main_stream(model, _call(name, arguments, google=google, fingerprint=fingerprint))
     if scenario == "tool" and "math-calculate" in names and not _tool_returned(messages):
-        return {"response": {
-            "type": "mixed_stream", "body": "", "chunk_format_version": 1,
-            "chunks": [_call("math-calculate", {"expression": "sqrt(144)"}, google=google, fingerprint=fingerprint)],
-        }}
+        return _main_stream(model, _call("math-calculate", {"expression": "sqrt(144)"},
+                                         google=google, fingerprint=fingerprint))
     # Unknown child or tool phase fails before dispatch.
     if scenario in {"child", "child_worker"} or (names and scenario == "tool" and "math-calculate" not in names):
         return None
     answer = f"Synthetic storage response {fingerprint[:16]}."
-    return {"response": {"type": "stream", "body": answer}}
+    return _main_stream(model, answer)
