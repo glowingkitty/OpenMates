@@ -774,8 +774,38 @@ def resolved_macos_entitlements(source: Path, team_id: str, bundle_id: str) -> d
 def macho_section_identity(binary: Path) -> dict[str, object]:
     """Hash arm64 compiled sections, excluding code signature/linkedit changes."""
     data = binary.read_bytes()
+    # Some device frameworks retain a universal container with one arm64 slice.
+    # Section offsets are relative to that slice, never to the FAT container.
+    fat_formats = {
+        b"\xca\xfe\xba\xbe": (">", False), b"\xbe\xba\xfe\xca": ("<", False),
+        b"\xca\xfe\xba\xbf": (">", True), b"\xbf\xba\xfe\xca": ("<", True),
+    }
+    fat_architecture = None
+    if data[:4] in fat_formats:
+        endian, fat64 = fat_formats[data[:4]]
+        entry_size = 32 if fat64 else 20
+        if len(data) < 8 or struct.unpack_from(endian + "I", data, 4)[0] != 1:
+            raise ReleaseError("iOS packaging normalization requires exactly one FAT arm64 slice")
+        if len(data) < 8 + entry_size:
+            raise ReleaseError("Truncated Mach-O FAT architecture")
+        if fat64:
+            cpu, subtype, offset, size, alignment, reserved = struct.unpack_from(endian + "iiQQII", data, 8)
+            if reserved:
+                raise ReleaseError("Invalid Mach-O FAT reserved field")
+        else:
+            cpu, subtype, offset, size, alignment = struct.unpack_from(endian + "iiIII", data, 8)
+        if cpu != 0x100000C:
+            raise ReleaseError("iOS packaging normalization requires an arm64 FAT slice")
+        if (alignment > 63 or offset < 8 + entry_size or offset % (1 << alignment)
+                or size < 32 or offset > len(data) or size > len(data) - offset):
+            raise ReleaseError("Invalid Mach-O FAT slice bounds or alignment")
+        fat_architecture = (cpu, subtype)
+        data = data[offset:offset + size]
     if len(data) < 32 or struct.unpack_from("<I", data)[0] != 0xFEEDFACF:
-        raise ReleaseError("iOS packaging normalization requires a thin 64-bit Mach-O")
+        raise ReleaseError("iOS packaging normalization requires a 64-bit Mach-O arm64 slice")
+    architecture = struct.unpack_from("<ii", data, 4)
+    if architecture[0] != 0x100000C or (fat_architecture is not None and architecture != fat_architecture):
+        raise ReleaseError("Invalid Mach-O arm64 architecture")
     commands = struct.unpack_from("<I", data, 16)[0]
     cursor = 32
     digest = hashlib.sha256()

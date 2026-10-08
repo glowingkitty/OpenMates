@@ -1716,7 +1716,7 @@ struct MainAppView: View {
         let profile = ServerProfile.current()
         let socketGeneration = wsManager.transportGeneration
         Task { @MainActor in
-            func current() -> Bool {
+            @MainActor func current() -> Bool {
                 isAuthenticated && authManager.currentUser?.id == account
                     && OfflineStore.shared.scopeGeneration == scope && ServerProfile.current() == profile
                     && wsManager.transportGeneration == socketGeneration && wsManager.connectionState == .connected

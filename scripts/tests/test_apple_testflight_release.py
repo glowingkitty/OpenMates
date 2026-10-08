@@ -808,6 +808,82 @@ def thin_macho_fixture() -> bytes:
     return header + segment + section + b"code" + b"signature"
 
 
+def fat_macho_fixture(thin: bytes, endian: str = ">", fat64: bool = False) -> bytes:
+    header = struct.pack(endian + "II", 0xCAFEBABF if fat64 else 0xCAFEBABE, 1)
+    entry = struct.pack(endian + ("iiQQII" if fat64 else "iiIII"),
+                        0x100000C, 0, 64, len(thin), 6, *([0] if fat64 else []))
+    return (header + entry).ljust(64, b"\0") + thin
+
+
+@pytest.mark.parametrize("endian,fat64", [(">", False), ("<", False), (">", True), ("<", True)])
+def test_single_arm64_fat_compiled_identity_matches_thin(tmp_path: Path, endian: str, fat64: bool) -> None:
+    release = load_module()
+    binary = tmp_path / "binary"
+    thin = thin_macho_fixture()
+    binary.write_bytes(thin)
+    before = release.macho_section_identity(binary)
+    binary.write_bytes(fat_macho_fixture(thin, endian, fat64))
+    assert release.macho_section_identity(binary) == before
+    binary.write_bytes(fat_macho_fixture(thin[:188] + b"new signature", endian, fat64))
+    assert release.macho_section_identity(binary) == before
+    binary.write_bytes(fat_macho_fixture(thin[:184] + b"edit" + b"signature", endian, fat64))
+    assert release.macho_section_identity(binary) != before
+
+
+@pytest.mark.parametrize("case", [
+    "truncated_header", "truncated_entry", "zero_slices", "multiple_slices", "wrong_cpu",
+    "slice_in_header", "slice_outside_file", "truncated_slice", "short_slice", "unaligned_slice",
+    "excessive_alignment", "wrong_inner_cpu", "wrong_inner_subtype", "wrong_inner_magic",
+    "section_outside_slice", "command_outside_slice", "reserved",
+])
+def test_compiled_identity_rejects_invalid_fat(tmp_path: Path, case: str) -> None:
+    release = load_module()
+    fat64 = case == "reserved"
+    data = bytearray(fat_macho_fixture(thin_macho_fixture(), fat64=fat64))
+    if case == "truncated_header":
+        data = data[:4]
+    elif case == "truncated_entry":
+        data = data[:20]
+    elif case in ("zero_slices", "multiple_slices"):
+        struct.pack_into(">I", data, 4, 0 if case == "zero_slices" else 2)
+    elif case == "wrong_cpu":
+        struct.pack_into(">i", data, 8, 0x1000007)
+    elif case in ("slice_in_header", "slice_outside_file", "unaligned_slice"):
+        struct.pack_into(">I", data, 16, {"slice_in_header": 0, "slice_outside_file": 4096,
+                                        "unaligned_slice": 65}[case])
+    elif case in ("truncated_slice", "short_slice"):
+        struct.pack_into(">I", data, 20, len(data) if case == "truncated_slice" else 31)
+    elif case == "excessive_alignment":
+        struct.pack_into(">I", data, 24, 64)
+    elif case == "wrong_inner_cpu":
+        struct.pack_into("<i", data, 68, 0x1000007)
+    elif case == "wrong_inner_subtype":
+        struct.pack_into("<i", data, 72, 2)
+    elif case == "wrong_inner_magic":
+        struct.pack_into("<I", data, 64, 0)
+    elif case == "section_outside_slice":
+        # Trailing container bytes must not satisfy a slice-relative section.
+        struct.pack_into(">I", data, 20, 184)
+    elif case == "command_outside_slice":
+        struct.pack_into("<I", data, 100, len(data))
+    elif case == "reserved":
+        struct.pack_into(">I", data, 36, 1)
+    binary = tmp_path / "binary"
+    binary.write_bytes(data)
+    with pytest.raises(release.ReleaseError):
+        release.macho_section_identity(binary)
+
+
+def test_compiled_identity_rejects_non_arm64_thin(tmp_path: Path) -> None:
+    release = load_module()
+    data = bytearray(thin_macho_fixture())
+    struct.pack_into("<i", data, 4, 0x1000007)
+    binary = tmp_path / "binary"
+    binary.write_bytes(data)
+    with pytest.raises(release.ReleaseError, match="arm64 architecture"):
+        release.macho_section_identity(binary)
+
+
 def test_compiled_section_identity_ignores_signature_and_detects_code(tmp_path: Path) -> None:
     release = load_module()
     binary = tmp_path / "binary"
@@ -819,7 +895,8 @@ def test_compiled_section_identity_ignores_signature_and_detects_code(tmp_path: 
     assert release.macho_section_identity(binary) != before
 
 
-def test_ios_onnx_packaging_repairs_minimum_and_preserves_signing(tmp_path: Path, monkeypatch) -> None:
+@pytest.mark.parametrize("fat_runtime", [False, True])
+def test_ios_onnx_packaging_repairs_minimum_and_preserves_signing(tmp_path: Path, monkeypatch, fat_runtime: bool) -> None:
     from types import SimpleNamespace
     release = load_module()
     archive = make_archive(tmp_path, "ios")
@@ -828,7 +905,8 @@ def test_ios_onnx_packaging_repairs_minimum_and_preserves_signing(tmp_path: Path
     info = framework / "Info.plist"
     write_plist(info, {"CFBundleExecutable": "onnxruntime", "CFBundleIdentifier": "com.microsoft.onnxruntime"})
     for binary in (framework / "onnxruntime", app / "OpenMates"):
-        binary.write_bytes(thin_macho_fixture())
+        data = thin_macho_fixture()
+        binary.write_bytes(fat_macho_fixture(data) if fat_runtime and binary.name == "onnxruntime" else data)
     monkeypatch.setattr(release.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(
         returncode=0, stdout="platform IOS\nminos 17.0\n"))
     monkeypatch.setattr(release, "signed_entitlements", lambda path: {"application-identifier": "TEAM.org.openmates.app"})
@@ -849,6 +927,42 @@ def test_ios_onnx_packaging_repairs_minimum_and_preserves_signing(tmp_path: Path
     assert all("--preserve-metadata=identifier,entitlements,requirements,flags,runtime" in command for command in signing)
     assert signing[0][signing[0].index("--sign") + 1] != "-"
     assert release.normalize_ios_onnx_packaging(archive, tmp_path / "normalization.log") is None
+
+
+@pytest.mark.parametrize("tamper", ["runtime_code", "app_code", "entitlements"])
+def test_fat_runtime_normalization_rejects_changed_code_or_entitlements(tmp_path: Path, monkeypatch, tamper: str) -> None:
+    from types import SimpleNamespace
+    release = load_module()
+    archive = make_archive(tmp_path, "ios")
+    app = archive / "Products/Applications/OpenMates.app"
+    framework = app / "Frameworks/onnxruntime.framework"
+    write_plist(framework / "Info.plist", {"CFBundleExecutable": "onnxruntime"})
+    runtime = framework / "onnxruntime"
+    runtime.write_bytes(fat_macho_fixture(thin_macho_fixture()))
+    (app / "OpenMates").write_bytes(thin_macho_fixture())
+    monkeypatch.setattr(release.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(
+        returncode=0, stdout="platform IOS\nminos 17.0\n"))
+    resigned = False
+    monkeypatch.setattr(release, "signed_entitlements", lambda path: {
+        "application-identifier": "CHANGED" if resigned and tamper == "entitlements" else "TEAM.org.openmates.app",
+    })
+    def run(command, log_path, timeout):
+        nonlocal resigned
+        if "-d" in command:
+            prefix = next(arg.split("=", 1)[1] for arg in command if arg.startswith("--extract-certificates="))
+            Path(prefix + "0").write_bytes(b"original certificate")
+        if "--sign" in command and command[-1] == str(app):
+            resigned = True
+            if tamper != "entitlements":
+                target = runtime if tamper == "runtime_code" else app / "OpenMates"
+                data = bytearray(target.read_bytes())
+                data[(64 if tamper == "runtime_code" else 0) + 184] ^= 1
+                target.write_bytes(data)
+    monkeypatch.setattr(release, "run_logged", run)
+    error = "changed app entitlements" if tamper == "entitlements" else "changed compiled sections"
+    with pytest.raises(release.ReleaseError, match=error):
+        release.normalize_ios_onnx_packaging(archive, tmp_path / "normalization.log")
+    assert not list(tmp_path.glob("onnx-ios-packaging-*/repair-receipt.json"))
 
 
 @pytest.mark.parametrize("build_info", ["platform MACOS\nminos 17.0\n", "platform IOS\nminos 16.0\n"])
