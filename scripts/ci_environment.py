@@ -86,6 +86,21 @@ def upload_specs(harness_manifest: dict, candidate_root: Path) -> set[str]:
     return set(harness_specs) | set(candidate_specs)
 
 
+def workflow_specs(harness_manifest: dict, candidate_root: Path) -> set[str]:
+    """Add candidate Workflow runtime dependencies without removing harness gates."""
+    candidate_manifest = json.loads(
+        (candidate_root / "scripts/ci_coverage_manifest.json").read_text()
+    )
+    harness_specs = harness_manifest["groups"].get("workflow_weather", {}).get("specs", [])
+    candidate_specs = candidate_manifest["groups"].get("workflow_weather", {}).get("specs", [])
+    if any(
+        not isinstance(specs, list) or not all(isinstance(spec, str) for spec in specs)
+        for specs in (harness_specs, candidate_specs)
+    ):
+        raise RuntimeError("Invalid workflow_weather specs in CI coverage manifest")
+    return set(harness_specs) | set(candidate_specs)
+
+
 QUEUES = "persistence,health_check,server_stats,user_init,user_tasks,email,push"
 STACK_START_RETRY_DELAYS = (5, 15)
 TRANSIENT_REGISTRY_FAILURE = re.compile(
@@ -1280,9 +1295,9 @@ def main():
         public_specs = set(manifest["groups"].get("ai_cached_public_provider", {}).get("specs", []))
         mail_specs = mail_capture_specs(manifest, Path(SOURCE))
         needs_public_provider = bool(public_specs.intersection(selected))
-        workflow_specs = set(manifest["groups"].get("workflow_weather", {}).get("specs", []))
-        needs_workflows = bool(workflow_specs.intersection(selected))
-        if needs_workflows and not set(selected).issubset(workflow_specs):
+        declared_workflow_specs = workflow_specs(manifest, Path(SOURCE))
+        needs_workflows = bool(declared_workflow_specs.intersection(selected))
+        if needs_workflows and not set(selected).issubset(declared_workflow_specs):
             raise RuntimeError("Credential-free weather workflows require their own batch")
         needs_storage = bool(storage_specs.intersection(selected)) or needs_uploads or storage_capacity
         if needs_storage:

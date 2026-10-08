@@ -20,6 +20,7 @@ from scripts.ci_environment import (
     compose_profile,
     mail_capture_specs,
     upload_specs,
+    workflow_specs,
     require_runner,
     start_stack,
 )
@@ -140,6 +141,34 @@ def test_candidate_cannot_remove_harness_mail_capture_or_supply_bad_specs(tmp_pa
     )
     with pytest.raises(RuntimeError, match="Invalid local_email_signup specs"):
         mail_capture_specs(harness, tmp_path)
+
+
+def test_candidate_workflow_dependencies_enable_runtime_without_removing_harness_specs(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    harness = {"groups": {"workflow_weather": {"specs": ["cli-workflows-rain-real.spec.ts"]}}}
+    candidate_manifest.write_text(json.dumps({"groups": {"workflow_weather": {
+        "specs": ["workflow-completion-notifications.spec.ts", "workflow-completion-notification-route.spec.ts"]
+    }}}))
+    assert workflow_specs(harness, tmp_path) == {
+        "cli-workflows-rain-real.spec.ts",
+        "workflow-completion-notifications.spec.ts",
+        "workflow-completion-notification-route.spec.ts",
+    }
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    assert workflow_specs(harness, tmp_path) == {"cli-workflows-rain-real.spec.ts"}
+
+
+@pytest.mark.parametrize("bad_specs", ["bad", ["valid.spec.ts", 42], {"spec.ts": True}])
+def test_candidate_workflow_dependencies_reject_bad_declarations(tmp_path, bad_specs):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    candidate_manifest.write_text(json.dumps({"groups": {"workflow_weather": {"specs": bad_specs}}}))
+    with pytest.raises(RuntimeError, match="Invalid workflow_weather specs"):
+        workflow_specs({"groups": {}}, tmp_path)
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    with pytest.raises(RuntimeError, match="Invalid workflow_weather specs"):
+        workflow_specs({"groups": {"workflow_weather": {"specs": bad_specs}}}, tmp_path)
 
 
 def test_fresh_credentials_and_runner_only(monkeypatch):
