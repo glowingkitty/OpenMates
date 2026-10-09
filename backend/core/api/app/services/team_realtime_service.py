@@ -31,6 +31,7 @@ TEAM_EVENT_ALLOWED_FIELDS = {
             "team_id",
             "chat_id",
             "message_id",
+            "ai_task_id",
             "role",
             "encrypted_content",
             "encrypted_sender_name",

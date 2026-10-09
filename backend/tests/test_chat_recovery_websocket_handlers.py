@@ -7,6 +7,8 @@ transaction commits with the current lease fencing generation.
 """
 
 import asyncio
+import json
+from types import SimpleNamespace
 import pytest
 
 from backend.core.api.app.routes.connection_manager import (
@@ -15,6 +17,8 @@ from backend.core.api.app.routes.connection_manager import (
 )
 from backend.core.api.app.routes.handlers.websocket_handlers import chat_recovery_job_handlers
 from backend.core.api.app.routes import websockets as websocket_routes
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+from backend.core.api.app.services.directus.team_methods import hash_id
 
 
 class FakeManager:
@@ -144,6 +148,12 @@ async def test_terminal_persistence_overrides_encrypted_message_owner(monkeypatc
     FakeRecoveryService.calls = []
     FakeCacheService.instances = []
     manager = FakeManager()
+    class PersonalDirectus:
+        async def get_items(self, collection: str, *, params: dict, no_cache: bool,
+                            admin_required: bool, raise_on_error: bool) -> list[dict]:
+            assert collection == "chats" and no_cache and admin_required and raise_on_error
+            return [{"id": params["filter[id][_eq]"], "hashed_team_id": None}]
+
     encrypted_message = {
         "client_message_id": "assistant-1",
         "chat_id": "22222222-2222-4222-8222-222222222222",
@@ -156,7 +166,7 @@ async def test_terminal_persistence_overrides_encrypted_message_owner(monkeypatc
 
     await chat_recovery_job_handlers.handle_recovery_job_persist(
         manager=manager,
-        directus_service=object(),
+        directus_service=PersonalDirectus(),
         user_id="user-1",
         user_id_hash="owner-hash",
         device_fingerprint_hash="device-hash",
@@ -184,6 +194,235 @@ async def test_terminal_persistence_overrides_encrypted_message_owner(monkeypatc
     assert cache.closed is True
     assert manager.messages[0]["type"] == "recovery_job_persisted"
     assert manager.messages[0]["payload"]["request_id"] == "persist-request-1"
+
+
+class TerminalRelayDirectus:
+    def __init__(self) -> None:
+        self.team_id = "team-one"
+        self.chat_id = "22222222-2222-4222-8222-222222222222"
+        self.job_id = "11111111-1111-4111-8111-111111111111"
+        self.message_id = "assistant-1"
+        self.actor_hash = hash_id("member")
+        self.team_hash = hash_id(self.team_id)
+        self.membership_active = True
+        self.member_role = "member"
+        self.job_chat_id = self.chat_id
+        self.job_state = "TERMINAL"
+        self.row = {
+            "chat_id": self.chat_id, "client_message_id": self.message_id,
+            "hashed_user_id": self.actor_hash, "role": "assistant",
+            "encrypted_content": "committed-ciphertext",
+            "encrypted_sender_name": "sealed-name", "created_at": 100,
+            "user_message_id": "human-1", "content": "never relay plaintext",
+        }
+        self.chat = SimpleNamespace(
+            get_chat_metadata=self.get_chat_metadata,
+            get_message_for_chat_by_client_id=self.get_message,
+        )
+        self.team = SimpleNamespace(
+            list_teams=self.list_teams,
+            require_team_role=self.require_team_role,
+            list_active_member_hashes=self.list_active_member_hashes,
+        )
+
+    async def get_chat_metadata(self, chat_id: str, *, admin_required: bool) -> dict:
+        assert admin_required and chat_id == self.chat_id
+        return {"id": self.chat_id, "hashed_team_id": self.team_hash}
+
+    async def get_message(self, chat_id: str, message_id: str) -> dict:
+        assert (chat_id, message_id) == (self.chat_id, self.message_id)
+        return self.row
+
+    async def list_teams(self, user_id: str) -> list[dict]:
+        assert user_id == "member"
+        return ([{"team_id": self.team_id, "hashed_team_id": self.team_hash}]
+                if self.membership_active else [])
+
+    async def require_team_role(self, team_id: str, user_id: str, roles: set[str]) -> dict:
+        assert (team_id, user_id) == (self.team_id, "member")
+        if not self.membership_active or self.member_role not in roles:
+            raise PermissionError("Team permission denied")
+        return {"role": self.member_role}
+
+    async def list_active_member_hashes(self, team_id: str) -> set[str]:
+        assert team_id == self.team_id
+        return {self.actor_hash, hash_id("owner")} if self.membership_active else set()
+
+    async def get_items(self, collection: str, *, params: dict, no_cache: bool,
+                        admin_required: bool, raise_on_error: bool) -> list[dict]:
+        assert no_cache and admin_required and raise_on_error
+        if collection == "chats":
+            assert params["filter[id][_eq]"] == self.chat_id
+            return [{"id": self.chat_id, "hashed_team_id": self.team_hash}]
+        if collection == "team_memberships":
+            assert params["filter[hashed_team_id][_eq]"] == self.team_hash
+            assert params["filter[hashed_user_id][_eq]"] == self.actor_hash
+            return ([{"role": self.member_role}] if self.membership_active else [])
+        if collection == "teams":
+            assert params["filter[hashed_team_id][_eq]"] == self.team_hash
+            return [{"team_id": self.team_id, "hashed_team_id": self.team_hash}]
+        assert collection == "chat_completion_recovery_jobs"
+        assert params["filter[id][_eq]"] == self.job_id
+        return [{
+            "id": self.job_id, "hashed_user_id": self.actor_hash,
+            "chat_id": self.job_chat_id, "assistant_message_id": self.message_id,
+            "inference_task_id": "trusted-task-1", "state": self.job_state,
+        }]
+
+
+class RelayCache:
+    instances: list["RelayCache"] = []
+    fail_first_publish = False
+
+    def __init__(self) -> None:
+        self.published: list[tuple[str, dict]] = []
+        self.closed = False
+        self.instances.append(self)
+
+    @property
+    async def client(self):
+        return self
+
+    async def publish(self, channel: str, body: str) -> None:
+        if self.fail_first_publish:
+            type(self).fail_first_publish = False
+            raise RuntimeError("synthetic Redis interruption")
+        self.published.append((channel, json.loads(body)))
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+def _terminal_payload(directus: TerminalRelayDirectus) -> dict:
+    return {
+        "protocol_version": 1, "job_id": directus.job_id,
+        "request_id": "persist-request-1", "lease_generation": 2,
+        "lease_token": "lease-token", "expected_messages_v": 4,
+        "encrypted_assistant_message": {
+            "client_message_id": directus.message_id, "chat_id": directus.chat_id,
+            "hashed_user_id": "untrusted-client-owner", "role": "assistant",
+            "encrypted_content": "submitted-ciphertext", "created_at": 100,
+            "updated_at": 100,
+        },
+    }
+
+
+def _install_terminal_relay_fakes(monkeypatch, *, conflict: bool = False) -> None:
+    class Recovery:
+        calls: list[tuple[str, dict]] = []
+
+        def __init__(self, _directus) -> None:
+            pass
+
+        async def execute(self, operation: str, data: dict) -> dict:
+            self.calls.append((operation, data))
+            assert operation == "persist_terminal"
+            if conflict:
+                raise ChatRecoveryProtocolError(409, "terminal_identity_mismatch")
+            return {"job_id": data["job_id"], "state": "TERMINAL", "committed_messages_v": 5,
+                    "idempotent": len(self.calls) > 1}
+
+    async def no_cache_work(**_kwargs) -> None:
+        return None
+
+    monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService", Recovery)
+    monkeypatch.setattr(chat_recovery_job_handlers, "_create_cache_service", RelayCache)
+    monkeypatch.setattr(chat_recovery_job_handlers, "_refresh_terminal_sync_cache", no_cache_work)
+    monkeypatch.setattr(chat_recovery_job_handlers, "_acknowledge_output_cache_if_complete", no_cache_work)
+    RelayCache.instances = []
+    RelayCache.fail_first_publish = False
+
+
+async def _persist_terminal_for_relay(directus: TerminalRelayDirectus, manager: FakeManager) -> None:
+    await chat_recovery_job_handlers.handle_recovery_job_persist(
+        manager=manager, directus_service=directus, user_id="member",
+        user_id_hash=directus.actor_hash, device_fingerprint_hash="device-hash",
+        payload=_terminal_payload(directus),
+    )
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=teams.collaboration.realtime-team-sync,teams.chat.encrypted-until-invoked
+async def test_terminal_team_recovery_relays_committed_ciphertext_to_both_members_and_replays(monkeypatch) -> None:
+    _install_terminal_relay_fakes(monkeypatch)
+    directus = TerminalRelayDirectus()
+    manager = FakeManager()
+
+    await _persist_terminal_for_relay(directus, manager)
+    await _persist_terminal_for_relay(directus, manager)
+
+    assert [message["type"] for message in manager.messages] == [
+        "recovery_job_persisted", "recovery_job_persisted",
+    ]
+    assert manager.messages[1]["payload"]["idempotent"] is True
+    assert len(RelayCache.instances) == 2
+    for cache in RelayCache.instances:
+        assert cache.closed
+        assert {channel for channel, _event in cache.published} == {
+            f"websocket:user:{directus.actor_hash}", f"websocket:user:{hash_id('owner')}",
+        }
+        for _channel, event in cache.published:
+            assert event["type"] == "team_ai_response_completed"
+            assert event["payload"] == {
+                "team_id": directus.team_id, "chat_id": directus.chat_id,
+                "message_id": directus.message_id, "ai_task_id": "trusted-task-1",
+                "role": "assistant", "status": "synced",
+                "encrypted_content": "committed-ciphertext",
+                "encrypted_sender_name": "sealed-name", "created_at": 100,
+                "user_message_id": "human-1",
+            }
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=teams.collaboration.realtime-team-sync
+async def test_terminal_team_relay_publish_failure_waits_for_idempotent_client_retry(monkeypatch) -> None:
+    _install_terminal_relay_fakes(monkeypatch)
+    directus = TerminalRelayDirectus()
+    manager = FakeManager()
+    RelayCache.fail_first_publish = True
+
+    await _persist_terminal_for_relay(directus, manager)
+    assert manager.messages == []
+    assert RelayCache.instances[0].closed
+    assert RelayCache.instances[0].published == []
+
+    await _persist_terminal_for_relay(directus, manager)
+    assert [message["type"] for message in manager.messages] == ["recovery_job_persisted"]
+    assert manager.messages[0]["payload"]["idempotent"] is True
+    assert len(RelayCache.instances[1].published) == 2
+    assert {event["payload"]["message_id"] for _channel, event in RelayCache.instances[1].published} == {
+        directus.message_id,
+    }
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("denial", ["conflict", "removed", "viewer", "cross_team", "job_chat", "job_state", "message_owner", "personal"])
+# contract-test: supporting surface=rest_api assertions=teams.collaboration.realtime-team-sync,teams.chat.encrypted-until-invoked
+async def test_terminal_recovery_never_relays_without_committed_team_authority(monkeypatch, denial: str) -> None:
+    _install_terminal_relay_fakes(monkeypatch, conflict=denial == "conflict")
+    directus = TerminalRelayDirectus()
+    if denial == "removed":
+        directus.membership_active = False
+    elif denial == "viewer":
+        directus.member_role = "viewer"
+    elif denial == "cross_team":
+        directus.team_hash = hash_id("other-team")
+    elif denial == "job_chat":
+        directus.job_chat_id = "other-chat"
+    elif denial == "job_state":
+        directus.job_state = "AVAILABLE"
+    elif denial == "message_owner":
+        directus.row["hashed_user_id"] = hash_id("owner")
+    elif denial == "personal":
+        directus.team_hash = None
+    manager = FakeManager()
+
+    await _persist_terminal_for_relay(directus, manager)
+
+    assert RelayCache.instances == []
+    expected = ("error" if denial == "conflict" else "recovery_job_persisted"
+                if denial in {"removed", "viewer", "cross_team", "personal"} else None)
+    assert [message["type"] for message in manager.messages] == ([expected] if expected else [])
 
 
 @pytest.mark.anyio

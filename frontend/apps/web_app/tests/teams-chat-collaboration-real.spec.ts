@@ -365,6 +365,24 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     expect(await readPersonalCredits(page)).toBe(personalCreditsBefore);
     expect(await readPersonalCredits(memberPage)).toBe(memberPersonalCreditsBefore);
 
+    // Completion must be durable Team ciphertext, including for the invoking
+    // member after a cold page reload rather than only the live stream.
+    const completedWindow = await assertTeamWindow(memberPage, teamId, chatId!, lines);
+    const persistedAssistant = completedWindow.filter((row) => row.role === 'assistant');
+    expect(persistedAssistant.length).toBeGreaterThan(0);
+    for (const row of persistedAssistant) {
+      expect(row.encrypted_content).toBeTruthy();
+      expect(row.content).toBeUndefined();
+    }
+    expect(JSON.stringify(completedWindow).toLowerCase()).not.toContain(answerText);
+    await memberPage.reload({ waitUntil: 'domcontentloaded' });
+    await waitForChatReady(memberPage);
+    await expect(memberPage.getByTestId('active-chat-container'))
+      .toHaveAttribute('data-current-chat-id', chatId!, { timeout: 45_000 });
+    await expect(memberPage.getByTestId('message-assistant').last()).toBeVisible({ timeout: 45_000 });
+    const recoveredAnswer = (await memberPage.getByTestId('message-assistant').last().innerText()).toLowerCase();
+    for (const name of humanNames) expect(recoveredAnswer).toContain(name.toLowerCase());
+
     const followStart = memberFrames.length;
     await sendText(memberPage, 'Thanks. I will send the volunteers the final venue once we confirm it.');
     await expect(page.getByTestId('remote-human-message').filter({ hasText: 'final venue' })).toBeVisible({ timeout: 45_000 });

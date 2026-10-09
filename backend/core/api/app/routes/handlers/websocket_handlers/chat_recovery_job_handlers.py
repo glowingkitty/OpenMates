@@ -17,6 +17,8 @@ from backend.core.api.app.services.chat_recovery_service import (
     ChatRecoveryProtocolError,
     ChatRecoveryService,
 )
+from backend.core.api.app.services.directus.team_methods import hash_id
+from backend.core.api.app.services.team_realtime_service import broadcast_team_event
 from backend.shared.python_utils.chat_failure_notifications import (
     notification_environment,
     notify_chat_failure,
@@ -26,6 +28,10 @@ from backend.shared.python_utils.chat_failure_notifications import (
 logger = logging.getLogger(__name__)
 _DIRECT_COMPLETION_CURSOR_KEY = "chat_recovery:direct_completion_reconcile_cursor:v1"
 _DIRECT_COMPLETION_RECONCILE_LIMIT = 100
+
+
+class _TeamRelayAuthorizationDenied(PermissionError):
+    """A current authoritative membership or Team row explicitly denies relay."""
 
 
 async def begin_initial_recovery_discovery(
@@ -162,6 +168,106 @@ async def _refresh_terminal_sync_cache(
             user_id[:8],
             chat_id,
             committed_messages_v,
+        )
+    finally:
+        await cache_service.close()
+
+
+async def _broadcast_terminal_team_response(
+    *, manager: Any, directus_service: Any, user_id: str, user_id_hash: str,
+    job_id: Any, encrypted_message: dict[str, Any],
+) -> None:
+    """Relay only a committed Team assistant row to current active members."""
+    chat_id = encrypted_message.get("chat_id")
+    message_id = encrypted_message.get("client_message_id")
+    if not all(isinstance(value, str) and value for value in (job_id, chat_id, message_id)):
+        raise ValueError("Recovery Team relay identity is incomplete")
+
+    chats = await directus_service.get_items(
+        "chats", params={"filter[id][_eq]": chat_id,
+                         "fields": "id,hashed_team_id", "limit": 1},
+        no_cache=True, admin_required=True, raise_on_error=True,
+    )
+    chat = chats[0] if isinstance(chats, list) and len(chats) == 1 else None
+    if not isinstance(chat, dict) or chat.get("id") != chat_id:
+        raise RuntimeError("Recovery Team relay chat was unavailable")
+    team_hash = chat.get("hashed_team_id")
+    if not team_hash:
+        return  # Personal recovery keeps its existing device-only acknowledgement.
+
+    memberships = await directus_service.get_items(
+        "team_memberships",
+        params={"filter[hashed_team_id][_eq]": team_hash,
+                "filter[hashed_user_id][_eq]": user_id_hash,
+                "filter[status][_eq]": "active", "fields": "role", "limit": 1},
+        no_cache=True, admin_required=True, raise_on_error=True,
+    )
+    if not isinstance(memberships, list):
+        raise RuntimeError("Recovery Team relay membership lookup was unavailable")
+    if not memberships or memberships[0].get("role") not in {"owner", "admin", "member"}:
+        raise _TeamRelayAuthorizationDenied("Recovery Team relay writer is no longer active")
+    teams = await directus_service.get_items(
+        "teams", params={"filter[hashed_team_id][_eq]": team_hash,
+                         "filter[status][_eq]": "active",
+                         "fields": "team_id,hashed_team_id", "limit": 1},
+        no_cache=True, admin_required=True, raise_on_error=True,
+    )
+    if not isinstance(teams, list):
+        raise RuntimeError("Recovery Team relay Team lookup was unavailable")
+    if not teams:
+        raise _TeamRelayAuthorizationDenied("Recovery Team relay Team is no longer active")
+    team_id = teams[0].get("team_id")
+    if not isinstance(team_id, str) or hash_id(team_id) != team_hash:
+        raise _TeamRelayAuthorizationDenied("Recovery Team relay chat scope was invalid")
+    await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+
+    jobs = await directus_service.get_items(
+        "chat_completion_recovery_jobs",
+        params={"filter[id][_eq]": job_id, "fields":
+                "id,hashed_user_id,chat_id,inference_task_id,assistant_message_id,state", "limit": 1},
+        no_cache=True, admin_required=True, raise_on_error=True,
+    )
+    job = jobs[0] if isinstance(jobs, list) and len(jobs) == 1 else None
+    if not isinstance(job, dict) or any((
+        job.get("id") != job_id,
+        job.get("hashed_user_id") != user_id_hash,
+        job.get("chat_id") != chat_id,
+        job.get("assistant_message_id") != message_id,
+        job.get("state") != "TERMINAL",
+        not isinstance(job.get("inference_task_id"), str) or not job.get("inference_task_id"),
+    )):
+        raise RuntimeError("Recovery Team relay job identity was invalid")
+
+    row = await directus_service.chat.get_message_for_chat_by_client_id(chat_id, message_id)
+    if not isinstance(row, dict) or any((
+        row.get("chat_id") != chat_id,
+        row.get("client_message_id") != message_id,
+        row.get("hashed_user_id") != user_id_hash,
+        row.get("role") != "assistant",
+        not isinstance(row.get("encrypted_content"), str) or not row.get("encrypted_content"),
+    )):
+        raise RuntimeError("Recovery Team relay committed message was unavailable")
+
+    active_member_hashes = await directus_service.team.list_active_member_hashes(team_id)
+    if user_id_hash not in active_member_hashes:
+        raise RuntimeError("Recovery Team relay active recipient lookup was unavailable")
+    safe_fields = (
+        "encrypted_content", "encrypted_sender_name", "encrypted_category",
+        "encrypted_model_name", "encrypted_thinking_content",
+        "encrypted_thinking_signature", "has_thinking", "thinking_token_count",
+        "created_at", "user_message_id",
+    )
+    event_payload = {
+        "team_id": team_id, "chat_id": chat_id, "message_id": message_id,
+        "ai_task_id": job["inference_task_id"], "role": "assistant", "status": "synced",
+        **{field: row[field] for field in safe_fields if field in row},
+    }
+    cache_service = _create_cache_service()
+    try:
+        await broadcast_team_event(
+            manager=manager, active_member_user_ids=(),
+            event_name="team_ai_response_completed", payload=event_payload,
+            cache_service=cache_service, active_member_hashes=active_member_hashes,
         )
     finally:
         await cache_service.close()
@@ -834,6 +940,23 @@ async def handle_recovery_job_persist(
                 user_id[:8],
                 payload.get("job_id"),
             )
+        try:
+            if result.get("state") == "TERMINAL" and result.get("job_id") == payload.get("job_id"):
+                await _broadcast_terminal_team_response(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    job_id=result["job_id"], encrypted_message=encrypted_message,
+                )
+        except _TeamRelayAuthorizationDenied:
+            # The writer or Team was explicitly revoked after commit. Never
+            # broadcast to another scope or keep an unauthorized client retrying.
+            logger.warning("Recovery Team relay denied after terminal commit")
+        except Exception:
+            # Do not acknowledge a transient read/publish failure: the existing
+            # client timeout retries idempotent persist_terminal with a new
+            # request_id and the same committed assistant message identity.
+            logger.exception("Recovery Team relay failed after terminal commit; awaiting client retry")
+            return
         await manager.send_personal_message(
             {
                 "type": "recovery_job_persisted",
