@@ -17,6 +17,7 @@ from pathlib import Path
 
 TRANSLATION_SERVICES = frozenset({
     "api", "task-worker", "workflow-worker", "task-scheduler",
+    "core-worker", "reminder-worker", "user-init-worker", "user-tasks-worker",
     "app-ai-worker", "app-images-worker", "app-music-worker", "app-videos-worker",
     "app-pdf-worker", "app-docs-worker", "app-code-worker", "app-social-media-worker",
 })

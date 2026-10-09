@@ -204,6 +204,40 @@ def test_compose_overlay_replaces_existing_translation_mount(tmp_path):
         assert mounts[0]["read_only"] is True
 
 
+@pytest.mark.skipif(shutil.which("docker") is None, reason="Docker Compose is unavailable")
+def test_overlay_covers_all_rendered_product_compose_translation_consumers(tmp_path):
+    """Compose extends can add consumers absent from literal TRANSLATIONS_DIR lines."""
+    source = Path(__file__).resolve().parents[2] / "backend/core/docker-compose.yml"
+    compose_file = tmp_path / "backend/core/docker-compose.yml"
+    compose_file.parent.mkdir(parents=True)
+    shutil.copy2(source, compose_file)
+    env_file = tmp_path / ".env"
+    env_file.write_text("", encoding="utf-8")
+    command = ["docker", "compose", "--env-file", str(env_file), "-f", str(compose_file)]
+    base = subprocess.run(
+        [*command, "config", "--format", "json"],
+        capture_output=True, text=True, check=True,
+    )
+    consumers = {
+        name for name, config in json.loads(base.stdout)["services"].items()
+        if config.get("environment", {}).get("TRANSLATIONS_DIR") == "/translations"
+    }
+    assert consumers == translations.TRANSLATION_SERVICES
+
+    locales = tmp_path / "artifact/locales"
+    locales.mkdir(parents=True)
+    overlay = tmp_path / "artifact/overlay.json"
+    overlay.write_text(json.dumps(translations._overlay_content(locales)), encoding="utf-8")
+    rendered = subprocess.run(
+        [*command, "-f", str(overlay), "config", "--format", "json"],
+        capture_output=True, text=True, check=True,
+    )
+    services = json.loads(rendered.stdout)["services"]
+    for service in consumers:
+        mounts = [volume for volume in services[service]["volumes"] if volume["target"] == "/translations"]
+        assert mounts == [{"type": "bind", "source": str(locales), "target": "/translations", "read_only": True}]
+
+
 def test_managed_compose_selects_artifact_only_for_runtime_checkout(monkeypatch, tmp_path):
     checkout = _checkout(tmp_path)
     other = _checkout(tmp_path / "other")
