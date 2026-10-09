@@ -118,30 +118,6 @@ function extractSafeEmbedFenceMetadata(content: string) {
     });
 }
 
-function extractSafeEmbedFenceMetadata(content: string) {
-  const safeToken = (value: unknown) => typeof value === 'string' && /^[A-Za-z0-9_:.-]{1,128}$/.test(value) ? value : null;
-  return [...content.matchAll(/```([A-Za-z][A-Za-z0-9_-]{0,63})\s*\n([\s\S]*?)```/g)]
-    .slice(0, 12)
-    .flatMap(match => {
-      const body = match[2];
-      let json: Record<string, unknown> | null = null;
-      if (match[1] === 'json') {
-        try {
-          const parsed: unknown = JSON.parse(body);
-          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) json = parsed as Record<string, unknown>;
-        } catch { /* A diagnostic must not fail on malformed model output. */ }
-      }
-      const toonField = (name: string) => body.match(new RegExp(`^[ \\t]*${name}[ \\t]*[:=][ \\t]*["']?([A-Za-z0-9_:.-]{1,128})["']?[ \\t]*$`, 'm'))?.[1] ?? null;
-      const metadata = {
-        type: safeToken(json?.type) ?? (match[1] === 'json' ? null : safeToken(match[1])),
-        embed_id: safeToken(json?.embed_id) ?? toonField('embed_id'),
-        app_id: safeToken(json?.app_id) ?? toonField('app_id'),
-        skill_id: safeToken(json?.skill_id) ?? toonField('skill_id'),
-      };
-      return /embed/i.test(match[1]) || metadata.embed_id ? [metadata] : [];
-    });
-}
-
 // Fixed observed baseline from the retained 2026-10-07 dev run. The browser
 // can time the new run, while model token totals require correlated backend logs.
 const RETRIEVAL_BASELINE = {
@@ -643,6 +619,10 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       expect(received.filter(event => event.type === 'project_file_operation_request')).toHaveLength(0);
       await expect(page.getByTestId('focus-pill').getByTestId('focus-pill-label')).toHaveText('Work on OpenMates', { timeout: 60_000 });
       await expect.poll(() => currentAuthority(page), { timeout: 30_000 }).toMatchObject({ project_id: fixture.project_id });
+      const acceptedDecision = sent.find(event => event.type === 'project_focus_decision'
+        && event.payload?.chat_id === acceptedChatId);
+      expect(acceptedDecision?.payload, 'default Project Focus must accept without an optional specialist').toBeTruthy();
+      expect(acceptedDecision?.payload).not.toHaveProperty('specialist_document');
       focusActivatedAt = Date.now();
       console.log('[README] Countdown activated the selected Project.');
       await expect.poll(() => received.some(event => event.type === 'project_file_operation_request'

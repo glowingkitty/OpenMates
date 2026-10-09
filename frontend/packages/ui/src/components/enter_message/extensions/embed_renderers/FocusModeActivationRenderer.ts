@@ -145,7 +145,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
               stage = "load_specialist";
               const selected = pendingFocusActivationStore.getSelectedSpecialist(attrs.id || "");
               let specialistDocument: { focus_id: string; item_id: string; revision: string; document: string } | undefined;
-              if (selected?.focus_id === `project-focus:${projectId}:${selected.item_id}`) {
+              if (selected && selected.focus_id === `project-focus:${projectId}:${selected.item_id}`) {
                 try {
                   const document = await loadAcceptedProjectSpecialistFocusDocument(
                     chatId, projectId, selected.item_id, selected.revision,
