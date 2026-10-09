@@ -9930,6 +9930,600 @@
       "follow_up_6": {
         "text": "总结 VITL 的关键财务指标"
       }
+    },
+    "urban_heat_island_at_night": {
+      "title": {
+        "text": "为什么城市在夜间依然闷热"
+      },
+      "summary": {
+        "text": "简单解释城市热岛效应，以及为什么城市街道在日落后降温较慢。"
+      },
+      "message_1": {
+        "text": "为什么有些城市在晚上的感觉比附近的农村地区热得多？你能用一个简单的例子解释一下城市热岛效应吗？"
+      },
+      "message_2": {
+        "text": "你所描述的现象被称为**[热岛效应](wiki:Urban_heat_island)** (UHI)。虽然城市在白天可能略微温暖一些，但温差通常在日落后最为显著——有时城市气温会比周围的乡村高出 2°C 到 10°C (4°F 到 18°F) 以上。\n\n---\n\n### 一个简单的日常类比：铸铁平底锅 vs. 花园苗床\n\n想象一下，在一个阳光明媚的下午，你带着两样东西站在户外：\n1. 一个**沉重的铸铁平底锅**\n2. 一**盆长着草的潮湿花园土壤**\n\n在炎热的下午，阳光照在两者身上：\n* **铸铁平底锅**吸收了大量的热量，变得灼热，并将热能储存在其致密的金属体内。\n* **潮湿的土壤和草**也吸收阳光，但土壤中的水分会蒸发，草通过蒸腾作用“排汗”。这种[蒸散作用](wiki:Evapotranspiration)消耗了大部分太阳能，使植物和土壤保持显著较低的温度。\n\n现在，将两者带入较凉爽的房间或等到夜幕降临：\n* 花园苗床几乎立即降温，因为它没有保留多余的热量，并持续流失水分。\n* 然而，铸铁平底锅就像一个**热电池**。在太阳下山很久之后，它仍会缓慢地将所有捕获的热量辐射到周围空气中，使周围空间在数小时内保持温暖。\n\n**城市**就像数百万个相互连接的铸铁平底锅；而**乡村**的表现则像潮湿的花园苗床。\n\n---\n\n### 城市夜间保持高温背后的科学原理\n\n夜间的差异归结为几个关键的热力学和物理因素：\n\n#### 1. 高热质量（蓄热性）\n城市环境由沥青、混凝土、砖块和石材建成。这些材料具有很高的[体积热容](wiki:Volumetric_heat_capacity)和导热率。白天，它们将太阳辐射深深吸收进建筑结构和路面。晚上，随着环境空气变冷，这些材料通过长波热辐射将储存的热量释放回低层大气。\n\n#### 2. 蒸发冷却的丧失\n乡村景观覆盖着树木、农作物和潮湿的土壤。植物从地下吸水，并通过蒸腾作用向空气中释放水蒸气。由于将液态水转化为蒸气需要大量能量（汽化的[潜热](wiki:Latent_heat)），这会自然地冷却周围环境。在城市中，雨水通过不透水表面迅速排入雨水渠，几乎没有水分可用于蒸发冷却。\n\n#### 3. 城市峡谷几何结构\n在高楼林立的密集城市中，街道形成了“城市峡谷”。白天，多个反射面将阳光反射到街道深处，而不是反射回太空。晚上，建筑物部分遮挡了天空（降低了气象学家所说的天空视角系数）。从街道辐射出的热量无法自由逃逸到高层大气，而是被相邻建筑物的墙壁吸收或反射回来。\n\n#### 4. 人为热（人类产生的能量）\n城市在不依赖太阳的情况下持续产生自身的热量。空调机组、汽车发动机、数据中心、工厂和建筑照明都会直接向街道大气排放废热，加剧了夜间的温暖。\n\n---\n\n### 缓解效应\n\n社区和城市规划者经常采用对抗这些机制的策略：\n* **凉爽路面和屋顶：** 使用高[反照率](wiki:Albedo)（反射性）涂层，使表面反射阳光而不是吸收阳光。\n* **城市绿化和树冠：** 种植行道树并创建公园，以恢复遮荫和蒸散作用。\n* **绿色屋顶：** 在屋顶安装植被，以隔绝建筑物热量并冷却局部微气候。\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"uhi_interest_followup\",\n  \"multiple\": false,\n  \"question\": \"Which aspect of the urban heat island effect would you like to explore next?\",\n  \"options\": [\n    { \"id\": \"solutions\", \"text\": \"Architectural and urban design solutions (e.g., green roofs, cool materials)\" },\n    { \"id\": \"climate_health\", \"text\": \"Impacts on public health, air quality, and climate resilience\" },\n    { \"id\": \"measurement\", \"text\": \"How scientists measure and map surface vs. atmospheric heat islands\" }\n  ]\n}\n```\n\n你想了解你所在地区的特定城市规划选择如何影响夜间降温，还是探索上述主题之一？"
+      },
+      "follow_up_1": {
+        "text": "搜索旨在减少热岛效应的城市规划策略"
+      },
+      "follow_up_2": {
+        "text": "解释科学家如何区分地表热岛和大气热岛"
+      },
+      "follow_up_3": {
+        "text": "查找测量城市地表温度异常的学术论文"
+      },
+      "follow_up_4": {
+        "text": "讨论城市夜间极端高温对公共健康的影响"
+      },
+      "follow_up_5": {
+        "text": "搜索城市绿化屋顶设计的案例研究"
+      },
+      "follow_up_6": {
+        "text": "描述城市峡谷几何形状如何在夜间捕获辐射热"
+      }
+    },
+    "damped_sine_decay_plot": {
+      "title": {
+        "text": "阻尼正弦波及其包络线"
+      },
+      "summary": {
+        "text": "绘制阻尼正弦波及其上下包络线，并了解振荡是如何衰减的。"
+      },
+      "message_1": {
+        "text": "你能绘制 y = e^(-0.2x) sin(3x) 在 x 从 0 到 12 范围内的图像，包括其上包络线和下包络线，并解释该图表展示了什么吗？"
+      },
+      "message_2": {
+        "text": "这是该函数及其上下包络线的图表：\n\n```json\n{\"type\": \"math-plot\", \"embed_id\": \"9ef899d2-4b73-4c4e-88bf-d4fd31d61e79\"}\n```\n\n---\n\n### 图表说明\n\n此图表是阻尼谐振子的经典表示，常见于物理和工程领域（例如振动的吉他弦、减震器或 [RLC 电路](wiki:RLC_circuit)）。\n\n#### 1. 振荡分量：$\\sin(3x)$\n* 项 $\\sin(3x)$ 产生连续的周期性波动。\n* 角频率为 $\\omega = 3\\text{ rad/s}$，对应的周期为：\n  $$T = \\frac{2\\pi}{3} \\approx 2.094$$\n* 这意味着曲线沿 $x$ 轴每隔 $\\frac{\\pi}{3} \\approx 1.05$ 个单位穿过零点。\n\n#### 2. 阻尼因子：$e^{-0.2x}$\n* 指数因子 $e^{-0.2x}$ 描述了衰减率参数为 $\\alpha = 0.2$ 的[指数衰减](wiki:Exponential_decay)。\n* 随着 $x$ 的增加，系统由于[阻尼](wiki:Damping)（如摩擦或电阻）而损失能量，振幅随时间缩小。\n\n#### 3. 包络线：$\\pm e^{-0.2x}$\n* 由于正弦函数的范围被限制在 $-1 \\le \\sin(3x) \\le 1$ 之间，乘以正项 $e^{-0.2x}$ 得到：\n  $$-e^{-0.2x} \\le e^{-0.2x}\\sin(3x) \\le e^{-0.2x}$$\n* **上包络线 ($g(x) = e^{-0.2x}$)**：形成平滑的上边界，限制正峰值。\n* **下包络线 ($h(x) = -e^{-0.2x}$)**：形成对称的边界，承托负波谷。\n* 每当 $\\sin(3x) = 1$（在 $x = \\frac{\\pi}{6} + \\frac{2\\pi k}{3}$ 处）时，振荡曲线接触上包络线；每当 $\\sin(3x) = -1$ 时，接触下包络线。\n\n---\n\n### 建议的后续步骤\n\n- [使用导数计算精确的局部极值](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)\n- [比较欠阻尼与临界阻尼系统](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)"
+      },
+      "follow_up_1": {
+        "text": "使用微积分计算该函数的局部极值"
+      },
+      "follow_up_2": {
+        "text": "解释更改衰减率参数如何影响曲线"
+      },
+      "follow_up_3": {
+        "text": "查找类似的谐波运动物理公式"
+      },
+      "follow_up_4": {
+        "text": "描述由该方程建模的现实物理系统"
+      },
+      "follow_up_5": {
+        "text": "搜索描述阻尼振荡的微分方程"
+      },
+      "follow_up_6": {
+        "text": "将此波动行为与无阻尼简谐运动进行比较"
+      }
+    },
+    "autumn_basil_balcony_care": {
+      "title": {
+        "text": "柏林阳台罗勒秋季护理指南"
+      },
+      "summary": {
+        "text": "朝东阳台罗勒的简易秋季护理：光照、浇水、受冻迹象及搬入室内。"
+      },
+      "message_1": {
+        "text": "你能为我在柏林朝东阳台上种的甜罗勒制作一份简洁且适合初学者的秋季护理指南吗？我主要需要关于浇水、光照、受冻迹象以及何时搬进室内的建议。"
+      },
+      "message_2": {
+        "text": "以下是针对你在柏林朝东阳台上的甜罗勒 (*Ocimum basilicum*) 的秋季专项养护指南：\n\n---\n\n### 1. 光照（朝东阳台）\n* **预期情况：** 柏林的秋季，日出位置较低，日照时间迅速缩短。朝东的阳台能提供约 2-4 小时的柔和晨光，对于喜阳的罗勒来说偏少。\n* **摆放位置：** 在安全的前提下，将花盆尽量靠近外栏杆，避开墙壁阴影，以最大限度地获取无遮挡的晨光。\n* **反光小技巧：** 将其靠在白色或浅色墙壁旁，可以利用反射光为叶片增加额外的环境光照。\n\n---\n\n### 2. 浇水习惯\n* **原则：** 天气转凉后，由于水分蒸发变慢且植物生长停滞，罗勒的需水量会大幅下降。\n* **先检查：** **仅**在土表下 2-3 厘米（约一英寸）摸起来干燥时才浇水。不要按固定的时间表浇水。\n* **时间：** 务必在早晨使用室温水浇灌。避免直接使用自来水管里的冷水，以免刺激凉爽的根系。\n* **排水：** 切勿让花盆长期泡在托盘的积水中；阴冷潮湿的土壤会迅速导致根腐病（*尖孢镰刀菌*或水霉菌）。\n\n---\n\n### 3. 何时搬入室内\n* **临界温度：** 罗勒是一种娇嫩的热带草本植物。低于 **10°C (50°F)** 时会产生生理性冷害，在 **0°C 至 4°C** 附近会遭受严重的组织损伤甚至死亡。\n* **柏林的时间点：** 柏林的夜间气温通常在 9 月底或 10 月初就会降至 10°C 以下。\n* **行动：** 如果天气预报显示夜间气温低于 10°C，请**立即搬入室内**。\n\n---\n\n### 4. 低温与光照压力迹象\n* **叶片发黑或呈半透明状：** 这是明显的冷害迹象（温度低于 8-10°C 导致的细胞崩溃）。\n* **叶片变紫或暗淡：** 这是对低温压力及养分吸收缓慢的典型反应。\n* **土壤潮湿但植株萎蔫：** 根部受冻或根腐；根系因太冷或受损而无法吸收水分，即使土壤中有水。\n* **徒长/生长物呈淡绿色：** 光照不足（黄化现象）。\n\n---\n\n### 5. 搬入室内：快速过渡技巧\n1. **最亮的窗台：** 如果有条件，请放在朝南的窗台上；否则，选择光线最充足的朝东或朝西窗台。\n2. **避开穿堂风和暖气：** 远离窗户缝隙的冷风，也要避开暖气片 (*Heizung*) 直接吹出的干燥热风。\n3. **检查害虫：** 在靠近其他室内盆栽之前，检查叶片背面是否有蚜虫或红蜘蛛。\n4. **从顶部采收：** 摘除花蕾和顶端叶对，以促进植株长得茂密，防止其因开花而变得细长。\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"basil_indoor_setup\",\n  \"multiple\": false,\n  \"question\": \"Where are you planning to put your basil once it moves inside?\",\n  \"options\": [\n    { \"id\": \"south_window\", \"text\": \"South- or west-facing sunny windowsill\" },\n    { \"id\": \"east_window\", \"text\": \"Staying near the east window indoors\" },\n    { \"id\": \"grow_light\", \"text\": \"Under a dedicated grow light / LED lamp\" },\n    { \"id\": \"other_spot\", \"text\": \"Another room or location\" }\n  ],\n  \"custom_option_id\": \"other_spot\",\n  \"custom_placeholder\": \"Describe your indoor spot...\"\n}\n```\n\n**后续步骤与建议：**\n* [设置提醒，查看今晚柏林的最低气温](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)\n* [获取大量罗勒采收后的保存技巧](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)"
+      },
+      "follow_up_1": {
+        "text": "查看柏林当前的天气预报和夜间温度"
+      },
+      "follow_up_2": {
+        "text": "解释如何采收甜罗勒以促进其长得更茂盛"
+      },
+      "follow_up_3": {
+        "text": "搜索保存新鲜罗勒叶的快速方法"
+      },
+      "follow_up_4": {
+        "text": "描述根腐病的迹象以及如何挽救积水的罗勒"
+      },
+      "follow_up_5": {
+        "text": "搜索适合草本植物的室内 LED 植物生长灯选项"
+      },
+      "follow_up_6": {
+        "text": "列出最适合室内盆栽草本植物的伴生植物"
+      }
+    },
+    "community_garden_sunflower_illustration": {
+      "title": {
+        "text": "生成向日葵植物插图"
+      },
+      "summary": {
+        "text": "为社区花园传单创作一张无文字的向日葵插图。"
+      },
+      "message_1": {
+        "text": "请为社区花园传单创作一张温馨的向日葵植物插图，背景简洁明亮，不带文字。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\n我正在为你生成用于社区花园传单的向日葵植物插图；目前正在处理中，完成后将直接显示在对话框中。\n\n### 社区传单快速设计技巧\n\n为了让你的花园传单既吸引人又易于阅读：\n\n- **视觉层级与间距：** 给插图留出呼吸空间。将其放置在页边距或页眉处，可以为园艺技巧或活动详情留出清晰的空间，而不会显得拥挤。\n- **色彩和谐：** 直接从插图中提取暖色调——如深蜂蜜金、橄榄叶绿或大地陶土色——用于章节标题和边框。\n- **融入原创艺术：** 如果社区成员或当地园丁创作了素描、叶子拓印或真实花园的照片，将这些与数字插图结合起来，会营造出一种美妙的、亲民且温馨的感觉。\n\n---\n\n**后续步骤与选项：**\n- [设计包含标题和提示的传单布局](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [建议基于向日葵的配色方案](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+      },
+      "follow_up_1": {
+        "text": "搜索该地区的当地社区花园活动"
+      },
+      "follow_up_2": {
+        "text": "帮我为花园传单写一段友好的介绍性文字"
+      },
+      "follow_up_3": {
+        "text": "寻找用于传单装饰的免费 SVG 植物图标"
+      },
+      "follow_up_4": {
+        "text": "列出社区花园指南中应包含的基本提示"
+      },
+      "follow_up_5": {
+        "text": "搜索花园传单的字体搭配创意"
+      },
+      "follow_up_6": {
+        "text": "解释如何在印刷布局中排列视觉元素"
+      }
+    },
+    "beginner_yoga_classes_berlin": {
+      "title": {
+        "text": "柏林初学者瑜伽课程"
+      },
+      "summary": {
+        "text": "查找柏林的三家适合初学者的瑜伽课，包含时间、价格和预订链接。"
+      },
+      "message_1": {
+        "text": "我是瑜伽初学者，想在下周参加柏林的初学者友好课程。你能帮我找几节课，并提供时间、价格和预订链接吗？"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\n以下是下周在柏林各地举行的适合初学者的[瑜伽](wiki:Yoga)课程：\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [接地瑜伽](embed:yoga-for-grounding-TB2) (Kreuzberg)\n- **课程简介：** 一门正念课程，平衡了呼吸引导的动作与持式，旨在探索身体对齐与宁静。专为初学者设计（英语授课）。\n- **日期与时间：** 2026年10月14日，星期三，18:00 – 19:00 CEST（请提前10分钟到达）\n- **地点：** Art OM, Wrangelstraße 54, 10997 Berlin ([克罗伊茨贝格](wiki:Kreuzberg))\n- **价格：** €11.83 – €22.49\n- **预订：** [在 Eventbrite 上购票](embed:yoga-for-grounding-TB2)\n\n### 2. [柔韧性瑜伽与可选抱石](embed:mobility-yoga-optional-qv3) (Friedrichshain)\n- **课程简介：** 一节非正式、放松的适合各水平的柔韧性与瑜伽课，动作流程会以温和的节奏逐步讲解。无需柔韧性基础或经验。\n- **日期与时间：** 2026年10月13日，星期二，19:00 – 19:45 CEST（请提前15分钟到达）\n- **地点：** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([腓特烈斯海恩](wiki:Friedrichshain))\n- **价格：** €5（如果同时参加抱石，使用 Urban Sports Club / Wellpass 可免费入场）\n- **预订：** [查看详情及预订链接](embed:mobility-yoga-optional-qv3)\n\n### 3. [流瑜伽](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)\n- **课程简介：** 一节充满活力且温和的流瑜伽 (Vinyasa) 课，为初学者提供动作调整建议，专注于呼吸意识、身体对齐和压力释放。\n- **日期与时间：** 2026年10月14日，星期三，19:30 – 21:00 CEST\n- **地点：** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [米特区](wiki:Mitte))\n- **价格：** 首节体验课 €10（入门套餐：3 节课 €20）\n- **预订：** [通过 Berlin Yoga Club Meetup 报名](embed:vinyasa-flow-in-a8l)\n\n---\n\n### 初次参加瑜伽课的小贴士\n* **着装：** 穿着舒适、有弹性的衣物，方便活动和弯曲。瑜伽通常赤脚练习。\n* **补水与饮食：** 课前 1.5–2 小时内避免饱食。\n* **倾听身体的声音：** 课前告知老师这是你第一次参加；他们会很乐意向你展示如何使用辅助具（瑜伽砖、毯子或拉伸带）并进行调整。如果你有既往的关节或背部问题，在尝试动态序列前请咨询医生或理疗师。\n\n你是否需要更靠近特定社区（如 Neukölln、Prenzlauer Berg、Charlottenburg）的推荐，或者更倾向于温和的风格，如[哈他瑜伽](wiki:Hatha_yoga)或[阴瑜伽](wiki:Yin_yoga)？\n---\n*⚠️ 此信息仅供参考，不构成医疗建议。医疗决策请咨询医生。*"
+      },
+      "follow_up_1": {
+        "text": "搜索柏林新克尔恩区 (Neukölln) 的瑜伽课"
+      },
+      "follow_up_2": {
+        "text": "说明第一节瑜伽课会有哪些内容"
+      },
+      "follow_up_3": {
+        "text": "查找下周末的哈他瑜伽工作坊"
+      },
+      "follow_up_4": {
+        "text": "对比流瑜伽 (Vinyasa) 和哈他瑜伽 (Hatha) 的风格"
+      },
+      "follow_up_5": {
+        "text": "搜索米特区 (Mitte) 的阴瑜伽工作室"
+      },
+      "follow_up_6": {
+        "text": "列出购买瑜伽垫的初学者建议"
+      }
+    },
+    "calm_manager_follow_up": {
+      "title": {
+        "text": "计划与经理进行一次冷静的后续沟通"
+      },
+      "summary": {
+        "text": "在优先级发生变化后，梳理紧张的对话并起草一份清晰、负责的后续方案。"
+      },
+      "message_1": {
+        "text": "我今天和经理进行了一次紧张的谈话，现在感觉心神不宁。你能帮我梳理一下发生了什么，并计划一次冷静的后续沟通吗？"
+      },
+      "message_2": {
+        "text": "在与经理进行了一次艰难的交流后感到心神不宁是完全正常的。涉及权威、绩效或预期不匹配的对话往往会引发急性压力并破坏情绪调节，让你不断回想当时的话语并怀疑自己的反应。\n\n在回应之前花点时间退后一步，是最健康且最具策略性的方法。\n\n为了帮助我们制定一个清晰的计划来总结发生的事情并起草一份有效的后续方案，**讨论的核心话题是什么？哪个具体的时刻或言论让你感到最紧张？**\n---\n*⚠️ 本内容仅供教育参考，不构成专业的心理建议。如有心理健康方面的疑虑，请咨询合格的治疗师或咨询师。如果你正处于危机中，请立即联系紧急服务部门或危机热线。*"
+      },
+      "message_3": {
+        "text": "我们在更新支持知识库的截止日期上产生了分歧。我的经理说我应该早点提醒风险，而我觉得很委屈，因为优先级已经变动了两次。我想承担我该承担的部分，但不想承担所有的责任。在明天的简短后续沟通中，我该怎么说？"
+      },
+      "message_4": {
+        "text": "处理这类情况需要平衡[坚定自信](wiki:Assertiveness)与协作责任：承认你所能控制的部分（主动上报风险），同时不接受那种忽视背景变化（优先级变动）的说法。\n\n### 心理框架：责任 vs. 责备\n\n当管理者感到措手不及，他们的第一反应通常是：“为什么没人提醒我？”而当执行者收到变动的指令时，他们的反应往往是：“我只是在根据你让我优先处理的事情做调整。”从各自的角度来看，这两种观点都有其合理性。\n\n为了建设性地弥合分歧：\n1. **认可流程改进**：认同更早的透明度对每个人都有好处。\n2. **中立地说明背景，不带防御心理**：将优先级变动描述为导致延迟的操作诱因，而非借口。\n3. **专注于共同目标**：将未来的沟通重点放在保持团队资源和时间线的清晰上。\n\n---\n\n### 方案 1：快速当面沟通或 Slack/Teams 消息\n\n> “嗨 [Manager's Name]，我一直在反思昨天关于支持知识库截止日期的讨论。你是对的，在其他优先级发生变动时，我应该更早地提出人手不足的风险。\n>\n> 我希望确保未来在优先级变动时我们能保持一致，因此我会立即主动指出时间线上的权衡。关于知识库，这是目前的进展以及我需要在 [Proposed Date] 之前完成它所需的支持。如果你想调整这个计划，我们可以简短沟通一下。”\n\n---\n\n### 方案 2：简短直接的邮件或 1 对 1 开场白\n\n> “嗨 [Manager's Name]，\n>\n> 针对我们昨天的谈话进行跟进：我认真思考了你关于尽早提示风险的反馈。在过去几周优先级发生变动时，我专注于处理那些请求，而没有明确指出它们对知识库时间线的影响。\n>\n> 今后，每当出现优先级冲突时，我会立即发一份简短说明，列出对现有截止日期的影响，以便我们共同决定优先处理哪项任务。\n>\n> 知识库当前状态：\n> • [1–2 句状态更新或下一个里程碑]\n> • 目标完成时间：[Date/Time]\n>\n> 感谢你的反馈——如果你想一起审阅剩余事项，请告诉我。”\n\n---\n\n### 为什么这些方案有效\n* **消除防御性争论**：你不是在争论昨天谁对谁错，而是在定义明天如何处理优先级冲突。\n* **展示系统性思维**：你承认优先级的变动必然会影响工作量，而解决方法是达成明确的权衡协议。\n* **重新聚焦于交付**：以完成实际交付成果的清晰路径结束。\n\n---\n\n### 后续步骤与建议\n\n哪种方案更符合你经理的沟通风格？\n\n- [起草此跟进的邮件版本](/#message=Help%20me%20format%20this%20into%20a%20formal%20email%20draft%20for%20my%20manager.)\n- [练习 1 对 1 模拟对话](/#message=Let's%20roleplay%20the%201-on-1%20conversation%20with%20my%20manager.)"
+      },
+      "follow_up_1": {
+        "text": "就截止日期分歧给我的经理起草一封更正式的邮件"
+      },
+      "follow_up_2": {
+        "text": "解释在优先级快速变化时如何设定更好的界限"
+      },
+      "follow_up_3": {
+        "text": "创建一个任务提醒，以便在明天早上发送跟进消息"
+      },
+      "follow_up_4": {
+        "text": "帮我进行对话角色扮演，以增强与经理沟通的信心"
+      },
+      "follow_up_5": {
+        "text": "搜索关于有效管理职场优先级变动的文章"
+      },
+      "follow_up_6": {
+        "text": "检查我的回复中是否存在任何无意的防御性语言或语气"
+      }
+    },
+    "community_garden_planning_mindmap": {
+      "title": {
+        "text": "社区花园规划思维导图"
+      },
+      "summary": {
+        "text": "规划启动社区花园所需的志愿者、种植、预算和活动。"
+      },
+      "message_1": {
+        "text": "你能为规划社区花园制作一个思维导图吗？分支包括志愿者、种植、预算和活动。"
+      },
+      "message_2": {
+        "text": "这是一份涵盖社区花园规划四大核心支柱的结构化思维导图：\n\n```json\n{\"type\": \"mindmap\", \"embed_id\": \"02d212e1-3648-42f5-8c96-700bd34a5070\"}\n```\n\n### 后续步骤的关键考虑因素\n\n1. **场地评估：** 在购买物资之前，检查土壤质量是否存在铅等污染物，并确认是否可以连接可靠的市政用水或雨水收集系统，这一点至关重要。\n2. **社区投入：** 尽早让附近居民参与进来，有助于建立共同管理意识，并确保农作物符合社区的烹饪偏好和文化传统。\n\n你是否想要探索：\n- [起草志愿者报名清单](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)\n- [概述入门预算模板](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)"
+      },
+      "follow_up_1": {
+        "text": "搜索社区花园赠款资助机会和当地农业项目"
+      },
+      "follow_up_2": {
+        "text": "解释如何为社区花园进行基础土壤测试"
+      },
+      "follow_up_3": {
+        "text": "为社区花园创建一个入门预算模板和材料清单"
+      },
+      "follow_up_4": {
+        "text": "列出组织城市农业项目邻里会议的最佳实践"
+      },
+      "follow_up_5": {
+        "text": "帮我为我们的社区花园创建志愿者角色描述和报名表"
+      },
+      "follow_up_6": {
+        "text": "讨论在初始启动阶段后维持社区参与度的策略"
+      }
+    },
+    "books_after_left_hand_of_darkness": {
+      "title": {
+        "text": "读完《黑暗的左手》后的推荐书单"
+      },
+      "summary": {
+        "text": "为喜爱勒古恩的世界观构建和社会议题探讨的读者推荐四本发人深省的科幻小说。"
+      },
+      "message_1": {
+        "text": "我很喜欢《黑暗的左手》中的世界观构建和社会议题探讨。接下来我该读什么书？为什么？"
+      },
+      "message_2": {
+        "text": "[厄休拉·勒古恩](wiki:The_Left_Hand_of_Darkness) 的 [《黑暗的左手》](wiki:Ursula_K._Le_Guin) 之所以脱颖而出，是因为其世界观设定不仅仅是背景板，而是一场人类学思想实验。勒古恩曾有名言，将科幻小说描述为提出“*如果……会怎样？*”的实验室——探讨当一个基本变量（如固定的生物性别）被移除时，人类关系、制度和偏见会如何重塑。\n\n以下是四部延续了这种世界观构建和社会探究的作品：\n\n---\n\n### 1. 厄休拉·勒古恩的《一无所有》 (*The Dispossessed*)\n* **核心问题：** 一个没有所有权的社会能否实现真正的自由？在制度化的过程中，相互义务又是如何存续的？\n* **推荐理由：** 本书设定在同一个松散的[瀚海系列](wiki:Hainish_Cycle)宇宙中，对比了两个相邻的世界：安纳瑞斯，一个建立在无政府工团主义和公社团结基础上的干旱卫星；以及乌拉斯，一个在竞争性资本主义和威权社会主义之间分裂的资源丰富行星。如果说《黑暗的左手》探讨的是性别和个人信任（*shifgrethor* 的概念），那么 [《一无所有》](wiki:The_Dispossessed) 则审视了经济、语言和集体责任，探讨社区如何在致力于互助的同时培养个体。\n\n### 2. [奥克塔维亚·E·巴特勒](wiki:Octavia_E._Butler) 的《黎明》 (*Dawn*，出自《莉莉丝的孩子》/《异种繁殖》三部曲)\n* **核心问题：** 什么是人性的定义？当生存要求我们放弃对等级制度和生物自主权的追求时，会发生什么？\n* **推荐理由：** 就像勒古恩笔下的格森人一样，外星种族欧安卡利人拥有三种性别（男性、女性和负责调解繁殖与基因交换的 *ooloi*）。巴特勒挑战了读者对知情同意、家庭结构和合作的假设。叙事探讨了人类致命的缺陷是否在于高度智慧与天生的等级倾向相结合——以及我们是否能进化到超越统治。\n\n### 3. [安·莱基](wiki:Ann_Leckie) 的《辅助正义》 (*Ancillary Justice*)\n* **核心问题：** 帝国制度如何塑造身份？当意识脱离了个体人类形态时，它是什么样子的？\n* **推荐理由：** 莱基笔下的拉德奇帝国并不按性别划分社会；事实上，其主流语言完全没有性别标记，普遍使用女性代词。除了与勒古恩对感知探索的语言学相似性外，这个故事从一个曾分布在战舰和数千个“辅助”人类身体中的人工智能视角出发，深入探讨了扩张主义帝国中的共谋、职责和个人良知。\n\n### 4. [露丝安娜·埃姆里斯](wiki:Ruthanna_Emrys) 的《半途而废的花园》 (*A Half-Built Garden*)\n* **核心问题：** 人类社区如何组织民主管理以在生态崩溃中生存？我们如何与建立在截然不同价值观基础上的文化进行谈判？\n* **推荐理由：** 在 2080 年代的地球，由流域网络和公社生态合作社管理，人类与一个提议通过移民提供救赎的外星物种进行了第一次接触。它集中探讨了外交、社区共识、亲子关系和社会决策，提供了与勒古恩作品中类似的深思熟虑的人类学节奏和伦理细微差别。\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"next_read_focus\",\n  \"multiple\": false,\n  \"question\": \"Which dimension of The Left Hand of Darkness resonated most with you?\",\n  \"options\": [\n    {\n      \"id\": \"politics_economics\",\n      \"text\": \"Political philosophy, mutual aid, and contrasting economic systems (Lean towards The Dispossessed)\"\n    },\n    {\n      \"id\": \"biology_gender\",\n      \"text\": \"Biology, alien contact, and redefining kinship or consent (Lean towards Dawn)\"\n    },\n    {\n      \"id\": \"identity_language\",\n      \"text\": \"Language, perspective, and challenging imperial hierarchies (Lean towards Ancillary Justice)\"\n    },\n    {\n      \"id\": \"diplomacy_ecology\",\n      \"text\": \"Ecological stewardship, diplomacy, and community decision-making (Lean towards A Half-Built Garden)\"\n    }\n  ]\n}\n```\n\n---\n\n### 建议的后续步骤\n* [探索《一无所有》的主题](/#message=Tell%20me%20more%20about%20the%20philosophical%20themes%20of%20The%20Dispossessed%20by%20Ursula%20K.%20Le%20Guin.)\n* [比较金利·艾和埃斯特拉凡的关系](/#message=Analyze%20the%20relationship%20between%20Genly%20Ai%20and%20Estraven%20in%20The%20Left%20Hand%20of%20Darkness.)"
+      },
+      "follow_up_1": {
+        "text": "搜索《一无所有》的评论和摘要"
+      },
+      "follow_up_2": {
+        "text": "解释“海恩系列”小说之间是如何联系的"
+      },
+      "follow_up_3": {
+        "text": "查找安·莱基的《辅助正义》所获得的奖项"
+      },
+      "follow_up_4": {
+        "text": "讨论语言在推想小说中对塑造政治思想的作用"
+      },
+      "follow_up_5": {
+        "text": "查找奥克塔维亚·E·巴特勒的《黎明》在图书馆的馆藏情况"
+      },
+      "follow_up_6": {
+        "text": "比较格森星人与欧安卡利人的外星生物特征"
+      }
+    },
+    "community_garden_budget_review": {
+      "title": {
+        "text": "审阅社区花园预算 PDF"
+      },
+      "summary": {
+        "text": "阅读一份虚构的预算，以比较支出、资金和可能遗漏的成本。"
+      },
+      "message_1": {
+        "text": "你能总结一下这份随附的社区花园预算 PDF 中的最大支出、总资金、资金缺口以及可能遗漏的成本吗？\n[!](embed:fictional-community-garden-budget-pdf-e1-146e58)"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c\",\"app_id\":\"pdf\",\"skill_id\":\"read\"}\n```\n\n这是随附的社区花园预算 PDF 中的简明摘要。\n\n## 1) 最大支出\n按金额从高到低排序：\n\n1. **高架床木材和五金件** — **€420**\n2. **土壤和堆肥** — **€300**\n3. **共享手工具** — **€140**\n4. **浇水软管和连接器** — **€95**\n5. **种子和幼苗** — **€85**\n6. **开幕活动用品** — **€75**\n\n## 2) 计划支出总额\n将列出的支出相加：\n\n- 420 + 300 + 85 + 140 + 95 + 75 = **€1,115**\n\n## 3) 预期资金总额\n列出的资金来源：\n\n- **社区补助金** — €800\n- **志愿者捐赠** — €200\n\n总资金：\n\n- 800 + 200 = **€1,000**\n\n## 4) 资金缺口\n- **总支出：** €1,115\n- **总资金：** €1,000\n- **资金缺口：** **€115**\n\n## 5) 可能遗漏的成本\n对于一个真实的社区花园，此草案可能遗漏了一些常见项目：\n\n- **场地准备** — 清理、平整、碎片移除\n- **交付/运输成本** — 用于木材、土壤、堆肥\n- **存储/安全** — 工具箱、棚屋、锁具\n- **用水费用** — 接驳、水表使用、使用费\n- **防护材料** — 手套、独轮车、防水布\n- **围栏/标牌** — 用于保护地块并告知邻居\n- **持续维护** — 更换工具、额外土壤、害虫控制\n- **保险/许可** — 如果市政当局或土地所有者有要求\n- **应急储备** — 通常很有用，因为小型社区项目经常超出预算\n\n## 快速解读\n预算**接近平衡**，但在计入可能遗漏的成本之前，已经存在 **€115 的缺口**。因此在实践中，该项目可能需要：\n- 更多的筹款，\n- 一些捐赠的材料/工具，\n- 或者缩减第一阶段的规模。\n\n如果需要，我还可以将其转换为：\n- **供补助金会议使用的一段文字摘要**，或\n- **按类别列出百分比的整洁预算表**。\n---\n*⚠️ 此信息仅供参考，不构成财务建议。有关财务决策，请咨询合格的财务专业人士或税务顾问。*"
+      },
+      "follow_up_1": {
+        "text": "搜索当地社区花园补助金和资金支持机会"
+      },
+      "follow_up_2": {
+        "text": "比较不同的筹款方案以填补资金缺口"
+      },
+      "follow_up_3": {
+        "text": "搜索可持续城市农业和社区花园指南"
+      },
+      "follow_up_4": {
+        "text": "为拨款会议准备一段话的摘要"
+      },
+      "follow_up_5": {
+        "text": "搜索社区花园工具存储和安全选项"
+      },
+      "follow_up_6": {
+        "text": "列出小型社区项目建议的应急储备金"
+      }
+    },
+    "berlin_english_speaking_gp_appointments": {
+      "title": {
+        "text": "在柏林寻找说英语的全科医生"
+      },
+      "summary": {
+        "text": "查找包含真实保险详情和诊所链接的预约选项。"
+      },
+      "message_1": {
+        "text": "我下周需要在柏林预约一位说英语的全科医生（GP）。请对比最早的可选时段，显示他们的预约卡片，并仅在预约列表中确认保险覆盖范围时才说明。如果覆盖范围不明确，请如实说明。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\n以下是我为您找到的未来 7 天内柏林最早的英语全科医生 (GP) 预约选项。我仅在预约列表中明确注明保险覆盖范围的情况下才列出该信息。\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**下周最早的选项**\n1. **10 月 12 日周一, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - 地址: Albert-Einstein-Straße 2, 12489 Berlin\n   - 就诊类型: Erstuntersuchung Neupatient:in (新病人初诊)\n   - 显示语言: 德语、英语\n   - **保险:** 私立保险 *(列表已确认)*\n\n2. **10 月 12 日周一, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - 地址: Kapweg 5, 13405 Berlin\n   - 就诊类型: Erstuntersuchung Neupatient:in (新病人初诊)\n   - 显示语言: 英语\n   - **保险:** 私立保险 *(列表已确认)*\n\n3. **10 月 12 日周一, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - 地址: Stargarder Straße 69, 10437 Berlin\n   - 就诊类型: Akutsprechstunde (急诊门诊)\n   - 显示语言: 德语、英语\n   - **保险:** 不详 *(列表未确认)*\n\n4. **10 月 12 日周一, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - 地址: Müllerstraße 36, 13353 Berlin\n   - 就诊类型: Erstuntersuchung Neupatient:in (新病人初诊)\n   - 显示语言: 德语、英语\n   - **保险:** 不详 *(列表未确认)*\n\n5. **10 月 12 日周一, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - 地址: Wallstraße 16, 10179 Berlin\n   - 就诊类型: Erstuntersuchung Neupatient:in (新病人初诊)\n   - 显示语言: 德语、英语\n   - **保险:** 不详 *(列表未确认)*\n\n几点说明：\n- 我在上述对比中排除了 **10 月 9 日至 10 日** 的两个更早选项，因为您特别要求的是 **下周**。\n- 这些结果似乎来自 Doctolib 列表；本次搜索结果集中不支持 Jameda 的覆盖范围。\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\n如果您需要，我接下来可以：\n- 将范围缩小到已确认的 **仅限公立保险**，或者\n- 根据 **所在地区/距离** 创建一份精简名单。\n---\n*⚠️ 本信息仅供参考，不构成医疗建议。医疗决策请咨询您的医生。*"
+      },
+      "follow_up_1": {
+        "text": "在米特区 (Mitte) 搜索公立保险全科医生预约"
+      },
+      "follow_up_2": {
+        "text": "筛选预约，仅显示公立保险"
+      },
+      "follow_up_3": {
+        "text": "在普伦茨劳贝格区 (Prenzlauer Berg) 附近寻找说英语的医生"
+      },
+      "follow_up_4": {
+        "text": "按街区和距离缩小选项范围"
+      },
+      "follow_up_5": {
+        "text": "在柏林搜索专科医生预约"
+      },
+      "follow_up_6": {
+        "text": "说明如何在线预约这些医生"
+      }
+    },
+    "community_garden_welcome_melody": {
+      "title": {
+        "text": "社区花园欢迎曲目"
+      },
+      "summary": {
+        "text": "为社区花园欢迎视频创作一段柔和的器乐旋律。"
+      },
+      "message_1": {
+        "text": "你能为社区花园的欢迎视频创作一段简短、柔和的器乐旋律吗？不需要人声。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\n我正在为你的社区花园欢迎视频创作那段柔和的器乐曲目。目前正在处理中，准备就绪后会直接显示在这里。\n\n[社区园艺](wiki:Community_gardening)项目是让邻里聚在一起并促进当地生物多样性的绝佳方式。在生成音乐的同时，你是否需要我帮你规划欢迎视频的叙事或视觉流程？\n\n- [起草欢迎视频的大纲](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [构思开场白文字或旁白技巧](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+      },
+      "follow_up_1": {
+        "text": "搜索当地社区花园活动和研讨会"
+      },
+      "follow_up_2": {
+        "text": "帮我起草花园视频的分镜脚本"
+      },
+      "follow_up_3": {
+        "text": "寻找植物和花卉的库存视频素材"
+      },
+      "follow_up_4": {
+        "text": "为社区视频编写欢迎词旁白"
+      },
+      "follow_up_5": {
+        "text": "搜索社区项目的园艺技巧"
+      },
+      "follow_up_6": {
+        "text": "为社区花园开放日活动提供建议"
+      }
+    },
+    "mastodon_public_post_themes": {
+      "title": {
+        "text": "Mastodon 公开帖子的主题"
+      },
+      "summary": {
+        "text": "总结 Mastodon 官方账号近期帖子的主题，并探索代表性示例。"
+      },
+      "message_1": {
+        "text": "你能总结一下 mastodon.social 上 Mastodon 官方账号最近发布的公开帖子的主要主题，并提供几个示例链接吗？"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n获取 @Mastodon (`@Mastodon@mastodon.social`) 最近公开帖子的请求目前仍在后台运行，准备就绪后将更新对话。\n\n在等待信息流加载期间：\n- [查看最近的 Mastodon 博客公告](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [探索 Mastodon 路线图](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
+      },
+      "message_3": {
+        "text": "帖子已经加载完毕。你能总结一下主要主题并链接到三篇具有代表性的帖子吗？"
+      },
+      "message_4": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n`mastodon.social` 上的官方 @Mastodon 账号在其最近的公开帖子中突出了几个核心主题：\n\n### 1. 重大产品演进与用户研究\n主要焦点一直是 **Mastodon 5.0** 的基础工作，此前由其设计团队领导了社区范围内的“探索周”研究计划。团队分享了重新设计的、更简洁的界面预览以及更新后的编辑器，旨在使平台更易于访问且用户友好。\n\n### 2. 社区治理、政策与人员更新\nMastodon 定期发布治理和政策更新，特别是针对联邦宇宙（fediverse）管理员和开发者的反馈，发布了关于其**商标政策**的澄清指南。他们还宣布了关键的领导层更迭，感谢即将离任的社区总监 Hannah Aubry 所做的贡献。\n\n### 3. 服务器聚焦与联邦宇宙生态系统\n该账号积极推广独立的联邦宇宙实例和基础设施计划——例如突出显示主题服务器（如 Earth.Law）并转发 IFTAS 运营研究等行业调查。\n\n### 4. 社区周边与项目资金\n为了支持持续的开源开发，他们分享了官方社区周边更新，包括发布新的毛绒吉祥物（“Plushtodons”）。\n\n---\n\n### 三篇代表性帖子\n\n- **产品路线图与视觉刷新：** [Mastodon 5.0 预览公告](embed:mastodon-after-publishing-D8d) —— 根据探索发现分享了即将推出的 5.0 布局和帖子编辑器的预览。\n- **政策与社区反馈：** [商标政策指南更新](embed:mastodon-today-we-YqD) —— 概述了根据社区意见调整后的修订版商标规则。\n- **项目支持与周边：** [Plushtodon 预订公告](embed:mastodon-new-plushtodon-A57) —— 宣布推出新的官方毛绒吉祥物，作为支持者资助开发的一种方式。\n\n---\n\n你想进一步了解某个特定话题吗？\n- [阅读更多关于 Mastodon 5.0 功能的信息](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [查看商标指南](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+      },
+      "follow_up_1": {
+        "text": "搜索 Mastodon 最近的博客公告"
+      },
+      "follow_up_2": {
+        "text": "解释 Mastodon 的去中心化审核机制是如何运作的"
+      },
+      "follow_up_3": {
+        "text": "搜索 Mastodon 5.0 开发的更新动态"
+      },
+      "follow_up_4": {
+        "text": "比较 Mastodon 5.0 与之前版本的变化"
+      },
+      "follow_up_5": {
+        "text": "搜索关于 Fediverse 服务器审核的社区讨论"
+      },
+      "follow_up_6": {
+        "text": "列出开源平台面临的主要挑战"
+      }
+    },
+    "adjacent_career_portfolio_experiments": {
+      "title": {
+        "text": "测试从客户支持出发的两条职业路径"
+      },
+      "summary": {
+        "text": "通过为期一个月的实用作品集实验和面试问题，对比技术写作和支持运营。"
+      },
+      "message_1": {
+        "text": "我从事软件客户支持工作，喜欢编写帮助指南和改进工单流程。在申请新工作之前，我可以测试哪两个相邻的角色？请建议我可以在下个月内完成的小型作品集实验，以及可以向担任这些角色的人提出的问题。"
+      },
+      "message_2": {
+        "text": "基于你在[客户支持](wiki:Customer_support)方面的背景，以及你对帮助指南和工单工作流的喜爱，有两个自然的相邻角色脱颖而出：\n\n1. **技术文档工程师 / 客户教育专家 (Technical Writer / Customer Education Specialist)**\n   *核心关注：* 组织[信息架构](wiki:Information_architecture)，将复杂的软件功能转化为清晰的用户文档，创建故障排除指南，并维护自助服务知识库。\n2. **支持运营专家 (Support Operations Specialist / Support Ops)**\n   *核心关注：* 管理支持工单工具（如 [Zendesk](wiki:Zendesk)、Freshdesk 或 Jira Service Management），分析支持指标，优化工单路由，审计宏 (Macros)，并自动化重复流程。\n\n---\n\n### 30 天作品集实验\n\n你不需要立即换工作来建立工作证明 (Proof of Work)。你可以在当前岗位上直接进行这些轻量级实验，或者将其作为独立的案例研究：\n\n#### 针对技术文档 / 客户教育方向\n* **“前 5 大工单”重写：** 识别 3 到 5 个用户经常因为 UI 困惑或现有指南模糊而卡住的常见支持工单。\n* **交付物：** 编写一份全面的、模块化的故障排除指南或操作文章。结构清晰，包含标题、前提条件、分步说明以及带注释的截图或图表。\n* **作品集指标：** 跟踪发布后标记为该问题的工单是否减少，或衡量内部团队对解决速度的反馈。\n\n#### 针对支持运营方向\n* **宏与路由效率审计：** 分析团队现有的宏库或工单路由规则。\n* **交付物：** 创建一份 1 到 2 页的流程改进提案，展示：\n  1. 识别出的冗余或过时的宏。\n  2. 精简的分类方案或自动化触发器设置。\n  3. 预计每位专员每周节省的时间。\n* **作品集指标：** 向你的主管展示，或者如果你有管理员权限则直接实施，并记录实施前后的基准数据。\n\n---\n\n### 信息型访谈问题\n\n在 LinkedIn 上或公司内部联系相关从业者时，可以询问：\n\n#### 针对技术文档工程师\n* *“你如何平衡为最终用户写作与为内部技术团队或工程师写作？”*\n* *“当产品功能在文档更新前快速变化时，你的协作流程是怎样的？”*\n* *“目前招聘中最看重哪些编写工具和‘文档即代码’ (Docs-as-code) 的工作流？”*\n\n#### 针对支持运营专家\n* *“你每天有多少时间花在配置工具和集成上，又有多少时间花在分析数据和工单量趋势上？”*\n* *“在扩展支持工作流时，团队在自动化方面最常犯的错误是什么？”*\n}/p>\n* *“哪些管理认证（如 Zendesk、Salesforce）或技术技能对你获得这份工作起到了最大作用？”*\n\n---\n\n### 探索你的方向（第 1 题，共 5 题）\n\n为了帮助确定哪条路径最符合你的长期目标和日常偏好，让我们来探讨一下你的核心工作风格和兴趣。\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"adjacent_role_preference\",\n  \"multiple\": false,\n  \"question\": \"When you reflect on writing guides versus improving workflows, which type of problem energizes you more?\",\n  \"custom_option_id\": \"other_focus\",\n  \"custom_placeholder\": \"Describe what you enjoy most or any specific balance...\",\n  \"options\": [\n    {\n      \"id\": \"content_pedagogy\",\n      \"text\": \"Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education).\"\n    },\n    {\n      \"id\": \"systems_tooling\",\n      \"text\": \"Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps).\"\n    },\n    {\n      \"id\": \"hybrid_balance\",\n      \"text\": \"An even split between both; I want to improve internal systems while also authoring the guides.\"\n    },\n    {\n      \"id\": \"other_focus\",\n      \"text\": \"Something else / A different aspect entirely.\"\n    }\n  ]\n}\n```\n\n**建议：** 如果你更喜欢专注思考、清晰的沟通和用户体验 (UX) 同理心，技术文档方向通常提供更多的自主权。如果你更喜欢围绕工具管理、指标和系统逻辑解决问题，支持运营则提供了通往运营领导层和产品运营的更快路径。\n\n---\n\n**潜在的后续步骤：**\n- [起草一份信息型访谈的沟通话术](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)\n- [概述支持工作流审计模板](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)\n---\n*⚠️ 这仅为教育信息，而非专业的心理建议。如有心理健康方面的疑虑，请咨询合格的治疗师或辅导员。如果你正处于危机中，请立即联系紧急服务或危机热线。*"
+      },
+      "follow_up_1": {
+        "text": "搜索远程技术写作职位及其要求"
+      },
+      "follow_up_2": {
+        "text": "起草一份简洁的技术写作面试邀约信息"
+      },
+      "follow_up_3": {
+        "text": "为你的 30 天作品集实验创建任务清单"
+      },
+      "follow_up_4": {
+        "text": "为你的支持工作流审计制定分步指南大纲"
+      },
+      "follow_up_5": {
+        "text": "搜索支持运营认证课程及其要求"
+      },
+      "follow_up_6": {
+        "text": "比较这两个角色的日常职责和成长路径"
+      }
+    },
+    "bayes_theorem_quick_quiz": {
+      "title": {
+        "text": "通过快速测试学习贝叶斯定理"
+      },
+      "summary": {
+        "text": "通过具体案例理解先验概率和后验概率，然后通过后续问题测试你的直觉。"
+      },
+      "message_1": {
+        "text": "我下周有一场统计学考试。你能用一个日常例子解释一下贝叶斯定理，然后考考我吗？"
+      },
+      "message_2": {
+        "text": "### 什么是贝叶斯定理？\n\n[贝叶斯定理](wiki:Bayes'_theorem)是一个数学法则，用于在观察到新证据 ($B$) 时更新事件或假设 ($A$) 的概率。\n\n用符号表示为：\n\n$$P(A|B) = \\frac{P(B|A) \\cdot P(A)}{P(B)}$$\n\n每个组成部分代表的含义如下：\n* **$P(A)$ — [先验概率](wiki:Prior_probability)：** 在看到新数据之前，你对 $A$ 发生可能性的初始估计（基准率）。\n* **$P(B|A)$ — 似然度：** 如果假设 $A$ 确实成立，观察到证据 $B$ 的概率。\n* **$P(B)$ — [边际似然](wiki:Marginal_likelihood)：** 在所有可能的情况下观察到证据 $B$ 的总概率。\n* **$P(A|B)$ — [后验概率](wiki:Posterior_probability)：** 在证据 $B$ 发生的情况下，$A$ 更新后的概率。\n\n---\n\n### 日常示例：快速医疗检测\n\n假设你针对一种罕见病症进行了快速筛查检测：\n\n1. **基准率（先验）：** 在你所属的人群中，只有 **$1\\%$** 的人确实患有此病：\n   $$P(\\text{患病}) = 0.01, \\quad P(\\text{健康}) = 0.99$$\n2. **检测灵敏度（似然度）：** 如果某人患病，检测结果呈阳性的概率为 $90\\%$：\n   $$P(\\text{阳性} \\mid \\text{患病}) = 0.90$$\n3. **误报率：** 如果某人未患病，检测结果错误地呈阳性的概率为 $10\\%$：\n   $$P(\\text{阳性} \\mid \\text{健康}) = 0.10$$\n\n现在假设**你的检测结果呈阳性**。你实际患病的概率是多少？\n\n#### 应用公式：\n首先，计算获得阳性检测结果的总概率 $P(\\text{阳性})$：\n$$\\begin{aligned}\nP(\\text{阳性}) &= P(\\text{阳性} \\mid \\text{患病}) \\cdot P(\\text{患病}) + P(\\text{阳性} \\mid \\text{健康}) \\cdot P(\\text{健康}) \\\\\n&= (0.90 \\cdot 0.01) + (0.10 \\cdot 0.99) \\\\\n&= 0.009 + 0.099 = 0.108\n\\end{aligned}$$\n\n现在，计算你的后验概率：\n$$P(\\text{患病} \\mid \\text{阳性}) = \\frac{0.009}{0.108} \\approx 8.3\\%$$\n\n即使检测准确率高达 $90\\%$，实际患病的概率也仅为 **$8.3\\%$** 左右。因为这种病很罕见，来自健康大多数人的误报数量很容易超过来自患病少数人的真实阳性数量。\n\n---\n\n### 快速测试\n\n让我们测试一下你对这些术语的理解：\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"bayes_components_quiz_1\",\n  \"multiple\": false,\n  \"question\": \"In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?\",\n  \"options\": [\n    { \"id\": \"opt_pa\", \"text\": \"P(A) — Prior probability\" },\n    { \"id\": \"opt_pba\", \"text\": \"P(B|A) — Likelihood\" },\n    { \"id\": \"opt_pab\", \"text\": \"P(A|B) — Posterior probability\" },\n    { \"id\": \"opt_pb\", \"text\": \"P(B) — Marginal probability of evidence\" }\n  ]\n}\n```"
+      },
+      "message_3": {
+        "text": "我认为 P(A) 是先验概率，也就是初始基础率。对吗？能再给我出一个简短的问题让我试试吗？"
+      },
+      "message_4": {
+        "text": "完全正确。$P(A)$ 是**先验概率**——即在考虑任何新观察结果或测试结果之前，你的基准或初始信念。在我们的医学筛查示例中，这就是 $1\\%$ 的普通人群患病率。\n\n---\n\n### 挑战题：直觉检查\n\n这里有一个快速场景，用来测试你对贝叶斯定理在实践中表现的直觉：\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"bayes_intuition_quiz_2\",\n  \"multiple\": false,\n  \"question\": \"Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?\",\n  \"options\": [\n    {\n      \"id\": \"opt_very_high\",\n      \"text\": \"The posterior probability is close to 100% because alarms are specifically built to detect break-ins.\"\n    },\n    {\n      \"id\": \"opt_counterintuitively_low\",\n      \"text\": \"The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins.\"\n    },\n    {\n      \"id\": \"opt_equal_to_prior\",\n      \"text\": \"The posterior probability remains completely unchanged regardless of whether the alarm sounds.\"\n    },\n    {\n      \"id\": \"opt_independent\",\n      \"text\": \"The posterior probability depends only on alarm volume, not the baseline frequency of burglaries.\"\n    }\n  ]\n}\n```\n\n***\n\n**建议的后续步骤：**\n* [逐步计算一个完整的贝叶斯数值问题](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)\n* [复习连续贝叶斯和共轭先验](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)"
+      },
+      "follow_up_1": {
+        "text": "计算一个自定义的贝叶斯定理概率应用题"
+      },
+      "follow_up_2": {
+        "text": "解释频率派统计学和贝叶斯统计学之间的区别"
+      },
+      "follow_up_3": {
+        "text": "搜索关于概率的统计学考试练习题"
+      },
+      "follow_up_4": {
+        "text": "讲解另一个具有多个结果的贝叶斯定理示例"
+      },
+      "follow_up_5": {
+        "text": "查找直观解释贝叶斯定理的在线视频教程"
+      },
+      "follow_up_6": {
+        "text": "测试我如何用数字计算后验概率"
+      }
+    },
+    "community_garden_calendar_invitation": {
+      "title": {
+        "text": "社区花园日历邀请"
+      },
+      "summary": {
+        "text": "创建一个可导入的日历邀请，包含柏林时区、活动议程以及志愿者种植活动的提醒。"
+      },
+      "message_1": {
+        "text": "你能为 2026 年 10 月 17 日星期六 10:00 到 12:00（欧洲/柏林时间）的一场虚构社区花园志愿者种植活动制作一个可导入的日历邀请吗？请使用“Gartenweg 12, Berlin”作为虚构的示例地点，包含简短的议程和 24 小时前的提醒，并提供可保存为 .ics 文件的 iCalendar 文本。"
+      },
+      "message_2": {
+        "text": "这是为您社区花园种植活动准备的标准 [iCalendar](wiki:ICalendar) (`.ics`) 数据。它包含欧洲/柏林时区定义、活动详情、议程以及 24 小时显示提醒 (VALARM)。\n\n请将以下内容保存为名为 `community_garden_planting.ics` 的文本文件，并将其导入您的日历客户端（如 Google 日历、Apple 日历或 Microsoft Outlook）。\n\n```json\n{\"type\": \"code\", \"embed_id\": \"6deff7cb-4e99-4dd3-9052-3985e09a9cc9\"}\n```\n\n### 活动摘要\n* **日期与时间：** 2026 年 10 月 17 日，星期六，10:00 – 12:00 CEST\n* **地点：** Gartenweg 12, Berlin\n* **提醒：** 1 天前 (`TRIGGER:-P1D`)\n\n***\n\n**建议的后续步骤：**\n* [为志愿者起草一封邀请邮件](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)\n* [准备一份种植和工具清单文档](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)"
+      },
+      "follow_up_1": {
+        "text": "在网上搜索社区花园志愿服务技巧"
+      },
+      "follow_up_2": {
+        "text": "起草一封邀请志愿者参加种植活动的友好邮件"
+      },
+      "follow_up_3": {
+        "text": "查找柏林即将举办的园艺工作坊"
+      },
+      "follow_up_4": {
+        "text": "为园艺活动创建一份全面的工具清单"
+      },
+      "follow_up_5": {
+        "text": "在网上搜索适合初学者的多年生植物"
+      },
+      "follow_up_6": {
+        "text": "解释如何将 .ics 文件导入 Google 日历"
+      }
+    },
+    "net_cash_from_supplied_balances": {
+      "title": {
+        "text": "现有余额的净现金"
+      },
+      "summary": {
+        "text": "根据用户提供的三个余额计算净现金，并解释支票账户、储蓄账户和信用卡债务。"
+      },
+      "message_1": {
+        "text": "这是我手头账单上的当前余额：支票账户 €1,850，储蓄账户 €4,200，信用卡欠款 €640。你能显示我的净现金状况并解释每个数字的含义吗？"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"04818ed0-8e67-4cb8-9736-45d5c35d393a\",\"app_id\":\"math\",\"skill_id\":\"calculate\"}\n```\n\n### 你的净现金头寸\n\n你的**净现金头寸**为 **€5,410**。\n\n以下是明细：\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"3db1b137-abac-48a5-8c18-31ef7821ec04\"}\n```\n\n---\n\n### 各项指标的含义\n\n1. **支票账户 (€1,850)：运营现金（营运资金）**\n   * 这是你流动性最强的[现金](wiki:Cash)池，用于支付定期的经常性生活开支（房租/房贷、水电费、杂货、订阅费）。\n   * 拥有 €1,850 的资金可以提供即时缓冲，在等待收入到账期间防止产生透支费或错过付款期限。\n\n2. **储蓄账户 (€4,200)：安全边际与储备**\n   * 这代表了预留用于[紧急备用金](wiki:Emergency_fund)或中期财务目标的资金。\n   * 与支票账户不同，这部分现金是分开存放的，以减少日常支出，通常会产生一定的利息，同时在出现意外支出时仍可轻松提取。\n\n3. **信用卡余额 (€640)：短期[债务](wiki:Debt)**\n   * 这是欠发卡机构的负债。如果在账单免息期结束前全额还清，则不会产生利息。\n   * 然而，如果逾期未还，信用卡通常会收取高额利息 (APR)，这会迅速侵蚀你的净现金。\n\n4. **净现金头寸 (€5,410)：真实的即时流动性**\n   * 该指标衡量如果你立即偿还当前的短期信用卡债务，剩余的流动现金是多少。\n   * 正数表示你具有充分的流动性，能够偿还当前的信用卡债务，并留有 €5,410 的储备金。\n\n---\n\n### 建议的后续步骤\n\n你想了解这如何融入你更广泛的财务计划吗？\n\n* [制定紧急备用金计划](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)\n* [创建每月预算框架](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)\n---\n*⚠️ 这仅为教育信息，不构成财务建议。在做出财务决策前，请咨询合格的财务专业人士或税务顾问。*"
+      },
+      "follow_up_1": {
+        "text": "在线搜索推荐的应急基金储蓄基准"
+      },
+      "follow_up_2": {
+        "text": "解释净现金与净资产之间的区别"
+      },
+      "follow_up_3": {
+        "text": "计算我目前的储蓄能支付多久的每月生活开支"
+      },
+      "follow_up_4": {
+        "text": "列出快速偿还短期信用卡债务的策略"
+      },
+      "follow_up_5": {
+        "text": "搜索降低信用卡利率的技巧"
+      },
+      "follow_up_6": {
+        "text": "帮我评估 4,200 欧元的储蓄是否足以作为应急基金"
+      }
+    },
+    "community_garden_volunteer_onboarding": {
+      "title": {
+        "text": "社区花园志愿者入职培训"
+      },
+      "summary": {
+        "text": "创建一份可共享的一页志愿者指南，包含首日任务、安全基础知识和求助联系方式。"
+      },
+      "message_1": {
+        "text": "请为社区花园制作一份可共享的一页志愿者入职文档。字数控制在 220 字以内。内容涵盖到达、首日任务、安全以及如何寻求帮助。这是一个通用模板，因此在需要花园特定联系人或地点的地方请使用占位符。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"document\", \"embed_id\": \"f40fc42f-df5d-4116-bba3-3500b1805eb5\"}\n```\n\n入职文档已在上方生成，采用标准 `.docx` 格式，并带有占位符（如 `[Coordinator Name]`、`[Check-In Location]` 和 `[Phone Number]`），方便自定义。字数不到 170 字，可以整齐地打印在一页纸上。\n\n***\n\n### 建议的后续步骤：\n1. [使用花园的具体细节自定义占位符](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)\n2. [添加志愿者行为准则或照片授权部分](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)"
+      },
+      "follow_up_1": {
+        "text": "搜索社区花园志愿者管理最佳实践"
+      },
+      "follow_up_2": {
+        "text": "帮我添加志愿者行为准则部分"
+      },
+      "follow_up_3": {
+        "text": "为我们的志愿者入职培训日创建一个任务清单"
+      },
+      "follow_up_4": {
+        "text": "解释如何构建一个受欢迎的入职培训清单"
+      },
+      "follow_up_5": {
+        "text": "在线搜索志愿者手册模板"
+      },
+      "follow_up_6": {
+        "text": "列出户外社区场所的基本安全指南"
+      }
+    },
+    "voice_note_transcription_action_item": {
+      "title": {
+        "text": "转录短语音备忘录"
+      },
+      "summary": {
+        "text": "转录一段短录音并检查其中是否包含需要跟进的任务。"
+      },
+      "message_1": {
+        "text": "你能转录这段短录音并告诉我其中是否包含操作项吗？\n[!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)"
+      },
+      "message_2": {
+        "text": "这是你录音的转录内容：\n\n> *\"Real-time transcription is working correctly in OpenMates.\"*\n\n### 是否包含操作项？\n**不包含。** 这段录音只是一个信息性的状态更新，确认转录功能可以正常使用。它没有提到任何任务、截止日期或要求的后续行动。\n\n---\n\n**你可能考虑的后续步骤：**\n- 如果你想测试包含任务的录音，欢迎分享另一个语音备忘录！"
+      },
+      "follow_up_1": {
+        "text": "搜索具有任务提取功能的语音备忘录转录应用"
+      },
+      "follow_up_2": {
+        "text": "解释 AI 模型中自动操作项检测的工作原理"
+      },
+      "follow_up_3": {
+        "text": "转录另一个音频文件以测试任务检测功能"
+      },
+      "follow_up_4": {
+        "text": "列出录制包含可执行步骤的清晰语音备忘录的技巧"
+      },
+      "follow_up_5": {
+        "text": "创建一个审查语音录制功能的新任务"
+      },
+      "follow_up_6": {
+        "text": "比较将口头想法转化为有条理任务的不同方法"
+      }
     }
   },
   "focus_modes": {
@@ -20881,6 +21475,120 @@
       },
       "restore_failed": {
         "text": "无法恢复所选定义。"
+      }
+    }
+  },
+  "daily_inspiration_fallback": {
+    "antikythera": {
+      "phrase": {
+        "text": "一艘古代沉船中曾藏有一台可以预测星空的机器。"
+      },
+      "title": {
+        "text": "安提基特拉机械装置"
+      },
+      "description": {
+        "text": "古希腊的手动宇宙模型。"
+      },
+      "assistant_response": {
+        "text": "安提基特拉机械装置利用青铜齿轮来模拟天文周期。探索古代工程师是如何预测星空的。"
+      }
+    },
+    "bioluminescence": {
+      "phrase": {
+        "text": "有些动物会自己发光。其中的化学原理异常精妙。"
+      },
+      "title": {
+        "text": "生物发光"
+      },
+      "description": {
+        "text": "生物体通过化学反应产生光。"
+      },
+      "assistant_response": {
+        "text": "生物发光是为了捕食、伪装、交流和防御。探索化学反应是如何转化为光芒的。"
+      }
+    },
+    "fermi": {
+      "phrase": {
+        "text": "如果宇宙如此广阔，为什么它看起来如此寂静？"
+      },
+      "title": {
+        "text": "费米悖论"
+      },
+      "description": {
+        "text": "外星生命存在的可能性与缺乏明确证据之间的矛盾。"
+      },
+      "assistant_response": {
+        "text": "费米悖论探讨了为什么我们还没有发现外星文明存在的有力证据。探索可能的答案。"
+      }
+    },
+    "export": {
+      "phrase": {
+        "text": "保留你自己的备份。随时根据需要导出你的 OpenMates 数据。"
+      },
+      "title": {
+        "text": "导出你的 OpenMates 数据"
+      },
+      "description": {
+        "text": "备份聊天记录、设置、记忆等。"
+      },
+      "assistant_response": {
+        "text": "在账户设置中导出你的 OpenMates 数据副本。登录以访问你的加密账户数据。"
+      }
+    },
+    "pii": {
+      "phrase": {
+        "text": "想要更强大的隐私控制？添加 OpenMates 应当隐藏的个人详情。"
+      },
+      "title": {
+        "text": "自定义 PII 检测"
+      },
+      "description": {
+        "text": "在调用模型前保护个人详情。"
+      },
+      "assistant_response": {
+        "text": "在调用模型前，选择要让 OpenMates 隐藏的个人详情。查看隐私设置以进行管理。"
+      }
+    },
+    "focus": {
+      "phrase": {
+        "text": "需要更精准的回答？给你的 Mate 一个具体的任务。"
+      },
+      "title": {
+        "text": "专注模式"
+      },
+      "description": {
+        "text": "引导对话达成特定目标。"
+      },
+      "assistant_response": {
+        "text": "使用专注模式引导对话达成特定目标。在“应用”中探索可用模式。"
+      }
+    },
+    "memories": {
+      "phrase": {
+        "text": "重复同样的话很乏味。保存你希望 Mate 记住的背景信息。"
+      },
+      "title": {
+        "text": "记忆"
+      },
+      "description": {
+        "text": "保存实用的偏好和背景信息。"
+      },
+      "assistant_response": {
+        "text": "将有用的偏好和背景信息保存为记忆，然后选择你的 Mate 可以使用的内容。"
+      }
+    },
+    "events": {
+      "phrase": {
+        "text": "想找点事做？探索你附近的活动。"
+      },
+      "title": {
+        "text": "查找本地活动"
+      },
+      "description": {
+        "text": "搜索课程、聚会和其他活动。"
+      },
+      "assistant_response": {
+        "text": "使用活动搜索查找附近的课程和聚会。选择地点和主题，看看周边有哪些活动。"
       }
     }
   }

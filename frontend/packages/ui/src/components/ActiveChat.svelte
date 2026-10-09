@@ -46,6 +46,7 @@ import { storageArchiveFetch } from "../config/api";
     import WebSearchEmbedPreview from './embeds/web/WebSearchEmbedPreview.svelte';
     import VideoTranscriptEmbedPreview from './embeds/videos/VideoTranscriptEmbedPreview.svelte';
     import PDFEmbedFullscreen from './embeds/pdf/PDFEmbedFullscreen.svelte';
+    import { publicExamplePdfUrl } from './embeds/pdf/publicExamplePdf';
     import ImageEmbedFullscreen from './embeds/images/ImageEmbedFullscreen.svelte';
     import PdfReadEmbedFullscreen from './embeds/pdf/PdfReadEmbedFullscreen.svelte';
     import PdfSearchEmbedFullscreen from './embeds/pdf/PdfSearchEmbedFullscreen.svelte';
@@ -173,7 +174,6 @@ import { storageArchiveFetch } from "../config/api";
         rankDailyInspirationsByInterests,
         rankExampleChatIdsByInterests,
     } from '../demo_chats/guestSmartSelection';
-    import { getGuestProductInspirations } from '../demo_chats/guestProductInspirations';
     import type { InterestTagId } from '../demo_chats/interestTags';
     import { topicPreferencesStore } from '../stores/topicPreferencesStore';
     import type { OpenMatesEvent } from '../data/openmatesEvents';
@@ -215,25 +215,8 @@ import { storageArchiveFetch } from "../config/api";
     } from '../services/applicationPreviewService';
     import { externalLinks } from '../config/links';
 
-    const GUEST_DEFAULT_INTRO_INSPIRATION_ID = 'openmates-intro';
-    const GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID = 'openmates-actionable-events';
     const GUEST_EXAMPLE_SURFACES = new Set<DailyInspirationSurface>(['chats', 'projects', 'workflows']);
     const GUEST_INPUT_LINK_ROTATION_MS = 6500;
-    const GUEST_LANDING_DEFAULT_EXAMPLE_IDS = [
-        'example-ai-workshops-meetups-berlin',
-    ];
-    const GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION: Record<string, string[]> = {
-        [GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID]: [
-            'example-ai-workshops-meetups-berlin',
-        ],
-        'openmates-privacy-safety': [
-            'example-private-plumber-email',
-        ],
-        'openmates-mates-focus': [
-        ],
-        'openmates-provider-cross-platform': [
-        ],
-    };
     const GuestAllExamplesBackIcon = getLucideIcon('grid-2x2');
     const GuestAllExamplesSearchIcon = getLucideIcon('search');
     const CANCELLED_NEW_CHAT_DRAFT_RESTORE_ATTEMPTS = 50;
@@ -942,7 +925,7 @@ import { storageArchiveFetch } from "../config/api";
 
     // PDF embed fullscreen — triggered by clicking a finished PDF embed (editor or read-only)
     let showPdfEmbedFullscreen = $state(false);
-    let pdfFullscreenData = $state<{ embedId?: string; filename?: string; pageCount?: number }>({});
+    let pdfFullscreenData = $state<{ embedId?: string; filename?: string; pageCount?: number; previewPdfUrl?: string }>({});
 
     // PDF read fullscreen — triggered by clicking a finished pdf.read skill embed
     let showPdfReadFullscreen = $state(false);
@@ -975,6 +958,7 @@ import { storageArchiveFetch } from "../config/api";
         useCorrected?: boolean;
         correctionModel?: string;
         blobUrl?: string;
+        previewAudioUrl?: string;
         filename?: string;
         duration?: string;
         waveform?: AudioWaveformData;
@@ -1368,6 +1352,7 @@ import { storageArchiveFetch } from "../config/api";
             embedId: event.detail.embedId,
             filename: event.detail.filename,
             pageCount: event.detail.pageCount,
+            previewPdfUrl: publicExamplePdfUrl(event.detail.previewPdfUrl),
         };
         showPdfEmbedFullscreen = true;
     }
@@ -1444,6 +1429,7 @@ import { storageArchiveFetch } from "../config/api";
             useCorrected: event.detail.useCorrected,
             correctionModel: event.detail.correctionModel,
             blobUrl: event.detail.blobUrl,
+            previewAudioUrl: event.detail.previewAudioUrl,
             filename: event.detail.filename,
             duration: event.detail.duration,
             waveform: event.detail.waveform,
@@ -3744,7 +3730,6 @@ import { storageArchiveFetch } from "../config/api";
     async function loadNonAuthRecentChats(
         selectedTagIds: InterestTagId[] = [],
         includeGuestExamples = false,
-        activeInspirationId = GUEST_DEFAULT_INTRO_INSPIRATION_ID,
         preserveInterestRanking = false,
     ): Promise<RecentChatMeta[]> {
         let anonymousMetas: RecentChatMeta[] = [];
@@ -3775,14 +3760,8 @@ import { storageArchiveFetch } from "../config/api";
             return [...localMetas, ...orderMetasByPreferredIds(communityMetas, rankedExampleIds)];
         }
 
-        const slideExampleIds = GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION[activeInspirationId];
-        if (slideExampleIds) {
-            const slideMetas = orderMetasByPreferredIds(communityMetas, slideExampleIds);
-            return [...localMetas, ...slideMetas];
-        }
-
         if (selectedTagIds.length === 0) {
-            return localMetas;
+            return [...localMetas, ...communityMetas.slice(0, RECENT_CHATS_TOTAL)];
         }
 
         const rankedExampleIds = rankExampleChatIdsByInterests(
@@ -3830,7 +3809,6 @@ import { storageArchiveFetch } from "../config/api";
         const guestTags = selectedGuestInterestTagIds;
         const guestTagsConfirmed = guestInterestContinueConfirmed;
         const preserveGuestInterestRanking = guestInterestRankingConfirmed;
-        const guestInspirationId = activeGuestInspirationId;
         // Re-run when carousel is invalidated by cross-device events
         void carouselInvalidationCounter;
         void contextTeamId;
@@ -3865,17 +3843,8 @@ import { storageArchiveFetch } from "../config/api";
             priorityContinueItems = [];
             recentChatsScrolledByUser = false;
             const requestId = ++nonAuthRecentChatsRequestId;
-            loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : [], guestTagsConfirmed, guestInspirationId, preserveGuestInterestRanking).then((metas) => {
+            loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : [], guestTagsConfirmed, preserveGuestInterestRanking).then((metas) => {
                 if (requestId !== nonAuthRecentChatsRequestId) return;
-                // Keep the last visible examples when this slide has no published
-                // examples yet. Preserve fresh shared-chat metadata separately.
-                if (guestTagsConfirmed && !metas.some((meta) => isExampleChat(meta.chat.chat_id))) {
-                    const previousExamples = nonAuthRecentChats.filter((meta) => isExampleChat(meta.chat.chat_id));
-                    const fallbackExamples = previousExamples.length > 0
-                        ? previousExamples
-                        : orderMetasByPreferredIds(getAllExampleChats().map(buildExampleChatMeta), GUEST_LANDING_DEFAULT_EXAMPLE_IDS);
-                    metas = [...metas, ...fallbackExamples];
-                }
                 nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, metas.length);
                 nonAuthRecentChats = metas;
                 centerFirstRecentChat();
@@ -5975,13 +5944,10 @@ import { storageArchiveFetch } from "../config/api";
     let guestAllExamplesVisible = $state(false);
     let guestAllExamplesGridEl = $state<HTMLElement | null>(null);
     let activeGuestSurface = $state<DailyInspirationSurface>('chats');
-    let activeGuestInspirationId = $state(GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID);
     let guestInputLinkIndex = $state(0);
     type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
     let guestLandingIntroResetToken = $state(0);
-    let guestInterestSignupSlideToken = $state(0);
-    let guestSkipLandingIntro = $state(false);
     let lastGuestWorkspaceSlideId = $state<string | null>(null);
     let guestReturnSlideId = $state<string | null>(null);
     let guestLandingIntroOverlayActive = $derived(
@@ -6056,11 +6022,6 @@ import { storageArchiveFetch } from "../config/api";
             return;
         }
         const dailyInspirationIds = getInterestSurfaceIds(selectedTagIds, 'dailyInspirations');
-        const introInspiration = state.inspirations.find((inspiration) =>
-            inspiration.inspiration_id === GUEST_DEFAULT_INTRO_INSPIRATION_ID
-        ) ?? getGuestProductInspirations().find((inspiration) =>
-            inspiration.inspiration_id === GUEST_DEFAULT_INTRO_INSPIRATION_ID
-        );
         const filteredInspirations = state.inspirations.filter((inspiration) =>
             dailyInspirationIds.has(inspiration.inspiration_id)
         );
@@ -6068,12 +6029,9 @@ import { storageArchiveFetch } from "../config/api";
             filteredInspirations.length > 0 ? filteredInspirations : state.inspirations,
             selectedTagIds
         );
-        const nextInspirations = introInspiration
-            ? [introInspiration, ...rankedInspirations.filter((inspiration) => inspiration.inspiration_id !== introInspiration.inspiration_id)]
-            : rankedInspirations;
         dailyInspirationStore.setSurfaceInspirations(
             'chats',
-            nextInspirations,
+            rankedInspirations,
             { personalized: false }
         );
     }
@@ -6103,17 +6061,13 @@ import { storageArchiveFetch } from "../config/api";
     function handleGuestInterestSelectInterests() {
         guestInterestContinueConfirmed = false;
         guestInterestSelectorVisible = true;
-        guestInterestSignupSlideToken += 1;
     }
 
     function handleVisibleInspirationChange(inspiration: DailyInspiration) {
         if ($authStore.isAuthenticated) return;
         lastGuestWorkspaceSlideId = inspiration.inspiration_id;
         activeGuestSurface = inspiration.surface ?? 'chats';
-        const nextId = inspiration.inspiration_id === GUEST_DEFAULT_INTRO_INSPIRATION_ID
-            ? GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID
-            : inspiration.inspiration_id;
-        activeGuestInspirationId = nextId;
+        const nextId = inspiration.inspiration_id;
         if (!lastGuestInspirationShuffleId) {
             lastGuestInspirationShuffleId = nextId;
             return;
@@ -6123,20 +6077,11 @@ import { storageArchiveFetch } from "../config/api";
         guestInterestShuffleToken += 1;
     }
 
-    function handleLandingIntroExpandedChange(phase: LandingIntroPhase) {
-        if ($authStore.isAuthenticated) {
-            guestLandingIntroPhase = 'regular';
-            return;
-        }
-        guestLandingIntroPhase = phase;
-    }
-
     function resetGuestLandingIntroState() {
         lastGuestWorkspaceSlideId = null;
         guestReturnSlideId = null;
         guestAllExamplesVisible = false;
-        guestSkipLandingIntro = false;
-        guestLandingIntroPhase = 'expanded';
+        guestLandingIntroPhase = 'regular';
         guestLandingIntroResetToken += 1;
     }
 
@@ -7954,17 +7899,11 @@ import { storageArchiveFetch } from "../config/api";
         showWelcome = true; // Show welcome message for new chat
         if (!$authStore.isAuthenticated) {
             guestReturnSlideId = closingChat ? lastGuestWorkspaceSlideId : null;
-            if (guestReturnSlideId) {
-                // Closing returns guests to their place in the workspace carousel.
-                guestSkipLandingIntro = false;
-                guestLandingIntroPhase = guestReturnSlideId === GUEST_DEFAULT_INTRO_INSPIRATION_ID ? 'expanded' : 'regular';
-            } else if (isGuestExampleChat) {
-                guestAllExamplesVisible = false;
-                guestSkipLandingIntro = true;
-                guestLandingIntroPhase = 'regular';
-            } else {
+            if (!guestReturnSlideId) {
                 resetGuestLandingIntroState();
             }
+            guestAllExamplesVisible = false;
+            guestLandingIntroPhase = 'regular';
         } else {
             guestLandingIntroPhase = 'regular';
         }
@@ -13825,7 +13764,7 @@ import { storageArchiveFetch } from "../config/api";
                     style:--assistant-speech-overlay-reserve={`${assistantSpeechOverlayHeight}px`}
                 >
                     <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
-                    <!-- Guests see the stable intro-video hero; authenticated users keep Daily Inspiration. -->
+                    <!-- Guests and authenticated users see ordinary Daily Inspiration. -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen. -->
                     {#if showWelcome}
                         <div
@@ -13842,12 +13781,8 @@ import { storageArchiveFetch } from "../config/api";
                                     onStartChat={handleStartChatFromInspiration}
                                     onEmbedFullscreen={handleInspirationEmbedFullscreen}
                                     onVisibleInspirationChange={handleVisibleInspirationChange}
-                                    onLandingIntroExpandedChange={handleLandingIntroExpandedChange}
                                     containerWidth={effectiveChatWidth}
-                                    variant={$authStore.isAuthenticated ? 'default' : 'guest-intro'}
                                     landingIntroResetToken={guestLandingIntroResetToken}
-                                    landingSignupSlideToken={guestInterestSignupSlideToken}
-                                    skipLandingIntro={guestSkipLandingIntro}
                                     restoreGuestSlideId={guestReturnSlideId}
                                 />
                             {/key}
@@ -15181,6 +15116,7 @@ import { storageArchiveFetch } from "../config/api";
                         decodedContent: {
                             filename: pdfFullscreenData.filename,
                             page_count: pdfFullscreenData.pageCount,
+                            previewPdfUrl: pdfFullscreenData.previewPdfUrl,
                         },
                     }}
                     embedId={pdfFullscreenData.embedId}
@@ -15222,6 +15158,7 @@ import { storageArchiveFetch } from "../config/api";
                             use_corrected: recordingFullscreenData.useCorrected,
                             correction_model: recordingFullscreenData.correctionModel,
                             blob_url: recordingFullscreenData.blobUrl,
+                            previewAudioUrl: recordingFullscreenData.previewAudioUrl,
                             filename: recordingFullscreenData.filename,
                             duration: recordingFullscreenData.duration,
                             waveform: recordingFullscreenData.waveform,

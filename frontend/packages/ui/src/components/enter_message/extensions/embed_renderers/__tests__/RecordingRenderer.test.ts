@@ -28,3 +28,24 @@ it('recovers transcript on late embed delivery and releases the listener on disp
   for (const cleanup of mocks.cleanups) cleanup();
   expect(mocks.listeners.size).toBe(0);
 });
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+it('passes a static public recording URL from embed content to preview and fullscreen', async () => {
+  mocks.get.mockResolvedValue({
+    content: JSON.stringify({
+      transcript: 'Real-time transcription is working correctly in OpenMates.',
+      previewAudioUrl: '/store-examples/transcription-demo-voice-note.wav',
+    }),
+  });
+  const content = document.createElement('div');
+  const renderer = new RecordingRenderer();
+  await renderer.render({ content, attrs: { id: 'recording', type: 'recording', contentRef: 'embed:recording', status: 'finished' } } as Parameters<RecordingRenderer['render']>[0]);
+  const props = mocks.mount.mock.calls.at(-1)?.[1].props;
+  expect(props.previewAudioUrl).toBe('/store-examples/transcription-demo-voice-note.wav');
+  let fullscreenUrl: string | undefined;
+  content.addEventListener('recordingfullscreen', (event) => {
+    fullscreenUrl = (event as CustomEvent).detail.previewAudioUrl;
+  });
+  props.onFullscreen();
+  expect(fullscreenUrl).toBe('/store-examples/transcription-demo-voice-note.wav');
+});

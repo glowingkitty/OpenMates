@@ -1,11 +1,11 @@
 schema_version: 1
-specification: feature.apps-workspace@2
+specification: feature.apps-workspace@3
 discovery:
 - id: guest-browses-app-details
   given: A person opens OpenMates on a phone without signing in.
   when: They choose Apps, open Health, and inspect its appointment skill, focus modes, and memories.
-  then: The catalog and descriptions are visible in the Apps workspace without requiring signup; private memory
-    entries remain protected.
+  then: The catalog and descriptions are visible in the Apps workspace without requiring signup; private
+    memory entries remain protected.
 - id: settings-link-finds-moved-app
   given: A signed-in person has bookmarked the old Audio skill page in Settings.
   when: They open the bookmark after the Apps workspace is released.
@@ -14,89 +14,91 @@ navigation:
 - id: health-path-forwards-to-hash
   given: A person follows /apps/health/search-appointments.
   when: The link loads and they reload the resulting page.
-  then: The address becomes /#apps/health/search-appointments and the same form opens for the backend search_appointments
-    skill.
+  then: The address becomes /#apps/health/search-appointments and the same form opens for the backend
+    search_appointments skill.
 - id: detail-back-restores-parent
   given: A person opens Audio from Apps and then opens Generate sound from Audio.
   when: They use Back, Forward, and the fullscreen close control.
-  then: Back restores Audio, Forward restores Generate sound, and closing the skill restores its app view; equivalent
-    focus-mode and memory links remain reachable.
+  then: Back restores Audio, Forward restores Generate sound, and closing the skill restores its app view;
+    equivalent focus-mode and memory links remain reachable.
 forms:
 - id: events-two-primary-controls
   given: A person opens Events search and the skill declares default dates for the coming days.
   when: They enter jazz and Hamburg in the query and location controls, then expand Show settings.
-  then: Only those two controls appear initially; grouped date and provider options appear on expansion, and submission
-    preserves the schema's request structure.
+  then: Only those two controls appear initially; grouped date and provider options appear on expansion,
+    and submission preserves the schema's request structure.
 - id: sound-defaults-and-validation
   given: A person opens Generate sound with a valid default provider and duration.
   when: They enter a soft confirmation tick and then choose an invalid duration in Show settings.
-  then: The default form needs only the prompt, and the invalid duration is explained before dispatch rather than
-    silently changed; allowed limits come from the current skill contract.
+  then: The default form needs only the prompt, and the invalid duration is explained before dispatch
+    rather than silently changed; allowed limits come from the current skill contract.
 execution:
 - id: direct-search-without-chat
   given: A signed-in person opens Web search in their Personal account.
   when: They submit accessible museums in Berlin.
-  then: The existing search contract runs once with normal pricing and result safety, displays results, and creates
-    no AI chat or chat-orchestration turn.
+  then: The existing search contract runs once with normal pricing and result safety, displays results,
+    and creates no AI chat or chat-orchestration turn.
 - id: repeated-generation-click
   given: A signed-in person submits one sound-generation request and it is processing.
   when: They click the submit action again before the first submission is acknowledged.
-  then: The same operation is not dispatched or charged twice, and its existing processing result remains visible.
+  then: The same operation is not dispatched or charged twice, and its existing processing result remains
+    visible.
 web_retention:
 - id: saved-search-parent-and-children
   given: A signed-in person runs Events search in their Personal account and receives three results.
   when: They leave the form, reload OpenMates, and reopen the saved result.
-  then: One encrypted search parent and its three child results remain related and readable in Personal without
-    an extra chat.
+  then: One encrypted search parent and its three child results remain related and readable in Personal
+    without an extra chat.
 - id: generation-finishes-in-submitted-team
   given: A member submits sound generation in Team Studio and then switches to Personal while it processes.
   when: The job finishes and they return to Team Studio.
-  then: The retained generation embed shows the completed sound in Team Studio, no duplicate embed is created, and
-    nothing is added to Personal.
+  then: The retained generation embed shows the completed sound in Team Studio, no duplicate embed is
+    created, and nothing is added to Personal.
 cli_retention:
 - id: cli-search-stays-temporary
   given: A signed-in person runs a Web search with the CLI.
   when: They later open the Web app's saved-embeds tab.
-  then: The CLI request has not been automatically added to that library; a separately submitted web search is retained
-    there.
+  then: The CLI request has not been automatically added to that library; a separately submitted web search
+    is retained there.
 - id: explicit-cli-download-still-works
   given: A signed-in person requests a sound through the CLI with an explicit output filename.
   when: Generation completes and the CLI downloads it.
-  then: The requested local file is available under the existing generation contract without automatic web request-history
-    retention.
+  then: The requested local file is available under the existing generation contract without automatic
+    web request-history retention.
 embed_library:
 - id: paginated-app-library
   given: A Personal account has hundreds of saved Audio embeds from speech, sound, and chats.
   when: The person opens the Embeds tab from the Generate sound detail and requests the next page.
-  then: Bounded pages include saved Audio items across its skills without loading the entire library or showing
-    unrelated apps.
+  then: Bounded pages include saved Audio items across its skills without loading the entire library or
+    showing unrelated apps.
 - id: account-switch-clears-old-library
   given: A person is viewing the second page of Personal Audio embeds and belongs to Team Studio.
   when: They switch to Team Studio while the Personal page request is still finishing.
-  then: The old rows and cursor are cleared, late Personal results are ignored, and only authorized Team Studio
-    Audio embeds appear.
+  then: The old rows and cursor are cleared, late Personal results are ignored, and only authorized Team
+    Studio Audio embeds appear.
 workflow_library:
 - id: saved-unrun-workflow-appears-once
-  given: Team Studio has saved a workflow with both Audio sound and speech steps, and that workflow has never run.
+  given: Team Studio has saved a workflow with both Audio sound and speech steps, and that workflow has
+    never run.
   when: A member opens Audio's Workflows tab.
   then: That workflow appears once; workflows using only other apps and Personal workflows do not appear.
 anonymous_gate:
 - id: guest-search-and-budget-exhaustion
   given: A guest is eligible for one priced Web search under the existing daily free-use limits.
   when: They submit it and later exhaust the available allowance.
-  then: The first quick search runs through normal anonymous admission; the form then shows Signup, and clicking
-    it starts signup without sending another skill request.
+  then: The first quick search runs through normal anonymous admission; the form then shows Signup, and
+    clicking it starts signup without sending another skill request.
 - id: guest-generation-is-signup-only
   given: A guest still has daily free allowance and opens Generate sound or Generate image.
   when: They inspect the execution action.
-  then: The action is Signup because file generation and background work remain account-only under the same policy
-    as CLI; no generation request is sent.
+  then: The action is Signup because file generation and background work remain account-only under the
+    same policy as CLI; no generation request is sent.
 anonymous_retention:
 - id: local-search-adopted-on-signup
   given: A guest has run an eligible Events search and has its encrypted parent and children in this browser.
   when: They reload within the anonymous browser scope and then complete signup.
-  then: Results remain readable locally before signup and are adopted with their child relationships into Personal
-    afterward, without rerunning the search or permanent pre-signup server content records.
+  then: Results remain readable locally before signup and are adopted with their child relationships into
+    Personal afterward, without rerunning the search or permanent pre-signup server content records.
 - id: interrupted-promotion-retries-safely
   given: Signup has completed but the connection drops while a guest search result is being saved to Personal.
   when: The browser retries promotion after connectivity returns.
@@ -106,10 +108,11 @@ presentation:
 - id: inspiration-opens-direct-form
   given: A person opens Apps on desktop or mobile and sees an inspiration for Events search.
   when: They select it, open the skill, and use the hero's Use skill action.
-  then: The shared detail shell opens from the bottom and scrolls to and briefly highlights the main input; provider
-    and price information use actual catalog data.
-- id: recent-items-and-chat-example
-  given: A person has recently used Audio sound generation and can inspect a curated chat example for it.
-  when: They revisit Audio and choose the example.
-  then: Recent-use ordering surfaces their used item, and a new chat tab opens with the example prefilled without
-    sending it; existing focus-mode and memory behavior is preserved.
+  then: The shared detail shell opens from the bottom and scrolls to and briefly highlights the main input;
+    provider and price information use actual catalog data. Recently used items appear in recent-use order
+    within the active context.
+- id: real-example-chat-and-valid-tabs
+  given: Alex opens a focus-only app detail with one existing example chat and no skills or memories.
+  when: Alex follows the example and returns to inspect the tabs.
+  then: The real chat opens by ID in a new tab without a prefilled composer. Unavailable Skills and
+    Settings and memories tabs and synthetic examples are absent; Focus modes is selected.

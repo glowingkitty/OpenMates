@@ -8,11 +8,11 @@
 /** Default props — shows a finished recording transcription */
 const defaultProps = {
   id: "preview-audio-1",
-  filename: "voice-memo-2026-03-10.webm",
+  filename: "transcription-demo-voice-note.wav",
   status: "finished" as const,
-  transcript:
-    "This is a test transcription of the recorded audio message. The voice memo discusses the sprint review results and action items for the next week.",
-  duration: "0:42",
+  transcript: "Real-time transcription is working correctly in OpenMates.",
+  previewAudioUrl: "/store-examples/transcription-demo-voice-note.wav",
+  duration: "0:05",
   model: "voxtral-mini-2602",
   isMobile: false,
   isAuthenticated: true,
@@ -23,6 +23,13 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  /** Logged-out visitor playing a reviewed public example recording. */
+  guest: {
+    ...defaultProps,
+    id: "preview-audio-guest",
+    isAuthenticated: false,
+  },
+
   /** Uploading state */
   uploading: {
     id: "preview-audio-uploading",

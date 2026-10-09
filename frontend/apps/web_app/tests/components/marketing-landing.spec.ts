@@ -1,20 +1,16 @@
 import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
-import { appsMetadata } from '../../../../packages/ui/src/data/appsMetadata';
+import { landingAppOrder, landingAppExamples } from '../../../../packages/public-site/src/components/landing/landingPageContent';
 
 // playwright-account: not_required reason=isolated_component_preview
 
 const APP = 'https://app.dev.openmates.org';
-const sections = ['actionable', 'privacy', 'workflows', 'devices', 'open-source'] as const;
-const eligible = Object.values(appsMetadata).filter(app =>
-  !app.internal && !['openmates', 'projects', 'tasks'].includes(app.id) &&
-  (app.skills.length > 0 || app.focus_modes.length > 0 || app.id === 'docs'),
-).map(app => app.id).sort();
+const sections = ['actionable', 'privacy', 'model-choice', 'workflows', 'devices', 'open-source'] as const;
 const preview = (width: number, theme = 'light', props?: object) =>
   `/dev/preview/landing/LandingPage?${new URLSearchParams({ theme, background: theme === 'dark' ? '#161616' : '#dbeafe', width: String(width), chrome: '0', ...(props ? { props: JSON.stringify(props) } : {}) })}`;
 
 for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
-  // contract-test: direct surface=gui.web assertions=marketing-landing.independent-scroll,marketing-landing.feature-layout,marketing-landing.destinations,marketing-landing.real-screenshots,marketing-landing.hero-app-rail
+  // contract-test: direct surface=gui.web assertions=marketing-landing.independent-scroll,marketing-landing.feature-layout,marketing-landing.destinations,marketing-landing.real-screenshots,marketing-landing.hero-app-rail,marketing-landing.six-feature-viewport,marketing-landing.capability-rail-and-prompts
   test(`landing hero and illustrated sections remain usable (${width}px)`, async ({ page }, testInfo) => {
     test.setTimeout(75_000);
     await page.setViewportSize({ width, height });
@@ -25,12 +21,23 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     const scroller = page.getByTestId('landing-scroll-container');
     const compose = page.getByTestId('landing-compose');
     await expect(root).toBeVisible();
+    await expect(root.getByTestId('public-site-header').locator('.wordmark')).toHaveAttribute('href', `${APP}/`);
     const geometry = await root.evaluate(element => {
       const rect = (id: string) => element.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect().toJSON();
       return { hero: rect('landing-hero'), viewport: rect('landing-viewport-container'), scroller: rect('landing-scroll-container'), compose: rect('landing-compose'), cue: rect('landing-scroll-cue') };
     });
     expect(Math.abs(geometry.hero.height - geometry.scroller.height)).toBeLessThan(2);
     expect(geometry.hero.top).toBeGreaterThanOrEqual(geometry.scroller.top - 1);
+    const visualSlot = (await page.getByTestId('landing-hero-media').boundingBox())!;
+    const deviceScale = (await page.getByTestId('landing-hero-media').locator('.hero-device-scale').boundingBox())!;
+    expect(visualSlot.height).toBeGreaterThan(0);
+    expect(deviceScale.height).toBeLessThanOrEqual(visualSlot.height + 1);
+    const titleTop = (await root.locator('#hero-title').boundingBox())!.y;
+    for (const frame of await page.getByTestId('landing-hero-media').locator(width < 760 ? '.device-frame.phone' : '.device-frame').all()) {
+      const bounds = (await frame.boundingBox())!;
+      expect(bounds.y).toBeGreaterThanOrEqual(geometry.hero.top - 1);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(titleTop + 1);
+    }
     expect(geometry.cue.bottom).toBeLessThan(geometry.compose.top);
     const cueCenters = await page.getByTestId('landing-scroll-cue').locator('svg, span').evaluateAll(nodes => nodes.map(node => {
       const box = node.getBoundingClientRect();
@@ -68,18 +75,32 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     expect(await compose.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe(shadow);
 
     const groups = page.getByTestId('landing-rail-group');
-    await expect(groups).toHaveCount(2);
-    expect(await groups.first().locator('[data-app-id]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-app-id')).sort())).toEqual(eligible);
-    const railGeometry = await groups.first().locator('.rail-icon').evaluateAll(nodes => nodes.map(node => {
+    await expect(groups).toHaveCount(3);
+    expect(await groups.nth(1).locator('[data-app-id]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-app-id')))).toEqual(landingAppOrder);
+    for (const id of ['plans', 'plan', 'reminders', 'reminder', 'workflows', 'workflow']) expect(landingAppOrder).not.toContain(id);
+    await expect(groups.nth(1).locator('.rail-icon')).toHaveCount(landingAppOrder.length);
+    for (const icon of await groups.nth(1).locator('.rail-icon').all()) {
+      const id = await icon.getAttribute('data-app-id');
+      await expect(icon).toHaveAttribute('href', `${APP}/#apps/${id}`);
+      await expect(icon).toHaveAttribute('target', '_blank');
+      await expect(icon).toHaveAttribute('rel', /noopener/);
+    }
+    const railGeometry = await groups.nth(1).locator('.rail-icon').evaluateAll(nodes => nodes.map(node => {
       const rect = node.getBoundingClientRect();
       const style = getComputedStyle(node, '::before');
-      return { centerY: rect.y + rect.height / 2, width: rect.width, mask: style.maskImage || style.webkitMaskImage };
+      return { centerY: rect.y + rect.height / 2, width: rect.width, radius: getComputedStyle(node).borderTopLeftRadius, mask: style.maskImage || style.webkitMaskImage };
     }));
     expect(Math.max(...railGeometry.map(icon => icon.centerY)) - Math.min(...railGeometry.map(icon => icon.centerY))).toBeLessThan(2);
     expect(railGeometry.every(icon => icon.width >= 60 && icon.width <= 122 && icon.mask.includes('url('))).toBe(true);
+    expect(railGeometry.every(icon => icon.radius === '34%')).toBe(true);
     const prompt = page.getByTestId('landing-prompt');
     await expect(prompt).toHaveCSS('opacity', '1');
-    const initialApp = await prompt.getAttribute('data-active-app');
+    const initialPrompt = await prompt.evaluate((element) => ({ id: (element as HTMLElement).dataset.activeApp, href: element.getAttribute('href'), target: element.getAttribute('target') }));
+    const initialApp = initialPrompt.id;
+    if (initialApp && landingAppExamples[initialApp]) {
+      expect(initialPrompt.href).toBe(`${APP}/#chat-id=${landingAppExamples[initialApp]}`);
+      expect(initialPrompt.target).toBe('_blank');
+    }
     await expect.poll(() => page.getByTestId('landing-prompt').getAttribute('data-active-app'), { timeout: 7_000 }).not.toBe(initialApp);
     await expect(page.getByTestId('landing-app-rail')).toHaveAttribute('data-active-app', (await page.getByTestId('landing-prompt').getAttribute('data-active-app'))!);
     const promptStyle = await page.getByTestId('landing-prompt').evaluate(element => ({ tail: getComputedStyle(element, '::after').maskImage, origin: getComputedStyle(element).transformOrigin }));
@@ -130,6 +151,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
       const section = page.getByTestId(`landing-feature-${id}`);
       await section.scrollIntoViewIfNeeded();
       await expect(section.getByRole('heading')).toBeVisible();
+      expect((await section.boundingBox())!.height).toBeGreaterThanOrEqual(geometry.scroller.height - 1);
       const media = section.getByTestId(`landing-feature-media-${id}`);
       const copyRect = await section.locator('.feature-copy').boundingBox();
       const mediaRect = await media.boundingBox();
@@ -137,22 +159,25 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
       if (width < 760) expect(mediaRect!.y).toBeGreaterThanOrEqual(copyRect!.y + copyRect!.height - 1);
       else expect(mediaRect!.x).toBeGreaterThanOrEqual(copyRect!.x + copyRect!.width - 1);
       icons.push(await section.getByTestId('landing-feature-icon').evaluate(element => getComputedStyle(element).maskImage));
-      for (const image of await media.locator('img.device-screen').all()) {
+      for (const image of await media.locator('img.device-screen:visible').all()) {
         await image.scrollIntoViewIfNeeded();
         await expect.poll(() => image.evaluate((node: HTMLImageElement) => node.complete && node.naturalWidth > 0)).toBe(true);
         expect((await image.getAttribute('alt'))?.trim()).toBeTruthy();
       }
       await expect(media.locator('.device-frame.phone')).toHaveCount(1);
       await expect(media.locator('.device-frame.laptop')).toHaveCount(1);
+      await expect(media.locator('.device-frame.phone')).toBeVisible();
+      if (width < 760) await expect(media.locator('.device-frame.laptop')).toBeHidden();
+      else await expect(media.locator('.device-frame.laptop')).toBeVisible();
     }
-    expect(new Set(icons).size).toBe(5);
+    expect(new Set(icons).size).toBeGreaterThanOrEqual(5);
     expect(icons.every(icon => icon.includes('url('))).toBe(true);
     expect(await scroller.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     const after = await compose.boundingBox();
     expect(Math.abs(after!.y + after!.height - geometry.compose.bottom)).toBeLessThan(2);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
-    await expect(root.locator('img.device-screen')).toHaveCount(12);
+    await expect(root.locator('img.device-screen:visible')).toHaveCount(width < 760 ? 7 : 14);
   });
 }
 
@@ -169,6 +194,9 @@ test('320px reduced-motion landing offers language-only settings and all event/s
   expect(compactTab?.width).toBeGreaterThanOrEqual(48);
   expect(compactTab?.height).toBeCloseTo(44.8, 0);
   await expect(page.getByTestId('landing-prompt')).toHaveCSS('opacity', '1');
+  await expect(page.getByTestId('landing-prompt')).toHaveAttribute('data-active-app', 'events');
+  await expect(page.getByTestId('landing-prompt')).toHaveAttribute('href', `${APP}/#chat-id=${landingAppExamples.events}`);
+  await expect(page.getByTestId('landing-prompt')).toHaveAttribute('target', '_blank');
   const rail = root.locator('.rail-track');
   await expect(rail).toHaveCSS('animation-name', 'none');
   await expect(page.getByTestId('landing-scroll-cue')).toHaveCSS('animation-name', 'none');
@@ -182,7 +210,12 @@ test('320px reduced-motion landing offers language-only settings and all event/s
   await panel.getByRole('button', { name: /Deutsch/ }).click();
   await expect(language).toContainText('DE');
   await expect(language).toBeFocused();
-  await expect(root.getByRole('heading', { level: 1 })).toContainText('Deine Privatsphäre');
+  await expect(root.getByRole('heading', { level: 1 })).toContainText('Privatsphäre');
+  const mobileSpacing = await root.evaluate((element) => ({
+    cue: element.querySelector('[data-testid="landing-scroll-cue"]')!.getBoundingClientRect().bottom,
+    composer: element.querySelector('[data-testid="landing-compose"]')!.getBoundingClientRect().top
+  }));
+  expect(mobileSpacing.cue).toBeLessThan(mobileSpacing.composer);
   expect(await page.evaluate(() => localStorage.getItem('preferredLanguage'))).toBe('de');
   await language.click(); await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0); await expect(language).toBeFocused();

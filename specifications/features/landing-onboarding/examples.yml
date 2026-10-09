@@ -1,181 +1,43 @@
 schema_version: 1
 specification: feature.landing-onboarding@5
-
-real_shell:
-  - id: logged-out-welcome-uses-real-chat-shell
-    given: {authenticated: false, route: /chat/new}
-    expect:
-      daily_inspiration_variant: guest-intro
-      host_surface: new_chat_welcome
-      separate_marketing_page: false
-      welcome_content_mounted_under_intro: true
-      active_public_chat: null
-      chat_hash: null
-  - id: intro-overlay-covers-active-chat-card
-    given: {current_story_id: openmates-intro, intro_phase: expanded}
-    expect:
-      covers_active_chat_content: true
-      message_input_reserved: true
-      underlying_welcome_content_removed_from_dom: false
-
-story_sequence:
-  - id: durable-guest-story-order
-    given: {source: guest-onboarding}
-    expect:
-      ordered_story_ids:
-        - openmates-intro
-        - openmates-actionable-events
-        - openmates-privacy-safety
-        - openmates-mates-focus
-        - openmates-provider-cross-platform
-        - openmates-signup-cta
-      final_story_id: openmates-signup-cta
-  - id: fresh-visit-starts-at-intro
-    given: {authenticated: false, fresh_page_load: true}
-    expect: {current_story_id: openmates-intro, intro_phase: expanded}
-
-app_rails:
-  - id: intro-highlighted-request-order
-    given: {current_story_id: openmates-intro}
-    expect:
-      request_app_order: [health, events, code, news]
-      request_meanings: [find_doctor_appointments, find_events, build_a_web_app, explain_the_news]
-  - id: app-icons-from-active-metadata-only
-    given: {web_app_metadata: current}
-    expect:
-      disallowed_app_sources: [inactive, future, non_existing, provider_only]
-      excluded_app_ids: [ai]
-      highlighted_icons_consecutive_in_primary_rail: true
-      matching_app_visible_near_center_when_request_visible: true
-
-story_progress:
-  - id: intro-progress-collapses-to-actionable
-    given: {current_story_id: openmates-intro, progress_complete: true}
-    expect: {next_story_id: openmates-actionable-events, intro_phase: regular}
-  - id: coordinated-story-advances-on-animation-and-progress
-    given: {current_story_id: openmates-actionable-events, animation_complete: true, progress_complete: true}
-    expect: {advances_once: true, next_story_id: openmates-privacy-safety}
-  - id: reduced-motion-keeps-content-stable
-    given: {prefers_reduced_motion: true, current_story_id: openmates-privacy-safety}
-    expect: {requires_transient_frame_to_understand_story: false, progress_drift: false}
-  - id: signup-slide-holds
-    given: {current_story_id: openmates-signup-cta, progress_complete: true}
-    expect: {advanced_past_signup: false}
-
-navigation:
-  - id: next-click-skips-expanded-intro
-    given: {current_story_id: openmates-intro, intro_phase: expanded}
-    action: click_next
-    expect: {current_story_id: openmates-actionable-events, intro_dismissed: true}
-  - id: banner-click-on-guest-slide-advances-not-chat
-    given: {current_story_id: openmates-privacy-safety}
-    action: click_banner_body
-    expect: {starts_chat: false, advances_to_next_story: true}
-  - id: horizontal-swipe-advances
-    given: {delta_x: -70, delta_y: 10, current_story_id: openmates-mates-focus}
-    expect: {advances_to_next_story: true, suppresses_next_click: true}
-  - id: vertical-swipe-cancelled
-    given: {delta_x: 10, delta_y: 60, current_story_id: openmates-mates-focus}
-    expect: {advances_to_next_story: false}
-  - id: previous-can-restore-intro
-    given: {current_story_id: openmates-actionable-events, intro_dismissed: true}
-    action: click_previous
-    expect: {current_story_id: openmates-intro, intro_phase: expanded}
-
-actionable_story:
-  - id: event-demo-sequence
-    given: {story_id: openmates-actionable-events}
-    expect:
-      stages: [user_request, assistant_response, event_preview, external_event_cta]
-      request_meaning: find_language_learning_events
-      event_example: DEPIN_DAY_BERLIN
-      pointer_actions_visible: true
-      wall_of_text_only: false
-
-product_stories:
-  - id: privacy-story-product-faithful
-    given: {story_id: openmates-privacy-safety}
-    expect:
-      topics: [saved_chat_encryption, pii_detection, original_reveal_control, memory_permission]
-      compact_heading_above_animation: true
-      abstract_placeholder_only: false
-  - id: mates-focus-story-product-faithful
-    given: {story_id: openmates-mates-focus}
-    expect:
-      topics: [mates, focus_modes]
-      compact_heading_above_animation: true
-      abstract_placeholder_only: false
-  - id: provider-platform-story-product-faithful
-    given: {story_id: openmates-provider-cross-platform}
-    expect:
-      topics: [provider_independence, cross_platform_access]
-      compact_heading_above_animation: true
-      abstract_placeholder_only: false
-
-signup_cta:
-  - id: benefits-then-shared-signup-button
-    given: {story_id: openmates-signup-cta}
-    expect:
-      initial_stage: benefits
-      benefits: [no_ads, no_subscription, privacy_focus, pay_per_use]
-      final_stage: cta
-      button_test_id: landing-signup-cta-button
-  - id: opens-shared-signup-interface
-    given: {story_id: openmates-signup-cta}
-    action: click_signup_button
-    expect:
-      dispatched_event: openSignupInterface
-      starts_chat: false
-      signup_hash_written: false
-
+web_welcome:
+- id: ordinary-guest-welcome
+  given: Sam opens the web app signed out.
+  when: The new-chat welcome finishes loading.
+  then: The normal Daily Inspiration banner, composer, Select interests and Show all example chats are
+    available in the existing chat shell, with no expanded intro or timed promotional slides.
+examples_discovery:
+- id: all-real-examples
+  given: Sam is signed out and has selected an interest.
+  when: Sam chooses Show all example chats and opens one.
+  then: All ordinary real examples remain discoverable, with interest ranking where applicable, and the
+    selected real shared chat opens independently of any Daily Inspiration card.
 legacy_intro_retirement:
-  - id: retired-intro-paths-return-to-welcome
-    given: {route: /intro/for-everyone}
-    expect: {redirect_destination: /, sitemap_entry: false}
-  - id: retired-intro-fragments-return-to-welcome
-    given: {route: "/#chat-id=demo-for-developers", authenticated: false}
-    expect: {hash_cleared: true, host_surface: new_chat_welcome, missing_chat_error: false}
-  - id: retired-intros-absent-from-discovery
-    given: {surface: guest_or_authenticated_public_chat_discovery}
-    expect: {absent_chat_ids: [demo-for-everyone, demo-for-developers, demo-who-develops-openmates], real_example_chats_visible: true}
-  - id: auth-recovery-uses-neutral-chat-state
-    given: {login_recovery_completed: true, previous_last_opened: /signup/verify}
-    expect: {last_opened_not_in: [demo-for-everyone, demo-for-developers, demo-who-develops-openmates], neutral_new_chat_state: true}
-
+- id: retired-intro-paths
+  given: Sam follows a saved /intro/for-everyone link or an old demo-for-developers chat fragment.
+  when: The web app loads the link.
+  then: Sam reaches the ordinary new-chat welcome without a missing-chat error or a retired intro recommendation.
 primary_slogan:
-  - id: english-positioning-separates-headline-and-seo-description
-    given: {locale: en}
-    expect:
-      headline: Your AI team for getting things done
-      seo_description: Your agentic operating system for everyday tasks, learning & work. With user interests & privacy first.
-      unchanged_headline_surfaces: [landing_headline, page_title, social_preview_image]
-      description_surfaces: [html_description, seo_metadata, open_graph_description, twitter_description, github_readme, npm_readme, pip_readme]
-      visible_landing_copy_added: false
-      package_registry_descriptions_remain_specific: true
-
+- id: english-positioning
+  given: Alex inspects the English page title, social preview and descriptive metadata.
+  when: Alex opens the signed-out web welcome.
+  then: The existing English title and social headline remain consistent, the longer descriptive copy
+    stays in metadata and README introductions, and no expanded overlay is added.
 apple_parity:
-  - id: apple-app-welcome-is-separated-from-marketing
-    given: {surface: gui.apple, authenticated: false, public_defaults_pending: true}
-    expect:
-      host_surface: new_chat_welcome
-      inspiration_source: normal_daily_inspiration
-      synchronous_public_fallback_visible: true
-      expanded_marketing_header: absent
-      guest_product_story_slides: absent
-      initial_topic_selection_visible: true
-      login_entry_point_usable: true
-      shell_navigation_preserved: true
-  - id: apple-topic-selection-filters-existing-public-examples
-    given: {surface: gui.apple, selected_topics: [find_events], existing_public_catalog: [example-creativity-drawing-meetups-berlin, example-artemis-ii-mission]}
-    expect:
-      visible_examples: [example-creativity-drawing-meetups-berlin]
-      unrelated_examples_visible: false
-      private_chats_visible: false
-      skip_restores_unfiltered_catalog: true
-  - id: apple-e2e-links-contract-assertions
-    given: {test_suite: apple_e2e_landing}
-    expect:
-      contract_test_metadata_present: true
-      surface: gui.apple
-      classification: direct
-      linked_assertions: [landing-onboarding.apple-web-parity]
+- id: apple-ordinary-welcome
+  given: Sam opens the Apple app signed out while public defaults are still loading.
+  when: The new-chat welcome appears.
+  then: Normal Daily Inspirations appear immediately through the synchronous public fallback. Existing
+    topic selection, login and shell navigation remain visible; no marketing header, story slide or signup
+    slide appears.
+- id: apple-topic-selection-and-proof
+  given: Sam sees the native public example catalog with an Events example and an unrelated Artemis example.
+  when: Sam selects the Events topic, skips selection, and the native UI test verifies both states.
+  then: Only the matching existing Events example appears after selection; skipping restores the unfiltered
+    catalog. The native test links directly to landing-onboarding.apple-web-parity.
+historical_native_references:
+- id: prior-native-test-metadata
+  given: A retained native test file still names a former onboarding story assertion.
+  when: A contract metadata index reads the old ID.
+  then: The ID resolves for traceability, while current native behavior is judged by the ordinary-welcome
+    Apple assertion rather than a retired marketing story.

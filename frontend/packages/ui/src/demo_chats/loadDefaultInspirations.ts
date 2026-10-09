@@ -4,8 +4,8 @@
 //
 // LOADING STRATEGY (instant → real):
 //   0. Hardcoded defaults — loaded SYNCHRONOUSLY before any async work.
-//      These are 3 hand-picked inspirations with full 21-language translations
-//      embedded in hardcodedInspirations.ts. The banner is visible from the
+//      These are ordinary daily inspirations embedded in
+//      hardcodedInspirations.ts. The banner is visible from the
 //      very first frame — no blank state, no loading flash.
 //   1. IndexedDB — persisted personalised inspirations from previous WS delivery.
 //      These survive page reloads and are preferred over server defaults.
@@ -34,6 +34,7 @@ import { getApiEndpoint } from "../config/api";
 import {
   dailyInspirationStore,
   hasCompleteAuthenticatedDailySet,
+  hasPublicSafeDailySet,
   type DailyInspiration,
   type DailyInspirationSurface,
 } from "../stores/dailyInspirationStore";
@@ -142,11 +143,12 @@ function setAuthenticatedFallbackInspirations(locale: string, reason: string): v
 }
 
 export function loadGuestOnboardingInspirations(): void {
+  if (get(authStore).isAuthenticated) return;
   const currentLang = get(svelteLocaleStore) || "en";
   const guestInspirations = getHardcodedInspirationsForSurface(currentLang, "chats");
   dailyInspirationStore.restoreGuestOnboarding(guestInspirations);
   console.debug(
-    `${LOG_PREFIX} Loaded ${guestInspirations.length} guest onboarding inspiration(s) for lang=${currentLang}`,
+    `${LOG_PREFIX} Loaded ${guestInspirations.length} guest daily inspiration(s) for lang=${currentLang}`,
   );
 }
 
@@ -264,7 +266,23 @@ export async function loadDefaultInspirations(
     }
 
     if (!isAuthenticated) {
-      console.debug(`${LOG_PREFIX} Guest session: keeping product explainer defaults`);
+      await waitLocale();
+      if (get(authStore).isAuthenticated) return;
+      const guestLang = get(svelteLocaleStore) || "en";
+      const guestResponse = await fetch(getApiEndpoint(`/v1/default-inspirations?lang=${guestLang}`));
+      if (get(authStore).isAuthenticated || !guestResponse.ok) return;
+      const guestData = await guestResponse.json();
+      if (get(authStore).isAuthenticated || (get(svelteLocaleStore) || "en") !== guestLang) return;
+      const guestDefaults: DailyInspiration[] = Array.isArray(guestData.inspirations) ? guestData.inspirations : [];
+      if (!hasPublicSafeDailySet(guestDefaults)) {
+        console.warn(`${LOG_PREFIX} Rejected incomplete or promotional guest public defaults`);
+        return;
+      }
+      // Keep the guest source marker so login performs account recovery.
+      dailyInspirationStore.setSurfaceInspirations("chats", guestDefaults, {
+        personalized: false,
+        source: "guest-onboarding",
+      });
       return;
     }
 

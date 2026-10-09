@@ -13,7 +13,7 @@
 
 import type { DailyInspiration, DailyInspirationSurface } from "../stores/dailyInspirationStore";
 import { getWorkspaceInspirations } from "../../../workspaceInspirationDefaults";
-import { getGuestProductInspirations } from "./guestProductInspirations";
+import { HARDCODED_INSPIRATION_FALLBACK_TEXT } from "./hardcodedInspirationFallbackText";
 
 // ─── Shared video metadata (language-independent) ────────────────────────────
 
@@ -448,11 +448,33 @@ const _URBAN_FARMS_TEXT: Record<string, InspirationText> = {
 // ─── Builder ─────────────────────────────────────────────────────────────────
 
 /**
- * Return 3 hardcoded daily inspirations for the given locale.
+ * Return ordinary daily inspirations for guests while public defaults load.
  * Falls back to English for any unsupported locale.
  */
 export function getHardcodedInspirations(locale: string): DailyInspiration[] {
-  return getGuestProductInspirations(locale);
+  const authenticated = getAuthenticatedFallbackInspirations(locale);
+  const lang = locale.split("-")[0].toLowerCase();
+  const copy = HARDCODED_INSPIRATION_FALLBACK_TEXT[lang] ?? HARDCODED_INSPIRATION_FALLBACK_TEXT.en;
+  return authenticated.map((inspiration) => inspiration.inspiration_id === "authenticated-fallback-export"
+    ? {
+      inspiration_id: "guest-fallback-events",
+      phrase: copy.events.phrase,
+      title: copy.events.title,
+      category: "openmates_official",
+      content_type: "feature",
+      video: null,
+      feature: {
+        feature_id: "events-search",
+        icon: "calendar-days",
+        title: copy.events.title,
+        description: copy.events.description,
+        settings_path: "apps/events/skill/search",
+        requires_authentication: false,
+      },
+      assistant_response: copy.events.assistant_response,
+      generated_at: inspiration.generated_at,
+    }
+    : inspiration);
 }
 
 /** Useful localized video fallback for authenticated sessions when recovery APIs fail. */
@@ -461,6 +483,7 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
   const dreams = _DREAMS_TEXT[lang] ?? _DREAMS_TEXT.en;
   const eniac = _ENIAC_TEXT[lang] ?? _ENIAC_TEXT.en;
   const urbanFarms = _URBAN_FARMS_TEXT[lang] ?? _URBAN_FARMS_TEXT.en;
+  const copy = HARDCODED_INSPIRATION_FALLBACK_TEXT[lang] ?? HARDCODED_INSPIRATION_FALLBACK_TEXT.en;
   const now = Math.floor(Date.now() / 1000);
 
   const videos: DailyInspiration[] = [
@@ -501,95 +524,102 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
   const wiki: DailyInspiration[] = [
     {
       inspiration_id: "authenticated-fallback-antikythera",
-      phrase: "An ancient shipwreck held a machine that predicted the sky.",
-      title: "The Antikythera mechanism",
+      phrase: copy.antikythera.phrase,
+      title: copy.antikythera.title,
       category: "history",
       content_type: "wiki",
       video: null,
       wiki: {
-        title: "The Antikythera mechanism",
+        title: copy.antikythera.title,
         wiki_title: "Antikythera_mechanism",
-        description: "An ancient Greek hand-powered model of the cosmos.",
+        description: copy.antikythera.description,
         thumbnail_url: null,
         wikidata_id: null,
-        extract: "The oldest known analog computer used bronze gears to model astronomical cycles.",
+        extract: copy.antikythera.assistant_response,
       },
+      assistant_response: copy.antikythera.assistant_response,
       generated_at: now,
     },
     {
       inspiration_id: "authenticated-fallback-bioluminescence",
-      phrase: "Some animals make their own light. The chemistry is surprisingly elegant.",
-      title: "Bioluminescence",
+      phrase: copy.bioluminescence.phrase,
+      title: copy.bioluminescence.title,
       category: "science",
       content_type: "wiki",
       video: null,
       wiki: {
-        title: "Bioluminescence",
+        title: copy.bioluminescence.title,
         wiki_title: "Bioluminescence",
-        description: "Living organisms producing light through chemistry.",
+        description: copy.bioluminescence.description,
         thumbnail_url: null,
         wikidata_id: null,
-        extract: "Organisms glow for hunting, camouflage, communication, and defense.",
+        extract: copy.bioluminescence.assistant_response,
       },
+      assistant_response: copy.bioluminescence.assistant_response,
       generated_at: now,
     },
     {
       inspiration_id: "authenticated-fallback-fermi",
-      phrase: "If the universe is so large, why does it seem so quiet?",
-      title: "The Fermi paradox",
+      phrase: copy.fermi.phrase,
+      title: copy.fermi.title,
       category: "science",
       content_type: "wiki",
       video: null,
       wiki: {
-        title: "The Fermi paradox",
+        title: copy.fermi.title,
         wiki_title: "Fermi_paradox",
-        description: "The tension between likely extraterrestrial life and no clear evidence.",
+        description: copy.fermi.description,
         thumbnail_url: null,
         wikidata_id: null,
-        extract: "Possible answers range from rare life to communication limits and self-destruction risks.",
+        extract: copy.fermi.assistant_response,
       },
+      assistant_response: copy.fermi.assistant_response,
       generated_at: now,
     },
   ];
   const features: DailyInspiration[] = [
     {
       inspiration_id: "authenticated-fallback-export",
-      phrase: "Keep your own backup. Export your OpenMates data whenever you need it.",
-      title: "Export your OpenMates data",
+      phrase: copy.export.phrase,
+      title: copy.export.title,
       category: "openmates_official",
       content_type: "feature",
       video: null,
-      feature: { feature_id: "export-data", icon: "download", title: "Export your OpenMates data", description: "Back up chats, settings, memories, and more.", settings_path: "account/export", requires_authentication: true },
+      feature: { feature_id: "export-data", icon: "download", title: copy.export.title, description: copy.export.description, settings_path: "account/export", requires_authentication: true },
+      assistant_response: copy.export.assistant_response,
       generated_at: now,
     },
     {
       inspiration_id: "authenticated-fallback-pii",
-      phrase: "Want stronger privacy controls? Add personal details that OpenMates should hide.",
-      title: "Custom PII detection",
+      phrase: copy.pii.phrase,
+      title: copy.pii.title,
       category: "openmates_official",
       content_type: "feature",
       video: null,
-      feature: { feature_id: "custom-pii-detection", icon: "shield-check", title: "Custom PII detection", description: "Protect personal details before model calls.", settings_path: "privacy/hide-personal-data", requires_authentication: false },
+      feature: { feature_id: "custom-pii-detection", icon: "shield-check", title: copy.pii.title, description: copy.pii.description, settings_path: "privacy/hide-personal-data", requires_authentication: false },
+      assistant_response: copy.pii.assistant_response,
       generated_at: now,
     },
     {
       inspiration_id: "authenticated-fallback-focus",
-      phrase: "Need a more focused answer? Give your mate a specific job.",
-      title: "Focus modes",
+      phrase: copy.focus.phrase,
+      title: copy.focus.title,
       category: "openmates_official",
       content_type: "feature",
       video: null,
-      feature: { feature_id: "focus-modes", icon: "target", title: "Focus modes", description: "Guide a chat toward a specific goal.", settings_path: "apps/all/focus_modes", requires_authentication: false },
+      feature: { feature_id: "focus-modes", icon: "target", title: copy.focus.title, description: copy.focus.description, settings_path: "apps/all/focus_modes", requires_authentication: false },
+      assistant_response: copy.focus.assistant_response,
       generated_at: now,
     },
     {
       inspiration_id: "authenticated-fallback-memories",
-      phrase: "Repeating yourself gets old. Save context your mates should remember.",
-      title: "Memories",
+      phrase: copy.memories.phrase,
+      title: copy.memories.title,
       category: "openmates_official",
       content_type: "feature",
       video: null,
-      feature: { feature_id: "memories", icon: "heart", title: "Memories", description: "Save useful preferences and context.", settings_path: "settings_memories", requires_authentication: false },
+      feature: { feature_id: "memories", icon: "heart", title: copy.memories.title, description: copy.memories.description, settings_path: "settings_memories", requires_authentication: false },
+      assistant_response: copy.memories.assistant_response,
       generated_at: now,
     },
   ];

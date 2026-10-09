@@ -105,6 +105,24 @@ import { audioSpeakOpenmatesWelcomeMessageChat } from "./data/example_chats/audi
 import { plumberMessageEmailPhonePrivacyChat } from "./data/example_chats/plumber-message-email-phone-privacy";
 import { privatePlumberEmailChat } from "./data/example_chats/private-plumber-email";
 import { socialAppNameDomainSearchChat } from "./data/example_chats/social-app-name-domain-search";
+import { dampedSineDecayPlotChat } from "./data/example_chats/damped-sine-decay-plot";
+import { communityGardenPlanningMindmapChat } from "./data/example_chats/community-garden-planning-mindmap";
+import { beginnerYogaClassesBerlinChat } from "./data/example_chats/beginner-yoga-classes-berlin";
+import { urbanHeatIslandAtNightChat } from "./data/example_chats/urban-heat-island-at-night";
+import { communityGardenVolunteerOnboardingChat } from "./data/example_chats/community-garden-volunteer-onboarding";
+import { booksAfterLeftHandOfDarknessChat } from "./data/example_chats/books-after-left-hand-of-darkness";
+import { communityGardenCalendarInvitationChat } from "./data/example_chats/community-garden-calendar-invitation";
+import { mastodonPublicPostThemesChat } from "./data/example_chats/mastodon-public-post-themes";
+import { adjacentCareerPortfolioExperimentsChat } from "./data/example_chats/adjacent-career-portfolio-experiments";
+import { calmManagerFollowUpChat } from "./data/example_chats/calm-manager-follow-up";
+import { autumnBasilBalconyCareChat } from "./data/example_chats/autumn-basil-balcony-care";
+import { bayesTheoremQuickQuizChat } from "./data/example_chats/bayes-theorem-quick-quiz";
+import { voiceNoteTranscriptionActionItemChat } from "./data/example_chats/voice-note-transcription-action-item";
+import { netCashFromSuppliedBalancesChat } from "./data/example_chats/net-cash-from-supplied-balances";
+import { communityGardenWelcomeMelodyChat } from "./data/example_chats/community-garden-welcome-melody";
+import { berlinEnglishSpeakingGpAppointmentsChat } from "./data/example_chats/berlin-english-speaking-gp-appointments";
+import { communityGardenSunflowerIllustrationChat } from "./data/example_chats/community-garden-sunflower-illustration";
+import { communityGardenBudgetReviewChat } from "./data/example_chats/community-garden-budget-review";
 
 export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   giganticAirplanesChat,
@@ -204,6 +222,24 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   plumberMessageEmailPhonePrivacyChat,
   privatePlumberEmailChat,
   socialAppNameDomainSearchChat,
+  dampedSineDecayPlotChat,
+  communityGardenPlanningMindmapChat,
+  beginnerYogaClassesBerlinChat,
+  urbanHeatIslandAtNightChat,
+  communityGardenVolunteerOnboardingChat,
+  booksAfterLeftHandOfDarknessChat,
+  communityGardenCalendarInvitationChat,
+  mastodonPublicPostThemesChat,
+  adjacentCareerPortfolioExperimentsChat,
+  calmManagerFollowUpChat,
+  autumnBasilBalconyCareChat,
+  bayesTheoremQuickQuizChat,
+  voiceNoteTranscriptionActionItemChat,
+  netCashFromSuppliedBalancesChat,
+  communityGardenWelcomeMelodyChat,
+  berlinEnglishSpeakingGpAppointmentsChat,
+  communityGardenSunflowerIllustrationChat,
+  communityGardenBudgetReviewChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 // Internal deterministic fixtures used by tests and direct hash navigation only.

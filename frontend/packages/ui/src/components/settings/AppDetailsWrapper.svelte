@@ -36,6 +36,7 @@
     interface Props {
         activeSettingsView?: string;
         onOpenExample?: (example: string) => void;
+        onOpenExampleChat?: (chatId: string) => void;
         presentation?: 'settings' | 'apps';
         section?: 'all' | 'skills' | 'focus_modes' | 'settings_memories';
     }
@@ -56,7 +57,7 @@
         | { type: 'reminder_create'; appId: string }
         | { type: 'reminder_entry'; appId: string; reminderId: string; startInEditMode: boolean };
     
-    let { activeSettingsView = '', onOpenExample, presentation = 'settings', section = 'all' }: Props = $props();
+    let { activeSettingsView = '', onOpenExample, onOpenExampleChat, presentation = 'settings', section = 'all' }: Props = $props();
     
     // Parse route to extract appId and sub-route info
     let routeInfo = $derived.by((): RouteInfo => {
@@ -202,6 +203,7 @@
 {:else if routeInfo.type === 'skill_details'}
     <SkillDetails
         {onOpenExample}
+        {onOpenExampleChat}
         appId={routeInfo.appId}
         skillId={routeInfo.skillId}
         on:openSettings={handleOpenSettings}
@@ -219,6 +221,7 @@
 {:else if routeInfo.type === 'focus_details'}
     <FocusModeDetails
         {onOpenExample}
+        {onOpenExampleChat}
         appId={routeInfo.appId}
         focusModeId={routeInfo.focusModeId}
         on:openSettings={handleOpenSettings}

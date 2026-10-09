@@ -22,6 +22,22 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  /** Logged-out visitor opening the reviewed public PDF. */
+  guest: {
+    ...defaultProps,
+    id: "preview-pdf-guest",
+    filename: "community-garden-budget.pdf",
+    pageCount: 1,
+    previewPdfUrl: "/store-examples/community-garden-budget.pdf",
+  },
+
+  /** Arbitrary PDF URLs must fall back to the ordinary icon. */
+  untrustedUrl: {
+    ...defaultProps,
+    id: "preview-pdf-untrusted",
+    previewPdfUrl: "https://example.com/private.pdf",
+  },
+
   /** Uploading state — shows spinner */
   uploading: {
     id: "preview-pdf-uploading",

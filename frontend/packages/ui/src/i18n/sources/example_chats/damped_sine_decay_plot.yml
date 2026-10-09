@@ -1,0 +1,985 @@
+title:
+  context: "Title of example chat: Damped Sine Wave and Its Envelopes"
+  en: "Damped Sine Wave and Its Envelopes"
+  de: Gedämpfte Sinusschwingung und ihre Hüllkurven
+  zh: 阻尼正弦波及其包络线
+  es: Onda senoidal amortiguada y sus envolventes
+  fr: Sinusoïde amortie et ses enveloppes
+  pt: Onda Senoidal Amortecida e Suas Envoltórias
+  ru: Затухающая синусоида и её огибающие
+  ja: 減衰正弦波とその包絡線
+  ko: 감쇠 사인파와 포락선
+  it: Onda sinusoidale smorzata e i suoi inviluppi
+  tr: Sönümlü Sinüs Dalgası ve Zarf Eğrileri
+  vi: Sóng sin tắt dần và các đường bao của nó
+  id: Gelombang Sinus Teredam dan Selubungnya
+  pl: Tłumiona fala sinusoidalna i jej obwiednie
+  nl: Gedempte sinusgolf en de omhullenden
+  ar: الموجة الجيبية المخمدة وأغلفتها
+  hi: डैम्प्ड साइन वेव और उसके एनवेलप (Envelopes)
+  th: คลื่นไซน์แบบหน่วงและเส้นหุ้ม
+  cs: Tlumená sinusoida a její obálky
+  sv: Dämpad sinusvåg och dess höljeskurvor
+  he: גל סינוס מרוסן והמעטפות שלו
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Damped Sine Wave and Its Envelopes"
+  en: "Plot a damped sine wave with its upper and lower envelopes, then understand how the oscillation fades."
+  de: Plotte eine gedämpfte Sinusschwingung mit ihrer oberen und unteren Hüllkurve und verstehe, wie die Schwingung abklingt.
+  zh: 绘制阻尼正弦波及其上下包络线，并了解振荡是如何衰减的。
+  es: Grafica una onda senoidal amortiguada con sus envolventes superior e inferior, y luego comprende cómo se desvanece la oscilación.
+  fr: "Trace une sinusoïde amortie avec ses enveloppes supérieure et inférieure, puis comprends comment l'oscillation s'atténue."
+  pt: Plote uma onda senoidal amortecida com suas envoltórias superior e inferior e entenda como a oscilação diminui.
+  ru: Построй график затухающей синусоиды с её верхней и нижней огибающими и узнай, как затухают колебания.
+  ja: 上下の包絡線とともに減衰正弦波をプロットし、振動がどのように減衰するかを理解しましょう。
+  ko: 감쇠 사인파를 상단 및 하단 포락선과 함께 그리고, 진동이 어떻게 감쇠하는지 확인해 보세요.
+  it: "Traccia un'onda sinusoidale smorzata con i suoi inviluppi superiore e inferiore, poi scopri come l'oscillazione svanisce."
+  tr: Sönümlü bir sinüs dalgasını üst ve alt zarf eğrileriyle birlikte çizdirin, ardından salınımın nasıl sönümlendiğini anlayın.
+  vi: Vẽ đồ thị sóng sin tắt dần cùng với các đường bao trên và dưới của nó, sau đó tìm hiểu cách dao động mờ dần.
+  id: Plot gelombang sinus teredam dengan selubung atas dan bawahnya, lalu pahami bagaimana osilasinya memudar.
+  pl: Wykreśl tłumioną falę sinusoidalną wraz z jej górną i dolną obwiednią, a następnie dowiedz się, jak zanikają drgania.
+  nl: Plot een gedempte sinusgolf met de boven- en onderomhullenden en begrijp hoe de oscillatie uitsterft.
+  ar: ارسم موجة جيبية مخمدة مع غلافيها العلوي والسفلي، ثم افهم كيف يتلاشى التذبذب.
+  hi: एक डैम्प्ड साइन वेव (damped sine wave) को उसके ऊपरी और निचले एनवेलप के साथ प्लॉट करें, फिर समझें कि दोलन (oscillation) कैसे कम होता है।
+  th: พล็อตกราฟคลื่นไซน์แบบหน่วงพร้อมเส้นหุ้มบนและล่าง แล้วทำความเข้าใจว่าการแกว่งกวัดค่อยๆ จางหายไปได้อย่างไร
+  cs: Vykresli tlumenou sinusovku s její horní a dolní obálkou a pochop, jak oscilace slábne.
+  sv: Plotta en dämpad sinusvåg med dess övre och nedre höljeskurvor, och förstå hur oscillationen avtar.
+  he: שרטוט של גל סינוס מרוסן עם המעטפת העליונה והתחתונה שלו, והבנה כיצד התנודה דועכת.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Damped Sine Wave and Its Envelopes. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Can you plot y = e^(-0.2x) sin(3x) for x from 0 to 12, including the upper and lower envelopes, and explain what the graph shows?"
+  de: "Kannst du y = e^(-0.2x) sin(3x) für x von 0 bis 12 plotten, einschließlich der oberen und unteren Hüllkurven, und erklären, was der Graph zeigt?"
+  zh: 你能绘制 y = e^(-0.2x) sin(3x) 在 x 从 0 到 12 范围内的图像，包括其上包络线和下包络线，并解释该图表展示了什么吗？
+  es: "¿Puedes graficar y = e^(-0.2x) sin(3x) para x de 0 a 12, incluyendo las envolventes superior e inferior, y explicar qué muestra el gráfico?"
+  fr: "Peux-tu tracer y = e^(-0.2x) sin(3x) pour x allant de 0 à 12, en incluant les enveloppes supérieure et inférieure, et expliquer ce que montre le graphique ?"
+  pt: "Você pode plotar y = e^(-0.2x) sin(3x) para x de 0 a 12, incluindo as envoltórias superior e inferior, e explicar o que o gráfico mostra?"
+  ru: "Можешь построить график y = e^(-0.2x) sin(3x) для x от 0 до 12, включая верхнюю и нижнюю огибающие, и объяснить, что показывает этот график?"
+  ja: xが0から12までの範囲で、上下の包絡線を含めて y = e^(-0.2x) sin(3x) をプロットし、そのグラフが何を示しているか説明してくれますか？
+  ko: x가 0에서 12까지일 때 y = e^(-0.2x) sin(3x)를 상단 및 하단 포락선과 함께 그려주고, 이 그래프가 무엇을 보여주는지 설명해줘.
+  it: "Puoi tracciare y = e^(-0.2x) sin(3x) per x da 0 a 12, includendo gli inviluppi superiore e inferiore, e spiegare cosa mostra il grafico?"
+  tr: "x'in 0'dan 12'ye kadar olan değerleri için y = e^(-0.2x) sin(3x) fonksiyonunu, üst ve alt zarf eğrileriyle birlikte çizebilir misin? Ayrıca grafiğin neyi gösterdiğini açıklar mısın?"
+  vi: "Bạn có thể vẽ đồ thị y = e^(-0.2x) sin(3x) với x từ 0 đến 12, bao gồm cả các đường bao trên và dưới, rồi giải thích ý nghĩa của đồ thị không?"
+  id: "Bisakah kamu memplot y = e^(-0.2x) sin(3x) untuk x dari 0 sampai 12, termasuk selubung atas dan bawahnya, serta menjelaskan apa yang ditunjukkan oleh grafik tersebut?"
+  pl: "Czy możesz wykreślić y = e^(-0.2x) sin(3x) dla x od 0 do 12, uwzględniając górną i dolną obwiednię, oraz wyjaśnić, co pokazuje ten wykres?"
+  nl: "Kun je y = e^(-0.2x) sin(3x) plotten voor x van 0 tot 12, inclusief de boven- en onderomhullenden, en uitleggen wat de grafiek laat zien?"
+  ar: هل يمكنك رسم y = e^(-0.2x) sin(3x) لقيم x من 0 إلى 12، مع تضمين الأغلفة العلوية والسفلية، وشرح ما يظهره الرسم البياني؟
+  hi: "क्या तुम x के लिए 0 से 12 तक y = e^(-0.2x) sin(3x) का ग्राफ बना सकते हो, जिसमें ऊपरी और निचली एनवेलप (envelopes) शामिल हों, और समझा सकते हो कि यह ग्राफ क्या दिखाता है?"
+  th: "ช่วยพล็อตกราฟ y = e^(-0.2x) sin(3x) สำหรับ x ตั้งแต่ 0 ถึง 12 โดยรวมเส้นหุ้มบนและล่างด้วย และช่วยอธิบายว่ากราฟนี้แสดงอะไร?"
+  cs: "Můžeš vykreslit y = e^(-0,2x) sin(3x) pro x od 0 do 12, včetně horní a dolní obálky, a vysvětlit, co graf ukazuje?"
+  sv: "Kan du plotta y = e^(-0.2x) sin(3x) för x från 0 till 12, inklusive de övre och nedre höljeskurvorna, och förklara vad grafen visar?"
+  he: "תוכל לשרטט את y = e^(-0.2x) sin(3x) עבור x מ-0 עד 12, כולל המעטפת העליונה והתחתונה, ולהסביר מה הגרף מראה?"
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Damped Sine Wave and Its Envelopes. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Here is the plot of the function along with its upper and lower bounding envelopes:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### What the Graph Shows
+
+    This graph is a classic representation of a damped harmonic oscillator, commonly encountered in physics and engineering (such as a vibrating guitar string, a shock absorber, or an electrical [RLC circuit](wiki:RLC_circuit)).
+
+    #### 1. The Oscillatory Component: $\sin(3x)$
+    * The term $\sin(3x)$ generates continuous periodic wave motion.
+    * The angular frequency is $\omega = 3\text{ rad/s}$, which corresponds to a period of:
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * This means the curve crosses zero every $\frac{\pi}{3} \approx 1.05$ units along the $x$-axis.
+
+    #### 2. The Damping Factor: $e^{-0.2x}$
+    * The exponential factor $e^{-0.2x}$ describes [exponential decay](wiki:Exponential_decay) with a decay rate parameter of $\alpha = 0.2$.
+    * As $x$ increases, energy is lost from the system due to [damping](wiki:Damping) (such as friction or electrical resistance), shrinking the amplitude over time.
+
+    #### 3. The Envelopes: $\pm e^{-0.2x}$
+    * Because the sine function is bounded by $-1 \le \sin(3x) \le 1$, multiplying by the positive term $e^{-0.2x}$ yields:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **Upper Envelope ($g(x) = e^{-0.2x}$)**: Forms the smooth upper boundary that caps the positive peaks.
+    * **Lower Envelope ($h(x) = -e^{-0.2x}$)**: Forms the symmetric boundary that cradles the negative troughs.
+    * The oscillating curve touches the upper envelope whenever $\sin(3x) = 1$ (at $x = \frac{\pi}{6} + \frac{2\pi k}{3}$) and the lower envelope whenever $\sin(3x) = -1$.
+
+    ---
+
+    ### Suggested Next Steps
+
+    - [Calculate the exact local extrema using the derivative](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [Compare underdamped vs critically damped systems](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  de: |
+    Hier ist der Plot der Funktion zusammen mit ihren oberen und unteren begrenzenden Hüllkurven:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### Was der Graph zeigt
+
+    Dieser Graph ist eine klassische Darstellung eines gedämpften harmonischen Oszillators, wie er häufig in der Physik und den Ingenieurwissenschaften vorkommt (z. B. bei einer schwingenden Gitarrensaite, einem Stoßdämpfer oder einem elektrischen [RLC-Schaltkreis](wiki:RLC_circuit)).
+
+    #### 1. Die oszillierende Komponente: $\sin(3x)$
+    * Der Term $\sin(3x)$ erzeugt eine kontinuierliche periodische Wellenbewegung.
+    * Die Kreisfrequenz beträgt $\omega = 3\text{ rad/s}$, was einer Periodendauer entspricht von:
+      $$T = \frac{2\pi}{3} \approx 2,094$$
+    * Das bedeutet, dass die Kurve alle $\frac{\pi}{3} \approx 1,05$ Einheiten entlang der $x$-Achse die Nulllinie schneidet.
+
+    #### 2. Der Dämpfungsfaktor: $e^{-0.2x}$
+    * Der Exponentialfaktor $e^{-0.2x}$ beschreibt einen [exponentiellen Zerfall](wiki:Exponential_decay) mit einem Zerfallsratenparameter von $\alpha = 0,2$.
+    * Mit zunehmendem $x$ verliert das System aufgrund von [Dämpfung](wiki:Damping) (wie Reibung oder elektrischem Widerstand) Energie, wodurch die Amplitude mit der Zeit abnimmt.
+
+    #### 3. Die Hüllkurven: $\pm e^{-0.2x}$
+    * Da die Sinusfunktion durch $-1 \le \sin(3x) \le 1$ begrenzt ist, ergibt die Multiplikation mit dem positiven Term $e^{-0.2x}$:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **Obere Hüllkurve ($g(x) = e^{-0.2x}$)**: Bildet die glatte obere Begrenzung, die die positiven Spitzen begrenzt.
+    * **Untere Hüllkurve ($h(x) = -e^{-0.2x}$)**: Bildet die symmetrische Begrenzung, die die negativen Wellentäler umschließt.
+    * Die oszillierende Kurve berührt die obere Hüllkurve immer dann, wenn $\sin(3x) = 1$ ist (bei $x = \frac{\pi}{6} + \frac{2\pi k}{3}$), und die untere Hüllkurve immer dann, wenn $\sin(3x) = -1$ ist.
+
+    ---
+
+    ### Vorgeschlagene nächste Schritte
+
+    - [Berechne die exakten lokalen Extrema mithilfe der Ableitung](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [Vergleiche unterdämpfte vs. kritisch gedämpfte Systeme](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  zh: |
+    这是该函数及其上下包络线的图表：
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### 图表说明
+
+    此图表是阻尼谐振子的经典表示，常见于物理和工程领域（例如振动的吉他弦、减震器或 [RLC 电路](wiki:RLC_circuit)）。
+
+    #### 1. 振荡分量：$\sin(3x)$
+    * 项 $\sin(3x)$ 产生连续的周期性波动。
+    * 角频率为 $\omega = 3\text{ rad/s}$，对应的周期为：
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * 这意味着曲线沿 $x$ 轴每隔 $\frac{\pi}{3} \approx 1.05$ 个单位穿过零点。
+
+    #### 2. 阻尼因子：$e^{-0.2x}$
+    * 指数因子 $e^{-0.2x}$ 描述了衰减率参数为 $\alpha = 0.2$ 的[指数衰减](wiki:Exponential_decay)。
+    * 随着 $x$ 的增加，系统由于[阻尼](wiki:Damping)（如摩擦或电阻）而损失能量，振幅随时间缩小。
+
+    #### 3. 包络线：$\pm e^{-0.2x}$
+    * 由于正弦函数的范围被限制在 $-1 \le \sin(3x) \le 1$ 之间，乘以正项 $e^{-0.2x}$ 得到：
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **上包络线 ($g(x) = e^{-0.2x}$)**：形成平滑的上边界，限制正峰值。
+    * **下包络线 ($h(x) = -e^{-0.2x}$)**：形成对称的边界，承托负波谷。
+    * 每当 $\sin(3x) = 1$（在 $x = \frac{\pi}{6} + \frac{2\pi k}{3}$ 处）时，振荡曲线接触上包络线；每当 $\sin(3x) = -1$ 时，接触下包络线。
+
+    ---
+
+    ### 建议的后续步骤
+
+    - [使用导数计算精确的局部极值](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [比较欠阻尼与临界阻尼系统](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  es: |
+    Aquí tienes la gráfica de la función junto con sus envolventes superior e inferior:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### Qué muestra la gráfica
+
+    Esta gráfica es una representación clásica de un oscilador armónico amortiguado, que se encuentra comúnmente en física e ingeniería (como una cuerda de guitarra vibrando, un amortiguador o un [circuito RLC](wiki:RLC_circuit) eléctrico).
+
+    #### 1. El componente oscilatorio: $\sin(3x)$
+    * El término $\sin(3x)$ genera un movimiento ondulatorio periódico continuo.
+    * La frecuencia angular es $\omega = 3\text{ rad/s}$, lo que corresponde a un periodo de:
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * Esto significa que la curva cruza el cero cada $\frac{\pi}{3} \approx 1.05$ unidades a lo largo del eje $x$.
+
+    #### 2. El factor de amortiguamiento: $e^{-0.2x}$
+    * El factor exponencial $e^{-0.2x}$ describe el [decaimiento exponencial](wiki:Exponential_decay) con un parámetro de tasa de decaimiento de $\alpha = 0.2$.
+    * A medida que $x$ aumenta, el sistema pierde energía debido al [amortiguamiento](wiki:Damping) (como la fricción o la resistencia eléctrica), lo que reduce la amplitud con el tiempo.
+
+    #### 3. Las envolventes: $\pm e^{-0.2x}$
+    * Dado que la función seno está acotada por $-1 \le \sin(3x) \le 1$, al multiplicar por el término positivo $e^{-0.2x}$ se obtiene:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **Envolvente superior ($g(x) = e^{-0.2x}$)**: Forma el límite superior suave que corona los picos positivos.
+    * **Envolvente inferior ($h(x) = -e^{-0.2x}$)**: Forma el límite simétrico que delimita los valles negativos.
+    * La curva oscilante toca la envolvente superior siempre que $\sin(3x) = 1$ (en $x = \frac{\pi}{6} + \frac{2\pi k}{3}$) y la envolvente inferior siempre que $\sin(3x) = -1$.
+
+    ---
+
+    ### Siguientes pasos sugeridos
+
+    - [Calcular los extremos locales exactos usando la derivada](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [Comparar sistemas subamortiguados frente a sistemas críticamente amortiguados](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  fr: |
+    Voici le tracé de la fonction ainsi que ses enveloppes de délimitation supérieure et inférieure :
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### Ce que montre le graphique
+
+    Ce graphique est une représentation classique d'un oscillateur harmonique amorti, couramment rencontré en physique et en ingénierie (comme une corde de guitare qui vibre, un amortisseur ou un [circuit RLC](wiki:RLC_circuit) électrique).
+
+    #### 1. La composante oscillatoire : $\sin(3x)$
+    * Le terme $\sin(3x)$ génère un mouvement ondulatoire périodique continu.
+    * La fréquence angulaire est $\omega = 3\text{ rad/s}$, ce qui correspond à une période de :
+      $$T = \frac{2\pi}{3} \approx 2,094$$
+    * Cela signifie que la courbe croise le zéro toutes les $\frac{\pi}{3} \approx 1,05$ unités le long de l'axe $x$.
+
+    #### 2. Le facteur d'amortissement : $e^{-0,2x}$
+    * Le facteur exponentiel $e^{-0,2x}$ décrit une [décroissance exponentielle](wiki:Exponential_decay) avec un paramètre de taux de décroissance de $\alpha = 0,2$.
+    * À mesure que $x$ augmente, de l'énergie est perdue par le système en raison de l'[amortissement](wiki:Damping) (comme la friction ou la résistance électrique), ce qui réduit l'amplitude au fil du temps.
+
+    #### 3. Les enveloppes : $\pm e^{-0,2x}$
+    * Comme la fonction sinus est bornée par $-1 \le \sin(3x) \le 1$, multiplier par le terme positif $e^{-0,2x}$ donne :
+      $$-e^{-0,2x} \le e^{-0,2x}\sin(3x) \le e^{-0,2x}$$
+    * **Enveloppe supérieure ($g(x) = e^{-0,2x}$)** : Forme la limite supérieure lisse qui coiffe les pics positifs.
+    * **Enveloppe inférieure ($h(x) = -e^{-0,2x}$)** : Forme la limite symétrique qui soutient les creux négatifs.
+    * La courbe oscillante touche l'enveloppe supérieure chaque fois que $\sin(3x) = 1$ (à $x = \frac{\pi}{6} + \frac{2\pi k}{3}$) et l'enveloppe inférieure chaque fois que $\sin(3x) = -1$.
+
+    ---
+
+    ### Prochaines étapes suggérées
+
+    - [Calculer les extrema locaux exacts à l'aide de la dérivée](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [Comparer les systèmes sous-amortis et les systèmes à amortissement critique](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  pt: |
+    Aqui está o gráfico da função junto com as suas envoltórias superior e inferior:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### O que o Gráfico Mostra
+
+    Este gráfico é uma representação clássica de um oscilador harmônico amortecido, comumente encontrado na física e na engenharia (como uma corda de violão vibrando, um amortecedor ou um [circuito RLC](wiki:RLC_circuit) elétrico).
+
+    #### 1. A Componente Oscilatória: $\sin(3x)$
+    * O termo $\sin(3x)$ gera um movimento ondulatório periódico contínuo.
+    * A frequência angular é $\omega = 3\text{ rad/s}$, o que corresponde a um período de:
+      $$T = \frac{2\pi}{3} \approx 2,094$$
+    * Isto significa que a curva cruza o zero a cada $\frac{\pi}{3} \approx 1,05$ unidades ao longo do eixo $x$.
+
+    #### 2. O Fator de Amortecimento: $e^{-0.2x}$
+    * O fator exponencial $e^{-0.2x}$ descreve o [decaimento exponencial](wiki:Exponential_decay) com um parâmetro de taxa de decaimento de $\alpha = 0,2$.
+    * À medida que $x$ aumenta, a energia é perdida pelo sistema devido ao [amortecimento](wiki:Damping) (como o atrito ou a resistência elétrica), reduzindo a amplitude ao longo do tempo.
+
+    #### 3. As Envoltórias: $\pm e^{-0.2x}$
+    * Como a função seno está limitada por $-1 \le \sin(3x) \le 1$, a multiplicação pelo termo positivo $e^{-0.2x}$ resulta em:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **Envoltória Superior ($g(x) = e^{-0.2x}$)**: Forma o limite superior suave que limita os picos positivos.
+    * **Envoltória Inferior ($h(x) = -e^{-0.2x}$)**: Forma o limite simétrico que envolve os vales negativos.
+    * A curva oscilante toca a envoltória superior sempre que $\sin(3x) = 1$ (em $x = \frac{\pi}{6} + \frac{2\pi k}{3}$) e a envoltória inferior sempre que $\sin(3x) = -1$.
+
+    ---
+
+    ### Próximos Passos Sugeridos
+
+    - [Calcular os extremos locais exatos usando a derivada](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [Comparar sistemas subamortecidos vs. criticamente amortecidos](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  ru: |
+    Вот график функции вместе с её верхней и нижней огибающими:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### Что показывает график
+
+    Этот график является классическим представлением затухающего гармонического осциллятора, часто встречающегося в физике и технике (например, вибрирующая гитарная струна, амортизатор или электрический [RLC-контур](wiki:RLC_circuit)).
+
+    #### 1. Колебательная составляющая: $\sin(3x)$
+    * Член $\sin(3x)$ создает непрерывное периодическое волновое движение.
+    * Угловая частота составляет $\omega = 3\text{ рад/с}$, что соответствует периоду:
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * Это означает, что кривая пересекает ноль каждые $\frac{\pi}{3} \approx 1.05$ единицы по оси $x$.
+
+    #### 2. Коэффициент затухания: $e^{-0.2x}$
+    * Экспоненциальный множитель $e^{-0.2x}$ описывает [экспоненциальное затухание](wiki:Exponential_decay) с параметром скорости затухания $\alpha = 0.2$.
+    * По мере увеличения $x$ энергия системы теряется из-за [демпфирования](wiki:Damping) (например, трения или электрического сопротивления), что со временем приводит к уменьшению амплитуды.
+
+    #### 3. Огибающие: $\pm e^{-0.2x}$
+    * Поскольку функция синуса ограничена пределами $-1 \le \sin(3x) \le 1$, умножение на положительный член $e^{-0.2x}$ дает:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **Верхняя огибающая ($g(x) = e^{-0.2x}$)**: образует плавную верхнюю границу, ограничивающую положительные пики.
+    * **Нижняя огибающая ($h(x) = -e^{-0.2x}$)**: образует симметричную границу, охватывающую отрицательные минимумы.
+    * Осциллирующая кривая касается верхней огибающей всякий раз, когда $\sin(3x) = 1$ (при $x = \frac{\pi}{6} + \frac{2\pi k}{3}$), и нижней огибающей всякий раз, когда $\sin(3x) = -1$.
+
+    ---
+
+    ### Предлагаемые дальнейшие шаги
+
+    - [Вычислить точные локальные экстремумы с помощью производной](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [Сравнить системы с недостаточным и критическим затуханием](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  ja: |
+    関数のグラフと、その上下の包絡線（エンベロープ）を表示します：
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### グラフの解説
+
+    このグラフは、物理学や工学でよく見られる減衰調和振動子の典型的な表現です（例：振動するギターの弦、ショックアブソーバー、電気的な[RLC回路](wiki:RLC_circuit)など）。
+
+    #### 1. 振動成分：$\sin(3x)$
+    * $\sin(3x)$ の項は、連続的な周期的な波動を生み出します。
+    * 角周波数は $\omega = 3\text{ rad/s}$ で、これは以下の周期に対応します：
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * つまり、曲線は $x$ 軸上で $\frac{\pi}{3} \approx 1.05$ 単位ごとにゼロを横切ります。
+
+    #### 2. 減衰因子：$e^{-0.2x}$
+    * 指数因子 $e^{-0.2x}$ は、減衰率パラメータ $\alpha = 0.2$ の[指数関数的減衰](wiki:Exponential_decay)を表しています。
+    * $x$ が増加するにつれて、[減衰](wiki:Damping)（摩擦や電気抵抗など）によってシステムからエネルギーが失われ、時間の経過とともに振幅が小さくなります。
+
+    #### 3. 包絡線：$\pm e^{-0.2x}$
+    * 正弦関数は $-1 \le \sin(3x) \le 1$ の範囲に収まるため、正の項 $e^{-0.2x}$ を掛けると以下のようになります：
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **上側の包絡線 ($g(x) = e^{-0.2x}$)**：正のピークを抑える滑らかな上部境界を形成します。
+    * **下側の包絡線 ($h(x) = -e^{-0.2x}$)**：負の谷を支える対称的な境界を形成します。
+    * 振動する曲線は、$\sin(3x) = 1$ のとき（$x = \frac{\pi}{6} + \frac{2\pi k}{3}$）に上側の包絡線に接し、$\sin(3x) = -1$ のときに下側の包絡線に接します。
+
+    ---
+
+    ### 次のステップの提案
+
+    - [微分を使って正確な極値を計算する](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [不足減衰、臨界減衰、過減衰のシステムを比較する](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  ko: |
+    함수와 그 상한 및 하한 포락선(envelope)을 나타낸 그래프입니다:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### 그래프 설명
+
+    이 그래프는 물리 및 공학 분야(예: 진동하는 기타 줄, 충격 흡수 장치 또는 전기 [RLC 회로](wiki:RLC_circuit))에서 흔히 볼 수 있는 감쇠 조화 진동자(damped harmonic oscillator)의 전형적인 표현입니다.
+
+    #### 1. 진동 성분: $\sin(3x)$
+    * $\sin(3x)$ 항은 연속적인 주기적 파동 운동을 생성합니다.
+    * 각진동수는 $\omega = 3\text{ rad/s}$이며, 이는 다음과 같은 주기에 해당합니다:
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * 즉, 곡선은 $x$축을 따라 $\frac{\pi}{3} \approx 1.05$ 단위마다 0을 지납니다.
+
+    #### 2. 감쇠 인자: $e^{-0.2x}$
+    * 지수 인자 $e^{-0.2x}$는 감쇠율 파라미터가 $\alpha = 0.2$인 [지수 감쇠](wiki:Exponential_decay)를 나타냅니다.
+    * $x$가 증가함에 따라 [감쇠](wiki:Damping)(마찰이나 전기 저항 등)로 인해 시스템에서 에너지가 손실되어 시간이 지남에 따라 진폭이 줄어듭니다.
+
+    #### 3. 포락선: $\pm e^{-0.2x}$
+    * 사인 함수는 $-1 \le \sin(3x) \le 1$의 범위를 가지므로, 양수 항인 $e^{-0.2x}$를 곱하면 다음과 같은 결과를 얻습니다:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **상한 포락선 ($g(x) = e^{-0.2x}$)**: 양의 정점을 제한하는 매끄러운 상단 경계를 형성합니다.
+    * **하한 포락선 ($h(x) = -e^{-0.2x}$)**: 음의 골을 감싸는 대칭적인 경계를 형성합니다.
+    * 진동하는 곡선은 $\sin(3x) = 1$일 때마다(즉, $x = \frac{\pi}{6} + \frac{2\pi k}{3}$에서) 상한 포락선에 닿고, $\sin(3x) = -1$일 때마다 하한 포락선에 닿습니다.
+
+    ---
+
+    ### 추천 다음 단계
+
+    - [미분을 사용하여 정확한 국소 극값 계산하기](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [미달 감쇠와 임계 감쇠 시스템 비교하기](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  it: |
+    Ecco il grafico della funzione insieme ai suoi inviluppi superiore e inferiore:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### Cosa mostra il grafico
+
+    Questo grafico è una rappresentazione classica di un oscillatore armonico smorzato, comunemente riscontrato in fisica e ingegneria (come una corda di chitarra che vibra, un ammortizzatore o un [circuito RLC](wiki:RLC_circuit) elettrico).
+
+    #### 1. La componente oscillatoria: $\sin(3x)$
+    * Il termine $\sin(3x)$ genera un moto ondoso periodico continuo.
+    * La frequenza angolare è $\omega = 3\text{ rad/s}$, che corrisponde a un periodo di:
+      $$T = \frac{2\pi}{3} \approx 2,094$$
+    * Ciò significa che la curva attraversa lo zero ogni $\frac{\pi}{3} \approx 1,05$ unità lungo l'asse $x$.
+
+    #### 2. Il fattore di smorzamento: $e^{-0.2x}$
+    * Il fattore esponenziale $e^{-0.2x}$ descrive il [decadimento esponenziale](wiki:Exponential_decay) con un parametro del tasso di decadimento $\alpha = 0,2$.
+    * All'aumentare di $x$, l'energia viene persa dal sistema a causa dello [smorzamento](wiki:Damping) (come l'attrito o la resistenza elettrica), riducendo l'ampiezza nel tempo.
+
+    #### 3. Gli inviluppi: $\pm e^{-0.2x}$
+    * Poiché la funzione seno è limitata da $-1 \le \sin(3x) \le 1$, moltiplicando per il termine positivo $e^{-0.2x}$ si ottiene:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **Inviluppo superiore ($g(x) = e^{-0.2x}$)**: forma il confine superiore regolare che delimita i picchi positivi.
+    * **Inviluppo inferiore ($h(x) = -e^{-0.2x}$)**: forma il confine simmetrico che racchiude i ventri negativi.
+    * La curva oscillante tocca l'inviluppo superiore ogni volta che $\sin(3x) = 1$ (in $x = \frac{\pi}{6} + \frac{2\pi k}{3}$) e l'inviluppo inferiore ogni volta che $\sin(3x) = -1$.
+
+    ---
+
+    ### Passaggi successivi suggeriti
+
+    - [Calcola gli estremi locali esatti usando la derivata](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [Confronta i sistemi sottosmorzati rispetto a quelli con smorzamento critico](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  tr: |
+    İşte fonksiyonun üst ve alt sınırlayıcı zarflarıyla birlikte çizimi:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### Grafik Neyi Gösteriyor
+
+    Bu grafik; fizik ve mühendislikte yaygın olarak karşılaşılan (titreşen bir gitar teli, bir amortisör veya bir elektrikli [RLC devresi](wiki:RLC_circuit) gibi) sönümlü bir harmonik osilatörün klasik bir temsilidir.
+
+    #### 1. Salınım Bileşeni: $\sin(3x)$
+    * $\sin(3x)$ terimi sürekli periyodik dalga hareketi oluşturur.
+    * Açısal frekans $\omega = 3\text{ rad/s}$'dir ve şu periyoda karşılık gelir:
+      $$T = \frac{2\pi}{3} \approx 2,094$$
+    * Bu, eğrinin $x$ ekseni boyunca her $\frac{\pi}{3} \approx 1,05$ birimde bir sıfırdan geçtiği anlamına gelir.
+
+    #### 2. Sönümleme Faktörü: $e^{-0.2x}$
+    * $e^{-0.2x}$ üstel faktörü, $\alpha = 0,2$ sönüm oranı parametresiyle [üstel azalmayı](wiki:Exponential_decay) tanımlar.
+    * $x$ arttıkça, [sönümleme](wiki:Damping) (sürtünme veya elektriksel direnç gibi) nedeniyle sistemden enerji kaybedilir ve genlik zamanla küçülür.
+
+    #### 3. Zarflar: $\pm e^{-0.2x}$
+    * Sinüs fonksiyonu $-1 \le \sin(3x) \le 1$ ile sınırlı olduğundan, pozitif $e^{-0.2x}$ terimi ile çarpmak şunu verir:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **Üst Zarf ($g(x) = e^{-0.2x}$)**: Pozitif tepeleri sınırlayan pürüzsüz üst sınırı oluşturur.
+    * **Alt Zarf ($h(x) = -e^{-0.2x}$)**: Negatif çukurları çevreleyen simetrik sınırı oluşturur.
+    * Salınım yapan eğri, $\sin(3x) = 1$ olduğunda ($x = \frac{\pi}{6} + \frac{2\pi k}{3}$ noktasında) üst zarfa, $\sin(3x) = -1$ olduğunda ise alt zarfa değer.
+
+    ---
+
+    ### Önerilen Sonraki Adımlar
+
+    - [Türev kullanarak kesin yerel ekstremumları hesapla](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [Düşük sönümlü ve kritik sönümlü sistemleri karşılaştır](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  vi: |
+    Dưới đây là đồ thị của hàm số cùng với các đường bao giới hạn trên và dưới của nó:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### Đồ thị hiển thị điều gì
+
+    Đồ thị này là một biểu diễn kinh điển của một hệ dao động điều hòa tắt dần, thường gặp trong vật lý và kỹ thuật (chẳng hạn như dây đàn guitar đang rung, bộ giảm xóc hoặc một [mạch RLC](wiki:RLC_circuit) điện).
+
+    #### 1. Thành phần dao động: $\sin(3x)$
+    * Thuật ngữ $\sin(3x)$ tạo ra chuyển động sóng tuần hoàn liên tục.
+    * Tần số góc là $\omega = 3\text{ rad/s}$, tương ứng với chu kỳ là:
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * Điều này có nghĩa là đường cong cắt trục hoành tại số không sau mỗi $\frac{\pi}{3} \approx 1.05$ đơn vị dọc theo trục $x$.
+
+    #### 2. Hệ số tắt dần: $e^{-0.2x}$
+    * Hệ số mũ $e^{-0.2x}$ mô tả [sự suy giảm theo hàm mũ](wiki:Exponential_decay) với tham số tốc độ suy giảm là $\alpha = 0.2$.
+    * Khi $x$ tăng, năng lượng bị mất khỏi hệ thống do [sự tắt dần](wiki:Damping) (chẳng hạn như ma sát hoặc điện trở), làm giảm biên độ theo thời gian.
+
+    #### 3. Các đường bao: $\pm e^{-0.2x}$
+    * Vì hàm sin bị giới hạn bởi $-1 \le \sin(3x) \le 1$, nên khi nhân với số hạng dương $e^{-0.2x}$ ta được:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **Đường bao trên ($g(x) = e^{-0.2x}$)**: Tạo thành ranh giới trên trơn tru bao phủ các đỉnh dương.
+    * **Đường bao dưới ($h(x) = -e^{-0.2x}$)**: Tạo thành ranh giới đối xứng ôm lấy các đáy âm.
+    * Đường cong dao động chạm vào đường bao trên bất cứ khi nào $\sin(3x) = 1$ (tại $x = \frac{\pi}{6} + \frac{2\pi k}{3}$) và chạm vào đường bao dưới bất cứ khi nào $\sin(3x) = -1$.
+
+    ---
+
+    ### Các bước tiếp theo gợi ý
+
+    - [Tính các cực trị địa phương chính xác bằng đạo hàm](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [So sánh hệ tắt dần dưới mức và hệ tắt dần tới hạn](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  id: |
+    Berikut adalah plot fungsi beserta selubung pembatas atas dan bawahnya:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### Apa yang Ditunjukkan oleh Grafik
+
+    Grafik ini adalah representasi klasik dari osilator harmonik teredam, yang umum ditemukan dalam fisika dan teknik (seperti senar gitar yang bergetar, peredam kejut, atau [rangkaian RLC](wiki:RLC_circuit) listrik).
+
+    #### 1. Komponen Osilasi: $\sin(3x)$
+    * Istilah $\sin(3x)$ menghasilkan gerakan gelombang periodik yang kontinu.
+    * Frekuensi sudutnya adalah $\omega = 3\text{ rad/s}$, yang sesuai dengan periode:
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * Ini berarti kurva memotong titik nol setiap $\frac{\pi}{3} \approx 1.05$ unit di sepanjang sumbu $x$.
+
+    #### 2. Faktor Redaman: $e^{-0.2x}$
+    * Faktor eksponensial $e^{-0.2x}$ menjelaskan [peluruhan eksponensial](wiki:Exponential_decay) dengan parameter laju peluruhan $\alpha = 0.2$.
+    * Seiring bertambahnya $x$, energi hilang dari sistem karena [redaman](wiki:Damping) (seperti gesekan atau hambatan listrik), sehingga memperkecil amplitudo seiring waktu.
+
+    #### 3. Selubung: $\pm e^{-0.2x}$
+    * Karena fungsi sinus dibatasi oleh $-1 \le \sin(3x) \le 1$, perkalian dengan suku positif $e^{-0.2x}$ menghasilkan:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **Selubung Atas ($g(x) = e^{-0.2x}$)**: Membentuk batas atas halus yang membatasi puncak positif.
+    * **Selubung Bawah ($h(x) = -e^{-0.2x}$)**: Membentuk batas simetris yang menampung lembah negatif.
+    * Kurva yang berosilasi menyentuh selubung atas setiap kali $\sin(3x) = 1$ (pada $x = \frac{\pi}{6} + \frac{2\pi k}{3}$) dan selubung bawah setiap kali $\sin(3x) = -1$.
+
+    ---
+
+    ### Langkah Selanjutnya yang Disarankan
+
+    - [Hitung ekstremum lokal yang tepat menggunakan turunan](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [Bandingkan sistem teredam kurang vs teredam kritis](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  pl: |
+    Oto wykres funkcji wraz z jej górną i dolną obwiednią:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### Co przedstawia wykres
+
+    Ten wykres to klasyczna reprezentacja tłumionego oscylatora harmonicznego, powszechnie spotykanego w fizyce i inżynierii (takiego jak drgająca struna gitary, amortyzator czy elektryczny [obwód RLC](wiki:RLC_circuit)).
+
+    #### 1. Składowa oscylacyjna: $\sin(3x)$
+    * Człon $\sin(3x)$ generuje ciągły, okresowy ruch falowy.
+    * Częstość kołowa wynosi $\omega = 3\text{ rad/s}$, co odpowiada okresowi:
+      $$T = \frac{2\pi}{3} \approx 2,094$$
+    * Oznacza to, że krzywa przecina zero co $\frac{\pi}{3} \approx 1,05$ jednostki na osi $x$.
+
+    #### 2. Współczynnik tłumienia: $e^{-0,2x}$
+    * Czynnik wykładniczy $e^{-0,2x}$ opisuje [zanik wykładniczy](wiki:Exponential_decay) z parametrem szybkości zaniku $\alpha = 0,2$.
+    * Wraz ze wzrostem $x$ system traci energię wskutek [tłumienia](wiki:Damping) (takiego jak tarcie lub opór elektryczny), co z czasem zmniejsza amplitudę.
+
+    #### 3. Obwiednie: $\pm e^{-0,2x}$
+    * Ponieważ funkcja sinus jest ograniczona przez $-1 \le \sin(3x) \le 1$, pomnożenie przez dodatni człon $e^{-0,2x}$ daje:
+      $$-e^{-0,2x} \le e^{-0,2x}\sin(3x) \le e^{-0,2x}$$
+    * **Górna obwiednia ($g(x) = e^{-0,2x}$)**: Tworzy gładką górną granicę ograniczającą dodatnie szczyty.
+    * **Dolna obwiednia ($h(x) = -e^{-0,2x}$)**: Tworzy symetryczną granicę obejmującą ujemne minima.
+    * Oscylująca krzywa styka się z górną obwiednią zawsze, gdy $\sin(3x) = 1$ (dla $x = \frac{\pi}{6} + \frac{2\pi k}{3}$), a z dolną obwiednią, gdy $\sin(3x) = -1$.
+
+    ---
+
+    ### Sugerowane kolejne kroki
+
+    - [Oblicz dokładne ekstrema lokalne za pomocą pochodnej](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [Porównaj układy słabo tłumione i krytycznie tłumione](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  nl: |
+    Hier is de grafiek van de functie samen met de bovenste en onderste omhullenden:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### Wat de grafiek laat zien
+
+    Deze grafiek is een klassieke weergave van een gedempte harmonische oscillator, die vaak voorkomt in de natuurkunde en techniek (zoals een trillende gitaarsnaar, een schokdemper of een elektrisch [RLC-circuit](wiki:RLC_circuit)).
+
+    #### 1. De oscillerende component: $\sin(3x)$
+    * De term $\sin(3x)$ genereert een continue periodieke golfbeweging.
+    * De hoekfrequentie is $\omega = 3\text{ rad/s}$, wat overeenkomt met een periode van:
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * Dit betekent dat de curve de nulas snijdt om de $\frac{\pi}{3} \approx 1.05$ eenheden langs de $x$-as.
+
+    #### 2. De dempingsfactor: $e^{-0.2x}$
+    * De exponentiële factor $e^{-0.2x}$ beschrijft [exponentieel verval](wiki:Exponential_decay) met een vervalsnelheidsparameter van $\alpha = 0.2$.
+    * Naarmate $x$ toeneemt, verliest het systeem energie door [demping](wiki:Damping) (zoals wrijving of elektrische weerstand), waardoor de amplitude in de loop van de tijd afneemt.
+
+    #### 3. De omhullenden: $\pm e^{-0.2x}$
+    * Omdat de sinusfunctie begrensd is door $-1 \le \sin(3x) \le 1$, levert vermenigvuldiging met de positieve term $e^{-0.2x}$ het volgende op:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **Bovenste omhullende ($g(x) = e^{-0.2x}$)**: Vormt de vloeiende bovengrens die de positieve pieken begrenst.
+    * **Onderste omhullende ($h(x) = -e^{-0.2x}$)**: Vormt de symmetrische grens die de negatieve dalen omsluit.
+    * De oscillerende curve raakt de bovenste omhullende telkens wanneer $\sin(3x) = 1$ (bij $x = \frac{\pi}{6} + \frac{2\pi k}{3}$) and de onderste omhullende telkens wanneer $\sin(3x) = -1$.
+
+    ---
+
+    ### Voorgestelde vervolgstappen
+
+    - [Bereken de exacte lokale extrema met behulp van de afgeleide](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [Vergelijk ondergedempte versus kritisch gedempte systemen](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  ar: |
+    إليك الرسم البياني للدالة مع غلافيها العلوي والسفلي المحددين لها:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### ما يظهره الرسم البياني
+
+    هذا الرسم البياني هو تمثيل كلاسيكي لمذبذب توافقي مخمد، وهو ما يصادف عادةً في الفيزياء والهندسة (مثل وتر جيتار مهتز، أو ممتص صدمات، أو [دائرة RLC](wiki:RLC_circuit) كهربائية).
+
+    #### 1. المكون التذبذبي: $\sin(3x)$
+    * يولد المصطلح $\sin(3x)$ حركة موجية دورية مستمرة.
+    * التردد الزاوي هو $\omega = 3\text{ rad/s}$، وهو ما يقابل دورة زمنية قدرها:
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * هذا يعني أن المنحنى يقطع الصفر كل $\frac{\pi}{3} \approx 1.05$ وحدة على طول المحور $x$.
+
+    #### 2. عامل التخميد: $e^{-0.2x}$
+    * يصف العامل الأسي $e^{-0.2x}$ [الاضمحلال الأسي](wiki:Exponential_decay) بمعامل معدل اضمحلال $\alpha = 0.2$.
+    * مع زيادة $x$، تُفقد الطاقة من النظام بسبب [التخميد](wiki:Damping) (مثل الاحتكاك أو المقاومة الكهربائية)، مما يؤدي إلى تقلص السعة بمرور الوقت.
+
+    #### 3. الأغلفة: $\pm e^{-0.2x}$
+    * بما أن دالة الجيب محصورة بين $-1 \le \sin(3x) \le 1$، فإن الضرب في المصطلح الموجب $e^{-0.2x}$ ينتج عنه:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **الغلاف العلوي ($g(x) = e^{-0.2x}$)**: يشكل الحد العلوي السلس الذي يغطي القمم الموجبة.
+    * **الغلاف السفلي ($h(x) = -e^{-0.2x}$)**: يشكل الحد المتماثل الذي يحيط بالقيعان السالبة.
+    * يلامس المنحنى المتذبذب الغلاف العلوي كلما كانت $\sin(3x) = 1$ (عند $x = \frac{\pi}{6} + \frac{2\pi k}{3}$) والغلاف السفلي كلما كانت $\sin(3x) = -1$.
+
+    ---
+
+    ### الخطوات التالية المقترحة
+
+    - [احسب القيم القصوى المحلية الدقيقة باستخدام المشتقة](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [قارن بين الأنظمة ناقصة التخميد والأنظمة حرجة التخميد](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  hi: |
+    यहाँ इसके ऊपरी और निचले बाउंडिंग एनवेलप्स (envelopes) के साथ फ़ंक्शन का प्लॉट दिया गया है:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### ग्राफ़ क्या दर्शाता है
+
+    यह ग्राफ़ एक डैम्प्ड हार्मोनिक ऑसिलेटर (damped harmonic oscillator) का एक क्लासिक प्रतिनिधित्व है, जो आमतौर पर भौतिकी और इंजीनियरिंग में पाया जाता है (जैसे कि कंपन करती गिटार की स्ट्रिंग, शॉक एब्जॉर्बर, या इलेक्ट्रिकल [RLC सर्किट](wiki:RLC_circuit))।
+
+    #### 1. ऑसिलेटरी कंपोनेंट (Oscillatory Component): $\sin(3x)$
+    * पद $\sin(3x)$ निरंतर आवधिक तरंग गति (periodic wave motion) उत्पन्न करता है।
+    * कोणीय आवृत्ति (angular frequency) $\omega = 3\text{ rad/s}$ है, जो इस आवर्तकाल (period) के अनुरूप है:
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * इसका अर्थ है कि वक्र $x$-अक्ष पर प्रत्येक $\frac{\pi}{3} \approx 1.05$ इकाइयों पर शून्य को पार करता है।
+
+    #### 2. डैम्पिंग फैक्टर (Damping Factor): $e^{-0.2x}$
+    * घातांकीय कारक (exponential factor) $e^{-0.2x}$, $\alpha = 0.2$ के क्षय दर पैरामीटर (decay rate parameter) के साथ [घातांकीय क्षय (exponential decay)](wiki:Exponential_decay) का वर्णन करता है।
+    * जैसे-जैसे $x$ बढ़ता है, [डैम्पिंग (damping)](wiki:Damping) (जैसे घर्षण या विद्युत प्रतिरोध) के कारण सिस्टम से ऊर्जा कम होती जाती है, जिससे समय के साथ आयाम (amplitude) घटता जाता है।
+
+    #### 3. एनवेलप्स (Envelopes): $\pm e^{-0.2x}$
+    * चूँकि साइन फ़ंक्शन $-1 \le \sin(3x) \le 1$ द्वारा सीमित है, इसलिए धनात्मक पद $e^{-0.2x}$ से गुणा करने पर प्राप्त होता है:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **ऊपरी एनवेलप ($g(x) = e^{-0.2x}$)**: यह सुचारू ऊपरी सीमा बनाता है जो धनात्मक चोटियों (positive peaks) को कवर करती है।
+    * **निचला एनवेलप ($h(x) = -e^{-0.2x}$)**: यह सममित सीमा बनाता है जो ऋणात्मक गर्तों (negative troughs) को सहारा देती है।
+    * दोलन करने वाला वक्र ऊपरी एनवेलप को तब छूता है जब $\sin(3x) = 1$ (पर $x = \frac{\pi}{6} + \frac{2\pi k}{3}$) और निचले एनवेलप को तब छूता है जब $\sin(3x) = -1$ होता है।
+
+    ---
+
+    ### सुझाए गए अगले चरण
+
+    - [डेरिवेटिव का उपयोग करके सटीक स्थानीय चरम सीमा (local extrema) की गणना करें](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [अंडरडैम्प्ड बनाम क्रिटिकली डैम्प्ड सिस्टम की तुलना करें](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  th: |
+    นี่คือพล็อตกราฟของฟังก์ชันพร้อมกับเส้นขอบบนและเส้นขอบล่าง:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### สิ่งที่กราฟแสดง
+
+    กราฟนี้เป็นการแสดงภาพคลาสสิกของตัวแกว่งกวัดฮาร์มอนิกแบบหน่วง (damped harmonic oscillator) ซึ่งพบได้ทั่วไปในทางฟิสิกส์และวิศวกรรม (เช่น สายกีตาร์ที่สั่นสะเทือน, โช้คอัพ หรือ[วงจร RLC](wiki:RLC_circuit) ทางไฟฟ้า)
+
+    #### 1. ส่วนประกอบของการแกว่งกวัด: $\sin(3x)$
+    * พจน์ $\sin(3x)$ สร้างการเคลื่อนที่แบบคลื่นเป็นคาบอย่างต่อเนื่อง
+    * ความถี่เชิงมุมคือ $\omega = 3\text{ rad/s}$ ซึ่งสอดคล้องกับคาบเวลา:
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * ซึ่งหมายความว่าเส้นกราฟจะตัดผ่านจุดศูนย์ทุกๆ $\frac{\pi}{3} \approx 1.05$ หน่วยตามแนวแกน $x$
+
+    #### 2. ตัวประกอบการหน่วง: $e^{-0.2x}$
+    * ตัวประกอบเอกซ์โพเนนเชียล $e^{-0.2x}$ อธิบายถึง[การสลายตัวแบบเอกซ์โพเนนเชียล](wiki:Exponential_decay) โดยมีพารามิเตอร์อัตราการสลายตัวคือ $\alpha = 0.2$
+    * เมื่อ $x$ เพิ่มขึ้น พลังงานจะสูญเสียไปจากระบบเนื่องจากการ[หน่วง](wiki:Damping) (เช่น แรงเสียดทานหรือความต้านทานไฟฟ้า) ทำให้แอมพลิจูดลดลงตามกาลเวลา
+
+    #### 3. เส้นขอบ (Envelopes): $\pm e^{-0.2x}$
+    * เนื่องจากฟังก์ชันไซน์มีขอบเขตอยู่ที่ $-1 \le \sin(3x) \le 1$ เมื่อคูณด้วยพจน์ที่เป็นบวก $e^{-0.2x}$ จะได้:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **เส้นขอบบน ($g(x) = e^{-0.2x}$)**: สร้างขอบเขตบนที่ราบเรียบซึ่งครอบจุดยอดที่เป็นบวก
+    * **เส้นขอบล่าง ($h(x) = -e^{-0.2x}$)**: สร้างขอบเขตที่สมมาตรซึ่งรองรับจุดต่ำสุดที่เป็นลบ
+    * เส้นกราฟที่แกว่งกวัดจะสัมผัสกับเส้นขอบบนเมื่อใดก็ตามที่ $\sin(3x) = 1$ (ที่ $x = \frac{\pi}{6} + \frac{2\pi k}{3}$) และสัมผัสเส้นขอบล่างเมื่อใดก็ตามที่ $\sin(3x) = -1$
+
+    ---
+
+    ### ขั้นตอนถัดไปที่แนะนำ
+
+    - [คำนวณหาค่าสุดขีดเฉพาะที่ที่แน่นอนโดยใช้ตัวอนุพันธ์](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [เปรียบเทียบระบบแบบหน่วงน้อยกว่าวิกฤต (underdamped) กับระบบแบบหน่วงวิกฤต (critically damped)](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  cs: |
+    Zde je graf funkce spolu s její horní a dolní obálkou:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### Co graf zobrazuje
+
+    Tento graf je klasickým znázorněním tlumeného harmonického oscilátoru, se kterým se běžně setkáváme ve fyzice a inženýrství (například u vibrující struny kytary, tlumiče nárazů nebo elektrického [RLC obvodu](wiki:RLC_circuit)).
+
+    #### 1. Oscilační složka: $\sin(3x)$
+    * Člen $\sin(3x)$ generuje spojitý periodický vlnový pohyb.
+    * Úhlová frekvence je $\omega = 3\text{ rad/s}$, což odpovídá periodě:
+      $$T = \frac{2\pi}{3} \approx 2,094$$
+    * To znamená, že křivka protíná nulu každých $\frac{\pi}{3} \approx 1,05$ jednotek na ose $x$.
+
+    #### 2. Faktor tlumení: $e^{-0,2x}$
+    * Exponenciální faktor $e^{-0,2x}$ popisuje [exponenciální pokles](wiki:Exponential_decay) s parametrem rychlosti poklesu $\alpha = 0,2$.
+    * S rostoucím $x$ systém ztrácí energii v důsledku [tlumení](wiki:Damping) (jako je tření nebo elektrický odpor), což v průběhu času zmenšuje amplitudu.
+
+    #### 3. Obálky: $\pm e^{-0,2x}$
+    * Protože funkce sinus je omezena hodnotami $-1 \le \sin(3x) \le 1$, vynásobení kladným členem $e^{-0,2x}$ dává:
+      $$-e^{-0,2x} \le e^{-0,2x}\sin(3x) \le e^{-0,2x}$$
+    * **Horní obálka ($g(x) = e^{-0,2x}$)**: Tvoří hladkou horní hranici, která omezuje kladná maxima.
+    * **Dolní obálka ($h(x) = -e^{-0,2x}$)**: Tvoří symetrickou hranici, která obepíná záporná minima.
+    * Oscilující křivka se dotýká horní obálky vždy, když $\sin(3x) = 1$ (v bodě $x = \frac{\pi}{6} + \frac{2\pi k}{3}$), a dolní obálky vždy, když $\sin(3x) = -1$.
+
+    ---
+
+    ### Navrhované další kroky
+
+    - [Vypočítej přesné lokální extrémy pomocí derivace](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [Porovnej podtlumené a kriticky tlumené systémy](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  sv: |
+    Här är en graf över funktionen tillsammans med dess övre och nedre höljeskurvor:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### Vad grafen visar
+
+    Grafen är ett klassiskt exempel på en dämpad harmonisk oscillator, som förekommer inom fysik och teknik (till exempel en vibrerande gitarrsträng, en stötdämpare eller en elektrisk [RLC-krets](wiki:RLC_circuit)).
+
+    #### 1. Den oscillerande delen: $\sin(3x)$
+    * Termen $\sin(3x)$ ger en kontinuerlig periodisk svängning.
+    * Vinkelfrekvensen är $\omega = 3\text{ rad/s}$, vilket ger perioden:
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * Kurvan skär därför nollinjen var $\frac{\pi}{3} \approx 1.05$:e enhet längs $x$-axeln.
+
+    #### 2. Dämpningsfaktorn: $e^{-0.2x}$
+    * Exponentialfaktorn $e^{-0.2x}$ beskriver [exponentiellt avtagande](wiki:Exponential_decay) med dämpningsparametern $\alpha = 0.2$.
+    * När $x$ ökar förlorar systemet energi genom [dämpning](wiki:Damping) (till exempel friktion eller elektriskt motstånd), så amplituden minskar med tiden.
+
+    #### 3. Höljeskurvorna: $\pm e^{-0.2x}$
+    * Eftersom sinusfunktionen begränsas av $-1 \le \sin(3x) \le 1$ får vi, efter multiplikation med den positiva termen $e^{-0.2x}$:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **Övre höljeskurvan ($g(x) = e^{-0.2x}$)**: Den jämna övre gränsen för de positiva topparna.
+    * **Nedre höljeskurvan ($h(x) = -e^{-0.2x}$)**: Den symmetriska nedre gränsen för de negativa dalarna.
+    * Den oscillerande kurvan tangerar den övre höljeskurvan när $\sin(3x) = 1$ (vid $x = \frac{\pi}{6} + \frac{2\pi k}{3}$) och den nedre när $\sin(3x) = -1$.
+
+    ---
+
+    ### Förslag på nästa steg
+
+    - [Beräkna exakta lokala extrempunkter med derivata](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [Jämför underdämpade och kritiskt dämpade system](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+
+  he: |
+    להלן הגרף של הפונקציה יחד עם המעטפות החוסמות העליונה והתחתונה שלה:
+
+    ```json
+    {"type": "math-plot", "embed_id": "9ef899d2-4b73-4c4e-88bf-d4fd31d61e79"}
+    ```
+
+    ---
+
+    ### מה הגרף מראה
+
+    גרף זה הוא ייצוג קלאסי של מתנד הרמוני מרוסן, הנפוץ בפיזיקה ובהנדסה (כגון מיתר גיטרה רוטט, בולם זעזועים או [מעגל RLC](wiki:RLC_circuit) חשמלי).
+
+    #### 1. הרכיב התנודתי: $\sin(3x)$
+    * הביטוי $\sin(3x)$ יוצר תנועה גלית מחזורית רציפה.
+    * התדירות הזוויתית היא $\omega = 3\text{ rad/s}$, המתאימה למחזור של:
+      $$T = \frac{2\pi}{3} \approx 2.094$$
+    * משמעות הדבר היא שהעקומה חוצה את האפס כל $\frac{\pi}{3} \approx 1.05$ יחידות לאורך ציר ה-$x$.
+
+    #### 2. גורם הריסון: $e^{-0.2x}$
+    * הגורם המעריכי $e^{-0.2x}$ מתאר [דעיכה מעריכית](wiki:Exponential_decay) עם פרמטר קצב דעיכה של $\alpha = 0.2$.
+    * ככל ש-$x$ גדל, אנרגיה הולכת לאיבוד מהמערכת עקב [ריסון](wiki:Damping) (כגון חיכוך או התנגדות חשמלית), מה שמקטין את האמפליטודה לאורך זמן.
+
+    #### 3. המעטפות: $\pm e^{-0.2x}$
+    * מכיוון שפונקציית הסינוס חסומה על ידי $-1 \le \sin(3x) \le 1$, הכפלה בביטוי החיובי $e^{-0.2x}$ מניבה:
+      $$-e^{-0.2x} \le e^{-0.2x}\sin(3x) \le e^{-0.2x}$$
+    * **מעטפת עליונה ($g(x) = e^{-0.2x}$)**: יוצרת את הגבול העליון החלק שחוסם את שיאי התנודה החיוביים.
+    * **מעטפת תחתונה ($h(x) = -e^{-0.2x}$)**: יוצרת את הגבול הסימטרי שעוטף את נקודות השפל השליליות.
+    * העקומה המתנודדת נוגעת במעטפת העליונה בכל פעם ש-$\sin(3x) = 1$ (ב-$x = \frac{\pi}{6} + \frac{2\pi k}{3}$) ובמעטפת התחתונה בכל פעם ש-$\sin(3x) = -1$.
+
+    ---
+
+    ### צעדים הבאים מוצעים
+
+    - [חישוב נקודות הקיצון המקומיות המדויקות באמצעות הנגזרת](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)
+    - [השוואה בין מערכות בתת-ריסון לעומת ריסון קריטי](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Calculate the local extrema of this function using calculus"
+  de: Berechne die lokalen Extrema dieser Funktion mithilfe der Differentialrechnung
+  zh: 使用微积分计算该函数的局部极值
+  es: Calcula los extremos locales de esta función usando cálculo
+  fr: "Calcule les extrema locaux de cette fonction à l'aide de l'analyse mathématique"
+  pt: Calcula os extremos locais desta função usando cálculo
+  ru: Вычисли локальные экстремумы этой функции с помощью математического анализа
+  ja: 微分積分を用いて、この関数の極値を計算して
+  ko: 미적분을 사용하여 이 함수의 극값을 계산해 줘
+  it: "Calcola gli estremi locali di questa funzione usando l'analisi matematica"
+  tr: Kalkül kullanarak bu fonksiyonun yerel ekstremumlarını hesapla
+  vi: Tính các cực trị địa phương của hàm số này bằng phép tính vi tích phân
+  id: Hitung ekstremum lokal fungsi ini menggunakan kalkulus
+  pl: Oblicz ekstrema lokalne tej funkcji za pomocą rachunku różniczkowego
+  nl: Bereken de lokale extrema van deze functie met behulp van calculus
+  ar: احسب القيم القصوى المحلية لهذه الدالة باستخدام التفاضل والتكامل
+  hi: कैलकुलस का उपयोग करके इस फलन (function) के स्थानीय चरम (local extrema) की गणना करें
+  th: คำนวณค่าสุดขีดเฉพาะที่ของฟังก์ชันนี้โดยใช้แคลคูลัส
+  cs: Vypočítej lokální extrémy této funkce pomocí diferenciálního počtu
+  sv: Beräkna funktionens lokala extrema med hjälp av analys
+  he: חשב את נקודות הקיצון המקומיות של הפונקציה הזו באמצעות חשבון דיפרנציאלי
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how changing the decay rate parameter affects the curve"
+  de: Erkläre, wie sich die Änderung der Abklingrate auf die Kurve auswirkt
+  zh: 解释更改衰减率参数如何影响曲线
+  es: Explica cómo afecta a la curva el cambio del parámetro de la tasa de decaimiento
+  fr: Explique comment la modification du paramètre de taux de décroissance affecte la courbe
+  pt: Explica como a alteração do parâmetro da taxa de decaimento afeta a curva
+  ru: Объясни, как изменение параметра скорости затухания влияет на кривую
+  ja: 減衰率のパラメータを変更すると曲線にどのような影響があるか説明して
+  ko: 감쇠율 매개변수를 변경하면 곡선에 어떤 영향을 주는지 설명해 줘
+  it: Spiega come la variazione del parametro del tasso di decadimento influisce sulla curva
+  tr: Sönümleme oranı parametresini değiştirmenin eğriyi nasıl etkilediğini açıkla
+  vi: Giải thích việc thay đổi tham số tốc độ suy giảm ảnh hưởng đến đường cong như thế nào
+  id: Jelaskan bagaimana perubahan parameter laju peluruhan memengaruhi kurva
+  pl: Wyjaśnij, jak zmiana parametru szybkości zaniku wpływa na krzywą
+  nl: Leg uit hoe het veranderen van de vervalsnelheidsparameter de curve beïnvloedt
+  ar: اشرح كيف يؤثر تغيير معامل معدل الاضمحلال على المنحنى
+  hi: बताएं कि क्षय दर (decay rate) पैरामीटर बदलने से वक्र (curve) पर क्या प्रभाव पड़ता है
+  th: อธิบายว่าการเปลี่ยนพารามิเตอร์อัตราการลดทอนส่งผลต่อเส้นโค้งอย่างไร
+  cs: Vysvětli, jak změna parametru rychlosti poklesu ovlivňuje křivku
+  sv: Förklara hur ändring av avklingningshastigheten påverkar kurvan
+  he: הסבר כיצד שינוי פרמטר קצב הדעיכה משפיע על העקומה
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Find similar physics formulas for harmonic motion"
+  de: Finde ähnliche physikalische Formeln für harmonische Schwingungen
+  zh: 查找类似的谐波运动物理公式
+  es: Busca fórmulas físicas similares para el movimiento armónico
+  fr: Trouve des formules de physique similaires pour le mouvement harmonique
+  pt: Encontra fórmulas de física semelhantes para o movimento harmónico
+  ru: Найди похожие физические формулы для гармонического движения
+  ja: 調和振動に関する同様の物理公式を探して
+  ko: 조화 운동과 유사한 물리 공식을 찾아줘
+  it: Trova formule fisiche simili per il moto armonico
+  tr: Harmonik hareket için benzer fizik formülleri bul
+  vi: Tìm các công thức vật lý tương tự cho chuyển động điều hòa
+  id: Cari rumus fisika serupa untuk gerak harmonik
+  pl: Znajdź podobne wzory fizyczne dla ruchu harmonicznego
+  nl: Vind vergelijkbare natuurkundige formules voor harmonische beweging
+  ar: ابحث عن صيغ فيزيائية مشابهة للحركة التوافقية
+  hi: हार्मोनिक गति के लिए समान भौतिकी सूत्र खोजें
+  th: ค้นหาสูตรทางฟิสิกส์ที่คล้ายกันสำหรับการเคลื่อนที่แบบฮาร์มอนิก
+  cs: Najdi podobné fyzikální vzorce pro harmonický pohyb
+  sv: Hitta liknande fysikformler för harmonisk rörelse
+  he: מצא נוסחאות פיזיקליות דומות לתנועה הרמונית
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Describe real-world physical systems modeled by this equation"
+  de: Beschreibe reale physikalische Systeme, die durch diese Gleichung modelliert werden
+  zh: 描述由该方程建模的现实物理系统
+  es: Describe sistemas físicos del mundo real modelados por esta ecuación
+  fr: Décris des systèmes physiques réels modélisés par cette équation
+  pt: Descreve sistemas físicos do mundo real modelados por esta equação
+  ru: Опиши реальные физические системы, моделируемые этим уравнением
+  ja: この方程式でモデル化される現実世界の物理システムを教えて
+  ko: 이 방정식으로 모델링되는 실제 물리 시스템을 설명해 줘
+  it: Descrivi sistemi fisici reali modellati da questa equazione
+  tr: Bu denklemle modellenen gerçek dünyadaki fiziksel sistemleri tanımla
+  vi: Mô tả các hệ thống vật lý thực tế được mô hình hóa bởi phương trình này
+  id: Deskripsikan sistem fisik dunia nyata yang dimodelkan oleh persamaan ini
+  pl: Opisz rzeczywiste układy fizyczne modelowane przez to równanie
+  nl: Beschrijf fysieke systemen uit de echte wereld die door deze vergelijking worden gemodelleerd
+  ar: صف أنظمة فيزيائية من العالم الحقيقي تُنمذجها هذه المعادلة
+  hi: इस समीकरण द्वारा मॉडल किए गए वास्तविक दुनिया के भौतिक प्रणालियों का वर्णन करें
+  th: อธิบายระบบทางกายภาพในโลกแห่งความเป็นจริงที่จำลองโดยสมการนี้
+  cs: Popiš reálné fyzikální systémy modelované touto rovnicí
+  sv: Beskriv fysiska system i verkligheten som modelleras av denna ekvation
+  he: תאר מערכות פיזיקליות מהעולם האמיתי הממודלות על ידי משוואה זו
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Search for differential equations describing damped oscillations"
+  de: Suche nach Differentialgleichungen, die gedämpfte Schwingungen beschreiben
+  zh: 搜索描述阻尼振荡的微分方程
+  es: Busca ecuaciones diferenciales que describan oscilaciones amortiguadas
+  fr: Recherche des équations différentielles décrivant des oscillations amorties
+  pt: Pesquisa equações diferenciais que descrevam oscilações amortecidas
+  ru: Найди дифференциальные уравнения, описывающие затухающие колебания
+  ja: 減衰振動を表す微分方程式を検索して
+  ko: 감쇠 진동을 설명하는 미분 방정식을 검색해 줘
+  it: Cerca equazioni differenziali che descrivono oscillazioni smorzate
+  tr: Sönümlü salınımları tanımlayan diferansiyel denklemleri ara
+  vi: Tìm kiếm các phương trình vi phân mô tả dao động tắt dần
+  id: Cari persamaan diferensial yang mendeskripsikan osilasi teredam
+  pl: Wyszukaj równania różniczkowe opisujące drgania tłumione
+  nl: Zoek naar differentiaalvergelijkingen die gedempte trillingen beschrijven
+  ar: ابحث عن معادلات تفاضلية تصف الاهتزازات المضمحلة
+  hi: मंदित दोलनों (damped oscillations) का वर्णन करने वाले अवकल समीकरणों (differential equations) को खोजें
+  th: ค้นหาสมการเชิงอนุพันธ์ที่อธิบายการแกว่งกวัดแบบหน่วง
+  cs: Vyhledej diferenciální rovnice popisující tlumené kmity
+  sv: Sök efter differentialekvationer som beskriver dämpade svängningar
+  he: חפש משוואות דיפרנציאליות המתארות תנודות מרוסנות
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Compare this wave behavior with undamped simple harmonic motion"
+  de: Vergleiche dieses Wellenverhalten mit einer ungedämpften harmonischen Schwingung
+  zh: 将此波动行为与无阻尼简谐运动进行比较
+  es: Compara este comportamiento de onda con el movimiento armónico simple no amortiguado
+  fr: "Compare ce comportement d'onde avec un mouvement harmonique simple non amorti"
+  pt: Compara este comportamento de onda com o movimento harmónico simples não amortecido
+  ru: Сравни поведение этой волны с незатухающим гармоническим колебанием
+  ja: この波の挙動を、減衰のない単振動と比較して
+  ko: 이 파동의 거동을 감쇠가 없는 단순 조화 운동과 비교해 줘
+  it: Confronta questo comportamento ondulatorio con il moto armonico semplice non smorzato
+  tr: Bu dalga davranışını sönümsüz basit harmonik hareketle karşılaştır
+  vi: So sánh hành vi sóng này với chuyển động điều hòa đơn giản không tắt dần
+  id: Bandingkan perilaku gelombang ini dengan gerak harmonik sederhana tak teredam
+  pl: Porównaj zachowanie tej fali z nietłumionym ruchem harmonicznym prostym
+  nl: Vergelijk dit golfgedrag met ongedempte enkelvoudige harmonische beweging
+  ar: قارن سلوك هذه الموجة مع الحركة التوافقية البسيطة غير المضمحلة
+  hi: इस तरंग व्यवहार की तुलना अदमित सरल आवर्त गति (undamped simple harmonic motion) से करें
+  th: เปรียบเทียบพฤติกรรมของคลื่นนี้กับการเคลื่อนที่แบบฮาร์มอนิกอย่างง่ายที่ไม่มีการหน่วง
+  cs: Porovnej chování tohoto vlnění s netlumeným jednoduchým harmonickým pohybem
+  sv: Jämför detta vågbeteende med odämpad enkel harmonisk rörelse
+  he: השווה את התנהגות הגל הזו עם תנועה הרמונית פשוטה ללא ריסון
+  verified_by_human: []

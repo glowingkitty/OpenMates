@@ -1,0 +1,1513 @@
+title:
+  context: "Title of example chat: Autumn Basil Care on a Berlin Balcony"
+  en: "Autumn Basil Care on a Berlin Balcony"
+  de: Basilikumpflege im Herbst auf einem Berliner Balkon
+  zh: 柏林阳台罗勒秋季护理指南
+  es: Cuidados otoñales para la albahaca en un balcón de Berlín
+  fr: Entretien du basilic en automne sur un balcon à Berlin
+  pt: Cuidados de Outono com Manjericão numa Varanda em Berlim
+  ru: Уход за базиликом осенью на балконе в Берлине
+  ja: ベルリンのバルコニーでの秋のバジルケア
+  ko: 베를린 발코니의 가을철 바질 관리
+  it: Cura autunnale del basilico su un balcone a Berlino
+  tr: Berlin Balkonunda Sonbahar Fesleğen Bakımı
+  vi: Chăm sóc húng tây mùa thu trên ban công ở Berlin
+  id: Perawatan Basil Musim Gugur di Balkon Berlin
+  pl: Jesienna pielęgnacja bazylii na berlińskim balkonie
+  nl: Herfstverzorging voor basilicum op een Berlijns balkon
+  ar: رعاية الريحان في الخريف على شرفة ببرلين
+  hi: बर्लिन की बालकनी पर शरद ऋतु में बेसिल की देखभाल
+  th: การดูแลโหระพาช่วงฤดูใบไม้ร่วงบนระเบียงในเบอร์ลิน
+  cs: Podzimní péče o bazalku na berlínském balkoně
+  sv: Höstskötsel av basilika på en balkong i Berlin
+  he: טיפול בבזיליקום בסתיו במרפסת בברלין
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Autumn Basil Care on a Berlin Balcony"
+  en: "Simple autumn care for basil on an east-facing balcony: light, watering, cold signs, and moving indoors."
+  de: "Einfache Herbstpflege für Basilikum auf einem Ostbalkon: Licht, Gießen, Kälteanzeichen und Umzug nach drinnen."
+  zh: 朝东阳台罗勒的简易秋季护理：光照、浇水、受冻迹象及搬入室内。
+  es: "Cuidados sencillos de otoño para albahaca en un balcón orientado al este: luz, riego, señales de frío y cuándo meterla en casa."
+  fr: "Entretien simple du basilic en automne sur un balcon orienté à l'est : lumière, arrosage, signes de froid et rentrée à l'intérieur."
+  pt: "Cuidados simples de outono para manjericão numa varanda virada a leste: luz, rega, sinais de frio e quando levar para dentro."
+  ru: "Простой осенний уход за базиликом на восточном балконе: свет, полив, признаки холода и перенос в помещение."
+  ja: 東向きのバルコニーでのバジルの簡単な秋のケア：日光、水やり、寒さのサイン、室内に移すタイミング。
+  ko: "동향 발코니 바질을 위한 간단한 가을철 관리법: 햇빛, 물 주기, 추위 징후 및 실내 이동 시기."
+  it: "Semplice cura autunnale per il basilico su un balcone esposto a est: luce, irrigazione, segni di freddo e spostamento all'interno."
+  tr: "Doğu cepheli balkondaki fesleğen için basit sonbahar bakımı: ışık, sulama, soğuk belirtileri ve içeri taşıma."
+  vi: "Chăm sóc húng tây mùa thu đơn giản trên ban công hướng đông: ánh sáng, tưới nước, dấu hiệu bị lạnh và chuyển vào nhà."
+  id: "Perawatan musim gugur sederhana untuk basil di balkon yang menghadap ke timur: cahaya, penyiraman, tanda-tanda kedinginan, dan memindahkannya ke dalam ruangan."
+  pl: "Prosta jesienna pielęgnacja bazylii na balkonie o wystawie wschodniej: światło, podlewanie, oznaki zimna i przenoszenie do domu."
+  nl: "Eenvoudige herfstverzorging voor basilicum op een balkon op het oosten: licht, water geven, tekenen van kou en naar binnen verplaatsen."
+  ar: "رعاية خريفية بسيطة للريحان على شرفة مواجهة للشرق: الإضاءة، والري، وعلامات البرد، ونقله إلى الداخل."
+  hi: "पूर्व-मुखी बालकनी पर बेसिल के लिए शरद ऋतु की आसान देखभाल: रोशनी, पानी, ठंड के संकेत और घर के अंदर ले जाना।"
+  th: "วิธีดูแลโหระพาง่ายๆ ในช่วงฤดูใบไม้ร่วงบนระเบียงทิศตะวันออก: แสงแดด การรดน้ำ สัญญาณความหนาว และการย้ายเข้าข้างใน"
+  cs: "Jednoduchá podzimní péče o bazalku na východním balkoně: světlo, zalévání, známky chladu a stěhování dovnitř."
+  sv: "Enkel höstskötsel för basilika på en balkong i österläge: ljus, vattning, tecken på kyla och när den ska flyttas inomhus."
+  he: "טיפול פשוט בבזיליקום בסתיו במרפסת הפונה למזרח: אור, השקיה, סימני קור והעברה לתוך הבית."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Autumn Basil Care on a Berlin Balcony. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Could you make a concise beginner-friendly care guide for my sweet basil on an east-facing Berlin balcony this autumn? I mostly need watering, light, cold-weather signs, and when to bring it inside."
+  de: "Könntest du eine kurze, anfängerfreundliche Pflegeanleitung für mein Genoveser Basilikum auf einem Berliner Ostbalkon in diesem Herbst erstellen? Ich brauche vor allem Infos zu Bewässerung, Licht, Anzeichen für Kälte und wann ich es reinholen sollte."
+  zh: 你能为我在柏林朝东阳台上种的甜罗勒制作一份简洁且适合初学者的秋季护理指南吗？我主要需要关于浇水、光照、受冻迹象以及何时搬进室内的建议。
+  es: "¿Podrías hacer una guía de cuidados concisa y para principiantes para mi albahaca en un balcón de Berlín orientado al este este otoño? Sobre todo necesito información sobre riego, luz, señales de frío y cuándo meterla en casa."
+  fr: "Pourrais-tu créer un guide d'entretien concis et adapté aux débutants pour mon basilic grand vert sur un balcon berlinois orienté à l'est cet automne ? J'ai surtout besoin d'infos sur l'arrosage, la lumière, les signes de froid et le moment où il faut le rentrer."
+  pt: "Podes criar um guia de cuidados conciso e simples para principiantes para o meu manjericão-doce numa varanda virada a leste em Berlim este outono? Preciso sobretudo de informações sobre rega, luz, sinais de frio e quando o levar para dentro."
+  ru: "Можешь составить краткое и понятное руководство для новичков по уходу за моим душистым базиликом на восточном балконе в Берлине этой осенью? В основном меня интересуют полив, свет, признаки замерзания и когда его нужно заносить в дом."
+  ja: ベルリンの東向きのバルコニーで育てているスイートバジルのために、この秋の初心者向けケアガイドを簡潔に作成してくれますか？主に水やり、日光、寒さのサイン、そしていつ室内に取り込むべきかについて知りたいです。
+  ko: "이번 가을 베를린의 동향 발코니에서 키우는 스위트 바질을 위한 초보자용 간편 관리 가이드를 만들어 줄 수 있어? 주로 물 주기, 햇빛, 추위 징후, 그리고 언제 실내로 들여놓아야 하는지에 대해 알고 싶어."
+  it: "Potresti creare una guida concisa e adatta ai principianti per la cura del mio basilico su un balcone di Berlino esposto a est questo autunno? Mi servono soprattutto consigli su irrigazione, luce, segni di freddo e quando portarlo in casa."
+  tr: "Bu sonbaharda Berlin'de doğu cepheli bir balkondaki fesleğenim için kısa ve yeni başlayanlara uygun bir bakım kılavuzu hazırlar mısın? Özellikle sulama, ışık, soğuk hava belirtileri ve ne zaman içeri almam gerektiği konusunda yardıma ihtiyacım var."
+  vi: "Bạn có thể lập một hướng dẫn chăm sóc ngắn gọn, dễ hiểu cho người mới bắt đầu cho cây húng tây của tôi trên ban công hướng đông ở Berlin vào mùa thu này không? Tôi chủ yếu cần thông tin về việc tưới nước, ánh sáng, các dấu hiệu bị lạnh và khi nào nên mang cây vào nhà."
+  id: "Bisakah kamu membuat panduan perawatan ringkas yang ramah pemula untuk basil manisku di balkon Berlin yang menghadap ke timur musim gugur ini? Aku terutama butuh info tentang penyiraman, cahaya, tanda-tanda cuaca dingin, dan kapan harus membawanya masuk."
+  pl: "Czy możesz przygotować zwięzły, przyjazny dla początkujących poradnik pielęgnacji bazylii pospolitej na berlińskim balkonie o wystawie wschodniej tej jesieni? Potrzebuję głównie informacji o podlewaniu, świetle, oznakach przemarznięcia i o tym, kiedy przenieść ją do środka."
+  nl: "Kun je een beknopte, beginnersvriendelijke gids maken voor de verzorging van mijn basilicum op een Berlijns balkon op het oosten deze herfst? Ik heb vooral informatie nodig over water geven, licht, tekenen van kou en wanneer ik de plant naar binnen moet halen."
+  ar: هل يمكنك إعداد دليل رعاية موجز وسهل للمبتدئين لنبتة الريحان الحلو الخاصة بي على شرفة مواجهة للشرق في برلين هذا الخريف؟ أحتاج بشكل أساسي إلى معلومات عن الري، والإضاءة، وعلامات الطقس البارد، ومتى يجب إدخالها إلى الداخل.
+  hi: "क्या तुम इस शरद ऋतु में बर्लिन की एक पूर्व-मुखी बालकनी पर मेरे स्वीट बेसिल के लिए शुरुआती लोगों के अनुकूल एक संक्षिप्त देखभाल मार्गदर्शिका बना सकते हो? मुझे मुख्य रूप से पानी देने, रोशनी, ठंड के मौसम के संकेतों और इसे कब अंदर लाना है, इस बारे में जानकारी चाहिए।"
+  th: "ช่วยทำคู่มือดูแลโหระพาฉบับย่อสำหรับมือใหม่ บนระเบียงทิศตะวันออกในเบอร์ลินช่วงฤดูใบไม้ร่วงนี้ให้หน่อยได้ไหม? ฉันอยากรู้เรื่องการรดน้ำ แสงแดด สัญญาณเตือนจากอากาศหนาว และควรย้ายเข้าข้างในเมื่อไหร่"
+  cs: "Mohl bys mi vytvořit stručný návod pro začátečníky na péči o mou bazalku pravou na východním berlínském balkoně letos na podzim? Potřebuji hlavně informace o zalévání, světle, známkách chladu a o tom, kdy ji vzít dovnitř."
+  sv: "Kan du göra en kortfattad och nybörjarvänlig skötselguide för min basilika på en balkong i österläge i Berlin nu i höst? Jag behöver främst veta om vattning, ljus, tecken på kyla och när jag ska ta in den."
+  he: "האם תוכל להכין מדריך טיפול תמציתי וידידותי למתחילים עבור הבזיליקום המתוק שלי במרפסת הפונה למזרח בברלין בסתיו הזה? אני זקוק בעיקר למידע על השקיה, אור, סימני מזג אוויר קר ומתי להכניס אותו הביתה."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Autumn Basil Care on a Berlin Balcony. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Here is a concise, autumn-specific care guide for your sweet basil (*Ocimum basilicum*) on an east-facing balcony in Berlin:
+
+    ---
+
+    ### 1. Light (East-Facing Balcony)
+    * **What to expect:** In Berlin’s autumn, sunrise is lower and daylight hours drop quickly. An east-facing balcony provides soft morning sun for about 2–4 hours, which is on the lower side for sun-loving basil.
+    * **Placement:** Place the pot as close to the outer railing as safely possible, away from wall shadows, to maximize unobstructed morning sky exposure.
+    * **Reflective trick:** Positioning it against a white or light-colored wall can bounce extra ambient light toward the leaves.
+
+    ---
+
+    ### 2. Watering Routine
+    * **Rule:** Basil’s water needs drop significantly in cool weather because evaporation slows down and plant growth halts.
+    * **Check first:** Water **only** when the top 2–3 cm (about an inch) of soil feels dry to the touch. Do not water on a fixed calendar schedule.
+    * **Timing:** Always water in the morning with room-temperature water. Avoid cold tap water straight from the pipe, which shocks cool roots.
+    * **Drainage:** Never allow the pot to sit in standing saucer water; cool, waterlogged soil leads quickly to root rot (*Fusarium* or water mold).
+
+    ---
+
+    ### 3. When to Bring It Inside
+    * **Critical threshold:** Basil is a tropical tender herb. It suffers physiological cold stress below **10°C (50°F)** and sustains severe tissue damage or death near **0°C to 4°C**.
+    * **Timing for Berlin:** Berlin overnight temperatures often drop below 10°C by late September or early October.
+    * **Action:** **Bring it inside now** if night forecasts dip below 10°C.
+
+    ---
+
+    ### 4. Signs of Cold & Light Stress
+    * **Blackened or translucent leaves:** Clear sign of chilling injury (cellular collapse from temperatures below 8–10°C).
+    * **Purpling or dulling foliage:** A classic response to cold stress combined with slow nutrient uptake.
+    * **Drooping while soil is moist:** Root chill or root rot; the roots are too cold or damaged to take up moisture even if water is present.
+    * **Stretching / Pale green growth:** Insufficient sunlight (etiolation).
+
+    ---
+
+    ### 5. Moving Indoors: Quick Transition Tips
+    1. **Brightest window:** Place it on a south-facing windowsill if available; otherwise, the brightest east- or west-facing window.
+    2. **Avoid drafts & radiators:** Keep it away from cold cracked window drafts as well as drying heat blowing directly from a radiator (*Heizung*).
+    3. **Pest inspection:** Check leaf undersides for aphids or spider mites before placing it near other indoor houseplants.
+    4. **Harvest from the top:** Pinch off flower buds and top leaf pairs to encourage bushiness rather than leggy flowering.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **Next Steps & Suggestions:**
+    * [Set a reminder to check tonight's low temperatures in Berlin](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Get tips on preserving a large basil harvest](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  de: |
+    Hier ist ein kompakter, herbstspezifischer Pflegeleitfaden für dein Basilikum (*Ocimum basilicum*) auf einem Ostbalkon in Berlin:
+
+    ---
+
+    ### 1. Licht (Ostbalkon)
+    * **Was dich erwartet:** Im Berliner Herbst steht die Sonne tiefer und die Tageslichtstunden nehmen rapide ab. Ein Ostbalkon bietet etwa 2–4 Stunden sanfte Morgensonne, was für das sonnenhungrige Basilikum eher wenig ist.
+    * **Standort:** Stelle den Topf so nah wie möglich an das Außengeländer (sicher befestigt), weg vom Schatten der Hauswand, um die maximale Lichtausbeute des Morgenhimmels zu nutzen.
+    * **Reflexions-Trick:** Wenn du die Pflanze vor eine weiße oder helle Wand stellst, kann zusätzliches Umgebungslicht auf die Blätter reflektiert werden.
+
+    ---
+
+    ### 2. Gießen
+    * **Regel:** Der Wasserbedarf von Basilikum sinkt bei kühlem Wetter deutlich, da die Verdunstung langsamer ist und das Pflanzenwachstum stagniert.
+    * **Erst prüfen:** Gieße **nur**, wenn sich die oberen 2–3 cm der Erde trocken anfühlen. Gieße nicht nach einem festen Zeitplan.
+    * **Zeitpunkt:** Gieße immer morgens mit zimmertemperiertem Wasser. Vermeide eiskaltes Leitungswasser direkt aus der Leitung, da dies die kühlen Wurzeln schockt.
+    * **Drainage:** Lass den Topf niemals in stehendem Wasser im Untersetzer stehen; kühle, nasse Erde führt schnell zu Wurzelfäule (*Fusarium* oder Wasserschimmel).
+
+    ---
+
+    ### 3. Wann es nach drinnen muss
+    * **Kritische Grenze:** Basilikum ist ein empfindliches tropisches Kraut. Es leidet unter physiologischem Kältestress unter **10 °C** und erleidet schwere Gewebeschäden oder stirbt ab bei Temperaturen zwischen **0 °C und 4 °C**.
+    * **Zeitpunkt für Berlin:** Die nächtlichen Temperaturen in Berlin fallen oft schon Ende September oder Anfang Oktober unter 10 °C.
+    * **Maßnahme:** **Hol es jetzt rein**, wenn die Vorhersage für die Nacht unter 10 °C sinkt.
+
+    ---
+
+    ### 4. Anzeichen für Kälte- & Lichtstress
+    * **Schwarze oder glasige Blätter:** Ein klares Zeichen für Kälteschäden (Zellkollaps durch Temperaturen unter 8–10 °C).
+    * **Violette Verfärbung oder stumpfes Laub:** Eine klassische Reaktion auf Kältestress in Kombination mit verlangsamter Nährstoffaufnahme.
+    * **Hängende Blätter trotz feuchter Erde:** Wurzelkälte oder Wurzelfäule; die Wurzeln sind zu kalt oder beschädigt, um Feuchtigkeit aufzunehmen, selbst wenn Wasser vorhanden ist.
+    * **Vergeilung / blassgrüner Wuchs:** Zu wenig Sonnenlicht (Lichtmangel).
+
+    ---
+
+    ### 5. Umzug nach drinnen: Tipps für den Übergang
+    1. **Hellstes Fenster:** Stelle es auf eine Fensterbank in Südausrichtung, falls vorhanden; ansonsten an das hellste Ost- oder Westfenster.
+    2. **Zugluft & Heizkörper vermeiden:** Halte es fern von kalter Zugluft durch gekippte Fenster sowie von trockener Hitze direkt über einem Heizkörper (*Heizung*).
+    3. **Schädlingskontrolle:** Überprüfe die Blattunterseiten auf Blattläuse oder Spinnmilben, bevor du es in die Nähe anderer Zimmerpflanzen stellst.
+    4. **Von oben ernten:** Knipse Blütenknospen und die obersten Blattpaare ab, um einen buschigen Wuchs zu fördern, statt dass die Pflanze hochschießt und blüht.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **Nächste Schritte & Vorschläge:**
+    * [Erinnerung einrichten, um die Tiefsttemperaturen für Berlin heute Nacht zu prüfen](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Tipps zur Konservierung einer großen Basilikum-Ernte erhalten](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  zh: |
+    以下是针对你在柏林朝东阳台上的甜罗勒 (*Ocimum basilicum*) 的秋季专项养护指南：
+
+    ---
+
+    ### 1. 光照（朝东阳台）
+    * **预期情况：** 柏林的秋季，日出位置较低，日照时间迅速缩短。朝东的阳台能提供约 2-4 小时的柔和晨光，对于喜阳的罗勒来说偏少。
+    * **摆放位置：** 在安全的前提下，将花盆尽量靠近外栏杆，避开墙壁阴影，以最大限度地获取无遮挡的晨光。
+    * **反光小技巧：** 将其靠在白色或浅色墙壁旁，可以利用反射光为叶片增加额外的环境光照。
+
+    ---
+
+    ### 2. 浇水习惯
+    * **原则：** 天气转凉后，由于水分蒸发变慢且植物生长停滞，罗勒的需水量会大幅下降。
+    * **先检查：** **仅**在土表下 2-3 厘米（约一英寸）摸起来干燥时才浇水。不要按固定的时间表浇水。
+    * **时间：** 务必在早晨使用室温水浇灌。避免直接使用自来水管里的冷水，以免刺激凉爽的根系。
+    * **排水：** 切勿让花盆长期泡在托盘的积水中；阴冷潮湿的土壤会迅速导致根腐病（*尖孢镰刀菌*或水霉菌）。
+
+    ---
+
+    ### 3. 何时搬入室内
+    * **临界温度：** 罗勒是一种娇嫩的热带草本植物。低于 **10°C (50°F)** 时会产生生理性冷害，在 **0°C 至 4°C** 附近会遭受严重的组织损伤甚至死亡。
+    * **柏林的时间点：** 柏林的夜间气温通常在 9 月底或 10 月初就会降至 10°C 以下。
+    * **行动：** 如果天气预报显示夜间气温低于 10°C，请**立即搬入室内**。
+
+    ---
+
+    ### 4. 低温与光照压力迹象
+    * **叶片发黑或呈半透明状：** 这是明显的冷害迹象（温度低于 8-10°C 导致的细胞崩溃）。
+    * **叶片变紫或暗淡：** 这是对低温压力及养分吸收缓慢的典型反应。
+    * **土壤潮湿但植株萎蔫：** 根部受冻或根腐；根系因太冷或受损而无法吸收水分，即使土壤中有水。
+    * **徒长/生长物呈淡绿色：** 光照不足（黄化现象）。
+
+    ---
+
+    ### 5. 搬入室内：快速过渡技巧
+    1. **最亮的窗台：** 如果有条件，请放在朝南的窗台上；否则，选择光线最充足的朝东或朝西窗台。
+    2. **避开穿堂风和暖气：** 远离窗户缝隙的冷风，也要避开暖气片 (*Heizung*) 直接吹出的干燥热风。
+    3. **检查害虫：** 在靠近其他室内盆栽之前，检查叶片背面是否有蚜虫或红蜘蛛。
+    4. **从顶部采收：** 摘除花蕾和顶端叶对，以促进植株长得茂密，防止其因开花而变得细长。
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **后续步骤与建议：**
+    * [设置提醒，查看今晚柏林的最低气温](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [获取大量罗勒采收后的保存技巧](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  es: |
+    Aquí tienes una guía de cuidados concisa y específica para el otoño para tu albahaca (*Ocimum basilicum*) en un balcón orientado al este en Berlín:
+
+    ---
+
+    ### 1. Luz (balcón orientado al este)
+    * **Qué esperar:** En el otoño de Berlín, el sol sale más bajo y las horas de luz disminuyen rápidamente. Un balcón orientado al este ofrece sol suave por la mañana durante unas 2 a 4 horas, lo cual es poco para la albahaca, que ama el sol.
+    * **Ubicación:** Coloca la maceta lo más cerca posible de la barandilla exterior de forma segura, lejos de las sombras de las paredes, para maximizar la exposición al cielo matutino sin obstáculos.
+    * **Truco reflectante:** Colocarla contra una pared blanca o de color claro puede hacer que la luz ambiental rebote hacia las hojas.
+
+    ---
+
+    ### 2. Rutina de riego
+    * **Regla:** Las necesidades de agua de la albahaca disminuyen significativamente con el clima fresco porque la evaporación se ralentiza y el crecimiento de la planta se detiene.
+    * **Comprueba primero:** Riega **solo** cuando los primeros 2-3 cm de tierra se sientan secos al tacto. No riegues siguiendo un calendario fijo.
+    * **Momento:** Riega siempre por la mañana con agua a temperatura ambiente. Evita el agua fría del grifo directamente de la tubería, ya que produce un choque térmico en las raíces frías.
+    * **Drenaje:** Nunca dejes que la maceta repose en agua estancada en el plato; la tierra fría y encharcada provoca rápidamente la pudrición de las raíces (*Fusarium* o moho acuático).
+
+    ---
+
+    ### 3. Cuándo meterla en casa
+    * **Umbral crítico:** La albahaca es una hierba tropical tierna. Sufre estrés fisiológico por frío por debajo de los **10 °C (50 °F)** y sufre daños graves en los tejidos o muere cerca de los **0 °C a 4 °C**.
+    * **Momento para Berlín:** Las temperaturas nocturnas en Berlín suelen bajar de los 10 °C a finales de septiembre o principios de octubre.
+    * **Acción:** **Métela en casa ahora** si las previsiones nocturnas bajan de los 10 °C.
+
+    ---
+
+    ### 4. Signos de estrés por frío y luz
+    * **Hojas ennegrecidas o translúcidas:** Signo claro de daño por frío (colapso celular por temperaturas inferiores a 8-10 °C).
+    * **Follaje purpúreo o apagado:** Una respuesta clásica al estrés por frío combinada con una absorción lenta de nutrientes.
+    * **Hojas caídas con la tierra húmeda:** Raíces frías o pudrición de raíces; las raíces están demasiado frías o dañadas para absorber la humedad aunque haya agua.
+    * **Estiramiento / Crecimiento verde pálido:** Luz solar insuficiente (etiolación).
+
+    ---
+
+    ### 5. Traslado al interior: Consejos para una transición rápida
+    1. **La ventana más luminosa:** Colócala en el alféizar de una ventana orientada al sur si es posible; de lo contrario, en la ventana más luminosa orientada al este o al oeste.
+    2. **Evita corrientes de aire y radiadores:** Manténla alejada de las corrientes de aire frío de las ventanas mal cerradas, así como del calor seco que sale directamente de un radiador (*Heizung*).
+    3. **Inspección de plagas:** Revisa el envés de las hojas en busca de pulgones o arañas rojas antes de colocarla cerca de otras plantas de interior.
+    4. **Cosecha desde arriba:** Pellizca los capullos florales y los pares de hojas superiores para fomentar un crecimiento frondoso en lugar de una floración espigada.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **Próximos pasos y sugerencias:**
+    * [Establece un recordatorio para consultar las temperaturas mínimas de esta noche en Berlín](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Obtén consejos sobre cómo conservar una gran cosecha de albahaca](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  fr: |
+    Voici un guide d'entretien concis et spécifique à l'automne pour ton basilic commun (*Ocimum basilicum*) sur un balcon orienté à l'est à Berlin :
+
+    ---
+
+    ### 1. Lumière (balcon orienté à l'est)
+    * **À quoi s'attendre :** En automne à Berlin, le soleil est plus bas et la durée du jour diminue rapidement. Un balcon orienté à l'est offre un soleil matinal doux pendant environ 2 à 4 heures, ce qui est un peu juste pour le basilic qui aime le soleil.
+    * **Emplacement :** Place le pot aussi près que possible de la rambarde extérieure (en toute sécurité), loin de l'ombre des murs, pour maximiser l'exposition au ciel matinal.
+    * **Astuce réfléchissante :** Le placer contre un mur blanc ou de couleur claire peut renvoyer de la lumière ambiante supplémentaire vers les feuilles.
+
+    ---
+
+    ### 2. Arrosage
+    * **Règle :** Les besoins en eau du basilic diminuent considérablement par temps frais car l'évaporation ralentit et la croissance de la plante s'arrête.
+    * **Vérifie d'abord :** Arrose **uniquement** quand les 2-3 premiers centimètres de terre sont secs au toucher. N'arrose pas selon un calendrier fixe.
+    * **Moment idéal :** Arrose toujours le matin avec de l'eau à température ambiante. Évite l'eau froide du robinet qui choque les racines fraîches.
+    * **Drainage :** Ne laisse jamais d'eau stagner dans la soucoupe ; un sol frais et détrempé mène rapidement au pourrissement des racines (*Fusarium* ou moisissure aquatique).
+
+    ---
+
+    ### 3. Quand le rentrer
+    * **Seuil critique :** Le basilic est une herbe tropicale fragile. Il subit un stress physiologique dû au froid en dessous de **10 °C** et subit de graves dommages tissulaires ou meurt aux alentours de **0 °C à 4 °C**.
+    * **Calendrier pour Berlin :** À Berlin, les températures nocturnes descendent souvent sous les 10 °C dès la fin septembre ou début octobre.
+    * **Action :** **Rentre-le maintenant** si les prévisions nocturnes descendent sous les 10 °C.
+
+    ---
+
+    ### 4. Signes de stress dû au froid et au manque de lumière
+    * **Feuilles noircies ou translucides :** Signe clair de blessure due au froid (effondrement cellulaire dû à des températures inférieures à 8-10 °C).
+    * **Feuillage violacé ou terne :** Réponse classique au stress dû au froid combiné à une absorption lente des nutriments.
+    * **Plante flétrie alors que le sol est humide :** Racines refroidies ou pourries ; les racines sont trop froides ou endommagées pour absorber l'humidité même si l'eau est présente.
+    * **Croissance étirée / vert pâle :** Manque de soleil (étiolement).
+
+    ---
+
+    ### 5. Le rentrer à l'intérieur : conseils pour une transition rapide
+    1. **Fenêtre la plus lumineuse :** Place-le sur un rebord de fenêtre orienté au sud si possible ; sinon, la fenêtre la plus lumineuse orientée à l'est ou à l'ouest.
+    2. **Évite les courants d'air et les radiateurs :** Garde-le à l'écart des courants d'air des fenêtres mal isolées ainsi que de la chaleur sèche soufflant directement d'un radiateur (*Heizung*).
+    3. **Inspection des nuisibles :** Vérifie le dessous des feuilles pour détecter les pucerons ou les tétranyques avant de le placer près d'autres plantes d'intérieur.
+    4. **Récolte par le haut :** Pince les boutons floraux et les paires de feuilles supérieures pour favoriser une croissance buissonnante plutôt qu'une floraison tout en hauteur.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **Prochaines étapes et suggestions :**
+    * [Programmer un rappel pour vérifier les températures minimales de cette nuit à Berlin](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Obtenir des conseils pour conserver une grosse récolte de basilic](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  pt: |
+    Aqui está um guia de cuidados conciso e específico para o outono para o seu manjericão (*Ocimum basilicum*) numa varanda virada a leste em Berlim:
+    ---
+    ### 1. Luz (Varanda voltada para leste)
+    * **O que esperar:** No outono de Berlim, o sol nasce mais baixo e as horas de luz do dia diminuem rapidamente. Uma varanda voltada para leste oferece um sol suave pela manhã por cerca de 2 a 4 horas, o que é um pouco abaixo do ideal para o manjericão, que adora sol.
+    * **Posicionamento:** Coloque o vaso o mais próximo possível da grade externa (com segurança), longe das sombras das paredes, para maximizar a exposição direta ao céu matinal.
+    * **Truque de reflexo:** Posicioná-lo contra uma parede branca ou de cor clara pode rebater luz ambiente extra para as folhas.
+    ---
+    ### 2. Rotina de Rega
+    * **Regra:** As necessidades de água do manjericão diminuem significativamente no tempo frio, porque a evaporação abranda e o crescimento da planta para.
+    * **Verifique primeiro:** Regue **apenas** quando os 2–3 cm superiores (cerca de uma polegada) do solo parecerem secos ao toque. Não regue seguindo um cronograma fixo no calendário.
+    * **Horário:** Regue sempre de manhã com água à temperatura ambiente. Evite água fria da torneira diretamente do cano, o que causa choque nas raízes frias.
+    * **Drenagem:** Nunca deixe o vaso em água parada no prato; o solo frio e encharcado leva rapidamente ao apodrecimento das raízes (*Fusarium* ou mofo aquático).
+    ---
+    ### 3. Quando trazê-lo para dentro
+    * **Limite crítico:** O manjericão é uma erva tropical delicada. Ele sofre estresse fisiológico por frio abaixo de **10°C (50°F)** e sofre danos graves nos tecidos ou morre perto de **0°C a 4°C**.
+    * **Época para Berlim:** As temperaturas noturnas em Berlim costumam cair abaixo de 10°C no final de setembro ou início de outubro.
+    * **Ação:** **Traga-o para dentro agora** se a previsão para a noite for inferior a 10°C.
+    ---
+    ### 4. Sinais de Estresse por Frio e Luz
+    * **Folhas escurecidas ou translúcidas:** Sinal claro de dano por frio (colapso celular devido a temperaturas abaixo de 8–10°C).
+    * **Folhagem arroxeada ou opaca:** Uma resposta clássica ao estresse por frio combinada com a absorção lenta de nutrientes.
+    * **Murchando com o solo úmido:** Raízes resfriadas ou podridão radicular; as raízes estão frias demais ou danificadas para absorver umidade, mesmo que haja água disponível.
+    * **Crescimento alongado / Verde-pálido:** Luz solar insuficiente (estiolamento).
+    ---
+    ### 5. Levando para dentro: Dicas para uma transição rápida
+    1. **Janela mais iluminada:** Coloque-a em um parapeito voltado para o sul, se disponível; caso contrário, na janela mais iluminada voltada para leste ou oeste.
+    2. **Evite correntes de ar e radiadores:** Mantenha-a longe de correntes de ar frio de frestas de janelas, bem como do calor seco que sopra diretamente de um radiador (*Heizung*).
+    3. **Inspeção de pragas:** Verifique a parte inferior das folhas em busca de pulgões ou ácaros antes de colocá-la perto de outras plantas de interior.
+    4. **Colha pelo topo:** Belisque os botões de flores e os pares de folhas superiores para incentivar um crescimento mais cheio e arbustivo, em vez de um florescimento longo e ralo.
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```**Próximos Passos e Sugestões:**
+    * [Crie um lembrete para conferir as temperaturas mínimas de hoje à noite em Berlim](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Veja dicas sobre como conservar uma grande colheita de manjericão](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  ru: |
+    Вот краткое руководство по осеннему уходу за твоим душистым базиликом (*Ocimum basilicum*) на балконе, выходящем на восток, в Берлине:
+
+    ---
+
+    ### 1. Свет (восточный балкон)
+    * **Чего ожидать:** Берлинской осенью солнце стоит ниже, а световой день быстро сокращается. На восточном балконе мягкое утреннее солнце светит около 2–4 часов, что маловато для светолюбивого базилика.
+    * **Размещение:** Поставь горшок как можно ближе к внешним перилам (соблюдая технику безопасности) и подальше от тени стен, чтобы растение получало максимум утреннего света.
+    * **Хитрость с отражением:** Если поставить горшок у белой или светлой стены, она будет отражать дополнительный рассеянный свет на листья.
+
+    ---
+
+    ### 2. Режим полива
+    * **Правило:** В прохладную погоду потребность базилика в воде значительно снижается, так как испарение замедляется, а рост растения приостанавливается.
+    * **Сначала проверь:** Поливай **только** тогда, когда верхние 2–3 см почвы станут сухими на ощупь. Не поливай по фиксированному графику.
+    * **Время:** Всегда поливай утром водой комнатной температуры. Избегай холодной воды прямо из-под крана — она вызывает шок у остывших корней.
+    * **Дренаж:** Никогда не оставляй воду в поддоне; холодная переувлажненная почва быстро приводит к корневой гнили (*фузариозу* или плесени).
+
+    ---
+
+    ### 3. Когда заносить в помещение
+    * **Критический порог:** Базилик — нежное тропическое растение. Он испытывает физиологический стресс при температуре ниже **10°C**, а при **0–4°C** получает серьезные повреждения тканей или погибает.
+    * **Сроки для Берлина:** Ночная температура в Берлине часто опускается ниже 10°C уже в конце сентября или начале октября.
+    * **Действие:** **Заноси его в помещение сейчас**, если по прогнозу ночная температура опустится ниже 10°C.
+
+    ---
+
+    ### 4. Признаки стресса от холода и нехватки света
+    * **Почерневшие или полупрозрачные листья:** Явный признак повреждения холодом (разрушение клеток при температуре ниже 8–10°C).
+    * **Пофиолетовение или потускнение листвы:** Классическая реакция на холод в сочетании с замедленным усвоением питательных веществ.
+    * **Увядание при влажной почве:** Переохлаждение или гниль корней; корни слишком замерзли или повреждены, чтобы впитывать влагу даже при наличии воды.
+    * **Вытягивание / бледно-зеленый цвет:** Недостаток солнечного света (этиоляция).
+
+    ---
+
+    ### 5. Переезд в дом: советы по адаптации
+    1. **Самое светлое окно:** Поставь его на южный подоконник, если есть такая возможность; в противном случае выбери самое светлое окно, выходящее на восток или запад.
+    2. **Избегай сквозняков и радиаторов:** Держи его подальше от сквозняков из оконных щелей, а также от сухого жара, идущего прямо от батареи (*Heizung*).
+    3. **Проверка на вредителей:** Осмотри нижнюю сторону листьев на наличие тли или паутинного клеща, прежде чем ставить базилик рядом с другими комнатными растениями.
+    4. **Собирай урожай сверху:** Прищипывай цветочные бутоны и верхние пары листьев, чтобы стимулировать рост вширь, а не вытягивание и цветение.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **Дальнейшие шаги и предложения:**
+    * [Поставить напоминание: проверить прогноз температуры в Берлине на сегодня](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Получить советы по сохранению большого урожая базилика](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  ja: |
+    ベルリンの東向きのバルコニーで育てているスイートバジル（*Ocimum basilicum*）のための、秋に特化した簡潔なケアガイドをご紹介します。
+
+    ---
+
+    ### 1. 日当たり（東向きのバルコニー）
+    * **状況:** ベルリンの秋は日の出の位置が低くなり、日照時間が急激に短くなります。東向きのバルコニーでは、柔らかな朝日が2〜4時間ほど当たりますが、日光を好むバジルにとっては少なめです。
+    * **置き場所:** 壁の影を避け、遮るもののない空からの光を最大限に取り込めるよう、安全な範囲でできるだけ手すりに近い場所に鉢を置いてください。
+    * **反射を利用するコツ:** 白や明るい色の壁の前に置くと、反射光が葉に当たりやすくなります。
+
+    ---
+
+    ### 2. 水やりの習慣
+    * **ルール:** 涼しい時期は蒸散が遅くなり、植物の成長も緩やかになるため、バジルの必要水量は大幅に減少します。
+    * **まず確認:** 土の表面から2〜3cmほどが乾いていると感じたとき**だけ**水を与えてください。決まったスケジュールで機械的に水やりをしないでください。
+    * **タイミング:** 必ず午前中に、常温の水で水やりをしてください。水道から出たばかりの冷たい水は、冷えた根にショックを与えるため避けてください。
+    * **排水:** 受け皿に水を溜めたままにしないでください。冷たく湿りすぎた土は、すぐに根腐れ（フザリウム菌や水カビ）の原因になります。
+
+    ---
+
+    ### 3. 室内に入れるタイミング
+    * **限界温度:** バジルは寒さに弱い熱帯性のハーブです。**10°C**を下回ると生理的な低温ストレスを受け、**0°Cから4°C**付近では組織が深刻なダメージを受けるか、枯死します。
+    * **ベルリンの目安:** ベルリンでは、9月下旬から10月上旬にかけて夜間の気温が10°Cを下回ることがよくあります。
+    * **アクション:** 夜間の予報が10°Cを下回るようなら、**今すぐ室内に入れてください**。
+
+    ---
+
+    ### 4. 低温・日照不足のサイン
+    * **葉が黒ずむ、または透き通る:** 低温障害の明らかな兆候です（8〜10°C以下の気温による細胞の崩壊）。
+    * **葉が紫色になる、または色が褪せる:** 低温ストレスと養分吸収の低下が組み合わさった際によく見られる反応です。
+    * **土は湿っているのにしおれている:** 根の冷え、または根腐れです。土に水分があっても、根が冷えすぎたり傷んだりして水分を吸い上げられなくなっています。
+    * **ひょろひょろと伸びる / 葉の色が薄い:** 日照不足（徒長）です。
+
+    ---
+
+    ### 5. 室内へ移動：スムーズに移行させるコツ
+    1. **最も明るい窓辺:** 南向きの窓辺があればそこに、なければ東向きか西向きの最も明るい窓辺に置いてください。
+    2. **隙間風と暖房を避ける:** 窓の隙間風や、ラジエーター（*Heizung*）から直接出る乾燥した熱風が当たる場所は避けてください。
+    3. **害虫のチェック:** 他の観葉植物の近くに置く前に、葉の裏にアブラムシやハダニがいないか確認してください。
+    4. **上から収穫する:** 花芽や先端の葉を摘み取る（ピンチする）ことで、ひょろひょろと花が咲くのを防ぎ、脇芽を増やしてこんもりと育てることができます。
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **次のステップとおすすめ:**
+    * [ベルリンの今夜の最低気温を確認するリマインダーを設定する](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [大量のバジルを保存するコツを見る](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  ko: |
+    베를린의 동향 발코니에서 키우는 스위트 바질(*Ocimum basilicum*)을 위한 가을철 맞춤 관리 가이드를 요약해 드릴게요:
+
+    ---
+
+    ### 1. 햇빛 (동향 발코니)
+    * **예상 환경:** 베를린의 가을은 해가 낮게 뜨고 낮 시간이 급격히 짧아집니다. 동향 발코니는 약 2~4시간 동안 부드러운 아침 햇살을 제공하는데, 이는 햇빛을 좋아하는 바질에게는 다소 부족한 편입니다.
+    * **배치:** 벽 그림자를 피해 난간 쪽으로 최대한 가깝고 안전하게 화분을 배치하여 아침 햇빛을 최대한 많이 받을 수 있게 하세요.
+    * **반사 팁:** 흰색이나 밝은색 벽 앞에 두면 주변의 빛이 잎으로 반사되어 도움이 됩니다.
+
+    ---
+
+    ### 2. 물 주기
+    * **원칙:** 날씨가 추워지면 증발이 느려지고 식물의 성장이 멈추기 때문에 바질의 물 필요량이 크게 줄어듭니다.
+    * **먼저 확인하기:** 겉흙이 2~3cm 정도 말랐을 때**만** 물을 주세요. 정해진 날짜에 맞춰 기계적으로 물을 주지 마세요.
+    * **시기:** 항상 아침에 실온의 물을 주세요. 수도에서 바로 나온 찬물은 차가워진 뿌리에 충격을 줄 수 있으니 피하세요.
+    * **배수:** 화분 받침에 물이 고여 있게 하지 마세요. 차갑고 습한 흙은 뿌리 부패(*푸사리움* 또는 수생 곰팡이)를 유발하기 쉽습니다.
+
+    ---
+
+    ### 3. 실내로 옮기는 시기
+    * **임계 온도:** 바질은 추위에 약한 열대 허브입니다. **10°C** 미만에서는 생리적 냉해를 입으며, **0°C~4°C** 근처에서는 조직이 심하게 손상되거나 죽을 수 있습니다.
+    * **베를린의 시기:** 베를린의 밤 기온은 보통 9월 말이나 10월 초에 10°C 미만으로 떨어집니다.
+    * **조치:** 밤 기온 예보가 10°C 미만으로 내려가면 **지금 바로 실내로 들여놓으세요.**
+
+    ---
+
+    ### 4. 냉해 및 일조량 부족 징후
+    * **검게 변하거나 투명해진 잎:** 냉해의 확실한 징후입니다(8~10°C 미만의 온도에서 세포가 붕괴됨).
+    * **보라색으로 변하거나 생기 없는 잎:** 냉해와 영양분 흡수 저하가 겹쳤을 때 나타나는 전형적인 반응입니다.
+    * **흙이 젖어 있는데도 시듦:** 뿌리 냉해 또는 부패입니다. 뿌리가 너무 차갑거나 손상되어 물이 있어도 흡수하지 못하는 상태입니다.
+    * **웃자람 / 연녹색 성장:** 햇빛 부족(웃자람 현상)입니다.
+
+    ---
+
+    ### 5. 실내 이동: 빠른 적응을 위한 팁
+    1. **가장 밝은 창가:** 가능하다면 남향 창가에 두세요. 안 된다면 가장 밝은 동향이나 서향 창가에 둡니다.
+    2. **외풍과 라디에이터 피하기:** 창문 틈새의 찬바람은 물론, 라디에이터(*Heizung*)에서 나오는 건조하고 뜨거운 바람이 직접 닿지 않게 하세요.
+    3. **해충 점검:** 다른 실내 식물 근처에 두기 전에 잎 뒷면에 진딧물이나 응애가 있는지 확인하세요.
+    4. **위쪽부터 수확:** 꽃봉오리와 위쪽 잎을 따주면 꽃이 피어 웃자라는 대신 잎이 풍성하게 자라도록 유도할 수 있습니다.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **다음 단계 및 제안:**
+    * [오늘 밤 베를린의 최저 기온 확인 알림 설정하기](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [많은 양의 바질 수확 및 보관 팁 알아보기](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  it: |
+    Ecco una guida concisa, specifica per l'autunno, per la cura del tuo basilico (*Ocimum basilicum*) su un balcone esposto a est a Berlino:
+
+    ---
+
+    ### 1. Luce (balcone esposto a est)
+    * **Cosa aspettarsi:** Nell'autunno di Berlino, l'alba è più bassa e le ore di luce diminuiscono rapidamente. Un balcone esposto a est offre un sole mattutino tenue per circa 2–4 ore, il che è poco per il basilico, che ama il sole.
+    * **Posizionamento:** Posiziona il vaso il più vicino possibile alla ringhiera esterna (in sicurezza), lontano dalle ombre dei muri, per massimizzare l'esposizione al cielo mattutino senza ostacoli.
+    * **Trucco riflettente:** Posizionarlo contro una parete bianca o di colore chiaro può far rimbalzare ulteriore luce ambientale verso le foglie.
+
+    ---
+
+    ### 2. Routine di irrigazione
+    * **Regola:** Il fabbisogno idrico del basilico cala drasticamente con il clima fresco perché l'evaporazione rallenta e la crescita della pianta si ferma.
+    * **Controlla prima:** Annaffia **solo** quando i primi 2–3 cm di terreno risultano asciutti al tatto. Non annaffiare seguendo un calendario fisso.
+    * **Tempismo:** Annaffia sempre al mattino con acqua a temperatura ambiente. Evita l'acqua fredda del rubinetto, che sciocca le radici fresche.
+    * **Drenaggio:** Non lasciare mai che il vaso ristagni nell'acqua del sottovaso; il terreno fresco e inzuppato porta rapidamente al marciume radicale (*Fusarium* o muffa d'acqua).
+
+    ---
+
+    ### 3. Quando portarlo all'interno
+    * **Soglia critica:** Il basilico è un'erba tropicale delicata. Subisce stress fisiologico da freddo sotto i **10°C** e subisce gravi danni ai tessuti o muore vicino a **0°C - 4°C**.
+    * **Tempismo per Berlino:** A Berlino le temperature notturne scendono spesso sotto i 10°C entro la fine di settembre o l'inizio di ottobre.
+    * **Azione:** **Portalo dentro ora** se le previsioni notturne scendono sotto i 10°C.
+
+    ---
+
+    ### 4. Segnali di stress da freddo e luce
+    * **Foglie annerite o traslucide:** Segno evidente di danni da freddo (collasso cellulare dovuto a temperature inferiori a 8–10°C).
+    * **Fogliame violaceo o spento:** Una risposta classica allo stress da freddo combinata con un lento assorbimento dei nutrienti.
+    * **Appassimento con terreno umido:** Radici fredde o marciume radicale; le radici sono troppo fredde o danneggiate per assorbire l'umidità anche se l'acqua è presente.
+    * **Crescita allungata / verde pallido:** Luce solare insufficiente (eziolamento).
+
+    ---
+
+    ### 5. Trasferimento all'interno: Consigli rapidi per la transizione
+    1. **La finestra più luminosa:** Posizionalo su un davanzale esposto a sud, se disponibile; altrimenti, la finestra più luminosa esposta a est o ovest.
+    2. **Evita correnti d'aria e termosifoni:** Tienilo lontano dagli spifferi delle finestre e dal calore secco che soffia direttamente da un termosifone (*Heizung*).
+    3. **Ispezione parassiti:** Controlla la parte inferiore delle foglie per afidi o ragnetti rossi prima di posizionarlo vicino ad altre piante da interno.
+    4. **Raccogli dall'alto:** Pizzica i boccioli dei fiori e le coppie di foglie superiori per incoraggiare una crescita folta piuttosto che una fioritura stentata.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **Prossimi passi e suggerimenti:**
+    * [Imposta un promemoria per controllare le temperature minime di stasera a Berlino](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Ottieni consigli su come conservare un abbondante raccolto di basilico](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  tr: |
+    Berlin'de doğu cepheli bir balkondaki fesleğenin (*Ocimum basilicum*) için sonbahara özel kısa bir bakım rehberi:
+
+    ---
+
+    ### 1. Işık (Doğu Cepheli Balkon)
+    * **Beklenti:** Berlin sonbaharında güneş daha alçaktan doğar ve gün ışığı saatleri hızla azalır. Doğu cepheli bir balkon, yaklaşık 2–4 saatlik yumuşak bir sabah güneşi sağlar; bu da güneşi seven fesleğen için biraz azdır.
+    * **Konumlandırma:** Sabah gökyüzünden gelen ışığı en üst düzeye çıkarmak için saksıyı duvar gölgelerinden uzaklaştırarak, güvenli bir şekilde dış korkuluğa mümkün olduğunca yakın yerleştir.
+    * **Yansıtma ipucu:** Saksıyı beyaz veya açık renkli bir duvarın önüne koymak, yapraklara ekstra ortam ışığı yansıtabilir.
+
+    ---
+
+    ### 2. Sulama Rutini
+    * **Kural:** Serin havalarda buharlaşma yavaşladığı ve bitki büyümesi durduğu için fesleğenin su ihtiyacı önemli ölçüde azalır.
+    * **Önce kontrol et:** **Sadece** toprağın üst 2–3 cm'lik kısmı kuruduğunda sula. Sabit bir takvime göre sulama yapma.
+    * **Zamanlama:** Her zaman sabah saatlerinde oda sıcaklığında suyla sula. Serin kökleri şoka sokabilecek doğrudan musluktan gelen soğuk sudan kaçın.
+    * **Drenaj:** Saksının tabakta biriken suyun içinde kalmasına asla izin verme; serin ve aşırı ıslak toprak, kök çürümesine (*Fusarium* veya su küfü) hızla yol açar.
+
+    ---
+
+    ### 3. Ne Zaman İçeri Almalı?
+    * **Kritik eşik:** Fesleğen tropikal ve hassas bir bitkidir. **10°C**'nin altındaki sıcaklıklarda fizyolojik soğuk stresi yaşar; **0°C ile 4°C** civarında ise ciddi doku hasarı görür veya ölür.
+    * **Berlin için zamanlama:** Berlin'de gece sıcaklıkları genellikle Eylül sonu veya Ekim başında 10°C'nin altına düşer.
+    * **Eylem:** Gece hava tahmini 10°C'nin altına düşüyorsa **şimdi içeri al**.
+
+    ---
+
+    ### 4. Soğuk ve Işık Stresi Belirtileri
+    * **Kararmış veya şeffaflaşmış yapraklar:** Soğuk hasarının (8–10°C'nin altındaki sıcaklıklardan kaynaklanan hücresel çöküş) açık bir işaretidir.
+    * **Moraran veya matlaşan yapraklar:** Yavaş besin alımıyla birleşen soğuk stresine verilen klasik bir tepkidir.
+    * **Toprak nemliyken boyun bükme:** Kök üşümesi veya kök çürümesi; kökler su olsa bile nemi alamayacak kadar soğuk veya hasarlıdır.
+    * **Uzama / Soluk yeşil büyüme:** Yetersiz güneş ışığı (etiyolasyon).
+
+    ---
+
+    ### 5. İçeri Taşıma: Hızlı Geçiş İpuçları
+    1. **En aydınlık pencere:** Varsa güney cepheli bir pencere önüne, yoksa en aydınlık doğu veya batı cepheli pencereye yerleştir.
+    2. **Hava akımı ve radyatörlerden kaçın:** Soğuk pencere aralıklarından gelen hava akımından ve radyatörden (*Heizung*) doğrudan gelen kurutucu ısıdan uzak tut.
+    3. **Zararlı kontrolü:** Diğer ev bitkilerinin yanına koymadan önce yaprak altlarını afit (yaprak biti) veya örümcek akarları açısından kontrol et.
+    4. **Üstten hasat et:** Çiçek tomurcuklarını ve en üstteki yaprak çiftlerini kopararak, bitkinin cılız bir şekilde çiçeklenmesi yerine gürleşmesini sağla.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **Sonraki Adımlar ve Öneriler:**
+    * [Berlin'de bu geceki en düşük sıcaklıkları kontrol etmek için bir hatırlatıcı ayarla](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Büyük bir fesleğen hasadını saklama konusunda ipuçları al](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  vi: |
+    Dưới đây là hướng dẫn chăm sóc húng tây (*Ocimum basilicum*) ngắn gọn dành riêng cho mùa thu trên ban công hướng Đông tại Berlin:
+
+    ---
+
+    ### 1. Ánh sáng (Ban công hướng Đông)
+    * **Kỳ vọng:** Vào mùa thu ở Berlin, mặt trời mọc thấp hơn và thời gian ban ngày giảm nhanh. Ban công hướng Đông đón nắng sáng nhẹ trong khoảng 2–4 giờ, mức này hơi thấp đối với loại cây ưa nắng như húng tây.
+    * **Vị trí:** Đặt chậu càng gần lan can bên ngoài càng tốt (đảm bảo an toàn), tránh bóng râm của tường để tối đa hóa việc tiếp xúc với bầu trời buổi sáng.
+    * **Mẹo phản chiếu:** Đặt cây sát bức tường màu trắng hoặc màu sáng có thể giúp phản chiếu thêm ánh sáng xung quanh lên lá.
+
+    ---
+
+    ### 2. Chế độ tưới nước
+    * **Quy tắc:** Nhu cầu nước của húng tây giảm đáng kể khi thời tiết mát mẻ vì sự bay hơi chậm lại và cây ngừng phát triển.
+    * **Kiểm tra trước:** **Chỉ** tưới nước khi lớp đất mặt sâu 2–3 cm cảm thấy khô khi chạm vào. Không tưới theo lịch cố định.
+    * **Thời điểm:** Luôn tưới vào buổi sáng bằng nước ở nhiệt độ phòng. Tránh dùng nước máy lạnh trực tiếp từ vòi vì sẽ làm rễ đang mát bị sốc.
+    * **Thoát nước:** Đừng bao giờ để chậu ngâm trong nước đọng ở đĩa lót; đất mát và úng nước sẽ nhanh chóng dẫn đến thối rễ (nấm *Fusarium* hoặc nấm mốc nước).
+
+    ---
+
+    ### 3. Khi nào cần mang cây vào nhà
+    * **Ngưỡng tới hạn:** Húng tây là loại thảo mộc nhiệt đới nhạy cảm. Cây sẽ bị sốc nhiệt khi nhiệt độ dưới **10°C (50°F)** và bị hư hại mô nghiêm trọng hoặc chết khi nhiệt độ gần **0°C đến 4°C**.
+    * **Thời điểm tại Berlin:** Nhiệt độ ban đêm ở Berlin thường xuống dưới 10°C vào cuối tháng 9 hoặc đầu tháng 10.
+    * **Hành động:** **Hãy mang cây vào nhà ngay** nếu dự báo thời tiết ban đêm xuống dưới 10°C.
+
+    ---
+
+    ### 4. Dấu hiệu sốc lạnh và thiếu sáng
+    * **Lá bị đen hoặc trong suốt:** Dấu hiệu rõ rệt của tổn thương do lạnh (tế bào bị phá hủy do nhiệt độ dưới 8–10°C).
+    * **Lá chuyển sang màu tím hoặc xỉn màu:** Phản ứng điển hình khi bị sốc lạnh kết hợp với việc hấp thụ dinh dưỡng chậm.
+    * **Cây rũ xuống trong khi đất vẫn ẩm:** Rễ bị lạnh hoặc thối rễ; rễ quá lạnh hoặc bị hỏng nên không thể hút ẩm ngay cả khi có nước.
+    * **Cây mọc vống / Lá xanh nhạt:** Thiếu ánh sáng mặt trời (hiện tượng vống hóa).
+
+    ---
+
+    ### 5. Chuyển cây vào nhà: Mẹo chuyển tiếp nhanh
+    1. **Cửa sổ sáng nhất:** Đặt cây ở bậu cửa sổ hướng Nam nếu có; nếu không, hãy chọn cửa sổ hướng Đông hoặc hướng Tây sáng nhất.
+    2. **Tránh gió lùa và bộ tản nhiệt:** Để cây tránh xa luồng gió lạnh từ khe cửa sổ cũng như hơi nóng khô thổi trực tiếp từ bộ tản nhiệt (*Heizung*).
+    3. **Kiểm tra sâu bệnh:** Kiểm tra mặt dưới lá xem có rệp hoặc nhện đỏ không trước khi đặt gần các cây trồng trong nhà khác.
+    4. **Thu hoạch từ ngọn:** Ngắt bỏ nụ hoa và các cặp lá trên cùng để khuyến khích cây mọc bụi thay vì mọc dài để ra hoa.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **Các bước tiếp theo & Gợi ý:**
+    * [Đặt lời nhắc kiểm tra nhiệt độ thấp nhất đêm nay tại Berlin](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Nhận mẹo bảo quản lượng lớn húng tây thu hoạch được](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  id: |
+    Berikut adalah panduan perawatan khusus musim gugur yang ringkas untuk selasih (*Ocimum basilicum*) milikmu di balkon yang menghadap ke timur di Berlin:
+
+    ---
+
+    ### 1. Cahaya (Balkon Menghadap ke Timur)
+    * **Apa yang diharapkan:** Di musim gugur Berlin, matahari terbit lebih rendah dan durasi siang hari berkurang dengan cepat. Balkon yang menghadap ke timur memberikan sinar matahari pagi yang lembut selama sekitar 2–4 jam, yang tergolong rendah bagi selasih yang menyukai matahari.
+    * **Penempatan:** Letakkan pot sedekat mungkin dengan pagar luar dengan aman, jauh dari bayangan dinding, untuk memaksimalkan paparan langit pagi tanpa penghalang.
+    * **Trik reflektif:** Menempatkannya di depan dinding berwarna putih atau terang dapat memantulkan cahaya sekitar tambahan ke arah daun.
+
+    ---
+
+    ### 2. Rutinitas Penyiraman
+    * **Aturan:** Kebutuhan air selasih turun drastis di cuaca dingin karena penguapan melambat dan pertumbuhan tanaman terhenti.
+    * **Periksa dulu:** Siram **hanya** saat 2–3 cm bagian atas tanah (sekitar satu inci) terasa kering saat disentuh. Jangan menyiram berdasarkan jadwal kalender tetap.
+    * **Waktu:** Selalu siram di pagi hari dengan air suhu ruangan. Hindari air keran dingin langsung dari pipa, yang dapat mengejutkan akar yang dingin.
+    * **Drainage:** Jangan biarkan pot terendam di air dalam alas pot; tanah yang dingin dan tergenang air dengan cepat menyebabkan busuk akar (*Fusarium* atau jamur air).
+
+    ---
+
+    ### 3. Kapan Harus Membawanya Masuk
+    * **Ambang batas kritis:** Selasih adalah herba tropis yang sensitif. Ia mengalami stres dingin fisiologis di bawah **10°C (50°F)** dan mengalami kerusakan jaringan parah atau mati di sekitar **0°C hingga 4°C**.
+    * **Waktu untuk Berlin:** Suhu malam hari di Berlin sering turun di bawah 10°C pada akhir September atau awal Oktober.
+    * **Tindakan:** **Bawa masuk sekarang** jika prakiraan suhu malam turun di bawah 10°C.
+
+    ---
+
+    ### 4. Tanda-tanda Stres Dingin & Cahaya
+    * **Daun menghitam atau transparan:** Tanda jelas cedera dingin (kerusakan sel akibat suhu di bawah 8–10°C).
+    * **Dedaunan memungu atau kusam:** Respons klasik terhadap stres dingin yang dikombinasikan dengan penyerapan nutrisi yang lambat.
+    * **Layu saat tanah lembap:** Akar kedinginan atau busuk akar; akar terlalu dingin atau rusak untuk menyerap kelembapan meskipun ada air.
+    * **Pertumbuhan memanjang / hijau pucat:** Kurang sinar matahari (etiolasi).
+
+    ---
+
+    ### 5. Pindah ke Dalam Ruangan: Tips Transisi Cepat
+    1. **Jendela paling terang:** Letakkan di ambang jendela yang menghadap ke selatan jika tersedia; jika tidak, jendela yang menghadap ke timur atau barat yang paling terang.
+    2. **Hindari aliran udara & radiator:** Jauhkan dari aliran udara jendela yang retak serta panas kering yang bertiup langsung dari radiator (*Heizung*).
+    3. **Pemeriksaan hama:** Periksa bagian bawah daun untuk kutu daun atau tungau laba-laba sebelum meletakkannya di dekat tanaman hias dalam ruangan lainnya.
+    4. **Panen dari atas:** Petik kuncup bunga dan pasangan daun teratas untuk mendorong pertumbuhan yang rimbun daripada berbunga yang kurus memanjang.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **Langkah Selanjutnya & Saran:**
+    * [Pasang pengingat untuk memeriksa suhu terendah malam ini di Berlin](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Dapatkan tips tentang cara mengawetkan panen selasih yang banyak](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  pl: |
+    Oto zwięzły, jesienny poradnik pielęgnacji bazylii pospolitej (*Ocimum basilicum*) na balkonie o wystawie wschodniej w Berlinie:
+
+    ---
+
+    ### 1. Światło (Balkon wschodni)
+    * **Czego się spodziewać:** Jesienią w Berlinie słońce jest niżej, a dni szybko stają się krótsze. Balkon wschodni zapewnia łagodne poranne słońce przez około 2–4 godziny, co jest dolną granicą dla światłolubnej bazylii.
+    * **Ustawienie:** Postaw doniczkę tak blisko zewnętrznej barierki, jak to tylko bezpieczne, z dala od cienia rzucanego przez ściany, aby zmaksymalizować dostęp do porannego światła.
+    * **Trik z odbiciem:** Ustawienie rośliny przy białej lub jasnej ścianie może pomóc odbić dodatkowe światło rozproszone w stronę liści.
+
+    ---
+
+    ### 2. Podlewanie
+    * **Zasada:** Zapotrzebowanie bazylii na wodę znacznie spada w chłodne dni, ponieważ parowanie zwalnia, a wzrost rośliny zostaje zahamowany.
+    * **Najpierw sprawdź:** Podlewaj **tylko** wtedy, gdy górne 2–3 cm ziemi są suche w dotyku. Nie podlewaj według sztywnego harmonogramu.
+    * **Pora dnia:** Zawsze podlewaj rano wodą o temperaturze pokojowej. Unikaj zimnej wody prosto z kranu, która może wywołać szok u wychłodzonych korzeni.
+    * **Drenaż:** Nigdy nie pozwól, aby doniczka stała w wodzie na podstawce; chłodna, przelana ziemia szybko prowadzi do gnicia korzeni (*Fusarium* lub pleśń wodna).
+
+    ---
+
+    ### 3. Kiedy zabrać ją do środka
+    * **Krytyczny próg:** Bazylia to delikatne zioło tropikalne. Cierpi na fizjologiczny stres z powodu zimna poniżej **10°C**, a w temperaturach bliskich **0°C do 4°C** dochodzi do poważnych uszkodzeń tkanek lub obumarcia rośliny.
+    * **Termin dla Berlina:** Nocne temperatury w Berlinie często spadają poniżej 10°C już pod koniec września lub na początku października.
+    * **Działanie:** **Zabierz ją do środka już teraz**, jeśli prognozy na noc przewidują spadek poniżej 10°C.
+
+    ---
+
+    ### 4. Objawy stresu termicznego i świetlnego
+    * **Czerniejące lub przezroczyste liście:** Wyraźny znak uszkodzeń spowodowanych zimnem (rozpad komórek w temperaturach poniżej 8–10°C).
+    * **Fioletowienie lub matowienie liści:** Klasyczna reakcja na stres termiczny połączona ze spowolnionym pobieraniem składników odżywczych.
+    * **Więdnięcie przy wilgotnej ziemi:** Wychłodzenie lub gnicie korzeni; korzenie są zbyt zimne lub uszkodzone, by pobierać wilgoć, nawet jeśli jest ona dostępna.
+    * **Wyciąganie się / bladozielony wzrost:** Niewystarczająca ilość światła słonecznego (etiolacja).
+
+    ---
+
+    ### 5. Przenoszenie do domu: Szybkie wskazówki
+    1. **Najjaśniejsze okno:** Postaw ją na parapecie o wystawie południowej, jeśli to możliwe; w przeciwnym razie wybierz najjaśniejsze okno wschodnie lub zachodnie.
+    2. **Unikaj przeciągów i grzejników:** Trzymaj ją z dala od zimnych przeciągów z nieszczelnych okien oraz od suchego powietrza bijącego bezpośrednio z grzejnika (*Heizung*).
+    3. **Kontrola szkodników:** Sprawdź spód liści pod kątem mszyc lub przędziorków, zanim postawisz ją obok innych roślin domowych.
+    4. **Zbiory od góry:** Usuwaj pąki kwiatowe i górne pary liści, aby pobudzić roślinę do krzewienia się, zamiast pozwalać jej na wyciąganie się i kwitnienie.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **Następne kroki i sugestie:**
+    * [Ustaw przypomnienie, aby sprawdzić dzisiejszą minimalną temperaturę w Berlinie](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Dowiedz się, jak zakonserwować duże zbiory bazylii](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  nl: |
+    Hier is een beknopte verzorgingsgids speciaal voor de herfst voor je basilicum (*Ocimum basilicum*) op een balkon op het oosten in Berlijn:
+    ---
+    ### 1. Licht (balkon op het oosten)
+    * **Wat je kunt verwachten:** In de Berlijnse herfst staat de zon lager en nemen de uren daglicht snel af. Een balkon op het oosten biedt ongeveer 2 tot 4 uur zachte ochtendzon, wat aan de lage kant is voor zonminnende basilicum.
+    * **Plaatsing:** Zet de pot zo dicht mogelijk bij de buitenste reling (voor zover dat veilig kan), weg van de schaduw van muren, om zoveel mogelijk onbelemmerd licht van de ochtendhemel mee te pakken.
+    * **Reflectietruc:** Door de plant tegen een witte of lichtgekleurde muur te zetten, kan er extra omgevingslicht naar de bladeren worden weerkaatst.
+    ---
+    ### 2. Water geven
+    * **Regel:** De waterbehoefte van basilicum neemt aanzienlijk af bij koel weer, omdat de verdamping vertraagt en de groei van de plant stopt.
+    * **Controleer eerst:** Geef **alleen** water als de bovenste 2–3 cm grond droog aanvoelt. Geef geen water volgens een vast schema.
+    * **Timing:** Geef altijd 's ochtends water met water op kamertemperatuur. Vermijd koud kraanwater direct uit de leiding; dit geeft een schok aan de koele wortels.
+    * **Afwatering:** Laat de pot nooit in stilstaand water op de schotel staan; koele, drassige grond leidt snel tot wortelrot (*Fusarium* of waterschimmel).
+    ---
+    ### 3. Wanneer je hem naar binnen moet halen
+    * **Kritieke grens:** Basilicum is een tropisch, gevoelig kruid. De plant krijgt last van fysiologische koudestress onder de **10°C (50°F)** en loopt ernstige weefselbeschadiging op of gaat dood bij temperaturen nabij de **0°C tot 4°C**.
+    * **Timing voor Berlijn:** In Berlijn zakt de nachttemperatuur vaak eind september of begin oktober al onder de 10°C.
+    * **Actie:** **Haal hem nu naar binnen** als de voorspelling voor de nacht onder de 10°C duikt.
+    ---
+    ### 4. Tekenen van koude- en lichtstress
+    * **Zwartgeblakerde of doorschijnende bladeren:** Duidelijk teken van kouschade (celafbraak door temperaturen onder de 8–10°C).
+    * **Paarsverkleuring of dof blad:** Een klassieke reactie op koudestress in combinatie met een trage opname van voedingsstoffen.
+    * **Slaphangen terwijl de grond vochtig is:** Koude wortels of wortelrot; de wortels zijn te koud of beschadigd om vocht op te nemen, zelfs als er water aanwezig is.
+    * **Uitrekking / Lichtgroene groei:** Onvoldoende zonlicht (etiolering).
+    ---
+    ### 5. Naar binnen verhuizen: Snelle overgangstips
+    1. **Lichtste raam:** Zet hem op een vensterbank op het zuiden als dat kan; anders voor het lichtste raam op het oosten of westen.
+    2. **Vermijd tocht & radiatoren:** Houd hem uit de buurt van koude tocht door kieren in ramen en van uitdrogende hitte die direct van een radiator (*Heizung*) komt.
+    3. **Controleer op ongedierte:** Check de onderkant van de bladeren op bladluizen of spintmijten voordat je hem bij andere kamerplanten zet.
+    4. **Oogst van bovenaf:** Knijp bloemknoppen en de bovenste bladparen weg om een bossige groei te stimuleren in plaats van sprieterige bloei.
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```**Volgende stappen & suggesties:**
+    * [Stel een herinnering in om de lage temperaturen vanavond in Berlijn te checken](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Krijg tips over het bewaren van een grote basilicumoogst](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  ar: |
+    إليك دليل رعاية موجز ومخصص لفصل الخريف لنبتة الريحان الحلو (*Ocimum basilicum*) على شرفة مواجهة للشرق في برلين:
+
+    ---
+
+    ### 1. الإضاءة (شرفة مواجهة للشرق)
+    * **ماذا تتوقع:** في خريف برلين، يكون شروق الشمس منخفضاً وتنخفض ساعات النهار بسرعة. توفر الشرفة المواجهة للشرق شمس الصباح اللطيفة لمدة تتراوح بين 2 إلى 4 ساعات تقريباً، وهو الحد الأدنى للريحان المحب للشمس.
+    * **المكان:** ضع الوعاء في أقرب مكان ممكن من السياج الخارجي بشكل آمن، بعيداً عن ظلال الجدران، لزيادة التعرض لضوء السماء الصباحي دون عوائق.
+    * **خدعة الانعكاس:** وضعه مقابل جدار أبيض أو فاتح اللون يمكن أن يعكس ضوءاً محيطاً إضافياً نحو الأوراق.
+
+    ---
+
+    ### 2. روتين الري
+    * **القاعدة:** تنخفض احتياجات الريحان للماء بشكل كبير في الطقس البارد لأن التبخر يتباطأ ويتوقف نمو النبات.
+    * **افحص أولاً:** اسقِ **فقط** عندما تشعر أن الطبقة العلوية من التربة (2-3 سم تقريباً) جافة عند لمسها. لا تسقِ وفقاً لجدول زمني ثابت.
+    * **التوقيت:** اسقِ دائماً في الصباح بماء بدرجة حرارة الغرفة. تجنب ماء الصنبور البارد مباشرة من الأنبوب، لأنه يصدم الجذور الباردة.
+    * **التصريف:** لا تترك الوعاء أبداً في ماء راكد في الصحن؛ فالتربة الباردة والمشبعة بالماء تؤدي بسرعة إلى تعفن الجذور (*Fusarium* أو عفن الماء).
+
+    ---
+
+    ### 3. متى تنقله إلى الداخل
+    * **العتبة الحرجة:** الريحان عشب استوائي رقيق. يعاني من إجهاد البرد الفسيولوجي تحت **10 درجات مئوية (50 فهرنهايت)** ويتعرض لتلف شديد في الأنسجة أو الموت عند اقتراب الحرارة من **0 إلى 4 درجات مئوية**.
+    * **التوقيت في برلين:** غالباً ما تنخفض درجات الحرارة ليلاً في برلين إلى ما دون 10 درجات مئوية بحلول أواخر سبتمبر أو أوائل أكتوبر.
+    * **الإجراء:** **أدخله إلى الداخل الآن** إذا كانت توقعات الطقس ليلاً تشير إلى انخفاض الحرارة عن 10 درجات مئوية.
+
+    ---
+
+    ### 4. علامات إجهاد البرد والضوء
+    * **أوراق مسودة أو شفافة:** علامة واضحة على إصابة البرد (انهيار خلوي ناتج عن درجات حرارة أقل من 8-10 درجات مئوية).
+    * **تحول الأوراق للون الأرجواني أو بهتانها:** استجابة كلاسيكية لإجهاد البرد مع بطء امتصاص العناصر الغذائية.
+    * **الذبول رغم رطوبة التربة:** برد الجذور أو تعفنها؛ الجذور باردة جداً أو تالفة لدرجة تمنعها من امتصاص الرطوبة حتى مع وجود الماء.
+    * **الاستطالة / نمو أخضر شاحب:** عدم كفاية ضوء الشمس (الاستطالة).
+
+    ---
+
+    ### 5. الانتقال للداخل: نصائح سريعة
+    1. **النافذة الأكثر سطوعاً:** ضعه على حافة نافذة مواجهة للجنوب إذا توفرت؛ وإلا، فاستخدم النافذة الأكثر سطوعاً المواجهة للشرق أو الغرب.
+    2. **تجنب تيارات الهواء والمدافئ:** ابعده عن تيارات الهواء الباردة من النوافذ، وكذلك عن الحرارة الجافة المنبعثة مباشرة من المدفأة (*Heizung*).
+    3. **فحص الآفات:** افحص الجوانب السفلية للأوراق بحثاً عن المن أو العث العنكبوتي قبل وضعه بالقرب من النباتات المنزلية الأخرى.
+    4. **الحصاد من الأعلى:** اقطف براعم الزهور وأزواج الأوراق العلوية لتشجيع النمو الكثيف بدلاً من الإزهار الطولي.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **الخطوات التالية والاقتراحات:**
+    * [اضبط تذكيراً للتحقق من درجات الحرارة الصغرى الليلة في برلين](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [احصل على نصائح حول حفظ محصول الريحان الكبير](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  hi: |
+    बर्लिन में पूर्व की ओर मुख वाली बालकनी पर आपके स्वीट बेसिल (*Ocimum basilicum*) के लिए शरद ऋतु (ऑटम) के अनुसार देखभाल की एक संक्षिप्त गाइड यहाँ दी गई है:
+
+    ---
+
+    ### 1. रोशनी (पूर्व की ओर मुख वाली बालकनी)
+    * **क्या उम्मीद करें:** बर्लिन की शरद ऋतु में, सूर्योदय नीचे होता है और दिन के उजाले के घंटे तेजी से कम हो जाते हैं। पूर्व की ओर मुख वाली बालकनी में लगभग 2-4 घंटे सुबह की हल्की धूप मिलती है, जो धूप पसंद करने वाले बेसिल के लिए कम है।
+    * **स्थान:** सुबह के आकाश के अधिकतम संपर्क के लिए गमले को सुरक्षित रूप से बाहरी रेलिंग के जितना संभव हो उतना करीब रखें, ताकि दीवार की छाया उस पर न पड़े।
+    * **रिफ्लेक्टिव ट्रिक:** इसे सफेद या हल्के रंग की दीवार के सामने रखने से पत्तियों की ओर अतिरिक्त रोशनी परावर्तित (बाउंस) हो सकती है।
+
+    ---
+
+    ### 2. पानी देने का नियम
+    * **नियम:** ठंडे मौसम में बेसिल की पानी की जरूरत काफी कम हो जाती है क्योंकि वाष्पीकरण धीमा हो जाता है और पौधे की वृद्धि रुक जाती है।
+    * **पहले जाँचें:** पानी **तभी** दें जब मिट्टी की ऊपरी 2-3 सेमी (लगभग एक इंच) परत छूने पर सूखी महसूस हो। एक निश्चित कैलेंडर शेड्यूल के अनुसार पानी न दें।
+    * **समय:** हमेशा सुबह के समय कमरे के तापमान वाले पानी से सिंचाई करें। सीधे पाइप से आने वाले ठंडे नल के पानी से बचें, जो ठंडी जड़ों को नुकसान पहुँचा सकता है।
+    * **निकासी (ड्रेनेज):** गमले को कभी भी तश्तरी (सॉसर) में जमा पानी में न रहने दें; ठंडी, जलभराव वाली मिट्टी से जड़ें जल्दी सड़ने लगती हैं (*Fusarium* या वॉटर मोल्ड)।
+
+    ---
+
+    ### 3. इसे अंदर कब लाएं
+    * **महत्वपूर्ण सीमा:** बेसिल एक उष्णकटिबंधीय कोमल जड़ी-बूटी है। यह **10°C (50°F)** से नीचे शारीरिक ठंड के तनाव (कोल्ड स्ट्रेस) को झेलती है और **0°C से 4°C** के पास इसके ऊतक गंभीर रूप से क्षतिग्रस्त हो सकते हैं या पौधा मर सकता है।
+    * **बर्लिन के लिए समय:** बर्लिन में रात का तापमान अक्सर सितंबर के अंत या अक्टूबर की शुरुआत तक 10°C से नीचे गिर जाता है।
+    * **कार्रवाई:** यदि रात का पूर्वानुमान 10°C से नीचे जाता है, तो **इसे अभी अंदर ले आएं**।
+
+    ---
+
+    ### 4. ठंड और रोशनी के तनाव के लक्षण
+    * **काली या पारभासी पत्तियां:** चिलिंग इंजरी का स्पष्ट संकेत (8-10°C से नीचे के तापमान से कोशिकीय क्षति)।
+    * **बैंगनी या फीकी पत्तियां:** पोषक तत्वों के धीमे अवशोषण के साथ ठंड के तनाव की एक सामान्य प्रतिक्रिया।
+    * **मिट्टी नम होने पर भी मुरझाना:** जड़ों में ठंड लगना या जड़ सड़ना; जड़ें इतनी ठंडी या क्षतिग्रस्त हो जाती हैं कि पानी होने पर भी नमी नहीं सोख पातीं।
+    * **लंबा खिंचना / हल्का हरा विकास:** अपर्याप्त धूप (इटियोलेशन)।
+
+    ---
+
+    ### 5. घर के अंदर ले जाना: त्वरित टिप्स
+    1. **सबसे चमकदार खिड़की:** यदि उपलब्ध हो, तो इसे दक्षिण की ओर मुख वाली खिड़की पर रखें; अन्यथा, पूर्व या पश्चिम की ओर मुख वाली सबसे चमकदार खिड़की पर।
+    2. **ड्राफ्ट और रेडिएटर से बचें:** इसे खिड़की की ठंडी हवा (ड्राफ्ट) के साथ-साथ रेडिएटर (*Heizung*) से सीधे निकलने वाली शुष्क गर्मी से दूर रखें।
+    3. **कीट निरीक्षण:** अन्य इनडोर पौधों के पास रखने से पहले पत्तियों के निचले हिस्से में एफिड्स या स्पाइडर माइट्स की जाँच करें।
+    4. **ऊपर से कटाई:** फूलों की कलियों और पत्तियों के ऊपरी जोड़ों को तोड़ दें ताकि पौधा लंबा होने के बजाय घना हो सके।
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **अगले कदम और सुझाव:**
+    * [बर्लिन में आज रात के कम तापमान की जाँच करने के लिए रिमाइंडर सेट करें](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [बेसिल की बड़ी फसल को संरक्षित करने के टिप्स प्राप्त करें](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  th: |
+    นี่คือคู่มือการดูแลโหระพาฝรั่ง (*Ocimum basilicum*) บนระเบียงที่หันไปทางทิศตะวันออกในเบอร์ลินแบบกระชับสำหรับช่วงฤดูใบไม้ร่วงโดยเฉพาะ:
+
+    ---
+
+    ### 1. แสงแดด (ระเบียงทิศตะวันออก)
+    * **สิ่งที่ควรคาดหวัง:** ในฤดูใบไม้ร่วงของเบอร์ลิน ดวงอาทิตย์จะขึ้นต่ำลงและชั่วโมงที่มีแสงแดดจะลดลงอย่างรวดเร็ว ระเบียงที่หันไปทางทิศตะวันออกจะได้รับแสงแดดยามเช้าที่อ่อนโยนประมาณ 2–4 ชั่วโมง ซึ่งถือว่าค่อนข้างน้อยสำหรับโหระพาที่ชอบแสงแดด
+    * **การจัดวาง:** วางกระถางให้ใกล้กับราวระเบียงด้านนอกมากที่สุดเท่าที่จะทำได้อย่างปลอดภัย เพื่อให้พ้นจากเงาของผนัง และรับแสงจากท้องฟ้ายามเช้าให้ได้มากที่สุดโดยไม่มีสิ่งกีดขวาง
+    * **เคล็ดลับการสะท้อนแสง:** การวางกระถางไว้หน้าผนังสีขาวหรือสีอ่อนสามารถช่วยสะท้อนแสงสว่างโดยรอบไปยังใบไม้ได้มากขึ้น
+
+    ---
+
+    ### 2. การรดน้ำ
+    * **กฎ:** ความต้องการน้ำของโหระพาจะลดลงอย่างมากในสภาพอากาศเย็น เพราะการระเหยช้าลงและการเจริญเติบโตของพืชหยุดชะงัก
+    * **ตรวจสอบก่อน:** รดน้ำ**เฉพาะ**เมื่อดินชั้นบนลึกประมาณ 2–3 ซม. (ประมาณหนึ่งนิ้ว) แห้งเมื่อสัมผัส อย่ารดน้ำตามตารางเวลาที่กำหนดไว้ตายตัว
+    * **เวลา:** รดน้ำในตอนเช้าเสมอด้วยน้ำอุณหภูมิห้อง หลีกเลี่ยงน้ำประปาที่เย็นจัดจากท่อโดยตรง เพราะจะทำให้รากที่เย็นอยู่แล้วเกิดอาการช็อก
+    * **การระบายน้ำ:** อย่าปล่อยให้กระถางแช่อยู่ในน้ำที่ขังในจานรอง ดินที่เย็นและแฉะเกินไปจะทำให้เกิดโรครากเน่า (*Fusarium* หรือเชื้อราในน้ำ) ได้อย่างรวดเร็ว
+
+    ---
+
+    ### 3. เมื่อไหร่ควรนำเข้ามาไว้ข้างใน
+    * **เกณฑ์วิกฤต:** โหระพาเป็นสมุนไพรเมืองร้อนที่บอบบาง มันจะเกิดความเครียดจากความเย็นทางสรีรวิทยาเมื่ออุณหภูมิต่ำกว่า **10°C (50°F)** และเนื้อเยื่อจะเสียหายอย่างรุนแรงหรือตายเมื่ออุณหภูมิใกล้ **0°C ถึง 4°C**
+    * **ช่วงเวลาสำหรับเบอร์ลิน:** อุณหภูมิข้ามคืนในเบอร์ลินมักจะลดลงต่ำกว่า 10°C ในช่วงปลายเดือนกันยายนหรือต้นเดือนตุลาคม
+    * **การดำเนินการ:** **นำเข้ามาไว้ข้างในทันที** หากพยากรณ์อากาศตอนกลางคืนระบุว่าอุณหภูมิจะลดลงต่ำกว่า 10°C
+
+    ---
+
+    ### 4. สัญญาณของความเครียดจากความเย็นและแสงแดด
+    * **ใบเปลี่ยนเป็นสีดำหรือโปร่งแสง:** สัญญาณที่ชัดเจนของอาการบาดเจ็บจากความเย็น (เซลล์ล้มเหลวจากอุณหภูมิต่ำกว่า 8–10°C)
+    * **ใบเปลี่ยนเป็นสีม่วงหรือหม่นหมอง:** การตอบสนองตามปกติเมื่อเกิดความเครียดจากความเย็นร่วมกับการดูดซึมสารอาหารที่ช้าลง
+    * **ใบเหี่ยวในขณะที่ดินยังชื้น:** รากเย็นจัดหรือรากเน่า รากเย็นเกินไปหรือเสียหายจนไม่สามารถดูดความชื้นได้แม้ว่าจะมีน้ำอยู่ก็ตาม
+    * **ลำต้นยืด / ใบมีสีเขียวซีด:** แสงแดดไม่เพียงพอ (อาการลำต้นยืดผิดปกติ)
+
+    ---
+
+    ### 5. การย้ายเข้าในร่ม: เคล็ดลับการเปลี่ยนผ่านอย่างรวดเร็ว
+    1. **หน้าต่างที่สว่างที่สุด:** วางไว้บนขอบหน้าต่างที่หันไปทางทิศใต้หากมี หรือหน้าต่างทิศตะวันออกหรือทิศตะวันตกที่สว่างที่สุด
+    2. **หลีกเลี่ยงลมโกรกและหม้อน้ำ:** เก็บให้ห่างจากลมเย็นที่ลอดผ่านช่องหน้าต่าง รวมถึงลมร้อนที่เป่าโดยตรงจากหม้อน้ำทำความร้อน (*Heizung*)
+    3. **การตรวจสอบศัตรูพืช:** ตรวจสอบใต้ใบเพื่อหาเพลี้ยอ่อนหรือไรแดงก่อนนำไปวางใกล้กับต้นไม้ในร่มต้นอื่นๆ
+    4. **เก็บเกี่ยวจากส่วนยอด:** เด็ดดอกตูมและใบยอดคู่บนสุดออกเพื่อกระตุ้นให้แตกพุ่มแทนที่จะปล่อยให้ลำต้นยืดเพื่อออกดอก
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **ขั้นตอนถัดไปและคำแนะนำ:**
+    * [ตั้งการแจ้งเตือนเพื่อตรวจสอบอุณหภูมิต่ำสุดในเบอร์ลินคืนนี้](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [รับเคล็ดลับในการถนอมใบโหระพาที่เก็บเกี่ยวได้จำนวนมาก](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  cs: |
+    Zde je stručný průvodce podzimní péčí o tvou bazalku pravou (*Ocimum basilicum*) na balkoně orientovaném na východ v Berlíně:
+
+    ---
+
+    ### 1. Světlo (balkon orientovaný na východ)
+    * **Co očekávat:** Na podzim je v Berlíně slunce níže a den se rychle zkracuje. Balkon orientovaný na východ poskytuje jemné ranní slunce po dobu asi 2–4 hodin, což je pro světlomilnou bazalku spíše málo.
+    * **Umístění:** Květináč dej co nejblíže k vnějšímu zábradlí (pokud je to bezpečné) a mimo stíny zdí, abys zajistil/a co nejvíce ranního světla.
+    * **Reflexní trik:** Umístění proti bílé nebo světlé stěně může k listům odrážet více okolního světla.
+
+    ---
+
+    ### 2. Pravidla zálivky
+    * **Pravidlo:** Potřeba zálivky u bazalky v chladném počasí výrazně klesá, protože se zpomaluje odpařování a zastavuje se růst rostliny.
+    * **Nejdříve zkontroluj:** Zalévej **pouze** tehdy, když jsou horní 2–3 cm (asi jeden palec) půdy na dotek suché. Nezalévej podle pevného kalendářního rozvrhu.
+    * **Načasování:** Zalévej vždy ráno vodou o pokojové teplotě. Vyhni se studené vodě přímo z kohoutku, která způsobuje šok chladným kořenům.
+    * **Drenáž:** Nikdy nenechávej květináč stát v misce s vodou; chladná, přemokřená půda vede rychle k hnilobě kořenů (*Fusarium* nebo vodní plísně).
+
+    ---
+
+    ### 3. Kdy ji vzít dovnitř
+    * **Kritická hranice:** Bazalka je citlivá tropická bylinka. Při teplotách pod **10 °C** trpí fyziologickým chladovým stresem a při teplotách kolem **0 °C až 4 °C** dochází k vážnému poškození tkání nebo úhynu.
+    * **Načasování pro Berlín:** Noční teploty v Berlíně často klesají pod 10 °C již koncem září nebo začátkem října.
+    * **Akce:** **Dej ji dovnitř hned**, jakmile předpověď na noc klesne pod 10 °C.
+
+    ---
+
+    ### 4. Známky stresu z chladu a nedostatku světla
+    * **Zčernalé nebo průsvitné listy:** Jasná známka poškození chladem (kolaps buněk při teplotách pod 8–10 °C).
+    * **Fialovění nebo matnutí listů:** Klasická reakce na chladový stres v kombinaci s pomalým vstřebáváním živin.
+    * **Povadlost při vlhké půdě:** Podchlazení nebo hniloba kořenů; kořeny jsou příliš studené nebo poškozené na to, aby přijímaly vlhkost, i když je voda přítomna.
+    * **Vytahování / bledě zelený růst:** Nedostatek slunečního světla (etiolizace).
+
+    ---
+
+    ### 5. Přesun dovnitř: Tipy pro rychlý přechod
+    1. **Nejsvětlejší okno:** Pokud je to možné, umísti ji na jižní parapet; jinak na nejsvětlejší okno orientované na východ nebo západ.
+    2. **Vyhni se průvanu a radiátorům:** Udržuj ji mimo průvan z netěsnících oken i mimo suchý vzduch proudící přímo z radiátoru (*Heizung*).
+    3. **Kontrola škůdců:** Před umístěním k ostatním pokojovým rostlinám zkontroluj spodní strany listů, zda na nich nejsou mšice nebo svilušky.
+    4. **Sklízej shora:** Zaštipuj květní poupata a horní páry listů, abys podpořil/a košatění namísto vytahování do květu.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **Další kroky a doporučení:**
+    * [Nastav si připomenutí na kontrolu dnešních nočních teplot v Berlíně](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Získej tipy na uchování velké sklizně bazalky](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  sv: |
+    Här är en kortfattad, höstspecifik skötselguide för din basilika (*Ocimum basilicum*) på en balkong i österläge i Berlin:
+    ---
+    ### 1. Ljus (balkong i österläge)
+    * **Vad du kan förvänta dig:** Under hösten i Berlin står solen lägre och antalet ljustimmar minskar snabbt. En balkong i österläge ger mjuk morgonsol i ungefär 2–4 timmar, vilket är i minsta laget för solälskande basilika.
+    * **Placering:** Placera krukan så nära det yttre räcket som det går på ett säkert sätt, bort från skuggor från väggar, för att maximera exponeringen mot den öppna morgonhimlen.
+    * **Reflektionstrick:** Att placera den mot en vit eller ljus vägg kan reflektera extra omgivningsljus mot bladen.
+    ---
+    ### 2. Vattningsrutiner
+    * **Regel:** Basilika behöver betydligt mindre vatten i svalt väder eftersom avdunstningen går långsammare och tillväxten avstannar.
+    * **Kolla först:** Vattna **bara** när de översta 2–3 centimetrarna av jorden känns torra. Vattna inte efter ett fast schema.
+    * **Tidpunkt:** Vattna alltid på morgonen med rumstempererat vatten. Undvik kallt kranvatten direkt från ledningen, då det ger de svala rötterna en chock.
+    * **Dränering:** Låt aldrig krukan stå i vatten på fatet; sval, genomblöt jord leder snabbt till rotröta (*Fusarium* eller vattenmögel).
+    ---
+    ### 3. När den ska tas in
+    * **Kritisk gräns:** Basilika är en tropisk, känslig ört. Den drabbas av fysiologisk köldstress under **10 °C (50 °F)** och får allvarliga vävnadsskador eller dör vid temperaturer nära **0 °C till 4 °C**.
+    * **Timing för Berlin:** Nattemperaturerna i Berlin sjunker ofta under 10 °C i slutet av september eller början av oktober.
+    * **Åtgärd:** **Ta in den nu** om nattprognosen visar temperaturer under 10 °C.
+    ---
+    ### 4. Tecken på köld- och ljusstress
+    * **Svarta eller genomskinliga blad:** Tydligt tecken på köldskada (cellkollaps orsakad av temperaturer under 8–10 °C).
+    * **Bladverk som blir lila eller matt:** En klassisk reaktion på köldstress i kombination med långsamt näringsupptag.
+    * **Slokande trots att jorden är fuktig:** Rotkyla eller rotröta; rötterna är för kalla eller skadade för att ta upp fukt även om det finns vatten.
+    * **Ranglig / Blekgrön tillväxt:** Otillräckligt solljus (etiolering).
+    ---
+    ### 5. Flytta inomhus: Snabba tips för omställningen
+    1. **Ljusaste fönstret:** Placera den på en fönsterbräda i söderläge om det finns; annars i det ljusaste fönstret i öst- eller västläge.
+    2. **Undvik drag och element:** Håll den borta från kallt drag från otäta fönster samt uttorkande värme som blåser direkt från ett element (*Heizung*).
+    3. **Kontrollera skadedjur:** Titta på bladens undersidor efter bladlöss eller spinnkvalster innan du ställer den nära andra inomhusväxter.
+    4. **Skörda från toppen:** Nyp av blomknoppar och de översta bladparen för att främja ett buskigare växtsätt istället för ranglig blomning.
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```**Nästa steg och förslag:**
+    * [Ställ in en påminnelse om att kolla nattens lägsta temperaturer i Berlin](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [Få tips om hur du bevarar en stor basilikaskörd](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  he: |
+    הנה מדריך טיפול תמציתי המותאם לסתיו עבור הבזיליקום המתוק שלך (*Ocimum basilicum*) במרפסת הפונה למזרח בברלין:
+
+    ---
+
+    ### 1. אור (מרפסת פונה למזרח)
+    * **למה לצפות:** בסתיו של ברלין, השמש נמוכה יותר ושעות האור מתמעטות במהירות. מרפסת הפונה למזרח מספקת שמש בוקר רכה למשך כ-2–4 שעות, שזה הגבול התחתון עבור בזיליקום חובב שמש.
+    * **מיקום:** כדאי להציב את העציץ קרוב ככל האפשר למעקה החיצוני (בצורה בטיחותית), הרחק מצללים של קירות, כדי למקסם את החשיפה לשמי הבוקר.
+    * **טריק החזרה:** הצבתו ליד קיר לבן או בהיר יכולה להחזיר אור סביבתי נוסף אל העלים.
+
+    ---
+
+    ### 2. שגרת השקיה
+    * **הכלל:** צריכת המים של הבזיליקום יורדת משמעותית במזג אוויר קריר בגלל שהאידוי מואט וצמיחת הצמח נעצרת.
+    * **בדיקה מקדימה:** יש להשקות **רק** כש-2–3 הס"מ העליונים של האדמה (בערך אינץ') מרגישים יבשים למגע. אין להשקות לפי לוח זמנים קבוע.
+    * **תזמון:** תמיד כדאי להשקות בבוקר עם מים בטמפרטורת החדר. הימנע משימוש במי ברז קרים ישירות מהצינור, שעלולים לגרום להלם לשורשים הקרירים.
+    * **ניקוז:** לעולם אל תשאיר את העציץ בתוך מים עומדים בתחתית; אדמה קרה ורוויה במים מובילה במהירות לריקבון שורשים (*Fusarium* או עובש מים).
+
+    ---
+
+    ### 3. מתי להכניס אותו הביתה
+    * **סף קריטי:** בזיליקום הוא עשב טרופי עדין. הוא סובל מעקת קור פיזיולוגית מתחת ל-**10°C** וסופג נזק רקמות חמור או מת בטמפרטורות שבין **0°C ל-4°C**.
+    * **תזמון בברלין:** טמפרטורות הלילה בברלין יורדות לעיתים קרובות מתחת ל-10°C כבר בסוף ספטמבר או תחילת אוקטובר.
+    * **פעולה:** **הכנס אותו פנימה עכשיו** אם תחזית הלילה יורדת מתחת ל-10°C.
+
+    ---
+
+    ### 4. סימנים לעקת קור ואור
+    * **עלים מושחרים או שקופים:** סימן ברור לנזקי קור (קריסה תאית מטמפרטורות מתחת ל-8–10°C).
+    * **עלים סגולים או דהויים:** תגובה קלאסית לעקת קור בשילוב עם ספיגת חומרים מזינים איטית.
+    * **נבילה כשהאדמה לחה:** קור בשורשים או ריקבון שורשים; השורשים קרים מדי או פגועים מכדי לספוג לחות גם אם יש מים.
+    * **התארכות / צמיחה בירוק חיוור:** חוסר באור שמש (אטיולציה).
+
+    ---
+
+    ### 5. מעבר לתוך הבית: טיפים למעבר מהיר
+    1. **החלון המואר ביותר:** הנח אותו על אדן חלון הפונה לדרום אם אפשר; אחרת, בחלון המואר ביותר הפונה למזרח או למערב.
+    2. **הימנע מזרמי אוויר ורדיאטורים:** הרחק אותו מזרמי אוויר קרים מחלונות פתוחים וגם מחום מייבש שנושב ישירות מרדיאטור (*Heizung*).
+    3. **בדיקת מזיקים:** בדוק את הצד התחתון של העלים לאיתור כנימות או אקריות לפני שתניח אותו ליד צמחי בית אחרים.
+    4. **קטיף מלמעלה:** קטום ניצני פרחים וזוגות עלים עליונים כדי לעודד צמיחה שיחית במקום פריחה דלילה וגבוהה.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "basil_indoor_setup",
+      "multiple": false,
+      "question": "Where are you planning to put your basil once it moves inside?",
+      "options": [
+        { "id": "south_window", "text": "South- or west-facing sunny windowsill" },
+        { "id": "east_window", "text": "Staying near the east window indoors" },
+        { "id": "grow_light", "text": "Under a dedicated grow light / LED lamp" },
+        { "id": "other_spot", "text": "Another room or location" }
+      ],
+      "custom_option_id": "other_spot",
+      "custom_placeholder": "Describe your indoor spot..."
+    }
+    ```
+
+    **צעדים הבאים והצעות:**
+    * [הגדר תזכורת לבדיקת הטמפרטורות הנמוכות הלילה בברלין](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)
+    * [קבל טיפים לשימור יבול בזיליקום גדול](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Check the current weather forecast and overnight temperatures in Berlin"
+  de: Prüfe die aktuelle Wettervorhersage und die Nachttemperaturen in Berlin
+  zh: 查看柏林当前的天气预报和夜间温度
+  es: Consulta el pronóstico del tiempo actual y las temperaturas nocturnas en Berlín
+  fr: Consulte les prévisions météo actuelles et les températures nocturnes à Berlin
+  pt: Verifica a previsão do tempo atual e as temperaturas noturnas em Berlim
+  ru: Проверь прогноз погоды и ночную температуру в Берлине
+  ja: ベルリンの現在の天気予報と夜間の気温を確認する
+  ko: 베를린의 현재 일기 예보와 야간 기온 확인하기
+  it: Controlla le previsioni del tempo attuali e le temperature notturne a Berlino
+  tr: "Berlin'deki güncel hava durumunu ve gece sıcaklıklarını kontrol et"
+  vi: Kiểm tra dự báo thời tiết hiện tại và nhiệt độ ban đêm ở Berlin
+  id: Cek prakiraan cuaca saat ini dan suhu malam hari di Berlin
+  pl: Sprawdź aktualną prognozę pogody i temperatury w nocy w Berlinie
+  nl: Check de huidige weersverwachting en nachttemperaturen in Berlijn
+  ar: تحقق من توقعات الطقس الحالية ودرجات الحرارة ليلاً في برلين
+  hi: बर्लिन में मौसम का ताज़ा पूर्वानुमान और रात का तापमान देखें
+  th: เช็กพยากรณ์อากาศปัจจุบันและอุณหภูมิช่วงกลางคืนในเบอร์ลิน
+  cs: Zkontroluj aktuální předpověď počasí a noční teploty v Berlíně
+  sv: Kolla aktuell väderprognos och nattemperaturer i Berlin
+  he: בדיקת תחזית מזג האוויר הנוכחית וטמפרטורות הלילה בברלין
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how to harvest sweet basil to encourage bushier growth"
+  de: Erkläre, wie du Basilikum erntest, um ein buschigeres Wachstum zu fördern
+  zh: 解释如何采收甜罗勒以促进其长得更茂盛
+  es: Explica cómo cosechar albahaca dulce para fomentar un crecimiento más frondoso
+  fr: Explique comment récolter le basilic pour favoriser une croissance plus touffue
+  pt: Explica como colher manjericão para incentivar um crescimento mais denso
+  ru: Объясни, как собирать урожай базилика, чтобы он рос гуще
+  ja: こんもりと育てるためのスイートバジルの収穫方法を説明して
+  ko: 더 풍성한 성장을 돕는 스위트 바질 수확 방법 설명하기
+  it: Spiega come raccogliere il basilico genovese per favorire una crescita più folta
+  tr: Daha gür bir büyüme için fesleğenin nasıl hasat edileceğini açıkla
+  vi: Giải thích cách thu hoạch húng tây để cây mọc bụi rậm hơn
+  id: Jelaskan cara memanen selasih (sweet basil) untuk mendorong pertumbuhan yang lebih rimbun
+  pl: Wyjaśnij, jak zbierać bazylię pospolitą, aby pobudzić ją do krzewienia się
+  nl: Leg uit hoe je basilicum oogst om een vollere groei te stimuleren
+  ar: اشرح كيفية حصاد الريحان الحلو لتشجيع النمو الكثيف
+  hi: तुलसी की कटाई कैसे करें ताकि वह और घनी हो सके, इसके बारे में बताएं
+  th: อธิบายวิธีเก็บเกี่ยวโหระพาฝรั่งเพื่อกระตุ้นให้แตกพุ่มมากขึ้น
+  cs: Vysvětli, jak sklízet bazalku pravou pro hustší růst
+  sv: Förklara hur man skördar basilika för att uppmuntra buskigare tillväxt
+  he: הסבר כיצד לקטוף בזיליקום מתוק כדי לעודד צמיחה עבותה יותר
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Search for quick methods to preserve fresh basil leaves"
+  de: Suche nach schnellen Methoden, um frische Basilikumblätter haltbar zu machen
+  zh: 搜索保存新鲜罗勒叶的快速方法
+  es: Busca métodos rápidos para conservar hojas de albahaca fresca
+  fr: Recherche des méthodes rapides pour conserver les feuilles de basilic frais
+  pt: Pesquisa métodos rápidos para conservar folhas de manjericão frescas
+  ru: Найди быстрые способы сохранить свежие листья базилика
+  ja: 新鮮なバジルの葉を保存する簡単な方法を検索する
+  ko: 신선한 바질 잎을 보관하는 빠른 방법 검색하기
+  it: Cerca metodi rapidi per conservare le foglie di basilico fresco
+  tr: Taze fesleğen yapraklarını saklamak için hızlı yöntemleri ara
+  vi: Tìm kiếm các phương pháp nhanh để bảo quản lá húng tây tươi
+  id: Cari metode cepat untuk mengawetkan daun selasih segar
+  pl: Wyszukaj szybkie metody konserwacji świeżych liści bazylii
+  nl: Zoek naar snelle methoden om verse basilicumblaadjes te bewaren
+  ar: ابحث عن طرق سريعة لحفظ أوراق الريحان الطازجة
+  hi: तुलसी की ताज़ा पत्तियों को सुरक्षित रखने के त्वरित तरीके खोजें
+  th: ค้นหาวิธีถนอมใบโหระพาสดแบบรวดเร็ว
+  cs: Vyhledej rychlé způsoby, jak uchovat čerstvé listy bazalky
+  sv: Sök efter snabba metoder för att bevara färska basilikablad
+  he: חיפוש שיטות מהירות לשימור עלי בזיליקום טריים
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Describe signs of root rot and how to rescue waterlogged basil"
+  de: Beschreibe Anzeichen von Wurzelfäule und wie du überwässertes Basilikum rettest
+  zh: 描述根腐病的迹象以及如何挽救积水的罗勒
+  es: Describe los signos de la podredumbre de las raíces y cómo rescatar la albahaca anegada
+  fr: "Décris les signes de pourriture des racines et comment sauver un basilic gorgé d'eau"
+  pt: Descreve sinais de apodrecimento das raízes e como salvar manjericão encharcado
+  ru: Опиши признаки корневой гнили и способы спасения залитого базилика
+  ja: 根腐れの兆候と、水浸しになったバジルを救う方法を教えて
+  ko: 뿌리 부패의 징후와 과습된 바질을 살리는 방법 설명하기
+  it: "Descrivi i segni del marciume radicale e come salvare il basilico inzuppato d'acqua"
+  tr: Kök çürümesi belirtilerini ve su içinde kalmış fesleğenin nasıl kurtarılacağını tarif et
+  vi: Mô tả các dấu hiệu thối rễ và cách cứu cây húng tây bị úng nước
+  id: Jelaskan tanda-tanda busuk akar dan cara menyelamatkan selasih yang tergenang air
+  pl: Opisz objawy gnicia korzeni i sposób na uratowanie przelanej bazylii
+  nl: Beschrijf de tekenen van wortelrot en hoe je verzopen basilicum kunt redden
+  ar: صف علامات تعفن الجذور وكيفية إنقاذ الريحان المغمور بالمياه
+  hi: जड़ सड़ने के लक्षण और पानी से लथपथ तुलसी को बचाने के तरीके बताएं
+  th: อธิบายสัญญาณของโรครากเน่าและวิธีช่วยชีวิตต้นโหระพาที่แฉะเกินไป
+  cs: Popiš příznaky hniloby kořenů a jak zachránit přemokřenou bazalku
+  sv: Beskriv tecken på rotröta och hur man räddar övervattnad basilika
+  he: תיאור סימנים לריקבון שורשים וכיצד להציל בזיליקום ספוג במים
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Search for indoor LED grow light options for herbs"
+  de: Suche nach LED-Pflanzenlampen für Kräuter im Innenbereich
+  zh: 搜索适合草本植物的室内 LED 植物生长灯选项
+  es: Busca opciones de luces LED de cultivo de interior para hierbas
+  fr: "Recherche des options de lampes de croissance LED d'intérieur pour les herbes aromatiques"
+  pt: Pesquisa opções de luzes LED de cultivo interior para ervas aromáticas
+  ru: Найди варианты светодиодных фитоламп для трав в помещении
+  ja: ハーブ用の室内LED育成ライトを検索する
+  ko: 허브용 실내 LED 식물등 옵션 검색하기
+  it: Cerca opzioni di luci a LED per la coltivazione indoor di erbe aromatiche
+  tr: Bitkiler için iç mekan LED yetiştirme ışığı seçeneklerini ara
+  vi: Tìm kiếm các lựa chọn đèn LED trồng cây trong nhà cho thảo mộc
+  id: Cari opsi lampu tanam LED dalam ruangan untuk herba
+  pl: Wyszukaj opcje oświetlenia LED do uprawy ziół w pomieszczeniach
+  nl: Zoek naar opties voor LED-kweeklampen voor kruiden binnenshuis
+  ar: ابحث عن خيارات مصابيح LED للنمو الداخلي للأعشاب
+  hi: जड़ी-बूटियों के लिए इनडोर LED ग्रो लाइट के विकल्प खोजें
+  th: ค้นหาตัวเลือกไฟปลูกต้นไม้ LED สำหรับสมุนไพรในร่ม
+  cs: Vyhledej možnosti pokojového LED osvětlení pro pěstování bylinek
+  sv: Sök efter LED-växtbelysning för örter inomhus
+  he: חיפוש אפשרויות לתאורת LED לגידול עשבי תיבול בתוך הבית
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "List the best companion plants for indoor potted herbs"
+  de: Liste die besten Begleitpflanzen für Kräuter im Topf auf
+  zh: 列出最适合室内盆栽草本植物的伴生植物
+  es: Enumera las mejores plantas acompañantes para hierbas en macetas de interior
+  fr: "Liste les meilleures plantes compagnes pour les herbes aromatiques en pot à l'intérieur"
+  pt: Lista as melhores plantas companheiras para ervas aromáticas em vasos de interior
+  ru: Перечисли лучшие растения-компаньоны для трав в горшках
+  ja: 室内で鉢植えにするハーブに最適なコンパニオンプランツを教えて
+  ko: 실내 화분 허브와 함께 키우기 좋은 식물 목록 확인하기
+  it: Elenca le migliori piante compagne per le erbe aromatiche in vaso da interno
+  tr: İç mekan saksı bitkileri için en iyi arkadaş bitkileri listele
+  vi: Liệt kê các loại cây trồng kèm tốt nhất cho thảo mộc trồng trong chậu trong nhà
+  id: Sebutkan tanaman pendamping terbaik untuk herba dalam pot di dalam ruangan
+  pl: Wymień najlepsze rośliny towarzyszące dla ziół doniczkowych w domu
+  nl: Lijst met de beste combinatieteelten voor kruiden in potten binnenshuis
+  ar: اذكر أفضل النباتات المتوافقة مع الأعشاب المزروعة في أصيص داخلي
+  hi: घर के अंदर गमलों में लगी जड़ी-बूटियों के साथ उगाए जाने वाले सबसे अच्छे पौधों की सूची बनाएं
+  th: รายการพืชที่ควรปลูกคู่กับสมุนไพรในกระถางในร่ม
+  cs: Vyjmenuj nejlepší partnerské rostliny pro bylinky v květináčích
+  sv: Lista de bästa samplanteringsväxterna för örter i kruka inomhus
+  he: רשימת הצמחים השכנים הטובים ביותר עבור עשבי תיבול בעציצים בתוך הבית
+  verified_by_human: []
+

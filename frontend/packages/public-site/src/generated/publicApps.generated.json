@@ -1,87 +1,31 @@
 [
   {
-    "id": "ai",
-    "iconUrl": "/icons/ai.svg",
-    "gradient": "var(--color-app-ai)",
-    "promptEn": "Explain this concept",
-    "promptDe": "Erkläre mir dieses Konzept"
+    "id": "events",
+    "iconUrl": "/icons/event.svg",
+    "gradient": "var(--color-app-events)",
+    "promptEn": "Find AI workshops",
+    "promptDe": "Finde KI-Workshops"
   },
   {
-    "id": "audio",
-    "iconUrl": "/icons/audio.svg",
-    "gradient": "var(--color-app-audio)",
-    "promptEn": "Transcribe this recording",
-    "promptDe": "Transkribiere diese Aufnahme"
-  },
-  {
-    "id": "books",
-    "iconUrl": "/icons/book.svg",
-    "gradient": "var(--color-app-books)",
-    "promptEn": "Recommend a book",
-    "promptDe": "Empfiehl mir ein Buch"
-  },
-  {
-    "id": "business",
-    "iconUrl": "/icons/business.svg",
-    "gradient": "var(--color-app-business)",
-    "promptEn": "Find company financials",
-    "promptDe": "Finde Unternehmenskennzahlen"
-  },
-  {
-    "id": "calendar",
-    "iconUrl": "/icons/calendar.svg",
-    "gradient": "var(--color-app-calendar)",
-    "promptEn": "Show my upcoming events",
-    "promptDe": "Zeig mir meine kommenden Termine"
+    "id": "travel",
+    "iconUrl": "/icons/travel.svg",
+    "gradient": "var(--color-app-travel)",
+    "promptEn": "Find a family-friendly stay",
+    "promptDe": "Finde eine familienfreundliche Unterkunft"
   },
   {
     "id": "code",
     "iconUrl": "/icons/coding.svg",
     "gradient": "var(--color-app-code)",
-    "promptEn": "Explore this repository",
-    "promptDe": "Untersuche dieses Repository"
+    "promptEn": "Create a web app",
+    "promptDe": "Erstelle eine Web-App"
   },
   {
-    "id": "design",
-    "iconUrl": "/icons/design.svg",
-    "gradient": "var(--color-app-design)",
-    "promptEn": "Find a matching icon",
-    "promptDe": "Finde ein passendes Icon"
-  },
-  {
-    "id": "docs",
-    "iconUrl": "/icons/docs.svg",
-    "gradient": "var(--color-app-docs)",
-    "promptEn": "Write a letter",
-    "promptDe": "Schreibe einen Brief"
-  },
-  {
-    "id": "electronics",
-    "iconUrl": "/icons/pcbdesign.svg",
-    "gradient": "var(--color-app-electronics)",
-    "promptEn": "Find a circuit component",
-    "promptDe": "Finde ein Bauteil für diese Schaltung"
-  },
-  {
-    "id": "events",
-    "iconUrl": "/icons/event.svg",
-    "gradient": "var(--color-app-events)",
-    "promptEn": "Find local events",
-    "promptDe": "Finde Veranstaltungen in meiner Nähe"
-  },
-  {
-    "id": "finance",
-    "iconUrl": "/icons/finance.svg",
-    "gradient": "var(--color-app-finance)",
-    "promptEn": "Check my account balances",
-    "promptDe": "Prüfe meine Kontostände"
-  },
-  {
-    "id": "fitness",
-    "iconUrl": "/icons/fitness.svg",
-    "gradient": "var(--color-app-fitness)",
-    "promptEn": "Find a fitness class",
-    "promptDe": "Finde einen Fitnesskurs"
+    "id": "home",
+    "iconUrl": "/icons/home.svg",
+    "gradient": "var(--color-app-home)",
+    "promptEn": "Find apartments",
+    "promptDe": "Finde Wohnungen"
   },
   {
     "id": "health",
@@ -91,25 +35,25 @@
     "promptDe": "Finde Arzttermine"
   },
   {
-    "id": "home",
-    "iconUrl": "/icons/home.svg",
-    "gradient": "var(--color-app-home)",
-    "promptEn": "Find an apartment in Berlin",
-    "promptDe": "Finde eine Wohnung in Berlin"
+    "id": "social_media",
+    "iconUrl": "/icons/socialmedia.svg",
+    "gradient": "var(--color-app-social_media)",
+    "promptEn": "Summarize public posts",
+    "promptDe": "Fasse öffentliche Beiträge zusammen"
   },
   {
-    "id": "hosting",
-    "iconUrl": "/icons/server.svg",
-    "gradient": "var(--color-app-hosting)",
-    "promptEn": "Find an available domain",
-    "promptDe": "Finde eine freie Domain"
+    "id": "fitness",
+    "iconUrl": "/icons/fitness.svg",
+    "gradient": "var(--color-app-fitness)",
+    "promptEn": "Find a fitness class",
+    "promptDe": "Finde einen Fitnesskurs"
   },
   {
-    "id": "images",
-    "iconUrl": "/icons/image.svg",
-    "gradient": "var(--color-app-images)",
-    "promptEn": "Generate an illustration",
-    "promptDe": "Erstelle eine Illustration"
+    "id": "mail",
+    "iconUrl": "/icons/mail.svg",
+    "gradient": "var(--color-app-mail)",
+    "promptEn": "Create an email draft",
+    "promptDe": "Entwirf eine E-Mail"
   },
   {
     "id": "jobs",
@@ -119,32 +63,144 @@
     "promptDe": "Finde meinen nächsten Karriereschritt"
   },
   {
-    "id": "life_coaching",
-    "iconUrl": "/icons/lifecoaching.svg",
-    "gradient": "var(--color-app-life_coaching)",
-    "promptEn": "Help me through a difficult moment",
-    "promptDe": "Hilf mir in einer schwierigen Situation"
-  },
-  {
-    "id": "mail",
-    "iconUrl": "/icons/mail.svg",
-    "gradient": "var(--color-app-mail)",
-    "promptEn": "Find an email",
-    "promptDe": "Finde eine E-Mail"
+    "id": "web",
+    "iconUrl": "/icons/web.svg",
+    "gradient": "var(--color-app-web)",
+    "promptEn": "Research why egg prices stayed high",
+    "promptDe": "Recherchiere, warum Eierpreise hoch blieben"
   },
   {
     "id": "maps",
     "iconUrl": "/icons/maps.svg",
     "gradient": "var(--color-app-maps)",
-    "promptEn": "Find a nearby café",
-    "promptDe": "Finde ein Café in der Nähe"
+    "promptEn": "Find a quiet café to work from",
+    "promptDe": "Finde ein ruhiges Café zum Arbeiten"
+  },
+  {
+    "id": "weather",
+    "iconUrl": "/icons/weather.svg",
+    "gradient": "var(--color-app-weather)",
+    "promptEn": "Check bike-commute weather",
+    "promptDe": "Prüfe das Wetter für den Arbeitsweg mit dem Rad"
+  },
+  {
+    "id": "calendar",
+    "iconUrl": "/icons/calendar.svg",
+    "gradient": "var(--color-app-calendar)",
+    "promptEn": "Create a calendar invitation",
+    "promptDe": "Erstelle eine Kalendereinladung"
+  },
+  {
+    "id": "shopping",
+    "iconUrl": "/icons/shopping.svg",
+    "gradient": "var(--color-app-shopping)",
+    "promptEn": "Find organic groceries",
+    "promptDe": "Finde Bio-Lebensmittel"
+  },
+  {
+    "id": "nutrition",
+    "iconUrl": "/icons/nutrition.svg",
+    "gradient": "var(--color-app-nutrition)",
+    "promptEn": "Find vegetarian dinner recipes",
+    "promptDe": "Finde vegetarische Abendessenrezepte"
+  },
+  {
+    "id": "news",
+    "iconUrl": "/icons/news.svg",
+    "gradient": "var(--color-app-news)",
+    "promptEn": "Compare recent right-to-repair news",
+    "promptDe": "Vergleiche aktuelle Nachrichten zum Recht auf Reparatur"
+  },
+  {
+    "id": "docs",
+    "iconUrl": "/icons/docs.svg",
+    "gradient": "var(--color-app-docs)",
+    "promptEn": "Create a document",
+    "promptDe": "Erstelle ein Dokument"
+  },
+  {
+    "id": "mindmaps",
+    "iconUrl": "/icons/workflow.svg",
+    "gradient": "var(--color-app-mindmaps)",
+    "promptEn": "Create a mindmap",
+    "promptDe": "Erstelle eine Mindmap"
   },
   {
     "id": "math",
     "iconUrl": "/icons/math.svg",
     "gradient": "var(--color-app-math)",
-    "promptEn": "Calculate this equation",
-    "promptDe": "Berechne diese Gleichung"
+    "promptEn": "Visualize this equation",
+    "promptDe": "Visualisiere diese Gleichung"
+  },
+  {
+    "id": "images",
+    "iconUrl": "/icons/image.svg",
+    "gradient": "var(--color-app-images)",
+    "promptEn": "Generate an illustration",
+    "promptDe": "Erstelle eine Illustration"
+  },
+  {
+    "id": "audio",
+    "iconUrl": "/icons/audio.svg",
+    "gradient": "var(--color-app-audio)",
+    "promptEn": "Transcribe this recording",
+    "promptDe": "Transkribiere diese Aufnahme"
+  },
+  {
+    "id": "videos",
+    "iconUrl": "/icons/videos.svg",
+    "gradient": "var(--color-app-videos)",
+    "promptEn": "Find beginner-friendly videos",
+    "promptDe": "Finde Videos für Einsteiger"
+  },
+  {
+    "id": "books",
+    "iconUrl": "/icons/book.svg",
+    "gradient": "var(--color-app-books)",
+    "promptEn": "Recommend a book",
+    "promptDe": "Empfiehl mir ein Buch"
+  },
+  {
+    "id": "study",
+    "iconUrl": "/icons/study.svg",
+    "gradient": "var(--color-app-study)",
+    "promptEn": "Help me learn this topic",
+    "promptDe": "Hilf mir, dieses Thema zu lernen"
+  },
+  {
+    "id": "business",
+    "iconUrl": "/icons/business.svg",
+    "gradient": "var(--color-app-business)",
+    "promptEn": "Find company financials",
+    "promptDe": "Finde Unternehmenskennzahlen"
+  },
+  {
+    "id": "finance",
+    "iconUrl": "/icons/finance.svg",
+    "gradient": "var(--color-app-finance)",
+    "promptEn": "Calculate my net cash",
+    "promptDe": "Berechne mein Nettoguthaben"
+  },
+  {
+    "id": "design",
+    "iconUrl": "/icons/design.svg",
+    "gradient": "var(--color-app-design)",
+    "promptEn": "Find open-source icons",
+    "promptDe": "Finde Open-Source-Icons"
+  },
+  {
+    "id": "electronics",
+    "iconUrl": "/icons/pcbdesign.svg",
+    "gradient": "var(--color-app-electronics)",
+    "promptEn": "Find a circuit component",
+    "promptDe": "Finde ein Bauteil für diese Schaltung"
+  },
+  {
+    "id": "hosting",
+    "iconUrl": "/icons/server.svg",
+    "gradient": "var(--color-app-hosting)",
+    "promptEn": "Find an available domain",
+    "promptDe": "Finde eine freie Domain"
   },
   {
     "id": "models3d",
@@ -161,32 +217,11 @@
     "promptDe": "Erstelle eine kurze Melodie"
   },
   {
-    "id": "news",
-    "iconUrl": "/icons/news.svg",
-    "gradient": "var(--color-app-news)",
-    "promptEn": "Explain the latest news",
-    "promptDe": "Erkläre mir die neuesten Nachrichten"
-  },
-  {
-    "id": "nutrition",
-    "iconUrl": "/icons/nutrition.svg",
-    "gradient": "var(--color-app-nutrition)",
-    "promptEn": "Find a recipe",
-    "promptDe": "Finde ein Rezept"
-  },
-  {
-    "id": "pdf",
-    "iconUrl": "/icons/pdf.svg",
-    "gradient": "var(--color-app-pdf)",
-    "promptEn": "Read this PDF",
-    "promptDe": "Lies dieses PDF"
-  },
-  {
-    "id": "plans",
-    "iconUrl": "/icons/planning.svg",
-    "gradient": "var(--color-app-plans)",
-    "promptEn": "Create a project plan",
-    "promptDe": "Erstelle einen Projektplan"
+    "id": "life_coaching",
+    "iconUrl": "/icons/lifecoaching.svg",
+    "gradient": "var(--color-app-life_coaching)",
+    "promptEn": "Help me through a difficult moment",
+    "promptDe": "Hilf mir in einer schwierigen Situation"
   },
   {
     "id": "plants",
@@ -203,66 +238,17 @@
     "promptDe": "Bereite mich auf eine politische Diskussion vor"
   },
   {
-    "id": "reminder",
-    "iconUrl": "/icons/reminder.svg",
-    "gradient": "var(--color-app-reminder)",
-    "promptEn": "Remind me tomorrow",
-    "promptDe": "Erinnere mich morgen daran"
+    "id": "pdf",
+    "iconUrl": "/icons/pdf.svg",
+    "gradient": "var(--color-app-pdf)",
+    "promptEn": "Read this PDF",
+    "promptDe": "Lies dieses PDF"
   },
   {
-    "id": "shopping",
-    "iconUrl": "/icons/shopping.svg",
-    "gradient": "var(--color-app-shopping)",
-    "promptEn": "Find a product",
-    "promptDe": "Finde ein Produkt"
-  },
-  {
-    "id": "social_media",
-    "iconUrl": "/icons/socialmedia.svg",
-    "gradient": "var(--color-app-social_media)",
-    "promptEn": "Find recent posts",
-    "promptDe": "Finde aktuelle Beiträge"
-  },
-  {
-    "id": "study",
-    "iconUrl": "/icons/study.svg",
-    "gradient": "var(--color-app-study)",
-    "promptEn": "Help me learn this topic",
-    "promptDe": "Hilf mir, dieses Thema zu lernen"
-  },
-  {
-    "id": "travel",
-    "iconUrl": "/icons/travel.svg",
-    "gradient": "var(--color-app-travel)",
-    "promptEn": "Find train connections",
-    "promptDe": "Finde Zugverbindungen"
-  },
-  {
-    "id": "videos",
-    "iconUrl": "/icons/videos.svg",
-    "gradient": "var(--color-app-videos)",
-    "promptEn": "Find a tutorial video",
-    "promptDe": "Finde ein Anleitungsvideo"
-  },
-  {
-    "id": "weather",
-    "iconUrl": "/icons/weather.svg",
-    "gradient": "var(--color-app-weather)",
-    "promptEn": "Check tomorrow's forecast",
-    "promptDe": "Prüfe die Wettervorhersage für morgen"
-  },
-  {
-    "id": "web",
-    "iconUrl": "/icons/web.svg",
-    "gradient": "var(--color-app-web)",
-    "promptEn": "Research this topic",
-    "promptDe": "Recherchiere dieses Thema"
-  },
-  {
-    "id": "workflows",
-    "iconUrl": "/icons/workflow.svg",
-    "gradient": "var(--color-app-workflows)",
-    "promptEn": "Create a recurring search",
-    "promptDe": "Erstelle eine regelmäßige Suche"
+    "id": "ai",
+    "iconUrl": "/icons/ai.svg",
+    "gradient": "var(--color-app-ai)",
+    "promptEn": "Explain this concept",
+    "promptDe": "Erkläre mir dieses Konzept"
   }
 ]

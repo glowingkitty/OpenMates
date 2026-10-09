@@ -58,7 +58,7 @@ test.beforeEach(async ({ page }: { page: Page }) => {
   }));
 });
 
-// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible,landing-onboarding.signup-cta
+// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
 test('keeps the signed-out Sign up button unobscured at compact widths', async ({ page }: { page: Page }) => {
   for (const width of [320, 390]) {
     await openHeader(page, width);
@@ -67,7 +67,7 @@ test('keeps the signed-out Sign up button unobscured at compact widths', async (
   }
 });
 
-// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible,landing-onboarding.signup-cta
+// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
 test('keeps the returning guest Login button unobscured and clickable', async ({ page }: { page: Page }) => {
   await page.addInitScript(() => localStorage.setItem('openmates:last-auth-method', 'email'));
   for (const width of [320, 390]) {
@@ -87,7 +87,7 @@ test('keeps the returning guest Login button unobscured and clickable', async ({
   }
 });
 
-// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible,landing-onboarding.signup-cta
+// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
 test('keeps the guest favicon and centered dropdown when all controls fit', async ({ page }: { page: Page }) => {
   for (const label of ['Sign up', 'Login']) {
     if (label === 'Login') await page.addInitScript(() => localStorage.setItem('openmates:last-auth-method', 'email'));
@@ -100,7 +100,7 @@ test('keeps the guest favicon and centered dropdown when all controls fit', asyn
   }
 });
 
-// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible,landing-onboarding.signup-cta
+// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
 test('updates guest header positioning as available width changes', async ({ page }: { page: Page }) => {
   await page.addInitScript(() => localStorage.setItem('openmates:last-auth-method', 'email'));
   await openHeader(page, 730);

@@ -9930,6 +9930,600 @@
       "follow_up_6": {
         "text": "Vat de belangrijkste financiële statistieken voor VITL samen"
       }
+    },
+    "urban_heat_island_at_night": {
+      "title": {
+        "text": "Waarom steden 's nachts warm blijven"
+      },
+      "summary": {
+        "text": "Een eenvoudige uitleg van het stedelijk hitte-eilandeffect en waarom straten in de stad na zonsondergang langzamer afkoelen."
+      },
+      "message_1": {
+        "text": "Waarom voelen sommige steden 's nachts veel warmer aan dan nabijgelegen landelijke gebieden? Kun je het stedelijk hitte-eilandeffect uitleggen met een eenvoudig voorbeeld?"
+      },
+      "message_2": {
+        "text": "Het fenomeen dat je beschrijft staat bekend als het **[stedelijk hitte-eiland](wiki:Urban_heat_island)**-effect (UHI). Hoewel steden overdag iets warmer kunnen zijn, is het temperatuurverschil na zonsondergang vaak het grootst – soms blijven steden wel 2°C tot meer dan 10°C (4°F tot 18°F) warmer dan het omliggende platteland.\n\n---\n\n### Een eenvoudige alledaagse vergelijking: de gietijzeren koekenpan versus het tuinbed\n\nStel je voor dat je op een zonnige middag buiten staat met twee voorwerpen:\n1. Een **zware gietijzeren koekenpan**\n2. Een **pot met vochtige tuinaarde en gras**\n\nOp een hete middag schijnt de zon op beide:\n* De **gietijzeren koekenpan** absorbeert intense hitte, wordt gloeiend heet en slaat die thermische energie op in zijn dichte metalen behuizing.\n* De **vochtige aarde en het gras** absorberen ook zonlicht, maar het vocht in de bodem verdampt en het gras \"zweet\" door transpiratie. Dat proces van [evapotranspiratie](wiki:Evapotranspiration) verbruikt een groot deel van de zonne-energie, waardoor de plant en de bodem aanzienlijk koeler blijven.\n\nBreng ze nu naar binnen in een koelere kamer of wacht tot de avond valt:\n* Het tuinbed koelt vrijwel onmiddellijk af omdat het geen overtollige hitte vasthield en vocht blijft verliezen.\n* De gietijzeren koekenpan werkt echter als een **thermische batterij**. Lang nadat de zon onder is, straalt hij langzaam al die opgeslagen hitte uit naar de omringende lucht, waardoor de directe omgeving urenlang warm blijft.\n\nEen **stad** gedraagt zich als miljoenen onderling verbonden gietijzeren koekenpannen; het **platteland** gedraagt zich als het vochtige tuinbed.\n\n---\n\n### De wetenschap achter waarom steden 's nachts warm blijven\n\nHet verschil in de nacht komt voort uit verschillende belangrijke thermodynamische en fysieke factoren:\n\n#### 1. Hoge thermische massa (warmtebehoud)\nStedelijke omgevingen zijn opgebouwd uit asfalt, beton, baksteen en steen. Deze materialen hebben een hoge [volumetrische warmtecapaciteit](wiki:Volumetric_heat_capacity) en thermische geleidbaarheid. Overdag nemen ze zonnestraling diep op in structuren en wegdekken. 's Nachts, als de omgevingslucht afkoelt, geven deze materialen die opgeslagen hitte weer af aan de lagere atmosfeer via langgolvige thermische straling.\n\n#### 2. Verlies van verdampingskoeling\nHet platteland is bedekt met bomen, gewassen en vochtige bodem. Planten onttrekken water aan de grond en geven waterdamp af aan de lucht via transpiratie. Omdat het omzetten van vloeibaar water in damp een aanzienlijke hoeveelheid energie vereist (de [latente warmte](wiki:Latent_heat) van verdamping), koelt dit de omgeving op natuurlijke wijze af. In steden wordt regenwater via ondoordringbare oppervlakken snel afgevoerd naar het riool, waardoor er weinig vocht beschikbaar blijft voor verdampingskoeling.\n\n#### 3. Geometrie van stedelijke canyons\nIn dichtbebouwde steden met hoge gebouwen vormen straten \"stedelijke canyons\". Overdag weerkaatsen meerdere reflecterende oppervlakken het zonlicht dieper de straat in in plaats van het terug de ruimte in te sturen. 's Nachts blokkeren de gebouwen de hemel gedeeltelijk (wat meteorologen de *sky view factor* noemen). In plaats van vrij te ontsnappen naar de hogere atmosfeer, wordt de hitte die door de straat wordt uitgestraald geabsorbeerd of teruggekaatst door de muren van aangrenzende gebouwen.\n\n#### 4. Antropogene hitte (door mensen gegenereerde energie)\nSteden produceren continu hun eigen hitte, onafhankelijk van de zon. Airconditioners, voertuigmotoren, datacenters, fabrieken en gebouwverlichting stoten allemaal restwarmte rechtstreeks uit in de atmosfeer op straatniveau, wat de nachtelijke warmte versterkt.\n\n---\n\n### Het effect verzachten\n\nGemeenten en stedenbouwkundigen passen vaak strategieën toe om deze mechanismen tegen te gaan:\n* **Koele wegdekken en daken:** Het gebruik van coatings met een hoog [albedo](wiki:Albedo) (reflectievermogen), zodat oppervlakken zonlicht reflecteren in plaats van absorberen.\n* **Stedelijk groen en bladerdak:** Het planten van straatbomen en het aanleggen van parken om schaduw en evapotranspiratie te herstellen.\n* **Groene daken:** Het aanbrengen van vegetatie op daken om gebouwen te isoleren en het lokale microklimaat te koelen.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"uhi_interest_followup\",\n  \"multiple\": false,\n  \"question\": \"Which aspect of the urban heat island effect would you like to explore next?\",\n  \"options\": [\n    { \"id\": \"solutions\", \"text\": \"Architectural and urban design solutions (e.g., green roofs, cool materials)\" },\n    { \"id\": \"climate_health\", \"text\": \"Impacts on public health, air quality, and climate resilience\" },\n    { \"id\": \"measurement\", \"text\": \"How scientists measure and map surface vs. atmospheric heat islands\" }\n  ]\n}\n```\n\nWil je onderzoeken hoe specifieke stedenbouwkundige keuzes in jouw regio de nachtelijke afkoeling beïnvloeden, of een van de bovenstaande onderwerpen verkennen?"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar stedenbouwkundige strategieën die hitte-eilanden verminderen"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe wetenschappers onderscheid maken tussen hitte-eilanden aan het oppervlak en in de atmosfeer"
+      },
+      "follow_up_3": {
+        "text": "Vind academische papers die afwijkingen in de stedelijke oppervlaktetemperatuur meten"
+      },
+      "follow_up_4": {
+        "text": "Bespreek de gevolgen van extreme nachtelijke stedelijke temperaturen voor de volksgezondheid"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar casestudy's over het ontwerpen van groene daken in steden"
+      },
+      "follow_up_6": {
+        "text": "Beschrijf hoe de geometrie van stedelijke canyons 's nachts uitgestraalde hitte vasthoudt"
+      }
+    },
+    "damped_sine_decay_plot": {
+      "title": {
+        "text": "Gedempte sinusgolf en de omhullenden"
+      },
+      "summary": {
+        "text": "Plot een gedempte sinusgolf met de boven- en onderomhullenden en begrijp hoe de oscillatie uitsterft."
+      },
+      "message_1": {
+        "text": "Kun je y = e^(-0.2x) sin(3x) plotten voor x van 0 tot 12, inclusief de boven- en onderomhullenden, en uitleggen wat de grafiek laat zien?"
+      },
+      "message_2": {
+        "text": "Hier is de grafiek van de functie samen met de bovenste en onderste omhullenden:\n\n```json\n{\"type\": \"math-plot\", \"embed_id\": \"9ef899d2-4b73-4c4e-88bf-d4fd31d61e79\"}\n```\n\n---\n\n### Wat de grafiek laat zien\n\nDeze grafiek is een klassieke weergave van een gedempte harmonische oscillator, die vaak voorkomt in de natuurkunde en techniek (zoals een trillende gitaarsnaar, een schokdemper of een elektrisch [RLC-circuit](wiki:RLC_circuit)).\n\n#### 1. De oscillerende component: $\\sin(3x)$\n* De term $\\sin(3x)$ genereert een continue periodieke golfbeweging.\n* De hoekfrequentie is $\\omega = 3\\text{ rad/s}$, wat overeenkomt met een periode van:\n  $$T = \\frac{2\\pi}{3} \\approx 2.094$$\n* Dit betekent dat de curve de nulas snijdt om de $\\frac{\\pi}{3} \\approx 1.05$ eenheden langs de $x$-as.\n\n#### 2. De dempingsfactor: $e^{-0.2x}$\n* De exponentiële factor $e^{-0.2x}$ beschrijft [exponentieel verval](wiki:Exponential_decay) met een vervalsnelheidsparameter van $\\alpha = 0.2$.\n* Naarmate $x$ toeneemt, verliest het systeem energie door [demping](wiki:Damping) (zoals wrijving of elektrische weerstand), waardoor de amplitude in de loop van de tijd afneemt.\n\n#### 3. De omhullenden: $\\pm e^{-0.2x}$\n* Omdat de sinusfunctie begrensd is door $-1 \\le \\sin(3x) \\le 1$, levert vermenigvuldiging met de positieve term $e^{-0.2x}$ het volgende op:\n  $$-e^{-0.2x} \\le e^{-0.2x}\\sin(3x) \\le e^{-0.2x}$$\n* **Bovenste omhullende ($g(x) = e^{-0.2x}$)**: Vormt de vloeiende bovengrens die de positieve pieken begrenst.\n* **Onderste omhullende ($h(x) = -e^{-0.2x}$)**: Vormt de symmetrische grens die de negatieve dalen omsluit.\n* De oscillerende curve raakt de bovenste omhullende telkens wanneer $\\sin(3x) = 1$ (bij $x = \\frac{\\pi}{6} + \\frac{2\\pi k}{3}$) and de onderste omhullende telkens wanneer $\\sin(3x) = -1$.\n\n---\n\n### Voorgestelde vervolgstappen\n\n- [Bereken de exacte lokale extrema met behulp van de afgeleide](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)\n- [Vergelijk ondergedempte versus kritisch gedempte systemen](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)"
+      },
+      "follow_up_1": {
+        "text": "Bereken de lokale extrema van deze functie met behulp van calculus"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe het veranderen van de vervalsnelheidsparameter de curve beïnvloedt"
+      },
+      "follow_up_3": {
+        "text": "Vind vergelijkbare natuurkundige formules voor harmonische beweging"
+      },
+      "follow_up_4": {
+        "text": "Beschrijf fysieke systemen uit de echte wereld die door deze vergelijking worden gemodelleerd"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar differentiaalvergelijkingen die gedempte trillingen beschrijven"
+      },
+      "follow_up_6": {
+        "text": "Vergelijk dit golfgedrag met ongedempte enkelvoudige harmonische beweging"
+      }
+    },
+    "autumn_basil_balcony_care": {
+      "title": {
+        "text": "Herfstverzorging voor basilicum op een Berlijns balkon"
+      },
+      "summary": {
+        "text": "Eenvoudige herfstverzorging voor basilicum op een balkon op het oosten: licht, water geven, tekenen van kou en naar binnen verplaatsen."
+      },
+      "message_1": {
+        "text": "Kun je een beknopte, beginnersvriendelijke gids maken voor de verzorging van mijn basilicum op een Berlijns balkon op het oosten deze herfst? Ik heb vooral informatie nodig over water geven, licht, tekenen van kou en wanneer ik de plant naar binnen moet halen."
+      },
+      "message_2": {
+        "text": "Hier is een beknopte verzorgingsgids speciaal voor de herfst voor je basilicum (*Ocimum basilicum*) op een balkon op het oosten in Berlijn:\n---\n### 1. Licht (balkon op het oosten)\n* **Wat je kunt verwachten:** In de Berlijnse herfst staat de zon lager en nemen de uren daglicht snel af. Een balkon op het oosten biedt ongeveer 2 tot 4 uur zachte ochtendzon, wat aan de lage kant is voor zonminnende basilicum.\n* **Plaatsing:** Zet de pot zo dicht mogelijk bij de buitenste reling (voor zover dat veilig kan), weg van de schaduw van muren, om zoveel mogelijk onbelemmerd licht van de ochtendhemel mee te pakken.\n* **Reflectietruc:** Door de plant tegen een witte of lichtgekleurde muur te zetten, kan er extra omgevingslicht naar de bladeren worden weerkaatst.\n---\n### 2. Water geven\n* **Regel:** De waterbehoefte van basilicum neemt aanzienlijk af bij koel weer, omdat de verdamping vertraagt en de groei van de plant stopt.\n* **Controleer eerst:** Geef **alleen** water als de bovenste 2–3 cm grond droog aanvoelt. Geef geen water volgens een vast schema.\n* **Timing:** Geef altijd 's ochtends water met water op kamertemperatuur. Vermijd koud kraanwater direct uit de leiding; dit geeft een schok aan de koele wortels.\n* **Afwatering:** Laat de pot nooit in stilstaand water op de schotel staan; koele, drassige grond leidt snel tot wortelrot (*Fusarium* of waterschimmel).\n---\n### 3. Wanneer je hem naar binnen moet halen\n* **Kritieke grens:** Basilicum is een tropisch, gevoelig kruid. De plant krijgt last van fysiologische koudestress onder de **10°C (50°F)** en loopt ernstige weefselbeschadiging op of gaat dood bij temperaturen nabij de **0°C tot 4°C**.\n* **Timing voor Berlijn:** In Berlijn zakt de nachttemperatuur vaak eind september of begin oktober al onder de 10°C.\n* **Actie:** **Haal hem nu naar binnen** als de voorspelling voor de nacht onder de 10°C duikt.\n---\n### 4. Tekenen van koude- en lichtstress\n* **Zwartgeblakerde of doorschijnende bladeren:** Duidelijk teken van kouschade (celafbraak door temperaturen onder de 8–10°C).\n* **Paarsverkleuring of dof blad:** Een klassieke reactie op koudestress in combinatie met een trage opname van voedingsstoffen.\n* **Slaphangen terwijl de grond vochtig is:** Koude wortels of wortelrot; de wortels zijn te koud of beschadigd om vocht op te nemen, zelfs als er water aanwezig is.\n* **Uitrekking / Lichtgroene groei:** Onvoldoende zonlicht (etiolering).\n---\n### 5. Naar binnen verhuizen: Snelle overgangstips\n1. **Lichtste raam:** Zet hem op een vensterbank op het zuiden als dat kan; anders voor het lichtste raam op het oosten of westen.\n2. **Vermijd tocht & radiatoren:** Houd hem uit de buurt van koude tocht door kieren in ramen en van uitdrogende hitte die direct van een radiator (*Heizung*) komt.\n3. **Controleer op ongedierte:** Check de onderkant van de bladeren op bladluizen of spintmijten voordat je hem bij andere kamerplanten zet.\n4. **Oogst van bovenaf:** Knijp bloemknoppen en de bovenste bladparen weg om een bossige groei te stimuleren in plaats van sprieterige bloei.\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"basil_indoor_setup\",\n  \"multiple\": false,\n  \"question\": \"Where are you planning to put your basil once it moves inside?\",\n  \"options\": [\n    { \"id\": \"south_window\", \"text\": \"South- or west-facing sunny windowsill\" },\n    { \"id\": \"east_window\", \"text\": \"Staying near the east window indoors\" },\n    { \"id\": \"grow_light\", \"text\": \"Under a dedicated grow light / LED lamp\" },\n    { \"id\": \"other_spot\", \"text\": \"Another room or location\" }\n  ],\n  \"custom_option_id\": \"other_spot\",\n  \"custom_placeholder\": \"Describe your indoor spot...\"\n}\n```**Volgende stappen & suggesties:**\n* [Stel een herinnering in om de lage temperaturen vanavond in Berlijn te checken](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)\n* [Krijg tips over het bewaren van een grote basilicumoogst](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)"
+      },
+      "follow_up_1": {
+        "text": "Check de huidige weersverwachting en nachttemperaturen in Berlijn"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe je basilicum oogst om een vollere groei te stimuleren"
+      },
+      "follow_up_3": {
+        "text": "Zoek naar snelle methoden om verse basilicumblaadjes te bewaren"
+      },
+      "follow_up_4": {
+        "text": "Beschrijf de tekenen van wortelrot en hoe je verzopen basilicum kunt redden"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar opties voor LED-kweeklampen voor kruiden binnenshuis"
+      },
+      "follow_up_6": {
+        "text": "Lijst met de beste combinatieteelten voor kruiden in potten binnenshuis"
+      }
+    },
+    "community_garden_sunflower_illustration": {
+      "title": {
+        "text": "Genereer een botanische illustratie van een zonnebloem"
+      },
+      "summary": {
+        "text": "Maak een tekstloze illustratie van een zonnebloem voor een folder van een buurttuin."
+      },
+      "message_1": {
+        "text": "Maak alsjeblieft een warme botanische illustratie van een zonnebloem voor een folder van een buurttuin, op een schone, lichte achtergrond zonder tekst."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nIk genereer nu de botanische illustratie van de zonnebloem voor de folder van je buurttuin; deze wordt momenteel verwerkt en verschijnt hier in de chat zodra hij klaar is.\n\n### Snelle ontwerptips voor buurtfolders\n\nOm je tuinfolder zowel uitnodigend als goed leesbaar te maken:\n\n- **Visuele hiërarchie en witruimte:** Geef de illustratie de ruimte. Door deze langs een kantlijn of in de koptekst te plaatsen, blijft er duidelijke ruimte over voor tuiniertips of evenementdetails zonder dat het rommelig aanvoelt.\n- **Kleurharmonie:** Gebruik warme tinten rechtstreeks uit het kunstwerk — zoals diep honinggoud, olijfgroen of aards terracotta — voor sectiekoppen en kaders.\n- **Eigen kunst toevoegen:** Als buurtbewoners of lokale tuiniers schetsen, bladafdrukken of foto's van de eigen tuinbedden maken, zorgt het integreren daarvan naast digitale illustraties voor een prachtig, gastvrij en lokaal karakter.\n\n---\n\n**Volgende stappen en opties:**\n- [Ontwerp een lay-out voor een folder met koppen en tips](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [Stel een kleurenpalet voor op basis van zonnebloemen](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar lokale evenementen in buurttuinen in de buurt"
+      },
+      "follow_up_2": {
+        "text": "Help me een vriendelijke inleidende tekst te schrijven voor de folder van de tuin"
+      },
+      "follow_up_3": {
+        "text": "Vind gratis SVG-planteniconen voor de decoratie van de folder"
+      },
+      "follow_up_4": {
+        "text": "Maak een lijst met essentiële tips voor een gids over buurttuinen"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar ideeën voor typografiecombinaties voor tuinflyers"
+      },
+      "follow_up_6": {
+        "text": "Leg uit hoe je visuele elementen rangschikt in een lay-out voor drukwerk"
+      }
+    },
+    "beginner_yoga_classes_berlin": {
+      "title": {
+        "text": "Beginners yogalessen in Berlijn"
+      },
+      "summary": {
+        "text": "Vind drie beginnersvriendelijke yogalessen in Berlijn met tijden, prijzen en boekingslinks."
+      },
+      "message_1": {
+        "text": "Ik ben nieuw met yoga en wil volgende week graag een beginnersvriendelijke les volgen in Berlijn. Kun je een paar lessen vinden met tijden, prijzen en boekingslinks?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\nHier zijn beginnersvriendelijke [yoga](wiki:Yoga)-lessen die volgende week in Berlijn plaatsvinden:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)\n- **Wat het is:** Een mindful les die beweging op het ritme van de ademhaling combineert met het vasthouden van houdingen om uitlijning en stilte te verkennen. Speciaal ontworpen om toegankelijk te zijn voor beginners (gegeven in het Engels).\n- **Datum & tijd:** Woensdag 14 oktober 2026, 18:00 – 19:00 CEST (kom 10 min. eerder)\n- **Locatie:** Art OM, Wrangelstraße 54, 10997 Berlijn ([Kreuzberg](wiki:Kreuzberg))\n- **Prijs:** € 11,83 – € 22,49\n- **Boeken:** [Boek tickets op Eventbrite](embed:yoga-for-grounding-TB2)\n\n### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)\n- **Wat het is:** Een informele, ontspannen mobiliteits- en yogasessie voor alle niveaus waarbij flows stap voor stap in een rustig tempo worden uitgelegd. Geen eerdere flexibiliteit of ervaring vereist.\n- **Datum & tijd:** Dinsdag 13 oktober 2026, 19:00 – 19:45 CEST (kom 15 min. eerder)\n- **Locatie:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlijn ([Friedrichshain](wiki:Friedrichshain))\n- **Prijs:** € 5 (gratis toegang met Urban Sports Club / Wellpass als je ook bouldert)\n- **Boeken:** [Bekijk details en boekingslink](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)\n- **Wat het is:** Een dynamische maar zachte Vinyasa-sessie met aanpassingen voor beginners, gericht op adembewustzijn, lichaamshouding en ontspanning.\n- **Datum & tijd:** Woensdag 14 oktober 2026, 19:30 – 21:00 CEST\n- **Locatie:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlijn (Gesundbrunnen / [Mitte](wiki:Mitte))\n- **Prijs:** € 10 voor je eerste proefles (starterpakket: 3 lessen voor € 20)\n- **Boeken:** [Meld je aan via Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)\n\n---\n\n### Tips voor je eerste yogales\n* **Kleding:** Comfortabele, rekbare kleding waarin je gemakkelijk kunt bewegen en buigen. Yoga wordt meestal op blote voeten beoefend.\n* **Hydratatie & maaltijden:** Vermijd zware maaltijden binnen 1,5 tot 2 uur voor de les.\n* **Luister naar je lichaam:** Laat de docent voor de les weten dat het je eerste keer is; ze laten je graag aanpassingen en hulpmiddelen zien (blokken, dekens of riemen). Als je bestaande gewrichts- of rugklachten hebt, overleg dan met een arts of fysiotherapeut voordat je dynamische reeksen probeert.\n\nWil je aanbevelingen dichter bij een specifieke buurt (bijv. Neukölln, Prenzlauer Berg, Charlottenburg), of gericht op een zachte stijl zoals [Hatha yoga](wiki:Hatha_yoga) of [Yin yoga](wiki:Yin_yoga)?\n---\n*⚠️ Dit is uitsluitend educatieve informatie en geen medisch advies. Raadpleeg je arts voor medische beslissingen.*"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar yogalessen in Neukölln Berlijn"
+      },
+      "follow_up_2": {
+        "text": "Leg uit wat ik kan verwachten tijdens een eerste yogales"
+      },
+      "follow_up_3": {
+        "text": "Vind Hatha yoga workshops volgend weekend"
+      },
+      "follow_up_4": {
+        "text": "Vergelijk Vinyasa en Hatha yoga stijlen"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar Yin yoga studio's in Mitte"
+      },
+      "follow_up_6": {
+        "text": "Tips voor beginners bij het kopen van een yogamat"
+      }
+    },
+    "calm_manager_follow_up": {
+      "title": {
+        "text": "Plan een kalme follow-up met een manager"
+      },
+      "summary": {
+        "text": "Verwerk een gespannen gesprek en stel een duidelijke, verantwoordelijke follow-up op nadat prioriteiten zijn gewijzigd."
+      },
+      "message_1": {
+        "text": "Ik had vandaag een gespannen gesprek met mijn manager en voel me onrustig. Kun je me helpen verwerken wat er is gebeurd en een kalme follow-up plannen?"
+      },
+      "message_2": {
+        "text": "Het is volkomen normaal om je onrustig te voelen na een lastig gesprek met een manager. Gesprekken over autoriteit, prestaties of uiteenlopende verwachtingen veroorzaken vaak acute stress en verstoren de emotionele regulatie, waardoor je woorden blijft herhalen en aan je reacties gaat twijfelen.\n\nDe tijd nemen om even afstand te nemen voordat je reageert, is de gezondste en meest strategische aanpak.\n\nOm ons te helpen een duidelijk plan op te stellen voor het nabespreken van wat er is gebeurd en het formuleren van een effectieve follow-up: **wat was het hoofdonderwerp van de discussie en welk specifiek moment of welke opmerking voelde voor jou het meest gespannen aan?**\n---\n*⚠️ Dit is uitsluitend educatieve informatie en geen professioneel psychologisch advies. Raadpleeg een gekwalificeerde therapeut of counselor bij psychische problemen. Neem bij een crisis onmiddellijk contact op met de hulpdiensten of een crisislijn.*"
+      },
+      "message_3": {
+        "text": "We waren het niet eens over een deadline voor het bijwerken van de support-knowledgebase. Mijn manager zei dat ik het risico eerder had moeten signaleren, en ik voelde me de schuld krijgen omdat de prioriteiten twee keer waren veranderd. Ik wil mijn aandeel erkennen zonder alle schuld op me te nemen. Wat zou ik morgen in een korte follow-up kunnen zeggen?"
+      },
+      "message_4": {
+        "text": "Het omgaan met dit soort situaties vereist een balans tussen [assertiveness](wiki:Assertiveness) en gezamenlijke verantwoordelijkheid: erkennen wat binnen jouw macht lag (proactieve escalatie van risico's) zonder een verhaal te accepteren dat de veranderende context (wijzigende prioriteiten) negeert.\n\n### Het psychologische kader: Verantwoordelijkheid vs. Schuld\n\nWanneer managers zich overvallen voelen, is hun eerste reflex vaak: *\"Waarom ben ik niet gewaarschuwd?\"* Wanneer medewerkers wisselende instructies krijgen, is hun reflex vaak: *\"Ik paste me alleen maar aan aan wat jij me zei prioriteit te geven.\"* Beide perspectieven zijn logisch binnen hun eigen referentiekader.\n\nOm dit constructief te overbruggen:\n1. **Bevestig de procesverbetering**: Erken dat eerder inzicht voor iedereen beter is.\n2. **Contextualiseer neutraal zonder defensief te zijn**: Beschrijf de verschuivingen in prioriteit als de operationele aanleiding voor de vertraging, in plaats van als een excuus.\n3. **Focus op het gezamenlijke doel**: Formuleer toekomstige communicatie rondom het helder houden van teamcapaciteit en tijdlijnen.\n\n---\n\n### Optie 1: Kort persoonlijk gesprek of bericht via Slack/Teams\n\n> *\"Hoi [Manager's Name], ik heb nog even nagedacht over ons gesprek van gisteren over de deadline voor de support knowledge base. Je had gelijk dat ik het capaciteitsrisico eerder had moeten aankaarten toen de andere verschuivingen in prioriteit binnenkwamen.*\n>\n> *Ik wil ervoor zorgen dat we op één lijn blijven wanneer prioriteiten in de toekomst verschuiven, dus ik zal voortaan direct proactief aan de bel trekken bij mogelijke gevolgen voor de planning. Wat betreft de knowledge base: dit is de huidige stand van zaken en dit heb ik nodig om het af te ronden voor [Proposed Date]. Laten we even kort afstemmen als je dat plan wilt aanpassen.\"*\n\n---\n\n### Optie 2: Korte, directe e-mail of opening van een 1-op-1 gesprek\n\n> *\"Hoi [Manager's Name],*\n>\n> *Naar aanleiding van ons gesprek van gisteren: ik heb je feedback over het eerder signaleren van risico's ter harte genomen. Toen de prioriteiten de afgelopen weken verschoven, richtte ik me op het oppakken van die verzoeken in plaats van expliciet aan te geven welke impact dit had op de planning van de knowledge base.*\n>\n> *Als er in de toekomst concurrerende prioriteiten ontstaan, zal ik direct een kort bericht sturen met de gevolgen voor bestaande deadlines, zodat we samen kunnen beslissen wat voorrang krijgt.*\n>\n> *Huidige status van de knowledge base:*\n> *• [1–2 sentence status update or next milestone]*\n> *• Geplande afronding: [Date/Time]*\n>\n> *Bedankt voor de feedback — laat het me weten als je de resterende punten samen wilt doornemen.\"*\n\n---\n\n### Kernpunten: Waarom dit werkt\n* **Elimineert defensieve discussies:** Je discussieert niet over wie er gisteren gelijk had; je bepaalt hoe prioriteitsconflicten morgen worden afgehandeld.\n* **Toont systemisch denken aan:** Je erkent dat verschuivende prioriteiten inherent invloed hebben op de capaciteit, en de oplossing is een expliciete afspraak over de afwegingen.\n* **Verlegt de focus naar resultaat:** Het eindigt met een duidelijk pad naar het afronden van het daadwerkelijke resultaat.\n\n---\n\n### Volgende stappen & suggesties\n\nHoe klinkt een van deze opties voor de communicatiestijl van je manager?\n\n- [Draft an email version of this follow-up](/#message=Help%20me%20format%20this%20into%20a%20formal%20email%20draft%20for%20my%20manager.)\n- [Practice a mock discussion for a 1-on-1](/#message=Let's%20roleplay%20the%201-on-1%20conversation%20with%20my%20manager.)"
+      },
+      "follow_up_1": {
+        "text": "Schrijf een formelere e-mail naar mijn manager over ons meningsverschil over de deadline"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe ik betere grenzen stel als prioriteiten snel veranderen"
+      },
+      "follow_up_3": {
+        "text": "Maak een taakherinnering om het vervolgbericht morgenochtend te sturen"
+      },
+      "follow_up_4": {
+        "text": "Help me het gesprek met mijn manager te oefenen via een rollenspel om zelfvertrouwen op te bouwen"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar artikelen over het effectief omgaan met veranderende prioriteiten op de werkvloer"
+      },
+      "follow_up_6": {
+        "text": "Controleer mijn reactie op onbedoelde defensieve taal of een defensieve toon"
+      }
+    },
+    "community_garden_planning_mindmap": {
+      "title": {
+        "text": "Mindmap planning buurttuin"
+      },
+      "summary": {
+        "text": "Breng de vrijwilligers, beplanting, het budget en de evenementen in kaart die nodig zijn om een buurttuin te starten."
+      },
+      "message_1": {
+        "text": "Zou je een mindmap kunnen maken voor het plannen van een buurttuin, met takken voor vrijwilligers, beplanting, budget en evenementen?"
+      },
+      "message_2": {
+        "text": "Hier is een gestructureerde mindmap die de vier kernpijlers van de planning van je buurttuin behandelt:\n\n```json\n{\"type\": \"mindmap\", \"embed_id\": \"02d212e1-3648-42f5-8c96-700bd34a5070\"}\n```\n\n### Belangrijke overwegingen voor de volgende stappen\n\n1. **Locatiebeoordeling:** Voordat je benodigdheden aanschaft, is het cruciaal om de bodemkwaliteit te controleren op verontreinigingen zoals lood en te bevestigen of er toegang is tot betrouwbare gemeentelijke of regenwateraansluitingen.\n2. **Input van de gemeenschap:** Door omwonenden in een vroeg stadium te betrekken, help je gezamenlijk beheer op te bouwen en zorg je ervoor dat de gewassen aansluiten bij de culinaire voorkeuren en culturele tradities van de buurt.\n\nWil je het volgende verkennen:\n- [Stel een checklist op voor de aanmelding van vrijwilligers](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)\n- [Maak een opzet voor een budget-sjabloon](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar subsidiemogelijkheden voor buurttuinen en lokale landbouwprogramma's"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe je een basistest van de bodem uitvoert voor buurttuinen"
+      },
+      "follow_up_3": {
+        "text": "Maak een sjabloon voor een startbudget en een materialenlijst voor een buurttuin"
+      },
+      "follow_up_4": {
+        "text": "Lijst met best practices voor het organiseren van buurtbijeenkomsten voor stadslandbouwprojecten"
+      },
+      "follow_up_5": {
+        "text": "Help me bij het maken van een functiebeschrijving voor vrijwilligers en een aanmeldingsformulier voor onze buurttuin"
+      },
+      "follow_up_6": {
+        "text": "Bespreek strategieën om de betrokkenheid van de gemeenschap na de initiële startfase te behouden"
+      }
+    },
+    "books_after_left_hand_of_darkness": {
+      "title": {
+        "text": "Boeken om te lezen na De linkerhand van het duister"
+      },
+      "summary": {
+        "text": "Vier doordachte sciencefiction-aanbevelingen voor lezers die hielden van Le Guins wereldopbouw en sociale vraagstukken."
+      },
+      "message_1": {
+        "text": "Ik heb genoten van De linkerhand van het duister vanwege de wereldopbouw en de sociale vraagstukken. Wat zou ik nu moeten lezen, en waarom?"
+      },
+      "message_2": {
+        "text": "[The Left Hand of Darkness](wiki:The_Left_Hand_of_Darkness) van [Ursula K. Le Guin](wiki:Ursula_K._Le_Guin) valt op omdat de wereldopbouw niet slechts een decor is; het fungeert als een antropologisch gedachte-experiment. Le Guin beschreef sciencefiction beroemd als een laboratorium om de vraag *\"wat als?\"* te stellen—waarbij ze onderzocht hoe menselijke relaties, instituten en vooroordelen veranderen wanneer een fundamentele variabele (zoals een vast biologisch geslacht) wordt weggenomen.\n\nHier zijn vier boeken die dit soort wereldopbouw en sociaal onderzoek voortzetten:\n\n---\n\n### 1. *The Dispossessed* door Ursula K. Le Guin\n* **De kernvraag:** Kan een samenleving ware vrijheid bereiken zonder bezit, en hoe overleeft wederzijdse verplichting institutionalisering?\n* **Waarom het past:** Dit verhaal speelt zich af in hetzelfde losse [Hainish Cycle](wiki:Hainish_Cycle)-universum en stelt twee naburige werelden tegenover elkaar: Anarres, een dorre maan gebaseerd op anarcho-syndicalisme en gemeenschappelijke solidariteit, en Urras, een planeet rijk aan grondstoffen die verdeeld is tussen competitief kapitalisme en autoritair socialisme. Waar *The Left Hand of Darkness* gender en persoonlijk vertrouwen (het concept *shifgrethor*) onderzocht, onderzoekt [The Dispossessed](wiki:The_Dispossessed) economie, taal en collectieve verantwoordelijkheid, en stelt de vraag hoe gemeenschappen het individu kunnen koesteren terwijl ze toegewijd blijven aan wederzijdse hulp.\n\n### 2. *Dawn* (Lilith's Brood / Xenogenesis-trilogie) door [Octavia E. Butler](wiki:Octavia_E._Butler)\n* **De kernvraag:** Wat definieert de menselijke natuur, en wat gebeurt er als overleving vereist dat we onze drang naar hiërarchie en biologische autonomie opgeven?\n* **Waarom het past:** Net als de Gethenianen van Le Guin hebben de buitenaardse Oankali drie geslachten (mannelijk, vrouwelijk en *ooloi*, die bemiddelen bij voortplanting en genetische uitwisseling). Butler daagt de aannames van de lezer over instemming, familiestructuren en samenwerking uit. Het verhaal vraagt zich af of de fatale fout van de mensheid de combinatie is van hoge intelligentie met een aangeboren drang naar hiërarchie—en of we kunnen evolueren voorbij dominantie.\n\n### 3. *Ancillary Justice* door [Ann Leckie](wiki:Ann_Leckie)\n* **De kernvraag:** Hoe geven imperiale instituten vorm aan identiteit, en hoe ziet bewustzijn eruit wanneer het gescheiden is van de individuele menselijke vorm?\n* **Waarom het past:** Leckie's Radch-imperium verdeelt de samenleving niet op basis van gender; in feite ontbreken gendermarkeringen in de dominante taal volledig en worden vrouwelijke voornaamwoorden universeel gebruikt. Naast de taalkundige parallel met Le Guins verkenning van perceptie, duikt het verhaal—verteld vanuit het perspectief van een kunstmatige intelligentie die voorheen verdeeld was over een oorlogsschip en duizenden menselijke \"ancillary\" lichamen—in medeplichtigheid, plicht en het individuele geweten binnen een expansionistisch imperium.\n\n### 4. *A Half-Built Garden* door [Ruthanna Emrys](wiki:Ruthanna_Emrys)\n* **De kernvraag:** Hoe kunnen menselijke gemeenschappen democratisch rentmeesterschap organiseren om ecologische ineenstorting te overleven, en hoe onderhandelen we met culturen die gebouwd zijn op fundamenteel andere waarden?\n* **Waarom het past:** Op een aarde in de jaren 2080, bestuurd door stroomgebiednetwerken en gemeenschappelijke ecologische coöperaties, vindt het eerste contact plaats met een buitenaardse soort die redding biedt via migratie. Het richt zich intensief op diplomatie, consensus in de gemeenschap, ouderschap en maatschappelijke besluitvorming, en biedt hetzelfde bewuste, antropologische tempo en de ethische nuance die in het werk van Le Guin te vinden zijn.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"next_read_focus\",\n  \"multiple\": false,\n  \"question\": \"Which dimension of The Left Hand of Darkness resonated most with you?\",\n  \"options\": [\n    {\n      \"id\": \"politics_economics\",\n      \"text\": \"Political philosophy, mutual aid, and contrasting economic systems (Lean towards The Dispossessed)\"\n    },\n    {\n      \"id\": \"biology_gender\",\n      \"text\": \"Biology, alien contact, and redefining kinship or consent (Lean towards Dawn)\"\n    },\n    {\n      \"id\": \"identity_language\",\n      \"text\": \"Language, perspective, and challenging imperial hierarchies (Lean towards Ancillary Justice)\"\n    },\n    {\n      \"id\": \"diplomacy_ecology\",\n      \"text\": \"Ecological stewardship, diplomacy, and community decision-making (Lean towards A Half-Built Garden)\"\n    }\n  ]\n}\n```\n\n---\n\n### Voorgestelde vervolgstappen\n* [Verken de thema's van The Dispossessed](/#message=Tell%20me%20more%20about%20the%20philosophical%20themes%20of%20The%20Dispossessed%20by%20Ursula%20K.%20Le%20Guin.)\n* [Vergelijk de relatie tussen Genly Ai en Estraven](/#message=Analyze%20the%20relationship%20between%20Genly%20Ai%20and%20Estraven%20in%20The%20Left%20Hand%20of%20Darkness.)"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar recensies en samenvattingen van De ontheemde"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe de romans uit de Hainish-cyclus met elkaar verbonden zijn"
+      },
+      "follow_up_3": {
+        "text": "Vind prijzen gewonnen door Het recht van de raderen van Ann Leckie"
+      },
+      "follow_up_4": {
+        "text": "Bespreek de rol van taal bij het vormen van politiek denken in speculatieve fictie"
+      },
+      "follow_up_5": {
+        "text": "Vind de beschikbaarheid in bibliotheken voor Dageraad van Octavia E. Butler"
+      },
+      "follow_up_6": {
+        "text": "Vergelijk de buitenaardse biologie van Gethenianen en Oankali"
+      }
+    },
+    "community_garden_budget_review": {
+      "title": {
+        "text": "Beoordeel een PDF-begroting van een buurttuin"
+      },
+      "summary": {
+        "text": "Lees een fictieve begroting om uitgaven, financiering en waarschijnlijk ontbrekende kosten te vergelijken."
+      },
+      "message_1": {
+        "text": "Kun je de grootste uitgaven, de totale financiering, het financieringstekort en de waarschijnlijk ontbrekende kosten in deze bijgevoegde PDF van het buurttuinbudget samenvatten?\n[!](embed:fictional-community-garden-budget-pdf-e1-146e58)"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c\",\"app_id\":\"pdf\",\"skill_id\":\"read\"}\n```\n\nHier is een beknopte samenvatting van de begroting in de bijgevoegde PDF voor de gemeenschappelijke tuin.\n\n## 1) Grootste uitgaven\nGerangschikt van hoog naar laag:\n\n1. **Hout en beslag voor verhoogde plantenbakken** — **€ 420**\n2. **Grond en compost** — **€ 300**\n3. **Gedeeld handgereedschap** — **€ 140**\n4. **Tuinslangen en koppelingen** — **€ 95**\n5. **Zaden en zaailingen** — **€ 85**\n6. **Benodigdheden voor het openingsevenement** — **€ 75**\n\n## 2) Totale geplande uitgaven\nOptelling van de vermelde uitgaven:\n\n- 420 + 300 + 85 + 140 + 95 + 75 = **€ 1.115**\n\n## 3) Totale verwachte financiering\nVermelde financieringsbronnen:\n\n- **Buurtsubsidie** — € 800\n- **Donaties van vrijwilligers** — € 200\n\nTotale financiering:\n\n- 800 + 200 = **€ 1.000**\n\n## 4) Financieringstekort\n- **Totale uitgaven:** € 1.115\n- **Totale financiering:** € 1.000\n- **Financieringstekort:** **€ 115**\n\n## 5) Waarschijnlijk ontbrekende kosten\nVoor een echte gemeenschappelijke tuin ontbreken in dit concept waarschijnlijk enkele veelvoorkomende posten:\n\n- **Voorbereiding van het terrein** — opruimen, egaliseren, afvalverwijdering\n- **Leverings-/transportkosten** — voor hout, grond, compost\n- **Opslag/beveiliging** — gereedschapskist, schuurtje, sloten\n- **Kosten voor watertoevoer** — aansluiting, metergebruik, verbruikskosten\n- **Beschermingsmiddelen** — handschoenen, kruiwagen, dekzeilen\n- **Omheining/bebording** — om percelen te beschermen en buren te informeren\n- **Lopend onderhoud** — vervanging van gereedschap, extra grond, ongediertebestrijding\n- **Verzekeringen/vergunningen** — indien vereist door de gemeente of grondeigenaar\n- **Onvoorziene kosten** — meestal nuttig omdat kleine gemeenschapsprojecten vaak boven het budget uitkomen\n\n## Korte interpretatie\nDe begroting is **bijna in evenwicht**, maar er is al een **tekort van € 115** nog voordat de waarschijnlijk ontbrekende kosten zijn meegerekend. In de praktijk heeft het project dus mogelijk het volgende nodig:\n- wat extra fondsenwerving,\n- gedoneerde materialen/gereedschappen,\n- of een verkleining van de eerste fase.\n\nAls je wilt, kan ik dit ook omzetten in:\n- een **samenvatting van één alinea voor een subsidieoverleg**, of\n- een **overzichtelijke begrotingstabel met percentages per categorie**.\n---\n*⚠️ Dit is uitsluitend educatieve informatie en geen financieel advies. Raadpleeg een gekwalificeerde financiële professional of belastingadviseur voor financiële beslissingen.*"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar lokale subsidies en financieringsmogelijkheden voor buurttuinen"
+      },
+      "follow_up_2": {
+        "text": "Vergelijk verschillende fondsenwervingsideeën om het financieringstekort te dichten"
+      },
+      "follow_up_3": {
+        "text": "Zoek naar gidsen voor duurzame stadslandbouw en buurttuinen"
+      },
+      "follow_up_4": {
+        "text": "Maak een samenvatting van één alinea voor een subsidieoverleg"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar opties voor gereedschapsopslag en beveiliging voor buurttuinen"
+      },
+      "follow_up_6": {
+        "text": "Lijst met aanbevolen onvoorziene reserves voor kleine gemeenschapsprojecten"
+      }
+    },
+    "berlin_english_speaking_gp_appointments": {
+      "title": {
+        "text": "Vind een Engelssprekende huisarts in Berlijn"
+      },
+      "summary": {
+        "text": "Vind afspraakopties met eerlijke verzekeringsgegevens en links naar praktijken."
+      },
+      "message_1": {
+        "text": "Ik heb volgende week een afspraak nodig bij een Engelssprekende huisarts in Berlijn. Vergelijk de vroegste opties, toon hun afsprakenkaarten en vermeld de verzekeringsdekking alleen als de boekingsvermelding dit bevestigt. Als de dekking onduidelijk is, geef dit dan aan."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\nHier zijn de vroegste opties voor Engelssprekende huisartsen in Berlijn binnen de komende 7 dagen die ik heb gevonden. Ik vermeld de verzekeringsdekking alleen als de vermelding dit zelf aangeeft.\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**Vroegste opties volgende week**\n1. **Ma 12 okt, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - Adres: Albert-Einstein-Straße 2, 12489 Berlin\n   - Type afspraak: Erstuntersuchung Neupatient:in\n   - Getoonde talen: Duits, Engels\n   - **Verzekering:** privé *(bevestigd door vermelding)*\n\n2. **Ma 12 okt, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - Adres: Kapweg 5, 13405 Berlin\n   - Type afspraak: Erstuntersuchung Neupatient:in\n   - Getoonde talen: Engels\n   - **Verzekering:** privé *(bevestigd door vermelding)*\n\n3. **Ma 12 okt, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - Adres: Stargarder Straße 69, 10437 Berlin\n   - Type afspraak: Akutsprechstunde\n   - Getoonde talen: Duits, Engels\n   - **Verzekering:** onduidelijk *(de vermelding bevestigt dit niet)*\n\n4. **Ma 12 okt, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - Adres: Müllerstraße 36, 13353 Berlin\n   - Type afspraak: Erstuntersuchung Neupatient:in\n   - Getoonde talen: Duits, Engels\n   - **Verzekering:** onduidelijk *(de vermelding bevestigt dit niet)*\n\n5. **Ma 12 okt, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - Adres: Wallstraße 16, 10179 Berlin\n   - Type afspraak: Erstuntersuchung Neupatient:in\n   - Getoonde talen: Duits, Engels\n   - **Verzekering:** onduidelijk *(de vermelding bevestigt dit niet)*\n\nEen paar opmerkingen:\n- Ik heb de twee eerdere opties op **9–10 okt** uitgesloten van de bovenstaande vergelijking, omdat je specifiek naar **volgende week** vroeg.\n- Deze resultaten lijken afkomstig te zijn van Doctolib-vermeldingen; Jameda-dekking werd niet ondersteund in deze zoekresultaten.\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\nAls je wilt, kan ik vervolgens:\n- dit beperken tot **alleen de publieke verzekering** waar bevestigd, of\n- een korte shortlist maken op basis van **wijk / afstand tot jouw locatie**.\n---\n*⚠️ Dit is uitsluitend ter informatie en geen medisch advies. Raadpleeg je arts voor medische beslissingen.*"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar afspraken bij huisartsen met publieke verzekering in Mitte"
+      },
+      "follow_up_2": {
+        "text": "Filter de afspraken om alleen publieke verzekeringen te tonen"
+      },
+      "follow_up_3": {
+        "text": "Vind Engelssprekende artsen in de buurt van de wijk Prenzlauer Berg"
+      },
+      "follow_up_4": {
+        "text": "Verfijn de opties op buurt en afstand"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar afspraken bij medisch specialisten in Berlijn"
+      },
+      "follow_up_6": {
+        "text": "Leg uit hoe je deze doktersafspraken online kunt boeken"
+      }
+    },
+    "community_garden_welcome_melody": {
+      "title": {
+        "text": "Een melodie voor een welkom in de buurttuin"
+      },
+      "summary": {
+        "text": "Maak een rustige instrumentale melodie voor een welkomstvideo van een buurttuin."
+      },
+      "message_1": {
+        "text": "Zou je een korte, rustige instrumentale melodie kunnen maken voor een welkomstvideo van een buurttuin, zonder zang?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nIk maak nu die rustige instrumentale track voor de welkomstvideo van je buurttuin. Deze wordt momenteel verwerkt en verschijnt hier zodra hij klaar is.\n\n[Buurttuinen](wiki:Community_gardening) zijn een prachtige manier om buren samen te brengen en de lokale biodiversiteit te bevorderen. Terwijl de muziek wordt gegenereerd, kan ik je helpen bij het plannen van het verhaal of de visuele flow van de welkomstvideo?\n\n- [Maak een opzet voor de welkomstvideo](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [Brainstorm over inleidende tekst of voice-over tips](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar lokale buurtuin-evenementen en workshops"
+      },
+      "follow_up_2": {
+        "text": "Help me een storyboard te maken voor de tuinvideo"
+      },
+      "follow_up_3": {
+        "text": "Vind stockvideo's van planten en bloemen"
+      },
+      "follow_up_4": {
+        "text": "Schrijf welkomstteksten voor de voice-over van de buurtvideo"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar tuiniertips voor buurtprojecten"
+      },
+      "follow_up_6": {
+        "text": "Suggereer ideeën voor activiteiten tijdens de openingsdag van de buurttuin"
+      }
+    },
+    "mastodon_public_post_themes": {
+      "title": {
+        "text": "Thema's in de openbare berichten van Mastodon"
+      },
+      "summary": {
+        "text": "Vat de thema's in recente berichten van het officiële Mastodon-account samen en bekijk representatieve voorbeelden."
+      },
+      "message_1": {
+        "text": "Kun je de belangrijkste thema's in recente openbare berichten van het officiële Mastodon-account op mastodon.social samenvatten, met links naar een paar voorbeelden?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nHet verzoek om recente openbare berichten van @Mastodon (`@Mastodon@mastodon.social`) op te halen wordt momenteel nog op de achtergrond uitgevoerd en zal de chat bijwerken zodra het klaar is.\n\nTerwijl we wachten tot de feed is geladen:\n- [Bekijk recente Mastodon-blogaankondigingen](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Bekijk de Mastodon-roadmap](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
+      },
+      "message_3": {
+        "text": "De berichten zijn nu geladen. Kun je de belangrijkste thema's samenvatten en linken naar drie representatieve berichten?"
+      },
+      "message_4": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nHet officiële @Mastodon-account op `mastodon.social` belicht verschillende kernthema's in zijn recente openbare berichten:\n\n### 1. Belangrijke productevolutie & gebruikersonderzoek\nEen belangrijk aandachtspunt is de basis voor **Mastodon 5.0**, volgend op hun community-brede \"Discovery Week\"-onderzoeksinitiatief onder leiding van hun ontwerpteam. Het team deelde voorbeelden van een vernieuwde, rustigere interface en een bijgewerkte tekstverwerker die bedoeld zijn om het platform toegankelijker en gebruiksvriendelijker te maken.\n\n### 2. Community-beheer, beleid & personeelsupdates\nMastodon communiceert regelmatig over updates op het gebied van beheer en beleid, met name door verduidelijkende richtlijnen uit te brengen over hun **handelsmerkbeleid** als directe reactie op feedback van fediverse-beheerders en -ontwikkelaars. Ze kondigden ook belangrijke overgangen in het leiderschap aan en bedankten vertrekkend community-directeur Hannah Aubry voor haar bijdragen.\n\n### 3. Server-spotlights & fediverse-ecosysteem\nHet account promoot actief onafhankelijke fediverse-instanties en infrastructuurinitiatieven — zoals het uitlichten van themaservers (zoals Earth.Law) en het versterken van sectoronderzoeken zoals het IFTAS-operationeel onderzoek.\n\n### 4. Community-merchandise & projectfinanciering\nTer ondersteuning van de voortdurende open-source ontwikkeling delen ze updates over officiële community-merchandise, waaronder de release van nieuwe pluchen mascottes (\"Plushtodons\").\n\n---\n\n### Drie representatieve berichten\n\n- **Productroadmap & visuele vernieuwing:** [Aankondiging voorproefje Mastodon 5.0](embed:mastodon-after-publishing-D8d) — deelt een preview van de komende 5.0-lay-out en tekstverwerker op basis van de onderzoeksresultaten.\n- **Beleid & community-feedback:** [Update richtlijnen handelsmerkbeleid](embed:mastodon-today-we-YqD) — beschrijft de herziene handelsmerkregels die zijn aangepast op basis van input van de community.\n- **Projectondersteuning & merchandise:** [Aankondiging pre-orders Plushtodon](embed:mastodon-new-plushtodon-A57) — kondigt nieuwe officiële pluchen mascottes aan als een manier voor supporters om de ontwikkeling te financieren.\n\n---\n\nWil je een specifiek onderwerp verder verkennen?\n- [Lees meer over de functies van Mastodon 5.0](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [Bekijk de richtlijnen voor handelsmerken](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar recente Mastodon-blogaankondigingen"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe gedecentraliseerde moderatie werkt op Mastodon"
+      },
+      "follow_up_3": {
+        "text": "Zoek naar updates over de ontwikkeling van Mastodon 5.0"
+      },
+      "follow_up_4": {
+        "text": "Vergelijk de wijzigingen in Mastodon 5.0 met eerdere releases"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar discussies in de community over servermoderatie op het Fediverse"
+      },
+      "follow_up_6": {
+        "text": "Lijst de belangrijkste uitdagingen op voor open-sourceplatforms"
+      }
+    },
+    "adjacent_career_portfolio_experiments": {
+      "title": {
+        "text": "Test twee carrièrepaden vanuit Customer Support"
+      },
+      "summary": {
+        "text": "Vergelijk technical writing en support operations met praktische portfolio-experimenten van een maand en interviewvragen."
+      },
+      "message_1": {
+        "text": "Ik werk in software customer support en schrijf graag handleidingen en verbeter graag ticket-workflows. Welke twee aangrenzende rollen zou ik kunnen testen voordat ik op een nieuwe baan solliciteer? Stel kleine portfolio-experimenten voor die ik de komende maand kan doen en vragen die ik aan mensen in die rollen kan stellen."
+      },
+      "message_2": {
+        "text": "Gezien je achtergrond in [customer support](wiki:Customer_support) en het feit dat je geniet van handleidingen en ticket-workflows, vallen er twee natuurlijke aangrenzende rollen op:\n\n1. **Technical Writer / Customer Education Specialist**\n   *Focus:* Het organiseren van [informatiearchitectuur](wiki:Information_architecture), het vertalen van complexe softwarefuncties naar duidelijke gebruikersdocumentatie, het maken van handleidingen voor probleemoplossing en het onderhouden van self-service kennisbanken.\n2. **Support Operations Specialist (Support Ops)**\n   *Focus:* Het beheren van support-ticketingtools (zoals [Zendesk](wiki:Zendesk), Freshdesk of Jira Service Management), het analyseren van supportstatistieken, het optimaliseren van ticket-routing, het controleren van macro's en het automatiseren van repetitieve processen.\n---\n### 30-daagse portfolio-experimenten\n\nJe hoeft niet meteen van baan te veranderen om 'proof of work' op te bouwen. Je kunt deze laagdrempelige experimenten direct binnen je huidige rol uitvoeren of als onafhankelijke casestudy's aanpakken:\n\n#### Voor Technical Writing / Customer Education\n* **De \"Top 5 Tickets\"-herschrijving:** Identificeer 3 tot 5 veelvoorkomende supporttickets waarbij gebruikers steeds vastlopen door een onduidelijke UI of vage bestaande handleidingen.\n* **Het resultaat:** Schrijf een uitgebreide, modulaire troubleshooting-gids of een how-to-artikel. Deel het in met duidelijke koppen, vereisten, stapsgewijze instructies en screenshots of diagrammen met aantekeningen.\n* **Portfolio-statistiek:** Houd bij of het aantal tickets met dit label afneemt na publicatie, of meet de feedback van het interne team over de snelheid van de oplossing.\n\n#### Voor Support Operations\n* **Audit voor macro- en routeringsefficiëntie:** Analyseer de bestaande macro-bibliotheek of de routeringsregels voor tickets van je team.\n* **Het resultaat:** Maak een voorstel voor procesverbetering van 1 à 2 pagina's waarin je het volgende laat zien:\n  1. Geïdentificeerde overbodige of verouderde macro's.\n  2. Een gestroomlijnd categorisatieschema of een opzet voor geautomatiseerde triggers.\n  3. Een schatting van de tijdsbesparing per agent per week.\n* **Portfolio-statistiek:** Presenteer dit aan je teamlead of voer het zelf door als je admin-toegang hebt, en leg de nulmeting en de uiteindelijke situatie vast.\n---\n### Vragen voor informatieve gesprekken\n\nWanneer je contact opneemt met professionals op LinkedIn of intern:\n\n#### Voor Technical Writers\n* *\"Hoe vind je de balans tussen schrijven voor eindgebruikers en schrijven voor interne technische teams of engineers?\"*\n* *\"Hoe ziet je samenwerkingscyclus eruit wanneer productfuncties snel veranderen voordat de documentatie is bijgewerkt?\"*\n* *\"Welke authoring tools en docs-as-code workflows worden momenteel het meest gewaardeerd bij het aannemen van nieuw personeel?\"*\n\n#### Voor Support Operations Specialists\n* *\"Hoeveel van je dag besteed je aan het configureren van tools en integraties versus het analyseren van data en trends in ticketvolumes?\"*\n* *\"Wat is de meest gemaakte fout die teams maken met automatisering bij het opschalen van support-workflows?\"*\n* *\"Welke administratieve certificeringen (bijv. Zendesk, Salesforce) of technische vaardigheden maakten het grootste verschil bij het krijgen van je baan?\"*\n---\n### Je koers verkennen (Vraag 1 van 5)\n\nOm te helpen bepalen welk pad het beste aansluit bij je doelen op de lange termijn en je dagelijkse voorkeuren, gaan we kijken naar je belangrijkste werkstijl en interesses.```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"adjacent_role_preference\",\n  \"multiple\": false,\n  \"question\": \"When you reflect on writing guides versus improving workflows, which type of problem energizes you more?\",\n  \"custom_option_id\": \"other_focus\",\n  \"custom_placeholder\": \"Describe what you enjoy most or any specific balance...\",\n  \"options\": [\n    {\n      \"id\": \"content_pedagogy\",\n      \"text\": \"Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education).\"\n    },\n    {\n      \"id\": \"systems_tooling\",\n      \"text\": \"Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps).\"\n    },\n    {\n      \"id\": \"hybrid_balance\",\n      \"text\": \"An even split between both; I want to improve internal systems while also authoring the guides.\"\n    },\n    {\n      \"id\": \"other_focus\",\n      \"text\": \"Something else / A different aspect entirely.\"\n    }\n  ]\n}\n```**Aanbeveling:** Als je de voorkeur geeft aan ongestoorde focus, heldere communicatie en UX-empathie, biedt het Technical Writing-traject over het algemeen meer autonomie. Als je liever problemen oplost rondom toolbeheer, metrics en systeemlogica, biedt Support Operations een snellere opstap naar operationeel leiderschap en product operations.\n---\n**Mogelijke volgende stappen:**\n- [Stel een outreach-bericht op voor informatieve gesprekken](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)\n- [Maak een opzet voor een audit-template voor support-workflows](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)\n---\n*⚠️ Dit is uitsluitend educatieve informatie en geen professioneel psychologisch advies. Raadpleeg bij psychische klachten een gekwalificeerde therapeut of hulpverlener. Als je in een crisis verkeert, neem dan onmiddellijk contact op met de hulpdiensten of een crisislijn.*"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar remote technical writer-vacatures en -vereisten"
+      },
+      "follow_up_2": {
+        "text": "Schrijf een beknopt bericht om een technical writer te benaderen voor een interview"
+      },
+      "follow_up_3": {
+        "text": "Maak een takenlijst voor je portfolio-experiment van dertig dagen"
+      },
+      "follow_up_4": {
+        "text": "Maak een stappenplan voor de audit van je support-workflow"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar certificeringscursussen en vereisten voor support operations"
+      },
+      "follow_up_6": {
+        "text": "Vergelijk de dagelijkse verantwoordelijkheden en groeimogelijkheden van beide rollen"
+      }
+    },
+    "bayes_theorem_quick_quiz": {
+      "title": {
+        "text": "Leer de stelling van Bayes met een korte quiz"
+      },
+      "summary": {
+        "text": "Begrijp a-priori- en a-posteriori-kansen aan de hand van een concreet voorbeeld en test vervolgens je intuïtie met vervolgvragen."
+      },
+      "message_1": {
+        "text": "Ik heb volgende week een statistiekexamen. Kun je de stelling van Bayes uitleggen aan de hand van een alledaags voorbeeld en me daarna overhoren?"
+      },
+      "message_2": {
+        "text": "### Wat is de stelling van Bayes?\n\n[De stelling van Bayes](wiki:Bayes'_theorem) is een wiskundige regel voor het bijwerken van de waarschijnlijkheid van een gebeurtenis of hypothese ($A$) wanneer je nieuw bewijs ($B$) waarneemt.\n\nIn symbolen:\n\n$$P(A|B) = \\frac{P(B|A) \\cdot P(A)}{P(B)}$$\n\nDit is wat elk onderdeel vertegenwoordigt:\n* **$P(A)$ — [Prior-waarschijnlijkheid](wiki:Prior_probability):** Je initiële schatting van hoe waarschijnlijk $A$ is voordat je nieuwe gegevens ziet (de basislijn of het basispercentage).\n* **$P(B|A)$ — Likelihood:** De waarschijnlijkheid dat je bewijs $B$ waarneemt als hypothese $A$ daadwerkelijk waar is.\n* **$P(B)$ — [Marginale likelihood](wiki:Marginal_likelihood):** De totale waarschijnlijkheid van het waarnemen van bewijs $B$ over alle mogelijke scenario's.\n* **$P(A|B)$ — [Posterior-waarschijnlijkheid](wiki:Posterior_probability):** De bijgewerkte waarschijnlijkheid van $A$, gegeven dat bewijs $B$ heeft plaatsgevonden.\n\n---\n\n### Een alledaags voorbeeld: De medische sneltest\n\nStel je voor dat je een sneltest doet voor een zeldzame aandoening:\n\n1. **Basispercentage (Prior):** Slechts **$1\\%$** van de mensen in jouw populatie heeft deze aandoening daadwerkelijk:\n   $$P(\\text{Aandoening}) = 0.01, \\quad P(\\text{Gezond}) = 0.99$$\n2. **Testgevoeligheid (Likelihood):** Als iemand de aandoening heeft, is de test in $90\\%$ van de gevallen positief:\n   $$P(\\text{Positief} \\mid \\text{Aandoening}) = 0.90$$\n3. **Vals-positiefpercentage:** Als iemand het niet heeft, geeft de test in $10\\%$ van de gevallen onterecht een positieve uitslag:\n   $$P(\\text{Positief} \\mid \\text{Gezond}) = 0.10$$\n\nStel nu dat **jouw test positief is**. Wat is de kans dat je de aandoening daadwerkelijk hebt?\n\n#### De formule toepassen:\nBereken eerst de totale kans op een positieve test, $P(\\text{Positief})$:\n$$\\begin{aligned}\nP(\\text{Positief}) &= P(\\text{Positief} \\mid \\text{Aandoening}) \\cdot P(\\text{Aandoening}) + P(\\text{Positief} \\mid \\text{Gezond}) \\cdot P(\\text{Gezond}) \\\\\n&= (0.90 \\cdot 0.01) + (0.10 \\cdot 0.99) \\\\\n&= 0.009 + 0.099 = 0.108\n\\end{aligned}$$\n\nBereken nu je posterior-waarschijnlijkheid:\n$$P(\\text{Aandoening} \\mid \\text{Positief}) = \\frac{0.009}{0.108} \\approx 8,3\\%$$\n\nZelfs met een test die voor $90\\%$ nauwkeurig is, is de kans dat je de aandoening daadwerkelijk hebt slechts ongeveer **$8,3\\%$**. Omdat de aandoening zeldzaam is, overtreffen vals-positieven uit de gezonde meerderheid gemakkelijk de echt-positieven uit de zieke minderheid.\n\n---\n\n### Korte controle\n\nLaten we je begrip van de termen testen:\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"bayes_components_quiz_1\",\n  \"multiple\": false,\n  \"question\": \"In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?\",\n  \"options\": [\n    { \"id\": \"opt_pa\", \"text\": \"P(A) — Prior probability\" },\n    { \"id\": \"opt_pba\", \"text\": \"P(B|A) — Likelihood\" },\n    { \"id\": \"opt_pab\", \"text\": \"P(A|B) — Posterior probability\" },\n    { \"id\": \"opt_pb\", \"text\": \"P(B) — Marginal probability of evidence\" }\n  ]\n}\n```"
+      },
+      "message_3": {
+        "text": "Ik denk dat P(A) de prior-waarschijnlijkheid is, de basiskans waar je mee begint. Klopt dat? Kun je me nog een korte vraag geven om te proberen?"
+      },
+      "message_4": {
+        "text": "Dat klopt precies. $P(A)$ is de **prior probability**—je basislijn of beginovertuiging voordat je rekening houdt met nieuwe waarnemingen of testresultaten. In ons voorbeeld van de medische screening was dat het percentage van $1\\%$ in de algemene bevolking.\n\n---\n\n### Uitdagingsvraag: Intuïtiecheck\n\nHier is een kort scenario om je intuïtie te testen over hoe de stelling van Bayes in de praktijk werkt:\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"bayes_intuition_quiz_2\",\n  \"multiple\": false,\n  \"question\": \"Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?\",\n  \"options\": [\n    {\n      \"id\": \"opt_very_high\",\n      \"text\": \"The posterior probability is close to 100% because alarms are specifically built to detect break-ins.\"\n    },\n    {\n      \"id\": \"opt_counterintuitively_low\",\n      \"text\": \"The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins.\"\n    },\n    {\n      \"id\": \"opt_equal_to_prior\",\n      \"text\": \"The posterior probability remains completely unchanged regardless of whether the alarm sounds.\"\n    },\n    {\n      \"id\": \"opt_independent\",\n      \"text\": \"The posterior probability depends only on alarm volume, not the baseline frequency of burglaries.\"\n    }\n  ]\n}\n```\n\n***\n\n**Voorgestelde vervolgstappen:**\n* [Bereken stap voor stap een volledig numeriek Bayes-probleem](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)\n* [Bekijk continue Bayes en geconjugeerde priors](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)"
+      },
+      "follow_up_1": {
+        "text": "Bereken een aangepast Bayes-theorema kansberekeningsvraagstuk"
+      },
+      "follow_up_2": {
+        "text": "Leg het verschil uit tussen frequentistische en Bayesiaanse statistiek"
+      },
+      "follow_up_3": {
+        "text": "Zoek naar oefenvragen voor statistiekexamens over kansberekening"
+      },
+      "follow_up_4": {
+        "text": "Loop door een ander voorbeeld van het Bayes-theorema met meerdere uitkomsten"
+      },
+      "follow_up_5": {
+        "text": "Vind online videotutorials die het Bayes-theorema visueel uitleggen"
+      },
+      "follow_up_6": {
+        "text": "Test me op het berekenen van de posterior-kans met getallen"
+      }
+    },
+    "community_garden_calendar_invitation": {
+      "title": {
+        "text": "Agenda-uitnodiging gemeenschapstuin"
+      },
+      "summary": {
+        "text": "Maak een importeerbare agenda-uitnodiging met een Berlijnse tijdzone, een agenda voor het evenement en een herinnering voor een plantsessie met vrijwilligers."
+      },
+      "message_1": {
+        "text": "Zou je een importeerbare agenda-uitnodiging kunnen maken voor een fictieve plantsessie met vrijwilligers in een gemeenschapstuin op zaterdag 17 oktober 2026, van 10:00 tot 12:00 in Europe/Berlin? Gebruik Gartenweg 12, Berlijn als fictief voorbeeldadres, voeg een korte agenda en een herinnering van 24 uur toe, en geef me de iCalendar-tekst om op te slaan als een .ics-bestand."
+      },
+      "message_2": {
+        "text": "Hier zijn de standaard [iCalendar](wiki:ICalendar) (`.ics`) gegevens voor je plantsessie in de gemeenschapstuin. Het bevat de tijdzonedefinitie voor Europe/Berlin, evenementdetails, een agenda en een herinnering (VALARM) die 24 uur van tevoren wordt weergegeven.\n\nSla de onderstaande inhoud op in een tekstbestand met de naam `community_garden_planting.ics` en importeer het in je agendaprogramma (zoals Google Calendar, Apple Calendar of Microsoft Outlook).\n\n```json\n{\"type\": \"code\", \"embed_id\": \"6deff7cb-4e99-4dd3-9052-3985e09a9cc9\"}\n```\n\n### Overzicht van het evenement\n* **Datum & tijd:** Zaterdag 17 oktober 2026, 10:00 – 12:00 CEST\n* **Locatie:** Gartenweg 12, Berlijn\n* **Herinnering:** 1 dag van tevoren (`TRIGGER:-P1D`)\n\n***\n\n**Voorgestelde vervolgstappen:**\n* [Schrijf een concept-e-mail voor vrijwilligers](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)\n* [Bereid een checklist voor planten en gereedschap voor](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)"
+      },
+      "follow_up_1": {
+        "text": "Zoek online naar tips voor vrijwilligerswerk in de gemeenschapstuin"
+      },
+      "follow_up_2": {
+        "text": "Schrijf een vriendelijke e-mail om vrijwilligers uit te nodigen voor de plantsessie"
+      },
+      "follow_up_3": {
+        "text": "Vind komende tuinierworkshops in Berlijn"
+      },
+      "follow_up_4": {
+        "text": "Maak een uitgebreide gereedschapschecklist voor het tuinierevenement"
+      },
+      "follow_up_5": {
+        "text": "Zoek online naar beginnersvriendelijke vaste planten"
+      },
+      "follow_up_6": {
+        "text": "Leg uit hoe je .ics-bestanden importeert in Google Calendar"
+      }
+    },
+    "net_cash_from_supplied_balances": {
+      "title": {
+        "text": "Netto kasmiddelen uit opgegeven saldi"
+      },
+      "summary": {
+        "text": "Bereken de netto kasmiddelen op basis van drie door de gebruiker verstrekte saldi en geef uitleg over de betaalrekening, spaarrekening en creditcardschuld."
+      },
+      "message_1": {
+        "text": "Hier zijn mijn huidige saldi van de afschriften die ik voor me heb liggen: betaalrekening € 1.850, spaarrekening € 4.200, openstaand creditcardsaldo € 640. Kun je mijn netto kaspositie laten zien en uitleggen wat elk getal betekent?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"04818ed0-8e67-4cb8-9736-45d5c35d393a\",\"app_id\":\"math\",\"skill_id\":\"calculate\"}\n```\n\n### Je netto kaspositie\n\nJe **netto kaspositie** is **€5.410**.\n\nHier is de uitsplitsing:\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"3db1b137-abac-48a5-8c18-31ef7821ec04\"}\n```\n\n---\n\n### Wat elk getal betekent\n\n1. **Betaalrekening (€1.850): Operationeel geld (werkkapitaal)**\n   * Dit is je meest liquide [geldmiddelen](wiki:Cash)pool, bedoeld om regelmatige terugkerende kosten voor levensonderhoud te dekken (huur/hypotheek, nutsvoorzieningen, boodschappen, abonnementen).\n   * Het hebben van €1.850 biedt een onmiddellijke buffer om roodstandkosten of gemiste betalingsdeadlines te voorkomen terwijl je wacht op binnenkomend inkomen.\n\n2. **Spaarrekening (€4.200): Veiligheidsmarge & reserves**\n   * Dit vertegenwoordigt geparkeerd geld bedoeld voor een [noodfonds](wiki:Emergency_fund) of financiële doelen op de middellange termijn.\n   * In tegenstelling tot de betaalrekening is dit geld apart gezet om dagelijkse uitgaven te ontmoedigen. Meestal levert het wat rente op, terwijl het gemakkelijk toegankelijk blijft als er onverwachte kosten zijn.\n\n3. **Creditcardsaldo (€640): Kortlopende [schuld](wiki:Debt)**\n   * Dit is een schuld aan de kaartuitgever. Als deze volledig wordt betaald voordat de respijtperiode van het afschrift afloopt, is er geen rente verschuldigd.\n   * Als het saldo echter na de vervaldatum blijft staan, rekenen creditcards over het algemeen een hoge rente (JKP), wat je netto kaspositie snel uitholt.\n\n4. **Netto kaspositie (€5.410): Werkelijke onmiddellijke liquiditeit**\n   * Deze maatstaf meet wat er aan liquide middelen overblijft als je je huidige kortlopende creditcardschuld onmiddellijk zou aflossen.\n   * Een positief cijfer geeft aan dat je volledig liquide en solvabel bent ten opzichte van de huidige kaartverplichtingen, met €5.410 resterend in reserve.\n\n---\n\n### Voorgestelde vervolgstappen\n\nWil je ontdekken hoe dit in je bredere financiële plan past?\n\n* [Stel een plan op voor een noodfonds](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)\n* [Maak een maandelijks budgetkader](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)\n---\n*⚠️ Dit is uitsluitend educatieve informatie en geen financieel advies. Raadpleeg een gekwalificeerde financiële professional of belastingadviseur voor financiële beslissingen.*"
+      },
+      "follow_up_1": {
+        "text": "Zoek online naar aanbevolen benchmarks voor noodfondsen"
+      },
+      "follow_up_2": {
+        "text": "Leg het verschil uit tussen netto contanten en nettovermogen"
+      },
+      "follow_up_3": {
+        "text": "Bereken hoe lang mijn huidige spaargeld de maandelijkse lasten dekt"
+      },
+      "follow_up_4": {
+        "text": "Lijst met strategieën om kortlopende creditcardschulden snel af te lossen"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar tips voor het verlagen van de rente op creditcards"
+      },
+      "follow_up_6": {
+        "text": "Help me beoordelen of mijn spaargeld van € 4.200 een toereikend noodfonds is"
+      }
+    },
+    "community_garden_volunteer_onboarding": {
+      "title": {
+        "text": "Onboarding vrijwilligers gemeenschapstuin"
+      },
+      "summary": {
+        "text": "Maak een deelbare gids van één pagina voor vrijwilligers met taken voor de eerste dag, basisveiligheid en contactpersonen voor hulp."
+      },
+      "message_1": {
+        "text": "Maak een deelbaar onboarding-document van één pagina voor vrijwilligers van een gemeenschapstuin. Houd het onder de 220 woorden. Behandel aankomst, taken voor de eerste dag, veiligheid en hoe je om hulp kunt vragen. Dit is een algemeen sjabloon, dus gebruik placeholders waar tuin-specifieke contacten of locaties nodig zijn."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"document\", \"embed_id\": \"f40fc42f-df5d-4116-bba3-3500b1805eb5\"}\n```\n\nHet onboarding-document is hierboven gegenereerd in standaard `.docx`-formaat met placeholders (zoals `[Coordinator Name]`, `[Check-In Location]` en `[Phone Number]`) voor eenvoudige aanpassing. Met minder dan 170 woorden past het gemakkelijk op één printbare pagina.\n\n***\n\n### Voorgestelde volgende stappen:\n1. [Pas placeholders aan met de specifieke details van je tuin](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)\n2. [Voeg een korte gedragscode voor vrijwilligers of een sectie voor toestemming voor foto's toe](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar best practices voor het beheer van vrijwilligers in gemeenschapstuinen"
+      },
+      "follow_up_2": {
+        "text": "Help me een sectie met een gedragscode voor vrijwilligers toe te voegen"
+      },
+      "follow_up_3": {
+        "text": "Maak een takenlijst voor het organiseren van onze introductiedag voor vrijwilligers"
+      },
+      "follow_up_4": {
+        "text": "Leg uit hoe je een verwelkomende checklist voor de introductie opstelt"
+      },
+      "follow_up_5": {
+        "text": "Zoek online naar sjablonen voor handboeken voor vrijwilligers"
+      },
+      "follow_up_6": {
+        "text": "Maak een lijst met essentiële veiligheidsrichtlijnen voor openbare buitenruimtes"
+      }
+    },
+    "voice_note_transcription_action_item": {
+      "title": {
+        "text": "Een korte spraaknotitie transcriberen"
+      },
+      "summary": {
+        "text": "Transcribeer een korte opname en controleer of deze een te volgen taak bevat."
+      },
+      "message_1": {
+        "text": "Zou je deze korte opname kunnen transcriberen en me kunnen vertellen of er een actiepunt in staat?\n[!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)"
+      },
+      "message_2": {
+        "text": "Hier is de transcriptie van je opname:\n\n> *\"Real-time transcription is working correctly in OpenMates.\"*\n\n### Bevat het een actiepunt?\n**Nee.** De opname is simpelweg een informatieve statusupdate die bevestigt dat de transcriptiefunctie werkt. Er worden geen taken, deadlines of gevraagde vervolgacties genoemd.\n\n---\n\n**Volgende stappen die je kunt overwegen:**\n- Als je een opname wilt testen die wel taken bevat, deel dan gerust nog een spraaknotitie!"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar apps voor het transcriberen van spraakmemo's met functies voor taakextractie"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe automatische detectie van actiepunten werkt in AI-modellen"
+      },
+      "follow_up_3": {
+        "text": "Transcribeer een ander audiobestand om taakdetectie te testen"
+      },
+      "follow_up_4": {
+        "text": "Lijst met tips voor het opnemen van duidelijke spraaknotities met uitvoerbare stappen"
+      },
+      "follow_up_5": {
+        "text": "Maak een nieuwe taak aan voor het beoordelen van functies voor spraakopname"
+      },
+      "follow_up_6": {
+        "text": "Vergelijk verschillende methoden om gesproken ideeën om te zetten in georganiseerde taken"
+      }
     }
   },
   "focus_modes": {
@@ -20881,6 +21475,120 @@
       },
       "restore_failed": {
         "text": "Herstellen van de geselecteerde definitie mislukt."
+      }
+    }
+  },
+  "daily_inspiration_fallback": {
+    "antikythera": {
+      "phrase": {
+        "text": "Een oud scheepswrak bevatte een machine die de hemel voorspelde."
+      },
+      "title": {
+        "text": "Het mechanisme van Antikythera"
+      },
+      "description": {
+        "text": "Een oud-Grieks handbediend model van de kosmos."
+      },
+      "assistant_response": {
+        "text": "Het mechanisme van Antikythera gebruikte bronzen tandwielen om astronomische cycli na te bootsen. Ontdek hoe ingenieurs uit de oudheid de hemel voorspelden."
+      }
+    },
+    "bioluminescence": {
+      "phrase": {
+        "text": "Sommige dieren maken hun eigen licht. De chemie is verrassend elegant."
+      },
+      "title": {
+        "text": "Bioluminescentie"
+      },
+      "description": {
+        "text": "Levende organismen die licht produceren via chemie."
+      },
+      "assistant_response": {
+        "text": "Organismen geven licht voor de jacht, camouflage, communicatie en verdediging. Ontdek hoe chemie licht wordt."
+      }
+    },
+    "fermi": {
+      "phrase": {
+        "text": "Als het universum zo groot is, waarom lijkt het dan zo stil?"
+      },
+      "title": {
+        "text": "De Fermi-paradox"
+      },
+      "description": {
+        "text": "De spanning tussen de waarschijnlijkheid van buitenaards leven en het gebrek aan bewijs."
+      },
+      "assistant_response": {
+        "text": "De Fermi-paradox stelt de vraag waarom we geen overtuigend bewijs hebben gevonden van buitenaardse beschavingen. Ontdek mogelijke antwoorden."
+      }
+    },
+    "export": {
+      "phrase": {
+        "text": "Houd je eigen back-up bij. Exporteer je OpenMates-gegevens wanneer je maar wilt."
+      },
+      "title": {
+        "text": "Exporteer je OpenMates-gegevens"
+      },
+      "description": {
+        "text": "Maak een back-up van chats, instellingen, herinneringen en meer."
+      },
+      "assistant_response": {
+        "text": "Exporteer een kopie van je OpenMates-gegevens via de accountinstellingen. Log in om toegang te krijgen tot je versleutelde accountgegevens."
+      }
+    },
+    "pii": {
+      "phrase": {
+        "text": "Wil je meer controle over je privacy? Voeg persoonlijke gegevens toe die OpenMates moet verbergen."
+      },
+      "title": {
+        "text": "Aangepaste PII-detectie"
+      },
+      "description": {
+        "text": "Bescherm persoonlijke gegevens vóór modelaanroepen."
+      },
+      "assistant_response": {
+        "text": "Kies welke persoonlijke gegevens OpenMates moet verbergen vóór een modelaanroep. Bekijk de privacyinstellingen om ze te beheren."
+      }
+    },
+    "focus": {
+      "phrase": {
+        "text": "Heb je een gerichter antwoord nodig? Geef je mate een specifieke taak."
+      },
+      "title": {
+        "text": "Focusmodi"
+      },
+      "description": {
+        "text": "Stuur een chat in de richting van een specifiek doel."
+      },
+      "assistant_response": {
+        "text": "Gebruik een focusmodus om een chat naar een specifiek doel te leiden. Ontdek de beschikbare modi in Apps."
+      }
+    },
+    "memories": {
+      "phrase": {
+        "text": "Jezelf herhalen wordt vermoeiend. Sla context op die je mates moeten onthouden."
+      },
+      "title": {
+        "text": "Herinneringen"
+      },
+      "description": {
+        "text": "Sla nuttige voorkeuren en context op."
+      },
+      "assistant_response": {
+        "text": "Sla nuttige voorkeuren en context op als herinneringen en kies vervolgens wat je mates kunnen gebruiken."
+      }
+    },
+    "events": {
+      "phrase": {
+        "text": "Zoek je iets om te doen? Ontdek evenementen bij jou in de buurt."
+      },
+      "title": {
+        "text": "Vind lokale evenementen"
+      },
+      "description": {
+        "text": "Zoek lessen, bijeenkomsten en andere evenementen."
+      },
+      "assistant_response": {
+        "text": "Gebruik de zoekfunctie voor evenementen om lessen en bijeenkomsten in de buurt te vinden. Kies een plaats en onderwerp om te zien wat er te doen is."
       }
     }
   }

@@ -6,7 +6,7 @@ import { privacyPolicyChat } from '@repo/public-site/legal/documents/privacy-pol
 import { termsOfUseChat } from '@repo/public-site/legal/documents/terms-of-use';
 import { imprintChat } from '@repo/public-site/legal/documents/imprint';
 import MarkdownIt from 'markdown-it';
-import { siteOrigin, isDevelopmentHost } from '$lib/server/origins';
+import { siteOrigin, appOrigin, isDevelopmentHost } from '$lib/server/origins';
 
 const markdown = new MarkdownIt({ html: false, linkify: true });
 const definitions = {
@@ -26,5 +26,5 @@ export const load: PageServerLoad = ({ params, url, setHeaders }) => {
   const canonicalUrl = `${siteOrigin(url)}/legal/${slug}`;
   const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: title, description, url: canonicalUrl, inLanguage: locale, publisher: { '@type': 'Organization', name: 'OpenMates' }});
   setHeaders({ 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800' });
-  return { slug, locale, title, description, bodyHtml: markdown.render(body), canonicalUrl, jsonLd, isDevHost: isDevelopmentHost(url) };
+  return { slug, locale, title, description, bodyHtml: markdown.render(body), canonicalUrl, jsonLd, appBaseUrl: appOrigin(url), websiteBaseUrl: siteOrigin(url), isDevHost: isDevelopmentHost(url) };
 };

@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { LandingPublication } from './landingPageContent';
+  import { landingAppOrder, landingAppExamples, type LandingPublication } from './landingPageContent';
   import DeviceScreenshots from '../DeviceScreenshots.svelte';
   import NewsletterSignup from '../NewsletterSignup.svelte';
+  import PublicSiteHeader from './PublicSiteHeader.svelte';
   import { publicApps } from '../../data/publicApps';
   import { socialLinks, supportedLanguages } from '../../data/siteMetadata';
   import { proxyImage } from '../../data/proxyImage';
@@ -22,31 +23,23 @@
   const siteUrl = (path: string) => `${websiteBaseUrl.replace(/\/$/, '')}${path}`;
 
   const promptIntervalMs = 3400;
-  const firstVisibleIndex = Math.floor(publicApps.length / 2);
+  const orderedApps = landingAppOrder.map((id) => publicApps.find((app) => app.id === id)).filter((app): app is (typeof publicApps)[number] => !!app);
+  const firstVisibleIndex = 0;
   let activeIndex = $state(firstVisibleIndex);
-  let activeApp = $derived(publicApps[activeIndex] ?? publicApps[0]);
+  let activeApp = $derived(orderedApps[activeIndex] ?? orderedApps[0]);
   let promptHasChanged = $state(false);
   let railPlaying = $state(false);
   let reducedMotion = $state(false);
   let chosenLanguage = $state('en');
   let copy = $derived(landingCopy[chosenLanguage === 'de' ? 'de' : 'en']);
-  let languageOpen = $state(false);
   let landingRoot: HTMLDivElement;
-  let languageControl: HTMLDivElement;
-  let languageButton: HTMLButtonElement;
   let scrollContainer: HTMLElement;
-
-  function closeLanguagePanel(restoreFocus = false): void {
-    languageOpen = false;
-    if (restoreFocus) languageButton.focus();
-  }
 
   function selectLanguage(code: string): void {
     chosenLanguage = code;
     try { localStorage.setItem('preferredLanguage', code); } catch { /* Storage can be disabled. */ }
     document.documentElement.lang = code === 'de' ? 'de' : 'en';
     document.documentElement.dir = 'ltr';
-    closeLanguagePanel(true);
   }
 
   onMount(() => {
@@ -62,8 +55,8 @@
     let observer: IntersectionObserver | undefined;
 
     const tick = (now: number) => {
-      if (!railPlaying || publicApps.length === 0) return;
-      const nextIndex = (firstVisibleIndex + Math.floor((now - startedAt) / promptIntervalMs)) % publicApps.length;
+      if (!railPlaying || orderedApps.length === 0) return;
+      const nextIndex = (firstVisibleIndex + Math.floor((now - startedAt) / promptIntervalMs)) % orderedApps.length;
       if (nextIndex !== activeIndex) {
         activeIndex = nextIndex;
         promptHasChanged = true;
@@ -79,7 +72,7 @@
       cancelAnimationFrame(frame);
       activeIndex = firstVisibleIndex;
       promptHasChanged = false;
-      railPlaying = !reducedMotion && publicApps.length > 0;
+      railPlaying = !reducedMotion && orderedApps.length > 0;
       if (railPlaying) {
         startedAt = performance.now();
         frame = requestAnimationFrame(tick);
@@ -102,75 +95,44 @@
         });
       }
     };
-    const onPointerDown = (event: PointerEvent) => {
-      if (languageOpen && !languageControl.contains(event.target as Node)) languageOpen = false;
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && languageOpen) closeLanguagePanel(true);
-    };
     motionQuery.addEventListener('change', updateMotion);
     scrollContainer.addEventListener('scroll', onScroll, { passive: true });
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
     updateMotion();
     return () => {
       cancelAnimationFrame(frame);
       observer?.disconnect();
       motionQuery.removeEventListener('change', updateMotion);
       scrollContainer.removeEventListener('scroll', onScroll);
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
     };
   });
 </script>
 
 <div class="landing-page" bind:this={landingRoot} data-testid="landing-page" lang={chosenLanguage === 'de' ? 'de' : 'en'}>
-  <header class="site-header">
-    <a class="wordmark" href={appUrl('/')} aria-label="OpenMates home"><span>Open</span>Mates</a>
-    <nav class="workspace-nav" aria-label="OpenMates workspaces">
-      <a href={appUrl('/')} aria-label="Chats" data-testid="landing-nav-chats"><span class="header-mask chat-mask" aria-hidden="true"></span></a>
-      <a href={appUrl('/#apps')} aria-label="Apps" data-testid="landing-nav-apps"><span class="header-mask app-mask" aria-hidden="true"></span></a>
-      <a href={appUrl('/#workflows')} aria-label="Workflows" data-testid="landing-nav-workflows"><span class="header-mask workflow-mask" aria-hidden="true"></span></a>
-    </nav>
-    <nav class="header-actions" aria-label="Main navigation">
-      <a class="header-icon github-link" href={socialLinks.find((item) => item.label === 'GitHub')?.href ?? 'https://github.com/glowingkitty/OpenMates'} target="_blank" rel="noopener noreferrer" aria-label="OpenMates on GitHub"><span class="header-mask github-mask" aria-hidden="true"></span></a>
-      <a class="header-link" href={appUrl('/#signup/basics')} data-testid="landing-signup"><span class="desktop-login">{copy.login}</span><span class="mobile-login">{copy.signup}</span></a>
-      <div class="language-control" bind:this={languageControl}>
-        <button class="header-icon language-button" bind:this={languageButton} type="button" aria-label={`${copy.language}: ${supportedLanguages.find((item) => item.code === chosenLanguage)?.nativeName ?? chosenLanguage}`} aria-expanded={languageOpen} aria-controls="landing-language-panel" data-testid="landing-language-button" onclick={() => languageOpen = !languageOpen}><span class="header-mask language-mask" aria-hidden="true"></span><span class="language-code" aria-hidden="true">{chosenLanguage.toUpperCase()}</span></button>
-        {#if languageOpen}
-          <div class="language-panel" id="landing-language-panel" role="dialog" aria-label={copy.language} data-testid="landing-language-panel">
-            <div class="language-heading"><strong>{copy.language}</strong><button type="button" aria-label={copy.close} onclick={() => closeLanguagePanel(true)}>×</button></div>
-            <p>{copy.languageHint}</p>
-            <div class="language-options">
-              {#each supportedLanguages as language (language.code)}
-                <button type="button" class:selected={chosenLanguage === language.code} lang={language.code} aria-pressed={chosenLanguage === language.code} onclick={() => selectLanguage(language.code)}>{language.nativeName ?? language.name}</button>
-              {/each}
-            </div>
-          </div>
-        {/if}
-      </div>
-    </nav>
-  </header>
+  <PublicSiteHeader {appBaseUrl} {websiteBaseUrl} language={chosenLanguage} onLanguageChange={selectLanguage} />
 
   <div class="viewport-container" data-testid="landing-viewport-container">
     <main class="scroll-container" bind:this={scrollContainer} data-testid="landing-scroll-container">
       <section class="hero" aria-labelledby="hero-title" data-testid="landing-hero">
         <div class="hero-visual" data-testid="landing-hero-media">
-          <DeviceScreenshots baseKey="hero" desktopAlt="OpenMates web app chat workspace" mobileAlt="OpenMates mobile web chat workspace" eager />
+          <div class="hero-device-scale"><DeviceScreenshots baseKey="hero" desktopAlt="OpenMates web app chat workspace" mobileAlt="OpenMates mobile web chat workspace" eager hero /></div>
         </div>
         <h1 id="hero-title">{copy.heroLine1}<br />{copy.heroLine2}</h1>
         {#if activeApp}
           {#key activeApp.id}
-            <p class="prompt-bubble" class:transitioning={promptHasChanged} data-testid="landing-prompt" data-active-app={activeApp.id} aria-live="polite">{chosenLanguage === 'de' ? activeApp.promptDe : activeApp.promptEn}</p>
+            {#if landingAppExamples[activeApp.id]}
+              <a class="prompt-bubble" class:transitioning={promptHasChanged} href={appUrl(`/#chat-id=${encodeURIComponent(landingAppExamples[activeApp.id])}`)} target="_blank" rel="noopener noreferrer" data-testid="landing-prompt" data-active-app={activeApp.id} aria-live="polite">{chosenLanguage === 'de' ? activeApp.promptDe : activeApp.promptEn} ↗</a>
+            {:else}
+              <p class="prompt-bubble" class:transitioning={promptHasChanged} data-testid="landing-prompt" data-active-app={activeApp.id} aria-live="polite">{chosenLanguage === 'de' ? activeApp.promptDe : activeApp.promptEn}</p>
+            {/if}
           {/key}
         {/if}
         <p class="hero-speed" data-testid="landing-hero-speed">{copy.inSeconds}</p>
         <div class="rail-window" data-testid="landing-app-rail" data-active-app={activeApp?.id} aria-label="OpenMates apps">
-          <div class="rail-track" class:playing={railPlaying} style={`--rail-duration:${Math.max(publicApps.length, 1) * promptIntervalMs}ms`}>
-            {#each [0, 1] as group (group)}
-              <div class="rail-group" data-testid="landing-rail-group" aria-hidden="true">
-                {#each publicApps as app (app.id)}
-                  <span class="rail-icon" class:highlighted={activeApp?.id === app.id} data-app-id={app.id} style={`--rail-icon-bg:${app.gradient};--rail-icon-url:url('${app.iconUrl}')`}></span>
+          <div class="rail-track" class:playing={railPlaying} style={`--rail-duration:${Math.max(orderedApps.length, 1) * promptIntervalMs}ms`}>
+            {#each [0, 1, 2] as group (group)}
+              <div class="rail-group" data-testid="landing-rail-group" aria-hidden={group === 1 ? undefined : 'true'}>
+                {#each orderedApps as app (app.id)}
+                  <a class="rail-icon" class:highlighted={activeApp?.id === app.id} href={appUrl(`/#apps/${app.id}`)} target="_blank" rel="noopener noreferrer" tabindex={group === 1 ? undefined : -1} aria-label={`${app.id} app`} data-app-id={app.id} style={`--rail-icon-bg:${app.gradient};--rail-icon-url:url('${app.iconUrl}')`}></a>
                 {/each}
               </div>
             {/each}
@@ -203,6 +165,15 @@
           <DeviceScreenshots baseKey="privacy" desktopAlt="OpenMates web chat with personal data replaced by placeholders" mobileAlt="OpenMates mobile chat highlighting personal data" />
           <a class="example-link" href={appUrl('/#chat-id=example-plumber-message-email-phone')}>{copy.openExample} ↗</a>
         </div>
+      </section>
+
+      <section class="feature feature-media" id="model-choice" aria-labelledby="model-choice-title" data-testid="landing-feature-model-choice" data-reveal>
+        <div class="feature-copy">
+          <span class="feature-icon coding-icon" aria-hidden="true" data-testid="landing-feature-icon"></span>
+          <h2 id="model-choice-title">{copy.modelChoiceTitle1}<br />{copy.modelChoiceTitle2}</h2>
+          <p>{copy.modelChoiceBody}</p>
+        </div>
+        <div class="feature-example" data-testid="landing-feature-media-model-choice"><DeviceScreenshots baseKey="model-selector" desktopAlt="OpenMates AI model selector on desktop" mobileAlt="OpenMates AI model selector on mobile" /></div>
       </section>
 
       <section class="feature feature-media" id="workflows" aria-labelledby="workflows-title" data-testid="landing-feature-workflows" data-reveal>
@@ -269,7 +240,7 @@
       </div>
 
       <footer class="site-footer">
-        <div><a class="wordmark" href={appUrl('/')}><span>Open</span>Mates</a><p>{copy.social}</p><div class="social-links">{#each socialLinks as social (social.label)}<a href={social.href} target="_blank" rel="noopener noreferrer" aria-label={social.label}><img src={social.iconUrl} alt="" width="22" height="22" /></a>{/each}</div></div>
+        <div><a class="wordmark" href={siteUrl('/')}><span>Open</span>Mates</a><p>{copy.social}</p><div class="social-links">{#each socialLinks as social (social.label)}<a href={social.href} target="_blank" rel="noopener noreferrer" aria-label={social.label}><img src={social.iconUrl} alt="" width="22" height="22" /></a>{/each}</div></div>
         <nav aria-label="Footer navigation"><a href={siteUrl('/legal/privacy')}>{copy.privacy}</a><a href={siteUrl('/legal/terms')}>{copy.terms}</a><a href={siteUrl('/legal/imprint')}>{copy.imprint}</a></nav>
       </footer>
     </main>
@@ -280,49 +251,26 @@
 <style>
   .landing-page { width: 100%; height: 100dvh; min-width: 0; overflow: hidden; display: flex; flex-direction: column; background: var(--color-grey-0); color: var(--color-font-primary); font-family: var(--font-primary); }
   a { color: inherit; text-decoration: none; }
-  a:focus-visible, button:focus-visible { outline: 3px solid var(--color-primary-start); outline-offset: 3px; }
-  .site-header { position: relative; z-index: 2; flex: 0 0 70px; width: 100%; padding: var(--spacing-4) var(--spacing-10); box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-8); }
-  .wordmark { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.04em; white-space: nowrap; }
-  .wordmark span { color: var(--color-primary-start); }
-  .workspace-nav { --icon-tab-width: 4.5rem; position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; width: max-content; height: 2.8rem; overflow: hidden; border-radius: 3.25rem; background: var(--color-grey-10); filter: drop-shadow(0 .25rem .25rem color-mix(in srgb, var(--color-grey-100) 14%, transparent)); }
-  .workspace-nav a { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 var(--icon-tab-width); width: var(--icon-tab-width); min-width: var(--icon-tab-width); height: 2.8rem; min-height: 2.8rem; box-sizing: border-box; padding: 0; background: transparent; cursor: pointer; }
-  .workspace-nav a::before { content: ''; position: absolute; inset: 0; border-radius: 3.25rem; background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary-start) 50%, transparent), color-mix(in srgb, var(--color-primary-end) 50%, transparent)); opacity: 0; transition: opacity .25s ease; }
-  .workspace-nav a:hover::before, .workspace-nav a:focus-visible::before { opacity: 1; }
-  .workspace-nav a:hover .header-mask, .workspace-nav a:focus-visible .header-mask { background: var(--color-font-button); }
-  .header-actions { display: flex; align-items: center; gap: var(--spacing-8); }
-  .header-icon { display: inline-grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; border: 0; border-radius: var(--radius-full); background: transparent; color: var(--color-primary-start); cursor: pointer; }
-  .language-button { display: inline-flex; gap: var(--spacing-2); width: auto; min-width: 52px; padding: 0 var(--spacing-4); font: inherit; font-size: var(--font-size-small); font-weight: 700; }
-  .header-icon:hover { background: var(--color-grey-20); }
-  .header-mask { position: relative; display: block; width: 20px; height: 20px; background: var(--color-grey-70); -webkit-mask: var(--icon-url) center / contain no-repeat; mask: var(--icon-url) center / contain no-repeat; transition: background-color .25s ease; }
-  .chat-mask { --icon-url: url('/icons/chat.svg'); }.app-mask { --icon-url: url('/icons/app.svg'); }.workflow-mask { --icon-url: url('/icons/workflow.svg'); }.github-mask { --icon-url: url('/icons/github.svg'); }.language-mask { --icon-url: url('/icons/language.svg'); }
-  .github-mask, .language-mask { background: var(--color-primary-start); }
-  .header-link { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; height: 41px; min-width: 0; max-width: 240px; overflow: hidden; margin: 0; padding: var(--spacing-4) var(--spacing-6); border-radius: var(--radius-3); background: var(--color-button-primary); color: var(--color-font-button); font-family: var(--button-font-family); font-size: var(--button-font-size); font-weight: var(--button-font-weight); box-shadow: 0 2px 8px color-mix(in srgb, var(--color-grey-100) 15%, transparent); white-space: nowrap; transition: all var(--duration-normal) var(--easing-default); }
-  .header-link:hover { background: var(--color-button-primary-hover); transform: scale(1.02); }.header-link:active { background: var(--color-button-primary-pressed); transform: scale(.98); box-shadow: none; }.mobile-login { display: none; }
-  .language-control { position: relative; }
-  .language-panel { position: absolute; z-index: 10; inset-inline-end: 0; top: calc(100% + var(--spacing-4)); width: min(320px, calc(100vw - 24px)); max-height: min(70dvh, 560px); overflow: auto; padding: var(--spacing-10); box-sizing: border-box; border: 1px solid var(--color-grey-25); border-radius: var(--radius-5); background: var(--color-grey-0); box-shadow: var(--shadow-lg); }
-  .language-heading { display: flex; align-items: center; justify-content: space-between; }.language-heading button { border: 0; background: transparent; color: var(--color-font-primary); font: inherit; font-size: 1.5rem; cursor: pointer; }
-  .language-panel p { margin: var(--spacing-4) 0 var(--spacing-8); color: var(--color-font-tertiary); font-size: var(--font-size-small); line-height: 1.4; }
-  .language-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-4); }
-  .language-options button { min-width: 0; min-height: 40px; padding: var(--spacing-4); border: 1px solid var(--color-grey-30); border-radius: var(--radius-3); background: var(--color-grey-10); color: var(--color-font-primary); text-align: start; font: inherit; font-size: var(--font-size-small); cursor: pointer; }
-  .language-options button:hover, .language-options button.selected { border-color: var(--color-primary-start); background: var(--color-grey-blue); }
+  a:focus-visible { outline: 3px solid var(--color-primary-start); outline-offset: 3px; }
   .viewport-container { position: relative; flex: 1; min-height: 0; margin: 0 var(--spacing-10) var(--spacing-10); overflow: hidden; border-radius: var(--radius-6); background: var(--color-grey-0); box-shadow: var(--shadow-md); }
   .scroll-container { width: 100%; height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth; }
-  .hero { position: relative; height: 100%; box-sizing: border-box; padding: var(--spacing-12) var(--spacing-16) 112px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--spacing-8); overflow: hidden; text-align: center; background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end)); color: var(--color-font-button); }
-  .hero-visual { position: relative; flex: 0 0 auto; width: min(720px, 75%, 55dvh); transform: translateY(var(--hero-parallax-y, 0px)); }
+  .hero { position: relative; height: 100%; box-sizing: border-box; padding: 0 var(--spacing-16) 90px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: var(--spacing-4); overflow: hidden; text-align: center; background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end)); color: var(--color-font-button); }
+  .hero-visual { position: relative; flex: 1 1 0; min-height: 0; width: 100%; display: grid; place-items: center; container-type: size; transform: translateY(var(--hero-parallax-y, 0px)); }
+  .hero-device-scale { width: min(100%, 170cqh, 1040px); }
   .hero h1 { margin: 0; color: var(--color-font-button); font-size: clamp(2.25rem, 4vw, 3.75rem); line-height: 1.12; font-weight: 800; letter-spacing: -0.035em; }
-  .prompt-bubble { position: relative; max-width: min(90%, 720px); margin: 0; padding: var(--spacing-6) var(--spacing-12); border-radius: var(--radius-5); background: var(--color-grey-blue); color: var(--color-font-primary); opacity: 1; font-size: clamp(1.125rem, 2vw, 1.75rem); font-weight: 700; box-shadow: var(--shadow-sm); transform-origin: right bottom; }
+  .prompt-bubble { position: relative; display: block; max-width: min(90%, 720px); margin: 0; padding: var(--spacing-6) var(--spacing-12); border-radius: var(--radius-5); background: var(--color-grey-blue); color: var(--color-font-primary); opacity: 1; font-size: clamp(1.125rem, 2vw, 1.75rem); font-weight: 700; box-shadow: var(--shadow-sm); transform-origin: right bottom; }
   .prompt-bubble.transitioning { animation: prompt-appear 420ms ease-out forwards; }
   .prompt-bubble::after { content: ''; position: absolute; inset-inline-end: -12px; bottom: 10px; width: 12px; height: 20px; background: var(--color-grey-blue); -webkit-mask: url('/icons/speechbubble.svg') center / contain no-repeat; mask: url('/icons/speechbubble.svg') center / contain no-repeat; transform: scaleX(-1); }
   @keyframes prompt-appear { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: scale(1); } }
-  .hero-speed { margin: calc(-1 * var(--spacing-4)) 0 0; color: var(--color-font-button); font-size: var(--font-size-p); font-weight: 700; }
-  .rail-window { --icon-size: clamp(74px, 7.2vw, 112px); --icon-gap: clamp(18px, 2vw, 30px); position: relative; flex: 0 0 calc(var(--icon-size) + 12px); width: 100%; overflow: hidden; -webkit-mask-image: linear-gradient(to right, transparent, var(--color-font-button) 9%, var(--color-font-button) 91%, transparent); mask-image: linear-gradient(to right, transparent, var(--color-font-button) 9%, var(--color-font-button) 91%, transparent); }
-  .rail-track { position: absolute; inset-block: 0; left: 50%; display: flex; width: max-content; transform: translateX(calc(-25% - var(--icon-size) / 2)); }
+  .hero-speed { margin: 0; color: var(--color-font-button); font-size: var(--font-size-p); font-weight: 700; }
+  .rail-window { --icon-size: clamp(74px, 6.5vw, 96px); --icon-gap: clamp(18px, 2vw, 30px); position: relative; flex: 0 0 calc(var(--icon-size) + 12px); width: 100%; overflow: hidden; -webkit-mask-image: linear-gradient(to right, transparent, var(--color-font-button) 9%, var(--color-font-button) 91%, transparent); mask-image: linear-gradient(to right, transparent, var(--color-font-button) 9%, var(--color-font-button) 91%, transparent); }
+  .rail-track { position: absolute; inset-block: 0; left: 50%; display: flex; width: max-content; transform: translateX(calc(-33.333333333% - var(--icon-size) / 2 + min(8vw, 110px))); }
   .rail-track.playing { animation: rail-loop var(--rail-duration) linear infinite; }
   .rail-group { display: flex; align-items: center; gap: var(--icon-gap); width: max-content; padding-inline-end: var(--icon-gap); }
-  .rail-icon { display: inline-grid; place-items: center; flex: 0 0 var(--icon-size); width: var(--icon-size); height: var(--icon-size); border-radius: var(--radius-5); background: var(--rail-icon-bg); opacity: 0.42; transition: opacity var(--duration-normal) var(--easing-default), scale var(--duration-normal) var(--easing-default); }
+  .rail-icon { display: inline-grid; place-items: center; flex: 0 0 var(--icon-size); width: var(--icon-size); height: var(--icon-size); border-radius: 34%; background: var(--rail-icon-bg); opacity: 0.42; transition: opacity var(--duration-normal) var(--easing-default), scale var(--duration-normal) var(--easing-default); }
   .rail-icon::before { content: ''; width: 53%; height: 53%; background: var(--color-font-button); -webkit-mask: var(--rail-icon-url) center / contain no-repeat; mask: var(--rail-icon-url) center / contain no-repeat; }
-  .rail-icon.highlighted { opacity: 1; scale: 1.08; }
-  @keyframes rail-loop { from { transform: translateX(calc(-25% - var(--icon-size) / 2)); } to { transform: translateX(calc(-75% - var(--icon-size) / 2)); } }
+  .rail-icon.highlighted, .rail-icon:hover, .rail-icon:focus-visible { opacity: 1; scale: 1.08; }
+  @keyframes rail-loop { from { transform: translateX(calc(-33.333333333% - var(--icon-size) / 2 + min(8vw, 110px))); } to { transform: translateX(calc(-66.666666667% - var(--icon-size) / 2 + min(8vw, 110px))); } }
   .scroll-cue { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-6); min-height: 32px; color: var(--color-font-button); font-size: var(--font-size-small); font-weight: 700; animation: cue-pulse 1.8s ease-in-out infinite alternate; }
   .cue-arrow { display: block; flex: 0 0 20px; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
   @keyframes cue-pulse { from { opacity: .3; } to { opacity: .8; } }
@@ -330,8 +278,8 @@
   .composer-link:hover { box-shadow: var(--shadow-lg); }
   .composer-ai, .composer-mic { display: block; flex: 0 0 24px; width: 24px; height: 24px; background: var(--color-grey-60); -webkit-mask: var(--composer-icon-url) center / contain no-repeat; mask: var(--composer-icon-url) center / contain no-repeat; }
   .composer-ai { --composer-icon-url: url('/icons/ai.svg'); }.composer-mic { --composer-icon-url: url('/icons/recordaudio.svg'); }
-  .feature { max-width: 1320px; margin: 0 auto; padding: clamp(72px, 9vw, 150px) var(--spacing-24); }
-  .feature-media { display: grid; grid-template-columns: minmax(280px, .85fr) minmax(0, 1.15fr); align-items: center; gap: clamp(32px, 6vw, 100px); }
+  .feature { min-height: 100%; width: 100%; margin: 0 auto; padding: clamp(48px, 5vw, 96px) clamp(32px, 6vw, 112px); box-sizing: border-box; overflow: hidden; }
+  .feature-media { display: grid; grid-template-columns: minmax(280px, .72fr) minmax(0, 1.28fr); align-items: center; gap: clamp(28px, 4vw, 76px); }
   .feature-copy { max-width: 480px; }.feature-later .feature-copy { max-width: 580px; }
   .feature-icon { display: block; width: 48px; height: 48px; margin-bottom: var(--spacing-8); background: var(--color-primary-start); -webkit-mask: var(--feature-icon-url) center / 80% no-repeat; mask: var(--feature-icon-url) center / 80% no-repeat; }
   .search-icon { --feature-icon-url: url('/icons/search.svg'); }.security-icon { --feature-icon-url: url('/icons/security.svg'); }.workflow-icon { --feature-icon-url: url('/icons/workflow.svg'); }.devices-icon { --feature-icon-url: url('/icons/devices.svg'); }.coding-icon { --feature-icon-url: url('/icons/coding.svg'); }
@@ -339,7 +287,7 @@
   .feature p { margin: 0 0 var(--spacing-12); font-size: var(--font-size-p); line-height: 1.6; }.feature-links { display: grid; gap: var(--spacing-4); }
   .text-link { display: inline-block; width: fit-content; font-size: var(--font-size-p); font-weight: 700; color: var(--color-primary-start); }.text-link::before { content: '› '; }
   .text-link:hover, .example-link:hover, .site-footer a:hover { text-decoration: underline; }
-  .feature-example { min-width: 0; width: 100%; }.feature-later .feature-example { width: min(100%, 700px); }
+  .feature-example { min-width: 0; width: 118%; }.feature-later .feature-example { width: 118%; }
   .example-link { display: block; width: fit-content; margin: var(--spacing-8) 0 0 auto; font-size: var(--font-size-small); font-weight: 700; }
   [data-reveal] { opacity: 1; transform: none; }:global(.reveal-ready:not(.revealed)) { opacity: 0; transform: translateY(24px); }:global(.reveal-ready) { transition: opacity 600ms ease, transform 600ms ease; }
   .publication-area { background: var(--color-grey-20); padding: var(--spacing-24) 0; }
@@ -354,11 +302,11 @@
   .card-copy h3 { margin: var(--spacing-4) 0; font-size: var(--font-size-h3); line-height: 1.35; }.card-copy p { margin: var(--spacing-4) 0 0; color: var(--color-font-tertiary); font-size: var(--font-size-small); line-height: 1.5; }
   .empty-publication { display: flex; align-items: center; justify-content: space-between; min-height: 180px; margin: 0; padding: var(--spacing-16); color: var(--color-primary-start); font-weight: 700; }
   .site-footer { max-width: 1320px; margin: 0 auto 110px; padding: var(--spacing-16) var(--spacing-24); display: flex; justify-content: space-between; gap: var(--spacing-16); align-items: center; }.site-footer p { color: var(--color-font-tertiary); font-size: var(--font-size-small); }
+  .site-footer .wordmark { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.04em; white-space: nowrap; }.site-footer .wordmark span { color: var(--color-primary-start); }
   .site-footer nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--spacing-8); font-size: var(--font-size-small); color: var(--color-font-tertiary); }.social-links { display: flex; flex-wrap: wrap; gap: var(--spacing-4); }
   .social-links a { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: var(--radius-full); background: var(--color-grey-20); }.social-links a:hover { background: var(--color-grey-blue); }.social-links img { display: block; width: 22px; height: 22px; }
-  @media (min-width: 761px) and (max-height: 820px) { .hero { gap: var(--spacing-6); padding-bottom: 96px; }.hero-visual { width: min(720px, 75%, 45dvh); } }
-  @media (max-width: 900px) { .wordmark { display: none; }.workspace-nav { position: static; transform: none; margin-right: auto; }.site-header { justify-content: flex-end; }.feature-media { grid-template-columns: 1fr; }.feature-copy, .feature-later .feature-copy { max-width: 680px; }.feature-example, .feature-later .feature-example { max-width: 700px; margin: 0 auto; } }
-  @media (max-width: 760px) { .site-header { padding: var(--spacing-4); gap: var(--spacing-2); }.header-actions { gap: var(--spacing-4); }.github-link { display: none; }.workspace-nav { --icon-tab-width: clamp(3rem, calc(33.333vw - 58px), 4.5rem); }.desktop-login { display: none; }.mobile-login { display: inline; }.header-icon { flex-basis: 38px; width: 38px; height: 38px; }.language-button { flex-basis: auto; width: auto; }.viewport-container { margin: 0 var(--spacing-4) var(--spacing-4); }.hero { padding: var(--spacing-12) var(--spacing-8) 112px; gap: var(--spacing-6); }.hero-visual { width: min(480px, 94%, 35dvh); }.rail-window { --icon-size: clamp(64px, 15vw, 88px); --icon-gap: var(--spacing-8); }.feature { padding: var(--spacing-24) var(--spacing-8); gap: var(--spacing-16); }.feature h2 { margin-bottom: var(--spacing-12); }.publication-row { grid-template-columns: 1fr; gap: var(--spacing-12); padding: var(--spacing-16) var(--spacing-8); }.site-footer { flex-direction: column; align-items: flex-start; padding: var(--spacing-16) var(--spacing-8); }.site-footer nav { justify-content: flex-start; } }
-  @media (max-width: 440px) { .hero h1 { font-size: 2rem; }.hero-visual { flex-basis: 150px; }.scroll-cue { font-size: var(--font-size-xs); gap: var(--spacing-4); }.publication-cards { grid-template-columns: 1fr; }.publication-card img { height: 170px; } }
+  @media (max-width: 900px) { .feature-media { grid-template-columns: 1fr; }.feature-copy, .feature-later .feature-copy { max-width: 680px; }.feature-example, .feature-later .feature-example { width: 100%; margin: 0 auto; } }
+  @media (max-width: 760px) { .viewport-container { margin: 0 var(--spacing-4) var(--spacing-4); }.hero { padding: var(--spacing-4) var(--spacing-8) 90px; gap: var(--spacing-2); justify-content: center; }.hero-visual { flex: 0 1 auto; width: min(130px, 34vw, 26dvh); container-type: normal; }.hero-device-scale { width: 100%; }.rail-window { --icon-size: clamp(64px, 15vw, 88px); --icon-gap: var(--spacing-8); }.feature { min-height: 100%; padding: var(--spacing-20) var(--spacing-8); gap: var(--spacing-16); }.feature h2 { margin-bottom: var(--spacing-12); }.publication-row { grid-template-columns: 1fr; gap: var(--spacing-12); padding: var(--spacing-16) var(--spacing-8); }.site-footer { flex-direction: column; align-items: flex-start; padding: var(--spacing-16) var(--spacing-8); }.site-footer nav { justify-content: flex-start; } }
+  @media (max-width: 440px) { .hero h1 { font-size: 2rem; }.scroll-cue { font-size: var(--font-size-xs); gap: var(--spacing-4); }.publication-cards { grid-template-columns: 1fr; }.publication-card img { height: 170px; } }
   @media (prefers-reduced-motion: reduce) { .scroll-container { scroll-behavior: auto; }.rail-track, .scroll-cue, .prompt-bubble { animation: none !important; }.scroll-cue { opacity: .8; }.rail-icon, :global(.reveal-ready) { transition: none; }.hero-visual { transform: none; } }
 </style>

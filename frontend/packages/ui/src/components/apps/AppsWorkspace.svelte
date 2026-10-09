@@ -15,6 +15,7 @@
   import { readAppsWorkspaceRoute, buildAppsWorkspaceHash, resolveAppsSkillId, resolveAppsAppId, type AppsWorkspaceTab } from '../../utils/appsWorkspaceRoute';
   import type { AppsSkillDetails } from '../../types/appsWorkspace';
   import type { AppMetadata } from '../../types/apps';
+  import { CONTENT_EMBED_CATALOG } from '../../data/embedRegistry.generated';
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
   import SearchSortBar from '../settings/SearchSortBar.svelte';
   import AppDetailsWrapper from '../settings/AppDetailsWrapper.svelte';
@@ -145,12 +146,13 @@
     { id: 'embeds', icon: 'files', label: tr('embeds') },
     { id: 'workflows', icon: 'workflow', label: tr('workflows') },
   ] : [
-    { id: 'overview', icon: 'app', label: tr('skills') },
-    { id: 'focus_modes', icon: 'search', label: tr('focus_modes') },
-    { id: 'settings_memories', icon: 'settings', label: tr('settings_memories') },
+    ...(app && (app.skills.length > 0 || CONTENT_EMBED_CATALOG.some(item => item.appId === app.id)) ? [{ id: 'overview', icon: 'app', label: tr('skills') }] : []),
+    ...(app?.focus_modes?.length ? [{ id: 'focus_modes', icon: 'search', label: tr('focus_modes') }] : []),
+    ...(app && ((app.memories?.length ?? 0) > 0 || app.settings_and_memories?.some(category => $authStore.isAuthenticated || (category.example_entries?.length ?? 0) > 0 || (category.example_translation_keys?.length ?? 0) > 0)) ? [{ id: 'settings_memories', icon: 'settings', label: tr('settings_memories') }] : []),
     { id: 'embeds', icon: 'files', label: tr('embeds') },
     { id: 'workflows', icon: 'workflow', label: tr('workflows') },
   ]);
+  const activeTab = $derived((tabs.some(tab => tab.id === route?.tab) ? route?.tab : tabs[0]?.id ?? 'embeds') as AppsWorkspaceTab);
 
   $effect(() => {
     if (route && !route.appId) lastHomeHash = hash;
@@ -216,7 +218,7 @@
     if (resolvedAppId && skillId && !$authStore.isAuthenticated) void refreshAnonymousFreeUsageStatus();
   });
   $effect(() => {
-    const appId = resolvedAppId; const tab = route?.tab; void accountKey;
+    const appId = resolvedAppId; const tab = activeTab; void accountKey;
     libraryGeneration++; results = []; pendingResults = []; workflows = []; offset = 0; hasMore = false; libraryError = false;
     if (appId && (tab === 'embeds' || tab === 'workflows')) untrack(() => void loadLibrary(0));
     if (appId && tab === 'embeds' && $authStore.isAuthenticated) {
@@ -280,7 +282,7 @@
   }
   async function loadLibrary(nextOffset: number): Promise<void> {
     if (!resolvedAppId || !route) return;
-    const generation = ++libraryGeneration; const appId = resolvedAppId; const tab = route.tab;
+    const generation = ++libraryGeneration; const appId = resolvedAppId; const tab = activeTab;
     const selectedTeamId = teamId; const context = accountKey;
     results = []; pendingResults = []; workflows = []; libraryLoading = true; libraryError = false;
     try {
@@ -304,7 +306,8 @@
     onNavigate(`${buildAppsWorkspaceHash(detailPath, route?.tab ?? 'overview')}&embed-id=${encodeURIComponent(embedId)}${rootEmbedId && rootEmbedId !== embedId ? `&root-id=${encodeURIComponent(rootEmbedId)}` : ''}`);
   }
   function closeResult(): void { onNavigate(buildAppsWorkspaceHash(detailPath, route?.tab ?? 'overview')); }
-  function openExample(example: string): void { window.open(`/#new-message=${encodeURIComponent(example)}`, '_blank', 'noopener,noreferrer'); }
+  function openNewMessage(message: string): void { window.open(`/#new-message=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer'); }
+  function openExampleChat(chatId: string): void { window.open(`/#chat-id=${encodeURIComponent(chatId)}`, '_blank', 'noopener,noreferrer'); }
   async function shareDetail(): Promise<void> {
     if (!detailPath) return;
     const url = new URL(window.location.href);
@@ -341,10 +344,10 @@
             <div class="apps-detail-content">
               {#if app}
                 <div class="apps-detail-card" data-testid="apps-detail-card">
-                  <div class="apps-detail-tabs" data-testid="apps-detail-tabs"><SettingsTabs {tabs} maxVisibleTabs={skillId ? 4.3 : 5} activeTab={route?.tab ?? 'overview'} testIdPrefix="apps-tab" onChange={selectTab} /></div>
-                <div role="tabpanel" tabindex="0" id={`tabpanel-${route?.tab ?? 'overview'}`} aria-label={tr(route?.tab ?? 'overview')}>
-                  {#if route?.tab === 'embeds' || route?.tab === 'workflows'}
-                    {#if route.tab === 'embeds' && pendingResults.length}
+                  <div class="apps-detail-tabs" data-testid="apps-detail-tabs"><SettingsTabs {tabs} maxVisibleTabs={skillId ? 4.3 : 5} {activeTab} testIdPrefix="apps-tab" onChange={selectTab} /></div>
+                <div role="tabpanel" tabindex="0" id={`tabpanel-${activeTab}`} aria-label={tr(activeTab)}>
+                  {#if activeTab === 'embeds' || activeTab === 'workflows'}
+                    {#if activeTab === 'embeds' && pendingResults.length}
                       <p role="status">{tr('saving_results')}</p>
                       <div class="results-grid" data-testid="apps-pending-results-list">
                         {#each pendingResults as result (result.embedId)}
@@ -360,7 +363,7 @@
                     {/if}
                     {#if libraryLoading}<p role="status">{$text('common.loading')}</p>
                     {:else if libraryError}<p role="alert">{tr('library_error')}</p><button class="plain-action" onclick={() => void loadLibrary(offset)}>{tr('retry')}</button>
-                    {:else if route.tab === 'embeds'}
+                    {:else if activeTab === 'embeds'}
                       <div class="results-grid" data-testid="apps-results-list">
                         {#each results as result (result.embedId)}
                           <div data-testid={`apps-result-open-${result.embedId}`}>
@@ -389,7 +392,7 @@
                       </summary>
                       {#if skillContextOpen}
                         <div class="skill-context-details" data-testid="apps-skill-context-details">
-                          <SkillDetails appId={app.id} {skillId} onOpenExample={openExample} on:openSettings={navigateSettings} />
+                          <SkillDetails appId={app.id} {skillId} onOpenExample={openNewMessage} onOpenExampleChat={openExampleChat} on:openSettings={navigateSettings} />
                         </div>
                       {/if}
                     </details>
@@ -410,7 +413,7 @@
                       {/if}
                     </div>
                   {:else}
-                    <AppDetailsWrapper presentation="apps" section={route?.tab === 'focus_modes' || route?.tab === 'settings_memories' ? route.tab : 'skills'} onOpenExample={openExample} activeSettingsView={detailPath} on:openSettings={navigateSettings} />
+                    <AppDetailsWrapper presentation="apps" section={activeTab === 'focus_modes' || activeTab === 'settings_memories' ? activeTab : 'skills'} onOpenExample={openNewMessage} onOpenExampleChat={openExampleChat} activeSettingsView={detailPath} on:openSettings={navigateSettings} />
                   {/if}
                 </div>
                 </div>

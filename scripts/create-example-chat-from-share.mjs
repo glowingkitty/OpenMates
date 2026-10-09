@@ -157,6 +157,7 @@ Options:
   --active-focus-id <id>   Cleartext active focus id for public example chats
   --featured <true|false>  Whether the example is featured (default: true)
   --require-follow-ups    Reject landing candidates missing usable source follow-up suggestions
+  --normalize-leading-model-selection  Move a leading UI model picker token into user message metadata
   --dry-run                Print planned changes without writing files
   --force                  Overwrite existing generated files
 `);
@@ -181,6 +182,7 @@ function parseArgs(argv) {
     activeFocusId: null,
     featured: true,
     requireFollowUps: false,
+    normalizeLeadingModelSelection: false,
     dryRun: false,
     force: false,
   };
@@ -197,6 +199,9 @@ function parseArgs(argv) {
         break;
       case '--require-follow-ups':
         args.requireFollowUps = true;
+        break;
+      case '--normalize-leading-model-selection':
+        args.normalizeLeadingModelSelection = true;
         break;
       case '--usage-json':
         args.usageJson = argv[++i];
@@ -503,6 +508,19 @@ export function sanitizeEmbedContent(content) {
   let tablePrivateColumnIndexes = null;
 
   for (const line of source.split('\n')) {
+    if (skippingPrivateBlock) {
+      if (/^\S/.test(line)) {
+        skippingPrivateBlock = false;
+      } else {
+        continue;
+      }
+    }
+    if (privateFieldPattern.test(line) || (isTaskSnapshot && taskTransientFieldPattern.test(line)) || blockFieldPattern.test(line)) {
+      skippingPrivateBlock = true;
+      tablePrivateColumnIndexes = null;
+      continue;
+    }
+
     const tableHeader = line.match(/^(\s*[^\s].*?\[\d+\]\{)([^}]*)\}:\s*$/);
     if (tableHeader) {
       const columns = tableHeader[2].split(',').map((column) => column.trim());
@@ -525,21 +543,6 @@ export function sanitizeEmbedContent(content) {
       tablePrivateColumnIndexes = null;
     }
 
-    if (privateFieldPattern.test(line) || (isTaskSnapshot && taskTransientFieldPattern.test(line))) {
-      skippingPrivateBlock = false;
-      continue;
-    }
-    if (blockFieldPattern.test(line)) {
-      skippingPrivateBlock = true;
-      continue;
-    }
-    if (skippingPrivateBlock) {
-      if (/^\S/.test(line)) {
-        skippingPrivateBlock = false;
-      } else {
-        continue;
-      }
-    }
     publicLines.push(line);
   }
 
@@ -1009,6 +1012,44 @@ export function sanitizeExampleMessageContent(content) {
     .trim();
 }
 
+// Both the web model picker and CLI serialize a chosen model as this leading
+// wire token. Keep the typed prose byte-for-byte after its separating space.
+export function normalizeLeadingModelSelection(chat) {
+  const normalizeModelId = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalizeMessages = (messages = []) => messages.map((message, index) => {
+    if (message.role !== 'user' || typeof message.content !== 'string') return message;
+    const match = /^@ai-model:([A-Za-z0-9._-]+)(?::([A-Za-z0-9_-]+))? (?=\S)/.exec(message.content);
+    if (!match) return message;
+    if (!match[2]) {
+      // The CLI may omit provider. Require the real reply's model metadata to
+      // confirm this is model selection, rather than guessing from user text.
+      const messageId = message.message_id || message.id;
+      const nextMessages = messages.slice(index + 1);
+      const linkedReply = messageId && nextMessages.find((candidate) =>
+        candidate.role === 'assistant' && candidate.user_message_id === messageId);
+      const nextUserIndex = nextMessages.findIndex((candidate) => candidate.role === 'user');
+      const immediateReply = (nextUserIndex < 0 ? nextMessages : nextMessages.slice(0, nextUserIndex))
+        .find((candidate) => candidate.role === 'assistant' && !candidate.user_message_id);
+      const reply = linkedReply || immediateReply;
+      if (!reply || normalizeModelId(reply.model_name) !== normalizeModelId(match[1])) return message;
+    }
+    return {
+      ...message,
+      content: message.content.slice(match[0].length),
+      model_name: match[1],
+      source_model_selection: { model_id: match[1], provider: match[2] || null },
+    };
+  });
+  return {
+    ...chat,
+    messages: normalizeMessages(chat.messages),
+    sub_chats: (chat.sub_chats || []).map((subChat) => ({
+      ...subChat,
+      messages: normalizeMessages(subChat.messages),
+    })),
+  };
+}
+
 function formatMessages(messages, metadata, keyPrefix) {
   let translatedIndex = 0;
   return messages.map((message, index) => {
@@ -1066,6 +1107,11 @@ function totalUsageEntryCount(chat) {
 
 export function formatTs(chat, metadata) {
   const varName = `${toCamel(metadata.slug)}Chat`;
+  const modelSelectionComments = [chat, ...(chat.sub_chats || [])]
+    .flatMap((sourceChat) => (sourceChat.messages || [])
+      .filter((message) => message.source_model_selection)
+      .map((message) => `// Source user message ${message.message_id || message.id}: selected @ai-model:${message.source_model_selection.model_id}${message.source_model_selection.provider ? `:${message.source_model_selection.provider}` : ''}`))
+    .join('\n');
   const messages = formatMessages(chat.messages, metadata, 'message');
   const embeds = formatEmbeds(chat.embeds);
   const usageEntries = formatUsageEntries(chat.usage_entries || [], metadata.chatId);
@@ -1122,6 +1168,7 @@ export function formatTs(chat, metadata) {
 // Example chat: ${metadata.title}
 // Extracted from shared chat ${chat.chat_id}
 // Generated by scripts/create-example-chat-from-share.mjs
+${modelSelectionComments ? `${modelSelectionComments}\n` : ''}
 
 import type { ExampleChat } from "../../types";
 
@@ -1284,8 +1331,11 @@ async function main() {
   const loadedChat = inlineEmbedsMapViewCodeEmbeds(
     removeInternalTaskEventMessages(withPromotedAppSkillUseMessages(loadExtractedChat(args))),
   );
-  const usagePayload = await loadUsagePayload(args, loadedChat);
-  let chat = annotateChatWithUsage(loadedChat, usagePayload);
+  const sourceChat = args.normalizeLeadingModelSelection
+    ? normalizeLeadingModelSelection(loadedChat)
+    : loadedChat;
+  const usagePayload = await loadUsagePayload(args, sourceChat);
+  let chat = annotateChatWithUsage(sourceChat, usagePayload);
   if (args.publicSpeechManifest) {
     chat = attachReviewedPublicSpeech(
       chat,
@@ -1339,6 +1389,9 @@ async function main() {
   console.log(`  slug: ${metadata.slug}`);
   console.log(`  category: ${metadata.category}`);
   console.log(`  messages: ${chat.messages.length}`);
+  console.log(`  normalized model selections: ${[chat, ...(chat.sub_chats || [])]
+    .reduce((count, sourceChat) => count + (sourceChat.messages || [])
+      .filter((message) => message.source_model_selection).length, 0)}`);
   console.log(`  embeds: ${chat.embeds.length}`);
   console.log(`  sub_chats: ${(chat.sub_chats || []).length}`);
   console.log(`  usage_entries: ${totalUsageEntryCount(chat)}`);

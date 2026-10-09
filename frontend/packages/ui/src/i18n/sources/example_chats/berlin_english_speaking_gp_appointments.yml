@@ -1,0 +1,1417 @@
+title:
+  context: "Title of example chat: Find an English-speaking GP in Berlin"
+  en: "Find an English-speaking GP in Berlin"
+  de: Englischsprachigen Hausarzt in Berlin finden
+  zh: 在柏林寻找说英语的全科医生
+  es: Encuentra un médico de cabecera que hable inglés en Berlín
+  fr: Trouver un généraliste anglophone à Berlin
+  pt: Encontrar um médico de clínica geral que fale inglês em Berlim
+  ru: Найти англоговорящего терапевта в Берлине
+  ja: ベルリンで英語対応の一般医（GP）を探す
+  ko: 베를린에서 영어 가능한 일반의(GP) 찾기
+  it: Trova un medico di base anglofono a Berlino
+  tr: "Berlin'de İngilizce konuşan bir aile hekimi bul"
+  vi: Tìm bác sĩ tổng quát nói tiếng Anh tại Berlin
+  id: Cari dokter umum berbahasa Inggris di Berlin
+  pl: Znajdź anglojęzycznego lekarza ogólnego w Berlinie
+  nl: Vind een Engelssprekende huisarts in Berlijn
+  ar: ابحث عن طبيب عام يتحدث الإنجليزية في برلين
+  hi: बर्लिन में अंग्रेजी बोलने वाले GP खोजें
+  th: ค้นหาแพทย์ทั่วไป (GP) ที่พูดภาษาอังกฤษในเบอร์ลิน
+  cs: Najdi anglicky mluvícího praktického lékaře v Berlíně
+  sv: Hitta en engelsktalande husläkare i Berlin
+  he: מצא רופא משפחה דובר אנגלית בברלין
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Find an English-speaking GP in Berlin"
+  en: "Find appointment options with honest insurance details and practice links."
+  de: Finde Terminoptionen mit ehrlichen Versicherungsdetails und Praxis-Links.
+  zh: 查找包含真实保险详情和诊所链接的预约选项。
+  es: Encuentra opciones de citas con detalles honestos sobre el seguro y enlaces a las consultas.
+  fr: "Trouve des options de rendez-vous avec des détails fiables sur l'assurance et les liens vers les cabinets."
+  pt: Encontra opções de consulta com detalhes de seguro transparentes e links para os consultórios.
+  ru: Найди варианты записи с достоверной информацией о страховке и ссылками на клиники.
+  ja: 正確な保険情報とクリニックへのリンクで、予約の選択肢を見つけます。
+  ko: 정확한 보험 정보와 병원 링크가 포함된 예약 옵션을 찾아보세요.
+  it: Trova opzioni di appuntamento con dettagli assicurativi trasparenti e link agli studi medici.
+  tr: Dürüst sigorta detayları ve klinik bağlantılarıyla randevu seçeneklerini bul.
+  vi: Tìm các lựa chọn hẹn khám với thông tin bảo hiểm minh bạch và liên kết đến phòng khám.
+  id: Temukan opsi janji temu dengan detail asuransi yang jujur dan tautan praktik dokter.
+  pl: Znajdź terminy wizyt z rzetelnymi informacjami o ubezpieczeniu i linkami do gabinetów.
+  nl: Vind afspraakopties met eerlijke verzekeringsgegevens en links naar praktijken.
+  ar: ابحث عن خيارات المواعيد مع تفاصيل دقيقة عن التأمين وروابط العيادات.
+  hi: बीमा की सटीक जानकारी और प्रैक्टिस लिंक के साथ अपॉइंटमेंट के विकल्प खोजें।
+  th: ค้นหาตัวเลือกการนัดหมายพร้อมรายละเอียดประกันภัยที่ตรงไปตรงมาและลิงก์ของคลินิก
+  cs: Najdi možnosti termínů s pravdivými údaji o pojištění a odkazy na ordinace.
+  sv: Hitta tider med tydlig försäkringsinformation och länkar till mottagningar.
+  he: מצא אפשרויות לתורים עם פרטי ביטוח אמינים וקישורים למרפאות.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Find an English-speaking GP in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "I need an English-speaking GP appointment in Berlin next week. Please compare the earliest options, show their appointment cards, and only state insurance coverage when the booking listing confirms it. If coverage is unclear, say so."
+  de: Ich brauche nächste Woche einen Termin bei einem englischsprachigen Hausarzt in Berlin. Bitte vergleiche die frühesten Optionen, zeige deren Terminkarten an und gib den Versicherungsschutz nur an, wenn der Buchungseintrag dies bestätigt. Wenn der Versicherungsschutz unklar ist, sag das bitte.
+  zh: 我下周需要在柏林预约一位说英语的全科医生（GP）。请对比最早的可选时段，显示他们的预约卡片，并仅在预约列表中确认保险覆盖范围时才说明。如果覆盖范围不明确，请如实说明。
+  es: Necesito una cita con un médico de cabecera que hable inglés en Berlín la próxima semana. Por favor, compara las opciones más próximas, muestra sus tarjetas de cita y solo indica la cobertura del seguro cuando el anuncio de reserva lo confirme. Si la cobertura no está clara, dilo.
+  fr: "J'ai besoin d'un rendez-vous avec un généraliste anglophone à Berlin la semaine prochaine. Compare les créneaux les plus proches, affiche leurs fiches de rendez-vous et n'indique la couverture d'assurance que si l'annonce de réservation le confirme. Si la couverture n'est pas claire, précise-le."
+  pt: Preciso de uma consulta com um médico de clínica geral que fale inglês em Berlim na próxima semana. Por favor, compara as opções mais próximas, mostra os cartões de consulta e indica a cobertura do seguro apenas quando a listagem de reserva o confirmar. Se a cobertura não for clara, diz.
+  ru: Мне нужно записаться к англоговорящему терапевту в Берлине на следующей неделе. Пожалуйста, сравни ближайшие варианты, покажи карточки записи и указывай информацию о страховке только тогда, когда она подтверждена в описании записи. Если информация о страховке неясна, так и напиши.
+  ja: 来週、ベルリンで英語対応の一般医（GP）の予約が必要です。最短の候補を比較して予約カードを表示し、保険の適用については予約ページで確認できる場合のみ記載してください。不明な場合はそのように伝えてください。
+  ko: 다음 주에 베를린에서 영어가 가능한 일반의(GP) 예약이 필요해. 가장 빠른 옵션들을 비교해서 예약 카드를 보여주고, 예약 목록에서 확인된 경우에만 보험 적용 여부를 알려줘. 적용 여부가 불분명하다면 그렇다고 말해줘.
+  it: "Ho bisogno di un appuntamento con un medico di base che parli inglese a Berlino la prossima settimana. Per favore, confronta le prime disponibilità, mostra le loro schede appuntamento e indica la copertura assicurativa solo quando confermata dall'annuncio di prenotazione. Se la copertura non è chiara, dillo."
+  tr: "Gelecek hafta Berlin'de İngilizce konuşan bir aile hekimi randevusuna ihtiyacım var. Lütfen en erken seçenekleri karşılaştır, randevu kartlarını göster ve sigorta kapsamını yalnızca rezervasyon listesi onayladığında belirt. Kapsam net değilse bunu belirt."
+  vi: Tôi cần hẹn bác sĩ tổng quát nói tiếng Anh tại Berlin vào tuần tới. Hãy so sánh các lựa chọn sớm nhất, hiển thị thẻ thông tin cuộc hẹn và chỉ nêu chi tiết bảo hiểm nếu thông tin đặt chỗ có xác nhận. Nếu không rõ về bảo hiểm, hãy báo lại.
+  id: Aku butuh janji temu dokter umum berbahasa Inggris di Berlin minggu depan. Tolong bandingkan opsi tercepat, tunjukkan kartu janji temunya, dan hanya sebutkan cakupan asuransi jika daftar pemesanan mengonfirmasinya. Jika cakupannya tidak jelas, katakan saja.
+  pl: Potrzebuję wizyty u anglojęzycznego lekarza ogólnego w Berlinie w przyszłym tygodniu. Porównaj najwcześniejsze opcje, pokaż ich karty wizyt i podawaj informacje o ubezpieczeniu tylko wtedy, gdy są one potwierdzone w ofercie. Jeśli kwestia ubezpieczenia jest niejasna, zaznacz to.
+  nl: Ik heb volgende week een afspraak nodig bij een Engelssprekende huisarts in Berlijn. Vergelijk de vroegste opties, toon hun afsprakenkaarten en vermeld de verzekeringsdekking alleen als de boekingsvermelding dit bevestigt. Als de dekking onduidelijk is, geef dit dan aan.
+  ar: أحتاج إلى موعد مع طبيب عام يتحدث الإنجليزية في برلين الأسبوع المقبل. يرجى مقارنة أقرب الخيارات المتاحة، وعرض بطاقات المواعيد الخاصة بها، وذكر تغطية التأمين فقط عندما تؤكدها قائمة الحجز. إذا كانت التغطية غير واضحة، يرجى ذكر ذلك.
+  hi: मुझे अगले हफ्ते बर्लिन में अंग्रेजी बोलने वाले GP के साथ अपॉइंटमेंट चाहिए। कृपया सबसे जल्दी उपलब्ध विकल्पों की तुलना करें, उनके अपॉइंटमेंट कार्ड दिखाएं, और बीमा कवरेज के बारे में केवल तभी बताएं जब बुकिंग लिस्टिंग इसकी पुष्टि करती हो। यदि कवरेज स्पष्ट नहीं है, तो वैसा ही कहें।
+  th: ฉันต้องการนัดหมายแพทย์ทั่วไป (GP) ที่พูดภาษาอังกฤษในเบอร์ลินสัปดาห์หน้า โปรดเปรียบเทียบตัวเลือกที่เร็วที่สุด แสดงบัตรนัดหมาย และระบุความคุ้มครองประกันภัยเฉพาะเมื่อรายการจองยืนยันเท่านั้น หากความคุ้มครองไม่ชัดเจน ให้แจ้งตามนั้น
+  cs: Potřebuju příští týden termín u anglicky mluvícího praktického lékaře v Berlíně. Porovnej prosím nejbližší možnosti, ukaž jejich karty termínů a uváděj krytí pojištěním, jen když je to v rezervační nabídce potvrzeno. Pokud je krytí nejasné, napiš to.
+  sv: Jag behöver en tid hos en engelsktalande husläkare i Berlin nästa vecka. Jämför de tidigaste alternativen, visa deras bokningskort och ange endast försäkringsskydd när bokningslistan bekräftar det. Om det är oklart vad som täcks, säg det.
+  he: אני צריך תור לרופא משפחה דובר אנגלית בברלין בשבוע הבא. אנא השווה בין האפשרויות המוקדמות ביותר, הצג את כרטיסי התור שלהן, וציין את הכיסוי הביטוחי רק כאשר רישום ההזמנה מאשר זאת. אם הכיסוי אינו ברור, ציין זאת.
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Find an English-speaking GP in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    Here are the earliest English-speaking GP options in Berlin within the next 7 days that I found. I’m only stating insurance coverage where the booking listing itself indicates it.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Earliest options next week**
+    1. **Mon 12 Oct, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Address: Albert-Einstein-Straße 2, 12489 Berlin
+       - Visit type: Erstuntersuchung Neupatient:in
+       - Languages shown: German, English
+       - **Insurance:** private *(confirmed by listing)*
+
+    2. **Mon 12 Oct, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Address: Kapweg 5, 13405 Berlin
+       - Visit type: Erstuntersuchung Neupatient:in
+       - Languages shown: English
+       - **Insurance:** private *(confirmed by listing)*
+
+    3. **Mon 12 Oct, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Address: Stargarder Straße 69, 10437 Berlin
+       - Visit type: Akutsprechstunde
+       - Languages shown: German, English
+       - **Insurance:** unclear *(the listing does not confirm it)*
+
+    4. **Mon 12 Oct, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Address: Müllerstraße 36, 13353 Berlin
+       - Visit type: Erstuntersuchung Neupatient:in
+       - Languages shown: German, English
+       - **Insurance:** unclear *(the listing does not confirm it)*
+
+    5. **Mon 12 Oct, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Address: Wallstraße 16, 10179 Berlin
+       - Visit type: Erstuntersuchung Neupatient:in
+       - Languages shown: German, English
+       - **Insurance:** unclear *(the listing does not confirm it)*
+
+    A couple of notes:
+    - I excluded the two earlier options on **9–10 Oct** from the comparison above because you asked for **next week** specifically.
+    - These results appear to come from Doctolib listings; Jameda coverage was unsupported in this search result set.
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    If you want, I can next:
+    - narrow this to **public insurance only** where confirmed, or
+    - create a short shortlist by **district / distance from your area**.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    Hier sind die frühesten Termine bei englischsprachigen Hausärzt:innen in Berlin innerhalb der nächsten 7 Tage, die ich gefunden habe. Ich gebe den Versicherungsschutz nur an, wenn er im Buchungseintrag selbst vermerkt ist.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Früheste Optionen nächste Woche**
+    1. **Mo., 12. Okt., 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Adresse: Albert-Einstein-Straße 2, 12489 Berlin
+       - Besuchsgrund: Erstuntersuchung Neupatient:in
+       - Angezeigte Sprachen: Deutsch, Englisch
+       - **Versicherung:** privat *(laut Eintrag bestätigt)*
+
+    2. **Mo., 12. Okt., 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Adresse: Kapweg 5, 13405 Berlin
+       - Besuchsgrund: Erstuntersuchung Neupatient:in
+       - Angezeigte Sprachen: Englisch
+       - **Versicherung:** privat *(laut Eintrag bestätigt)*
+
+    3. **Mo., 12. Okt., 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Adresse: Stargarder Straße 69, 10437 Berlin
+       - Besuchsgrund: Akutsprechstunde
+       - Angezeigte Sprachen: Deutsch, Englisch
+       - **Versicherung:** unklar *(im Eintrag nicht bestätigt)*
+
+    4. **Mo., 12. Okt., 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Adresse: Müllerstraße 36, 13353 Berlin
+       - Besuchsgrund: Erstuntersuchung Neupatient:in
+       - Angezeigte Sprachen: Deutsch, Englisch
+       - **Versicherung:** unklar *(im Eintrag nicht bestätigt)*
+
+    5. **Mo., 12. Okt., 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Adresse: Wallstraße 16, 10179 Berlin
+       - Besuchsgrund: Erstuntersuchung Neupatient:in
+       - Angezeigte Sprachen: Deutsch, Englisch
+       - **Versicherung:** unklar *(im Eintrag nicht bestätigt)*
+
+    Ein paar Anmerkungen:
+    - Ich habe die beiden früheren Optionen am **9.–10. Okt.** aus dem obigen Vergleich ausgeschlossen, da du gezielt nach der **nächsten Woche** gefragt hast.
+    - Diese Ergebnisse stammen anscheinend von Doctolib; Jameda-Einträge wurden in diesem Suchergebnis nicht berücksichtigt.
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    Wenn du möchtest, kann ich als Nächstes:
+    - die Suche auf **gesetzlich Versicherte** einschränken (sofern bestätigt), oder
+    - eine kurze Auswahl nach **Stadtteil / Entfernung zu deinem Standort** erstellen.
+    ---
+    *⚠️ Dies dient nur zu Informationszwecken und ist keine medizinische Beratung. Konsultiere bei medizinischen Entscheidungen deine Ärztin oder deinen Arzt.*
+  zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    以下是我为您找到的未来 7 天内柏林最早的英语全科医生 (GP) 预约选项。我仅在预约列表中明确注明保险覆盖范围的情况下才列出该信息。
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **下周最早的选项**
+    1. **10 月 12 日周一, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - 地址: Albert-Einstein-Straße 2, 12489 Berlin
+       - 就诊类型: Erstuntersuchung Neupatient:in (新病人初诊)
+       - 显示语言: 德语、英语
+       - **保险:** 私立保险 *(列表已确认)*
+
+    2. **10 月 12 日周一, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - 地址: Kapweg 5, 13405 Berlin
+       - 就诊类型: Erstuntersuchung Neupatient:in (新病人初诊)
+       - 显示语言: 英语
+       - **保险:** 私立保险 *(列表已确认)*
+
+    3. **10 月 12 日周一, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - 地址: Stargarder Straße 69, 10437 Berlin
+       - 就诊类型: Akutsprechstunde (急诊门诊)
+       - 显示语言: 德语、英语
+       - **保险:** 不详 *(列表未确认)*
+
+    4. **10 月 12 日周一, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - 地址: Müllerstraße 36, 13353 Berlin
+       - 就诊类型: Erstuntersuchung Neupatient:in (新病人初诊)
+       - 显示语言: 德语、英语
+       - **保险:** 不详 *(列表未确认)*
+
+    5. **10 月 12 日周一, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - 地址: Wallstraße 16, 10179 Berlin
+       - 就诊类型: Erstuntersuchung Neupatient:in (新病人初诊)
+       - 显示语言: 德语、英语
+       - **保险:** 不详 *(列表未确认)*
+
+    几点说明：
+    - 我在上述对比中排除了 **10 月 9 日至 10 日** 的两个更早选项，因为您特别要求的是 **下周**。
+    - 这些结果似乎来自 Doctolib 列表；本次搜索结果集中不支持 Jameda 的覆盖范围。
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    如果您需要，我接下来可以：
+    - 将范围缩小到已确认的 **仅限公立保险**，或者
+    - 根据 **所在地区/距离** 创建一份精简名单。
+    ---
+    *⚠️ 本信息仅供参考，不构成医疗建议。医疗决策请咨询您的医生。*
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    Aquí tienes las opciones más próximas de médicos de cabecera que hablan inglés en Berlín para la próxima semana que he encontrado. Solo indico la cobertura del seguro cuando el propio anuncio de reserva lo especifica.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Opciones más próximas la próxima semana**
+    1. **Lun 12 oct, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Dirección: Albert-Einstein-Straße 2, 12489 Berlín
+       - Tipo de visita: Erstuntersuchung Neupatient:in (Primera consulta para nuevos pacientes)
+       - Idiomas indicados: Alemán, Inglés
+       - **Seguro:** privado *(confirmado por el anuncio)*
+
+    2. **Lun 12 oct, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Dirección: Kapweg 5, 13405 Berlín
+       - Tipo de visita: Erstuntersuchung Neupatient:in (Primera consulta para nuevos pacientes)
+       - Idiomas indicados: Inglés
+       - **Seguro:** privado *(confirmado por el anuncio)*
+
+    3. **Lun 12 oct, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Dirección: Stargarder Straße 69, 10437 Berlín
+       - Tipo de visita: Akutsprechstunde (Consulta de urgencia)
+       - Idiomas indicados: Alemán, Inglés
+       - **Seguro:** no está claro *(el anuncio no lo confirma)*
+
+    4. **Lun 12 oct, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Dirección: Müllerstraße 36, 13353 Berlín
+       - Tipo de visita: Erstuntersuchung Neupatient:in (Primera consulta para nuevos pacientes)
+       - Idiomas indicados: Alemán, Inglés
+       - **Seguro:** no está claro *(el anuncio no lo confirma)*
+
+    5. **Lun 12 oct, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Dirección: Wallstraße 16, 10179 Berlín
+       - Tipo de visita: Erstuntersuchung Neupatient:in (Primera consulta para nuevos pacientes)
+       - Idiomas indicados: Alemán, Inglés
+       - **Seguro:** no está claro *(el anuncio no lo confirma)*
+
+    Un par de notas:
+    - He excluido las dos opciones anteriores del **9 al 10 de oct** de la comparativa porque pediste específicamente para la **próxima semana**.
+    - Estos resultados parecen proceder de anuncios de Doctolib; la cobertura de Jameda no era compatible con este conjunto de resultados de búsqueda.
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    Si quieres, puedo:
+    - limitar la búsqueda solo a **seguros públicos** donde esté confirmado, o
+    - crear una lista corta por **distrito / distancia desde tu zona**.
+    ---
+    *⚠️ Esta información es solo educativa y no constituye un consejo médico. Consulta a tu médico para tomar decisiones médicas.*
+  fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```Voici les options de médecins généralistes anglophones les plus proches à Berlin dans les 7 prochains jours que j'ai trouvées. Je n'indique la couverture d'assurance que là où l'annonce de réservation elle-même le précise.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Les options les plus proches la semaine prochaine**
+    1. **Lun 12 oct, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Adresse : Albert-Einstein-Straße 2, 12489 Berlin
+       - Type de consultation : Erstuntersuchung Neupatient:in (Première consultation nouveau patient)
+       - Langues affichées : Allemand, Anglais
+       - **Assurance :** privée *(confirmé par l'annonce)*
+
+    2. **Lun 12 oct, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Adresse : Kapweg 5, 13405 Berlin
+       - Type de consultation : Erstuntersuchung Neupatient:in (Première consultation nouveau patient)
+       - Langues affichées : Anglais
+       - **Assurance :** privée *(confirmé par l'annonce)*
+
+    3. **Lun 12 oct, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Adresse : Stargarder Straße 69, 10437 Berlin
+       - Type de consultation : Akutsprechstunde (Consultation d'urgence)
+       - Langues affichées : Allemand, Anglais
+       - **Assurance :** pas clair *(l'annonce ne le confirme pas)*
+
+    4. **Lun 12 oct, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Adresse : Müllerstraße 36, 13353 Berlin
+       - Type de consultation : Erstuntersuchung Neupatient:in (Première consultation nouveau patient)
+       - Langues affichées : Allemand, Anglais
+       - **Assurance :** pas clair *(l'annonce ne le confirme pas)*
+
+    5. **Lun 12 oct, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Adresse : Wallstraße 16, 10179 Berlin
+       - Type de consultation : Erstuntersuchung Neupatient:in (Première consultation nouveau patient)
+       - Langues affichées : Allemand, Anglais
+       - **Assurance :** pas clair *(l'annonce ne le confirme pas)*
+
+    Quelques notes :
+    - J'ai exclu les deux options plus proches des **9 et 10 oct** de la comparaison ci-dessus car tu as demandé spécifiquement pour **la semaine prochaine**.
+    - Ces résultats semblent provenir des annonces Doctolib ; la couverture Jameda n'était pas prise en charge dans cet ensemble de résultats de recherche.```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```Si tu veux, je peux ensuite :
+    - restreindre cette liste à l'**assurance publique uniquement** là où c'est confirmé, ou
+    - créer une courte sélection par **quartier / distance par rapport à ton secteur**.
+    ---
+    *⚠️ Ces informations sont fournies à titre éducatif uniquement et ne constituent pas un avis médical. Consultez votre médecin pour toute décision médicale.*
+  pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```Aqui estão as opções mais próximas de clínicos gerais que falam inglês em Berlim nos próximos 7 dias que encontrei. Só estou indicando a cobertura do seguro onde o próprio anúncio de reserva o indica.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Opções mais próximas na próxima semana**
+    1. **Seg, 12 de out, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Endereço: Albert-Einstein-Straße 2, 12489 Berlin
+       - Tipo de consulta: Primeira consulta (novo paciente)
+       - Idiomas indicados: Alemão, Inglês
+       - **Seguro:** particular *(confirmado pelo anúncio)*
+
+    2. **Seg, 12 de out, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Endereço: Kapweg 5, 13405 Berlin
+       - Tipo de consulta: Primeira consulta (novo paciente)
+       - Idiomas indicados: Inglês
+       - **Seguro:** particular *(confirmado pelo anúncio)*
+
+    3. **Seg, 12 de out, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Endereço: Stargarder Straße 69, 10437 Berlin
+       - Tipo de consulta: Consulta de urgência
+       - Idiomas indicados: Alemão, Inglês
+       - **Seguro:** incerto *(o anúncio não confirma)*
+
+    4. **Seg, 12 de out, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Endereço: Müllerstraße 36, 13353 Berlin
+       - Tipo de consulta: Primeira consulta (novo paciente)
+       - Idiomas indicados: Alemão, Inglês
+       - **Seguro:** incerto *(o anúncio não confirma)*
+
+    5. **Seg, 12 de out, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Endereço: Wallstraße 16, 10179 Berlin
+       - Tipo de consulta: Primeira consulta (novo paciente)
+       - Idiomas indicados: Alemão, Inglês
+       - **Seguro:** incerto *(o anúncio não confirma)*
+
+    Algumas observações:
+    - Excluí as duas opções anteriores de **9 a 10 de out** da comparação acima porque você pediu especificamente para a **próxima semana**.
+    - Estes resultados parecem vir de anúncios do Doctolib; a cobertura do Jameda não era suportada neste conjunto de resultados de busca.```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```Se quiser, a seguir posso:
+    - restringir isto a **apenas seguros públicos** onde confirmado, ou
+    - criar uma lista curta por **distrito / distância da sua zona**.
+    ---
+    *⚠️ Estas são apenas informações educativas e não constituem aconselhamento médico. Consulte seu médico para tomar decisões médicas.*
+  ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    Вот ближайшие варианты записи к англоговорящим терапевтам в Берлине на ближайшие 7 дней, которые мне удалось найти. Я указываю тип страховки только в тех случаях, когда это отмечено в самом объявлении.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Ближайшие варианты на следующей неделе**
+    1. **Пн, 12 окт., 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Адрес: Albert-Einstein-Straße 2, 12489 Berlin
+       - Тип визита: Erstuntersuchung Neupatient:in (Первичный осмотр нового пациента)
+       - Указанные языки: немецкий, английский
+       - **Страховка:** частная *(подтверждено в объявлении)*
+
+    2. **Пн, 12 окт., 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Адрес: Kapweg 5, 13405 Berlin
+       - Тип визита: Erstuntersuchung Neupatient:in (Первичный осмотр нового пациента)
+       - Указанные языки: английский
+       - **Страховка:** частная *(подтверждено в объявлении)*
+
+    3. **Пн, 12 окт., 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Адрес: Stargarder Straße 69, 10437 Berlin
+       - Тип визита: Akutsprechstunde (Прием по острым случаям)
+       - Указанные языки: немецкий, английский
+       - **Страховка:** не указано *(в объявлении нет подтверждения)*
+
+    4. **Пн, 12 окт., 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Адрес: Müllerstraße 36, 13353 Berlin
+       - Тип визита: Erstuntersuchung Neupatient:in (Первичный осмотр нового пациента)
+       - Указанные языки: немецкий, английский
+       - **Страховка:** не указано *(в объявлении нет подтверждения)*
+
+    5. **Пн, 12 окт., 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Адрес: Wallstraße 16, 10179 Berlin
+       - Тип визита: Erstuntersuchung Neupatient:in (Первичный осмотр нового пациента)
+       - Указанные языки: немецкий, английский
+       - **Страховка:** не указано *(в объявлении нет подтверждения)*
+
+    Несколько примечаний:
+    - Я исключил два более ранних варианта на **9–10 окт.** из списка выше, так как ты просил именно на **следующую неделю**.
+    - Эти результаты взяты из объявлений на Doctolib; поиск по Jameda не поддерживался в данном наборе результатов.
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    Если хочешь, я могу:
+    - ограничить поиск **только государственной страховкой** (где это подтверждено), или
+    - составить краткий список по **району или удаленности от тебя**.
+    ---
+    *⚠️ Данная информация носит исключительно ознакомительный характер и не является медицинской консультацией. Для принятия медицинских решений проконсультируйся с врачом.*
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    ベルリン市内で、今後7日間以内に予約可能な英語対応の一般医（GP）をいくつか見つけました。保険の適用範囲については、予約ページ自体に記載がある場合のみ明記しています。
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **来週の最短予約オプション**
+    1. **10月12日（月）07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - 住所: Albert-Einstein-Straße 2, 12489 Berlin
+       - 受診タイプ: 初診（新患）
+       - 表示されている言語: ドイツ語、英語
+       - **保険:** プライベート保険 *(予約ページで確認済み)*
+
+    2. **10月12日（月）08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - 住所: Kapweg 5, 13405 Berlin
+       - 受診タイプ: 初診（新患）
+       - 表示されている言語: 英語
+       - **保険:** プライベート保険 *(予約ページで確認済み)*
+
+    3. **10月12日（月）08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - 住所: Stargarder Straße 69, 10437 Berlin
+       - 受診タイプ: 急患対応
+       - 表示されている言語: ドイツ語、英語
+       - **保険:** 不明 *(予約ページに記載なし)*
+
+    4. **10月12日（月）08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - 住所: Müllerstraße 36, 13353 Berlin
+       - 受診タイプ: 初診（新患）
+       - 表示されている言語: ドイツ語、英語
+       - **保険:** 不明 *(予約ページに記載なし)*
+
+    5. **10月12日（月）08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - 住所: Wallstraße 16, 10179 Berlin
+       - 受診タイプ: 初診（新患）
+       - 表示されている言語: ドイツ語、英語
+       - **保険:** 不明 *(予約ページに記載なし)*
+
+    注意事項:
+    - 「来週」というご希望に合わせて、**10月9日〜10日**のより早い日程の選択肢は上記の比較から除外しています。
+    - これらの結果はDoctolibの掲載情報に基づいているようです。今回の検索結果ではJamedaの情報は含まれていません。
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    ご希望であれば、次に以下のことが可能です：
+    - 確認済みの**公的保険のみ**に絞り込む
+    - **地区や現在地からの距離**で絞り込んだリストを作成する
+    ---
+    *⚠️ これは情報提供のみを目的としており、医学的アドバイスではありません。医療上の判断については医師にご相談ください。*
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```제가 찾은 향후 7일 이내 베를린의 영어 가능 일반의(GP) 옵션 중 가장 빠른 것들이에요. 보험 적용 여부는 예약 목록 자체에 표시된 경우에만 기재했어요.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **다음 주 가장 빠른 옵션**
+    1. **10월 12일 (월), 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - 주소: Albert-Einstein-Straße 2, 12489 Berlin
+       - 진료 유형: 신규 환자 첫 진료 (Erstuntersuchung Neupatient:in)
+       - 표시된 언어: 독일어, 영어
+       - **보험:** 사보험 *(목록에서 확인됨)*
+
+    2. **10월 12일 (월), 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - 주소: Kapweg 5, 13405 Berlin
+       - 진료 유형: 신규 환자 첫 진료 (Erstuntersuchung Neupatient:in)
+       - 표시된 언어: 영어
+       - **보험:** 사보험 *(목록에서 확인됨)*
+
+    3. **10월 12일 (월), 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - 주소: Stargarder Straße 69, 10437 Berlin
+       - 진료 유형: 긴급 진료 (Akutsprechstunde)
+       - 표시된 언어: 독일어, 영어
+       - **보험:** 불분명 *(목록에서 확인되지 않음)*
+
+    4. **10월 12일 (월), 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - 주소: Müllerstraße 36, 13353 Berlin
+       - 진료 유형: 신규 환자 첫 진료 (Erstuntersuchung Neupatient:in)
+       - 표시된 언어: 독일어, 영어
+       - **보험:** 불분명 *(목록에서 확인되지 않음)*
+
+    5. **10월 12일 (월), 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - 주소: Wallstraße 16, 10179 Berlin
+       - 진료 유형: 신규 환자 첫 진료 (Erstuntersuchung Neupatient:in)
+       - 표시된 언어: 독일어, 영어
+       - **보험:** 불분명 *(목록에서 확인되지 않음)*
+
+    몇 가지 참고 사항:
+    - **다음 주**를 특정해서 물어보셨기 때문에, 10월 9~10일의 더 빠른 옵션 두 개는 위 비교에서 제외했어요.
+    - 이 결과는 Doctolib 목록에서 가져온 것으로 보여요. Jameda 정보는 이번 검색 결과 세트에서 지원되지 않았어요.```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```원하시면 다음에는 이렇게 해드릴 수 있어요:
+    - 확인된 경우에 한해 **공적 보험(public insurance)만**으로 범위를 좁히거나,
+    - **지역구 / 현재 위치에서의 거리**를 기준으로 짧은 후보 리스트를 만들 수 있어요.
+    ---
+    *⚠️ 이 내용은 교육 목적의 정보일 뿐이며 의학적 조언이 아닙니다. 의료 관련 결정은 의사와 상담하세요.*
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    Ecco le prime opzioni disponibili per medici di base che parlano inglese a Berlino nei prossimi 7 giorni che ho trovato. Indico la copertura assicurativa solo dove specificato nell'annuncio di prenotazione.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Prime opzioni per la prossima settimana**
+    1. **Lun 12 ott, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Indirizzo: Albert-Einstein-Straße 2, 12489 Berlin
+       - Tipo di visita: Erstuntersuchung Neupatient:in
+       - Lingue indicate: Tedesco, inglese
+       - **Assicurazione:** privata *(confermata dall'annuncio)*
+
+    2. **Lun 12 ott, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Indirizzo: Kapweg 5, 13405 Berlin
+       - Tipo di visita: Erstuntersuchung Neupatient:in
+       - Lingue indicate: Inglese
+       - **Assicurazione:** privata *(confermata dall'annuncio)*
+
+    3. **Lun 12 ott, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Indirizzo: Stargarder Straße 69, 10437 Berlin
+       - Tipo di visita: Akutsprechstunde
+       - Lingue indicate: Tedesco, inglese
+       - **Assicurazione:** non chiara *(l'annuncio non la conferma)*
+
+    4. **Lun 12 ott, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Indirizzo: Müllerstraße 36, 13353 Berlin
+       - Tipo di visita: Erstuntersuchung Neupatient:in
+       - Lingue indicate: Tedesco, inglese
+       - **Assicurazione:** non chiara *(l'annuncio non la conferma)*
+
+    5. **Lun 12 ott, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Indirizzo: Wallstraße 16, 10179 Berlin
+       - Tipo di visita: Erstuntersuchung Neupatient:in
+       - Lingue indicate: Tedesco, inglese
+       - **Assicurazione:** non chiara *(l'annuncio non la conferma)*
+
+    Alcune note:
+    - Ho escluso le due opzioni precedenti del **9–10 ott** dal confronto qui sopra perché hai chiesto specificamente per la **prossima settimana**.
+    - Questi risultati sembrano provenire da annunci su Doctolib; la copertura di Jameda non era supportata in questo set di risultati di ricerca.
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    Se vuoi, posso:
+    - limitare la ricerca alla sola **assicurazione pubblica** dove confermato, oppure
+    - creare una breve selezione per **quartiere / distanza dalla tua zona**.
+    ---
+    *⚠️ Queste sono solo informazioni a scopo didattico e non costituiscono un parere medico. Consulta il tuo medico per decisioni di natura medica.*
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    Berlin'de önümüzdeki 7 gün içinde bulduğum en erken İngilizce konuşan pratisyen hekim (GP) seçeneklerini aşağıda bulabilirsin. Sigorta kapsamını yalnızca randevu ilanında belirtildiği durumlarda ekledim.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Gelecek haftanın en erken seçenekleri**
+    1. **12 Ekim Pzt, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Adres: Albert-Einstein-Straße 2, 12489 Berlin
+       - Muayene türü: Yeni hasta ilk muayenesi (Erstuntersuchung Neupatient:in)
+       - Belirtilen diller: Almanca, İngilizce
+       - **Sigorta:** özel *(ilan tarafından onaylandı)*
+
+    2. **12 Ekim Pzt, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Adres: Kapweg 5, 13405 Berlin
+       - Muayene türü: Yeni hasta ilk muayenesi (Erstuntersuchung Neupatient:in)
+       - Belirtilen diller: İngilizce
+       - **Sigorta:** özel *(ilan tarafından onaylandı)*
+
+    3. **12 Ekim Pzt, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Adres: Stargarder Straße 69, 10437 Berlin
+       - Muayene türü: Acil muayene (Akutsprechstunde)
+       - Belirtilen diller: Almanca, İngilizce
+       - **Sigorta:** belirsiz *(ilan bunu onaylamıyor)*
+
+    4. **12 Ekim Pzt, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Adres: Müllerstraße 36, 13353 Berlin
+       - Muayene türü: Yeni hasta ilk muayenesi (Erstuntersuchung Neupatient:in)
+       - Belirtilen diller: Almanca, İngilizce
+       - **Sigorta:** belirsiz *(ilan bunu onaylamıyor)*
+
+    5. **12 Ekim Pzt, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Adres: Wallstraße 16, 10179 Berlin
+       - Muayene türü: Yeni hasta ilk muayenesi (Erstuntersuchung Neupatient:in)
+       - Belirtilen diller: Almanca, İngilizce
+       - **Sigorta:** belirsiz *(ilan bunu onaylamıyor)*
+
+    Birkaç not:
+    - Özellikle **gelecek hafta** için sorduğun için **9–10 Ekim** tarihlerindeki daha erken iki seçeneği yukarıdaki karşılaştırmaya dahil etmedim.
+    - Bu sonuçlar Doctolib ilanlarından alınmış gibi görünüyor; Jameda kapsamı bu arama sonuçları setinde desteklenmiyordu.
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    İstersen şunları yapabilirim:
+    - onaylandığı durumlarda bunu sadece **kamu sigortası** ile sınırlandırabilirim veya
+    - **semte / bulunduğun yere olan mesafeye** göre kısa bir liste oluşturabilirim.
+    ---
+    *⚠️ Bu bilgiler sadece eğitim amaçlıdır ve tıbbi tavsiye niteliği taşımaz. Tıbbi kararlar için doktoruna danış.*
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    Dưới đây là các lựa chọn bác sĩ tổng quát (GP) nói tiếng Anh sớm nhất tại Berlin trong 7 ngày tới mà mình tìm thấy. Mình chỉ nêu phạm vi bảo hiểm khi thông tin đăng ký khám bệnh có ghi rõ.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Các lựa chọn sớm nhất vào tuần tới**
+    1. **Thứ Hai, 12/10, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Địa chỉ: Albert-Einstein-Straße 2, 12489 Berlin
+       - Loại hình thăm khám: Khám lần đầu cho bệnh nhân mới (Erstuntersuchung Neupatient:in)
+       - Ngôn ngữ hiển thị: Tiếng Đức, Tiếng Anh
+       - **Bảo hiểm:** tư nhân *(được xác nhận theo thông tin đăng ký)*
+
+    2. **Thứ Hai, 12/10, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Địa chỉ: Kapweg 5, 13405 Berlin
+       - Loại hình thăm khám: Khám lần đầu cho bệnh nhân mới (Erstuntersuchung Neupatient:in)
+       - Ngôn ngữ hiển thị: Tiếng Anh
+       - **Bảo hiểm:** tư nhân *(được xác nhận theo thông tin đăng ký)*
+
+    3. **Thứ Hai, 12/10, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Địa chỉ: Stargarder Straße 69, 10437 Berlin
+       - Loại hình thăm khám: Khám cấp tính (Akutsprechstunde)
+       - Ngôn ngữ hiển thị: Tiếng Đức, Tiếng Anh
+       - **Bảo hiểm:** không rõ *(thông tin đăng ký không xác nhận điều này)*
+
+    4. **Thứ Hai, 12/10, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Địa chỉ: Müllerstraße 36, 13353 Berlin
+       - Loại hình thăm khám: Khám lần đầu cho bệnh nhân mới (Erstuntersuchung Neupatient:in)
+       - Ngôn ngữ hiển thị: Tiếng Đức, Tiếng Anh
+       - **Bảo hiểm:** không rõ *(thông tin đăng ký không xác nhận điều này)*
+
+    5. **Thứ Hai, 12/10, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Địa chỉ: Wallstraße 16, 10179 Berlin
+       - Loại hình thăm khám: Khám lần đầu cho bệnh nhân mới (Erstuntersuchung Neupatient:in)
+       - Ngôn ngữ hiển thị: Tiếng Đức, Tiếng Anh
+       - **Bảo hiểm:** không rõ *(thông tin đăng ký không xác nhận điều này)*
+
+    Một vài lưu ý:
+    - Mình đã loại bỏ hai lựa chọn sớm hơn vào ngày **9–10 tháng 10** khỏi bảng so sánh trên vì bạn đã yêu cầu cụ thể cho **tuần tới**.
+    - Các kết quả này có vẻ đến từ danh sách của Doctolib; phạm vi bảo hiểm của Jameda không được hỗ trợ trong bộ kết quả tìm kiếm này.
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    Nếu muốn, tiếp theo mình có thể:
+    - thu hẹp phạm vi chỉ bao gồm **bảo hiểm công** ở những nơi đã xác nhận, hoặc
+    - tạo một danh sách rút gọn theo **quận / khoảng cách từ khu vực của bạn**.
+    ---
+    *⚠️ Đây chỉ là thông tin mang tính giáo dục và không phải là lời khuyên y tế. Hãy tham khảo ý kiến bác sĩ để đưa ra các quyết định y tế.*
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```Ini adalah pilihan dokter umum (GP) berbahasa Inggris tercepat di Berlin dalam 7 hari ke depan yang saya temukan. Saya hanya mencantumkan cakupan asuransi jika daftar pemesanannya sendiri menunjukkannya.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Pilihan tercepat minggu depan**
+    1. **Senin 12 Okt, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Alamat: Albert-Einstein-Straße 2, 12489 Berlin
+       - Jenis kunjungan: Pemeriksaan pertama pasien baru
+       - Bahasa yang ditampilkan: Jerman, Inggris
+       - **Asuransi:** pribadi *(dikonfirmasi oleh daftar)*
+
+    2. **Senin 12 Okt, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Alamat: Kapweg 5, 13405 Berlin
+       - Jenis kunjungan: Pemeriksaan pertama pasien baru
+       - Bahasa yang ditampilkan: Inggris
+       - **Asuransi:** pribadi *(dikonfirmasi oleh daftar)*
+
+    3. **Senin 12 Okt, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Alamat: Stargarder Straße 69, 10437 Berlin
+       - Jenis kunjungan: Konsultasi akut
+       - Bahasa yang ditampilkan: Jerman, Inggris
+       - **Asuransi:** tidak jelas *(daftar tidak mengonfirmasinya)*
+
+    4. **Senin 12 Okt, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Alamat: Müllerstraße 36, 13353 Berlin
+       - Jenis kunjungan: Pemeriksaan pertama pasien baru
+       - Bahasa yang ditampilkan: Jerman, Inggris
+       - **Asuransi:** tidak jelas *(daftar tidak mengonfirmasinya)*
+
+    5. **Senin 12 Okt, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Alamat: Wallstraße 16, 10179 Berlin
+       - Jenis kunjungan: Pemeriksaan pertama pasien baru
+       - Bahasa yang ditampilkan: Jerman, Inggris
+       - **Asuransi:** tidak jelas *(daftar tidak mengonfirmasinya)*
+
+    Beberapa catatan:
+    - Saya mengecualikan dua pilihan sebelumnya pada **9–10 Okt** dari perbandingan di atas karena kamu meminta khusus untuk **minggu depan**.
+    - Hasil ini tampaknya berasal dari daftar Doctolib; cakupan Jameda tidak didukung dalam kumpulan hasil pencarian ini.```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```Kalau mau, selanjutnya aku bisa:
+    - mempersempit ini ke **asuransi publik saja** yang sudah dikonfirmasi, atau
+    - bikin daftar singkat berdasarkan **distrik / jarak dari lokasimu**.
+    ---
+    *⚠️ Ini cuma informasi edukasi dan bukan saran medis. Konsultasikan dengan doktermu untuk keputusan medis.*
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    Oto najwcześniejsze znalezione przeze mnie terminy u anglojęzycznych lekarzy rodzinnych w Berlinie w ciągu najbliższych 7 dni. Informację o ubezpieczeniu podaję tylko wtedy, gdy widnieje ona bezpośrednio w ogłoszeniu.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Najwcześniejsze terminy w przyszłym tygodniu**
+    1. **Pon., 12 paź, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Adres: Albert-Einstein-Straße 2, 12489 Berlin
+       - Rodzaj wizyty: Erstuntersuchung Neupatient:in (Pierwsza wizyta – nowy pacjent)
+       - Wskazane języki: niemiecki, angielski
+       - **Ubezpieczenie:** prywatne *(potwierdzone w ogłoszeniu)*
+
+    2. **Pon., 12 paź, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Adres: Kapweg 5, 13405 Berlin
+       - Rodzaj wizyty: Erstuntersuchung Neupatient:in (Pierwsza wizyta – nowy pacjent)
+       - Wskazane języki: angielski
+       - **Ubezpieczenie:** prywatne *(potwierdzone w ogłoszeniu)*
+
+    3. **Pon., 12 paź, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Adres: Stargarder Straße 69, 10437 Berlin
+       - Rodzaj wizyty: Akutsprechstunde (Wizyta w nagłych przypadkach)
+       - Wskazane języki: niemiecki, angielski
+       - **Ubezpieczenie:** nieokreślone *(brak potwierdzenia w ogłoszeniu)*
+
+    4. **Pon., 12 paź, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Adres: Müllerstraße 36, 13353 Berlin
+       - Rodzaj wizyty: Erstuntersuchung Neupatient:in (Pierwsza wizyta – nowy pacjent)
+       - Wskazane języki: niemiecki, angielski
+       - **Ubezpieczenie:** nieokreślone *(brak potwierdzenia w ogłoszeniu)*
+
+    5. **Pon., 12 paź, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Adres: Wallstraße 16, 10179 Berlin
+       - Rodzaj wizyty: Erstuntersuchung Neupatient:in (Pierwsza wizyta – nowy pacjent)
+       - Wskazane języki: niemiecki, angielski
+       - **Ubezpieczenie:** nieokreślone *(brak potwierdzenia w ogłoszeniu)*
+
+    Kilka uwag:
+    - Pominąłem dwie wcześniejsze opcje z **9–10 października** w powyższym zestawieniu, ponieważ prosiłeś konkretnie o **przyszły tydzień**.
+    - Wyniki te pochodzą z serwisu Doctolib; wyszukiwanie nie objęło serwisu Jameda.
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    Jeśli chcesz, mogę teraz:
+    - zawęzić listę tylko do **ubezpieczenia publicznego** (tam, gdzie jest potwierdzone) lub
+    - stworzyć krótką listę według **dzielnicy / odległości od Twojej lokalizacji**.
+    ---
+    *⚠️ To są wyłącznie informacje edukacyjne, a nie porada medyczna. W celu podjęcia decyzji medycznych skonsultuj się z lekarzem.*
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    Hier zijn de vroegste opties voor Engelssprekende huisartsen in Berlijn binnen de komende 7 dagen die ik heb gevonden. Ik vermeld de verzekeringsdekking alleen als de vermelding dit zelf aangeeft.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Vroegste opties volgende week**
+    1. **Ma 12 okt, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Adres: Albert-Einstein-Straße 2, 12489 Berlin
+       - Type afspraak: Erstuntersuchung Neupatient:in
+       - Getoonde talen: Duits, Engels
+       - **Verzekering:** privé *(bevestigd door vermelding)*
+
+    2. **Ma 12 okt, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Adres: Kapweg 5, 13405 Berlin
+       - Type afspraak: Erstuntersuchung Neupatient:in
+       - Getoonde talen: Engels
+       - **Verzekering:** privé *(bevestigd door vermelding)*
+
+    3. **Ma 12 okt, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Adres: Stargarder Straße 69, 10437 Berlin
+       - Type afspraak: Akutsprechstunde
+       - Getoonde talen: Duits, Engels
+       - **Verzekering:** onduidelijk *(de vermelding bevestigt dit niet)*
+
+    4. **Ma 12 okt, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Adres: Müllerstraße 36, 13353 Berlin
+       - Type afspraak: Erstuntersuchung Neupatient:in
+       - Getoonde talen: Duits, Engels
+       - **Verzekering:** onduidelijk *(de vermelding bevestigt dit niet)*
+
+    5. **Ma 12 okt, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Adres: Wallstraße 16, 10179 Berlin
+       - Type afspraak: Erstuntersuchung Neupatient:in
+       - Getoonde talen: Duits, Engels
+       - **Verzekering:** onduidelijk *(de vermelding bevestigt dit niet)*
+
+    Een paar opmerkingen:
+    - Ik heb de twee eerdere opties op **9–10 okt** uitgesloten van de bovenstaande vergelijking, omdat je specifiek naar **volgende week** vroeg.
+    - Deze resultaten lijken afkomstig te zijn van Doctolib-vermeldingen; Jameda-dekking werd niet ondersteund in deze zoekresultaten.
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    Als je wilt, kan ik vervolgens:
+    - dit beperken tot **alleen de publieke verzekering** waar bevestigd, of
+    - een korte shortlist maken op basis van **wijk / afstand tot jouw locatie**.
+    ---
+    *⚠️ Dit is uitsluitend ter informatie en geen medisch advies. Raadpleeg je arts voor medische beslissingen.*
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    إليك أقرب المواعيد المتاحة لدى أطباء عامين يتحدثون الإنجليزية في برلين خلال الأيام السبعة القادمة التي وجدتها. لقد ذكرت التغطية التأمينية فقط في الحالات التي توضحها قائمة الحجز نفسها.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **أقرب الخيارات المتاحة الأسبوع القادم**
+    1. **الاثنين 12 أكتوبر، 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - العنوان: Albert-Einstein-Straße 2, 12489 Berlin
+       - نوع الزيارة: فحص أولي لمريض جديد (Erstuntersuchung Neupatient:in)
+       - اللغات المذكورة: الألمانية، الإنجليزية
+       - **التأمين:** خاص *(مؤكد في القائمة)*
+
+    2. **الاثنين 12 أكتوبر، 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - العنوان: Kapweg 5, 13405 Berlin
+       - نوع الزيارة: فحص أولي لمريض جديد (Erstuntersuchung Neupatient:in)
+       - اللغات المذكورة: الإنجليزية
+       - **التأمين:** خاص *(مؤكد في القائمة)*
+
+    3. **الاثنين 12 أكتوبر، 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - العنوان: Stargarder Straße 69, 10437 Berlin
+       - نوع الزيارة: استشارة للحالات العاجلة (Akutsprechstunde)
+       - اللغات المذكورة: الألمانية، الإنجليزية
+       - **التأمين:** غير واضح *(القائمة لا تؤكد ذلك)*
+
+    4. **الاثنين 12 أكتوبر، 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - العنوان: Müllerstraße 36, 13353 Berlin
+       - نوع الزيارة: فحص أولي لمريض جديد (Erstuntersuchung Neupatient:in)
+       - اللغات المذكورة: الألمانية، الإنجليزية
+       - **التأمين:** غير واضح *(القائمة لا تؤكد ذلك)*
+
+    5. **الاثنين 12 أكتوبر، 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - العنوان: Wallstraße 16, 10179 Berlin
+       - نوع الزيارة: فحص أولي لمريض جديد (Erstuntersuchung Neupatient:in)
+       - اللغات المذكورة: الألمانية، الإنجليزية
+       - **التأمين:** غير واضح *(القائمة لا تؤكد ذلك)*
+
+    ملاحظتان:
+    - لقد استبعدت الخيارين الأبكر في **9–10 أكتوبر** من المقارنة أعلاه لأنك طلبت **الأسبوع القادم** تحديداً.
+    - يبدو أن هذه النتائج مستمدة من قوائم Doctolib؛ لم تكن تغطية Jameda مدعومة في مجموعة نتائج البحث هذه.
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    إذا أردت، يمكنني بعد ذلك:
+    - حصر هذه النتائج في **التأمين العام فقط** حيثما تم تأكيده، أو
+    - إنشاء قائمة مختصرة حسب **المنطقة / المسافة من موقعك**.
+    ---
+    *⚠️ هذه معلومات تثقيفية فقط وليست نصيحة طبية. استشر طبيبك لاتخاذ القرارات الطبية.*
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    अगले 7 दिनों के भीतर बर्लिन में अंग्रेज़ी बोलने वाले GP के शुरुआती विकल्प यहाँ दिए गए हैं जो मुझे मिले हैं। मैं केवल वहीं बीमा कवरेज बता रहा हूँ जहाँ बुकिंग लिस्टिंग में इसका संकेत दिया गया है।
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **अगले सप्ताह के शुरुआती विकल्प**
+    1. **सोम 12 अक्टूबर, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - पता: Albert-Einstein-Straße 2, 12489 Berlin
+       - विज़िट का प्रकार: Erstuntersuchung Neupatient:in
+       - दिखाई गई भाषाएँ: जर्मन, अंग्रेज़ी
+       - **बीमा:** निजी *(लिस्टिंग द्वारा पुष्टि की गई)*
+
+    2. **सोम 12 अक्टूबर, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - पता: Kapweg 5, 13405 Berlin
+       - विज़िट का प्रकार: Erstuntersuchung Neupatient:in
+       - दिखाई गई भाषाएँ: अंग्रेज़ी
+       - **बीमा:** निजी *(लिस्टिंग द्वारा पुष्टि की गई)*
+
+    3. **सोम 12 अक्टूबर, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - पता: Stargarder Straße 69, 10437 Berlin
+       - विज़िट का प्रकार: Akutsprechstunde
+       - दिखाई गई भाषाएँ: जर्मन, अंग्रेज़ी
+       - **बीमा:** अस्पष्ट *(लिस्टिंग इसकी पुष्टि नहीं करती है)*
+
+    4. **सोम 12 अक्टूबर, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - पता: Müllerstraße 36, 13353 Berlin
+       - विज़िट का प्रकार: Erstuntersuchung Neupatient:in
+       - दिखाई गई भाषाएँ: जर्मन, अंग्रेज़ी
+       - **बीमा:** अस्पष्ट *(लिस्टिंग इसकी पुष्टि नहीं करती है)*
+
+    5. **सोम 12 अक्टूबर, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - पता: Wallstraße 16, 10179 Berlin
+       - विज़िट का प्रकार: Erstuntersuchung Neupatient:in
+       - दिखाई गई भाषाएँ: जर्मन, अंग्रेज़ी
+       - **बीमा:** अस्पष्ट *(लिस्टिंग इसकी पुष्टि नहीं करती है)*
+
+    कुछ बातें:
+    - मैंने उपरोक्त तुलना से **9–10 अक्टूबर** के दो पहले के विकल्पों को बाहर कर दिया है क्योंकि आपने विशेष रूप से **अगले सप्ताह** के लिए पूछा था।
+    - ये परिणाम Doctolib लिस्टिंग से आए प्रतीत होते हैं; इस खोज परिणाम सेट में Jameda कवरेज समर्थित नहीं था।
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    यदि तुम चाहो, तो मैं आगे यह कर सकता हूँ:
+    - इसे केवल **सार्वजनिक बीमा** तक सीमित कर सकता हूँ जहाँ पुष्टि की गई हो, या
+    - **ज़िले / तुम्हारे क्षेत्र से दूरी** के आधार पर एक छोटी सूची बना सकता हूँ।
+    ---
+    *⚠️ यह केवल शैक्षिक जानकारी है और चिकित्सा सलाह नहीं है। चिकित्सा निर्णयों के लिए अपने डॉक्टर से परामर्श करें।*
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    นี่คือตัวเลือกแพทย์ GP ที่พูดภาษาอังกฤษในเบอร์ลินที่เร็วที่สุดภายใน 7 วันข้างหน้าที่ฉันพบ ฉันจะระบุความคุ้มครองประกันภัยเฉพาะในกรณีที่รายการจองระบุไว้เท่านั้น
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **ตัวเลือกที่เร็วที่สุดในสัปดาห์หน้า**
+    1. **จันทร์ 12 ต.ค., 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - ที่อยู่: Albert-Einstein-Straße 2, 12489 Berlin
+       - ประเภทการตรวจ: การตรวจครั้งแรกสำหรับผู้ป่วยใหม่ (Erstuntersuchung Neupatient:in)
+       - ภาษาที่ระบุ: เยอรมัน, อังกฤษ
+       - **ประกันภัย:** ส่วนบุคคล *(ยืนยันโดยรายการ)*
+
+    2. **จันทร์ 12 ต.ค., 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - ที่อยู่: Kapweg 5, 13405 Berlin
+       - ประเภทการตรวจ: การตรวจครั้งแรกสำหรับผู้ป่วยใหม่ (Erstuntersuchung Neupatient:in)
+       - ภาษาที่ระบุ: อังกฤษ
+       - **ประกันภัย:** ส่วนบุคคล *(ยืนยันโดยรายการ)*
+
+    3. **จันทร์ 12 ต.ค., 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - ที่อยู่: Stargarder Straße 69, 10437 Berlin
+       - ประเภทการตรวจ: การตรวจแบบเฉียบพลัน (Akutsprechstunde)
+       - ภาษาที่ระบุ: เยอรมัน, อังกฤษ
+       - **ประกันภัย:** ไม่ชัดเจน *(รายการไม่ได้ยืนยันไว้)*
+
+    4. **จันทร์ 12 ต.ค., 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - ที่อยู่: Müllerstraße 36, 13353 Berlin
+       - ประเภทการตรวจ: การตรวจครั้งแรกสำหรับผู้ป่วยใหม่ (Erstuntersuchung Neupatient:in)
+       - ภาษาที่ระบุ: เยอรมัน, อังกฤษ
+       - **ประกันภัย:** ไม่ชัดเจน *(รายการไม่ได้ยืนยันไว้)*
+
+    5. **จันทร์ 12 ต.ค., 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - ที่อยู่: Wallstraße 16, 10179 Berlin
+       - ประเภทการตรวจ: การตรวจครั้งแรกสำหรับผู้ป่วยใหม่ (Erstuntersuchung Neupatient:in)
+       - ภาษาที่ระบุ: เยอรมัน, อังกฤษ
+       - **ประกันภัย:** ไม่ชัดเจน *(รายการไม่ได้ยืนยันไว้)*
+
+    หมายเหตุเพิ่มเติม:
+    - ฉันได้ยกเว้นตัวเลือกสองรายการก่อนหน้านี้ในวันที่ **9–10 ต.ค.** จากการเปรียบเทียบด้านบน เนื่องจากคุณระบุว่าต้องการ **สัปดาห์หน้า** โดยเฉพาะ
+    - ผลลัพธ์เหล่านี้ดูเหมือนจะมาจากรายการของ Doctolib ส่วนความคุ้มครองของ Jameda ไม่ได้รับการรองรับในชุดผลการค้นหานี้
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    หากคุณต้องการ ฉันสามารถ:
+    - จำกัดวงให้แคบลงเหลือเพียง **ประกันของรัฐเท่านั้น** ในกรณีที่มีการยืนยัน หรือ
+    - สร้างรายการสรุปสั้นๆ ตาม **เขต / ระยะทางจากพื้นที่ของคุณ**
+    ---
+    *⚠️ ข้อมูลนี้มีไว้เพื่อการศึกษาเท่านั้นและไม่ใช่คำแนะนำทางการแพทย์ โปรดปรึกษาแพทย์ของคุณเพื่อการตัดสินใจทางการแพทย์*
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    Tady jsou nejbližší termíny u anglicky mluvících praktických lékařů v Berlíně v příštích 7 dnech, které se mi podařilo najít. Uvádím pouze informace o pojištění, které jsou přímo uvedeny v nabídce.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Nejbližší termíny příští týden**
+    1. **Po 12. 10., 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Adresa: Albert-Einstein-Straße 2, 12489 Berlin
+       - Typ návštěvy: Vstupní vyšetření (nový pacient)
+       - Uvedené jazyky: němčina, angličtina
+       - **Pojištění:** soukromé *(potvrzeno v nabídce)*
+
+    2. **Po 12. 10., 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Adresa: Kapweg 5, 13405 Berlin
+       - Typ návštěvy: Vstupní vyšetření (nový pacient)
+       - Uvedené jazyky: angličtina
+       - **Pojištění:** soukromé *(potvrzeno v nabídce)*
+
+    3. **Po 12. 10., 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Adresa: Stargarder Straße 69, 10437 Berlin
+       - Typ návštěvy: Akutní ošetření
+       - Uvedené jazyky: němčina, angličtina
+       - **Pojištění:** nejasné *(nabídka to nepotvrzuje)*
+
+    4. **Po 12. 10., 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Adresa: Müllerstraße 36, 13353 Berlin
+       - Typ návštěvy: Vstupní vyšetření (nový pacient)
+       - Uvedené jazyky: němčina, angličtina
+       - **Pojištění:** nejasné *(nabídka to nepotvrzuje)*
+
+    5. **Po 12. 10., 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Adresa: Wallstraße 16, 10179 Berlin
+       - Typ návštěvy: Vstupní vyšetření (nový pacient)
+       - Uvedené jazyky: němčina, angličtina
+       - **Pojištění:** nejasné *(nabídka to nepotvrzuje)*
+
+    Pár poznámek:
+    - Z výše uvedeného srovnání jsem vynechal dvě dřívější možnosti z **9.–10. října**, protože ses ptal konkrétně na **příští týden**.
+    - Tyto výsledky pocházejí z nabídek na Doctolib; pokrytí Jameda nebylo v této sadě výsledků vyhledávání podporováno.
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    Pokud chceš, můžu dál:
+    - omezit výběr pouze na **veřejné pojištění**, kde je potvrzeno, nebo
+    - vytvořit užší výběr podle **čtvrti / vzdálenosti od tvé polohy**.
+    ---
+    *⚠️ Tyto informace jsou pouze vzdělávací a neslouží jako lékařské poradenství. O lékařských rozhodnutích se poraď se svým lékařem.*
+  sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```
+
+    Här är de tidigaste alternativen för engelsktalande allmänläkare i Berlin inom de närmaste 7 dagarna som jag hittade. Jag anger endast försäkringsskydd där själva bokningsannonsen anger det.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **Tidigaste alternativen nästa vecka**
+    1. **Mån 12 okt, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - Adress: Albert-Einstein-Straße 2, 12489 Berlin
+       - Besökstyp: Erstuntersuchung Neupatient:in
+       - Språk som visas: Tyska, engelska
+       - **Försäkring:** privat *(bekräftat i annonsen)*
+
+    2. **Mån 12 okt, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - Adress: Kapweg 5, 13405 Berlin
+       - Besökstyp: Erstuntersuchung Neupatient:in
+       - Språk som visas: Engelska
+       - **Försäkring:** privat *(bekräftat i annonsen)*
+
+    3. **Mån 12 okt, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - Adress: Stargarder Straße 69, 10437 Berlin
+       - Besökstyp: Akutsprechstunde
+       - Språk som visas: Tyska, engelska
+       - **Försäkring:** oklart *(annonsen bekräftar det inte)*
+
+    4. **Mån 12 okt, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - Adress: Müllerstraße 36, 13353 Berlin
+       - Besökstyp: Erstuntersuchung Neupatient:in
+       - Språk som visas: Tyska, engelska
+       - **Försäkring:** oklart *(annonsen bekräftar det inte)*
+
+    5. **Mån 12 okt, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - Adress: Wallstraße 16, 10179 Berlin
+       - Besökstyp: Erstuntersuchung Neupatient:in
+       - Språk som visas: Tyska, engelska
+       - **Försäkring:** oklart *(annonsen bekräftar det inte)*
+
+    Några kommentarer:
+    - Jag exkluderade de två tidigare alternativen den **9–10 okt** från jämförelsen ovan eftersom du specifikt frågade efter **nästa vecka**.
+    - Dessa resultat verkar komma från Doctolib-annonser; Jameda-täckning stöddes inte i detta sökresultat.
+
+    ```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```
+
+    Om du vill kan jag härnäst:
+    - begränsa detta till **endast allmän försäkring** där det är bekräftat, eller
+    - skapa en kort lista baserat på **stadsdel / avstånd från ditt område**.
+    ---
+    *⚠️ Detta är endast information i utbildningssyfte och inte medicinsk rådgivning. Rådgör med din läkare för medicinska beslut.*
+  he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"14ccee29-eff7-47e5-8a27-9578da7f6501","app_id":"health","skill_id":"search_appointments"}
+    ```הנה האפשרויות המוקדמות ביותר שמצאתי לרופאי משפחה דוברי אנגלית בברלין ב-7 הימים הקרובים. אני מציין כיסוי ביטוחי רק במקומות שבהם דף ההזמנה עצמו מציין זאת.
+
+    [!](embed:hausarztpraxis-adlershof-dr-RRw)
+    [!](embed:katrin-reimer-b-bKm)
+    [!](embed:die-haus-rzte-Di3)
+    [!](embed:hermann-fondis-d6N)
+    [!](embed:lubomir-rakita-UPM)
+
+    **האפשרויות המוקדמות ביותר בשבוע הבא**
+    1. **יום ב', 12 באוקטובר, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)
+       - כתובת: Albert-Einstein-Straße 2, 12489 Berlin
+       - סוג ביקור: בדיקה ראשונית למטופל/ת חדש/ה (Erstuntersuchung Neupatient:in)
+       - שפות מוצגות: גרמנית, אנגלית
+       - **ביטוח:** פרטי *(מאושר לפי דף ההזמנה)*
+
+    2. **יום ב', 12 באוקטובר, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)
+       - כתובת: Kapweg 5, 13405 Berlin
+       - סוג ביקור: בדיקה ראשונית למטופל/ת חדש/ה (Erstuntersuchung Neupatient:in)
+       - שפות מוצגות: אנגלית
+       - **ביטוח:** פרטי *(מאושר לפי דף ההזמנה)*
+
+    3. **יום ב', 12 באוקטובר, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)
+       - כתובת: Stargarder Straße 69, 10437 Berlin
+       - סוג ביקור: שעות קבלה למקרים דחופים (Akutsprechstunde)
+       - שפות מוצגות: גרמנית, אנגלית
+       - **ביטוח:** לא ברור *(דף ההזמנה לא מאשר זאת)*
+
+    4. **יום ב', 12 באוקטובר, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)
+       - כתובת: Müllerstraße 36, 13353 Berlin
+       - סוג ביקור: בדיקה ראשונית למטופל/ת חדש/ה (Erstuntersuchung Neupatient:in)
+       - שפות מוצגות: גרמנית, אנגלית
+       - **ביטוח:** לא ברור *(דף ההזמנה לא מאשר זאת)*
+
+    5. **יום ב', 12 באוקטובר, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)
+       - כתובת: Wallstraße 16, 10179 Berlin
+       - סוג ביקור: בדיקה ראשונית למטופל/ת חדש/ה (Erstuntersuchung Neupatient:in)
+       - שפות מוצגות: גרמנית, אנגלית
+       - **ביטוח:** לא ברור *(דף ההזמנה לא מאשר זאת)*
+
+    כמה הערות:
+    - השמטתי מההשוואה למעלה את שתי האפשרויות המוקדמות יותר ב-**9–10 באוקטובר**, כי ביקשת ספציפית את **שבוע הבא**.
+    - נראה שהתוצאות האלו מגיעות מהרישומים של Doctolib; לא הייתה תמיכה בתוצאות מ-Jameda במערך תוצאות החיפוש הזה.```embeds_results_view
+    title: Earliest English-speaking GP appointments in Berlin next week
+    embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
+    ```אם תרצה/י, אני יכול בשלב הבא:
+    - לצמצם את זה ל**ביטוח ציבורי בלבד** היכן שזה מאושר, או
+    - ליצור רשימה קצרה לפי **רובע / מרחק מהאזור שלך**.
+    ---
+    *⚠️ מידע זה נועד למטרות לימודיות בלבד ואינו מהווה ייעוץ רפואי. יש להתייעץ עם הרופא שלכם לצורך קבלת החלטות רפואיות.*
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for public insurance GP appointments in Mitte"
+  de: Suche nach Hausarzt-Terminen für gesetzlich Versicherte in Mitte
+  zh: 在米特区 (Mitte) 搜索公立保险全科医生预约
+  es: Busca citas de medicina general con seguro público en Mitte
+  fr: Rechercher des rendez-vous chez un généraliste avec assurance publique à Mitte
+  pt: Procurar consultas de clínica geral com seguro público em Mitte
+  ru: Найти приемы у терапевтов по государственной страховке в Митте
+  ja: ミッテ区で公的保険適用の一般医の予約を検索する
+  ko: 미테(Mitte) 지역의 공적 보험 적용 가능 일반의(GP) 예약 검색
+  it: Cerca appuntamenti con medici di base (assicurazione pubblica) a Mitte
+  tr: "Mitte'de kamu sigortalı aile hekimi randevularını ara"
+  vi: Tìm lịch hẹn bác sĩ gia đình có bảo hiểm công tại Mitte
+  id: Cari janji temu dokter umum asuransi publik di Mitte
+  pl: Szukaj wizyt u lekarza rodzinnego na kasę chorych w dzielnicy Mitte
+  nl: Zoek naar afspraken bij huisartsen met publieke verzekering in Mitte
+  ar: ابحث عن مواعيد أطباء عامين للتأمين العام في ميتي (Mitte)
+  hi: Mitte में सार्वजनिक बीमा वाले GP अपॉइंटमेंट खोजें
+  th: ค้นหานัดหมายแพทย์ทั่วไป (GP) สำหรับประกันรัฐในย่าน Mitte
+  cs: Hledat termíny u praktických lékařů pro veřejné pojištění v Mitte
+  sv: Sök tider hos allmänläkare med allmän försäkring i Mitte
+  he: חיפוש תורים לרופא משפחה עם ביטוח ציבורי במיטה (Mitte)
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Filter the appointments to show public insurance only"
+  de: Filtere die Termine, um nur gesetzliche Versicherungen anzuzeigen
+  zh: 筛选预约，仅显示公立保险
+  es: Filtra las citas para mostrar solo seguro público
+  fr: "Filtrer les rendez-vous pour n'afficher que l'assurance publique"
+  pt: Filtrar as consultas para mostrar apenas seguro público
+  ru: Отфильтровать приемы, чтобы показать только государственную страховку
+  ja: 公的保険のみを表示するように予約を絞り込む
+  ko: 공적 보험 전용 예약만 표시하도록 필터링
+  it: "Filtra gli appuntamenti per mostrare solo l'assicurazione pubblica"
+  tr: Randevuları sadece kamu sigortasını gösterecek şekilde filtrele
+  vi: Lọc lịch hẹn để chỉ hiển thị bảo hiểm công
+  id: Filter janji temu untuk menampilkan asuransi publik saja
+  pl: Filtruj wizyty, aby pokazać tylko ubezpieczenie publiczne
+  nl: Filter de afspraken om alleen publieke verzekeringen te tonen
+  ar: قم بتصفية المواعيد لإظهار التأمين العام فقط
+  hi: केवल सार्वजनिक बीमा दिखाने के लिए अपॉइंटमेंट को फ़िल्टर करें
+  th: กรองการนัดหมายเพื่อแสดงเฉพาะประกันรัฐเท่านั้น
+  cs: Filtrovat termíny pouze pro veřejné pojištění
+  sv: Filtrera tiderna för att endast visa allmän försäkring
+  he: סינון התורים להצגת ביטוח ציבורי בלבד
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Find English-speaking doctors near Prenzlauer Berg district"
+  de: Finde englischsprachige Ärzte in der Nähe von Prenzlauer Berg
+  zh: 在普伦茨劳贝格区 (Prenzlauer Berg) 附近寻找说英语的医生
+  es: Busca médicos que hablen inglés cerca del barrio de Prenzlauer Berg
+  fr: Trouver des médecins anglophones près du quartier de Prenzlauer Berg
+  pt: Encontrar médicos que falem inglês perto do bairro de Prenzlauer Berg
+  ru: Найти англоязычных врачей рядом с районом Пренцлауэр-Берг
+  ja: プレンツラウアー・ベルク地区周辺の英語を話す医師を探す
+  ko: 프렌츠라우어 베르크(Prenzlauer Berg) 인근의 영어 가능 의사 찾기
+  it: Trova medici che parlano inglese vicino al quartiere Prenzlauer Berg
+  tr: Prenzlauer Berg bölgesi yakınlarında İngilizce konuşan doktorlar bul
+  vi: Tìm bác sĩ nói tiếng Anh gần quận Prenzlauer Berg
+  id: Cari dokter berbahasa Inggris di dekat distrik Prenzlauer Berg
+  pl: Znajdź anglojęzycznych lekarzy w pobliżu dzielnicy Prenzlauer Berg
+  nl: Vind Engelssprekende artsen in de buurt van de wijk Prenzlauer Berg
+  ar: ابحث عن أطباء يتحدثون الإنجليزية بالقرب من منطقة برينزلاور بيرغ (Prenzlauer Berg)
+  hi: Prenzlauer Berg जिले के पास अंग्रेजी बोलने वाले डॉक्टरों को खोजें
+  th: ค้นหาแพทย์ที่พูดภาษาอังกฤษใกล้เขต Prenzlauer Berg
+  cs: Najít anglicky mluvící lékaře poblíž čtvrti Prenzlauer Berg
+  sv: Hitta engelsktalande läkare nära stadsdelen Prenzlauer Berg
+  he: מציאת רופאים דוברי אנגלית ליד רובע פרנצלאואר ברג (Prenzlauer Berg)
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Narrow down the options by neighborhood and distance"
+  de: Grenze die Optionen nach Stadtteil und Entfernung ein
+  zh: 按街区和距离缩小选项范围
+  es: Filtra las opciones por barrio y distancia
+  fr: Affiner les options par quartier et distance
+  pt: Restringir as opções por bairro e distância
+  ru: Сузить поиск по району и расстоянию
+  ja: 地域や距離で選択肢を絞り込む
+  ko: 동네 및 거리별로 옵션 좁히기
+  it: Restringi le opzioni per quartiere e distanza
+  tr: Seçenekleri mahalle ve mesafeye göre daralt
+  vi: Thu hẹp các lựa chọn theo khu vực và khoảng cách
+  id: Persempit pilihan berdasarkan lingkungan dan jarak
+  pl: Zawęź opcje według dzielnicy i odległości
+  nl: Verfijn de opties op buurt en afstand
+  ar: ضيّق الخيارات حسب الحي والمسافة
+  hi: पड़ोस और दूरी के आधार पर विकल्पों को सीमित करें
+  th: จำกัดตัวเลือกให้แคบลงตามย่านและระยะทาง
+  cs: Zúžit výběr podle čtvrti a vzdálenosti
+  sv: Begränsa alternativen efter område och avstånd
+  he: צמצום האפשרויות לפי שכונה ומרחק
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Search for specialist medical appointments in Berlin"
+  de: Suche nach Facharztterminen in Berlin
+  zh: 在柏林搜索专科医生预约
+  es: Busca citas médicas con especialistas en Berlín
+  fr: Rechercher des rendez-vous chez des médecins spécialistes à Berlin
+  pt: Procurar consultas de especialidade em Berlim
+  ru: Найти приемы у узких специалистов в Берлине
+  ja: ベルリンで専門医の予約を検索する
+  ko: 베를린 내 전문의 예약 검색
+  it: Cerca appuntamenti per visite specialistiche a Berlino
+  tr: "Berlin'de uzman doktor randevularını ara"
+  vi: Tìm lịch hẹn bác sĩ chuyên khoa tại Berlin
+  id: Cari janji temu dokter spesialis di Berlin
+  pl: Szukaj wizyt u lekarzy specjalistów w Berlinie
+  nl: Zoek naar afspraken bij medisch specialisten in Berlijn
+  ar: ابحث عن مواعيد أطباء متخصصين في برلين
+  hi: बर्लिन में विशेषज्ञ चिकित्सा अपॉइंटमेंट खोजें
+  th: ค้นหานัดหมายแพทย์เฉพาะทางในเบอร์ลิน
+  cs: Hledat termíny u odborných lékařů v Berlíně
+  sv: Sök tider hos specialistläkare i Berlin
+  he: חיפוש תורים לרופאים מומחים בברלין
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Explain how to book these doctor appointments online"
+  de: Erkläre, wie man diese Arzttermine online bucht
+  zh: 说明如何在线预约这些医生
+  es: Explica cómo reservar estas citas médicas por internet
+  fr: Expliquer comment prendre ces rendez-vous médicaux en ligne
+  pt: Explicar como marcar estas consultas médicas online
+  ru: Объяснить, как записаться на эти приемы к врачу онлайн
+  ja: これらの医師の予約をオンラインで行う方法を説明して
+  ko: 이러한 병원 예약을 온라인으로 하는 방법 설명
+  it: Spiega come prenotare online questi appuntamenti medici
+  tr: Bu doktor randevularının internetten nasıl alınacağını açıkla
+  vi: Hướng dẫn cách đặt lịch hẹn bác sĩ trực tuyến
+  id: Jelaskan cara memesan janji temu dokter ini secara online
+  pl: Wyjaśnij, jak zarezerwować te wizyty u lekarza online
+  nl: Leg uit hoe je deze doktersafspraken online kunt boeken
+  ar: اشرح كيفية حجز مواعيد هؤلاء الأطباء عبر الإنترنت
+  hi: बताएं कि इन डॉक्टर अपॉइंटमेंट को ऑनलाइन कैसे बुक करें
+  th: อธิบายวิธีจองนัดหมายแพทย์เหล่านี้ทางออนไลน์
+  cs: Vysvětlit, jak si tyto termíny u lékaře rezervovat online
+  sv: Förklara hur man bokar dessa läkartider online
+  he: הסבר איך להזמין את התורים האלה לרופא באינטרנט
+  verified_by_human: []
+

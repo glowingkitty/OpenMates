@@ -1,15 +1,14 @@
 schema_version: 1
 id: feature.marketing-landing
-version: 2
+version: 3
 status: draft
 title: Lightweight Public Website and Scrollable Landing Page
-summary: A lightweight standalone website owns the scrollable landing page, news, blog and legal
-  content, and links visitors into the independent web app.
+summary: A lightweight standalone website owns the scrollable landing page, news, blog and legal content,
+  and links visitors into the independent web app.
 scope:
   includes:
   - The standalone public website and compatibility /landing route on the web app.
-  - A full-viewport hero, five feature sections, newsletter signup, and public events, news and blog
-    rows.
+  - A full-viewport hero, six feature sections, newsletter signup, and public events, news and blog rows.
   - A single app-icon rail, language-only navigation, device-framed screenshots and motion preferences.
   - Public /news, /blog and legal pages rendered without the chat shell.
   - Web-app workspace, account, example-chat, event-detail and composer deep links.
@@ -23,42 +22,42 @@ scope:
 assertions:
 - id: marketing-landing.independent-scroll
   type: behavior
-  must: The public website and /landing compatibility route render public content without requiring
-    app authentication or a chat shell. Visitors explore the complete page through normal scrolling;
-    automatic story transitions, scroll snapping or animation do not determine reading time. The
-    standalone website client contains only required public UI, style and content modules, with no
-    web-app authentication, synchronization, message editor, account database or chat startup code.
+  must: The public website and /landing compatibility route render public content without requiring app
+    authentication or a chat shell. Visitors explore the complete page through normal scrolling; automatic
+    story transitions, scroll snapping or animation do not determine reading time. The standalone website
+    client contains only required public UI, style and content modules, with no web-app authentication,
+    synchronization, message editor, account database or chat startup code.
   depends_on:
   - examples.scrolling
 - id: marketing-landing.feature-layout
   type: behavior
-  must: 'The page follows the referenced hierarchy: full-viewport hero, actionable chats, privacy
-    and safety, workflow automation, cross-device experience, open source and resilience, newsletter
-    signup, then events, news and blog. Each feature has a distinct appropriate icon. Feature copy
-    and large device-framed screenshots sit side by side on desktop and stack on narrow screens without
-    hiding links or overflowing. Reveal and restrained parallax effects preserve visitor-controlled
+  must: 'The public page follows this order: full-viewport hero, actionable chats, privacy and safety,
+    No ecosystem lock in model choice, workflow automation, cross-device experience, open source and resilience,
+    newsletter signup, then events, news and blog. Its six feature sections have distinct suitable icons,
+    occupy at least one viewport each, and show large device-framed screenshots beside copy on desktop
+    and stacked readable content on narrow screens. Reveal and restrained parallax effects preserve visitor-controlled
     scrolling; reduced-motion visitors receive static readable content. The composer affordance remains
-    fixed at the bottom of the viewport container.'
+    fixed at the viewport bottom.'
   depends_on:
   - examples.layout
 - id: marketing-landing.destinations
   type: behavior
-  must: Header Chats, Apps and Workflows links use the existing web-app icon-only dimensions and
-    hover treatment, have no active workspace state on the website, and open the matching app workspaces.
-    Explore Apps and Explore Workflows open their app workspaces in new tabs. Login/Signup opens
-    the app account interface for signed-out visitors, opens Chats for an already authenticated user
-    with completed signup, and preserves incomplete signup recovery. Example links open real shared
-    chats. Learn-more links lead to the website blog index until dedicated posts exist. TestFlight
-    testing links lead to the website newsletter section. Social footer links open the existing official
-    destinations in new tabs. App and website origins are independently configurable and require
-    HTTP(S); landing.dev.openmates.org targets app.dev.openmates.org by default.
+  must: Header Chats, Apps and Workflows links use the existing web-app icon-only dimensions and hover
+    treatment, have no active workspace state on the website, and open the matching app workspaces. Explore
+    Apps and Explore Workflows open their app workspaces in new tabs. Login/Signup opens the app account
+    interface for signed-out visitors, opens Chats for an already authenticated user with completed signup,
+    and preserves incomplete signup recovery. Example links open real shared chats. Learn-more links lead
+    to the website blog index until dedicated posts exist. TestFlight testing links lead to the website
+    newsletter section. Social footer links open the existing official destinations in new tabs. App and
+    website origins are independently configurable and require HTTP(S); landing.dev.openmates.org targets
+    app.dev.openmates.org by default.
   depends_on:
   - examples.destinations
 - id: marketing-landing.composer-focus
   type: behavior
-  must: 'Activating the hero''s message-input affordance opens the web app with its real message
-    composer focused. This explicit focus request survives a cold start and does not send a message,
-    replace an existing draft, or require the user to click the composer again.
+  must: 'Activating the hero''s message-input affordance opens the web app with its real message composer
+    focused. This explicit focus request survives a cold start and does not send a message, replace an
+    existing draft, or require the user to click the composer again.
 
     '
   depends_on:
@@ -66,45 +65,65 @@ assertions:
 - id: marketing-landing.real-screenshots
   type: behavior
   must: 'Product screenshot areas display real rendered views captured within the authenticated personal
-    dev test account: actionable results, privacy placeholders, Workflows and the same chat across
-    desktop and mobile web. Phone and laptop screenshots sit inside lightweight SVG device frames
-    at matching screen proportions. The open-source section shows real public repository evidence.
-    Published images exclude private identity and unrelated account content, have meaningful alternative
-    text and accurately identify mobile web captures without implying native iPhone UI.'
+    dev test account: actionable results, privacy placeholders, Workflows and the same chat across desktop
+    and mobile web. Phone and laptop screenshots sit inside lightweight SVG device frames at matching
+    screen proportions. The open-source section shows real public repository evidence. Published images
+    exclude private identity and unrelated account content, have meaningful alternative text and accurately
+    identify mobile web captures without implying native iPhone UI.'
   depends_on:
   - examples.screenshots
 - id: marketing-landing.public-content
   type: behavior
   must: The upcoming-events row contains every published event whose end time has not passed, including
-    paid events, in a horizontally scrollable row with no separate browse link. Event cards open
-    the actual web-app event detail in a new tab. The public SEO event page retains crawler-readable
-    event content and sends human visitors to the matching app event detail. News and blog reuse
-    published OpenMates content, including published news releases. The standalone website owns /news,
-    /blog and readable full legal documents without redirecting into a chat. Empty collections have
-    honest empty states, with no invented records.
+    paid events, in a horizontally scrollable row with no separate browse link. Event cards open the actual
+    web-app event detail in a new tab. The public SEO event page retains crawler-readable event content
+    and sends human visitors to the matching app event detail. News and blog reuse published OpenMates
+    content, including published news releases. The standalone website owns /news, /blog and readable
+    full legal documents without redirecting into a chat. Empty collections have honest empty states,
+    with no invented records.
   depends_on:
   - examples.public_content
 - id: marketing-landing.hero-app-rail
   type: behavior
-  must: The hero has exactly one row of app icons moving right to left in a seamless infinite loop.
-    It shows every currently available non-internal app with at least one skill or focus mode, excluding
-    OpenMates, Projects and Tasks; Docs is also included because its live document-generation pipeline
-    supports writing letters. Each highlighted app has a capability-matched prompt. Icons adapt to
-    the available hero space with a desktop size cap; translucent edge gradients fade entry and exit.
-    Prompt bubbles have the real user-message tail and transition by opacity and scale from the bottom-right
-    without changing position. The aligned scroll cue smoothly cycles opacity between 0.3 and 0.8.
-    Reduced motion keeps the rail and prompts usable without continuous animation.
+  must: The hero has exactly one row of app icons moving right to left in a seamless infinite loop. It
+    shows the relevant available capability apps in the order and exclusions defined by marketing-landing.capability-rail-and-prompts;
+    Docs and Mindmaps are included for their direct content capabilities. Each highlighted app has a capability-matched
+    prompt. Icons adapt to the available hero space with a desktop size cap; translucent edge gradients
+    fade entry and exit. Prompt bubbles have the real user-message tail and transition by opacity and
+    scale from the bottom-right without changing position. The aligned scroll cue smoothly cycles opacity
+    between 0.3 and 0.8. Reduced motion keeps the rail and prompts usable without continuous animation.
   depends_on:
   - examples.hero
 - id: marketing-landing.language-theme
   type: behavior
   must: The public header omits the hamburger and full app settings. A current-language control opens
     only language selection, using the existing supported-language names and preserving the preference.
-    It must not import account, payment, chat or synchronization settings. The saved or system theme
-    applies before the first visible paint and remains consistent during startup on both the website
-    and /landing; a saved dark preference must not flash light.
+    It must not import account, payment, chat or synchronization settings. The saved or system theme applies
+    before the first visible paint and remains consistent during startup on both the website and /landing;
+    a saved dark preference must not flash light.
   depends_on:
   - examples.preferences
+- id: marketing-landing.six-feature-viewport
+  type: behavior
+  must: Each of the six feature sections fills at least one viewport in the normal scroll flow. Desktop
+    screenshots use larger device frames with intentional cropping; phone layouts show phone imagery only.
+    The six sections include No ecosystem lock in with real model-selector screenshots and copy about
+    multiple providers, export and data ownership.
+  depends_on:
+  - examples.layout
+- id: marketing-landing.capability-rail-and-prompts
+  type: behavior
+  must: The single hero app rail orders Events, Travel, Code, Home, Health, Social Media, Fitness, Mail
+    and Jobs before remaining available capability apps, and excludes OpenMates, Projects, Tasks, Plans,
+    Reminders and Workflows. The public AI app remains eligible. Docs and Mindmaps appear for their direct
+    content capabilities. Icons remain proportionally rounded; a selected icon opens its actual app in
+    a new tab. The highlighted request is a natural example of that app capability and opens a matching
+    existing example chat in a new tab, never a fabricated skill, chat or internal command; every eligible
+    shown app requires a matching real example chat and a missing source remains incomplete implementation.
+    The German heading reads exactly “Deine KI-Teamkollegen\nmit Privatsphäre”, with its highlight right
+    of center.
+  depends_on:
+  - examples.hero
 applies_to:
   rest_api:
     required: false
@@ -135,3 +154,6 @@ examples:
   - public_content
   - hero
   - preferences
+approval_source:
+  instruction: User directly requested implementation and relevant specification updates on 2026-10-09
+    in this Codex thread; no new exact-fingerprint approval is claimed.

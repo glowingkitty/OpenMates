@@ -11095,6 +11095,600 @@
       "follow_up_6": {
         "text": "Fasse die wichtigsten Finanzkennzahlen für VITL zusammen"
       }
+    },
+    "urban_heat_island_at_night": {
+      "title": {
+        "text": "Warum Städte nachts heiß bleiben"
+      },
+      "summary": {
+        "text": "Eine einfache Erklärung des städtischen Wärmeinseleffekts und warum sich Stadtstraßen nach Sonnenuntergang langsamer abkühlen."
+      },
+      "message_1": {
+        "text": "Warum fühlen sich manche Städte nachts viel heißer an als nahegelegene ländliche Gebiete? Könntest du den städtischen Wärmeinseleffekt an einem einfachen Beispiel erklären?"
+      },
+      "message_2": {
+        "text": "Das Phänomen, das du beschreibst, ist als **[städtische Wärmeinsel](wiki:Urban_heat_island)** (Urban Heat Island, UHI) bekannt. Während Städte tagsüber etwas wärmer sein können, ist der Temperaturunterschied nach Sonnenuntergang oft am ausgeprägtesten – manchmal bleiben Städte zwischen 2 °C und über 10 °C (4 °F bis 18 °F) wärmer als das umliegende ländliche Umland.\n\n---\n\n### Eine einfache Analogie aus dem Alltag: Die gusseiserne Pfanne vs. das Gartenbeet\n\nStell dir vor, du stehst an einem sonnigen Nachmittag mit zwei Gegenständen im Freien:\n1. Einer **schweren gusseisernen Pfanne**\n2. Einem **Topf mit feuchter Gartenerde und Gras**\n\nAn einem heißen Nachmittag brennt die Sonne auf beide nieder:\n* Die **gusseiserne Pfanne** absorbiert intensive Hitze, wird glühend heiß und speichert diese thermische Energie in ihrem dichten Metallkörper.\n* Die **feuchte Erde und das Gras** absorbieren ebenfalls Sonnenlicht, aber die Feuchtigkeit im Boden verdunstet und das Gras „schwitzt“ durch Transpiration. Dieser Prozess der [Evapotranspiration](wiki:Evapotranspiration) verbraucht einen großen Teil der Sonnenenergie und hält die Pflanze und den Boden deutlich kühler.\n\nBringe nun beide in einen kühleren Raum oder warte bis zum Einbruch der Dunkelheit:\n* Das Gartenbeet kühlt fast sofort ab, da es keine überschüssige Wärme gespeichert hat und weiterhin Feuchtigkeit verliert.\n* Die gusseiserne Pfanne wirkt jedoch wie eine **thermische Batterie**. Lange nach Sonnenuntergang strahlt sie all die gespeicherte Wärme langsam an die Umgebungsluft ab und hält den unmittelbaren Raum stundenlang warm.\n\nEine **Stadt** verhält sich wie Millionen miteinander verbundener gusseiserner Pfannen; das **ländliche Umland** verhält sich wie das feuchte Gartenbeet.\n\n---\n\n### Die Wissenschaft dahinter, warum Städte nachts heiß bleiben\n\nDie nächtliche Disparität ist auf mehrere thermodynamische und physikalische Schlüsselfaktoren zurückzuführen:\n\n#### 1. Hohe thermische Masse (Wärmespeicherung)\nStädtische Umgebungen bestehen aus Asphalt, Beton, Ziegeln und Stein. Diese Materialien haben eine hohe [volumetrische Wärmekapazität](wiki:Volumetric_heat_capacity) und Wärmeleitfähigkeit. Tagsüber nehmen sie die Sonnenstrahlung tief in Strukturen und Fahrbahnbeläge auf. Nachts, wenn die Umgebungsluft abkühlt, geben diese Materialien die gespeicherte Wärme über langwellige Wärmestrahlung wieder an die untere Atmosphäre ab.\n\n#### 2. Verlust der Verdunstungskühlung\nLändliche Landschaften sind mit Bäumen, Nutzpflanzen und feuchtem Boden bedeckt. Pflanzen entziehen dem Boden Wasser und geben durch Transpiration Wasserdampf an die Luft ab. Da die Umwandlung von flüssigem Wasser in Dampf eine erhebliche Menge an Energie erfordert (die [latente Wärme](wiki:Latent_heat) der Verdampfung), kühlt dies die Umgebung auf natürliche Weise ab. In Städten wird Regen über undurchlässige Oberflächen schnell in Regenwasserkanäle geleitet, sodass nur sehr wenig Feuchtigkeit für die Verdunstungskühlung zur Verfügung steht.\n\n#### 3. Geometrie der Straßenschluchten\nIn dichten Städten mit hohen Gebäuden bilden Straßen „Straßenschluchten“. Tagsüber werfen mehrere reflektierende Oberflächen das Sonnenlicht tiefer in die Straße, anstatt es in den Weltraum zurückzustrahlen. Nachts blockieren die Gebäude teilweise den Himmel (was den sogenannten Sky View Factor verringert). Anstatt ungehindert in die obere Atmosphäre zu entweichen, wird die von der Straße abgestrahlte Wärme von den Wänden benachbarter Gebäude absorbiert oder zurückreflektiert.\n\n#### 4. Anthropogene Wärme (Vom Menschen erzeugte Energie)\nStädte produzieren kontinuierlich ihre eigene Wärme, unabhängig von der Sonne. Klimaanlagen, Fahrzeugmotoren, Rechenzentren, Fabriken und Gebäudebeleuchtung geben Abwärme direkt an die Atmosphäre auf Straßenniveau ab, was die nächtliche Wärme verstärkt.\n\n---\n\n### Minderung des Effekts\n\nKommunen und Stadtplaner setzen häufig Strategien ein, die diesen Mechanismen entgegenwirken:\n* **Kühle Fahrbahnbeläge & Dächer:** Verwendung von Beschichtungen mit hoher [Albedo](wiki:Albedo) (Reflexionsvermögen), damit Oberflächen das Sonnenlicht reflektieren, anstatt es zu absorbieren.\n* **Städtische Begrünung & Baumkronendächer:** Pflanzen von Straßenbäumen und Anlegen von Parks, um Schatten und Evapotranspiration wiederherzustellen.\n* **Gründächer:** Installation von Vegetation auf Dächern, um Gebäude zu isolieren und das lokale Mikroklima zu kühlen.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"uhi_interest_followup\",\n  \"multiple\": false,\n  \"question\": \"Which aspect of the urban heat island effect would you like to explore next?\",\n  \"options\": [\n    { \"id\": \"solutions\", \"text\": \"Architectural and urban design solutions (e.g., green roofs, cool materials)\" },\n    { \"id\": \"climate_health\", \"text\": \"Impacts on public health, air quality, and climate resilience\" },\n    { \"id\": \"measurement\", \"text\": \"How scientists measure and map surface vs. atmospheric heat islands\" }\n  ]\n}\n```\n\nMöchtest du untersuchen, wie sich bestimmte städtebauliche Entscheidungen in deiner Region auf die nächtliche Abkühlung auswirken, oder eines der oben genannten Themen vertiefen?"
+      },
+      "follow_up_1": {
+        "text": "Suche nach Stadtplanungsstrategien zur Reduzierung von Hitzeinseln"
+      },
+      "follow_up_2": {
+        "text": "Erkläre, wie Wissenschaftler zwischen Oberflächen- und atmosphärischen Hitzeinseln unterscheiden"
+      },
+      "follow_up_3": {
+        "text": "Finde wissenschaftliche Arbeiten zur Messung von Anomalien der städtischen Oberflächentemperatur"
+      },
+      "follow_up_4": {
+        "text": "Diskutiere die Auswirkungen extremer nächtlicher Stadttemperaturen auf die öffentliche Gesundheit"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Fallstudien zur Dachbegrünung in Städten"
+      },
+      "follow_up_6": {
+        "text": "Beschreibe, wie die Geometrie von Straßenschluchten nachts abgestrahlte Wärme speichert"
+      }
+    },
+    "damped_sine_decay_plot": {
+      "title": {
+        "text": "Gedämpfte Sinusschwingung und ihre Hüllkurven"
+      },
+      "summary": {
+        "text": "Plotte eine gedämpfte Sinusschwingung mit ihrer oberen und unteren Hüllkurve und verstehe, wie die Schwingung abklingt."
+      },
+      "message_1": {
+        "text": "Kannst du y = e^(-0.2x) sin(3x) für x von 0 bis 12 plotten, einschließlich der oberen und unteren Hüllkurven, und erklären, was der Graph zeigt?"
+      },
+      "message_2": {
+        "text": "Hier ist der Plot der Funktion zusammen mit ihren oberen und unteren begrenzenden Hüllkurven:\n\n```json\n{\"type\": \"math-plot\", \"embed_id\": \"9ef899d2-4b73-4c4e-88bf-d4fd31d61e79\"}\n```\n\n---\n\n### Was der Graph zeigt\n\nDieser Graph ist eine klassische Darstellung eines gedämpften harmonischen Oszillators, wie er häufig in der Physik und den Ingenieurwissenschaften vorkommt (z. B. bei einer schwingenden Gitarrensaite, einem Stoßdämpfer oder einem elektrischen [RLC-Schaltkreis](wiki:RLC_circuit)).\n\n#### 1. Die oszillierende Komponente: $\\sin(3x)$\n* Der Term $\\sin(3x)$ erzeugt eine kontinuierliche periodische Wellenbewegung.\n* Die Kreisfrequenz beträgt $\\omega = 3\\text{ rad/s}$, was einer Periodendauer entspricht von:\n  $$T = \\frac{2\\pi}{3} \\approx 2,094$$\n* Das bedeutet, dass die Kurve alle $\\frac{\\pi}{3} \\approx 1,05$ Einheiten entlang der $x$-Achse die Nulllinie schneidet.\n\n#### 2. Der Dämpfungsfaktor: $e^{-0.2x}$\n* Der Exponentialfaktor $e^{-0.2x}$ beschreibt einen [exponentiellen Zerfall](wiki:Exponential_decay) mit einem Zerfallsratenparameter von $\\alpha = 0,2$.\n* Mit zunehmendem $x$ verliert das System aufgrund von [Dämpfung](wiki:Damping) (wie Reibung oder elektrischem Widerstand) Energie, wodurch die Amplitude mit der Zeit abnimmt.\n\n#### 3. Die Hüllkurven: $\\pm e^{-0.2x}$\n* Da die Sinusfunktion durch $-1 \\le \\sin(3x) \\le 1$ begrenzt ist, ergibt die Multiplikation mit dem positiven Term $e^{-0.2x}$:\n  $$-e^{-0.2x} \\le e^{-0.2x}\\sin(3x) \\le e^{-0.2x}$$\n* **Obere Hüllkurve ($g(x) = e^{-0.2x}$)**: Bildet die glatte obere Begrenzung, die die positiven Spitzen begrenzt.\n* **Untere Hüllkurve ($h(x) = -e^{-0.2x}$)**: Bildet die symmetrische Begrenzung, die die negativen Wellentäler umschließt.\n* Die oszillierende Kurve berührt die obere Hüllkurve immer dann, wenn $\\sin(3x) = 1$ ist (bei $x = \\frac{\\pi}{6} + \\frac{2\\pi k}{3}$), und die untere Hüllkurve immer dann, wenn $\\sin(3x) = -1$ ist.\n\n---\n\n### Vorgeschlagene nächste Schritte\n\n- [Berechne die exakten lokalen Extrema mithilfe der Ableitung](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)\n- [Vergleiche unterdämpfte vs. kritisch gedämpfte Systeme](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)"
+      },
+      "follow_up_1": {
+        "text": "Berechne die lokalen Extrema dieser Funktion mithilfe der Differentialrechnung"
+      },
+      "follow_up_2": {
+        "text": "Erkläre, wie sich die Änderung der Abklingrate auf die Kurve auswirkt"
+      },
+      "follow_up_3": {
+        "text": "Finde ähnliche physikalische Formeln für harmonische Schwingungen"
+      },
+      "follow_up_4": {
+        "text": "Beschreibe reale physikalische Systeme, die durch diese Gleichung modelliert werden"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Differentialgleichungen, die gedämpfte Schwingungen beschreiben"
+      },
+      "follow_up_6": {
+        "text": "Vergleiche dieses Wellenverhalten mit einer ungedämpften harmonischen Schwingung"
+      }
+    },
+    "autumn_basil_balcony_care": {
+      "title": {
+        "text": "Basilikumpflege im Herbst auf einem Berliner Balkon"
+      },
+      "summary": {
+        "text": "Einfache Herbstpflege für Basilikum auf einem Ostbalkon: Licht, Gießen, Kälteanzeichen und Umzug nach drinnen."
+      },
+      "message_1": {
+        "text": "Könntest du eine kurze, anfängerfreundliche Pflegeanleitung für mein Genoveser Basilikum auf einem Berliner Ostbalkon in diesem Herbst erstellen? Ich brauche vor allem Infos zu Bewässerung, Licht, Anzeichen für Kälte und wann ich es reinholen sollte."
+      },
+      "message_2": {
+        "text": "Hier ist ein kompakter, herbstspezifischer Pflegeleitfaden für dein Basilikum (*Ocimum basilicum*) auf einem Ostbalkon in Berlin:\n\n---\n\n### 1. Licht (Ostbalkon)\n* **Was dich erwartet:** Im Berliner Herbst steht die Sonne tiefer und die Tageslichtstunden nehmen rapide ab. Ein Ostbalkon bietet etwa 2–4 Stunden sanfte Morgensonne, was für das sonnenhungrige Basilikum eher wenig ist.\n* **Standort:** Stelle den Topf so nah wie möglich an das Außengeländer (sicher befestigt), weg vom Schatten der Hauswand, um die maximale Lichtausbeute des Morgenhimmels zu nutzen.\n* **Reflexions-Trick:** Wenn du die Pflanze vor eine weiße oder helle Wand stellst, kann zusätzliches Umgebungslicht auf die Blätter reflektiert werden.\n\n---\n\n### 2. Gießen\n* **Regel:** Der Wasserbedarf von Basilikum sinkt bei kühlem Wetter deutlich, da die Verdunstung langsamer ist und das Pflanzenwachstum stagniert.\n* **Erst prüfen:** Gieße **nur**, wenn sich die oberen 2–3 cm der Erde trocken anfühlen. Gieße nicht nach einem festen Zeitplan.\n* **Zeitpunkt:** Gieße immer morgens mit zimmertemperiertem Wasser. Vermeide eiskaltes Leitungswasser direkt aus der Leitung, da dies die kühlen Wurzeln schockt.\n* **Drainage:** Lass den Topf niemals in stehendem Wasser im Untersetzer stehen; kühle, nasse Erde führt schnell zu Wurzelfäule (*Fusarium* oder Wasserschimmel).\n\n---\n\n### 3. Wann es nach drinnen muss\n* **Kritische Grenze:** Basilikum ist ein empfindliches tropisches Kraut. Es leidet unter physiologischem Kältestress unter **10 °C** und erleidet schwere Gewebeschäden oder stirbt ab bei Temperaturen zwischen **0 °C und 4 °C**.\n* **Zeitpunkt für Berlin:** Die nächtlichen Temperaturen in Berlin fallen oft schon Ende September oder Anfang Oktober unter 10 °C.\n* **Maßnahme:** **Hol es jetzt rein**, wenn die Vorhersage für die Nacht unter 10 °C sinkt.\n\n---\n\n### 4. Anzeichen für Kälte- & Lichtstress\n* **Schwarze oder glasige Blätter:** Ein klares Zeichen für Kälteschäden (Zellkollaps durch Temperaturen unter 8–10 °C).\n* **Violette Verfärbung oder stumpfes Laub:** Eine klassische Reaktion auf Kältestress in Kombination mit verlangsamter Nährstoffaufnahme.\n* **Hängende Blätter trotz feuchter Erde:** Wurzelkälte oder Wurzelfäule; die Wurzeln sind zu kalt oder beschädigt, um Feuchtigkeit aufzunehmen, selbst wenn Wasser vorhanden ist.\n* **Vergeilung / blassgrüner Wuchs:** Zu wenig Sonnenlicht (Lichtmangel).\n\n---\n\n### 5. Umzug nach drinnen: Tipps für den Übergang\n1. **Hellstes Fenster:** Stelle es auf eine Fensterbank in Südausrichtung, falls vorhanden; ansonsten an das hellste Ost- oder Westfenster.\n2. **Zugluft & Heizkörper vermeiden:** Halte es fern von kalter Zugluft durch gekippte Fenster sowie von trockener Hitze direkt über einem Heizkörper (*Heizung*).\n3. **Schädlingskontrolle:** Überprüfe die Blattunterseiten auf Blattläuse oder Spinnmilben, bevor du es in die Nähe anderer Zimmerpflanzen stellst.\n4. **Von oben ernten:** Knipse Blütenknospen und die obersten Blattpaare ab, um einen buschigen Wuchs zu fördern, statt dass die Pflanze hochschießt und blüht.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"basil_indoor_setup\",\n  \"multiple\": false,\n  \"question\": \"Where are you planning to put your basil once it moves inside?\",\n  \"options\": [\n    { \"id\": \"south_window\", \"text\": \"South- or west-facing sunny windowsill\" },\n    { \"id\": \"east_window\", \"text\": \"Staying near the east window indoors\" },\n    { \"id\": \"grow_light\", \"text\": \"Under a dedicated grow light / LED lamp\" },\n    { \"id\": \"other_spot\", \"text\": \"Another room or location\" }\n  ],\n  \"custom_option_id\": \"other_spot\",\n  \"custom_placeholder\": \"Describe your indoor spot...\"\n}\n```\n\n**Nächste Schritte & Vorschläge:**\n* [Erinnerung einrichten, um die Tiefsttemperaturen für Berlin heute Nacht zu prüfen](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)\n* [Tipps zur Konservierung einer großen Basilikum-Ernte erhalten](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)"
+      },
+      "follow_up_1": {
+        "text": "Prüfe die aktuelle Wettervorhersage und die Nachttemperaturen in Berlin"
+      },
+      "follow_up_2": {
+        "text": "Erkläre, wie du Basilikum erntest, um ein buschigeres Wachstum zu fördern"
+      },
+      "follow_up_3": {
+        "text": "Suche nach schnellen Methoden, um frische Basilikumblätter haltbar zu machen"
+      },
+      "follow_up_4": {
+        "text": "Beschreibe Anzeichen von Wurzelfäule und wie du überwässertes Basilikum rettest"
+      },
+      "follow_up_5": {
+        "text": "Suche nach LED-Pflanzenlampen für Kräuter im Innenbereich"
+      },
+      "follow_up_6": {
+        "text": "Liste die besten Begleitpflanzen für Kräuter im Topf auf"
+      }
+    },
+    "community_garden_sunflower_illustration": {
+      "title": {
+        "text": "Botanische Sonnenblumen-Illustration erstellen"
+      },
+      "summary": {
+        "text": "Erstelle eine textfreie Sonnenblumen-Illustration für ein Handout eines Gemeinschaftsgartens."
+      },
+      "message_1": {
+        "text": "Bitte erstelle eine warme botanische Illustration einer Sonnenblume für ein Handout eines Gemeinschaftsgartens, auf einem sauberen, hellen Hintergrund ohne Text."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nIch erstelle jetzt die botanische Illustration der Sonnenblume für dein Gemeinschaftsgarten-Handout. Sie wird gerade verarbeitet und erscheint hier im Chat, sobald sie fertig ist.\n\n### Schnelle Design-Tipps für Community-Handouts\n\nDamit dein Garten-Handout sowohl einladend als auch gut lesbar ist:\n\n- **Visuelle Hierarchie & Abstände:** Gib der Illustration Raum zum Atmen. Wenn du sie am Rand oder im Header platzierst, bleibt klarer Platz für Gartentipps oder Veranstaltungsdetails, ohne dass es überladen wirkt.\n- **Farbharmonie:** Übernimm warme Töne direkt aus dem Kunstwerk – wie tiefes Honiggold, Olivenblattgrün oder erdiges Terrakotta – für Abschnittsüberschriften und Rahmen.\n- **Eigene Kunst einbinden:** Wenn Community-Mitglieder oder lokale Gärtner Skizzen, Blattdrucke oder Fotos von echten Gartenbeeten erstellen, verleiht die Integration dieser Elemente neben digitalen Illustrationen dem Ganzen eine wunderbare, persönliche Note.\n\n---\n\n**Nächste Schritte & Optionen:**\n- [Ein Handout-Layout mit Überschriften und Tipps entwerfen](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [Eine Farbpalette basierend auf Sonnenblumen vorschlagen](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+      },
+      "follow_up_1": {
+        "text": "Suche nach lokalen Gemeinschaftsgarten-Events in der Nähe"
+      },
+      "follow_up_2": {
+        "text": "Hilf mir, einen freundlichen Einleitungstext für das Garten-Handout zu schreiben"
+      },
+      "follow_up_3": {
+        "text": "Finde kostenlose SVG-Pflanzensymbole zur Dekoration des Handouts"
+      },
+      "follow_up_4": {
+        "text": "Liste wichtige Tipps auf, die in einen Leitfaden für Gemeinschaftsgärten gehören"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Ideen für Schriftkombinationen für Garten-Flyer"
+      },
+      "follow_up_6": {
+        "text": "Erkläre, wie man visuelle Elemente in einem Drucklayout anordnet"
+      }
+    },
+    "beginner_yoga_classes_berlin": {
+      "title": {
+        "text": "Yoga-Kurse für Anfänger in Berlin"
+      },
+      "summary": {
+        "text": "Finde drei anfängerfreundliche Yoga-Kurse in Berlin mit Zeiten, Preisen und Buchungslinks."
+      },
+      "message_1": {
+        "text": "Ich bin neu beim Yoga und hätte gerne einen anfängerfreundlichen Kurs in Berlin nächste Woche. Kannst du ein paar Kurse mit Zeiten, Preisen und Buchungslinks finden?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\nHier sind anfängerfreundliche [Yoga](wiki:Yoga)-Kurse, die nächste Woche in ganz Berlin stattfinden:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga zur Erdung](embed:yoga-for-grounding-TB2) (Kreuzberg)\n- **Was es ist:** Ein achtsamer Kurs, der atemgeführte Bewegungen mit dem Halten von Positionen kombiniert, um Ausrichtung und Stille zu erkunden. Speziell konzipiert, um für Anfänger zugänglich zu sein (auf Englisch).\n- **Datum & Uhrzeit:** Mittwoch, 14. Oktober 2026, 18:00 – 19:00 CEST (bitte 10 Min. früher ankommen)\n- **Ort:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))\n- **Preis:** €11.83 – €22.49\n- **Buchung:** [Tickets auf Eventbrite buchen](embed:yoga-for-grounding-TB2)\n\n### 2. [Mobility Yoga & optionales Bouldern](embed:mobility-yoga-optional-qv3) (Friedrichshain)\n- **Was es ist:** Eine informelle, entspannte Mobility- und Yoga-Session für alle Level, bei der die Flows Schritt für Schritt in einem angenehmen Tempo erklärt werden. Keine Vorkenntnisse in Flexibilität oder Erfahrung erforderlich.\n- **Datum & Uhrzeit:** Dienstag, 13. Oktober 2026, 19:00 – 19:45 CEST (15 Min. früher ankommen)\n- **Ort:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))\n- **Preis:** €5 (kostenloser Eintritt mit Urban Sports Club / Wellpass, wenn du auch boulderst)\n- **Buchung:** [Details und Buchungslink anzeigen](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)\n- **Was es ist:** Eine dynamische und doch sanfte Vinyasa-Session, die Modifikationen für Anfänger bietet und sich auf Atembewusstsein, Körperausrichtung und Stressabbau konzentriert.\n- **Datum & Uhrzeit:** Mittwoch, 14. Oktober 2026, 19:30 – 21:00 CEST\n- **Ort:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))\n- **Preis:** €10 für deine erste Probestunde (Starterpaket: 3 Stunden für €20)\n- **Buchung:** [Anmeldung via Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)\n\n---\n\n### Tipps für deine erste Yogastunde\n* **Kleidung:** Bequeme, dehnbare Kleidung, in der du dich gut bewegen und beugen kannst. Yoga wird normalerweise barfuß praktiziert.\n* **Flüssigkeitszufuhr & Mahlzeiten:** Vermeide schwere Mahlzeiten innerhalb von 1.5–2 Stunden vor der Stunde.\n* **Höre auf deinen Körper:** Lass die Lehrkraft vor der Stunde wissen, dass es dein erstes Mal ist; sie wird dir gerne Anpassungen und Hilfsmittel (Blöcke, Decken oder Gurte) zeigen. Wenn du bereits bestehende Gelenk- oder Rückenprobleme hast, sprich mit einem Arzt oder Physiotherapeuten, bevor du dynamische Sequenzen ausprobierst.\n\nMöchten Sie Empfehlungen in der Nähe eines bestimmten Stadtteils (z. B. Neukölln, Prenzlauer Berg, Charlottenburg) oder konzentriert auf einen sanften Stil wie [Hatha-Yoga](wiki:Hatha_yoga) oder [Yin-Yoga](wiki:Yin_yoga)?\n---\n*⚠️ Dies sind ausschließlich Informationen zu Bildungszwecken und keine medizinische Beratung. Konsultieren Sie Ihren Arzt für medizinische Entscheidungen.*"
+      },
+      "follow_up_1": {
+        "text": "Suche nach Yogakursen in Berlin Neukölln"
+      },
+      "follow_up_2": {
+        "text": "Erkläre mir, was mich in meiner ersten Yogastunde erwartet"
+      },
+      "follow_up_3": {
+        "text": "Finde Hatha-Yoga-Workshops am nächsten Wochenende"
+      },
+      "follow_up_4": {
+        "text": "Vergleiche Vinyasa- und Hatha-Yoga-Stile"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Yin-Yoga-Studios in Mitte"
+      },
+      "follow_up_6": {
+        "text": "Liste Tipps für Anfänger zum Kauf einer Yogamatte auf"
+      }
+    },
+    "calm_manager_follow_up": {
+      "title": {
+        "text": "Ein ruhiges Follow-up mit deiner Führungskraft planen"
+      },
+      "summary": {
+        "text": "Verarbeite ein angespanntes Gespräch und entwirf ein klares, verantwortungsbewusstes Follow-up nach einer Prioritätenänderung."
+      },
+      "message_1": {
+        "text": "Ich hatte heute ein angespanntes Gespräch mit meiner Führungskraft und fühle mich verunsichert. Kannst du mir helfen, das Geschehene zu verarbeiten und ein ruhiges Follow-up zu planen?"
+      },
+      "message_2": {
+        "text": "Es ist völlig normal, sich nach einem schwierigen Austausch mit einer Führungskraft verunsichert zu fühlen. Gespräche über Autorität, Leistung oder unterschiedliche Erwartungen lösen oft akuten Stress aus und stören die emotionale Regulierung, was dazu führt, dass man Worte im Kopf wiederholt und Reaktionen hinterfragt.\n\nSich Zeit zu nehmen, um einen Schritt zurückzutreten, bevor man antwortet, ist der gesündeste und strategisch sinnvollste Ansatz.\n\nUm uns dabei zu helfen, einen klaren Plan für die Nachbesprechung des Geschehenen zu strukturieren und ein effektives Follow-up zu entwerfen: **Was war das Kernthema der Diskussion und welcher spezifische Moment oder welche Bemerkung fühlte sich für dich am angespanntesten an?**\n---\n*⚠️ Dies dient ausschließlich der Information und ist keine professionelle psychologische Beratung. Bei psychischen Problemen wende dich bitte an einen qualifizierten Therapeuten oder Berater. Wenn du dich in einer Krise befindest, kontaktiere bitte sofort den Notruf oder eine Krisen-Hotline.*"
+      },
+      "message_3": {
+        "text": "Wir waren uns uneinig über eine Frist für die Aktualisierung der Support-Wissensdatenbank. Meine Führungskraft sagte, ich hätte das Risiko früher melden sollen, und ich fühlte mich beschuldigt, weil sich die Prioritäten zweimal geändert hatten. Ich möchte meinen Teil der Verantwortung übernehmen, ohne die gesamte Schuld zu akzeptieren. Was könnte ich morgen in einem kurzen Follow-up sagen?"
+      },
+      "message_4": {
+        "text": "Der Umgang mit einer solchen Situation erfordert ein Gleichgewicht zwischen [Selbstbehauptung](wiki:Assertiveness) und gemeinsamer Verantwortlichkeit: anzuerkennen, was im eigenen Einflussbereich lag (proaktive Eskalation von Risiken), ohne dabei ein Narrativ zu akzeptieren, das den sich ändernden Kontext (wechselnde Prioritäten) ignoriert.\n\n### Der psychologische Rahmen: Verantwortlichkeit vs. Schuldzuweisung\n\nWenn Manager sich überrumpelt fühlen, ist ihr unmittelbarer Reflex oft: *„Warum wurde ich nicht gewarnt?“* Wenn Mitarbeiter wechselnde Anweisungen erhalten, ist ihr Reflex oft: *„Ich habe mich nur an das angepasst, was Sie mir als Priorität vorgegeben haben.“* Beide Perspektiven ergeben in ihrem jeweiligen Bezugsrahmen Sinn.\n\nUm dies konstruktiv zu überbrücken:\n1. **Die Prozessverbesserung validieren**: Zustimmen, dass eine frühzeitigere Transparenz für alle besser ist.\n2. **Neutral kontextualisieren, ohne defensiv zu sein**: Die Prioritätenverschiebung als operativen Auslöser für die Verzögerung beschreiben, statt als Ausrede.\n3. **Den Fokus auf das gemeinsame Ziel richten**: Die künftige Kommunikation darauf ausrichten, Teamressourcen und Zeitpläne klar im Blick zu behalten.\n---\n### Option 1: Kurze Nachricht persönlich oder via Slack/Teams\n\n> *\"Hallo [Name der Führungskraft], ich habe noch einmal über unser gestriges Gespräch zur Deadline für die Support-Wissensdatenbank nachgedacht. Du hattest recht – ich hätte das Kapazitätsrisiko früher ansprechen sollen, als sich die anderen Prioritäten verschoben haben.*\n>\n> *Ich möchte sicherstellen, dass wir künftig abgestimmt bleiben, wenn sich Prioritäten ändern. Deshalb werde ich zeitliche Zielkonflikte ab jetzt sofort proaktiv melden. Was die Wissensdatenbank angeht: Hier ist der aktuelle Stand und das, was ich brauche, um das Ganze bis zum [Vorgeschlagenes Datum] abzuschließen. Lass uns kurz abstimmen, falls du den Plan anpassen möchtest.\"*\n---\n### Option 2: Kurze, direkte E-Mail oder Einstieg ins Vier-Augen-Gespräch\n\n> *\"Hi [Name der Führungskraft],*\n>\n> *kurzes Follow-up zu unserem gestrigen Gespräch: Ich habe mir dein Feedback zu Herzen genommen, Risiken früher anzusprechen. Als sich die Prioritäten in den letzten Wochen verschoben haben, habe ich mich darauf konzentriert, diese Anfragen einfach abzufangen, anstatt explizit darauf hinzuweisen, wie sie sich auf den Zeitplan der Knowledge Base auswirken.*\n>\n> *In Zukunft werde ich bei konkurrierenden Prioritäten sofort eine kurze Nachricht schicken und die Auswirkungen auf bestehende Deadlines skizzieren, damit wir gemeinsam entscheiden können, was Vorrang hat.*\n>\n> *Aktueller Status der Knowledge Base:*\n> *• [Status-Update in 1–2 Sätzen oder nächster Meilenstein]*\n> *• Geplante Fertigstellung: [Datum/Uhrzeit]*\n>\n> *Danke für das Feedback – sag Bescheid, wenn du die restlichen Punkte gemeinsam durchgehen möchtest.\"*\n---\n### Warum das funktioniert – die wichtigsten Punkte\n* **Eliminiert defensive Debatten:** Du streitest nicht darüber, wer gestern recht hatte; du legst fest, wie Prioritätskonflikte morgen gehandhabt werden.\n* **Zeigt systemisches Denken:** Du erkennst an, dass sich verschiebende Prioritäten zwangsläufig auf die Kapazität auswirken, und die Lösung ist eine explizite Vereinbarung über Trade-offs.\n* **Richtet den Fokus wieder auf die Ergebnisse:** Es endet mit einem klaren Weg, um das eigentliche Arbeitsergebnis fertigzustellen.\n---\n### Nächste Schritte & Vorschläge\n\nWas davon passt am besten zum Kommunikationsstil deiner Führungskraft?\n\n- [Einen E-Mail-Entwurf für dieses Follow-up erstellen](/#message=Help%20me%20format%20this%20into%20a%20formal%20email%20draft%20for%20my%20manager.)\n- [Ein Übungsgespräch für ein 1-zu-1 führen](/#message=Let's%20roleplay%20the%201-on-1%20conversation%20with%20my%20manager.)"
+      },
+      "follow_up_1": {
+        "text": "Entwirf eine formellere E-Mail an meine Führungskraft über unsere Uneinigkeit bezüglich der Frist"
+      },
+      "follow_up_2": {
+        "text": "Erkläre, wie man bessere Grenzen setzt, wenn sich Prioritäten schnell ändern"
+      },
+      "follow_up_3": {
+        "text": "Erstelle eine Aufgabenerinnerung, um die Follow-up-Nachricht morgen früh zu senden"
+      },
+      "follow_up_4": {
+        "text": "Hilf mir beim Rollenspiel für das Gespräch mit meiner Führungskraft, um Selbstvertrauen aufzubauen"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Artikeln über den effektiven Umgang mit sich ändernden Prioritäten am Arbeitsplatz"
+      },
+      "follow_up_6": {
+        "text": "Überprüfe meine Antwort auf unbeabsichtigt defensive Formulierungen oder Untertöne"
+      }
+    },
+    "community_garden_planning_mindmap": {
+      "title": {
+        "text": "Mindmap zur Planung eines Gemeinschaftsgartens"
+      },
+      "summary": {
+        "text": "Plane die Freiwilligen, die Bepflanzung, das Budget und die Veranstaltungen, die für den Start eines Gemeinschaftsgartens erforderlich sind."
+      },
+      "message_1": {
+        "text": "Könntest du eine Mindmap für die Planung eines Gemeinschaftsgartens erstellen, mit Zweigen für Freiwillige, Bepflanzung, Budget und Veranstaltungen?"
+      },
+      "message_2": {
+        "text": "Hier ist eine strukturierte Mindmap, die die vier Kernsäulen der Planung deines Gemeinschaftsgartens abdeckt:\n\n```json\n{\"type\": \"mindmap\", \"embed_id\": \"02d212e1-3648-42f5-8c96-700bd34a5070\"}\n```\n\n### Wichtige Überlegungen für die nächsten Schritte\n\n1. **Standortbewertung:** Bevor du Material kaufst, ist es wichtig, die Bodenqualität auf Schadstoffe wie Blei zu prüfen und den Zugang zu zuverlässigen kommunalen Anschlüssen oder Regenwasser zu bestätigen.\n2. **Einbeziehung der Gemeinschaft:** Die frühzeitige Einbindung der Anwohner hilft dabei, eine gemeinsame Verantwortung zu etablieren und stellt sicher, dass die Pflanzen den kulinarischen Vorlieben und kulturellen Traditionen der Nachbarschaft entsprechen.\n\nMöchtest du Folgendes erkunden:\n- [Entwurf einer Checkliste für die Anmeldung von Freiwilligen](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)\n- [Erstellung einer Budgetvorlage für den Anfang](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)"
+      },
+      "follow_up_1": {
+        "text": "Suche nach Fördermöglichkeiten für Gemeinschaftsgärten und lokalen Landwirtschaftsprogrammen"
+      },
+      "follow_up_2": {
+        "text": "Erkläre, wie man einen einfachen Bodentest für Gemeinschaftsgärten durchführt"
+      },
+      "follow_up_3": {
+        "text": "Erstelle eine Budgetvorlage für den Anfang und eine Materialliste für einen Gemeinschaftsgarten"
+      },
+      "follow_up_4": {
+        "text": "Liste Best Practices für die Organisation von Nachbarschaftstreffen für urbane Landwirtschaftsprojekte auf"
+      },
+      "follow_up_5": {
+        "text": "Hilf mir, eine Beschreibung der Freiwilligenrollen und ein Anmeldeformular für unseren Gemeinschaftsgarten zu erstellen"
+      },
+      "follow_up_6": {
+        "text": "Diskutiere Strategien, um das Engagement der Gemeinschaft nach der ersten Startphase aufrechterhalten zu können"
+      }
+    },
+    "books_after_left_hand_of_darkness": {
+      "title": {
+        "text": "Bücher, die du nach „Die linke Hand der Dunkelheit“ lesen solltest"
+      },
+      "summary": {
+        "text": "Vier tiefgründige Science-Fiction-Empfehlungen für Leser, die Le Guins Worldbuilding und soziale Fragen geliebt haben."
+      },
+      "message_1": {
+        "text": "Mir hat „Die linke Hand der Dunkelheit“ wegen des Worldbuildings und der sozialen Fragen gefallen. Was sollte ich als Nächstes lesen und warum?"
+      },
+      "message_2": {
+        "text": "[Die linke Hand der Dunkelheit](wiki:The_Left_Hand_of_Darkness) von [Ursula K. Le Guin](wiki:Ursula_K._Le_Guin) sticht heraus, weil ihr Worldbuilding nicht nur eine malerische Kulisse ist; es fungiert als anthropologisches Gedankenexperiment. Le Guin beschrieb Science-Fiction bekanntermaßen als ein Labor, um die Frage *„Was wäre, wenn?“* zu stellen – und zu untersuchen, wie sich menschliche Beziehungen, Institutionen und Vorurteile neu formen, wenn eine grundlegende Variable (wie das feste biologische Geschlecht) entfernt wird.\n\nHier sind vier Bücher, die diese Art von Worldbuilding und sozialer Untersuchung fortsetzen:\n\n---\n\n### 1. *Die Habenichtse* von Ursula K. Le Guin\n* **Die Kernfrage:** Kann eine Gesellschaft wahre Freiheit ohne Besitz erreichen, und wie überlebt gegenseitige Verpflichtung ihre Institutionalisierung?\n* **Warum es passt:** Dieser Roman spielt im selben losen [Hainish-Zyklus](wiki:Hainish_Cycle)-Universum und stellt zwei benachbarte Welten gegenüber: Anarres, einen kargen Mond, der auf Anarchosyndikalismus und gemeinschaftlicher Solidarität basiert, und Urras, einen ressourcenreichen Planeten, der zwischen kompetitivem Kapitalismus und autoritärem Sozialismus gespalten ist. Während *Die linke Hand der Dunkelheit* Geschlecht und persönliches Vertrauen (das Konzept des *shifgrethor*) untersuchte, befasst sich [Die Habenichtse](wiki:The_Dispossessed) mit Wirtschaft, Sprache und kollektiver Verantwortung und fragt, wie Gemeinschaften das Individuum fördern können, während sie gleichzeitig der gegenseitigen Hilfe verpflichtet bleiben.\n\n### 2. *Dämmerung* (Xenogenesis-Trilogie) von [Octavia E. Butler](wiki:Octavia_E._Butler)\n* **Die Kernfrage:** Was macht die menschliche Natur aus, und was passiert, wenn das Überleben verlangt, dass wir unseren Drang nach Hierarchie und biologischer Autonomie aufgeben?\n* **Warum es passt:** Wie Le Guins Gethenianer besitzen die außerirdischen Oankali drei Geschlechter (männlich, weiblich und *Ooloi*, die die Fortpflanzung und den genetischen Austausch vermitteln). Butler hinterfragt die Annahmen der Leser über Konsens, Familienstrukturen und Kooperation. Die Erzählung geht der Frage nach, ob der tödliche Fehler der Menschheit die Kombination aus hoher Intelligenz und einem angeborenen Drang zur Hierarchie ist – und ob wir uns über die Dominanz hinausentwickeln können.\n\n### 3. *Die Maschinen* von [Ann Leckie](wiki:Ann_Leckie)\n* **Die Kernfrage:** Wie prägen imperiale Institutionen die Identität, und wie sieht Bewusstsein aus, wenn es von der individuellen menschlichen Form getrennt ist?\n* **Warum es passt:** Leckies Radch-Imperium unterteilt die Gesellschaft nicht nach Geschlechtern; tatsächlich fehlen der vorherrschenden Sprache Geschlechtsmerkmale völlig, und es werden universell weibliche Pronomen verwendet. Jenseits der sprachlichen Parallele zu Le Guins Erforschung der Wahrnehmung vertieft sich die Geschichte – erzählt aus der Perspektive einer künstlichen Intelligenz, die früher auf ein Kriegsschiff und Tausende von menschlichen „Ancillary“-Körpern verteilt war – in Themen wie Mitschuld, Pflicht und individuelles Gewissen innerhalb eines expansionistischen Imperiums.\n\n### 4. *A Half-Built Garden* von [Ruthanna Emrys](wiki:Ruthanna_Emrys)\n* **Die Kernfrage:** Wie können menschliche Gemeinschaften eine demokratische Verantwortung organisieren, um den ökologischen Kollaps zu überleben, und wie verhandeln wir mit Kulturen, die auf grundlegend anderen Werten basieren?\n* **Warum es passt:** Auf einer Erde der 2080er Jahre, die von Wassereinzugsgebiets-Netzwerken und gemeinschaftlichen ökologischen Kooperativen regiert wird, findet der Erstkontakt mit einer außerirdischen Spezies statt, die Rettung durch Migration anbietet. Das Buch konzentriert sich intensiv auf Diplomatie, gemeinschaftlichen Konsens, Elternschaft und gesellschaftliche Entscheidungsfindung und bietet das gleiche bewusste, anthropologische Tempo und die ethische Nuancierung, die man in Le Guins Werken findet.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"next_read_focus\",\n  \"multiple\": false,\n  \"question\": \"Which dimension of The Left Hand of Darkness resonated most with you?\",\n  \"options\": [\n    {\n      \"id\": \"politics_economics\",\n      \"text\": \"Political philosophy, mutual aid, and contrasting economic systems (Lean towards The Dispossessed)\"\n    },\n    {\n      \"id\": \"biology_gender\",\n      \"text\": \"Biology, alien contact, and redefining kinship or consent (Lean towards Dawn)\"\n    },\n    {\n      \"id\": \"identity_language\",\n      \"text\": \"Language, perspective, and challenging imperial hierarchies (Lean towards Ancillary Justice)\"\n    },\n    {\n      \"id\": \"diplomacy_ecology\",\n      \"text\": \"Ecological stewardship, diplomacy, and community decision-making (Lean towards A Half-Built Garden)\"\n    }\n  ]\n}\n```\n\n---\n\n### Empfohlene nächste Schritte\n* [Erforsche die Themen von Die Habenichtse](/#message=Tell%20me%20more%20about%20the%20philosophical%20themes%20of%20The%20Dispossessed%20by%20Ursula%20K.%20Le%20Guin.)\n* [Vergleiche die Beziehung zwischen Genly Ai und Estraven](/#message=Analyze%20the%20relationship%20between%20Genly%20Ai%20and%20Estraven%20in%20The%20Left%20Hand%20of%20Darkness.)"
+      },
+      "follow_up_1": {
+        "text": "Suche nach Rezensionen und Zusammenfassungen von „Die Enteigneten“"
+      },
+      "follow_up_2": {
+        "text": "Erkläre, wie die Romane des Hainish-Zyklus miteinander verbunden sind"
+      },
+      "follow_up_3": {
+        "text": "Finde Auszeichnungen für „Die Maschinen“ von Ann Leckie"
+      },
+      "follow_up_4": {
+        "text": "Diskutiere die Rolle der Sprache bei der Gestaltung des politischen Denkens in der spekulativen Fiktion"
+      },
+      "follow_up_5": {
+        "text": "Finde die Verfügbarkeit in Bibliotheken für „Dämmerung“ von Octavia E. Butler"
+      },
+      "follow_up_6": {
+        "text": "Vergleiche die außerirdische Biologie der Gethenianer und Oankali"
+      }
+    },
+    "community_garden_budget_review": {
+      "title": {
+        "text": "Budget-PDF eines Gemeinschaftsgartens prüfen"
+      },
+      "summary": {
+        "text": "Lies ein fiktives Budget, um Ausgaben, Finanzierung und wahrscheinlich fehlende Kosten zu vergleichen."
+      },
+      "message_1": {
+        "text": "Könntest du die größten Ausgaben, die Gesamtförderung, die Finanzierungslücke und wahrscheinlich fehlende Kosten in diesem beigefügten Budget-PDF für einen Gemeinschaftsgarten zusammenfassen?\n[!](embed:fictional-community-garden-budget-pdf-e1-146e58)"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c\",\"app_id\":\"pdf\",\"skill_id\":\"read\"}\n```\n\nHier ist eine knappe Zusammenfassung des Budgets aus dem beigefügten PDF zum Gemeinschaftsgarten.\n\n## 1) Größte Ausgaben\nSortiert von hoch nach niedrig:\n\n1. **Bauholz und Beschläge für Hochbeete** — **420 €**\n2. **Erde und Kompost** — **300 €**\n3. **Gemeinsame Handwerkzeuge** — **140 €**\n4. **Bewässerungsschläuche und Anschlüsse** — **95 €**\n5. **Saatgut und Setzlinge** — **85 €**\n6. **Bedarf für die Eröffnungsfeier** — **75 €**\n\n## 2) Geplante Gesamtausgaben\nSumme der aufgeführten Ausgaben:\n\n- 420 + 300 + 85 + 140 + 95 + 75 = **1.115 €**\n\n## 3) Erwartete Gesamtförderung\nAufgeführte Finanzierungsquellen:\n\n- **Nachbarschaftszuschuss** — 800 €\n- **Spenden von Freiwilligen** — 200 €\n\nGesamtförderung:\n\n- 800 + 200 = **1.000 €**\n\n## 4) Finanzierungslücke\n- **Gesamtausgaben:** 1.115 €\n- **Gesamtförderung:** 1.000 €\n- **Finanzierungslücke:** **115 €**\n\n## 5) Wahrscheinlich fehlende Kosten\nFür einen echten Gemeinschaftsgarten fehlen in diesem Entwurf wahrscheinlich einige gängige Posten:\n\n- **Standortvorbereitung** — Räumen, Ebnen, Schuttbeseitigung\n- **Liefer-/Transportkosten** — für Holz, Erde, Kompost\n- **Lagerung/Sicherheit** — Werkzeugkiste, Schuppen, Schlösser\n- **Wasseranschlussgebühren** — Anschluss, Zählernutzung, Verbrauchsgebühren\n- **Schutzmaterialien** — Handschuhe, Schubkarre, Planen\n- **Zäune/Beschilderung** — zum Schutz der Parzellen und zur Information der Nachbarn\n- **Laufende Instandhaltung** — Ersatzwerkzeuge, zusätzliche Erde, Schädlingsbekämpfung\n- **Versicherungen/Genehmigungen** — falls von der Gemeinde oder dem Grundstückseigentümer verlangt\n- **Notfallreserve** — normalerweise sinnvoll, da kleine Gemeinschaftsprojekte oft das Budget überschreiten\n\n## Kurze Interpretation\nDas Budget ist **fast ausgeglichen**, aber es besteht bereits eine **Lücke von 115 €**, noch bevor die wahrscheinlich fehlenden Kosten hinzugerechnet werden. In der Praxis benötigt das Projekt daher entweder:\n- etwas mehr Fundraising,\n- einige gespendete Materialien/Werkzeuge\n- oder einen reduzierten Umfang für die erste Phase.\n\nWenn du möchtest, kann ich dies auch umwandeln in:\n- eine **Zusammenfassung in einem Absatz für ein Treffen zur Fördermittelvergabe** oder\n- eine **übersichtliche Budgettabelle mit prozentualen Anteilen nach Kategorien**.\n---\n*⚠️ Dies dient nur zu Informationszwecken und stellt keine Finanzberatung dar. Konsultiere für finanzielle Entscheidungen einen qualifizierten Finanzexperten oder Steuerberater.*"
+      },
+      "follow_up_1": {
+        "text": "Suche nach lokalen Fördermitteln und Finanzierungsmöglichkeiten für Gemeinschaftsgärten"
+      },
+      "follow_up_2": {
+        "text": "Vergleiche verschiedene Fundraising-Ideen, um die Finanzierungslücke zu schließen"
+      },
+      "follow_up_3": {
+        "text": "Suche nach Leitfäden für nachhaltige urbane Landwirtschaft und Gemeinschaftsgärten"
+      },
+      "follow_up_4": {
+        "text": "Erstelle eine einseitige Zusammenfassung für ein Treffen zur Fördermittelvergabe"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Möglichkeiten zur Werkzeugaufbewahrung und Sicherheitsoptionen für Gemeinschaftsgärten"
+      },
+      "follow_up_6": {
+        "text": "Liste empfohlene Rücklagen für unvorhergesehene Ausgaben bei kleinen Gemeinschaftsprojekten auf"
+      }
+    },
+    "berlin_english_speaking_gp_appointments": {
+      "title": {
+        "text": "Englischsprachigen Hausarzt in Berlin finden"
+      },
+      "summary": {
+        "text": "Finde Terminoptionen mit ehrlichen Versicherungsdetails und Praxis-Links."
+      },
+      "message_1": {
+        "text": "Ich brauche nächste Woche einen Termin bei einem englischsprachigen Hausarzt in Berlin. Bitte vergleiche die frühesten Optionen, zeige deren Terminkarten an und gib den Versicherungsschutz nur an, wenn der Buchungseintrag dies bestätigt. Wenn der Versicherungsschutz unklar ist, sag das bitte."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\nHier sind die frühesten Termine bei englischsprachigen Hausärzt:innen in Berlin innerhalb der nächsten 7 Tage, die ich gefunden habe. Ich gebe den Versicherungsschutz nur an, wenn er im Buchungseintrag selbst vermerkt ist.\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**Früheste Optionen nächste Woche**\n1. **Mo., 12. Okt., 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - Adresse: Albert-Einstein-Straße 2, 12489 Berlin\n   - Besuchsgrund: Erstuntersuchung Neupatient:in\n   - Angezeigte Sprachen: Deutsch, Englisch\n   - **Versicherung:** privat *(laut Eintrag bestätigt)*\n\n2. **Mo., 12. Okt., 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - Adresse: Kapweg 5, 13405 Berlin\n   - Besuchsgrund: Erstuntersuchung Neupatient:in\n   - Angezeigte Sprachen: Englisch\n   - **Versicherung:** privat *(laut Eintrag bestätigt)*\n\n3. **Mo., 12. Okt., 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - Adresse: Stargarder Straße 69, 10437 Berlin\n   - Besuchsgrund: Akutsprechstunde\n   - Angezeigte Sprachen: Deutsch, Englisch\n   - **Versicherung:** unklar *(im Eintrag nicht bestätigt)*\n\n4. **Mo., 12. Okt., 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - Adresse: Müllerstraße 36, 13353 Berlin\n   - Besuchsgrund: Erstuntersuchung Neupatient:in\n   - Angezeigte Sprachen: Deutsch, Englisch\n   - **Versicherung:** unklar *(im Eintrag nicht bestätigt)*\n\n5. **Mo., 12. Okt., 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - Adresse: Wallstraße 16, 10179 Berlin\n   - Besuchsgrund: Erstuntersuchung Neupatient:in\n   - Angezeigte Sprachen: Deutsch, Englisch\n   - **Versicherung:** unklar *(im Eintrag nicht bestätigt)*\n\nEin paar Anmerkungen:\n- Ich habe die beiden früheren Optionen am **9.–10. Okt.** aus dem obigen Vergleich ausgeschlossen, da du gezielt nach der **nächsten Woche** gefragt hast.\n- Diese Ergebnisse stammen anscheinend von Doctolib; Jameda-Einträge wurden in diesem Suchergebnis nicht berücksichtigt.\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\nWenn du möchtest, kann ich als Nächstes:\n- die Suche auf **gesetzlich Versicherte** einschränken (sofern bestätigt), oder\n- eine kurze Auswahl nach **Stadtteil / Entfernung zu deinem Standort** erstellen.\n---\n*⚠️ Dies dient nur zu Informationszwecken und ist keine medizinische Beratung. Konsultiere bei medizinischen Entscheidungen deine Ärztin oder deinen Arzt.*"
+      },
+      "follow_up_1": {
+        "text": "Suche nach Hausarzt-Terminen für gesetzlich Versicherte in Mitte"
+      },
+      "follow_up_2": {
+        "text": "Filtere die Termine, um nur gesetzliche Versicherungen anzuzeigen"
+      },
+      "follow_up_3": {
+        "text": "Finde englischsprachige Ärzte in der Nähe von Prenzlauer Berg"
+      },
+      "follow_up_4": {
+        "text": "Grenze die Optionen nach Stadtteil und Entfernung ein"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Facharztterminen in Berlin"
+      },
+      "follow_up_6": {
+        "text": "Erkläre, wie man diese Arzttermine online bucht"
+      }
+    },
+    "community_garden_welcome_melody": {
+      "title": {
+        "text": "Eine Melodie zur Begrüßung im Gemeinschaftsgarten"
+      },
+      "summary": {
+        "text": "Erstelle eine sanfte Instrumentalmelodie für ein Begrüßungsvideo eines Gemeinschaftsgartens."
+      },
+      "message_1": {
+        "text": "Könntest du eine kurze, sanfte Instrumentalmelodie für ein Begrüßungsvideo eines Gemeinschaftsgartens erstellen, ohne Gesang?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nIch erstelle jetzt diesen sanften Instrumentaltitel für dein Begrüßungsvideo des Gemeinschaftsgartens. Er wird gerade verarbeitet und erscheint hier, sobald er fertig ist.\n\n[Gemeinschaftsgärten](wiki:Community_gardening) sind eine wunderbare Möglichkeit, Nachbarn zusammenzubringen und die lokale Artenvielfalt zu fördern. Während die Musik generiert wird, möchtest du Hilfe bei der Planung des narrativen oder visuellen Ablaufs des Begrüßungsvideos?\n\n- [Einen Entwurf für das Begrüßungsvideo erstellen](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [Ideen für Einführungstexte oder Voiceover-Tipps sammeln](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+      },
+      "follow_up_1": {
+        "text": "Suche nach lokalen Veranstaltungen und Workshops in Gemeinschaftsgärten"
+      },
+      "follow_up_2": {
+        "text": "Hilf mir, ein Storyboard für das Gartenvideo zu entwerfen"
+      },
+      "follow_up_3": {
+        "text": "Finde Stock-Videos von Pflanzen und Blumen"
+      },
+      "follow_up_4": {
+        "text": "Schreibe begrüßende Voiceover-Zeilen für das Gemeinschaftsvideo"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Garten-Tipps für Gemeinschaftsprojekte"
+      },
+      "follow_up_6": {
+        "text": "Schlage Ideen für Aktivitäten am Eröffnungstag des Gemeinschaftsgartens vor"
+      }
+    },
+    "mastodon_public_post_themes": {
+      "title": {
+        "text": "Themen in Mastodons öffentlichen Beiträgen"
+      },
+      "summary": {
+        "text": "Fasse Themen in aktuellen Beiträgen des offiziellen Mastodon-Accounts zusammen und erkunde repräsentative Beispiele."
+      },
+      "message_1": {
+        "text": "Könntest du die Hauptthemen in den aktuellen öffentlichen Beiträgen des offiziellen Mastodon-Accounts auf mastodon.social zusammenfassen, mit Links zu ein paar Beispielen?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nDie Anfrage zum Abrufen aktueller öffentlicher Beiträge von @Mastodon (`@Mastodon@mastodon.social`) läuft derzeit noch im Hintergrund und wird den Chat aktualisieren, sobald sie fertig ist.\n\nWährend wir auf das Laden des Feeds warten:\n- [Sieh dir aktuelle Mastodon-Blog-Ankündigungen an](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Erkunde die Mastodon-Roadmap](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
+      },
+      "message_3": {
+        "text": "Die Beiträge wurden jetzt geladen. Könntest du die Hauptthemen zusammenfassen und auf drei repräsentative Beiträge verlinken?"
+      },
+      "message_4": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nDer offizielle @Mastodon-Account auf `mastodon.social` hebt in seinen jüngsten öffentlichen Beiträgen mehrere Kernthemen hervor:\n\n### 1. Wichtige Produktentwicklung & Nutzerforschung\nEin Schwerpunkt lag auf den Vorarbeiten für **Mastodon 5.0**, im Anschluss an die community-weite Forschungsinitiative „Discovery Week“, die vom Design-Team geleitet wurde. Das Team zeigte Vorschauen auf eine neu gestaltete, ruhigere Benutzeroberfläche und einen aktualisierten Editor, um die Plattform zugänglicher und benutzerfreundlicher zu machen.\n\n### 2. Community-Governance, Richtlinien & Personal-Updates\nMastodon kommuniziert regelmäßig Updates zu Governance und Richtlinien, insbesondere durch die Veröffentlichung klärender Leitfäden zur **Markenrichtlinie** (Trademark Policy) als direkte Reaktion auf Feedback von Fediverse-Admins und -Entwicklern. Zudem wurden wichtige personelle Veränderungen in der Führungsebene bekannt gegeben, wobei der scheidenden Community-Direktorin Hannah Aubry für ihre Arbeit gedankt wurde.\n\n### 3. Server-Spotlights & Fediverse-Ökosystem\nDer Account bewirbt aktiv unabhängige Fediverse-Instanzen und Infrastruktur-Initiativen – etwa durch das Hervorheben themenbezogener Server (wie Earth.Law) und die Verbreitung von Branchenumfragen wie der IFTAS-Betriebsforschung.\n\n### 4. Community-Merchandise & Projektfinanzierung\nUm die laufende Open-Source-Entwicklung zu unterstützen, werden Updates zu offiziellem Community-Merchandise geteilt, einschließlich neuer Plüsch-Maskottchen („Plushtodons“).\n\n---\n\n### Drei repräsentative Beiträge\n\n- **Produkt-Roadmap & visuelle Auffrischung:** [Ankündigung der Vorschau auf Mastodon 5.0](embed:mastodon-after-publishing-D8d) – zeigt eine Vorschau auf das kommende 5.0-Layout und den Beitrags-Editor basierend auf den Forschungsergebnissen.\n- **Richtlinien & Community-Feedback:** [Update der Markenrichtlinien](embed:mastodon-today-we-YqD) – skizziert überarbeitete Markenregeln, die auf Basis von Community-Input angepasst wurden.\n- **Projektunterstützung & Merch:** [Ankündigung der Plushtodon-Vorbestellungen](embed:mastodon-new-plushtodon-A57) – kündigt neue offizielle Plüsch-Maskottchen an, mit denen Unterstützer die Entwicklung finanzieren können.\n\n---\n\nMöchtest du ein bestimmtes Thema vertiefen?\n- [Mehr über die Funktionen von Mastodon 5.0 erfahren](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [Die Markenrichtlinien ansehen](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+      },
+      "follow_up_1": {
+        "text": "Suche nach aktuellen Mastodon-Blog-Ankündigungen"
+      },
+      "follow_up_2": {
+        "text": "Erkläre, wie dezentrale Moderation auf Mastodon funktioniert"
+      },
+      "follow_up_3": {
+        "text": "Suche nach Updates zur Entwicklung von Mastodon 5.0"
+      },
+      "follow_up_4": {
+        "text": "Vergleiche die Änderungen in Mastodon 5.0 mit früheren Versionen"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Community-Diskussionen über die Moderation von Fediverse-Servern"
+      },
+      "follow_up_6": {
+        "text": "Liste die wichtigsten Herausforderungen für Open-Source-Plattformen auf"
+      }
+    },
+    "adjacent_career_portfolio_experiments": {
+      "title": {
+        "text": "Zwei Karrierewege aus dem Customer Support testen"
+      },
+      "summary": {
+        "text": "Vergleiche Technical Writing und Support Operations mit praktischen einmonatigen Portfolio-Experimenten und Interviewfragen."
+      },
+      "message_1": {
+        "text": "Ich arbeite im Software-Customer-Support und schreibe gerne Hilfe-Anleitungen und verbessere Ticket-Workflows. Welche zwei angrenzenden Rollen könnte ich testen, bevor ich mich auf einen neuen Job bewerbe? Bitte schlage kleine Portfolio-Experimente vor, die ich im nächsten Monat durchführen kann, sowie Fragen, die ich Personen in diesen Rollen stellen kann."
+      },
+      "message_2": {
+        "text": "Basierend auf deinem Hintergrund im [Kundensupport](wiki:Customer_support) und deiner Freude an Hilfe-Leitfäden und Ticket-Workflows stechen zwei natürliche angrenzende Rollen hervor:\n\n1. **Technical Writer / Customer Education Specialist**\n   *Fokus:* Organisieren der [Informationsarchitektur](wiki:Information_architecture), Übersetzen komplexer Softwarefunktionen in klare Benutzerdokumentationen, Erstellen von Anleitungen zur Fehlerbehebung und Pflege von Self-Service-Wissensdatenbanken.\n2. **Support Operations Specialist (Support Ops)**\n   *Fokus:* Verwalten von Support-Ticketing-Tools (wie [Zendesk](wiki:Zendesk), Freshdesk oder Jira Service Management), Analysieren von Support-Metriken, Optimieren des Ticket-Routings, Auditieren von Makros und Automatisieren repetitiver Prozesse.\n\n---\n\n### 30-Tage-Portfolio-Experimente\n\nDu musst nicht sofort den Job wechseln, um einen Arbeitsnachweis (Proof of Work) zu erbringen. Du kannst diese leichtgewichtigen Experimente direkt in deiner aktuellen Rolle oder als unabhängige Fallstudien durchführen:\n\n#### Für Technical Writing / Customer Education\n* **Der „Top 5 Tickets“-Rewrite:** Identifiziere 3 bis 5 häufige Support-Tickets, bei denen Nutzer aufgrund einer verwirrenden Benutzeroberfläche oder vager Anleitungen regelmäßig nicht weiterkommen.\n* **Das Ergebnis:** Schreibe eine umfassende, modulare Anleitung zur Fehlerbehebung oder einen How-to-Artikel. Strukturiere ihn mit klaren Überschriften, Voraussetzungen, Schritt-für-Schritt-Anleitungen und annotierten Screenshots oder Diagrammen.\n* **Portfolio-Metrik:** Verfolge, ob die mit diesem Problem markierten Tickets nach der Veröffentlichung abnehmen, oder miss das interne Team-Feedback zur Lösungsgeschwindigkeit.\n\n#### Für Support Operations\n* **Makro- & Routing-Effizienz-Audit:** Analysiere die bestehende Makro-Bibliothek oder die Ticket-Routing-Regeln deines Teams.\n* **Das Ergebnis:** Erstelle einen 1- bis 2-seitigen Vorschlag zur Prozessverbesserung, der Folgendes zeigt:\n  1. Identifizierte redundante oder veraltete Makros.\n  2. Ein optimiertes Kategorisierungsschema oder ein automatisiertes Trigger-Setup.\n  3. Eine Schätzung der Zeitersparnis pro Agent pro Woche.\n* **Portfolio-Metrik:** Präsentiere dies deinem Teamleiter oder setze es um, falls du Admin-Zugriff hast, und halte den Vorher-Nachher-Vergleich fest.\n\n---\n\n### Fragen für Informationsgespräche\n\nWenn du dich an Experten auf LinkedIn oder intern wendest:\n\n#### Für Technical Writer\n* *„Wie findest du die Balance zwischen dem Schreiben für Endnutzer und dem Schreiben für interne technische Teams oder Ingenieure?“*\n* *„Wie sieht dein Kollaborationszyklus aus, wenn sich Produktfunktionen schnell ändern, bevor die Dokumentation aktualisiert ist?“*\n* *„Welche Authoring-Tools und Docs-as-Code-Workflows werden derzeit bei Einstellungen am meisten geschätzt?“*\n\n#### Für Support Operations Specialists\n* *„Wie viel Zeit verbringst du am Tag mit der Konfiguration von Tools und Integrationen im Vergleich zur Analyse von Daten und Ticketvolumen-Trends?“*\n* *„Was ist beim Skalieren von Support-Workflows der häufigste Fehler, den Teams bei der Automatisierung machen?“*\n* *„Welche administrativen Zertifizierungen (z. B. Zendesk, Salesforce) oder technischen Fähigkeiten haben den größten Unterschied bei deiner Einstellung gemacht?“*\n\n---\n\n### Deine Richtung erkunden (Frage 1 von 5)\n\nUm herauszufinden, welcher Pfad am besten zu deinen langfristigen Zielen und täglichen Vorlieben passt, lass uns deinen Kernarbeitsstil und deine Interessen untersuchen.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"adjacent_role_preference\",\n  \"multiple\": false,\n  \"question\": \"When you reflect on writing guides versus improving workflows, which type of problem energizes you more?\",\n  \"custom_option_id\": \"other_focus\",\n  \"custom_placeholder\": \"Describe what you enjoy most or any specific balance...\",\n  \"options\": [\n    {\n      \"id\": \"content_pedagogy\",\n      \"text\": \"Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education).\"\n    },\n    {\n      \"id\": \"systems_tooling\",\n      \"text\": \"Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps).\"\n    },\n    {\n      \"id\": \"hybrid_balance\",\n      \"text\": \"An even split between both; I want to improve internal systems while also authoring the guides.\"\n    },\n    {\n      \"id\": \"other_focus\",\n      \"text\": \"Something else / A different aspect entirely.\"\n    }\n  ]\n}\n```\n\n**Empfehlung:** Wenn du konzentriertes Arbeiten, klare Kommunikation und UX-Empathie bevorzugst, bietet der Bereich Technical Writing im Allgemeinen mehr Autonomie. Wenn du Problemlösungen rund um Tool-Administration, Metriken und Systemlogik bevorzugst, bietet Support Operations einen schnelleren Weg in Richtung Operational Leadership und Product Operations.\n\n---\n\n**Mögliche nächste Schritte:**\n- [Entwurf einer Nachricht für Informationsgespräche](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)\n- [Vorlage für ein Support-Workflow-Audit skizzieren](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)\n---\n*⚠️ Dies sind ausschließlich Bildungsinformationen und keine professionelle psychologische Beratung. Bei psychischen Problemen wende dich bitte an einen qualifizierten Therapeuten oder Berater. Wenn du dich in einer Krise befindest, kontaktiere bitte sofort den Notruf oder eine Krisenhotline.*"
+      },
+      "follow_up_1": {
+        "text": "Suche nach Remote-Jobs und Anforderungen für Technical Writer"
+      },
+      "follow_up_2": {
+        "text": "Entwirf eine prägnante Nachricht für die Anfrage eines Interviews mit einem Technical Writer"
+      },
+      "follow_up_3": {
+        "text": "Erstelle eine Aufgabenliste für dein 30-tägiges Portfolio-Experiment"
+      },
+      "follow_up_4": {
+        "text": "Erstelle einen Leitfaden für dein Support-Workflow-Audit"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Zertifizierungskursen und Anforderungen für Support Operations"
+      },
+      "follow_up_6": {
+        "text": "Vergleiche die täglichen Aufgaben und Entwicklungspfade beider Rollen"
+      }
+    },
+    "bayes_theorem_quick_quiz": {
+      "title": {
+        "text": "Lerne das Bayes-Theorem mit einem kurzen Quiz"
+      },
+      "summary": {
+        "text": "Verstehe A-priori- und A-posteriori-Wahrscheinlichkeiten anhand eines konkreten Beispiels und teste dann deine Intuition mit Folgefragen."
+      },
+      "message_1": {
+        "text": "Ich habe nächste Woche eine Statistikprüfung. Könntest du mir das Bayes-Theorem an einem Alltagsbeispiel erklären und mich dann abfragen?"
+      },
+      "message_2": {
+        "text": "### Was ist der Satz von Bayes?\n\n[Der Satz von Bayes](wiki:Bayes'_theorem) ist eine mathematische Regel zur Aktualisierung der Wahrscheinlichkeit eines Ereignisses oder einer Hypothese ($A$), wenn du neue Belege ($B$) beobachtest.\n\nIn Symbolen:\n\n$$P(A|B) = \\frac{P(B|A) \\cdot P(A)}{P(B)}$$\n\nHier ist die Bedeutung der einzelnen Komponenten:\n* **$P(A)$ — [A-priori-Wahrscheinlichkeit](wiki:Prior_probability):** Deine anfängliche Schätzung, wie wahrscheinlich $A$ ist, bevor du neue Daten siehst (die Basisrate).\n* **$P(B|A)$ — Likelihood:** Die Wahrscheinlichkeit, den Beleg $B$ zu beobachten, wenn die Hypothese $A$ tatsächlich wahr ist.\n* **$P(B)$ — [Marginale Likelihood](wiki:Marginal_likelihood):** Die Gesamtwahrscheinlichkeit, den Beleg $B$ über alle möglichen Szenarien hinweg zu beobachten.\n* **$P(A|B)$ — [A-posteriori-Wahrscheinlichkeit](wiki:Posterior_probability):** Die aktualisierte Wahrscheinlichkeit von $A$, gegeben dass der Beleg $B$ eingetreten ist.\n\n---\n\n### Ein Alltagsbeispiel: Der medizinische Schnelltest\n\nStell dir vor, du machst einen Schnelltest auf eine seltene Erkrankung:\n\n1. **Basisrate (A-priori):** Nur **$1\\,\\%$** der Menschen in deiner Bevölkerung haben diese Erkrankung tatsächlich:\n   $$P(\\text{Erkrankung}) = 0,01, \\quad P(\\text{Gesund}) = 0,99$$\n2. **Test-Sensitivität (Likelihood):** Wenn jemand die Erkrankung hat, ist der Test in $90\\,\\%$ der Fälle positiv:\n   $$P(\\text{Positiv} \\mid \\text{Erkrankung}) = 0,90$$\n3. **Falsch-positiv-Rate:** Wenn jemand sie nicht hat, zeigt der Test in $10\\,\\%$ der Fälle fälschlicherweise ein positives Ergebnis:\n   $$P(\\text{Positiv} \\mid \\text{Gesund}) = 0,10$$\n\nAngenommen, **dein Test fällt positiv aus**. Wie hoch ist die Wahrscheinlichkeit, dass du die Erkrankung tatsächlich hast?\n\n#### Anwendung der Formel:\nBerechne zuerst die Gesamtwahrscheinlichkeit für einen positiven Test, $P(\\text{Positiv})$:\n$$\\begin{aligned}\nP(\\text{Positiv}) &= P(\\text{Positiv} \\mid \\text{Erkrankung}) \\cdot P(\\text{Erkrankung}) + P(\\text{Positiv} \\mid \\text{Gesund}) \\cdot P(\\text{Gesund}) \\\\\n&= (0,90 \\cdot 0,01) + (0,10 \\cdot 0,99) \\\\\n&= 0,009 + 0,099 = 0,108\n\\end{aligned}$$\n\nBerechne nun deine A-posteriori-Wahrscheinlichkeit:\n$$P(\\text{Erkrankung} \\mid \\text{Positiv}) = \\frac{0,009}{0,108} \\approx 8,3\\,\\%$$\n\nSelbst bei einem zu $90\\,\\%$ genauen Test liegt die Wahrscheinlichkeit, die Erkrankung tatsächlich zu haben, nur bei etwa **$8,3\\,\\%$**. Da die Erkrankung selten ist, überwiegen die falsch-positiven Ergebnisse der gesunden Mehrheit die echt-positiven Ergebnisse der kranken Minderheit.\n\n---\n\n### Kurzer Check\n\nTesten wir dein Verständnis der Begriffe:\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"bayes_components_quiz_1\",\n  \"multiple\": false,\n  \"question\": \"In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?\",\n  \"options\": [\n    { \"id\": \"opt_pa\", \"text\": \"P(A) — Prior probability\" },\n    { \"id\": \"opt_pba\", \"text\": \"P(B|A) — Likelihood\" },\n    { \"id\": \"opt_pab\", \"text\": \"P(A|B) — Posterior probability\" },\n    { \"id\": \"opt_pb\", \"text\": \"P(B) — Marginal probability of evidence\" }\n  ]\n}\n```"
+      },
+      "message_3": {
+        "text": "Ich glaube, P(A) ist die A-priori-Wahrscheinlichkeit, die anfängliche Basisrate. Stimmt das? Könntest du mir noch eine kurze Frage zum Ausprobieren geben?"
+      },
+      "message_4": {
+        "text": "Das ist vollkommen richtig. $P(A)$ ist die **A-priori-Wahrscheinlichkeit** – deine Ausgangsbasis oder dein ursprünglicher Glaube, bevor neue Beobachtungen oder Testergebnisse berücksichtigt werden. In unserem Beispiel mit dem medizinischen Screening war das die Rate von $1\\%$ in der Allgemeinbevölkerung.\n\n---\n\n### Herausforderung: Intuitions-Check\n\nHier ist ein kurzes Szenario, um deine Intuition darüber zu testen, wie sich das Bayes-Theorem in der Praxis verhält:\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"bayes_intuition_quiz_2\",\n  \"multiple\": false,\n  \"question\": \"Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?\",\n  \"options\": [\n    {\n      \"id\": \"opt_very_high\",\n      \"text\": \"The posterior probability is close to 100% because alarms are specifically built to detect break-ins.\"\n    },\n    {\n      \"id\": \"opt_counterintuitively_low\",\n      \"text\": \"The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins.\"\n    },\n    {\n      \"id\": \"opt_equal_to_prior\",\n      \"text\": \"The posterior probability remains completely unchanged regardless of whether the alarm sounds.\"\n    },\n    {\n      \"id\": \"opt_independent\",\n      \"text\": \"The posterior probability depends only on alarm volume, not the baseline frequency of burglaries.\"\n    }\n  ]\n}\n```\n\n***\n\n**Empfohlene nächste Schritte:**\n* [Ein vollständiges numerisches Bayes-Problem Schritt für Schritt lösen](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)\n* [Das kontinuierliche Bayes-Theorem und konjugierte Prior-Verteilungen wiederholen](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)"
+      },
+      "follow_up_1": {
+        "text": "Berechne eine eigene Textaufgabe zum Satz von Bayes"
+      },
+      "follow_up_2": {
+        "text": "Erkläre den Unterschied zwischen frequentistischer und bayesianischer Statistik"
+      },
+      "follow_up_3": {
+        "text": "Suche nach Übungsfragen für Statistikprüfungen zur Wahrscheinlichkeit"
+      },
+      "follow_up_4": {
+        "text": "Gehe ein weiteres Bayes-Beispiel mit mehreren Ergebnissen durch"
+      },
+      "follow_up_5": {
+        "text": "Finde Online-Video-Tutorials, die den Satz von Bayes visuell erklären"
+      },
+      "follow_up_6": {
+        "text": "Teste mich bei der Berechnung der A-posteriori-Wahrscheinlichkeit mit Zahlen"
+      }
+    },
+    "community_garden_calendar_invitation": {
+      "title": {
+        "text": "Kalendereinladung für den Gemeinschaftsgarten"
+      },
+      "summary": {
+        "text": "Erstelle eine importierbare Kalendereinladung mit Berliner Zeitzone, Agenda und Erinnerung für eine ehrenamtliche Pflanzaktion."
+      },
+      "message_1": {
+        "text": "Könntest du eine importierbare Kalendereinladung für eine fiktive ehrenamtliche Pflanzaktion im Gemeinschaftsgarten am Samstag, den 17. Oktober 2026, von 10:00 bis 12:00 Uhr in Europe/Berlin erstellen? Nutze den Gartenweg 12, Berlin als fiktiven Beispielort, füge eine kurze Agenda sowie eine 24-Stunden-Erinnerung hinzu und gib mir den iCalendar-Text zum Speichern als .ics-Datei."
+      },
+      "message_2": {
+        "text": "Hier sind die standardmäßigen [iCalendar](wiki:ICalendar) (`.ics`)-Daten für deine Pflanzaktion im Gemeinschaftsgarten. Sie enthalten die Zeitzonendefinition für Europe/Berlin, Veranstaltungsdetails, eine Agenda und eine 24-Stunden-Erinnerung (VALARM).\n\nSpeichere den untenstehenden Inhalt in einer Textdatei namens `community_garden_planting.ics` und importiere sie in deinen Kalender-Client (wie Google Calendar, Apple Calendar oder Microsoft Outlook).\n\n```json\n{\"type\": \"code\", \"embed_id\": \"6deff7cb-4e99-4dd3-9052-3985e09a9cc9\"}\n```\n\n### Zusammenfassung der Veranstaltung\n* **Datum & Uhrzeit:** Samstag, 17. Oktober 2026, 10:00 – 12:00 MESZ\n* **Ort:** Gartenweg 12, Berlin\n* **Erinnerung:** 1 Tag vorher (`TRIGGER:-P1D`)\n\n***\n\n**Vorgeschlagene nächste Schritte:**\n* [Entwurf einer Einladungs-E-Mail für Freiwillige](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)\n* [Erstellung einer Checkliste für Pflanzen und Werkzeuge](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)"
+      },
+      "follow_up_1": {
+        "text": "Suche online nach Tipps für Freiwilligenarbeit im Gemeinschaftsgarten"
+      },
+      "follow_up_2": {
+        "text": "Entwirf eine freundliche E-Mail, um Freiwillige zur Pflanzaktion einzuladen"
+      },
+      "follow_up_3": {
+        "text": "Finde anstehende Garten-Workshops in Berlin"
+      },
+      "follow_up_4": {
+        "text": "Erstelle eine umfassende Werkzeug-Checkliste für das Garten-Event"
+      },
+      "follow_up_5": {
+        "text": "Suche online nach anfängerfreundlichen mehrjährigen Pflanzen"
+      },
+      "follow_up_6": {
+        "text": "Erkläre, wie man .ics-Dateien in Google Calendar importiert"
+      }
+    },
+    "net_cash_from_supplied_balances": {
+      "title": {
+        "text": "Netto-Cash aus angegebenen Salden"
+      },
+      "summary": {
+        "text": "Berechne den Netto-Cash aus drei vom Nutzer angegebenen Salden und erkläre Girokonto, Sparkonto und Kreditkartenschulden."
+      },
+      "message_1": {
+        "text": "Hier sind meine aktuellen Kontostände aus den Auszügen, die vor mir liegen: Girokonto 1.850 €, Sparkonto 4.200 €, Kreditkartenschulden 640 €. Kannst du mir meinen Netto-Cash-Bestand zeigen und erklären, was jede Zahl bedeutet?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"04818ed0-8e67-4cb8-9736-45d5c35d393a\",\"app_id\":\"math\",\"skill_id\":\"calculate\"}\n```### Deine Netto-Cash-Position\n\nDeine **Netto-Cash-Position** beträgt **5.410 €**.\n\nHier ist die Aufschlüsselung:```json\n{\"type\": \"sheet\", \"embed_id\": \"3db1b137-abac-48a5-8c18-31ef7821ec04\"}\n```\n\n---\n### Was die einzelnen Zahlen bedeuten\n\n1. **Girokonto (1.850 €): Operative Liquidität (Working Capital)**\n   * Dies ist dein flüssigster [Bargeld](wiki:Cash)-Pool, der dazu gedacht ist, regelmäßige, wiederkehrende Lebenshaltungskosten (Miete/Hypothek, Nebenkosten, Lebensmittel, Abonnements) zu decken.\n   * Die 1.850 € bieten einen sofortigen Puffer, um Überziehungsgebühren oder versäumte Zahlungsfristen zu vermeiden, während du auf eingehendes Einkommen wartest.\n\n2. **Sparkonto (4.200 €): Sicherheitsmarge & Reserven**\n   * Dies stellt geparktes Geld dar, das für einen [Notgroschen](wiki:Emergency_fund) oder mittelfristige finanzielle Ziele gedacht ist.\n   * Im Gegensatz zum Girokonto ist dieses Geld getrennt, um von alltäglichen Ausgaben abzuschrecken. Es bringt in der Regel Zinsen ein und bleibt dennoch leicht zugänglich, falls unerwartete Kosten anfallen.\n\n3. **Kreditkartensaldo (640 €): Kurzfristige [Schulden](wiki:Debt)**\n   * Dies ist eine Verbindlichkeit gegenüber dem Kartenherausgeber. Wenn der Betrag vor Ablauf der Zahlungsfrist vollständig beglichen wird, fallen keine Zinsen an.\n   * Wenn der Saldo jedoch über das Fälligkeitsdatum hinaus mitgeführt wird, fallen bei Kreditkarten im Allgemeinen hohe Zinssätze (effektiver Jahreszins) an, die dein Netto-Bargeld schnell aufzehren.\n\n4. **Netto-Liquiditätsposition (5.410 €): Echte sofortige Liquidität**\n   * Diese Kennzahl gibt an, was an flüssigen Mitteln übrig bliebe, wenn du deine aktuellen kurzfristigen Kreditkartenschulden sofort begleichen würdest.\n   * Ein positiver Wert zeigt an, dass du gegenüber aktuellen Kartenverpflichtungen voll liquide und zahlungsfähig bist, wobei 5.410 € als Reserve verbleiben.\n---\n### Empfohlene nächste Schritte\n\nMöchtest du herausfinden, wie das in deinen weiteren Finanzplan passt?\n\n* [Einen Plan für den Notgroschen erstellen](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)\n* [Einen Rahmen für ein monatliches Budget erstellen](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)\n---\n*⚠️ Dies sind ausschließlich Informationen zu Bildungszwecken und keine Finanzberatung. Konsultiere einen qualifizierten Finanzprofi oder Steuerberater für finanzielle Entscheidungen.*"
+      },
+      "follow_up_1": {
+        "text": "Suche online nach empfohlenen Richtwerten für Notfallreserven"
+      },
+      "follow_up_2": {
+        "text": "Erkläre den Unterschied zwischen Nettobarvermögen und Nettovermögen"
+      },
+      "follow_up_3": {
+        "text": "Berechne, wie lange meine aktuellen Ersparnisse für die monatlichen Lebenshaltungskosten reichen"
+      },
+      "follow_up_4": {
+        "text": "Liste Strategien auf, um kurzfristige Kreditkartenschulden schnell abzuzahlen"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Tipps zur Senkung von Kreditkartenzinsen"
+      },
+      "follow_up_6": {
+        "text": "Hilf mir zu beurteilen, ob meine Ersparnisse von 4.200 € eine angemessene Notfallreserve sind"
+      }
+    },
+    "community_garden_volunteer_onboarding": {
+      "title": {
+        "text": "Onboarding für Freiwillige im Gemeinschaftsgarten"
+      },
+      "summary": {
+        "text": "Erstelle einen teilbaren, einseitigen Leitfaden für Freiwillige mit Aufgaben für den ersten Tag, Sicherheitsgrundlagen und Kontaktdaten."
+      },
+      "message_1": {
+        "text": "Bitte erstelle ein teilbares, einseitiges Onboarding-Dokument für Freiwillige in einem Gemeinschaftsgarten. Halte es unter 220 Wörtern. Behandle die Ankunft, Aufgaben am ersten Tag, Sicherheit und wie man um Hilfe bittet. Dies ist eine allgemeine Vorlage, verwende also Platzhalter für gartenspezifische Kontakte oder Standorte."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"document\", \"embed_id\": \"f40fc42f-df5d-4116-bba3-3500b1805eb5\"}\n```\n\nDas Onboarding-Dokument wurde oben im Standard-Format `.docx` mit Platzhaltern (wie `[Coordinator Name]`, `[Check-In Location]` und `[Phone Number]`) zur einfachen Anpassung erstellt. Mit weniger als 170 Wörtern passt es übersichtlich auf eine einzige druckbare Seite.\n\n***\n\n### Empfohlene nächste Schritte:\n1. [Passe die Platzhalter mit den spezifischen Details deines Gartens an](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)\n2. [Füge einen Verhaltenskodex für Freiwillige oder einen Abschnitt zur Fotofreigabe hinzu](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)"
+      },
+      "follow_up_1": {
+        "text": "Suche nach Best Practices für das Management von Freiwilligen in Gemeinschaftsgärten"
+      },
+      "follow_up_2": {
+        "text": "Hilf mir, einen Abschnitt zum Verhaltenskodex für Freiwillige hinzuzufügen"
+      },
+      "follow_up_3": {
+        "text": "Erstelle eine Aufgabenliste für die Organisation unseres Orientierungstags für Freiwillige"
+      },
+      "follow_up_4": {
+        "text": "Erkläre, wie man eine einladende Orientierungs-Checkliste strukturiert"
+      },
+      "follow_up_5": {
+        "text": "Suche online nach Vorlagen für Handbücher für Freiwillige"
+      },
+      "follow_up_6": {
+        "text": "Liste wichtige Sicherheitsrichtlinien für gemeinschaftliche Außenbereiche auf"
+      }
+    },
+    "voice_note_transcription_action_item": {
+      "title": {
+        "text": "Kurze Sprachnotiz transkribieren"
+      },
+      "summary": {
+        "text": "Transkribiere eine kurze Aufnahme und prüfe, ob sie eine zu erledigende Aufgabe enthält."
+      },
+      "message_1": {
+        "text": "Könntest du diese kurze Aufnahme transkribieren und mir sagen, ob sie ein Action Item enthält?\n[!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)"
+      },
+      "message_2": {
+        "text": "Hier ist die Transkription deiner Aufnahme:\n\n> *\"Real-time transcription is working correctly in OpenMates.\"*\n\n### Enthält sie ein Action Item?\n**Nein.** Die Aufnahme ist lediglich ein informatives Status-Update, das bestätigt, dass die Transkriptionsfunktion betriebsbereit ist. Es werden keine Aufgaben, Fristen oder gewünschten Folgemaßnahmen erwähnt.\n\n---\n\n**Nächste Schritte, die du in Betracht ziehen könntest:**\n- Wenn du eine Aufnahme testen möchtest, die Aufgaben enthält, kannst du gerne eine weitere Sprachnotiz teilen!"
+      },
+      "follow_up_1": {
+        "text": "Suche nach Apps zur Transkription von Sprachmemos mit Funktionen zur Aufgabenerkennung"
+      },
+      "follow_up_2": {
+        "text": "Erkläre, wie die automatische Erkennung von Action Items in KI-Modellen funktioniert"
+      },
+      "follow_up_3": {
+        "text": "Transkribiere eine weitere Audiodatei, um die Aufgabenerkennung zu testen"
+      },
+      "follow_up_4": {
+        "text": "Liste Tipps für die Aufnahme klarer Sprachnotizen mit konkreten Handlungsschritten auf"
+      },
+      "follow_up_5": {
+        "text": "Erstelle eine neue Aufgabe zur Überprüfung von Sprachaufzeichnungsfunktionen"
+      },
+      "follow_up_6": {
+        "text": "Vergleiche verschiedene Methoden, um gesprochene Ideen in organisierte Aufgaben umzuwandeln"
+      }
     }
   },
   "focus_modes": {
@@ -24556,6 +25150,120 @@
       },
       "website_changes_message_title": {
         "text": "Congress-Neuigkeiten"
+      }
+    }
+  },
+  "daily_inspiration_fallback": {
+    "antikythera": {
+      "phrase": {
+        "text": "Ein antikes Schiffswrack barg eine Maschine, die den Himmel vorhersagte."
+      },
+      "title": {
+        "text": "Der Mechanismus von Antikythera"
+      },
+      "description": {
+        "text": "Ein antikes griechisches, handbetriebenes Modell des Kosmos."
+      },
+      "assistant_response": {
+        "text": "Der Mechanismus von Antikythera nutzte Bronzezahnräder, um astronomische Zyklen nachzubilden. Entdecke, wie antike Ingenieure den Himmel vorhersagten."
+      }
+    },
+    "bioluminescence": {
+      "phrase": {
+        "text": "Manche Tiere erzeugen ihr eigenes Licht. Die Chemie dahinter ist überraschend elegant."
+      },
+      "title": {
+        "text": "Biolumineszenz"
+      },
+      "description": {
+        "text": "Lebende Organismen, die durch Chemie Licht erzeugen."
+      },
+      "assistant_response": {
+        "text": "Organismen leuchten für die Jagd, Tarnung, Kommunikation und Verteidigung. Entdecke, wie Chemie zu Licht wird."
+      }
+    },
+    "fermi": {
+      "phrase": {
+        "text": "Wenn das Universum so groß ist, warum scheint es dann so still zu sein?"
+      },
+      "title": {
+        "text": "Das Fermi-Paradoxon"
+      },
+      "description": {
+        "text": "Das Spannungsfeld zwischen wahrscheinlichem außerirdischem Leben und fehlenden Beweisen."
+      },
+      "assistant_response": {
+        "text": "Das Fermi-Paradoxon fragt, warum wir keine überzeugenden Beweise für außerirdische Zivilisationen gefunden haben. Entdecke mögliche Antworten."
+      }
+    },
+    "export": {
+      "phrase": {
+        "text": "Behalte dein eigenes Backup. Exportiere deine OpenMates-Daten, wann immer du sie brauchst."
+      },
+      "title": {
+        "text": "Exportiere deine OpenMates-Daten"
+      },
+      "description": {
+        "text": "Sichere Chats, Einstellungen, Erinnerungen und mehr."
+      },
+      "assistant_response": {
+        "text": "Exportiere eine Kopie deiner OpenMates-Daten in den Kontoeinstellungen. Melde dich an, um auf deine verschlüsselten Kontodaten zuzugreifen."
+      }
+    },
+    "pii": {
+      "phrase": {
+        "text": "Willst du mehr Kontrolle über deine Privatsphäre? Füge persönliche Details hinzu, die OpenMates verbergen soll."
+      },
+      "title": {
+        "text": "Eigene PII-Erkennung"
+      },
+      "description": {
+        "text": "Schütze persönliche Details vor Modellaufrufen."
+      },
+      "assistant_response": {
+        "text": "Wähle persönliche Details aus, die OpenMates vor einem Modellaufruf verbergen soll. Verwalte sie in den Privatsphäre-Einstellungen."
+      }
+    },
+    "focus": {
+      "phrase": {
+        "text": "Brauchst du eine gezieltere Antwort? Gib deinem Mate eine spezifische Aufgabe."
+      },
+      "title": {
+        "text": "Fokus-Modi"
+      },
+      "description": {
+        "text": "Lenke einen Chat auf ein bestimmtes Ziel."
+      },
+      "assistant_response": {
+        "text": "Nutze einen Fokus-Modus, um einen Chat auf ein bestimmtes Ziel zu lenken. Entdecke verfügbare Modi in den Apps."
+      }
+    },
+    "memories": {
+      "phrase": {
+        "text": "Sich ständig zu wiederholen, nervt. Speichere Kontext, den sich deine Mates merken sollen."
+      },
+      "title": {
+        "text": "Erinnerungen"
+      },
+      "description": {
+        "text": "Speichere nützliche Präferenzen und Kontext."
+      },
+      "assistant_response": {
+        "text": "Speichere nützliche Präferenzen und Kontext als Erinnerungen und wähle dann aus, was deine Mates verwenden dürfen."
+      }
+    },
+    "events": {
+      "phrase": {
+        "text": "Suchst du etwas zu unternehmen? Entdecke Veranstaltungen in deiner Nähe."
+      },
+      "title": {
+        "text": "Lokale Veranstaltungen finden"
+      },
+      "description": {
+        "text": "Suche nach Kursen, Treffen und weiteren Veranstaltungen."
+      },
+      "assistant_response": {
+        "text": "Nutze die Events-Suche, um Kurse und Treffen in deiner Nähe zu finden. Wähle einen Ort und ein Thema, um passende Veranstaltungen zu entdecken."
       }
     }
   }

@@ -28,11 +28,8 @@
     import { panelState } from '../../stores/panelStateStore';
     import FocusModePhases from "./FocusModePhases.svelte";
     import ChatPreviewCard from './ChatPreviewCard.svelte';
-    import { activeChatStore } from '../../stores/activeChatStore';
-    import { isMobileView } from '../../stores/uiStateStore';
-    import { getExampleChatsForFocusMode, getExampleChatMessages } from '../../demo_chats';
+    import { getExampleChatsForFocusMode } from '../../demo_chats';
     import type { Chat } from '../../types/chat';
-    import { get } from 'svelte/store';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -41,9 +38,10 @@
         appId: string;
         focusModeId: string;
         onOpenExample?: (example: string) => void;
+        onOpenExampleChat?: (chatId: string) => void;
     }
     
-    let { appId, focusModeId, onOpenExample }: Props = $props();
+    let { appId, focusModeId, onOpenExample, onOpenExampleChat }: Props = $props();
     
     // Get store state reactively (Svelte 5)
     let storeState = $state(appSkillsStore.getState());
@@ -225,19 +223,8 @@
     }
 
     function openExampleChat(chat: Chat) {
-        if (onOpenExample) {
-            const prompt = getExampleChatMessages(chat.chat_id).find(message => message.role === 'user' && typeof message.content === 'string' && message.content.trim())?.content;
-            if (typeof prompt === 'string') onOpenExample(prompt);
-            return;
-        }
-        const shouldCloseSettings = get(isMobileView);
-        activeChatStore.setActiveChat(chat.chat_id);
-        dispatch('chatSelected', { chat });
-        window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
-        // Wide viewports keep settings open so users can inspect the app while the chat loads beside or behind it.
-        if (shouldCloseSettings) {
-            dispatch('closeSettings');
-        }
+        if (onOpenExampleChat) onOpenExampleChat(chat.chat_id);
+        else window.open(`/#chat-id=${encodeURIComponent(chat.chat_id)}`, '_blank', 'noopener,noreferrer');
     }
 </script>
 

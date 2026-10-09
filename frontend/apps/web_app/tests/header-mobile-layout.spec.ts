@@ -39,12 +39,12 @@ async function expectGuestHeaderLogin(page: Page, width: number): Promise<void> 
   await expect(page.getByTestId('login-modal')).toBeVisible();
 }
 
-// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible,landing-onboarding.signup-cta
+// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
 test('returning guests can open Login from the 320px app header', async ({ page }: { page: Page }) => {
   await expectGuestHeaderLogin(page, 320);
 });
 
-// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible,landing-onboarding.signup-cta
+// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
 test('returning guests can open Login from the 390px app header', async ({ page }: { page: Page }) => {
   await expectGuestHeaderLogin(page, 390);
 });

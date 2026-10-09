@@ -55,6 +55,7 @@
   import { getModelDisplayName, getModelByNameOrId } from '../../../utils/modelDisplayName';
   import { getProviderIconUrl } from '../../../data/providerIcons';
   import { normalizeWaveformData, type AudioWaveformData } from '../../../utils/audioWaveform';
+  import { publicRecordingAudioUrl } from './publicRecordingAudio';
 
   /** Max chars of transcript to show in the preview card before truncating */
   const MAX_TRANSCRIPT_PREVIEW = 120;
@@ -71,6 +72,8 @@
      * Not present in read-only message display (blob URLs are ephemeral).
      */
     blobUrl?: string;
+    /** Reviewed same-origin example audio; never used for private recordings. */
+    previewAudioUrl?: string;
     /** Error message to display when status is 'error' */
     uploadError?: string;
     /** Transcribed text returned by Mistral Voxtral */
@@ -123,6 +126,7 @@
     filename,
     status: statusProp,
     blobUrl,
+    previewAudioUrl,
     uploadError,
     transcript,
     title,
@@ -206,6 +210,7 @@
   let audioS3Key = $derived(
     s3Files?.original?.s3_key ?? Object.values(s3Files ?? {})[0]?.s3_key,
   );
+  let publicAudioUrl = $derived(publicRecordingAudioUrl(previewAudioUrl));
 
   /**
    * Whether we have a playable audio source (local blob or decrypted S3 URL).
@@ -218,7 +223,7 @@
    * - need either a transcript, a local blob, or S3 data to show something useful
    */
   let isFullscreenEnabled = $derived(
-    status === 'finished' && (!!transcript || !!blobUrl || !!audioS3Key),
+    status === 'finished' && (!!transcript || !!blobUrl || !!audioS3Key || !!publicAudioUrl),
   );
 
   /**
@@ -243,6 +248,12 @@
     // Already have a local blob URL — nothing to fetch
     if (blobUrl) {
       resolvedAudioSrc = blobUrl;
+      return;
+    }
+
+    // Public examples carry reviewed static media and no private S3 metadata.
+    if (status === 'finished' && !audioS3Key && !aesKey && publicAudioUrl) {
+      resolvedAudioSrc = publicAudioUrl;
       return;
     }
 

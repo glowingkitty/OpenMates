@@ -124,7 +124,10 @@ export function resetLocalLogoutState(): void {
   // We intentionally skip IndexedDB on logout because the master key was just
   // cleared and any personalized encrypted records are not usable anymore.
   void import("../demo_chats/loadDefaultInspirations")
-    .then(({ loadGuestOnboardingInspirations }) => loadGuestOnboardingInspirations())
+    .then(({ loadGuestOnboardingInspirations, loadDefaultInspirations }) => {
+      loadGuestOnboardingInspirations();
+      return loadDefaultInspirations({ allowIndexedDB: false, surface: "chats" });
+    })
     .catch((error) => {
       console.error(
         "[AuthStore] Failed to reload public default inspirations after logout:",

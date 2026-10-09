@@ -12,6 +12,8 @@
   Displays:
   - When finished + screenshot available: full-width page-1 screenshot image
     (same pattern as ImageEmbedPreview — decrypted client-side via AES-256-GCM)
+  - For the reviewed guest example without encrypted credentials: a page-1 render
+    generated from the exact static PDF, with the PDF path passed to fullscreen
   - Otherwise: single centered PDF icon (no duplicate icon — BasicInfosBar is hidden
     for this case and the icon fills the details area)
 
@@ -29,6 +31,7 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { skillPreviewService } from '../../../services/skillPreviewService';
+  import { publicExamplePdfUrl, publicExamplePdfPageImageUrl } from './publicExamplePdf';
   import {
     fetchAndDecryptImage,
     getCachedImageUrl,
@@ -48,6 +51,8 @@
     status: 'uploading' | 'processing' | 'finished' | 'error';
     /** Number of pages (available after successful upload) */
     pageCount?: number | null;
+    /** Reviewed static PDF for the public example; never used for encrypted uploads. */
+    previewPdfUrl?: string;
     /** Error message shown when status is 'error' */
     uploadError?: string;
     /** Whether to use mobile layout */
@@ -60,7 +65,7 @@
      * Called when the user clicks the embed card after it reaches 'finished' state.
      * ActiveChat.svelte handles this by mounting PDFEmbedFullscreen.svelte.
      */
-    onFullscreen: () => void;
+    onFullscreen: (previewPdfUrl?: string) => void;
   }
 
   let {
@@ -68,6 +73,7 @@
     filename,
     status: statusProp,
     pageCount,
+    previewPdfUrl,
     uploadError,
     isMobile = false,
     needsSignup = false,
@@ -102,6 +108,7 @@
   let aesKey = $state<string | undefined>(undefined);
   /** AES-GCM nonce (base64) — from embed TOON content */
   let aesNonce = $state<string | undefined>(undefined);
+  let decodedPreviewPdfUrl = $state<string | undefined>(undefined);
 
   /** Decrypted page-1 blob URL */
   let imageUrl = $state<string | undefined>(undefined);
@@ -164,6 +171,7 @@
     const n = content.aes_nonce as string | undefined;
     if (k) aesKey = k;
     if (n !== undefined) aesNonce = n;
+    decodedPreviewPdfUrl = publicExamplePdfUrl(content.previewPdfUrl ?? content.preview_pdf_url);
   }
 
   // Fetch page-1 screenshot once key + credentials become available and embed is in view
@@ -265,7 +273,12 @@
   );
 
   /** Whether a screenshot image is ready to display */
-  let hasImage = $derived(!!imageUrl && !imageError);
+  let publicPdfUrl = $derived(publicExamplePdfUrl(
+    decodedPreviewPdfUrl ?? previewPdfUrl,
+    !!screenshotS3Key || !!aesKey || aesNonce !== undefined,
+  ));
+  let publicPageImageUrl = $derived(publicExamplePdfPageImageUrl(publicPdfUrl));
+  let hasImage = $derived((!!imageUrl && !imageError) || (status === 'finished' && !!publicPdfUrl));
 
   /** Card title: truncated filename — uses localFilename so readonly mode works */
   let skillName = $derived.by(() => {
@@ -316,7 +329,9 @@
   });
 
   let showStop = $derived((status === 'uploading' || status === 'processing') && !!onStop);
-  let handleFullscreen = $derived(status === 'finished' && !needsSignup ? onFullscreen : undefined);
+  let handleFullscreen = $derived(
+    status === 'finished' && !needsSignup ? () => onFullscreen(publicPdfUrl) : undefined,
+  );
 </script>
 
 <UnifiedEmbedPreview
@@ -338,7 +353,17 @@
   {#snippet details({ isMobile: isMobileSnippet })}
     <div class="pdf-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
 
-      {#if hasImage}
+      {#if publicPdfUrl && status === 'finished'}
+        <div class="image-content public-pdf-content" data-testid="pdf-public-preview">
+          <img
+            src={publicPageImageUrl}
+            alt={`Page 1 of ${localFilename || 'PDF'}`}
+            class="public-pdf-page-image"
+            loading="lazy"
+            data-testid="pdf-public-preview-page"
+          />
+        </div>
+      {:else if hasImage}
         <!--
           Page-1 screenshot available: show full-bleed like ImageEmbedPreview.
           Clicking opens the fullscreen viewer (cursor: zoom-in).
@@ -418,6 +443,20 @@
 
   .image-content.clickable:hover .preview-image {
     opacity: 0.92;
+  }
+
+  .public-pdf-content {
+    min-height: 180px;
+    cursor: zoom-in;
+  }
+
+  .public-pdf-page-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    pointer-events: none;
   }
 
   /* Fallback: single centered PDF icon when no screenshot */

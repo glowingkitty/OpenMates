@@ -9930,6 +9930,600 @@
       "follow_up_6": {
         "text": "VITL의 주요 재무 지표 요약"
       }
+    },
+    "urban_heat_island_at_night": {
+      "title": {
+        "text": "밤에도 도시가 뜨거운 이유"
+      },
+      "summary": {
+        "text": "열섬 현상에 대한 쉬운 설명과 일몰 후 도시의 거리가 더 천천히 식는 이유를 알아봅니다."
+      },
+      "message_1": {
+        "text": "왜 어떤 도시들은 밤에 주변 시골 지역보다 훨씬 더 뜨겁게 느껴지나요? 열섬 현상을 쉬운 예시와 함께 설명해 주실 수 있나요?"
+      },
+      "message_2": {
+        "text": "설명하신 현상은 **[도시 열섬](wiki:Urban_heat_island)**(UHI) 효과라고 합니다. 도시는 낮 동안에도 약간 더 따뜻할 수 있지만, 온도 차이는 대개 해가 진 후에 가장 뚜렷하게 나타납니다. 때로는 도시가 주변 농촌 지역보다 2°C에서 10°C(4°F~18°F) 이상 더 따뜻하게 유지되기도 합니다.\n\n---\n\n### 간단한 일상의 비유: 무쇠 팬 vs. 정원 화단\n\n화창한 오후에 두 가지 물건을 들고 밖에 서 있다고 상상해 보세요:\n1. **무거운 무쇠 팬**\n2. **풀이 자라는 축축한 정원 흙이 담긴 화분**\n\n뜨거운 오후, 햇빛이 두 물건을 내리쬡니다:\n* **무쇠 팬**은 강렬한 열을 흡수하여 매우 뜨거워지며, 그 열에너지를 밀도가 높은 금속 본체 안에 저장합니다.\n* **축축한 흙과 풀**도 햇빛을 흡수하지만, 흙 속의 수분은 증발하고 풀은 증산 작용을 통해 \"땀\"을 흘립니다. 이러한 [증발산](wiki:Evapotranspiration) 과정은 태양 에너지의 상당 부분을 소비하여 식물과 흙을 훨씬 시원하게 유지합니다.\n\n이제 두 물건을 시원한 실내로 가져가거나 밤이 될 때까지 기다려 보세요:\n* 정원 화단은 과도한 열을 머금지 않았고 계속해서 수분을 잃기 때문에 거의 즉시 식습니다.\n* 반면, 무쇠 팬은 **열 배터리** 역할을 합니다. 해가 진 후에도 오랫동안 갇힌 열을 주변 공기로 천천히 방출하며 몇 시간 동안 주변 공간을 따뜻하게 유지합니다.\n\n**도시**는 수백만 개의 서로 연결된 무쇠 팬처럼 작동하고, **농촌 지역**은 축축한 정원 화단처럼 작동합니다.\n\n---\n\n### 도시가 밤에도 뜨거운 이유에 숨겨진 과학\n\n밤 시간대의 온도 차이는 몇 가지 주요 열역학적 및 물리적 요인 때문입니다:\n\n#### 1. 높은 열질량 (열 보유)\n도시 환경은 아스팔트, 콘크리트, 벽돌, 석재로 만들어집니다. 이러한 재료는 높은 [체적 비열](wiki:Volumetric_heat_capacity)과 열전도율을 가지고 있습니다. 낮 동안 이들은 태양 복사열을 구조물과 도로 깊숙이 흡수합니다. 밤이 되어 주변 공기가 식으면, 이 재료들은 저장된 열을 장파 열복사를 통해 하층 대기로 다시 방출합니다.\n\n#### 2. 증발 냉각의 상실\n농촌 풍경은 나무, 작물, 축축한 흙으로 덮여 있습니다. 식물은 땅에서 물을 끌어올려 증산 작용을 통해 공기 중으로 수증기를 방출합니다. 액체 상태의 물을 수증기로 바꾸는 데는 상당한 에너지(기화 [잠열](wiki:Latent_heat))가 필요하기 때문에, 이 과정은 자연스럽게 주변 환경을 냉각시킵니다. 도시에서는 비가 오면 불투수면을 통해 우수관으로 빠르게 빠져나가기 때문에 증발 냉각에 사용할 수 있는 수분이 거의 남지 않습니다.\n\n#### 3. 도시 협곡 기하학\n고층 빌딩이 밀집한 도시에서 거리는 \"도시 협곡\"을 형성합니다. 낮 동안 여러 반사면은 햇빛을 우주로 반사하는 대신 거리 깊숙이 튕겨냅니다. 밤에는 건물들이 하늘을 부분적으로 가립니다(기상학자들이 천공율이라 부르는 요소를 감소시킴). 거리에서 방출된 열은 상층 대기로 자유롭게 빠져나가는 대신 인접한 건물의 벽에 흡수되거나 다시 반사됩니다.\n\n#### 4. 인위적 열 (인간이 생성한 에너지)\n도시는 태양과 무관하게 지속적으로 자체적인 열을 생성합니다. 에어컨 실외기, 자동차 엔진, 데이터 센터, 공장, 건물 조명 등은 모두 폐열을 거리 수준의 대기로 직접 배출하여 밤 시간대의 온기를 강화합니다.\n\n---\n\n### 효과 완화하기\n\n지역 사회와 도시 계획가들은 종종 이러한 메커니즘에 대응하는 전략을 채택합니다:\n* **시원한 포장재 및 지붕:** 높은 [알베도](wiki:Albedo)(반사율) 코팅을 사용하여 표면이 햇빛을 흡수하는 대신 반사하도록 합니다.\n* **도시 녹화 및 가로수:** 가로수를 심고 공원을 조성하여 그늘과 증발산을 회복합니다.\n* **옥상 정원:** 옥상에 식물을 심어 건물을 단열하고 국지적인 미기후를 냉각시킵니다.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"uhi_interest_followup\",\n  \"multiple\": false,\n  \"question\": \"Which aspect of the urban heat island effect would you like to explore next?\",\n  \"options\": [\n    { \"id\": \"solutions\", \"text\": \"Architectural and urban design solutions (e.g., green roofs, cool materials)\" },\n    { \"id\": \"climate_health\", \"text\": \"Impacts on public health, air quality, and climate resilience\" },\n    { \"id\": \"measurement\", \"text\": \"How scientists measure and map surface vs. atmospheric heat islands\" }\n  ]\n}\n```\n\n거주 지역의 특정 도시 계획 선택이 밤 시간대의 냉각에 어떤 영향을 미치는지 살펴보고 싶으신가요, 아니면 위의 주제 중 하나를 탐구해 보고 싶으신가요?"
+      },
+      "follow_up_1": {
+        "text": "열섬 현상을 줄이는 도시 계획 전략 검색하기"
+      },
+      "follow_up_2": {
+        "text": "과학자들이 표면 열섬과 대기 열섬을 어떻게 구분하는지 설명하기"
+      },
+      "follow_up_3": {
+        "text": "도시 표면 온도 이상 현상을 측정한 학술 논문 찾기"
+      },
+      "follow_up_4": {
+        "text": "도시의 극심한 야간 기온이 공중 보건에 미치는 영향 논의하기"
+      },
+      "follow_up_5": {
+        "text": "도시의 옥상 녹화 설계 사례 연구 검색하기"
+      },
+      "follow_up_6": {
+        "text": "도시 협곡 지형이 밤에 복사열을 가두는 방식 설명하기"
+      }
+    },
+    "damped_sine_decay_plot": {
+      "title": {
+        "text": "감쇠 사인파와 포락선"
+      },
+      "summary": {
+        "text": "감쇠 사인파를 상단 및 하단 포락선과 함께 그리고, 진동이 어떻게 감쇠하는지 확인해 보세요."
+      },
+      "message_1": {
+        "text": "x가 0에서 12까지일 때 y = e^(-0.2x) sin(3x)를 상단 및 하단 포락선과 함께 그려주고, 이 그래프가 무엇을 보여주는지 설명해줘."
+      },
+      "message_2": {
+        "text": "함수와 그 상한 및 하한 포락선(envelope)을 나타낸 그래프입니다:\n\n```json\n{\"type\": \"math-plot\", \"embed_id\": \"9ef899d2-4b73-4c4e-88bf-d4fd31d61e79\"}\n```\n\n---\n\n### 그래프 설명\n\n이 그래프는 물리 및 공학 분야(예: 진동하는 기타 줄, 충격 흡수 장치 또는 전기 [RLC 회로](wiki:RLC_circuit))에서 흔히 볼 수 있는 감쇠 조화 진동자(damped harmonic oscillator)의 전형적인 표현입니다.\n\n#### 1. 진동 성분: $\\sin(3x)$\n* $\\sin(3x)$ 항은 연속적인 주기적 파동 운동을 생성합니다.\n* 각진동수는 $\\omega = 3\\text{ rad/s}$이며, 이는 다음과 같은 주기에 해당합니다:\n  $$T = \\frac{2\\pi}{3} \\approx 2.094$$\n* 즉, 곡선은 $x$축을 따라 $\\frac{\\pi}{3} \\approx 1.05$ 단위마다 0을 지납니다.\n\n#### 2. 감쇠 인자: $e^{-0.2x}$\n* 지수 인자 $e^{-0.2x}$는 감쇠율 파라미터가 $\\alpha = 0.2$인 [지수 감쇠](wiki:Exponential_decay)를 나타냅니다.\n* $x$가 증가함에 따라 [감쇠](wiki:Damping)(마찰이나 전기 저항 등)로 인해 시스템에서 에너지가 손실되어 시간이 지남에 따라 진폭이 줄어듭니다.\n\n#### 3. 포락선: $\\pm e^{-0.2x}$\n* 사인 함수는 $-1 \\le \\sin(3x) \\le 1$의 범위를 가지므로, 양수 항인 $e^{-0.2x}$를 곱하면 다음과 같은 결과를 얻습니다:\n  $$-e^{-0.2x} \\le e^{-0.2x}\\sin(3x) \\le e^{-0.2x}$$\n* **상한 포락선 ($g(x) = e^{-0.2x}$)**: 양의 정점을 제한하는 매끄러운 상단 경계를 형성합니다.\n* **하한 포락선 ($h(x) = -e^{-0.2x}$)**: 음의 골을 감싸는 대칭적인 경계를 형성합니다.\n* 진동하는 곡선은 $\\sin(3x) = 1$일 때마다(즉, $x = \\frac{\\pi}{6} + \\frac{2\\pi k}{3}$에서) 상한 포락선에 닿고, $\\sin(3x) = -1$일 때마다 하한 포락선에 닿습니다.\n\n---\n\n### 추천 다음 단계\n\n- [미분을 사용하여 정확한 국소 극값 계산하기](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)\n- [미달 감쇠와 임계 감쇠 시스템 비교하기](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)"
+      },
+      "follow_up_1": {
+        "text": "미적분을 사용하여 이 함수의 극값을 계산해 줘"
+      },
+      "follow_up_2": {
+        "text": "감쇠율 매개변수를 변경하면 곡선에 어떤 영향을 주는지 설명해 줘"
+      },
+      "follow_up_3": {
+        "text": "조화 운동과 유사한 물리 공식을 찾아줘"
+      },
+      "follow_up_4": {
+        "text": "이 방정식으로 모델링되는 실제 물리 시스템을 설명해 줘"
+      },
+      "follow_up_5": {
+        "text": "감쇠 진동을 설명하는 미분 방정식을 검색해 줘"
+      },
+      "follow_up_6": {
+        "text": "이 파동의 거동을 감쇠가 없는 단순 조화 운동과 비교해 줘"
+      }
+    },
+    "autumn_basil_balcony_care": {
+      "title": {
+        "text": "베를린 발코니의 가을철 바질 관리"
+      },
+      "summary": {
+        "text": "동향 발코니 바질을 위한 간단한 가을철 관리법: 햇빛, 물 주기, 추위 징후 및 실내 이동 시기."
+      },
+      "message_1": {
+        "text": "이번 가을 베를린의 동향 발코니에서 키우는 스위트 바질을 위한 초보자용 간편 관리 가이드를 만들어 줄 수 있어? 주로 물 주기, 햇빛, 추위 징후, 그리고 언제 실내로 들여놓아야 하는지에 대해 알고 싶어."
+      },
+      "message_2": {
+        "text": "베를린의 동향 발코니에서 키우는 스위트 바질(*Ocimum basilicum*)을 위한 가을철 맞춤 관리 가이드를 요약해 드릴게요:\n\n---\n\n### 1. 햇빛 (동향 발코니)\n* **예상 환경:** 베를린의 가을은 해가 낮게 뜨고 낮 시간이 급격히 짧아집니다. 동향 발코니는 약 2~4시간 동안 부드러운 아침 햇살을 제공하는데, 이는 햇빛을 좋아하는 바질에게는 다소 부족한 편입니다.\n* **배치:** 벽 그림자를 피해 난간 쪽으로 최대한 가깝고 안전하게 화분을 배치하여 아침 햇빛을 최대한 많이 받을 수 있게 하세요.\n* **반사 팁:** 흰색이나 밝은색 벽 앞에 두면 주변의 빛이 잎으로 반사되어 도움이 됩니다.\n\n---\n\n### 2. 물 주기\n* **원칙:** 날씨가 추워지면 증발이 느려지고 식물의 성장이 멈추기 때문에 바질의 물 필요량이 크게 줄어듭니다.\n* **먼저 확인하기:** 겉흙이 2~3cm 정도 말랐을 때**만** 물을 주세요. 정해진 날짜에 맞춰 기계적으로 물을 주지 마세요.\n* **시기:** 항상 아침에 실온의 물을 주세요. 수도에서 바로 나온 찬물은 차가워진 뿌리에 충격을 줄 수 있으니 피하세요.\n* **배수:** 화분 받침에 물이 고여 있게 하지 마세요. 차갑고 습한 흙은 뿌리 부패(*푸사리움* 또는 수생 곰팡이)를 유발하기 쉽습니다.\n\n---\n\n### 3. 실내로 옮기는 시기\n* **임계 온도:** 바질은 추위에 약한 열대 허브입니다. **10°C** 미만에서는 생리적 냉해를 입으며, **0°C~4°C** 근처에서는 조직이 심하게 손상되거나 죽을 수 있습니다.\n* **베를린의 시기:** 베를린의 밤 기온은 보통 9월 말이나 10월 초에 10°C 미만으로 떨어집니다.\n* **조치:** 밤 기온 예보가 10°C 미만으로 내려가면 **지금 바로 실내로 들여놓으세요.**\n\n---\n\n### 4. 냉해 및 일조량 부족 징후\n* **검게 변하거나 투명해진 잎:** 냉해의 확실한 징후입니다(8~10°C 미만의 온도에서 세포가 붕괴됨).\n* **보라색으로 변하거나 생기 없는 잎:** 냉해와 영양분 흡수 저하가 겹쳤을 때 나타나는 전형적인 반응입니다.\n* **흙이 젖어 있는데도 시듦:** 뿌리 냉해 또는 부패입니다. 뿌리가 너무 차갑거나 손상되어 물이 있어도 흡수하지 못하는 상태입니다.\n* **웃자람 / 연녹색 성장:** 햇빛 부족(웃자람 현상)입니다.\n\n---\n\n### 5. 실내 이동: 빠른 적응을 위한 팁\n1. **가장 밝은 창가:** 가능하다면 남향 창가에 두세요. 안 된다면 가장 밝은 동향이나 서향 창가에 둡니다.\n2. **외풍과 라디에이터 피하기:** 창문 틈새의 찬바람은 물론, 라디에이터(*Heizung*)에서 나오는 건조하고 뜨거운 바람이 직접 닿지 않게 하세요.\n3. **해충 점검:** 다른 실내 식물 근처에 두기 전에 잎 뒷면에 진딧물이나 응애가 있는지 확인하세요.\n4. **위쪽부터 수확:** 꽃봉오리와 위쪽 잎을 따주면 꽃이 피어 웃자라는 대신 잎이 풍성하게 자라도록 유도할 수 있습니다.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"basil_indoor_setup\",\n  \"multiple\": false,\n  \"question\": \"Where are you planning to put your basil once it moves inside?\",\n  \"options\": [\n    { \"id\": \"south_window\", \"text\": \"South- or west-facing sunny windowsill\" },\n    { \"id\": \"east_window\", \"text\": \"Staying near the east window indoors\" },\n    { \"id\": \"grow_light\", \"text\": \"Under a dedicated grow light / LED lamp\" },\n    { \"id\": \"other_spot\", \"text\": \"Another room or location\" }\n  ],\n  \"custom_option_id\": \"other_spot\",\n  \"custom_placeholder\": \"Describe your indoor spot...\"\n}\n```\n\n**다음 단계 및 제안:**\n* [오늘 밤 베를린의 최저 기온 확인 알림 설정하기](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)\n* [많은 양의 바질 수확 및 보관 팁 알아보기](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)"
+      },
+      "follow_up_1": {
+        "text": "베를린의 현재 일기 예보와 야간 기온 확인하기"
+      },
+      "follow_up_2": {
+        "text": "더 풍성한 성장을 돕는 스위트 바질 수확 방법 설명하기"
+      },
+      "follow_up_3": {
+        "text": "신선한 바질 잎을 보관하는 빠른 방법 검색하기"
+      },
+      "follow_up_4": {
+        "text": "뿌리 부패의 징후와 과습된 바질을 살리는 방법 설명하기"
+      },
+      "follow_up_5": {
+        "text": "허브용 실내 LED 식물등 옵션 검색하기"
+      },
+      "follow_up_6": {
+        "text": "실내 화분 허브와 함께 키우기 좋은 식물 목록 확인하기"
+      }
+    },
+    "community_garden_sunflower_illustration": {
+      "title": {
+        "text": "보태니컬 해바라기 일러스트 생성"
+      },
+      "summary": {
+        "text": "커뮤니티 정원 안내문에 사용할 텍스트 없는 해바라기 일러스트를 만듭니다."
+      },
+      "message_1": {
+        "text": "커뮤니티 정원 안내문에 사용할 따뜻한 느낌의 보태니컬 해바라기 일러스트를 그려줘. 배경은 깨끗하고 밝게 하고 텍스트는 넣지 말아줘."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\n커뮤니티 정원 안내문에 사용할 보태니컬 해바라기 일러스트를 생성하고 있어요. 현재 처리 중이며, 완료되면 여기 채팅창에 바로 나타날 거예요.\n\n### 커뮤니티 안내문을 위한 간단한 디자인 팁\n\n정원 안내문을 매력적이고 읽기 쉽게 만드는 방법은 다음과 같아요:\n\n- **시각적 계층 구조 및 여백:** 일러스트에 충분한 여백을 주세요. 여백이나 헤더 쪽에 배치하면 가드닝 팁이나 행사 세부 정보를 넣을 공간이 확보되어 복잡해 보이지 않습니다.\n- **색상 조화:** 일러스트에서 직접 따뜻한 톤(진한 허니 골드, 올리브 그린, 흙빛 테라코타 등)을 추출하여 섹션 제목과 테두리에 사용해 보세요.\n- **직접 만든 예술 작품 활용:** 커뮤니티 회원이나 지역 정원사가 직접 그린 스케치, 나뭇잎 판화, 실제 정원 사진 등을 디지털 일러스트와 함께 배치하면 친근하고 따뜻한 느낌을 줄 수 있습니다.\n\n---\n\n**다음 단계 및 옵션:**\n- [제목과 팁이 포함된 안내문 레이아웃 디자인하기](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [해바라기에 어울리는 색상 팔레트 추천받기](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+      },
+      "follow_up_1": {
+        "text": "주변 지역의 커뮤니티 정원 행사 검색하기"
+      },
+      "follow_up_2": {
+        "text": "정원 안내문에 들어갈 친근한 소개 문구 작성을 도와줘"
+      },
+      "follow_up_3": {
+        "text": "안내문 꾸미기에 사용할 무료 SVG 식물 아이콘 찾기"
+      },
+      "follow_up_4": {
+        "text": "커뮤니티 정원 가이드에 포함해야 할 필수 팁 목록"
+      },
+      "follow_up_5": {
+        "text": "정원 전단지를 위한 타이포그래피 조합 아이디어 검색"
+      },
+      "follow_up_6": {
+        "text": "인쇄 레이아웃에서 시각적 요소를 배치하는 방법 설명"
+      }
+    },
+    "beginner_yoga_classes_berlin": {
+      "title": {
+        "text": "베를린 초보자 요가 클래스"
+      },
+      "summary": {
+        "text": "시간, 가격, 예약 링크가 포함된 베를린의 초보자용 요가 클래스 3곳을 찾아보세요."
+      },
+      "message_1": {
+        "text": "요가는 처음인데 다음 주에 베를린에서 들을 수 있는 초보자용 클래스를 찾고 있어요. 시간, 가격, 예약 링크가 포함된 클래스 몇 개만 찾아줄 수 있나요?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\n다음 주 베를린 전역에서 열리는 초보자 친화적인 [요가](wiki:Yoga) 수업들이야:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [그라운딩 요가](embed:yoga-for-grounding-TB2) (크로이츠베르크)\n- **수업 내용:** 호흡 중심의 움직임과 자세 유지를 통해 정렬과 정적임을 탐구하는 마음챙김 수업이야. 초보자가 쉽게 참여할 수 있도록 설계되었어 (영어 진행).\n- **날짜 및 시간:** 2026년 10월 14일 수요일, 18:00 – 19:00 CEST (10분 전 도착 권장)\n- **장소:** Art OM, Wrangelstraße 54, 10997 Berlin ([크로이츠베르크](wiki:Kreuzberg))\n- **가격:** €11.83 – €22.49\n- **예약:** [Eventbrite에서 티켓 예약하기](embed:yoga-for-grounding-TB2)\n\n### 2. [모빌리티 요가 및 선택적 볼더링](embed:mobility-yoga-optional-qv3) (프리드리히스하인)\n- **수업 내용:** 모든 레벨이 참여 가능한 편안하고 자유로운 분위기의 모빌리티 및 요가 세션이야. 부드러운 속도로 동작을 단계별로 설명해 줘서 유연성이나 경험이 없어도 괜찮아.\n- **날짜 및 시간:** 2026년 10월 13일 화요일, 19:00 – 19:45 CEST (15분 전 도착 권장)\n- **장소:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([프리드리히스하인](wiki:Friedrichshain))\n- **가격:** €5 (볼더링도 함께 할 경우 Urban Sports Club / Wellpass로 무료 입장 가능)\n- **예약:** [상세 정보 및 예약 링크 보기](embed:mobility-yoga-optional-qv3)\n\n### 3. [빈야사 플로우](embed:vinyasa-flow-in-a8l) (베딩 / 미테)\n- **수업 내용:** 역동적이면서도 부드러운 빈야사 세션으로, 초보자를 위한 변형 동작을 제공하며 호흡 인지, 신체 정렬, 스트레스 해소에 집중해.\n- **날짜 및 시간:** 2026년 10월 14일 수요일, 19:30 – 21:00 CEST\n- **장소:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (게준트브루넨 / [미테](wiki:Mitte))\n- **가격:** 첫 체험 수업 €10 (스타터 팩: 3회 수업 €20)\n- **예약:** [Berlin Yoga Club Meetup을 통해 예약(RSVP)하기](embed:vinyasa-flow-in-a8l)\n\n---\n\n### 첫 요가 수업을 위한 팁\n* **복장:** 움직이기 편하고 잘 늘어나는 옷을 입어. 요가는 보통 맨발로 해.\n* **수분 섭취 및 식사:** 수업 시작 1.5~2시간 전에는 과식을 피하는 게 좋아.\n* **몸의 소리에 귀 기울이기:** 수업 시작 전에 강사에게 처음이라고 말해줘. 자세 수정이나 도구(블록, 담요, 스트랩 등) 사용법을 친절하게 알려줄 거야. 관절이나 허리에 지병이 있다면 역동적인 동작을 시도하기 전에 의사나 물리치료사에게 먼저 확인해 봐.\n\n특정 동네(예: 노이쾰른, 프렌츠라우어 베르크, 샬로텐부르크)와 더 가까운 곳을 추천해 줄까? 아니면 [하타 요가](wiki:Hatha_yoga)나 [인 요가](wiki:Yin_yoga)처럼 부드러운 스타일을 원해?\n---\n*⚠️ 이 정보는 교육용이며 의료적 조언이 아니야. 의료 관련 결정은 의사와 상담해.*"
+      },
+      "follow_up_1": {
+        "text": "베를린 노이쾰른의 요가 수업 검색하기"
+      },
+      "follow_up_2": {
+        "text": "첫 요가 수업에서 무엇을 기대할 수 있는지 설명해 줘"
+      },
+      "follow_up_3": {
+        "text": "다음 주말 하타 요가 워크숍 찾기"
+      },
+      "follow_up_4": {
+        "text": "빈야사와 하타 요가 스타일 비교하기"
+      },
+      "follow_up_5": {
+        "text": "미테 지구의 인 요가 스튜디오 검색하기"
+      },
+      "follow_up_6": {
+        "text": "요가 매트 구매를 위한 초보자 팁 목록"
+      }
+    },
+    "calm_manager_follow_up": {
+      "title": {
+        "text": "매니저와 차분한 후속 대화 계획하기"
+      },
+      "summary": {
+        "text": "긴장된 대화 내용을 정리하고, 우선순위 변경 후의 명확하고 책임감 있는 후속 메시지 초안을 작성해 보세요."
+      },
+      "message_1": {
+        "text": "오늘 매니저와 긴장된 대화를 나눠서 마음이 불편해요. 무슨 일이 있었는지 정리하고 차분하게 후속 대화를 계획할 수 있도록 도와줄 수 있나요?"
+      },
+      "message_2": {
+        "text": "매니저와 어려운 대화를 나눈 후 마음이 불편한 것은 지극히 정상적인 반응입니다. 권위, 성과 또는 기대치의 불일치와 관련된 대화는 종종 급성 스트레스를 유발하고 감정 조절을 방해하여, 했던 말을 계속 되새기거나 자신의 반응을 의심하게 만들곤 합니다.\n\n대응하기 전에 한 걸음 물러나 시간을 갖는 것이 가장 건강하고 전략적인 접근 방식입니다.\n\n무슨 일이 있었는지 명확히 파악하고 효과적인 후속 조치를 계획하기 위해, **논의의 핵심 주제는 무엇이었으며, 특히 어떤 순간이나 발언이 가장 긴장되게 느껴졌나요?**\n---\n*⚠️ 본 내용은 교육용 정보일 뿐이며 전문적인 심리 상담이 아닙니다. 정신 건강과 관련된 문제는 자격을 갖춘 치료사나 상담사에게 문의하십시오. 위기 상황인 경우 즉시 응급 서비스나 위기 상담 전화로 연락하시기 바랍니다.*"
+      },
+      "message_3": {
+        "text": "고객 지원 지식 베이스 업데이트 마감 기한에 대해 의견 차이가 있었어요. 매니저는 제가 리스크를 더 일찍 알렸어야 했다고 말했는데, 우선순위가 두 번이나 바뀌었기 때문에 저는 비난받는 기분이 들었어요. 제 잘못은 인정하되 모든 책임을 떠안고 싶지는 않아요. 내일 보낼 짧은 후속 메시지에 뭐라고 쓰면 좋을까요?"
+      },
+      "message_4": {
+        "text": "이런 상황을 잘 헤쳐 나가려면 [자기주장](wiki:Assertiveness)과 협력적 책임감 사이의 균형을 잡는 것이 중요해요. 내가 통제할 수 있었던 부분(선제적인 리스크 보고)은 인정하되, 상황의 변화(우선순위 변경)를 간과하는 프레임에 갇히지 않는 것이죠.\n\n### 심리학적 프레임워크: 책임 vs. 비난\n\n관리자가 당황하면 보통 *\"왜 미리 경고하지 않았지?\"*라고 반응해요. 반면 실무자는 *\"지시받은 우선순위에 맞춰 적응했을 뿐인데\"*라고 생각하죠. 두 관점 모두 각자의 상황에서는 타당한 생각이에요.\n\n이를 건설적으로 조율하려면:\n1. **프로세스 개선의 필요성 인정**: 조기에 상황을 공유하는 것이 모두에게 더 낫다는 점에 동의하세요.\n2. **방어적이지 않게 중립적으로 상황 설명**: 지연의 원인을 변명이 아닌, 운영상의 트리거가 된 '우선순위 변화'로 설명하세요.\n3. **공동의 목표에 집중**: 향후 소통의 초점을 팀 리소스와 일정의 투명성을 유지하는 데 맞추세요.\n\n---\n\n### 옵션 1: 간단한 대면 대화 또는 Slack/Teams 메시지\n\n> *\"[Manager's Name]님, 어제 지원 지식 베이스(knowledge base) 마감 기한에 대해 나누었던 이야기를 다시 생각해보았습니다. 다른 우선순위 업무들이 생겼을 때 리소스 부족 리스크를 더 일찍 말씀드렸어야 했다는 말씀이 맞습니다.*\n>\n> *앞으로 우선순위가 바뀔 때 서로 혼선이 없도록, 일정 조정이 필요한 부분은 즉시 선제적으로 공유하겠습니다. 지식 베이스 업무는 현재 이 정도 진행되었으며, [Proposed Date]까지 마무리하기 위해 필요한 사항은 다음과 같습니다. 이 계획을 조정하고 싶으시다면 잠시 이야기 나누고 싶습니다.\"*\n\n---\n\n### 옵션 2: 짧고 직접적인 이메일 또는 1:1 면담 도입부\n\n> *\"[Manager's Name]님께,*\n>\n> *어제 대화에 이어 추가로 말씀드립니다. 리스크를 더 일찍 공유하라는 피드백을 깊이 새겨보았습니다. 지난 몇 주간 우선순위가 바뀌었을 때, 그것이 지식 베이스 일정에 미치는 영향을 명확히 알리기보다 요청받은 업무들을 처리하는 데만 집중했던 것 같습니다.*\n>\n> *앞으로 우선순위가 충돌하는 상황이 생기면, 기존 마감 기한에 미치는 영향을 즉시 간략하게 보고하여 무엇을 먼저 처리할지 함께 결정할 수 있도록 하겠습니다.*\n>\n> *현재 지식 베이스 진행 상황:*\n> *• [1~2문장으로 현재 상태나 다음 마일스톤 업데이트]*\n> *• 완료 목표일: [Date/Time]*\n>\n> *피드백 주셔서 감사합니다. 남은 항목들을 함께 검토하고 싶으시다면 말씀해 주세요.\"*\n\n---\n\n### 이 방식이 효과적인 이유\n* **방어적인 논쟁을 방지함:** 어제 누가 옳았는지 다투는 대신, 내일 우선순위 충돌을 어떻게 처리할지 정의합니다.\n* **시스템적 사고를 보여줌:** 우선순위 변화가 필연적으로 가용 리소스에 영향을 미친다는 점을 인정하고, 명시적인 조율을 해결책으로 제시합니다.\n* **실행과 결과에 다시 집중함:** 실제 결과물을 완성하기 위한 명확한 경로를 제시하며 마무리합니다.\n\n---\n\n### 다음 단계 및 제안\n\n관리자의 소통 스타일에 비추어 볼 때 어떤 방식이 가장 적절해 보이나요?\n\n- [이 후속 조치를 이메일 초안으로 작성하기](/#message=Help%20me%20format%20this%20into%20a%20formal%20email%20draft%20for%20my%20manager.)\n- [1:1 면담을 위한 모의 대화 연습하기](/#message=Let's%20roleplay%20the%201-on-1%20conversation%20with%20my%20manager.)"
+      },
+      "follow_up_1": {
+        "text": "마감 기한에 대한 의견 차이에 대해 매니저에게 보낼 좀 더 격식 있는 이메일 초안 작성해 줘"
+      },
+      "follow_up_2": {
+        "text": "우선순위가 급격히 변할 때 더 나은 경계를 설정하는 방법 설명해 줘"
+      },
+      "follow_up_3": {
+        "text": "내일 아침에 후속 메시지를 보내도록 작업 알림 생성해 줘"
+      },
+      "follow_up_4": {
+        "text": "자신감을 가질 수 있도록 매니저와의 대화 역할극을 도와줘"
+      },
+      "follow_up_5": {
+        "text": "변화하는 직장 내 우선순위를 효과적으로 관리하는 방법에 관한 기사 찾아줘"
+      },
+      "follow_up_6": {
+        "text": "내 답변에 의도치 않게 방어적인 표현이나 어조가 있는지 검토해 줘"
+      }
+    },
+    "community_garden_planning_mindmap": {
+      "title": {
+        "text": "커뮤니티 정원 계획 마인드맵"
+      },
+      "summary": {
+        "text": "커뮤니티 정원 시작에 필요한 자원봉사자, 식재, 예산 및 이벤트를 계획해 보세요."
+      },
+      "message_1": {
+        "text": "자원봉사자, 식재, 예산, 이벤트로 가지를 나누어 커뮤니티 정원 계획을 위한 마인드맵을 만들어 줄 수 있어?"
+      },
+      "message_2": {
+        "text": "커뮤니티 정원 계획의 네 가지 핵심 축을 다루는 구조화된 마인드맵이야:\n\n```json\n{\"type\": \"mindmap\", \"embed_id\": \"02d212e1-3648-42f5-8c96-700bd34a5070\"}\n```\n\n### 다음 단계를 위한 주요 고려 사항\n\n1. **부지 평가:** 자재를 구매하기 전에 납과 같은 오염 물질에 대한 토양 질을 확인하고, 신뢰할 수 있는 시 당국의 수도 연결이나 빗물 수집 장치 확보 여부를 확인하는 것이 중요해.\n2. **커뮤니티 의견 수렴:** 초기 단계부터 인근 주민들을 참여시키면 공동 관리 의식을 형성하는 데 도움이 되고, 작물이 동네의 식성이나 문화적 전통에 맞도록 보장할 수 있어.\n\n다음 내용을 더 알아보고 싶니?\n- [자원봉사자 신청 체크리스트 작성하기](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)\n- [초기 예산 템플릿 개요 작성하기](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)"
+      },
+      "follow_up_1": {
+        "text": "커뮤니티 정원 보조금 지원 기회 및 지역 농업 프로그램 검색하기"
+      },
+      "follow_up_2": {
+        "text": "커뮤니티 정원을 위한 기초 토양 테스트 방법 설명하기"
+      },
+      "follow_up_3": {
+        "text": "커뮤니티 정원을 위한 초기 예산 템플릿 및 자재 목록 만들기"
+      },
+      "follow_up_4": {
+        "text": "도시 농업 프로젝트를 위한 지역 주민 회의 조직 모범 사례 나열하기"
+      },
+      "follow_up_5": {
+        "text": "우리 커뮤니티 정원을 위한 자원봉사자 역할 설명 및 신청서 작성을 도와줘"
+      },
+      "follow_up_6": {
+        "text": "초기 시작 단계 이후의 커뮤니티 참여 유지 전략 논의하기"
+      }
+    },
+    "books_after_left_hand_of_darkness": {
+      "title": {
+        "text": "'어둠의 왼손' 이후 읽을 만한 책들"
+      },
+      "summary": {
+        "text": "르 귄의 세계관 구축과 사회적 질문을 좋아한 독자들을 위한 사려 깊은 SF 추천 도서 4권."
+      },
+      "message_1": {
+        "text": "'어둠의 왼손'의 세계관과 사회적 질문들이 좋았어. 다음엔 뭘 읽으면 좋을까? 이유는 뭐야?"
+      },
+      "message_2": {
+        "text": "[어둠의 왼손](wiki:The_Left_Hand_of_Darkness)([어슐러 K. 르 귄](wiki:Ursula_K._Le_Guin) 저)이 돋보이는 이유는 그 세계관이 단순히 시각적인 배경에 그치지 않고, 하나의 인류학적 사고 실험으로 작동하기 때문이야. 르 귄은 SF를 \"만약에?\"라고 묻는 실험실이라고 묘사하며, 고정된 생물학적 성별과 같은 근본적인 변수가 사라졌을 때 인간관계, 제도, 편견이 어떻게 재구성되는지 살펴봤어.\n\n그런 세계관 구축과 사회적 탐구를 이어가는 네 권의 책을 소개할게.\n\n---\n\n### 1. *빼앗긴 자들* (어슐러 K. 르 귄)\n* **핵심 질문:** 소유가 없는 사회가 진정한 자유를 얻을 수 있을까? 그리고 제도화 속에서 상호 의무는 어떻게 살아남을까?\n* **추천 이유:** 같은 [헤인 연대기](wiki:Hainish_Cycle) 세계관을 배경으로 하며, 대조적인 두 세계를 보여줘. 무정부주의적 조합주의와 공동체적 연대에 기반한 황량한 위성 아나레스와, 경쟁적 자본주의와 권위주의적 사회주의로 나뉜 풍요로운 행성 우라스지. *어둠의 왼손*이 젠더와 개인적 신뢰('쉬프그레토르' 개념)를 탐구했다면, [빼앗긴 자들](wiki:The_Dispossessed)은 경제, 언어, 공동체적 책임을 다루며 공동체가 상호 부조에 헌신하면서도 어떻게 개인을 포용할 수 있는지 질문해.\n\n### 2. *여명* (옥타비아 버틀러의 '릴리스의 아이들' / '킨제네시스' 3부작)\n* **핵심 질문:** 무엇이 인간의 본성을 정의하며, 생존을 위해 위계질서와 생물학적 자율성을 포기해야 한다면 어떤 일이 벌어질까?\n* **추천 이유:** 르 귄의 게텐인들처럼, 외계 종족 오안칼리는 세 가지 성별(남성, 여성, 그리고 번식과 유전자 교환을 중재하는 '울로이')을 가지고 있어. [옥타비아 버틀러](wiki:Octavia_E._Butler)는 동의, 가족 구조, 협력에 대한 독자의 고정관념에 도전해. 이 소설은 인류의 치명적인 결함이 높은 지능과 위계질서에 대한 본능의 결합인지, 그리고 우리가 지배욕을 넘어 진화할 수 있는지 묻고 있어.\n\n### 3. *사소한 정의* ([앤 레키](wiki:Ann_Leckie) 저)\n* **핵심 질문:** 제국주의 제도는 정체성을 어떻게 형성하며, 개별적인 인간의 형태에서 분리된 의식은 어떤 모습일까?\n* **추천 이유:** 레키의 라드차 제국은 사회를 성별로 나누지 않아. 사실 이들의 언어에는 성별 구분이 아예 없어서 보편적으로 여성형 대명사를 사용하지. 르 귄의 인식에 대한 탐구와 유사한 언어적 설정 외에도, 전함과 수천 명의 인간 '부속(ancillary)' 몸에 분산되어 있던 인공지능의 관점에서 전개되는 이 이야기는 팽창주의 제국 내에서의 공모, 의무, 개인의 양심을 깊이 있게 파고들어.\n\n### 4. *절반쯤 지어진 정원* ([루새나 엠리스](wiki:Ruthanna_Emrys) 저)\n* **핵심 질문:** 인간 공동체는 생태적 붕괴에서 살아남기 위해 어떻게 민주적인 관리 체계를 조직할 수 있으며, 근본적으로 다른 가치관을 가진 문화와 어떻게 협상해야 할까?\n* **추천 이유:** 유역 네트워크와 공동체적 생태 협동조합이 통치하는 2080년대의 지구에서, 이주를 통한 구원을 제안하는 외계 종족과 첫 접촉이 이루어져. 외교, 공동체의 합의, 양육, 사회적 의사결정에 집중하며 르 귄의 작품에서 볼 수 있는 신중하고 인류학적인 호흡과 윤리적 통찰을 보여줘.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"next_read_focus\",\n  \"multiple\": false,\n  \"question\": \"Which dimension of The Left Hand of Darkness resonated most with you?\",\n  \"options\": [\n    {\n      \"id\": \"politics_economics\",\n      \"text\": \"Political philosophy, mutual aid, and contrasting economic systems (Lean towards The Dispossessed)\"\n    },\n    {\n      \"id\": \"biology_gender\",\n      \"text\": \"Biology, alien contact, and redefining kinship or consent (Lean towards Dawn)\"\n    },\n    {\n      \"id\": \"identity_language\",\n      \"text\": \"Language, perspective, and challenging imperial hierarchies (Lean towards Ancillary Justice)\"\n    },\n    {\n      \"id\": \"diplomacy_ecology\",\n      \"text\": \"Ecological stewardship, diplomacy, and community decision-making (Lean towards A Half-Built Garden)\"\n    }\n  ]\n}\n```\n\n---\n\n### 추천 후속 활동\n* [빼앗긴 자들의 주제 탐색하기](/#message=Tell%20me%20more%20about%20the%20philosophical%20themes%20of%20The%20Dispossessed%20by%20Ursula%20K.%20Le%20Guin.)\n* [겐리 아이와 에스트라벤의 관계 분석하기](/#message=Analyze%20the%20relationship%20between%20Genly%20Ai%20and%20Estraven%20in%20The%20Left%20Hand%20of%20Darkness.)"
+      },
+      "follow_up_1": {
+        "text": "'빼앗긴 자들'의 리뷰와 요약 검색"
+      },
+      "follow_up_2": {
+        "text": "헤인 연대기 소설들이 서로 어떻게 연결되는지 설명"
+      },
+      "follow_up_3": {
+        "text": "앤 레키의 '사소한 정의' 수상 내역 찾기"
+      },
+      "follow_up_4": {
+        "text": "사변 소설에서 언어가 정치적 사고를 형성하는 역할에 대해 논의"
+      },
+      "follow_up_5": {
+        "text": "옥타비아 버틀러의 '여명' 대출 가능 도서관 찾기"
+      },
+      "follow_up_6": {
+        "text": "게텐인과 오안칼리의 외계 생물학 비교"
+      }
+    },
+    "community_garden_budget_review": {
+      "title": {
+        "text": "커뮤니티 정원 예산 PDF 검토"
+      },
+      "summary": {
+        "text": "가상의 예산안을 읽고 지출, 자금 조달 및 누락되었을 가능성이 있는 비용을 비교해 보세요."
+      },
+      "message_1": {
+        "text": "첨부된 커뮤니티 정원 예산 PDF에서 가장 큰 지출 항목, 총 자금, 자금 부족액 및 누락되었을 가능성이 있는 비용을 요약해 줄 수 있나요?\n[!](embed:fictional-community-garden-budget-pdf-e1-146e58)"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c\",\"app_id\":\"pdf\",\"skill_id\":\"read\"}\n```\n\n첨부된 커뮤니티 정원 예산 PDF의 요약 내용입니다.\n\n## 1) 주요 지출 항목\n금액이 높은 순서대로 나열했습니다:\n\n1. **레이즈드 베드(틀밭) 목재 및 하드웨어** — **€420**\n2. **흙 및 퇴비** — **€300**\n3. **공용 수공구** — **€140**\n4. **급수 호스 및 커넥터** — **€95**\n5. **씨앗 및 모종** — **€85**\n6. **개장 행사 용품** — **€75**\n\n## 2) 총 계획 지출\n나열된 지출 합계:\n\n- 420 + 300 + 85 + 140 + 95 + 75 = **€1,115**\n\n## 3) 총 예상 자금\n자금 조달원:\n\n- **지역 사회 보조금** — €800\n- **자원봉사자 기부금** — €200\n\n총 자금:\n\n- 800 + 200 = **€1,000**\n\n## 4) 자금 부족분\n- **총 지출:** €1,115\n- **총 자금:** €1,000\n- **자금 부족분:** **€115**\n\n## 5) 누락되었을 가능성이 있는 비용\n실제 커뮤니티 정원 운영 시, 이 초안에서 누락되었을 가능성이 있는 일반적인 항목들입니다:\n\n- **부지 조성** — 정리, 평탄화, 잔해 제거\n- **배송/운반비** — 목재, 흙, 퇴비 운반 비용\n- **보관/보안** — 공구함, 창고, 자물쇠\n- **수도 이용료** — 연결비, 계량기 사용료, 수도 요금\n- **보호 장비 및 자재** — 장갑, 외바퀴 수레, 방수포\n- **울타리/표지판** — 구역 보호 및 안내용\n- **지속적인 유지관리** — 공구 교체, 추가 흙, 해충 방제\n- **보험/허가** — 지자체나 토지 소유주가 요구하는 경우\n- **예비비** — 소규모 커뮤니티 프로젝트는 예산을 초과하는 경우가 많으므로 보통 유용함\n\n## 요약 분석\n예산이 **거의 균형을 이루고 있지만**, 누락 가능성이 있는 비용을 고려하기 전에도 이미 **€115의 부족분**이 발생했습니다. 따라서 실제로는 다음과 같은 조치가 필요할 수 있습니다:\n- 추가 모금 활동\n- 자재나 공구 기부 유도\n- 또는 1단계 사업 범위 축소\n\n원하신다면 다음 형식으로도 작성해 드릴 수 있습니다:\n- **보조금 관련 회의를 위한 한 단락 요약**\n- **카테고리별 비율이 포함된 깔끔한 예산표**\n---\n*⚠️ 이 정보는 교육용으로만 제공되며 재무 상담이 아닙니다. 재무 관련 결정은 자격을 갖춘 재무 전문가나 세무 전문가와 상담하십시오.*"
+      },
+      "follow_up_1": {
+        "text": "지역 공동체 정원 보조금 및 자금 지원 기회 검색"
+      },
+      "follow_up_2": {
+        "text": "부족한 예산을 충당하기 위한 다양한 모금 아이디어 비교"
+      },
+      "follow_up_3": {
+        "text": "지속 가능한 도시 농업 및 공동체 정원 가이드 검색"
+      },
+      "follow_up_4": {
+        "text": "보조금 관련 회의를 위한 한 단락 요약본 작성"
+      },
+      "follow_up_5": {
+        "text": "공동체 정원 도구 보관 및 보안 옵션 검색"
+      },
+      "follow_up_6": {
+        "text": "소규모 공동체 프로젝트를 위한 권장 예비비 목록 확인"
+      }
+    },
+    "berlin_english_speaking_gp_appointments": {
+      "title": {
+        "text": "베를린에서 영어 가능한 일반의(GP) 찾기"
+      },
+      "summary": {
+        "text": "정확한 보험 정보와 병원 링크가 포함된 예약 옵션을 찾아보세요."
+      },
+      "message_1": {
+        "text": "다음 주에 베를린에서 영어가 가능한 일반의(GP) 예약이 필요해. 가장 빠른 옵션들을 비교해서 예약 카드를 보여주고, 예약 목록에서 확인된 경우에만 보험 적용 여부를 알려줘. 적용 여부가 불분명하다면 그렇다고 말해줘."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```제가 찾은 향후 7일 이내 베를린의 영어 가능 일반의(GP) 옵션 중 가장 빠른 것들이에요. 보험 적용 여부는 예약 목록 자체에 표시된 경우에만 기재했어요.\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**다음 주 가장 빠른 옵션**\n1. **10월 12일 (월), 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - 주소: Albert-Einstein-Straße 2, 12489 Berlin\n   - 진료 유형: 신규 환자 첫 진료 (Erstuntersuchung Neupatient:in)\n   - 표시된 언어: 독일어, 영어\n   - **보험:** 사보험 *(목록에서 확인됨)*\n\n2. **10월 12일 (월), 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - 주소: Kapweg 5, 13405 Berlin\n   - 진료 유형: 신규 환자 첫 진료 (Erstuntersuchung Neupatient:in)\n   - 표시된 언어: 영어\n   - **보험:** 사보험 *(목록에서 확인됨)*\n\n3. **10월 12일 (월), 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - 주소: Stargarder Straße 69, 10437 Berlin\n   - 진료 유형: 긴급 진료 (Akutsprechstunde)\n   - 표시된 언어: 독일어, 영어\n   - **보험:** 불분명 *(목록에서 확인되지 않음)*\n\n4. **10월 12일 (월), 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - 주소: Müllerstraße 36, 13353 Berlin\n   - 진료 유형: 신규 환자 첫 진료 (Erstuntersuchung Neupatient:in)\n   - 표시된 언어: 독일어, 영어\n   - **보험:** 불분명 *(목록에서 확인되지 않음)*\n\n5. **10월 12일 (월), 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - 주소: Wallstraße 16, 10179 Berlin\n   - 진료 유형: 신규 환자 첫 진료 (Erstuntersuchung Neupatient:in)\n   - 표시된 언어: 독일어, 영어\n   - **보험:** 불분명 *(목록에서 확인되지 않음)*\n\n몇 가지 참고 사항:\n- **다음 주**를 특정해서 물어보셨기 때문에, 10월 9~10일의 더 빠른 옵션 두 개는 위 비교에서 제외했어요.\n- 이 결과는 Doctolib 목록에서 가져온 것으로 보여요. Jameda 정보는 이번 검색 결과 세트에서 지원되지 않았어요.```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```원하시면 다음에는 이렇게 해드릴 수 있어요:\n- 확인된 경우에 한해 **공적 보험(public insurance)만**으로 범위를 좁히거나,\n- **지역구 / 현재 위치에서의 거리**를 기준으로 짧은 후보 리스트를 만들 수 있어요.\n---\n*⚠️ 이 내용은 교육 목적의 정보일 뿐이며 의학적 조언이 아닙니다. 의료 관련 결정은 의사와 상담하세요.*"
+      },
+      "follow_up_1": {
+        "text": "미테(Mitte) 지역의 공적 보험 적용 가능 일반의(GP) 예약 검색"
+      },
+      "follow_up_2": {
+        "text": "공적 보험 전용 예약만 표시하도록 필터링"
+      },
+      "follow_up_3": {
+        "text": "프렌츠라우어 베르크(Prenzlauer Berg) 인근의 영어 가능 의사 찾기"
+      },
+      "follow_up_4": {
+        "text": "동네 및 거리별로 옵션 좁히기"
+      },
+      "follow_up_5": {
+        "text": "베를린 내 전문의 예약 검색"
+      },
+      "follow_up_6": {
+        "text": "이러한 병원 예약을 온라인으로 하는 방법 설명"
+      }
+    },
+    "community_garden_welcome_melody": {
+      "title": {
+        "text": "커뮤니티 정원 환영 인사를 위한 멜로디"
+      },
+      "summary": {
+        "text": "커뮤니티 정원 환영 영상에 어울리는 부드러운 연주곡 멜로디를 만듭니다."
+      },
+      "message_1": {
+        "text": "커뮤니티 정원 환영 영상에 쓸 보컬 없는 짧고 부드러운 연주곡 멜로디를 만들어 줄 수 있어?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\n커뮤니티 정원 환영 영상에 어울리는 부드러운 연주곡 트랙을 지금 만들고 있어. 현재 처리 중이며 준비가 되면 바로 여기에 나타날 거야.\n\n[커뮤니티 가드닝](wiki:Community_gardening) 프로젝트는 이웃을 하나로 모으고 지역의 생물 다양성을 가꾸는 멋진 방법이야. 음악이 생성되는 동안 환영 영상의 내러티브나 시각적 흐름을 기획하는 데 도움을 줄까?\n\n- [환영 영상의 개요 작성하기](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [도입부 문구 또는 내레이션 팁 브레인스토밍](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+      },
+      "follow_up_1": {
+        "text": "지역 커뮤니티 정원 행사 및 워크숍 검색"
+      },
+      "follow_up_2": {
+        "text": "정원 영상 스토리보드 작성을 도와줘"
+      },
+      "follow_up_3": {
+        "text": "식물 및 꽃 스톡 영상 찾기"
+      },
+      "follow_up_4": {
+        "text": "커뮤니티 영상용 환영 내레이션 문구 작성"
+      },
+      "follow_up_5": {
+        "text": "커뮤니티 프로젝트를 위한 가드닝 팁 검색"
+      },
+      "follow_up_6": {
+        "text": "커뮤니티 정원 개장일 활동 아이디어 제안"
+      }
+    },
+    "mastodon_public_post_themes": {
+      "title": {
+        "text": "Mastodon 공개 게시물의 테마"
+      },
+      "summary": {
+        "text": "Mastodon 공식 계정의 최근 게시물 테마를 요약하고 대표적인 사례를 살펴봅니다."
+      },
+      "message_1": {
+        "text": "mastodon.social에 있는 Mastodon 공식 계정의 최근 공개 게시물에서 주요 테마를 요약하고, 몇 가지 예시 링크를 알려줄 수 있나요?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n@Mastodon(`@Mastodon@mastodon.social`)의 최근 공개 게시물을 가져오기 위한 요청이 현재 백그라운드에서 실행 중이며, 준비가 되면 채팅이 업데이트됩니다.\n\n피드가 로드되는 동안:\n- [최근 Mastodon 블로그 공지사항 확인하기](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Mastodon 로드맵 살펴보기](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
+      },
+      "message_3": {
+        "text": "이제 게시물이 로드되었습니다. 주요 테마를 요약하고 대표적인 게시물 세 개의 링크를 알려줄 수 있나요?"
+      },
+      "message_4": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n`mastodon.social`의 공식 @Mastodon 계정은 최근 공개 게시물에서 몇 가지 핵심 테마를 강조하고 있습니다:\n\n### 1. 주요 제품 진화 및 사용자 연구\n디자인 팀이 주도한 커뮤니티 전반의 \"Discovery Week\" 연구 이니셔티브에 이어, **Mastodon 5.0**을 위한 기초 작업이 주요 초점이 되었습니다. 팀은 플랫폼을 더 접근하기 쉽고 사용자 친화적으로 만들기 위해 재설계된 차분한 인터페이스와 업데이트된 작성기(composer)의 미리보기를 공유했습니다.\n\n### 2. 커뮤니티 거버넌스, 정책 및 직원 업데이트\nMastodon은 거버넌스 및 정책 업데이트를 정기적으로 소통하며, 특히 페디버스 관리자 및 개발자의 피드백에 직접 대응하여 **상표권 정책(Trademark Policy)**에 관한 명확한 가이드라인을 발표했습니다. 또한 주요 리더십 전환을 발표하며, 퇴임하는 커뮤니티 디렉터 Hannah Aubry의 공헌에 감사를 표했습니다.\n\n### 3. 서버 스포트라이트 및 페디버스 생태계\n이 계정은 독립적인 페디버스 인스턴스 및 인프라 이니셔티브를 적극적으로 홍보합니다. 예를 들어 테마 서버(Earth.Law 등)를 강조하거나 IFTAS 운영 연구와 같은 업계 설문 조사를 널리 알립니다.\n\n### 4. 커뮤니티 굿즈 및 프로젝트 자금 조달\n지속적인 오픈 소스 개발을 지원하기 위해 새로운 인형 마스코트 출시(\"Plushtodons\")를 포함한 공식 커뮤니티 굿즈 업데이트를 공유합니다.\n\n---\n\n### 세 가지 대표 게시물\n\n- **제품 로드맵 및 시각적 리프레시:** [Mastodon 5.0 미리보기 발표](embed:mastodon-after-publishing-D8d) — 연구 결과를 바탕으로 곧 출시될 5.0 레이아웃과 게시물 작성기의 미리보기를 공유합니다.\n- **정책 및 커뮤니티 피드백:** [상표권 정책 가이드라인 업데이트](embed:mastodon-today-we-YqD) — 커뮤니티 의견을 반영하여 수정된 상표권 규칙을 설명합니다.\n- **프로젝트 지원 및 굿즈:** [Plushtodon 선주문 발표](embed:mastodon-new-plushtodon-A57) — 후원자들이 개발 자금을 지원할 수 있는 방법으로 새로운 공식 인형 마스코트를 발표합니다.\n\n---\n\n특정 주제에 대해 더 자세히 알아보고 싶으신가요?\n- [Mastodon 5.0 기능에 대해 더 읽어보기](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [상표권 가이드라인 검토하기](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+      },
+      "follow_up_1": {
+        "text": "최근 Mastodon 블로그 공지사항 검색하기"
+      },
+      "follow_up_2": {
+        "text": "Mastodon의 분산형 중재 방식 설명하기"
+      },
+      "follow_up_3": {
+        "text": "Mastodon 5.0 개발 업데이트 검색하기"
+      },
+      "follow_up_4": {
+        "text": "Mastodon 5.0의 변경 사항을 이전 버전과 비교하기"
+      },
+      "follow_up_5": {
+        "text": "Fediverse 서버 중재에 관한 커뮤니티 토론 검색하기"
+      },
+      "follow_up_6": {
+        "text": "오픈 소스 플랫폼이 직면한 주요 과제 나열하기"
+      }
+    },
+    "adjacent_career_portfolio_experiments": {
+      "title": {
+        "text": "고객 지원에서 시작하는 두 가지 커리어 경로 테스트하기"
+      },
+      "summary": {
+        "text": "실용적인 한 달 포트폴리오 실험과 인터뷰 질문을 통해 테크니컬 라이팅과 지원 운영 직무를 비교해 보세요."
+      },
+      "message_1": {
+        "text": "저는 소프트웨어 고객 지원 분야에서 일하고 있으며, 도움말 가이드를 작성하고 티켓 워크플로를 개선하는 일을 좋아합니다. 새로운 직장에 지원하기 전에 테스트해 볼 수 있는 인접한 두 가지 역할은 무엇일까요? 다음 한 달 동안 진행할 수 있는 작은 포트폴리오 실험과 해당 직무의 담당자들에게 물어볼 질문을 추천해 주세요."
+      },
+      "message_2": {
+        "text": "[고객 지원](wiki:Customer_support) 배경과 도움말 가이드 및 티켓 워크플로에 대한 흥미를 바탕으로 볼 때, 두 가지 자연스러운 인접 직무가 눈에 띕니다.\n\n1. **테크니컬 라이터 / 고객 교육 전문가**\n   *핵심:* [정보 구조](wiki:Information_architecture) 설계, 복잡한 소프트웨어 기능을 명확한 사용자 문서로 변환, 문제 해결 가이드 작성, 셀프 서비스 지식 베이스 유지 관리.\n2. **서포트 오퍼레이션 전문가 (Support Ops)**\n   *핵심:* 고객 지원 티켓팅 도구([Zendesk](wiki:Zendesk), Freshdesk, 또는 Jira Service Management 등) 관리, 지원 지표 분석, 티켓 라우팅 최적화, 매크로 감사 및 반복 프로세스 자동화.\n\n---\n\n### 30일 포트폴리오 실험\n\n실무 역량을 증명하기 위해 당장 직업을 바꿀 필요는 없습니다. 현재 직무 내에서 이러한 가벼운 실험을 직접 진행하거나 독립적인 케이스 스터디를 만들어 볼 수 있습니다.\n\n#### 테크니컬 라이팅 / 고객 교육 분야\n* **\"가장 많이 접수되는 티켓 5개\" 다시 쓰기:** 사용자가 혼란스러운 UI나 모호한 기존 가이드 때문에 반복적으로 어려움을 겪는 일반적인 고객 지원 티켓 3~5개를 식별합니다.\n* **결과물:** 포괄적이고 모듈화된 문제 해결 가이드 또는 방법 안내 문서를 작성합니다. 명확한 제목, 사전 요구 사항, 단계별 지침, 주석이 달린 스크린샷 또는 다이어그램을 포함하여 구성합니다.\n* **포트폴리오 지표:** 가이드 게시 후 해당 이슈로 태그된 티켓이 감소하는지 추적하거나, 해결 속도에 대한 내부 팀의 피드백을 측정합니다.\n\n#### 서포트 오퍼레이션 분야\n* **매크로 및 라우팅 효율성 감사:** 팀의 기존 매크로 라이브러리 또는 티켓 라우팅 규칙을 분석합니다.\n* **결과물:** 다음 내용을 포함하는 1~2페이지 분량의 프로세스 개선 제안서를 작성합니다.\n  1. 식별된 중복되거나 오래된 매크로.\n  2. 간소화된 분류 체계 또는 자동 트리거 설정.\n  3. 상담사당 주간 절감 예상 시간.\n* **포트폴리오 지표:** 이를 팀장에게 제안하거나 관리자 권한이 있는 경우 직접 구현하고, 전후 기준 수치를 기록합니다.\n\n---\n\n### 정보 인터뷰를 위한 질문\n\n링크드인이나 사내에서 실무자에게 연락할 때 다음과 같이 질문해 보세요.\n\n#### 테크니컬 라이터 대상\n* *\"최종 사용자를 위한 글쓰기와 내부 기술 팀 또는 엔지니어를 위한 글쓰기 사이에서 어떻게 균형을 잡나요?\"*\n* *\"문서가 업데이트되기 전에 제품 기능이 빠르게 변경되는 경우, 협업 사이클은 어떻게 진행되나요?\"*\n* *\"현재 채용 시장에서 가장 가치 있게 평가받는 저작 도구와 'docs-as-code' 워크플로는 무엇인가요?\"*\n\n#### 서포트 오퍼레이션 전문가 대상\n* *\"하루 업무 중 도구 및 연동 설정과 데이터 및 티켓 볼륨 트렌드 분석의 비중은 각각 어느 정도인가요?\"*\n* *\"지원 워크플로를 확장할 때, 자동화와 관련하여 팀들이 가장 흔히 범하는 실수는 무엇인가요?\"*\n* *\"직무를 맡는 데 어떤 관리자 자격증(예: Zendesk, Salesforce)이나 기술적 역량이 가장 큰 도움이 되었나요?\"*\n\n---\n\n### 방향 탐색하기 (질문 1/5)\n\n어떤 경로가 장기적인 목표와 일상적인 선호도에 가장 잘 맞는지 확인하기 위해, 핵심 업무 스타일과 관심사를 살펴보겠습니다.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"adjacent_role_preference\",\n  \"multiple\": false,\n  \"question\": \"When you reflect on writing guides versus improving workflows, which type of problem energizes you more?\",\n  \"custom_option_id\": \"other_focus\",\n  \"custom_placeholder\": \"Describe what you enjoy most or any specific balance...\",\n  \"options\": [\n    {\n      \"id\": \"content_pedagogy\",\n      \"text\": \"Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education).\"\n    },\n    {\n      \"id\": \"systems_tooling\",\n      \"text\": \"Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps).\"\n    },\n    {\n      \"id\": \"hybrid_balance\",\n      \"text\": \"An even split between both; I want to improve internal systems while also authoring the guides.\"\n    },\n    {\n      \"id\": \"other_focus\",\n      \"text\": \"Something else / A different aspect entirely.\"\n    }\n  ]\n}\n```\n\n**추천:** 집중 업무, 명확한 커뮤니케이션, UX 공감을 선호한다면 테크니컬 라이팅 트랙이 일반적으로 더 많은 자율성을 제공합니다. 도구 관리, 지표, 시스템 로직을 통한 문제 해결을 선호한다면 서포트 오퍼레이션이 운영 리더십 및 제품 운영으로 나아가는 더 빠른 경로를 제공합니다.\n\n---\n\n**다음 단계 제안:**\n- [정보 인터뷰를 위한 연락 메시지 초안 작성](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)\n- [고객 지원 워크플로 감사 템플릿 개요 작성](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)\n---\n*⚠️ 본 정보는 교육 목적으로만 제공되며 전문적인 심리 상담을 대신할 수 없습니다. 정신 건강과 관련하여 우려 사항이 있는 경우 자격을 갖춘 치료사나 상담사에게 문의하십시오. 위기 상황에 처한 경우 즉시 응급 서비스나 위기 상담 전화에 연락하십시오.*"
+      },
+      "follow_up_1": {
+        "text": "원격 테크니컬 라이터 채용 공고 및 자격 요건 검색하기"
+      },
+      "follow_up_2": {
+        "text": "테크니컬 라이터 인터뷰를 위한 간결한 아웃리치 메시지 초안 작성하기"
+      },
+      "follow_up_3": {
+        "text": "30일 포트폴리오 실험을 위한 작업 목록 만들기"
+      },
+      "follow_up_4": {
+        "text": "지원 워크플로 감사를 위한 단계별 가이드 개요 작성하기"
+      },
+      "follow_up_5": {
+        "text": "지원 운영(Support Operations) 자격증 과정 및 요구 사항 검색하기"
+      },
+      "follow_up_6": {
+        "text": "두 역할의 일일 업무 및 성장 경로 비교하기"
+      }
+    },
+    "bayes_theorem_quick_quiz": {
+      "title": {
+        "text": "퀴즈로 배우는 베이즈 정리"
+      },
+      "summary": {
+        "text": "구체적인 예시를 통해 사전 확률과 사후 확률을 이해하고, 후속 질문을 통해 직관력을 테스트해 보세요."
+      },
+      "message_1": {
+        "text": "다음 주에 통계 시험이 있어. 베이즈 정리를 일상적인 예시 하나로 설명해 주고 퀴즈도 내줄 수 있어?"
+      },
+      "message_2": {
+        "text": "### 베이즈 정리란 무엇일까?\n\n[베이즈 정리](wiki:Bayes'_theorem)는 새로운 증거($B$)를 관찰했을 때 사건이나 가설($A$)의 확률을 업데이트하기 위한 수학적 규칙이야.\n\n기호로 나타내면 다음과 같아:\n\n$$P(A|B) = \\frac{P(B|A) \\cdot P(A)}{P(B)}$$\n\n각 구성 요소가 의미하는 바는 다음과 같아:\n* **$P(A)$ — [사전 확률](wiki:Prior_probability):** 새로운 데이터를 보기 전, $A$가 발생할 가능성에 대한 초기 추정치(기저율).\n* **$P(B|A)$ — 가능도(Likelihood):** 가설 $A$가 실제로 참일 때 증거 $B$가 관찰될 확률.\n* **$P(B)$ — [한계 가능도](wiki:Marginal_likelihood):** 가능한 모든 시나리오에서 증거 $B$가 관찰될 전체 확률.\n* **$P(A|B)$ — [사후 확률](wiki:Posterior_probability):** 증거 $B$가 발생했을 때 업데이트된 $A$의 확률.\n\n---\n\n### 일상적인 예시: 신속 의료 검사\n\n희귀 질환에 대한 신속 선별 검사를 받는다고 상상해 봐:\n\n1. **기저율 (사전 확률):** 인구 중 단 **$1\\%$**만이 실제로 이 질환을 가지고 있어:\n   $$P(\\text{Condition}) = 0.01, \\quad P(\\text{Healthy}) = 0.99$$\n2. **검사 민감도 (가능도):** 어떤 사람이 질환을 가지고 있다면, 검사 결과가 양성으로 나올 확률은 $90\\%$야:\n   $$P(\\text{Positive} \\mid \\text{Condition}) = 0.90$$\n3. **위양성률:** 질환이 없는 사람의 경우, 검사 결과가 잘못되어 양성으로 나올 확률이 $10\\%$야:\n   $$P(\\text{Positive} \\mid \\text{Healthy}) = 0.10$$\n\n이제 **검사 결과가 양성으로 나왔다**고 가정해 보자. 실제로 질환이 있을 확률은 얼마일까?\n\n#### 공식 적용하기:\n우선, 양성 판정을 받을 전체 확률인 $P(\\text{Positive})$를 계산해 보자:\n$$\\begin{aligned}\nP(\\text{Positive}) &= P(\\text{Positive} \\mid \\text{Condition}) \\cdot P(\\text{Condition}) + P(\\text{Positive} \\mid \\text{Healthy}) \\cdot P(\\text{Healthy}) \\\\\n&= (0.90 \\cdot 0.01) + (0.10 \\cdot 0.99) \\\\\n&= 0.009 + 0.099 = 0.108\n\\end{aligned}$$\n\n이제 사후 확률을 계산해 보자:\n$$P(\\text{Condition} \\mid \\text{Positive}) = \\frac{0.009}{0.108} \\approx 8.3\\%$$\n\n$90\\%$의 정확도를 가진 검사임에도 불구하고, 실제로 질환을 가지고 있을 확률은 약 **$8.3\\%$**에 불과해. 질환 자체가 희귀하기 때문에, 건강한 다수에게서 발생하는 위양성 결과가 질환이 있는 소수에게서 발생하는 진양성 결과보다 훨씬 많기 때문이야.\n\n---\n\n### 퀴즈\n\n용어들을 잘 이해했는지 확인해 보자:\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"bayes_components_quiz_1\",\n  \"multiple\": false,\n  \"question\": \"In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?\",\n  \"options\": [\n    { \"id\": \"opt_pa\", \"text\": \"P(A) — Prior probability\" },\n    { \"id\": \"opt_pba\", \"text\": \"P(B|A) — Likelihood\" },\n    { \"id\": \"opt_pab\", \"text\": \"P(A|B) — Posterior probability\" },\n    { \"id\": \"opt_pb\", \"text\": \"P(B) — Marginal probability of evidence\" }\n  ]\n}\n```"
+      },
+      "message_3": {
+        "text": "P(A)는 사전 확률, 즉 시작할 때의 기저율인 것 같아요. 맞나요? 연습해 볼 수 있게 짧은 문제를 하나 더 내주실 수 있나요?"
+      },
+      "message_4": {
+        "text": "정확합니다. $P(A)$는 **사전 확률(prior probability)**입니다. 새로운 관찰이나 테스트 결과를 고려하기 전의 기준 또는 초기 믿음을 의미합니다. 의료 검사 예시에서는 일반 인구의 유병률인 $1\\%$가 이에 해당했습니다.\n\n---\n\n### 도전 문제: 직관 확인\n\n베이즈 정리가 실제로 어떻게 작동하는지 직관을 테스트해 볼 수 있는 간단한 시나리오입니다:\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"bayes_intuition_quiz_2\",\n  \"multiple\": false,\n  \"question\": \"Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?\",\n  \"options\": [\n    {\n      \"id\": \"opt_very_high\",\n      \"text\": \"The posterior probability is close to 100% because alarms are specifically built to detect break-ins.\"\n    },\n    {\n      \"id\": \"opt_counterintuitively_low\",\n      \"text\": \"The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins.\"\n    },\n    {\n      \"id\": \"opt_equal_to_prior\",\n      \"text\": \"The posterior probability remains completely unchanged regardless of whether the alarm sounds.\"\n    },\n    {\n      \"id\": \"opt_independent\",\n      \"text\": \"The posterior probability depends only on alarm volume, not the baseline frequency of burglaries.\"\n    }\n  ]\n}\n```\n\n***\n\n**추천하는 다음 단계:**\n* [베이즈 정리 수치 문제를 단계별로 풀기](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)\n* [연속 베이즈 및 켤레 사전 확률 검토하기](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)"
+      },
+      "follow_up_1": {
+        "text": "맞춤형 베이즈 정리 확률 문장제 문제 계산하기"
+      },
+      "follow_up_2": {
+        "text": "빈도주의 통계와 베이즈 통계의 차이점 설명하기"
+      },
+      "follow_up_3": {
+        "text": "확률에 관한 통계 시험 연습 문제 검색하기"
+      },
+      "follow_up_4": {
+        "text": "여러 결과가 있는 또 다른 베이즈 정리 예시 살펴보기"
+      },
+      "follow_up_5": {
+        "text": "베이즈 정리를 시각적으로 설명하는 온라인 동영상 강의 찾기"
+      },
+      "follow_up_6": {
+        "text": "숫자를 이용한 사후 확률 계산 테스트하기"
+      }
+    },
+    "community_garden_calendar_invitation": {
+      "title": {
+        "text": "커뮤니티 정원 일정 초대장"
+      },
+      "summary": {
+        "text": "베를린 시간대, 이벤트 안건, 자원봉사 식재 세션 알림이 포함된 가져오기 가능한 캘린더 초대장을 생성합니다."
+      },
+      "message_1": {
+        "text": "2026년 10월 17일 토요일 오전 10시부터 12시까지(Europe/Berlin 시간대) 진행되는 가상의 커뮤니티 정원 자원봉사 식재 세션을 위한 가져오기 가능한 캘린더 초대장을 만들어 줄래? 장소는 가상의 예시인 Gartenweg 12, Berlin으로 설정하고, 짧은 안건과 24시간 전 알림을 포함해 줘. .ics 파일로 저장할 수 있는 iCalendar 텍스트를 알려줘."
+      },
+      "message_2": {
+        "text": "커뮤니티 정원 식재 세션을 위한 표준 [iCalendar](wiki:ICalendar) (`.ics`) 데이터야. 여기에는 Europe/Berlin 시간대 정의, 이벤트 상세 정보, 안건, 24시간 전 표시 알림(VALARM)이 포함되어 있어.\n\n아래 내용을 `community_garden_planting.ics`라는 이름의 텍스트 파일로 저장한 다음, 캘린더 클라이언트(Google 캘린더, Apple 캘린더, Microsoft Outlook 등)로 가져오기 하면 돼.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"6deff7cb-4e99-4dd3-9052-3985e09a9cc9\"}\n```\n\n### 이벤트 요약\n* **날짜 및 시간:** 2026년 10월 17일 토요일, 10:00 – 12:00 CEST\n* **장소:** Gartenweg 12, Berlin\n* **알림:** 1일 전 (`TRIGGER:-P1D`)\n\n***\n\n**추천 다음 단계:**\n* [자원봉사자 초대 이메일 초안 작성하기](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)\n* [식재 및 도구 체크리스트 문서 준비하기](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)"
+      },
+      "follow_up_1": {
+        "text": "온라인에서 커뮤니티 정원 자원봉사 팁 검색하기"
+      },
+      "follow_up_2": {
+        "text": "식재 세션에 자원봉사자를 초대하는 친근한 이메일 초안 작성하기"
+      },
+      "follow_up_3": {
+        "text": "베를린에서 열리는 향후 가드닝 워크숍 찾기"
+      },
+      "follow_up_4": {
+        "text": "가드닝 이벤트를 위한 종합 도구 체크리스트 만들기"
+      },
+      "follow_up_5": {
+        "text": "온라인에서 초보자에게 적합한 다년생 식물 검색하기"
+      },
+      "follow_up_6": {
+        "text": ".ics 파일을 Google 캘린더로 가져오는 방법 설명하기"
+      }
+    },
+    "net_cash_from_supplied_balances": {
+      "title": {
+        "text": "제공된 잔액 기준 순현금"
+      },
+      "summary": {
+        "text": "사용자가 제공한 세 가지 잔액을 바탕으로 순현금을 계산하고 당좌 예금, 저축 예금, 신용카드 부채에 대해 설명합니다."
+      },
+      "message_1": {
+        "text": "지금 보고 있는 명세서에 적힌 현재 잔액은 다음과 같아: 당좌 예금 €1,850, 저축 예금 €4,200, 신용카드 미결제 잔액 €640. 내 순현금 상태를 보여주고 각 숫자가 무엇을 의미하는지 설명해 줄 수 있어?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"04818ed0-8e67-4cb8-9736-45d5c35d393a\",\"app_id\":\"math\",\"skill_id\":\"calculate\"}\n```\n\n### 귀하의 순 현금 포지션\n\n귀하의 **순 현금 포지션**은 **€5,410**입니다.\n\n상세 내역은 다음과 같습니다:\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"3db1b137-abac-48a5-8c18-31ef7821ec04\"}\n```\n\n---\n\n### 각 수치의 의미\n\n1. **당좌 예금 계좌 (€1,850): 운영 현금 (운전 자본)**\n   * 이는 가장 유동성이 높은 [현금](wiki:Cash) 자산으로, 정기적으로 발생하는 생활비(임대료/담보 대출, 공과금, 식료품, 구독료)를 충당하기 위한 것입니다.\n   * €1,850를 보유하면 수입을 기다리는 동안 마이너스 통장 수수료를 방지하거나 결제 기한을 놓치지 않도록 즉각적인 완충 역할을 합니다.\n\n2. **저축 예금 계좌 (€4,200): 안전 여유 자금 및 예비비**\n   * 이는 [비상금](wiki:Emergency_fund) 또는 중기 재무 목표를 위해 예치해 둔 자금을 나타냅니다.\n   * 당좌 예금과 달리, 이 현금은 일상적인 지출을 방지하기 위해 분리되어 있으며, 일반적으로 약간의 이자가 발생하면서도 예상치 못한 비용이 발생할 경우 쉽게 인출할 수 있습니다.\n\n3. **신용카드 잔액 (€640): 단기 [부채](wiki:Debt)**\n   * 이는 카드 발행사에 갚아야 할 부채입니다. 결제 대금 유예 기간이 만료되기 전에 전액 결제하면 이자가 발생하지 않습니다.\n   * 하지만 결제일을 넘길 경우, 신용카드는 일반적으로 높은 이자율(APR)이 적용되어 순 현금을 빠르게 감소시킵니다.\n\n4. **순 현금 포지션 (€5,410): 실질적인 즉시 유동성**\n   * 이 지표는 현재의 단기 신용카드 부채를 즉시 상환했을 때 남게 되는 유동 현금을 측정합니다.\n   * 양수(+) 수치는 현재의 카드 대금 의무에 대해 충분한 유동성과 지급 능력을 갖추고 있으며, €5,410의 예비비가 남아 있음을 나타냅니다.\n\n---\n\n### 권장 다음 단계\n\n이 내용이 귀하의 전반적인 재무 계획에 어떻게 부합하는지 확인해 보시겠습니까?\n\n* [비상금 계획 세우기](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)\n* [월간 예산 프레임워크 만들기](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)\n---\n*⚠️ 본 정보는 교육용으로만 제공되며 금융 자문이 아닙니다. 금융 관련 결정을 내리기 전에 자격을 갖춘 금융 전문가 또는 세무 전문가와 상담하십시오.*"
+      },
+      "follow_up_1": {
+        "text": "온라인에서 권장 비상금 저축 기준 검색하기"
+      },
+      "follow_up_2": {
+        "text": "순현금과 순자산의 차이점 설명하기"
+      },
+      "follow_up_3": {
+        "text": "현재 저축액으로 월 생활비를 얼마나 감당할 수 있는지 계산하기"
+      },
+      "follow_up_4": {
+        "text": "단기 신용카드 부채를 빨리 갚기 위한 전략 목록 만들기"
+      },
+      "follow_up_5": {
+        "text": "신용카드 이자율 인하 팁 검색하기"
+      },
+      "follow_up_6": {
+        "text": "내 저축액 €4,200가 적절한 비상금인지 평가하는 것 도와주기"
+      }
+    },
+    "community_garden_volunteer_onboarding": {
+      "title": {
+        "text": "커뮤니티 정원 자원봉사 온보딩"
+      },
+      "summary": {
+        "text": "첫날 작업, 안전 기본 사항, 도움말 연락처가 포함된 공유 가능한 한 페이지 분량의 자원봉사 가이드를 만듭니다."
+      },
+      "message_1": {
+        "text": "커뮤니티 정원을 위한 공유 가능한 한 페이지 분량의 자원봉사 온보딩 문서를 만들어줘. 220단어 이내로 작성해줘. 도착 안내, 첫날 작업, 안전 수칙, 도움 요청 방법을 포함해줘. 일반적인 템플릿이므로 정원별 연락처나 위치가 필요한 곳에는 플레이스홀더를 사용해줘."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"document\", \"embed_id\": \"f40fc42f-df5d-4116-bba3-3500b1805eb5\"}\n```\n\n쉽게 맞춤 설정할 수 있도록 플레이스홀더(`[Coordinator Name]`, `[Check-In Location]`, `[Phone Number]` 등)가 포함된 표준 `.docx` 형식의 온보딩 문서가 위에 생성되었어. 170단어 미만으로 작성되어 인쇄용 한 페이지에 깔끔하게 들어갈 거야.\n\n***\n\n### 권장 다음 단계:\n1. [우리 정원의 세부 정보로 플레이스홀더 맞춤 설정하기](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)\n2. [자원봉사 행동 강령 또는 사진 촬영 동의 섹션 추가하기](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)"
+      },
+      "follow_up_1": {
+        "text": "커뮤니티 정원 자원봉사 관리 모범 사례 검색하기"
+      },
+      "follow_up_2": {
+        "text": "자원봉사 행동 강령 섹션 추가를 도와줘"
+      },
+      "follow_up_3": {
+        "text": "자원봉사 오리엔테이션 데이 구성을 위한 작업 목록 만들기"
+      },
+      "follow_up_4": {
+        "text": "환영 오리엔테이션 체크리스트 구성 방법 설명하기"
+      },
+      "follow_up_5": {
+        "text": "온라인에서 자원봉사 핸드북 템플릿 검색하기"
+      },
+      "follow_up_6": {
+        "text": "야외 커뮤니티 공간을 위한 필수 안전 지침 목록 작성하기"
+      }
+    },
+    "voice_note_transcription_action_item": {
+      "title": {
+        "text": "짧은 음성 메모 전사하기"
+      },
+      "summary": {
+        "text": "짧은 녹음을 전사하고 후속 작업이 필요한 작업이 포함되어 있는지 확인합니다."
+      },
+      "message_1": {
+        "text": "이 짧은 녹음을 전사하고 후속 작업 항목이 포함되어 있는지 알려줄 수 있어?\n[!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)"
+      },
+      "message_2": {
+        "text": "녹음 내용의 전사 결과는 다음과 같아:\n\n> *\"Real-time transcription is working correctly in OpenMates.\"*\n\n### 작업 항목이 포함되어 있니?\n**아니.** 이 녹음은 전사 기능이 정상적으로 작동함을 확인하는 단순한 정보성 상태 업데이트야. 작업, 마감일 또는 요청된 후속 조치에 대해서는 언급되지 않았어.\n\n---\n\n**고려해 볼 수 있는 다음 단계:**\n- 작업이 포함된 녹음을 테스트하고 싶다면 다른 음성 메모를 공유해 줘!"
+      },
+      "follow_up_1": {
+        "text": "작업 추출 기능이 있는 음성 메모 전사 앱 검색하기"
+      },
+      "follow_up_2": {
+        "text": "AI 모델에서 자동 작업 항목 감지가 작동하는 방식 설명하기"
+      },
+      "follow_up_3": {
+        "text": "작업 감지 테스트를 위해 다른 오디오 파일 전사하기"
+      },
+      "follow_up_4": {
+        "text": "실행 가능한 단계가 포함된 명확한 음성 메모를 녹음하기 위한 팁 목록 작성하기"
+      },
+      "follow_up_5": {
+        "text": "음성 녹음 기능 검토를 위한 새 작업 만들기"
+      },
+      "follow_up_6": {
+        "text": "음성 아이디어를 체계적인 작업으로 전환하는 다양한 방법 비교하기"
+      }
     }
   },
   "focus_modes": {
@@ -20881,6 +21475,120 @@
       },
       "restore_failed": {
         "text": "선택한 정의를 복원하지 못했습니다."
+      }
+    }
+  },
+  "daily_inspiration_fallback": {
+    "antikythera": {
+      "phrase": {
+        "text": "고대의 난파선에는 하늘을 예측하는 기계가 실려 있었습니다."
+      },
+      "title": {
+        "text": "안티키티라 메커니즘"
+      },
+      "description": {
+        "text": "고대 그리스의 수동식 우주 모델입니다."
+      },
+      "assistant_response": {
+        "text": "안티키티라 메커니즘은 청동 기어를 사용하여 천문학적 주기를 모델링했습니다. 고대 엔지니어들이 어떻게 하늘을 예측했는지 알아보세요."
+      }
+    },
+    "bioluminescence": {
+      "phrase": {
+        "text": "어떤 동물들은 스스로 빛을 냅니다. 그 화학 작용은 놀라울 정도로 정교합니다."
+      },
+      "title": {
+        "text": "생물 발광"
+      },
+      "description": {
+        "text": "화학 작용을 통해 빛을 내는 생물입니다."
+      },
+      "assistant_response": {
+        "text": "생물은 사냥, 위장, 의사소통, 방어를 위해 빛을 냅니다. 화학 작용이 어떻게 빛으로 변하는지 알아보세요."
+      }
+    },
+    "fermi": {
+      "phrase": {
+        "text": "우주가 이렇게 넓은데, 왜 이토록 조용한 걸까요?"
+      },
+      "title": {
+        "text": "페르미 역설"
+      },
+      "description": {
+        "text": "외계 생명체의 존재 가능성과 명확한 증거가 없는 현실 사이의 모순입니다."
+      },
+      "assistant_response": {
+        "text": "페르미 역설은 왜 우리가 외계 문명의 설득력 있는 증거를 찾지 못했는지 묻습니다. 가능한 답변들을 알아보세요."
+      }
+    },
+    "export": {
+      "phrase": {
+        "text": "나만의 백업을 보관하세요. 필요할 때마다 OpenMates 데이터를 내보낼 수 있습니다."
+      },
+      "title": {
+        "text": "OpenMates 데이터 내보내기"
+      },
+      "description": {
+        "text": "채팅, 설정, 기억 등을 백업하세요."
+      },
+      "assistant_response": {
+        "text": "계정 설정에서 OpenMates 데이터 사본을 내보낼 수 있습니다. 암호화된 계정 데이터에 액세스하려면 로그인하세요."
+      }
+    },
+    "pii": {
+      "phrase": {
+        "text": "더 강력한 개인정보 보호를 원하시나요? OpenMates가 숨겨야 할 개인 정보를 추가하세요."
+      },
+      "title": {
+        "text": "맞춤형 PII 탐지"
+      },
+      "description": {
+        "text": "모델 호출 전에 개인 정보를 보호합니다."
+      },
+      "assistant_response": {
+        "text": "모델 호출 전에 OpenMates가 숨길 개인 정보를 선택하세요. 개인정보 보호 설정에서 이를 관리할 수 있습니다."
+      }
+    },
+    "focus": {
+      "phrase": {
+        "text": "더 집중된 답변이 필요한가요? 메이트에게 구체적인 역할을 부여해 보세요."
+      },
+      "title": {
+        "text": "집중 모드"
+      },
+      "description": {
+        "text": "채팅이 특정 목표를 향하도록 안내합니다."
+      },
+      "assistant_response": {
+        "text": "집중 모드를 사용하여 채팅이 특정 목표를 향하도록 유도하세요. 앱에서 사용 가능한 모드를 확인해 보세요."
+      }
+    },
+    "memories": {
+      "phrase": {
+        "text": "같은 말을 반복하는 건 지루한 일이죠. 메이트가 기억해야 할 맥락을 저장하세요."
+      },
+      "title": {
+        "text": "기억"
+      },
+      "description": {
+        "text": "유용한 기본 설정과 맥락을 저장합니다."
+      },
+      "assistant_response": {
+        "text": "유용한 기본 설정과 맥락을 기억으로 저장한 다음, 메이트가 사용할 항목을 선택하세요."
+      }
+    },
+    "events": {
+      "phrase": {
+        "text": "할 일을 찾고 있나요? 가까운 이벤트를 살펴보세요."
+      },
+      "title": {
+        "text": "지역 이벤트 찾기"
+      },
+      "description": {
+        "text": "수업, 모임 및 기타 이벤트를 검색하세요."
+      },
+      "assistant_response": {
+        "text": "이벤트 검색으로 가까운 수업과 모임을 찾아보세요. 장소와 주제를 선택해 주변에서 열리는 행사를 확인하세요."
       }
     }
   }

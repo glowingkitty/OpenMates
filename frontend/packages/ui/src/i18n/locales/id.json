@@ -9930,6 +9930,600 @@
       "follow_up_6": {
         "text": "Ringkas metrik keuangan utama untuk VITL"
       }
+    },
+    "urban_heat_island_at_night": {
+      "title": {
+        "text": "Mengapa Kota Tetap Panas di Malam Hari"
+      },
+      "summary": {
+        "text": "Penjelasan sederhana tentang efek pulau panas perkotaan dan mengapa jalanan kota mendingin lebih lambat setelah matahari terbenam."
+      },
+      "message_1": {
+        "text": "Mengapa beberapa kota terasa jauh lebih panas daripada daerah pedesaan di sekitarnya pada malam hari? Bisakah kamu menjelaskan efek pulau panas perkotaan dengan contoh sederhana?"
+      },
+      "message_2": {
+        "text": "Fenomena yang kamu jelaskan dikenal sebagai efek **[pulau panas perkotaan](wiki:Urban_heat_island)** (UHI). Meskipun kota bisa sedikit lebih hangat di siang hari, perbedaan suhunya sering kali paling terasa setelah matahari terbenam—terkadang membuat kota lebih hangat antara 2°C hingga lebih dari 10°C (4°F hingga 18°F) dibandingkan pedesaan di sekitarnya.\n\n---\n\n### Analogi Sederhana Sehari-hari: Wajan Besi Cor vs. Bedengan Kebun\n\nBayangkan kamu berdiri di luar pada sore hari yang cerah dengan dua benda:\n1. **Wajan besi cor yang berat**\n2. **Pot berisi tanah kebun yang lembap dengan rumput**\n\nSelama sore yang panas, matahari menyinari keduanya:\n* **Wajan besi cor** menyerap panas yang intens, menjadi sangat panas, dan menyimpan energi termal tersebut di dalam badan logamnya yang padat.\n* **Tanah lembap dan rumput** juga menyerap sinar matahari, tetapi kelembapan di dalam tanah menguap dan rumput \"berkeringat\" melalui transpirasi. Proses [evapotranspirasi](wiki:Evapotranspiration) tersebut menghabiskan sebagian besar energi matahari, sehingga tanaman dan tanah tetap jauh lebih sejuk.\n\nSekarang, bawa keduanya ke dalam ruangan yang lebih sejuk atau tunggu sampai malam tiba:\n* Bedengan kebun mendingin hampir seketika karena tidak menahan panas berlebih dan terus kehilangan kelembapan.\n* Namun, wajan besi cor bertindak sebagai **baterai termal**. Lama setelah matahari terbenam, ia perlahan-lahan memancarkan semua panas yang terperangkap itu ke udara sekitar, menjaga ruang di sekitarnya tetap hangat selama berjam-jam.\n\nSebuah **kota** bertindak seperti jutaan wajan besi cor yang saling terhubung; **pedesaan** berperilaku seperti bedengan kebun yang lembap.\n\n---\n\n### Sains di Balik Mengapa Kota Tetap Panas di Malam Hari\n\nPerbedaan di malam hari ini disebabkan oleh beberapa faktor termodinamika dan fisik utama:\n\n#### 1. Massa Termal Tinggi (Retensi Panas)\nLingkungan perkotaan dibangun dari aspal, beton, bata, dan batu. Material-material ini memiliki [kapasitas panas volumetrik](wiki:Volumetric_heat_capacity) dan konduktivitas termal yang tinggi. Di siang hari, mereka menyerap radiasi matahari jauh ke dalam struktur dan trotoar. Di malam hari, saat udara sekitar mendingin, material-material ini melepaskan kembali panas yang tersimpan ke atmosfer bawah melalui radiasi termal gelombang panjang.\n\n#### 2. Hilangnya Pendinginan Evaporatif\nLanskap pedesaan ditutupi oleh pepohonan, tanaman pangan, dan tanah yang lembap. Tanaman menyerap air dari tanah dan melepaskan uap air ke udara melalui transpirasi. Karena mengubah air cair menjadi uap membutuhkan energi yang besar ([panas laten](wiki:Latent_heat) penguapan), hal ini secara alami mendinginkan lingkungan sekitar. Di kota, air hujan dengan cepat dialirkan ke saluran pembuangan melalui permukaan yang kedap air, sehingga menyisakan sangat sedikit kelembapan yang tersedia untuk pendinginan evaporatif.\n\n#### 3. Geometri Ngarai Perkotaan\nDi kota-kota padat dengan gedung-gedung tinggi, jalanan membentuk \"ngarai perkotaan\". Di siang hari, banyak permukaan reflektif memantulkan sinar matahari lebih dalam ke jalanan alih-alih memantulkannya kembali ke luar angkasa. Di malam hari, gedung-gedung tersebut sebagian menghalangi langit (mengurangi apa yang disebut ahli meteorologi sebagai faktor pandangan langit). Alih-alih lepas dengan bebas ke atmosfer atas, panas yang terpancar dari jalanan diserap atau dipantulkan kembali oleh dinding gedung-gedung di sekitarnya.\n\n#### 4. Panas Antropogenik (Energi yang Dihasilkan Manusia)\nKota terus-menerus menghasilkan panasnya sendiri terlepas dari matahari. Unit pendingin udara (AC), mesin kendaraan, pusat data, pabrik, dan pencahayaan gedung semuanya mengeluarkan panas buangan langsung ke atmosfer setinggi jalan, memperkuat kehangatan di malam hari.\n\n---\n\n### Memitigasi Efek Tersebut\n\nKomunitas dan perencana kota sering kali mengadopsi strategi yang melawan mekanisme ini:\n* **Perkerasan & Atap Dingin:** Menggunakan lapisan dengan [albedo](wiki:Albedo) (reflektivitas) tinggi sehingga permukaan memantulkan sinar matahari alih-alih menyerapnya.\n* **Penghijauan Kota & Kanopi Pohon:** Menanam pohon di pinggir jalan dan membuat taman untuk memulihkan naungan dan evapotranspirasi.\n* **Atap Hijau:** Memasang vegetasi di atap gedung untuk menyekat bangunan dan mendinginkan mikroklimat lokal.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"uhi_interest_followup\",\n  \"multiple\": false,\n  \"question\": \"Which aspect of the urban heat island effect would you like to explore next?\",\n  \"options\": [\n    { \"id\": \"solutions\", \"text\": \"Architectural and urban design solutions (e.g., green roofs, cool materials)\" },\n    { \"id\": \"climate_health\", \"text\": \"Impacts on public health, air quality, and climate resilience\" },\n    { \"id\": \"measurement\", \"text\": \"How scientists measure and map surface vs. atmospheric heat islands\" }\n  ]\n}\n```\n\nApakah kamu ingin memeriksa bagaimana pilihan perencanaan kota tertentu di daerahmu memengaruhi pendinginan di malam hari, atau menjelajahi salah satu topik di atas?"
+      },
+      "follow_up_1": {
+        "text": "Cari strategi perencanaan kota yang mengurangi pulau panas"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan bagaimana ilmuwan membedakan antara pulau panas permukaan dan atmosfer"
+      },
+      "follow_up_3": {
+        "text": "Temukan makalah akademik yang mengukur anomali suhu permukaan perkotaan"
+      },
+      "follow_up_4": {
+        "text": "Diskusikan dampak kesehatan masyarakat dari suhu malam hari yang ekstrem di perkotaan"
+      },
+      "follow_up_5": {
+        "text": "Cari studi kasus desain atap hijau di kota-kota"
+      },
+      "follow_up_6": {
+        "text": "Jelaskan bagaimana geometri lorong perkotaan memerangkap panas radiasi di malam hari"
+      }
+    },
+    "damped_sine_decay_plot": {
+      "title": {
+        "text": "Gelombang Sinus Teredam dan Selubungnya"
+      },
+      "summary": {
+        "text": "Plot gelombang sinus teredam dengan selubung atas dan bawahnya, lalu pahami bagaimana osilasinya memudar."
+      },
+      "message_1": {
+        "text": "Bisakah kamu memplot y = e^(-0.2x) sin(3x) untuk x dari 0 sampai 12, termasuk selubung atas dan bawahnya, serta menjelaskan apa yang ditunjukkan oleh grafik tersebut?"
+      },
+      "message_2": {
+        "text": "Berikut adalah plot fungsi beserta selubung pembatas atas dan bawahnya:\n\n```json\n{\"type\": \"math-plot\", \"embed_id\": \"9ef899d2-4b73-4c4e-88bf-d4fd31d61e79\"}\n```\n\n---\n\n### Apa yang Ditunjukkan oleh Grafik\n\nGrafik ini adalah representasi klasik dari osilator harmonik teredam, yang umum ditemukan dalam fisika dan teknik (seperti senar gitar yang bergetar, peredam kejut, atau [rangkaian RLC](wiki:RLC_circuit) listrik).\n\n#### 1. Komponen Osilasi: $\\sin(3x)$\n* Istilah $\\sin(3x)$ menghasilkan gerakan gelombang periodik yang kontinu.\n* Frekuensi sudutnya adalah $\\omega = 3\\text{ rad/s}$, yang sesuai dengan periode:\n  $$T = \\frac{2\\pi}{3} \\approx 2.094$$\n* Ini berarti kurva memotong titik nol setiap $\\frac{\\pi}{3} \\approx 1.05$ unit di sepanjang sumbu $x$.\n\n#### 2. Faktor Redaman: $e^{-0.2x}$\n* Faktor eksponensial $e^{-0.2x}$ menjelaskan [peluruhan eksponensial](wiki:Exponential_decay) dengan parameter laju peluruhan $\\alpha = 0.2$.\n* Seiring bertambahnya $x$, energi hilang dari sistem karena [redaman](wiki:Damping) (seperti gesekan atau hambatan listrik), sehingga memperkecil amplitudo seiring waktu.\n\n#### 3. Selubung: $\\pm e^{-0.2x}$\n* Karena fungsi sinus dibatasi oleh $-1 \\le \\sin(3x) \\le 1$, perkalian dengan suku positif $e^{-0.2x}$ menghasilkan:\n  $$-e^{-0.2x} \\le e^{-0.2x}\\sin(3x) \\le e^{-0.2x}$$\n* **Selubung Atas ($g(x) = e^{-0.2x}$)**: Membentuk batas atas halus yang membatasi puncak positif.\n* **Selubung Bawah ($h(x) = -e^{-0.2x}$)**: Membentuk batas simetris yang menampung lembah negatif.\n* Kurva yang berosilasi menyentuh selubung atas setiap kali $\\sin(3x) = 1$ (pada $x = \\frac{\\pi}{6} + \\frac{2\\pi k}{3}$) dan selubung bawah setiap kali $\\sin(3x) = -1$.\n\n---\n\n### Langkah Selanjutnya yang Disarankan\n\n- [Hitung ekstremum lokal yang tepat menggunakan turunan](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)\n- [Bandingkan sistem teredam kurang vs teredam kritis](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)"
+      },
+      "follow_up_1": {
+        "text": "Hitung ekstremum lokal fungsi ini menggunakan kalkulus"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan bagaimana perubahan parameter laju peluruhan memengaruhi kurva"
+      },
+      "follow_up_3": {
+        "text": "Cari rumus fisika serupa untuk gerak harmonik"
+      },
+      "follow_up_4": {
+        "text": "Deskripsikan sistem fisik dunia nyata yang dimodelkan oleh persamaan ini"
+      },
+      "follow_up_5": {
+        "text": "Cari persamaan diferensial yang mendeskripsikan osilasi teredam"
+      },
+      "follow_up_6": {
+        "text": "Bandingkan perilaku gelombang ini dengan gerak harmonik sederhana tak teredam"
+      }
+    },
+    "autumn_basil_balcony_care": {
+      "title": {
+        "text": "Perawatan Basil Musim Gugur di Balkon Berlin"
+      },
+      "summary": {
+        "text": "Perawatan musim gugur sederhana untuk basil di balkon yang menghadap ke timur: cahaya, penyiraman, tanda-tanda kedinginan, dan memindahkannya ke dalam ruangan."
+      },
+      "message_1": {
+        "text": "Bisakah kamu membuat panduan perawatan ringkas yang ramah pemula untuk basil manisku di balkon Berlin yang menghadap ke timur musim gugur ini? Aku terutama butuh info tentang penyiraman, cahaya, tanda-tanda cuaca dingin, dan kapan harus membawanya masuk."
+      },
+      "message_2": {
+        "text": "Berikut adalah panduan perawatan khusus musim gugur yang ringkas untuk selasih (*Ocimum basilicum*) milikmu di balkon yang menghadap ke timur di Berlin:\n\n---\n\n### 1. Cahaya (Balkon Menghadap ke Timur)\n* **Apa yang diharapkan:** Di musim gugur Berlin, matahari terbit lebih rendah dan durasi siang hari berkurang dengan cepat. Balkon yang menghadap ke timur memberikan sinar matahari pagi yang lembut selama sekitar 2–4 jam, yang tergolong rendah bagi selasih yang menyukai matahari.\n* **Penempatan:** Letakkan pot sedekat mungkin dengan pagar luar dengan aman, jauh dari bayangan dinding, untuk memaksimalkan paparan langit pagi tanpa penghalang.\n* **Trik reflektif:** Menempatkannya di depan dinding berwarna putih atau terang dapat memantulkan cahaya sekitar tambahan ke arah daun.\n\n---\n\n### 2. Rutinitas Penyiraman\n* **Aturan:** Kebutuhan air selasih turun drastis di cuaca dingin karena penguapan melambat dan pertumbuhan tanaman terhenti.\n* **Periksa dulu:** Siram **hanya** saat 2–3 cm bagian atas tanah (sekitar satu inci) terasa kering saat disentuh. Jangan menyiram berdasarkan jadwal kalender tetap.\n* **Waktu:** Selalu siram di pagi hari dengan air suhu ruangan. Hindari air keran dingin langsung dari pipa, yang dapat mengejutkan akar yang dingin.\n* **Drainage:** Jangan biarkan pot terendam di air dalam alas pot; tanah yang dingin dan tergenang air dengan cepat menyebabkan busuk akar (*Fusarium* atau jamur air).\n\n---\n\n### 3. Kapan Harus Membawanya Masuk\n* **Ambang batas kritis:** Selasih adalah herba tropis yang sensitif. Ia mengalami stres dingin fisiologis di bawah **10°C (50°F)** dan mengalami kerusakan jaringan parah atau mati di sekitar **0°C hingga 4°C**.\n* **Waktu untuk Berlin:** Suhu malam hari di Berlin sering turun di bawah 10°C pada akhir September atau awal Oktober.\n* **Tindakan:** **Bawa masuk sekarang** jika prakiraan suhu malam turun di bawah 10°C.\n\n---\n\n### 4. Tanda-tanda Stres Dingin & Cahaya\n* **Daun menghitam atau transparan:** Tanda jelas cedera dingin (kerusakan sel akibat suhu di bawah 8–10°C).\n* **Dedaunan memungu atau kusam:** Respons klasik terhadap stres dingin yang dikombinasikan dengan penyerapan nutrisi yang lambat.\n* **Layu saat tanah lembap:** Akar kedinginan atau busuk akar; akar terlalu dingin atau rusak untuk menyerap kelembapan meskipun ada air.\n* **Pertumbuhan memanjang / hijau pucat:** Kurang sinar matahari (etiolasi).\n\n---\n\n### 5. Pindah ke Dalam Ruangan: Tips Transisi Cepat\n1. **Jendela paling terang:** Letakkan di ambang jendela yang menghadap ke selatan jika tersedia; jika tidak, jendela yang menghadap ke timur atau barat yang paling terang.\n2. **Hindari aliran udara & radiator:** Jauhkan dari aliran udara jendela yang retak serta panas kering yang bertiup langsung dari radiator (*Heizung*).\n3. **Pemeriksaan hama:** Periksa bagian bawah daun untuk kutu daun atau tungau laba-laba sebelum meletakkannya di dekat tanaman hias dalam ruangan lainnya.\n4. **Panen dari atas:** Petik kuncup bunga dan pasangan daun teratas untuk mendorong pertumbuhan yang rimbun daripada berbunga yang kurus memanjang.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"basil_indoor_setup\",\n  \"multiple\": false,\n  \"question\": \"Where are you planning to put your basil once it moves inside?\",\n  \"options\": [\n    { \"id\": \"south_window\", \"text\": \"South- or west-facing sunny windowsill\" },\n    { \"id\": \"east_window\", \"text\": \"Staying near the east window indoors\" },\n    { \"id\": \"grow_light\", \"text\": \"Under a dedicated grow light / LED lamp\" },\n    { \"id\": \"other_spot\", \"text\": \"Another room or location\" }\n  ],\n  \"custom_option_id\": \"other_spot\",\n  \"custom_placeholder\": \"Describe your indoor spot...\"\n}\n```\n\n**Langkah Selanjutnya & Saran:**\n* [Pasang pengingat untuk memeriksa suhu terendah malam ini di Berlin](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)\n* [Dapatkan tips tentang cara mengawetkan panen selasih yang banyak](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)"
+      },
+      "follow_up_1": {
+        "text": "Cek prakiraan cuaca saat ini dan suhu malam hari di Berlin"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan cara memanen selasih (sweet basil) untuk mendorong pertumbuhan yang lebih rimbun"
+      },
+      "follow_up_3": {
+        "text": "Cari metode cepat untuk mengawetkan daun selasih segar"
+      },
+      "follow_up_4": {
+        "text": "Jelaskan tanda-tanda busuk akar dan cara menyelamatkan selasih yang tergenang air"
+      },
+      "follow_up_5": {
+        "text": "Cari opsi lampu tanam LED dalam ruangan untuk herba"
+      },
+      "follow_up_6": {
+        "text": "Sebutkan tanaman pendamping terbaik untuk herba dalam pot di dalam ruangan"
+      }
+    },
+    "community_garden_sunflower_illustration": {
+      "title": {
+        "text": "Buat ilustrasi botani bunga matahari"
+      },
+      "summary": {
+        "text": "Buat ilustrasi bunga matahari tanpa teks untuk selebaran kebun komunitas."
+      },
+      "message_1": {
+        "text": "Tolong buatkan ilustrasi botani bunga matahari yang hangat untuk selebaran kebun komunitas, dengan latar belakang terang yang bersih tanpa teks."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nSaya sedang membuat ilustrasi botani bunga matahari untuk selebaran kebun komunitasmu; saat ini sedang diproses dan akan muncul di sini dalam obrolan setelah selesai.\n\n### Tips Desain Cepat untuk Selebaran Komunitas\n\nAgar selebaran kebunmu menarik dan mudah dibaca:\n\n- **Hierarki Visual & Spasi:** Berikan ruang pada ilustrasi. Menempatkannya di sepanjang margin atau header menyisakan ruang kosong untuk tips berkebun atau detail acara tanpa terasa sesak.\n- **Harmoni Warna:** Ambil nada warna hangat langsung dari karya seni—seperti emas madu pekat, hijau daun zaitun, atau terakota alami—untuk judul bagian dan bingkai.\n- **Memadukan Seni Sendiri:** Jika anggota komunitas atau tukang kebun lokal membuat sketsa, cetakan daun, atau foto bedengan kebunmu yang sebenarnya, mengintegrasikannya bersama ilustrasi digital akan menciptakan sentuhan akar rumput yang ramah dan indah.\n\n---\n\n**Langkah Selanjutnya & Opsi:**\n- [Desain tata letak selebaran dengan judul dan tips](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [Sarankan palet warna berdasarkan bunga matahari](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+      },
+      "follow_up_1": {
+        "text": "Cari acara kebun komunitas lokal di sekitar"
+      },
+      "follow_up_2": {
+        "text": "Bantu aku menulis teks pengantar yang ramah untuk selebaran kebun"
+      },
+      "follow_up_3": {
+        "text": "Cari ikon tanaman SVG gratis untuk hiasan selebaran"
+      },
+      "follow_up_4": {
+        "text": "Daftar tips penting untuk dimasukkan ke dalam panduan kebun komunitas"
+      },
+      "follow_up_5": {
+        "text": "Cari ide paduan tipografi untuk selebaran kebun"
+      },
+      "follow_up_6": {
+        "text": "Jelaskan cara menyusun elemen visual dalam tata letak cetak"
+      }
+    },
+    "beginner_yoga_classes_berlin": {
+      "title": {
+        "text": "Kelas Yoga Pemula di Berlin"
+      },
+      "summary": {
+        "text": "Temukan tiga kelas yoga ramah pemula di Berlin lengkap dengan waktu, harga, dan tautan pemesanan."
+      },
+      "message_1": {
+        "text": "Saya baru dalam yoga dan ingin mencari kelas yang ramah pemula di Berlin minggu depan. Bisakah kamu mencarikan beberapa kelas beserta waktu, harga, dan tautan pemesanannya?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\nBerikut adalah kelas [yoga](wiki:Yoga) ramah pemula yang berlangsung di seluruh Berlin minggu depan:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)\n- **Apa itu:** Kelas penuh kesadaran yang menyeimbangkan gerakan berbasis napas dengan menahan postur untuk mengeksplorasi penyelarasan dan ketenangan. Dirancang khusus agar mudah diakses oleh pemula (disampaikan dalam bahasa Inggris).\n- **Tanggal & Waktu:** Rabu, 14 Oktober 2026, 18:00 – 19:00 CEST (datang 10 menit lebih awal)\n- **Lokasi:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))\n- **Harga:** €11,83 – €22,49\n- **Pemesanan:** [Pesan tiket di Eventbrite](embed:yoga-for-grounding-TB2)\n\n### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)\n- **Apa itu:** Sesi mobilitas dan yoga santai untuk semua tingkatan di mana alur gerakannya dijelaskan langkah demi langkah dengan tempo yang lembut. Tidak memerlukan kelenturan atau pengalaman sebelumnya.\n- **Tanggal & Waktu:** Selasa, 13 Oktober 2026, 19:00 – 19:45 CEST (datang 15 menit lebih awal)\n- **Lokasi:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))\n- **Harga:** €5 (gratis masuk dengan Urban Sports Club / Wellpass jika kamu juga melakukan bouldering)\n- **Pemesanan:** [Lihat detail dan tautan pemesanan](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)\n- **Apa itu:** Sesi Vinyasa yang dinamis namun lembut yang menawarkan modifikasi untuk pemula, berfokus pada kesadaran napas, penyelarasan tubuh, dan pelepasan stres.\n- **Tanggal & Waktu:** Rabu, 14 Oktober 2026, 19:30 – 21:00 CEST\n- **Lokasi:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))\n- **Harga:** €10 untuk kelas percobaan pertama kamu (starter pack: 3 kelas seharga €20)\n- **Pemesanan:** [RSVP melalui Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)\n\n---\n\n### Tips untuk kelas yoga pertama kamu\n* **Pakaian:** Pakaian yang nyaman dan elastis agar kamu bisa bergerak dan membungkuk dengan mudah. Yoga biasanya dilakukan tanpa alas kaki.\n* **Hidrasi & Makanan:** Hindari makan berat dalam waktu 1,5–2 jam sebelum kelas.\n* **Dengarkan tubuhmu:** Beri tahu pengajar sebelum kelas bahwa ini adalah pertama kalinya kamu; mereka akan dengan senang hati menunjukkan penyesuaian dan alat bantu (balok, selimut, atau tali). Jika kamu memiliki masalah sendi atau punggung sebelumnya, konsultasikan dengan dokter atau terapis fisik sebelum mencoba urutan gerakan yang dinamis.\n\nApakah kamu ingin rekomendasi yang lebih dekat dengan lingkungan tertentu (misalnya, Neukölln, Prenzlauer Berg, Charlottenburg), atau fokus pada gaya yang lembut seperti [Hatha yoga](wiki:Hatha_yoga) atau [Yin yoga](wiki:Yin_yoga)?\n---\n*⚠️ Ini hanya informasi edukasi dan bukan saran medis. Konsultasikan dengan doktermu untuk keputusan medis.*"
+      },
+      "follow_up_1": {
+        "text": "Cari kelas yoga di Neukölln Berlin"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan apa yang diharapkan saat kelas yoga pertama"
+      },
+      "follow_up_3": {
+        "text": "Cari lokakarya yoga Hatha akhir pekan depan"
+      },
+      "follow_up_4": {
+        "text": "Bandingkan gaya yoga Vinyasa dan Hatha"
+      },
+      "follow_up_5": {
+        "text": "Cari studio yoga Yin di Mitte"
+      },
+      "follow_up_6": {
+        "text": "Daftar tips pemula untuk membeli matras yoga"
+      }
+    },
+    "calm_manager_follow_up": {
+      "title": {
+        "text": "Rencanakan Tindak Lanjut yang Tenang dengan Manajer"
+      },
+      "summary": {
+        "text": "Selesaikan percakapan yang tegang dan susun tindak lanjut yang jelas serta bertanggung jawab setelah prioritas berubah."
+      },
+      "message_1": {
+        "text": "Saya baru saja melakukan percakapan yang tegang dengan manajer saya hari ini dan merasa tidak tenang. Bisakah kamu membantu saya memproses apa yang terjadi dan merencanakan tindak lanjut yang tenang?"
+      },
+      "message_2": {
+        "text": "Sangat wajar untuk merasa tidak tenang setelah percakapan yang sulit dengan manajer. Percakapan yang melibatkan otoritas, kinerja, atau ekspektasi yang tidak sesuai sering kali memicu stres akut dan mengganggu regulasi emosi, membuatmu terus memutar kembali kata-kata yang diucapkan dan mempertanyakan kembali reaksimu sendiri.\n\nMeluangkan waktu sejenak sebelum merespons adalah pendekatan yang paling sehat dan strategis.\n\nUntuk membantu kita menyusun rencana yang jelas guna meninjau apa yang terjadi dan menyusun tindak lanjut yang efektif, **apa topik utama dari diskusi tersebut, dan momen atau ucapan spesifik apa yang terasa paling tegang bagimu?**\n---\n*⚠️ Ini hanya informasi edukasi dan bukan saran psikologis profesional. Untuk masalah kesehatan mental, silakan berkonsultasi dengan terapis atau konselor yang berkualifikasi. Jika kamu mengalami krisis, segera hubungi layanan darurat atau hotline krisis.*"
+      },
+      "message_3": {
+        "text": "Kami tidak sepakat mengenai tenggat waktu untuk memperbarui basis pengetahuan dukungan. Manajer saya mengatakan bahwa saya seharusnya melaporkan risikonya lebih awal, dan saya merasa disalahkan karena prioritas telah berubah dua kali. Saya ingin mengakui peran saya tanpa menerima semua kesalahan. Apa yang bisa saya katakan dalam tindak lanjut singkat besok?"
+      },
+      "message_4": {
+        "text": "Menghadapi situasi semacam ini memerlukan keseimbangan antara [ketegasan](wiki:Assertiveness) dengan akuntabilitas kolaboratif: mengakui apa yang berada dalam kendalimu (eskalasi risiko secara proaktif) tanpa menerima narasi yang mengabaikan konteks yang berubah (perubahan prioritas).\n\n### Kerangka Psikologis: Akuntabilitas vs. Menyalahkan\n\nKetika manajer merasa terkejut, refleks spontan mereka sering kali adalah: *\"Mengapa saya tidak diberi tahu?\"* Ketika kontributor menerima instruksi yang berubah-ubah, refleks mereka sering kali adalah: *\"Saya hanya menyesuaikan diri dengan apa yang Anda minta untuk saya prioritaskan.\"* Kedua perspektif ini masuk akal dalam kerangka acuan masing-masing.\n\nUntuk menjembatani hal ini secara konstruktif:\n1. **Validasi perbaikan proses**: Setujui bahwa visibilitas yang lebih awal lebih baik bagi semua orang.\n2. **Berikan konteks secara netral tanpa bersikap defensif**: Jelaskan perubahan prioritas sebagai pemicu operasional keterlambatan, bukan sebagai alasan.\n3. **Fokus pada tujuan bersama**: Bingkai komunikasi di masa depan untuk menjaga sumber daya tim dan lini masa tetap jelas.\n\n---\n\n### Opsi 1: Pesan Singkat Secara Langsung atau melalui Slack/Teams\n\n> *\"Halo [Nama Manajer], saya merenungkan diskusi kita kemarin tentang tenggat waktu basis pengetahuan dukungan. Anda benar bahwa saya seharusnya menyampaikan risiko kapasitas lebih awal setelah adanya perubahan prioritas lainnya.*\n>\n> *Saya ingin memastikan kita tetap selaras ketika prioritas berubah di masa depan, jadi saya akan secara proaktif segera menandai konsekuensi terhadap lini masa. Untuk basis pengetahuan, berikut adalah statusnya saat ini dan apa yang saya butuhkan untuk menyelesaikannya pada [Tanggal yang Diusulkan]. Mari kita bicara sebentar jika Anda ingin menyesuaikan rencana tersebut.\"*\n\n---\n\n### Opsi 2: Email Singkat dan Langsung atau Pembukaan Sesi 1-on-1\n\n> *\"Halo [Nama Manajer],*\n>\n> *Menindaklanjuti percakapan kita kemarin: Saya benar-benar memperhatikan masukan Anda tentang menyampaikan risiko lebih awal. Ketika prioritas berubah selama beberapa minggu terakhir, saya fokus untuk mengakomodasi permintaan tersebut daripada menyampaikan secara eksplisit bagaimana dampaknya terhadap lini masa basis pengetahuan.*\n>\n> *Ke depannya, setiap kali muncul prioritas yang saling bertabrakan, saya akan segera mengirimkan catatan singkat yang menguraikan dampaknya terhadap tenggat waktu yang ada sehingga kita dapat memutuskan bersama mana yang lebih diutamakan.*\n>\n> *Status basis pengetahuan saat ini:*\n> *• [1–2 kalimat pembaruan status atau pencapaian berikutnya]*\n> *• Target penyelesaian: [Tanggal/Waktu]*\n>\n> *Terima kasih atas masukannya—beri tahu saya jika Anda ingin meninjau item yang tersisa bersama-sama.\"*\n\n---\n\n### Poin Utama Mengapa Ini Berhasil\n* **Menghilangkan perdebatan defensif:** Kamu tidak berdebat tentang siapa yang benar kemarin; kamu menetapkan bagaimana konflik prioritas ditangani besok.\n* **Menunjukkan pemikiran sistemik:** Kamu mengakui bahwa perubahan prioritas secara inheren memengaruhi kapasitas, dan solusinya adalah kesepakatan konsekuensi (trade-off) yang eksplisit.\n* **Fokus kembali pada hasil:** Ini diakhiri dengan jalur yang jelas untuk menyelesaikan hasil kerja yang sebenarnya.\n\n---\n\n### Langkah Selanjutnya & Saran\n\nBagaimana menurutmu salah satu dari pilihan ini untuk gaya komunikasi manajermu?\n\n- [Buat draf versi email dari tindak lanjut ini](/#message=Help%20me%20format%20this%20into%20a%20formal%20email%20draft%20for%20my%20manager.)\n- [Latih simulasi diskusi untuk sesi 1-on-1](/#message=Let's%20roleplay%20the%201-on-1%20conversation%20with%20my%20manager.)"
+      },
+      "follow_up_1": {
+        "text": "Buat draf email yang lebih formal kepada manajerku tentang perbedaan pendapat mengenai tenggat waktu kami"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan cara menetapkan batasan yang lebih baik saat prioritas berubah dengan cepat"
+      },
+      "follow_up_3": {
+        "text": "Buat pengingat tugas untuk mengirim pesan tindak lanjut besok pagi"
+      },
+      "follow_up_4": {
+        "text": "Bantu aku melakukan roleplay percakapan dengan manajerku untuk membangun rasa percaya diri"
+      },
+      "follow_up_5": {
+        "text": "Cari artikel tentang mengelola perubahan prioritas di tempat kerja secara efektif"
+      },
+      "follow_up_6": {
+        "text": "Tinjau tanggapanku untuk melihat apakah ada bahasa atau nada defensif yang tidak disengaja"
+      }
+    },
+    "community_garden_planning_mindmap": {
+      "title": {
+        "text": "Peta Pikiran Perencanaan Kebun Komunitas"
+      },
+      "summary": {
+        "text": "Petakan sukarelawan, penanaman, anggaran, dan acara yang diperlukan untuk meluncurkan kebun komunitas."
+      },
+      "message_1": {
+        "text": "Bisakah kamu membuat peta pikiran untuk merencanakan kebun komunitas, dengan cabang untuk sukarelawan, penanaman, anggaran, dan acara?"
+      },
+      "message_2": {
+        "text": "Berikut adalah peta pikiran terstruktur yang mencakup empat pilar utama dalam merencanakan kebun komunitasmu:\n\n```json\n{\"type\": \"mindmap\", \"embed_id\": \"02d212e1-3648-42f5-8c96-700bd34a5070\"}\n```\n\n### Pertimbangan Utama untuk Langkah Selanjutnya\n\n1. **Penilaian Lokasi:** Sebelum membeli perlengkapan, memeriksa kualitas tanah dari kontaminan seperti timbal dan memastikan akses ke koneksi air kota atau air hujan yang andal sangatlah krusial.\n2. **Masukan Komunitas:** Melibatkan penduduk sekitar sejak dini membantu membangun rasa kepemilikan bersama dan memastikan tanaman yang ditanam sesuai dengan preferensi kuliner dan tradisi budaya lingkungan tersebut.\n\nApakah kamu ingin mengeksplorasi:\n- [Menyusun daftar periksa pendaftaran sukarelawan](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)\n- [Menguraikan templat anggaran awal](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)"
+      },
+      "follow_up_1": {
+        "text": "Cari peluang pendanaan hibah kebun komunitas dan program pertanian lokal"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan cara melakukan uji tanah dasar untuk kebun komunitas"
+      },
+      "follow_up_3": {
+        "text": "Buat templat anggaran awal dan daftar bahan untuk kebun komunitas"
+      },
+      "follow_up_4": {
+        "text": "Sebutkan praktik terbaik untuk mengorganisir pertemuan warga bagi proyek pertanian perkotaan"
+      },
+      "follow_up_5": {
+        "text": "Bantu aku membuat deskripsi peran sukarelawan dan lembar pendaftaran untuk kebun komunitas kami"
+      },
+      "follow_up_6": {
+        "text": "Diskusikan strategi untuk menjaga keterlibatan komunitas setelah fase peluncuran awal"
+      }
+    },
+    "books_after_left_hand_of_darkness": {
+      "title": {
+        "text": "Buku untuk Dibaca Setelah The Left Hand of Darkness"
+      },
+      "summary": {
+        "text": "Empat rekomendasi fiksi ilmiah yang mendalam bagi pembaca yang menyukai pembangunan dunia dan pertanyaan sosial karya Le Guin."
+      },
+      "message_1": {
+        "text": "Saya menyukai The Left Hand of Darkness karena pembangunan dunia dan pertanyaan sosialnya. Apa yang sebaiknya saya baca selanjutnya, dan mengapa?"
+      },
+      "message_2": {
+        "text": "[The Left Hand of Darkness](wiki:The_Left_Hand_of_Darkness) karya [Ursula K. Le Guin](wiki:Ursula_K._Le_Guin) menonjol karena pembangunan dunianya bukan sekadar latar belakang pemandangan; ia berfungsi sebagai eksperimen pemikiran antropologis. Le Guin secara terkenal mendeskripsikan fiksi ilmiah sebagai laboratorium untuk bertanya *\"bagaimana jika?\"*—memeriksa bagaimana hubungan manusia, institusi, dan prasangka membentuk kembali diri mereka ketika sebuah variabel fundamental (seperti jenis kelamin biologis yang tetap) dihilangkan.\n\nBerikut adalah empat buku yang melanjutkan jenis pembangunan dunia dan penyelidikan sosial tersebut:\n\n---\n\n### 1. *The Dispossessed* karya Ursula K. Le Guin\n* **Pertanyaan Inti:** Dapatkah sebuah masyarakat mencapai kebebasan sejati tanpa kepemilikan, dan bagaimana kewajiban timbal balik bertahan di tengah pelembagaan?\n* **Mengapa Ini Cocok:** Berlatar di semesta [Hainish Cycle](wiki:Hainish_Cycle) yang sama, novel ini mengontraskan dua dunia yang bertetangga: Anarres, bulan gersang yang didasarkan pada anarko-sindikalisme dan solidaritas komunal, dan Urras, planet kaya sumber daya yang terbagi antara kapitalisme kompetitif dan sosialisme otoriter. Jika *The Left Hand of Darkness* menyelidiki gender dan kepercayaan pribadi (konsep *shifgrethor*), [The Dispossessed](wiki:The_Dispossessed) memeriksa ekonomi, bahasa, dan tanggung jawab kolektif, menanyakan bagaimana komunitas dapat membina individu sambil tetap berbakti pada bantuan timbal balik.\n\n### 2. *Dawn* (trilogi Lilith's Brood / Xenogenesis) karya [Octavia E. Butler](wiki:Octavia_E._Butler)\n* **Pertanyaan Inti:** Apa yang mendefinisikan sifat manusia, dan apa yang terjadi ketika kelangsungan hidup menuntut penyerahan dorongan kita akan hierarki dan otonomi biologis?\n* **Mengapa Ini Cocok:** Seperti kaum Gethenian karya Le Guin, alien Oankali memiliki tiga jenis kelamin (laki-laki, perempuan, dan *ooloi*, yang menengahi reproduksi dan pertukaran genetik). Butler menantang asumsi pembaca tentang persetujuan, struktur keluarga, dan kerja sama. Narasinya menanyakan apakah kelemahan mematikan kemanusiaan adalah kombinasi dari kecerdasan tinggi yang dipasangkan dengan dorongan bawaan menuju hierarki—dan apakah kita dapat berevolusi melampaui dominasi.\n\n### 3. *Ancillary Justice* karya [Ann Leckie](wiki:Ann_Leckie)\n* **Pertanyaan Inti:** Bagaimana institusi kekaisaran membentuk identitas, dan seperti apa kesadaran ketika dipisahkan dari bentuk manusia individu?\n* **Mengapa Ini Cocok:** Kekaisaran Radch karya Leckie tidak membagi masyarakat berdasarkan garis gender; faktanya, bahasa yang dominan sama sekali tidak memiliki penanda gender, menggunakan kata ganti feminin secara universal. Di luar paralel linguistik dengan eksplorasi persepsi Le Guin, ceritanya—yang diceritakan dari sudut pandang kecerdasan buatan yang sebelumnya tersebar di sebuah kapal perang dan ribuan tubuh \"tambahan\" (ancillary) manusia—mendalami keterlibatan, tugas, dan hati nurani individu dalam sebuah kekaisaran ekspansionis.\n\n### 4. *A Half-Built Garden* karya [Ruthanna Emrys](wiki:Ruthanna_Emrys)\n* **Pertanyaan Inti:** Bagaimana komunitas manusia dapat mengatur penatalayanan demokratis untuk bertahan dari keruntuhan ekologis, dan bagaimana kita bernegosiasi dengan budaya yang dibangun di atas nilai-nilai yang mendasarinya berbeda?\n* **Mengapa Ini Cocok:** Di Bumi tahun 2080-an yang diperintah oleh jaringan daerah aliran sungai dan koperasi ekologi komunal, kontak pertama terjadi dengan spesies alien yang menawarkan keselamatan melalui migrasi. Buku ini berfokus secara intensif pada diplomasi, konsensus komunitas, pengasuhan, dan pengambilan keputusan masyarakat, menawarkan tempo antropologis yang sengaja dan nuansa etis yang sama seperti yang ditemukan dalam karya-karya Le Guin.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"next_read_focus\",\n  \"multiple\": false,\n  \"question\": \"Which dimension of The Left Hand of Darkness resonated most with you?\",\n  \"options\": [\n    {\n      \"id\": \"politics_economics\",\n      \"text\": \"Political philosophy, mutual aid, and contrasting economic systems (Lean towards The Dispossessed)\"\n    },\n    {\n      \"id\": \"biology_gender\",\n      \"text\": \"Biology, alien contact, and redefining kinship or consent (Lean towards Dawn)\"\n    },\n    {\n      \"id\": \"identity_language\",\n      \"text\": \"Language, perspective, and challenging imperial hierarchies (Lean towards Ancillary Justice)\"\n    },\n    {\n      \"id\": \"diplomacy_ecology\",\n      \"text\": \"Ecological stewardship, diplomacy, and community decision-making (Lean towards A Half-Built Garden)\"\n    }\n  ]\n}\n```\n\n---\n\n### Langkah Selanjutnya yang Disarankan\n* [Jelajahi tema-tema The Dispossessed](/#message=Tell%20me%20more%20about%20the%20philosophical%20themes%20of%20The%20Dispossessed%20by%20Ursula%20K.%20Le%20Guin.)\n* [Bandingkan hubungan Genly Ai dan Estraven](/#message=Analyze%20the%20relationship%20between%20Genly%20Ai%20and%20Estraven%20in%20The%20Left%20Hand%20of%20Darkness.)"
+      },
+      "follow_up_1": {
+        "text": "Cari ulasan dan ringkasan The Dispossessed"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan bagaimana novel-novel Siklus Hainish terhubung satu sama lain"
+      },
+      "follow_up_3": {
+        "text": "Temukan penghargaan yang dimenangkan oleh Ancillary Justice karya Ann Leckie"
+      },
+      "follow_up_4": {
+        "text": "Diskusikan peran bahasa dalam membentuk pemikiran politik dalam fiksi spekulatif"
+      },
+      "follow_up_5": {
+        "text": "Cari ketersediaan di perpustakaan untuk Dawn karya Octavia E Butler"
+      },
+      "follow_up_6": {
+        "text": "Bandingkan biologi alien Gethenian dan Oankali"
+      }
+    },
+    "community_garden_budget_review": {
+      "title": {
+        "text": "Tinjau PDF anggaran kebun komunitas"
+      },
+      "summary": {
+        "text": "Baca anggaran fiktif untuk membandingkan pengeluaran, pendanaan, dan biaya yang mungkin terlewat."
+      },
+      "message_1": {
+        "text": "Bisakah kamu merangkum pengeluaran terbesar, total pendanaan, selisih pendanaan, dan biaya yang mungkin terlewat dalam PDF anggaran kebun komunitas yang terlampir ini?\n[!](embed:fictional-community-garden-budget-pdf-e1-146e58)"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c\",\"app_id\":\"pdf\",\"skill_id\":\"read\"}\n```\n\nBerikut adalah ringkasan singkat anggaran dalam PDF anggaran kebun komunitas yang dilampirkan.\n\n## 1) Pengeluaran terbesar\nDiurutkan dari yang tertinggi ke terendah:\n\n1. **Kayu dan perangkat keras bedengan** — **€420**\n2. **Tanah dan kompos** — **€300**\n3. **Peralatan tangan bersama** — **€140**\n4. **Selang penyiraman dan konektor** — **€95**\n5. **Benih dan bibit** — **€85**\n6. **Perlengkapan acara pembukaan** — **€75**\n\n## 2) Total rencana pengeluaran\nMenjumlahkan pengeluaran yang terdaftar:\n\n- 420 + 300 + 85 + 140 + 95 + 75 = **€1,115**\n\n## 3) Total pendanaan yang diharapkan\nSumber pendanaan yang terdaftar:\n\n- **Hibah lingkungan** — €800\n- **Donasi sukarelawan** — €200\n\nTotal pendanaan:\n\n- 800 + 200 = **€1,000**\n\n## 4) Selisih pendanaan\n- **Total pengeluaran:** €1,115\n- **Total pendanaan:** €1,000\n- **Selisih pendanaan:** **€115**\n\n## 5) Biaya yang kemungkinan terlewat\nUntuk kebun komunitas yang sebenarnya, draf ini kemungkinan melewatkan beberapa item umum:\n\n- **Persiapan lokasi** — pembersihan, perataan, pembuangan puing\n- **Biaya pengiriman/transportasi** — untuk kayu, tanah, kompos\n- **Penyimpanan/keamanan** — kotak perkakas, gudang, gembok\n- **Biaya akses air** — penyambungan, penggunaan meteran, biaya pemakaian\n- **Bahan pelindung** — sarung tangan, gerobak dorong, terpal\n- **Pagar/papan tanda** — untuk melindungi petak dan memberi informasi kepada tetangga\n- **Pemeliharaan berkelanjutan** — penggantian alat, tanah tambahan, pengendalian hama\n- **Asuransi/izin** — jika diwajibkan oleh pemerintah kota atau pemilik tanah\n- **Cadangan kontinjensi** — biasanya berguna karena proyek komunitas kecil sering kali melebihi anggaran\n\n## Interpretasi cepat\nAnggaran ini **hampir seimbang**, tetapi **selisih €115** sudah ada bahkan sebelum biaya yang kemungkinan terlewat ditambahkan. Jadi dalam praktiknya, proyek ini mungkin memerlukan salah satu dari:\n- sedikit lebih banyak penggalangan dana,\n- beberapa sumbangan bahan/peralatan,\n- atau pengurangan cakupan fase pertama.\n\nJika mau, aku juga bisa mengubah ini menjadi:\n- **ringkasan satu paragraf untuk pertemuan hibah**, atau\n- **tabel anggaran yang rapi dengan persentase per kategori**.\n---\n*⚠️ Ini hanya informasi edukasi dan bukan nasihat keuangan. Konsultasikan dengan profesional keuangan atau penasihat pajak yang berkualifikasi untuk keputusan keuangan.*"
+      },
+      "follow_up_1": {
+        "text": "Cari hibah kebun komunitas lokal dan peluang pendanaan"
+      },
+      "follow_up_2": {
+        "text": "Bandingkan berbagai ide penggalangan dana untuk menutupi kekurangan dana"
+      },
+      "follow_up_3": {
+        "text": "Cari panduan pertanian perkotaan berkelanjutan dan kebun komunitas"
+      },
+      "follow_up_4": {
+        "text": "Buat ringkasan satu paragraf untuk pertemuan hibah"
+      },
+      "follow_up_5": {
+        "text": "Cari opsi penyimpanan alat dan keamanan kebun komunitas"
+      },
+      "follow_up_6": {
+        "text": "Daftar cadangan kontingensi yang direkomendasikan untuk proyek komunitas kecil"
+      }
+    },
+    "berlin_english_speaking_gp_appointments": {
+      "title": {
+        "text": "Cari dokter umum berbahasa Inggris di Berlin"
+      },
+      "summary": {
+        "text": "Temukan opsi janji temu dengan detail asuransi yang jujur dan tautan praktik dokter."
+      },
+      "message_1": {
+        "text": "Aku butuh janji temu dokter umum berbahasa Inggris di Berlin minggu depan. Tolong bandingkan opsi tercepat, tunjukkan kartu janji temunya, dan hanya sebutkan cakupan asuransi jika daftar pemesanan mengonfirmasinya. Jika cakupannya tidak jelas, katakan saja."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```Ini adalah pilihan dokter umum (GP) berbahasa Inggris tercepat di Berlin dalam 7 hari ke depan yang saya temukan. Saya hanya mencantumkan cakupan asuransi jika daftar pemesanannya sendiri menunjukkannya.\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**Pilihan tercepat minggu depan**\n1. **Senin 12 Okt, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - Alamat: Albert-Einstein-Straße 2, 12489 Berlin\n   - Jenis kunjungan: Pemeriksaan pertama pasien baru\n   - Bahasa yang ditampilkan: Jerman, Inggris\n   - **Asuransi:** pribadi *(dikonfirmasi oleh daftar)*\n\n2. **Senin 12 Okt, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - Alamat: Kapweg 5, 13405 Berlin\n   - Jenis kunjungan: Pemeriksaan pertama pasien baru\n   - Bahasa yang ditampilkan: Inggris\n   - **Asuransi:** pribadi *(dikonfirmasi oleh daftar)*\n\n3. **Senin 12 Okt, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - Alamat: Stargarder Straße 69, 10437 Berlin\n   - Jenis kunjungan: Konsultasi akut\n   - Bahasa yang ditampilkan: Jerman, Inggris\n   - **Asuransi:** tidak jelas *(daftar tidak mengonfirmasinya)*\n\n4. **Senin 12 Okt, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - Alamat: Müllerstraße 36, 13353 Berlin\n   - Jenis kunjungan: Pemeriksaan pertama pasien baru\n   - Bahasa yang ditampilkan: Jerman, Inggris\n   - **Asuransi:** tidak jelas *(daftar tidak mengonfirmasinya)*\n\n5. **Senin 12 Okt, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - Alamat: Wallstraße 16, 10179 Berlin\n   - Jenis kunjungan: Pemeriksaan pertama pasien baru\n   - Bahasa yang ditampilkan: Jerman, Inggris\n   - **Asuransi:** tidak jelas *(daftar tidak mengonfirmasinya)*\n\nBeberapa catatan:\n- Saya mengecualikan dua pilihan sebelumnya pada **9–10 Okt** dari perbandingan di atas karena kamu meminta khusus untuk **minggu depan**.\n- Hasil ini tampaknya berasal dari daftar Doctolib; cakupan Jameda tidak didukung dalam kumpulan hasil pencarian ini.```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```Kalau mau, selanjutnya aku bisa:\n- mempersempit ini ke **asuransi publik saja** yang sudah dikonfirmasi, atau\n- bikin daftar singkat berdasarkan **distrik / jarak dari lokasimu**.\n---\n*⚠️ Ini cuma informasi edukasi dan bukan saran medis. Konsultasikan dengan doktermu untuk keputusan medis.*"
+      },
+      "follow_up_1": {
+        "text": "Cari janji temu dokter umum asuransi publik di Mitte"
+      },
+      "follow_up_2": {
+        "text": "Filter janji temu untuk menampilkan asuransi publik saja"
+      },
+      "follow_up_3": {
+        "text": "Cari dokter berbahasa Inggris di dekat distrik Prenzlauer Berg"
+      },
+      "follow_up_4": {
+        "text": "Persempit pilihan berdasarkan lingkungan dan jarak"
+      },
+      "follow_up_5": {
+        "text": "Cari janji temu dokter spesialis di Berlin"
+      },
+      "follow_up_6": {
+        "text": "Jelaskan cara memesan janji temu dokter ini secara online"
+      }
+    },
+    "community_garden_welcome_melody": {
+      "title": {
+        "text": "Melodi untuk Sambutan Kebun Komunitas"
+      },
+      "summary": {
+        "text": "Buat melodi instrumental yang lembut untuk video sambutan kebun komunitas."
+      },
+      "message_1": {
+        "text": "Bisakah kamu membuat melodi instrumental yang pendek dan lembut untuk video sambutan kebun komunitas, tanpa vokal?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nAku sedang membuat trek instrumental lembut untuk video sambutan kebun komunitasmu sekarang. Saat ini sedang diproses dan akan muncul di sini setelah siap.\n\nProyek [berkebun komunitas](wiki:Community_gardening) adalah cara yang luar biasa untuk menyatukan tetangga dan memupuk keanekaragaman hayati lokal. Selagi musiknya dibuat, apakah kamu ingin bantuan merencanakan narasi atau alur visual video sambutannya?\n\n- [Buat draf kerangka untuk video sambutan](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [Cari ide teks pengantar atau tips sulih suara](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+      },
+      "follow_up_1": {
+        "text": "Cari acara dan lokakarya kebun komunitas lokal"
+      },
+      "follow_up_2": {
+        "text": "Bantu aku menyusun papan cerita untuk video kebun tersebut"
+      },
+      "follow_up_3": {
+        "text": "Cari video stok tanaman dan bunga"
+      },
+      "follow_up_4": {
+        "text": "Tulis naskah sulih suara sambutan untuk video komunitas tersebut"
+      },
+      "follow_up_5": {
+        "text": "Cari tips berkebun untuk proyek komunitas"
+      },
+      "follow_up_6": {
+        "text": "Berikan ide kegiatan untuk hari pembukaan kebun komunitas"
+      }
+    },
+    "mastodon_public_post_themes": {
+      "title": {
+        "text": "Tema dalam Kiriman Publik Mastodon"
+      },
+      "summary": {
+        "text": "Rangkum tema-tema dalam kiriman terbaru dari akun resmi Mastodon dan jelajahi contoh-contoh representatifnya."
+      },
+      "message_1": {
+        "text": "Bisakah kamu merangkum tema-tema utama dalam kiriman publik terbaru oleh akun resmi Mastodon di mastodon.social, lengkap dengan tautan ke beberapa contohnya?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nPermintaan untuk mengambil kiriman publik terbaru dari @Mastodon (`@Mastodon@mastodon.social`) saat ini masih berjalan di latar belakang dan akan memperbarui obrolan setelah siap.\n\nSambil menunggu umpan dimuat:\n- [Cek pengumuman blog Mastodon terbaru](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Jelajahi peta jalan Mastodon](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
+      },
+      "message_3": {
+        "text": "Kiriman sudah dimuat sekarang. Bisakah kamu merangkum tema-tema utamanya dan menautkan ke tiga kiriman yang representatif?"
+      },
+      "message_4": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nAkun resmi @Mastodon di `mastodon.social` menyoroti beberapa tema utama dalam postingan publik terbarunya:\n\n### 1. Evolusi Produk Utama & Riset Pengguna\nFokus utamanya adalah persiapan untuk **Mastodon 5.0**, menyusul inisiatif riset \"Discovery Week\" di seluruh komunitas yang dipimpin oleh tim desain mereka. Tim tersebut membagikan pratinjau antarmuka yang didesain ulang dan lebih tenang, serta komposer yang diperbarui yang bertujuan untuk membuat platform ini lebih mudah diakses dan ramah pengguna.\n\n### 2. Tata Kelola Komunitas, Kebijakan & Pembaruan Staf\nMastodon secara rutin mengomunikasikan pembaruan tata kelola dan kebijakan, terutama merilis panduan klarifikasi seputar **Kebijakan Merek Dagang** mereka sebagai tanggapan langsung terhadap masukan admin dan pengembang fediverse. Mereka juga mengumumkan transisi kepemimpinan utama, berterima kasih kepada direktur komunitas yang akan segera mengakhiri masa jabatannya, Hannah Aubry, atas kontribusinya.\n\n### 3. Sorotan Server & Ekosistem Fediverse\nAkun tersebut secara aktif mempromosikan instansi fediverse independen dan inisiatif infrastruktur—seperti menyoroti server bertema (seperti Earth.Law) dan memperluas jangkauan survei industri seperti riset operasi IFTAS.\n\n### 4. Merchandise Komunitas & Pendanaan Proyek\nUntuk mendukung pengembangan sumber terbuka yang sedang berlangsung, mereka membagikan pembaruan merchandise resmi komunitas, termasuk rilis maskot boneka baru (\"Plushtodons\").\n\n---\n\n### Tiga Postingan Representatif\n\n- **Peta Jalan Produk & Penyegaran Visual:** [Pengumuman pratinjau Mastodon 5.0](embed:mastodon-after-publishing-D8d) — membagikan pratinjau tata letak 5.0 mendatang dan komposer postingan berdasarkan temuan riset.\n- **Kebijakan & Masukan Komunitas:** [Pembaruan panduan kebijakan merek dagang](embed:mastodon-today-we-YqD) — menguraikan aturan merek dagang yang direvisi yang diadaptasi dari masukan komunitas.\n- **Dukungan Proyek & Merchandise:** [Pengumuman pra-pesan Plushtodon](embed:mastodon-new-plushtodon-A57) — mengumumkan maskot boneka resmi baru sebagai cara bagi pendukung untuk mendanai pengembangan.\n\n---\n\nApakah kamu ingin menjelajahi topik tertentu lebih lanjut?\n- [Baca selengkapnya tentang fitur Mastodon 5.0](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [Tinjau panduan merek dagang](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+      },
+      "follow_up_1": {
+        "text": "Cari pengumuman blog Mastodon terbaru"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan cara kerja moderasi terdesentralisasi di Mastodon"
+      },
+      "follow_up_3": {
+        "text": "Cari pembaruan tentang pengembangan Mastodon 5.0"
+      },
+      "follow_up_4": {
+        "text": "Bandingkan perubahan Mastodon 5.0 dengan rilis sebelumnya"
+      },
+      "follow_up_5": {
+        "text": "Cari diskusi komunitas tentang moderasi server Fediverse"
+      },
+      "follow_up_6": {
+        "text": "Sebutkan tantangan utama yang dihadapi oleh platform sumber terbuka"
+      }
+    },
+    "adjacent_career_portfolio_experiments": {
+      "title": {
+        "text": "Uji Dua Jalur Karier dari Customer Support"
+      },
+      "summary": {
+        "text": "Bandingkan technical writing dan support operations dengan eksperimen portofolio praktis satu bulan dan pertanyaan wawancara."
+      },
+      "message_1": {
+        "text": "Saya bekerja di bagian customer support perangkat lunak dan suka menulis panduan bantuan serta meningkatkan alur kerja tiket. Apa dua peran terdekat yang bisa saya uji sebelum melamar pekerjaan baru? Tolong sarankan eksperimen portofolio kecil yang bisa saya lakukan selama sebulan ke depan dan pertanyaan untuk diajukan kepada orang-orang di peran tersebut."
+      },
+      "message_2": {
+        "text": "Berdasarkan latar belakangmu di [dukungan pelanggan](wiki:Customer_support) dan kesukaanmu pada panduan bantuan serta alur kerja tiket, ada dua peran yang berkaitan secara alami yang menonjol:\n\n1. **Technical Writer / Customer Education Specialist**\n   *Fokus:* Mengatur [arsitektur informasi](wiki:Information_architecture), menerjemahkan fitur perangkat lunak yang kompleks menjadi dokumentasi pengguna yang jelas, membuat panduan pemecahan masalah, dan mengelola basis pengetahuan mandiri (self-service knowledge bases).\n2. **Support Operations Specialist (Support Ops)**\n   *Fokus:* Mengelola alat tiket dukungan (seperti [Zendesk](wiki:Zendesk), Freshdesk, atau Jira Service Management), menganalisis metrik dukungan, mengoptimalkan perutean tiket, mengaudit makro, dan mengotomatiskan proses yang berulang.\n\n---\n\n### Eksperimen Portofolio 30 Hari\n\nKamu tidak perlu segera pindah kerja untuk membangun bukti hasil kerja (proof of work). Kamu bisa menjalankan eksperimen ringan ini langsung di peranmu saat ini atau sebagai studi kasus independen:\n\n#### Untuk Technical Writing / Customer Education\n* **Penulisan Ulang \"5 Tiket Teratas\":** Identifikasi 3 hingga 5 tiket dukungan umum di mana pengguna sering mengalami kendala karena UI yang membingungkan atau panduan yang sudah ada tidak jelas.\n* **Hasil Kerja:** Tulis panduan pemecahan masalah atau artikel tutorial yang komprehensif dan modular. Susun dengan tajuk yang jelas, prasyarat, instruksi langkah demi langkah, serta tangkapan layar atau diagram yang diberi anotasi.\n* **Metrik Portofolio:** Pantau apakah tiket yang ditandai dengan masalah ini berkurang setelah dipublikasikan, atau ukur umpan balik tim internal mengenai kecepatan penyelesaian masalah.\n\n#### Untuk Support Operations\n* **Audit Efisiensi Makro & Perutean:** Analisis pustaka makro atau aturan perutean tiket yang ada di timmu.\n* **Hasil Kerja:** Buat proposal perbaikan proses sebanyak 1 hingga 2 halaman yang menunjukkan:\n  1. Makro yang redundan atau usang yang teridentifikasi.\n  2. Skema kategorisasi yang lebih ringkas atau pengaturan pemicu (trigger) otomatis.\n  3. Estimasi waktu yang dihemat per agen per minggu.\n* **Metrik Portofolio:** Presentasikan ini kepada atasanmu atau terapkan jika kamu memiliki akses admin, lalu catat perbandingan sebelum dan sesudahnya.\n\n---\n\n### Pertanyaan untuk Wawancara Informasional\n\nSaat menghubungi praktisi di LinkedIn atau secara internal:\n\n#### Untuk Technical Writer\n* *\"Bagaimana kamu menyeimbangkan penulisan untuk pengguna akhir dibandingkan penulisan untuk tim teknis internal atau insinyur?\"*\n* *\"Seperti apa siklus kolaborasimu saat fitur produk berubah dengan cepat sebelum dokumentasi diperbarui?\"*\n* *\"Alat penulisan dan alur kerja docs-as-code mana yang paling bernilai dalam perekrutan saat ini?\"*\n\n#### Untuk Support Operations Specialist\n* *\"Berapa banyak waktu harianmu yang dihabiskan untuk mengonfigurasi alat dan integrasi dibandingkan menganalisis data dan tren volume tiket?\"*\n* *\"Saat menskalakan alur kerja dukungan, apa kesalahan paling umum yang dilakukan tim dalam hal otomatisasi?\"*\n* *\"Sertifikasi administratif (misalnya, Zendesk, Salesforce) atau keterampilan teknis apa yang memberikan perbedaan terbesar dalam mendapatkan peranmu?\"*\n\n---\n\n### Menjelajahi Arahmu (Pertanyaan 1 dari 5)\n\nUntuk membantu mengidentifikasi jalur mana yang paling sesuai dengan tujuan jangka panjang dan preferensi harianmu, mari kita jelajahi gaya kerja inti dan minatmu.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"adjacent_role_preference\",\n  \"multiple\": false,\n  \"question\": \"When you reflect on writing guides versus improving workflows, which type of problem energizes you more?\",\n  \"custom_option_id\": \"other_focus\",\n  \"custom_placeholder\": \"Describe what you enjoy most or any specific balance...\",\n  \"options\": [\n    {\n      \"id\": \"content_pedagogy\",\n      \"text\": \"Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education).\"\n    },\n    {\n      \"id\": \"systems_tooling\",\n      \"text\": \"Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps).\"\n    },\n    {\n      \"id\": \"hybrid_balance\",\n      \"text\": \"An even split between both; I want to improve internal systems while also authoring the guides.\"\n    },\n    {\n      \"id\": \"other_focus\",\n      \"text\": \"Something else / A different aspect entirely.\"\n    }\n  ]\n}\n```\n\n**Rekomendasi:** Jika kamu lebih menyukai fokus mendalam, kejelasan komunikasi, dan empati UX, jalur Technical Writing umumnya menawarkan lebih banyak otonomi. Jika kamu lebih menyukai pemecahan masalah seputar administrasi alat, metrik, dan logika sistem, Support Operations memberikan jalur yang lebih cepat menuju kepemimpinan operasional dan operasional produk.\n\n---\n\n**Langkah selanjutnya yang potensial:**\n- [Buat draf pesan penjangkauan untuk wawancara informasional](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)\n- [Buat kerangka templat audit alur kerja dukungan](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)\n---\n*⚠️ Ini adalah informasi edukasi saja dan bukan saran psikologis profesional. Untuk masalah kesehatan mental, silakan berkonsultasi dengan terapis atau konselor yang berkualifikasi. Jika kamu mengalami krisis, segera hubungi layanan darurat atau hotline krisis.*"
+      },
+      "follow_up_1": {
+        "text": "Cari lowongan dan persyaratan penulis teknis jarak jauh (remote technical writer)"
+      },
+      "follow_up_2": {
+        "text": "Buat draf pesan penjangkauan singkat untuk wawancara penulis teknis"
+      },
+      "follow_up_3": {
+        "text": "Buat daftar tugas untuk eksperimen portofolio tiga puluh hari kamu"
+      },
+      "follow_up_4": {
+        "text": "Buat kerangka panduan langkah demi langkah untuk audit alur kerja dukungan kamu"
+      },
+      "follow_up_5": {
+        "text": "Cari kursus sertifikasi dan persyaratan operasional dukungan (support operations)"
+      },
+      "follow_up_6": {
+        "text": "Bandingkan tanggung jawab harian dan jalur pertumbuhan kedua peran tersebut"
+      }
+    },
+    "bayes_theorem_quick_quiz": {
+      "title": {
+        "text": "Pelajari Teorema Bayes dengan Kuis Singkat"
+      },
+      "summary": {
+        "text": "Pahami probabilitas prior dan posterior melalui contoh konkret, lalu uji intuisimu dengan pertanyaan lanjutan."
+      },
+      "message_1": {
+        "text": "Aku ada ujian statistika minggu depan. Bisakah kamu menjelaskan teorema Bayes dengan satu contoh sehari-hari lalu memberiku kuis?"
+      },
+      "message_2": {
+        "text": "### Apa itu Teorema Bayes?\n\n[Teorema Bayes](wiki:Bayes'_theorem) adalah aturan matematika untuk memperbarui probabilitas suatu peristiwa atau hipotesis ($A$) ketika kamu mengamati bukti baru ($B$).\n\nDalam simbol:\n\n$$P(A|B) = \\frac{P(B|A) \\cdot P(A)}{P(B)}$$\n\nBerikut adalah representasi dari setiap komponen:\n* **$P(A)$ — [Probabilitas prior](wiki:Prior_probability):** Estimasi awalmu tentang seberapa besar kemungkinan $A$ sebelum melihat data baru (garis dasar atau tingkat dasar).\n* **$P(B|A)$ — Likelihood:** Probabilitas mengamati bukti $B$ jika hipotesis $A$ benar-benar terjadi.\n* **$P(B)$ — [Likelihood marginal](wiki:Marginal_likelihood):** Probabilitas total mengamati bukti $B$ di semua skenario yang memungkinkan.\n* **$P(A|B)$ — [Probabilitas posterior](wiki:Posterior_probability):** Probabilitas $A$ yang telah diperbarui setelah bukti $B$ terjadi.\n\n---\n\n### Contoh Sehari-hari: Tes Medis Cepat\n\nBayangkan kamu menjalani tes skrining cepat untuk suatu kondisi langka:\n\n1. **Tingkat Dasar (Prior):** Hanya **$1\\%$** orang dalam populasimu yang benar-benar memiliki kondisi ini:\n   $$P(\\text{Kondisi}) = 0.01, \\quad P(\\text{Sehat}) = 0.99$$\n2. **Sensitivitas Tes (Likelihood):** Jika seseorang memiliki kondisi tersebut, tesnya positif $90\\%$ dari waktu:\n   $$P(\\text{Positif} \\mid \\text{Kondisi}) = 0.90$$\n3. **Tingkat Positif Palsu:** Jika seseorang tidak memilikinya, tes tersebut secara salah menunjukkan hasil positif $10\\%$ dari waktu:\n   $$P(\\text{Positif} \\mid \\text{Sehat}) = 0.10$$\n\nSekarang andaikan **hasil tesmu positif**. Berapa probabilitas kamu benar-benar memiliki kondisi tersebut?\n\n#### Menerapkan Rumus:\nPertama, hitung peluang total mendapatkan tes positif, $P(\\text{Positif})$:\n$$\\begin{aligned}\nP(\\text{Positif}) &= P(\\text{Positif} \\mid \\text{Kondisi}) \\cdot P(\\text{Kondisi}) + P(\\text{Positif} \\mid \\text{Sehat}) \\cdot P(\\text{Sehat}) \\\\\n&= (0.90 \\cdot 0.01) + (0.10 \\cdot 0.99) \\\\\n&= 0.009 + 0.099 = 0.108\n\\end{aligned}$$\n\nSekarang, hitung probabilitas posteriormu:\n$$P(\\text{Kondisi} \\mid \\text{Positif}) = \\frac{0.009}{0.108} \\approx 8.3\\%$$\n\nBahkan dengan tes yang akurasinya $90\\%$, peluang benar-benar memiliki kondisi tersebut hanya sekitar **$8.3\\%$**. Karena kondisi tersebut langka, positif palsu dari mayoritas yang sehat dengan mudah melebihi jumlah positif asli dari minoritas yang sakit.\n\n---\n\n### Cek Cepat\n\nMari kita uji pemahamanmu tentang istilah-istilah tersebut:\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"bayes_components_quiz_1\",\n  \"multiple\": false,\n  \"question\": \"In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?\",\n  \"options\": [\n    { \"id\": \"opt_pa\", \"text\": \"P(A) — Prior probability\" },\n    { \"id\": \"opt_pba\", \"text\": \"P(B|A) — Likelihood\" },\n    { \"id\": \"opt_pab\", \"text\": \"P(A|B) — Posterior probability\" },\n    { \"id\": \"opt_pb\", \"text\": \"P(B) — Marginal probability of evidence\" }\n  ]\n}\n```"
+      },
+      "message_3": {
+        "text": "Menurutku P(A) adalah probabilitas prior, base rate awalnya. Apakah itu benar? Bisa beri aku satu pertanyaan singkat lagi untuk dicoba?"
+      },
+      "message_4": {
+        "text": "Tepat sekali. $P(A)$ adalah **probabilitas prior**—keyakinan dasar atau awalmu sebelum memperhitungkan observasi atau hasil tes baru. Dalam contoh skrining medis kita, itu adalah tingkat populasi umum sebesar $1\\%$.\n\n---\n\n### Pertanyaan Tantangan: Cek Intuisi\n\nBerikut adalah skenario singkat untuk menguji intuisimu tentang bagaimana teorema Bayes bekerja dalam praktiknya:\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"bayes_intuition_quiz_2\",\n  \"multiple\": false,\n  \"question\": \"Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?\",\n  \"options\": [\n    {\n      \"id\": \"opt_very_high\",\n      \"text\": \"The posterior probability is close to 100% because alarms are specifically built to detect break-ins.\"\n    },\n    {\n      \"id\": \"opt_counterintuitively_low\",\n      \"text\": \"The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins.\"\n    },\n    {\n      \"id\": \"opt_equal_to_prior\",\n      \"text\": \"The posterior probability remains completely unchanged regardless of whether the alarm sounds.\"\n    },\n    {\n      \"id\": \"opt_independent\",\n      \"text\": \"The posterior probability depends only on alarm volume, not the baseline frequency of burglaries.\"\n    }\n  ]\n}\n```\n\n***\n\n**Langkah Selanjutnya yang Disarankan:**\n* [Hitung masalah numerik Bayes lengkap langkah demi langkah](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)\n* [Tinjau Bayes kontinu dan prior konjugat](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)"
+      },
+      "follow_up_1": {
+        "text": "Hitung soal cerita probabilitas teorema Bayes kustom"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan perbedaan antara statistik frekuentis dan Bayesian"
+      },
+      "follow_up_3": {
+        "text": "Cari latihan soal ujian statistik tentang probabilitas"
+      },
+      "follow_up_4": {
+        "text": "Bahas contoh teorema Bayes lainnya dengan beberapa hasil"
+      },
+      "follow_up_5": {
+        "text": "Cari tutorial video daring yang menjelaskan teorema Bayes secara visual"
+      },
+      "follow_up_6": {
+        "text": "Uji aku dalam menghitung probabilitas posterior dengan angka"
+      }
+    },
+    "community_garden_calendar_invitation": {
+      "title": {
+        "text": "Undangan Kalender Kebun Komunitas"
+      },
+      "summary": {
+        "text": "Buat undangan kalender yang dapat diimpor dengan zona waktu Berlin, agenda acara, dan pengingat untuk sesi penanaman sukarelawan."
+      },
+      "message_1": {
+        "text": "Bisakah kamu membuat undangan kalender yang dapat diimpor untuk sesi penanaman sukarelawan kebun komunitas fiktif pada hari Sabtu, 17 Oktober 2026, dari pukul 10:00 hingga 12:00 di Europe/Berlin? Gunakan Gartenweg 12, Berlin sebagai contoh lokasi fiktif, sertakan agenda singkat dan pengingat 24 jam, serta berikan teks iCalendar untuk disimpan sebagai file .ics."
+      },
+      "message_2": {
+        "text": "Berikut adalah data standar [iCalendar](wiki:ICalendar) (`.ics`) untuk sesi penanaman kebun komunitasmu. Ini mencakup definisi zona waktu Europe/Berlin, detail acara, agenda, dan pengingat tampilan 24 jam (VALARM).\n\nSimpan konten di bawah ini ke dalam file teks bernama `community_garden_planting.ics` dan impor ke klien kalendarmu (seperti Google Calendar, Apple Calendar, atau Microsoft Outlook).\n\n```json\n{\"type\": \"code\", \"embed_id\": \"6deff7cb-4e99-4dd3-9052-3985e09a9cc9\"}\n```\n\n### Ringkasan Acara\n* **Tanggal & Waktu:** Sabtu, 17 Oktober 2026, 10:00 – 12:00 CEST\n* **Lokasi:** Gartenweg 12, Berlin\n* **Pengingat:** 1 hari sebelumnya (`TRIGGER:-P1D`)\n\n***\n\n**Saran Langkah Selanjutnya:**\n* [Buat draf email undangan untuk sukarelawan](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)\n* [Siapkan dokumen daftar periksa penanaman & peralatan](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)"
+      },
+      "follow_up_1": {
+        "text": "Cari tips sukarelawan kebun komunitas secara online"
+      },
+      "follow_up_2": {
+        "text": "Buat draf email ramah untuk mengundang sukarelawan ke sesi penanaman"
+      },
+      "follow_up_3": {
+        "text": "Cari lokakarya berkebun mendatang di Berlin"
+      },
+      "follow_up_4": {
+        "text": "Buat daftar periksa peralatan lengkap untuk acara berkebun"
+      },
+      "follow_up_5": {
+        "text": "Cari tanaman perenial yang ramah pemula secara online"
+      },
+      "follow_up_6": {
+        "text": "Jelaskan cara mengimpor file .ics ke Google Calendar"
+      }
+    },
+    "net_cash_from_supplied_balances": {
+      "title": {
+        "text": "Kas Bersih dari Saldo yang Diberikan"
+      },
+      "summary": {
+        "text": "Hitung kas bersih dari tiga saldo yang diberikan oleh pengguna dan jelaskan tentang giro, tabungan, dan utang kartu kredit."
+      },
+      "message_1": {
+        "text": "Berikut adalah saldo saya saat ini dari laporan yang ada di depan saya: giro €1.850, tabungan €4.200, saldo kartu kredit yang terutang €640. Bisakah kamu menunjukkan posisi kas bersih saya dan menjelaskan arti dari setiap angka tersebut?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"04818ed0-8e67-4cb8-9736-45d5c35d393a\",\"app_id\":\"math\",\"skill_id\":\"calculate\"}\n```### Posisi Kas Bersih Anda\n\n**Posisi kas bersih** Anda adalah **€5.410**.\n\nIni rinciannya:```json\n{\"type\": \"sheet\", \"embed_id\": \"3db1b137-abac-48a5-8c18-31ef7821ec04\"}\n```\n\n---\n### Apa Arti Setiap Angka Ini\n\n1. **Rekening Giro (€1.850): Kas Operasional (Modal Kerja)**\n   * Ini adalah kumpulan [kas](wiki:Cash) paling likuid milikmu, yang dimaksudkan untuk menutupi biaya hidup rutin (sewa/KPR, utilitas, belanja bulanan, langganan).\n   * Memiliki €1.850 memberikan cadangan langsung untuk mencegah biaya overdraft atau keterlambatan tenggat pembayaran sambil menunggu pemasukan datang.\n\n2. **Rekening Tabungan (€4.200): Margin Keamanan & Cadangan**\n   * Ini mewakili dana yang disimpan untuk [dana darurat](wiki:Emergency_fund) atau tujuan keuangan jangka menengah.\n   * Berbeda dengan rekening giro, kas ini dipisahkan agar tidak terpakai untuk pengeluaran sehari-hari dan biasanya mendapatkan bunga, namun tetap mudah diakses jika muncul biaya tak terduga.\n\n3. **Saldo Kartu Kredit (€640): [Utang](wiki:Debt) Jangka Pendek**\n   * Ini adalah kewajiban kepada penerbit kartu. Jika dibayar lunas sebelum masa tenggang tagihan berakhir, tidak akan dikenakan bunga.\n   * Namun, jika dibiarkan melewati tanggal jatuh tempo, kartu kredit umumnya mengenakan suku bunga tinggi (APR), yang akan dengan cepat menggerus kas bersihmu.\n\n4. **Posisi Kas Bersih (€5.410): Likuiditas Langsung yang Sebenarnya**\n   * Metrik ini mengukur apa yang tersisa dalam kas likuid jika kamu melunasi utang kartu kredit jangka pendekmu saat ini seketika itu juga.\n   * Angka positif menunjukkan bahwa kamu sepenuhnya likuid dan solven terhadap kewajiban kartu saat ini, dengan sisa €5.410 sebagai cadangan.\n---\n### Langkah Selanjutnya yang Disarankan\n\nMau cari tahu gimana ini nyambung sama rencana keuanganmu yang lebih luas?\n\n* [Buat rencana dana darurat](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)\n* [Buat kerangka anggaran bulanan](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)\n---\n*⚠️ Ini hanya informasi edukasi dan bukan nasihat keuangan. Konsultasikan dengan profesional keuangan atau penasihat pajak yang berkualifikasi untuk keputusan keuangan.*"
+      },
+      "follow_up_1": {
+        "text": "Cari tolok ukur tabungan dana darurat yang direkomendasikan secara online"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan perbedaan antara kas bersih dan kekayaan bersih"
+      },
+      "follow_up_3": {
+        "text": "Hitung berapa lama tabungan saya saat ini dapat menutupi biaya hidup bulanan"
+      },
+      "follow_up_4": {
+        "text": "Daftar strategi untuk melunasi utang kartu kredit jangka pendek dengan cepat"
+      },
+      "follow_up_5": {
+        "text": "Cari tips pengurangan suku bunga kartu kredit"
+      },
+      "follow_up_6": {
+        "text": "Bantu saya mengevaluasi apakah tabungan €4.200 saya merupakan dana darurat yang memadai"
+      }
+    },
+    "community_garden_volunteer_onboarding": {
+      "title": {
+        "text": "Orientasi Sukarelawan Kebun Komunitas"
+      },
+      "summary": {
+        "text": "Buat panduan sukarelawan satu halaman yang dapat dibagikan dengan tugas hari pertama, dasar-dasar keselamatan, dan kontak bantuan."
+      },
+      "message_1": {
+        "text": "Tolong buatkan dokumen orientasi sukarelawan satu halaman yang dapat dibagikan untuk kebun komunitas. Jaga agar tetap di bawah 220 kata. Cakup kedatangan, tugas hari pertama, keselamatan, dan cara meminta bantuan. Ini adalah templat umum, jadi gunakan placeholder di bagian yang memerlukan kontak atau lokasi spesifik kebun."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"document\", \"embed_id\": \"f40fc42f-df5d-4116-bba3-3500b1805eb5\"}\n```\n\nDokumen orientasi telah dibuat di atas dalam format `.docx` standar dengan placeholder (seperti `[Coordinator Name]`, `[Check-In Location]`, dan `[Phone Number]`) untuk penyesuaian yang mudah. Dengan kurang dari 170 kata, dokumen ini pas dalam satu halaman cetak.\n\n***\n\n### Langkah Selanjutnya yang Disarankan:\n1. [Sesuaikan placeholder dengan detail spesifik kebunmu](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)\n2. [Tambahkan bagian kode etik sukarelawan atau rilis foto](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)"
+      },
+      "follow_up_1": {
+        "text": "Cari praktik terbaik manajemen sukarelawan kebun komunitas"
+      },
+      "follow_up_2": {
+        "text": "Bantu aku menambahkan bagian kode etik sukarelawan"
+      },
+      "follow_up_3": {
+        "text": "Buat daftar tugas untuk mengatur hari orientasi sukarelawan kami"
+      },
+      "follow_up_4": {
+        "text": "Jelaskan cara menyusun daftar periksa orientasi yang menyambut"
+      },
+      "follow_up_5": {
+        "text": "Cari templat buku panduan sukarelawan secara daring"
+      },
+      "follow_up_6": {
+        "text": "Sebutkan pedoman keselamatan penting untuk ruang komunitas luar ruangan"
+      }
+    },
+    "voice_note_transcription_action_item": {
+      "title": {
+        "text": "Transkripsikan Catatan Suara Pendek"
+      },
+      "summary": {
+        "text": "Transkripsikan rekaman pendek dan periksa apakah rekaman tersebut berisi tugas untuk ditindaklanjuti."
+      },
+      "message_1": {
+        "text": "Bisakah kamu mentranskripsikan rekaman pendek ini dan memberi tahu aku apakah ada item tindakan di dalamnya?\n[!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)"
+      },
+      "message_2": {
+        "text": "Berikut adalah transkripsi rekamanmu:\n\n> *\"Real-time transcription is working correctly in OpenMates.\"*\n\n### Apakah rekaman ini berisi item tindakan?\n**Tidak.** Rekaman tersebut hanyalah pembaruan status informatif yang mengonfirmasi bahwa fitur transkripsi berfungsi. Rekaman tersebut tidak menyebutkan tugas, tenggat waktu, atau tindakan tindak lanjut yang diminta.\n\n---\n\n**Langkah selanjutnya yang mungkin ingin kamu pertimbangkan:**\n- Jika kamu ingin menguji rekaman yang berisi tugas, silakan bagikan catatan suara lainnya!"
+      },
+      "follow_up_1": {
+        "text": "Cari aplikasi transkripsi memo suara dengan fitur ekstraksi tugas"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan cara kerja deteksi item tindakan otomatis dalam model AI"
+      },
+      "follow_up_3": {
+        "text": "Transkripsikan file audio lain untuk menguji deteksi tugas"
+      },
+      "follow_up_4": {
+        "text": "Daftar tips untuk merekam catatan suara yang jelas dengan langkah-langkah yang dapat ditindaklanjuti"
+      },
+      "follow_up_5": {
+        "text": "Buat tugas baru untuk meninjau fitur rekaman suara"
+      },
+      "follow_up_6": {
+        "text": "Bandingkan berbagai metode untuk mengubah ide lisan menjadi tugas yang terorganisir"
+      }
     }
   },
   "focus_modes": {
@@ -20881,6 +21475,120 @@
       },
       "restore_failed": {
         "text": "Gagal memulihkan definisi yang dipilih."
+      }
+    }
+  },
+  "daily_inspiration_fallback": {
+    "antikythera": {
+      "phrase": {
+        "text": "Sebuah bangkai kapal kuno menyimpan mesin yang memprediksi langit."
+      },
+      "title": {
+        "text": "Mekanisme Antikythera"
+      },
+      "description": {
+        "text": "Model kosmos bertenaga tangan dari Yunani kuno."
+      },
+      "assistant_response": {
+        "text": "Mekanisme Antikythera menggunakan roda gigi perunggu untuk memodelkan siklus astronomi. Jelajahi bagaimana para insinyur kuno memprediksi langit."
+      }
+    },
+    "bioluminescence": {
+      "phrase": {
+        "text": "Beberapa hewan menghasilkan cahayanya sendiri. Proses kimianya sangat elegan."
+      },
+      "title": {
+        "text": "Bioluminesensi"
+      },
+      "description": {
+        "text": "Organisme hidup yang menghasilkan cahaya melalui proses kimia."
+      },
+      "assistant_response": {
+        "text": "Organisme bercahaya untuk berburu, kamuflase, komunikasi, dan pertahanan. Jelajahi bagaimana kimia menjadi cahaya."
+      }
+    },
+    "fermi": {
+      "phrase": {
+        "text": "Jika alam semesta begitu luas, mengapa ia tampak begitu sunyi?"
+      },
+      "title": {
+        "text": "Paradoks Fermi"
+      },
+      "description": {
+        "text": "Ketegangan antara kemungkinan adanya kehidupan luar angkasa dan tidak adanya bukti yang jelas."
+      },
+      "assistant_response": {
+        "text": "Paradoks Fermi mempertanyakan mengapa kita belum menemukan bukti meyakinkan tentang peradaban luar angkasa. Jelajahi jawaban yang mungkin."
+      }
+    },
+    "export": {
+      "phrase": {
+        "text": "Simpan cadanganmu sendiri. Ekspor data OpenMates kamu kapan pun kamu membutuhkannya."
+      },
+      "title": {
+        "text": "Ekspor data OpenMates kamu"
+      },
+      "description": {
+        "text": "Cadangkan chat, pengaturan, memori, dan lainnya."
+      },
+      "assistant_response": {
+        "text": "Ekspor salinan data OpenMates kamu dari pengaturan akun. Masuk untuk mengakses data akun kamu yang terenkripsi."
+      }
+    },
+    "pii": {
+      "phrase": {
+        "text": "Ingin kontrol privasi yang lebih kuat? Tambahkan detail pribadi yang harus disembunyikan OpenMates."
+      },
+      "title": {
+        "text": "Deteksi PII kustom"
+      },
+      "description": {
+        "text": "Lindungi detail pribadi sebelum pemanggilan model."
+      },
+      "assistant_response": {
+        "text": "Pilih detail pribadi yang ingin disembunyikan OpenMates sebelum pemanggilan model. Tinjau pengaturan privasi untuk mengelolanya."
+      }
+    },
+    "focus": {
+      "phrase": {
+        "text": "Butuh jawaban yang lebih fokus? Berikan tugas spesifik kepada mate kamu."
+      },
+      "title": {
+        "text": "Mode fokus"
+      },
+      "description": {
+        "text": "Arahkan chat menuju tujuan tertentu."
+      },
+      "assistant_response": {
+        "text": "Gunakan mode fokus untuk mengarahkan chat ke tujuan tertentu. Jelajahi mode yang tersedia di Aplikasi."
+      }
+    },
+    "memories": {
+      "phrase": {
+        "text": "Mengulang hal yang sama itu membosankan. Simpan konteks yang harus diingat oleh mate kamu."
+      },
+      "title": {
+        "text": "Memori"
+      },
+      "description": {
+        "text": "Simpan preferensi dan konteks yang berguna."
+      },
+      "assistant_response": {
+        "text": "Simpan preferensi dan konteks yang berguna sebagai memori, lalu pilih apa yang bisa digunakan oleh mate kamu."
+      }
+    },
+    "events": {
+      "phrase": {
+        "text": "Mencari kegiatan? Jelajahi acara di dekatmu."
+      },
+      "title": {
+        "text": "Temukan acara lokal"
+      },
+      "description": {
+        "text": "Cari kelas, pertemuan, dan acara lainnya."
+      },
+      "assistant_response": {
+        "text": "Gunakan pencarian Acara untuk menemukan kelas dan pertemuan setempat. Pilih lokasi dan topik untuk melihat kegiatan di sekitarmu."
       }
     }
   }

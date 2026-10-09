@@ -9930,6 +9930,600 @@
       "follow_up_6": {
         "text": "Resumir as principais métricas financeiras da VITL"
       }
+    },
+    "urban_heat_island_at_night": {
+      "title": {
+        "text": "Por que as cidades continuam quentes à noite"
+      },
+      "summary": {
+        "text": "Uma explicação simples do efeito de ilha de calor urbana e por que as ruas das cidades arrefecem mais lentamente após o pôr do sol."
+      },
+      "message_1": {
+        "text": "Por que algumas cidades parecem muito mais quentes do que as áreas rurais próximas à noite? Poderias explicar o efeito de ilha de calor urbana com um exemplo simples?"
+      },
+      "message_2": {
+        "text": "O fenômeno que você está descrevendo é conhecido como efeito de **[ilha de calor urbana](wiki:Urban_heat_island)** (ICU). Embora as cidades possam ser ligeiramente mais quentes durante o dia, a diferença de temperatura é frequentemente mais pronunciada após o pôr do sol — às vezes mantendo as cidades de 2°C a mais de 10°C (4°F a 18°F) mais quentes do que as áreas rurais circundantes.\n\n---\n\n### Uma Analogia Simples do Dia a Dia: A Frigideira de Ferro Fundido vs. O Canteiro de Jardim\n\nImagine que você está ao ar livre em uma tarde ensolarada com dois itens:\n1. Uma **frigideira de ferro fundido pesada**\n2. Um **vaso de terra de jardim úmida com grama**\n\nDurante uma tarde quente, o sol incide sobre ambos:\n* A **frigideira de ferro fundido** absorve um calor intenso, torna-se extremamente quente e armazena essa energia térmica dentro de seu corpo de metal denso.\n* A **terra úmida e a grama** também absorvem a luz solar, mas a umidade no solo evapora e a grama \"soa\" através da transpiração. Esse processo de [evapotranspiração](wiki:Evapotranspiration) consome uma grande parte da energia do sol, mantendo a planta e o solo significativamente mais frescos.\n\nAgora, leve ambos para dentro de uma sala mais fria ou espere até o anoitecer:\n* O canteiro de jardim esfria quase imediatamente porque não reteve o excesso de calor e continua a perder umidade.\n* A frigideira de ferro fundido, no entanto, atua como uma **bateria térmica**. Muito tempo depois de o sol se pôr, ela irradia lentamente todo aquele calor retido para o ar circundante, mantendo o espaço imediato aquecido por horas.\n\nUma **cidade** age como milhões de frigideiras de ferro fundido interconectadas; a **zona rural** se comporta como o canteiro de jardim úmido.\n\n---\n\n### A Ciência por Trás do Porquê de as Cidades se Manterem Quentes à Noite\n\nA disparidade noturna se deve a vários fatores termodinâmicos e físicos fundamentais:\n\n#### 1. Alta Massa Térmica (Retenção de Calor)\nOs ambientes urbanos são construídos com asfalto, concreto, tijolo e pedra. Esses materiais têm uma alta [capacidade térmica volumétrica](wiki:Volumetric_heat_capacity) e condutividade térmica. Durante o dia, eles absorvem a radiação solar profundamente nas estruturas e pavimentos. À noite, à medida que o ar ambiente esfria, esses materiais liberam o calor armazenado de volta para a baixa atmosfera através de radiação térmica de ondas longas.\n\n#### 2. Perda de Resfriamento Evaporativo\nAs paisagens rurais são cobertas por árvores, plantações e solo úmido. As plantas extraem água do solo e liberam vapor de água no ar através da transpiração. Como a conversão de água líquida em vapor requer uma quantidade significativa de energia (o [calor latente](wiki:Latent_heat) de vaporização), isso resfria naturalmente o ambiente ao redor. Nas cidades, a chuva é rapidamente desviada para bueiros através de superfícies impermeáveis, deixando muito pouca umidade disponível para o resfriamento evaporativo.\n\n#### 3. Geometria de Cânion Urbano\nEm cidades densas com prédios altos, as ruas formam \"cânions urbanos\". Durante o dia, múltiplas superfícies reflexivas rebatem a luz solar para as profundezas da rua, em vez de refleti-la de volta para o espaço. À noite, os edifícios bloqueiam parcialmente o céu (reduzindo o que os meteorologistas chamam de fator de visão do céu). Em vez de escapar livremente para a alta atmosfera, o calor irradiado da rua é absorvido ou refletido de volta pelas paredes dos edifícios adjacentes.\n\n#### 4. Calor Antropogênico (Energia Gerada por Humanos)\nAs cidades produzem continuamente seu próprio calor, independentemente do sol. Unidades de ar-condicionado, motores de veículos, centros de dados, fábricas e iluminação de edifícios expelem calor residual diretamente na atmosfera ao nível da rua, reforçando o calor noturno.\n\n---\n\n### Mitigando o Efeito\n\nComunidades e planejadores urbanos frequentemente adotam estratégias que combatem esses mecanismos:\n* **Pavimentos e Telhados Frios (Cool):** Uso de revestimentos de alto [albedo](wiki:Albedo) (reflexivos) para que as superfícies reflitam a luz solar em vez de absorvê-la.\n* **Arborização Urbana e Copas de Árvores:** Plantio de árvores nas ruas e criação de parques para restaurar a sombra e a evapotranspiração.\n* **Telhados Verdes:** Instalação de vegetação em coberturas para isolar edifícios e resfriar o microclima local.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"uhi_interest_followup\",\n  \"multiple\": false,\n  \"question\": \"Which aspect of the urban heat island effect would you like to explore next?\",\n  \"options\": [\n    { \"id\": \"solutions\", \"text\": \"Architectural and urban design solutions (e.g., green roofs, cool materials)\" },\n    { \"id\": \"climate_health\", \"text\": \"Impacts on public health, air quality, and climate resilience\" },\n    { \"id\": \"measurement\", \"text\": \"How scientists measure and map surface vs. atmospheric heat islands\" }\n  ]\n}\n```\n\nVocê gostaria de examinar como escolhas específicas de planejamento urbano em sua área local afetam o resfriamento noturno ou explorar um dos tópicos acima?"
+      },
+      "follow_up_1": {
+        "text": "Pesquisar estratégias de planeamento urbano que reduzam as ilhas de calor"
+      },
+      "follow_up_2": {
+        "text": "Explicar como os cientistas distinguem entre ilhas de calor superficiais e atmosféricas"
+      },
+      "follow_up_3": {
+        "text": "Encontrar artigos académicos que meçam anomalias de temperatura de superfície urbana"
+      },
+      "follow_up_4": {
+        "text": "Discutir os impactos na saúde pública das temperaturas urbanas noturnas extremas"
+      },
+      "follow_up_5": {
+        "text": "Pesquisar estudos de caso de design de telhados verdes em cidades"
+      },
+      "follow_up_6": {
+        "text": "Descrever como a geometria dos cânions urbanos retém o calor irradiado à noite"
+      }
+    },
+    "damped_sine_decay_plot": {
+      "title": {
+        "text": "Onda Senoidal Amortecida e Suas Envoltórias"
+      },
+      "summary": {
+        "text": "Plote uma onda senoidal amortecida com suas envoltórias superior e inferior e entenda como a oscilação diminui."
+      },
+      "message_1": {
+        "text": "Você pode plotar y = e^(-0.2x) sin(3x) para x de 0 a 12, incluindo as envoltórias superior e inferior, e explicar o que o gráfico mostra?"
+      },
+      "message_2": {
+        "text": "Aqui está o gráfico da função junto com as suas envoltórias superior e inferior:\n\n```json\n{\"type\": \"math-plot\", \"embed_id\": \"9ef899d2-4b73-4c4e-88bf-d4fd31d61e79\"}\n```\n\n---\n\n### O que o Gráfico Mostra\n\nEste gráfico é uma representação clássica de um oscilador harmônico amortecido, comumente encontrado na física e na engenharia (como uma corda de violão vibrando, um amortecedor ou um [circuito RLC](wiki:RLC_circuit) elétrico).\n\n#### 1. A Componente Oscilatória: $\\sin(3x)$\n* O termo $\\sin(3x)$ gera um movimento ondulatório periódico contínuo.\n* A frequência angular é $\\omega = 3\\text{ rad/s}$, o que corresponde a um período de:\n  $$T = \\frac{2\\pi}{3} \\approx 2,094$$\n* Isto significa que a curva cruza o zero a cada $\\frac{\\pi}{3} \\approx 1,05$ unidades ao longo do eixo $x$.\n\n#### 2. O Fator de Amortecimento: $e^{-0.2x}$\n* O fator exponencial $e^{-0.2x}$ descreve o [decaimento exponencial](wiki:Exponential_decay) com um parâmetro de taxa de decaimento de $\\alpha = 0,2$.\n* À medida que $x$ aumenta, a energia é perdida pelo sistema devido ao [amortecimento](wiki:Damping) (como o atrito ou a resistência elétrica), reduzindo a amplitude ao longo do tempo.\n\n#### 3. As Envoltórias: $\\pm e^{-0.2x}$\n* Como a função seno está limitada por $-1 \\le \\sin(3x) \\le 1$, a multiplicação pelo termo positivo $e^{-0.2x}$ resulta em:\n  $$-e^{-0.2x} \\le e^{-0.2x}\\sin(3x) \\le e^{-0.2x}$$\n* **Envoltória Superior ($g(x) = e^{-0.2x}$)**: Forma o limite superior suave que limita os picos positivos.\n* **Envoltória Inferior ($h(x) = -e^{-0.2x}$)**: Forma o limite simétrico que envolve os vales negativos.\n* A curva oscilante toca a envoltória superior sempre que $\\sin(3x) = 1$ (em $x = \\frac{\\pi}{6} + \\frac{2\\pi k}{3}$) e a envoltória inferior sempre que $\\sin(3x) = -1$.\n\n---\n\n### Próximos Passos Sugeridos\n\n- [Calcular os extremos locais exatos usando a derivada](/#message=Find%20the%20exact%20maxima%20and%20minima%20of%20y%20%3D%20exp(-0.2*x)*sin(3*x)%20using%20calculus)\n- [Comparar sistemas subamortecidos vs. criticamente amortecidos](/#message=Explain%20the%20difference%20between%20underdamped,%20critically%20damped,%20and%20overdamped%20oscillations)"
+      },
+      "follow_up_1": {
+        "text": "Calcula os extremos locais desta função usando cálculo"
+      },
+      "follow_up_2": {
+        "text": "Explica como a alteração do parâmetro da taxa de decaimento afeta a curva"
+      },
+      "follow_up_3": {
+        "text": "Encontra fórmulas de física semelhantes para o movimento harmónico"
+      },
+      "follow_up_4": {
+        "text": "Descreve sistemas físicos do mundo real modelados por esta equação"
+      },
+      "follow_up_5": {
+        "text": "Pesquisa equações diferenciais que descrevam oscilações amortecidas"
+      },
+      "follow_up_6": {
+        "text": "Compara este comportamento de onda com o movimento harmónico simples não amortecido"
+      }
+    },
+    "autumn_basil_balcony_care": {
+      "title": {
+        "text": "Cuidados de Outono com Manjericão numa Varanda em Berlim"
+      },
+      "summary": {
+        "text": "Cuidados simples de outono para manjericão numa varanda virada a leste: luz, rega, sinais de frio e quando levar para dentro."
+      },
+      "message_1": {
+        "text": "Podes criar um guia de cuidados conciso e simples para principiantes para o meu manjericão-doce numa varanda virada a leste em Berlim este outono? Preciso sobretudo de informações sobre rega, luz, sinais de frio e quando o levar para dentro."
+      },
+      "message_2": {
+        "text": "Aqui está um guia de cuidados conciso e específico para o outono para o seu manjericão (*Ocimum basilicum*) numa varanda virada a leste em Berlim:\n---\n### 1. Luz (Varanda voltada para leste)\n* **O que esperar:** No outono de Berlim, o sol nasce mais baixo e as horas de luz do dia diminuem rapidamente. Uma varanda voltada para leste oferece um sol suave pela manhã por cerca de 2 a 4 horas, o que é um pouco abaixo do ideal para o manjericão, que adora sol.\n* **Posicionamento:** Coloque o vaso o mais próximo possível da grade externa (com segurança), longe das sombras das paredes, para maximizar a exposição direta ao céu matinal.\n* **Truque de reflexo:** Posicioná-lo contra uma parede branca ou de cor clara pode rebater luz ambiente extra para as folhas.\n---\n### 2. Rotina de Rega\n* **Regra:** As necessidades de água do manjericão diminuem significativamente no tempo frio, porque a evaporação abranda e o crescimento da planta para.\n* **Verifique primeiro:** Regue **apenas** quando os 2–3 cm superiores (cerca de uma polegada) do solo parecerem secos ao toque. Não regue seguindo um cronograma fixo no calendário.\n* **Horário:** Regue sempre de manhã com água à temperatura ambiente. Evite água fria da torneira diretamente do cano, o que causa choque nas raízes frias.\n* **Drenagem:** Nunca deixe o vaso em água parada no prato; o solo frio e encharcado leva rapidamente ao apodrecimento das raízes (*Fusarium* ou mofo aquático).\n---\n### 3. Quando trazê-lo para dentro\n* **Limite crítico:** O manjericão é uma erva tropical delicada. Ele sofre estresse fisiológico por frio abaixo de **10°C (50°F)** e sofre danos graves nos tecidos ou morre perto de **0°C a 4°C**.\n* **Época para Berlim:** As temperaturas noturnas em Berlim costumam cair abaixo de 10°C no final de setembro ou início de outubro.\n* **Ação:** **Traga-o para dentro agora** se a previsão para a noite for inferior a 10°C.\n---\n### 4. Sinais de Estresse por Frio e Luz\n* **Folhas escurecidas ou translúcidas:** Sinal claro de dano por frio (colapso celular devido a temperaturas abaixo de 8–10°C).\n* **Folhagem arroxeada ou opaca:** Uma resposta clássica ao estresse por frio combinada com a absorção lenta de nutrientes.\n* **Murchando com o solo úmido:** Raízes resfriadas ou podridão radicular; as raízes estão frias demais ou danificadas para absorver umidade, mesmo que haja água disponível.\n* **Crescimento alongado / Verde-pálido:** Luz solar insuficiente (estiolamento).\n---\n### 5. Levando para dentro: Dicas para uma transição rápida\n1. **Janela mais iluminada:** Coloque-a em um parapeito voltado para o sul, se disponível; caso contrário, na janela mais iluminada voltada para leste ou oeste.\n2. **Evite correntes de ar e radiadores:** Mantenha-a longe de correntes de ar frio de frestas de janelas, bem como do calor seco que sopra diretamente de um radiador (*Heizung*).\n3. **Inspeção de pragas:** Verifique a parte inferior das folhas em busca de pulgões ou ácaros antes de colocá-la perto de outras plantas de interior.\n4. **Colha pelo topo:** Belisque os botões de flores e os pares de folhas superiores para incentivar um crescimento mais cheio e arbustivo, em vez de um florescimento longo e ralo.\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"basil_indoor_setup\",\n  \"multiple\": false,\n  \"question\": \"Where are you planning to put your basil once it moves inside?\",\n  \"options\": [\n    { \"id\": \"south_window\", \"text\": \"South- or west-facing sunny windowsill\" },\n    { \"id\": \"east_window\", \"text\": \"Staying near the east window indoors\" },\n    { \"id\": \"grow_light\", \"text\": \"Under a dedicated grow light / LED lamp\" },\n    { \"id\": \"other_spot\", \"text\": \"Another room or location\" }\n  ],\n  \"custom_option_id\": \"other_spot\",\n  \"custom_placeholder\": \"Describe your indoor spot...\"\n}\n```**Próximos Passos e Sugestões:**\n* [Crie um lembrete para conferir as temperaturas mínimas de hoje à noite em Berlim](/#message=Check%20the%20weather%20forecast%20for%20Berlin%20tonight%20to%20see%20if%20it%20drops%20below%2010C.)\n* [Veja dicas sobre como conservar uma grande colheita de manjericão](/#message=How%20can%20I%20harvest%20and%20preserve%20my%20basil%20leaves%20before%20winter?)"
+      },
+      "follow_up_1": {
+        "text": "Verifica a previsão do tempo atual e as temperaturas noturnas em Berlim"
+      },
+      "follow_up_2": {
+        "text": "Explica como colher manjericão para incentivar um crescimento mais denso"
+      },
+      "follow_up_3": {
+        "text": "Pesquisa métodos rápidos para conservar folhas de manjericão frescas"
+      },
+      "follow_up_4": {
+        "text": "Descreve sinais de apodrecimento das raízes e como salvar manjericão encharcado"
+      },
+      "follow_up_5": {
+        "text": "Pesquisa opções de luzes LED de cultivo interior para ervas aromáticas"
+      },
+      "follow_up_6": {
+        "text": "Lista as melhores plantas companheiras para ervas aromáticas em vasos de interior"
+      }
+    },
+    "community_garden_sunflower_illustration": {
+      "title": {
+        "text": "Gerar uma ilustração botânica de girassol"
+      },
+      "summary": {
+        "text": "Cria uma ilustração de girassol sem texto para um folheto de horta comunitária."
+      },
+      "message_1": {
+        "text": "Por favor, cria uma ilustração botânica acolhedora de um girassol para um folheto de horta comunitária, num fundo claro e limpo, sem texto."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nEstou a gerar essa ilustração botânica do girassol para o teu folheto de horta comunitária; está a ser processada e aparecerá aqui no chat assim que estiver concluída.\n\n### Dicas Rápidas de Design para Folhetos Comunitários\n\nPara tornares o teu folheto de horta convidativo e fácil de ler:\n\n- **Hierarquia Visual e Espaçamento:** Dá espaço à ilustração. Colocá-la numa margem ou cabeçalho deixa espaço livre para dicas de jardinagem ou detalhes do evento sem parecer sobrecarregado.\n- **Harmonia de Cores:** Usa tons quentes diretamente da ilustração — como dourado mel profundo, verde folha de oliveira ou terracota terroso — para cabeçalhos de secção e bordas.\n- **Mistura a Tua Própria Arte:** Se os membros da comunidade ou jardineiros locais criarem esboços, impressões de folhas ou fotos dos canteiros reais, integrar esses elementos ao lado de ilustrações digitais cria um toque acolhedor e autêntico.\n\n---\n\n**Próximos Passos e Opções:**\n- [Desenha o layout de um folheto com cabeçalhos e dicas](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [Sugere uma paleta de cores baseada em girassóis](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+      },
+      "follow_up_1": {
+        "text": "Pesquisar eventos locais de hortas comunitárias na área"
+      },
+      "follow_up_2": {
+        "text": "Ajuda-me a escrever um texto introdutório amigável para o folheto da horta"
+      },
+      "follow_up_3": {
+        "text": "Encontrar ícones de plantas em SVG gratuitos para decorar o folheto"
+      },
+      "follow_up_4": {
+        "text": "Listar dicas essenciais para incluir num guia de horta comunitária"
+      },
+      "follow_up_5": {
+        "text": "Pesquisar ideias de combinações tipográficas para folhetos de jardim"
+      },
+      "follow_up_6": {
+        "text": "Explicar como organizar elementos visuais num layout de impressão"
+      }
+    },
+    "beginner_yoga_classes_berlin": {
+      "title": {
+        "text": "Aulas de Yoga para Principiantes em Berlim"
+      },
+      "summary": {
+        "text": "Encontra três aulas de yoga para principiantes em Berlim com horários, preços e links de reserva."
+      },
+      "message_1": {
+        "text": "Sou iniciante no yoga e gostaria de uma aula para principiantes em Berlim na próxima semana. Podes encontrar algumas aulas com horários, preços e links de reserva?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\nAqui estão algumas aulas de [yoga](wiki:Yoga) adequadas para principiantes que vão decorrer em Berlim na próxima semana:\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga para Enraizamento](embed:yoga-for-grounding-TB2) (Kreuzberg)\n- **O que é:** Uma aula consciente que equilibra movimentos guiados pela respiração com a manutenção de posturas para explorar o alinhamento e a quietude. Concebida especificamente para ser acessível a principiantes (em inglês).\n- **Data e Hora:** Quarta-feira, 14 de outubro de 2026, 18:00 – 19:00 CEST (chega 10 minutos antes)\n- **Localização:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))\n- **Preço:** 11,83 € – 22,49 €\n- **Reserva:** [Reservar bilhetes no Eventbrite](embed:yoga-for-grounding-TB2)\n\n### 2. [Yoga de Mobilidade e Bouldering Opcional](embed:mobility-yoga-optional-qv3) (Friedrichshain)\n- **O que é:** Uma sessão de mobilidade e yoga informal e descontraída para todos os níveis, onde as sequências são explicadas passo a passo a um ritmo suave. Não é necessária flexibilidade ou experiência prévia.\n- **Data e Hora:** Terça-feira, 13 de outubro de 2026, 19:00 – 19:45 CEST (chega 15 minutos antes)\n- **Localização:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))\n- **Preço:** 5 € (entrada gratuita com Urban Sports Club / Wellpass se também fizeres bouldering)\n- **Reserva:** [Ver detalhes e link de reserva](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)\n- **O que é:** Uma sessão de Vinyasa dinâmica, mas suave, que oferece modificações para principiantes, focando-se na consciência da respiração, no alinhamento corporal e no alívio do stress.\n- **Data e Hora:** Quarta-feira, 14 de outubro de 2026, 19:30 – 21:00 CEST\n- **Localização:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))\n- **Preço:** 10 € para a tua primeira aula experimental (pack inicial: 3 aulas por 20 €)\n- **Reserva:** [Confirmar presença via Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)\n\n---\n\n### Dicas para a tua primeira aula de yoga\n* **Vestuário:** Roupa confortável e elástica na qual te possas mover e dobrar facilmente. O yoga é normalmente praticado descalço.\n* **Hidratação e Refeições:** Evita refeições pesadas 1,5 a 2 horas antes da aula.\n* **Ouve o teu corpo:** Informa o professor antes da aula de que é a tua primeira vez; eles terão todo o gosto em mostrar-te ajustes e acessórios (blocos, mantas ou cintas). Se tiveres problemas articulares ou de costas pré-existentes, consulta um médico ou fisioterapeuta antes de experimentares sequências dinâmicas.\n\nGostarias de recomendações mais próximas de um bairro específico (ex: Neukölln, Prenzlauer Berg, Charlottenburg) ou focadas num estilo suave como [Hatha yoga](wiki:Hatha_yoga) ou [Yin yoga](wiki:Yin_yoga)?\n---\n*⚠️ Esta é apenas informação educativa e não constitui aconselhamento médico. Consulta o teu médico para decisões médicas.*"
+      },
+      "follow_up_1": {
+        "text": "Procurar aulas de ioga em Neukölln, Berlim"
+      },
+      "follow_up_2": {
+        "text": "Explicar o que esperar da primeira aula de ioga"
+      },
+      "follow_up_3": {
+        "text": "Encontrar workshops de Hatha ioga no próximo fim de semana"
+      },
+      "follow_up_4": {
+        "text": "Comparar os estilos de ioga Vinyasa e Hatha"
+      },
+      "follow_up_5": {
+        "text": "Procurar estúdios de Yin ioga em Mitte"
+      },
+      "follow_up_6": {
+        "text": "Listar dicas para principiantes sobre como comprar um tapete de ioga"
+      }
+    },
+    "calm_manager_follow_up": {
+      "title": {
+        "text": "Planeje um acompanhamento calmo com um gestor"
+      },
+      "summary": {
+        "text": "Analise uma conversa tensa e elabore um acompanhamento claro e responsável após uma mudança de prioridades."
+      },
+      "message_1": {
+        "text": "Tive uma conversa tensa com o meu gestor hoje e me sinto inquieto. Você pode me ajudar a processar o que aconteceu e planejar um acompanhamento calmo?"
+      },
+      "message_2": {
+        "text": "É perfeitamente normal se sentir inquieto após uma conversa difícil com um gestor. Conversas que envolvem autoridade, desempenho ou expectativas desalinhadas costumam desencadear estresse agudo e perturbar a regulação emocional, fazendo com que você fique repassando as palavras e questionando suas reações.\n\nReservar um tempo para se afastar antes de responder é a abordagem mais saudável e estratégica.\n\nPara nos ajudar a estruturar um plano claro para analisar o que aconteceu e elaborar um acompanhamento eficaz, **qual foi o tema central da discussão e que momento ou comentário específico pareceu mais tenso para você?**\n---\n*⚠️ Estas informações têm fins meramente educativos e não constituem aconselhamento psicológico profissional. Para questões de saúde mental, consulte um terapeuta ou conselheiro qualificado. Se estiver passando por uma crise, entre em contato imediatamente com os serviços de emergência ou uma linha de apoio.*"
+      },
+      "message_3": {
+        "text": "Discordamos sobre um prazo para atualizar a base de conhecimento do suporte. Meu gestor disse que eu deveria ter sinalizado o risco mais cedo, e me senti culpado porque as prioridades mudaram duas vezes. Quero assumir minha parte sem aceitar toda a culpa. O que eu poderia dizer em um breve acompanhamento amanhã?"
+      },
+      "message_4": {
+        "text": "Navegar por esse tipo de situação exige equilibrar [assertividade](wiki:Assertiveness) com responsabilidade colaborativa: reconhecer o que estava sob seu controle (escalonamento proativo de riscos) sem aceitar uma narrativa que ignore o contexto em mudança (mudança de prioridades).\n\n### A Estrutura Psicológica: Responsabilidade vs. Culpa\n\nQuando os gestores são pegos de surpresa, o reflexo imediato costuma ser: *\"Por que não fui avisado?\"* Quando os colaboradores recebem instruções que mudam, o reflexo deles costuma ser: *\"Eu estava apenas me adaptando ao que você me disse para priorizar.\"* Ambas as perspectivas fazem sentido dentro de seus próprios quadros de referência.\n\nPara superar isso de forma construtiva:\n1. **Valide a melhoria do processo**: Concorde que a visibilidade antecipada é melhor para todos.\n2. **Contextualize de forma neutra, sem defensividade**: Descreva as mudanças de prioridade como o gatilho operacional para o atraso, em vez de uma desculpa.\n3. **Foque no objetivo compartilhado**: Estruture a comunicação futura em torno de manter os recursos e cronogramas da equipe claros.\n\n---\n\n### Opção 1: Mensagem rápida pessoalmente ou via Slack/Teams\n\n> *\"Oi, [Manager's Name], estive refletindo sobre nossa conversa de ontem sobre o prazo da base de conhecimento de suporte. Você tinha razão que eu deveria ter levantado o risco de capacidade mais cedo, assim que as outras mudanças de prioridade surgiram.*\n>\n> *Quero garantir que continuemos alinhados quando as prioridades mudarem no futuro, então vou sinalizar proativamente as compensações de cronograma imediatamente. Para a base de conhecimento, aqui está a situação atual e o que preciso para finalizá-la até [Proposed Date]. Vamos conversar brevemente se você quiser ajustar esse plano.\"*\n\n---\n\n### Opção 2: E-mail curto e direto ou abertura de reunião 1:1\n\n> *\"Oi, [Manager's Name],*\n>\n> *Dando seguimento à nossa conversa de ontem: levei a sério seu feedback sobre sinalizar riscos mais cedo. Quando as prioridades mudaram nas últimas semanas, foquei em absorver essas solicitações em vez de levantar explicitamente como elas impactavam o cronograma da base de conhecimento.*\n>\n> *Daqui para frente, sempre que surgirem prioridades conflitantes, enviarei imediatamente uma nota rápida descrevendo o impacto nos prazos existentes para que possamos decidir juntos o que tem precedência.*\n>\n> *Status atual da base de conhecimento:*\n> *• [1–2 frases de atualização de status ou próximo marco]*\n> *• Previsão de conclusão: [Date/Time]*\n>\n> *Obrigado pelo feedback — me avise se quiser revisar os itens restantes juntos.\"*\n\n---\n\n### Pontos-chave: Por que isso funciona\n* **Elimina o debate defensivo:** Você não está discutindo sobre quem estava certo ontem; você está definindo como os conflitos de prioridade serão tratados amanhã.\n* **Demonstra pensamento sistêmico:** Você reconhece que a mudança de prioridades afeta inerentemente a capacidade, e a solução é um acordo explícito de compensação.\n* **Foca novamente na entrega:** Termina com um caminho claro para finalizar a entrega real.\n\n---\n\n### Próximos Passos e Sugestões\n\nO que você acha de uma dessas opções para o estilo de comunicação do seu gestor?\n\n- [Esboçar uma versão de e-mail deste acompanhamento](/#message=Help%20me%20format%20this%20into%20a%20formal%20email%20draft%20for%20my%20manager.)\n- [Praticar uma simulação de conversa para uma reunião 1:1](/#message=Let's%20roleplay%20the%201-on-1%20conversation%20with%20my%20manager.)"
+      },
+      "follow_up_1": {
+        "text": "Escreve um rascunho de e-mail mais formal para o meu gestor sobre o nosso desacordo quanto ao prazo"
+      },
+      "follow_up_2": {
+        "text": "Explica como estabelecer melhores limites quando as prioridades mudam rapidamente"
+      },
+      "follow_up_3": {
+        "text": "Cria um lembrete de tarefa para enviar a mensagem de acompanhamento amanhã de manhã"
+      },
+      "follow_up_4": {
+        "text": "Ajuda-me a simular a conversa com o meu gestor para ganhar confiança"
+      },
+      "follow_up_5": {
+        "text": "Procura artigos sobre como gerir eficazmente a mudança de prioridades no local de trabalho"
+      },
+      "follow_up_6": {
+        "text": "Revê a minha resposta para detetar qualquer linguagem ou tom defensivo não pretendido"
+      }
+    },
+    "community_garden_planning_mindmap": {
+      "title": {
+        "text": "Mapa Mental de Planeamento de Horta Comunitária"
+      },
+      "summary": {
+        "text": "Mapeia os voluntários, a plantação, o orçamento e os eventos necessários para lançar uma horta comunitária."
+      },
+      "message_1": {
+        "text": "Poderias criar um mapa mental para o planeamento de uma horta comunitária, com ramos para voluntários, plantação, orçamento e eventos?"
+      },
+      "message_2": {
+        "text": "Aqui está um mapa mental estruturado que abrange os quatro pilares fundamentais do planeamento da tua horta comunitária:\n\n```json\n{\"type\": \"mindmap\", \"embed_id\": \"02d212e1-3648-42f5-8c96-700bd34a5070\"}\n```\n\n### Considerações Principais para os Próximos Passos\n\n1. **Avaliação do Local:** Antes de comprar mantimentos, é crucial verificar a qualidade do solo para detetar contaminantes como o chumbo e confirmar o acesso a ligações fiáveis de água municipal ou pluvial.\n2. **Contributo da Comunidade:** Envolver os residentes locais desde cedo ajuda a estabelecer uma gestão partilhada e garante que as culturas correspondam às preferências culinárias e tradições culturais do bairro.\n\nGostarias de explorar:\n- [Elaborar uma lista de verificação para inscrição de voluntários](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)\n- [Delinear um modelo de orçamento inicial](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)"
+      },
+      "follow_up_1": {
+        "text": "Pesquisar oportunidades de financiamento para hortas comunitárias e programas agrícolas locais"
+      },
+      "follow_up_2": {
+        "text": "Explicar como realizar um teste de solo básico para hortas comunitárias"
+      },
+      "follow_up_3": {
+        "text": "Criar um modelo de orçamento inicial e uma lista de materiais para uma horta comunitária"
+      },
+      "follow_up_4": {
+        "text": "Listar as melhores práticas para organizar reuniões de bairro para projetos de agricultura urbana"
+      },
+      "follow_up_5": {
+        "text": "Ajudar-me a criar uma descrição de funções para voluntários e uma folha de inscrição para a nossa horta comunitária"
+      },
+      "follow_up_6": {
+        "text": "Discutir estratégias para manter o envolvimento da comunidade após a fase de lançamento inicial"
+      }
+    },
+    "books_after_left_hand_of_darkness": {
+      "title": {
+        "text": "Livros para ler depois de A Mão Esquerda da Escuridão"
+      },
+      "summary": {
+        "text": "Quatro recomendações de ficção científica reflexivas para leitores que amaram a construção de mundo e as questões sociais de Le Guin."
+      },
+      "message_1": {
+        "text": "Gostei de A Mão Esquerda da Escuridão pela sua construção de mundo e questões sociais. O que devo ler a seguir e por quê?"
+      },
+      "message_2": {
+        "text": "[A Mão Esquerda da Escuridão](wiki:The_Left_Hand_of_Darkness) de [Ursula K. Le Guin](wiki:Ursula_K._Le_Guin) destaca-se porque a sua construção de mundo não é apenas um cenário; funciona como uma experiência de pensamento antropológica. Le Guin descreveu a ficção científica como um laboratório para perguntar *\"e se?\"*—examinando como as relações humanas, as instituições e os preconceitos se remodelam quando uma variável fundamental (como o sexo biológico fixo) é removida.\n\nAqui estão quatro livros que continuam esse tipo de construção de mundo e investigação social:\n\n---\n\n### 1. *Os Despossuídos* de Ursula K. Le Guin\n* **A Questão Central:** Pode uma sociedade alcançar a verdadeira liberdade sem a posse, e como é que a obrigação mútua sobrevive à institucionalização?\n* **Por que se encaixa:** Situado no mesmo universo do [Ciclo de Hain](wiki:Hainish_Cycle), este romance contrasta dois mundos vizinhos: Anarres, uma lua árida fundada no anarcossindicalismo e na solidariedade comunitária, e Urras, um planeta rico em recursos dividido entre o capitalismo competitivo e o socialismo autoritário. Onde *A Mão Esquerda da Escuridão* investigava o género e a confiança pessoal (o conceito de *shifgrethor*), [Os Despossuídos](wiki:The_Dispossessed) examina a economia, a linguagem e a responsabilidade coletiva, perguntando como as comunidades podem nutrir o indivíduo mantendo-se dedicadas à ajuda mútua.\n\n### 2. *Despertar* (Trilogia Xenogenesis / Lilith's Brood) de [Octavia E. Butler](wiki:Octavia_E._Butler)\n* **A Questão Central:** O que define a natureza humana e o que acontece quando a sobrevivência exige a renúncia ao nosso impulso de hierarquia e autonomia biológica?\n* **Por que se encaixa:** Tal como os Gethenianos de Le Guin, os alienígenas Oankali possuem três sexos (masculino, feminino e *ooloi*, que medeiam a reprodução e a troca genética). Butler desafia as suposições do leitor sobre consentimento, estruturas familiares e cooperação. A narrativa questiona se a falha letal da humanidade é a combinação de uma inteligência elevada com um impulso inato para a hierarquia — e se podemos evoluir para além da dominação.\n\n### 3. *Justiça Auxiliar* de [Ann Leckie](wiki:Ann_Leckie)\n* **A Questão Central:** Como é que as instituições imperiais moldam a identidade e como é a consciência quando separada da forma humana individual?\n* **Por que se encaixa:** O império Radch de Leckie não divide a sociedade por género; na verdade, a língua dominante carece totalmente de marcadores de género, utilizando pronomes femininos universalmente. Além do paralelo linguístico com a exploração da perceção de Le Guin, a história — contada da perspetiva de uma inteligência artificial anteriormente distribuída por uma nave de guerra e milhares de corpos humanos \"auxiliares\" — mergulha na cumplicidade, no dever e na consciência individual dentro de um império expansionista.\n\n### 4. *A Half-Built Garden* de [Ruthanna Emrys](wiki:Ruthanna_Emrys)\n* **A Questão Central:** Como podem as comunidades humanas organizar uma gestão democrática para sobreviver ao colapso ecológico e como negociamos com culturas construídas sobre valores fundamentalmente diferentes?\n* **Por que se encaixa:** Numa Terra da década de 2080 governada por redes de bacias hidrográficas e cooperativas ecológicas comunitárias, o primeiro contacto ocorre com uma espécie alienígena que oferece a salvação através da migração. O livro foca-se intensamente na diplomacia, no consenso comunitário, na parentalidade e na tomada de decisões sociais, oferecendo o mesmo ritmo antropológico deliberado e a nuance ética encontrados nas obras de Le Guin.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"next_read_focus\",\n  \"multiple\": false,\n  \"question\": \"Which dimension of The Left Hand of Darkness resonated most with you?\",\n  \"options\": [\n    {\n      \"id\": \"politics_economics\",\n      \"text\": \"Political philosophy, mutual aid, and contrasting economic systems (Lean towards The Dispossessed)\"\n    },\n    {\n      \"id\": \"biology_gender\",\n      \"text\": \"Biology, alien contact, and redefining kinship or consent (Lean towards Dawn)\"\n    },\n    {\n      \"id\": \"identity_language\",\n      \"text\": \"Language, perspective, and challenging imperial hierarchies (Lean towards Ancillary Justice)\"\n    },\n    {\n      \"id\": \"diplomacy_ecology\",\n      \"text\": \"Ecological stewardship, diplomacy, and community decision-making (Lean towards A Half-Built Garden)\"\n    }\n  ]\n}\n```\n\n---\n\n### Próximos Passos Sugeridos\n* [Explorar temas de Os Despossuídos](/#message=Tell%20me%20more%20about%20the%20philosophical%20themes%20of%20The%20Dispossessed%20by%20Ursula%20K.%20Le%20Guin.)\n* [Comparar a relação de Genly Ai e Estraven](/#message=Analyze%20the%20relationship%20between%20Genly%20Ai%20and%20Estraven%20in%20The%20Left%20Hand%20of%20Darkness.)"
+      },
+      "follow_up_1": {
+        "text": "Pesquisar críticas e resumos de Os Despossuídos"
+      },
+      "follow_up_2": {
+        "text": "Explicar como os romances do Ciclo de Hain se conectam entre si"
+      },
+      "follow_up_3": {
+        "text": "Encontrar prêmios ganhos por Justiça Auxiliar de Ann Leckie"
+      },
+      "follow_up_4": {
+        "text": "Discutir o papel da linguagem na formação do pensamento político na ficção especulativa"
+      },
+      "follow_up_5": {
+        "text": "Verificar a disponibilidade em bibliotecas de Despertar de Octavia E. Butler"
+      },
+      "follow_up_6": {
+        "text": "Comparar a biologia alienígena dos gethenianos e dos oankali"
+      }
+    },
+    "community_garden_budget_review": {
+      "title": {
+        "text": "Revisar o PDF do orçamento de uma horta comunitária"
+      },
+      "summary": {
+        "text": "Lê um orçamento fictício para comparar despesas, financiamento e possíveis custos em falta."
+      },
+      "message_1": {
+        "text": "Podes resumir as maiores despesas, o financiamento total, o défice de financiamento e os custos que provavelmente faltam neste PDF de orçamento de horta comunitária em anexo?\n[!](embed:fictional-community-garden-budget-pdf-e1-146e58)"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c\",\"app_id\":\"pdf\",\"skill_id\":\"read\"}\n```\n\nAqui está um resumo conciso do orçamento no PDF do orçamento da horta comunitária em anexo.\n\n## 1) Maiores despesas\nOrdenadas da maior para a menor:\n\n1. **Madeira e ferragens para canteiros elevados** — **420 €**\n2. **Solo e composto** — **300 €**\n3. **Ferramentas manuais partilhadas** — **140 €**\n4. **Mangueiras e conectores de rega** — **95 €**\n5. **Sementes e mudas** — **85 €**\n6. **Materiais para o evento de abertura** — **75 €**\n\n## 2) Total de despesas planeadas\nSomando as despesas listadas:\n\n- 420 + 300 + 85 + 140 + 95 + 75 = **1.115 €**\n\n## 3) Financiamento total previsto\nFontes de financiamento listadas:\n\n- **Subsídio de bairro** — 800 €\n- **Doações de voluntários** — 200 €\n\nFinanciamento total:\n\n- 800 + 200 = **1.000 €**\n\n## 4) Défice de financiamento\n- **Total de despesas:** 1.115 €\n- **Financiamento total:** 1.000 €\n- **Défice de financiamento:** **115 €**\n\n## 5) Custos provavelmente em falta\nPara uma horta comunitária real, este rascunho provavelmente omite alguns itens comuns:\n\n- **Preparação do local** — limpeza, nivelamento, remoção de detritos\n- **Custos de entrega/transporte** — para madeira, solo, composto\n- **Armazenamento/segurança** — caixa de ferramentas, abrigo, cadeados\n- **Taxas de acesso à água** — ligação, uso do contador, taxas de utilização\n- **Materiais de proteção** — luvas, carrinho de mão, lonas\n- **Vedações/sinalização** — para proteger os talhões e informar os vizinhos\n- **Manutenção contínua** — substituição de ferramentas, solo extra, controlo de pragas\n- **Seguros/licenças** — se exigido pelo município ou proprietário do terreno\n- **Reserva de contingência** — geralmente útil porque pequenos projetos comunitários costumam ultrapassar o orçamento\n\n## Interpretação rápida\nO orçamento está **perto do equilíbrio**, mas já existe um **défice de 115 €**, mesmo antes de serem adicionados os custos provavelmente omitidos. Assim, na prática, o projeto poderá necessitar de:\n- um pouco mais de angariação de fundos,\n- alguns materiais/ferramentas doados,\n- ou uma redução do âmbito da primeira fase.\n\nSe quiseres, também posso transformar isto em:\n- um **resumo de um parágrafo para uma reunião de subsídios**, ou\n- uma **tabela de orçamento limpa com percentagens por categoria**.\n---\n*⚠️ Esta é apenas informação educativa e não constitui aconselhamento financeiro. Consulta um profissional financeiro qualificado ou um consultor fiscal para decisões financeiras.*"
+      },
+      "follow_up_1": {
+        "text": "Pesquisar subsídios e oportunidades de financiamento para hortas comunitárias locais"
+      },
+      "follow_up_2": {
+        "text": "Comparar diferentes ideias de angariação de fundos para cobrir o défice de financiamento"
+      },
+      "follow_up_3": {
+        "text": "Pesquisar guias de agricultura urbana sustentável e hortas comunitárias"
+      },
+      "follow_up_4": {
+        "text": "Criar um resumo de um parágrafo para uma reunião de subsídios"
+      },
+      "follow_up_5": {
+        "text": "Pesquisar opções de armazenamento de ferramentas e segurança para hortas comunitárias"
+      },
+      "follow_up_6": {
+        "text": "Listar reservas de contingência recomendadas para pequenos projetos comunitários"
+      }
+    },
+    "berlin_english_speaking_gp_appointments": {
+      "title": {
+        "text": "Encontrar um médico de clínica geral que fale inglês em Berlim"
+      },
+      "summary": {
+        "text": "Encontra opções de consulta com detalhes de seguro transparentes e links para os consultórios."
+      },
+      "message_1": {
+        "text": "Preciso de uma consulta com um médico de clínica geral que fale inglês em Berlim na próxima semana. Por favor, compara as opções mais próximas, mostra os cartões de consulta e indica a cobertura do seguro apenas quando a listagem de reserva o confirmar. Se a cobertura não for clara, diz."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```Aqui estão as opções mais próximas de clínicos gerais que falam inglês em Berlim nos próximos 7 dias que encontrei. Só estou indicando a cobertura do seguro onde o próprio anúncio de reserva o indica.\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**Opções mais próximas na próxima semana**\n1. **Seg, 12 de out, 07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - Endereço: Albert-Einstein-Straße 2, 12489 Berlin\n   - Tipo de consulta: Primeira consulta (novo paciente)\n   - Idiomas indicados: Alemão, Inglês\n   - **Seguro:** particular *(confirmado pelo anúncio)*\n\n2. **Seg, 12 de out, 08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - Endereço: Kapweg 5, 13405 Berlin\n   - Tipo de consulta: Primeira consulta (novo paciente)\n   - Idiomas indicados: Inglês\n   - **Seguro:** particular *(confirmado pelo anúncio)*\n\n3. **Seg, 12 de out, 08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - Endereço: Stargarder Straße 69, 10437 Berlin\n   - Tipo de consulta: Consulta de urgência\n   - Idiomas indicados: Alemão, Inglês\n   - **Seguro:** incerto *(o anúncio não confirma)*\n\n4. **Seg, 12 de out, 08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - Endereço: Müllerstraße 36, 13353 Berlin\n   - Tipo de consulta: Primeira consulta (novo paciente)\n   - Idiomas indicados: Alemão, Inglês\n   - **Seguro:** incerto *(o anúncio não confirma)*\n\n5. **Seg, 12 de out, 08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - Endereço: Wallstraße 16, 10179 Berlin\n   - Tipo de consulta: Primeira consulta (novo paciente)\n   - Idiomas indicados: Alemão, Inglês\n   - **Seguro:** incerto *(o anúncio não confirma)*\n\nAlgumas observações:\n- Excluí as duas opções anteriores de **9 a 10 de out** da comparação acima porque você pediu especificamente para a **próxima semana**.\n- Estes resultados parecem vir de anúncios do Doctolib; a cobertura do Jameda não era suportada neste conjunto de resultados de busca.```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```Se quiser, a seguir posso:\n- restringir isto a **apenas seguros públicos** onde confirmado, ou\n- criar uma lista curta por **distrito / distância da sua zona**.\n---\n*⚠️ Estas são apenas informações educativas e não constituem aconselhamento médico. Consulte seu médico para tomar decisões médicas.*"
+      },
+      "follow_up_1": {
+        "text": "Procurar consultas de clínica geral com seguro público em Mitte"
+      },
+      "follow_up_2": {
+        "text": "Filtrar as consultas para mostrar apenas seguro público"
+      },
+      "follow_up_3": {
+        "text": "Encontrar médicos que falem inglês perto do bairro de Prenzlauer Berg"
+      },
+      "follow_up_4": {
+        "text": "Restringir as opções por bairro e distância"
+      },
+      "follow_up_5": {
+        "text": "Procurar consultas de especialidade em Berlim"
+      },
+      "follow_up_6": {
+        "text": "Explicar como marcar estas consultas médicas online"
+      }
+    },
+    "community_garden_welcome_melody": {
+      "title": {
+        "text": "Uma Melodia para as Boas-vindas a uma Horta Comunitária"
+      },
+      "summary": {
+        "text": "Cria uma melodia instrumental suave para um vídeo de boas-vindas de uma horta comunitária."
+      },
+      "message_1": {
+        "text": "Poderias criar uma melodia instrumental curta e suave para um vídeo de boas-vindas de uma horta comunitária, sem vozes?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nEstou a criar essa faixa instrumental suave para o teu vídeo de boas-vindas da horta comunitária agora. Está a ser processada e aparecerá aqui assim que estiver pronta.\n\nOs projetos de [jardinagem comunitária](wiki:Community_gardening) são uma forma maravilhosa de aproximar vizinhos e promover a biodiversidade local. Enquanto a música é gerada, gostarias de ajuda para planear a narrativa ou o fluxo visual do vídeo de boas-vindas?\n\n- [Elaborar um esboço para o vídeo de boas-vindas](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [Fazer um brainstorming de textos introdutórios ou dicas de locução](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+      },
+      "follow_up_1": {
+        "text": "Pesquisar eventos e workshops de hortas comunitárias locais"
+      },
+      "follow_up_2": {
+        "text": "Ajuda-me a elaborar um storyboard para o vídeo da horta"
+      },
+      "follow_up_3": {
+        "text": "Encontrar vídeos de stock de plantas e flores"
+      },
+      "follow_up_4": {
+        "text": "Escrever frases de locução de boas-vindas para o vídeo comunitário"
+      },
+      "follow_up_5": {
+        "text": "Pesquisar dicas de jardinagem para projetos comunitários"
+      },
+      "follow_up_6": {
+        "text": "Sugerir ideias para atividades no dia da inauguração da horta comunitária"
+      }
+    },
+    "mastodon_public_post_themes": {
+      "title": {
+        "text": "Temas nas Publicações Públicas do Mastodon"
+      },
+      "summary": {
+        "text": "Resume os temas das publicações recentes da conta oficial do Mastodon e explora exemplos representativos."
+      },
+      "message_1": {
+        "text": "Poderias resumir os principais temas das publicações públicas recentes da conta oficial do Mastodon no mastodon.social, com links para alguns exemplos?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nO pedido para obter as publicações públicas recentes de @Mastodon (`@Mastodon@mastodon.social`) ainda está a ser processado em segundo plano e atualizará o chat assim que estiver pronto.\n\nEnquanto aguardamos que o feed carregue:\n- [Consulta os anúncios recentes do blogue do Mastodon](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Explora o roteiro do Mastodon](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
+      },
+      "message_3": {
+        "text": "As publicações já carregaram. Poderias resumir os temas principais e incluir links para três publicações representativas?"
+      },
+      "message_4": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nA conta oficial @Mastodon em `mastodon.social` destaca vários temas centrais nas suas publicações públicas recentes:\n\n### 1. Evolução Significativa do Produto e Pesquisa de Usuários\nO foco principal tem sido o trabalho de base para o **Mastodon 5.0**, após a iniciativa de pesquisa comunitária \"Discovery Week\" liderada pela sua equipe de design. A equipe compartilhou prévias de uma interface redesenhada e mais tranquila, além de um compositor atualizado, com o objetivo de tornar a plataforma mais acessível e fácil de usar.\n\n### 2. Governança Comunitária, Políticas e Atualizações de Equipe\nO Mastodon comunica regularmente atualizações de governança e políticas, destacando-se o lançamento de diretrizes esclarecedoras sobre a sua **Política de Marcas Registradas** em resposta direta ao feedback de administradores e desenvolvedores do fediverso. Também anunciaram transições importantes na liderança, agradecendo à diretora de comunidade cessante, Hannah Aubry, pelas suas contribuições.\n\n### 3. Destaques de Servidores e Ecossistema do Fediverso\nA conta promove ativamente instâncias independentes do fediverso e iniciativas de infraestrutura — como o destaque de servidores temáticos (como o Earth.Law) e a divulgação de pesquisas do setor, como a pesquisa de operações da IFTAS.\n\n### 4. Mercadorias da Comunidade e Financiamento de Projetos\nPara apoiar o desenvolvimento contínuo de código aberto, compartilham atualizações sobre mercadorias oficiais da comunidade, incluindo o lançamento de novas mascotes de pelúcia (\"Plushtodons\").\n\n---\n\n### Três Publicações Representativas\n\n- **Roteiro do Produto e Renovação Visual:** [Anúncio de prévia do Mastodon 5.0](embed:mastodon-after-publishing-D8d) — compartilha uma prévia do próximo layout do 5.0 e do compositor de posts com base nas descobertas da pesquisa.\n- **Política e Feedback da Comunidade:** [Atualização das diretrizes da política de marcas registradas](embed:mastodon-today-we-YqD) — descreve as regras de marca registrada revisadas e adaptadas com base nas contribuições da comunidade.\n- **Apoio ao Projeto e Mercadorias:** [Anúncio de pré-venda de Plushtodons](embed:mastodon-new-plushtodon-A57) — anuncia novas mascotes de pelúcia oficiais como uma forma de os apoiadores financiarem o desenvolvimento.\n\n---\n\nGostarias de explorar algum tópico específico com mais detalhe?\n- [Ler mais sobre as funcionalidades do Mastodon 5.0](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [Rever as diretrizes de marca registrada](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+      },
+      "follow_up_1": {
+        "text": "Pesquisar anúncios recentes no blog do Mastodon"
+      },
+      "follow_up_2": {
+        "text": "Explicar como funciona a moderação descentralizada no Mastodon"
+      },
+      "follow_up_3": {
+        "text": "Pesquisar atualizações sobre o desenvolvimento do Mastodon 5.0"
+      },
+      "follow_up_4": {
+        "text": "Comparar as mudanças do Mastodon 5.0 com versões anteriores"
+      },
+      "follow_up_5": {
+        "text": "Pesquisar discussões da comunidade sobre moderação de servidores no Fediverse"
+      },
+      "follow_up_6": {
+        "text": "Listar os principais desafios enfrentados por plataformas de código aberto"
+      }
+    },
+    "adjacent_career_portfolio_experiments": {
+      "title": {
+        "text": "Teste dois caminhos de carreira a partir do suporte ao cliente"
+      },
+      "summary": {
+        "text": "Compare redação técnica e operações de suporte com experimentos práticos de portfólio de um mês e perguntas para entrevistas."
+      },
+      "message_1": {
+        "text": "Trabalho com suporte ao cliente de software e gosto de escrever guias de ajuda e melhorar fluxos de trabalho de tickets. Quais são as duas funções adjacentes que eu poderia testar antes de me candidatar a um novo emprego? Por favor, sugira pequenos experimentos de portfólio que eu possa fazer no próximo mês e perguntas para fazer a pessoas nessas funções."
+      },
+      "message_2": {
+        "text": "Com base na sua experiência em [suporte ao cliente](wiki:Customer_support) e no seu interesse por guias de ajuda e fluxos de tickets, duas funções adjacentes naturais se destacam:\n\n1. **Redator Técnico / Especialista em Educação de Clientes**\n   *Foco:* Organizar a [arquitetura de informação](wiki:Information_architecture), traduzir funcionalidades complexas de software em documentação clara para o usuário, criar guias de solução de problemas e manter bases de conhecimento de autoatendimento.\n2. **Especialista em Operações de Suporte (Support Ops)**\n   *Foco:* Administrar ferramentas de tickets de suporte (como [Zendesk](wiki:Zendesk), Freshdesk ou Jira Service Management), analisar métricas de suporte, otimizar o roteamento de tickets, auditar macros e automatizar processos repetitivos.\n\n---\n\n### Experiências de Portfólio de 30 Dias\n\nVocê não precisa mudar de emprego imediatamente para construir uma prova de trabalho. Você pode realizar estas experiências leves diretamente na sua função atual ou como estudos de caso independentes:\n\n#### Para Redação Técnica / Educação de Clientes\n* **A Reescrita dos \"Top 5 Tickets\":** Identifique de 3 a 5 tickets de suporte comuns onde os usuários rotineiramente ficam presos devido a uma interface confusa ou guias existentes vagos.\n* **O Entregável:** Escreva um guia de solução de problemas abrangente e modular ou um artigo de \"como fazer\". Estruture-o com cabeçalhos claros, pré-requisitos, instruções passo a passo e capturas de tela ou diagramas anotados.\n* **Métrica de Portfólio:** Acompanhe se os tickets marcados com esse problema diminuem após a publicação ou meça o feedback da equipe interna sobre a velocidade de resolução.\n\n#### Para Operações de Suporte\n* **Auditoria de Eficiência de Macros e Roteamento:** Analise a biblioteca de macros existente da sua equipe ou as regras de roteamento de tickets.\n* **O Entregável:** Crie uma proposta de melhoria de processo de 1 a 2 páginas mostrando:\n  1. Macros redundantes ou desatualizadas identificadas.\n  2. Um esquema de categorização simplificado ou configuração de gatilhos automatizados.\n  3. Uma estimativa de tempo economizado por agente por semana.\n* **Métrica de Portfólio:** Apresente isso ao seu líder ou implemente-o se tiver acesso de administrador, anotando a linha de base antes e depois.\n\n---\n\n### Perguntas para Entrevistas Informativas\n\nAo entrar em contato com profissionais no LinkedIn ou internamente:\n\n#### Para Redatores Técnicos\n* *\"Como você equilibra a escrita para usuários finais versus a escrita para equipes técnicas internas ou engenheiros?\"*\n* *\"Como é o seu ciclo de colaboração quando as funcionalidades do produto mudam rapidamente antes de a documentação ser atualizada?\"*\n* *\"Quais ferramentas de autoria e fluxos de trabalho de 'docs-as-code' são mais valorizados nas contratações agora?\"*\n\n#### Para Especialistas em Operações de Suporte\n* *\"Quanto do seu dia é gasto configurando ferramentas e integrações versus analisando dados e tendências de volume de tickets?\"*\n* *\"Ao escalar fluxos de trabalho de suporte, qual é o erro mais comum que as equipes cometem com a automação?\"*\n* *\"Quais certificações administrativas (ex: Zendesk, Salesforce) ou habilidades técnicas fizeram a maior diferença para conseguir sua função?\"*\n\n---\n\n### Explorando Sua Direção (Pergunta 1 de 5)\n\nPara ajudar a identificar qual caminho melhor se alinha aos seus objetivos de longo prazo e preferências diárias, vamos explorar seu estilo de trabalho principal e interesses.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"adjacent_role_preference\",\n  \"multiple\": false,\n  \"question\": \"When you reflect on writing guides versus improving workflows, which type of problem energizes you more?\",\n  \"custom_option_id\": \"other_focus\",\n  \"custom_placeholder\": \"Describe what you enjoy most or any specific balance...\",\n  \"options\": [\n    {\n      \"id\": \"content_pedagogy\",\n      \"text\": \"Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education).\"\n    },\n    {\n      \"id\": \"systems_tooling\",\n      \"text\": \"Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps).\"\n    },\n    {\n      \"id\": \"hybrid_balance\",\n      \"text\": \"An even split between both; I want to improve internal systems while also authoring the guides.\"\n    },\n    {\n      \"id\": \"other_focus\",\n      \"text\": \"Something else / A different aspect entirely.\"\n    }\n  ]\n}\n```\n\n**Recomendação:** Se você prefere foco individual, clareza na comunicação e empatia com a experiência do usuário (UX), o caminho de Redação Técnica geralmente oferece mais autonomia. Se você prefere a resolução de problemas em torno da administração de ferramentas, métricas e lógica de sistemas, as Operações de Suporte proporcionam um caminho mais rápido para a liderança operacional e operações de produto.\n\n---\n\n**Potenciais próximos passos:**\n- [Rascunhar uma mensagem de contato para entrevistas informativas](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)\n- [Esboçar um modelo de auditoria de fluxo de trabalho de suporte](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)\n---\n*⚠️ Esta é apenas uma informação educacional e não um conselho psicológico profissional. Para questões de saúde mental, consulte um terapeuta ou conselheiro qualificado. Se estiver passando por uma crise, entre em contato imediatamente com os serviços de emergência ou uma linha de apoio.*"
+      },
+      "follow_up_1": {
+        "text": "Pesquisar vagas e requisitos para redator técnico remoto"
+      },
+      "follow_up_2": {
+        "text": "Esboçar uma mensagem de contato concisa para uma entrevista de redator técnico"
+      },
+      "follow_up_3": {
+        "text": "Criar uma lista de tarefas para o teu experimento de portfólio de trinta dias"
+      },
+      "follow_up_4": {
+        "text": "Delinear um guia passo a passo para a tua auditoria de fluxo de trabalho de suporte"
+      },
+      "follow_up_5": {
+        "text": "Pesquisar cursos de certificação e requisitos para operações de suporte"
+      },
+      "follow_up_6": {
+        "text": "Comparar as responsabilidades diárias e os caminhos de crescimento de ambas as funções"
+      }
+    },
+    "bayes_theorem_quick_quiz": {
+      "title": {
+        "text": "Aprende o Teorema de Bayes com um Quiz Rápido"
+      },
+      "summary": {
+        "text": "Compreende a probabilidade a priori e a posteriori através de um exemplo concreto e testa a tua intuição com perguntas de acompanhamento."
+      },
+      "message_1": {
+        "text": "Tenho um exame de estatística na próxima semana. Podes explicar o Teorema de Bayes com um exemplo do dia a dia e depois fazer-me um quiz?"
+      },
+      "message_2": {
+        "text": "### O que é o Teorema de Bayes?\n\nO [teorema de Bayes](wiki:Bayes'_theorem) é uma regra matemática para atualizar a probabilidade de um evento ou hipótese ($A$) quando observas novas evidências ($B$).\n\nEm símbolos:\n\n$$P(A|B) = \\frac{P(B|A) \\cdot P(A)}{P(B)}$$\n\nAqui está o que cada componente representa:\n* **$P(A)$ — [Probabilidade a priori](wiki:Prior_probability):** A tua estimativa inicial de quão provável $A$ é antes de veres novos dados (a linha de base ou taxa base).\n* **$P(B|A)$ — Verosimilhança (Likelihood):** A probabilidade de observar a evidência $B$ se a hipótese $A$ for realmente verdadeira.\n* **$P(B)$ — [Verosimilhança marginal](wiki:Marginal_likelihood):** A probabilidade total de observar a evidência $B$ em todos os cenários possíveis.\n* **$P(A|B)$ — [Probabilidade a posteriori](wiki:Posterior_probability):** A probabilidade atualizada de $A$, dado que a evidência $B$ ocorreu.\n\n---\n\n### Um Exemplo do Dia a Dia: O Teste Médico Rápido\n\nImagina que fazes um teste de rastreio rápido para uma condição rara:\n\n1. **Taxa Base (A Priori):** Apenas **$1\\%$** das pessoas na tua população têm realmente esta condição:\n   $$P(\\text{Condição}) = 0.01, \\quad P(\\text{Saudável}) = 0.99$$\n2. **Sensibilidade do Teste (Verosimilhança):** Se alguém tem a condição, o teste é positivo $90\\%$ das vezes:\n   $$P(\\text{Positivo} \\mid \\text{Condição}) = 0.90$$\n3. **Taxa de Falsos Positivos:** Se alguém não a tem, o teste mostra falsamente um resultado positivo $10\\%$ das vezes:\n   $$P(\\text{Positivo} \\mid \\text{Saudável}) = 0.10$$\n\nAgora supõe que **o teu teste dá positivo**. Qual é a probabilidade de teres realmente a condição?\n\n#### Aplicando a Fórmula:\nPrimeiro, calcula a probabilidade total de obter um teste positivo, $P(\\text{Positivo})$:\n$$\\begin{aligned}\nP(\\text{Positivo}) &= P(\\text{Positivo} \\mid \\text{Condição}) \\cdot P(\\text{Condição}) + P(\\text{Positivo} \\mid \\text{Saudável}) \\cdot P(\\text{Saudável}) \\\\\n&= (0.90 \\cdot 0.01) + (0.10 \\cdot 0.99) \\\\\n&= 0.009 + 0.099 = 0.108\n\\end{aligned}$$\n\nAgora, calcula a tua probabilidade a posteriori:\n$$P(\\text{Condição} \\mid \\text{Positivo}) = \\frac{0.009}{0.108} \\approx 8.3\\%$$\n\nMesmo com um teste $90\\%$ preciso, a probabilidade de teres realmente a condição é de apenas cerca de **$8.3\\%$**. Como a condição é rara, os falsos positivos da maioria saudável superam facilmente os verdadeiros positivos da minoria doente.\n\n---\n\n### Verificação Rápida\n\nVamos testar a tua compreensão dos termos:\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"bayes_components_quiz_1\",\n  \"multiple\": false,\n  \"question\": \"In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?\",\n  \"options\": [\n    { \"id\": \"opt_pa\", \"text\": \"P(A) — Prior probability\" },\n    { \"id\": \"opt_pba\", \"text\": \"P(B|A) — Likelihood\" },\n    { \"id\": \"opt_pab\", \"text\": \"P(A|B) — Posterior probability\" },\n    { \"id\": \"opt_pb\", \"text\": \"P(B) — Marginal probability of evidence\" }\n  ]\n}\n```"
+      },
+      "message_3": {
+        "text": "Acho que P(A) é a probabilidade a priori, a taxa de base inicial. Está certo? Poderias dar-me mais uma pergunta curta para eu tentar?"
+      },
+      "message_4": {
+        "text": "Exatamente. $P(A)$ é a **probabilidade a priori** — a tua crença base ou inicial antes de considerares quaisquer novas observações ou resultados de testes. No nosso exemplo do rastreio médico, essa era a taxa de $1\\%$ da população geral.\n\n---\n\n### Pergunta de Desafio: Verificação de Intuição\n\nAqui tens um cenário rápido para testares a tua intuição sobre como o teorema de Bayes se comporta na prática:\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"bayes_intuition_quiz_2\",\n  \"multiple\": false,\n  \"question\": \"Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?\",\n  \"options\": [\n    {\n      \"id\": \"opt_very_high\",\n      \"text\": \"The posterior probability is close to 100% because alarms are specifically built to detect break-ins.\"\n    },\n    {\n      \"id\": \"opt_counterintuitively_low\",\n      \"text\": \"The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins.\"\n    },\n    {\n      \"id\": \"opt_equal_to_prior\",\n      \"text\": \"The posterior probability remains completely unchanged regardless of whether the alarm sounds.\"\n    },\n    {\n      \"id\": \"opt_independent\",\n      \"text\": \"The posterior probability depends only on alarm volume, not the baseline frequency of burglaries.\"\n    }\n  ]\n}\n```\n\n***\n\n**Próximos Passos Sugeridos:**\n* [Calcular um problema numérico completo de Bayes passo a passo](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)\n* [Rever Bayes contínuo e distribuições a priori conjugadas](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)"
+      },
+      "follow_up_1": {
+        "text": "Calcular um problema de probabilidade personalizado do teorema de Bayes"
+      },
+      "follow_up_2": {
+        "text": "Explicar a diferença entre estatística frequentista e bayesiana"
+      },
+      "follow_up_3": {
+        "text": "Procurar questões de exames de estatística sobre probabilidade para praticar"
+      },
+      "follow_up_4": {
+        "text": "Analisar outro exemplo do teorema de Bayes com múltiplos resultados"
+      },
+      "follow_up_5": {
+        "text": "Encontrar tutoriais em vídeo online que expliquem o teorema de Bayes visualmente"
+      },
+      "follow_up_6": {
+        "text": "Testar-me no cálculo de probabilidade a posteriori com números"
+      }
+    },
+    "community_garden_calendar_invitation": {
+      "title": {
+        "text": "Convite de Calendário para Horta Comunitária"
+      },
+      "summary": {
+        "text": "Cria um convite de calendário importável com o fuso horário de Berlim, agenda do evento e lembrete para uma sessão de plantio voluntário."
+      },
+      "message_1": {
+        "text": "Poderias criar um convite de calendário importável para uma sessão fictícia de plantio voluntário numa horta comunitária no sábado, 17 de outubro de 2026, das 10:00 às 12:00 em Europe/Berlin? Usa Gartenweg 12, Berlim como um exemplo fictício de localização, inclui uma agenda curta e um lembrete de 24 horas, e dá-me o texto iCalendar para guardar como um ficheiro .ics."
+      },
+      "message_2": {
+        "text": "Aqui estão os dados padrão [iCalendar](wiki:ICalendar) (`.ics`) para a tua sessão de plantio na horta comunitária. Incluem a definição do fuso horário Europe/Berlin, detalhes do evento, uma agenda e um lembrete de exibição de 24 horas (VALARM).\n\nGuarda o conteúdo abaixo num ficheiro de texto chamado `community_garden_planting.ics` e importa-o para o teu cliente de calendário (como o Google Agenda, Apple Calendar ou Microsoft Outlook).\n\n```json\n{\"type\": \"code\", \"embed_id\": \"6deff7cb-4e99-4dd3-9052-3985e09a9cc9\"}\n```\n\n### Resumo do Evento\n* **Data e Hora:** Sábado, 17 de outubro de 2026, 10:00 – 12:00 CEST\n* **Localização:** Gartenweg 12, Berlim\n* **Lembrete:** 1 dia antes (`TRIGGER:-P1D`)\n\n***\n\n**Próximos Passos Sugeridos:**\n* [Escrever um rascunho de e-mail de convite para voluntários](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)\n* [Preparar um documento com a lista de plantio e ferramentas](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)"
+      },
+      "follow_up_1": {
+        "text": "Pesquisar dicas online para voluntariado em hortas comunitárias"
+      },
+      "follow_up_2": {
+        "text": "Escrever um e-mail amigável convidando voluntários para a sessão de plantio"
+      },
+      "follow_up_3": {
+        "text": "Encontrar próximos workshops de jardinagem em Berlim"
+      },
+      "follow_up_4": {
+        "text": "Criar uma lista de ferramentas completa para o evento de jardinagem"
+      },
+      "follow_up_5": {
+        "text": "Pesquisar online por plantas perenes ideais para iniciantes"
+      },
+      "follow_up_6": {
+        "text": "Explicar como importar arquivos .ics para o Google Agenda"
+      }
+    },
+    "net_cash_from_supplied_balances": {
+      "title": {
+        "text": "Caixa Líquido de Saldos Fornecidos"
+      },
+      "summary": {
+        "text": "Calcula o caixa líquido a partir de três saldos fornecidos pelo usuário e explica conta corrente, poupança e dívida de cartão de crédito."
+      },
+      "message_1": {
+        "text": "Aqui estão os meus saldos atuais dos extratos que tenho à minha frente: conta corrente €1.850, poupança €4.200, saldo devedor do cartão de crédito €640. Podes mostrar a minha posição de caixa líquido e explicar o que cada número significa?"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"04818ed0-8e67-4cb8-9736-45d5c35d393a\",\"app_id\":\"math\",\"skill_id\":\"calculate\"}\n```### Sua posição líquida de caixa\n\nSua **posição líquida de caixa** é de **€ 5.410**.\n\nAqui está o detalhamento:```json\n{\"type\": \"sheet\", \"embed_id\": \"3db1b137-abac-48a5-8c18-31ef7821ec04\"}\n```\n\n---\n### O que cada número significa\n\n1. **Conta Corrente (€1.850): Caixa Operacional (Capital de Giro)**\n   * Esta é a sua reserva de [dinheiro](wiki:Cash) mais líquida, destinada a cobrir custos de vida recorrentes e regulares (aluguel/hipoteca, contas de consumo, compras de mercado, assinaturas).\n   * Ter €1.850 oferece uma margem imediata para evitar taxas de cheque especial ou atrasos em pagamentos enquanto você espera pela entrada de renda.\n\n2. **Conta Poupança (€4.200): Margem de Segurança e Reservas**\n   * Isso representa fundos parados destinados a uma [reserva de emergência](wiki:Emergency_fund) ou metas financeiras de médio prazo.\n   * Ao contrário da conta corrente, esse dinheiro fica separado para desencorajar gastos do dia a dia e geralmente rende alguns juros, permanecendo facilmente acessível caso surjam custos inesperados.\n\n3. **Saldo do Cartão de Crédito (€640): [Dívida](wiki:Debt) de Curto Prazo**\n   * Este é um passivo devido à operadora do cartão. Se for pago integralmente antes do vencimento da fatura, não gera juros.\n   * No entanto, se passar da data de vencimento, os cartões de crédito geralmente cobram taxas de juros altas, que corroem rapidamente seu caixa líquido.\n\n4. **Posição de Caixa Líquido (€5.410): Liquidez Imediata Real**\n   * Esta métrica mede o que restaria em dinheiro líquido se você quitasse sua dívida atual de curto prazo do cartão de crédito imediatamente.\n   * Um valor positivo indica que você tem liquidez total e está solvente em relação às obrigações atuais do cartão, com €5.410 restantes na reserva.\n---\n### Próximos passos sugeridos\n\nQuer explorar como isso se encaixa no seu planejamento financeiro geral?\n\n* [Montar um plano de reserva de emergência](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)\n* [Criar uma estrutura de orçamento mensal](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)\n---\n*⚠️ Estas são apenas informações educacionais e não constituem aconselhamento financeiro. Consulte um profissional financeiro qualificado ou consultor tributário para tomar decisões financeiras.*"
+      },
+      "follow_up_1": {
+        "text": "Pesquisar online referências recomendadas para fundos de emergência"
+      },
+      "follow_up_2": {
+        "text": "Explicar a diferença entre caixa líquido e patrimônio líquido"
+      },
+      "follow_up_3": {
+        "text": "Calcular por quanto tempo as minhas poupanças atuais cobrirão as despesas mensais"
+      },
+      "follow_up_4": {
+        "text": "Listar estratégias para pagar rapidamente dívidas de cartão de crédito de curto prazo"
+      },
+      "follow_up_5": {
+        "text": "Pesquisar dicas para redução de taxas de juros de cartão de crédito"
+      },
+      "follow_up_6": {
+        "text": "Ajudar-me a avaliar se a minha poupança de 4.200 € é um fundo de emergência adequado"
+      }
+    },
+    "community_garden_volunteer_onboarding": {
+      "title": {
+        "text": "Integração de Voluntários da Horta Comunitária"
+      },
+      "summary": {
+        "text": "Cria um guia de voluntariado partilhável de uma página com tarefas do primeiro dia, noções básicas de segurança e contactos de ajuda."
+      },
+      "message_1": {
+        "text": "Por favor, cria um documento de integração de voluntários partilhável de uma página para uma horta comunitária. Mantém-no com menos de 220 palavras. Aborda a chegada, as tarefas do primeiro dia, a segurança e como pedir ajuda. Este é um modelo geral, por isso usa marcadores de posição onde forem necessários contactos ou locais específicos da horta."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"document\", \"embed_id\": \"f40fc42f-df5d-4116-bba3-3500b1805eb5\"}\n```\n\nO documento de integração foi gerado acima no formato padrão `.docx` com marcadores de posição (como `[Coordinator Name]`, `[Check-In Location]` e `[Phone Number]`) para facilitar a personalização. Com menos de 170 palavras, cabe perfeitamente numa única página impressa.\n\n***\n\n### Próximos Passos Sugeridos:\n1. [Personaliza os marcadores de posição com os detalhes específicos da tua horta](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)\n2. [Adiciona uma secção de código de conduta do voluntário ou de autorização de imagem](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)"
+      },
+      "follow_up_1": {
+        "text": "Pesquisar as melhores práticas de gestão de voluntários em hortas comunitárias"
+      },
+      "follow_up_2": {
+        "text": "Ajuda-me a adicionar uma secção de código de conduta do voluntário"
+      },
+      "follow_up_3": {
+        "text": "Criar uma lista de tarefas para organizar o nosso dia de orientação de voluntários"
+      },
+      "follow_up_4": {
+        "text": "Explicar como estruturar uma lista de verificação de orientação acolhedora"
+      },
+      "follow_up_5": {
+        "text": "Pesquisar modelos de manuais de voluntariado online"
+      },
+      "follow_up_6": {
+        "text": "Listar diretrizes de segurança essenciais para espaços comunitários ao ar livre"
+      }
+    },
+    "voice_note_transcription_action_item": {
+      "title": {
+        "text": "Transcrever uma nota de voz curta"
+      },
+      "summary": {
+        "text": "Transcreve uma gravação curta e verifica se contém uma tarefa para acompanhamento."
+      },
+      "message_1": {
+        "text": "Podes transcrever esta gravação curta e dizer-me se inclui um item de ação?\n[!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)"
+      },
+      "message_2": {
+        "text": "Aqui está a transcrição da tua gravação:\n\n> *\"Real-time transcription is working correctly in OpenMates.\"*\n\n### Contém um item de ação?\n**Não.** A gravação é apenas uma atualização de estado informativa que confirma que a funcionalidade de transcrição está operacional. Não menciona quaisquer tarefas, prazos ou ações de acompanhamento solicitadas.\n\n---\n\n**Próximos passos que podes considerar:**\n- Se quiseres testar uma gravação que contenha tarefas, sente-te à vontade para partilhar outra nota de voz!"
+      },
+      "follow_up_1": {
+        "text": "Procurar aplicações de transcrição de notas de voz com funcionalidades de extração de tarefas"
+      },
+      "follow_up_2": {
+        "text": "Explicar como funciona a deteção automática de itens de ação em modelos de IA"
+      },
+      "follow_up_3": {
+        "text": "Transcrever outro ficheiro de áudio para testar a deteção de tarefas"
+      },
+      "follow_up_4": {
+        "text": "Listar dicas para gravar notas de voz claras com passos acionáveis"
+      },
+      "follow_up_5": {
+        "text": "Criar uma nova tarefa para rever as funcionalidades de gravação de voz"
+      },
+      "follow_up_6": {
+        "text": "Comparar diferentes métodos para transformar ideias faladas em tarefas organizadas"
+      }
     }
   },
   "focus_modes": {
@@ -20881,6 +21475,120 @@
       },
       "restore_failed": {
         "text": "Falha ao restaurar a definição selecionada."
+      }
+    }
+  },
+  "daily_inspiration_fallback": {
+    "antikythera": {
+      "phrase": {
+        "text": "Um antigo naufrágio guardava uma máquina que previa o céu."
+      },
+      "title": {
+        "text": "O mecanismo de Anticítera"
+      },
+      "description": {
+        "text": "Um antigo modelo grego do cosmos movido à mão."
+      },
+      "assistant_response": {
+        "text": "O mecanismo de Anticítera usava engrenagens de bronze para modelar ciclos astronómicos. Explora como os engenheiros antigos previam o céu."
+      }
+    },
+    "bioluminescence": {
+      "phrase": {
+        "text": "Alguns animais produzem a sua própria luz. A química é surpreendentemente elegante."
+      },
+      "title": {
+        "text": "Bioluminescência"
+      },
+      "description": {
+        "text": "Organismos vivos que produzem luz através da química."
+      },
+      "assistant_response": {
+        "text": "Os organismos brilham para caçar, para camuflagem, comunicação e defesa. Explora como a química se torna luz."
+      }
+    },
+    "fermi": {
+      "phrase": {
+        "text": "Se o universo é tão grande, por que parece tão silencioso?"
+      },
+      "title": {
+        "text": "O paradoxo de Fermi"
+      },
+      "description": {
+        "text": "A tensão entre a provável vida extraterrestre e a ausência de provas claras."
+      },
+      "assistant_response": {
+        "text": "O paradoxo de Fermi questiona por que não encontramos provas convincentes de civilizações extraterrestres. Explora possíveis respostas."
+      }
+    },
+    "export": {
+      "phrase": {
+        "text": "Mantém a tua própria cópia de segurança. Exporta os teus dados do OpenMates sempre que precisares."
+      },
+      "title": {
+        "text": "Exporta os teus dados do OpenMates"
+      },
+      "description": {
+        "text": "Faz uma cópia de segurança de conversas, definições, memórias e muito mais."
+      },
+      "assistant_response": {
+        "text": "Exporta uma cópia dos teus dados do OpenMates nas definições da conta. Inicia sessão para acederes aos dados encriptados da tua conta."
+      }
+    },
+    "pii": {
+      "phrase": {
+        "text": "Queres controlos de privacidade mais fortes? Adiciona detalhes pessoais que o OpenMates deve ocultar."
+      },
+      "title": {
+        "text": "Deteção de PII personalizada"
+      },
+      "description": {
+        "text": "Protege detalhes pessoais antes das chamadas ao modelo."
+      },
+      "assistant_response": {
+        "text": "Escolhe detalhes pessoais para o OpenMates ocultar antes de uma chamada ao modelo. Revê as definições de privacidade para os gerires."
+      }
+    },
+    "focus": {
+      "phrase": {
+        "text": "Precisas de uma resposta mais focada? Dá ao teu mate uma tarefa específica."
+      },
+      "title": {
+        "text": "Modos de foco"
+      },
+      "description": {
+        "text": "Guia uma conversa em direção a um objetivo específico."
+      },
+      "assistant_response": {
+        "text": "Usa um modo de foco para guiar uma conversa em direção a um objetivo específico. Explora os modos disponíveis em Aplicações."
+      }
+    },
+    "memories": {
+      "phrase": {
+        "text": "Repetires-te torna-se cansativo. Guarda o contexto de que os teus mates se devem lembrar."
+      },
+      "title": {
+        "text": "Memórias"
+      },
+      "description": {
+        "text": "Guarda preferências e contexto úteis."
+      },
+      "assistant_response": {
+        "text": "Guarda preferências e contexto úteis como memórias e, depois, escolhe o que os teus mates podem usar."
+      }
+    },
+    "events": {
+      "phrase": {
+        "text": "Procuras algo para fazer? Descobre eventos perto de ti."
+      },
+      "title": {
+        "text": "Encontrar eventos locais"
+      },
+      "description": {
+        "text": "Procura aulas, encontros e outros eventos."
+      },
+      "assistant_response": {
+        "text": "Usa a pesquisa de Eventos para encontrar aulas e encontros locais. Escolhe um lugar e um tema para ver o que acontece por perto."
       }
     }
   }

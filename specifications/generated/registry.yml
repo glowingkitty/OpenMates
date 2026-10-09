@@ -363,10 +363,10 @@ specifications:
     required_applies_to:
     - gui.apple
   feature.apps-workspace:
-    version: 2
+    version: 3
     status: draft
     path: features/apps-workspace
-    fingerprint: 24ba9ca417eddf189d8a8eea77c04da9c425d755115517f91f87a782670faf5b
+    fingerprint: ede2fd3882c134539c536b6b7823db2b65cf952ac8cd59301ec980bc85d056ab
     required_applies_to:
     - rest_api
     - cli
@@ -469,10 +469,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.daily-inspiration:
-    version: 1
-    status: approved
+    version: 2
+    status: draft
     path: features/daily-inspiration
-    fingerprint: b9fcb6c9142fd1cbecc6bafd073ac1e786fcf91ec76cc354f6afe986494c65a2
+    fingerprint: 025a2f62f920d93a37a0456787c8b655e93a8640a0e9f7c611d4e3c5eb3d465c
     required_applies_to:
     - rest_api
     - gui.web
@@ -501,15 +501,15 @@ specifications:
     version: 5
     status: draft
     path: features/landing-onboarding
-    fingerprint: 96117f8f3c7640e33c6e54148e83f973cd542799a774b6439bdbbeba28605c5e
+    fingerprint: af369d61172897be2bd7dbc5d09782a2a907b1e7fd665a92810c0713f2967c9d
     required_applies_to:
     - gui.web
     - gui.apple
   feature.marketing-landing:
-    version: 2
+    version: 3
     status: draft
     path: features/marketing-landing
-    fingerprint: bc8afb84d59f3f579688198e27be65b334b87df5a6069372b90ee07345e42156
+    fingerprint: 64d9fce1cf7fbe6cc02aad25ad5fad3d888fae4f3af65d5357b56dd63d8c8ab5
     required_applies_to:
     - gui.web
   feature.message-input:
@@ -4452,7 +4452,7 @@ assertions:
     required_applies_to:
     - gui.apple
   apps.discovery.public-catalog:
-    specification: feature.apps-workspace@2
+    specification: feature.apps-workspace@3
     specification_id: feature.apps-workspace
     type: behavior
     fingerprint: 3979b69c4b2dc8d1c2d6029980188bb05f1ca507051457b96816f7bdcd81f159
@@ -4462,7 +4462,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.navigation.hash-and-forwarding:
-    specification: feature.apps-workspace@2
+    specification: feature.apps-workspace@3
     specification_id: feature.apps-workspace
     type: behavior
     fingerprint: 3e29ac60ae1fff58017bccd840382234a4b9bc45d19e11960cdb3121b8a9ee39
@@ -4472,7 +4472,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.forms.metadata-driven:
-    specification: feature.apps-workspace@2
+    specification: feature.apps-workspace@3
     specification_id: feature.apps-workspace
     type: behavior
     fingerprint: 19ce79969087c10ca20aaabbd855070658901f5fb0ae2eceff0b2230db6c4c97
@@ -4482,7 +4482,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.execution.direct-shared-contract:
-    specification: feature.apps-workspace@2
+    specification: feature.apps-workspace@3
     specification_id: feature.apps-workspace
     type: invariant
     fingerprint: 8f185f611eaad8525e80c5020529f892782bf7d11ae7d000282b56699af0cf0d
@@ -4492,7 +4492,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.results.web-retained-graph:
-    specification: feature.apps-workspace@2
+    specification: feature.apps-workspace@3
     specification_id: feature.apps-workspace
     type: privacy
     fingerprint: 259e738006f17eb00b9f3a35164d4b5fba933d13b3645d9f0cb092505e01a08e
@@ -4502,7 +4502,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.results.cli-temporary-history:
-    specification: feature.apps-workspace@2
+    specification: feature.apps-workspace@3
     specification_id: feature.apps-workspace
     type: invariant
     fingerprint: 17132d7b544f97e58b75a7468cb250f02546a4f1005dd734e2db217ac53f995c
@@ -4512,7 +4512,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.library.embeds-account-paginated:
-    specification: feature.apps-workspace@2
+    specification: feature.apps-workspace@3
     specification_id: feature.apps-workspace
     type: security
     fingerprint: 6fe8f3ea52ae9dc231c7707d88b12f5b2cccc3374c51e795f45032f26424c3f4
@@ -4522,7 +4522,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.library.workflows-account-related:
-    specification: feature.apps-workspace@2
+    specification: feature.apps-workspace@3
     specification_id: feature.apps-workspace
     type: security
     fingerprint: 824c179b3fde8231d5342c6a364b9775b50f9916cd44ca368662d5b44df7b8db
@@ -4532,7 +4532,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.anonymous.cli-equivalent-gate:
-    specification: feature.apps-workspace@2
+    specification: feature.apps-workspace@3
     specification_id: feature.apps-workspace
     type: security
     fingerprint: c69eefeda084fc61c9095dac6e1d77d6ab17471a57e64b6efc7cd92675887d0d
@@ -4542,7 +4542,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.anonymous.local-results-and-promotion:
-    specification: feature.apps-workspace@2
+    specification: feature.apps-workspace@3
     specification_id: feature.apps-workspace
     type: privacy
     fingerprint: 024555d1e55031033c8f2edfd0bfa2a07c28314b206a28870310a9a1112151c2
@@ -4552,10 +4552,10 @@ assertions:
     - gui.web
     - gui.apple
   apps.presentation.shared-detail-and-recency:
-    specification: feature.apps-workspace@2
+    specification: feature.apps-workspace@3
     specification_id: feature.apps-workspace
     type: behavior
-    fingerprint: ac9c0d7c9002784b685d73a3c349c2ef80aa29b630165b26cdf0afe57ecf6f09
+    fingerprint: 0603229290898965b8cbb867d586d2cff2e4418eb26f70cf211c8ecc038baf66
     required_applies_to:
     - rest_api
     - cli
@@ -5935,15 +5935,15 @@ assertions:
     - gui.web
     - gui.apple
   daily-inspiration.authenticated-continuity:
-    specification: feature.daily-inspiration@1
+    specification: feature.daily-inspiration@2
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: ec8361dad848aa2c0f861b0558dd5de8b8f53877da5f02ebfe28452364eec0f7
+    fingerprint: 933cea9074434bc031ee61172b1e5b8444b5bb0b3b8d34d5854e9d43e98abee0
     required_applies_to:
     - rest_api
     - gui.web
   daily-inspiration.personalized-priority:
-    specification: feature.daily-inspiration@1
+    specification: feature.daily-inspiration@2
     specification_id: feature.daily-inspiration
     type: invariant
     fingerprint: f53b58ca405a81bc3ec17c8a07bc24b9ae14a4d07b94f41dd311ae1323726887
@@ -5951,15 +5951,15 @@ assertions:
     - rest_api
     - gui.web
   daily-inspiration.guest-isolated:
-    specification: feature.daily-inspiration@1
+    specification: feature.daily-inspiration@2
     specification_id: feature.daily-inspiration
     type: invariant
-    fingerprint: ab1fddcbf4ace0c01b9b2f2dc02a49ef42cdab1b584bc076becfce13db290a33
+    fingerprint: ef47995c18d80659a580b2855d6bff26191712a65ebaf2fd392c7af7f70311d5
     required_applies_to:
     - rest_api
     - gui.web
   daily-inspiration.authenticated-fallback-content:
-    specification: feature.daily-inspiration@1
+    specification: feature.daily-inspiration@2
     specification_id: feature.daily-inspiration
     type: behavior
     fingerprint: 2be6820049d372c5fa3c94647c3a73e49315f3e791d21d5583a1ece1b2963e2e
@@ -5967,7 +5967,7 @@ assertions:
     - rest_api
     - gui.web
   daily-inspiration.public-defaults:
-    specification: feature.daily-inspiration@1
+    specification: feature.daily-inspiration@2
     specification_id: feature.daily-inspiration
     type: behavior
     fingerprint: 675b871762da0785298f049b611aed95f02730aafe6485e11a9b6b5d735c3bfc
@@ -5975,7 +5975,7 @@ assertions:
     - rest_api
     - gui.web
   daily-inspiration.encrypted-persistence:
-    specification: feature.daily-inspiration@1
+    specification: feature.daily-inspiration@2
     specification_id: feature.daily-inspiration
     type: privacy
     fingerprint: 4eddcfc76a36a228ca41810ee762c7c7c211a8fa11478afb4f54576c9e11fe40
@@ -5983,7 +5983,7 @@ assertions:
     - rest_api
     - gui.web
   daily-inspiration.opened-state:
-    specification: feature.daily-inspiration@1
+    specification: feature.daily-inspiration@2
     specification_id: feature.daily-inspiration
     type: behavior
     fingerprint: 5231fa91e625730ebf2339ce26408a6dcb89bb66c0dd06dcd3d0c6fa358876b7
@@ -6303,63 +6303,15 @@ assertions:
     specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: behavior
-    fingerprint: 4fa3937496ad025473bd94fe23222d6dc45bed63a24cbaae412a09fb9662f67d
+    fingerprint: 097c5ed82430d89a7f9d44f59f6d6cfc4a2bd6bcc9d8e9fb4cd20f062f97aff5
     required_applies_to:
     - gui.web
     - gui.apple
-  landing-onboarding.guest-sequence:
+  landing-onboarding.guest-examples:
     specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: behavior
-    fingerprint: e8abbd972487ecc8a3f27199181f11e4857d69a7a75fa116b2031bfcc21de296
-    required_applies_to:
-    - gui.web
-    - gui.apple
-  landing-onboarding.intro-active-apps-only:
-    specification: feature.landing-onboarding@5
-    specification_id: feature.landing-onboarding
-    type: invariant
-    fingerprint: 71094aebac8ad350e1979f8ca3949205cdfef63f4a40918449886af74434ea3f
-    required_applies_to:
-    - gui.web
-    - gui.apple
-  landing-onboarding.coordinated-story-progress:
-    specification: feature.landing-onboarding@5
-    specification_id: feature.landing-onboarding
-    type: behavior
-    fingerprint: 7d1cc1618622afee9d7f101b28e0b916f2a070448ead22501d6507fef4520bf5
-    required_applies_to:
-    - gui.web
-    - gui.apple
-  landing-onboarding.manual-navigation:
-    specification: feature.landing-onboarding@5
-    specification_id: feature.landing-onboarding
-    type: behavior
-    fingerprint: 5101206cd8c42d9b9dccbb184be4ff733205f542b216b57552e34e8fc5cc329f
-    required_applies_to:
-    - gui.web
-    - gui.apple
-  landing-onboarding.actionable-demo-faithful:
-    specification: feature.landing-onboarding@5
-    specification_id: feature.landing-onboarding
-    type: behavior
-    fingerprint: f1bf3e074a516016c2560aef6b86d8b11d36685db4fc98b0f2e998527978ba12
-    required_applies_to:
-    - gui.web
-    - gui.apple
-  landing-onboarding.privacy-mates-platform-stories:
-    specification: feature.landing-onboarding@5
-    specification_id: feature.landing-onboarding
-    type: behavior
-    fingerprint: ef34d2a016aca3abda1d76393821820c4e797cb8e3216ab8332b73661f2980a1
-    required_applies_to:
-    - gui.web
-    - gui.apple
-  landing-onboarding.signup-cta:
-    specification: feature.landing-onboarding@5
-    specification_id: feature.landing-onboarding
-    type: behavior
-    fingerprint: 097cc2e003abfad4b137aed426b0e1077aa55c4a0392245a3eb9721de9dfe263
+    fingerprint: c38967a1a3f73746c1d35a790b0f4f9dcdea79f260b393e829acae208aac4f36
     required_applies_to:
     - gui.web
     - gui.apple
@@ -6367,7 +6319,7 @@ assertions:
     specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: behavior
-    fingerprint: 65ba0a70d1b78ed5e4467bb0b030f8361d6cdc278751ed7db1d54337ab0a271e
+    fingerprint: e28bc09a0854bde68caee0937c0a70b2efcc89156af3929bb2596caf94d2571b
     required_applies_to:
     - gui.web
     - gui.apple
@@ -6375,7 +6327,7 @@ assertions:
     specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: invariant
-    fingerprint: e3a120345244f9fe1ef95ef96f964b6109e202b4f8f9aa615cdb6e94a7fa37a9
+    fingerprint: 44fc33e02cee540fbe47630479dacaf7c9ab14918e1835765b7400cd5a34627b
     required_applies_to:
     - gui.web
     - gui.apple
@@ -6383,64 +6335,134 @@ assertions:
     specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: parity
-    fingerprint: 2fd9747b20688e3a3295d57effe984da86fa60f85244544a383ed1fa5f565bf3
+    fingerprint: 215f4ae52f52d5b82563a867b3e02cd6a146a6abee9e44b72401a72606d5bc44
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  landing-onboarding.guest-sequence:
+    specification: feature.landing-onboarding@5
+    specification_id: feature.landing-onboarding
+    type: invariant
+    fingerprint: 5d2f391fb3977fe2fde9cf4b5c637c0260d9502416a1703e890ad2ffdde604c9
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  landing-onboarding.intro-active-apps-only:
+    specification: feature.landing-onboarding@5
+    specification_id: feature.landing-onboarding
+    type: invariant
+    fingerprint: 4fe009acf6654fcaf918cd3e98724ef3150a57dec85177f271c9c6f59e739454
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  landing-onboarding.coordinated-story-progress:
+    specification: feature.landing-onboarding@5
+    specification_id: feature.landing-onboarding
+    type: invariant
+    fingerprint: 93799d8376ea4baf29846333664921127e140a43ae3807a3570e2bf57f1dff1e
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  landing-onboarding.manual-navigation:
+    specification: feature.landing-onboarding@5
+    specification_id: feature.landing-onboarding
+    type: invariant
+    fingerprint: 463b0b9e69629c398cad56b53d86357cfd9b05108809f2e358f3abee7893930e
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  landing-onboarding.actionable-demo-faithful:
+    specification: feature.landing-onboarding@5
+    specification_id: feature.landing-onboarding
+    type: invariant
+    fingerprint: f7421759db8572b48079fb6cd1775e7d3508adab60620cdb88ea98f56d1c639e
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  landing-onboarding.privacy-mates-platform-stories:
+    specification: feature.landing-onboarding@5
+    specification_id: feature.landing-onboarding
+    type: invariant
+    fingerprint: 12719a03f73679e045c7562d0522b21e61d4465566b6d94a0cc275e42abb57c5
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  landing-onboarding.signup-cta:
+    specification: feature.landing-onboarding@5
+    specification_id: feature.landing-onboarding
+    type: invariant
+    fingerprint: c34735cbebad3e66a98d5484a1a65d5f072b3e33ae4847781ef540fb78cb0bbb
     required_applies_to:
     - gui.web
     - gui.apple
   marketing-landing.independent-scroll:
-    specification: feature.marketing-landing@2
+    specification: feature.marketing-landing@3
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 5e24ef8ff5a66ea39b4f835c46eefc8c8f50adc092e2b5e104f5c312be87cb90
     required_applies_to:
     - gui.web
   marketing-landing.feature-layout:
-    specification: feature.marketing-landing@2
+    specification: feature.marketing-landing@3
     specification_id: feature.marketing-landing
     type: behavior
-    fingerprint: c6ed62e771d2a99333d8a92fd3e0ef483b2cea90e08d58bc61f4d3ddefa1b6fd
+    fingerprint: 3624b1d3ba3b31a4ae11da839f2d3fb71ce5b26f21de27bc6c956592e91e83eb
     required_applies_to:
     - gui.web
   marketing-landing.destinations:
-    specification: feature.marketing-landing@2
+    specification: feature.marketing-landing@3
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 3de231af3dcd91ebe72c317243b061eaf444e16d275d40b841d69e26ff77eed0
     required_applies_to:
     - gui.web
   marketing-landing.composer-focus:
-    specification: feature.marketing-landing@2
+    specification: feature.marketing-landing@3
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 8e1d9fe6b3757099cc0a60db6c65fca848c2ba57806a82ae50813e967d7feff8
     required_applies_to:
     - gui.web
   marketing-landing.real-screenshots:
-    specification: feature.marketing-landing@2
+    specification: feature.marketing-landing@3
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 4aa69e59b885b0c4b08632983d1d4ee77b95ca2f76dec5ab0628a9b55c4ebb19
     required_applies_to:
     - gui.web
   marketing-landing.public-content:
-    specification: feature.marketing-landing@2
+    specification: feature.marketing-landing@3
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: a81fd81194218b78f53bb4f23d028d73c974d36845d38dbe1541279ccba4e273
     required_applies_to:
     - gui.web
   marketing-landing.hero-app-rail:
-    specification: feature.marketing-landing@2
+    specification: feature.marketing-landing@3
     specification_id: feature.marketing-landing
     type: behavior
-    fingerprint: 8765b7d71bddd9a090acc1273ece6fb3475424f9e27868f95cef6fea57b51bad
+    fingerprint: cbfaf1dccfa6ac7bd12a8f06a40e7e84712025ba75c030b0242fee594c86312a
     required_applies_to:
     - gui.web
   marketing-landing.language-theme:
-    specification: feature.marketing-landing@2
+    specification: feature.marketing-landing@3
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 5933ce8a644b7bbbafe60e279b891ddee1e28d123408f8e56953cfdac453517a
+    required_applies_to:
+    - gui.web
+  marketing-landing.six-feature-viewport:
+    specification: feature.marketing-landing@3
+    specification_id: feature.marketing-landing
+    type: behavior
+    fingerprint: f303dc9f1e08795ce94f7bfd33e9ceee05f1f4e99ca51cbe315ba024a305886e
+    required_applies_to:
+    - gui.web
+  marketing-landing.capability-rail-and-prompts:
+    specification: feature.marketing-landing@3
+    specification_id: feature.marketing-landing
+    type: behavior
+    fingerprint: e945209a864083c719122b3850db60357d548f89d25165547ddbdcdae6bba1f3
     required_applies_to:
     - gui.web
   message-input.focus.parent-state:

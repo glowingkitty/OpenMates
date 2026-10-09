@@ -178,10 +178,8 @@ test.describe('Chat composer focus and draft preservation', () => {
     await waitForComponentPreview(page);
     const side = page.getByTestId('chat-side');
     const field = page.getByTestId('message-field');
-    // The first guest intro intentionally covers the composer until the visitor
-    // advances. Exercise focus restoration on the normal welcome surface.
-    await expect(page.getByTestId('landing-intro-expanded')).toBeVisible();
-    await page.getByTestId('daily-inspiration-next').click();
+    // Exercise focus restoration from the ordinary guest welcome.
+    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
     await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
     await expect(page.locator('.chat-wrapper.landing-intro-content-covered')).toHaveCount(0);
     await expect(page.getByTestId('message-input-wrapper')).toHaveCSS('opacity', '1');
@@ -244,8 +242,7 @@ test('continuation cards match Apple spacing in narrow, short, and tall panes', 
 			`/dev/preview/ActiveChatFocusFixture?chrome=0&theme=${profile.theme}&background=%23dbeafe&width=${profile.width}`
 		);
 		await waitForComponentPreview(page);
-		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible();
-		await page.getByTestId('daily-inspiration-next').click();
+		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
 		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
 
 		const carousel = page.getByTestId('recent-chats-scroll-container');

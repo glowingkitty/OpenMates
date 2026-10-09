@@ -181,6 +181,18 @@ test('privacy, terms, and imprint are full styled public documents', async ({ pa
       expect(html).toMatch(/<main class="legal-document(?:\s|")/);
       await page.goto(site(route), { waitUntil: 'domcontentloaded' });
       const article = page.locator('.legal-document article');
+      const header = page.getByTestId('public-site-header');
+      await expect(header).toBeVisible();
+      await expect(header.getByRole('link', { name: 'OpenMates home' })).toHaveAttribute('href', site('/'));
+      await expect(header.getByTestId('landing-signup')).toHaveAttribute('href', `${app}/#signup/basics`);
+      await expect(header.getByTestId('landing-nav-apps')).toHaveAttribute('href', `${app}/#apps`);
+      await header.getByTestId('landing-language-button').click();
+      const languageOptions = header.getByTestId('landing-language-panel').locator('.language-options button');
+      await expect(languageOptions).toHaveCount(2);
+      expect(await languageOptions.evaluateAll((options) => options.map((option) => option.getAttribute('lang')).sort())).toEqual(['de', 'en']);
+      await header.getByTestId('landing-language-panel').getByRole('button', { name: suffix ? 'English' : 'Deutsch', exact: true }).click();
+      await expect(page).toHaveURL(site(`/legal/${slug}${suffix ? '' : '?lang=de'}`));
+      await page.goto(site(route), { waitUntil: 'domcontentloaded' });
       await expect(article.locator('h1')).toBeVisible();
       const body = await article.innerText();
       expect(body.length, `${route} must contain the complete legal document`).toBeGreaterThan(slug === 'imprint' ? 50 : 1_000);
@@ -203,7 +215,7 @@ test('privacy, terms, and imprint are full styled public documents', async ({ pa
 });
 
 for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
-  // contract-test: direct surface=gui.web assertions=marketing-landing.feature-layout,marketing-landing.destinations,marketing-landing.real-screenshots
+  // contract-test: direct surface=gui.web assertions=marketing-landing.feature-layout,marketing-landing.destinations,marketing-landing.real-screenshots,marketing-landing.six-feature-viewport
   test(`standalone global styles preserve the landing viewport and media at ${width}px`, async ({ page }, testInfo) => {
     test.setTimeout(45_000);
     await page.setViewportSize({ width, height });
@@ -236,8 +248,9 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
       expect(await icon.evaluate((element) => getComputedStyle(element).maskImage)).toContain('url(');
     }
 
-    const heroImages = page.getByTestId('landing-hero-media').locator('img.device-screen, img.device-shell');
-    await expect(heroImages).toHaveCount(4);
+    await expect(page.getByTestId('landing-feature-model-choice')).toHaveCount(1);
+    const heroImages = page.getByTestId('landing-hero-media').locator('img.device-screen:visible, img.device-shell:visible');
+    await expect(heroImages).toHaveCount(width < 760 ? 2 : 4);
     await expect.poll(() => heroImages.evaluateAll((images) => images.every((image) => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
     const before = await composer.boundingBox();
     expect(before).not.toBeNull();
@@ -248,8 +261,8 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
 
     await page.getByTestId('landing-feature-devices').scrollIntoViewIfNeeded();
     await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-    const deviceImages = page.getByTestId('landing-feature-media-devices').locator('img.device-screen, img.device-shell');
-    await expect(deviceImages).toHaveCount(4);
+    const deviceImages = page.getByTestId('landing-feature-media-devices').locator('img.device-screen:visible, img.device-shell:visible');
+    await expect(deviceImages).toHaveCount(width < 760 ? 2 : 4);
     await expect.poll(() => deviceImages.evaluateAll((images) => images.every((image) => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
     const after = await composer.boundingBox();
     expect(Math.abs(after!.y - before!.y), 'the composer stays fixed while features scroll').toBeLessThan(2);

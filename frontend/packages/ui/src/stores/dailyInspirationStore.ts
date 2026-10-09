@@ -117,6 +117,14 @@ const GUEST_ONBOARDING_FEATURE_IDS = new Set([
   "openmates-signup-cta",
 ]);
 
+export function hasPublicSafeDailySet(inspirations: DailyInspiration[]): boolean {
+  return inspirations.length > 0 && inspirations.length <= 10 && inspirations.every(
+    (inspiration) =>
+      !GUEST_ONBOARDING_FEATURE_IDS.has(inspiration.inspiration_id)
+      && !GUEST_ONBOARDING_FEATURE_IDS.has(inspiration.feature?.feature_id ?? ""),
+  );
+}
+
 export function hasCompleteAuthenticatedDailySet(
   inspirations: DailyInspiration[],
 ): boolean {

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { compilePublicLocales } from './compile-public-locales.mjs';
 import { compilePublicApps } from './compile-public-apps.mjs';
+import { validateLandingAppExamples } from './validate-landing-app-examples.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const output = resolve(root, 'frontend/packages/public-site/src/generated');
@@ -21,6 +22,7 @@ const eligible = compilePublicApps(root);
 if (eligible.length === 0 || new Set(eligible.map((app) => app.id)).size !== eligible.length) throw new Error('Public app metadata must contain unique available apps');
 const eligibleIds = new Set(eligible.map((app) => app.id));
 if (promptIds.length !== eligibleIds.size || promptIds.some((id) => !eligibleIds.has(id))) throw new Error('Landing prompt IDs differ from live app capabilities');
+validateLandingAppExamples(root, eligibleIds);
 const apps = eligible.map((app) => {
   const prompt = prompts[app.id];
   const iconName = app.icon_image?.replace(/\.svg$/, '').trim();

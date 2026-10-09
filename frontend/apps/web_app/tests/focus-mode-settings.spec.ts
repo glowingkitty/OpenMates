@@ -271,6 +271,16 @@ test('Deep research focus mode shows its approved example chat', async ({
 	await expect(examplesSection.getByTestId('resume-large-title')).toContainText(
 		'Why US Egg Prices Stayed High'
 	);
+	await page.evaluate(() => {
+		(window as typeof window & { openedFocusExample?: string[] }).openedFocusExample = undefined;
+		window.open = ((url, target, features) => {
+			(window as typeof window & { openedFocusExample?: string[] }).openedFocusExample = [String(url), String(target), String(features)];
+			return null;
+		}) as typeof window.open;
+	});
+	await examplesSection.getByTestId('app-store-example-chat-card').click();
+	expect(await page.evaluate(() => (window as typeof window & { openedFocusExample?: string[] }).openedFocusExample))
+		.toEqual(['/#chat-id=example-us-egg-prices-deep', '_blank', 'noopener,noreferrer']);
 	await assertNoMissingTranslations(page);
 	logCheckpoint('Deep research shows the approved example chat without missing translations.');
 });

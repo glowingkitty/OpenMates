@@ -221,8 +221,11 @@ test.describe('Apps bare component previews', () => {
       await waitForComponentPreview(page);
       const selector = page.getByTestId('workspace-mobile-select');
       const login = page.getByTestId('header-login-signup-btn');
-      await expect(selector.locator('option')).toHaveCount(2);
+      expect(await selector.locator('option').evaluateAll(options => options.map(option => (option as HTMLOptionElement).value))).toEqual([
+        '/', '/#apps', '/#workflows',
+      ]);
       await expect(selector.locator('option[value="/#apps"]')).toHaveText(/Apps/i);
+      await expect(selector.locator('option[value="/#workflows"]')).toHaveText(/Workflows/i);
       await expect(login).toBeVisible();
       await expect(login).toHaveAccessibleName(/Login|Sign\s*up/i);
       await expect(login).toContainText(/Login|Sign\s*up/i);
@@ -417,8 +420,8 @@ test.describe('Apps bare component previews', () => {
       await expect(page.getByTestId('apps-tab-embeds')).toBeVisible();
       await expect(page.getByTestId('apps-tab-workflows')).toBeVisible();
       await expect(page.getByTestId('apps-tab-focus_modes')).toBeVisible();
-      await expect(page.getByTestId('apps-tab-settings_memories')).toBeVisible();
-      await expect(page.getByTestId('apps-detail-tabs').getByRole('tab')).toHaveCount(5);
+      await expect(page.getByTestId('apps-tab-settings_memories')).toHaveCount(0);
+      await expect(page.getByTestId('apps-detail-tabs').getByRole('tab')).toHaveCount(4);
       await expectLoadedMaskGlyph(page.getByTestId('apps-tab-overview').locator('.tab-icon'), 'app');
       await expectLoadedMaskGlyph(page.getByTestId('apps-tab-focus_modes').locator('.tab-icon'), 'search');
       const tabBar = await page.getByTestId('apps-detail-tabs').boundingBox();
@@ -457,14 +460,41 @@ test.describe('Apps bare component previews', () => {
     await expect(codeTile).toHaveClass(/\bapp-code\b/);
     expect(await codeTile.evaluate(element => getComputedStyle(element).backgroundImage)).toContain('linear-gradient');
     expect(await codeTile.evaluate(element => getComputedStyle(element, '::before').backgroundImage)).not.toBe('none');
+    await expect(page.getByTestId('apps-tab-settings_memories')).toBeVisible();
+    const memoryRoute = page.evaluate(() => new Promise<string>(resolve =>
+      window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
+    await page.getByTestId('apps-tab-settings_memories').click();
+    expect(await memoryRoute).toBe('#apps/code&tab=settings_memories');
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.presentation.shared-detail-and-recency,apps.navigation.hash-and-forwarding
+  test('shows only populated app tabs and opens a real focus example at phone width', async ({ page }: { page: Page }) => {
+    await fixturePublicApps(page);
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(preview('apps/AppsWorkspace', 390, 'appFocus'), { waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page);
     await expect(page.getByTestId('settings-focus-cards-scroll')).toBeVisible();
     await expect(page.getByTestId('settings-skill-cards-scroll')).toHaveCount(0);
-    const focusRoute = page.evaluate(() => new Promise<string>(resolve =>
-      window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
-    await page.getByTestId('apps-tab-settings_memories').click();
-    expect(await focusRoute).toBe('#apps/health&tab=settings_memories');
+    await expect(page.getByTestId('apps-tab-settings_memories')).toHaveCount(0);
+    await page.goto(preview('apps/AppsWorkspace', 390, 'appPolitics'), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('apps-tab-focus_modes')).toBeVisible();
+    await expect(page.getByTestId('apps-tab-overview')).toHaveCount(0);
+    await expect(page.getByTestId('apps-tab-settings_memories')).toHaveCount(0);
+    await expect(page.getByTestId('settings-focus-cards-scroll')).toBeVisible();
+    await expect(page.getByTestId('settings-skill-cards-scroll')).toHaveCount(0);
+    await page.goto(preview('apps/AppsWorkspace', 390, 'politicsFocus'), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await page.evaluate(() => {
+      (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample = undefined;
+      window.open = ((url, target, features) => {
+        (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample = [String(url), String(target), String(features)];
+        return null;
+      }) as typeof window.open;
+    });
+    await page.getByTestId('app-store-example-chat-card').click();
+    expect(await page.evaluate(() => (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample))
+      .toEqual(['/#chat-id=example-housing-policy-dinner-discussion', '_blank', 'noopener,noreferrer']);
     await page.goto(preview('apps/AppsWorkspace', 390, 'appMemory'), { waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page);
     await expect(page.getByTestId('settings-memory-cards-scroll')).toBeVisible();
@@ -527,9 +557,13 @@ test.describe('Apps bare component previews', () => {
     });
     await page.getByTestId('apps-skill-context-toggle').click();
     await expect(page.getByTestId('apps-skill-context-details')).toBeVisible();
-    await page.getByTestId('apps-skill-chat-example').first().click();
+    await expect(page.getByTestId('app-store-example-card')).toHaveCount(0);
+    await expect(page.getByTestId('apps-skill-chat-example')).toHaveCount(0);
+    const realSkillExample = page.locator('[data-testid="app-store-example-chat-card"][data-chat-id="example-eu-chat-control-law"]');
+    await expect(realSkillExample).toBeVisible();
+    await realSkillExample.click();
     const opened = await page.evaluate(() => (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample);
-    expect(opened?.[0]).toMatch(/^\/#new-message=.+/);
+    expect(opened?.[0]).toBe('/#chat-id=example-eu-chat-control-law');
     expect(opened?.slice(1)).toEqual(['_blank', 'noopener,noreferrer']);
     await page.getByTestId('apps-skill-context-toggle').click();
     await expect(page.getByTestId('apps-skill-context-details')).toHaveCount(0);

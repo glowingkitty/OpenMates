@@ -1,0 +1,81 @@
+schema_version: 2
+profile: concise
+id: landing-refinement
+title: Signed-out welcome, public landing and app-detail refinement
+status: verified
+goal: >
+  Implement the requested public landing refinements, restore the normal signed-out
+  chat welcome and Daily Inspirations, and make app details open only real examples
+  with valid populated tabs.
+scope:
+  in:
+    - Six full-viewport public feature sections, responsive real device imagery, revised capability rail and German heading.
+    - Ordinary signed-out web welcome with public-safe inspirations, interest selection and all real example chats.
+    - App detail examples by existing chat ID and populated tab defaults, including focus-only details.
+    - Contract-linked browser coverage and focused local checks.
+  out:
+    - Apple client redesign.
+    - Production domain or authentication migration.
+authorization:
+  source: >
+    User directly requested implementation and relevant specification updates on
+    2026-10-09 in this Codex thread and said no further confirmation was needed today.
+    This records scope authorization, not a new exact-fingerprint Specification approval.
+  specifications:
+    - feature.marketing-landing@3
+    - feature.landing-onboarding@5
+    - feature.daily-inspiration@2
+    - feature.apps-workspace@3
+verification:
+  required:
+    - Validate all four changed Specification bundles and generate the assertion index.
+    - Focused local lint, type and build checks for edited packages.
+    - Isolated component preview before broader browser E2E for visible component changes.
+    - Isolated GitHub browser E2E for signed-out welcome, guest interests, public landing and app details.
+    - Review matching real natural-language examples for every public rail app and verify their browser entry, messages, embeds and composer.
+    - Deliver retained E2E recordings in the final Codex response.
+  result: >
+    Focused local checks and required isolated component and browser checks passed.
+    All 36 real app examples passed on phone and laptop, 72 of 72 cases with no
+    skipped, unexpected or flaky results, on source
+    b31dd1e91f2583025a82a0cb59f5431bb91c6e64. All 390 available recordings,
+    including earlier failed attempts and retries, are uploaded and indexed for
+    final delivery. The two cancelled runs lack complete reporter output and
+    retain only their available captures; no complete coverage is inferred from
+    those runs.
+decisions:
+  - id: D-1
+    status: active
+    decision: Preserve the Apple onboarding implementation and historical assertion references while refining web behavior.
+    reason: Native redesign is outside the approved scope.
+    decided_at: 2026-10-09
+  - id: D-2
+    status: active
+    decision: Use registered sealed recovery for pending composite example embeds under existing Project, Team and account guards.
+    reason: Protected pending child embeds exhausted the personal dev account's three cache slots and blocked real example production; cache clearing and production mutation are unnecessary.
+    decided_at: 2026-10-09
+  - id: D-3
+    status: active
+    decision: Accept the existing encrypted Task slug lookup hash in the WebSocket payload allowlist, while preserving plaintext rejection.
+    reason: Real example creation exposed a protocol mismatch between the CLI and WebSocket handler; a bounded disposable-account probe verifies persistence and rejection before source creation resumes.
+    decided_at: 2026-10-09
+  - id: D-4
+    status: active
+    decision: Allow reviewed same-origin audio assets in public example recording previews and fullscreen, retaining encrypted playback for private recordings.
+    reason: The real transcription example needs guest playback of its original recording; a bounded asset-path guard and decoded-audio component check preserve the private path.
+    decided_at: 2026-10-09
+  - id: D-5
+    status: active
+    decision: Normalize verified leading model-picker metadata during opt-in shared-chat import, preserving the typed natural-language request and recording model provenance.
+    reason: Both the web model picker and CLI encode model selection in stored user text; selecting a stronger model is ordinary product use, not an app or skill directive.
+    decided_at: 2026-10-09
+  - id: D-6
+    status: active
+    decision: Resolve a PDF filename only when it uniquely identifies a trusted upload reference in the current file index, and support reviewed static PDF assets for guest examples.
+    reason: Repeated natural PDF requests succeeded on the upload ID and failed on a duplicate filename read; public previews also require the original reviewed PDF without private screenshot credentials.
+    decided_at: 2026-10-09
+  - id: D-7
+    status: active
+    decision: Render and export the saved document model in public examples, and retain the actual saved focus activation metadata.
+    reason: Browser admission found a blank document viewer despite a complete model, and Books/Jobs activation records lacked the renderer linkage; neither fix changes the natural conversation text or requires private storage credentials.
+    decided_at: 2026-10-09

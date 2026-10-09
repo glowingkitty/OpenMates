@@ -44,9 +44,106 @@ import {
   removeInternalTaskEventMessages,
   sanitizeEmbedContent,
   sanitizeExampleMessageContent,
+  normalizeLeadingModelSelection,
   attachReviewedPublicSpeech,
   withPromotedAppSkillUseMessages,
 } from '../create-example-chat-from-share.mjs';
+
+test('normalizes only a leading UI model selection while preserving typed prose and model provenance', () => {
+  const prose = 'Could you summarize this PDF?\nPlease focus on the budget.';
+  const chat = normalizeLeadingModelSelection({
+    chat_id: 'source-chat',
+    messages: [
+      { message_id: 'user-1', role: 'user', content: `@ai-model:gemini-3.5-pro:google ${prose}` },
+      { message_id: 'assistant-1', role: 'assistant', content: 'The budget is on page 2.', model_name: 'Gemini 3.5 Pro' },
+    ],
+    sub_chats: [],
+    embeds: [],
+  });
+
+  assert.equal(chat.messages[0].content, prose);
+  assert.equal(chat.messages[0].model_name, 'gemini-3.5-pro');
+  assert.deepEqual(chat.messages[0].source_model_selection, { model_id: 'gemini-3.5-pro', provider: 'google' });
+  assert.equal(chat.messages[1].model_name, 'Gemini 3.5 Pro');
+  const rendered = formatTs(chat, {
+    slug: 'model-selection-fixture', snake: 'model_selection_fixture', title: 'Model selection fixture',
+    chatId: 'example-model-selection-fixture', summary: '', icon: 'file', category: 'general_knowledge',
+    keywords: [], followUps: [], featured: false, order: 1, appSkillExamples: [],
+    appFocusModeExamples: [], appSettingsMemoryExamples: [], contentEmbedExamples: [], activeFocusId: null,
+  });
+  assert.match(rendered, /Source user message user-1: selected @ai-model:gemini-3\.5-pro:google/);
+  assert.match(rendered, /"role": "user",\n\s+"content": "example_chats\.model_selection_fixture\.message_1"[\s\S]*?"model_name": "gemini-3\.5-pro"/);
+  assert.match(rendered, /"model_name": "Gemini 3\.5 Pro"/);
+});
+
+test('normalizes a providerless CLI model selector only when the real reply confirms its model', () => {
+  const prose = 'I need an English-speaking GP appointment in Berlin next week.';
+  const chat = normalizeLeadingModelSelection({
+    chat_id: 'source-chat',
+    messages: [
+      { message_id: 'user-1', role: 'user', content: `@ai-model:gpt-5.4 ${prose}` },
+      { message_id: 'assistant-1', role: 'assistant', user_message_id: 'user-1', model_name: 'GPT-5.4', content: 'Here are the appointments.' },
+      { message_id: 'user-2', role: 'user', content: '@ai-model:gpt-5.4 Please try again.' },
+      { message_id: 'assistant-2', role: 'assistant', user_message_id: 'user-2', model_name: 'Gemini 3.8 Flash', content: 'Trying again.' },
+    ],
+  });
+  assert.equal(chat.messages[0].content, prose);
+  assert.equal(chat.messages[0].model_name, 'gpt-5.4');
+  assert.deepEqual(chat.messages[0].source_model_selection, { model_id: 'gpt-5.4', provider: null });
+  assert.equal(chat.messages[1].model_name, 'GPT-5.4');
+  assert.equal(chat.messages[2].content, '@ai-model:gpt-5.4 Please try again.');
+  assert.equal(chat.messages[2].source_model_selection, undefined);
+});
+
+test('leaves app directives, malformed selectors, and non-leading model text intact', () => {
+  const contents = [
+    '@skill:web:search Find a source',
+    '@app:fitness Find a class',
+    '@best-model:best Find a source',
+    '@ai-model:gemini-3.5-pro Find a source',
+    '@ai-model:gemini-3.5-pro:google',
+    '@ai-model:gemini-3.5-pro:google:extra Find a source',
+    'Find a source @ai-model:gemini-3.5-pro:google',
+  ];
+  const chat = normalizeLeadingModelSelection({
+    messages: [
+      ...contents.map((content, index) => ({ message_id: `user-${index}`, role: 'user', content })),
+      { role: 'user', content: '@ai-model:gemini-3.5-pro:google @skill:web:search Find a source' },
+      { role: 'assistant', content: '@ai-model:gemini-3.5-pro:google An answer' },
+    ],
+  });
+  assert.deepEqual(chat.messages.slice(0, contents.length).map((message) => message.content), contents);
+  assert.equal(chat.messages[contents.length].content, '@skill:web:search Find a source');
+  assert.equal(chat.messages.at(-1).content, '@ai-model:gemini-3.5-pro:google An answer');
+});
+
+test('enables model selection normalization only through the explicit import flag', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'example-model-selection-'));
+  const fixture = path.join(directory, 'chat.json');
+  writeFileSync(fixture, JSON.stringify({
+    chat_id: 'source-chat', title: 'Model selection fixture',
+    messages: [
+      { message_id: 'user-1', role: 'user', content: '@ai-model:gemini-3.5-pro:google Find a source' },
+      { message_id: 'assistant-1', role: 'assistant', content: 'Found one.' },
+    ],
+    embeds: [],
+  }));
+  const run = (enabled) => spawnSync(process.execPath, [
+    new URL('../create-example-chat-from-share.mjs', import.meta.url).pathname,
+    '--from-json', fixture, '--slug', 'model-selection-import-fixture', '--dry-run',
+    ...(enabled ? ['--normalize-leading-model-selection'] : []),
+  ], { encoding: 'utf8', env: { ...process.env, OPENMATES_API_KEY: '' } });
+  try {
+    const defaultRun = run(false);
+    assert.equal(defaultRun.status, 0, defaultRun.stderr);
+    assert.match(defaultRun.stdout, /normalized model selections: 0/);
+    const enabledRun = run(true);
+    assert.equal(enabledRun.status, 0, enabledRun.stderr);
+    assert.match(enabledRun.stdout, /normalized model selections: 1/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 test('requires reviewed content-addressed public speech fixtures', () => {
   const digest = 'a'.repeat(64);
@@ -292,6 +389,23 @@ summary:
 
   assert.doesNotMatch(sanitized, /s3_base_url|aes_key|s3_key/);
   assert.match(sanitized, /^summary:\n  in_10_min: No rain$/m);
+});
+
+test('strips nested screenshot storage metadata and preserves following public fields', () => {
+  const sanitized = sanitizeEmbedContent(`type: document
+title: Public document
+screenshot_s3_keys:
+  "1": chatfiles/private-owner/screenshots/page-1.png.bin
+  "2": chatfiles/private-owner/screenshots/page-2.png.bin
+s3_key: chatfiles/private-owner/document.pdf.bin
+user_id: private-owner
+page_count: 2
+summary: Public summary`);
+
+  assert.doesNotMatch(sanitized, /screenshot_s3_keys|chatfiles|s3_key|user_id|private-owner/);
+  assert.match(sanitized, /^title: Public document$/m);
+  assert.match(sanitized, /^page_count: 2$/m);
+  assert.match(sanitized, /^summary: Public summary$/m);
 });
 
 test('strips private generated audio columns from app-skill result tables', () => {

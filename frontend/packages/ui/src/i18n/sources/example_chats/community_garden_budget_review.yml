@@ -1,0 +1,1550 @@
+title:
+  context: "Title of example chat: Review a community garden budget PDF"
+  en: "Review a community garden budget PDF"
+  de: Budget-PDF eines Gemeinschaftsgartens prüfen
+  zh: 审阅社区花园预算 PDF
+  es: Revisar el presupuesto de un huerto comunitario (PDF)
+  fr: "Analyser le budget d'un jardin communautaire (PDF)"
+  pt: Revisar o PDF do orçamento de uma horta comunitária
+  ru: Анализ бюджета общественного сада в PDF
+  ja: コミュニティガーデンの予算PDFを確認する
+  ko: 커뮤니티 정원 예산 PDF 검토
+  it: Esamina il PDF del budget di un orto comunitario
+  tr: "Topluluk bahçesi bütçe PDF'ini incele"
+  vi: Xem xét tệp PDF ngân sách vườn cộng đồng
+  id: Tinjau PDF anggaran kebun komunitas
+  pl: Przejrzyj PDF z budżetem ogrodu społecznościowego
+  nl: Beoordeel een PDF-begroting van een buurttuin
+  ar: مراجعة ملف PDF لميزانية حديقة مجتمعية
+  hi: सामुदायिक उद्यान बजट PDF की समीक्षा करें
+  th: ตรวจสอบ PDF งบประมาณสวนชุมชน
+  cs: Projít PDF rozpočtu komunitní zahrady
+  sv: Granska en budget-PDF för en gemensamhetsodling
+  he: סקירת קובץ PDF של תקציב גינה קהילתית
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Review a community garden budget PDF"
+  en: "Read a fictional budget to compare expenses, funding, and likely missing costs."
+  de: Lies ein fiktives Budget, um Ausgaben, Finanzierung und wahrscheinlich fehlende Kosten zu vergleichen.
+  zh: 阅读一份虚构的预算，以比较支出、资金和可能遗漏的成本。
+  es: Lee un presupuesto ficticio para comparar gastos, financiación y posibles costes faltantes.
+  fr: Lis un budget fictif pour comparer les dépenses, le financement et les coûts probablement manquants.
+  pt: Lê um orçamento fictício para comparar despesas, financiamento e possíveis custos em falta.
+  ru: Изучи вымышленный бюджет, чтобы сравнить расходы, финансирование и возможные неучтенные затраты.
+  ja: 架空の予算書を読み、支出、資金調達、不足している可能性のあるコストを比較します。
+  ko: 가상의 예산안을 읽고 지출, 자금 조달 및 누락되었을 가능성이 있는 비용을 비교해 보세요.
+  it: Leggi un budget fittizio per confrontare spese, finanziamenti e probabili costi mancanti.
+  tr: Giderleri, finansmanı ve muhtemelen eksik olan maliyetleri karşılaştırmak için kurgusal bir bütçeyi oku.
+  vi: Đọc một ngân sách giả định để so sánh các khoản chi phí, nguồn tài trợ và các chi phí có khả năng bị thiếu.
+  id: Baca anggaran fiktif untuk membandingkan pengeluaran, pendanaan, dan biaya yang mungkin terlewat.
+  pl: Przeczytaj fikcyjny budżet, aby porównać wydatki, finansowanie i prawdopodobne brakujące koszty.
+  nl: Lees een fictieve begroting om uitgaven, financiering en waarschijnlijk ontbrekende kosten te vergelijken.
+  ar: قراءة ميزانية افتراضية لمقارنة النفقات والتمويل والتكاليف التي قد تكون مفقودة.
+  hi: खर्चों, फंडिंग और संभावित छूटी हुई लागतों की तुलना करने के लिए एक काल्पनिक बजट पढ़ें।
+  th: อ่านงบประมาณสมมติเพื่อเปรียบเทียบค่าใช้จ่าย เงินทุน และต้นทุนที่อาจตกหล่นไป
+  cs: Přečti si fiktivní rozpočet a porovnej výdaje, financování a pravděpodobně chybějící náklady.
+  sv: Läs en fiktiv budget för att jämföra utgifter, finansiering och sannolika saknade kostnader.
+  he: קריאת תקציב בדיוני כדי להשוות בין הוצאות, מימון ועלויות שייתכן שחסרות.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Review a community garden budget PDF. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Could you summarize the largest expenses, total funding, funding gap, and likely missing costs in this attached community garden budget PDF?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  de: |
+    Könntest du die größten Ausgaben, die Gesamtförderung, die Finanzierungslücke und wahrscheinlich fehlende Kosten in diesem beigefügten Budget-PDF für einen Gemeinschaftsgarten zusammenfassen?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  zh: |
+    你能总结一下这份随附的社区花园预算 PDF 中的最大支出、总资金、资金缺口以及可能遗漏的成本吗？
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  es: |
+    ¿Podrías resumir los gastos más importantes, la financiación total, el déficit de financiación y los posibles costes faltantes en este PDF del presupuesto de un huerto comunitario?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  fr: |
+    Peux-tu résumer les dépenses les plus importantes, le financement total, le déficit de financement et les coûts probablement manquants dans ce PDF de budget de jardin communautaire ci-joint ?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  pt: |
+    Podes resumir as maiores despesas, o financiamento total, o défice de financiamento e os custos que provavelmente faltam neste PDF de orçamento de horta comunitária em anexo?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  ru: |
+    Можешь вкратце описать самые крупные расходы, общий объем финансирования, дефицит бюджета и возможные неучтенные затраты в этом прикрепленном PDF-файле с бюджетом общественного сада?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  ja: |
+    添付されているコミュニティガーデンの予算PDFについて、主な支出、総資金、資金不足額、および不足している可能性のあるコストをまとめてもらえますか？
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  ko: |
+    첨부된 커뮤니티 정원 예산 PDF에서 가장 큰 지출 항목, 총 자금, 자금 부족액 및 누락되었을 가능성이 있는 비용을 요약해 줄 수 있나요?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  it: |
+    Potresti riassumere le spese principali, il finanziamento totale, il deficit di finanziamento e i probabili costi mancanti in questo PDF del budget di un orto comunitario in allegato?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  tr: |
+    Ekli topluluk bahçesi bütçe PDF'indeki en büyük giderleri, toplam finansmanı, finansman açığını ve muhtemelen eksik olan maliyetleri özetleyebilir misin?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  vi: |
+    Bạn có thể tóm tắt các khoản chi phí lớn nhất, tổng nguồn tài trợ, khoản thiếu hụt ngân sách và các chi phí có khả năng bị thiếu trong tệp PDF ngân sách vườn cộng đồng đính kèm này không?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  id: |
+    Bisakah kamu merangkum pengeluaran terbesar, total pendanaan, selisih pendanaan, dan biaya yang mungkin terlewat dalam PDF anggaran kebun komunitas yang terlampir ini?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  pl: |
+    Czy możesz podsumować największe wydatki, całkowite finansowanie, lukę finansową i prawdopodobne brakujące koszty w tym załączonym pliku PDF z budżetem ogrodu społecznościowego?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  nl: |
+    Kun je de grootste uitgaven, de totale financiering, het financieringstekort en de waarschijnlijk ontbrekende kosten in deze bijgevoegde PDF van het buurttuinbudget samenvatten?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  ar: |
+    هل يمكنك تلخيص أكبر النفقات، وإجمالي التمويل، وفجوة التمويل، والتكاليف التي قد تكون مفقودة في ملف PDF المرفق لميزانية الحديقة المجتمعية؟
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  hi: |
+    क्या आप इस संलग्न सामुदायिक उद्यान बजट PDF में सबसे बड़े खर्चों, कुल फंडिंग, फंडिंग की कमी और संभावित छूटी हुई लागतों का सारांश दे सकते हैं?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  th: |
+    ช่วยสรุปค่าใช้จ่ายที่มากที่สุด เงินทุนทั้งหมด ส่วนต่างงบประมาณ และต้นทุนที่อาจตกหล่นไปในไฟล์ PDF งบประมาณสวนชุมชนที่แนบมานี้ให้หน่อยได้ไหม?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  cs: |
+    Můžeš shrnout největší výdaje, celkové financování, schodek financování a pravděpodobně chybějící náklady v tomto přiloženém PDF rozpočtu komunitní zahrady?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  sv: |
+    Kan du sammanfatta de största utgifterna, den totala finansieringen, finansieringsgapet och sannolika saknade kostnader i den här bifogade budget-PDF:en för en gemensamhetsodling?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  he: |
+    האם תוכל לסכם את ההוצאות הגדולות ביותר, סך המימון, פער המימון ועלויות שייתכן שחסרות בקובץ ה-PDF המצורף של תקציב הגינה הקהילתית?
+    [!](embed:fictional-community-garden-budget-pdf-e1-146e58)
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Review a community garden budget PDF. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    Here’s a concise summary of the budget in the attached community garden budget PDF.
+
+    ## 1) Largest expenses
+    Ranked from highest to lowest:
+
+    1. **Raised-bed lumber and hardware** — **€420**
+    2. **Soil and compost** — **€300**
+    3. **Shared hand tools** — **€140**
+    4. **Watering hoses and connectors** — **€95**
+    5. **Seeds and seedlings** — **€85**
+    6. **Opening event supplies** — **€75**
+
+    ## 2) Total planned expenses
+    Adding the listed expenses:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **€1,115**
+
+    ## 3) Total expected funding
+    Listed funding sources:
+
+    - **Neighborhood grant** — €800
+    - **Volunteer donations** — €200
+
+    Total funding:
+
+    - 800 + 200 = **€1,000**
+
+    ## 4) Funding gap
+    - **Total expenses:** €1,115
+    - **Total funding:** €1,000
+    - **Funding gap:** **€115**
+
+    ## 5) Likely missing costs
+    For a real community garden, this draft likely leaves out some common items:
+
+    - **Site preparation** — clearing, leveling, debris removal
+    - **Delivery/transport costs** — for lumber, soil, compost
+    - **Storage/security** — tool box, shed, locks
+    - **Water access fees** — hookup, meter use, usage charges
+    - **Protective materials** — gloves, wheelbarrow, tarps
+    - **Fencing/signage** — to protect plots and inform neighbors
+    - **Ongoing maintenance** — replacement tools, extra soil, pest control
+    - **Insurance/permits** — if required by the municipality or landowner
+    - **Contingency reserve** — usually useful because small community projects often run over budget
+
+    ## Quick interpretation
+    The budget is **close to balanced**, but a **€115 gap** already exists even before likely omitted costs are added. So in practice, the project may need either:
+    - a bit more fundraising,
+    - some donated materials/tools,
+    - or a reduced first-phase scope.
+
+    If you want, I can also turn this into:
+    - a **one-paragraph summary for a grant meeting**, or
+    - a **clean budget table with percentages by category**.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    Hier ist eine knappe Zusammenfassung des Budgets aus dem beigefügten PDF zum Gemeinschaftsgarten.
+
+    ## 1) Größte Ausgaben
+    Sortiert von hoch nach niedrig:
+
+    1. **Bauholz und Beschläge für Hochbeete** — **420 €**
+    2. **Erde und Kompost** — **300 €**
+    3. **Gemeinsame Handwerkzeuge** — **140 €**
+    4. **Bewässerungsschläuche und Anschlüsse** — **95 €**
+    5. **Saatgut und Setzlinge** — **85 €**
+    6. **Bedarf für die Eröffnungsfeier** — **75 €**
+
+    ## 2) Geplante Gesamtausgaben
+    Summe der aufgeführten Ausgaben:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **1.115 €**
+
+    ## 3) Erwartete Gesamtförderung
+    Aufgeführte Finanzierungsquellen:
+
+    - **Nachbarschaftszuschuss** — 800 €
+    - **Spenden von Freiwilligen** — 200 €
+
+    Gesamtförderung:
+
+    - 800 + 200 = **1.000 €**
+
+    ## 4) Finanzierungslücke
+    - **Gesamtausgaben:** 1.115 €
+    - **Gesamtförderung:** 1.000 €
+    - **Finanzierungslücke:** **115 €**
+
+    ## 5) Wahrscheinlich fehlende Kosten
+    Für einen echten Gemeinschaftsgarten fehlen in diesem Entwurf wahrscheinlich einige gängige Posten:
+
+    - **Standortvorbereitung** — Räumen, Ebnen, Schuttbeseitigung
+    - **Liefer-/Transportkosten** — für Holz, Erde, Kompost
+    - **Lagerung/Sicherheit** — Werkzeugkiste, Schuppen, Schlösser
+    - **Wasseranschlussgebühren** — Anschluss, Zählernutzung, Verbrauchsgebühren
+    - **Schutzmaterialien** — Handschuhe, Schubkarre, Planen
+    - **Zäune/Beschilderung** — zum Schutz der Parzellen und zur Information der Nachbarn
+    - **Laufende Instandhaltung** — Ersatzwerkzeuge, zusätzliche Erde, Schädlingsbekämpfung
+    - **Versicherungen/Genehmigungen** — falls von der Gemeinde oder dem Grundstückseigentümer verlangt
+    - **Notfallreserve** — normalerweise sinnvoll, da kleine Gemeinschaftsprojekte oft das Budget überschreiten
+
+    ## Kurze Interpretation
+    Das Budget ist **fast ausgeglichen**, aber es besteht bereits eine **Lücke von 115 €**, noch bevor die wahrscheinlich fehlenden Kosten hinzugerechnet werden. In der Praxis benötigt das Projekt daher entweder:
+    - etwas mehr Fundraising,
+    - einige gespendete Materialien/Werkzeuge
+    - oder einen reduzierten Umfang für die erste Phase.
+
+    Wenn du möchtest, kann ich dies auch umwandeln in:
+    - eine **Zusammenfassung in einem Absatz für ein Treffen zur Fördermittelvergabe** oder
+    - eine **übersichtliche Budgettabelle mit prozentualen Anteilen nach Kategorien**.
+    ---
+    *⚠️ Dies dient nur zu Informationszwecken und stellt keine Finanzberatung dar. Konsultiere für finanzielle Entscheidungen einen qualifizierten Finanzexperten oder Steuerberater.*
+  zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    这是随附的社区花园预算 PDF 中的简明摘要。
+
+    ## 1) 最大支出
+    按金额从高到低排序：
+
+    1. **高架床木材和五金件** — **€420**
+    2. **土壤和堆肥** — **€300**
+    3. **共享手工具** — **€140**
+    4. **浇水软管和连接器** — **€95**
+    5. **种子和幼苗** — **€85**
+    6. **开幕活动用品** — **€75**
+
+    ## 2) 计划支出总额
+    将列出的支出相加：
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **€1,115**
+
+    ## 3) 预期资金总额
+    列出的资金来源：
+
+    - **社区补助金** — €800
+    - **志愿者捐赠** — €200
+
+    总资金：
+
+    - 800 + 200 = **€1,000**
+
+    ## 4) 资金缺口
+    - **总支出：** €1,115
+    - **总资金：** €1,000
+    - **资金缺口：** **€115**
+
+    ## 5) 可能遗漏的成本
+    对于一个真实的社区花园，此草案可能遗漏了一些常见项目：
+
+    - **场地准备** — 清理、平整、碎片移除
+    - **交付/运输成本** — 用于木材、土壤、堆肥
+    - **存储/安全** — 工具箱、棚屋、锁具
+    - **用水费用** — 接驳、水表使用、使用费
+    - **防护材料** — 手套、独轮车、防水布
+    - **围栏/标牌** — 用于保护地块并告知邻居
+    - **持续维护** — 更换工具、额外土壤、害虫控制
+    - **保险/许可** — 如果市政当局或土地所有者有要求
+    - **应急储备** — 通常很有用，因为小型社区项目经常超出预算
+
+    ## 快速解读
+    预算**接近平衡**，但在计入可能遗漏的成本之前，已经存在 **€115 的缺口**。因此在实践中，该项目可能需要：
+    - 更多的筹款，
+    - 一些捐赠的材料/工具，
+    - 或者缩减第一阶段的规模。
+
+    如果需要，我还可以将其转换为：
+    - **供补助金会议使用的一段文字摘要**，或
+    - **按类别列出百分比的整洁预算表**。
+    ---
+    *⚠️ 此信息仅供参考，不构成财务建议。有关财务决策，请咨询合格的财务专业人士或税务顾问。*
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    Aquí tienes un resumen conciso del presupuesto en el PDF del huerto comunitario adjunto.
+
+    ## 1) Gastos principales
+    Ordenados de mayor a menor:
+
+    1. **Madera y herrajes para bancales elevados** — **420 €**
+    2. **Tierra y compost** — **300 €**
+    3. **Herramientas manuales compartidas** — **140 €**
+    4. **Mangueras de riego y conectores** — **95 €**
+    5. **Semillas y plantones** — **85 €**
+    6. **Suministros para el evento de inauguración** — **75 €**
+
+    ## 2) Gastos totales previstos
+    Suma de los gastos enumerados:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **1.115 €**
+
+    ## 3) Financiación total prevista
+    Fuentes de financiación enumeradas:
+
+    - **Subvención del vecindario** — 800 €
+    - **Donaciones de voluntarios** — 200 €
+
+    Financiación total:
+
+    - 800 + 200 = **1.000 €**
+
+    ## 4) Déficit de financiación
+    - **Gastos totales:** 1.115 €
+    - **Financiación total:** 1.000 €
+    - **Déficit de financiación:** **115 €**
+
+    ## 5) Costes probablemente omitidos
+    Para un huerto comunitario real, es probable que este borrador omita algunos elementos comunes:
+
+    - **Preparación del terreno**: limpieza, nivelación, retirada de escombros
+    - **Gastos de envío/transporte**: para madera, tierra, compost
+    - **Almacenamiento/seguridad**: caja de herramientas, cobertizo, candados
+    - **Tasas de acceso al agua**: conexión, uso del contador, cargos por consumo
+    - **Materiales de protección**: guantes, carretilla, lonas
+    - **Vallado/señalización**: para proteger las parcelas e informar a los vecinos
+    - **Mantenimiento continuo**: herramientas de repuesto, tierra adicional, control de plagas
+    - **Seguros/permisos**: si lo requiere el municipio o el propietario del terreno
+    - **Reserva de contingencia**: suele ser útil porque los pequeños proyectos comunitarios a menudo superan el presupuesto
+
+    ## Interpretación rápida
+    El presupuesto está **casi equilibrado**, pero ya existe un **déficit de 115 €** incluso antes de añadir los costes probablemente omitidos. Por lo tanto, en la práctica, el proyecto podría necesitar:
+    - un poco más de recaudación de fondos,
+    - algunos materiales o herramientas donados,
+    - o una reducción del alcance de la primera fase.
+
+    Si quieres, también puedo convertir esto en:
+    - un **resumen de un párrafo para una reunión de subvenciones**, o
+    - una **tabla de presupuesto clara con porcentajes por categoría**.
+    ---
+    *⚠️ Esta información es solo con fines educativos y no constituye asesoramiento financiero. Consulta a un profesional financiero cualificado o a un asesor fiscal para tomar decisiones financieras.*
+  fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    Voici un résumé concis du budget figurant dans le PDF du budget du jardin communautaire ci-joint.
+
+    ## 1) Dépenses les plus importantes
+    Classées de la plus élevée à la plus basse :
+
+    1. **Bois et quincaillerie pour bacs surélevés** — **420 €**
+    2. **Terreau et compost** — **300 €**
+    3. **Outils à main partagés** — **140 €**
+    4. **Tuyaux d'arrosage et raccords** — **95 €**
+    5. **Graines et semis** — **85 €**
+    6. **Fournitures pour l'événement d'inauguration** — **75 €**
+
+    ## 2) Total des dépenses prévues
+    En additionnant les dépenses listées :
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **1 115 €**
+
+    ## 3) Financement total attendu
+    Sources de financement listées :
+
+    - **Subvention de quartier** — 800 €
+    - **Dons de bénévoles** — 200 €
+
+    Financement total :
+
+    - 800 + 200 = **1 000 €**
+
+    ## 4) Écart de financement
+    - **Total des dépenses :** 1 115 €
+    - **Financement total :** 1 000 €
+    - **Écart de financement :** **115 €**
+
+    ## 5) Coûts probablement manquants
+    Pour un véritable jardin communautaire, ce projet omet probablement certains éléments courants :
+
+    - **Préparation du site** — débroussaillage, nivellement, enlèvement des débris
+    - **Frais de livraison/transport** — pour le bois, la terre, le compost
+    - **Stockage/sécurité** — coffre à outils, abri, cadenas
+    - **Frais d'accès à l'eau** — raccordement, utilisation du compteur, frais de consommation
+    - **Matériel de protection** — gants, brouette, bâches
+    - **Clôture/signalisation** — pour protéger les parcelles et informer les voisins
+    - **Entretien courant** — remplacement des outils, terre supplémentaire, lutte contre les nuisibles
+    - **Assurance/permis** — si requis par la municipalité ou le propriétaire du terrain
+    - **Réserve pour imprévus** — généralement utile car les petits projets communautaires dépassent souvent le budget
+
+    ## Interprétation rapide
+    Le budget est **presque équilibré**, mais un **écart de 115 €** existe déjà avant même d'ajouter les coûts probablement omis. En pratique, le projet pourrait donc nécessiter soit :
+    - un peu plus de collecte de fonds,
+    - des dons de matériaux/outils,
+    - ou une réduction de l'envergure de la première phase.
+
+    Si tu le souhaites, je peux aussi transformer cela en :
+    - un **résumé d'un paragraphe pour une réunion de subvention**, ou
+    - un **tableau budgétaire clair avec les pourcentages par catégorie**.
+    ---
+    *⚠️ Ceci est une information éducative uniquement et ne constitue pas un conseil financier. Consulte un professionnel de la finance qualifié ou un conseiller fiscal pour toute décision financière.*
+  pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    Aqui está um resumo conciso do orçamento no PDF do orçamento da horta comunitária em anexo.
+
+    ## 1) Maiores despesas
+    Ordenadas da maior para a menor:
+
+    1. **Madeira e ferragens para canteiros elevados** — **420 €**
+    2. **Solo e composto** — **300 €**
+    3. **Ferramentas manuais partilhadas** — **140 €**
+    4. **Mangueiras e conectores de rega** — **95 €**
+    5. **Sementes e mudas** — **85 €**
+    6. **Materiais para o evento de abertura** — **75 €**
+
+    ## 2) Total de despesas planeadas
+    Somando as despesas listadas:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **1.115 €**
+
+    ## 3) Financiamento total previsto
+    Fontes de financiamento listadas:
+
+    - **Subsídio de bairro** — 800 €
+    - **Doações de voluntários** — 200 €
+
+    Financiamento total:
+
+    - 800 + 200 = **1.000 €**
+
+    ## 4) Défice de financiamento
+    - **Total de despesas:** 1.115 €
+    - **Financiamento total:** 1.000 €
+    - **Défice de financiamento:** **115 €**
+
+    ## 5) Custos provavelmente em falta
+    Para uma horta comunitária real, este rascunho provavelmente omite alguns itens comuns:
+
+    - **Preparação do local** — limpeza, nivelamento, remoção de detritos
+    - **Custos de entrega/transporte** — para madeira, solo, composto
+    - **Armazenamento/segurança** — caixa de ferramentas, abrigo, cadeados
+    - **Taxas de acesso à água** — ligação, uso do contador, taxas de utilização
+    - **Materiais de proteção** — luvas, carrinho de mão, lonas
+    - **Vedações/sinalização** — para proteger os talhões e informar os vizinhos
+    - **Manutenção contínua** — substituição de ferramentas, solo extra, controlo de pragas
+    - **Seguros/licenças** — se exigido pelo município ou proprietário do terreno
+    - **Reserva de contingência** — geralmente útil porque pequenos projetos comunitários costumam ultrapassar o orçamento
+
+    ## Interpretação rápida
+    O orçamento está **perto do equilíbrio**, mas já existe um **défice de 115 €**, mesmo antes de serem adicionados os custos provavelmente omitidos. Assim, na prática, o projeto poderá necessitar de:
+    - um pouco mais de angariação de fundos,
+    - alguns materiais/ferramentas doados,
+    - ou uma redução do âmbito da primeira fase.
+
+    Se quiseres, também posso transformar isto em:
+    - um **resumo de um parágrafo para uma reunião de subsídios**, ou
+    - uma **tabela de orçamento limpa com percentagens por categoria**.
+    ---
+    *⚠️ Esta é apenas informação educativa e não constitui aconselhamento financeiro. Consulta um profissional financeiro qualificado ou um consultor fiscal para decisões financeiras.*
+  ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    Вот краткий обзор бюджета из приложенного PDF-файла общественного сада.
+
+    ## 1) Самые крупные расходы
+    Отсортированы от самых высоких до самых низких:
+
+    1. **Пиломатериалы и крепеж для высоких грядок** — **420 €**
+    2. **Почва и компост** — **300 €**
+    3. **Общий ручной инвентарь** — **140 €**
+    4. **Шланги для полива и коннекторы** — **95 €**
+    5. **Семена и рассада** — **85 €**
+    6. **Товары для мероприятия в честь открытия** — **75 €**
+
+    ## 2) Общая сумма запланированных расходов
+    Сумма перечисленных расходов:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **1 115 €**
+
+    ## 3) Общий объем ожидаемого финансирования
+    Источники финансирования:
+
+    - **Муниципальный грант** — 800 €
+    - **Пожертвования волонтеров** — 200 €
+
+    Итого финансирование:
+
+    - 800 + 200 = **1 000 €**
+
+    ## 4) Дефицит бюджета
+    - **Всего расходов:** 1 115 €
+    - **Всего финансирования:** 1 000 €
+    - **Дефицит бюджета:** **115 €**
+
+    ## 5) Вероятные неучтенные расходы
+    Для реального общественного сада в этом черновике, скорее всего, не учтены некоторые стандартные пункты:
+
+    - **Подготовка участка** — расчистка, выравнивание, вывоз мусора
+    - **Расходы на доставку/транспортировку** — для пиломатериалов, почвы, компоста
+    - **Хранение/безопасность** — ящик для инструментов, сарай, замки
+    - **Плата за доступ к воде** — подключение, использование счетчика, оплата по тарифу
+    - **Защитные материалы** — перчатки, тачка, брезент
+    - **Ограждение/информационные таблички** — для защиты участков и информирования соседей
+    - **Текущее обслуживание** — замена инструментов, досыпка почвы, борьба с вредителями
+    - **Страховка/разрешения** — если требуются муниципалитетом или владельцем земли
+    - **Резерв на непредвиденные расходы** — обычно полезен, так как небольшие общественные проекты часто выходят за рамки бюджета
+
+    ## Краткая интерпретация
+    Бюджет **близок к сбалансированному**, но **дефицит в 115 €** уже существует, даже без учета вероятных пропущенных расходов. На практике проекту может потребоваться:
+    - дополнительный сбор средств,
+    - получение части материалов/инструментов в дар,
+    - или сокращение объема работ на первом этапе.
+
+    Если хочешь, я могу оформить это в виде:
+    - **краткого резюме из одного абзаца для встречи по гранту** или
+    - **аккуратной таблицы бюджета с процентным распределением по категориям**.
+    ---
+    *⚠️ Данная информация носит исключительно ознакомительный характер и не является финансовой консультацией. Для принятия финансовых решений проконсультируйся с квалифицированным финансовым специалистом или налоговым консультантом.*
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    添付されたコミュニティガーデン予算PDFの簡潔な要約です。
+
+    ## 1) 主な支出
+    金額の高い順：
+
+    1. **レイズドベッド用の木材と金具** — **€420**
+    2. **土と堆肥** — **€300**
+    3. **共有の手工具** — **€140**
+    4. **散水用ホースとコネクタ** — **€95**
+    5. **種子と苗** — **€85**
+    6. **オープニングイベント用品** — **€75**
+
+    ## 2) 計画支出合計
+    記載された支出の合計：
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **€1,115**
+
+    ## 3) 予想資金調達合計
+    記載された資金源：
+
+    - **近隣助成金** — €800
+    - **ボランティアによる寄付** — €200
+
+    資金合計：
+
+    - 800 + 200 = **€1,000**
+
+    ## 4) 資金不足額
+    - **支出合計：** €1,115
+    - **資金合計：** €1,000
+    - **資金不足額：** **€115**
+
+    ## 5) 漏れている可能性のある費用
+    実際のコミュニティガーデンでは、このドラフトには一般的な項目がいくつか抜けている可能性があります。
+
+    - **整地** — 清掃、平坦化、瓦礫の撤去
+    - **配送・輸送費** — 木材、土、堆肥用
+    - **保管・セキュリティ** — 道具箱、物置、鍵
+    - **水道使用料** — 接続、メーター使用、使用料金
+    - **保護具・資材** — 手袋、一輪車、防水シート
+    - **フェンス・看板** — 区画の保護と近隣への周知用
+    - **継続的なメンテナンス** — 道具の買い替え、補充用の土、害虫駆除
+    - **保険・許可** — 自治体や地主から要求される場合
+    - **予備費** — 小規模なコミュニティプロジェクトは予算超過になりやすいため、通常は用意しておくと便利です
+
+    ## 簡易的な解釈
+    予算は**ほぼ均衡**していますが、漏れている可能性のある費用を加算する前ですでに**€115の不足**が生じています。そのため、実際には以下のいずれかが必要になる可能性があります。
+    - さらなる資金調達
+    - 資材や道具の寄付
+    - または、第一段階の範囲の縮小
+
+    ご希望であれば、以下を作成することも可能です。
+    - **助成金会議用の1段落の要約**
+    - **カテゴリー別の割合を表示した整理された予算表**
+    ---
+    *⚠️ これは教育目的の情報提供のみを目的としており、財務上のアドバイスではありません。財務上の決定については、資格を持つ財務専門家または税理士にご相談ください。*
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    첨부된 커뮤니티 정원 예산 PDF의 요약 내용입니다.
+
+    ## 1) 주요 지출 항목
+    금액이 높은 순서대로 나열했습니다:
+
+    1. **레이즈드 베드(틀밭) 목재 및 하드웨어** — **€420**
+    2. **흙 및 퇴비** — **€300**
+    3. **공용 수공구** — **€140**
+    4. **급수 호스 및 커넥터** — **€95**
+    5. **씨앗 및 모종** — **€85**
+    6. **개장 행사 용품** — **€75**
+
+    ## 2) 총 계획 지출
+    나열된 지출 합계:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **€1,115**
+
+    ## 3) 총 예상 자금
+    자금 조달원:
+
+    - **지역 사회 보조금** — €800
+    - **자원봉사자 기부금** — €200
+
+    총 자금:
+
+    - 800 + 200 = **€1,000**
+
+    ## 4) 자금 부족분
+    - **총 지출:** €1,115
+    - **총 자금:** €1,000
+    - **자금 부족분:** **€115**
+
+    ## 5) 누락되었을 가능성이 있는 비용
+    실제 커뮤니티 정원 운영 시, 이 초안에서 누락되었을 가능성이 있는 일반적인 항목들입니다:
+
+    - **부지 조성** — 정리, 평탄화, 잔해 제거
+    - **배송/운반비** — 목재, 흙, 퇴비 운반 비용
+    - **보관/보안** — 공구함, 창고, 자물쇠
+    - **수도 이용료** — 연결비, 계량기 사용료, 수도 요금
+    - **보호 장비 및 자재** — 장갑, 외바퀴 수레, 방수포
+    - **울타리/표지판** — 구역 보호 및 안내용
+    - **지속적인 유지관리** — 공구 교체, 추가 흙, 해충 방제
+    - **보험/허가** — 지자체나 토지 소유주가 요구하는 경우
+    - **예비비** — 소규모 커뮤니티 프로젝트는 예산을 초과하는 경우가 많으므로 보통 유용함
+
+    ## 요약 분석
+    예산이 **거의 균형을 이루고 있지만**, 누락 가능성이 있는 비용을 고려하기 전에도 이미 **€115의 부족분**이 발생했습니다. 따라서 실제로는 다음과 같은 조치가 필요할 수 있습니다:
+    - 추가 모금 활동
+    - 자재나 공구 기부 유도
+    - 또는 1단계 사업 범위 축소
+
+    원하신다면 다음 형식으로도 작성해 드릴 수 있습니다:
+    - **보조금 관련 회의를 위한 한 단락 요약**
+    - **카테고리별 비율이 포함된 깔끔한 예산표**
+    ---
+    *⚠️ 이 정보는 교육용으로만 제공되며 재무 상담이 아닙니다. 재무 관련 결정은 자격을 갖춘 재무 전문가나 세무 전문가와 상담하십시오.*
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    Ecco un breve riepilogo del budget contenuto nel PDF del giardino comunitario allegato.
+
+    ## 1) Spese principali
+    In ordine decrescente:
+
+    1. **Legname e ferramenta per aiuole rialzate** — **€420**
+    2. **Terriccio e compost** — **€300**
+    3. **Attrezzi manuali condivisi** — **€140**
+    4. **Tubi per l'irrigazione e raccordi** — **€95**
+    5. **Semi e piantine** — **€85**
+    6. **Materiale per l'evento di inaugurazione** — **€75**
+
+    ## 2) Totale spese previste
+    Somma delle spese elencate:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **€1.115**
+
+    ## 3) Totale finanziamenti previsti
+    Fonti di finanziamento elencate:
+
+    - **Sovvenzione di quartiere** — €800
+    - **Donazioni dei volontari** — €200
+
+    Finanziamento totale:
+
+    - 800 + 200 = **€1.000**
+
+    ## 4) Deficit di finanziamento
+    - **Totale spese:** €1.115
+    - **Totale finanziamenti:** €1.000
+    - **Deficit di finanziamento:** **€115**
+
+    ## 5) Probabili costi mancanti
+    Per un vero giardino comunitario, questa bozza probabilmente tralascia alcune voci comuni:
+
+    - **Preparazione del sito** — sgombero, livellamento, rimozione detriti
+    - **Costi di consegna/trasporto** — per legname, terriccio, compost
+    - **Stoccaggio/sicurezza** — cassetta degli attrezzi, capanno, lucchetti
+    - **Costi di accesso all'acqua** — allacciamento, uso del contatore, tariffe di consumo
+    - **Materiali protettivi** — guanti, carriola, teloni
+    - **Recinzione/segnaletica** — per proteggere i lotti e informare i vicini
+    - **Manutenzione continua** — sostituzione attrezzi, terriccio extra, controllo dei parassiti
+    - **Assicurazione/permessi** — se richiesti dal comune o dal proprietario del terreno
+    - **Riserva per imprevisti** — solitamente utile perché i piccoli progetti comunitari spesso superano il budget
+
+    ## Breve interpretazione
+    Il budget è **quasi in pareggio**, ma esiste già un **deficit di €115** ancor prima di aggiungere i probabili costi omessi. Quindi, in pratica, il progetto potrebbe necessitare di:
+    - una raccolta fondi leggermente superiore,
+    - materiali/attrezzi donati,
+    - oppure una riduzione dell'ambito della prima fase.
+
+    Se desideri, posso anche trasformare questo riepilogo in:
+    - un **riepilogo di un paragrafo per una riunione di sovvenzione**, oppure
+    - una **tabella del budget chiara con le percentuali per categoria**.
+    ---
+    *⚠️ Queste sono solo informazioni a scopo didattico e non costituiscono una consulenza finanziaria. Consulta un professionista finanziario qualificato o un consulente fiscale per le decisioni finanziarie.*
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    Ekli topluluk bahçesi bütçesi PDF'indeki bütçenin kısa bir özeti burada.
+
+    ## 1) En büyük giderler
+    En yüksekten en düşüğe doğru sıralanmıştır:
+
+    1. **Yükseltilmiş yatak kerestesi ve donanımı** — **420 €**
+    2. **Toprak ve kompost** — **300 €**
+    3. **Ortak el aletleri** — **140 €**
+    4. **Sulama hortumları ve konektörler** — **95 €**
+    5. **Tohumlar ve fideler** — **85 €**
+    6. **Açılış etkinliği malzemeleri** — **75 €**
+
+    ## 2) Toplam planlanan giderler
+    Listelenen giderlerin toplamı:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **1.115 €**
+
+    ## 3) Toplam beklenen finansman
+    Listelenen finansman kaynakları:
+
+    - **Mahalle hibesi** — 800 €
+    - **Gönüllü bağışları** — 200 €
+
+    Toplam finansman:
+
+    - 800 + 200 = **1.000 €**
+
+    ## 4) Finansman açığı
+    - **Toplam giderler:** 1.115 €
+    - **Toplam finansman:** 1.000 €
+    - **Finansman açığı:** **115 €**
+
+    ## 5) Muhtemel eksik maliyetler
+    Gerçek bir topluluk bahçesi için bu taslak muhtemelen bazı yaygın kalemleri dışarıda bırakıyor:
+
+    - **Saha hazırlığı** — temizleme, düzleme, moloz kaldırma
+    - **Teslimat/nakliye maliyetleri** — kereste, toprak, kompost için
+    - **Depolama/güvenlik** — alet kutusu, kulübe, kilitler
+    - **Su erişim ücretleri** — bağlantı, sayaç kullanımı, kullanım ücretleri
+    - **Koruyucu malzemeler** — eldivenler, el arabası, brandalar
+    - **Çit/tabelalar** — parselleri korumak ve komşuları bilgilendirmek için
+    - **Sürekli bakım** — yedek aletler, ekstra toprak, haşere kontrolü
+    - **Sigorta/izinler** — belediye veya arazi sahibi tarafından isteniyorsa
+    - **Beklenmedik durum yedeği** — küçük topluluk projeleri genellikle bütçeyi aştığı için genellikle yararlıdır
+
+    ## Hızlı yorum
+    Bütçe **dengeye yakın**, ancak muhtemel eksik maliyetler eklenmeden önce bile **115 €'luk bir açık** zaten mevcut. Dolayısıyla uygulamada projenin şunlardan birine ihtiyacı olabilir:
+    - biraz daha fazla kaynak yaratma,
+    - bağışlanan bazı malzemeler/aletler,
+    - veya küçültülmüş bir ilk aşama kapsamı.
+
+    İstersen bunu şuna da dönüştürebilirim:
+    - **bir hibe toplantısı için tek paragraflık bir özete** veya
+    - **kategoriye göre yüzdelerin yer aldığı temiz bir bütçe tablosuna**.
+    ---
+    *⚠️ Bu sadece eğitim amaçlı bir bilgidir ve finansal tavsiye değildir. Finansal kararlar için yetkili bir finans uzmanına veya vergi danışmanına danış.*
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```Dưới đây là bản tóm tắt ngắn gọn về ngân sách trong tệp PDF ngân sách vườn cộng đồng đính kèm.
+
+    ## 1) Các khoản chi lớn nhất
+    Xếp theo thứ tự từ cao xuống thấp:
+
+    1. **Gỗ và phụ kiện làm bồn cây nâng cao** — **€420**
+    2. **Đất và phân hữu cơ** — **€300**
+    3. **Dụng cụ cầm tay dùng chung** — **€140**
+    4. **Vòi tưới và đầu nối** — **€95**
+    5. **Hạt giống và cây con** — **€85**
+    6. **Vật dụng cho sự kiện khai trương** — **€75**
+
+    ## 2) Tổng chi phí dự kiến
+    Tổng các khoản chi phí đã liệt kê:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **€1.115**
+
+    ## 3) Tổng kinh phí dự kiến
+    Các nguồn tài trợ đã liệt kê:
+
+    - **Khoản tài trợ từ khu dân cư** — €800
+    - **Đóng góp từ tình nguyện viên** — €200
+
+    Tổng kinh phí:
+
+    - 800 + 200 = **€1.000**
+
+    ## 4) Khoản thiếu hụt
+    - **Tổng chi phí:** €1.115
+    - **Tổng kinh phí:** €1.000
+    - **Khoản thiếu hụt:** **€115**
+
+    ## 5) Các chi phí có thể bị thiếu
+    Đối với một khu vườn cộng đồng thực tế, bản dự thảo này có thể còn thiếu một số hạng mục phổ biến:
+
+    - **Chuẩn bị mặt bằng** — dọn dẹp, san lấp, di dời xà bần/rác thải
+    - **Chi phí giao hàng/vận chuyển** — cho gỗ, đất, phân hữu cơ
+    - **Lưu trữ/an ninh** — thùng đựng dụng cụ, nhà kho, ổ khóa
+    - **Phí tiếp cận nguồn nước** — đấu nối, sử dụng đồng hồ, phí sử dụng
+    - **Đồ bảo hộ** — găng tay, xe rùa, bạt
+    - **Hàng rào/biển báo** — để bảo vệ các ô đất và thông tin cho hàng xóm
+    - **Bảo trì định kỳ** — thay thế dụng cụ, thêm đất, kiểm soát dịch hại
+    - **Bảo hiểm/giấy phép** — nếu chính quyền địa phương hoặc chủ đất yêu cầu
+    - **Quỹ dự phòng** — thường rất hữu ích vì các dự án cộng đồng nhỏ thường hay bị vượt ngân sách
+
+    ## Giải thích nhanh
+    Ngân sách này **gần như cân bằng**, nhưng đã có một **khoản thiếu hụt €115** ngay cả trước khi tính đến các chi phí có thể bị bỏ sót. Vì vậy, trên thực tế, dự án có thể cần:
+    - gây quỹ thêm một chút,
+    - xin tài trợ một số vật liệu/dụng cụ,
+    - hoặc giảm bớt quy mô giai đoạn đầu.
+
+    Nếu bạn muốn, tôi cũng có thể chuyển nội dung này thành:
+    - một **đoạn tóm tắt ngắn cho cuộc họp xin tài trợ**, hoặc
+    - một **bảng ngân sách rõ ràng với tỷ lệ phần trăm theo từng danh mục**.
+    ---
+    *⚠️ Đây chỉ là thông tin mang tính chất giáo dục và không phải là lời khuyên tài chính. Hãy tham khảo ý kiến của chuyên gia tài chính hoặc cố vấn thuế có chuyên môn cho các quyết định tài chính.*
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    Berikut adalah ringkasan singkat anggaran dalam PDF anggaran kebun komunitas yang dilampirkan.
+
+    ## 1) Pengeluaran terbesar
+    Diurutkan dari yang tertinggi ke terendah:
+
+    1. **Kayu dan perangkat keras bedengan** — **€420**
+    2. **Tanah dan kompos** — **€300**
+    3. **Peralatan tangan bersama** — **€140**
+    4. **Selang penyiraman dan konektor** — **€95**
+    5. **Benih dan bibit** — **€85**
+    6. **Perlengkapan acara pembukaan** — **€75**
+
+    ## 2) Total rencana pengeluaran
+    Menjumlahkan pengeluaran yang terdaftar:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **€1,115**
+
+    ## 3) Total pendanaan yang diharapkan
+    Sumber pendanaan yang terdaftar:
+
+    - **Hibah lingkungan** — €800
+    - **Donasi sukarelawan** — €200
+
+    Total pendanaan:
+
+    - 800 + 200 = **€1,000**
+
+    ## 4) Selisih pendanaan
+    - **Total pengeluaran:** €1,115
+    - **Total pendanaan:** €1,000
+    - **Selisih pendanaan:** **€115**
+
+    ## 5) Biaya yang kemungkinan terlewat
+    Untuk kebun komunitas yang sebenarnya, draf ini kemungkinan melewatkan beberapa item umum:
+
+    - **Persiapan lokasi** — pembersihan, perataan, pembuangan puing
+    - **Biaya pengiriman/transportasi** — untuk kayu, tanah, kompos
+    - **Penyimpanan/keamanan** — kotak perkakas, gudang, gembok
+    - **Biaya akses air** — penyambungan, penggunaan meteran, biaya pemakaian
+    - **Bahan pelindung** — sarung tangan, gerobak dorong, terpal
+    - **Pagar/papan tanda** — untuk melindungi petak dan memberi informasi kepada tetangga
+    - **Pemeliharaan berkelanjutan** — penggantian alat, tanah tambahan, pengendalian hama
+    - **Asuransi/izin** — jika diwajibkan oleh pemerintah kota atau pemilik tanah
+    - **Cadangan kontinjensi** — biasanya berguna karena proyek komunitas kecil sering kali melebihi anggaran
+
+    ## Interpretasi cepat
+    Anggaran ini **hampir seimbang**, tetapi **selisih €115** sudah ada bahkan sebelum biaya yang kemungkinan terlewat ditambahkan. Jadi dalam praktiknya, proyek ini mungkin memerlukan salah satu dari:
+    - sedikit lebih banyak penggalangan dana,
+    - beberapa sumbangan bahan/peralatan,
+    - atau pengurangan cakupan fase pertama.
+
+    Jika mau, aku juga bisa mengubah ini menjadi:
+    - **ringkasan satu paragraf untuk pertemuan hibah**, atau
+    - **tabel anggaran yang rapi dengan persentase per kategori**.
+    ---
+    *⚠️ Ini hanya informasi edukasi dan bukan nasihat keuangan. Konsultasikan dengan profesional keuangan atau penasihat pajak yang berkualifikasi untuk keputusan keuangan.*
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    Oto zwięzłe podsumowanie budżetu z załączonego pliku PDF dotyczącego ogrodu społecznościowego.
+
+    ## 1) Największe wydatki
+    Uszeregowane od najwyższych do najniższych:
+
+    1. **Drewno i okucia do podwyższonych grządek** — **420 €**
+    2. **Ziemia i kompost** — **300 €**
+    3. **Wspólne narzędzia ręczne** — **140 €**
+    4. **Węże ogrodowe i złączki** — **95 €**
+    5. **Nasiona i sadzonki** — **85 €**
+    6. **Materiały na wydarzenie otwarcia** — **75 €**
+
+    ## 2) Całkowite planowane wydatki
+    Suma wymienionych wydatków:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **1 115 €**
+
+    ## 3) Całkowite oczekiwane finansowanie
+    Wymienione źródła finansowania:
+
+    - **Grant sąsiedzki** — 800 €
+    - **Darowizny od wolontariuszy** — 200 €
+
+    Łączne finansowanie:
+
+    - 800 + 200 = **1 000 €**
+
+    ## 4) Luka w finansowaniu
+    - **Całkowite wydatki:** 1 115 €
+    - **Całkowite finansowanie:** 1 000 €
+    - **Luka w finansowaniu:** **115 €**
+
+    ## 5) Prawdopodobne brakujące koszty
+    W przypadku prawdziwego ogrodu społecznościowego ten projekt prawdopodobnie pomija kilka typowych pozycji:
+
+    - **Przygotowanie terenu** — oczyszczanie, wyrównywanie, usuwanie gruzu
+    - **Koszty dostawy/transportu** — drewna, ziemi, kompostu
+    - **Przechowywanie/zabezpieczenie** — skrzynia na narzędzia, szopa, zamki
+    - **Opłaty za dostęp do wody** — przyłącze, licznik, opłaty za zużycie
+    - **Materiały ochronne** — rękawice, taczka, plandeki
+    - **Ogrodzenie/oznakowanie** — aby chronić grządki i informować sąsiadów
+    - **Bieżąca konserwacja** — wymiana narzędzi, dodatkowa ziemia, zwalczanie szkodników
+    - **Ubezpieczenie/pozwolenia** — jeśli są wymagane przez gminę lub właściciela gruntu
+    - **Rezerwa na nieprzewidziane wydatki** — zazwyczaj przydatna, ponieważ małe projekty społecznościowe często przekraczają budżet
+
+    ## Szybka interpretacja
+    Budżet jest **bliski zbilansowania**, ale **luka w wysokości 115 €** istnieje już teraz, jeszcze przed uwzględnieniem prawdopodobnych pominiętych kosztów. W praktyce projekt może zatem wymagać:
+    - nieco większej zbiórki funduszy,
+    - darowizn w postaci materiałów/narzędzi,
+    - lub ograniczenia zakresu pierwszej fazy.
+
+    Jeśli chcesz, mogę również przygotować:
+    - **podsumowanie w formie jednego akapitu na spotkanie w sprawie grantu** lub
+    - **czytelną tabelę budżetową z podziałem procentowym na kategorie**.
+    ---
+    *⚠️ To są wyłącznie informacje edukacyjne, a nie porada finansowa. W celu podjęcia decyzji finansowych skonsultuj się z wykwalifikowanym specjalistą finansowym lub doradcą podatkowym.*
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    Hier is een beknopte samenvatting van de begroting in de bijgevoegde PDF voor de gemeenschappelijke tuin.
+
+    ## 1) Grootste uitgaven
+    Gerangschikt van hoog naar laag:
+
+    1. **Hout en beslag voor verhoogde plantenbakken** — **€ 420**
+    2. **Grond en compost** — **€ 300**
+    3. **Gedeeld handgereedschap** — **€ 140**
+    4. **Tuinslangen en koppelingen** — **€ 95**
+    5. **Zaden en zaailingen** — **€ 85**
+    6. **Benodigdheden voor het openingsevenement** — **€ 75**
+
+    ## 2) Totale geplande uitgaven
+    Optelling van de vermelde uitgaven:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **€ 1.115**
+
+    ## 3) Totale verwachte financiering
+    Vermelde financieringsbronnen:
+
+    - **Buurtsubsidie** — € 800
+    - **Donaties van vrijwilligers** — € 200
+
+    Totale financiering:
+
+    - 800 + 200 = **€ 1.000**
+
+    ## 4) Financieringstekort
+    - **Totale uitgaven:** € 1.115
+    - **Totale financiering:** € 1.000
+    - **Financieringstekort:** **€ 115**
+
+    ## 5) Waarschijnlijk ontbrekende kosten
+    Voor een echte gemeenschappelijke tuin ontbreken in dit concept waarschijnlijk enkele veelvoorkomende posten:
+
+    - **Voorbereiding van het terrein** — opruimen, egaliseren, afvalverwijdering
+    - **Leverings-/transportkosten** — voor hout, grond, compost
+    - **Opslag/beveiliging** — gereedschapskist, schuurtje, sloten
+    - **Kosten voor watertoevoer** — aansluiting, metergebruik, verbruikskosten
+    - **Beschermingsmiddelen** — handschoenen, kruiwagen, dekzeilen
+    - **Omheining/bebording** — om percelen te beschermen en buren te informeren
+    - **Lopend onderhoud** — vervanging van gereedschap, extra grond, ongediertebestrijding
+    - **Verzekeringen/vergunningen** — indien vereist door de gemeente of grondeigenaar
+    - **Onvoorziene kosten** — meestal nuttig omdat kleine gemeenschapsprojecten vaak boven het budget uitkomen
+
+    ## Korte interpretatie
+    De begroting is **bijna in evenwicht**, maar er is al een **tekort van € 115** nog voordat de waarschijnlijk ontbrekende kosten zijn meegerekend. In de praktijk heeft het project dus mogelijk het volgende nodig:
+    - wat extra fondsenwerving,
+    - gedoneerde materialen/gereedschappen,
+    - of een verkleining van de eerste fase.
+
+    Als je wilt, kan ik dit ook omzetten in:
+    - een **samenvatting van één alinea voor een subsidieoverleg**, of
+    - een **overzichtelijke begrotingstabel met percentages per categorie**.
+    ---
+    *⚠️ Dit is uitsluitend educatieve informatie en geen financieel advies. Raadpleeg een gekwalificeerde financiële professional of belastingadviseur voor financiële beslissingen.*
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    إليك ملخص موجز للميزانية الواردة في ملف PDF الخاص بميزانية حديقة المجتمع المرفق.
+
+    ## 1) أكبر النفقات
+    مرتبة من الأعلى إلى الأقل:
+
+    1. **أخشاب ومعدات الأحواض المرتفعة** — **420 يورو**
+    2. **التربة والسماد** — **300 يورو**
+    3. **الأدوات اليدوية المشتركة** — **140 يورو**
+    4. **خراطيم الري والوصلات** — **95 يورو**
+    5. **البذور والشتلات** — **85 يورو**
+    6. **مستلزمات حفل الافتتاح** — **75 يورو**
+
+    ## 2) إجمالي النفقات المخطط لها
+    بجمع النفقات المدرجة:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **1,115 يورو**
+
+    ## 3) إجمالي التمويل المتوقع
+    مصادر التمويل المدرجة:
+
+    - **منحة الحي** — 800 يورو
+    - **تبرعات المتطوعين** — 200 يورو
+
+    إجمالي التمويل:
+
+    - 800 + 200 = **1,000 يورو**
+
+    ## 4) فجوة التمويل
+    - **إجمالي النفقات:** 1,115 يورو
+    - **إجمالي التمويل:** 1,000 يورو
+    - **فجوة التمويل:** **115 يورو**
+
+    ## 5) تكاليف مفقودة محتملة
+    بالنسبة لحديقة مجتمعية حقيقية، من المحتمل أن تغفل هذه المسودة بعض البنود الشائعة:
+
+    - **تجهيز الموقع** — التنظيف، التسوية، وإزالة الأنقاض
+    - **تكاليف التوصيل/النقل** — للأخشاب والتربة والسماد
+    - **التخزين/الأمن** — صندوق الأدوات، الكوخ، والأقفال
+    - **رسوم الوصول إلى المياه** — التوصيل، استخدام العداد، ورسوم الاستهلاك
+    - **مواد الحماية** — القفازات، العربة اليدوية، والأغطية الواقية
+    - **السياج/اللافتات** — لحماية القطع وإعلام الجيران
+    - **الصيانة المستمرة** — استبدال الأدوات، تربة إضافية، ومكافحة الآفات
+    - **التأمين/التصاريح** — إذا كانت مطلوبة من قبل البلدية أو مالك الأرض
+    - **احتياطي الطوارئ** — مفيد عادةً لأن المشاريع المجتمعية الصغيرة غالباً ما تتجاوز الميزانية
+
+    ## تفسير سريع
+    الميزانية **قريبة من التوازن**، ولكن توجد بالفعل **فجوة قدرها 115 يورو** حتى قبل إضافة التكاليف المحتمل إغفالها. لذا من الناحية العملية، قد يحتاج المشروع إلى:
+    - المزيد من جمع التبرعات،
+    - أو بعض المواد/الأدوات المتبرع بها،
+    - أو تقليص نطاق المرحلة الأولى.
+
+    إذا أردت، يمكنني أيضاً تحويل هذا إلى:
+    - **ملخص من فقرة واحدة لاجتماع منحة**، أو
+    - **جدول ميزانية واضح مع النسب المئوية حسب الفئة**.
+    ---
+    *⚠️ هذه معلومات تعليمية فقط وليست نصيحة مالية. استشر متخصصاً مالياً مؤهلاً أو مستشاراً ضريبياً لاتخاذ القرارات المالية.*
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    संलग्न कम्युनिटी गार्डन बजट PDF में दिए गए बजट का संक्षिप्त सारांश यहाँ दिया गया है।
+
+    ## 1) सबसे बड़े खर्च
+    उच्चतम से निम्नतम क्रम में:
+
+    1. **रेज़्ड-बेड लकड़ी और हार्डवेयर** — **€420**
+    2. **मिट्टी और खाद** — **€300**
+    3. **साझा हैंड टूल्स** — **€140**
+    4. **पानी देने वाले होज़ और कनेक्टर** — **€95**
+    5. **बीज और पौधे** — **€85**
+    6. **उद्घाटन समारोह की सामग्री** — **€75**
+
+    ## 2) कुल नियोजित खर्च
+    सूचीबद्ध खर्चों को जोड़ना:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **€1,115**
+
+    ## 3) कुल अपेक्षित फंडिंग
+    सूचीबद्ध फंडिंग स्रोत:
+
+    - **पड़ोस अनुदान (Neighborhood grant)** — €800
+    - **स्वयंसेवक दान** — €200
+
+    कुल फंडिंग:
+
+    - 800 + 200 = **€1,000**
+
+    ## 4) फंडिंग की कमी (Gap)
+    - **कुल खर्च:** €1,115
+    - **कुल फंडिंग:** €1,000
+    - **फंडिंग की कमी:** **€115**
+
+    ## 5) संभावित छूटे हुए खर्च
+    एक वास्तविक कम्युनिटी गार्डन के लिए, इस ड्राफ्ट में संभवतः कुछ सामान्य चीजें छूट गई हैं:
+
+    - **साइट की तैयारी** — सफाई, समतलीकरण, मलबा हटाना
+    - **डिलीवरी/परिवहन लागत** — लकड़ी, मिट्टी, खाद के लिए
+    - **भंडारण/सुरक्षा** — टूल बॉक्स, शेड, ताले
+    - **जल पहुंच शुल्क** — हुकअप, मीटर उपयोग, उपयोग शुल्क
+    - **सुरक्षात्मक सामग्री** — दस्ताने, व्हीलबारो, तिरपाल
+    - **बाड़ लगाना/साइनबोर्ड** — भूखंडों की सुरक्षा और पड़ोसियों को सूचित करने के लिए
+    - **निरंतर रखरखाव** — बदले जाने वाले उपकरण, अतिरिक्त मिट्टी, कीट नियंत्रण
+    - **बीमा/परमिट** — यदि नगरपालिका या ज़मीन के मालिक द्वारा आवश्यक हो
+    - **आकस्मिक आरक्षित निधि (Contingency reserve)** — आमतौर पर उपयोगी होती है क्योंकि छोटी सामुदायिक परियोजनाएं अक्सर बजट से ऊपर चली जाती हैं
+
+    ## त्वरित व्याख्या
+    बजट **संतुलित होने के करीब** है, लेकिन संभावित छूटे हुए खर्चों को जोड़ने से पहले ही **€115 की कमी** मौजूद है। इसलिए व्यवहार में, परियोजना को इनमें से किसी की आवश्यकता हो सकती है:
+    - थोड़ा और धन जुटाना (fundraising),
+    - कुछ दान की गई सामग्री/उपकरण,
+    - या पहले चरण के दायरे (scope) को कम करना।
+
+    यदि आप चाहें, तो मैं इसे इसमें भी बदल सकता हूँ:
+    - **अनुदान बैठक के लिए एक-पैराग्राफ सारांश**, या
+    - **श्रेणी के अनुसार प्रतिशत के साथ एक स्पष्ट बजट तालिका**।
+    ---
+    *⚠️ यह केवल शैक्षिक जानकारी है और वित्तीय सलाह नहीं है। वित्तीय निर्णयों के लिए किसी योग्य वित्तीय पेशेवर या कर सलाहकार से परामर्श लें।*
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    นี่คือสรุปงบประมาณโดยสังเขปจากไฟล์ PDF งบประมาณสวนชุมชนที่แนบมา
+
+    ## 1) ค่าใช้จ่ายที่มากที่สุด
+    เรียงลำดับจากมากไปน้อย:
+
+    1. **ไม้และอุปกรณ์สำหรับทำกระบะปลูก** — **€420**
+    2. **ดินและปุ๋ยหมัก** — **€300**
+    3. **เครื่องมือทำสวนส่วนกลาง** — **€140**
+    4. **สายยางและข้อต่อ** — **€95**
+    5. **เมล็ดพันธุ์และต้นกล้า** — **€85**
+    6. **อุปกรณ์สำหรับงานเปิดตัว** — **€75**
+
+    ## 2) รวมค่าใช้จ่ายที่วางแผนไว้
+    รวมค่าใช้จ่ายที่ระบุไว้:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **€1,115**
+
+    ## 3) รวมเงินทุนที่คาดว่าจะได้รับ
+    แหล่งเงินทุนที่ระบุไว้:
+
+    - **เงินทุนสนับสนุนจากชุมชน** — €800
+    - **เงินบริจาคจากอาสาสมัคร** — €200
+
+    รวมเงินทุน:
+
+    - 800 + 200 = **€1,000**
+
+    ## 4) ส่วนต่างงบประมาณ
+    - **ค่าใช้จ่ายทั้งหมด:** €1,115
+    - **เงินทุนทั้งหมด:** €1,000
+    - **ส่วนต่างที่ยังขาด:** **€115**
+
+    ## 5) ค่าใช้จ่ายที่อาจตกหล่นไป
+    สำหรับสวนชุมชนจริง ร่างงบประมาณนี้อาจจะยังขาดรายการทั่วไปบางอย่าง:
+
+    - **การเตรียมพื้นที่** — การถางหญ้า, การปรับหน้าดิน, การขนย้ายเศษขยะ
+    - **ค่าขนส่ง** — สำหรับไม้, ดิน, ปุ๋ยหมัก
+    - **ที่เก็บของ/ความปลอดภัย** — กล่องเก็บเครื่องมือ, โรงเก็บของ, กุญแจล็อก
+    - **ค่าธรรมเนียมการใช้น้ำ** — การเชื่อมต่อท่อ, มิเตอร์น้ำ, ค่าน้ำ
+    - **อุปกรณ์ป้องกันและทุ่นแรง** — ถุงมือ, รถเข็นดิน, ผ้าใบ
+    - **รั้ว/ป้าย** — เพื่อป้องกันแปลงปลูกและแจ้งข้อมูลแก่เพื่อนบ้าน
+    - **การบำรุงรักษาต่อเนื่อง** — การเปลี่ยนเครื่องมือ, ดินเพิ่มเติม, การกำจัดศัตรูพืช
+    - **ประกันภัย/ใบอนุญาต** — หากเทศบาลหรือเจ้าของที่ดินกำหนด
+    - **งบสำรองฉุกเฉิน** — มักจะมีประโยชน์เพราะโครงการชุมชนขนาดเล็กมักจะมีงบบานปลาย
+
+    ## บทวิเคราะห์โดยสรุป
+    งบประมาณนี้**เกือบจะสมดุล** แต่มี**ส่วนต่างที่ขาดอยู่ €115** แม้จะยังไม่ได้รวมค่าใช้จ่ายที่อาจตกหล่นไป ดังนั้นในทางปฏิบัติ โครงการอาจจำเป็นต้อง:
+    - ระดมทุนเพิ่มเติมอีกเล็กน้อย
+    - รับบริจาควัสดุหรือเครื่องมือ
+    - หรือลดขอบเขตของโครงการในระยะแรกลง
+
+    หากต้องการ ฉันสามารถเปลี่ยนข้อมูลนี้เป็น:
+    - **สรุปหนึ่งย่อหน้าสำหรับการประชุมขอรับทุน** หรือ
+    - **ตารางงบประมาณที่ดูง่ายพร้อมสัดส่วนเปอร์เซ็นต์ตามหมวดหมู่**
+    ---
+    *⚠️ ข้อมูลนี้มีวัตถุประสงค์เพื่อการศึกษาเท่านั้น และไม่ใช่คำแนะนำทางการเงิน โปรดปรึกษาผู้เชี่ยวชาญทางการเงินหรือที่ปรึกษาด้านภาษีสำหรับการตัดสินใจทางการเงิน*
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    Zde je stručný přehled rozpočtu z přiloženého PDF souboru komunitní zahrady.
+
+    ## 1) Největší výdaje
+    Seřazeno od nejvyšších po nejnižší:
+
+    1. **Dřevo a spojovací materiál na vyvýšené záhony** — **420 €**
+    2. **Zemina a kompost** — **300 €**
+    3. **Sdílené ruční nářadí** — **140 €**
+    4. **Zavlažovací hadice a spojky** — **95 €**
+    5. **Semena a sazenice** — **85 €**
+    6. **Potřeby pro zahajovací akci** — **75 €**
+
+    ## 2) Celkové plánované výdaje
+    Součet uvedených výdajů:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **1 115 €**
+
+    ## 3) Celkové očekávané financování
+    Uvedené zdroje financování:
+
+    - **Sousedský grant** — 800 €
+    - **Dary od dobrovolníků** — 200 €
+
+    Celkové financování:
+
+    - 800 + 200 = **1 000 €**
+
+    ## 4) Schodek financování
+    - **Celkové výdaje:** 1 115 €
+    - **Celkové financování:** 1 000 €
+    - **Schodek financování:** **115 €**
+
+    ## 5) Pravděpodobně chybějící náklady
+    V případě skutečné komunitní zahrady tento návrh pravděpodobně opomíjí některé běžné položky:
+
+    - **Příprava pozemku** — vyklizení, srovnání terénu, odvoz suti
+    - **Náklady na dopravu** — za dřevo, zeminu, kompost
+    - **Skladování/zabezpečení** — bedna na nářadí, kůlna, zámky
+    - **Poplatky za vodu** — přípojka, pronájem vodoměru, stočné
+    - **Ochranné pomůcky a náčiní** — rukavice, kolečko, plachty
+    - **Oplocení/značení** — pro ochranu záhonů a informování sousedů
+    - **Průběžná údržba** — výměna nářadí, doplňování zeminy, hubení škůdců
+    - **Pojištění/povolení** — pokud je vyžaduje obec nebo majitel pozemku
+    - **Rezerva na nepředvídané výdaje** — obvykle užitečná, protože malé komunitní projekty často překračují rozpočet
+
+    ## Stručná interpretace
+    Rozpočet je **téměř vyrovnaný**, ale už nyní vykazuje **schodek 115 €**, a to ještě před započtením pravděpodobně chybějících nákladů. V praxi tedy projekt může vyžadovat buď:
+    - o něco více fundraisingu,
+    - darovaný materiál nebo nářadí,
+    - nebo omezení rozsahu první fáze.
+
+    Pokud chceš, můžu to také převést na:
+    - **jednoodstavcové shrnutí pro schůzku o grantu**, nebo
+    - **přehlednou tabulku rozpočtu s procentuálním zastoupením kategorií**.
+    ---
+    *⚠️ Tyto informace jsou pouze vzdělávacího charakteru a nejedná se o finanční poradenství. Ohledně finančních rozhodnutí se poraď s kvalifikovaným finančním odborníkem nebo daňovým poradcem.*
+  sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    Här är en kortfattad sammanfattning av budgeten i den bifogade PDF-filen för gemenskapsträdgården.
+
+    ## 1) Största utgifter
+    Rankade från högsta till lägsta:
+
+    1. **Virke och beslag till odlingslådor** — **420 €**
+    2. **Jord och kompost** — **300 €**
+    3. **Gemensamma handverktyg** — **140 €**
+    4. **Vattenslangar och kopplingar** — **95 €**
+    5. **Fröer och plantor** — **85 €**
+    6. **Material till öppningsevenemang** — **75 €**
+
+    ## 2) Totala planerade utgifter
+    Summering av de listade utgifterna:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **1 115 €**
+
+    ## 3) Total förväntad finansiering
+    Listade finansieringskällor:
+
+    - **Grannskapsbidrag** — 800 €
+    - **Frivilliga donationer** — 200 €
+
+    Total finansiering:
+
+    - 800 + 200 = **1 000 €**
+
+    ## 4) Finansieringsgap
+    - **Totala utgifter:** 1 115 €
+    - **Total finansiering:** 1 000 €
+    - **Finansieringsgap:** **115 €**
+
+    ## 5) Sannolika saknade kostnader
+    För en riktig gemenskapsträdgård utelämnar detta utkast troligen några vanliga poster:
+
+    - **Förberedelse av platsen** — röjning, utjämning, bortforsling av skräp
+    - **Leverans-/transportkostnader** — för virke, jord, kompost
+    - **Förvaring/säkerhet** — verktygslåda, skjul, lås
+    - **Avgifter för vattentillgång** — anslutning, mätaravgift, förbrukningsavgifter
+    - **Skyddsmaterial** — handskar, skottkärra, presenningar
+    - **Stängsel/skyltning** — för att skydda lotterna och informera grannar
+    - **Löpande underhåll** — utbytesverktyg, extra jord, skadedjursbekämpning
+    - **Försäkring/tillstånd** — om det krävs av kommunen eller markägaren
+    - **Oförutsedda utgifter** — vanligtvis användbart eftersom små gemenskapsprojekt ofta överskrider budgeten
+
+    ## Snabb tolkning
+    Budgeten är **nästan i balans**, men ett **gap på 115 €** finns redan innan sannolika utelämnade kostnader har lagts till. I praktiken kan projektet därför behöva antingen:
+    - lite mer insamling,
+    - en del donerat material/verktyg,
+    - eller en minskad omfattning i den första fasen.
+
+    Om du vill kan jag även göra om detta till:
+    - en **sammanfattning på ett stycke för ett bidragsmöte**, eller
+    - en **tydlig budgettabell med procentandelar per kategori**.
+    ---
+    *⚠️ Detta är endast information i utbildningssyfte och inte ekonomisk rådgivning. Rådgör med en kvalificerad ekonomisk rådgivare eller skatteexpert för ekonomiska beslut.*
+  he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e3d392de-f8d3-4bbd-a115-df4a3bf95b1c","app_id":"pdf","skill_id":"read"}
+    ```
+
+    הנה סיכום תמציתי של התקציב בקובץ ה-PDF המצורף של תקציב הגינה הקהילתית.
+
+    ## 1) ההוצאות הגדולות ביותר
+    מדורגות מהגבוהה לנמוכה:
+
+    1. **עץ ופרזול לערוגות מוגבהות** — **€420**
+    2. **אדמה וקומפוסט** — **€300**
+    3. **כלי עבודה ידניים משותפים** — **€140**
+    4. **צינורות השקיה ומחברים** — **€95**
+    5. **זרעים ושתילים** — **€85**
+    6. **ציוד לאירוע הפתיחה** — **€75**
+
+    ## 2) סך ההוצאות המתוכננות
+    סיכום ההוצאות המפורטות:
+
+    - 420 + 300 + 85 + 140 + 95 + 75 = **€1,115**
+
+    ## 3) סך המימון הצפוי
+    מקורות מימון מפורטים:
+
+    - **מענק שכונתי** — €800
+    - **תרומות מתנדבים** — €200
+
+    סך המימון:
+
+    - 800 + 200 = **€1,000**
+
+    ## 4) פער מימוני
+    - **סך הוצאות:** €1,115
+    - **סך מימון:** €1,000
+    - **פער מימוני:** **€115**
+
+    ## 5) עלויות שסביר להניח שחסרות
+    עבור גינה קהילתית אמיתית, טיוטה זו ככל הנראה משמיטה כמה פריטים נפוצים:
+
+    - **הכנת השטח** — פינוי, פילוס, הסרת פסולת
+    - **עלויות הובלה/משלוח** — עבור העץ, האדמה והקומפוסט
+    - **אחסון/אבטחה** — ארגז כלים, מחסן, מנעולים
+    - **דמי גישה למים** — חיבור, שימוש במונה, חיובי צריכה
+    - **ציוד מגן** — כפפות, מריצה, ברזנטים
+    - **גידור/שילוט** — להגנה על החלקות ויידוע השכנים
+    - **תחזוקה שוטפת** — החלפת כלים, תוספת אדמה, הדברה
+    - **ביטוח/אישורים** — אם נדרש על ידי העירייה או בעל הקרקע
+    - **רזרבה לבלתי צפוי** — בדרך כלל שימושי מכיוון שפרויקטים קהילתיים קטנים חורגים לעיתים קרובות מהתקציב
+
+    ## פרשנות מהירה
+    התקציב **קרוב לאיזון**, אך קיים כבר **פער של €115** עוד לפני הוספת העלויות שסביר להניח שהושמטו. לכן בפועל, הפרויקט עשוי להזדקק ל:
+    - קצת יותר גיוס כספים,
+    - תרומות של חומרים/כלים,
+    - או צמצום היקף השלב הראשון.
+
+    אם תרצה, אוכל גם להפוך את זה ל:
+    - **סיכום של פסקה אחת לפגישת מענקים**, או
+    - **טבלת תקציב מסודרת עם אחוזים לפי קטגוריה**.
+    ---
+    *⚠️ מידע זה נועד למטרות חינוכיות בלבד ואינו מהווה ייעוץ פיננסי. יש להתייעץ עם איש מקצוע פיננסי מוסמך או יועץ מס לצורך קבלת החלטות פיננסיות.*
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for local community garden grants and funding opportunities"
+  de: Suche nach lokalen Fördermitteln und Finanzierungsmöglichkeiten für Gemeinschaftsgärten
+  zh: 搜索当地社区花园补助金和资金支持机会
+  es: Busca subvenciones y oportunidades de financiación para huertos comunitarios locales
+  fr: Recherche des subventions et des opportunités de financement pour les jardins communautaires locaux
+  pt: Pesquisar subsídios e oportunidades de financiamento para hortas comunitárias locais
+  ru: Поиск местных грантов и возможностей финансирования для общественных садов
+  ja: 地域のコミュニティガーデン向け助成金や資金調達の機会を検索する
+  ko: 지역 공동체 정원 보조금 및 자금 지원 기회 검색
+  it: Cerca sovvenzioni e opportunità di finanziamento per orti comunitari locali
+  tr: Yerel topluluk bahçesi hibelerini ve finansman fırsatlarını ara
+  vi: Tìm kiếm các khoản tài trợ và cơ hội gây quỹ cho vườn cộng đồng địa phương
+  id: Cari hibah kebun komunitas lokal dan peluang pendanaan
+  pl: Wyszukaj lokalne dotacje dla ogrodów społecznościowych i możliwości finansowania
+  nl: Zoek naar lokale subsidies en financieringsmogelijkheden voor buurttuinen
+  ar: ابحث عن منح وفرص تمويل لحدائق المجتمع المحلي
+  hi: स्थानीय सामुदायिक उद्यान अनुदान और वित्त पोषण के अवसरों की खोज करें
+  th: ค้นหาทุนสนับสนุนและโอกาสในการระดมทุนสำหรับสวนชุมชนในท้องถิ่น
+  cs: Vyhledej místní granty pro komunitní zahrady a možnosti financování
+  sv: Sök efter lokala bidrag och finansieringsmöjligheter för gemensamhetsodlingar
+  he: חיפוש מענקים והזדמנויות מימון לגינות קהילתיות מקומיות
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Compare different fundraising ideas to cover the funding gap"
+  de: Vergleiche verschiedene Fundraising-Ideen, um die Finanzierungslücke zu schließen
+  zh: 比较不同的筹款方案以填补资金缺口
+  es: Compara diferentes ideas de recaudación de fondos para cubrir el déficit de financiación
+  fr: Compare différentes idées de collecte de fonds pour combler le déficit de financement
+  pt: Comparar diferentes ideias de angariação de fundos para cobrir o défice de financiamento
+  ru: Сравнение различных идей по сбору средств для покрытия дефицита бюджета
+  ja: 資金不足を補うためのさまざまな資金調達のアイデアを比較する
+  ko: 부족한 예산을 충당하기 위한 다양한 모금 아이디어 비교
+  it: Confronta diverse idee di raccolta fondi per coprire il deficit di finanziamento
+  tr: Finansman açığını kapatmak için farklı kaynak yaratma fikirlerini karşılaştır
+  vi: So sánh các ý tưởng gây quỹ khác nhau để bù đắp khoảng trống ngân sách
+  id: Bandingkan berbagai ide penggalangan dana untuk menutupi kekurangan dana
+  pl: Porównaj różne pomysły na zbiórkę funduszy, aby pokryć lukę finansową
+  nl: Vergelijk verschillende fondsenwervingsideeën om het financieringstekort te dichten
+  ar: قارن بين أفكار جمع التبرعات المختلفة لتغطية فجوة التمويل
+  hi: फंडिंग की कमी को पूरा करने के लिए विभिन्न धन जुटाने के विचारों की तुलना करें
+  th: เปรียบเทียบแนวคิดการระดมทุนแบบต่างๆ เพื่อเติมเต็มส่วนต่างของงบประมาณ
+  cs: Porovnej různé nápady na fundraising pro pokrytí schodku v rozpočtu
+  sv: Jämför olika insamlingsidéer för att täcka finansieringsgapet
+  he: השוואת רעיונות שונים לגיוס כספים לכיסוי פער המימון
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Search for sustainable urban agriculture and community garden guides"
+  de: Suche nach Leitfäden für nachhaltige urbane Landwirtschaft und Gemeinschaftsgärten
+  zh: 搜索可持续城市农业和社区花园指南
+  es: Busca guías de agricultura urbana sostenible y huertos comunitarios
+  fr: "Recherche des guides sur l'agriculture urbaine durable et les jardins communautaires"
+  pt: Pesquisar guias de agricultura urbana sustentável e hortas comunitárias
+  ru: Поиск руководств по устойчивому городскому сельскому хозяйству и общественным садам
+  ja: 持続可能な都市農業とコミュニティガーデンのガイドを検索する
+  ko: 지속 가능한 도시 농업 및 공동체 정원 가이드 검색
+  it: "Cerca guide sull'agricoltura urbana sostenibile e sugli orti comunitari"
+  tr: Sürdürülebilir kentsel tarım ve topluluk bahçesi rehberlerini ara
+  vi: Tìm kiếm các hướng dẫn về nông nghiệp đô thị bền vững và vườn cộng đồng
+  id: Cari panduan pertanian perkotaan berkelanjutan dan kebun komunitas
+  pl: Wyszukaj przewodniki po zrównoważonym rolnictwie miejskim i ogrodach społecznościowych
+  nl: Zoek naar gidsen voor duurzame stadslandbouw en buurttuinen
+  ar: ابحث عن أدلة للزراعة الحضرية المستدامة وحدائق المجتمع
+  hi: सतत शहरी कृषि और सामुदायिक उद्यान गाइड खोजें
+  th: ค้นหาคู่มือเกษตรในเมืองแบบยั่งยืนและสวนชุมชน
+  cs: Vyhledej průvodce udržitelným městským zemědělstvím a komunitním zahradničením
+  sv: Sök efter guider för hållbart stadsjordbruk och gemensamhetsodling
+  he: חיפוש מדריכים לחקלאות עירונית בת-קיימא ולגינות קהילתיות
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Create a one-paragraph summary for a grant meeting"
+  de: Erstelle eine einseitige Zusammenfassung für ein Treffen zur Fördermittelvergabe
+  zh: 为拨款会议准备一段话的摘要
+  es: Crea un resumen de un párrafo para una reunión de subvenciones
+  fr: "Crée un résumé d'un paragraphe pour une réunion de subvention"
+  pt: Criar um resumo de um parágrafo para uma reunião de subsídios
+  ru: Составление краткого резюме для встречи по гранту (один абзац)
+  ja: 助成金に関する会議用の1段落の要約を作成する
+  ko: 보조금 관련 회의를 위한 한 단락 요약본 작성
+  it: Crea un riassunto di un paragrafo per una riunione sulle sovvenzioni
+  tr: Hibe toplantısı için tek paragraflık bir özet oluştur
+  vi: Tạo một đoạn tóm tắt ngắn cho cuộc họp xin tài trợ
+  id: Buat ringkasan satu paragraf untuk pertemuan hibah
+  pl: Przygotuj krótki opis na spotkanie w sprawie dotacji
+  nl: Maak een samenvatting van één alinea voor een subsidieoverleg
+  ar: أنشئ ملخصاً من فقرة واحدة لاجتماع المنحة
+  hi: अनुदान बैठक के लिए एक पैराग्राफ का सारांश तैयार करें
+  th: สร้างสรุปหนึ่งย่อหน้าสำหรับการประชุมขอรับทุนสนับสนุน
+  cs: Vytvoř odstavcové shrnutí pro schůzku o grantu
+  sv: Skapa en sammanfattning på ett stycke inför ett bidragsmöte
+  he: יצירת סיכום של פסקה אחת לפגישת מענקים
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Search for community garden tool storage and security options"
+  de: Suche nach Möglichkeiten zur Werkzeugaufbewahrung und Sicherheitsoptionen für Gemeinschaftsgärten
+  zh: 搜索社区花园工具存储和安全选项
+  es: Busca opciones de almacenamiento de herramientas y seguridad para huertos comunitarios
+  fr: Recherche des options de rangement et de sécurité pour les outils de jardin communautaire
+  pt: Pesquisar opções de armazenamento de ferramentas e segurança para hortas comunitárias
+  ru: Поиск вариантов хранения инструментов и обеспечения безопасности в общественном саду
+  ja: コミュニティガーデンの道具の保管とセキュリティの選択肢を検索する
+  ko: 공동체 정원 도구 보관 및 보안 옵션 검색
+  it: Cerca opzioni per il deposito degli attrezzi e la sicurezza degli orti comunitari
+  tr: Topluluk bahçesi alet deposu ve güvenlik seçeneklerini ara
+  vi: Tìm kiếm các lựa chọn lưu trữ dụng cụ và bảo mật cho vườn cộng đồng
+  id: Cari opsi penyimpanan alat dan keamanan kebun komunitas
+  pl: Wyszukaj opcje przechowywania narzędzi i zabezpieczenia ogrodu społecznościowego
+  nl: Zoek naar opties voor gereedschapsopslag en beveiliging voor buurttuinen
+  ar: ابحث عن خيارات تخزين الأدوات وتأمينها في حدائق المجتمع
+  hi: सामुदायिक उद्यान उपकरण भंडारण और सुरक्षा विकल्पों की खोज करें
+  th: ค้นหาตัวเลือกการจัดเก็บเครื่องมือสวนชุมชนและระบบรักษาความปลอดภัย
+  cs: Vyhledej možnosti skladování nářadí a zabezpečení komunitní zahrady
+  sv: Sök efter alternativ för verktygsförvaring och säkerhet för gemensamhetsodlingar
+  he: חיפוש אפשרויות לאחסון כלים ואבטחה בגינה הקהילתית
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "List recommended contingency reserves for small community projects"
+  de: Liste empfohlene Rücklagen für unvorhergesehene Ausgaben bei kleinen Gemeinschaftsprojekten auf
+  zh: 列出小型社区项目建议的应急储备金
+  es: Enumera las reservas de contingencia recomendadas para pequeños proyectos comunitarios
+  fr: Liste les réserves pour imprévus recommandées pour les petits projets communautaires
+  pt: Listar reservas de contingência recomendadas para pequenos projetos comunitários
+  ru: Список рекомендуемых резервных фондов для небольших общественных проектов
+  ja: 小規模なコミュニティプロジェクトに推奨される予備費をリストアップする
+  ko: 소규모 공동체 프로젝트를 위한 권장 예비비 목록 확인
+  it: Elenca le riserve di emergenza raccomandate per piccoli progetti comunitari
+  tr: Küçük topluluk projeleri için önerilen ihtiyat akçelerini listele
+  vi: Liệt kê các khoản dự phòng rủi ro được đề xuất cho các dự án cộng đồng nhỏ
+  id: Daftar cadangan kontingensi yang direkomendasikan untuk proyek komunitas kecil
+  pl: Wymień zalecane rezerwy celowe dla małych projektów społecznościowych
+  nl: Lijst met aanbevolen onvoorziene reserves voor kleine gemeenschapsprojecten
+  ar: أدرج احتياطيات الطوارئ الموصى بها للمشاريع المجتمعية الصغيرة
+  hi: छोटी सामुदायिक परियोजनाओं के लिए अनुशंसित आकस्मिक भंडार की सूची बनाएं
+  th: รายการเงินสำรองเผื่อฉุกเฉินที่แนะนำสำหรับโครงการชุมชนขนาดเล็ก
+  cs: Vypiš doporučené finanční rezervy pro malé komunitní projekty
+  sv: Lista rekommenderade buffertar för små gemenskapsprojekt
+  he: רשימת עתודות בלתי צפויות מומלצות לפרויקטים קהילתיים קטנים
+  verified_by_human: []
+

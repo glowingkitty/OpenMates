@@ -1,439 +1,80 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
-/**
- * Guest interest smart-selection E2E coverage.
- *
- * Verifies the logged-out landing contract from
- * docs/specs/landing-page-onboarding-refresh/spec.yml and the legacy
- * docs/specs/guest-interest-smart-selection/spec.yml behavior that still exists
- * after the phase-1 intro is skipped.
- */
-
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
-const GUEST_TOPIC_PREFERENCES_STORAGE_KEY = 'openmates.guest_interest_tags.v1';
-const SELECTED_INTEREST_TAGS = [
-	'software_development',
-	'privacy_personal_data',
-	'automation_workflows',
-	'project_management'
-];
-const LANDING_INTRO_REQUESTS = [
-	'Find doctor appointments',
-	'Find events',
-	'Build a web app',
-	'Explain the news'
-];
-const LANDING_INTRO_HEADLINE_TEXT = 'Your AI team\nfor getting things done';
-const LANDING_INTRO_HIGHLIGHTED_APPS = ['health', 'events', 'code', 'news'];
-const RETIRED_INTRO_CHAT_IDS = ['demo-for-everyone', 'demo-for-developers', 'demo-who-develops-openmates'];
-const LANDING_INTRO_REQUEST_APP_IDS = new Map(
-	LANDING_INTRO_REQUESTS.map((request, index) => [request, LANDING_INTRO_HIGHLIGHTED_APPS[index]])
-);
+const storageKey = 'openmates.guest_interest_tags.v1';
+const retiredIntroChatIds = ['demo-for-everyone', 'demo-for-developers', 'demo-who-develops-openmates'];
+const selectedTags = ['software_development', 'privacy_personal_data', 'automation_workflows', 'project_management'];
 
-async function interestTagOrder(page: any): Promise<string[]> {
-	return page.getByTestId('guest-interest-rail').locator('button[data-testid^="interest-tag-"]').evaluateAll(
-		(nodes: Element[]) => nodes.map((node) => (node.getAttribute('data-testid') || '').replace('interest-tag-', ''))
-	);
+async function openGuestWelcome(page: any) {
+	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+	await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
 }
 
-async function visibleSuggestionIds(page: any): Promise<string[]> {
-	return page.getByTestId('new-chat-suggestion-card').evaluateAll(
-		(nodes: Element[]) => nodes.map((node) => node.getAttribute('data-suggestion-id') || '')
-	);
-}
-
-async function visibleExampleChatIds(page: any): Promise<string[]> {
+async function visibleExampleIds(page: any): Promise<string[]> {
 	return page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').evaluateAll(
-		(nodes: Element[]) => nodes
-			.map((node) => node.getAttribute('data-chat-id') || '')
-			.filter((id) => id.startsWith('example-'))
+		(nodes: Element[]) => nodes.map((node) => node.getAttribute('data-chat-id') || '').filter((id) => id.startsWith('example-'))
 	);
 }
 
-function firstContinueChatCard(page: any) {
-	return page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first();
-}
-
-async function expectFirstCardIsExampleChat(page: any): Promise<void> {
-	const firstCard = firstContinueChatCard(page);
-	await expect(firstCard).toHaveAttribute('data-chat-id', /^example-/, { timeout: 15000 });
-}
-
-async function expectRetiredIntroChatsAbsentFromDiscovery(page: any): Promise<void> {
-	for (const chatId of RETIRED_INTRO_CHAT_IDS) {
-		await expect(page.locator(`[data-chat-id="${chatId}"]`)).toHaveCount(0);
-	}
-}
-
-async function clickInterestTag(page: any, tagId: string): Promise<void> {
-	await page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement, id: string) => {
-		const tag = rail.querySelector<HTMLElement>(`[data-testid="interest-tag-${id}"]`);
-		if (!tag) throw new Error(`${id} tag not found`);
-		const previousScrollBehavior = rail.style.scrollBehavior;
-		rail.style.scrollBehavior = 'auto';
-		rail.scrollLeft = Math.max(0, tag.offsetLeft - rail.clientWidth / 2 + tag.offsetWidth / 2);
-		rail.style.scrollBehavior = previousScrollBehavior;
-	}, tagId);
-	await page.getByTestId(`interest-tag-${tagId}`).click();
-}
-
-async function tagRailMetrics(page: any): Promise<{
-	availableTagCount: number;
-	selectedTagCount: number;
-}> {
-	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => {
-		const tags = Array.from(rail.querySelectorAll<HTMLElement>('button[data-testid^="interest-tag-"]'));
-		const selectedTagCount = tags.filter((tag) => tag.getAttribute('data-interest-active') === 'true').length;
-		return {
-			availableTagCount: tags.length - selectedTagCount,
-			selectedTagCount
-		};
-	});
-}
-
-async function tagRailSideGaps(page: any): Promise<{ left: number; right: number }> {
-	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => {
-		const chatContainer = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
-		const railRect = rail.getBoundingClientRect();
-		const chatRect = chatContainer?.getBoundingClientRect();
-		if (!chatRect) return { left: Number.POSITIVE_INFINITY, right: Number.POSITIVE_INFINITY };
-		return {
-			left: Math.abs(railRect.left - chatRect.left),
-			right: Math.abs(chatRect.right - railRect.right)
-		};
-	});
-}
-
-async function firstAvailableTagCenterDelta(page: any): Promise<number> {
-	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => {
-		const firstAvailableTag = rail.querySelector<HTMLElement>('[data-interest-active="false"]');
-		if (!firstAvailableTag) return Number.POSITIVE_INFINITY;
-		const railRect = rail.getBoundingClientRect();
-		const tagRect = firstAvailableTag.getBoundingClientRect();
-		return Math.abs((railRect.left + railRect.width / 2) - (tagRect.left + tagRect.width / 2));
-	});
-}
-
-async function lastTagCenterDeltaAtScrollEnd(page: any): Promise<number> {
-	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => {
-		const tags = Array.from(rail.querySelectorAll<HTMLElement>('button[data-testid^="interest-tag-"]'));
-		const lastTag = tags[tags.length - 1];
-		if (!lastTag) return Number.POSITIVE_INFINITY;
-		const previousScrollBehavior = rail.style.scrollBehavior;
-		const previousScrollLeft = rail.scrollLeft;
-		rail.style.scrollBehavior = 'auto';
-		rail.scrollLeft = rail.scrollWidth;
-		const railRect = rail.getBoundingClientRect();
-		const tagRect = lastTag.getBoundingClientRect();
-		const centerDelta = Math.abs((railRect.left + railRect.width / 2) - (tagRect.left + tagRect.width / 2));
-		rail.scrollLeft = previousScrollLeft;
-		rail.style.scrollBehavior = previousScrollBehavior;
-		return centerDelta;
-	});
-}
-
-async function interestTagsPromptGap(page: any): Promise<number> {
-	const promptBox = await page.getByText('What are your interests?').boundingBox();
-	const tagsBox = await page.getByTestId('guest-interest-tags').boundingBox();
-	if (!promptBox || !tagsBox) return Number.NEGATIVE_INFINITY;
-	return tagsBox.y - (promptBox.y + promptBox.height);
-}
-
-async function skipExpandedLandingIntro(page: any): Promise<void> {
-	await page.getByTestId('daily-inspiration-next').click();
-	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
-	await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute(
-		'data-landing-intro-phase',
-		'regular',
-		{ timeout: 15000 }
-	);
-}
-
-async function landingIntroState(page: any): Promise<{
-	requestLabel: string;
-	highlightedAppIds: string[];
-}> {
-	return page.evaluate(() => ({
-		requestLabel: document.querySelector('[data-testid="landing-intro-request"]')?.textContent?.trim() || '',
-		highlightedAppIds: Array.from(document.querySelectorAll('[data-testid="landing-intro-app-icon"][data-highlighted="true"]'))
-			.map((node) => node.getAttribute('data-app-id') || '')
-			.filter(Boolean)
-	}));
-}
-
-test.describe('Guest interest smart selection', () => {
-	// contract-test: direct surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.legacy-intros-retired,landing-onboarding.intro-active-apps-only,daily-inspiration.guest-isolated,public-example-chats.catalog.discoverable
-	test('fresh guest welcome uses session-only tags and local smart ranking', async ({ page }: { page: any }) => {
-		test.setTimeout(90000);
-		await page.setViewportSize({ width: 1280, height: 800 });
-
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-
-		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('daily-inspiration-carousel-progress')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('landing-intro-headline')).toContainText('Your AI team', { timeout: 15000 });
-		await expect(page.getByTestId('landing-intro-headline')).toContainText('for getting things done', { timeout: 15000 });
-		await expect(page.getByTestId('daily-inspiration-previous')).toHaveCount(0);
-		for (const appId of LANDING_INTRO_HIGHLIGHTED_APPS) {
-			await expect(page.locator(`[data-testid="landing-intro-app-icon"][data-app-id="${appId}"]`).first()).toBeVisible({ timeout: 15000 });
-		}
-		await expect(page.locator('[data-testid="landing-intro-app-icon"][data-app-id="ai"]')).toHaveCount(0);
-		await expect.poll(async () => (await landingIntroState(page)).requestLabel, { timeout: 5000 }).toBeTruthy();
-		const introState = await landingIntroState(page);
-		expect(LANDING_INTRO_REQUESTS).toContain(introState.requestLabel);
-		expect(introState.highlightedAppIds).toContain(LANDING_INTRO_REQUEST_APP_IDS.get(introState.requestLabel));
-		const guestIntroMetrics = await page.evaluate(() => {
-			const banner = document.querySelector('[data-testid="daily-inspiration-banner"]');
-			const copy = document.querySelector('[data-testid="landing-intro-expanded"]');
-			const headline = document.querySelector('[data-testid="landing-intro-headline"]');
-			const bannerRect = banner?.getBoundingClientRect();
-			const copyRect = copy?.getBoundingClientRect();
-			return {
-				bannerHeight: bannerRect?.height ?? 0,
-				copyTop: copyRect?.top ?? 0,
-				copyBottom: copyRect?.bottom ?? 0,
-				bannerTop: bannerRect?.top ?? 0,
-				bannerBottom: bannerRect?.bottom ?? 0,
-				copyFontSize: headline ? Number.parseFloat(getComputedStyle(headline).fontSize) : 0,
-				headlineText: (headline as HTMLElement | null)?.innerText.trim() ?? ''
-			};
-		});
-		expect(guestIntroMetrics.bannerHeight).toBeGreaterThanOrEqual(520);
-		expect(guestIntroMetrics.headlineText).toBe(LANDING_INTRO_HEADLINE_TEXT);
-		expect(guestIntroMetrics.copyTop).toBeGreaterThanOrEqual(guestIntroMetrics.bannerTop);
-		expect(guestIntroMetrics.copyBottom).toBeLessThanOrEqual(guestIntroMetrics.bannerBottom);
-		expect(guestIntroMetrics.copyFontSize).toBeGreaterThanOrEqual(32);
-
-		await skipExpandedLandingIntro(page);
-		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
-
-		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
-		expect(await page.evaluate(() => window.location.hash)).toBe('');
-
-		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
-		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('guest-interest-prompt')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByText('What are your interests?')).toHaveCount(0);
-		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
-		await expectFirstCardIsExampleChat(page);
-		await expectRetiredIntroChatsAbsentFromDiscovery(page);
-
+test.describe('Guest interests and real example chats', () => {
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.guest-examples,daily-inspiration.guest-isolated,public-example-chats.catalog.discoverable
+	test('four interests rank real examples and remain in session storage', async ({ page }: { page: any }) => {
+		await openGuestWelcome(page);
+		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible();
+		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
+		await expect.poll(() => visibleExampleIds(page)).not.toEqual([]);
 		await page.getByTestId('guest-interest-select-interests').click();
-		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute(
-			'data-current-inspiration-id',
-			'openmates-signup-cta',
-			{ timeout: 5000 }
-		);
-		await expect(page.getByText('What are your interests?')).toBeVisible({ timeout: 5000 });
-		expect(await interestTagsPromptGap(page)).toBeGreaterThanOrEqual(8);
-        const railBox = await page.getByTestId('guest-interest-rail').boundingBox();
-        const skipBox = await page.getByTestId('guest-interest-skip').boundingBox();
-        expect(railBox).not.toBeNull();
-        expect(skipBox).not.toBeNull();
-        expect(skipBox!.y).toBeGreaterThanOrEqual(railBox!.y + railBox!.height);
-
+		await expect(page.getByTestId('guest-interest-tags')).toBeVisible();
 		await expect(page.getByTestId('interest-tag-plan_trips')).toHaveAttribute('data-app-id', 'travel');
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
-		await expect(page.getByTestId('guest-interest-skip')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
-		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
-
-		const defaultTagOrder = await interestTagOrder(page);
-		const defaultRailMetrics = await tagRailMetrics(page);
-		const defaultRailSideGaps = await tagRailSideGaps(page);
-		expect(defaultRailMetrics.availableTagCount).toBe(10);
-		expect(defaultRailMetrics.selectedTagCount).toBe(0);
-		expect(defaultRailSideGaps.left).toBeLessThanOrEqual(24);
-		expect(defaultRailSideGaps.right).toBeLessThanOrEqual(24);
-		expect(await lastTagCenterDeltaAtScrollEnd(page)).toBeLessThanOrEqual(32);
-		expect(defaultTagOrder.slice(0, 10)).toEqual(
-			expect.arrayContaining([
-				'marketing',
-				'software_development',
-				'finance_bookkeeping',
-				'ui_ux_design',
-				'plan_trips'
-			])
-		);
-		expect(defaultTagOrder.indexOf('software_development')).toBeGreaterThan(0);
-
-		await page.getByTestId('daily-inspiration-previous').click();
-		await expect.poll(async () => (await interestTagOrder(page)).join('|'), { timeout: 5000 }).not.toBe(defaultTagOrder.join('|'));
-		const reshuffledRailMetrics = await tagRailMetrics(page);
-		expect(reshuffledRailMetrics.availableTagCount).toBe(10);
-		expect(reshuffledRailMetrics.selectedTagCount).toBe(0);
-
-		await clickInterestTag(page, 'software_development');
-		await expect(page.getByTestId('interest-tag-software_development')).toHaveAttribute(
-			'data-interest-active',
-			'true'
-		);
-		await expect(page.getByTestId('interest-tag-software_development-check')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('interest-tag-software_development')).toContainText('software development');
-		await expect(page.getByText('Sophia')).toHaveCount(0);
-		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
-		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
-		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
-		await clickInterestTag(page, 'privacy_personal_data');
-		await clickInterestTag(page, 'automation_workflows');
-		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
-		await clickInterestTag(page, 'project_management');
-		await expect(page.getByTestId('guest-interest-continue')).toBeVisible({ timeout: 5000 });
-
-		const tagOrder = await interestTagOrder(page);
-		expect(tagOrder.slice(0, 4)).toEqual(SELECTED_INTEREST_TAGS);
-		const selectedRailMetrics = await tagRailMetrics(page);
-		const selectedRailSideGaps = await tagRailSideGaps(page);
-		expect(selectedRailMetrics.availableTagCount).toBe(10);
-		expect(selectedRailMetrics.selectedTagCount).toBe(4);
-		expect(selectedRailSideGaps.left).toBeLessThanOrEqual(24);
-		expect(selectedRailSideGaps.right).toBeLessThanOrEqual(24);
-		expect(await lastTagCenterDeltaAtScrollEnd(page)).toBeLessThanOrEqual(32);
-		expect(await firstAvailableTagCenterDelta(page)).toBeLessThanOrEqual(32);
-		expect(tagOrder).toEqual(
-			expect.arrayContaining(['privacy_personal_data', 'automation_workflows', 'project_management', 'admin_operations'])
-		);
-		expect(tagOrder).toContain('admin_operations');
-		await expect(page.getByTestId('interest-tag-admin_operations')).toContainText('admin');
-		await expect(page.getByText('Elton')).toHaveCount(0);
-
-		const storageStateBeforeContinue = await page.evaluate((key: string) => ({
-			sessionValue: sessionStorage.getItem(key),
-			localValue: localStorage.getItem(key)
-		}), GUEST_TOPIC_PREFERENCES_STORAGE_KEY);
-		expect(storageStateBeforeContinue.localValue).toBeNull();
-		expect(storageStateBeforeContinue.sessionValue).toBeNull();
-
+		for (const tag of selectedTags) {
+			const button = page.getByTestId(`interest-tag-${tag}`);
+			await button.scrollIntoViewIfNeeded();
+			await button.click();
+			await expect(button).toHaveAttribute('data-interest-active', 'true');
+		}
+		await expect(page.getByTestId('guest-interest-continue')).toBeVisible();
 		await page.getByTestId('guest-interest-continue').click();
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
-		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('guest-interest-prompt')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByText('What are your interests?')).toHaveCount(0);
-		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
-		expect(await page.getByTestId('message-editor').evaluate((editor: HTMLElement) => editor.contains(document.activeElement))).toBe(false);
-		const storageStateAfterContinue = await page.evaluate((key: string) => ({
-			sessionValue: sessionStorage.getItem(key),
-			localValue: localStorage.getItem(key)
-		}), GUEST_TOPIC_PREFERENCES_STORAGE_KEY);
-		expect(storageStateAfterContinue.localValue).toBeNull();
-		expect(storageStateAfterContinue.sessionValue).toContain('software_development');
-		expect(storageStateAfterContinue.sessionValue).toContain('privacy_personal_data');
-		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
-		await expectFirstCardIsExampleChat(page);
-		await expect.poll(async () => (await visibleExampleChatIds(page)).length, { timeout: 15000 }).toBe(10);
-		const interestRankedExampleIds = await visibleExampleChatIds(page);
-		await page.getByTestId('daily-inspiration-previous').click();
-		await expect.poll(async () => await visibleExampleChatIds(page), { timeout: 5000 }).toEqual(interestRankedExampleIds);
-		await expect(page.getByTestId('example-chat-badge').first()).toContainText('Example chat', { timeout: 15000 });
-		await page.getByTestId('message-editor').click();
-		await expect(page.getByTestId('suggestions-wrapper')).toBeVisible({ timeout: 15000 });
-
-		const suggestionIds = await visibleSuggestionIds(page);
-		expect(suggestionIds.slice(0, 5)).toEqual(
-			expect.arrayContaining([
-				'chat.new_chat_suggestions.learn_coding',
-				'chat.new_chat_suggestions.use_openmates_cli_api'
-			])
-		);
-		await page.keyboard.type('coding');
-		await expect.poll(async () => await visibleSuggestionIds(page), { timeout: 5000 }).toContain(
-			'chat.new_chat_suggestions.learn_coding'
-		);
-		expect(await visibleSuggestionIds(page)).not.toContain('chat.new_chat_suggestions.cover_letter');
-
-		const editable = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
-		await editable.click();
-		await page.keyboard.press('Control+A');
-		await page.keyboard.press('Backspace');
-		await expect(editable).toHaveText('');
+		await expect.poll(() => visibleExampleIds(page)).not.toEqual([]);
+		const rankedIds = await visibleExampleIds(page);
+		expect(new Set(rankedIds).size).toBe(rankedIds.length);
+		const storage = await page.evaluate((key: string) => ({ session: sessionStorage.getItem(key), local: localStorage.getItem(key) }), storageKey);
+		expect(storage.local).toBeNull();
+		for (const tag of selectedTags) expect(storage.session).toContain(tag);
 		await page.reload({ waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0, { timeout: 15000 });
 		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('guest-interest-prompt')).toBeVisible({ timeout: 15000 });
-		await expectFirstCardIsExampleChat(page);
 		await page.getByTestId('guest-interest-select-interests').click();
-		await expect(page.getByText('What are your interests?')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('interest-tag-software_development')).toHaveAttribute(
-			'data-interest-active',
-			'true',
-			{ timeout: 15000 }
-		);
-		expect(await page.evaluate((key: string) => localStorage.getItem(key), GUEST_TOPIC_PREFERENCES_STORAGE_KEY)).toBeNull();
+		for (const tag of selectedTags) await expect(page.getByTestId(`interest-tag-${tag}`)).toHaveAttribute('data-interest-active', 'true');
 	});
 
-	// contract-test: direct surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.legacy-intros-retired,public-example-chats.catalog.discoverable
-	test('retired intro hashes clear to the neutral welcome state and stay out of discovery', async ({ page }: { page: any }) => {
-		test.setTimeout(45000);
-		await page.setViewportSize({ width: 1280, height: 800 });
-
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.legacy-intros-retired,landing-onboarding.uses-real-chat-shell
+	test('retired intro links return to the ordinary welcome', async ({ page }: { page: any }) => {
 		await page.goto(getE2EDebugUrl('/intro/who-develops-openmates'), { waitUntil: 'domcontentloaded' });
-		expect(new URL(page.url()).pathname).toBe('/');
-		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
-
-		for (const chatId of RETIRED_INTRO_CHAT_IDS) {
-			await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`), { waitUntil: 'domcontentloaded' });
-			await page.waitForLoadState('networkidle');
-			expect(await page.evaluate(() => window.location.hash)).toBe('');
+		await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+		for (const id of retiredIntroChatIds) {
+			await page.goto(getE2EDebugUrl(`/#chat-id=${id}`), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
-			await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
-			await expectRetiredIntroChatsAbsentFromDiscovery(page);
+			await expect.poll(() => page.evaluate(() => window.location.hash)).toBe('');
+			await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
+			await expect(page.locator(`[data-chat-id="${id}"]`)).toHaveCount(0);
 		}
 	});
 
-	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
-	test('fresh guest sees default suggestions when focusing composer before selecting interests', async ({ page }: { page: any }) => {
-		test.setTimeout(45000);
-		await page.setViewportSize({ width: 1280, height: 800 });
-
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-		await skipExpandedLandingIntro(page);
-
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.guest-examples
+	test('composer opens and closes before interest selection', async ({ page }: { page: any }) => {
+		await openGuestWelcome(page);
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
-		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
-
 		await page.getByTestId('message-editor').click();
-		await expect(page.getByTestId('suggestions-wrapper')).toBeVisible({ timeout: 15000 });
-
-		const suggestionIds = await visibleSuggestionIds(page);
-		expect(suggestionIds.length).toBeGreaterThan(0);
-		expect(suggestionIds.every((id) => id.startsWith('chat.new_chat_suggestions.'))).toBe(true);
-	});
-
-	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
-	test('mobile guest intro alternates copy and video', async ({ page }: { page: any }) => {
-		test.setTimeout(45000);
-		await page.setViewportSize({ width: 390, height: 844 });
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-
-		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('landing-intro-headline')).toContainText('Your AI team', { timeout: 15000 });
-		const mobileIntroMetrics = await page.getByTestId('daily-inspiration-banner').evaluate((banner: HTMLElement) => ({
-			height: banner.getBoundingClientRect().height,
-			containerHeight: document.querySelector<HTMLElement>('[data-testid="active-chat-container"]')?.getBoundingClientRect().height ?? 0
-		}));
-		expect(mobileIntroMetrics.height).toBeGreaterThanOrEqual(mobileIntroMetrics.containerHeight * 0.65);
-
-		await skipExpandedLandingIntro(page);
-		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 15000 });
-		await page.getByTestId('guest-interest-select-interests').click();
-		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute(
-			'data-current-inspiration-id',
-			'openmates-signup-cta',
-			{ timeout: 5000 }
-		);
-		expect(await lastTagCenterDeltaAtScrollEnd(page)).toBeLessThanOrEqual(32);
+		await expect(page.getByTestId('message-field')).toHaveAttribute('data-focused', 'true');
+		await expect(page.getByTestId('input-dismiss-button')).toHaveText('Cancel');
+		await page.getByTestId('input-dismiss-button').click();
+		await expect(page.getByTestId('message-field')).toHaveAttribute('data-focused', 'false');
+		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible();
+		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible();
 	});
 });

@@ -4,7 +4,7 @@ import { getUpcomingOpenMatesEventCards } from '../../../packages/public-site/sr
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
-// contract-test: direct surface=gui.web assertions=marketing-landing.independent-scroll,marketing-landing.feature-layout,marketing-landing.destinations,marketing-landing.real-screenshots,marketing-landing.public-content,workflows-ui.workspace.guest-template-preview
+// contract-test: direct surface=gui.web assertions=marketing-landing.independent-scroll,marketing-landing.feature-layout,marketing-landing.six-feature-viewport,marketing-landing.destinations,marketing-landing.real-screenshots,marketing-landing.public-content,workflows-ui.workspace.guest-template-preview
 test('public landing server-renders and opens real app workspaces', async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -13,7 +13,7 @@ test('public landing server-renders and opens real app workspaces', async ({ pag
   expect(htmlResponse.headers()['content-type']).toContain('text/html');
   const html = await htmlResponse.text();
   expect(html).toContain('Your privacy first');
-  for (const id of ['actionable', 'privacy', 'workflows', 'devices', 'open-source']) {
+  for (const id of ['actionable', 'privacy', 'model-choice', 'workflows', 'devices', 'open-source']) {
     expect(html).toContain(`id="${id}"`);
   }
   expect(html).toMatch(/<meta[^>]+name="description"[^>]+content="[^"]*actionable chats/i);

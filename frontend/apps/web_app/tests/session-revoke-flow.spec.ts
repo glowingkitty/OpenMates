@@ -58,59 +58,14 @@ const PROOF_CONTEXT_OPTIONS = IS_PROOF_CAPTURE
 const PROOF_CAPTURE_END_HOLD_MS = 750;
 const PROOF_VIDEO_CRF = '32';
 const SESSION_STABILIZE_MS = 8000;
-const LANDING_INTRO_COVERAGE_TIMEOUT_MS = 20000;
-const GUEST_ONBOARDING_IDS = [
+const RETIRED_GUEST_STORY_IDS = new Set([
 	'openmates-intro',
 	'openmates-actionable-events',
 	'openmates-privacy-safety',
 	'openmates-mates-focus',
 	'openmates-provider-cross-platform',
 	'openmates-signup-cta'
-];
-
-async function expectLandingIntroCoverageUntilNextSlide(page: any): Promise<void> {
-	await page.evaluate((timeoutMs: number) => new Promise<void>((resolve, reject) => {
-		const startedAt = performance.now();
-		const inspectFrame = () => {
-			const activeChat = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
-			const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
-			const composer = document.querySelector<HTMLElement>('[data-testid="message-input-wrapper"]');
-			if (!activeChat || !banner || !composer) {
-				reject(new Error('Forced logout landing elements disappeared during intro coverage monitoring'));
-				return;
-			}
-
-			if (banner.dataset.currentInspirationId !== 'openmates-intro') {
-				resolve();
-				return;
-			}
-
-			const activeRect = activeChat.getBoundingClientRect();
-			const bannerRect = banner.getBoundingClientRect();
-			const composerRect = composer.getBoundingClientRect();
-			const composerStyle = getComputedStyle(composer);
-			const composerVisible = composerStyle.display !== 'none'
-				&& composerStyle.visibility !== 'hidden'
-				&& Number.parseFloat(composerStyle.opacity || '1') > 0
-				&& composerRect.width > 0
-				&& composerRect.height > 0;
-			const bottomDelta = Math.abs(activeRect.bottom - bannerRect.bottom);
-			if (composerVisible || bottomDelta > 2) {
-				reject(new Error(
-					`Landing intro lost full-shell coverage before the next slide: phase=${banner.dataset.landingIntroPhase || 'unknown'}, composerVisible=${composerVisible}, bottomDelta=${bottomDelta.toFixed(2)}`
-				));
-				return;
-			}
-
-			if (performance.now() - startedAt >= timeoutMs) {
-				reject(new Error('Landing intro did not advance before the continuous coverage timeout'));
-				return;
-			}
-			requestAnimationFrame(inspectFrame);
-		};
-		inspectFrame();
-	}), LANDING_INTRO_COVERAGE_TIMEOUT_MS);
-}
+]);
 
 const SESSION_REVOKE_LOGOUT_PROOF = defineVideoProof({
 	id: 'session-revoke-logout-welcome-reset',
@@ -127,8 +82,8 @@ const SESSION_REVOKE_LOGOUT_PROOF = defineVideoProof({
 		},
 		{
 			id: 'session-b-forced-logout',
-			text: 'After Session A removes Session B, Session B returns to the guest onboarding carousel without the saved draft composer.',
-			checkpoint: 'session-b-guest-onboarding',
+			text: 'After Session A removes Session B, Session B returns to the ordinary guest welcome without the authenticated saved draft.',
+			checkpoint: 'session-b-guest-welcome',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -141,8 +96,8 @@ const SESSION_REVOKE_LOGOUT_PROOF = defineVideoProof({
 		},
 		{
 			id: 'daily-inspiration.guest-isolated-after-force-logout',
-			checkpoint: 'session-b-guest-onboarding',
-			visual: 'Session B visibly shows the expanded first guest intro covering the full chat shell with no composer or stale chat header after force logout.',
+			checkpoint: 'session-b-guest-welcome',
+			visual: 'Session B visibly shows a normal public-safe Daily Inspiration and blank composer with no stale authenticated draft or chat header after force logout.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -429,43 +384,22 @@ test('session revoke: revoking session B from session A does not log out session
 		await proof.assert('daily-inspiration.guest-isolated-after-force-logout', async () => {
 			await expect(guestBannerB).toBeVisible({ timeout: 5000 });
 			await expect(guestBannerB).toHaveAttribute('data-inspiration-source', 'guest-onboarding');
-			await expect(guestBannerB).toHaveAttribute(
-				'data-visible-inspiration-ids',
-				GUEST_ONBOARDING_IDS.join(',')
-			);
-			await expect(pageB.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 10000 });
-			await expect(guestBannerB).toHaveAttribute('data-landing-intro-phase', 'expanded');
-			const coveredComposer = pageB.getByTestId('message-input-wrapper');
-			await expect(coveredComposer).toHaveAttribute('inert', '', { timeout: 10000 });
-			await expect(coveredComposer).toHaveAttribute('aria-hidden', 'true', { timeout: 10000 });
-			await expect(coveredComposer).toHaveCSS('opacity', '0', { timeout: 10000 });
-			await expect(coveredComposer).toHaveCSS('pointer-events', 'none', { timeout: 10000 });
-			const composerReserveHeight = await coveredComposer.evaluate((element: HTMLElement) => (
-				element.getBoundingClientRect().height
-			));
-			expect(composerReserveHeight, 'covered composer reserve must remain measurable').toBeGreaterThan(0);
-			const geometry = await pageB.evaluate(() => {
-				const activeChat = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
-				const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
-				if (!activeChat || !banner) throw new Error('Forced logout landing elements missing');
-				const activeRect = activeChat.getBoundingClientRect();
-				const bannerRect = banner.getBoundingClientRect();
-				return {
-					bottomDelta: Math.abs(activeRect.bottom - bannerRect.bottom),
-					leftDelta: Math.abs(activeRect.left - bannerRect.left),
-					rightDelta: Math.abs(activeRect.right - bannerRect.right)
-				};
-			});
-			expect(geometry.bottomDelta, 'forced logout intro must cover the active-chat bottom').toBeLessThanOrEqual(2);
-			expect(geometry.leftDelta, 'forced logout intro must cover the active-chat left edge').toBeLessThanOrEqual(2);
-			expect(geometry.rightDelta, 'forced logout intro must cover the active-chat right edge').toBeLessThanOrEqual(2);
+			await expect(pageB.getByTestId('landing-intro-expanded')).toHaveCount(0);
+			await expect(pageB.getByTestId('guest-slide-content')).toHaveCount(0);
+			const visibleIds = await guestBannerB.getAttribute('data-visible-inspiration-ids');
+			const ids = (visibleIds || '').split(',').filter(Boolean);
+			expect(ids.length, 'guest welcome has public-safe inspirations').toBeGreaterThan(0);
+			expect(ids.length).toBeLessThanOrEqual(10);
+			expect(ids.every((id: string) => !RETIRED_GUEST_STORY_IDS.has(id))).toBe(true);
+			const composer = pageB.getByTestId('message-editor');
+			await expect(composer).toBeVisible({ timeout: 10000 });
+			await expect(composer).not.toContainText(sessionBDraftText);
 			await expect(pageB.getByTestId('chat-header-title')).toHaveCount(0, { timeout: 10000 });
 			await expect(pageB.getByTestId('chat-header-banner')).toHaveCount(0, { timeout: 10000 });
-			await expectLandingIntroCoverageUntilNextSlide(pageB);
 		});
-		logB('Session B: exact guest onboarding carousel restored after forced logout.');
+		logB('Session B: ordinary guest inspirations and blank composer restored after forced logout.');
 		await screenshotB(pageB, '07-session-b-logged-out');
-		await proof.checkpoint('session-b-guest-onboarding');
+		await proof.checkpoint('session-b-guest-welcome');
 		proofWindowEndedAtMs = Date.now() - proofRecordingStartedAt;
 		await proof.attach();
 		await pageB.waitForTimeout(PROOF_CAPTURE_END_HOLD_MS);

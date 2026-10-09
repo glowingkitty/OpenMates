@@ -104,14 +104,11 @@ async function expectAudioCanPlay(audioLocator: any, label: string): Promise<voi
 	}).toPass({ timeout: 30000 });
 }
 
-async function expectGuestSlideZeroIntro(page: any) {
+async function expectGuestWelcome(page: any) {
 	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute(
-		'data-landing-intro-phase',
-		/^(expanded|expanding)$/,
-		{ timeout: 10000 }
-	);
+	await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
+	await expect(page.getByTestId('guest-show-all-examples')).toBeVisible({ timeout: 10000 });
 }
 
 async function expectNoPreviewOverflow(locator: any, label: string) {
@@ -185,10 +182,7 @@ test.describe('Example chats loading for new users', () => {
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await expectGuestSlideZeroIntro(page);
-		await page.getByTestId('daily-inspiration-next').click();
-		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
-		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
+		await expectGuestWelcome(page);
 		const previousSlideId = await page
 			.locator('[data-testid="daily-inspiration-mounted-slide"][data-current="true"]')
 			.getAttribute('data-slide-index');
@@ -237,7 +231,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(allExamplesView).toHaveCount(0);
 		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('[data-testid="daily-inspiration-mounted-slide"][data-current="true"]'))
-			.toHaveAttribute('data-slide-index', previousSlideId ?? '1');
+			.toHaveAttribute('data-slide-index', previousSlideId ?? '0');
 
 		await page.getByTestId('guest-show-all-examples').click();
 		await expect(page.getByTestId('guest-all-examples-view')).toBeVisible({ timeout: 10000 });

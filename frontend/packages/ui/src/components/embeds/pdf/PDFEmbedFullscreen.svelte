@@ -22,6 +22,8 @@
   - Page number badge overlaid bottom-left on each image.
   - Fallback: if screenshots unavailable, shows filename + page count + hint to
     use AI to read or view the PDF.
+  - The reviewed guest example displays a deterministic page render from its
+    static PDF and provides the original document as a download.
 
   Event chain (triggered on embed card click):
     PDFEmbedPreview.svelte (onFullscreen prop)
@@ -38,6 +40,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { publicExamplePdfUrl, publicExamplePdfPageImageUrl } from './publicExamplePdf';
 
   /** Max display length for the filename in the bottom bar title (chars) */
   const MAX_FILENAME_LENGTH = 40;
@@ -96,6 +99,7 @@
   let aesKey = $state<string | undefined>(undefined);
   /** Base64 GCM nonce shared across all screenshots */
   let aesNonce = $state<string | undefined>(undefined);
+  let resolvedPreviewPdfUrl = $state<string | undefined>(undefined);
   /** Whether embed content has been resolved */
   let contentLoaded = $state(false);
   /** Error loading embed content */
@@ -111,6 +115,17 @@
   /** Whether we have screenshots to display.
    * aesNonce may be "" for new PDFs (nonce embedded per-artefact) so check !== undefined. */
   let hasScreenshots = $derived(pageNumbers.length > 0 && !!aesKey && aesNonce !== undefined);
+  let hasPrivateCredentials = $derived(
+    pageNumbers.length > 0 || !!aesKey || aesNonce !== undefined ||
+    (typeof dc.aes_key === 'string' && !!dc.aes_key) ||
+    dc.aes_nonce !== undefined ||
+    (typeof dc.screenshot_s3_keys === 'object' && dc.screenshot_s3_keys !== null),
+  );
+  let publicPdfUrl = $derived(publicExamplePdfUrl(
+    dc.previewPdfUrl ?? dc.preview_pdf_url ?? resolvedPreviewPdfUrl,
+    hasPrivateCredentials,
+  ));
+  let publicPageImageUrl = $derived(publicExamplePdfPageImageUrl(publicPdfUrl));
 
   // ---------------------------------------------------------------------------
   // Per-page image state: decrypted blob URL + loading/error state
@@ -268,6 +283,7 @@
       const n = decoded.aes_nonce as string | undefined;
       if (k) aesKey = k;
       if (n !== undefined) aesNonce = n;
+      resolvedPreviewPdfUrl = publicExamplePdfUrl(decoded.previewPdfUrl ?? decoded.preview_pdf_url);
       // Prefer decoded page_count over the prop (more accurate)
       const decodedPageCount = decoded.page_count as number | undefined;
       if (decodedPageCount && !pageCount) pageCount = decodedPageCount;
@@ -339,6 +355,19 @@
         <div class="pdf-loading-state">
           <div class="pdf-spinner" data-testid="pdf-spinner"></div>
           <p class="pdf-hint">Loading pages…</p>
+        </div>
+
+      {:else if publicPdfUrl}
+        <div class="pdf-public-actions">
+          <a href={publicPdfUrl} download={filename} data-testid="pdf-public-download">{$text('common.download')} PDF</a>
+        </div>
+        <div class="pdf-public-page-scroll" data-testid="pdf-public-document">
+          <img
+            src={publicPageImageUrl}
+            alt={`Page 1 of ${filename}`}
+            class="pdf-public-page-image"
+            data-testid="pdf-public-page"
+          />
         </div>
 
       {:else if hasScreenshots}
@@ -415,6 +444,38 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
+  }
+
+  .pdf-public-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: var(--spacing-3) var(--spacing-5);
+    flex-shrink: 0;
+  }
+
+  .pdf-public-actions a {
+    color: var(--color-font-primary);
+    text-decoration: underline;
+  }
+
+  .pdf-public-page-scroll {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: var(--spacing-4);
+    box-sizing: border-box;
+    background: var(--color-grey-10, #f5f5f5);
+  }
+
+  .pdf-public-page-image {
+    display: block;
+    width: 100%;
+    min-width: 700px;
+    max-width: 900px;
+    height: auto;
+    margin-inline: auto;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
   }
 
   /* ==========================================================================

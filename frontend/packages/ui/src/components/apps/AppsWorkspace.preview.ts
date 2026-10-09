@@ -17,6 +17,8 @@ export const variants = {
   app: { hash: '#apps/health', onNavigate, onSignup, onSettings },
   appCode: { hash: '#apps/code', onNavigate, onSignup, onSettings },
   appFocus: { hash: '#apps/health&tab=focus_modes', onNavigate, onSignup, onSettings },
+  appPolitics: { hash: '#apps/politics', onNavigate, onSignup, onSettings },
+  politicsFocus: { hash: '#apps/politics/focus/prepare_discussion', onNavigate, onSignup, onSettings },
   appMemory: { hash: '#apps/books&tab=settings_memories', onNavigate, onSignup, onSettings },
   skill: { hash: '#apps/web/search', onNavigate, onSignup, onSettings },
   teamLibrary: { hash: '#apps/web&tab=workflows', onNavigate, onSignup, onSettings },

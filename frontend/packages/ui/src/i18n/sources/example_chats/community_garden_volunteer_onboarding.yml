@@ -1,0 +1,481 @@
+title:
+  context: "Title of example chat: Community Garden Volunteer Onboarding"
+  en: "Community Garden Volunteer Onboarding"
+  de: Onboarding für Freiwillige im Gemeinschaftsgarten
+  zh: 社区花园志愿者入职培训
+  es: Incorporación de voluntarios para huertos comunitarios
+  fr: "Intégration des bénévoles d'un jardin communautaire"
+  pt: Integração de Voluntários da Horta Comunitária
+  ru: Онбординг волонтеров общественного сада
+  ja: コミュニティガーデンのボランティア・オンボーディング
+  ko: 커뮤니티 정원 자원봉사 온보딩
+  it: "Onboarding dei volontari dell'orto comunitario"
+  tr: Topluluk Bahçesi Gönüllü Oryantasyonu
+  vi: Tiếp nhận Tình nguyện viên Vườn cộng đồng
+  id: Orientasi Sukarelawan Kebun Komunitas
+  pl: Wdrożenie wolontariuszy w ogrodzie społecznościowym
+  nl: Onboarding vrijwilligers gemeenschapstuin
+  ar: تهيئة المتطوعين في الحديقة المجتمعية
+  hi: सामुदायिक उद्यान स्वयंसेवक ऑनबोर्डिंग
+  th: การปฐมนิเทศอาสาสมัครสวนชุมชน
+  cs: Zaškolení dobrovolníků v komunitní zahradě
+  sv: Introduktion för volontärer i gemenskapsträdgård
+  he: קליטת מתנדבים לגינה קהילתית
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Community Garden Volunteer Onboarding"
+  en: "Create a shareable one-page volunteer guide with first-day tasks, safety basics, and help contacts."
+  de: Erstelle einen teilbaren, einseitigen Leitfaden für Freiwillige mit Aufgaben für den ersten Tag, Sicherheitsgrundlagen und Kontaktdaten.
+  zh: 创建一份可共享的一页志愿者指南，包含首日任务、安全基础知识和求助联系方式。
+  es: Crea una guía de una página para voluntarios con tareas del primer día, nociones básicas de seguridad y contactos de ayuda.
+  fr: "Crée un guide d'une page à partager pour les bénévoles avec les tâches du premier jour, les bases de la sécurité et les contacts d'urgence."
+  pt: Cria um guia de voluntariado partilhável de uma página com tarefas do primeiro dia, noções básicas de segurança e contactos de ajuda.
+  ru: Создай одностраничное руководство для волонтеров с задачами на первый день, основами безопасности и контактами для помощи.
+  ja: 初日のタスク、安全の基本、連絡先をまとめた、共有可能な1ページのボランティアガイドを作成します。
+  ko: 첫날 작업, 안전 기본 사항, 도움말 연락처가 포함된 공유 가능한 한 페이지 분량의 자원봉사 가이드를 만듭니다.
+  it: "Crea una guida per i volontari di una pagina, condivisibile, con i compiti del primo giorno, le basi della sicurezza e i contatti per l'assistenza."
+  tr: İlk gün görevlerini, temel güvenlik kurallarını ve yardım iletişim bilgilerini içeren paylaşılabilir, tek sayfalık bir gönüllü rehberi oluştur.
+  vi: Tạo hướng dẫn tình nguyện viên một trang có thể chia sẻ với các nhiệm vụ ngày đầu, kiến thức an toàn cơ bản và thông tin liên hệ hỗ trợ.
+  id: Buat panduan sukarelawan satu halaman yang dapat dibagikan dengan tugas hari pertama, dasar-dasar keselamatan, dan kontak bantuan.
+  pl: Stwórz jednostronicowy przewodnik dla wolontariuszy z zadaniami na pierwszy dzień, podstawami bezpieczeństwa i kontaktami pomocowymi.
+  nl: Maak een deelbare gids van één pagina voor vrijwilligers met taken voor de eerste dag, basisveiligheid en contactpersonen voor hulp.
+  ar: أنشئ دليلاً للمتطوعين من صفحة واحدة قابلة للمشاركة، يتضمن مهام اليوم الأول، وأساسيات السلامة، وجهات الاتصال للمساعدة.
+  hi: पहले दिन के कार्यों, सुरक्षा की बुनियादी बातों और सहायता संपर्कों के साथ एक साझा करने योग्य एक-पेज का स्वयंसेवक गाइड बनाएं।
+  th: สร้างคู่มืออาสาสมัครแบบหน้าเดียวที่แชร์ได้ พร้อมภารกิจวันแรก พื้นฐานความปลอดภัย และช่องทางติดต่อขอความช่วยเหลือ
+  cs: Vytvoř sdílenou jednostránkovou příručku pro dobrovolníky s úkoly pro první den, základy bezpečnosti a kontakty pro pomoc.
+  sv: Skapa en delbar ensidig volontärguide med uppgifter för första dagen, grundläggande säkerhet och kontaktpersoner.
+  he: יצירת מדריך למתנדב בעמוד אחד הניתן לשיתוף, הכולל משימות ליום הראשון, כללי בטיחות בסיסיים ואנשי קשר לעזרה.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Community Garden Volunteer Onboarding. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Please make a shareable, one-page volunteer onboarding document for a community garden. Keep it under 220 words. Cover arrival, first-day tasks, safety, and how to ask for help. This is a general template, so use placeholders where garden-specific contacts or locations are needed."
+  de: Bitte erstelle ein teilbares, einseitiges Onboarding-Dokument für Freiwillige in einem Gemeinschaftsgarten. Halte es unter 220 Wörtern. Behandle die Ankunft, Aufgaben am ersten Tag, Sicherheit und wie man um Hilfe bittet. Dies ist eine allgemeine Vorlage, verwende also Platzhalter für gartenspezifische Kontakte oder Standorte.
+  zh: 请为社区花园制作一份可共享的一页志愿者入职文档。字数控制在 220 字以内。内容涵盖到达、首日任务、安全以及如何寻求帮助。这是一个通用模板，因此在需要花园特定联系人或地点的地方请使用占位符。
+  es: Por favor, crea un documento de incorporación para voluntarios de un huerto comunitario que se pueda compartir y ocupe una sola página. Que no supere las 220 palabras. Incluye la llegada, las tareas del primer día, la seguridad y cómo pedir ayuda. Es una plantilla general, así que usa marcadores de posición donde se necesiten contactos o ubicaciones específicos del huerto.
+  fr: "S'il te plaît, crée un document d'intégration d'une page à partager pour les bénévoles d'un jardin communautaire. Limite-le à 220 mots. Aborde l'arrivée, les tâches du premier jour, la sécurité et comment demander de l'aide. C'est un modèle général, utilise donc des espaces réservés pour les contacts ou les lieux spécifiques au jardin."
+  pt: Por favor, cria um documento de integração de voluntários partilhável de uma página para uma horta comunitária. Mantém-no com menos de 220 palavras. Aborda a chegada, as tarefas do primeiro dia, a segurança e como pedir ajuda. Este é um modelo geral, por isso usa marcadores de posição onde forem necessários contactos ou locais específicos da horta.
+  ru: Пожалуйста, составь одностраничный документ для онбординга волонтеров в общественном саду, которым можно поделиться. Объем — не более 220 слов. Опиши прибытие, задачи на первый день, технику безопасности и способы обращения за помощью. Это общий шаблон, поэтому используй плейсхолдеры там, где нужны контакты или адреса конкретного сада.
+  ja: コミュニティガーデンのボランティア向けオンボーディング資料を、共有可能な1ページのドキュメントで作成してください。220単語以内に収めてください。到着時の手順、初日のタスク、安全面、助けを求める方法を網羅してください。これは一般的なテンプレートなので、ガーデン固有の連絡先や場所が必要な箇所にはプレースホルダーを使用してください。
+  ko: 커뮤니티 정원을 위한 공유 가능한 한 페이지 분량의 자원봉사 온보딩 문서를 만들어줘. 220단어 이내로 작성해줘. 도착 안내, 첫날 작업, 안전 수칙, 도움 요청 방법을 포함해줘. 일반적인 템플릿이므로 정원별 연락처나 위치가 필요한 곳에는 플레이스홀더를 사용해줘.
+  it: "Per favore, crea un documento di onboarding per i volontari di un orto comunitario, condivisibile e di una sola pagina. Mantienilo sotto le 220 parole. Copri l'arrivo, i compiti del primo giorno, la sicurezza e come chiedere aiuto. Si tratta di un modello generale, quindi usa dei segnaposto dove sono necessari contatti o luoghi specifici dell'orto."
+  tr: Lütfen bir topluluk bahçesi için paylaşılabilir, tek sayfalık bir gönüllü oryantasyon belgesi hazırla. 220 kelimenin altında tut. Varış, ilk gün görevleri, güvenlik ve nasıl yardım isteneceği konularını kapsasın. Bu genel bir şablondur, bu nedenle bahçeye özel kişilerin veya konumların gerektiği yerlerde yer tutucular kullan.
+  vi: "Vui lòng tạo một tài liệu tiếp nhận tình nguyện viên dài một trang, có thể chia sẻ cho một vườn cộng đồng. Giữ nội dung dưới 220 từ. Bao gồm các phần: khi đến, nhiệm vụ ngày đầu tiên, an toàn và cách yêu cầu trợ giúp. Đây là một mẫu chung, vì vậy hãy sử dụng các trình giữ chỗ ở những nơi cần thông tin liên hệ hoặc địa điểm cụ thể của vườn."
+  id: Tolong buatkan dokumen orientasi sukarelawan satu halaman yang dapat dibagikan untuk kebun komunitas. Jaga agar tetap di bawah 220 kata. Cakup kedatangan, tugas hari pertama, keselamatan, dan cara meminta bantuan. Ini adalah templat umum, jadi gunakan placeholder di bagian yang memerlukan kontak atau lokasi spesifik kebun.
+  pl: Przygotuj jednostronicowy dokument wdrożeniowy dla wolontariuszy ogrodu społecznościowego, który można łatwo udostępnić. Tekst powinien mieć mniej niż 220 słów. Uwzględnij kwestie przybycia, zadań na pierwszy dzień, bezpieczeństwa oraz sposobu proszenia o pomoc. To ogólny szablon, więc użyj symboli zastępczych w miejscach na dane kontaktowe lub lokalizacje specyficzne dla danego ogrodu.
+  nl: Maak een deelbaar onboarding-document van één pagina voor vrijwilligers van een gemeenschapstuin. Houd het onder de 220 woorden. Behandel aankomst, taken voor de eerste dag, veiligheid en hoe je om hulp kunt vragen. Dit is een algemeen sjabloon, dus gebruik placeholders waar tuin-specifieke contacten of locaties nodig zijn.
+  ar: يرجى إنشاء مستند تهيئة للمتطوعين في حديقة مجتمعية، يكون قابلاً للمشاركة ومن صفحة واحدة. اجعله أقل من 220 كلمة. غطِّ فيه الوصول، ومهام اليوم الأول، والسلامة، وكيفية طلب المساعدة. هذا نموذج عام، لذا استخدم عناصر نائبة حيثما يلزم ذكر جهات اتصال أو مواقع خاصة بالحديقة.
+  hi: कृपया सामुदायिक उद्यान के लिए एक साझा करने योग्य, एक-पेज का स्वयंसेवक ऑनबोर्डिंग दस्तावेज़ बनाएं। इसे 220 शब्दों से कम रखें। इसमें आगमन, पहले दिन के कार्य, सुरक्षा और मदद मांगने के तरीके को शामिल करें। यह एक सामान्य टेम्प्लेट है, इसलिए जहां उद्यान-विशिष्ट संपर्कों या स्थानों की आवश्यकता हो, वहां प्लेसहोल्डर्स का उपयोग करें।
+  th: โปรดจัดทำเอกสารปฐมนิเทศอาสาสมัครสำหรับสวนชุมชนแบบหน้าเดียวที่แชร์ได้ โดยมีความยาวไม่เกิน 220 คำ ครอบคลุมเรื่องการมาถึง ภารกิจวันแรก ความปลอดภัย และวิธีขอความช่วยเหลือ นี่เป็นเทมเพลตทั่วไป ดังนั้นโปรดใช้ตัวยึดตำแหน่งในส่วนที่ต้องระบุชื่อผู้ติดต่อหรือสถานที่เฉพาะของสวน
+  cs: Prosím, vytvoř sdílený jednostránkový dokument pro zaškolení dobrovolníků v komunitní zahradě. Rozsah udrž pod 220 slov. Zahrň příchod, úkoly pro první den, bezpečnost a způsob, jak požádat o pomoc. Jedná se o obecnou šablonu, takže tam, kde jsou potřeba kontakty nebo místa specifická pro konkrétní zahradu, použij zástupné symboly.
+  sv: Skapa ett delbart introduktionsdokument på en sida för volontärer i en gemenskapsträdgård. Håll det under 220 ord. Täck ankomst, uppgifter för första dagen, säkerhet och hur man ber om hjälp. Detta är en allmän mall, så använd platshållare där trädgårdsspecifika kontakter eller platser behövs.
+  he: אנא צור מסמך קליטת מתנדבים לגינה קהילתית בעמוד אחד הניתן לשיתוף. שמור עליו מתחת ל-220 מילים. המסמך צריך לכסות הגעה, משימות ליום הראשון, בטיחות ואיך לבקש עזרה. זוהי תבנית כללית, לכן השתמש בממלאי מקום היכן שנדרשים אנשי קשר או מיקומים ספציפיים לגינה.
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Community Garden Volunteer Onboarding. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    The onboarding document has been generated above in standard `.docx` format with placeholders (such as `[Coordinator Name]`, `[Check-In Location]`, and `[Phone Number]`) for easy customization. At under 170 words, it fits cleanly on a single printable page.
+
+    ***
+
+    ### Suggested Next Steps:
+    1. [Customize placeholders with your garden's specific details](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Add a volunteer code of conduct or photo release section](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  de: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    Das Onboarding-Dokument wurde oben im Standard-Format `.docx` mit Platzhaltern (wie `[Coordinator Name]`, `[Check-In Location]` und `[Phone Number]`) zur einfachen Anpassung erstellt. Mit weniger als 170 Wörtern passt es übersichtlich auf eine einzige druckbare Seite.
+
+    ***
+
+    ### Empfohlene nächste Schritte:
+    1. [Passe die Platzhalter mit den spezifischen Details deines Gartens an](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Füge einen Verhaltenskodex für Freiwillige oder einen Abschnitt zur Fotofreigabe hinzu](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  zh: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    入职文档已在上方生成，采用标准 `.docx` 格式，并带有占位符（如 `[Coordinator Name]`、`[Check-In Location]` 和 `[Phone Number]`），方便自定义。字数不到 170 字，可以整齐地打印在一页纸上。
+
+    ***
+
+    ### 建议的后续步骤：
+    1. [使用花园的具体细节自定义占位符](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [添加志愿者行为准则或照片授权部分](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  es: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    El documento de incorporación se ha generado arriba en formato `.docx` estándar con marcadores de posición (como `[Coordinator Name]`, `[Check-In Location]` y `[Phone Number]`) para facilitar su personalización. Con menos de 170 palabras, cabe perfectamente en una sola página impresa.
+
+    ***
+
+    ### Siguientes pasos sugeridos:
+    1. [Personaliza los marcadores de posición con los detalles específicos de tu huerto](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Añade una sección de código de conducta para voluntarios o de autorización de fotos](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  fr: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    Le document d'intégration a été généré ci-dessus au format `.docx` standard avec des espaces réservés (tels que `[Coordinator Name]`, `[Check-In Location]` et `[Phone Number]`) pour une personnalisation facile. Avec moins de 170 mots, il tient parfaitement sur une seule page imprimable.
+
+    ***
+
+    ### Prochaines étapes suggérées :
+    1. [Personnalise les espaces réservés avec les détails spécifiques de ton jardin](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Ajoute une section sur le code de conduite des bénévoles ou l'autorisation de droit à l'image](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  pt: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    O documento de integração foi gerado acima no formato padrão `.docx` com marcadores de posição (como `[Coordinator Name]`, `[Check-In Location]` e `[Phone Number]`) para facilitar a personalização. Com menos de 170 palavras, cabe perfeitamente numa única página impressa.
+
+    ***
+
+    ### Próximos Passos Sugeridos:
+    1. [Personaliza os marcadores de posição com os detalhes específicos da tua horta](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Adiciona uma secção de código de conduta do voluntário ou de autorização de imagem](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  ru: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    Документ для онбординга создан выше в стандартном формате `.docx` с плейсхолдерами (такими как `[Coordinator Name]`, `[Check-In Location]` и `[Phone Number]`) для удобства настройки. Текст объемом менее 170 слов легко помещается на одну печатную страницу.
+
+    ***
+
+    ### Рекомендуемые следующие шаги:
+    1. [Заполни плейсхолдеры данными своего сада](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Добавь кодекс поведения волонтера или раздел о согласии на фотосъемку](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  ja: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    オンボーディング資料を、カスタマイズしやすいようにプレースホルダー（`[Coordinator Name]`、`[Check-In Location]`、`[Phone Number]`など）を含めた標準的な`.docx`形式で作成しました。170単語未満に抑えてあるので、印刷しても1ページにきれいに収まります。
+
+    ***
+
+    ### 次のステップの提案：
+    1. [プレースホルダーをガーデンの詳細情報に書き換える](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [ボランティア行動規範や写真使用許諾のセクションを追加する](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  ko: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    쉽게 맞춤 설정할 수 있도록 플레이스홀더(`[Coordinator Name]`, `[Check-In Location]`, `[Phone Number]` 등)가 포함된 표준 `.docx` 형식의 온보딩 문서가 위에 생성되었어. 170단어 미만으로 작성되어 인쇄용 한 페이지에 깔끔하게 들어갈 거야.
+
+    ***
+
+    ### 권장 다음 단계:
+    1. [우리 정원의 세부 정보로 플레이스홀더 맞춤 설정하기](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [자원봉사 행동 강령 또는 사진 촬영 동의 섹션 추가하기](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  it: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    Il documento di onboarding è stato generato sopra in formato standard `.docx` con segnaposto (come `[Coordinator Name]`, `[Check-In Location]` e `[Phone Number]`) per una facile personalizzazione. Con meno di 170 parole, entra perfettamente in una singola pagina stampabile.
+
+    ***
+
+    ### Prossimi passi suggeriti:
+    1. [Personalizza i segnaposto con i dettagli specifici del tuo orto](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Aggiungi un codice di condotta per i volontari o una sezione sulla liberatoria per le foto](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  tr: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    Oryantasyon belgesi, kolayca özelleştirilebilmesi için yer tutucularla (`[Coordinator Name]`, `[Check-In Location]` ve `[Phone Number]` gibi) standart `.docx` formatında yukarıda oluşturuldu. 170 kelimenin altında olduğu için tek bir yazdırılabilir sayfaya rahatça sığar.
+
+    ***
+
+    ### Önerilen Sonraki Adımlar:
+    1. [Yer tutucuları bahçenin özel detaylarıyla özelleştir](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Gönüllü davranış kuralları veya fotoğraf izin bölümü ekle](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  vi: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    Tài liệu tiếp nhận đã được tạo ở trên theo định dạng `.docx` tiêu chuẩn với các trình giữ chỗ (như `[Coordinator Name]`, `[Check-In Location]` và `[Phone Number]`) để dễ dàng tùy chỉnh. Với độ dài dưới 170 từ, tài liệu này nằm gọn trong một trang in duy nhất.
+
+    ***
+
+    ### Các bước đề xuất tiếp theo:
+    1. [Tùy chỉnh các trình giữ chỗ với thông tin chi tiết về vườn của bạn](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Thêm quy tắc ứng xử của tình nguyện viên hoặc phần cho phép sử dụng hình ảnh](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  id: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    Dokumen orientasi telah dibuat di atas dalam format `.docx` standar dengan placeholder (seperti `[Coordinator Name]`, `[Check-In Location]`, dan `[Phone Number]`) untuk penyesuaian yang mudah. Dengan kurang dari 170 kata, dokumen ini pas dalam satu halaman cetak.
+
+    ***
+
+    ### Langkah Selanjutnya yang Disarankan:
+    1. [Sesuaikan placeholder dengan detail spesifik kebunmu](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Tambahkan bagian kode etik sukarelawan atau rilis foto](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  pl: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    Dokument wdrożeniowy został wygenerowany powyżej w standardowym formacie `.docx` z symbolami zastępczymi (takimi jak `[Coordinator Name]`, `[Check-In Location]` i `[Phone Number]`) dla łatwej personalizacji. Dzięki objętości poniżej 170 słów mieści się on na jednej stronie do druku.
+
+    ***
+
+    ### Sugerowane kolejne kroki:
+    1. [Uzupełnij symbole zastępcze szczegółowymi danymi swojego ogrodu](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Dodaj sekcję z kodeksem postępowania wolontariusza lub zgodą na wykorzystanie wizerunku](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  nl: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    Het onboarding-document is hierboven gegenereerd in standaard `.docx`-formaat met placeholders (zoals `[Coordinator Name]`, `[Check-In Location]` en `[Phone Number]`) voor eenvoudige aanpassing. Met minder dan 170 woorden past het gemakkelijk op één printbare pagina.
+
+    ***
+
+    ### Voorgestelde volgende stappen:
+    1. [Pas placeholders aan met de specifieke details van je tuin](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Voeg een korte gedragscode voor vrijwilligers of een sectie voor toestemming voor foto's toe](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  ar: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    تم إنشاء مستند التهيئة أعلاه بتنسيق `.docx` قياسي مع عناصر نائبة (مثل `[Coordinator Name]` و`[Check-In Location]` و`[Phone Number]`) لسهولة التخصيص. وبما أنه يقل عن 170 كلمة، فإنه يناسب تماماً صفحة واحدة قابلة للطباعة.
+
+    ***
+
+    ### الخطوات التالية المقترحة:
+    1. [خصص العناصر النائبة بتفاصيل حديقتك المحددة](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [أضف قسماً لقواعد سلوك المتطوعين أو نموذج الموافقة على التصوير](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  hi: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    ऑनबोर्डिंग दस्तावेज़ ऊपर मानक `.docx` प्रारूप में प्लेसहोल्डर्स (जैसे `[Coordinator Name]`, `[Check-In Location]`, और `[Phone Number]`) के साथ तैयार किया गया है ताकि इसे आसानी से अनुकूलित किया जा सके। 170 शब्दों से कम होने के कारण, यह एक ही प्रिंट करने योग्य पेज पर ठीक से फिट बैठता है।
+
+    ***
+
+    ### सुझाए गए अगले कदम:
+    1. [अपने उद्यान के विशिष्ट विवरणों के साथ प्लेसहोल्डर्स को अनुकूलित करें](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [स्वयंसेवक आचार संहिता या फोटो रिलीज अनुभाग जोड़ें](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  th: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    เอกสารปฐมนิเทศถูกสร้างขึ้นด้านบนในรูปแบบ `.docx` มาตรฐาน พร้อมตัวยึดตำแหน่ง (เช่น `[Coordinator Name]`, `[Check-In Location]` และ `[Phone Number]`) เพื่อให้ปรับแต่งได้ง่าย ด้วยความยาวไม่เกิน 170 คำ เอกสารนี้จึงพิมพ์ลงในหน้าเดียวได้อย่างพอดี
+
+    ***
+
+    ### ขั้นตอนถัดไปที่แนะนำ:
+    1. [ปรับแต่งตัวยึดตำแหน่งด้วยรายละเอียดเฉพาะของสวนคุณ](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [เพิ่มส่วนหลักเกณฑ์การปฏิบัติของอาสาสมัครหรือการยินยอมให้เผยแพร่ภาพถ่าย](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  cs: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    Dokument pro zaškolení byl vygenerován výše ve standardním formátu `.docx` se zástupnými symboly (jako např. `[Coordinator Name]`, `[Check-In Location]` a `[Phone Number]`) pro snadné přizpůsobení. S rozsahem pod 170 slov se přehledně vejde na jednu vytisknutelnou stránku.
+
+    ***
+
+    ### Navrhované další kroky:
+    1. [Přizpůsob zástupné symboly konkrétním údajům tvé zahrady](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Přidej sekci s kodexem chování dobrovolníka nebo souhlasem s fotografováním](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  sv: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    Introduktionsdokumentet har genererats ovan i standardformatet `.docx` med platshållare (som `[Coordinator Name]`, `[Check-In Location]` och `[Phone Number]`) för enkel anpassning. Med under 170 ord får det enkelt plats på en enda utskrivbar sida.
+
+    ***
+
+    ### Förslag på nästa steg:
+    1. [Anpassa platshållarna med din trädgårds specifika detaljer](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [Lägg till ett avsnitt om uppförandekod eller fototillstånd för volontärer](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  he: |
+    ```json
+    {"type": "document", "embed_id": "f40fc42f-df5d-4116-bba3-3500b1805eb5"}
+    ```
+
+    מסמך הקליטה נוצר לעיל בפורמט `.docx` סטנדרטי עם ממלאי מקום (כמו `[Coordinator Name]`, `[Check-In Location]` ו-`[Phone Number]`) להתאמה אישית קלה. עם פחות מ-170 מילים, הוא נכנס בצורה נקייה לעמוד אחד להדפסה.
+
+    ***
+
+    ### צעדים הבאים מומלצים:
+    1. [התאם אישית את ממלאי המקום עם הפרטים הספציפיים של הגינה שלך](/#message=Help%20me%20fill%20in%20the%20placeholders%20with%20our%20garden's%20specific%20details.)
+    2. [הוסף סעיף קוד אתי למתנדבים או אישור פרסום תמונות](/#message=Add%20a%20brief%20volunteer%20code%20of%20conduct%20section%20to%20the%20guide.)
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for community garden volunteer management best practices"
+  de: Suche nach Best Practices für das Management von Freiwilligen in Gemeinschaftsgärten
+  zh: 搜索社区花园志愿者管理最佳实践
+  es: Buscar mejores prácticas para la gestión de voluntarios en huertos comunitarios
+  fr: Recherche les meilleures pratiques de gestion des bénévoles pour les jardins communautaires
+  pt: Pesquisar as melhores práticas de gestão de voluntários em hortas comunitárias
+  ru: Найти лучшие практики управления волонтерами в общественных садах
+  ja: コミュニティガーデンのボランティア管理のベストプラクティスを検索する
+  ko: 커뮤니티 정원 자원봉사 관리 모범 사례 검색하기
+  it: Cerca le migliori pratiche per la gestione dei volontari negli orti comunitari
+  tr: Topluluk bahçesi gönüllü yönetimi için en iyi uygulamaları ara
+  vi: Tìm kiếm các phương pháp quản lý tình nguyện viên vườn cộng đồng tốt nhất
+  id: Cari praktik terbaik manajemen sukarelawan kebun komunitas
+  pl: Wyszukaj najlepsze praktyki zarządzania wolontariuszami w ogrodach społecznościowych
+  nl: Zoek naar best practices voor het beheer van vrijwilligers in gemeenschapstuinen
+  ar: ابحث عن أفضل الممارسات لإدارة المتطوعين في الحدائق المجتمعية
+  hi: सामुदायिक उद्यान स्वयंसेवक प्रबंधन के सर्वोत्तम अभ्यासों को खोजें
+  th: ค้นหาแนวทางปฏิบัติที่ดีที่สุดสำหรับการจัดการอาสาสมัครสวนชุมชน
+  cs: Vyhledej osvědčené postupy pro správu dobrovolníků v komunitních zahradách
+  sv: Sök efter bästa praxis för hantering av volontärer i gemenskapsträdgårdar
+  he: חיפוש שיטות עבודה מומלצות לניהול מתנדבים בגינה קהילתית
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Help me add a volunteer code of conduct section"
+  de: Hilf mir, einen Abschnitt zum Verhaltenskodex für Freiwillige hinzuzufügen
+  zh: 帮我添加志愿者行为准则部分
+  es: Ayúdame a añadir una sección de código de conducta para voluntarios
+  fr: Aide-moi à ajouter une section sur le code de conduite des bénévoles
+  pt: Ajuda-me a adicionar uma secção de código de conduta do voluntário
+  ru: Помоги мне добавить раздел с кодексом поведения волонтера
+  ja: ボランティア行動規範のセクションを追加するのを手伝って
+  ko: 자원봉사 행동 강령 섹션 추가를 도와줘
+  it: Aiutami ad aggiungere una sezione sul codice di condotta dei volontari
+  tr: Gönüllü davranış kuralları bölümü eklememe yardım et
+  vi: Giúp tôi thêm phần quy tắc ứng xử của tình nguyện viên
+  id: Bantu aku menambahkan bagian kode etik sukarelawan
+  pl: Pomóż mi dodać sekcję z kodeksem postępowania wolontariusza
+  nl: Help me een sectie met een gedragscode voor vrijwilligers toe te voegen
+  ar: ساعدني في إضافة قسم لقواعد سلوك المتطوعين
+  hi: स्वयंसेवक आचार संहिता अनुभाग जोड़ने में मेरी मदद करें
+  th: ช่วยฉันเพิ่มส่วนหลักเกณฑ์การปฏิบัติของอาสาสมัคร
+  cs: Pomoz mi přidat sekci s kodexem chování dobrovolníka
+  sv: Hjälp mig att lägga till ett avsnitt om uppförandekod för volontärer
+  he: עזור לי להוסיף סעיף קוד אתי למתנדבים
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Create a task list for organizing our volunteer orientation day"
+  de: Erstelle eine Aufgabenliste für die Organisation unseres Orientierungstags für Freiwillige
+  zh: 为我们的志愿者入职培训日创建一个任务清单
+  es: Crear una lista de tareas para organizar nuestro día de orientación para voluntarios
+  fr: "Crée une liste de tâches pour organiser notre journée d'accueil des bénévoles"
+  pt: Criar uma lista de tarefas para organizar o nosso dia de orientação de voluntários
+  ru: Создай список задач для организации дня ориентации волонтеров
+  ja: ボランティア・オリエンテーション・デーの準備用タスクリストを作成して
+  ko: 자원봉사 오리엔테이션 데이 구성을 위한 작업 목록 만들기
+  it: Crea una lista di compiti per organizzare la nostra giornata di orientamento per i volontari
+  tr: Gönüllü oryantasyon günümüzü organize etmek için bir görev listesi oluştur
+  vi: Tạo danh sách công việc để tổ chức ngày định hướng tình nguyện viên
+  id: Buat daftar tugas untuk mengatur hari orientasi sukarelawan kami
+  pl: Stwórz listę zadań do organizacji dnia orientacyjnego dla wolontariuszy
+  nl: Maak een takenlijst voor het organiseren van onze introductiedag voor vrijwilligers
+  ar: أنشئ قائمة مهام لتنظيم اليوم التعريفي للمتطوعين لدينا
+  hi: हमारे स्वयंसेवक ओरिएंटेशन दिवस के आयोजन के लिए एक कार्य सूची बनाएं
+  th: สร้างรายการสิ่งที่ต้องทำสำหรับการจัดวันปฐมนิเทศอาสาสมัคร
+  cs: Vytvoř seznam úkolů pro organizaci orientačního dne pro dobrovolníky
+  sv: Skapa en uppgiftslista för att organisera vår introduktionsdag för volontärer
+  he: צור רשימת משימות לארגון יום קליטת המתנדבים שלנו
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Explain how to structure a welcoming orientation checklist"
+  de: Erkläre, wie man eine einladende Orientierungs-Checkliste strukturiert
+  zh: 解释如何构建一个受欢迎的入职培训清单
+  es: Explicar cómo estructurar una lista de verificación de orientación acogedora
+  fr: "Explique comment structurer une liste de contrôle d'accueil chaleureuse"
+  pt: Explicar como estruturar uma lista de verificação de orientação acolhedora
+  ru: Объясни, как составить приветственный чек-лист для ориентации волонтеров
+  ja: 歓迎の気持ちが伝わるオリエンテーション・チェックリストの構成方法を教えて
+  ko: 환영 오리엔테이션 체크리스트 구성 방법 설명하기
+  it: Spiega come strutturare una checklist di orientamento accogliente
+  tr: Karşılayıcı bir oryantasyon kontrol listesinin nasıl yapılandırılacağını açıkla
+  vi: Giải thích cách xây dựng danh sách kiểm tra định hướng chào mừng
+  id: Jelaskan cara menyusun daftar periksa orientasi yang menyambut
+  pl: Wyjaśnij, jak sformułować przyjazną listę kontrolną na dzień orientacyjny
+  nl: Leg uit hoe je een verwelkomende checklist voor de introductie opstelt
+  ar: اشرح كيفية صياغة قائمة مرجعية ترحيبية لليوم التعريفي
+  hi: एक स्वागत योग्य ओरिएंटेशन चेकलिस्ट को कैसे व्यवस्थित करें, यह समझाएं
+  th: อธิบายวิธีจัดโครงสร้างรายการตรวจสอบการปฐมนิเทศที่ให้การต้อนรับอย่างดี
+  cs: Vysvětli, jak strukturovat přívětivý orientační kontrolní seznam
+  sv: Förklara hur man strukturerar en välkomnande checklista för introduktion
+  he: "הסבר איך לבנות צ'ק-ליסט קליטה מזמין"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Search for volunteer handbook templates online"
+  de: Suche online nach Vorlagen für Handbücher für Freiwillige
+  zh: 在线搜索志愿者手册模板
+  es: Buscar plantillas de manuales para voluntarios en línea
+  fr: Recherche des modèles de manuel du bénévole en ligne
+  pt: Pesquisar modelos de manuais de voluntariado online
+  ru: Найти шаблоны справочников для волонтеров в интернете
+  ja: オンラインでボランティア・ハンドブックのテンプレートを検索する
+  ko: 온라인에서 자원봉사 핸드북 템플릿 검색하기
+  it: Cerca online modelli di manuali per i volontari
+  tr: İnternette gönüllü el kitabı şablonları ara
+  vi: Tìm kiếm các mẫu sổ tay tình nguyện viên trực tuyến
+  id: Cari templat buku panduan sukarelawan secara daring
+  pl: Wyszukaj w internecie szablony podręczników dla wolontariuszy
+  nl: Zoek online naar sjablonen voor handboeken voor vrijwilligers
+  ar: ابحث عن نماذج لكتيبات المتطوعين عبر الإنترنت
+  hi: ऑनलाइन स्वयंसेवक हैंडबुक टेम्प्लेट खोजें
+  th: ค้นหาเทมเพลตคู่มืออาสาสมัครทางออนไลน์
+  cs: Vyhledej online šablony příruček pro dobrovolníky
+  sv: Sök efter mallar för volontärhandböcker online
+  he: חיפוש תבניות למדריך למתנדב באינטרנט
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "List essential safety guidelines for outdoor community spaces"
+  de: Liste wichtige Sicherheitsrichtlinien für gemeinschaftliche Außenbereiche auf
+  zh: 列出户外社区场所的基本安全指南
+  es: Enumerar pautas de seguridad esenciales para espacios comunitarios al aire libre
+  fr: Énumère les consignes de sécurité essentielles pour les espaces communautaires extérieurs
+  pt: Listar diretrizes de segurança essenciais para espaços comunitários ao ar livre
+  ru: Перечисли основные правила безопасности для общественных пространств на открытом воздухе
+  ja: 屋外のコミュニティスペースに不可欠な安全ガイドラインをリストアップして
+  ko: 야외 커뮤니티 공간을 위한 필수 안전 지침 목록 작성하기
+  it: "Elenca le linee guida essenziali per la sicurezza negli spazi comunitari all'aperto"
+  tr: Açık hava topluluk alanları için temel güvenlik kurallarını listele
+  vi: Liệt kê các hướng dẫn an toàn thiết yếu cho không gian cộng đồng ngoài trời
+  id: Sebutkan pedoman keselamatan penting untuk ruang komunitas luar ruangan
+  pl: Wymień kluczowe wytyczne dotyczące bezpieczeństwa w otwartych przestrzeniach społecznościowych
+  nl: Maak een lijst met essentiële veiligheidsrichtlijnen voor openbare buitenruimtes
+  ar: اذكر إرشادات السلامة الأساسية للمساحات المجتمعية الخارجية
+  hi: बाहरी सामुदायिक स्थानों के लिए आवश्यक सुरक्षा दिशानिर्देशों को सूचीबद्ध करें
+  th: รายการแนวทางความปลอดภัยที่จำเป็นสำหรับพื้นที่ชุมชนกลางแจ้ง
+  cs: Vypiš základní bezpečnostní pokyny pro venkovní komunitní prostory
+  sv: Lista viktiga säkerhetsriktlinjer för gemensamma utomhusmiljöer
+  he: רשימת הנחיות בטיחות חיוניות למרחבים קהילתיים פתוחים
+  verified_by_human: []
+

@@ -46,6 +46,7 @@ import VideoTranscriptEmbedPreview from "../../../embeds/videos/VideoTranscriptE
 import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
+import { docxModelToHtml } from "../../../embeds/docs/docsEmbedContent";
 import SheetEmbedPreview from "../../../embeds/sheets/SheetEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
@@ -221,49 +222,6 @@ function getAppIdFromEmbedType(type: string): string {
 function normalizeAppIdForCss(appId: string | null | undefined): string {
   const normalized = appId?.trim() ?? "";
   return /^[a-z0-9_-]+$/.test(normalized) ? normalized : "";
-}
-
-function cleanDocxModelValue(value: string): string {
-  return value
-    .trim()
-    .replace(/^"|"$/g, "")
-    .replace(/",true$/g, "")
-    .replace(/^true,/, "")
-    .trim();
-}
-
-function extractLegacyDocxHtml(rawContent?: string, title?: string): string {
-  if (!rawContent?.includes("docx_model:")) return "";
-
-  const lines = rawContent.split("\n");
-  const titleMatch = rawContent.match(/(?:^|\n)title:\s*"?([^\n"]+)"?/);
-  const displayTitle = cleanDocxModelValue(title || titleMatch?.[1] || "Document");
-  const bodyLines: string[] = [];
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const trimmed = lines[index].trim();
-    const next = lines[index + 1]?.trim() || "";
-
-    if (trimmed.startsWith("text:")) {
-      bodyLines.push(cleanDocxModelValue(trimmed.replace(/^text:\s*/, "")));
-    } else if (trimmed.includes("runs[") && next && !next.includes(":")) {
-      bodyLines.push(cleanDocxModelValue(next));
-    } else if (trimmed.startsWith("items[")) {
-      bodyLines.push(...trimmed.replace(/^items\[[^\]]+\]:\s*/, "").split(",").map(cleanDocxModelValue));
-    } else if (trimmed.startsWith("headers[")) {
-      bodyLines.push(cleanDocxModelValue(trimmed.replace(/^headers\[[^\]]+\]:\s*/, "")));
-    } else if (trimmed.startsWith("- [")) {
-      bodyLines.push(cleanDocxModelValue(trimmed.replace(/^- \[[^\]]+\]:\s*/, "")));
-    }
-  }
-
-  const uniqueBodyLines = bodyLines.filter(
-    (line, index, all) => line && line !== displayTitle && all.indexOf(line) === index,
-  );
-  return [
-    `<h1>${escapeHtml(displayTitle)}</h1>`,
-    ...uniqueBodyLines.map((line) => `<p>${escapeHtml(line)}</p>`),
-  ].join("\n");
 }
 
 function hasLearningModeShortenedNotice(decodedContent: DecodedEmbedContent | null): boolean {
@@ -3498,7 +3456,7 @@ export class GroupRenderer implements EmbedRenderer {
       decodedContent?.html ||
       decodedContent?.code ||
       item.code ||
-      extractLegacyDocxHtml(embedData?.content, decodedContent?.title || item.title);
+      docxModelToHtml(decodedContent?.docx_model);
     const title = decodedContent?.title || item.title;
     const filename = decodedContent?.filename || item.filename;
     const wordCount = decodedContent?.word_count || item.wordCount || 0;
@@ -4503,7 +4461,7 @@ export class GroupRenderer implements EmbedRenderer {
       decodedContent?.html ||
       decodedContent?.code ||
       item.code ||
-      extractLegacyDocxHtml(embedData?.content, decodedContent?.title || item.title);
+      docxModelToHtml(decodedContent?.docx_model);
     const title = decodedContent?.title || item.title;
     const filename = decodedContent?.filename || item.filename;
     const wordCount = decodedContent?.word_count || item.wordCount || 0;
