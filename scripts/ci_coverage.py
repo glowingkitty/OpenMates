@@ -64,6 +64,7 @@ CORE_SPECS = frozenset({
     "anonymous-child-embeds.spec.ts",
     # Static guest notice preview and local signup event; no server or inference.
     "components/chat-anonymous-signup-notice.spec.ts",
+    "components/chat-settings-preview.spec.ts",
     # Browser media fixtures; real first-turn preflight/metadata ACKs, no TTS.
     "voice-first-preflight-order.spec.ts",
     "tasks-flow.spec.ts",

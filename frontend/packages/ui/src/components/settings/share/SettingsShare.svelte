@@ -22,6 +22,7 @@
     import ChatComponent from '../../chats/Chat.svelte';
     import { activeChatStore } from '../../../stores/activeChatStore';
     import { authStore } from '../../../stores/authStore';
+    import { canShareChat } from '../../../services/chatSharing';
     import type { Chat as ChatInterface, SyncEmbed } from '../../../types/chat';
     import { settingsDeepLink } from '../../../stores/settingsDeepLinkStore';
     import { generateShareKeyBlob, type ShareDuration } from '../../../services/shareEncryption';
@@ -399,6 +400,11 @@
         })();
     });
     let isPublicChatType = $derived(currentChatId ? isPublicChat(currentChatId) : false);
+    let canShareCurrentChat = $derived(canShareChat(
+        currentChat?.chat_id === currentChatId ? currentChat :
+            currentChatId && isPublicChat(currentChatId) ? { chat_id: currentChatId } : null,
+        $authStore.isAuthenticated,
+    ));
     let isOwnedByUser = $state(true); // Default for public/anonymous chats; authenticated chats are checked.
     let isCheckingChatOwnership = $state(false);
 
@@ -451,6 +457,7 @@
      * For owned chats: uses configured settings (password, expiration)
      */
     async function generateLink() {
+        if (!isEmbedSharing && !canShareCurrentChat) return;
         if (isPrimaryShareLinkGenerating) return;
         isPrimaryShareLinkGenerating = true;
         try {
@@ -835,6 +842,7 @@
      */
     // Function to check and generate link if needed
     async function checkAndGenerateLink() {
+        if (!canShareCurrentChat) return;
         const chatId = currentChatId;
         if (!chatId) {
             console.debug('[SettingsShare] checkAndGenerateLink: No chatId available');
@@ -884,12 +892,13 @@
         const chatId = currentChatId;
         const isAuth = $authStore.isAuthenticated;
         const storeValue = $activeChatStore;
+        const shareAllowed = canShareCurrentChat;
         
         console.debug('[SettingsShare] Effect triggered - chatId:', chatId, 'storeValue:', storeValue, 'isAuth:', isAuth, 'isLinkGenerated:', isLinkGenerated);
         
         // Only auto-generate link if no link is already generated
         // This prevents the share view from updating when user switches chats
-        if (chatId && !isLinkGenerated) {
+        if (chatId && shareAllowed && !isLinkGenerated) {
             // Use setTimeout to ensure the component is fully mounted and store is updated
             setTimeout(() => {
                 checkAndGenerateLink();
@@ -1015,6 +1024,7 @@
 
     async function restoreExistingSharedLink(chat: ChatInterface, chatId: string) {
         if (
+            !canShareChat(chat, $authStore.isAuthenticated) ||
             isEmbedSharing ||
             isLinkGenerated ||
             isPrimaryShareLinkGenerating ||
@@ -1711,7 +1721,7 @@
     
     // Can generate link if we have either a chat ID or an embed context
     let canGenerateLink = $derived(
-        (currentChatId || (isEmbedSharing && embedContext)) &&
+        (canShareCurrentChat || (isEmbedSharing && embedContext)) &&
         isPasswordValid &&
         !isCheckingChatOwnership &&
         !isPrimaryShareLinkGenerating
@@ -1727,6 +1737,7 @@
     // 2. We have embed context and are sharing an embed (for embed sharing)
     // 3. A link has already been generated (for both chats and embeds)
     let hasShareableContent = $derived.by(() => {
+        if (!isEmbedSharing && !canShareCurrentChat) return false;
         const result = isLinkGenerated || // Link already generated - always show
             displayChatId || // Chat ID available
             (isEmbedSharing && embedContext && embedContext.embed_id); // Embed context available

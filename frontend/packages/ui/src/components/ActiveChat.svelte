@@ -133,6 +133,7 @@ import { storageArchiveFetch } from "../config/api";
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { anonymousChatStorage } from '../services/anonymousChatStorage';
+    import { canShareChat } from '../services/chatSharing';
     import { isAnonymousChatId } from '../services/anonymousChatIds';
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
@@ -5646,7 +5647,9 @@ import { storageArchiveFetch } from "../config/api";
          isExampleChat(currentChat.chat_id) &&
         (!showWelcome || currentMessages.length > 0)
      ));
-      let hasActiveShareableChatSurface = $derived(hasActivePrivateChatSurface || hasActiveExampleChatSurface);
+      let hasActiveShareableChatSurface = $derived(
+        (hasActivePrivateChatSurface || hasActiveExampleChatSurface) && canShareChat(currentChat, $authStore.isAuthenticated)
+      );
       let hasActiveChatDetailsSurface = $derived(hasActivePrivateChatSurface || hasActiveExampleChatSurface);
 
      $effect(() => {
@@ -8901,6 +8904,7 @@ import { storageArchiveFetch } from "../config/api";
 
     function openChatDetailsSettings(tab: ChatDetailsTab = 'tasks') {
         if (!currentChat?.chat_id) return;
+        if (tab === 'share' && !canShareChat(currentChat, $authStore.isAuthenticated)) return;
         activeChatStore.setActiveChat(currentChat.chat_id);
         chatSettingsStore.open(currentChat, currentMessages, tab, {
             title: activeChatDecryptedTitle || currentChat.title || null,

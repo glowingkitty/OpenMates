@@ -1,8 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { authStore } from "../../stores/authStore";
 
 import { activeChatStore } from "../../stores/activeChatStore";
 import {
   prepareIssueReportContextUrl,
+  generateCurrentContextUrl,
+  canShareIssueReportContext,
   submitIssueReport,
 } from "../issueReportSubmission";
 
@@ -21,13 +24,13 @@ vi.mock("../../demo_chats/convertToChat", () => ({
   isPublicChat: vi.fn(() => false),
 }));
 
-vi.mock("../../stores/authStore", () => ({
-  authStore: {
-    subscribe: (run: (value: { isAuthenticated: boolean }) => void) => {
-      run({ isAuthenticated: false });
-      return () => undefined;
-    },
-  },
+vi.mock("../../stores/authStore", async () => {
+  const { writable } = await import('svelte/store');
+  return { authStore: writable({ isAuthenticated: true }) };
+});
+
+vi.mock("../db", () => ({
+  chatDB: { getChat: vi.fn(async () => null) },
 }));
 
 vi.mock("../shareEncryption", () => ({
@@ -35,10 +38,31 @@ vi.mock("../shareEncryption", () => ({
 }));
 
 describe("prepareIssueReportContextUrl", () => {
+  beforeEach(() => authStore.update((state) => ({ ...state, isAuthenticated: true })));
   afterEach(() => {
     activeChatStore.setWithoutHashUpdate(null);
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.anonymous.local-only-content
+  it('omits anonymous chat links and never publishes their metadata', async () => {
+    authStore.update((state) => ({ ...state, isAuthenticated: false }));
+    activeChatStore.setWithoutHashUpdate('anonymous-local-chat');
+    vi.stubGlobal('fetch', vi.fn());
+    await expect(canShareIssueReportContext(
+      `${window.location.origin}/share/chat/anonymous-local-chat#key=private-fragment`,
+    )).resolves.toBe(false);
+    await expect(generateCurrentContextUrl()).resolves.toBeNull();
+    await expect(prepareIssueReportContextUrl(
+      `${window.location.origin}/share/chat/anonymous-local-chat#key=private-fragment`,
+    )).resolves.toBeNull();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+
+    // Signing in must not make an unpromoted tab-local record shareable.
+    authStore.update((state) => ({ ...state, isAuthenticated: true }));
+    await expect(generateCurrentContextUrl()).resolves.toBeNull();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   // contract-test: supporting surface=gui.web assertions=issue-reporting.submission.confirmed-and-durable
@@ -110,7 +134,7 @@ describe("prepareIssueReportContextUrl", () => {
       shortIssueId: "ABCDE",
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     const metadataRequest = fetchMock.mock.calls[0];
     expect(String(metadataRequest[0])).toContain("/v1/share/chat/metadata");
     expect(JSON.stringify(metadataRequest[1])).not.toContain("private-fragment");
@@ -132,6 +156,8 @@ describe("prepareIssueReportContextUrl", () => {
       phased_sync_state: expect.any(Object),
     }));
     expect(String(reportRequest[1]?.body)).not.toContain("private-fragment");
+    expect(String(fetchMock.mock.calls[2][0])).toContain('/v1/settings/issue-logs');
+    expect(String(fetchMock.mock.calls[2][1]?.body)).not.toContain('private-fragment');
     expect(warn.mock.calls.flat().join(" ")).not.toContain("private-fragment");
   });
 });

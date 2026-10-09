@@ -8,5 +8,6 @@ export const variants = {
   share: { tab: 'share', shared: false },
   shared: { tab: 'share', shared: true },
   public: { tab: 'share', example: true },
+  anonymous: { tab: 'share', anonymous: true },
   publicUsage: { tab: 'usage', example: true, exampleChatId: 'example-audio-speak-openmates-welcome-message' },
 };

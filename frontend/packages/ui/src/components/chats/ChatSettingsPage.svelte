@@ -21,12 +21,15 @@
   import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
   import { loadSharedChatDetails, loadSharedChatDetailsPage, type SharedChatPageWindow } from '../../services/sharedChatDetailsService';
   import { getExampleChatFileReferences, getExampleChatUsageEntries, isExampleChat } from '../../demo_chats';
+  import { authStore } from '../../stores/authStore';
+  import { canShareChat } from '../../services/chatSharing';
 
   const USAGE_REFRESH_INTERVAL_MS = 5000;
 
-  let { activeSettingsView = '', previewContext = null, previewTasks = [], previewPlans = [], previewFiles = [] }: {
+  let { activeSettingsView = '', previewContext = null, previewAuthenticated = true, previewTasks = [], previewPlans = [], previewFiles = [] }: {
     activeSettingsView?: string;
     previewContext?: ChatSettingsContext | null;
+    previewAuthenticated?: boolean;
     previewTasks?: UserTaskViewModel[];
     previewPlans?: UserPlanViewModel[];
     previewFiles?: ChatFileRow[];
@@ -77,6 +80,7 @@
   );
   let isSharedViewer = $derived(!!chat?.is_shared_by_others);
   let isExampleChatSettings = $derived(!!chat?.chat_id && isExampleChat(chat.chat_id));
+  let shareAllowed = $derived(canShareChat(chat, previewContext ? previewAuthenticated : $authStore.isAuthenticated));
   let staticUsageEntries = $derived(chat?.chat_id && isExampleChatSettings ? getExampleChatUsageEntries(chat.chat_id) : []);
   let exampleStaticFiles = $derived(chat?.chat_id && isExampleChatSettings ? getExampleChatFileReferences(chat.chat_id) : []);
   let hasExampleStaticFiles = $derived(exampleStaticFiles.length > 0);
@@ -88,7 +92,7 @@
   let totalCredits = $derived(usageTotalCredits ?? display?.credits ?? chat?.budget_spent ?? totalKnownCredits(isExampleChatSettings ? localUsageRows : usageRows));
   let visibleTabs = $derived(isExampleChatSettings
     ? tabs.filter((tab) => tab.id === 'share' || (tab.id === 'files' && hasExampleStaticFiles) || (tab.id === 'usage' && hasStaticUsageData))
-    : tabs);
+    : tabs.filter((tab) => tab.id !== 'share' || shareAllowed));
   let doneTaskCount = $derived(tasks.filter((task) => task.status === 'done').length);
   let taskProgressPercent = $derived(tasks.length > 0 ? Math.round((doneTaskCount / tasks.length) * 100) : 0);
   let activePlans = $derived(plans.filter((plan) => !['completed', 'archived'].includes(plan.status)));
@@ -102,6 +106,7 @@
 
   function normalizeVisibleChatSettingsTab(tabId: string | null | undefined): ChatSettingsTab {
     const nextTab = normalizeChatSettingsTab(tabId);
+    if (nextTab === 'share' && !shareAllowed) return 'plan';
     if (!isExampleChatSettings) return nextTab;
     if (nextTab === 'files' && hasExampleStaticFiles) return 'files';
     if (nextTab === 'usage' && hasStaticUsageData) return 'usage';
@@ -641,7 +646,7 @@
       </div>
     {:else if activeTab === 'share'}
       <div class="tabpanel" data-testid="chat-settings-tabpanel-share" role="tabpanel" aria-labelledby="chat-settings-tab-share">
-        <ChatSettingsShareSection previewMode={!!previewContext} {chat} {messages} {title} {summary} />
+        <ChatSettingsShareSection previewMode={!!previewContext} {previewAuthenticated} {chat} {messages} {title} {summary} />
       </div>
     {/if}
   </section>

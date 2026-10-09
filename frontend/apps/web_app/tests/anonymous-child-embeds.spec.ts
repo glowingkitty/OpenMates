@@ -246,12 +246,45 @@ test.describe('Anonymous child embeds', () => {
 		expect(JSON.stringify(saved)).not.toContain(GERMAN_SUGGESTION);
 		const chatId = String(saved?.chat_id);
 		await expect.poll(() => page.evaluate(() => !!sessionStorage.getItem('openmates_anonymous_chat_key'))).toBe(true);
+		await expect(page.getByTestId('chat-share-button')).toHaveCount(0);
+		const shareRequests: string[] = [];
+		page.on('request', (request: any) => {
+			if (/\/v1\/(?:share\/chat|share\/short)/.test(request.url())) shareRequests.push(request.url());
+		});
+		await page.evaluate(() => window.dispatchEvent(new CustomEvent('openmates-open-chat-details', {
+			cancelable: true, detail: { tab: 'share' },
+		})));
+		await expect(page.locator('[data-testid="settings-menu"].visible')).toHaveCount(0);
+		const openSettings = async (returnTo: string) => {
+			await page.evaluate((path: string) => window.dispatchEvent(new CustomEvent('openSettingsMenu', {
+				detail: { returnTo: path },
+			})), returnTo);
+			await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible();
+		};
+		await openSettings(`chats/${chatId}/share`);
+		await expect(page.getByTestId('chat-settings-tabpanel-plan')).toBeVisible();
+		await expect(page.getByTestId('chat-settings-tab-share')).toHaveCount(0);
+		await expect(page.getByTestId('share-generate-link')).toHaveCount(0);
+		await openSettings('shared/share');
+		await expect(page.getByTestId('chat-settings-page')).toHaveCount(0);
+		await expect(page.getByTestId('share-copy-link')).toHaveCount(0);
+		await expect(page.getByTestId('share-generate-link')).toHaveCount(0);
+		await openSettings('report_issue');
+		await expect(page.getByTestId('report-issue-form')).toBeVisible();
+		await expect(page.locator('#share-chat-toggle')).toHaveCount(0);
+		expect(shareRequests).toEqual([]);
+		await page.evaluate(() => {
+			const params = new URLSearchParams(window.location.hash.slice(1));
+			params.delete('settings');
+			window.location.hash = params.toString();
+		});
 
 		// Exercise generic IndexedDB startup without the session-only orphan-detection bypass.
 		await page.evaluate(() => sessionStorage.removeItem('openmates_skip_orphan_detection'));
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('message-assistant')).toHaveCount(1, { timeout: 15_000 });
 		await expect(page.getByTestId('chat-header-title')).toContainText(GERMAN_TITLE);
+		await expect(page.getByTestId('chat-share-button')).toHaveCount(0);
 		await expect(page.getByTestId('chat-header-summary')).toContainText(GERMAN_SUMMARY);
 		await expect(page.getByTestId('follow-up-suggestion-item').first()).toContainText(GERMAN_SUGGESTION);
 		await expect(page.getByTestId('message-assistant').last().locator(`[data-testid="embed-preview"][data-embed-id="${CODE_ID}"]`)).toBeVisible();
@@ -280,6 +313,9 @@ test.describe('Anonymous child embeds', () => {
 		const sidebarChat = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
 		await expect(sidebarChat).toBeVisible({ timeout: 15_000 });
 		await expect(sidebarChat).toContainText(GERMAN_TITLE);
+		await sidebarChat.click({ button: 'right' });
+		await expect(page.getByTestId('context-menu')).toBeVisible();
+		await expect(page.getByTestId('chat-context-share')).toHaveCount(0);
 
 		const secondTab = await page.context().newPage();
 		await assertGuestTabCannotOpenChat(secondTab, chatId);
@@ -294,6 +330,18 @@ test.describe('Anonymous child embeds', () => {
 
 		const freshTab = await page.context().newPage();
 		await assertGuestTabCannotOpenChat(freshTab, chatId);
+	});
+
+	// contract-test: direct surface=gui.web assertions=public-example-chats.navigation.static-public-link
+	test('logged-out visitors can still share a hardcoded public example', async ({ page }: { page: any }) => {
+		await mockAnonymousAccess(page);
+		await page.goto(getE2EDebugUrl('/#chat-id=example-gigantic-airplanes'), { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('chat-share-button')).toBeVisible({ timeout: 15_000 });
+		await page.getByTestId('chat-share-button').click();
+		await expect(page.getByTestId('share-copy-link')).toBeVisible();
+		await expect(page.getByTestId('share-generate-link')).toHaveCount(0);
+		await page.getByTestId('chat-settings-share-show-url').click();
+		await expect(page.getByTestId('chat-settings-share-url')).toContainText('/#chat-id=example-gigantic-airplanes');
 	});
 
 	// contract-test: direct surface=gui.web assertions=chats.streaming.ordered-final,chats.persistence.client-encrypted,billing.anonymous.local-only-content

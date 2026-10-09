@@ -27,7 +27,7 @@
     import { hasPendingSends } from '../../stores/pendingUploadStore';
     import { copyToClipboard } from '../../utils/clipboardUtils';
     import { userProfile } from '../../stores/userProfile';
-    import { generateCurrentContextUrl, prepareIssueReportContextUrl } from '../../services/issueReportSubmission';
+    import { canShareIssueReportContext, generateCurrentContextUrl, prepareIssueReportContextUrl } from '../../services/issueReportSubmission';
 
     const dispatch = createEventDispatcher();
 
@@ -163,13 +163,16 @@
     async function autoGenerateShareUrl() {
         // Check if URL is already filled (e.g. from deep link or store)
         if (chatOrEmbedUrl && chatOrEmbedUrl.trim()) {
-            hasActiveChatOrEmbed = true;
-            return;
+            if (await canShareIssueReportContext(chatOrEmbedUrl)) {
+                hasActiveChatOrEmbed = true;
+                return;
+            }
+            chatOrEmbedUrl = '';
         }
         
         try {
-            hasActiveChatOrEmbed = Boolean($activeEmbedStore || $activeChatStore);
             const generatedUrl = await generateCurrentContextUrl();
+            hasActiveChatOrEmbed = Boolean(generatedUrl);
             if (generatedUrl) chatOrEmbedUrl = generatedUrl;
         } catch (error) {
             console.error('[SettingsReportIssue] Error auto-generating share URL:', error);

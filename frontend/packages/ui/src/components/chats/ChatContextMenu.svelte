@@ -3,6 +3,7 @@
     import { text } from '@repo/ui'; // Import text store for translations
     import type { Chat } from '../../types/chat';
     import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
+    import { canShareChat } from '../../services/chatSharing';
     import { isDemoChat, isLegalChat, isPublicChat } from '../../demo_chats'; // Import chat type checks
     import { chatMetadataCache } from '../../services/chatMetadataCache'; // Import chat metadata cache for decrypted summary
     import { chatDB } from '../../services/db'; // Import chatDB for fresh chat reads
@@ -67,7 +68,7 @@
     
     // Check if the current chat is selected
     let isChatSelected = $derived(chat ? selectedChatIds.has(chat.chat_id) : false);
-    let canShareChat = $derived(!!chat && ($authStore.isAuthenticated || !!chat.is_shared_by_others));
+    let shareAllowed = $derived(canShareChat(chat, $authStore.isAuthenticated));
     
     // State for decrypted chat summary
     let chatSummary = $state<string | null>(null);
@@ -270,6 +271,7 @@
     function handleMenuAction(action: MenuAction, event: MouseEvent | TouchEvent) {
         event.stopPropagation();
         event.preventDefault();
+        if (action === 'share' && !canShareChat(chat, $authStore.isAuthenticated)) return;
 
         console.debug('[ChatContextMenu] Menu action triggered:', action, 'Event type:', event.type);
 
@@ -581,18 +583,17 @@
                 </button>
             {/if}
 
-            {#if !hideShare && chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
+            {#if !hideShare && chat && shareAllowed && !isPublicChat(chat.chat_id)}
                 <button
                     class="menu-item share"
-                    class:disabled={!canShareChat}
-                    disabled={!canShareChat}
+                    data-testid="chat-context-share"
                     onclick={(event) => {
-                        if (canShareChat) {
+                        if (shareAllowed) {
                             handleButtonClick('share', event);
                         }
                     }}
                     ontouchend={(event) => {
-                        if (canShareChat) {
+                        if (shareAllowed) {
                             handleButtonClick('share', event);
                         }
                     }}

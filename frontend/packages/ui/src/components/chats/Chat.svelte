@@ -19,6 +19,7 @@
   import type { DecryptedChatData } from '../../types/chat';
   import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat } from '../../demo_chats'; // Import demo chat utilities
   import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
+  import { canShareChat } from '../../services/chatSharing';
   import { getSessionStorageDraftPreview } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
   import { draftEmbedLabel, formatDraftPreview } from '../../utils/draftPreview';
   import { userProfile } from '../../stores/userProfile'; // Import userProfile to update hidden_demo_chats
@@ -1892,7 +1893,7 @@
    * then opens the settings panel navigated to the share submenu.
    */
   async function handleShareChat() {
-    if (!chat) return;
+    if (!canShareChat(chat, $authStore.isAuthenticated)) return;
 
     activeChatStore.setActiveChat(chat.chat_id);
 
