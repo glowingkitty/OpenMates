@@ -314,7 +314,8 @@
         "components/chat-message-team-attribution.spec.ts",
         "website-public-routes.spec.ts",
         "components/team-openmates-mention-dropdown.spec.ts",
-        "components/team-chat-reminder.spec.ts"
+        "components/team-chat-reminder.spec.ts",
+        "components/team-settings-header-member.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"
