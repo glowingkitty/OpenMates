@@ -93,7 +93,7 @@ import { buildConnectedAccountSendContext, listConnectedAccounts } from "./conne
 import { chatListCache } from "./chatListCache";
 import { ActiveAITaskMap, runningChatIds, activityChats, subChatActivityIds } from "../stores/chatActivityStore";
 import { chatMetadataCache } from "./chatMetadataCache";
-import { getTeam, unwrapTeamChatKey } from "./teamService";
+import { getTeam } from "./teamService";
 import {
   setProjectFileJobsCapabilityEnabled,
   setRemoteCommandJobsCapabilityEnabled,
@@ -1036,70 +1036,13 @@ export class ChatSynchronizationService extends EventTarget {
     }
   }
 
-  private async ensureTeamChatShell(
-    payload: TeamChatMessageCreatedPayload,
-  ): Promise<Chat> {
-    let chat = await chatDB.getChat(payload.chat_id);
-    if (chat && chat.team_id !== payload.team_id) {
-      throw new Error(`Team realtime event context mismatch for chat ${payload.chat_id}`);
-    }
-    if (payload.encrypted_chat_key && !chatKeyManager.getKeySync(payload.chat_id)) {
-      const chatKey = await unwrapTeamChatKey(
-        payload.team_id,
-        payload.encrypted_chat_key,
-      );
-      if (!this.isPayloadForActiveContext(payload)) {
-        throw new Error("Team context changed while unwrapping realtime chat key");
-      }
-      chatKeyManager.injectKey(payload.chat_id, chatKey, "server_sync");
-    }
-    if (chat) return chat;
-    if (!payload.encrypted_chat_key || !chatKeyManager.getKeySync(payload.chat_id)) {
-      throw new Error(`Team realtime event is missing a usable chat key for ${payload.chat_id}`);
-    }
-    const timestamp = payload.created_at ?? Math.floor(Date.now() / 1000);
-    chat = {
-      chat_id: payload.chat_id,
-      team_id: payload.team_id,
-      encrypted_title: null,
-      encrypted_chat_key: payload.encrypted_chat_key,
-      messages_v: 0,
-      title_v: 0,
-      draft_v: 0,
-      unread_count: 0,
-      created_at: timestamp,
-      updated_at: timestamp,
-      last_edited_overall_timestamp: timestamp,
-      waiting_for_metadata: true,
-    };
-    await chatDB.addChat(chat, undefined, { isFromSync: true });
-    return chat;
-  }
-
   private async handleTeamChatMessageCreated(
     payload: TeamChatMessageCreatedPayload,
   ): Promise<void> {
-    if (!this.isPayloadForActiveContext(payload)) return;
-    const chat = await this.ensureTeamChatShell(payload);
-    if (!this.isPayloadForActiveContext(payload)) return;
-    if (await chatDB.getMessage(payload.message_id)) return;
-    await chatUpdateHandlers.handleChatMessageReceivedImpl(this, {
-      event: "team_chat_message_created",
-      chat_id: payload.chat_id,
-      message: {
-        message_id: payload.message_id,
-        chat_id: payload.chat_id,
-        role: payload.role,
-        hashed_user_id: payload.hashed_user_id,
-        encrypted_content: payload.encrypted_content,
-        encrypted_sender_name: payload.encrypted_sender_name,
-        created_at: payload.created_at ?? Math.floor(Date.now() / 1000),
-        status: "synced",
-      },
-      versions: { messages_v: chat.messages_v + 1 },
-      last_edited_overall_timestamp:
-        payload.created_at ?? Math.floor(Date.now() / 1000),
-    }, () => this.isPayloadForActiveContext(payload));
+    await chatUpdateHandlers.handleTeamChatMessageCreatedImpl(
+      this, payload,
+      () => this.isPayloadForActiveContext(payload),
+    );
   }
 
   private handleTeamAIProcessing(payload: TeamAIProcessingPayload): void {
@@ -1115,33 +1058,9 @@ export class ChatSynchronizationService extends EventTarget {
   private async handleTeamAIResponseCompleted(
     payload: TeamAIResponseCompletedPayload,
   ): Promise<void> {
-    if (!this.isPayloadForActiveContext(payload)) return;
-    const chat = await chatDB.getChat(payload.chat_id);
-    if (!chat || chat.team_id !== payload.team_id) return;
-    if (await chatDB.getMessage(payload.message_id)) return;
-    await chatUpdateHandlers.handleChatMessageReceivedImpl(this, {
-      event: "team_ai_response_completed",
-      chat_id: payload.chat_id,
-      message: {
-        message_id: payload.message_id,
-        chat_id: payload.chat_id,
-        role: payload.role,
-        encrypted_content: payload.encrypted_content,
-        encrypted_sender_name: payload.encrypted_sender_name,
-        encrypted_category: payload.encrypted_category,
-        encrypted_model_name: payload.encrypted_model_name,
-        encrypted_thinking_content: payload.encrypted_thinking_content,
-        encrypted_thinking_signature: payload.encrypted_thinking_signature,
-        has_thinking: payload.has_thinking,
-        thinking_token_count: payload.thinking_token_count,
-        created_at: payload.created_at ?? Math.floor(Date.now() / 1000),
-        user_message_id: payload.user_message_id,
-        status: "synced",
-      },
-      versions: { messages_v: chat.messages_v + 1 },
-      last_edited_overall_timestamp:
-        payload.created_at ?? Math.floor(Date.now() / 1000),
-    });
+    await chatUpdateHandlers.handleTeamAIResponseCompletedImpl(
+      this, payload, () => this.isPayloadForActiveContext(payload),
+    );
   }
 
   private registerWebSocketHandlers() {
@@ -2016,16 +1935,8 @@ export class ChatSynchronizationService extends EventTarget {
         await handleChatContextApplied(this, payload as Parameters<typeof handleChatContextApplied>[1]);
       } catch { console.warn("[ChatSyncService] Applied context receipt could not be persisted"); }
     });
-    webSocketService.on("project_authoring_available", async (payload) => {
-      try {
-        const { assessProjectAuthoring } = await import("./projectAuthoringClientService");
-        const events = await assessProjectAuthoring(payload);
-        const { handleChatContextApplied } = await import("./chatSyncServiceHandlersAgentContext");
-        for (const event of events ?? []) {
-          await handleChatContextApplied(this, { chat_id: event.chat_id, event });
-        }
-      } catch { console.warn("[ChatSyncService] Project improvement assessment unavailable"); }
-    });
+    webSocketService.on("project_authoring_available", (payload) =>
+      chatUpdateHandlers.handleProjectAuthoringAvailableImpl(this, payload));
     webSocketService.on("focus_phases_updated", async (payload) => {
       try {
         const { handleFocusPhasesUpdated } = await import("./chatSyncServiceHandlersFocusPhases");
