@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: dev-runtime-translation-artifacts
 title: Commit-matched translation artifacts for the managed dev runtime
-status: implementing
+status: verified
 goal: >
   Activate backend changes with current translations while preserving the clean
   protected product checkout and the existing dev-stack coordination contract.
