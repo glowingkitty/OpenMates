@@ -1,7 +1,9 @@
-// Optional local speech inference for the settings model lab.
+// Optional local speech inference for the model lab and production composer.
 // Input and output stay in memory; model files must already be downloaded and verified.
 // Specification: specifications/features/apple-local-model-lab/specification.yml
 // Assertions: apple-local-model-lab.local-execution, apple-local-model-lab.serialized-cancellation
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.privacy-context
 import AVFoundation
 import Foundation
 import Darwin
@@ -260,3 +262,94 @@ private struct LocalWhisperTokenizer: WhisperTokenizer, Sendable {
 }
 
 #endif
+
+// A native speech call keeps its lease until it has actually drained. This
+// prevents a cancelled warm TTS call and a new Whisper load from retaining both
+// speech engines alongside enhanced anonymization.
+final class LocalSpeechInferenceOwnership: @unchecked Sendable {
+    static let shared = LocalSpeechInferenceOwnership()
+    private let lock = NSLock()
+    private var owner: UUID?
+    func acquire(_ id: UUID) throws {
+        lock.lock(); defer { lock.unlock() }
+        guard owner == nil || owner == id else { throw LocalSpeechRuntimeError.busy }
+        owner = id
+    }
+    func release(_ id: UUID) {
+        lock.lock(); defer { lock.unlock() }
+        if owner == id { owner = nil }
+    }
+}
+
+// Production composer adapter. One engine per capture, retained across bounded
+// PCM windows and released when capture finishes or its generation is cancelled.
+protocol LocalPCMTranscribing: Sendable {
+    func transcribe(_ samples: [Float]) async throws -> String
+    func unload() async
+}
+
+actor WhisperKitComposerRuntime: LocalPCMTranscribing {
+    private let ownerID = UUID()
+    private let directory: URL
+    private var generation: UInt64 = 0
+    private var running = false
+    #if arch(arm64) && !os(watchOS)
+    private var engine: WhisperKit?
+    #endif
+    init(directory: URL) { self.directory = directory }
+
+    func transcribe(_ samples: [Float]) async throws -> String {
+        guard !running, !samples.isEmpty, samples.count <= 16_000 * 30 else { throw LocalSpeechRuntimeError.busy }
+        running = true
+        defer { running = false }
+        let token = generation
+        #if arch(arm64) && !os(watchOS)
+        do {
+            try Task.checkCancellation()
+            if engine == nil {
+                try LocalSpeechInferenceOwnership.shared.acquire(ownerID)
+                try SpeechAssetPreflight.require(directory, [
+                    "AudioEncoder.mlmodelc/model.mil", "MelSpectrogram.mlmodelc/model.mil",
+                    "TextDecoder.mlmodelc/model.mil", "tokenizer/tokenizer.json", "tokenizer/tokenizer_config.json"
+                ])
+                let tokenizer = try await LocalWhisperTokenizer(directory: directory.appendingPathComponent("tokenizer"))
+                try requireCurrent(token)
+                let loaded = try await WhisperKit(WhisperKitConfig(
+                    modelFolder: directory.path, tokenizerFolder: directory.appendingPathComponent("tokenizer"),
+                    verbose: false, logLevel: .none, prewarm: false, load: false, download: false))
+                loaded.tokenizer = tokenizer
+                loaded.textDecoder.isModelMultilingual = true
+                engine = loaded
+                try await loaded.loadModels()
+                try requireCurrent(token)
+            }
+            guard let engine else { throw LocalSpeechRuntimeError.unavailableRuntime }
+            let result = try await engine.transcribe(audioArray: samples,
+                decodeOptions: DecodingOptions(detectLanguage: true, skipSpecialTokens: true,
+                    concurrentWorkerCount: 1, chunkingStrategy: .vad))
+            try requireCurrent(token)
+            return result.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch {
+            await engine?.unloadModels(); engine = nil
+            LocalSpeechInferenceOwnership.shared.release(ownerID)
+            throw error
+        }
+        #else
+        throw LocalSpeechRuntimeError.unavailableRuntime
+        #endif
+    }
+    private func requireCurrent(_ token: UInt64) throws {
+        try Task.checkCancellation()
+        guard token == generation else { throw CancellationError() }
+    }
+    func unload() async {
+        generation &+= 1
+        // An in-flight native call owns its engine until it drains. Its stale
+        // generation will unload before returning; do not unload beneath it.
+        guard !running else { return }
+        #if arch(arm64) && !os(watchOS)
+        await engine?.unloadModels(); engine = nil
+        LocalSpeechInferenceOwnership.shared.release(ownerID)
+        #endif
+    }
+}

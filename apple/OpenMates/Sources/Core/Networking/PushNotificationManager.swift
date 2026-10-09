@@ -4,7 +4,7 @@
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.handoff.exact-private
 // Specification: specifications/features/apple-notifications/specification.yml
-// Assertions: apple-notifications.registration.lifecycle
+// Assertions: apple-notifications.registration.lifecycle, apple-notifications.action.routing-coherent
 
 import Foundation
 import CryptoKit
@@ -16,6 +16,60 @@ struct PushRegistrationContext: Equatable {
     let accountID: String
     let profile: ServerProfile
     let scope: UUID
+    let authorityGeneration: UUID?
+
+    init(accountID: String, profile: ServerProfile, scope: UUID, authorityGeneration: UUID? = nil) {
+        self.accountID = accountID; self.profile = profile; self.scope = scope
+        self.authorityGeneration = authorityGeneration
+    }
+}
+
+/// A tap asks for a fresh bounded read even when the destination is already open.
+/// It survives reconnects, but never crosses account, server, Team or deletion.
+struct ChatNotificationCatchUpIntent {
+    let id: UUID
+    let chatID: String
+    let messageID: String?
+    let accountHint: String?
+    let server: ServerProfile
+    var context: Context?
+
+    struct Context {
+        let accountID: String
+        let scope: UUID
+        let team: TeamWorkspaceSnapshot
+        let deletion: Int
+    }
+
+    @MainActor init(chatID: String, messageID: String?) {
+        id = UUID(); self.chatID = chatID; self.messageID = messageID
+        accountHint = AuthManager.notificationAccountId
+        server = ServerProfile.current()
+    }
+
+    /// Cold-launch taps bind once the existing session/Team has restored. A
+    /// bound intent never rebinds to a different account or workspace.
+    @MainActor mutating func bindIfReady() {
+        guard context == nil, server == ServerProfile.current(),
+              AuthManager.notificationSession.hasNetworkAuthority,
+              let accountID = AuthManager.notificationAccountId,
+              accountHint == nil || accountHint == accountID else { return }
+        let team = TeamWorkspaceContext.shared.snapshot
+        let scope = OfflineStore.shared.scopeGeneration
+        guard team.accountID == accountID, team.server == server, team.scope == scope else { return }
+        context = Context(accountID: accountID, scope: scope, team: team,
+            deletion: OfflineStore.shared.chatDeletionVersion(chatID))
+    }
+
+    @MainActor var isCurrent: Bool {
+        guard let context else { return false }
+        let current = TeamWorkspaceContext.shared.snapshot
+        return context.accountID == AuthManager.notificationAccountId && server == ServerProfile.current()
+            && context.scope == OfflineStore.shared.scopeGeneration && context.team.epoch == current.epoch
+            && context.team.teamID == current.teamID && context.team.accountID == current.accountID
+            && context.team.server == current.server && context.team.scope == current.scope
+            && context.deletion == OfflineStore.shared.chatDeletionVersion(chatID)
+    }
 }
 
 enum PushCompletionNoticePolicy {
@@ -26,6 +80,27 @@ enum PushCompletionNoticePolicy {
         let fields = [context.accountID, context.profile.apiBaseURL.absoluteString, chatID, messageID]
         let data = (try? JSONEncoder().encode(fields)) ?? Data()
         return "openmates-chat-completion-" + SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+/// Only exact acknowledged messages may dismiss cards. Legacy chat-only and
+/// unscoped cards remain because their recipient/workspace cannot be proven.
+enum PushReadCardPolicy {
+    static let scopeKey = "openmates_read_scope"
+
+    static func scopeID(accountID: String, profile: ServerProfile, teamID: String?) -> String {
+        let fields = [accountID, profile.apiBaseURL.absoluteString, teamID ?? ""]
+        let data = (try? JSONEncoder().encode(fields)) ?? Data()
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func matches(userInfo: [AnyHashable: Any], scopeID: String, chatID: String,
+                        messageIDs: Set<String>) -> Bool {
+        guard !messageIDs.isEmpty,
+              userInfo[scopeKey] as? String == scopeID,
+              userInfo["chat_id"] as? String == chatID,
+              let messageID = userInfo["message_id"] as? String else { return false }
+        return messageIDs.contains(messageID)
     }
 }
 
@@ -43,6 +118,7 @@ final class PushDeviceRegistration {
     private var activeContext: PushRegistrationContext?
     private var activeToken: String?
     private var acknowledged = false
+    private var exhausted = false
 
     init(context: @escaping () -> PushRegistrationContext?,
          register: @escaping @MainActor (String, PushRegistrationContext) async throws -> Void,
@@ -63,6 +139,7 @@ final class PushDeviceRegistration {
         activeContext = nil
         activeToken = nil
         acknowledged = false
+        exhausted = false
         acknowledge(false)
     }
 
@@ -72,7 +149,7 @@ final class PushDeviceRegistration {
             return
         }
         if captured == activeContext, token == activeToken {
-            guard task == nil, !acknowledged else { return }
+            guard task == nil, !acknowledged, !exhausted else { return }
         } else {
             invalidate()
             activeContext = captured
@@ -99,7 +176,7 @@ final class PushDeviceRegistration {
                     NativeDiagnostics.warning("APNs device registration acknowledgement failed: \(type(of: error))",
                                               category: "push_notifications")
                 }
-                guard attempt < self.retryDelays.count else { return }
+                guard attempt < self.retryDelays.count else { self.exhausted = true; return }
                 do { try await self.sleep(self.retryDelays[attempt]) } catch { return }
             }
         }
@@ -197,12 +274,27 @@ final class PushNotificationManager: NSObject, ObservableObject {
 
     @Published var isRegistered = false
     @Published var pendingChatId: String?
+    @Published private(set) var completionCatchUpIntent: ChatNotificationCatchUpIntent?
+
+    func completionCatchUpIntent(for chatID: String) -> ChatNotificationCatchUpIntent? {
+        guard var intent = completionCatchUpIntent, intent.chatID == chatID else { return nil }
+        if intent.context == nil {
+            intent.bindIfReady()
+            if intent.context != nil { completionCatchUpIntent = intent }
+        }
+        return intent
+    }
+
+    func finishCompletionCatchUp(_ id: UUID) {
+        if completionCatchUpIntent?.id == id { completionCatchUpIntent = nil }
+    }
     @Published var pendingEmbedId: String?
     @Published private(set) var replyQueueRevision = 0
     private static let replyLedgerKey = "openmates.notification.replyLedger.v1"
     private var completedReplyIds = Set<String>()
     private var isSendingReplies = false
     private var connectionObserver: AnyCancellable?
+    private var badgeActivationObserver: AnyCancellable?
     private var registrationAuthObserver: AnyCancellable?
     private weak var registrationAuthSession: AuthManager?
     private var permissionAuthorized = false
@@ -241,10 +333,11 @@ final class PushNotificationManager: NSObject, ObservableObject {
     private func registrationContext() -> PushRegistrationContext? {
         let auth = AuthManager.notificationSession
         guard permissionAuthorized, auth.state == .authenticated,
-              auth.sessionValidationState == .onlineAuthenticated,
+              auth.hasNetworkAuthority,
               let account = auth.currentUser?.id else { return nil }
         return PushRegistrationContext(accountID: account, profile: ServerProfile.current(),
-                                       scope: OfflineStore.shared.scopeGeneration)
+                                       scope: OfflineStore.shared.scopeGeneration,
+                                       authorityGeneration: auth.networkAuthority?.generation)
     }
 
     func invalidateRegistration() {
@@ -257,8 +350,9 @@ final class PushNotificationManager: NSObject, ObservableObject {
 
     private func currentAuthenticatedNoticeContext() -> PushRegistrationContext? {
         let auth = AuthManager.notificationSession
-        guard auth.state == .authenticated, let accountID = auth.currentUser?.id else { return nil }
-        return .init(accountID: accountID, profile: ServerProfile.current(), scope: OfflineStore.shared.scopeGeneration)
+        guard auth.hasNetworkAuthority, let accountID = auth.currentUser?.id else { return nil }
+        return .init(accountID: accountID, profile: ServerProfile.current(), scope: OfflineStore.shared.scopeGeneration,
+                     authorityGeneration: auth.networkAuthority?.generation)
     }
 
     private func refreshAuthoritativePreferenceAfterRegistration() {
@@ -319,7 +413,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
         guard registrationAuthSession !== auth else { return }
         registrationAuthSession = auth
         let accountIDs = auth.$currentUser.map { user -> String? in user?.id }
-        let contexts = Publishers.CombineLatest3(auth.$state, auth.$sessionValidationState, accountIDs)
+        let contexts = Publishers.CombineLatest3(auth.$state, auth.$networkAuthority, accountIDs)
         registrationAuthObserver = contexts
             .removeDuplicates { previous, current in
                 previous.0 == current.0 && previous.1 == current.1 && previous.2 == current.2
@@ -372,7 +466,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
         let server = ServerConfiguration.current.apiBaseURL
         let scope = OfflineStore.shared.scopeGeneration
         func validate() throws {
-            guard authManager.state == .authenticated, accountId != nil,
+            guard authManager.hasNetworkAuthority, accountId != nil,
                   authManager.currentUser?.id == accountId,
                   ServerConfiguration.current.apiBaseURL == server,
                   OfflineStore.shared.scopeGeneration == scope else { throw NotificationReplyError.accountChanged }
@@ -416,7 +510,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
         let transportGeneration = wsManager.transportGeneration
         let scope = OfflineStore.shared.scopeGeneration
         func requireCurrentAccount() throws {
-            guard authManager.state == .authenticated, authManager.currentUser?.id == request.accountId,
+            guard authManager.hasNetworkAuthority, authManager.currentUser?.id == request.accountId,
                   request.serverURL == ServerConfiguration.current.apiBaseURL.absoluteString,
                   scope == OfflineStore.shared.scopeGeneration,
                   transportGeneration == wsManager.transportGeneration else { throw NotificationReplyError.accountChanged }
@@ -476,6 +570,8 @@ final class PushNotificationManager: NSObject, ObservableObject {
             let authManager = AuthManager.notificationSession
             if authManager.state == .initializing { await authManager.checkSession() }
             guard authManager.state == .authenticated, authManager.currentUser?.id == accountId else { return }
+            if !authManager.hasNetworkAuthority { await authManager.validateSessionAfterOfflineBootstrap() }
+            guard authManager.hasNetworkAuthority else { return }
             let runtime = AppSessionCoordinator.shared
             _ = runtime.prepareAuthenticatedRuntime(lastOpenedChatId: authManager.currentUser?.lastOpened)
             let socket = runtime.webSocketManager
@@ -534,6 +630,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
                     }
                 }
         }
+        observeBadgeActivation()
         observeRegistrationAuthentication()
         Task { @MainActor in
             let settings = await center.notificationSettings()
@@ -543,6 +640,16 @@ final class PushNotificationManager: NSObject, ObservableObject {
                 await registerForRemoteNotifications()
             }
         }
+    }
+
+    private func observeBadgeActivation() {
+        #if os(iOS)
+        guard badgeActivationObserver == nil else { return }
+        badgeActivationObserver = NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+            .sink { _ in
+                Task { @MainActor in UnreadMessagesStore.shared.resynchronizeBadge() }
+            }
+        #endif
     }
 
     func requestPermission() async -> Bool {
@@ -654,20 +761,13 @@ final class PushNotificationManager: NSObject, ObservableObject {
         NativeDiagnostics.warning("APNs registration failed: domain=\(failure.domain) code=\(failure.code)", category: "push_notifications")
     }
 
-    func setBadgeCount(_ count: Int) {
-        #if os(iOS)
-        UNUserNotificationCenter.current().setBadgeCount(count) { error in
-            if let error {
-                NativeDiagnostics.warning("Notification badge update failed: \(type(of: error))", category: "push_notifications")
-            }
-        }
-        #endif
-    }
-
     func showChatMessageNotification(chatId: String, messageID: String? = nil) async {
         guard !chatId.isEmpty, let captured = currentAuthenticatedNoticeContext(),
               PushCompletionNoticePolicy.permits(expected: captured, current: currentAuthenticatedNoticeContext(),
                   notificationsEnabled: AuthManager.notificationSession.currentUser?.pushNotificationEnabled == true) else { return }
+        let noticeChat = AppSessionCoordinator.shared.chatStore.chat(for: chatId) ?? OfflineStore.shared.loadChat(id: chatId)
+        let readScope = noticeChat.map { PushReadCardPolicy.scopeID(accountID: captured.accountID,
+            profile: captured.profile, teamID: $0.teamId) }
         let identifier = PushCompletionNoticePolicy.receiptID(context: captured, chatID: chatId, messageID: messageID ?? UUID().uuidString)
         let ledger = UserDefaults.standard.stringArray(forKey: Self.completionNoticeLedgerKey) ?? []
         guard !ledger.contains(identifier), schedulingCompletionReceipts.insert(identifier).inserted else { return }
@@ -689,6 +789,8 @@ final class PushNotificationManager: NSObject, ObservableObject {
         content.categoryIdentifier = NotificationAction.chatMessageCategory
         content.threadIdentifier = chatId
         content.userInfo = ["chat_id": chatId]
+        if let messageID { content.userInfo["message_id"] = messageID }
+        if let readScope { content.userInfo[PushReadCardPolicy.scopeKey] = readScope }
 
         let request = UNNotificationRequest(
             identifier: identifier,
@@ -823,6 +925,7 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
             guard let key = key as? String else { return nil }
             return (key, value)
         })
+        let completionMessageID = (userInfo["message_id"] as? String) ?? (userInfo["messageId"] as? String)
         if let payload = WatchPhoneOpenPayload.parse(watchMessage) {
             let actionIdentifier = response.actionIdentifier
             let completion = NotificationCompletionBox(completionHandler)
@@ -870,37 +973,60 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
                     while !completedReplyIds.contains(id), Date() < deadline, !Task.isCancelled {
                         try? await Task.sleep(for: .milliseconds(250))
                     }
-                    setBadgeCount(0)
+                    UnreadMessagesStore.shared.resynchronizeBadge()
                 } catch {
                     NativeDiagnostics.warning("Notification reply persistence failed: \(type(of: error))", category: "push_notifications")
                 }
             } else {
-                handleNotificationResponse(actionIdentifier: actionIdentifier, chatId: chatId, embedId: embedId)
+                handleNotificationResponse(actionIdentifier: actionIdentifier, chatId: chatId, embedId: embedId,
+                    messageID: completionMessageID)
             }
         }
     }
 
-    private func handleNotificationResponse(actionIdentifier: String, chatId: String, embedId: String?) {
+    private func handleNotificationResponse(actionIdentifier: String, chatId: String, embedId: String?, messageID: String?) {
         if actionIdentifier == Self.NotificationAction.openChat ||
             actionIdentifier == UNNotificationDefaultActionIdentifier {
             NativeDiagnostics.info("Notification open action received", category: "push_notifications")
+            completionCatchUpIntent = ChatNotificationCatchUpIntent(chatID: chatId, messageID: messageID)
             pendingEmbedId = embedId
             pendingChatId = chatId
-            // Clear badge when user taps a notification.
-            setBadgeCount(0)
+            // Chat activation clears only its target; retain other unread chats.
+            UnreadMessagesStore.shared.resynchronizeBadge()
         }
     }
 
-    /// Increment badge count (called when a push notification arrives while app is active).
-    func incrementBadge() {
-        #if os(iOS)
-        let currentCount = UIApplication.shared.applicationIconBadgeNumber
-        setBadgeCount(currentCount + 1)
-        #endif
-    }
-
-    /// Clear badge when user opens any chat.
-    func clearBadge() {
-        setBadgeCount(0)
+    /// Best effort on this executing device after the exact viewed-message ACK.
+    /// Account/server/Team/deletion fences are rechecked after OS inventory reads.
+    func removeAcknowledgedChatNotifications(chatID: String, messageIDs: Set<String>,
+        accountID: String, profile: ServerProfile, scope: UUID, team: TeamWorkspaceSnapshot,
+        deletion: Int) async {
+        func isCurrent() -> Bool {
+            let current = TeamWorkspaceContext.shared.snapshot
+            return !Task.isCancelled && AuthManager.notificationSession.hasNetworkAuthority
+                && AuthManager.notificationAccountId == accountID && ServerProfile.current() == profile
+                && OfflineStore.shared.scopeGeneration == scope && current.accountID == team.accountID
+                && current.server == team.server && current.scope == team.scope
+                && current.teamID == team.teamID && current.epoch == team.epoch
+                && team.accountID == accountID && team.server == profile && team.scope == scope
+                && OfflineStore.shared.chatDeletionVersion(chatID) == deletion
+        }
+        guard !messageIDs.isEmpty, isCurrent() else { return }
+        let center = UNUserNotificationCenter.current()
+        let delivered = await center.deliveredNotifications()
+        guard isCurrent() else { return }
+        let pending = await center.pendingNotificationRequests()
+        guard isCurrent() else { return }
+        let readScope = PushReadCardPolicy.scopeID(accountID: accountID, profile: profile, teamID: team.teamID)
+        let deliveredIDs = delivered.compactMap { notification in
+            PushReadCardPolicy.matches(userInfo: notification.request.content.userInfo, scopeID: readScope,
+                chatID: chatID, messageIDs: messageIDs) ? notification.request.identifier : nil
+        }
+        let pendingIDs = pending.compactMap { request in
+            PushReadCardPolicy.matches(userInfo: request.content.userInfo, scopeID: readScope,
+                chatID: chatID, messageIDs: messageIDs) ? request.identifier : nil
+        }
+        if !deliveredIDs.isEmpty { center.removeDeliveredNotifications(withIdentifiers: deliveredIDs) }
+        if !pendingIDs.isEmpty { center.removePendingNotificationRequests(withIdentifiers: pendingIDs) }
     }
 }

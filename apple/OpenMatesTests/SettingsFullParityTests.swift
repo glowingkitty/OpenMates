@@ -62,8 +62,20 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertTrue(route.hasNativeChild)
         XCTAssertFalse(route.canOpen(authenticated: false, admin: false))
         XCTAssertTrue(route.canOpen(authenticated: true, admin: false))
-        XCTAssertEqual(SettingsRouteInventory.nativeOnlyRoutes, ["developers/local-models"])
+        XCTAssertEqual(SettingsRouteInventory.nativeOnlyRoutes, ["developers/local-models", "ai/localmodels"])
         XCTAssertFalse(SettingsRouteInventory.coveredWebBaseRoutes.contains(route.path))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads,settings-ui.shell.lifecycle-and-routing
+    func testOfflineModelHeaderDestinationIsAnAuthenticatedAIChild() {
+        let route = SettingsDeepLinkRoute("#/settings/ai/localmodels/")
+        XCTAssertEqual(route.path, "ai/localmodels")
+        XCTAssertEqual(route.topLevel, "ai")
+        XCTAssertTrue(route.hasNativeChild)
+        XCTAssertFalse(route.canOpen(authenticated: false, admin: false))
+        XCTAssertTrue(route.canOpen(authenticated: true, admin: false))
+        XCTAssertTrue(SettingsRouteInventory.nativeOnlyRoutes.contains(route.path))
+        XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains(route.path))
     }
 
     // contract-test: supporting surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing

@@ -138,6 +138,12 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         token: String?,
         syncState: SyncClientState = .empty
     ) {
+        #if DEBUG
+        let permitsSyntheticTransport = debugConnectionAttempt != nil
+        #else
+        let permitsSyntheticTransport = false
+        #endif
+        guard permitsSyntheticTransport || AuthManager.hasNetworkAuthority(for: ServerProfile.current(), sessionID: sessionId) else { return }
         let nextKey = ConnectionKey(sessionId: sessionId, token: token)
         // Validation completion and foreground callbacks also call connect().
         // They must not reopen an exhausted logical session merely because
@@ -223,6 +229,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                   let request = connectionRequest(profile: connectingProfile, sessionID: sessionId,
                       token: token, origin: origin) else { return }
 
+            guard AuthManager.hasNetworkAuthority(for: connectingProfile, sessionID: sessionId) else { return }
             let connectingTask = session.webSocketTask(with: request)
             webSocketTask = connectingTask
             connectingTask.resume()
@@ -309,6 +316,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     }
 
     func send(_ message: WSOutboundMessage) async throws {
+        try AuthManager.requireNetworkAuthority(profile: canonicalStorageProfile ?? ServerProfile.current(), sessionID: sessionId)
         guard let webSocketTask else { throw WebSocketError.notConnected }
         observeRecoveryLifecycleSend(message)
         let data = try message.encodedData()
@@ -436,6 +444,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             ), self.webSocketTask === boundSocket else { throw WebSocketError.notConnected }
             // Final synchronous fence runs inside the queued sender, after all
             // awaits and immediately before encryption payload reaches the socket.
+            try AuthManager.requireNetworkAuthority(profile: self.canonicalStorageProfile ?? ServerProfile.current(), sessionID: self.sessionId)
             try preSendValidation?()
             self.observeRecoveryLifecycleSend(message)
             let data = try message.encodedData()

@@ -10,6 +10,21 @@ import XCTest
 #if DEBUG
 final class DevPreviewLaunchConfigurationTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testComponentPreviewAvailabilityMatchesActualBuildAndPlatform() {
+        #if DEBUG && targetEnvironment(simulator)
+        XCTAssertTrue(NativeComponentPreviewAvailability.isEnabled)
+        XCTAssertEqual(DevPreviewLaunchConfiguration.launch(environment: [:], arguments: ["--dev-preview", "composer"])?.component, .composer)
+        XCTAssertEqual(DevPreviewLaunchConfiguration.launch(environment: ["DEV_PREVIEW": "composer"], arguments: [])?.component, .composer)
+        #else
+        XCTAssertFalse(NativeComponentPreviewAvailability.isEnabled)
+        XCTAssertNil(DevPreviewLaunchConfiguration.launch(environment: [:], arguments: ["--dev-preview", "composer"]))
+        XCTAssertNil(DevPreviewLaunchConfiguration.launch(environment: ["DEV_PREVIEW": "composer"], arguments: []))
+        XCTAssertNil(DevPreviewLaunchConfiguration.current,
+            "Device and macOS Debug builds cannot open individual component testing pages")
+        #endif
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testAbsentPreviewRequestDoesNotChangeProductStartup() throws {
         XCTAssertNil(DevPreviewLaunchConfiguration.parse(environment: ["LANG": "en_US"]))
         XCTAssertNil(DevPreviewLaunchConfiguration.parse(arguments: ["OpenMates", "--ui-test-prefer-password-login"]))

@@ -366,6 +366,170 @@ import XCTest
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+    func testSuccessfulEnvelopeWithPendingVerificationNeverGrantsNetworkAuthority() async throws {
+        let response = try JSONDecoder().decode(SessionResponse.self, from: Data(#"{"success":true,"user":{"id":"cached-account","username":"Fixture"},"needsDeviceVerification":true,"deviceVerificationType":"2fa","wsToken":"must-not-publish"}"#.utf8))
+        var scopesOpened = 0
+        let auth = AuthManager(sessionValidator: { _, _ in response }, profileCacheWriter: { _ in },
+            sessionMasterKeyAvailable: { _ in true }, sessionScopeActivator: { _ in scopesOpened += 1 })
+        auth.currentUser = try user("cached-account"); auth.state = .authenticated
+        await auth.validateSessionAfterOfflineBootstrap()
+        XCTAssertEqual(auth.currentUser?.id, "cached-account")
+        XCTAssertEqual(auth.state, .authenticated)
+        XCTAssertEqual(auth.sessionValidationState, .requiresReauthentication(reason: "session_verification_required"))
+        XCTAssertFalse(auth.hasNetworkAuthority)
+        XCTAssertNil(auth.webSocketToken)
+        XCTAssertEqual(scopesOpened, 0, "Pending verification must not restart the account runtime")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement,auth.session.isolation
+    func testDefinitiveVerificationRejectionFencesLateSuccessAndRepeatedForegroundValidation() async throws {
+        var pending: CheckedContinuation<SessionResponse, Error>?
+        var validations = 0
+        let accepted = try sessionResponse(account: "cached-account", token: "new-token")
+        let auth = AuthManager(sessionValidator: { _, _ in
+            validations += 1
+            return try await withCheckedThrowingContinuation { pending = $0 }
+        }, profileCacheWriter: { _ in }, sessionMasterKeyAvailable: { _ in true }, sessionScopeActivator: { _ in })
+        auth.currentUser = try user("cached-account"); auth.state = .authenticated
+        let expected = try XCTUnwrap(auth.sessionRecoveryContext)
+        let flight = Task { await auth.recoverSession(expected: expected) }
+        while pending == nil { await Task.yield() }
+        AuthManager.rejectVerificationRequired(expected)
+        pending?.resume(returning: accepted)
+        await flight.value
+        for _ in 0..<20 {
+            await auth.validateSessionAfterOfflineBootstrap()
+            await auth.recoverSession(expected: try XCTUnwrap(auth.sessionRecoveryContext))
+        }
+        XCTAssertEqual(validations, 1)
+        XCTAssertEqual(auth.currentUser?.id, "cached-account")
+        XCTAssertEqual(auth.sessionValidationState, .requiresReauthentication(reason: "session_verification_required"))
+        XCTAssertFalse(auth.hasNetworkAuthority)
+        XCTAssertNil(auth.webSocketToken)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+    func testCookieRenewalRetainsOneAuthorityGrantWithoutRestartingServices() async throws {
+        let accepted = try sessionResponse(account: "cached-account", token: "new-token")
+        var pending: CheckedContinuation<SessionResponse, Error>?
+        var validations = 0
+        let auth = AuthManager(sessionValidator: { _, _ in
+            validations += 1
+            if validations == 1 { return accepted }
+            return try await withCheckedThrowingContinuation { pending = $0 }
+        }, profileCacheWriter: { _ in }, sessionMasterKeyAvailable: { _ in true }, sessionScopeActivator: { _ in })
+        auth.currentUser = try user("cached-account"); auth.state = .authenticated
+        await auth.validateSessionAfterOfflineBootstrap()
+        let grant = try XCTUnwrap(auth.networkAuthority)
+        let context = try XCTUnwrap(auth.sessionRecoveryContext)
+        let renewal = Task { await AuthManager.acceptRefreshSuccessor(context) }
+        while pending == nil { await Task.yield() }
+        XCTAssertEqual(auth.sessionValidationState, .validating)
+        XCTAssertTrue(auth.hasNetworkAuthority)
+        XCTAssertEqual(auth.networkAuthority, grant)
+        pending?.resume(returning: accepted)
+        await renewal.value
+        XCTAssertTrue(auth.hasNetworkAuthority)
+        XCTAssertEqual(auth.networkAuthority, grant, "Routine validation must not trigger a second service startup")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.authoritative-enforcement,auth.session.isolation
+    func testProtectedVerification401BlocksProjectsActivityPushAndTelemetryBeforeDispatch() async throws {
+        let fixture = PasswordTFAURLProtocol.Fixture()
+        PasswordTFAURLProtocol.setFixture(fixture)
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [PasswordTFAURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel(); PasswordTFAURLProtocol.setFixture(nil) }
+        let api = APIClient(session: session, cookieStorage: try XCTUnwrap(configuration.httpCookieStorage))
+        let accepted = try sessionResponse(account: "cached-account", token: "previous-token")
+        var validations = 0
+        let auth = AuthManager(api: api, sessionValidator: { _, _ in validations += 1; return accepted },
+            profileCacheWriter: { _ in }, sessionMasterKeyAvailable: { _ in true }, sessionScopeActivator: { _ in })
+        auth.currentUser = try user("cached-account"); auth.state = .authenticated
+        await auth.validateSessionAfterOfflineBootstrap()
+        do {
+            let _: Data = try await api.request(.post, path: "/v1/notifications/register-device")
+            XCTFail("Verification rejection must propagate")
+        } catch APIError.httpError(let status, let reason) {
+            XCTAssertEqual(status, 401); XCTAssertEqual(reason, "Session verification required")
+        }
+        for _ in 0..<5 {
+            for path in ["/v1/notifications/register-device", "/v1/projects", "/v1/activity", "/v1/client-logs"] {
+                do {
+                    let _: Data = try await api.request(.get, path: path)
+                    XCTFail("Blocked work must not dispatch")
+                } catch is CancellationError {} catch { XCTFail("Unexpected failure class: \(type(of: error))") }
+            }
+            await auth.validateSessionAfterOfflineBootstrap()
+        }
+        XCTAssertEqual(fixture.protectedCalls, 1)
+        XCTAssertEqual(validations, 1, "An explicit verification rejection must not start /session recovery")
+        XCTAssertEqual(auth.currentUser?.id, "cached-account")
+        XCTAssertFalse(auth.hasNetworkAuthority)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.authoritative-enforcement
+    func testClientIdentityPreservesUserAgentAndSanitizesCoarseBuildHeaders() {
+        let identity = NativeClientIdentity(appVersion: "0.6.0", appBuild: "107", deviceClass: "ipad")
+        XCTAssertEqual(identity.headers["X-OpenMates-App-Version"], "0.6.0")
+        XCTAssertEqual(identity.headers["X-OpenMates-App-Build"], "107")
+        XCTAssertEqual(identity.headers["X-OpenMates-Device-Class"], "ipad")
+        var request = URLRequest(url: URL(string: "https://api.example.test/v1/auth/session")!)
+        request.setValue("https://app.example.test", forHTTPHeaderField: "Origin")
+        identity.apply(to: &request)
+        XCTAssertEqual(request.value(forHTTPHeaderField: "X-OpenMates-App-Build"), "107")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "X-OpenMates-Device-Class"), "ipad")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Origin"), "https://app.example.test")
+        let invalid = NativeClientIdentity(appVersion: "bad\nvalue", appBuild: nil, deviceClass: "private-device-name")
+        XCTAssertEqual(invalid.appVersion, "1.0.0")
+        XCTAssertEqual(invalid.appBuild, "unknown")
+        XCTAssertEqual(invalid.deviceClass, "unknown")
+        XCTAssertEqual(APIClient.nativeClientHeaders["User-Agent"], "OpenMates-Apple/" + NativeClientIdentity.current.appVersion)
+        for path in ["/v1/auth/sessions", "/v1/auth/passkeys", "/v1/notifications/register-device", "/v1/projects"] {
+            XCTAssertTrue(APIClient.requiresProtectedAuthority(path: path))
+        }
+        XCTAssertFalse(APIClient.requiresProtectedAuthority(path: "/v1/auth/2fa/verify/device"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.authoritative-enforcement,apple-notifications.registration.lifecycle
+    func testExhaustedPushBurstDoesNotRestartForSameCredentialOnForegroundRefresh() async {
+        let profile = ServerProfile.current()
+        let scope = UUID()
+        var context: PushRegistrationContext? = .init(accountID: "cached-account", profile: profile,
+            scope: scope, authorityGeneration: UUID())
+        var calls = 0
+        let exhausted = expectation(description: "first bounded burst completed")
+        var observedFirstExhaustion = false
+        let resumed = expectation(description: "new verified authority resumed once")
+        let registration = PushDeviceRegistration(context: { context }, register: { _, _ in
+            calls += 1
+            if calls <= 2 { throw URLError(.timedOut) }
+        }, sleep: { _ in }, retryDelays: [.milliseconds(1)], acknowledge: { acknowledged in
+            // Invalidation also publishes false without another registration attempt.
+            if calls == 2, !acknowledged, !observedFirstExhaustion {
+                observedFirstExhaustion = true
+                exhausted.fulfill()
+            }
+            if acknowledged { resumed.fulfill() }
+        })
+        registration.refresh(token: "synthetic-token")
+        await fulfillment(of: [exhausted], timeout: 1)
+        await Task.yield()
+        for _ in 0..<20 { registration.refresh(token: "synthetic-token"); await Task.yield() }
+        XCTAssertEqual(calls, 2)
+        context = nil
+        registration.refresh(token: "synthetic-token")
+        for _ in 0..<20 { registration.refresh(token: "synthetic-token"); await Task.yield() }
+        XCTAssertEqual(calls, 2, "Blocked cached identity cannot register")
+        context = .init(accountID: "cached-account", profile: profile, scope: scope, authorityGeneration: UUID())
+        registration.refresh(token: "synthetic-token")
+        await fulfillment(of: [resumed], timeout: 1)
+        for _ in 0..<20 { registration.refresh(token: "synthetic-token"); await Task.yield() }
+        XCTAssertEqual(calls, 3)
+    }
+
     private func fixturePasswordLogin(_ auth: AuthManager, tfaCode: String? = nil) async throws {
         try await auth.loginWithPassword(email: "fixture@example.test", password: "FixturePassword1!",
             userEmailSalt: Data((0..<16).map(UInt8.init)).base64EncodedString(), tfaCode: tfaCode)
@@ -421,6 +585,9 @@ private final class PasswordTFAURLProtocol: URLProtocol, @unchecked Sendable {
         var legacyTFAHasIdentity = false
         var challengeStatus = 200
         var loginStatus = 200
+        private var protectedRequests = 0
+        var protectedCalls: Int { lock.withLock { protectedRequests } }
+        func recordProtectedRequest() { lock.withLock { protectedRequests += 1 } }
         private var versions: [Int] = []
         private var codes: [String] = []
         var loginVersions: [Int] { lock.lock(); defer { lock.unlock() }; return versions }
@@ -469,6 +636,10 @@ private final class PasswordTFAURLProtocol: URLProtocol, @unchecked Sendable {
             }
             status = (body["credential_version"] as? Int) == 2 ? fixture.loginStatus : 200
             payload = Data(fixture.loginPayload(body).utf8)
+        case "/v1/notifications/register-device", "/v1/projects", "/v1/activity", "/v1/client-logs":
+            fixture.recordProtectedRequest()
+            status = 401
+            payload = Data(#"{"detail":"Session verification required"}"#.utf8)
         default:
             XCTFail("Unexpected password-flow endpoint")
             client?.urlProtocol(self, didFailWithError: URLError(.unsupportedURL))

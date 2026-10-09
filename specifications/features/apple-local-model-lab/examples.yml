@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.apple-local-model-lab@7
+specification: feature.apple-local-model-lab@8
 downloads:
 - id: verified-download-and-offline-reopen
   given: No laboratory models are installed.
@@ -27,6 +27,24 @@ downloads:
   then: The operating-system background transfer is associated with its original pinned operation; verified work
     is retained and only a fully size/checksum-verified installation becomes ready. Cancellation suppresses later
     completion.
+- id: composer-pack-consent-and-sequence
+  given: Supported phone or Mac composer has no installed optional models.
+  when: The offer appears, the user chooses Later, reopens after twenty-four hours and explicitly chooses Download.
+  then: Later starts no transfer; a timer alone cannot open the prompt. Download starts Whisper STT, then
+    Supertonic3 TTS, then Enhanced PII through one store owner with actual per-model transfer/verification progress.
+    Fully verified installations are skipped. Completion does not activate Enhanced PII or qualify local speech.
+- id: paused-or-failed-pack
+  given: A consented pack has completed Whisper and is transferring Supertonic3.
+  when: The user pauses and relaunches, or the TTS file fails verification.
+  then: Pause retains installed Whisper and verified staged files without automatic resume; failure stops before
+    PII. Explicit resume revalidates staging and may restart an unfinished file. Cancel drains the transport,
+    removes partial staging and preserves installed Whisper.
+- id: reserve-and-backup
+  given: Remaining optional pack bytes and the largest temporary copy would reduce free storage below 8 GiB on
+    iOS/iPadOS or 12 GiB on macOS plus 150 MB safety headroom.
+  when: The user chooses Download or available capacity changes before transfer or atomic installation.
+  then: The operation fails safely with a capacity message, does not publish a ready partial model, and keeps
+    the asset/staging root excluded from backup. Available disk does not imply sufficient inference RAM.
 execution:
 - id: offline-disposable-audio-and-text
   given: Whisper and Privacy Filter are installed on a supported device and laboratory tests are enabled before

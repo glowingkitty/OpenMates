@@ -578,6 +578,83 @@ final class ChatSendPipelineParityTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation,apps.anonymous.local-results-and-promotion
+    func testSuspendedAnonymousPromotionRejectsChangedAccountBeforeSendOrApply() async throws {
+        var currentAccount = "synthetic-account-a"
+        let capturedAccount = currentAccount
+        var prepared = false
+        var sends = 0
+        var stores = 0
+        do {
+            _ = try await AnonymousFreeUsageService.withPromotionAuthority(isCurrent: { currentAccount == capturedAccount }) {
+                await Task.yield()
+                currentAccount = "synthetic-account-b"
+                prepared = true
+                return "synthetic-encrypted-history"
+            }
+            sends += 1
+            stores += 1
+            XCTFail("A suspended promotion must reject ciphertext prepared under the previous account")
+        } catch is CancellationError {
+            // Expected after the preparation suspension changes authority.
+        }
+        XCTAssertTrue(prepared)
+        XCTAssertEqual(sends, 0)
+        XCTAssertEqual(stores, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation,apps.anonymous.local-results-and-promotion
+    func testSuspendedAnonymousPromotionRejectsChangedAccountBeforeLocalApply() async throws {
+        var currentAccount = "synthetic-account-a"
+        let capturedAccount = currentAccount
+        var sends = 0
+        var stores = 0
+        do {
+            try await AnonymousFreeUsageService.withPromotionAuthority(isCurrent: { currentAccount == capturedAccount }) {
+                sends += 1
+                await Task.yield()
+                currentAccount = "synthetic-account-b"
+            }
+            stores += 1
+            XCTFail("A send that resumes under another account must not mutate its store")
+        } catch is CancellationError {
+            // Expected after the transport suspension changes authority.
+        }
+        XCTAssertEqual(sends, 1)
+        XCTAssertEqual(stores, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation,sync.surface.semantic-parity
+    func testSessionResetPreservesRegisteredWindowSyncOwnership() {
+        var ownership = SharedSocketWindowOwnership()
+        let first = UUID(), second = UUID()
+        ownership.register(first)
+        ownership.register(second)
+        ownership.updateVisibility(first, isVisible: true, isKey: true)
+        ownership.updateVisibility(second, isVisible: true, isKey: false)
+        XCTAssertTrue(ownership.claimReconnectWork(first))
+        ownership.resetSessionWork()
+        XCTAssertEqual(ownership.windowIDs, [first, second])
+        XCTAssertEqual(ownership.visibleWindowIDs, [first, second])
+        XCTAssertEqual(ownership.keyWindowIDs, [first])
+        XCTAssertEqual(ownership.reconnectWorkCount, 0)
+        XCTAssertTrue(ownership.ownsSharedSync(first))
+        XCTAssertFalse(ownership.ownsSharedSync(second))
+        // Reconciliation of a retained authenticated window is idempotent and
+        // must not steal the shared socket from an earlier mounted window.
+        ownership.register(second)
+        ownership.register(first)
+        XCTAssertEqual(ownership.windowIDs, [first, second])
+        ownership.unregister(first)
+        XCTAssertTrue(ownership.ownsSharedSync(second))
+        XCTAssertTrue(ownership.claimReconnectWork(second))
+        ownership.unregister(second)
+        ownership.resetSessionWork()
+        XCTAssertFalse(ownership.ownsSharedSync(second), "Reset cannot restore a closed window")
+        XCTAssertTrue(ownership.visibleWindowIDs.isEmpty)
+        XCTAssertTrue(ownership.keyWindowIDs.isEmpty)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation
     func testSharedSocketReconnectWorkHasOneWindowOwnerAndMigratesOnClose() {
         var ownership = SharedSocketWindowOwnership()

@@ -401,7 +401,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         attachScreenshot(name: "Accepted follow-up closes composer and keyboard")
     }
 
-    // contract-test: supporting surface=gui.apple assertions=message-input.send.ownership,chats.streaming.progressive-presentation
+    // contract-test: direct surface=gui.apple assertions=message-input.send.ownership,chats.streaming.progressive-presentation,chats.completion.pending-delivery,chats.message.identity-idempotent
     func testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay() {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -425,6 +425,10 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: stop)
         waitForExpectations(timeout: 8)
         XCTAssertEqual(recover.value as? String, "completed", "Synthetic recovery action receipt")
+        let completed = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND label CONTAINS %@", "message-assistant", "Synthetic completed processing response"))
+        XCTAssertEqual(completed.count, 1, "Mounted store-to-ChatView handoff must show the final response once")
+        XCTAssertFalse(app.staticTexts["Synthetic partial processing response"].exists)
         let receipt = XCTAttachment(string: "recovery-receipt=\(recover.value as? String ?? "missing")\n\(app.debugDescription)")
         receipt.name = "Synthetic processing recovery action and hierarchy"
         receipt.lifetime = .keepAlways

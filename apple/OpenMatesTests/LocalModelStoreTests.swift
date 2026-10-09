@@ -1,3 +1,4 @@
+import Combine
 import CryptoKit
 import XCTest
 @testable import OpenMates
@@ -17,6 +18,163 @@ final class LocalModelStoreTests: XCTestCase {
     }
     private func catalog(_ manifest: LocalModelManifest) throws -> Data {
         try JSONEncoder().encode(LocalModelCatalog(models: [manifest]))
+    }
+
+    private func packCatalog() throws -> Data {
+        let digest = SHA256.hash(data: fixture).map { String(format: "%02x", $0) }.joined()
+        let revision = String(repeating: "a", count: 40)
+        let models = LocalModelID.allCases.map { id in
+            LocalModelManifest(id: id, revision: revision, estimatedSizeBytes: Int64(fixture.count), files: [
+                LocalModelFile(path: id.rawValue + ".bin",
+                    url: URL(string: "https://huggingface.co/fixture/resolve/\(revision)/\(id.rawValue).bin")!,
+                    sha256: digest, sizeBytes: Int64(fixture.count))
+            ])
+        }
+        return try JSONEncoder().encode(LocalModelCatalog(models: models))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testObservingPackDoesNotValidateInstalledWeightsUntilEligibleAction() async throws {
+        let root = root(), model = manifest(), suite = "offline-pack-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }
+        let directory = root.appendingPathComponent(model.id.rawValue)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try fixture.write(to: directory.appendingPathComponent(model.files[0].path))
+        try JSONEncoder().encode(model).write(to: directory.appendingPathComponent(".installed.json"))
+        let store = LocalModelStore(catalog: try catalog(model), root: root, storageReserveBytes: 0,
+            downloader: PackFixtureDownloader(bytes: fixture), verifyExisting: false)
+        let pack = OfflineAIModelPack(store: store, defaults: defaults)
+        for _ in 0..<3 { await Task.yield() }
+        XCTAssertEqual(store.state(for: .whisper), .notDownloaded, "Observation alone cannot start multi-GB hashing")
+        await pack.waitUntilRestored()
+        XCTAssertEqual(store.state(for: .whisper), .ready)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testOfflinePackNeverDownloadsBeforeConsentAndLaterPersistsForOneDay() async throws {
+        let root = root(), suite = "offline-pack-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }
+        let transport = PackFixtureDownloader(bytes: fixture)
+        let store = LocalModelStore(catalog: try packCatalog(), root: root, storageReserveBytes: 0,
+                                    downloader: transport, verifyExisting: false)
+        let now = Date(timeIntervalSince1970: 1_000)
+        let pack = OfflineAIModelPack(store: store, defaults: defaults, clock: { now })
+        await pack.waitUntilRestored()
+        pack.offerIfNeeded()
+        XCTAssertEqual(pack.snapshot.phase, .offered)
+        pack.deferDownload()
+        XCTAssertEqual(pack.snapshot.phase, .deferred)
+        pack.offerIfNeeded()
+        XCTAssertEqual(pack.snapshot.phase, .deferred)
+        XCTAssertEqual(pack.snapshot.totalBytes, Int64(fixture.count * 3))
+        let requests = await transport.paths
+        XCTAssertTrue(requests.isEmpty)
+        let relaunch = OfflineAIModelPack(store: store, defaults: defaults, clock: { now.addingTimeInterval(86_400) })
+        await relaunch.waitUntilRestored()
+        XCTAssertEqual(relaunch.snapshot.phase, .deferred, "Time alone cannot reopen the offer")
+        relaunch.offerIfNeeded()
+        XCTAssertEqual(relaunch.snapshot.phase, .offered)
+        let after = await transport.paths
+        XCTAssertTrue(after.isEmpty)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testOfflinePackDownloadsSTTThenTTSThenPIIAndSkipsVerifiedAssets() async throws {
+        let root = root(), suite = "offline-pack-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }
+        let transport = PackFixtureDownloader(bytes: fixture)
+        let store = LocalModelStore(catalog: try packCatalog(), root: root, storageReserveBytes: 0,
+                                    downloader: transport, verifyExisting: false)
+        var activity: [Bool] = []
+        let pack = OfflineAIModelPack(store: store, defaults: defaults, packActivity: { activity.append($0) })
+        await pack.waitUntilRestored()
+        let completed = expectation(description: "verified pack")
+        let observer = pack.$snapshot.map(\.phase).removeDuplicates().sink { if $0 == .complete { completed.fulfill() } }
+        pack.download()
+        await fulfillment(of: [completed], timeout: 5)
+        observer.cancel()
+        let requests = await transport.paths
+        XCTAssertEqual(requests, ["whisper.bin", "supertonic3.bin", "privacyFilter.bin"])
+        XCTAssertEqual(activity, [true, false], "One presentation scope spans the full sequential pack")
+        XCTAssertEqual(pack.snapshot.completedModels, 3)
+        XCTAssertEqual(pack.snapshot.verifiedBytes, Int64(fixture.count * 3))
+        let recheck = OfflineAIModelPack(store: store, defaults: defaults)
+        await recheck.waitUntilRestored()
+        recheck.download()
+        await Task.yield()
+        let after = await transport.paths
+        XCTAssertEqual(after, requests, "Verified models never download twice")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testOfflinePackFailureStopsQueueAndPersistedPauseCannotAutoResume() async throws {
+        let root = root(), suite = "offline-pack-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }
+        let transport = PackFixtureDownloader(bytes: Data([0]))
+        let store = LocalModelStore(catalog: try packCatalog(), root: root, storageReserveBytes: 0,
+                                    downloader: transport, verifyExisting: false)
+        let pack = OfflineAIModelPack(store: store, defaults: defaults)
+        await pack.waitUntilRestored()
+        let failed = expectation(description: "invalid STT stops queue")
+        let observer = pack.$snapshot.map(\.phase).removeDuplicates().sink { if $0 == .failed { failed.fulfill() } }
+        pack.download()
+        await fulfillment(of: [failed], timeout: 5)
+        observer.cancel()
+        let requests = await transport.paths
+        XCTAssertEqual(requests, ["whisper.bin"])
+        pack.pause()
+        XCTAssertEqual(pack.snapshot.phase, .paused)
+        XCTAssertFalse(OfflineAIModelPackPersistence.allowsRecovery(.whisper, defaults: defaults))
+        let relaunch = OfflineAIModelPack(store: store, defaults: defaults)
+        await relaunch.waitUntilRestored()
+        relaunch.offerIfNeeded()
+        XCTAssertEqual(relaunch.snapshot.phase, .paused)
+        let after = await transport.paths
+        XCTAssertEqual(after, requests)
+        relaunch.cancel()
+        XCTAssertEqual(relaunch.snapshot.phase, .cancelled)
+        XCTAssertEqual(OfflineAIModelPackPersistence.read(defaults)?.phase, .cancelled)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testPauseRetainsVerifiedStagingAndResumeTransfersOnlyUnfinishedFile() async throws {
+        let root = root(), first = manifest().files[0]
+        defer { try? FileManager.default.removeItem(at: root) }
+        let second = LocalModelFile(path: "second.bin", url: first.url.deletingLastPathComponent().appendingPathComponent("second.bin"),
+            sha256: first.sha256, sizeBytes: first.sizeBytes)
+        let model = LocalModelManifest(id: .whisper, revision: manifest().revision,
+            estimatedSizeBytes: first.sizeBytes * 2, files: [first, second])
+        let started = AsyncStream<Void>.makeStream()
+        let transport = PausingPackFixtureDownloader(bytes: fixture, started: started.continuation)
+        let store = LocalModelStore(catalog: try catalog(model), root: root, storageReserveBytes: 0,
+            downloader: transport, verifyExisting: false, recoverBackgroundDownloads: true)
+        await store.waitUntilRestored()
+        let transfer = Task { await store.download(.whisper) }
+        for await _ in started.stream { break }
+        store.pause(.whisper)
+        await transfer.value
+        XCTAssertEqual(store.state(for: .whisper), .notDownloaded)
+        let staging = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
+            .first { $0.lastPathComponent.hasPrefix("partial-") }
+        XCTAssertNotNil(staging)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try XCTUnwrap(staging).appendingPathComponent(first.path).path))
+        await store.download(.whisper)
+        XCTAssertEqual(store.state(for: .whisper), .ready)
+        let requests = await transport.paths
+        XCTAssertEqual(requests, ["model.bin", "second.bin", "second.bin"], "Verified staging skips the first asset on explicit resume")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testPackStorageReserveIncludesRemainingAssetsTemporaryCopyAndSafety() {
+        let gib: Int64 = 1_073_741_824
+        XCTAssertEqual(LocalModelStoragePolicy.requiredBytes(remainingBytes: 2_300_345_700,
+            largestFile: 1_269_572_251, reserve: 8 * gib), 8 * gib + 2_300_345_700 + 1_269_572_251 + 150_000_000)
+        XCTAssertEqual(LocalModelStoragePolicy.requiredBytes(remainingBytes: 0,
+            largestFile: 0, reserve: 12 * gib), 12 * gib + 150_000_000)
     }
 
     // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.optional-downloads
@@ -61,7 +219,7 @@ final class LocalModelStoreTests: XCTestCase {
         let downloader = BackgroundBarrierFixtureDownloader(bytes: fixture, barrier: barrier, nextTransfer: networkGate)
         let installer = Task {
             try await LocalModelDisk.install(manifest, root: root, downloader: downloader, progress: { _ in },
-                beforeVerification: { await verifyGate.wait() })
+                beforeVerification: { await verifyGate.wait() }, storageReserveBytes: 0)
         }
         for await _ in verifying.stream { break }
         let completed = BackgroundCompletionProbe()
@@ -86,7 +244,7 @@ final class LocalModelStoreTests: XCTestCase {
         let verifyGate = BackgroundTransferTestGate(entered: verifying.continuation)
         let events = BackgroundCompletionProbe()
         let downloader = BackgroundBarrierFixtureDownloader(bytes: fixture, barrier: barrier, terminal: events)
-        let store = LocalModelStore(catalog: try catalog(manifest()), root: root, downloader: downloader,
+        let store = LocalModelStore(catalog: try catalog(manifest()), root: root, storageReserveBytes: 0, downloader: downloader,
             verifyExisting: false, activityEvents: { event in
                 if case .finished(_, _, .verified) = event { events.mark() }
             }, beforeVerification: { await verifyGate.wait() })
@@ -119,7 +277,7 @@ final class LocalModelStoreTests: XCTestCase {
         let root = root(), manifest = manifest()
         defer { try? FileManager.default.removeItem(at: root) }
         let transport = FixtureDownloader(bytes: fixture)
-        let store = LocalModelStore(catalog: try catalog(manifest), root: root, downloader: transport, verifyExisting: false)
+        let store = LocalModelStore(catalog: try catalog(manifest), root: root, storageReserveBytes: 0, downloader: transport, verifyExisting: false)
         XCTAssertEqual(store.state(for: .whisper), .notDownloaded)
         XCTAssertThrowsError(try store.installedDirectory(.whisper))
         await store.download(.whisper)
@@ -128,7 +286,7 @@ final class LocalModelStoreTests: XCTestCase {
         let requests = await transport.requestCount
         XCTAssertEqual(requests, 1)
 
-        let reopened = LocalModelStore(catalog: try catalog(manifest), root: root, downloader: transport, verifyExisting: false)
+        let reopened = LocalModelStore(catalog: try catalog(manifest), root: root, storageReserveBytes: 0, downloader: transport, verifyExisting: false)
         await reopened.restoreExisting()
         XCTAssertEqual(reopened.state(for: .whisper), .ready)
         let afterReopen = await transport.requestCount
@@ -144,7 +302,7 @@ final class LocalModelStoreTests: XCTestCase {
         let root = root()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = LocalModelStore(catalog: try catalog(manifest(hash: String(repeating: "0", count: 64))),
-                                   root: root, downloader: FixtureDownloader(bytes: fixture), verifyExisting: false)
+                                   root: root, storageReserveBytes: 0, downloader: FixtureDownloader(bytes: fixture), verifyExisting: false)
         await store.download(.whisper)
         guard case .failed = store.state(for: .whisper) else { return XCTFail("Corruption must be visible") }
         XCTAssertThrowsError(try store.installedDirectory(.whisper))
@@ -157,11 +315,11 @@ final class LocalModelStoreTests: XCTestCase {
         let root = root(), manifest = manifest()
         defer { try? FileManager.default.removeItem(at: root) }
         let transport = FixtureDownloader(bytes: fixture)
-        let store = LocalModelStore(catalog: try catalog(manifest), root: root, downloader: transport, verifyExisting: false)
+        let store = LocalModelStore(catalog: try catalog(manifest), root: root, storageReserveBytes: 0, downloader: transport, verifyExisting: false)
         await store.download(.whisper)
         let file = try store.installedDirectory(.whisper).appendingPathComponent("model.bin")
         try Data(repeating: 0, count: fixture.count).write(to: file)
-        let reopened = LocalModelStore(catalog: try catalog(manifest), root: root, downloader: transport, verifyExisting: false)
+        let reopened = LocalModelStore(catalog: try catalog(manifest), root: root, storageReserveBytes: 0, downloader: transport, verifyExisting: false)
         await reopened.restoreExisting()
         guard case .failed = reopened.state(for: .whisper) else { return XCTFail("Same-size corruption must fail verification") }
         XCTAssertThrowsError(try reopened.installedDirectory(.whisper))
@@ -174,7 +332,7 @@ final class LocalModelStoreTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         let signal = AsyncStream<Void>.makeStream()
         let downloader = WaitingDownloader(started: signal.continuation)
-        let store = LocalModelStore(catalog: try catalog(manifest()), root: root, downloader: downloader, verifyExisting: false)
+        let store = LocalModelStore(catalog: try catalog(manifest()), root: root, storageReserveBytes: 0, downloader: downloader, verifyExisting: false)
         let task = Task { await store.download(.whisper) }
         var iterator = signal.stream.makeAsyncIterator()
         _ = await iterator.next()
@@ -191,7 +349,7 @@ final class LocalModelStoreTests: XCTestCase {
         let progress = InstallProgressProbe()
         let transport = LateProgressDownloader(bytes: fixture)
         _ = try await LocalModelDisk.install(manifest, root: root, downloader: transport, progress: { _ in },
-                                             detailedProgress: { progress.append($0) })
+                                             detailedProgress: { progress.append($0) }, storageReserveBytes: 0)
         let values = progress.values
         XCTAssertTrue(values.contains { $0.phase == .transfer })
         XCTAssertTrue(values.contains { $0.phase == .verification && $0.verifiedBytes == 0 })
@@ -202,7 +360,7 @@ final class LocalModelStoreTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(later.transferredBytes, earlier.transferredBytes)
             XCTAssertGreaterThanOrEqual(later.verifiedBytes, earlier.verifiedBytes)
         }
-        let store = LocalModelStore(catalog: try catalog(manifest), root: root, downloader: transport, verifyExisting: false)
+        let store = LocalModelStore(catalog: try catalog(manifest), root: root, storageReserveBytes: 0, downloader: transport, verifyExisting: false)
         await store.download(.whisper)
         XCTAssertEqual(store.state(for: .whisper), .ready)
         await transport.emitLateProgress()
@@ -222,7 +380,7 @@ final class LocalModelStoreTests: XCTestCase {
         let transport = RecoveringFixtureDownloader(bytes: fixture)
         let progress = InstallProgressProbe()
         _ = try await LocalModelDisk.install(manifest, root: root, downloader: transport, progress: { _ in },
-                                             detailedProgress: { progress.append($0) })
+                                             detailedProgress: { progress.append($0) }, storageReserveBytes: 0)
         let counts = await transport.counts
         XCTAssertEqual(counts["model.bin"], 1)
         XCTAssertEqual(counts["second.bin"], 2)
@@ -249,7 +407,7 @@ final class LocalModelStoreTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         let started = AsyncStream<Void>.makeStream()
         let transport = NonCooperativeDownloader(bytes: fixture, started: started.continuation)
-        let store = LocalModelStore(catalog: try catalog(manifest()), root: root, downloader: transport, verifyExisting: false)
+        let store = LocalModelStore(catalog: try catalog(manifest()), root: root, storageReserveBytes: 0, downloader: transport, verifyExisting: false)
         let task = Task { await store.download(.whisper) }
         var iterator = started.stream.makeAsyncIterator()
         _ = await iterator.next()
@@ -291,7 +449,7 @@ final class LocalModelStoreTests: XCTestCase {
         for mode in Reconstructed206Downloader.Mode.allCases {
             let root = root()
             defer { try? FileManager.default.removeItem(at: root) }
-            let store = LocalModelStore(catalog: try catalog(manifest()), root: root,
+            let store = LocalModelStore(catalog: try catalog(manifest()), root: root, storageReserveBytes: 0,
                 downloader: Reconstructed206Downloader(bytes: fixture, mode: mode), verifyExisting: false)
             await store.download(.whisper)
             if mode == .full {
@@ -316,7 +474,7 @@ final class LocalModelStoreTests: XCTestCase {
         let finished = AsyncStream<Void>.makeStream()
         var starts: [UUID] = [], terminals: [(UUID, LocalModelDownloadOutcome)] = []
         let transport = FixtureDownloader(bytes: fixture)
-        let store = LocalModelStore(catalog: try catalog(manifest), root: root, downloader: transport,
+        let store = LocalModelStore(catalog: try catalog(manifest), root: root, storageReserveBytes: 0, downloader: transport,
             verifyExisting: false, recoverBackgroundDownloads: true, activityEvents: { event in
                 switch event {
                 case .started(_, let id, _): starts.append(id)
@@ -345,7 +503,7 @@ final class LocalModelStoreTests: XCTestCase {
         let started = AsyncStream<Void>.makeStream()
         let transport = NonCooperativeDownloader(bytes: fixture, started: started.continuation)
         var terminals: [LocalModelDownloadOutcome] = []
-        let store = LocalModelStore(catalog: try catalog(manifest()), root: root, downloader: transport,
+        let store = LocalModelStore(catalog: try catalog(manifest()), root: root, storageReserveBytes: 0, downloader: transport,
             verifyExisting: false, activityEvents: { event in
                 if case .finished(_, _, let outcome) = event { terminals.append(outcome) }
             })
@@ -551,5 +709,35 @@ private final class BackgroundBarrierFixtureDownloader: LocalModelFileDownloadin
     func finishProcessing(in staging: URL) {
         lock.lock(); finalEventWasEnqueued = terminal?.value ?? false; lock.unlock()
         barrier.settled(staging.lastPathComponent)
+    }
+}
+
+private actor PackFixtureDownloader: LocalModelFileDownloading {
+    let bytes: Data
+    private(set) var paths: [String] = []
+    init(bytes: Data) { self.bytes = bytes }
+    func download(_ file: LocalModelFile, to destination: URL,
+                  progress: @escaping @Sendable (Int64) -> Void) async throws {
+        paths.append(file.path)
+        try bytes.write(to: destination)
+        progress(Int64(bytes.count))
+    }
+}
+
+private actor PausingPackFixtureDownloader: LocalModelFileDownloading {
+    let bytes: Data
+    let started: AsyncStream<Void>.Continuation
+    private(set) var paths: [String] = []
+    init(bytes: Data, started: AsyncStream<Void>.Continuation) { self.bytes = bytes; self.started = started }
+    func download(_ file: LocalModelFile, to destination: URL,
+                  progress: @escaping @Sendable (Int64) -> Void) async throws {
+        paths.append(file.path)
+        if file.path == "second.bin", paths.filter({ $0 == "second.bin" }).count == 1 {
+            started.yield(())
+            try await Task.sleep(for: .seconds(30))
+        }
+        try Task.checkCancellation()
+        try bytes.write(to: destination)
+        progress(Int64(bytes.count))
     }
 }

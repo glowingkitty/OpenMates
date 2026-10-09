@@ -612,14 +612,12 @@ handoff:
     reason: Root-owned signed build96 archive/export/upload outcomes remain pending at this handoff snapshot; no TestFlight availability is asserted.
 
 seamless_offline_ai_followup_2026_10_08:
-  status: proposed
-  goal_source: Direct user request in this Codex chat on 2026-10-08.
+  status: implementing
+  goal_source: Direct user request and subsequent never-bundle clarification in this Codex chat on 2026-10-08.
   goal: >-
-    Make offline speech to text, text to speech and personal-data anonymization
-    seamless on supported Apple devices. Bundle offline transcription in the
-    iOS/iPadOS/macOS app; inform users truthfully about local audio processing.
-    Offer enhanced anonymization only where background preparation can avoid a
-    noticeable Send delay, with storage-aware consent and the requested reminder flow.
+    Offer optional offline AI assets through the composer, then make verified
+    installed speech assets usable by explicit local production routes with
+    truthful status and separately explicit server fallback. Never bundle weights.
   existing_contracts:
   - feature.apple-local-model-lab
   - feature.assistant-response-speech
@@ -627,94 +625,150 @@ seamless_offline_ai_followup_2026_10_08:
   - feature.notifications
   - feature.settings-ui
   implementation_scope: >-
-    This records the requested next design, not a build96 implementation or an
-    approval of a future changed Specification fingerprint. Extend existing
-    applicable contracts before their production behavior changes. Do not restore
-    rejected TTS engines or Apple system voices.
-  current_evidence:
-    stt: Production streams Voxtral to the server and uploads recordings; Whisper large-v3 is a downloaded lab only.
-    tts: Provider-generated audio is production; Supertonic3 local-first resident playback remains pending.
-    pii: Optional 1269572251-byte ExecuTorch XNNPACK model is integrated; regex remains local and active.
-    pii_m1: Cold load 3.94 seconds; warm isolated scans 2.65, 2.14 and 2.02 seconds; sampled peak RSS about 1.24 GiB.
-    limits: No physical iPhone/iPad/Watch local-model speed, sustained battery, or voice-quality qualification.
+    Extend existing applicable contracts and this approved Plan; do not create a
+    separate specification ceremony. The optional pack never activates Enhanced
+    PII or changes provider preferences merely because installation succeeded.
+    Keep rejected TTS engines removed. Preserve frozen build96 release evidence.
+  package:
+    download_bytes: 2300345700
+    display_size: 2.3 GB
+    order:
+    - model: whisper
+      download_bytes: 629481698
+    - model: supertonic3
+      download_bytes: 401291751
+    - model: privacyFilter
+      download_bytes: 1269572251
+    rule: Immutable catalog revisions and exact per-file size/SHA-256 remain authoritative; weights are never bundled.
+  consent:
+    requested_copy: Want to download offline AI models (2.3GB) for reducing your costs & even better privacy protection?
+    actions: [Later, Download]
+    presentation: >-
+      Show only the initial Later/Download consent notification. Download dismisses
+      it; no transfer state shows a persistent notification banner. A subtle
+      opacity-animated header download icon (static with reduced motion) opens
+      Settings > AI > Offline models at ai/localmodels. Concrete byte/phase
+      progress and pause/resume/cancel belong to that settings page and the regular
+      Live Activity. Ordinary labels are Speech to text, Text to speech and
+      Enhanced anonymization; technical identities remain only in Developers.
+    benefit_copy_gate: >-
+      Cost/privacy benefit copy requires selected and verified local production
+      STT/TTS routes. Downloaded laboratory assets alone do not prove reduced
+      inference costs or local production audio handling.
+    persistence: >-
+      Persist device-local public asset consent, queue position, byte counts and
+      Later deadline. Later defers for 24 hours and requires a later composer
+      activation to show the offer; a timer alone never opens it.
+    states:
+    - offered or deferred never starts a transfer.
+    - Explicit Download persists consent and processes STT then TTS then enhanced PII, skipping fully verified installations.
+    - downloading restores interrupted pinned work and continues the consented sequence after relaunch.
+    - paused preserves completed installations and verified staged files; an active partial file may restart on explicit resume.
+    - cancelled stops queued work, discards partial staging after transport drain and retains installed models.
+    - failed stops the sequence and exposes retry; a failed model never advances the queue.
+    - complete means all assets verified and installed; it is not a feature-activation or speed/quality claim.
+  storage:
+    ios_ipados_reserve_bytes: 8589934592
+    macos_reserve_bytes: 12884901888
+    rule: >-
+      Preserve the reserve plus remaining package bytes, the largest temporary
+      transfer copy and 150000000 safety bytes. Preflight the whole remaining pack,
+      recheck before every transfer and before atomic installation, and exclude
+      assets and staging from backup. Free disk is not an app-memory guarantee.
+  current_route_boundary:
+    stt: Verified installed Whisper selects local STT on supported arm64 targets; absent assets and Intel/Watch retain server STT. Selected local failures never implicitly retry on the server.
+    recording_upload: >-
+      Preserve ordinary recording messages and cross-device playback. Audio uploads
+      over TLS to the existing first-party recording endpoint and is encrypted by
+      the server for storage/playback; this is not client encryption before upload
+      and does not qualify an absolute no-audio-transmission claim.
+    transcription_guard: >-
+      Persist transcription_source and transcription_status for local complete or
+      failed recordings. Local complete/failed must never trigger server or external
+      transcription, including delayed/manual/mixed recording resolution. A separate
+      explicit online-transcription consent is required before that route.
+    future_client_encryption: >-
+      A future encrypt-before-upload route requires an opaque-ciphertext endpoint,
+      client-wrapped keys and explicit online-STT consent. It is outside this slice
+      and must not be claimed for the current TLS/server-encrypted upload path.
+    tts: Verified installed Supertonic3 selects local playback on supported arm64 targets; absent assets retain provider TTS. Local failures require explicit retry or Use online speech.
+    qualification: Native route execution and physical-device speed/quality evidence remain separate root-owned gates.
   sequence:
-  - stage: Bundled offline transcription on iOS/iPadOS/macOS
+  - stage: Optional sequential pack and background progress
+    status: source_implemented
     work: >-
-      Qualify bundled multilingual Whisper/Core ML assets and tokenizer for
-      supported devices, including a bounded smaller baseline if required. Wire
-      microphone PCM into incremental transcript decoding with VAD, generation
-      fencing, editable partials/finals, cancellation and memory-pressure eviction.
-      Prefer retained warm resources while a recording-capable composer is active.
-      Make transcript-only recording fully local: no realtime socket, batch upload
-      or audio attachment transmission. Any optional recording-sharing or server
-      fallback must be separately explicit and reflected in the privacy message.
-    notice: >-
-      On first eligible message-field activation, use the existing notification
-      banner to explain offline transcription and no audio transmission only when
-      the verified local-only route is actually selected and ready.
-    check: >-
-      Airplane-mode first launch, typed/streamed transcript edits, no outbound audio
-      traffic, cancellation, long recordings, multilingual quality and cold/warm
-      latency on real iPhone, iPad and Apple Silicon Mac. Qualify Intel separately
-      or clearly disclose its support limit; do not inherit the arm64 lab guard silently.
+      OfflineAIModelPack observes LocalModelStore as the sole transfer/install
+      owner. Reuse durable iOS URLSession, pinned journals, checksum validation,
+      atomic installation and existing model Live Activities. Keep the OS Activity
+      across model transitions and hold OS completion until the next real transfer
+      is enqueued; observing the pack alone starts no multi-GB hashing. Dismiss the
+      initial consent notification on Download. Show capability names, transferred
+      and verified bytes, waiting/retry/verification phases and failure in AI >
+      Offline models and the regular Live Activity; the header download icon opens
+      that page and never opens a persistent progress banner.
+    checks: >-
+      Consent/Later persistence, exact sequence, installed skip, failure stop,
+      pause/relaunch suppression, verified staging reuse and reserve arithmetic
+      are covered in LocalModelStoreTests. Swift 6 source and test typechecking
+      passed with narrow diagnostics/string/activity stubs; native execution and
+      visible UI/Live Activity evidence remain root-owned gates.
+  - stage: Downloaded local transcription on iOS/iPadOS/macOS
+    work: >-
+      Use only verified installed Whisper/Core ML assets and tokenizer, with
+      runtime downloads disabled. Connect microphone PCM to local transcription,
+      editable partial/final transcripts, generation fencing and cancellation.
+      The selected local transcription route opens no realtime STT socket and
+      invokes no server/external transcription. Preserve the user-requested audio
+      attachment and existing TLS upload/server-encrypted cross-device playback.
+      Persist local transcription source/status on complete and failed records;
+      prevent delayed, mixed or manual recording resolution from implicitly
+      invoking server transcription. Online STT requires a separate explicit choice.
+    checks: >-
+      Local decoding after explicit installation, no server/external STT request,
+      complete/failed metadata persistence, mixed recording resolution, ordinary
+      audio attachment and cross-device playback, cancellation, language mapping,
+      cold/warm latency and truthful unsupported
+      platform state. Synthetic native coverage proves routing; physical device
+      measurements establish sustained speed, battery, thermal and memory limits.
   - stage: Local-first Supertonic3 response playback
     work: >-
-      Preserve explicit verified downloads and approved voice/language mapping.
-      After a chat is fully opened and idle, prepare an installed selected engine
-      off the main actor; retain its single-owner sessions within a measured memory
-      budget. Stream bounded semantic speech chunks, cancel safely on scope/voice
-      changes and evict under memory pressure. Keep explicit provider fallback
-      separate from a local-only mode.
-    check: First audible audio, cold/warm preparation, continuous playback, voice quality, repeated chat switching and concurrent PII memory.
-  - stage: Enhanced anonymization qualification before proactive prompts
+      Reuse installed verified models and the approved voice/language mapping.
+      Prepare off the main actor after a chat opens and becomes idle. Retain one
+      bounded runtime owner, synthesize semantic chunks, cancel safely on scope
+      or voice changes and evict under memory pressure. Provider fallback must be
+      an explicit choice, separate from a local-only mode.
+    checks: First audible audio, cold/warm preparation, continuous playback, cancellation, voice quality and concurrent PII memory.
+  - stage: Enhanced anonymization qualification
     work: >-
-      Optimize debounced latest-revision background preparation and reuse exact
-      draft/model/options/account-context results at Send. Investigate safe
-      overlap-aware window reuse without weakening tokenizer offsets, entity
-      boundaries or privacy correctness. Evaluate a dedicated equivalent Core ML
-      export with measured placement; the current XNNPACK artifact is CPU-only.
-      Never skip an incomplete exact outgoing-revision check to disguise latency.
-    proposed_latency_budget: >-
-      Qualify a device/model/language/text-length envelope using p95 residual Send
-      delay at most 100 ms for an already prepared draft and at most 200 ms for
-      representative last-second edits. These are proposed usability targets,
-      not measured promises or a new approved product contract.
-    current_decision: >-
-      Existing measured M1 CPU inference does not pass a no-noticeable-delay
-      qualification. Until a device envelope passes, show only a one-time
-      informational banner pointing to Privacy settings, not an activation recommendation.
-  - stage: Eligible-device download consent state machine
-    storage: >-
-      Preserve at least 8 GiB free on iOS/iPadOS and 12 GiB on macOS in addition
-      to package-specific staging, install/compilation/cache and replacement
-      headroom. Recheck before transfer and installation. Free disk does not
-      establish RAM, allocatable app memory or sustained inference eligibility.
-    copy: Use the verified current manifest size, approximately 1.27 GB for Privacy Filter, rather than an inaccurate 1 GB promise.
-    states:
-    - First eligible composer activation offers Maybe later and Activate; never download before Activate.
-    - Maybe later snoozes until at least 24 hours have elapsed; only a later composer activation may offer Ignore and Activate.
-    - Ignore suppresses further activation prompts and shows one one-time banner explaining activation in Privacy settings.
-    - Activate enters existing pinned download/progress/cancel/retry flow and enables the model only after verification and readiness.
-    - An unqualified device gets only the one-time Privacy settings information; installed opted-in models still retain exact-send correctness.
-    persistence: Per-user and per-device; Team switches must not repeat prompts. Ignore survives model updates unless the user changes the preference explicitly.
-    check: Clock boundaries, duplicate focus events, relaunch, account/Team switching, capacity changes, interrupted downloads and readiness failures.
-  - stage: Watch-specific speech qualification
-    work: >-
-      Keep the optional multilingual 79.4 MB tiny Whisper experiment separate
-      from the 629.5 MB phone/Mac candidate. Measure physical supported Watches
-      for sustained real-time factor, transcript update cadence, accuracy, memory,
-      thermal limits and battery. If standalone Watch fails, design an explicit
-      paired-iPhone local inference option; audio crosses devices but not OpenMates.
-      Public Apple Speech framework availability must not be inferred from Siri.
-    rule: Do not promise the same large Whisper model or near-real-time Watch support without device evidence.
-  alternatives:
-    voxtral: >-
-      Apache-2.0 open weights are available. The current experimental 4-bit
-      M-series Metal checkpoint is about 4.42 GB, not a small drop-in Whisper
-      replacement; evaluate it separately on Mac after the existing offline
-      Whisper route is qualified. No iPhone/iPad/Watch performance is established.
+      Preserve separate opt-in and exact outgoing-revision checks. Reuse complete
+      draft/model/options/account-context results and coalesce obsolete edits;
+      never bypass an incomplete Send check. Existing XNNPACK CPU timings do not
+      qualify a no-noticeable-delay activation recommendation.
+    proposed_latency_budget: p95 residual Send delay at most 100 ms for a prepared draft and 200 ms for representative last-second edits; unmeasured targets.
+    current_evidence: M1 cold load 3.94 seconds, warm isolated scans 2.65/2.14/2.02 seconds, sampled peak process RSS about 1.24 GiB.
+  - stage: Watch production boundary
+    rule: >-
+      Watch remains server transcription only in this production scope. The
+      existing explicitly enabled tiny Whisper developer experiment remains
+      separate; no large-pack Watch download or paired-device local route is added.
+  ane_research:
+    status: Research only; no weights downloaded, inference run or native build.
+    finding: >-
+      A Core ML/ANE port is plausible, but no inspected official ready-to-use ANE
+      artifact or iPhone13 Pro/A15 versus current XNNPACK benchmark qualifies a
+      numeric speedup. Community M4 Max claims compare PyTorch CPU and cannot be
+      transferred to our XNNPACK pipeline or iPhone Send latency.
+    next: >-
+      Optional bounded post-release proof on iPhone13 Pro and one newer device,
+      preserving tokenizer, window/Viterbi/span behavior and measuring exact
+      placement, cold/warm p50/p95 latency, residual Send delay, memory and thermal
+      behavior. Never promote the route without equivalent privacy behavior.
+  exclusions:
+  - Bundled weights or any automatic initial download without explicit consent.
+  - Offline Voxtral integration or new offline model selection.
+  - Claims of physical-device performance or local production routing based solely on installation or fixture tests.
   verification_policy:
-  - Extend existing native control-flow/privacy tests and relevant E2E contract assertions; use synthetic audio/text for deterministic checks.
-  - Real on-device benchmarks and listening checks establish performance/quality separately from fixture or Simulator passes.
-  - Record exact OS/device/model revision, compute placement, p50/p95 timings, working memory, thermal/power conditions and network traces.
-  - Keep all model preparation, inference and diagnostics off the UI thread and exclude raw audio, transcript, spans, keys and personal identifiers from logs.
+  - Extend relevant native control-flow/privacy tests and E2E contract assertions with disposable fixtures.
+  - Root owns source-matched native builds and UI execution; no competing build jobs or unrequested model downloads/inference.
+  - Real-device benchmarks and listening remain separate from fixture and Simulator control-flow evidence.
+  - Exclude raw audio, transcript, spans, keys and personal identifiers from diagnostics.

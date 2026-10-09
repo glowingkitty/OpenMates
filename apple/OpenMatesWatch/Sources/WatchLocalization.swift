@@ -165,6 +165,7 @@ enum WatchStrings {
     static var pairUseProduction: String { WatchLocalization.text("settings.sessions.pair_use_production") }
     static var pairGenerating: String { WatchLocalization.text("settings.sessions.pair_generating") }
     static var pairExpired: String { WatchLocalization.text("settings.sessions.pair_expired") }
+    static var pairRestartRequired: String { WatchLocalization.text("settings.sessions.pair_restart_required") }
     static var pairRefresh: String { WatchLocalization.text("settings.sessions.pair_refresh") }
     static var pairEnterPinTitle: String { WatchLocalization.text("settings.sessions.pair_enter_pin_title") }
     static var pairEnterPinDescription: String { WatchLocalization.text("settings.sessions.pair_enter_pin_description") }

@@ -694,7 +694,8 @@ final class ChatCompletionRecoveryCoordinator {
     private func fetchCommittedChat(_ job: AvailableJob, minimumVersion: Int, context: AttemptContext) async throws -> Int {
         let (messages, version) = try await fetchChatSnapshot(chatId: job.chatId, context: context)
         guard version >= minimumVersion,
-              let target = messages.first(where: { $0.id == job.assistantMessageId && $0.role == .assistant }),
+              let target = messages.first(where: { ($0.id == job.assistantMessageId || $0.serverMessageId == job.assistantMessageId)
+                  && $0.role == .assistant }),
               let ciphertext = target.encryptedContent, !ciphertext.isEmpty,
               let key = chatKey(job.chatId) else { throw RecoveryError.missingCommittedMessage }
         // Authenticate the exact assistant ciphertext before acknowledging local
@@ -711,8 +712,9 @@ final class ChatCompletionRecoveryCoordinator {
         return version
     }
 
-    static func mergingRecoveredMessage(_ recovered: Message, preserving existing: Message?) -> Message {
-        guard let existing, existing.id == recovered.id, existing.chatId == recovered.chatId else { return recovered }
+    nonisolated static func mergingRecoveredMessage(_ recovered: Message, preserving existing: Message?) -> Message {
+        guard let existing, existing.chatId == recovered.chatId, existing.role == recovered.role,
+              existing.id == recovered.id || existing.id == recovered.serverMessageId || existing.serverMessageId == recovered.id else { return recovered }
         return Message(
             id: recovered.id, chatId: recovered.chatId, role: recovered.role,
             content: recovered.content ?? (recovered.encryptedContent == existing.encryptedContent ? existing.content : nil),
@@ -726,7 +728,8 @@ final class ChatCompletionRecoveryCoordinator {
             encryptedModelName: recovered.encryptedModelName ?? existing.encryptedModelName,
             piiMappings: existing.piiMappings, encryptedPIIMappings: existing.encryptedPIIMappings,
             thinkingContent: existing.thinkingContent, encryptedThinkingContent: existing.encryptedThinkingContent,
-            encryptedThinkingSignature: existing.encryptedThinkingSignature, thinkingTokenCount: existing.thinkingTokenCount
+            encryptedThinkingSignature: existing.encryptedThinkingSignature, thinkingTokenCount: existing.thinkingTokenCount,
+            serverMessageId: recovered.serverMessageId ?? existing.serverMessageId
         )
     }
 

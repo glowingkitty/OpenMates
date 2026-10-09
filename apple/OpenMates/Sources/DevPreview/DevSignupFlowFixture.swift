@@ -1,3 +1,9 @@
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte: frontend/packages/ui/src/components/signup/Signup.svelte
+//         frontend/packages/ui/src/components/signup/steps/basics/Basics.svelte
+// CSS: frontend/packages/ui/src/styles/auth.css
+// Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 #if DEBUG
 import CryptoKit
 import SwiftUI
@@ -59,14 +65,14 @@ struct DevSignupFlowFixture: View {
                         Text("Verified local fixture transition; no real account was created.")
                             .accessibilityIdentifier("fixture-signup-complete")
                     }
-                }.frame(maxWidth: geometry.size.width <= 730 ? 326 : 440)
-                    .padding(.vertical, 20).padding(.horizontal, 12).frame(maxWidth: .infinity)
+                }.frame(maxWidth: 440)
+                    .padding(.vertical, .spacing10).padding(.horizontal, .spacing10).frame(maxWidth: .infinity)
             }.background(Color.grey20)
         }
         .task {
             guard !didBootstrap else { return }; didBootstrap = true
             await model.loadRequirements()
-            model.continueFromDisclaimer()
+            if configuration.variant != "alpha-disclaimer" { model.continueFromDisclaimer() }
             if ["confirm-email", "secure-account", "password", "creation-uncertain", "passkey", "passkey-prf-error", "passkey-cancel", "passkey-uncertain"].contains(configuration.variant) {
                 model.basicsModel.form = .init(email: "fixture@example.test", username: "Fixture", termsAccepted: true, privacyAccepted: true)
                 if let accepted = await model.basicsModel.submit() { model.acceptRequestedEmailCode(accepted) }

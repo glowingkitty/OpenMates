@@ -8,6 +8,65 @@ import XCTest
 
 final class WorkflowsParityTests: XCTestCase {
     @MainActor
+    // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity,message-input.recording.lifecycle,workflows.surface.semantic-parity
+    func testWorkflowLocalVoiceHoldsSpeechReservationThroughFinalDecode() async {
+        let runtime = AssistantSpeechAppRuntime()
+        let controller = WorkflowVoiceInputController(speechRuntime: runtime)
+        let client = AudioRealtimeTranscriptionClient(authenticationProvider: { _ in
+            XCTFail("Local workflow voice must not authenticate a cloud request")
+            throw AudioRealtimeTranscriptionError.authenticationUnavailable
+        }, localRuntime: WorkflowVoicePCMFixture(), eventHandler: { _ in })
+        var outcomes: [String] = []
+        controller.beginForTesting(client: client) { text, _ in outcomes.append(text) }
+        XCTAssertTrue(runtime.hasRecordingReservationForTesting)
+        await controller.receiveForTesting(.transcript("Partial local text"))
+        controller.finish()
+        XCTAssertTrue(runtime.hasRecordingReservationForTesting)
+        XCTAssertFalse(controller.hasFinishTimeoutForTesting,
+            "Local decoding must not publish a partial transcript at the online fallback deadline")
+        XCTAssertEqual(AudioRealtimeTranscriptionClient.completionTimeout, .seconds(90))
+        XCTAssertTrue(outcomes.isEmpty)
+        await controller.receiveForTesting(.correctionDone(.init(transcript: "Final local text", language: nil,
+            model: "whisper-large-v3-local", title: nil, transcriptOriginal: "Final local text",
+            transcriptCorrected: nil, useCorrected: false, correctionModel: nil)))
+        XCTAssertEqual(outcomes, ["Final local text"])
+        XCTAssertFalse(runtime.hasRecordingReservationForTesting)
+        await controller.cancel()
+        XCTAssertFalse(runtime.hasRecordingReservationForTesting)
+        runtime.reset()
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity,message-input.recording.lifecycle,workflows.surface.semantic-parity
+    func testWorkflowVoiceCancellationRetainsReservationUntilNativeDecodeDrains() async throws {
+        let entered = expectation(description: "Native workflow decoder entered")
+        let cancellationRequested = expectation(description: "Native decoder cancellation requested")
+        let pcm = WorkflowVoicePCMFixture(entered: { entered.fulfill() },
+            cancelled: { cancellationRequested.fulfill() }, blocked: true)
+        let runtime = AssistantSpeechAppRuntime()
+        let controller = WorkflowVoiceInputController(speechRuntime: runtime)
+        let client = AudioRealtimeTranscriptionClient(authenticationProvider: { _ in
+            throw AudioRealtimeTranscriptionError.authenticationUnavailable
+        }, localRuntime: pcm, eventHandler: { _ in })
+        controller.beginForTesting(client: client)
+        try await client.start()
+        try await client.append(samples: [0.1], sourceSampleRate: 16_000)
+        await client.finish()
+        await fulfillment(of: [entered], timeout: 1)
+        let cancellation = Task { await controller.cancel() }
+        await fulfillment(of: [cancellationRequested], timeout: 1)
+        XCTAssertFalse(controller.recording)
+        XCTAssertTrue(runtime.hasRecordingReservationForTesting,
+            "Stopping the workflow mic cannot release inference while its native decode is blocked")
+        await pcm.release()
+        await cancellation.value
+        XCTAssertFalse(runtime.hasRecordingReservationForTesting)
+        let unloads = await pcm.unloads
+        XCTAssertEqual(unloads, 1)
+        runtime.reset()
+    }
+
+    @MainActor
     // contract-test: supporting surface=gui.apple assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
     func testRunRefreshHydratesTerminalDetailAndPreservesIndividualNodeOutcomes() async throws {
         let workflow = try JSONDecoder().decode(WorkflowDetail.self, from: workflowFixtureData())
@@ -895,4 +954,26 @@ private final class SuspendedWorkflowRequestBoundary {
     }
 
     func rearmAccountCheck() { hasSuspended = false }
+}
+
+private actor WorkflowVoicePCMFixture: LocalPCMTranscribing {
+    private let entered: @Sendable () -> Void
+    private let cancelled: @Sendable () -> Void
+    private let blocked: Bool
+    private var continuation: CheckedContinuation<Void, Never>?
+    private(set) var unloads = 0
+    init(entered: @escaping @Sendable () -> Void = {},
+         cancelled: @escaping @Sendable () -> Void = {}, blocked: Bool = false) {
+        self.entered = entered; self.cancelled = cancelled; self.blocked = blocked
+    }
+    func transcribe(_ samples: [Float]) async throws -> String {
+        await withTaskCancellationHandler {
+            if blocked {
+                await withCheckedContinuation { continuation = $0; entered() }
+            }
+        } onCancel: { [cancelled] in cancelled() }
+        return "Final local text"
+    }
+    func release() { continuation?.resume(); continuation = nil }
+    func unload() async { unloads += 1 }
 }

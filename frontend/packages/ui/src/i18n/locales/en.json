@@ -2545,6 +2545,76 @@
       "action": {
         "text": "Action"
       }
+    },
+    "offline_ai_models": {
+      "title": {
+        "text": "Offline AI models"
+      },
+      "offer": {
+        "text": "Want to download offline AI models (2.3GB) for reducing your costs & even better privacy protection?"
+      },
+      "later": {
+        "text": "Later"
+      },
+      "resume": {
+        "text": "Resume"
+      },
+      "paused": {
+        "text": "Download paused. Resume when you are ready."
+      },
+      "downloading": {
+        "text": "Downloading"
+      },
+      "verifying": {
+        "text": "Verifying files"
+      },
+      "waiting": {
+        "text": "Waiting for connection"
+      },
+      "retrying": {
+        "text": "Retrying download"
+      },
+      "progress": {
+        "text": "{model}: {status}. {downloaded} of {total}"
+      },
+      "complete": {
+        "text": "Offline AI models downloaded."
+      },
+      "online_speech": {
+        "text": "Use online speech"
+      },
+      "local_transcription_failed": {
+        "text": "Local transcription failed. Your recording is kept so you can retry."
+      },
+      "local_speech_failed": {
+        "text": "On-device speech failed. Retry or choose online speech."
+      },
+      "settings_title": {
+        "text": "Offline models"
+      },
+      "speech_to_text": {
+        "text": "Speech to text"
+      },
+      "text_to_speech": {
+        "text": "Text to speech"
+      },
+      "enhanced_anonymization": {
+        "text": "Enhanced anonymization"
+      },
+      "ready": {
+        "text": "Downloaded"
+      }
+    },
+    "signed_out_inspiration": {
+      "dreams": {
+        "text": "Why does your brain create entire worlds while you sleep?"
+      },
+      "history": {
+        "text": "What forgotten event quietly changed how people live today?"
+      },
+      "activism": {
+        "text": "Which everyday choice has a bigger social impact than it seems?"
+      }
     }
   },
   "apps": {

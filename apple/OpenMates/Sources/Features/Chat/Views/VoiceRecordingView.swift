@@ -162,15 +162,44 @@ final class AudioRecordingRealtimeSession {
     private var rawTranscriptHandler: (@MainActor @Sendable (String) -> Void)?
     private var rawTranscript: String?
 
+    private(set) var usesLocalTranscription = false
+    private var generation = UUID()
     private var client: AudioRealtimeTranscriptionClient?
     private var pcmForwarder: OrderedRealtimePCMForwarder?
     private var resultWaiters: [UUID: CheckedContinuation<AudioRecordingRealtimeResult?, Never>] = [:]
     private var settledResult: AudioRecordingRealtimeResult??
+    private let speechRuntime: AssistantSpeechAppRuntime
+    private var recordingReservation: UUID?
+    private var captureFinished = false
+    private var cancellation: Task<Void, Never>?
+    private var hasBegun = false
     private let finishTimeout: Duration
     private var finishTimeoutTask: Task<Void, Never>?
 
-    init(finishTimeout: Duration = .seconds(8)) {
+    init(finishTimeout: Duration = .seconds(8), speechRuntime: AssistantSpeechAppRuntime = .shared) {
         self.finishTimeout = finishTimeout
+        self.speechRuntime = speechRuntime
+    }
+
+    deinit {
+        guard let recordingReservation else { return }
+        let runtime = speechRuntime
+        let client = client
+        Task { @MainActor in
+            await client?.cancel()
+            runtime.endRecording(recordingReservation)
+        }
+    }
+
+    private func reserveRecording() {
+        recordingReservation = speechRuntime.beginRecording()
+        captureFinished = false
+    }
+
+    private func releaseRecordingIfTerminal() {
+        guard captureFinished, settledResult != nil, let recordingReservation else { return }
+        self.recordingReservation = nil
+        speechRuntime.endRecording(recordingReservation)
     }
 
     func begin(
@@ -178,6 +207,11 @@ final class AudioRecordingRealtimeSession {
         chatID: String,
         presentationHandler: @escaping PresentationHandler
     ) {
+        // Chat and welcome composers create one session per capture.
+        guard !hasBegun else { return }
+        hasBegun = true
+        reserveRecording()
+        let token = UUID(); generation = token
         self.presentationHandler = presentationHandler
         liveTranscript = ""
         isConnecting = true
@@ -188,12 +222,15 @@ final class AudioRecordingRealtimeSession {
         rawTranscriptHandler = nil
 
         let client = AudioRealtimeTranscriptionClient.live(authManager: authManager) { [weak self] event in
-            await self?.receive(event)
+            guard let self, await self.generation == token else { return }
+            await self.receive(event)
         }
         self.client = client
+        usesLocalTranscription = client.usesLocalTranscription
         pcmForwarder = OrderedRealtimePCMForwarder(client: client, chatID: chatID) { [weak self, weak client] in
             await client?.cancel()
-            await self?.settle(nil)
+            guard let self, await self.generation == token else { return }
+            await self.settle(nil)
         }
     }
 
@@ -204,8 +241,13 @@ final class AudioRecordingRealtimeSession {
     }
 
     func finish() {
+        captureFinished = true
         pcmForwarder?.finish()
+        releaseRecordingIfTerminal()
         guard settledResult == nil else { return }
+        // Local decoding can take longer than a server correction. Wait for its
+        // actual terminal result, never publish a truncated partial as final.
+        guard !usesLocalTranscription else { return }
         finishTimeoutTask?.cancel()
         finishTimeoutTask = Task { @MainActor [weak self, finishTimeout] in
             try? await Task.sleep(for: finishTimeout)
@@ -227,10 +269,16 @@ final class AudioRecordingRealtimeSession {
     }
 
     func cancel() async {
+        if let cancellation { await cancellation.value; return }
+        generation = UUID()
         pcmForwarder?.cancel()
         pcmForwarder = nil
-        await client?.cancel()
+        let cancellation = Task { [client] in _ = await client?.cancel() }
+        self.cancellation = cancellation
+        await cancellation.value
+        captureFinished = true
         settle(nil)
+        releaseRecordingIfTerminal()
     }
 
     func awaitResult() async -> AudioRecordingRealtimeResult? {
@@ -247,7 +295,9 @@ final class AudioRecordingRealtimeSession {
             }
         } onCancel: {
             Task { @MainActor [weak self] in
-                self?.resultWaiters.removeValue(forKey: waiterID)?.resume(returning: nil)
+                guard let self else { return }
+                resultWaiters.removeValue(forKey: waiterID)?.resume(returning: nil)
+                if usesLocalTranscription, resultWaiters.isEmpty { await cancel() }
             }
         }
     }
@@ -303,6 +353,12 @@ final class AudioRecordingRealtimeSession {
     }
 
     #if DEBUG
+    func beginLocalRecordingForTesting() {
+        guard !hasBegun else { return }
+        hasBegun = true
+        reserveRecording()
+        usesLocalTranscription = true
+    }
     func receiveForTesting(_ event: AudioRealtimeTranscriptionClient.Event) async {
         await receive(event)
     }
@@ -313,6 +369,7 @@ final class AudioRecordingRealtimeSession {
         finishTimeoutTask?.cancel()
         finishTimeoutTask = nil
         settledResult = .some(result)
+        releaseRecordingIfTerminal()
         isConnecting = false
         presentationHandler?(liveTranscript, false)
         let waiters = resultWaiters

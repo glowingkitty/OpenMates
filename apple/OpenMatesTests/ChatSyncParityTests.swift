@@ -11,6 +11,81 @@ import SwiftData
 
 @MainActor
 final class ChatSyncParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent,chats.surface.semantic-parity
+    func testOpeningOneUnreadChatKeepsOtherBadgeAndExplicitActivationRepairsOSState() {
+        var badges: [Int] = []
+        let unread = UnreadMessagesStore(badgeUpdater: { badges.append($0) })
+        unread.configure(scopeID: "synthetic-owner-server", teamID: "team-a")
+        unread.setUnread(chatId: "opened", count: 2, teamID: "team-a")
+        unread.setUnread(chatId: "other", count: 1, teamID: "team-a")
+        unread.setUnread(chatId: "inactive-team", count: 4, teamID: "team-b")
+        XCTAssertEqual(unread.totalUnread, 3, "The badge counts messages in the selected Team")
+        badges.removeAll()
+        unread.setActiveChat("opened")
+        XCTAssertEqual(unread.totalUnread, 1)
+        XCTAssertEqual(unread.getUnreadCount(chatId: "other", teamID: "team-a"), 1)
+        XCTAssertEqual(badges, [1])
+        // The OS may retain a stale badge independently of unchanged metadata.
+        unread.resynchronizeBadge()
+        XCTAssertEqual(badges, [1, 1])
+        unread.setUnread(chatId: "opened", count: 2, teamID: "team-a")
+        XCTAssertEqual(unread.totalUnread, 1, "Hydration must retain active-chat suppression")
+        XCTAssertEqual(badges, [1, 1], "Ordinary unchanged metadata still avoids extra writes")
+        unread.setActiveTeam("team-b")
+        XCTAssertEqual(unread.totalUnread, 4)
+        unread.resynchronizeBadge()
+        XCTAssertEqual(badges.suffix(2), [4, 4])
+        unread.configure(scopeID: "other-owner-server", teamID: "team-b")
+        XCTAssertEqual(unread.totalUnread, 0)
+        XCTAssertEqual(badges.last, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=landing-onboarding.apple-web-parity
+    func testSignedOutWelcomeFiltersExistingExamplesAndRestoresUnfilteredCatalogOnSkip() {
+        let event = makeChat(id: "example-creativity-drawing-meetups-berlin", title: "Events")
+        let science = makeChat(id: "example-artemis-ii-mission", title: "Science")
+        let privateChat = makeChat(id: "private-chat", title: "Private")
+        let retired = makeChat(id: "demo-for-everyone", title: "Retired")
+        let source = [science, privateChat, event, retired]
+        XCTAssertEqual(WelcomeScreenState.guestExampleChats(from: source, selected: []).map(\.id), [science.id, event.id])
+        XCTAssertEqual(WelcomeScreenState.availableGuestTopics(from: source), [.findEvents, .science, .generalKnowledge])
+        XCTAssertFalse(WelcomeScreenState.availableGuestTopics(from: source).contains(.privacy))
+        XCTAssertEqual(WelcomeScreenState.guestExampleChats(from: source, selected: [.findEvents]).map(\.id), [event.id])
+        XCTAssertEqual(WelcomeScreenState.guestExampleChats(from: source, selected: [.science]).map(\.id), [science.id])
+        XCTAssertTrue(WelcomeScreenState.guestExampleChats(from: source, selected: [.privacy]).isEmpty,
+            "A topic without an existing catalog match must not silently show unrelated examples")
+        XCTAssertEqual(WelcomeScreenState.guestExampleChats(from: source, selected: []).map(\.id), [science.id, event.id])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=landing-onboarding.apple-web-parity
+    func testSignedOutFallbackIsNormalDailyInspirationAvailableBeforeAPI() {
+        let fallback = WelcomeScreenState.signedOutFallbackInspirations
+        XCTAssertEqual(fallback.map(\.inspirationId), ["hardcoded-dreams", "hardcoded-history", "hardcoded-activism"])
+        XCTAssertTrue(fallback.allSatisfy { !$0.text.isEmpty })
+        XCTAssertFalse(fallback.contains { $0.inspirationId?.hasPrefix("openmates-") == true })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.message.identity-idempotent
+    func testStoreContentRevisionTracksSameIDReplacementAndRemainsChatScoped() {
+        let store = ChatStore()
+        let time = "2026-01-01T00:00:00Z"
+        func row(_ cipher: String?, streaming: Bool, alias: String? = nil) -> Message {
+            Message(id: "same-id", chatId: "chat-1", role: .assistant, content: nil,
+                encryptedContent: cipher, createdAt: time, updatedAt: nil, appId: nil,
+                isStreaming: streaming, embedRefs: nil, serverMessageId: alias)
+        }
+        store.performWithoutPersistence { store.appendMessage(row(nil, streaming: true, alias: "db-alias"), to: "chat-1") }
+        let revision = store.contentRevision(for: "chat-1")
+        store.performWithoutPersistence { store.appendMessage(row("saved-ciphertext", streaming: false), to: "chat-1") }
+        XCTAssertGreaterThan(store.contentRevision(for: "chat-1"), revision)
+        XCTAssertEqual(store.contentRevision(for: "other-chat"), 0)
+        XCTAssertEqual(store.messages(for: "chat-1").map(\.id), ["same-id"])
+        XCTAssertEqual(store.messages(for: "chat-1").first?.encryptedContent, "saved-ciphertext")
+        XCTAssertEqual(store.messages(for: "chat-1").first?.serverMessageId, "db-alias")
+        store.clearInMemory()
+        XCTAssertEqual(store.contentRevision(for: "chat-1"), 0)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testUnreadHundredChatSteadyHydrationAndDuplicateCompletionPublishNothing() {
         var badges: [Int] = []
@@ -1290,7 +1365,91 @@ final class ChatSyncParityTests: XCTestCase {
         let z = makeChat(id: "z", title: "Z")
         let store = ChatStore()
         store.upsertChats([a, z, onlyMetadata], serverSortOrder: ["a", "z"])
-        XCTAssertEqual(WelcomeScreenState.recentChats(from: store.chats, excluding: nil).map(\.id), ["z", "a", "metadata-only"])
+        XCTAssertEqual(WelcomeScreenState.recentChats(from: store.chats, excluding: nil).map(\.id), ["a", "z", "metadata-only"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent,chats.surface.semantic-parity
+    func testContinueUsesOverallEditTimeBeforeMessageTimeAndPreservesEqualInputTies() throws {
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        func chat(_ id: String, message: Int, edited: Int) throws -> Chat {
+            try decoder.decode(Chat.self, from: JSONSerialization.data(withJSONObject: [
+                "id": id, "title": id, "created_at": 1, "updated_at": 1,
+                "last_message_at": message, "last_edited_overall_timestamp": edited]))
+        }
+        let messageNew = try chat("message-new", message: 300, edited: 10)
+        let editNew = try chat("edit-new", message: 100, edited: 50)
+        let equalFirst = try chat("a", message: 400, edited: 20)
+        let equalSecond = try chat("z", message: 200, edited: 20)
+        XCTAssertEqual(WelcomeScreenState.recentChats(from: [messageNew, equalFirst, equalSecond, editNew], excluding: nil).map(\.id),
+            ["edit-new", "a", "z", "message-new"])
+        XCTAssertEqual(WelcomeScreenState.recentChats(from: [messageNew, equalFirst, equalSecond, editNew],
+            excluding: "edit-new", activeChatId: "a").map(\.id), ["z", "message-new"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testConnectionRippleUsesNormalCycleAndReduceMotionKeepsArcsStatic() {
+        XCTAssertEqual(NativeConnectionAnimation.wifiOpacity(elapsed: 0, arc: 2, reduceMotion: false), 0.3, accuracy: 0.001)
+        XCTAssertEqual(NativeConnectionAnimation.wifiOpacity(elapsed: 0.81, arc: 2, reduceMotion: false), 1, accuracy: 0.001)
+        XCTAssertEqual(NativeConnectionAnimation.wifiOpacity(elapsed: 1.8, arc: 2, reduceMotion: false), 0.3, accuracy: 0.001)
+        XCTAssertEqual(NativeConnectionAnimation.wifiOpacity(elapsed: 1.17, arc: 0, reduceMotion: false), 1, accuracy: 0.001)
+        for arc in 0..<3 {
+            XCTAssertEqual(NativeConnectionAnimation.wifiOpacity(elapsed: 1.4, arc: arc, reduceMotion: true), 1)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testDownloadHeaderUsesSubtleOpacityAndReduceMotionIsStatic() {
+        XCTAssertEqual(OfflineAIModelDownloadMotion.opacity(elapsed: 0, active: true, reduceMotion: false), 1, accuracy: 0.001)
+        XCTAssertEqual(OfflineAIModelDownloadMotion.opacity(elapsed: 1.2, active: true, reduceMotion: false), 0.6, accuracy: 0.001)
+        XCTAssertEqual(OfflineAIModelDownloadMotion.opacity(elapsed: 2.4, active: true, reduceMotion: false), 1, accuracy: 0.001)
+        for elapsed in [0.0, 0.6, 1.2, 2.4] {
+            XCTAssertEqual(OfflineAIModelDownloadMotion.opacity(elapsed: elapsed, active: true, reduceMotion: true), 1)
+            XCTAssertEqual(OfflineAIModelDownloadMotion.opacity(elapsed: elapsed, active: false, reduceMotion: false), 1)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads,sync.surface.semantic-parity
+    func testAuthenticationPresentationHidesStatusAndResetsReconnectDelay() {
+        var policy = NativeConnectionFeedbackPolicy()
+        var inputs = NativeConnectionFeedbackInputs(online: true, authenticated: true,
+            checkingAuth: false, connected: false, syncing: false)
+        policy.update(inputs, now: 0)
+        policy.update(inputs, now: 3)
+        XCTAssertEqual(policy.state, .reconnecting, "A disconnected cached account still shows connection feedback")
+        inputs.connected = true
+        inputs.syncing = true
+        policy.update(inputs, now: 3.1)
+        policy.update(inputs, now: 3.8)
+        XCTAssertEqual(policy.state, .syncing)
+        inputs.authenticationPresented = true
+        policy.update(inputs, now: 4)
+        XCTAssertEqual(policy.state, .idle)
+        XCTAssertNil(policy.nextUpdateDelay(now: 4))
+        inputs.online = false
+        policy.update(inputs, now: 20)
+        XCTAssertEqual(policy.state, .idle, "Login and verification own feedback while authentication is presented")
+        XCTAssertFalse(NativeHeaderStatusPolicy.showsDownload(phase: .downloading, online: true,
+            authenticated: true, checkingAuth: false, authenticationPresented: true))
+        inputs.authenticationPresented = false
+        inputs.connected = false
+        inputs.syncing = false
+        policy.update(inputs, now: 21)
+        XCTAssertEqual(policy.state, .offline, "A valid cached account keeps its offline indicator")
+        inputs.online = true
+        policy.update(inputs, now: 22)
+        XCTAssertEqual(policy.state, .idle)
+        policy.update(inputs, now: 25)
+        XCTAssertEqual(policy.state, .reconnecting)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads,sync.surface.semantic-parity
+    func testHeaderDownloadNeverHidesOfflineOrAuthenticationStatus() {
+        XCTAssertTrue(NativeHeaderStatusPolicy.showsDownload(phase: .downloading, online: true, authenticated: true, checkingAuth: false))
+        XCTAssertFalse(NativeHeaderStatusPolicy.showsDownload(phase: .downloading, online: false, authenticated: true, checkingAuth: false))
+        XCTAssertFalse(NativeHeaderStatusPolicy.showsDownload(phase: .downloading, online: true, authenticated: true, checkingAuth: true))
+        XCTAssertFalse(NativeHeaderStatusPolicy.showsDownload(phase: .downloading, online: true, authenticated: false, checkingAuth: false))
+        XCTAssertFalse(NativeHeaderStatusPolicy.showsDownload(phase: .deferred, online: true, authenticated: true, checkingAuth: false))
+        XCTAssertFalse(NativeHeaderStatusPolicy.showsDownload(phase: .complete, online: true, authenticated: true, checkingAuth: false))
     }
 
     // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative,chat-navigation.open.local-first-coherent
@@ -1319,7 +1478,7 @@ final class ChatSyncParityTests: XCTestCase {
         let other = WelcomeScreenState.recentChats(from: chats, excluding: resume?.id, activeChatId: "recent-14")
         XCTAssertEqual(resume?.id, older.id)
         XCTAssertEqual(other.count, 9)
-        XCTAssertEqual(other.first?.id, "recent-13")
+        XCTAssertEqual(other.first?.id, "recent-00")
         XCTAssertFalse(other.contains { $0.id == older.id || $0.id == "recent-14" })
         XCTAssertEqual(WelcomeScreenState.recentChats(from: chats, excluding: nil).count, 10)
     }

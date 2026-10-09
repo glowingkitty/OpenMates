@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.landing-onboarding
-version: 4
+version: 5
 status: draft
 title: Landing Onboarding
 summary: >
@@ -9,7 +9,9 @@ summary: >
   get actionable app results, preserve privacy controls, use specialized mates,
   keep provider-independent access, and finish on a shared signup CTA without
   selecting or exposing legacy public intro chats. English metadata pairs the
-  concise visible headline with a longer product-category description.
+  concise visible headline with a longer product-category description. Apple
+  main-app welcome is separate from marketing: signed-out users immediately see
+  normal Daily Inspirations and visible topic selection for public examples.
 
 scope:
   includes:
@@ -19,7 +21,7 @@ scope:
     - Dependency on the Daily Inspiration guest-onboarding source and card IDs.
     - Retirement of the legacy For everyone and For developers intro chats, routes, discovery entries, and client-visible IDs.
     - A consistent English headline and descriptive-copy hierarchy without changing visible landing copy.
-    - Web and Apple GUI semantic parity with contract-linked e2e proof for landing assertions.
+    - Apple signed-out main-app welcome uses normal Daily Inspirations and visible topic selection for public examples, with existing login and navigation controls.
   excludes:
     - Authenticated Daily Inspiration recovery, persistence, public defaults, and opened-state semantics.
     - Example-chat selection, all-examples discovery, topic tag ranking, and contextual link ranking below the header.
@@ -142,19 +144,23 @@ models:
       constraints: {clears_retired_hash: true, opens_new_chat_welcome: true, missing_chat_error: forbidden}
 
   AppleLandingParity:
-    canonical_source:
+    host_surface:
       type: enum
-      values: [web_contract]
+      values: [new_chat_welcome]
       required: true
-      constraints: {contract: feature.landing-onboarding@1}
-    required_surface:
+    inspiration_source:
       type: enum
-      values: [gui.apple]
+      values: [normal_daily_inspiration]
       required: true
-    e2e_contract_metadata:
-      type: contract_test_metadata
+      constraints: {synchronous_public_fallback: true, marketing_intro_or_product_story_slides: absent}
+    topics:
+      type: behavior
       required: true
-      constraints: {surface: gui.apple, classification: direct}
+      constraints: {initial_selection_visible: true, offered_topics_have_native_catalog_matches: true, minimum_topics_to_filter: 1, existing_controls_and_state: preserved, selected_topics_filter_existing_public_catalog: true, skip_restores_unfiltered_catalog: true}
+    navigation:
+      type: behavior
+      required: true
+      constraints: {login_entry_point: preserved, existing_shell_controls: preserved}
 
 assertions:
   - id: landing-onboarding.uses-real-chat-shell
@@ -199,8 +205,8 @@ assertions:
     depends_on: [models.IntroOverlay.headline, examples.primary_slogan]
   - id: landing-onboarding.apple-web-parity
     type: parity
-    must: Apple logged-out landing onboarding preserves the same semantic contract as the web version for real chat-shell hosting, story order, active-app intro rails, coordinated progress, manual navigation, actionable and product-faithful stories, and signup CTA behavior; Apple e2e proof is required and must carry contract-test metadata linking each direct proof to the landing assertion IDs it verifies.
-    depends_on: [models.GuestLandingCarousel, models.IntroOverlay, models.ProductStorySlide, models.GuestNavigation, models.SignupCTA, models.AppleLandingParity, examples.apple_parity, applies_to]
+    must: The signed-out Apple main app opens its existing new-chat welcome directly with normal Daily Inspirations, including synchronous public fallback while defaults load, and visible existing interest-topic controls in the Continue area, limited to topics with examples in the current native catalog and accepting a single selected topic. Selected topics filter the existing public example catalog; skipping restores the unfiltered catalog. Expanded marketing headers, intro overlays, and product-story/signup slides are absent from this app welcome. Existing login entry points and shell navigation remain visible and usable. This explicitly separates the Apple app from the website marketing landing flow.
+    depends_on: [models.AppleLandingParity, examples.apple_parity, applies_to]
 
 applies_to:
   rest_api:
@@ -219,7 +225,7 @@ applies_to:
     parity: semantic
     implementations:
       web: {required: true}
-      apple: {required: true, role: preserves semantic logged-out landing onboarding parity with the web contract through native e2e proof}
+      apple: {required: true, role: Signed-out main-app welcome follows AppleLandingParity after marketing landing separation; website guest-story assertions do not require native marketing slides.}
 
 examples:
   file: examples.yml

@@ -385,14 +385,15 @@ private struct ChatStreamReplaySnapshot {
 enum ChatStreamReplayPolicy {
     static func materializedFinalMessageIDs(in messages: [Message], chatID: String,
                                     pendingMessageIDs: Set<String>) -> Set<String> {
-        Set(messages.compactMap { message in
+        messages.reduce(into: Set<String>()) { ids, message in
+            let identities = Set([message.id] + (message.serverMessageId.map { [$0] } ?? []))
             guard message.chatId == chatID,
                   message.role == .assistant || message.role == .system,
                   message.isStreaming != true,
                   message.encryptedContent?.isEmpty == false,
-                  !pendingMessageIDs.contains(message.id) else { return nil }
-            return message.id
-        })
+                  identities.isDisjoint(with: pendingMessageIDs) else { return }
+            ids.formUnion(identities)
+        }
     }
 }
 

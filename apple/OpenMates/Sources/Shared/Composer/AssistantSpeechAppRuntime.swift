@@ -2,8 +2,11 @@
 // Assertions: assistant-speech.surface.semantic-parity
 import Foundation
 import Combine
+#if os(iOS)
+import UIKit
+#endif
 
-// One app-scoped provider playback owner. OfflineStore's scope ID is already a
+// One app-scoped local/provider playback owner. OfflineStore's scope ID is already a
 // digest of actual account + API base URL, and generation changes on logout.
 @MainActor
 final class AssistantSpeechAppRuntime {
@@ -17,6 +20,73 @@ final class AssistantSpeechAppRuntime {
     private let systemMedia = AssistantSpeechSystemMedia()
     private var mediaSubscription: AnyCancellable?
     private let player = AssistantSpeechAudioPlayer()
+    private let localSpeech = SupertonicComposerRuntime()
+    private var localPreparation: Task<Void, Never>?
+    // A capture retains its reservation through final decoding, including when
+    // its composer disappears or realtime transcription fails before mic stop.
+    private var recordingReservations = Set<UUID>()
+    struct LocalPreparationDependencies {
+        var isAvailable: @MainActor () -> Bool
+        var prepare: @MainActor () async throws -> Void
+        var waitUntilIdle: @MainActor () async throws -> Void
+        var didConsiderPreparation: @MainActor () -> Void = {}
+    }
+    private let localPreparationDependencies: LocalPreparationDependencies?
+    private var memoryPressureObserver: NSObjectProtocol?
+    private var localMemoryPressure: DispatchSourceMemoryPressure?
+
+    private var localLanguage: String {
+        LocalizationManager.shared.currentLanguage.code.lowercased().split(separator: "-").first.map(String.init) ?? "en"
+    }
+    private var localSpeechAvailable: Bool {
+        if let localPreparationDependencies { return localPreparationDependencies.isAvailable() }
+        #if arch(arm64) && canImport(OnnxRuntimeBindings) && !os(watchOS)
+        return LocalModelStore.shared.state(for: .supertonic3) == .ready
+        #else
+        return false
+        #endif
+    }
+    private func scheduleLocalPreparation(chatID: String, control: NativeAssistantSpeech) {
+        localPreparationDependencies?.didConsiderPreparation()
+        localPreparation?.cancel()
+        let messages = store?.messages(for: chatID) ?? []
+        guard recordingReservations.isEmpty, control.enabled, localSpeechAvailable, !control.playerVisible,
+              !messages.isEmpty, messages.allSatisfy({ $0.isStreaming != true }),
+              messages.contains(where: { $0.content?.isEmpty == false }) else { return }
+        let generation = activationGeneration
+        localPreparation = Task { @MainActor [weak self, weak control] in
+            // Activation returns immediately. Prepare only after the selected
+            // chat has stayed idle; streaming/recording never blocks on this job.
+            do {
+                if let wait = self?.localPreparationDependencies?.waitUntilIdle { try await wait() }
+                else { try await Task.sleep(for: .seconds(2)) }
+                try Task.checkCancellation()
+                guard let self, let control, recordingReservations.isEmpty, control.enabled, activeChatID == chatID,
+                      activationGeneration == generation, localSpeechAvailable, !control.playerVisible,
+                      store?.messages(for: chatID).contains(where: { $0.isStreaming == true }) != true else { return }
+                if let prepare = localPreparationDependencies?.prepare { try await prepare() }
+                else if let directory = try? LocalModelStore.shared.installedDirectory(.supertonic3) {
+                    try await localSpeech.prepare(directory: directory)
+                }
+            } catch { /* Playback reports a scoped failure if preparation fails. */ }
+        }
+    }
+    #if DEBUG
+    var hasRecordingReservationForTesting: Bool { !recordingReservations.isEmpty }
+    #endif
+    func beginRecording() -> UUID {
+        let reservation = UUID()
+        recordingReservations.insert(reservation)
+        localPreparation?.cancel(); localPreparation = nil
+        if let activeChatID, let control = controllers[activeChatID] { control.detach() }
+        localSpeech.unload()
+        return reservation
+    }
+    func endRecording(_ reservation: UUID) {
+        guard recordingReservations.remove(reservation) != nil, recordingReservations.isEmpty,
+              let id = activeChatID, let control = controllers[id] else { return }
+        scheduleLocalPreparation(chatID: id, control: control)
+    }
     private var controllers: [String: NativeAssistantSpeech] = [:]
     private var outgoing: [String: String] = [:]
     private var pendingCommitUserIDs: [String: String] = [:]
@@ -61,9 +131,30 @@ final class AssistantSpeechAppRuntime {
         }
     ))
     init(controllerFactory: (@MainActor (String) -> NativeAssistantSpeech)? = nil,
-         stopController: @escaping @MainActor (NativeAssistantSpeech) async -> Void = { await $0.stop() }) {
+         stopController: @escaping @MainActor (NativeAssistantSpeech) async -> Void = { await $0.stop() },
+         localPreparationDependencies: LocalPreparationDependencies? = nil) {
+        self.localPreparationDependencies = localPreparationDependencies
         self.controllerFactory = controllerFactory
         self.stopController = stopController
+        #if os(macOS)
+        let pressure = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
+        pressure.setEventHandler { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.localPreparation?.cancel(); self?.localPreparation = nil
+                self?.localSpeech.unload()
+            }
+        }
+        localMemoryPressure = pressure; pressure.resume()
+        #endif
+        #if os(iOS)
+        memoryPressureObserver = NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.localPreparation?.cancel(); self?.localPreparation = nil
+                    self?.localSpeech.unload()
+                }
+            }
+        #endif
         player.onApproachingEnd = { [weak self] in
             guard let self, let id = activeChatID else { return }
             controllers[id]?.prefetchNextChapter()
@@ -82,7 +173,10 @@ final class AssistantSpeechAppRuntime {
             Task { @MainActor [weak self] in
                 await Task.yield()
                 guard let self, let id = activeChatID, let store = self.store else { return }
-                controllers[id]?.updateSource(from: store.messages(for: id))
+                if let control = controllers[id] {
+                    control.updateSource(from: store.messages(for: id))
+                    scheduleLocalPreparation(chatID: id, control: control)
+                }
             }
         }
         metadataSubscription = store.$chats.sink { [weak self] chats in
@@ -187,7 +281,7 @@ final class AssistantSpeechAppRuntime {
                 return try await media.audio(scope, assetID: asset)
             }, play: { [weak self] bytes in
                 guard let self, activeChatID == chatID else { throw CancellationError() }; try await player.play(bytes)
-            }, stopPlayback: { [weak self] in if self?.activeChatID == chatID { self?.player.stop() } },
+            }, stopPlayback: { [weak self] in if self?.activeChatID == chatID { self?.player.stop(); self?.localPreparation?.cancel(); self?.localSpeech.unload() } },
             cancelResponse: { [weak self] scope, id in
                 guard let self, current(scope), let socket else { return }
                 try await socket.send(.init(type: "assistant_speech", payload: ["action": "cancel",
@@ -207,6 +301,15 @@ final class AssistantSpeechAppRuntime {
                 var fields: [String: Any] = ["action": action, "chat_id": scope.chatID, "assistant_message_id": id, "segments": segments]
                 if action == "request" { fields["defer_after_first"] = true }
                 try await socket.send(.init(type: "assistant_speech", payload: fields))
+            }, localSpeechAvailable: { [weak self] in self?.localSpeechAvailable == true },
+            synthesizeLocal: { [weak self] scope, text in
+                guard let self, recordingReservations.isEmpty, current(scope), activeChatID == scope.chatID, localSpeechAvailable,
+                      let directory = try? LocalModelStore.shared.installedDirectory(.supertonic3) else { throw LocalSpeechRuntimeError.unavailableRuntime }
+                let language = localLanguage
+                let bytes = try await localSpeech.synthesize(.init(text: text, voice: "F1", language: language, steps: 8), directory: directory)
+                guard current(scope), activeChatID == scope.chatID else { throw CancellationError() }
+                guard localLanguage == language, localSpeechAvailable else { throw LocalSpeechRuntimeError.unavailableRuntime }
+                return bytes
             }, canPlay: { [weak self] scope in self?.current(scope) == true && self?.activeChatID == scope.chatID }))
         controllers[chatID] = value; return value
     }
@@ -232,12 +335,14 @@ final class AssistantSpeechAppRuntime {
         await control.activate(supported ? scope(for: chatID) : nil)
         if activationGeneration == activation, sessionGeneration == expectedSession, !Task.isCancelled {
             control.resumePlaybackIfReady()
+            scheduleLocalPreparation(chatID: chatID, control: control)
         }
         return control
     }
     func deactivate(chatID: String, ownerID: UUID, controller: NativeAssistantSpeech?) {
         guard activeChatID == chatID, activeOwnerID == ownerID, let controller, controllers[chatID] === controller else { return }
         controller.detach()
+        localPreparation?.cancel(); localPreparation = nil; localSpeech.unload()
         systemMedia.reset(); mediaSubscription = nil
         activeChatID = nil; activeOwnerID = nil
     }
@@ -339,6 +444,7 @@ final class AssistantSpeechAppRuntime {
         return assistantID
     }
     func reset() {
+        localPreparation?.cancel(); localPreparation = nil; localSpeech.unload()
         systemMedia.reset(); mediaSubscription = nil; publicScope = nil
         sessionGeneration = UUID(); activationGeneration = UUID(); pendingPublicChatID = nil
         sourceSubscription = nil; metadataSubscription = nil; knownCiphertexts.removeAll()

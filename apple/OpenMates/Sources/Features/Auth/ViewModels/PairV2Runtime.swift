@@ -45,17 +45,22 @@ enum PairSessionDeadlineStore {
 enum PairPendingAckStore {
     private static let key = "openmates.apple.pair_pending_ack_user"
 
-    static func mark(userID: String) { UserDefaults.standard.set(userID, forKey: key) }
-    static func userID() -> String? { UserDefaults.standard.string(forKey: key) }
-    static func flushLocalPairState() throws {
-        guard UserDefaults.standard.synchronize(),
-              OpenMatesSharedEnvironment.defaults.synchronize() else {
+    static func mark(userID: String, defaults: UserDefaults = .standard) { defaults.set(userID, forKey: key) }
+    static func userID(defaults: UserDefaults = .standard) -> String? { defaults.string(forKey: key) }
+    static func flushLocalPairState(standard: UserDefaults = .standard,
+                                    shared: UserDefaults = OpenMatesSharedEnvironment.defaults) throws {
+        guard standard.synchronize() else {
+            NativeDiagnostics.error("phase=persistence.flush.failed store=standard", category: "pair_login")
+            throw PairOpaqueError.invalidExchange
+        }
+        guard shared === standard || shared.synchronize() else {
+            NativeDiagnostics.error("phase=persistence.flush.failed store=app_group", category: "pair_login")
             throw PairOpaqueError.invalidExchange
         }
     }
-    static func clear() {
-        UserDefaults.standard.removeObject(forKey: key)
-        _ = UserDefaults.standard.synchronize()
+    static func clear(defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: key)
+        _ = defaults.synchronize()
     }
 }
 
@@ -282,86 +287,106 @@ enum PairV2Runtime {
     }
 
     static func complete(token: String, pin: String, serverProfile: ServerProfile) async throws -> PairLoginResult {
-        let attempt = try await PairV2AttemptStore.shared.get(token: token)
-        let approved = try await poll(token: token, serverProfile: serverProfile)
-        guard approved.status == "approved",
-              approved.sessionId == attempt.sessionID,
-              approved.receiverTokenHash == attempt.hash,
-              let authorizerUserID = approved.authorizerUserId,
-              PairLoginRuntime.isValidPIN(pin) else {
-            throw PairOpaqueError.invalidExchange
+        var stage = "receiver_attempt"
+        do {
+            let attempt = try await PairV2AttemptStore.shared.get(token: token)
+            stage = "approval_context"
+            let approved = try await poll(token: token, serverProfile: serverProfile)
+            guard approved.status == "approved",
+                  approved.sessionId == attempt.sessionID,
+                  approved.receiverTokenHash == attempt.hash,
+                  let authorizerUserID = approved.authorizerUserId,
+                  PairLoginRuntime.isValidPIN(pin) else {
+                throw PairOpaqueError.invalidExchange
+            }
+            let context = try PairV2Context(
+                token: token,
+                sessionID: attempt.sessionID,
+                receiverTokenHash: attempt.hash,
+                authorizerUserID: authorizerUserID,
+                autoLogoutMinutes: approved.autoLogoutMinutes
+            )
+            stage = "opaque_start"
+            let start = try PairOpaque.call("startClientLogin", ["password": pin])
+            try Task.checkCancellation()
+            stage = "receiver_request"
+            let _: Data = try await APIClient.shared.request(
+                .post, path: "\(prefix)/receiver/\(token)/message", serverProfile: serverProfile,
+                body: PairV2MessageRequest(stage: "request", message: try PairOpaque.field(start, "startLoginRequest")),
+                headers: headers(attempt)
+            )
+            stage = "authorizer_response"
+            let response = try await waitForReceiver(token: token, status: "response", serverProfile: serverProfile)
+            try Task.checkCancellation()
+            guard let rawMessage = response.message else { throw PairOpaqueError.invalidExchange }
+            let message = try opaqueMessage(rawMessage)
+            stage = "opaque_finish"
+            let finish = try PairOpaque.call("finishClientLogin", [
+                "clientLoginState": try PairOpaque.field(start, "clientLoginState"),
+                "loginResponse": message,
+                "password": pin,
+                "identifiers": context.identifiers
+            ])
+            try Task.checkCancellation()
+            stage = "receiver_finish"
+            let _: Data = try await APIClient.shared.request(
+                .post, path: "\(prefix)/receiver/\(token)/message", serverProfile: serverProfile,
+                body: PairV2MessageRequest(stage: "finish", message: try PairOpaque.field(finish, "finishLoginRequest")),
+                headers: headers(attempt)
+            )
+            stage = "authorizer_bundle"
+            let ready = try await waitForReceiver(token: token, status: "ready", serverProfile: serverProfile)
+            try Task.checkCancellation()
+            guard let encrypted = ready.encryptedBundle, let iv = ready.iv else { throw PairOpaqueError.invalidExchange }
+            stage = "bundle_decrypt"
+            let plaintext = try PairV2Crypto.open(
+                ciphertext: encrypted, iv: iv,
+                sessionKey: try PairOpaque.field(finish, "sessionKey"), context: context
+            )
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            stage = "bundle_binding"
+            let bundle = try decoder.decode(PairV2Bundle.self, from: plaintext)
+            guard bundle.protocolVersion == 2,
+                  bundle.userId == context.authorizerUserID,
+                  try PairV2Crypto.decode(bundle.grantSecret).count == 32,
+                  let masterKeyData = Data(base64Encoded: bundle.masterKeyExported), masterKeyData.count == 32 else {
+                throw PairOpaqueError.invalidExchange
+            }
+            let masterKey = SymmetricKey(data: masterKeyData)
+            stage = "account_binding"
+            let decryptedEmail = try await CryptoManager.shared.decryptContent(
+                base64String: bundle.accountContext.encryptedEmailWithMasterKey, key: masterKey
+            )
+            guard !decryptedEmail.isEmpty,
+                  await CryptoManager.shared.hashEmail(decryptedEmail) == bundle.hashedEmail else {
+                throw PairOpaqueError.invalidExchange
+            }
+            try Task.checkCancellation()
+            stage = "session_complete"
+            let login: LoginResponse = try await APIClient.shared.request(
+                .post, path: "\(prefix)/complete/\(token)", serverProfile: serverProfile,
+                body: PairV2CompleteRequest(grantSecret: bundle.grantSecret), headers: headers(attempt)
+            )
+            stage = "session_identity"
+            guard login.success, login.user?.id == context.authorizerUserID,
+                  context.autoLogoutMinutes == nil || (login.pairExpiresAt ?? 0) > Int(Date().timeIntervalSince1970) else {
+                throw PairOpaqueError.invalidExchange
+            }
+            stage = "session_account_binding"
+            guard login.user?.userEmailSalt == bundle.userEmailSalt,
+                  login.user?.email == nil || login.user?.email == decryptedEmail else {
+                throw PairOpaqueError.invalidExchange
+            }
+            try Task.checkCancellation()
+            stage = "account_persist"
+            try PairVerifiedAccountStore.save(userID: bundle.userId, hashedEmail: bundle.hashedEmail,
+                emailSalt: bundle.userEmailSalt, encryptedEmail: bundle.accountContext.encryptedEmailWithMasterKey)
+            return PairLoginResult(loginResponse: login, masterKey: masterKey, serverProfile: serverProfile)
+        } catch {
+            NativeDiagnostics.error("phase=receiver.complete.failed stage=\(stage) errorType=\(type(of: error))", category: "pair_login")
+            throw error
         }
-        let context = try PairV2Context(
-            token: token,
-            sessionID: attempt.sessionID,
-            receiverTokenHash: attempt.hash,
-            authorizerUserID: authorizerUserID,
-            autoLogoutMinutes: approved.autoLogoutMinutes
-        )
-        let start = try PairOpaque.call("startClientLogin", ["password": pin])
-        try Task.checkCancellation()
-        let _: Data = try await APIClient.shared.request(
-            .post, path: "\(prefix)/receiver/\(token)/message", serverProfile: serverProfile,
-            body: PairV2MessageRequest(stage: "request", message: try PairOpaque.field(start, "startLoginRequest")),
-            headers: headers(attempt)
-        )
-        let response = try await waitForReceiver(token: token, status: "response", serverProfile: serverProfile)
-        try Task.checkCancellation()
-        guard let rawMessage = response.message else { throw PairOpaqueError.invalidExchange }
-        let message = try opaqueMessage(rawMessage)
-        let finish = try PairOpaque.call("finishClientLogin", [
-            "clientLoginState": try PairOpaque.field(start, "clientLoginState"),
-            "loginResponse": message,
-            "password": pin,
-            "identifiers": context.identifiers
-        ])
-        try Task.checkCancellation()
-        let _: Data = try await APIClient.shared.request(
-            .post, path: "\(prefix)/receiver/\(token)/message", serverProfile: serverProfile,
-            body: PairV2MessageRequest(stage: "finish", message: try PairOpaque.field(finish, "finishLoginRequest")),
-            headers: headers(attempt)
-        )
-        let ready = try await waitForReceiver(token: token, status: "ready", serverProfile: serverProfile)
-        try Task.checkCancellation()
-        guard let encrypted = ready.encryptedBundle, let iv = ready.iv else { throw PairOpaqueError.invalidExchange }
-        let plaintext = try PairV2Crypto.open(
-            ciphertext: encrypted, iv: iv,
-            sessionKey: try PairOpaque.field(finish, "sessionKey"), context: context
-        )
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let bundle = try decoder.decode(PairV2Bundle.self, from: plaintext)
-        guard bundle.protocolVersion == 2,
-              bundle.userId == context.authorizerUserID,
-              try PairV2Crypto.decode(bundle.grantSecret).count == 32,
-              let masterKeyData = Data(base64Encoded: bundle.masterKeyExported), masterKeyData.count == 32 else {
-            throw PairOpaqueError.invalidExchange
-        }
-        let masterKey = SymmetricKey(data: masterKeyData)
-        let decryptedEmail = try await CryptoManager.shared.decryptContent(
-            base64String: bundle.accountContext.encryptedEmailWithMasterKey, key: masterKey
-        )
-        guard !decryptedEmail.isEmpty,
-              await CryptoManager.shared.hashEmail(decryptedEmail) == bundle.hashedEmail else {
-            throw PairOpaqueError.invalidExchange
-        }
-        try Task.checkCancellation()
-        let login: LoginResponse = try await APIClient.shared.request(
-            .post, path: "\(prefix)/complete/\(token)", serverProfile: serverProfile,
-            body: PairV2CompleteRequest(grantSecret: bundle.grantSecret), headers: headers(attempt)
-        )
-        guard login.success, login.user?.id == context.authorizerUserID,
-              context.autoLogoutMinutes == nil || (login.pairExpiresAt ?? 0) > Int(Date().timeIntervalSince1970) else {
-            throw PairOpaqueError.invalidExchange
-        }
-        guard login.user?.userEmailSalt == bundle.userEmailSalt,
-              login.user?.email == nil || login.user?.email == decryptedEmail else {
-            throw PairOpaqueError.invalidExchange
-        }
-        try Task.checkCancellation()
-        try PairVerifiedAccountStore.save(userID: bundle.userId, hashedEmail: bundle.hashedEmail,
-            emailSalt: bundle.userEmailSalt, encryptedEmail: bundle.accountContext.encryptedEmailWithMasterKey)
-        return PairLoginResult(loginResponse: login, masterKey: masterKey, serverProfile: serverProfile)
     }
 
     static func acknowledge(token: String, serverProfile: ServerProfile) async throws {

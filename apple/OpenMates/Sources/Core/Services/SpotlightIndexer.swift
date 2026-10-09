@@ -16,6 +16,13 @@ final class SpotlightIndexer {
     private let index = CSSearchableIndex(name: "OpenMatesChats")
     private let legacyDefaultIndex = CSSearchableIndex.default()
     private var pendingIndexTask: Task<Void, Never>?
+    private struct CatalogRequest {
+        let reason: String
+        let catalogProvider: @MainActor () -> [Chat]
+        let metadataProvider: (@MainActor (Chat) async -> Chat)?
+    }
+    private var pendingCatalog: CatalogRequest?
+    private var pendingScope: UUID?
     private let chatIdentifierPrefix = "chat-"
     private let chatsDomainIdentifier = "org.openmates.chats"
     private var indexGeneration = UUID()
@@ -32,8 +39,17 @@ final class SpotlightIndexer {
     }
 
     func scheduleIndexChats(
-        _ chats: [Chat],
-        reason: String,
+        _ chats: [Chat], reason: String,
+        metadataProvider: (@MainActor (Chat) async -> Chat)? = nil
+    ) {
+        scheduleIndexCatalog(reason: reason, catalogProvider: { chats }, metadataProvider: metadataProvider)
+    }
+
+    /// Coalesce foreground metadata updates without reading/sorting the persisted
+    /// catalog until the existing idle window has elapsed. Updates while waiting
+    /// replace only the provider, so frequent sync batches cannot restart the timer.
+    func scheduleIndexCatalog(
+        reason: String, catalogProvider: @escaping @MainActor () -> [Chat],
         metadataProvider: (@MainActor (Chat) async -> Chat)? = nil
     ) {
         guard CSSearchableIndex.isIndexingAvailable() else { return }
@@ -43,30 +59,45 @@ final class SpotlightIndexer {
         let fence = TeamWorkspaceFence(accountID: accountID)
         let identity = Self.identity(accountID: accountID, server: fence.server)
         if currentIdentity != identity { removeAllItems(); currentIdentity = identity }
+        pendingCatalog = CatalogRequest(reason: reason, catalogProvider: catalogProvider, metadataProvider: metadataProvider)
+        if pendingIndexTask != nil, pendingScope == fence.scope { return }
         let previous = pendingIndexTask
         previous?.cancel()
         let generation = UUID()
         indexGeneration = generation
-        let snapshot = Self.authorizedChats(chats, readableTeamIDs: Set(TeamWorkspaceContext.shared.teams.filter(\.canRead).map(\.id)))
+        pendingScope = fence.scope
         pendingIndexTask = Task { [weak self] in
-            // Serialize a cancelled in-flight submission and its cleanup before a
-            // replacement can publish the same identifiers.
+            // Await cancellation cleanup before replacement indexing can write.
             await previous?.value
             do { try await Task.sleep(nanoseconds: self?.initialIndexDelayNs ?? 0) } catch { return }
             guard let self, !Task.isCancelled, self.indexGeneration == generation else { return }
+            defer {
+                if self.indexGeneration == generation {
+                    self.pendingIndexTask = nil
+                    self.pendingScope = nil
+                    // A change during indexing gets one subsequent idle window.
+                    if let next = self.pendingCatalog {
+                        self.scheduleIndexCatalog(reason: next.reason, catalogProvider: next.catalogProvider,
+                            metadataProvider: next.metadataProvider)
+                    }
+                }
+            }
+            do { try await fence.check() } catch { return }
+            guard !Task.isCancelled, self.indexGeneration == generation, let request = self.pendingCatalog else { return }
+            self.pendingCatalog = nil
             let start = NativeSyncPerfLog.now()
+            let snapshot = Self.authorizedChats(request.catalogProvider(),
+                readableTeamIDs: Set(TeamWorkspaceContext.shared.teams.filter(\.canRead).map(\.id)))
             var items: [CSSearchableItem] = []
             for chat in snapshot {
                 do { try await fence.check() } catch { return }
                 guard !Task.isCancelled, self.indexGeneration == generation else { return }
                 guard Self.isAuthorized(chat, readableTeamIDs: Set(TeamWorkspaceContext.shared.teams.filter(\.canRead).map(\.id))) else { continue }
-                let value = await metadataProvider?(chat) ?? chat
+                let value = await request.metadataProvider?(chat) ?? chat
                 do { try await fence.check() } catch { return }
                 guard !Task.isCancelled, self.indexGeneration == generation else { return }
                 guard Self.isAuthorized(value, readableTeamIDs: Set(TeamWorkspaceContext.shared.teams.filter(\.canRead).map(\.id))), value.teamId == chat.teamId else { continue }
                 if let item = self.metadataOnlySearchableItem(for: value) { items.append(item) }
-                // Retained metadata is finite; commit small batches and yield so
-                // system indexing does not stall the foreground renderer.
                 if items.count == 20 {
                     await self.submitItems(items)
                     guard await self.submissionIsCurrent(items, generation: generation, fence: fence) else { return }
@@ -79,7 +110,7 @@ final class SpotlightIndexer {
                 await self.submitItems(items)
                 guard await self.submissionIsCurrent(items, generation: generation, fence: fence) else { return }
             }
-            NativeSyncPerfLog.info("phase=spotlightIndex reason=\(reason) mode=metadataOnly chats=\(snapshot.count) indexMs=\(NativeSyncPerfLog.ms(since: start))")
+            NativeSyncPerfLog.info("phase=spotlightIndex reason=\(request.reason) mode=metadataOnly chats=\(snapshot.count) indexMs=\(NativeSyncPerfLog.ms(since: start))")
         }
     }
 
@@ -127,7 +158,7 @@ final class SpotlightIndexer {
 
     /// Remove a single chat from the Spotlight index (called on delete).
     func removeChat(_ chatId: String) {
-        pendingIndexTask?.cancel(); indexGeneration = UUID()
+        pendingIndexTask?.cancel(); pendingCatalog = nil; pendingScope = nil; indexGeneration = UUID()
         var identifiers = ["\(chatIdentifierPrefix)\(chatId)"]
         if let currentIdentity { identifiers.append("\(chatIdentifierPrefix)\(currentIdentity):\(chatId)") }
         index.deleteSearchableItems(withIdentifiers: identifiers) { error in
@@ -140,7 +171,7 @@ final class SpotlightIndexer {
 
     /// Clear all OpenMates items from Spotlight (called on logout).
     func removeAllItems() {
-        pendingIndexTask?.cancel(); indexGeneration = UUID(); currentIdentity = nil
+        pendingIndexTask?.cancel(); pendingCatalog = nil; pendingScope = nil; indexGeneration = UUID(); currentIdentity = nil
         let domainIdentifiers = [chatsDomainIdentifier]
         index.deleteSearchableItems(withDomainIdentifiers: domainIdentifiers) { error in
             if let error {

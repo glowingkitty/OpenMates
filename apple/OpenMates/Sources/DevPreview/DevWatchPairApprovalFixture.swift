@@ -5,6 +5,7 @@
 // Assertions: apple-watch.pairing.iphone-first-fallback, apple-watch.pairing.private-session
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte: frontend/packages/ui/src/components/settings/security/SettingsSessionsConfirmPair.svelte
+//         frontend/packages/ui/src/components/settings/security/SettingsSessions.svelte
 // CSS: frontend/packages/ui/src/styles/settings.css
 // Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -12,8 +13,10 @@ import SwiftUI
 
 struct DevWatchPairApprovalFixture: View {
     @StateObject private var model = DevWatchPairApprovalModel()
+    @StateObject private var theme = ThemeManager()
     var body: some View {
         DevWatchPairApprovalContent(model: model, bridge: model.bridge)
+            .environmentObject(theme)
     }
 }
 
@@ -22,6 +25,16 @@ private struct DevWatchPairApprovalContent: View {
     @ObservedObject var bridge: PhoneWatchLoginBridge
     var body: some View {
         VStack(spacing: .spacing4) {
+            if model.dismissed {
+                Text("Approval view dismissed").accessibilityIdentifier("fixture-pair-dismissed")
+            } else {
+                SettingsView(isolatedNavigation: true, isolatedAccountPreview: true,
+                    onWatchPairPreviewDone: { model.dismissed = true },
+                    deepLinkPath: "account/security/sessions")
+                    .environment(\.phoneWatchPairBridge, bridge)
+                    .environmentObject(model.auth)
+            }
+            VStack(spacing: .spacing1) {
             Text("Synthetic bridge coordination; no account or connectivity proof.")
                 .font(.omXs).accessibilityIdentifier("fixture-pair-boundary")
             Text(String(model.authorizations)).accessibilityIdentifier("fixture-pair-authorizations")
@@ -31,12 +44,8 @@ private struct DevWatchPairApprovalContent: View {
             Text(bridge.pinReceiptReceived ? "received" : "waiting")
                 .accessibilityIdentifier("fixture-pair-receipt")
             Text(String(model.cancellations)).accessibilityIdentifier("fixture-pair-cancellations")
-            if model.dismissed {
-                Text("Approval view dismissed").accessibilityIdentifier("fixture-pair-dismissed")
-            } else {
-                AppleWatchPairAuthorizeView(bridge: bridge) { model.dismissed = true }
-                    .environmentObject(model.auth)
             }
+            .font(.omTiny)
             HStack {
                 Button("Reachable, send fails") { model.reachable = true }
                     .accessibilityIdentifier("fixture-pair-reachable-error")

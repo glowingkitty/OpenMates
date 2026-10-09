@@ -9,6 +9,8 @@
 // Specification: specifications/features/focus-modes/specification.yml
 // Assertions: focus-modes.history-events, focus-modes.history-side-effects
 
+// Specification: specifications/features/apple-local-model-lab/specification.yml
+// Assertions: apple-local-model-lab.optional-downloads
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
 //          frontend/packages/ui/src/components/settings/TeamQuickAction.svelte
@@ -128,6 +130,7 @@ enum SettingsRouteInventory {
     static let nativeRoutes: Set<String> = [
         "pricing",
         "ai",
+        "ai/localmodels",
         "apps/all",
         "settings_memories",
         "privacy",
@@ -226,7 +229,7 @@ enum SettingsRouteInventory {
     // from Memories discovery, with its Memories filter selected.
     static let intentionallyExcludedWebRoutes: Set<String> = ["apps"]
 
-    static let nativeOnlyRoutes: Set<String> = ["developers/local-models"]
+    static let nativeOnlyRoutes: Set<String> = ["developers/local-models", "ai/localmodels"]
 
     static var coveredWebBaseRoutes: Set<String> {
         nativeRoutes.subtracting(nativeOnlyRoutes)
@@ -281,7 +284,7 @@ struct SettingsDeepLinkRoute: Equatable {
         // The public Memories examples and Privacy overview are guest destinations.
         // Their private child routes retain the account requirement.
         if ["settings_memories", "privacy"].contains(topLevel) { return !childPath.isEmpty }
-        if topLevel == "ai", childPath.hasPrefix("tier/") { return true }
+        if topLevel == "ai", childPath.hasPrefix("tier/") || childPath == "localmodels" { return true }
         return ["projects", "teams", "billing", "notifications", "shared",
                 "account", "developers", "server", "logs"].contains(topLevel)
     }
@@ -373,6 +376,8 @@ struct SettingsView: View {
     // Standalone settings previews fall back to their measured content width.
     var viewportWidth: CGFloat?
     private let isolatedNavigation: Bool
+    private let isolatedAccountPreview: Bool
+    private let onWatchPairPreviewDone: (() -> Void)?
     @State private var showIncognitoInfo = false
     @StateObject private var incognitoSession: IncognitoSettingsSession
     @StateObject private var guestLearningMode: LearningModeGuestSession
@@ -386,6 +391,7 @@ struct SettingsView: View {
     @State private var destinationScrollTop: CGFloat = 0
     @State private var activeDeepLinkRoute: SettingsDeepLinkRoute?
     @State private var activeDeepLinkRevision = 0
+    @State private var accountChildNavigation: SettingsChildBannerNavigation?
     @State private var aiChildNavigation: SettingsChildBannerNavigation?
     @State private var teamChildNavigation: SettingsChildBannerNavigation?
     @State private var supportChildNavigation: SettingsChildBannerNavigation?
@@ -396,6 +402,8 @@ struct SettingsView: View {
 
     init(
         isolatedNavigation: Bool = false,
+        isolatedAccountPreview: Bool = false,
+        onWatchPairPreviewDone: (() -> Void)? = nil,
         reportIssuePrefill: ReportIssuePrefill? = nil,
         referralCodeRequest: Int = 0,
         shareChatId: String? = nil,
@@ -418,6 +426,16 @@ struct SettingsView: View {
         self.deepLinkRequest = deepLinkRequest
         self.viewportWidth = viewportWidth
         self.isolatedNavigation = isolatedNavigation
+        #if DEBUG
+        let preview = DevPreviewLaunchConfiguration.launch(environment: ProcessInfo.processInfo.environment,
+            arguments: ProcessInfo.processInfo.arguments)
+        self.isolatedAccountPreview = isolatedNavigation && isolatedAccountPreview
+            && preview?.component == .login && preview?.variant == "watch-pair-approval"
+        self.onWatchPairPreviewDone = isolatedNavigation ? onWatchPairPreviewDone : nil
+        #else
+        self.isolatedAccountPreview = false
+        self.onWatchPairPreviewDone = nil
+        #endif
         _incognitoSession = StateObject(wrappedValue: isolatedNavigation ? .isolated() : .shared)
         _guestLearningMode = StateObject(wrappedValue: isolatedNavigation ? LearningModeGuestSession() : .shared)
         _accountLearningMode = StateObject(wrappedValue: LearningModeController(client: isolatedNavigation ? IsolatedSettingsAccountClient() : LearningModeAPIClient()))
@@ -450,7 +468,9 @@ struct SettingsView: View {
     }
 
     private var settingsUser: UserProfile? { isolatedNavigation ? nil : authManager.currentUser }
-    private var isAuthenticated: Bool { !isolatedNavigation && (settingsUser != nil || AccountSettingsUITestFixture.enabled) }
+    private var isAuthenticated: Bool {
+        isolatedAccountPreview || (!isolatedNavigation && (settingsUser != nil || AccountSettingsUITestFixture.enabled))
+    }
     private var isAdmin: Bool {
         !isolatedNavigation && (settingsUser?.isAdmin == true
             || ProcessInfo.processInfo.arguments.contains("--ui-test-admin-settings-fixture"))
@@ -553,6 +573,8 @@ struct SettingsView: View {
     private func applyDeepLink() {
         guard let deepLinkPath else { return }
         let route = SettingsDeepLinkRoute(deepLinkPath)
+        if isolatedAccountPreview, route.path != "account/security/sessions" { return }
+        accountChildNavigation = nil
         aiChildNavigation = nil
         teamChildNavigation = nil
         supportChildNavigation = nil
@@ -743,6 +765,7 @@ struct SettingsView: View {
                     navigationDirection = .back
                     withAnimation(.easeOut(duration: 0.2)) {
                         activeDeepLinkRoute = nil
+                        accountChildNavigation = nil
                         aiChildNavigation = nil
                         teamChildNavigation = nil
                         supportChildNavigation = nil
@@ -773,6 +796,7 @@ struct SettingsView: View {
 
     private var destinationChildNavigation: SettingsChildBannerNavigation? {
         switch destination {
+        case .account: return accountChildNavigation
         case .ai: return aiChildNavigation
         case .teams: return teamChildNavigation
         case .support: return supportChildNavigation
@@ -1039,6 +1063,7 @@ struct SettingsView: View {
             }
         case .ai:
             SettingsAIFullView(
+                initialOfflineModels: activeDeepLinkRoute?.childPath == "localmodels",
                 initialModelID: activeProviderSettingsID == nil && activeAISettingsTier == nil
                     ? activeDeepLinkRoute?.childID ?? activeModelSettingsID : nil,
                 initialProviderID: activeProviderSettingsID,
@@ -1062,7 +1087,10 @@ struct SettingsView: View {
         case .teams:
             SettingsTeamsView(initialTeamID: activeDeepLinkRoute?.childPath.isEmpty == false ? activeDeepLinkRoute?.childPath : nil,
                 onChildNavigationChanged: { teamChildNavigation = $0 })
-        case .account: SettingsAccountSubPage(deepLinkPath: activeDeepLinkRoute?.childPath)
+        case .account:
+            SettingsAccountSubPage(deepLinkPath: activeDeepLinkRoute?.childPath,
+                isPreview: isolatedAccountPreview, onWatchPairDone: onWatchPairPreviewDone,
+                onChildNavigationChanged: { accountChildNavigation = $0 })
         case .interface: SettingsInterfaceSubPage(deepLinkPath: activeDeepLinkRoute?.childPath)
         case .privacy: SettingsPrivacyContentView(deepLinkPath: activeDeepLinkRoute?.childPath)
         case .billing: SettingsBillingView(referralCodeRequest: activeReferralCodeRequest, deepLinkPath: activeDeepLinkRoute?.childPath)
@@ -1262,6 +1290,16 @@ struct SettingsView: View {
             if let mateArtworkName {
                 Image(mateArtworkName).resizable().scaledToFill()
                     .frame(width: min(38, iconSize), height: min(38, iconSize)).clipShape(Circle())
+            } else if iconOverride == "applewatch" {
+                // Native-only companion approval has no corresponding web SVG
+                // asset. Use the validated Apple Watch symbol, rather than a
+                // nonexistent Icons.xcassets/watch image.
+                Image(systemName: "applewatch")
+                    .resizable().scaledToFit()
+                    .frame(width: iconSize, height: iconSize)
+                    .foregroundStyle(Color.white.opacity(0.95))
+                    .accessibilityLabel(AppStrings.pairConnectAppleWatchTitle)
+                    .accessibilityIdentifier("settings-banner-symbol-applewatch")
             } else {
                 Icon(iconOverride ?? destination.icon, size: iconSize)
                     .foregroundStyle(Color.white.opacity(0.95))
@@ -1781,11 +1819,22 @@ struct SettingsInterfaceSubPage: View {
 
 struct SettingsAccountSubPage: View {
     @EnvironmentObject var authManager: AuthManager
+    #if os(iOS)
+    @Environment(\.phoneWatchPairBridge) private var phoneWatchPairBridge
+    #endif
     @State private var destination: AccountDestination? = AccountDestination.uiTestInitialDestination
     private let deepLinkPath: String?
+    private let isPreview: Bool
+    private let onWatchPairDone: (() -> Void)?
+    private let onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)?
 
-    init(deepLinkPath: String? = nil) {
+    init(deepLinkPath: String? = nil, isPreview: Bool = false,
+         onWatchPairDone: (() -> Void)? = nil,
+         onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)? = nil) {
         self.deepLinkPath = deepLinkPath
+        self.isPreview = isPreview
+        self.onWatchPairDone = onWatchPairDone
+        self.onChildNavigationChanged = onChildNavigationChanged
         let routes: [String: AccountDestination] = [
             "username": .username, "timezone": .username, "email": .email, "interests": .interests,
             "profile-picture": .profilePicture, "usage": .usage, "storage": .storage, "chats": .chats,
@@ -1801,6 +1850,7 @@ struct SettingsAccountSubPage: View {
     var body: some View {
         if let dest = destination {
             VStack(spacing: 0) {
+                if !usesConnectedDevicesBanner(dest) {
                 HStack(spacing: .spacing4) {
                     OMIconButton(icon: "back", label: AppStrings.back, size: 36) {
                         destination = nil
@@ -1815,6 +1865,7 @@ struct SettingsAccountSubPage: View {
                 .padding(.horizontal, .spacing8)
                 .padding(.vertical, .spacing6)
                 .background(Color.grey0)
+                }
 
                 Color.clear
                     .frame(height: 0)
@@ -1826,8 +1877,8 @@ struct SettingsAccountSubPage: View {
                     })
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                dest.view
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    accountDestinationView(dest)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .background(Color.grey0)
@@ -1937,6 +1988,30 @@ struct SettingsAccountSubPage: View {
             .scrollContentBackground(.hidden)
             .background(Color.grey0)
         }
+    }
+
+    private func usesConnectedDevicesBanner(_ destination: AccountDestination) -> Bool {
+        #if os(iOS)
+        return destination == .sessions && phoneWatchPairBridge != nil
+        #else
+        return false
+        #endif
+    }
+
+    @ViewBuilder
+    private func accountDestinationView(_ destination: AccountDestination) -> some View {
+        #if os(iOS)
+        if destination == .sessions, let bridge = phoneWatchPairBridge {
+            SettingsWatchConnectedDevicesView(bridge: bridge, isPreview: isPreview,
+                onApprovalDone: { onWatchPairDone?() },
+                onBackToAccount: { self.destination = nil; onChildNavigationChanged?(nil) },
+                onChildNavigationChanged: onChildNavigationChanged)
+        } else {
+            destination.view
+        }
+        #else
+        destination.view
+        #endif
     }
 
     @MainActor

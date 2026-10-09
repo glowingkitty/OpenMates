@@ -6,6 +6,11 @@ goal: Evaluate optional Whisper transcription, Supertonic3 speech downloads in D
 scope:
   in:
   - Independent verified downloads, progress, cancellation, retry, removal and offline restoration.
+  - Optional pack consent appears once with Later/Download; Download dismisses the notification.
+    Progress uses Settings > AI > Offline models and the regular Live Activity. The subtle opacity-animated
+    header download icon opens that page and stays static with reduced motion. No persistent progress
+    banner appears. Ordinary labels use Speech to text, Text to speech and Enhanced anonymization;
+    technical model identities remain in the advanced Developers lab.
   - Selected Supertonic3 CPU ONNX synthesis; removed KittenTTS Mini0.8 has no runtime, catalog, build or settings support.
   - WhisperKit compressed large-v3 turbo inference; Privacy-owned OpenAI Privacy
     Filter diagnostics.

@@ -4,6 +4,8 @@
 // Assertions: apple-controls.availability, apple-controls.quick-actions, apple-controls.workflow, apple-controls.project, apple-controls.private-cache
 // Specification: specifications/features/chat-navigation/specification.yml
 // Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
 // Main app shell after authentication.
 // Uses NavigationSplitView for adaptive layout across iPhone, iPad, and Mac.
 // Sidebar shows chat list; detail shows active chat or empty state.
@@ -308,7 +310,6 @@ struct MainAppView: View {
     @State private var showHiddenChats = false
     @State private var hiddenChatsUnlocked = false
     @State private var showPairAuthorize = false
-    @State private var showAppleWatchPairAuthorize = false
     @State private var pairToken: String?
     @State private var searchText = ""
     @State private var searchSelection: ChatSearchSelection?
@@ -331,6 +332,7 @@ struct MainAppView: View {
     @State private var projectPickerLocation: ChatProjectLocation?
     @State private var actionChat: Chat?
     @State private var didBootstrapAuthenticatedSession = false
+    @State private var authenticatedRuntimeGeneration = UUID()
     @State private var windowRuntimeID = UUID()
     @State private var workflowTemplateLink: WorkflowTemplateLink?
     @State private var sharedBrowserDestination: SharedBrowserDestination?
@@ -376,6 +378,11 @@ struct MainAppView: View {
     /// Whether the user is currently authenticated
     private var isAuthenticated: Bool {
         authManager.state == .authenticated
+    }
+
+    private var isConnectionAuthenticationPresented: Bool {
+        if case .requiresReauthentication = authManager.sessionValidationState { return true }
+        return showAuthSheet
     }
 
     private var shouldShowAuthenticatedHeaderAffordances: Bool {
@@ -949,7 +956,7 @@ struct MainAppView: View {
         .task(id: "\(memoryActivityRuntimeIdentity)|\(wsManager.connectionState)|\(scenePhase)") {
             sidebarActivity.configure(accountID: isAuthenticated ? authManager.currentUser?.id : nil,
                 scope: OfflineStore.shared.scopeGeneration, server: ServerProfile.current(), teamID: teamContext.teamID, teamEpoch: teamContext.contextEpoch)
-            if scenePhase == .active && isAuthenticated {
+            if scenePhase == .active && isAuthenticated && authManager.hasNetworkAuthority {
                 await sidebarActivity.refresh()
                 if let accountID = authManager.currentUser?.id {
                     await projectsStore.refreshChatNavigation(accountID: accountID, teamID: teamContext.teamID)
@@ -967,18 +974,7 @@ struct MainAppView: View {
             configureMemoryActivities()
         }
         .onChange(of: authManager.state, authStateDidChange)
-        .onChange(of: sidebarAccountScope) { _, _ in
-            pushManager.invalidateRegistration()
-            resetWorkspaceState()
-            if isAuthenticated {
-                Task {
-                    if let accountID = authManager.currentUser?.id, !isChatNavigationUITestEnabled {
-                        await teamContext.load(accountID: accountID)
-                    }
-                    await loadSelectedWorkspace()
-                }
-            }
-        }
+        .onChange(of: sidebarAccountScope, sidebarAccountScopeDidChange)
         .onChange(of: projectsStore.projects.map { "\($0.id)|\($0.name)" }) { _, _ in
             if let accountID = authManager.currentUser?.id, projectsStore.loadedAccountID == accountID {
                 ControlProjectsBridge.publish(projectsStore.projects, accountID: accountID, teamID: teamContext.teamID)
@@ -1082,7 +1078,10 @@ struct MainAppView: View {
             }
         }
         .onChange(of: deepLinkHandler.pendingSharedChatURL, pendingSharedChatDidChange)
-        .onChange(of: authManager.sessionValidationState, sessionValidationDidChange)
+        // Startup validation can finish before this retained account surface
+        // mounts. Reconcile its current authority as well as later transitions.
+        .onChange(of: authManager.sessionValidationState, initial: true, sessionValidationDidChange)
+        .onChange(of: authManager.networkAuthority, networkAuthorityDidChange)
         .onChange(of: pushManager.pendingChatId, pendingPushChatDidChange)
         .onChange(of: pushManager.replyQueueRevision) { _, _ in
             Task { await flushQueuedNotificationReplies() }
@@ -1090,6 +1089,9 @@ struct MainAppView: View {
         .onChange(of: selectedChatId, selectedChatDidChange)
         .onChange(of: showNewChat, showNewChatDidChange)
         .onChange(of: showSettings, showSettingsDidChange)
+        .onReceive(OfflineAIModelPackPresentation.shared.settingsRequests) { _ in
+            openSettingsDeepLink("ai/localmodels")
+        }
         .onChange(of: scenePhase, scenePhaseDidChange)
         .onChange(of: wsManager.connectionState, websocketConnectionStateDidChange)
         .onReceive(Timer.publish(every: 25, on: .main, in: .common).autoconnect()) { _ in
@@ -1311,12 +1313,8 @@ struct MainAppView: View {
 
     #if os(iOS)
     private func phoneWatchLoginRequestDidChange(_ oldValue: WatchPairLoginRequest?, _ request: WatchPairLoginRequest?) {
-        guard request != nil else {
-            showAppleWatchPairAuthorize = false
-            return
-        }
-        showSettings = true
-        showAppleWatchPairAuthorize = true
+        guard request != nil else { return }
+        openSettingsDeepLink("account/security/sessions")
     }
     #endif
 
@@ -1613,6 +1611,11 @@ struct MainAppView: View {
         switch validation {
         case .requiresReauthentication:
             wsManager.disconnect()
+            pushManager.invalidateRegistration()
+            workspaceMaintenanceGeneration = UUID()
+            workspaceMaintenanceResume?.cancel()
+            NativeWorkspaceOfflineRuntime.pauseMaintenance()
+            guard !isReauthenticatingCachedSession else { return }
             // Keep cached history available while refreshing the server session.
             isReauthenticatingCachedSession = true
             authFlowState.resetForAnotherAccount()
@@ -1624,12 +1627,78 @@ struct MainAppView: View {
                 showAuthSheet = false
                 authFlowState.reset()
             }
-            guard didBootstrapAuthenticatedSession else { return }
-            openPendingWorkflowWidgetRun()
-            connectWebSocket()
-            Task { await loadSelectedWorkspace(force: true) }
+            // A successor can rotate only the socket credential while the
+            // existing account grant and background-service budget stay stable.
+            if authManager.hasNetworkAuthority, didBootstrapAuthenticatedSession { connectWebSocket() }
         default: break
         }
+    }
+
+    private func networkAuthorityDidChange(_ oldValue: AuthSessionRecoveryContext?,
+                                           _ authority: AuthSessionRecoveryContext?) {
+        if authority == nil, oldValue != nil {
+            wsManager.disconnect()
+            pushManager.invalidateRegistration()
+            workspaceMaintenanceGeneration = UUID()
+            workspaceMaintenanceResume?.cancel()
+            NativeWorkspaceOfflineRuntime.pauseMaintenance()
+            return
+        }
+        guard authority != nil, oldValue == nil, authManager.hasNetworkAuthority,
+              didBootstrapAuthenticatedSession else { return }
+        openPendingWorkflowWidgetRun()
+        connectWebSocket()
+        maintainOfflineWorkspaces(force: true)
+        pushManager.refreshRegistration()
+        Task { await loadSelectedWorkspace(force: true) }
+        Task { await loadAccountTopicPreferences() }
+        if let accountID = authManager.currentUser?.id { Task { await teamContext.load(accountID: accountID) } }
+    }
+
+    private func sidebarAccountScopeDidChange(_ oldScope: ChatSidebarDisplayPolicy.Scope,
+                                              _ newScope: ChatSidebarDisplayPolicy.Scope) {
+        pushManager.invalidateRegistration()
+        resetWorkspaceState()
+        // A cached authenticated identity can change without changing AuthState.
+        // Clear only this window's old work; AuthManager already reset the shared
+        // account runtime before activating the new OfflineStore scope.
+        authenticatedRuntimeGeneration = UUID()
+        let generation = authenticatedRuntimeGeneration
+        let scope = OfflineStore.shared.scopeGeneration
+        didBootstrapAuthenticatedSession = false
+        syncProcessingTask?.cancel()
+        syncProcessingTask = nil
+        backgroundSyncFlushTask?.cancel()
+        backgroundSyncFlushTask = nil
+        pendingAssistantResponseFlushTask?.cancel()
+        pendingAssistantResponseFlushTask = nil
+        isBackgroundSyncFlushInProgress = false
+        isOfflinePrefetching = false
+        pendingHistoryPresentationChatID = nil
+        completedHistoryPresentations.removeAll()
+        historyPresentationGeneration = UUID()
+        pendingBackgroundSyncContent = PendingSyncedContent()
+        pendingTypingMetadata.removeAll()
+        nextServerChatOffset = 0
+        serverChatPagesExhausted = false
+        chatPageGeneration = UUID()
+        isLoadingMore = false
+        accountInterestTagIds = []
+        syncBridge = nil
+        guard isAuthenticated else { return }
+        registerRuntimeWindow()
+        Task { @MainActor in
+            guard authenticatedRuntimeIsCurrent(generation: generation, scope: scope, account: newScope) else { return }
+            await bootstrapAuthenticatedSession()
+            guard authenticatedRuntimeIsCurrent(generation: generation, scope: scope, account: newScope) else { return }
+            await loadSelectedWorkspace()
+        }
+    }
+
+    private func authenticatedRuntimeIsCurrent(generation: UUID, scope: UUID,
+                                              account: ChatSidebarDisplayPolicy.Scope) -> Bool {
+        !Task.isCancelled && isAuthenticated && authenticatedRuntimeGeneration == generation &&
+            OfflineStore.shared.scopeGeneration == scope && sidebarAccountScope == account
     }
 
     private func authStateDidChange(_ oldValue: AuthManager.AuthState, _ newState: AuthManager.AuthState) {
@@ -1684,6 +1753,11 @@ struct MainAppView: View {
     }
 
     private func showSettingsDidChange(_ oldValue: Bool, _ isOpen: Bool) {
+        #if os(iOS)
+        if !isOpen, phoneWatchLoginBridge.pendingRequest != nil {
+            phoneWatchLoginBridge.denyPendingRequest()
+        }
+        #endif
         if isOpen {
             lastForegroundInteractionAt = Date()
         } else {
@@ -1751,8 +1825,17 @@ struct MainAppView: View {
             UnreadMessagesStore.shared.setActiveChat(nil)
             #endif
         }
+        if newValue == .active, case .requiresReauthentication = authManager.sessionValidationState {
+            sessionValidationDidChange(authManager.sessionValidationState, authManager.sessionValidationState)
+            showAuthSheet = true
+            return
+        }
+        if newValue == .active, isAuthenticated, !authManager.hasNetworkAuthority,
+           authManager.sessionValidationState == .offlineAuthenticated {
+            Task { await authManager.validateSessionAfterOfflineBootstrap() }
+        }
         configureMemoryActivities()
-        if newValue == .active {
+        if newValue == .active, authManager.hasNetworkAuthority {
             WelcomeContinueService.shared.becameActive()
             Task {
                 await UpcomingMemoryLiveActivityBridge.shared.foreground()
@@ -1772,7 +1855,7 @@ struct MainAppView: View {
         if newValue != .active {
             ProjectWorkspaceReviewRuntime.shared.deactivate(ownerID: windowRuntimeID)
         }
-        guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+        guard isAuthenticated, didBootstrapAuthenticatedSession, authManager.hasNetworkAuthority else { return }
         #if os(macOS)
         let isCompletionCapable = NativeClientLifecyclePolicy.isMacForeground(newValue, appIsActive: NSApp.isActive)
         #else
@@ -2384,6 +2467,7 @@ struct MainAppView: View {
         resetWorkspaceState()
         selectedWorkspace = .chat
         traceNativeStartupSync("phase=startupReset markerWasComplete=\(appSession.isInitialSyncComplete)")
+        authenticatedRuntimeGeneration = UUID()
         didBootstrapAuthenticatedSession = false
         appSession.isInitialSyncComplete = false
         syncProcessingTask?.cancel()
@@ -2500,19 +2584,23 @@ struct MainAppView: View {
         applyPendingQuickActionIfNeeded()
     }
 
-    private func promoteAnonymousChatsAfterAuthentication() async {
+    private func promoteAnonymousChatsAfterAuthentication(isCurrent: @escaping @MainActor () -> Bool) async {
+        guard isCurrent(), let userId = authManager.currentUser?.id else { return }
         for _ in 0..<120 {
-            guard isAuthenticated else { return }
+            guard isCurrent() else { return }
             if wsManager.connectionState == .connected {
                 break
             }
-            try? await Task.sleep(nanoseconds: 250_000_000)
+            do { try await Task.sleep(nanoseconds: 250_000_000) } catch { return }
         }
+        guard isCurrent() else { return }
         let promoted = await anonymousFreeUsage.promoteAnonymousChats(
             chatStore: chatStore,
             wsManager: wsManager,
-            userId: authManager.currentUser?.id
+            userId: userId,
+            isCurrent: isCurrent
         )
+        guard isCurrent() else { return }
         #if DEBUG
         let shouldPreserveNewChat = ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat")
         #else
@@ -2658,6 +2746,7 @@ struct MainAppView: View {
                 connectionManager: wsManager,
                 connectionAuthenticated: isAuthenticated,
                 connectionCheckingAuth: authManager.sessionValidationState == .validating,
+                connectionAuthenticationPresented: isConnectionAuthenticationPresented,
                 onReconnect: retryNativeConnection
             )
             // Native short-keyboard adaptation: retain header/editor identity
@@ -2762,15 +2851,6 @@ struct MainAppView: View {
             }
         }
 
-        #if os(iOS)
-        if showAppleWatchPairAuthorize, phoneWatchLoginBridge.pendingRequest != nil {
-            appOverlay(title: AppStrings.pairConnectAppleWatchTitle, isPresented: $showAppleWatchPairAuthorize) {
-                AppleWatchPairAuthorizeView(bridge: phoneWatchLoginBridge) {
-                    showAppleWatchPairAuthorize = false
-                }
-            }
-        }
-        #endif
 
         if showRenameAlert {
             renameOverlay
@@ -2829,6 +2909,9 @@ struct MainAppView: View {
         .environmentObject(authManager)
         .environmentObject(themeManager)
         .environmentObject(chatStore)
+        #if os(iOS)
+        .environment(\.phoneWatchPairBridge, phoneWatchLoginBridge)
+        #endif
         .frame(width: width)
         .frame(maxHeight: .infinity)
         .background(Color.grey20)
@@ -3370,6 +3453,7 @@ struct MainAppView: View {
                     }
                 },
                 onOpenAuth: { showAuthSheet = true },
+                activeChatID: selectedChatId,
                 activeChatCount: sidebarActivity.rootIDs(chats: chatStore.chats).filter { id in
                     guard let chat = chatStore.chat(for: id) else { return false }
                     return !chat.isRetiredBundledIntro && !chat.isHiddenFromNormalSurfaces && chat.teamId == teamContext.teamID
@@ -4307,7 +4391,8 @@ struct MainAppView: View {
         totalChatCount = seededChats.filter { !isEmptyShellChat($0) }.count
         selectedChatId = "ui-test-current-chat"
         showNewChat = false
-        showAuthSheet = false
+        // Session validation may have opened reauthentication while fixture
+        // key/draft setup awaited. Seeding cached rows must preserve that route.
         if ProcessInfo.processInfo.arguments.contains("--ui-test-stale-composer-focus") { chatInputFocusRequest = 1 }
         await seedEncryptedWelcomeGridUITestStateIfNeeded()
         #endif
@@ -4439,14 +4524,25 @@ struct MainAppView: View {
 
     private func bootstrapAuthenticatedSession() async {
         guard isAuthenticated, !didBootstrapAuthenticatedSession else { return }
+        let generation = authenticatedRuntimeGeneration
+        let scope = OfflineStore.shared.scopeGeneration
+        let account = sidebarAccountScope
+        @MainActor func isCurrent() -> Bool {
+            authenticatedRuntimeIsCurrent(generation: generation, scope: scope, account: account)
+        }
         defer {
-            openPendingActiveChatsWidgetLink()
-            openPendingWorkflowWidgetRun()
+            if isCurrent() {
+                openPendingActiveChatsWidgetLink()
+                openPendingWorkflowWidgetRun()
+            }
         }
         didBootstrapAuthenticatedSession = true
         UnreadMessagesStore.shared.setActiveTeam(teamContext.teamID)
         if let accountID = authManager.currentUser?.id, !isChatNavigationUITestEnabled {
-            Task { await teamContext.load(accountID: accountID) }
+            Task {
+                guard isCurrent() else { return }
+                await teamContext.load(accountID: accountID)
+            }
         }
         if !appSession.hasLoadedAuthenticatedRuntime {
             appSession.isInitialSyncComplete = false
@@ -4482,8 +4578,10 @@ struct MainAppView: View {
         let bridge = appSession.prepareAuthenticatedRuntime(lastOpenedChatId: (authManager.currentUser?.lastOpened).flatMap { RetiredIntroChatPolicy.excludes($0) ? nil : $0 })
         syncBridge = bridge
         configureMemoryActivities()
-        maintainOfflineWorkspaces(force: true)
-        pushManager.refreshRegistration()
+        if authManager.hasNetworkAuthority {
+            maintainOfflineWorkspaces(force: true)
+            pushManager.refreshRegistration()
+        }
         appSession.configureDraftSyncIfNeeded()
 
         if isWindowDraftUITestEnabled {
@@ -4493,10 +4591,11 @@ struct MainAppView: View {
         }
 
         Task {
+            guard isCurrent() else { return }
             if authManager.sessionValidationState != .onlineAuthenticated {
                 await authManager.validateSessionAfterOfflineBootstrap()
             }
-            guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+            guard isCurrent(), didBootstrapAuthenticatedSession, authManager.hasNetworkAuthority else { return }
             connectWebSocket()
             if authManager.sessionValidationState == .onlineAuthenticated {
                 await loadAccountTopicPreferences()
@@ -4504,20 +4603,31 @@ struct MainAppView: View {
         }
         Task { @MainActor in
             await Task.yield()
-            guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+            guard isCurrent(), didBootstrapAuthenticatedSession else { return }
             await decryptVisibleChatMetadata(reason: "offlineColdLoad")
         }
-        Task { await promoteAnonymousChatsAfterAuthentication() }
+        Task {
+            guard isCurrent() else { return }
+            await promoteAnonymousChatsAfterAuthentication(isCurrent: isCurrent)
+        }
         scheduleInitialDataFallback()
         pendingPushChatDidChange(nil, pushManager.pendingChatId)
-        Task { await syncInspirationToWidget() }
+        Task {
+            guard isCurrent() else { return }
+            await syncInspirationToWidget()
+        }
+        guard isCurrent() else { return }
         await flushQueuedNotificationReplies()
     }
 
     private func scheduleInitialDataFallback() {
+        let generation = authenticatedRuntimeGeneration
+        let scope = OfflineStore.shared.scopeGeneration
+        let account = sidebarAccountScope
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 3_000_000_000)
-            guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+            guard authenticatedRuntimeIsCurrent(generation: generation, scope: scope, account: account),
+                  didBootstrapAuthenticatedSession else { return }
             let userChats = chatStore.chats.filter { publicChatGroup(for: $0.id) == nil }
             if userChats.isEmpty {
                 await loadInitialData(limit: Self.initialUserChatLimit)
@@ -4870,7 +4980,7 @@ struct MainAppView: View {
         // The authenticated navigation fixture has no real server identity.
         guard !isChatNavigationUITestEnabled else { return }
         #endif
-        guard isAuthenticated, authManager.sessionValidationState == .onlineAuthenticated,
+        guard isAuthenticated, authManager.hasNetworkAuthority,
               let identity = authManager.sessionRecoveryContext else { return }
         wsManager.configureSessionRecovery {
             guard let current = authManager.sessionRecoveryContext,
@@ -6320,9 +6430,10 @@ struct MainAppView: View {
 
     private func scheduleGlobalSpotlight(reason: String) {
         guard isAuthenticated else { SpotlightIndexer.shared.removeAllItems(); return }
-        let cached = ChatSearchMetadata.missingCachedChats(OfflineStore.shared.loadChats(), loaded: chatStore.chats)
-        let retained = (chatStore.sortedChats + cached).filter { isVisibleUserChat($0) }
-        SpotlightIndexer.shared.scheduleIndexChats(retained, reason: reason, metadataProvider: { chat in
+        SpotlightIndexer.shared.scheduleIndexCatalog(reason: reason, catalogProvider: {
+            let cached = ChatSearchMetadata.missingCachedChats(OfflineStore.shared.loadChats(), loaded: chatStore.chats)
+            return (chatStore.sortedChats + cached).filter { isVisibleUserChat($0) }
+        }, metadataProvider: { chat in
             await decryptChatMetadataEnsuringKey(chat)
         })
     }
@@ -6974,6 +7085,7 @@ struct OpenMatesWebHeader: View {
     var connectionManager: WebSocketManager? = nil
     var connectionAuthenticated = false
     var connectionCheckingAuth = false
+    var connectionAuthenticationPresented = false
     var onReconnect: () -> Void = {}
     @State private var headerConnectionState: NativeConnectionFeedbackState = .idle
     private static let compactHeaderMaxWidth: CGFloat = 894
@@ -7073,7 +7185,8 @@ struct OpenMatesWebHeader: View {
                     if let connectionManager {
                         NativeConnectionStatusIndicator(wsManager: connectionManager,
                             authenticated: connectionAuthenticated, checkingAuth: connectionCheckingAuth,
-                            syncing: isSyncing, onReconnect: onReconnect,
+                            syncing: isSyncing, authenticationPresented: connectionAuthenticationPresented,
+                            onReconnect: onReconnect,
                             onFeedbackChange: { headerConnectionState = $0 })
                             .padding(.trailing, headerConnectionState == .idle ? 0 : .spacing4)
                     } else if isAuthenticated, isSyncing {
@@ -7492,7 +7605,10 @@ private struct DailyInspirationCarouselProgressBar: View {
 // Svelte:  frontend/packages/ui/src/components/ActiveChat.svelte (showWelcome state)
 //          frontend/packages/ui/src/components/DailyInspirationBanner.svelte
 //          frontend/packages/ui/src/components/NewChatSuggestions.svelte
-//          frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+//          frontend/packages/ui/src/components/GuestInterestTags.svelte
+//          frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+// Specification: specifications/features/landing-onboarding/specification.yml
+// Assertions: landing-onboarding.apple-web-parity
 // CSS:     ActiveChat.svelte <style> — .welcome-text, .new-chat-cta-button,
 //          .daily-inspiration-area, .center-content, .message-input-action-row
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
@@ -7515,6 +7631,35 @@ struct WelcomeChatCardData: Identifiable, Equatable {
 @MainActor
 enum WelcomeScreenState {
     static let recentChatLimit = 10
+
+    /// Normal public content is available immediately, before API defaults arrive.
+    static var signedOutFallbackInspirations: [DailyInspirationBanner.DailyInspiration] {
+        [
+            .init(inspirationId: "hardcoded-dreams", text: AppStrings.signedOutInspirationDreams, category: "science"),
+            .init(inspirationId: "hardcoded-history", text: AppStrings.signedOutInspirationHistory, category: "history"),
+            .init(inspirationId: "hardcoded-activism", text: AppStrings.signedOutInspirationActivism, category: "activism")
+        ]
+    }
+
+    static func availableGuestTopics(from chats: [Chat]) -> Set<InterestTagId> {
+        let ids = Set(guestExampleChats(from: chats, selected: []).map(\.id))
+        return Set(InterestTagId.allCases.filter { !ids.isDisjoint(with: $0.exampleChats) })
+    }
+
+    /// Topic selection narrows the existing public catalog; private chats never
+    /// enter this surface and clearing selection restores the same catalog order.
+    static func guestExampleChats(from chats: [Chat], selected: [InterestTagId]) -> [Chat] {
+        let publicChats = chats.filter {
+            !$0.isRetiredBundledIntro && !$0.isHiddenFromNormalSurfaces &&
+            ($0.id.hasPrefix("demo-") || $0.id.hasPrefix("example-") || $0.id.hasPrefix("announcements-"))
+        }
+        guard !selected.isEmpty else { return publicChats }
+        let allowed = InterestTagRanking.surfaceIds(selected: selected, keyPath: \.exampleChats)
+        let matching = publicChats.filter { allowed.contains($0.id) }
+        let rankedIDs = InterestTagRanking.rankIds(matching.map(\.id), selected: selected, keyPath: \.exampleChats)
+        let byID = Dictionary(matching.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return rankedIDs.compactMap { byID[$0] }
+    }
 
     static func priorityCards(items: [WelcomeContinueItem], chats: [Chat], teamID: String?, now: Date,
                               draftPreview: (String) -> String? = { _ in nil }) -> [WelcomeChatCardData] {
@@ -7617,15 +7762,14 @@ enum WelcomeScreenState {
                 if (lhs.hasNonEmptyDraft == true) != (rhs.hasNonEmptyDraft == true) {
                     return lhs.hasNonEmptyDraft == true
                 }
-                let lhsTime = lhs.lastMessageDate ?? .distantPast
-                let rhsTime = rhs.lastMessageDate ?? .distantPast
+                let lhsTime = lhs.sidebarActivityDate ?? .distantPast
+                let rhsTime = rhs.sidebarActivityDate ?? .distantPast
                 if lhsTime != rhsTime { return lhsTime > rhsTime }
                 let lhsUpdated = lhs.updatedDate ?? .distantPast
                 let rhsUpdated = rhs.updatedDate ?? .distantPast
                 if lhsUpdated != rhsUpdated { return lhsUpdated > rhsUpdated }
-                // sortChats(..., []) is stable over IndexedDB's descending
-                // message-time cursor, whose equal-index keys are descending IDs.
-                return lhs.id > rhs.id
+                // Web sortChats(..., []) preserves the input order for ties.
+                return false
             }
             .prefix(max(0, limit - (resumeChatId == nil ? 0 : 1)))
             .map { $0 }
@@ -7799,6 +7943,7 @@ struct NewChatWelcomeView: View {
     var prepareBrowseSearchMetadata: () async -> Void = {}
     let onInspirationViewed: (String) -> Void
     let onOpenAuth: () -> Void
+    var activeChatID: String? = nil
     var activeChatCount = 0
     var onRevealRunningChats: () -> Void = {}
     var canSendAnonymously = false
@@ -7987,9 +8132,13 @@ struct NewChatWelcomeView: View {
         )
     ]
 
+    private var welcomeInspirations: [DailyInspirationBanner.DailyInspiration] {
+        !isAuthenticated && inspirations.isEmpty ? WelcomeScreenState.signedOutFallbackInspirations : inspirations
+    }
+
     private var activeInspiration: DailyInspirationBanner.DailyInspiration? {
-        guard !inspirations.isEmpty else { return nil }
-        return inspirations[min(inspirationIndex, inspirations.count - 1)]
+        guard !welcomeInspirations.isEmpty else { return nil }
+        return welcomeInspirations[min(inspirationIndex, welcomeInspirations.count - 1)]
     }
 
     private var activeLandingStory: GuestLandingStory {
@@ -8015,7 +8164,7 @@ struct NewChatWelcomeView: View {
             cards.append(WelcomeScreenState.cardData(for: resumeChat, draftPreview: welcomeDraftService.draftPreview(chatId: resumeChat.id)))
         }
         cards.append(contentsOf: WelcomeScreenState
-            .recentChats(from: chats.filter { WelcomeScreenState.isContinuationPreviewReady($0, draftPreview: welcomeDraftService.draftPreview(chatId: $0.id)) }, excluding: resumeChat?.id)
+            .recentChats(from: chats.filter { WelcomeScreenState.isContinuationPreviewReady($0, draftPreview: welcomeDraftService.draftPreview(chatId: $0.id)) }, excluding: resumeChat?.id, activeChatId: activeChatID)
             .map { WelcomeScreenState.cardData(for: $0, draftPreview: welcomeDraftService.draftPreview(chatId: $0.id)) })
         let priority = WelcomeScreenState.priorityCards(items: continueService.items, chats: chats,
             teamID: composerSearchTeam.teamID, now: continueService.now,
@@ -8025,22 +8174,8 @@ struct NewChatWelcomeView: View {
     }
 
     private var nonAuthChatCards: [WelcomeChatCardData] {
-        let publicChats = chats
-            .filter { chat in
-                !chat.id.hasPrefix("legal-") &&
-                (chat.id.hasPrefix("demo-") || chat.id.hasPrefix("example-") || chat.id.hasPrefix("announcements-"))
-            }
-        guard !effectiveInterestTagIds.isEmpty else {
-            return publicChats.map { WelcomeScreenState.cardData(for: $0) }
-        }
-
-        let rankedIds = InterestTagRanking.rankIds(
-            publicChats.map(\.id),
-            selected: effectiveInterestTagIds,
-            keyPath: \.exampleChats
-        )
-        let chatById = Dictionary(uniqueKeysWithValues: publicChats.map { ($0.id, $0) })
-        return rankedIds.compactMap { chatById[$0] }.map { WelcomeScreenState.cardData(for: $0) }
+        WelcomeScreenState.guestExampleChats(from: chats, selected: effectiveInterestTagIds)
+            .map { WelcomeScreenState.cardData(for: $0) }
     }
 
     private var shownChatCards: [WelcomeChatCardData] {
@@ -8055,7 +8190,7 @@ struct NewChatWelcomeView: View {
                 draftPreview: welcomeDraftService.draftPreview(chatId: $0.id)) }
         let scopedResume = resumeChat.flatMap { resume in eligible.first(where: { $0.id == resume.id }) }
         let ordered = (scopedResume.map { [$0] } ?? []) + WelcomeScreenState.recentChats(
-            from: eligible, excluding: scopedResume?.id, limit: eligible.count + 1)
+            from: eligible, excluding: scopedResume?.id, activeChatId: activeChatID, limit: eligible.count + 1)
         return ordered.map { WelcomeScreenState.cardData(for: $0,
             draftPreview: welcomeDraftService.draftPreview(chatId: $0.id)) }
     }
@@ -8194,9 +8329,8 @@ struct NewChatWelcomeView: View {
                 )
                 : 100
 
-            let bannerFallback: CGFloat = isAuthenticated
-                ? (activeInspiration == nil ? 0 : Self.inspirationBannerHeight(for: proxy.size, isSettingsOpen: isSettingsOpen))
-                : Self.guestLandingBannerHeight(for: proxy.size, story: activeLandingStory)
+            let bannerFallback: CGFloat = activeInspiration == nil ? 0
+                : Self.inspirationBannerHeight(for: proxy.size, isSettingsOpen: isSettingsOpen)
             let continuation = WorkspaceContinuationLayoutPolicy.resolve(width: proxy.size.width, height: proxy.size.height,
                 bannerBottom: browsingChatGrid ? 0 : measuredWelcomeBannerBottom ?? bannerFallback,
                 composerTop: measuredWelcomeComposerTop ?? max(0, proxy.size.height - composerReserve - keyboardOverlap))
@@ -8207,14 +8341,7 @@ struct NewChatWelcomeView: View {
                     .ignoresSafeArea(.container)
 
                 VStack(spacing: 0) {
-                    if !isAuthenticated, !isWelcomeWorkspaceSuppressed, !browsingChatGrid {
-                        guestLandingCarousel(containerSize: proxy.size)
-                            .padding(.top, 0)
-                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("welcome-continuation-layout")).maxY } action: {
-                                measuredWelcomeBannerBottom = $0
-                            }
-                            .transition(gridReduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
-                    } else if let activeInspiration, !isWelcomeWorkspaceSuppressed, !browsingChatGrid {
+                    if let activeInspiration, !isWelcomeWorkspaceSuppressed, !browsingChatGrid {
                         inspirationCarousel(activeInspiration, containerSize: proxy.size)
                             .padding(.top, 0)
                             .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("welcome-continuation-layout")).maxY } action: {
@@ -8239,11 +8366,14 @@ struct NewChatWelcomeView: View {
                     WelcomeContinuationLayout(placement: continuation, width: proxy.size.width) {
                     VStack(spacing: .spacing2) {
                         welcomeHeader(containerSize: proxy.size)
+                            .accessibilityElement(children: .contain)
                             .accessibilityIdentifier("welcome-workspace-greeting")
 
                         if shouldShowGuestInterestTags {
                             GuestInterestTagsView(
                                 selectedTagIds: $guestSelectedInterestTagIds,
+                                availableTagIds: WelcomeScreenState.availableGuestTopics(from: chats),
+                                minimumTagsToContinue: 1,
                                 onContinue: continueGuestInterestSelection,
                                 onSkip: skipGuestInterestSelection
                             )
@@ -8431,6 +8561,11 @@ struct NewChatWelcomeView: View {
         .onAppear {
             isGuestInterestSelectionActive = !isAuthenticated && appliedGuestInterestTagIds.isEmpty
             applyWelcomeComposerUITestFlagsIfNeeded()
+        }
+        .onChange(of: isFocused) { _, focused in
+            if focused, isAuthenticated, !isIncognito, authManager.state == .authenticated {
+                OfflineAIModelPack.shared.offerIfNeeded()
+            }
         }
         .onChange(of: focusRequest) { _, _ in
             applyFocusRequestIfNeeded()
@@ -9033,6 +9168,7 @@ struct NewChatWelcomeView: View {
                 chatId: uploadDraftID,
                 waveform: context.waveform,
                 realtimeResult: context.realtimeResult,
+                localTranscription: context.realtimeSession?.usesLocalTranscription == true,
                 trackingId: nodeID
             )
             guard welcomeRecordingUploadIDs[nodeID] == uploadID, uploadScope.isCurrent, modelDraftID == uploadDraftID, !Task.isCancelled else {
@@ -9710,7 +9846,7 @@ struct NewChatWelcomeView: View {
             }
             .frame(maxWidth: .infinity)
 
-            if inspirations.count > 1 {
+            if welcomeInspirations.count > 1 {
                 DailyInspirationCarouselProgressBar(
                     restartToken: inspirationProgressRestartToken,
                     duration: Self.inspirationAutoRotationInterval,
@@ -9822,14 +9958,14 @@ struct NewChatWelcomeView: View {
     }
 
     private func showPreviousInspiration() {
-        guard inspirations.count > 1 else { return }
-        inspirationIndex = (inspirationIndex - 1 + inspirations.count) % inspirations.count
+        guard welcomeInspirations.count > 1 else { return }
+        inspirationIndex = (inspirationIndex - 1 + welcomeInspirations.count) % welcomeInspirations.count
         restartInspirationProgress()
     }
 
     private func showNextInspiration() {
-        guard inspirations.count > 1 else { return }
-        inspirationIndex = (inspirationIndex + 1) % inspirations.count
+        guard welcomeInspirations.count > 1 else { return }
+        inspirationIndex = (inspirationIndex + 1) % welcomeInspirations.count
         restartInspirationProgress()
     }
 
@@ -10832,23 +10968,24 @@ private struct GuestLandingStoryCard: View {
 
 private struct GuestInterestTagsView: View {
     @Binding var selectedTagIds: [InterestTagId]
+    var availableTagIds = Set(InterestTagId.allCases)
+    var minimumTagsToContinue = 4
     let onContinue: () -> Void
     let onSkip: () -> Void
 
     private let availableTagLimit = 10
-    private let minimumTagsToContinue = 4
     private let tagRailCenterItemWidth: CGFloat = 150
 
     private var visibleTags: [InterestTagId] {
         let selectedSet = Set(selectedTagIds)
-        let ranked = InterestTagRanking.rankTags(selected: selectedTagIds)
-        let selected = selectedTagIds
+        let ranked = InterestTagRanking.rankTags(selected: selectedTagIds).filter { availableTagIds.contains($0) }
+        let selected = selectedTagIds.filter { availableTagIds.contains($0) }
         let available = ranked.filter { !selectedSet.contains($0) }
         return selected + Array(available.prefix(availableTagLimit))
     }
 
     private var canContinue: Bool {
-        selectedTagIds.count >= minimumTagsToContinue
+        selectedTagIds.filter { availableTagIds.contains($0) }.count >= minimumTagsToContinue
     }
 
     var body: some View {
@@ -10957,6 +11094,7 @@ private struct InterestTagChip: View {
         .accessibilityIdentifier("interest-tag-\(tag.rawValue)")
         .help(Text(tag.label))
         .accessibilityLabel(tag.label)
+        .accessibilityValue(isActive ? AppStrings.on : AppStrings.off)
     }
 }
 

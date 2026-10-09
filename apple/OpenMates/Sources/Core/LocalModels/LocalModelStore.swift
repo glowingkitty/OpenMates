@@ -70,7 +70,7 @@ enum LocalModelInstallState: Equatable, Sendable {
     case failed(String)
 }
 
-enum LocalModelInstallPhase: Equatable, Sendable { case transfer, verification, waitingForConnection, retrying }
+enum LocalModelInstallPhase: String, Codable, Equatable, Sendable { case transfer, verification, waitingForConnection, retrying }
 enum LocalModelTransferStatus: Sendable { case waitingForConnection, retrying(Int), transferring }
 
 struct LocalModelInstallProgress: Equatable, Sendable {
@@ -124,11 +124,13 @@ protocol LocalModelFileDownloading: Sendable {
                   status: @escaping @Sendable (LocalModelTransferStatus) -> Void) async throws
     func discardTransfers(in staging: URL)
     func finishProcessing(in staging: URL)
+    func setSequentialPackActive(_ active: Bool)
 }
 
 extension LocalModelFileDownloading {
     func discardTransfers(in staging: URL) {}
     func finishProcessing(in staging: URL) {}
+    func setSequentialPackActive(_ active: Bool) {}
     func download(_ file: LocalModelFile, to destination: URL,
                   progress: @escaping @Sendable (Int64) -> Void,
                   status: @escaping @Sendable (LocalModelTransferStatus) -> Void) async throws {
@@ -257,6 +259,36 @@ struct LocalModelPendingInstall: Codable, Sendable {
 }
 
 /// Disk work runs away from the main actor and hashes bounded chunks, including the 1.2 GB PII artifact.
+/// Preserve the user-selected free-space floor in addition to transfer/staging headroom.
+enum LocalModelStoragePolicy {
+    static var reserveBytes: Int64 {
+        #if os(macOS)
+        return 12 * 1_073_741_824
+        #else
+        return 8 * 1_073_741_824
+        #endif
+    }
+    static let safetyBytes: Int64 = 150_000_000
+    static func requiredBytes(remainingBytes: Int64, largestFile: Int64, reserve: Int64 = reserveBytes) -> Int64 {
+        reserve + max(0, remainingBytes) + max(0, largestFile) + safetyBytes
+    }
+    static func check(at root: URL, remainingBytes: Int64, largestFile: Int64, reserveBytes: Int64 = LocalModelStoragePolicy.reserveBytes) throws {
+        let available = try root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+            .volumeAvailableCapacityForImportantUsage
+        guard let available, available >= requiredBytes(remainingBytes: remainingBytes, largestFile: largestFile, reserve: reserveBytes) else {
+            throw LocalModelInstallError.insufficientSpace
+        }
+    }
+}
+
+/// Only pause preserves verified staging. Cancellation/removal still discards it after the transport drains.
+private final class LocalModelPauseIntent: @unchecked Sendable {
+    private let lock = NSLock()
+    private var paused = false
+    var shouldPreserve: Bool { lock.lock(); defer { lock.unlock() }; return paused }
+    func set(_ value: Bool) { lock.lock(); paused = value; lock.unlock() }
+}
+
 enum LocalModelDisk {
     static func verify(_ manifest: LocalModelManifest, at directory: URL, needsReceipt: Bool = true,
                        progress: @escaping @Sendable (Int64) -> Void = { _ in }) throws {
@@ -304,7 +336,9 @@ enum LocalModelDisk {
                         progress: @escaping @Sendable (Double) -> Void,
                         detailedProgress: @escaping @Sendable (LocalModelInstallProgress) -> Void = { _ in },
                         beforeVerification: @escaping @Sendable () async throws -> Void = {},
-                        operation: UUID = UUID(), recoverExistingStaging: Bool = false) async throws -> URL {
+                        operation: UUID = UUID(), recoverExistingStaging: Bool = false,
+                        preserveStaging: @escaping @Sendable () -> Bool = { false },
+                        storageReserveBytes: Int64 = LocalModelStoragePolicy.reserveBytes) async throws -> URL {
         let reporter = LocalModelInstallReporter(total: manifest.estimatedSizeBytes) { value in
             detailedProgress(value)
             progress(min(0.99, Double(value.transferredBytes + value.verifiedBytes) / Double(value.totalBytes * 2)))
@@ -314,13 +348,6 @@ enum LocalModelDisk {
         var root = root
         var resourceValues = URLResourceValues(); resourceValues.isExcludedFromBackup = true
         try root.setResourceValues(resourceValues)
-        let available = try root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-            .volumeAvailableCapacityForImportantUsage
-        // Downloads are sequential: leave headroom for the URLSession temporary copy of the largest file.
-        let largest = manifest.files.map(\.sizeBytes).max() ?? 0
-        if !recoverExistingStaging, let available, available < manifest.estimatedSizeBytes + largest + 150_000_000 {
-            throw LocalModelInstallError.insufficientSpace
-        }
         let pending = LocalModelPendingInstall(operation: operation, manifest: manifest)
         let staging = root.appendingPathComponent(pending.directoryName, isDirectory: true)
         try manager.createDirectory(at: staging, withIntermediateDirectories: true)
@@ -329,7 +356,7 @@ enum LocalModelDisk {
         }
         defer {
             downloader.discardTransfers(in: staging)
-            try? manager.removeItem(at: staging)
+            if !preserveStaging() { try? manager.removeItem(at: staging) }
         }
         var completed: Int64 = 0
         for file in manifest.files {
@@ -350,13 +377,11 @@ enum LocalModelDisk {
                 } catch is CancellationError { throw CancellationError() }
                   catch { try manager.removeItem(at: destination) }
             }
-            if recoverExistingStaging {
-                let free = try root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-                    .volumeAvailableCapacityForImportantUsage
-                // Reused files already occupy disk. Check headroom only for the
-                // file actually requiring transfer, after discarding corruption.
-                if let free, free < file.sizeBytes + 150_000_000 { throw LocalModelInstallError.insufficientSpace }
-            }
+            // Reused files already occupy disk; retain room for all remaining
+            // assets plus the current URLSession temporary copy and free-space floor.
+            try LocalModelStoragePolicy.check(at: root,
+                remainingBytes: manifest.estimatedSizeBytes - completed,
+                largestFile: manifest.files.map(\.sizeBytes).max() ?? 0, reserveBytes: storageReserveBytes)
             try await downloader.download(file, to: destination, progress: { bytes in
                 reporter.update(.transfer, bytes: prior + min(max(0, bytes), file.sizeBytes))
             }, status: { status in
@@ -375,6 +400,7 @@ enum LocalModelDisk {
             completed += file.sizeBytes
         }
         try Task.checkCancellation()
+        try LocalModelStoragePolicy.check(at: root, remainingBytes: 0, largestFile: 0, reserveBytes: storageReserveBytes)
         try JSONEncoder().encode(manifest).write(to: staging.appendingPathComponent(".installed.json"), options: .atomic)
         let installed = root.appendingPathComponent(manifest.id.rawValue, isDirectory: true)
         // Existing assets remain available until every replacement asset has passed validation.
@@ -406,7 +432,7 @@ final class LocalModelStore: ObservableObject {
         return LocalModelStore(downloader: LocalModelBackgroundDownloader(), verifyExisting: false, recoverBackgroundDownloads: true,
             activityEvents: { LocalModelLiveActivityCoordinator.shared.handle($0) })
         #else
-        return LocalModelStore(verifyExisting: false, activityEvents: { LocalModelLiveActivityCoordinator.shared.handle($0) })
+        return LocalModelStore(verifyExisting: false, recoverBackgroundDownloads: true, activityEvents: { LocalModelLiveActivityCoordinator.shared.handle($0) })
         #endif
     }()
     let models: [LocalModelManifest]
@@ -414,6 +440,7 @@ final class LocalModelStore: ObservableObject {
     @Published private(set) var catalogError: String?
     @Published private(set) var progressByModel: [LocalModelID: LocalModelInstallProgress] = [:]
     private let root: URL
+    private let storageReserveBytes: Int64
     private let downloader: any LocalModelFileDownloading
     private let beforeVerification: @Sendable () async throws -> Void
     private let recoverBackgroundDownloads: Bool
@@ -421,13 +448,17 @@ final class LocalModelStore: ObservableObject {
     private var generations: [LocalModelID: UUID] = [:]
     private var restoreJob: Task<Void, Never>?
     private var pendingOperations: [LocalModelID: UUID] = [:]
+    private var pauseIntents: [LocalModelID: LocalModelPauseIntent] = [:]
+    private var downloadWaiters: [LocalModelID: [CheckedContinuation<Void, Never>]] = [:]
     private var activityOperations: Set<UUID> = []
     private let activityEvents: @MainActor (LocalModelDownloadActivityEvent) -> Void
 
-    init(catalog: Data? = nil, root: URL? = nil, downloader: any LocalModelFileDownloading = LocalModelHTTPDownloader(),
+    init(catalog: Data? = nil, root: URL? = nil,
+         storageReserveBytes: Int64 = LocalModelStoragePolicy.reserveBytes, downloader: any LocalModelFileDownloading = LocalModelHTTPDownloader(),
          verifyExisting: Bool = true, recoverBackgroundDownloads: Bool = false,
          activityEvents: @escaping @MainActor (LocalModelDownloadActivityEvent) -> Void = { _ in },
          beforeVerification: @escaping @Sendable () async throws -> Void = {}) {
+        self.storageReserveBytes = storageReserveBytes
         self.recoverBackgroundDownloads = recoverBackgroundDownloads
         self.activityEvents = activityEvents
         self.beforeVerification = beforeVerification
@@ -450,24 +481,64 @@ final class LocalModelStore: ObservableObject {
             restoreJob = Task { await restoreExisting(validateInstalled: verifyExisting) }
         }
     }
+    func setSequentialPackActive(_ active: Bool) { downloader.setSequentialPackActive(active) }
     func state(for id: LocalModelID) -> LocalModelInstallState { states[id] ?? .notDownloaded }
     func progress(for id: LocalModelID) -> LocalModelInstallProgress? { progressByModel[id] }
     func manifest(for id: LocalModelID) -> LocalModelManifest? { models.first { $0.id == id } }
+    func checkSpaceForDownloads(_ ids: [LocalModelID]) throws {
+        let pending = ids.compactMap { state(for: $0) == .ready ? nil : manifest(for: $0) }
+        guard !pending.isEmpty else { return }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let retained = pending.reduce(Int64(0)) { result, manifest in
+            guard let operation = pendingOperations[manifest.id] ?? generations[manifest.id] else { return result }
+            let staging = root.appendingPathComponent(LocalModelPendingInstall(operation: operation, manifest: manifest).directoryName)
+            return result + manifest.files.reduce(Int64(0)) { bytes, file in
+                guard let values = try? staging.appendingPathComponent(file.path).resourceValues(
+                    forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey]),
+                    values.isRegularFile == true, values.isSymbolicLink != true else { return bytes }
+                // Counting occupied staging does not trust its contents: resume
+                // hashes it, and deleting corruption releases the same capacity.
+                return bytes + min(file.sizeBytes, max(0, Int64(values.fileSize ?? 0)))
+            }
+        }
+        try LocalModelStoragePolicy.check(at: root,
+            remainingBytes: max(0, pending.reduce(0) { $0 + $1.estimatedSizeBytes } - retained),
+            largestFile: pending.flatMap(\.files).map(\.sizeBytes).max() ?? 0,
+            reserveBytes: storageReserveBytes)
+    }
     func installedDirectory(_ id: LocalModelID) throws -> URL {
         guard state(for: id) == .ready else { throw LocalModelInstallError.notInstalled }
         return root.appendingPathComponent(id.rawValue, isDirectory: true)
     }
-    func download(_ id: LocalModelID) async { await download(id, operation: pendingOperations[id] ?? UUID()) }
+    func download(_ id: LocalModelID) async {
+        // Join recovered/laboratory ownership, then retry a paused operation only
+        // after its cancellation has drained and registered retained staging.
+        if jobs[id] != nil {
+            await withCheckedContinuation { downloadWaiters[id, default: []].append($0) }
+            // Joining an already failed/cancelled owner is not a fresh retry.
+            // Only an explicitly resumed pause has retained staging to continue.
+            guard pendingOperations[id] != nil else { return }
+        }
+        guard !Task.isCancelled else { return }
+        await download(id, operation: pendingOperations[id] ?? UUID())
+    }
     private func download(_ id: LocalModelID, operation: UUID,
                           onStarted: @MainActor () -> Void = {}) async {
-        guard jobs[id] == nil, state(for: id) != .ready, let manifest = manifest(for: id) else { onStarted(); return }
+        if jobs[id] != nil {
+            onStarted()
+            await withCheckedContinuation { downloadWaiters[id, default: []].append($0) }
+            return
+        }
+        guard state(for: id) != .ready, let manifest = manifest(for: id) else { onStarted(); return }
+        let pauseIntent = LocalModelPauseIntent()
+        pauseIntents[id] = pauseIntent
         let generation = operation; generations[id] = generation
         activityOperations.insert(generation)
         activityEvents(.started(model: id, operation: generation, totalBytes: manifest.estimatedSizeBytes))
         states[id] = .downloading(0)
         progressByModel[id] = nil
-        let root = root, downloader = downloader, beforeVerification = beforeVerification
-        let recoverExistingStaging = recoverBackgroundDownloads
+        let root = root, downloader = downloader, beforeVerification = beforeVerification, storageReserveBytes = storageReserveBytes
+        let recoverExistingStaging = recoverBackgroundDownloads || pendingOperations[id] != nil
         // An immutable MainActor reference is Sendable; a nested capture of an
         // outer weak variable would race under Swift 6. Progress tasks stay weak
         // and generation-fenced after the operation finishes or is removed.
@@ -478,7 +549,8 @@ final class LocalModelStore: ObservableObject {
                     Task { @MainActor [weak progressStore] in
                         progressStore?.acceptProgress(value, id: id, generation: generation)
                     }
-                }, beforeVerification: beforeVerification, operation: operation, recoverExistingStaging: recoverExistingStaging)
+                }, beforeVerification: beforeVerification, operation: operation, recoverExistingStaging: recoverExistingStaging,
+                preserveStaging: { pauseIntent.shouldPreserve }, storageReserveBytes: storageReserveBytes)
         }
         jobs[id] = job
         pendingOperations[id] = nil
@@ -498,8 +570,15 @@ final class LocalModelStore: ObservableObject {
             let outcome: LocalModelDownloadOutcome = state(for: id) == .ready ? .verified :
                 (job.isCancelled ? .cancelled : .failed)
             finishActivity(id, operation: generation, outcome: outcome)
+            if pauseIntent.shouldPreserve { pendingOperations[id] = operation }
+            pauseIntents[id] = nil
             jobs[id] = nil; progressByModel[id] = nil
+            resumeDownloadWaiters(id)
         }
+    }
+    private func resumeDownloadWaiters(_ id: LocalModelID) {
+        let waiters = downloadWaiters.removeValue(forKey: id) ?? []
+        for waiter in waiters { waiter.resume() }
     }
     private func finishActivity(_ id: LocalModelID, operation: UUID, outcome: LocalModelDownloadOutcome) {
         guard activityOperations.remove(operation) != nil else { return }
@@ -525,7 +604,19 @@ final class LocalModelStore: ObservableObject {
         case .retrying: states[id] = .retrying(value.fraction)
         }
     }
-    func cancel(_ id: LocalModelID) { jobs[id]?.cancel() }
+    func pause(_ id: LocalModelID) {
+        pauseIntents[id]?.set(true)
+        jobs[id]?.cancel()
+    }
+    func cancel(_ id: LocalModelID) {
+        pauseIntents[id]?.set(false)
+        jobs[id]?.cancel()
+        if jobs[id] == nil, let operation = pendingOperations.removeValue(forKey: id), let manifest = manifest(for: id) {
+            let staging = root.appendingPathComponent(LocalModelPendingInstall(operation: operation, manifest: manifest).directoryName)
+            downloader.discardTransfers(in: staging)
+            try? FileManager.default.removeItem(at: staging)
+        }
+    }
     func remove(_ id: LocalModelID) async {
         let running = jobs[id]
         if let pending = pendingOperations.removeValue(forKey: id), let manifest = manifest(for: id) {
@@ -534,6 +625,7 @@ final class LocalModelStore: ObservableObject {
             try? FileManager.default.removeItem(at: staging)
         }
         let operation = generations[id]
+        pauseIntents[id]?.set(false)
         running?.cancel()
         let removalGeneration = UUID()
         generations[id] = removalGeneration
@@ -541,6 +633,8 @@ final class LocalModelStore: ObservableObject {
         if let operation { finishActivity(id, operation: operation, outcome: .cancelled) }
         guard generations[id] == removalGeneration else { return }
         jobs[id] = nil
+        pauseIntents[id] = nil
+        resumeDownloadWaiters(id)
         progressByModel[id] = nil
         do {
             let directory = root.appendingPathComponent(id.rawValue, isDirectory: true)
@@ -553,6 +647,11 @@ final class LocalModelStore: ObservableObject {
     /// Background event delivery waits for current verification/install ownership
     /// and the next OS task enqueue, never for the rest of a long download.
     func finishBackgroundEvents() async {
+        #if os(iOS)
+        // An OS background wake can precede the main composer/app task. Restore
+        // the consented queue owner so the next model follows the current one.
+        _ = OfflineAIModelPack.shared
+        #endif
         await waitUntilRestored()
         #if os(iOS)
         await LocalModelBackgroundTransfers.shared.waitForPostprocessing()
@@ -563,6 +662,11 @@ final class LocalModelStore: ObservableObject {
         await restoreExisting(validateInstalled: true)
     }
     func restoreExisting(validateInstalled: Bool = true) async {
+        if FileManager.default.fileExists(atPath: root.path) {
+            var excluded = root
+            var values = URLResourceValues(); values.isExcludedFromBackup = true
+            try? excluded.setResourceValues(values)
+        }
         // Recover only a journal matching this exact pinned catalog. Arbitrary
         // stale staging is discarded, and active owners are never disturbed.
         var pendingInstalls: [LocalModelPendingInstall] = []
@@ -606,7 +710,7 @@ final class LocalModelStore: ObservableObject {
                         states[id] = job.isCancelled || error is CancellationError ? .notDownloaded : .failed(AppStrings.localLabDownloadFailed)
                     }
                 }
-                if generations[id] == generation { jobs[id] = nil; progressByModel[id] = nil }
+                if generations[id] == generation { jobs[id] = nil; progressByModel[id] = nil; resumeDownloadWaiters(id) }
             }
         }
         for pending in pendingInstalls {
@@ -618,7 +722,8 @@ final class LocalModelStore: ObservableObject {
                 pendingOperations[pending.manifest.id] = nil
                 continue
             }
-            guard jobs[pending.manifest.id] == nil else { continue }
+            guard jobs[pending.manifest.id] == nil,
+                  OfflineAIModelPackPersistence.allowsRecovery(pending.manifest.id) else { continue }
             // Each resumed operation owns its own Task; initialization does not
             // wait for every large transfer before discovering the others.
             await withCheckedContinuation { continuation in

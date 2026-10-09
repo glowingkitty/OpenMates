@@ -229,13 +229,20 @@ enum ChatStreamingSyncCompletionPolicy {
     static func retainedForegroundMessages(_ current: [Message], incoming: [Message],
                                           lifecycle: ChatStreamingLifecycleState, chatID: String,
                                           pendingMessageIDs: Set<String>) -> [Message] {
-        guard let terminal = matchingMessage(in: incoming, lifecycle: lifecycle,
-            chatID: chatID, pendingMessageIDs: pendingMessageIDs) else { return current }
-        let terminalIDs = Set([terminal.id, terminal.serverMessageId].compactMap { $0 })
-        // Admit the exact saved terminal through the window merger's normal
-        // protection of live rows. Preserve every other pending/streaming turn.
+        // A fresh page may finish an older buffered row while another turn is
+        // active. Replace that exact identity without changing the newer lifecycle.
+        let terminals = incoming.filter { row in
+            row.chatId == chatID && (row.role == .assistant || row.role == .system)
+                && row.isStreaming != true && row.encryptedContent?.isEmpty == false
+                && !pendingMessageIDs.contains(row.id)
+                && !(row.serverMessageId.map(pendingMessageIDs.contains) ?? false)
+        }
         return current.filter { row in
-            !terminalIDs.contains(row.id) && !(row.serverMessageId.map(terminalIDs.contains) ?? false)
+            !terminals.contains { terminal in
+                guard row.chatId == terminal.chatId, row.role == terminal.role else { return false }
+                let ids = Set([terminal.id, terminal.serverMessageId].compactMap { $0 })
+                return ids.contains(row.id) || row.serverMessageId.map(ids.contains) == true
+            }
         }
     }
 
@@ -485,7 +492,23 @@ enum ChatHistoryWindowPolicy {
     static let overlap = 10
     static let stride = capacity - overlap
 
-    static func orderedUnique(_ messages: [Message]) -> [Message] {
+    static func orderedUnique(_ messages: [Message], pendingMessageIDs: Set<String> = []) -> [Message] {
+        // An explicit DB alias belongs to the same chat/role identity. A saved
+        // canonical row wins over its migrated duplicate; text is never a key.
+        let canonicalByAlias = messages.reduce(into: [String: Message]()) { result, row in
+            guard let alias = row.serverMessageId, alias != row.id,
+                  row.encryptedContent?.isEmpty == false, row.isStreaming != true,
+                  !pendingMessageIDs.contains(row.id), !pendingMessageIDs.contains(alias) else { return }
+            result["\(row.chatId)|\(row.role.rawValue)|\(alias)"] = row
+        }
+        if messages.contains(where: { canonicalByAlias["\($0.chatId)|\($0.role.rawValue)|\($0.id)"] != nil }) {
+            let locals = Dictionary(messages.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+            return orderedUnique(messages.compactMap { row in
+                guard canonicalByAlias["\(row.chatId)|\(row.role.rawValue)|\(row.id)"] == nil else { return nil }
+                let local = row.serverMessageId.flatMap { locals[$0] }
+                return ChatCompletionRecoveryCoordinator.mergingRecoveredMessage(row, preserving: local)
+            }, pendingMessageIDs: pendingMessageIDs)
+        }
         // Synced/cached history is usually already canonical. Preserve its array
         // storage instead of rebuilding and sorting the complete history.
         var seenIDs = Set<String>()
@@ -661,6 +684,8 @@ final class ChatViewModel: ObservableObject {
     private let messageWindowFetcher: @MainActor (String, String?, ChatMessageWindowQuery) async throws -> ChatMessageWindowPage
     private var olderMessagesTask: Task<Void, Never>?
     private var loadGeneration = 0
+    private var notificationCatchUpInFlight: UUID?
+    private var notificationCatchUpAttempt: (id: UUID, session: StreamingSessionGeneration, count: Int)?
     private let messageDecryptor: @MainActor ([Message], String) async -> [Message]
     private let accountScopeGeneration: @MainActor () -> UUID
     private let offlineStore: OfflineStore
@@ -854,6 +879,83 @@ final class ChatViewModel: ObservableObject {
                              embeds: syncedEmbeds, generation: generation, destination: destination)
     }
 
+    /// A push is a reason to read the latest bounded page, never a completion
+    /// receipt. Cached history stays visible while this authoritative read runs.
+    func refreshNotificationCompletion(_ intent: ChatNotificationCatchUpIntent, renewAttempts: Bool = false) async -> Bool {
+        await refreshNotificationCompletion(chatID: intent.chatID, messageID: intent.messageID,
+            intentID: intent.id, renewAttempts: renewAttempts, isCurrent: { intent.isCurrent })
+    }
+
+    func refreshNotificationCompletion(chatID: String, messageID: String?, intentID: UUID,
+                                       renewAttempts: Bool = false, isCurrent: @escaping @MainActor () -> Bool) async -> Bool {
+        guard let currentChat = chat, currentChat.id == chatID, !isLoading,
+              notificationCatchUpInFlight == nil, isCurrent() else { return false }
+        let targetMessageID = messageID ?? (streamingLifecycle.isActive
+            ? streamingLifecycle.messageId ?? streamingLifecycle.taskId : nil)
+        let session = StreamingClient.shared.sessionGeneration
+        let attempts = notificationCatchUpAttempt
+        let previous = !renewAttempts && attempts?.id == intentID && attempts?.session == session ? attempts?.count ?? 0 : 0
+        guard previous < 3 else { return false }
+        notificationCatchUpInFlight = intentID
+        defer { if notificationCatchUpInFlight == intentID { notificationCatchUpInFlight = nil } }
+        for attempt in previous..<3 {
+            notificationCatchUpAttempt = (intentID, session, attempt + 1)
+            let generation = loadGeneration
+            let fence = remoteReadFence(chatId: chatID, generation: generation)
+            guard isCurrent(), isCurrentRemoteRead(fence), chat?.id == chatID else { return false }
+            do {
+                let page = try await fetchRemoteWindow(chatId: chatID, teamId: currentChat.teamId,
+                    query: initialRemoteQuery(anchor: nil), generation: generation)
+                guard isCurrent(), isCurrentRemoteRead(fence), chat?.id == chatID else { return false }
+                let source = mergeForegroundMessages(foregroundPageMessages(page), preserving: allMessages, chatId: chatID)
+                let destination: ChatHistoryWindowDestination = hasNewerMessages
+                    ? messages.first.map { .preserve(firstMessage: $0.id) } ?? .latest : .latest
+                let selectionGeneration = explicitWindowNavigationGeneration
+                guard let range = ChatHistoryWindowPolicy.range(in: source, destination: destination) else { return false }
+                let raw = Array(source[range])
+                let decrypted = await decryptRemoteWindow(raw, chatId: chatID, projection: page.decryptedProjection)
+                guard isCurrent(), isCurrentRemoteRead(fence), chat?.id == chatID else { return false }
+                // Re-merge after decryption to retain a turn started during the
+                // await; exact-terminal policy alone may finish the old turn.
+                allMessages = mergeForegroundMessages(foregroundPageMessages(page), preserving: allMessages, chatId: chatID)
+                rawHistoryReadFence = fence
+                remoteHistory = RemoteHistory(page)
+                guard let resolved = await resolveLoadedHistoryWindow(initialRaw: raw, initialDecrypted: decrypted,
+                    destination: destination, generation: generation,
+                    navigationGeneration: selectionGeneration, scopeGeneration: fence.scope),
+                    isCurrent(), isCurrentRemoteRead(fence) else { return false }
+                let embedded = PublicChatContent.attachEmbeds(to: resolved)
+                messages = embedded.messages
+                embedRecords = PublicChatContent.mergingHydratedRecords(existing: embedRecords, inline: embedded.records)
+                refreshWindowBoundaries(); historyWindowRevision += 1
+                let pending = pendingStreamingCompletionIDs(chatId: chatID)
+                let final = page.decryptedProjection.last { row in
+                    row.chatId == chatID && (row.role == .assistant || row.role == .system)
+                        && row.isStreaming != true && row.encryptedContent?.isEmpty == false
+                        && !pending.contains(row.id) && !(row.serverMessageId.map(pending.contains) ?? false)
+                        && (targetMessageID == nil || row.id == targetMessageID || row.serverMessageId == targetMessageID)
+                }
+                if let final {
+                    // Persist only the exact saved row. A viewing page must not
+                    // claim complete history or advance the chat's messages_v.
+                    offlineStore.persistMessages([final], chatId: chatID)
+                    chatStore?.performWithoutPersistence { chatStore?.appendMessage(final, to: chatID) }
+                    reconcileStreamingCompletion(chatId: chatID, authoritativeMessages: allMessages, readFence: fence)
+                    scheduleEmbedHydration(syncedEmbeds: chatStore?.embeds(for: chatID) ?? [],
+                        referencedIds: Set(messages.flatMap { $0.embedRefs?.map(\.id) ?? [] }),
+                        chatId: chatID, generation: generation, existingRecords: embedRecords, source: "notification")
+                    return true
+                }
+            } catch {
+                guard isCurrent(), isCurrentRemoteRead(fence) else { return false }
+            }
+            guard attempt < 2 else { break }
+            do { try await Task.sleep(for: .milliseconds(attempt == 0 ? 350 : 1000)) }
+            catch { return false }
+        }
+        return false
+    }
+
     func applySyncedEmbeds(_ syncedEmbeds: [EmbedRecord]) async {
         guard let chatId = chat?.id, !messages.isEmpty, !syncedEmbeds.isEmpty else { return }
         messages = ChatLegacyEmbedLinkPolicy.applying(to: messages, embeds: syncedEmbeds)
@@ -911,7 +1013,8 @@ final class ChatViewModel: ObservableObject {
         if offlineStore.hasCompleteOfflineSnapshot(for: loadedChat) { remoteHistory = nil }
         let storedMessages = chatStore?.messages(for: loadedChat.id) ?? []
         var rawMessages = ChatHistoryWindowPolicy.orderedUnique(
-            storedMessages.isEmpty ? syncedMessages : storedMessages)
+            storedMessages.isEmpty ? syncedMessages : storedMessages,
+            pendingMessageIDs: pendingStreamingCompletionIDs(chatId: loadedChat.id))
         if remoteHistory?.chatId == loadedChat.id {
             rawMessages = mergeForegroundMessages(rawMessages, preserving: allMessages, chatId: loadedChat.id)
         }
@@ -1465,7 +1568,8 @@ final class ChatViewModel: ObservableObject {
             current, incoming: incoming, lifecycle: streamingLifecycle, chatID: chatId,
             pendingMessageIDs: pendingStreamingCompletionIDs(chatId: chatId))
         return ChatMessageWindowPage.merge(incoming, preserving: preserved,
-            pendingIds: foregroundPendingIDs(chatId: chatId, actionType: "send_message"))
+            pendingIds: foregroundPendingIDs(chatId: chatId, actionType: "send_message")
+                .union(pendingStreamingCompletionIDs(chatId: chatId)))
             .filter { !deleted.contains($0.id) && !($0.serverMessageId.map(deleted.contains) ?? false) }
     }
 
@@ -1673,6 +1777,11 @@ final class ChatViewModel: ObservableObject {
         didSeedComposerProcessingFixture = true
         handleStreamEvent(.taskInitiated(chatId: "dev-chat-opening-large", taskId: "synthetic-processing-task", userMessageId: "synthetic-processing-user"))
         handleStreamEvent(.preprocessingStep(chatId: "dev-chat-opening-large", step: "model_selected", data: nil))
+        let partial = Message(id: "synthetic-processing-task", chatId: "dev-chat-opening-large", role: .assistant,
+            content: "Synthetic partial processing response", encryptedContent: nil,
+            createdAt: ChatSendPipeline.isoString(from: Date()), updatedAt: nil, appId: nil, isStreaming: true, embedRefs: nil)
+        appendOrReplaceTransientMessage(partial)
+        chatStore?.performWithoutPersistence { chatStore?.appendMessage(partial, to: partial.chatId) }
     }
 
     func seedIsolatedHistory(chat: Chat, messages: [Message], embeds: [EmbedRecord]) {
@@ -1704,15 +1813,19 @@ final class ChatViewModel: ObservableObject {
         composerProcessingRecoveryReceipt = "pending"
         let terminal = Message(id: "synthetic-processing-task", chatId: chat.id, role: .assistant,
             content: "Synthetic completed processing response", encryptedContent: "synthetic-terminal-ciphertext",
-            createdAt: ChatSendPipeline.isoString(from: Date()), updatedAt: nil,
+            createdAt: allMessages.first { $0.id == "synthetic-processing-task" }?.createdAt
+                ?? ChatSendPipeline.isoString(from: Date()), updatedAt: nil,
             appId: nil, isStreaming: false, embedRefs: nil)
-        let completedHistory = allMessages + [terminal]
-        // Normal fixture loading reads its authoritative in-memory ChatStore.
-        // Update that disposable source before exercising production sync/replay.
+        // Same ID/count and unchanged updatedAt must reach this mounted model
+        // through the production ChatView input observation, never a direct call.
         chatStore?.performWithoutPersistence {
-            chatStore?.setMessages(for: chat.id, messages: completedHistory)
+            chatStore?.appendMessage(terminal, to: chat.id)
+            chatStore?.advanceMessagesVersion(chatId: chat.id, to: (chat.messagesV ?? 0) + 1)
         }
-        await applySynced(chat: chat, messages: completedHistory)
+        for _ in 0..<300 {
+            if !isStreaming && !streamingLifecycle.isActive { break }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
         guard let fence = rawHistoryReadFence, fence.chatId == chat.id, isCurrentRemoteRead(fence) else {
             composerProcessingRecoveryReceipt = "authority-fenced"
             return
@@ -3540,6 +3653,7 @@ final class ChatViewModel: ObservableObject {
         duration: TimeInterval,
         waveform: AudioRecordingWaveform? = nil,
         realtimeResult: AudioRecordingRealtimeResultProvider? = nil,
+        localTranscription: Bool = false,
         trackingId: String? = nil
     ) async -> ComposerPendingEmbed? {
         guard let chatId = chat?.id else { return nil }
@@ -3550,6 +3664,7 @@ final class ChatViewModel: ObservableObject {
             chatId: chatId,
             waveform: waveform,
             realtimeResult: realtimeResult,
+            localTranscription: localTranscription,
             trackingId: trackingId
         ) else { return nil }
         guard scope.isCurrent, chat?.id == chatId, !Task.isCancelled else { return nil }
@@ -3884,6 +3999,7 @@ enum AudioRecordingUploadPipeline {
     static func run(
         waveform: AudioRecordingWaveform?,
         realtimeResult: AudioRecordingRealtimeResultProvider?,
+        localTranscription: Bool = false,
         upload: @escaping Upload,
         batchTranscription: @escaping BatchTranscription,
         batchTimeout: Duration = .seconds(20)
@@ -3899,7 +4015,12 @@ enum AudioRecordingUploadPipeline {
             let realtimeResult = await realtimeTask.value
             guard !Task.isCancelled else { return nil }
             if let realtimeResult {
-                transcription = realtimeResult.transcriptionMetadata.withWaveform(waveform)
+                transcription = realtimeResult.transcriptionMetadata.withLocalRoute(localTranscription ? "complete" : nil).withWaveform(waveform)
+            } else if localTranscription {
+                // Preserve encrypted playback across devices, while forbidding
+                // inference fallback for a recording captured on the local route.
+                transcription = TranscriptionMetadata(transcript: nil, model: "whisper-large-v3-local",
+                    waveform: waveform, transcriptionSource: "local", transcriptionStatus: "failed")
             } else {
                 // A failed or stalled transcription must not strand an already
                 // uploaded recording in the composer. Keep its playable file and
@@ -3964,6 +4085,7 @@ enum AudioRecordingUploadService {
         chatId: String,
         waveform: AudioRecordingWaveform? = nil,
         realtimeResult: AudioRecordingRealtimeResultProvider? = nil,
+        localTranscription: Bool = false,
         trackingId: String? = nil,
         uploadOperation: AudioRecordingUploadPipeline.Upload? = nil
     ) async -> ComposerPendingEmbed? {
@@ -3982,6 +4104,7 @@ enum AudioRecordingUploadService {
         let pipeline = await AudioRecordingUploadPipeline.run(
             waveform: waveform,
             realtimeResult: realtimeResult,
+            localTranscription: localTranscription,
             upload: {
                 guard scope.isCurrent, !Task.isCancelled else { return nil }
                 let result: UploadFileResponse?
@@ -4017,6 +4140,9 @@ enum AudioRecordingUploadService {
                 PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
             }
             return nil
+        }
+        if localTranscription, pipeline.transcription.transcriptionStatus == "failed" {
+            ToastManager.shared.show(AppStrings.offlineAIModelsLocalTranscriptionFailed, type: .error)
         }
         let embed = ComposerPendingEmbed.from(
             upload: pipeline.upload,
@@ -4131,6 +4257,8 @@ struct TranscriptionMetadata: Decodable, Equatable, Sendable {
     let model: String?
     let correctionModel: String?
     let waveform: AudioRecordingWaveform?
+    let transcriptionSource: String?
+    let transcriptionStatus: String?
 
     init(
         title: String? = nil,
@@ -4140,7 +4268,9 @@ struct TranscriptionMetadata: Decodable, Equatable, Sendable {
         useCorrected: Bool? = nil,
         model: String? = nil,
         correctionModel: String? = nil,
-        waveform: AudioRecordingWaveform? = nil
+        waveform: AudioRecordingWaveform? = nil,
+        transcriptionSource: String? = nil,
+        transcriptionStatus: String? = nil
     ) {
         self.title = title
         self.transcript = transcript
@@ -4150,6 +4280,8 @@ struct TranscriptionMetadata: Decodable, Equatable, Sendable {
         self.model = model
         self.correctionModel = correctionModel
         self.waveform = waveform
+        self.transcriptionSource = transcriptionSource
+        self.transcriptionStatus = transcriptionStatus
     }
 
     var displayTranscript: String? {
@@ -4157,6 +4289,14 @@ struct TranscriptionMetadata: Decodable, Equatable, Sendable {
             return transcriptCorrected
         }
         return transcript
+    }
+
+    func withLocalRoute(_ status: String?) -> TranscriptionMetadata {
+        TranscriptionMetadata(title: title, transcript: transcript, transcriptOriginal: transcriptOriginal,
+            transcriptCorrected: transcriptCorrected, useCorrected: useCorrected, model: model,
+            correctionModel: correctionModel, waveform: waveform,
+            transcriptionSource: status == nil ? transcriptionSource : "local",
+            transcriptionStatus: status ?? transcriptionStatus)
     }
 
     func withWaveform(_ waveform: AudioRecordingWaveform?) -> TranscriptionMetadata {
@@ -4168,7 +4308,9 @@ struct TranscriptionMetadata: Decodable, Equatable, Sendable {
             useCorrected: useCorrected,
             model: model,
             correctionModel: correctionModel,
-            waveform: waveform
+            waveform: waveform,
+            transcriptionSource: transcriptionSource,
+            transcriptionStatus: transcriptionStatus
         )
     }
 }
@@ -4495,6 +4637,8 @@ private struct ComposerUploadClassification {
             if let transcriptOriginal = transcription.transcriptOriginal { object["transcript_original"] = transcriptOriginal }
             if let transcriptCorrected = transcription.transcriptCorrected { object["transcript_corrected"] = transcriptCorrected }
             if let useCorrected = transcription.useCorrected { object["use_corrected"] = useCorrected }
+            if let source = transcription.transcriptionSource { object["transcription_source"] = source }
+            if let status = transcription.transcriptionStatus { object["transcription_status"] = status }
             if let model = transcription.model { object["model"] = model }
             if let correctionModel = transcription.correctionModel { object["correction_model"] = correctionModel }
             if let waveform = transcription.waveform { object["waveform"] = waveform.contentObject }

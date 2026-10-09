@@ -2,9 +2,12 @@
 // Uses the v2 client-to-client PAKE approval contract through PairV2Runtime.
 // Specification: specifications/features/auth/specification.yml
 // Assertions: auth.pair-login.approval-assurance, auth.pair-login.lifecycle
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.pairing.iphone-first-fallback, apple-watch.pairing.private-session
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/security/SettingsSessionsConfirmPair.svelte
+//          frontend/packages/ui/src/components/settings/security/SettingsSessions.svelte
 // CSS:     frontend/packages/ui/src/styles/settings.css
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
@@ -301,8 +304,72 @@ struct CLIPairAuthorizeView: View {
 }
 
 #if os(iOS)
+private struct PhoneWatchPairBridgeKey: EnvironmentKey {
+    static let defaultValue: PhoneWatchLoginBridge? = nil
+}
+
+extension EnvironmentValues {
+    var phoneWatchPairBridge: PhoneWatchLoginBridge? {
+        get { self[PhoneWatchPairBridgeKey.self] }
+        set { self[PhoneWatchPairBridgeKey.self] = newValue }
+    }
+}
+
+// The Watch approval stays under Connected devices, using the same settings
+// content and Back controls as other account/security subpages.
+struct SettingsWatchConnectedDevicesView: View {
+    @ObservedObject var bridge: PhoneWatchLoginBridge
+    var isPreview = false
+    var onApprovalDone: () -> Void = {}
+    var onBackToAccount: () -> Void = {}
+    var onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)? = nil
+    @State private var showsApproval = true
+
+    var body: some View {
+        Group {
+            if showsApproval, bridge.pendingRequest != nil {
+                AppleWatchPairAuthorizeView(bridge: bridge, cancelsOnDisappear: false) {
+                    showsApproval = false
+                    onApprovalDone()
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("settings-watch-pair-page")
+            } else {
+                SettingsSessionsView(
+                    onConnectAppleWatch: bridge.pendingRequest == nil ? nil : { showsApproval = true },
+                    isPreview: isPreview, showsHeader: false)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("settings-connected-devices-content")
+            }
+        }
+        .onAppear { publishNavigation() }
+        .onDisappear { onChildNavigationChanged?(nil) }
+        .onChange(of: showsApproval) { _, _ in publishNavigation() }
+        .onChange(of: bridge.pendingRequest?.token) { _, token in
+            if token != nil { showsApproval = true }
+            publishNavigation()
+        }
+    }
+
+    private func publishNavigation() {
+        let isApproval = showsApproval && bridge.pendingRequest != nil
+        onChildNavigationChanged?(.init(
+            title: isApproval ? AppStrings.pairConnectAppleWatchTitle : AppStrings.activeSessions,
+            description: "",
+            icon: isApproval ? "applewatch" : "devices",
+            breadcrumb: isApproval
+                ? "\(AppStrings.settings) / \(AppStrings.settingsAccount) / \(AppStrings.activeSessions)"
+                : "\(AppStrings.settings) / \(AppStrings.settingsAccount)",
+            onBack: {
+                if isApproval { showsApproval = false }
+                else { onBackToAccount() }
+            }))
+    }
+}
+
 struct AppleWatchPairAuthorizeView: View {
     @ObservedObject var bridge: PhoneWatchLoginBridge
+    var cancelsOnDisappear = true
     @EnvironmentObject private var authManager: AuthManager
     let onDone: () -> Void
     @State private var isApproving = false
@@ -315,35 +382,38 @@ struct AppleWatchPairAuthorizeView: View {
     @State private var stepUpMethods: PairV2StepUpMethods?
 
     var body: some View {
-        OMSettingsPage(title: AppStrings.pairConnectAppleWatchTitle, showsFooter: false) {
-            OMSettingsSection {
-                VStack(spacing: .spacing6) {
-                    Icon("watch", size: 48).foregroundStyle(LinearGradient.primary)
-                    Text(AppStrings.pairConnectAppleWatchDescription)
-                        .font(.omSmall).foregroundStyle(Color.fontSecondary)
-                    if let request = bridge.pendingRequest {
-                        OMSettingsStaticRow(title: AppStrings.device, value: request.deviceName)
-                        Text(request.token).font(.omH2.monospaced()).textSelection(.enabled)
-                    }
+        OMSettingsPage(title: AppStrings.pairConnectAppleWatchTitle, showsHeader: false,
+                       showsFooter: false, contentHorizontalPadding: 0,
+                       contentVerticalSpacing: .spacing4) {
+            OMSettingsInfoBox(message: AppStrings.pairConnectAppleWatchDescription)
+            if let request = bridge.pendingRequest {
+                OMSettingsSection {
+                    OMSettingsStaticRow(title: AppStrings.device, value: request.deviceName)
+                    OMSettingsStaticRow(title: AppStrings.pairingCode, value: request.token)
+                        .accessibilityIdentifier("watch-pair-request-code")
+                }
+            }
+            VStack(alignment: .leading, spacing: .spacing4) {
                     if let errorMessage { Text(errorMessage).font(.omSmall).foregroundStyle(Color.error) }
                     if needsStepUp {
                         Text(AppStrings.pairStepUpDescription)
                             .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         if emailChallenge == nil && stepUpMethods?.supports(.passkey) == true {
                             Button(AppStrings.loginWithPasskey) { Task { await submitPasskeyStepUp() } }
-                                .buttonStyle(OMSecondaryButtonStyle())
+                                .buttonStyle(OMSettingsButtonStyle(secondary: true))
                                 .accessibilityIdentifier("watch-pair-step-up-passkey")
                         }
                         if emailChallenge != nil {
-                            TextField(AppStrings.enterOneTimeCode, text: $emailCode)
-                                .textFieldStyle(OMTextFieldStyle())
+                            OMSettingsTextInput(label: AppStrings.enterOneTimeCode,
+                                placeholder: AppStrings.enterOneTimeCode, value: $emailCode,
+                                identifier: "watch-pair-step-up-email-code")
                                 .keyboardType(.numberPad)
                                 .onChange(of: emailCode) { _, value in
                                     emailCode = String(value.filter(\.isNumber).prefix(6))
                                 }
                                 .accessibilityIdentifier("watch-pair-step-up-email-code")
                             Button(AppStrings.verifyEmailChangeCode) { Task { await submitEmailCode() } }
-                                .buttonStyle(OMPrimaryButtonStyle())
+                                .buttonStyle(OMSettingsButtonStyle())
                                 .disabled(emailCode.count != 6 || isApproving)
                                 .accessibilityIdentifier("watch-pair-step-up-email-verify")
                             Button(AppStrings.retry) {
@@ -351,15 +421,16 @@ struct AppleWatchPairAuthorizeView: View {
                                 emailCode = ""
                                 errorMessage = nil
                             }
-                            .buttonStyle(OMSecondaryButtonStyle())
+                            .buttonStyle(OMSettingsButtonStyle(secondary: true))
                         } else if stepUpMethods?.supports(.password) == true && stepUpMethods?.supports(.otp) != true {
-                            SecureField(AppStrings.enterPassword, text: $stepUpPassword)
-                                .textFieldStyle(OMTextFieldStyle())
-                                .accessibilityIdentifier("watch-pair-step-up-password")
+                            OMSettingsTextInput(label: AppStrings.enterPassword,
+                                placeholder: AppStrings.enterPassword, value: $stepUpPassword,
+                                identifier: "watch-pair-step-up-password", secure: true)
                         }
                         if emailChallenge == nil && stepUpMethods?.supports(.otp) == true {
-                            TextField(AppStrings.twoFactorCodePlaceholder, text: $stepUpCode)
-                                .textFieldStyle(OMTextFieldStyle())
+                            OMSettingsTextInput(label: AppStrings.twoFactorCodePlaceholder,
+                                placeholder: AppStrings.twoFactorCodePlaceholder, value: $stepUpCode,
+                                identifier: "watch-pair-step-up-code")
                                 .keyboardType(.numberPad)
                                 .onChange(of: stepUpCode) { _, value in
                                     stepUpCode = String(value.filter(\.isNumber).prefix(6))
@@ -368,21 +439,21 @@ struct AppleWatchPairAuthorizeView: View {
                         }
                         if emailChallenge == nil && (stepUpMethods?.supports(.password) == true || stepUpMethods?.supports(.otp) == true) {
                             Button(AppStrings.allow) { Task { await submitCredentialStepUp() } }
-                                .buttonStyle(OMPrimaryButtonStyle())
+                                .buttonStyle(OMSettingsButtonStyle())
                                 .disabled(stepUpMethods?.supports(.otp) == true ? stepUpCode.count != 6 : stepUpPassword.isEmpty)
                         }
                     }
                     HStack(spacing: .spacing4) {
                         Button(AppStrings.cancel) { bridge.denyPendingRequest(); onDone() }
-                            .buttonStyle(OMSecondaryButtonStyle())
+                            .buttonStyle(OMSettingsButtonStyle(secondary: true))
+                            .accessibilityIdentifier("watch-pair-cancel-button")
                         Button(AppStrings.pairApproveWatchLogin) { approve() }
-                            .buttonStyle(OMPrimaryButtonStyle())
+                            .buttonStyle(OMSettingsButtonStyle())
                             .disabled(isApproving || needsStepUp || bridge.pendingRequest == nil)
                             .accessibilityIdentifier("watch-pair-approve-button")
                     }
                 }
-                .padding(.spacing8)
-            }
+            .padding(.horizontal, .spacing5)
         }
         .task(id: bridge.pendingRequest?.token) {
             isApproving = false
@@ -395,7 +466,7 @@ struct AppleWatchPairAuthorizeView: View {
             stepUpMethods = try? await bridge.stepUpMethodsForPendingRequest()
         }
         .onDisappear {
-            if bridge.pendingRequest != nil { bridge.denyPendingRequest() }
+            if cancelsOnDisappear, bridge.pendingRequest != nil { bridge.denyPendingRequest() }
             stepUpPassword = ""
             stepUpCode = ""
             emailCode = ""
@@ -517,7 +588,7 @@ struct SettingsConfirmPairView: View {
                         Button(AppStrings.confirmPairing) {
                             submittedToken = token.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
                         }
-                        .buttonStyle(OMPrimaryButtonStyle())
+                        .buttonStyle(OMSettingsButtonStyle())
                         .disabled(token.count < 4)
                     }
                     .padding(.spacing6)

@@ -127,10 +127,17 @@ struct OMSettingsTextInput: View {
     let identifier: String
     var multiline = false
     var email = false
+    var secure = false
     @FocusState private var focused: Bool
     var body: some View {
         Group {
-            if multiline {
+            if secure {
+                SecureField(placeholder, text: $value)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    #endif
+            } else if multiline {
                 TextField(placeholder, text: $value, axis: .vertical)
                     .lineLimit(3...8)
                     .frame(minHeight: 146, alignment: .top)

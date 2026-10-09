@@ -1,8 +1,9 @@
-// Local model diagnostics with optional explicit Privacy scope.
+// Capability download settings plus advanced local model diagnostics.
 // Developers exposes only experimental audio models; Privacy owns PII assets.
 // ─── Web source ─────────────────────────────────────────────────────
 // Native-only page, composed from existing canonical settings elements.
-// Svelte: frontend/packages/ui/src/components/settings/elements/SettingsInfoBox.svelte
+// Svelte: frontend/packages/ui/src/components/settings/SettingsAI.svelte
+//         frontend/packages/ui/src/components/settings/elements/SettingsInfoBox.svelte
 //         frontend/packages/ui/src/components/settings/elements/SettingsCard.svelte
 //         frontend/packages/ui/src/components/settings/elements/SettingsInput.svelte
 //         frontend/packages/ui/src/components/settings/elements/SettingsTextarea.svelte
@@ -355,5 +356,94 @@ struct SettingsLocalModelsView: View {
         case .privacyFilter: AppStrings.localLabPrivacyFilter
         case .supertonic3: AppStrings.localLabSupertonic
         }
+    }
+}
+
+
+/// Consumer download destination. Technical diagnostics remain in Developers.
+struct SettingsOfflineModelsView: View {
+    @ObservedObject private var pack = OfflineAIModelPack.shared
+    @ObservedObject private var store = LocalModelStore.shared
+    var body: some View {
+        OfflineAIModelsSettingsContent(snapshot: pack.snapshot,
+            readyModels: Set(OfflineAIModelPack.order.filter { store.state(for: $0) == .ready }),
+            onDownload: { pack.download() }, onPause: { pack.pause() }, onCancel: { pack.cancel() })
+    }
+}
+
+/// The fixture supplies snapshots to the same progress and action controls used
+/// by the settings destination; it never creates a real transfer or runtime job.
+struct OfflineAIModelsSettingsContent: View {
+    let snapshot: OfflineAIModelPackSnapshot
+    var readyModels: Set<LocalModelID> = []
+    let onDownload: () -> Void
+    let onPause: () -> Void
+    let onCancel: () -> Void
+
+    private var status: String {
+        switch snapshot.phase {
+        case .paused: AppStrings.offlineAIModelsPaused
+        case .failed: AppStrings.localLabDownloadFailed
+        case .complete: AppStrings.offlineAIModelsComplete
+        case .offered, .deferred, .cancelled: AppStrings.localLabNotDownloaded
+        case .downloading:
+            switch snapshot.modelPhase {
+            case .verification: AppStrings.offlineAIModelsVerifying
+            case .waitingForConnection: AppStrings.offlineAIModelsWaiting
+            case .retrying: AppStrings.offlineAIModelsRetrying
+            default: AppStrings.offlineAIModelsDownloading
+            }
+        }
+    }
+    private var fraction: Double {
+        snapshot.totalBytes > 0 ? min(1, max(0, Double(snapshot.transferredBytes) / Double(snapshot.totalBytes))) : 0
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing6) {
+            OMSettingsSection(AppStrings.offlineAIModelsSettingsTitle) {
+                OMSettingsCard {
+                    VStack(alignment: .leading, spacing: .spacing6) {
+                        Text(AppStrings.offlineAIModelsProgress(
+                            model: snapshot.currentModel.map(AppStrings.offlineAIModelCapability) ?? AppStrings.offlineAIModelsSettingsTitle,
+                            status: status,
+                            downloaded: ByteCountFormatter.string(fromByteCount: snapshot.transferredBytes, countStyle: .file),
+                            total: ByteCountFormatter.string(fromByteCount: snapshot.totalBytes, countStyle: .file)))
+                            .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                            .accessibilityIdentifier("offline-ai-settings-progress-summary")
+                        GeometryReader { geometry in
+                            Color.buttonPrimary.frame(width: geometry.size.width * fraction)
+                        }
+                        .frame(height: .spacing2).background(Color.grey20)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(AppStrings.offlineAIModelsSettingsTitle)
+                        .accessibilityValue("\(Int(fraction * 100))%")
+                        .accessibilityIdentifier("offline-ai-download-progress")
+                        if snapshot.phase != .complete {
+                            HStack(spacing: .spacing4) {
+                                Button(snapshot.phase == .downloading ? AppStrings.pause : snapshot.phase == .paused ? AppStrings.offlineAIModelsResume : AppStrings.download,
+                                       action: snapshot.phase == .downloading ? onPause : onDownload)
+                                    .buttonStyle(OMSettingsButtonStyle())
+                                    .accessibilityIdentifier(snapshot.phase == .downloading ? "offline-ai-pause" : snapshot.phase == .paused ? "offline-ai-resume" : "offline-ai-settings-download")
+                                if snapshot.phase == .downloading || snapshot.phase == .paused || snapshot.phase == .failed {
+                                    Button(AppStrings.cancel, action: onCancel)
+                                        .buttonStyle(OMSettingsButtonStyle())
+                                        .accessibilityIdentifier("offline-ai-cancel")
+                                }
+                            }
+                            .accessibilityElement(children: .contain)
+                        }
+                    }
+                }
+            }
+            OMSettingsSection {
+                ForEach(OfflineAIModelPack.order) { id in
+                    OMSettingsDetailRow(label: AppStrings.offlineAIModelCapability(id),
+                        value: readyModels.contains(id) ? AppStrings.offlineAIModelsReady : snapshot.currentModel == id ? status : AppStrings.localLabNotDownloaded)
+                        .accessibilityIdentifier("offline-ai-capability-\(id.rawValue)")
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings-offline-models-page")
     }
 }

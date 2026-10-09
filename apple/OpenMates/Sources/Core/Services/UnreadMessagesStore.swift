@@ -3,6 +3,8 @@
 // clears when user opens a chat, syncs total count to app badge.
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.action.routing-coherent
 
 import Foundation
 import SwiftUI
@@ -109,11 +111,15 @@ final class UnreadMessagesStore: ObservableObject {
     func getUnreadCount(chatId: String, teamID: String?) -> Int { state.count(id: chatId, teamID: teamID) }
     func hasUnread(chatId: String) -> Bool { getUnreadCount(chatId: chatId) > 0 }
     func clearAll() { configure(scopeID: nil, teamID: nil) }
-    private func recalculateTotal() {
+    /// Reconcile external/stale OS state without changing logical unread state.
+    /// Explicit activation/actions may need a write even when metadata is equal.
+    func resynchronizeBadge() { recalculateTotal(forceBadge: true) }
+
+    private func recalculateTotal(forceBadge: Bool = false) {
         let nextTotal = state.total
         let changed = nextTotal != totalUnread
         if changed { totalUnread = nextTotal }
-        guard changed || !didSynchronizeBadge else { return }
+        guard forceBadge || changed || !didSynchronizeBadge else { return }
         didSynchronizeBadge = true
         badgeRevision += 1
         if let badgeUpdater { badgeUpdater(nextTotal); return }

@@ -134,9 +134,9 @@ enum DevPreviewComponentRegistry {
         case .welcome:
             return .init(component: component, webComponentPath: "ActiveChat", nativeRendererNames: ["WelcomeContinuationCarousel", "WelcomeContinuationLayout", "DevChatContinuationLayoutFixture"], variants: ["default", "empty", "continuation"], hostSupport: .componentHost)
         case .login:
-            return .init(component: component, webComponentPath: "Login", nativeRendererNames: ["AuthLoginHeading", "EmailLookupForm", "PasswordLoginForm", "AppleWatchPairAuthorizeView"], variants: ["default", "email", "password", "otp", "error", "lookup-error", "password-error", "passkey-lifecycle", "watch-pair-approval"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "Login", nativeRendererNames: ["AuthEntryLayout", "AuthEntryHeader", "AuthLoginHeading", "EmailLookupForm", "PasswordLoginForm", "AppleWatchPairAuthorizeView"], variants: ["default", "mobile-header", "wide-header", "email", "password", "otp", "error", "lookup-error", "password-error", "passkey-lifecycle", "watch-pair-approval"], hostSupport: .componentHost)
         case .signup:
-            return .init(component: component, webComponentPath: "signup/Signup", nativeRendererNames: ["NativeSignupForm", "SignupBasicsFormView", "SignupConfirmEmailStep", "SignupPasswordStep"], variants: ["default", "basics", "error", "loading", "unavailable", "confirm-email", "secure-account", "password", "creation-uncertain", "passkey", "passkey-prf-error", "passkey-cancel", "passkey-uncertain"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "signup/Signup", nativeRendererNames: ["AuthEntryLayout", "AuthEntryHeader", "NativeSignupForm", "SignupBasicsFormView", "SignupConfirmEmailStep", "SignupPasswordStep"], variants: ["default", "mobile-header", "wide-header", "alpha-disclaimer", "basics", "error", "loading", "unavailable", "confirm-email", "secure-account", "password", "creation-uncertain", "passkey", "passkey-prf-error", "passkey-cancel", "passkey-uncertain"], hostSupport: .componentHost)
         case .tasks:
             return .init(component: component, webComponentPath: "tasks/TasksPage", nativeRendererNames: ["TasksWorkspaceView", "TaskDetailView", "PlanDetailView", "TasksSidebarView"], variants: ["default", "manyBacklog", "plans", "supplementary-load-failure", "task-load-failure"], hostSupport: .componentHost)
         case .projects:
@@ -144,7 +144,7 @@ enum DevPreviewComponentRegistry {
         case .storage:
             return .init(component: component, webComponentPath: "settings/SettingsTeams", nativeRendererNames: ["StoragePersonalSummaryView", "TeamStorageStatusView", "StorageNoticeView"], variants: ["default", "personal", "current", "unpaid", "disabled", "manual-review", "selection-fencing"], hostSupport: .componentHost)
         case .notification:
-            return .init(component: component, webComponentPath: "Notification", nativeRendererNames: ["InAppNotificationCard"], variants: ["default", "connection", "progress", "stack"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "Notification", nativeRendererNames: ["InAppNotificationCard"], variants: ["default", "connection", "progress", "stack", "offline-offer", "offline-reduced"], hostSupport: .componentHost)
         case .sharedRecipient:
             return .init(component: component, webComponentPath: "chats/SharedChatRecipientPreviewHarness", nativeRendererNames: ["SharedChatRecipientView"], variants: ["default", "loading", "password", "invalidPassword", "error", "ready", "target", "embed", "imageSiblings"], hostSupport: .componentHost)
         case .workflows:

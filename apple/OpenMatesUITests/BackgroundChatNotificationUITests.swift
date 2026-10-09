@@ -63,6 +63,12 @@ final class BackgroundChatNotificationUITests: XCTestCase {
         XCTAssertTrue(RealAccountUITestSupport.accessibilityElement(
             in: app, identifier: "message-assistant", labelContaining: responseMarker
         ).waitForExistence(timeout: 30))
+        let completed = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND label CONTAINS %@", "message-assistant", responseMarker))
+        XCTAssertEqual(completed.count, 1, "Push handoff must converge to one complete assistant row")
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.buttons["stop-processing-button"])
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.descendants(matching: .any).matching(identifier: "streaming-banner").firstMatch)
+        waitForExpectations(timeout: 15)
     }
 
     // Opt-in actual DEV inference, completion and APNs path. Expected display

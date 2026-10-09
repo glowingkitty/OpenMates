@@ -99,6 +99,7 @@ final class LocalModelLiveActivityCoordinator: ObservableObject {
     private var lastPublishedAt: TimeInterval = 0
     private var lastPublishedPhase: String?
     private var requestedCurrentBatch = false
+    private var packIsActive = false
     private let defaults: UserDefaults
     private let driver: any LocalModelLiveActivityDriving
     private let clock: () -> TimeInterval
@@ -160,6 +161,15 @@ final class LocalModelLiveActivityCoordinator: ObservableObject {
         }
     }
 
+    /// A sequential pack keeps the current OS Activity alive between models.
+    /// This is presentation ownership only; LocalModelStore still owns transfers.
+    func setPackActive(_ active: Bool) {
+        enqueue { coordinator, _ in
+            coordinator.packIsActive = active
+            if !active, coordinator.policy.items.isEmpty { await coordinator.publish(nil) }
+        }
+    }
+
     func refreshPresentation() {
         enqueue { coordinator, _ in await coordinator.publish(coordinator.presentation) }
     }
@@ -174,6 +184,7 @@ final class LocalModelLiveActivityCoordinator: ObservableObject {
         tail?.cancel()
         tail = nil
         policy = LocalModelLiveActivityPolicy()
+        packIsActive = false
         lastPublishedPhase = nil
         requestedCurrentBatch = false
         await publish(nil)
@@ -224,7 +235,7 @@ final class LocalModelLiveActivityCoordinator: ObservableObject {
                 lastPublishedAt = now
                 lastPublishedPhase = state.phase
             }
-        } else {
+        } else if !packIsActive {
             await publish(nil)
             requestedCurrentBatch = false
             lastPublishedPhase = nil
@@ -254,7 +265,7 @@ final class LocalModelLiveActivityCoordinator: ObservableObject {
     }
 
     private func modelTitle(_ model: LocalModelID) -> String {
-        switch model { case .whisper: AppStrings.localLabWhisper; case .privacyFilter: AppStrings.localLabPrivacyFilter; case .supertonic3: AppStrings.localLabSupertonic }
+        AppStrings.offlineAIModelCapability(model)
     }
 
     private func rememberActivityOperations() {
@@ -264,6 +275,7 @@ final class LocalModelLiveActivityCoordinator: ObservableObject {
     }
 
     private func publish(_ state: LocalModelActivityPresentation?) async {
+        if state == nil, packIsActive { return }
         guard let state, driver.activitiesEnabled else {
             await driver.end()
             #if DEBUG

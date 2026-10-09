@@ -73,7 +73,7 @@ final class LiveActivityPolicyTests: XCTestCase {
         var observedBackgroundProgress = false
         var observedVerification = false
         let store = LocalModelStore(catalog: try JSONEncoder().encode(LocalModelCatalog(models: [manifest])),
-            root: root, downloader: downloading, verifyExisting: false,
+            root: root, storageReserveBytes: 0, downloader: downloading, verifyExisting: false,
             activityEvents: { event in
                 coordinator.handle(event)
                 if case let .progress(_, _, value) = event {
@@ -97,6 +97,8 @@ final class LiveActivityPolicyTests: XCTestCase {
         await coordinator.waitForPendingEffects()
         XCTAssertEqual(driver.requests.count, 1, "The real store start must request its coordinator, independent of push/UN permission")
         XCTAssertEqual(driver.requests.first?.totalBytes, file.sizeBytes)
+        XCTAssertEqual(driver.requests.first?.title, AppStrings.offlineAIModelsEnhancedAnonymization,
+                       "Download Live Activities identify the capability without exposing its model")
         driver.foreground = false
         time = 2
         await downloading.advance(file.sizeBytes / 2)
@@ -116,6 +118,36 @@ final class LiveActivityPolicyTests: XCTestCase {
         XCTAssertEqual(store.state(for: .privacyFilter), .ready)
         XCTAssertEqual(driver.ends, 1)
         XCTAssertFalse(driver.hasExistingActivity)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-live-activities.download.progress,apple-live-activities.download.completion
+    @MainActor
+    func testSequentialPackKeepsActivityBetweenModelsWhileBackgrounded() async throws {
+        let suite = "LiveActivityPolicyTests-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let driver = DownloadActivityEffectProbe()
+        let coordinator = LocalModelLiveActivityCoordinator(defaults: defaults, driver: driver, completionNotificationsEnabled: false)
+        let stt = UUID(), tts = UUID()
+        coordinator.setPackActive(true)
+        coordinator.handle(.started(model: .whisper, operation: stt, totalBytes: 100))
+        await coordinator.waitForPendingEffects()
+        XCTAssertEqual(driver.requests.count, 1)
+        driver.foreground = false
+        coordinator.handle(.finished(model: .whisper, operation: stt, outcome: .verified))
+        coordinator.refreshPresentation()
+        await coordinator.waitForPendingEffects()
+        XCTAssertTrue(driver.hasExistingActivity, "An existing activity bridges the model transition")
+        XCTAssertEqual(driver.ends, 0)
+        coordinator.handle(.started(model: .supertonic3, operation: tts, totalBytes: 200))
+        await coordinator.waitForPendingEffects()
+        XCTAssertEqual(driver.requestAttempts, 1, "Background transition updates the same OS activity")
+        XCTAssertEqual(driver.backgroundUpdates.last?.totalBytes, 200)
+        coordinator.handle(.finished(model: .supertonic3, operation: tts, outcome: .verified))
+        coordinator.setPackActive(false)
+        await coordinator.waitForPendingEffects()
+        XCTAssertFalse(driver.hasExistingActivity)
+        XCTAssertEqual(driver.ends, 1)
     }
 
     // contract-test: direct surface=gui.apple assertions=apple-live-activities.download.progress,apple-live-activities.lifecycle.isolation

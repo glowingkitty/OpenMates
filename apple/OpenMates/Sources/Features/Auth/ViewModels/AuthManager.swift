@@ -32,11 +32,75 @@ struct AuthSessionRecoveryContext: Equatable, Sendable {
 
 @MainActor
 final class AuthManager: ObservableObject {
-    @Published var state: AuthState = .initializing
-    @Published var currentUser: UserProfile?
+    @Published var state: AuthState = .initializing {
+        didSet { if state != .authenticated { networkAuthority = nil } }
+    }
+    @Published var currentUser: UserProfile? {
+        didSet { if currentUser?.id != oldValue?.id { networkAuthority = nil } }
+    }
     @Published var error: String?
     @Published private(set) var webSocketToken: String?
-    @Published private(set) var sessionValidationState: SessionValidationState = .initializing
+    @Published private(set) var sessionValidationState: SessionValidationState = .initializing {
+        didSet {
+            switch sessionValidationState {
+            case .onlineAuthenticated:
+                if let accountID = currentUser?.id,
+                   networkAuthority?.accountID != accountID || networkAuthority?.profile != ServerProfile.current() ||
+                    networkAuthority?.sessionID != Self.nativeSessionId {
+                    networkAuthority = AuthSessionRecoveryContext(accountID: accountID, profile: ServerProfile.current(),
+                        sessionID: Self.nativeSessionId, generation: validationGeneration)
+                }
+            case .validating:
+                break // A routine cookie renewal retains its existing authority.
+            default:
+                networkAuthority = nil
+            }
+        }
+    }
+    /// Cached identity unlocks local history; only this grant permits protected IO.
+    @Published private(set) var networkAuthority: AuthSessionRecoveryContext?
+
+    var hasNetworkAuthority: Bool {
+        guard state == .authenticated, let authority = networkAuthority else { return false }
+        return currentUser?.id == authority.accountID && ServerProfile.current() == authority.profile &&
+            Self.nativeSessionId == authority.sessionID
+    }
+
+    static func hasNetworkAuthority(for profile: ServerProfile, sessionID: String? = nil) -> Bool {
+        guard let manager = _shared, manager.hasNetworkAuthority,
+              manager.networkAuthority?.profile == profile else { return false }
+        return sessionID == nil || manager.networkAuthority?.sessionID == sessionID
+    }
+
+    static func captureNetworkAuthority() -> AuthSessionRecoveryContext? {
+        guard let manager = _shared, manager.hasNetworkAuthority else { return nil }
+        return manager.networkAuthority
+    }
+
+    static func requireNetworkAuthority(profile: ServerProfile, sessionID: String? = nil) throws {
+        guard hasNetworkAuthority(for: profile, sessionID: sessionID) else { throw CancellationError() }
+    }
+
+    /// Public/auth bootstrap remains available without an unlocked account.
+    /// Once a cached account exists it must not lend cookies to protected work.
+    static func requireProtectedRequestAuthority(profile: ServerProfile) throws {
+        guard let manager = _shared else { return }
+        guard manager.currentUser != nil || manager.state != .unauthenticated else { return }
+        try requireNetworkAuthority(profile: profile)
+    }
+
+    static func rejectVerificationRequired(_ expected: AuthSessionRecoveryContext) {
+        guard let manager = _shared,
+              manager.sessionRecoveryContext == expected || manager.validationFlight?.context == expected,
+              manager.currentUser?.id == expected.accountID,
+              ServerProfile.current() == expected.profile, Self.nativeSessionId == expected.sessionID else { return }
+        manager.validationGeneration = UUID()
+        manager.validationFlight?.task.cancel()
+        manager.validationFlight = nil
+        manager.webSocketToken = nil
+        manager.sessionValidationState = .requiresReauthentication(reason: "session_verification_required")
+        NativeDiagnostics.warning("Native protected request requires session verification", category: "auth")
+    }
 
     private let api: APIClient
     private let crypto = CryptoManager.shared
@@ -252,6 +316,7 @@ final class AuthManager: ObservableObject {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-test-window-drafts") { return }
         #endif
+        if case .requiresReauthentication = sessionValidationState { return }
         await validateSessionAgainstServer(keepOfflineSessionOnFailure: currentUser != nil)
     }
 
@@ -276,12 +341,12 @@ final class AuthManager: ObservableObject {
     static func acceptRefreshSuccessor(_ expected: AuthSessionRecoveryContext) async {
         guard let manager = _shared, manager.sessionValidationState == .onlineAuthenticated,
               manager.sessionRecoveryContext == expected else { return }
-        await manager.recoverSession(expected: expected)
+        await manager.recoverSession(expected: expected, revokeAuthority: false)
     }
 
     /// All callers await one validation for the same identity. Stale HTTP 401s
     /// join their pending validation, but cannot start another after it completes.
-    func recoverSession(expected: AuthSessionRecoveryContext) async {
+    func recoverSession(expected: AuthSessionRecoveryContext, revokeAuthority: Bool = true) async {
         #if DEBUG
         // These cached identities have no server session. Foreground and API
         // rejection recovery must preserve their isolated offline fixtures.
@@ -295,6 +360,7 @@ final class AuthManager: ObservableObject {
         guard currentUser?.id == expected.accountID, ServerProfile.current() == expected.profile,
               Self.nativeSessionId == expected.sessionID, state == .authenticated else { return }
         if case .requiresReauthentication = sessionValidationState { return }
+        if revokeAuthority { networkAuthority = nil }
         await validateSessionAgainstServer(keepOfflineSessionOnFailure: true)
     }
 
@@ -336,7 +402,7 @@ final class AuthManager: ObservableObject {
         sessionValidationState = .validating
         let cookieCount = (OpenMatesSharedEnvironment.cookieStorage.cookies(for: profile.apiBaseURL) ?? [])
             .filter { $0.name == "auth_refresh_token" }.count
-        NativeDiagnostics.info("Native session validation started cached_account=\(accountId != nil) refresh_cookie_count=\(cookieCount)", category: "auth")
+        NativeDiagnostics.info("Native session validation started cached_account=\(accountId != nil) refresh_cookie_count=\(cookieCount) \(NativeClientIdentity.current.diagnosticSummary)", category: "auth")
         do {
             let request = SessionRequest(sessionId: sessionId, deviceInfo: makeDeviceInfo())
             let response: SessionResponse
@@ -353,6 +419,23 @@ final class AuthManager: ObservableObject {
             }
             guard ownsValidation() else { return }
             NativeDiagnostics.info("Native session validation response authenticated=\(response.isAuthenticated) verification_required=\(response.needsDeviceVerification == true)", category: "auth")
+
+            // Verification is an authority decision even on a success envelope.
+            // Never publish its profile/token or activate account runtime first.
+            if response.needsDeviceVerification == true || response.reAuthRequired != nil || response.reAuthReason != nil {
+                webSocketToken = nil
+                sessionValidationState = .requiresReauthentication(reason:
+                    response.reAuthReason ?? response.reAuthRequired ?? "session_verification_required")
+                if currentUser == nil {
+                    if response.needsDeviceVerification == true {
+                        state = .needsDeviceVerification(type: response.deviceVerificationType ?? "2fa")
+                    } else {
+                        sessionValidationState = .unauthenticated
+                        state = .unauthenticated
+                    }
+                }
+                return
+            }
 
             if response.isAuthenticated, let user = response.user {
                 guard accountId == nil || user.id == accountId else {
@@ -664,7 +747,11 @@ final class AuthManager: ObservableObject {
             path: "/v1/auth/2fa/verify/device",
             body: DeviceVerifyRequest(code: code)
         )
+        // Approved verification must re-read the authoritative session before
+        // resuming protected services or issuing a WebSocket credential.
+        sessionValidationState = .offlineAuthenticated
         state = .authenticated
+        await validateSessionAgainstServer(keepOfflineSessionOnFailure: currentUser != nil)
     }
 
     func completePasskeyLogin(response: LoginResponse, masterKey: SymmetricKey) async throws {

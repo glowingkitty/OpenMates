@@ -95,13 +95,18 @@ final class WatchAuthStore: ObservableObject {
         ServerConfiguration.current = result.serverProfile.endpointConfiguration
         WatchServerProfileStore().saveSuccessfulProfile(result.serverProfile)
         PairPendingAckStore.mark(userID: user.id)
+        NativeDiagnostics.event("pair_login_key_persist_start", category: Self.diagnosticsCategory)
         try await CryptoManager.shared.saveMasterKey(result.masterKey, for: user.id)
         cacheAuthenticatedUser(user)
         PairSessionDeadlineStore.save(userID: user.id, deadline: result.loginResponse.pairExpiresAt)
+        var stage = "local_persistence"
         do {
             try PairPendingAckStore.flushLocalPairState()
+            stage = "acknowledgement"
             try await acknowledge()
         } catch {
+            NativeDiagnostics.error("phase=pair_login.failed stage=\(stage) errorType=\(type(of: error))",
+                                    category: Self.diagnosticsCategory)
             await clearRevokedSession(for: user.id)
             throw error
         }

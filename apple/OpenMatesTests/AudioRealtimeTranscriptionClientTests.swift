@@ -4,6 +4,183 @@ import XCTest
 
 @MainActor
 final class AudioRealtimeTranscriptionClientTests: XCTestCase {
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context
+    func testInstalledLocalRouteNeverAuthenticatesOrConstructsAudioTransport() async throws {
+        let terminal = expectation(description: "Local transcription completes")
+        let recorder = AudioRealtimeEventRecorder()
+        let runtime = LocalPCMRuntimeFixture()
+        let client = AudioRealtimeTranscriptionClient(authenticationProvider: { _ in
+            XCTFail("Local capture must not authenticate a cloud audio request")
+            throw AudioRealtimeTranscriptionError.authenticationUnavailable
+        }, localRuntime: runtime, transportFactory: {
+            XCTFail("Local capture must not create a cloud audio socket")
+            return FakeAudioRealtimeTransport()
+        }, eventHandler: { event in
+            await recorder.record(event)
+            if event == .status(.completed) { terminal.fulfill() }
+        })
+        XCTAssertTrue(client.usesLocalTranscription)
+        try await client.start(chatID: "fixture")
+        try await client.append(samples: [0.1, 0.2], sourceSampleRate: 16_000)
+        await client.finish()
+        await fulfillment(of: [terminal], timeout: 2)
+        let events = await recorder.events()
+        XCTAssertTrue(events.contains(.transcript("Local fixture")))
+        XCTAssertTrue(events.contains(.status(.completed)))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context
+    func testLocalInferenceFailureIsTerminalWithoutCloudFallback() async throws {
+        let failed = expectation(description: "Local failure is explicit")
+        let client = AudioRealtimeTranscriptionClient(authenticationProvider: { _ in
+            XCTFail("Local failure must not fall back to cloud authentication")
+            throw AudioRealtimeTranscriptionError.authenticationUnavailable
+        }, localRuntime: LocalPCMRuntimeFixture(fails: true), transportFactory: {
+            XCTFail("Local failure must not construct a cloud socket")
+            return FakeAudioRealtimeTransport()
+        }, eventHandler: { event in
+            if event == .status(.failed(.localTranscriptionFailed)) { failed.fulfill() }
+        })
+        try await client.start()
+        try await client.append(samples: [0.1], sourceSampleRate: 16_000)
+        await client.finish()
+        await fulfillment(of: [failed], timeout: 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
+    func testLocalCancellationRejectsLateDecodedTranscript() async throws {
+        let entered = expectation(description: "Local decoder entered")
+        let gate = AudioRealtimeSuspensionGate()
+        let recorder = AudioRealtimeEventRecorder()
+        let cancellationObserved = expectation(description: "Native task cancellation requested")
+        let runtime = LocalPCMRuntimeFixture(gate: gate, onCancellation: { cancellationObserved.fulfill() })
+        let client = AudioRealtimeTranscriptionClient(authenticationProvider: { _ in
+            throw AudioRealtimeTranscriptionError.authenticationUnavailable
+        }, localRuntime: runtime, eventHandler: { await recorder.record($0) })
+        try await client.start()
+        try await client.append(samples: [0.1], sourceSampleRate: 16_000)
+        await client.finish()
+        let entry = Task { await gate.waitForEntry(); entered.fulfill() }
+        await fulfillment(of: [entered], timeout: 2)
+        let cancellation = Task { await client.cancel() }
+        await fulfillment(of: [cancellationObserved], timeout: 2)
+        let beforeRelease = await recorder.events()
+        XCTAssertFalse(beforeRelease.contains(.status(.cancelled)),
+            "Cancellation cannot publish its terminal boundary while native decode owns inference")
+        let unloadsBeforeRelease = await runtime.unloadCount
+        XCTAssertEqual(unloadsBeforeRelease, 0)
+        let duplicateReturned = expectation(description: "Duplicate cancellation also waits for native drain")
+        duplicateReturned.isInverted = true
+        var cancellationMayReturn = false
+        let duplicateCancellation = Task {
+            await client.cancel()
+            if !cancellationMayReturn { duplicateReturned.fulfill() }
+        }
+        await fulfillment(of: [duplicateReturned], timeout: 0.05)
+        cancellationMayReturn = true
+        await gate.release()
+        await cancellation.value
+        await duplicateCancellation.value
+        await entry.value
+        await Task.yield()
+        let events = await recorder.events()
+        XCTAssertTrue(events.contains(.status(.cancelled)))
+        XCTAssertFalse(events.contains(.transcript("Local fixture")))
+        XCTAssertFalse(events.contains(.status(.completed)))
+        let unloads = await runtime.unloadCount
+        XCTAssertEqual(unloads, 1, "Repeated cancellation joins the same native unload")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
+    func testLocalRuntimeUnloadsBeforePublishingTerminalTranscript() async throws {
+        let runtime = LocalPCMRuntimeFixture()
+        let completed = expectation(description: "Local terminal arrives after unload")
+        let client = AudioRealtimeTranscriptionClient(authenticationProvider: { _ in
+            throw AudioRealtimeTranscriptionError.authenticationUnavailable
+        }, localRuntime: runtime, eventHandler: { event in
+            if case .correctionDone = event {
+                let unloads = await runtime.unloadCount
+                XCTAssertEqual(unloads, 1)
+                completed.fulfill()
+            }
+        })
+        try await client.start()
+        try await client.append(samples: [0.1], sourceSampleRate: 16_000)
+        await client.finish()
+        await fulfillment(of: [completed], timeout: 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context
+    func testScopeRejectionInsideLocalDecodeCancelsWithoutAwaitingItself() async throws {
+        let gate = AudioRealtimeSuspensionGate()
+        let runtime = LocalPCMRuntimeFixture(gate: gate)
+        var scopeCurrent = true
+        let cancelled = expectation(description: "Internal scope rejection terminates without deadlock")
+        let recorder = AudioRealtimeEventRecorder()
+        let client = AudioRealtimeTranscriptionClient(authenticationProvider: { _ in
+            throw AudioRealtimeTranscriptionError.authenticationUnavailable
+        }, localRuntime: runtime, localScopeIsCurrent: { scopeCurrent }, eventHandler: { event in
+            await recorder.record(event)
+            if event == .status(.cancelled) { cancelled.fulfill() }
+        })
+        try await client.start()
+        try await client.append(samples: [0.1], sourceSampleRate: 16_000)
+        await client.finish()
+        await gate.waitForEntry()
+        scopeCurrent = false
+        await gate.release()
+        await fulfillment(of: [cancelled], timeout: 2)
+        let events = await recorder.events()
+        XCTAssertFalse(events.contains(.transcript("Local fixture")))
+        let unloads = await runtime.unloadCount
+        XCTAssertGreaterThan(unloads, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context
+    func testScopeRejectionDuringExternalCancelDoesNotJoinItsOwnDrain() async throws {
+        let scopeGate = AudioRealtimeSuspensionGate()
+        let runtime = LocalPCMRuntimeFixture()
+        let recorder = AudioRealtimeEventRecorder()
+        var scopeChecks = 0
+        let client = AudioRealtimeTranscriptionClient(authenticationProvider: { _ in
+            throw AudioRealtimeTranscriptionError.authenticationUnavailable
+        }, localRuntime: runtime, localScopeIsCurrent: {
+            scopeChecks += 1
+            if scopeChecks == 3 {
+                await scopeGate.suspend()
+                return false
+            }
+            return true
+        }, eventHandler: { await recorder.record($0) })
+        try await client.start()
+        try await client.append(samples: [0.1], sourceSampleRate: 16_000)
+        await client.finish()
+        await scopeGate.waitForEntry()
+        let cancelled = expectation(description: "External cancellation drains rejected scope without a task cycle")
+        let cancellation = Task {
+            await client.cancel()
+            cancelled.fulfill()
+        }
+        let drainStarted = expectation(description: "External stop owns the suspended decode")
+        let observation = Task {
+            while !Task.isCancelled {
+                if await client.localDrainStartedForTesting { drainStarted.fulfill(); return }
+                await Task.yield()
+            }
+        }
+        await fulfillment(of: [drainStarted], timeout: 1)
+        observation.cancel()
+        await scopeGate.release()
+        await fulfillment(of: [cancelled], timeout: 1)
+        cancellation.cancel()
+        let events = await recorder.events()
+        XCTAssertTrue(events.contains(.status(.cancelled)))
+        XCTAssertFalse(events.contains(.transcript("Local fixture")))
+        let unloads = await runtime.unloadCount
+        XCTAssertEqual(unloads, 1)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
     func testShortLivedHMACTokenRefreshBoundary() {
         let now = Date(timeIntervalSince1970: 1_000)
@@ -614,4 +791,23 @@ private actor AudioRealtimeEventRecorder {
         if recorded.contains(where: { if case .transcriptionDone = $0 { true } else { false } }) { return }
         await withCheckedContinuation { transcriptionWaiters.append($0) }
     }
+}
+
+private actor LocalPCMRuntimeFixture: LocalPCMTranscribing {
+    private(set) var unloadCount = 0
+    private let fails: Bool
+    private let gate: AudioRealtimeSuspensionGate?
+    private let onCancellation: @Sendable () -> Void
+    init(fails: Bool = false, gate: AudioRealtimeSuspensionGate? = nil,
+         onCancellation: @escaping @Sendable () -> Void = {}) {
+        self.fails = fails; self.gate = gate; self.onCancellation = onCancellation
+    }
+    func transcribe(_ samples: [Float]) async throws -> String {
+        await withTaskCancellationHandler {
+            await gate?.suspend()
+        } onCancel: { [onCancellation] in onCancellation() }
+        if fails { throw LocalSpeechRuntimeError.invalidAssets }
+        return "Local fixture"
+    }
+    func unload() async { unloadCount += 1 }
 }

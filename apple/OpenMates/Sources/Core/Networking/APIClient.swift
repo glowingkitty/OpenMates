@@ -9,6 +9,9 @@
 // Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
 
 import Foundation
+#if os(iOS)
+import UIKit
+#endif
 
 /// Wrapper for sending pre-serialized JSON data without re-encoding through JSONEncoder.
 struct JSONRawBody: Encodable, Sendable {
@@ -35,11 +38,11 @@ actor APIClient {
     static let uploadTimeout: TimeInterval = 10 * 60
 
     static var nativeClientHeaders: [String: String] {
-        [
+        NativeClientIdentity.current.headers.merging([
             "User-Agent": "OpenMates-Apple/\(appVersion)",
             "X-OpenMates-Client": platformClientIdentifier,
             "X-OpenMates-Bundle-ID": bundleIdentifier,
-        ]
+        ], uniquingKeysWith: { _, value in value })
     }
 
     private let session: URLSession
@@ -752,12 +755,20 @@ actor APIClient {
            let url = request.url, !Self.isExplicitSessionMutation(url.path) {
             #if os(iOS) || os(macOS)
             let snapshot = try await MainActor.run {
+                if Self.requiresProtectedAuthority(path: url.path) {
+                    let profile = ServerProfile.current()
+                    try AuthManager.requireProtectedRequestAuthority(profile: profile)
+                    guard [profile.apiBaseURL, profile.uploadBaseURL].contains(where: {
+                        $0.scheme == url.scheme && $0.host == url.host && $0.port == url.port
+                    }) else { throw CancellationError() }
+                }
                 let context = AuthManager.captureSessionRecoveryContext()
                 if let expectedRecoveryAccountID, context?.accountID != expectedRecoveryAccountID {
                     throw CancellationError()
                 }
                 return (profile: ServerProfile.current(), accountID: AuthManager.notificationAccountId,
-                        sessionID: AuthManager.nativeSessionId, context: context)
+                        sessionID: AuthManager.nativeSessionId, context: context,
+                        authority: AuthManager.captureNetworkAuthority())
             }
             if let context = snapshot.context,
                context.profile.apiBaseURL.host == url.host || context.profile.uploadBaseURL.host == url.host {
@@ -765,6 +776,10 @@ actor APIClient {
                 cookieAuthenticationURL = context.profile.apiBaseURL
             }
             responseCookieAuthority = {
+                if Self.requiresProtectedAuthority(path: url.path) {
+                    try AuthManager.requireProtectedRequestAuthority(profile: snapshot.profile)
+                    guard AuthManager.captureNetworkAuthority() == snapshot.authority else { throw CancellationError() }
+                }
                 let current = AuthManager.captureSessionRecoveryContext()
                 // Recovery generation may advance while the same logical
                 // session legitimately renews. Its identity must remain stable.
@@ -781,7 +796,7 @@ actor APIClient {
             #endif
         }
         #if os(iOS) || os(macOS)
-        let recoveryContext = request.url?.path.hasPrefix("/v1/auth/") == false ? capturedContext : nil
+        let recoveryContext = request.url.map { Self.requiresProtectedAuthority(path: $0.path) } == true ? capturedContext : nil
         #endif
         if let responseCookieAuthority {
             let prepared = dispatchedRequest
@@ -801,6 +816,17 @@ actor APIClient {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
+
+        #if os(iOS) || os(macOS)
+        // Consume this definitive rejection before a competing recovery changes
+        // the dispatch grant. A stale /session success is fenced by the manager.
+        if (httpResponse.statusCode == 401 || httpResponse.statusCode == 403),
+           let capturedContext,
+           (try? decoder.decode(APIErrorResponse.self, from: data))?.detail == "Session verification required" {
+            await AuthManager.rejectVerificationRequired(capturedContext)
+            throw APIError.httpError(status: httpResponse.statusCode, message: "Session verification required")
+        }
+        #endif
 
         if let authorizeSessionResponse {
             try await MainActor.run {
@@ -838,7 +864,7 @@ actor APIClient {
         }
         guard (200...299).contains(httpResponse.statusCode) else {
             NativeDiagnostics.warning(
-                "API request failed method=\(request.httpMethod ?? "unknown") status=\(httpResponse.statusCode)",
+                "API request failed method=\(request.httpMethod ?? "unknown") status=\(httpResponse.statusCode) \(NativeClientIdentity.current.diagnosticSummary)",
                 category: "network"
             )
             #if os(iOS) || os(macOS)
@@ -859,6 +885,18 @@ actor APIClient {
         }
 
         return data
+    }
+
+    nonisolated static func requiresProtectedAuthority(path: String) -> Bool {
+        // Authentication and public bootstrap own their server-side checks.
+        // Product APIs (including uploads, Projects, APNs and telemetry) require
+        // an online native grant even when a cached account remains unlocked.
+        if ["/v1/auth/lookup", "/v1/auth/login", "/v1/auth/logout", "/v1/auth/session",
+            "/v1/auth/password-v2/challenge", "/v1/auth/2fa/verify/device"].contains(path) { return false }
+        if ["/v1/auth/recover/", "/v1/auth/passkey/assertion/", "/v1/auth/pair/v2/receiver/",
+            "/v1/auth/pair/v2/complete/", "/v1/auth/pair/v2/acknowledge/"].contains(where: path.hasPrefix) { return false }
+        if ["/v1/health", "/v1/server-status", "/v1/apps", "/v1/apps/metadata"].contains(path) { return false }
+        return !path.hasPrefix("/v1/public/")
     }
 
     /// Login/pair completion create a new logical credential; explicit logout

@@ -175,6 +175,9 @@ struct SharedSocketWindowOwnership {
     private(set) var visibleWindowIDs = Set<UUID>()
     private(set) var keyWindowIDs = Set<UUID>()
 
+    /// Session grants change independently from mounted window lifetimes.
+    mutating func resetSessionWork() { reconnectWorkCount = 0 }
+
     mutating func register(_ id: UUID) {
         if !windowIDs.contains(id) { windowIDs.append(id) }
     }
@@ -296,7 +299,9 @@ final class AppSessionCoordinator: ObservableObject {
         didLoadFromDisk = false
         didConfigureDraftSync = false
         isInitialSyncComplete = false
-        windowOwnership = SharedSocketWindowOwnership()
+        // Keep mounted windows registered through logout/account replacement.
+        // OfflineStore scope and transport generations fence old account work.
+        windowOwnership.resetSessionWork()
     }
 
     func markRecoveryInitialSyncReady() async {

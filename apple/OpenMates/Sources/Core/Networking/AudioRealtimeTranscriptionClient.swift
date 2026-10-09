@@ -69,6 +69,7 @@ enum AudioRealtimeTranscriptionError: Error, Equatable, Sendable {
     case serverFailure
     case connectionEndedEarly
     case connectionTimedOut
+    case localTranscriptionFailed
 }
 
 actor AudioRealtimeTranscriptionClient {
@@ -139,6 +140,15 @@ actor AudioRealtimeTranscriptionClient {
         case failed
     }
 
+    private let localScopeIsCurrent: @MainActor @Sendable () async -> Bool
+    private let localRuntime: (any LocalPCMTranscribing)?
+    private var localSamples: [Float] = []
+    private var localDecodeTask: Task<Void, Never>?
+    private var localTranscript = ""
+    private static let localChunkSamples = 16_000 * 8
+    private static let maximumLocalSamples = 16_000 * 60
+    nonisolated let usesLocalTranscription: Bool
+
     private let authenticationProvider: AuthenticationProvider
     private let transportFactory: TransportFactory
     private let eventHandler: EventHandler
@@ -158,9 +168,14 @@ actor AudioRealtimeTranscriptionClient {
 
     init(
         authenticationProvider: @escaping AuthenticationProvider,
+        localRuntime: (any LocalPCMTranscribing)? = nil,
+        localScopeIsCurrent: @escaping @MainActor @Sendable () async -> Bool = { true },
         transportFactory: @escaping TransportFactory = { URLSessionAudioRealtimeSocketTransport() },
         eventHandler: @escaping EventHandler
     ) {
+        self.localRuntime = localRuntime
+        self.localScopeIsCurrent = localScopeIsCurrent
+        self.usesLocalTranscription = localRuntime != nil
         self.authenticationProvider = authenticationProvider
         self.transportFactory = transportFactory
         self.eventHandler = eventHandler
@@ -174,6 +189,17 @@ actor AudioRealtimeTranscriptionClient {
         let owner = authManager.currentUser?.id
         let scope = CodeRunScopeFence(store: OfflineStore.shared)
         let profile = ServerProfile.current()
+        // Choose once before capture; an installed local route never silently
+        // switches to a server after an asset, memory or inference failure.
+        let localRuntime: (any LocalPCMTranscribing)?
+        #if arch(arm64) && !os(watchOS)
+        if LocalModelStore.shared.state(for: .whisper) == .ready,
+           let directory = try? LocalModelStore.shared.installedDirectory(.whisper) {
+            localRuntime = WhisperKitComposerRuntime(directory: directory)
+        } else { localRuntime = nil }
+        #else
+        localRuntime = nil // Intel and Watch retain the disclosed server route.
+        #endif
         return AudioRealtimeTranscriptionClient(
             authenticationProvider: { @MainActor [weak authManager] forceRefresh in
                 guard let authManager, owner != nil,
@@ -201,6 +227,11 @@ actor AudioRealtimeTranscriptionClient {
                     webSocketToken: token
                 )
             },
+            localRuntime: localRuntime,
+            localScopeIsCurrent: { @MainActor [weak authManager] in
+                authManager?.currentUser?.id == owner && scope.isCurrent(in: OfflineStore.shared) &&
+                    ServerProfile.current().apiBaseURL == profile.apiBaseURL
+            },
             eventHandler: eventHandler
         )
     }
@@ -211,6 +242,13 @@ actor AudioRealtimeTranscriptionClient {
         pendingChatID = chatID
         await eventHandler(.status(.connecting))
         try await requireActiveStart()
+
+        if localRuntime != nil {
+            guard await localScopeIsCurrent() else { await cancel(); throw CancellationError() }
+            phase = .ready
+            await eventHandler(.status(.listening))
+            return
+        }
 
         let authentication: Authentication
         do {
@@ -263,6 +301,18 @@ actor AudioRealtimeTranscriptionClient {
     }
 
     func append(samples: [Float], sourceSampleRate: Double) async throws {
+        if localRuntime != nil {
+            guard await localScopeIsCurrent() else { await cancel(); throw CancellationError() }
+            guard phase == .ready else { throw AudioRealtimeTranscriptionError.invalidState }
+            let samples = try Self.resampledPCM(samples, sourceSampleRate: sourceSampleRate)
+            guard localSamples.count + samples.count <= Self.maximumLocalSamples else {
+                await fail(.audioQueueFull)
+                throw AudioRealtimeTranscriptionError.audioQueueFull
+            }
+            localSamples.append(contentsOf: samples)
+            scheduleLocalDecode()
+            return
+        }
         let encoded = try Self.pcm16Base64(samples: samples, sourceSampleRate: sourceSampleRate)
         try await appendEncodedPCM(encoded)
     }
@@ -270,13 +320,19 @@ actor AudioRealtimeTranscriptionClient {
     func setChatID(_ chatID: String) async throws {
         guard !chatID.isEmpty, chatID.utf8.count <= 128 else { return }
         pendingChatID = chatID
-        if hasReceivedReady && (phase == .ready || phase == .finishing) {
+        if localRuntime == nil && hasReceivedReady && (phase == .ready || phase == .finishing) {
             try await sendJSON(["type": "session.metadata", "chat_id": chatID])
         }
     }
 
     func finish() async {
         guard phase == .connecting || phase == .ready else { return }
+        if localRuntime != nil {
+            phase = .finishing
+            scheduleCompletionTimeoutIfNeeded()
+            scheduleLocalDecode()
+            return
+        }
         if phase == .connecting {
             phase = .finishing
             scheduleCompletionTimeoutIfNeeded()
@@ -288,9 +344,16 @@ actor AudioRealtimeTranscriptionClient {
     }
 
     func cancel() async {
-        guard phase != .cancelled, phase != .completed, phase != .failed else { return }
+        // Multiple capture/forwarder cancellation paths can enter while the
+        // first caller is draining native inference. Every caller must join it.
+        if phase == .cancelled || phase == .failed {
+            await stopLocalDecode()
+            return
+        }
+        guard phase != .completed else { return }
         let canNotifyServer = hasReceivedReady && (phase == .ready || phase == .finishing)
         phase = .cancelled
+        await stopLocalDecode()
         queuedAudio.removeAll(keepingCapacity: false)
         accumulatedTranscript = ""
         rawResult = nil
@@ -299,6 +362,100 @@ actor AudioRealtimeTranscriptionClient {
         }
         await closeTransport(code: 1_000, reason: "cancelled")
         await eventHandler(.status(.cancelled))
+    }
+
+    private func scheduleLocalDecode() {
+        guard localDecodeTask == nil, localRuntime != nil,
+              phase == .finishing || localSamples.count >= Self.localChunkSamples else { return }
+        localDecodeTask = Task { [weak self] in await self?.decodeLocalBuffer() }
+    }
+
+    private func decodeLocalBuffer() async {
+        guard let localRuntime else { return }
+        do {
+            while phase == .ready || phase == .finishing {
+                guard phase == .finishing || localSamples.count >= Self.localChunkSamples else { break }
+                if localSamples.isEmpty { break }
+                let count = min(Self.localChunkSamples, localSamples.count)
+                let chunk = Array(localSamples.prefix(count))
+                localSamples.removeFirst(count)
+                guard await localScopeIsCurrent() else { await rejectLocalScopeFromDecode(); return }
+                try Task.checkCancellation()
+                let text = try await localRuntime.transcribe(chunk)
+                try Task.checkCancellation()
+                guard await localScopeIsCurrent() else { await rejectLocalScopeFromDecode(); return }
+                guard phase == .ready || phase == .finishing else { return }
+                if !text.isEmpty {
+                    localTranscript += (localTranscript.isEmpty ? "" : " ") + text
+                    await eventHandler(.transcript(localTranscript))
+                }
+            }
+            localDecodeTask = nil
+            if phase == .finishing {
+                guard await localScopeIsCurrent() else { await rejectLocalScopeFromDecode(); return }
+                let transcript = localTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+                let result = TranscriptionResult(transcript: transcript, language: nil, model: "whisper-large-v3-local")
+                await eventHandler(.transcriptionDone(result))
+                // Terminal events release the app's recording reservation.
+                // Release native ownership before publishing that boundary.
+                await stopLocalDecode()
+                try Task.checkCancellation()
+                guard phase == .finishing else { return }
+                guard await localScopeIsCurrent() else { await rejectLocalScopeFromDecode(); return }
+                await complete(with: CorrectionResult(transcript: transcript, language: nil, model: result.model,
+                    title: nil, transcriptOriginal: transcript, transcriptCorrected: nil,
+                    useCorrected: false, correctionModel: nil))
+            }
+        } catch {
+            localDecodeTask = nil
+            if phase != .cancelled && phase != .failed {
+                await fail(.localTranscriptionFailed)
+            }
+        }
+    }
+
+    private func rejectLocalScopeFromDecode() async {
+        localDecodeTask = nil
+        // An external cancellation may already be awaiting this decode task.
+        // Return to its drain instead of joining it from the task it owns.
+        guard phase == .ready || phase == .finishing else { return }
+        await cancel()
+    }
+
+    private var localStopTask: Task<Void, Never>?
+    #if DEBUG
+    var localDrainStartedForTesting: Bool { localStopTask != nil }
+    #endif
+    private func stopLocalDecode() async {
+        if let localStopTask { await localStopTask.value; return }
+        let decoding = localDecodeTask
+        decoding?.cancel()
+        let runtime = localRuntime
+        // Join one drain/unload operation across all capture and forwarder
+        // callers. Internal decode cancellation clears its task before entry.
+        let stop = Task {
+            await decoding?.value
+            _ = await runtime?.unload()
+        }
+        localStopTask = stop
+        await stop.value
+        localDecodeTask = nil
+        localSamples.removeAll(); localTranscript = ""
+    }
+
+    // Bounded mono downsampling also used by the local-only route. No encoding,
+    // request construction or authentication occurs for local capture.
+    static func resampledPCM(_ samples: [Float], sourceSampleRate: Double) throws -> [Float] {
+        guard !samples.isEmpty, sourceSampleRate.isFinite, sourceSampleRate >= 8_000,
+              samples.count <= 262_144 else { throw AudioRealtimeTranscriptionError.invalidAudioFormat }
+        let ratio = sourceSampleRate / 16_000
+        let count = max(1, Int(floor(Double(samples.count) / ratio)))
+        return (0..<count).map { index in
+            let start = min(samples.count - 1, Int(Double(index) * ratio))
+            let end = min(samples.count, max(start + 1, Int(Double(index + 1) * ratio)))
+            let sum = samples[start..<end].reduce(Float.zero) { $0 + ($1.isFinite ? max(-1, min(1, $1)) : 0) }
+            return sum / Float(end - start)
+        }
     }
 
     private func appendEncodedPCM(_ audio: String) async throws {
@@ -503,6 +660,7 @@ actor AudioRealtimeTranscriptionClient {
     private func fail(_ error: AudioRealtimeTranscriptionError) async {
         guard phase != .completed, phase != .cancelled, phase != .failed else { return }
         phase = .failed
+        await stopLocalDecode()
         queuedAudio.removeAll(keepingCapacity: false)
         accumulatedTranscript = ""
         rawResult = nil
@@ -553,7 +711,7 @@ actor AudioRealtimeTranscriptionClient {
             await fail(.connectionTimedOut)
         case .completion:
             guard phase == .finishing || (rawResult != nil && !correctionSettled) else { return }
-            await fail(.connectionTimedOut)
+            await fail(localRuntime == nil ? .connectionTimedOut : .localTranscriptionFailed)
         }
     }
 

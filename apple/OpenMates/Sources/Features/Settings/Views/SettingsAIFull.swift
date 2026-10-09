@@ -6,6 +6,8 @@
 // Specification: specifications/features/ai-model-routing/specification.yml
 // Assertions: ai-model-routing.settings.hierarchy-canonical, ai-model-routing.preferences.exclusive-tier-defaults,
 //             ai-model-routing.catalog.capability-recommendation-variants
+// Specification: specifications/features/apple-local-model-lab/specification.yml
+// Assertions: apple-local-model-lab.optional-downloads
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte: frontend/packages/ui/src/components/settings/SettingsAI.svelte
 //         frontend/packages/ui/src/components/settings/AiTierSettings.svelte
@@ -22,6 +24,7 @@
 import SwiftUI
 
 struct SettingsAIFullView: View {
+    var initialOfflineModels = false
     var initialModelID: String? = nil
     var initialProviderID: String? = nil
     var initialTier: AIRequestTier? = nil
@@ -42,6 +45,7 @@ struct SettingsAIFullView: View {
     @State private var errorMessage: String?
     @State private var selectedProviderID: String?
     @State private var selectedModelID: String?
+    @State private var showsOfflineModels = false
 
     struct ModelDetail: Identifiable, Equatable {
         let id: String
@@ -54,7 +58,10 @@ struct SettingsAIFullView: View {
     var body: some View {
         OMSettingsPage(title: AppStrings.settingsAI, showsHeader: false, contentHorizontalPadding: 0, contentVerticalSpacing: 0, scrollAccessibilityIdentifier: "ai-settings-scroll") {
             VStack(alignment: .leading, spacing: .spacing10) {
-                if let selectedModel {
+                if showsOfflineModels {
+                    if onChildNavigationChanged == nil { childBackRow { showsOfflineModels = false } }
+                    SettingsOfflineModelsView()
+                } else if let selectedModel {
                     if onChildNavigationChanged == nil { childBackRow { selectedModelID = nil } }
                     modelPage(selectedModel)
                 } else if let tier = selectedTier {
@@ -78,10 +85,12 @@ struct SettingsAIFullView: View {
             selectInitialRoute()
             await loadModelPreferences()
         }
+        .onChange(of: initialOfflineModels) { _, _ in selectInitialRoute() }
         .onChange(of: initialModelID) { _, _ in selectInitialRoute() }
         .onChange(of: initialProviderID) { _, _ in selectInitialRoute() }
         .onChange(of: initialTier) { _, _ in selectInitialRoute() }
         .onChange(of: modelCatalog.catalog?.sourceDigest) { _, _ in selectInitialRoute() }
+        .onChange(of: showsOfflineModels) { _, _ in publishChildNavigation() }
         .onChange(of: selectedProviderID) { _, _ in publishChildNavigation() }
         .onChange(of: selectedModelID) { _, _ in publishChildNavigation() }
         .onChange(of: selectedTier) { _, _ in publishChildNavigation() }
@@ -99,6 +108,8 @@ struct SettingsAIFullView: View {
                 .accessibilityIdentifier("ai-pricing-note")
 
             if isAuthenticated {
+                OMSettingsRow(title: AppStrings.offlineAIModelsSettingsTitle, icon: "download",
+                    accessibilityIdentifier: "settings-ai-offline-models-row") { showsOfflineModels = true }
                 VStack(alignment: .leading, spacing: .spacing5) {
                     AISettingsHeading(title: AppStrings.defaultModels, icon: "settings")
                     VStack(spacing: .spacing4) {
@@ -518,7 +529,11 @@ struct SettingsAIFullView: View {
             .filter { !$0.isEmpty }.joined(separator: " · ")
     }
     private func publishChildNavigation() {
-        if let selectedModel {
+        if showsOfflineModels {
+            onChildNavigationChanged?(SettingsChildBannerNavigation(title: AppStrings.offlineAIModelsSettingsTitle,
+                description: "", breadcrumb: AppStrings.settings + " / " + AppStrings.settingsAI,
+                onBack: { showsOfflineModels = false }))
+        } else if let selectedModel {
             onChildNavigationChanged?(SettingsChildBannerNavigation(title: selectedModel.name, description: "", onBack: {
                 selectedModelID = nil
             }))
@@ -540,7 +555,10 @@ struct SettingsAIFullView: View {
         }
     }
     private func selectInitialRoute() {
-        if let initialTier, isAuthenticated {
+        if initialOfflineModels {
+            showsOfflineModels = true
+            publishChildNavigation()
+        } else if let initialTier, isAuthenticated {
             selectedTier = initialTier
             selectedTierProviderID = initialProviderID
         } else if let initialModelID, modelCatalog.catalog?.models.contains(where: { $0.id == initialModelID }) == true {

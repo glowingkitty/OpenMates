@@ -2,7 +2,7 @@
 // Holds decrypted chat list and per-chat message arrays in memory.
 // Persists to OfflineStore on every mutation for cold-boot and offline access.
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.followups.non-destructive-reconciliation, chats.surface.semantic-parity
+// Assertions: chats.followups.non-destructive-reconciliation, chats.surface.semantic-parity, chats.completion.pending-delivery, chats.message.identity-idempotent
 
 // Specification: specifications/features/apple-recent-offline-chats/specification.yml
 // Assertions: apple-offline.recent-cohort, apple-offline.local-first, apple-offline.interruption-isolation, apple-offline.snapshot-integrity
@@ -21,6 +21,12 @@ final class ChatStore: ObservableObject {
     private var bridge: OfflineSyncBridge?
     private(set) var metadataReadRevision = 0
     private var persistenceSuppressionDepth = 0
+    private var contentRevisions: [String: Int] = [:]
+
+    /// Scoped mutation identity; SwiftUI never hashes decrypted history.
+    func contentRevision(for chatID: String) -> Int { contentRevisions[chatID, default: 0] }
+
+    private func advanceContentRevision(_ chatID: String) { contentRevisions[chatID, default: 0] &+= 1 }
     private var serverSortOrderByChatId: [String: Int] = [:]
     private var recoveredMetadataFieldVersions: [String: [String: Int]] = [:]
     private var requiredCompleteMetadataRevision: [String: Int] = [:]
@@ -219,6 +225,7 @@ final class ChatStore: ObservableObject {
         requiredCompleteMetadataRevision.removeValue(forKey: chatId)
         serverSortOrderByChatId.removeValue(forKey: chatId)
         chats.removeAll { $0.id == chatId }
+        advanceContentRevision(chatId)
         messagesByChat.removeValue(forKey: chatId)
         embedsByChat.removeValue(forKey: chatId)
         persistIfAllowed { $0.onChatDeleted(chatId) }
@@ -229,6 +236,7 @@ final class ChatStore: ObservableObject {
         recoveredMetadataFieldVersions.removeAll()
         requiredCompleteMetadataRevision.removeAll()
         chats.removeAll()
+        contentRevisions.removeAll()
         messagesByChat.removeAll()
         embedsByChat.removeAll()
         serverSortOrderByChatId.removeAll()
@@ -362,6 +370,7 @@ final class ChatStore: ObservableObject {
 
     func removeMessageIDs(_ ids: Set<String>, from chatID: String) {
         messagesByChat[chatID]?.removeAll { ids.contains($0.id) || $0.serverMessageId.map(ids.contains) == true }
+        advanceContentRevision(chatID)
     }
 
     func setMessages(for chatId: String, messages: [Message]) {
@@ -370,6 +379,7 @@ final class ChatStore: ObservableObject {
         }
         let sorted = messages.map { preserveLocalEmbedRefs($0, local: $0.localBodySource(canonical: localById[$0.id], alias: $0.serverMessageId.flatMap { localById[$0] })) }
             .sorted { a, b in a.createdAt < b.createdAt }
+        advanceContentRevision(chatId)
         messagesByChat[chatId] = sorted
         persistIfAllowed { $0.onMessagesReceived(sorted, chatId: chatId) }
     }
@@ -420,6 +430,7 @@ final class ChatStore: ObservableObject {
         } else {
             msgs.append(accepted)
         }
+        advanceContentRevision(chatId)
         messagesByChat[chatId] = msgs
         persistIfAllowed { $0.onMessagesReceived([accepted], chatId: chatId) }
     }
@@ -458,6 +469,7 @@ final class ChatStore: ObservableObject {
             // or changes the authoritative messages_v advertised to the server.
             let resolved = messages.map { preserveLocalEmbedRefs($0, local: $0.localBodySource(canonical: localById[$0.id], alias: $0.serverMessageId.flatMap { localById[$0] })) }
             nextMessages[chatId] = (resolved + pendingReplies).sorted { $0.createdAt < $1.createdAt }
+            advanceContentRevision(chatId)
         }
         if !incomingMessages.isEmpty {
             messagesByChat = nextMessages
@@ -494,7 +506,8 @@ final class ChatStore: ObservableObject {
         let refs = incoming.embedRefs ?? local.embedRefs
         let sameCiphertext = incoming.encryptedContent != nil && incoming.encryptedContent == local.encryptedContent
         let content = incoming.content ?? (sameCiphertext ? local.content : nil)
-        guard refs != incoming.embedRefs || content != incoming.content else { return incoming }
+        guard refs != incoming.embedRefs || content != incoming.content
+            || (incoming.serverMessageId == nil && local.serverMessageId != nil) else { return incoming }
         // A metadata/ciphertext replay of the same row must not blank an already
         // decoded response while reconnect/key hydration is still in progress.
         return Message(

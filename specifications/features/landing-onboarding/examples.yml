@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.landing-onboarding@4
+specification: feature.landing-onboarding@5
 
 real_shell:
   - id: logged-out-welcome-uses-real-chat-shell
@@ -154,27 +154,28 @@ primary_slogan:
       package_registry_descriptions_remain_specific: true
 
 apple_parity:
-  - id: apple-preserves-web-story-contract
-    given: {surface: gui.apple, reference: web_guest_landing_contract}
+  - id: apple-app-welcome-is-separated-from-marketing
+    given: {surface: gui.apple, authenticated: false, public_defaults_pending: true}
     expect:
-      same_story_order: true
-      same_terminal_signup_story: true
-      same_intro_app_order: true
-      same_navigation_semantics: true
-      pixel_exact_animation_required: false
+      host_surface: new_chat_welcome
+      inspiration_source: normal_daily_inspiration
+      synchronous_public_fallback_visible: true
+      expanded_marketing_header: absent
+      guest_product_story_slides: absent
+      initial_topic_selection_visible: true
+      login_entry_point_usable: true
+      shell_navigation_preserved: true
+  - id: apple-topic-selection-filters-existing-public-examples
+    given: {surface: gui.apple, selected_topics: [find_events], existing_public_catalog: [example-creativity-drawing-meetups-berlin, example-artemis-ii-mission]}
+    expect:
+      visible_examples: [example-creativity-drawing-meetups-berlin]
+      unrelated_examples_visible: false
+      private_chats_visible: false
+      skip_restores_unfiltered_catalog: true
   - id: apple-e2e-links-contract-assertions
     given: {test_suite: apple_e2e_landing}
     expect:
       contract_test_metadata_present: true
       surface: gui.apple
       classification: direct
-      linked_assertions:
-        - landing-onboarding.uses-real-chat-shell
-        - landing-onboarding.guest-sequence
-        - landing-onboarding.intro-active-apps-only
-        - landing-onboarding.coordinated-story-progress
-        - landing-onboarding.manual-navigation
-        - landing-onboarding.actionable-demo-faithful
-        - landing-onboarding.privacy-mates-platform-stories
-        - landing-onboarding.signup-cta
-        - landing-onboarding.apple-web-parity
+      linked_assertions: [landing-onboarding.apple-web-parity]

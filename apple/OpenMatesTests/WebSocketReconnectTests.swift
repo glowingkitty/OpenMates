@@ -12,6 +12,24 @@ import AppKit
 
 @MainActor
 final class WebSocketReconnectTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+    func testBlockedCachedIdentityCannotReconnectOnRepeatedForegroundAttempts() async throws {
+        let auth = AuthManager(sessionValidator: { _, _ in
+            throw APIError.httpError(status: 401, message: "Expired")
+        })
+        auth.currentUser = try JSONDecoder().decode(UserProfile.self,
+            from: Data(#"{"id":"cached-account","username":"Fixture"}"#.utf8))
+        auth.state = .authenticated
+        await auth.validateSessionAfterOfflineBootstrap()
+        let manager = WebSocketManager()
+        let generation = manager.transportGeneration
+        for _ in 0..<20 { manager.connect(sessionId: AuthManager.nativeSessionId, token: "stale-token") }
+        XCTAssertEqual(manager.connectionState, .disconnected)
+        XCTAssertEqual(manager.transportGeneration, generation, "Blocked attempts must preserve pending ciphertext ownership")
+        XCTAssertFalse(auth.hasNetworkAuthority)
+        XCTAssertEqual(auth.currentUser?.id, "cached-account")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testCacheStatusAndCorrelatedReceiptsNeverReloadTheChatCatalog() {
         for type in ["cache_primed", "cache_status_response", "sync_status_response", "offline_sync_complete",

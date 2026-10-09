@@ -3,6 +3,8 @@
 // Assertions: sync.surface.semantic-parity, sync.startup.bounded-phases, sync.access.first-party-authenticated
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity
+// Specification: specifications/features/apple-local-model-lab/specification.yml
+// Assertions: apple-local-model-lab.optional-downloads
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte: frontend/packages/ui/src/components/ConnectionStatusIndicator.svelte
 //         frontend/packages/ui/src/components/ConnectionStatusSlot.svelte
@@ -43,6 +45,7 @@ struct NativeConnectionFeedbackInputs: Equatable {
     var connected: Bool
     var syncing: Bool
     var foregroundGeneration: Int = 0
+    var authenticationPresented: Bool = false
 }
 
 /// Only presentation delays; no transport retry, authentication or sync mutation.
@@ -57,6 +60,10 @@ struct NativeConnectionFeedbackPolicy {
         resumeDeadline = now + 10
     }
     mutating func update(_ input: NativeConnectionFeedbackInputs, now: Double) {
+        guard !input.authenticationPresented else {
+            self = .init()
+            return
+        }
         if input.connected { resumeDeadline = nil }
         if input.online && input.authenticated && !input.connected {
             if let deadline = resumeDeadline, now < deadline { reconnectStarted = nil }
@@ -86,15 +93,57 @@ struct NativeConnectionFeedbackPolicy {
     }
 }
 
+enum OfflineAIModelDownloadMotion {
+    static func opacity(elapsed: Double, active: Bool, reduceMotion: Bool) -> Double {
+        reduceMotion || !active ? 1 : 0.8 + 0.2 * cos(elapsed * .pi / 1.2)
+    }
+}
+
+enum NativeHeaderStatusPolicy {
+    static func showsDownload(phase: OfflineAIModelPackPhase, online: Bool, authenticated: Bool, checkingAuth: Bool,
+                              authenticationPresented: Bool = false) -> Bool {
+        online && authenticated && !checkingAuth && !authenticationPresented &&
+            (phase == .downloading || phase == .paused || phase == .failed)
+    }
+}
+
+/// CSS wifi-ripple: 1.8s normal direction, ease-in-out on each segment,
+/// peak at 45%, outer/middle/inner delays 360/180/0ms. The dot is fixed.
+enum NativeConnectionAnimation {
+    static func wifiOpacity(elapsed: Double, arc: Int, reduceMotion: Bool) -> Double {
+        guard !reduceMotion else { return 1 }
+        let delay = [0.36, 0.18, 0.0][arc]
+        guard elapsed >= delay else { return 1 }
+        let phase = (elapsed - delay).truncatingRemainder(dividingBy: 1.8) / 1.8
+        let rising = phase <= 0.45
+        let progress = rising ? phase / 0.45 : (phase - 0.45) / 0.55
+        let eased = easeInOut(progress)
+        return rising ? 0.3 + 0.7 * eased : 1 - 0.7 * eased
+    }
+    private static func easeInOut(_ fraction: Double) -> Double {
+        let x = min(1, max(0, fraction))
+        var low = 0.0, high = 1.0
+        for _ in 0..<16 {
+            let t = (low + high) / 2, u = 1 - t
+            let bezierX = 3 * u * u * t * 0.42 + 3 * u * t * t * 0.58 + t * t * t
+            if bezierX < x { low = t } else { high = t }
+        }
+        let t = (low + high) / 2
+        return 3 * (1 - t) * t * t + t * t * t
+    }
+}
+
 struct NativeConnectionStatusIndicator: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var foregroundGeneration = 0
     @StateObject private var networkMonitor = NetworkMonitor()
     @ObservedObject var wsManager: WebSocketManager
+    @ObservedObject private var offlinePack = OfflineAIModelPack.shared
     let authenticated: Bool
     let checkingAuth: Bool
     let syncing: Bool
+    var authenticationPresented: Bool = false
     let onReconnect: () -> Void
     var onFeedbackChange: (NativeConnectionFeedbackState) -> Void = { _ in }
     @State private var policy = NativeConnectionFeedbackPolicy()
@@ -102,9 +151,10 @@ struct NativeConnectionStatusIndicator: View {
     private var inputs: NativeConnectionFeedbackInputs {
         .init(online: networkMonitor.isConnected, authenticated: authenticated,
             checkingAuth: checkingAuth, connected: wsManager.connectionState == .connected, syncing: syncing,
-            foregroundGeneration: foregroundGeneration)
+            foregroundGeneration: foregroundGeneration, authenticationPresented: authenticationPresented)
     }
     private var displayedState: NativeConnectionFeedbackState {
+        guard !authenticationPresented else { return .idle }
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         if let index = arguments.firstIndex(of: "--ui-test-connection-status"), index + 1 < arguments.count,
@@ -112,7 +162,19 @@ struct NativeConnectionStatusIndicator: View {
         #endif
         return policy.state
     }
+    private var showsDownload: Bool {
+        NativeHeaderStatusPolicy.showsDownload(phase: offlinePack.snapshot.phase,
+            online: networkMonitor.isConnected && displayedState != .offline,
+            authenticated: authenticated, checkingAuth: checkingAuth,
+            authenticationPresented: authenticationPresented)
+    }
+    private var slotVisible: Bool { showsDownload || displayedState != .idle }
+    private var feedbackState: NativeConnectionFeedbackState { showsDownload ? .syncing : displayedState }
     private var label: String {
+        if showsDownload { return AppStrings.offlineAIModelsTitle }
+        return connectionLabel
+    }
+    private var connectionLabel: String {
         switch displayedState {
         case .offline: AppStrings.offlineBanner
         case .reconnecting: AppStrings.reconnectingBanner
@@ -124,7 +186,11 @@ struct NativeConnectionStatusIndicator: View {
         // Group forwards accessibility to the 18/20px glyph. A real layout
         // container owns the 30px status slot and preserves the retry child.
         ZStack {
-            if displayedState == .reconnecting {
+            if showsDownload {
+                OfflineAIModelDownloadStatusButton(phase: offlinePack.snapshot.phase) {
+                    OfflineAIModelPackPresentation.shared.openSettings()
+                }
+            } else if displayedState == .reconnecting {
                 Button(action: onReconnect) {
                     icon.frame(width: 30, height: 30).contentShape(Rectangle())
                 }
@@ -134,19 +200,19 @@ struct NativeConnectionStatusIndicator: View {
             } else if displayedState != .idle { icon.frame(width: 30, height: 30) }
         }
         .foregroundStyle(Color.grey60)
-        .frame(width: displayedState == .idle ? 0 : 30, height: 30)
+        .frame(width: slotVisible ? 30 : 0, height: 30)
         .contentShape(Rectangle())
         .clipped()
-        .opacity(displayedState == .idle ? 0 : 1)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: displayedState)
-        .accessibilityElement(children: displayedState == .reconnecting ? .contain : .ignore)
+        .opacity(slotVisible ? 1 : 0)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: slotVisible)
+        .accessibilityElement(children: showsDownload || displayedState == .reconnecting ? .contain : .ignore)
         .accessibilityLabel(label)
-        .accessibilityValue(displayedState.rawValue)
+        .accessibilityValue(showsDownload ? offlinePack.snapshot.phase.rawValue : displayedState.rawValue)
         .accessibilityIdentifier("connection-status-indicator")
-        .accessibilityHidden(displayedState == .idle)
+        .accessibilityHidden(!slotVisible)
         .help(Text(label))
-        .onAppear { onFeedbackChange(displayedState) }
-        .onChange(of: displayedState) { _, state in onFeedbackChange(state) }
+        .onAppear { onFeedbackChange(feedbackState) }
+        .onChange(of: feedbackState) { _, state in onFeedbackChange(state) }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 policy.resume(now: ProcessInfo.processInfo.systemUptime)
@@ -172,21 +238,76 @@ struct NativeConnectionStatusIndicator: View {
     @ViewBuilder private var icon: some View {
         switch displayedState {
         case .offline: LucideNativeIcon("plane", size: 18)
-        case .reconnecting:
-            ZStack {
-                NativeWifiPath(arc: nil).stroke(style: .init(lineWidth: 1.75 * 20 / 24, lineCap: .round))
-                ForEach(0..<3) { arc in
-                    NativeWifiPath(arc: arc).stroke(style: .init(lineWidth: 1.75 * 20 / 24, lineCap: .round))
-                        .opacity(reduceMotion || animating ? 1 : 0.3)
-                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.9)
-                            .repeatForever(autoreverses: true).delay([0.36, 0.18, 0.0][arc]), value: animating)
-                }
-            }.frame(width: 20, height: 20)
+        case .reconnecting: NativeWifiRippleGlyph()
         case .syncing:
             LucideNativeIcon("refresh-cw", size: 18)
                 .rotationEffect(.degrees(animating && !reduceMotion ? 360 : 0))
                 .animation(reduceMotion ? nil : .linear(duration: 2.4).repeatForever(autoreverses: false), value: animating)
         case .idle: EmptyView()
+        }
+    }
+}
+
+private struct NativeWifiRippleGlyph: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var start = Date()
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
+            ZStack {
+                NativeWifiPath(arc: nil).stroke(style: .init(lineWidth: 1.75 * 20 / 24, lineCap: .round))
+                ForEach(0..<3) { arc in
+                    NativeWifiPath(arc: arc).stroke(style: .init(lineWidth: 1.75 * 20 / 24, lineCap: .round))
+                        .opacity(NativeConnectionAnimation.wifiOpacity(elapsed: context.date.timeIntervalSince(start),
+                            arc: arc, reduceMotion: reduceMotion))
+                }
+            }
+        }.frame(width: 20, height: 20)
+    }
+}
+
+struct OfflineAIModelDownloadStatusButton: View {
+    let phase: OfflineAIModelPackPhase
+    let onOpenSettings: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    #if DEBUG && targetEnvironment(simulator)
+    @Environment(\.embedProcessingFixtureReducedMotion) private var fixtureReduceMotion
+    #endif
+    private var reduceMotion: Bool {
+        #if DEBUG && targetEnvironment(simulator)
+        systemReduceMotion || fixtureReduceMotion
+        #else
+        systemReduceMotion
+        #endif
+    }
+    private var accessibilityValue: String {
+        #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("--dev-preview") {
+            return phase.rawValue + ";motion=" + (reduceMotion || phase != .downloading ? "static" : "opacity")
+        }
+        #endif
+        return phase.rawValue
+    }
+    var body: some View {
+        Button(action: onOpenSettings) {
+            NativeDownloadStatusGlyph(active: phase == .downloading, reduceMotion: reduceMotion)
+                .frame(width: 30, height: 30).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(AppStrings.offlineAIModelsSettingsTitle)
+        .accessibilityValue(accessibilityValue)
+        .accessibilityIdentifier("offline-ai-download-status")
+    }
+}
+
+private struct NativeDownloadStatusGlyph: View {
+    let active: Bool
+    let reduceMotion: Bool
+    @State private var start = Date()
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 20, paused: reduceMotion || !active)) { context in
+            LucideNativeIcon("download", size: 20)
+                .opacity(OfflineAIModelDownloadMotion.opacity(elapsed: context.date.timeIntervalSince(start),
+                    active: active, reduceMotion: reduceMotion))
         }
     }
 }

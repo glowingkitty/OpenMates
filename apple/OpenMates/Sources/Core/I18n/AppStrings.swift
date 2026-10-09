@@ -9,6 +9,38 @@ import Foundation
 
 @MainActor
 enum AppStrings {
+    static var signedOutInspirationDreams: String { L("apple.signed_out_inspiration.dreams") }
+    static var signedOutInspirationHistory: String { L("apple.signed_out_inspiration.history") }
+    static var signedOutInspirationActivism: String { L("apple.signed_out_inspiration.activism") }
+    static var offlineAIModelsSettingsTitle: String { L("apple.offline_ai_models.settings_title") }
+    static var offlineAIModelsSpeechToText: String { L("apple.offline_ai_models.speech_to_text") }
+    static var offlineAIModelsTextToSpeech: String { L("apple.offline_ai_models.text_to_speech") }
+    static var offlineAIModelsEnhancedAnonymization: String { L("apple.offline_ai_models.enhanced_anonymization") }
+    static var offlineAIModelsReady: String { L("apple.offline_ai_models.ready") }
+    static func offlineAIModelCapability(_ id: LocalModelID) -> String {
+        switch id {
+        case .whisper: offlineAIModelsSpeechToText
+        case .supertonic3: offlineAIModelsTextToSpeech
+        case .privacyFilter: offlineAIModelsEnhancedAnonymization
+        }
+    }
+    static var offlineAIModelsTitle: String { L("apple.offline_ai_models.title") }
+    static var offlineAIModelsOffer: String { L("apple.offline_ai_models.offer") }
+    static var offlineAIModelsLater: String { L("apple.offline_ai_models.later") }
+    static var offlineAIModelsResume: String { L("apple.offline_ai_models.resume") }
+    static var offlineAIModelsPaused: String { L("apple.offline_ai_models.paused") }
+    static var offlineAIModelsDownloading: String { L("apple.offline_ai_models.downloading") }
+    static var offlineAIModelsVerifying: String { L("apple.offline_ai_models.verifying") }
+    static var offlineAIModelsWaiting: String { L("apple.offline_ai_models.waiting") }
+    static var offlineAIModelsRetrying: String { L("apple.offline_ai_models.retrying") }
+    static var offlineAIModelsComplete: String { L("apple.offline_ai_models.complete") }
+    static var offlineAIModelsOnlineSpeech: String { L("apple.offline_ai_models.online_speech") }
+    static var offlineAIModelsLocalSpeechFailed: String { L("apple.offline_ai_models.local_speech_failed") }
+    static var offlineAIModelsLocalTranscriptionFailed: String { L("apple.offline_ai_models.local_transcription_failed") }
+    static func offlineAIModelsProgress(model: String, status: String, downloaded: String, total: String) -> String {
+        LocalizationManager.shared.text("apple.offline_ai_models.progress", replacements: [
+            "model": model, "status": status, "downloaded": downloaded, "total": total])
+    }
     static var modelPriceUnavailable: String { L("settings.ai_ask.ai_ask_model_details.unavailable") }
     static var modelPriceIncludedInInput: String { L("settings.ai_ask.ai_ask_model_details.included_in_input") }
     static var modelPriceUncachedInput: String { L("settings.ai_ask.ai_ask_model_details.uncached_input") }
@@ -615,7 +647,7 @@ enum AppStrings {
     static var password: String { L("settings.password") }
     static var twoFactorAuth: String { L("settings.two_factor_auth") }
     static var recoveryKey: String { L("settings.recovery_key") }
-    static var activeSessions: String { L("settings.sessions") }
+    static var activeSessions: String { L("settings.sessions.title") }
     static var pairNewDevice: String { L("settings.sessions.pair_initiate_title") }
     static var logoutAllSessions: String { L("settings.logout_all") }
     static var addPasskey: String { L("settings.passkeys.add") }

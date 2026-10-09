@@ -240,6 +240,30 @@ final class WatchFlowUITests: XCTestCase {
     }
 
     @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback,apple-watch.pairing.private-session
+    func testPairCompletionFailureClearsPINAndAllowsNewAttempt() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-pair-completion-failed", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let error = app.staticTexts["watch-pair-error-message"]
+        XCTAssertTrue(error.waitForExistence(timeout: 12))
+        XCTAssertEqual(error.label, "Pairing failed. Start again with a new code and PIN.")
+        XCTAssertFalse(error.label.contains("PairOpaqueError"))
+        XCTAssertFalse(app.textFields["watch-pair-pin-input"].exists)
+        XCTAssertFalse(app.staticTexts["watch-pair-url"].exists)
+        let retry = app.buttons["watch-pair-refresh-button"]
+        XCTAssertTrue(retry.isHittable)
+        XCTAssertTrue(app.buttons["watch-pair-self-host-button"].isHittable)
+        keepScreenshot("Synthetic Watch completion failure retains recovery controls")
+        retry.tap()
+        XCTAssertTrue(app.staticTexts["watch-pair-generating-label"].waitForExistence(timeout: 5))
+        XCTAssertFalse(error.exists)
+        XCTAssertFalse(retry.exists)
+        XCTAssertFalse(app.textFields["watch-pair-pin-input"].exists)
+        keepScreenshot("Watch completion recovery begins a fresh attempt without previous PIN")
+    }
+
+    @MainActor
     // contract-test: direct surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
     func testPairInitiationFailureOffersSelfHostedServerBeforeAnyTokenExists() {
         let app = XCUIApplication()

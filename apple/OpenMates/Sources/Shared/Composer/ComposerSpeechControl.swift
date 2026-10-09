@@ -31,6 +31,11 @@ struct ComposerSpeechControl: View {
                 if let error = speech.error {
                     VStack(alignment: .trailing, spacing: 4) {
                         Text(error).font(.caption).fixedSize(horizontal: false, vertical: true)
+                        if speech.canUseProviderFallback {
+                            Button(AppStrings.offlineAIModelsOnlineSpeech) { Task { await speech.retryWithProvider() } }
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("assistant-speech-use-online")
+                        }
                         if speech.canRetry {
                             Button(AppStrings.retry) { Task { await speech.retry() } }.buttonStyle(.plain)
                                 .accessibilityIdentifier("assistant-speech-retry")

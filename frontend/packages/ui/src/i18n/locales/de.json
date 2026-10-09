@@ -2524,6 +2524,76 @@
       "stale": {
         "text": "Warte auf Aktualisierung der App"
       }
+    },
+    "offline_ai_models": {
+      "title": {
+        "text": "Offline-KI-Modelle"
+      },
+      "offer": {
+        "text": "Möchtest du Offline-KI-Modelle (2,3 GB) herunterladen, um deine Kosten zu senken und deine Privatsphäre noch besser zu schützen?"
+      },
+      "later": {
+        "text": "Später"
+      },
+      "resume": {
+        "text": "Fortsetzen"
+      },
+      "paused": {
+        "text": "Download pausiert. Setze ihn fort, wenn du bereit bist."
+      },
+      "downloading": {
+        "text": "Wird heruntergeladen"
+      },
+      "verifying": {
+        "text": "Dateien werden überprüft"
+      },
+      "waiting": {
+        "text": "Warten auf Verbindung"
+      },
+      "retrying": {
+        "text": "Download wird erneut versucht"
+      },
+      "progress": {
+        "text": "{model}: {status}. {downloaded} von {total}"
+      },
+      "complete": {
+        "text": "Offline-KI-Modelle heruntergeladen."
+      },
+      "online_speech": {
+        "text": "Online-Sprachausgabe verwenden"
+      },
+      "local_transcription_failed": {
+        "text": "Lokale Transkription fehlgeschlagen. Deine Aufnahme bleibt für einen erneuten Versuch erhalten."
+      },
+      "local_speech_failed": {
+        "text": "Sprachausgabe auf dem Gerät fehlgeschlagen. Versuche es erneut oder wähle die Online-Sprachausgabe."
+      },
+      "settings_title": {
+        "text": "Offline-Modelle"
+      },
+      "speech_to_text": {
+        "text": "Sprache zu Text"
+      },
+      "text_to_speech": {
+        "text": "Text zu Sprache"
+      },
+      "enhanced_anonymization": {
+        "text": "Erweiterte Anonymisierung"
+      },
+      "ready": {
+        "text": "Heruntergeladen"
+      }
+    },
+    "signed_out_inspiration": {
+      "dreams": {
+        "text": "Warum erschafft dein Gehirn ganze Welten, während du schläfst?"
+      },
+      "history": {
+        "text": "Welches vergessene Ereignis hat unbemerkt verändert, wie Menschen heute leben?"
+      },
+      "activism": {
+        "text": "Welche alltägliche Entscheidung hat größere gesellschaftliche Auswirkungen, als es scheint?"
+      }
     }
   },
   "apps": {

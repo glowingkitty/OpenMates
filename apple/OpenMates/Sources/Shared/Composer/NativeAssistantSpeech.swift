@@ -4,7 +4,7 @@ import Foundation
 import Combine
 
 // Web sources: assistantSpeechPreference.ts, sendersChatMessages.ts and
-// assistantSpeechController.ts. Generated provider audio, never OS TTS.
+// assistantSpeechController.ts. Verified optional local synthesis or provider audio; never OS TTS.
 struct AssistantSpeechScope: Hashable, Sendable {
     let accountID: String
     let serverID: String
@@ -67,6 +67,8 @@ final class NativeAssistantSpeech: ObservableObject {
         var resumePlayback: @MainActor () -> Void = {}
         var requestSpeech: @MainActor (AssistantSpeechScope, String, String, [[String: Any]]) async throws -> Void = { _, _, _, _ in throw WebSocketError.notConnected }
         var waveformSamples: @MainActor (Data) -> [Double] = { AssistantSpeechWaveform.samples($0) }
+        var localSpeechAvailable: @MainActor () -> Bool = { false }
+        var synthesizeLocal: @MainActor (AssistantSpeechScope, String) async throws -> Data = { _, _ in throw LocalSpeechRuntimeError.unavailableRuntime }
         var canPlay: @MainActor (AssistantSpeechScope) -> Bool = { _ in true }
     }
     @Published private(set) var enabled = false
@@ -81,6 +83,9 @@ final class NativeAssistantSpeech: ObservableObject {
     @Published private(set) var waveform: [Double] = []
     @Published private(set) var mateName = "OpenMates"
     @Published private(set) var mateCategory = "default"
+    private var localPlayback = false
+    private var outgoingLocal = false
+    var canUseProviderFallback: Bool { localPlayback && failedOperation == .audio }
     private var paused = false
     private var manual = false
     private var publicContext = false
@@ -227,6 +232,8 @@ final class NativeAssistantSpeech: ObservableObject {
     // Snapshot only after the scoped preference write has completed.
     func messageFields(for requestedScope: AssistantSpeechScope) -> [String: Any] {
         guard requestedScope == scope, ready, enabled else { return [:] }
+        outgoingLocal = dependencies.localSpeechAvailable()
+        if outgoingLocal { return ["auto_speak_response": false, "assistant_response_source_revision": 1] }
         return ["auto_speak_response": true, "assistant_response_source_revision": 1]
     }
 
@@ -236,6 +243,7 @@ final class NativeAssistantSpeech: ObservableObject {
         guard requestedScope == scope, enabled else { return }
         responseGeneration = UUID(); playbackGeneration = UUID()
         playbackTask?.cancel(); playbackTask = nil; dependencies.stopPendingCue(); dependencies.stopPlayback()
+        localPlayback = outgoingLocal
         messageID = id; segments.removeAll(); played.removeAll(); nextSequence = 0
         activeSequence = 0; paused = false; explicitSelection = false; manual = false; responseComplete = false; sequenceOffset = 0; projected = []; waveform = []; generationRequested.removeAll()
         playbackSegments = []; playbackStatus = .waitingForSegment
@@ -243,7 +251,7 @@ final class NativeAssistantSpeech: ObservableObject {
     }
 
     func receive(_ event: AssistantSpeechStatus, in eventScope: AssistantSpeechScope) {
-        guard !publicContext, (enabled || manual), eventScope == scope, event.chat_id == eventScope.chatID,
+        guard !localPlayback, !publicContext, (enabled || manual), eventScope == scope, event.chat_id == eventScope.chatID,
               event.message_id == messageID else { return }
         if event.status == "error", event.segment_id == nil {
             failProvider(); return
@@ -289,6 +297,13 @@ final class NativeAssistantSpeech: ObservableObject {
         self.mateName = mateName; self.mateCategory = mateCategory
         activeSequence = 0; nextSequence = 0; playbackStatus = .waitingForSegment
         error = nil; failedOperation = nil
+        localPlayback = dependencies.localSpeechAvailable()
+        if localPlayback {
+            awaitingAcceptance = false
+            registerLocalParts(parts)
+            drain()
+            return
+        }
         let token = playbackGeneration
         do { try await dependencies.requestSpeech(scope, id, "request", parts.map(\.wire)) }
         catch {
@@ -323,7 +338,7 @@ final class NativeAssistantSpeech: ObservableObject {
         return projected.first { $0.sequence == sequence }
     }
     func prefetchNextChapter() {
-        guard !publicContext, !paused, let scope, dependencies.canPlay(scope),
+        guard !localPlayback, !publicContext, !paused, let scope, dependencies.canPlay(scope),
               let item = playbackSegments.first(where: { ($0.sequence ?? -1) > activeSequence }) else { return }
         requestGeneration(for: item)
     }
@@ -360,12 +375,43 @@ final class NativeAssistantSpeech: ObservableObject {
         projected = AssistantSpeechProjection.project(content, language: LocalizationManager.shared.currentLanguage.code)
         mateName = message.senderName ?? "OpenMates"; mateCategory = message.category ?? "default"
         responseComplete = message.isStreaming != true
+        if localPlayback {
+            // The final streaming paragraph can still change. Decode only
+            // completed canonical parts; register the last part at finalization.
+            registerLocalParts(responseComplete ? projected : Array(projected.dropLast()))
+        }
         if responseDrained, playbackTask == nil, !paused {
             playbackStatus = .completed
         } else {
             // Status can precede decrypted streaming text. Revisit a registered
             // chapter as soon as its canonical safe source becomes available.
             drain()
+        }
+    }
+    private func registerLocalParts(_ parts: [AssistantSpeechProjection.Part]) {
+        for part in parts {
+            let id = "local:" + String(part.sequence)
+            guard segments[id] == nil else { continue }
+            segments[id] = .init(segment_id: id, sequence: part.sequence, status: "ready", generated_asset_id: nil,
+                request_sequence: part.sequence, kind: part.kind)
+        }
+        playbackSegments = segments.values.sorted { ($0.sequence ?? 0) < ($1.sequence ?? 0) }
+    }
+
+    // This is a separate user action. Retrying local playback never silently
+    // uploads text to a provider when local inference failed.
+    func retryWithProvider() async {
+        guard canUseProviderFallback, let scope, let messageID, dependencies.canPlay(scope) else { return }
+        let parts = projected
+        guard !parts.isEmpty, await stopForReplacement(in: scope) else { return }
+        localPlayback = false; manual = true; responseComplete = true; awaitingAcceptance = true
+        self.messageID = messageID; projected = parts; nextSequence = 0; activeSequence = 0
+        error = nil; failedOperation = nil; playbackStatus = .waitingForSegment
+        let token = playbackGeneration
+        do { try await dependencies.requestSpeech(scope, messageID, "request", parts.map(\.wire)) }
+        catch {
+            guard playbackGeneration == token, self.scope == scope, self.messageID == messageID else { return }
+            self.error = "Speech is temporarily unavailable."; failedOperation = .audio; playbackStatus = .failed
         }
     }
     func resumePlaybackIfReady() { drain() }
@@ -377,7 +423,7 @@ final class NativeAssistantSpeech: ObservableObject {
               let id = item.segment_id, !played.contains(id) else { return }
         activeSequence = nextSequence
         if ["error", "cancelled", "deleted"].contains(item.status ?? "") { failProvider(); return }
-        guard item.status == "ready", item.generated_asset_id != nil || item.audio_url != nil || publicAssets[id] != nil else {
+        guard item.status == "ready", localPlayback || item.generated_asset_id != nil || item.audio_url != nil || publicAssets[id] != nil else {
             playbackStatus = .waitingForSegment; waveform = []
             if explicitSelection { dependencies.startPendingCue() }
             requestGeneration(for: item)
@@ -391,7 +437,10 @@ final class NativeAssistantSpeech: ObservableObject {
             guard let self else { return }
             do {
                 let bytes: Data
-                if let fixture = publicAssets[id] {
+                if localPlayback {
+                    guard let part = sourcePart(for: item) else { throw LocalSpeechRuntimeError.invalidRequest }
+                    bytes = try await dependencies.synthesizeLocal(scope, part.text)
+                } else if let fixture = publicAssets[id] {
                     if let cached = publicAudio[id] { bytes = cached }
                     else {
                         let resolved = try await dependencies.resolvePublicAudio(fixture)
@@ -423,7 +472,7 @@ final class NativeAssistantSpeech: ObservableObject {
             } catch {
                 guard generation == token, playbackGeneration == playbackToken, self.messageID == messageID else { return }
                 playbackTask = nil
-                if !(error is CancellationError) { self.error = "Speech audio could not be loaded."; failedOperation = .audio; playbackStatus = .failed }
+                if !(error is CancellationError) { self.error = localPlayback ? AppStrings.offlineAIModelsLocalSpeechFailed : "Speech audio could not be loaded."; failedOperation = .audio; playbackStatus = .failed }
             }
         }
     }
@@ -472,13 +521,14 @@ final class NativeAssistantSpeech: ObservableObject {
         }
     }
     private func stopLocally() -> (AssistantSpeechScope, String)? {
-        let oldScope = scope, oldMessage = messageID, wasPublic = publicPlayback
+        let oldScope = scope, oldMessage = messageID, wasPublic = publicPlayback, wasLocal = localPlayback
         responseGeneration = UUID(); playbackGeneration = UUID()
         playbackTask?.cancel(); playbackTask = nil; dependencies.stopPendingCue(); dependencies.stopPlayback()
         messageID = nil; segments.removeAll(); played.removeAll()
         playbackSegments = []; waveform = []; waveforms = [:]; projected = []; generationRequested.removeAll(); manual = false; awaitingAcceptance = false; explicitSelection = false; paused = false; playbackStatus = .stopped
+        localPlayback = false
         publicPlayback = false; publicAssets = [:]; publicAudio = [:]
-        if !wasPublic, let oldScope, let oldMessage { return (oldScope, oldMessage) }
+        if !wasPublic, !wasLocal, let oldScope, let oldMessage { return (oldScope, oldMessage) }
         return nil
     }
     private func stopForReplacement(in expectedScope: AssistantSpeechScope) async -> Bool {
@@ -507,6 +557,7 @@ final class NativeAssistantSpeech: ObservableObject {
     func reset() {
         generation = UUID(); responseGeneration = UUID(); playbackGeneration = UUID(); feedbackTask?.cancel(); feedbackTask = nil
         playbackTask?.cancel(); playbackTask = nil; dependencies.stopPendingCue(); dependencies.stopPlayback()
+        localPlayback = false; outgoingLocal = false
         publicContext = false; publicPlayback = false; publicAssets = [:]; publicAudio = [:]
         scope = nil; messageID = nil; segments.removeAll(); played.removeAll()
         playbackSegments = []; waveform = []; waveforms = [:]; projected = []; generationRequested.removeAll(); manual = false; awaitingAcceptance = false; explicitSelection = false; paused = false; playbackStatus = .stopped

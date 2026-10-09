@@ -1,5 +1,7 @@
 // Password + optional 2FA login screen. Mirrors PasswordAndTfaOtp.svelte.
 // Shows password field first; if server returns tfaRequired, shows OTP field.
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.login.method-convergence
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
@@ -51,6 +53,7 @@ struct PasswordLoginForm: View {
     @State private var isBackupMode = false
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var invalidField: Field?
     @FocusState private var focusedField: Field?
 
     enum Field {
@@ -66,51 +69,65 @@ struct PasswordLoginForm: View {
     var body: some View {
         VStack(spacing: .spacing6) {
             Text(email)
-                .font(.omSmall)
+                .font(.omP)
                 .foregroundStyle(Color.fontSecondary)
                 .textSelection(.enabled)
 
             VStack(spacing: .spacing4) {
-                SecureField(AppStrings.password, text: $password)
-                    .textFieldStyle(OMTextFieldStyle())
-                    .textContentType(.password)
-                    .focused($focusedField, equals: .password)
-                    .onSubmit {
-                        if showTfaField { focusedField = .tfa }
-                        else { performLogin() }
-                    }
-                    .accessibilityIdentifier("password-input")
-                    .accessibleInput(AppStrings.password, hint: AppStrings.passwordPlaceholder)
+                HStack(spacing: .spacing6) {
+                    Icon("password", size: 20)
+                        .foregroundStyle(LinearGradient.primary).accessibilityHidden(true)
+                    SecureField(AppStrings.passwordPlaceholder, text: $password)
+                        .textFieldStyle(.plain)
+                        .textContentType(.password)
+                        .focused($focusedField, equals: .password)
+                        .onSubmit {
+                            if showTfaField { focusedField = .tfa }
+                            else { performLogin() }
+                        }
+                        .accessibilityIdentifier("password-input")
+                        .accessibleInput(AppStrings.password, hint: AppStrings.passwordPlaceholder)
+                }
+                .modifier(PasswordLoginFieldChrome(focused: focusedField == .password, invalid: invalidField == .password))
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("password-login-field")
 
                 if showTfaField {
                     VStack(spacing: .spacing3) {
                         if !isBackupMode {
                             Text(AppStrings.checkYourTfaApp)
-                                .font(.omSmall)
+                                .font(.omP)
                                 .foregroundStyle(Color.fontSecondary)
                                 .multilineTextAlignment(.center)
                         } else {
                             Text(AppStrings.backupCodeIsSingleUse)
-                                .font(.omSmall)
+                                .font(.omP)
                                 .foregroundStyle(Color.fontSecondary)
                                 .multilineTextAlignment(.center)
                         }
 
-                        TextField(tfaPlaceholder, text: $tfaCode)
-                            .textFieldStyle(OMTextFieldStyle())
-                            #if os(iOS)
-                            .keyboardType(isBackupMode ? .asciiCapable : .numberPad)
-                            .textInputAutocapitalization(.characters)
-                            #endif
-                            .autocorrectionDisabled(true)
-                            .focused($focusedField, equals: .tfa)
-                            .onChange(of: tfaCode) { _, newValue in
-                                sanitizeTfaCode(newValue)
-                            }
-                            .onSubmit { performLogin() }
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                            .accessibilityIdentifier("tfa-code-input")
-                            .accessibleInput(tfaPlaceholder, hint: isBackupMode ? AppStrings.backupCodeIsSingleUse : AppStrings.checkYourTfaApp)
+                        HStack(spacing: .spacing6) {
+                            Icon(isBackupMode ? "text" : "2fa", size: 20)
+                                .foregroundStyle(LinearGradient.primary).accessibilityHidden(true)
+                            TextField(tfaPlaceholder, text: $tfaCode)
+                                .textFieldStyle(.plain)
+                                #if os(iOS)
+                                .keyboardType(isBackupMode ? .asciiCapable : .numberPad)
+                                .textInputAutocapitalization(.characters)
+                                #endif
+                                .autocorrectionDisabled(true)
+                                .focused($focusedField, equals: .tfa)
+                                .onChange(of: tfaCode) { _, newValue in
+                                    sanitizeTfaCode(newValue)
+                                }
+                                .onSubmit { performLogin() }
+                                .accessibilityIdentifier("tfa-code-input")
+                                .accessibleInput(tfaPlaceholder, hint: isBackupMode ? AppStrings.backupCodeIsSingleUse : AppStrings.checkYourTfaApp)
+                        }
+                        .modifier(PasswordLoginFieldChrome(focused: focusedField == .tfa, invalid: invalidField == .tfa))
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("password-login-code-field")
                     }
                 }
 
@@ -134,7 +151,7 @@ struct PasswordLoginForm: View {
                 }
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(OMPrimaryButtonStyle())
+            .buttonStyle(AuthPrimaryButtonStyle())
             .disabled(!isFormValid || isLoading)
             .accessibilityIdentifier("login-button")
             .accessibleButton(AppStrings.login, hint: LocalizationManager.shared.text("login.login_button"))
@@ -142,6 +159,7 @@ struct PasswordLoginForm: View {
             loginOptionsContainer
                 .padding(.top, .spacing3)
         }
+        .frame(maxWidth: 350)
         .onAppear {
             if initialStep == .otp { showTfaField = true }
             focusedField = .password
@@ -191,6 +209,7 @@ struct PasswordLoginForm: View {
                     .fontWeight(.medium)
                     .foregroundStyle(LinearGradient.primary)
             }
+            .frame(minHeight: 41)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -201,6 +220,7 @@ struct PasswordLoginForm: View {
         guard isFormValid, !isLoading else { return }
         isLoading = true
         errorMessage = nil
+        invalidField = nil
 
         Task {
             do {
@@ -211,6 +231,7 @@ struct PasswordLoginForm: View {
                 revealTfaField(passwordError: nil)
             } catch AuthError.invalidTwoFactorCode {
                 errorMessage = AppStrings.codeWrong
+                invalidField = .tfa
                 tfaCode = ""
                 focusedField = .tfa
                 AccessibilityAnnouncement.announce(AppStrings.codeWrong)
@@ -246,6 +267,7 @@ struct PasswordLoginForm: View {
     }
 
     private func handlePasswordAuthFailure(fallback: String = AppStrings.emailOrPasswordWrong) {
+        invalidField = .password
         if showTfaField || tfaEnabled {
             // Mirrors PasswordAndTfaOtp.svelte anti-enumeration branch:
             // failed auth with/after a 2FA-required response keeps the OTP field visible.
@@ -262,5 +284,23 @@ struct PasswordLoginForm: View {
             focusedField = .tfa
         }
         AccessibilityAnnouncement.announce(AppStrings.checkYourTfaApp)
+    }
+}
+
+// Rendered PasswordAndTfaOtp at the approved preview: .input-wrapper is
+// 350×48px maximum, with a 20px icon at 16px and text starting at 48px.
+// fields.css supplies the white default border and orange focus glow.
+private struct PasswordLoginFieldChrome: ViewModifier {
+    let focused: Bool
+    let invalid: Bool
+    func body(content: Content) -> some View {
+        content.font(.omP)
+            .padding(.horizontal, .spacing8)
+            .frame(height: .spacing24).frame(maxWidth: 350)
+            .background(Color.grey0, in: Capsule())
+            .overlay(Capsule().strokeBorder(invalid ? Color.error : focused ? Color.buttonPrimary : Color.grey0, lineWidth: 2))
+            .shadow(color: focused ? Color.buttonPrimary.opacity(0.22) : .clear, radius: 3)
+            .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 4)
+            .tint(Color.buttonPrimary)
     }
 }

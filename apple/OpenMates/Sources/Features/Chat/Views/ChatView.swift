@@ -11,7 +11,7 @@
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.layout.responsive-history, chats.streaming.progressive-presentation, chats.rendering.assistant-document-convergence, chats.surface.semantic-parity
 // Specification: specifications/features/apple-notifications/specification.yml
-// Assertions: apple-notifications.delivery.idempotent-visible
+// Assertions: apple-notifications.delivery.idempotent-visible, apple-notifications.action.routing-coherent
 
 // ─── Web source ─────────────────────────────────────────────────────
 // MessageBubble:
@@ -903,6 +903,12 @@ struct ChatView: View {
     private var appearanceLifecycleChatView: some View {
         decoratedChatView
         .onAppear(perform: handleInitialAppear)
+        .onChange(of: isInputFocused) { _, focused in
+            if focused, authManager.state == .authenticated,
+               !IncognitoChatSession.isIncognitoChatId(chatId), !WelcomeScreenState.isPublicChat(chatId) {
+                OfflineAIModelPack.shared.offerIfNeeded()
+            }
+        }
         .onChange(of: inputFocusRequest) { _, _ in
             if let mention = SettingsComposerHandoff.consume() {
                 messageText = SettingsComposerHandoff.appending(mention: mention, to: messageText)
@@ -941,7 +947,12 @@ struct ChatView: View {
         .onChange(of: initialMessageSyncSignature) { _, _ in
             Task {
                 await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
+                await catchUpNotificationCompletion()
             }
+        }
+        .onReceive(PushNotificationManager.shared.$completionCatchUpIntent) { intent in
+            guard intent?.chatID == chatId else { return }
+            Task { @MainActor in await catchUpNotificationCompletion() }
         }
         .onChange(of: initialEmbedSyncSignature) { _, _ in
             Task {
@@ -1001,7 +1012,10 @@ struct ChatView: View {
         .onAppear { updatePIIMatches(for: messageText) }
         .onChange(of: scenePhase) { _, phase in
             updatePIIMatches(for: messageText)
-            if phase == .active { Task { await retryDeferredComposerSendsAfterReconnect() } }
+            if phase == .active { Task {
+                await retryDeferredComposerSendsAfterReconnect()
+                await catchUpNotificationCompletion(renewAttempts: true)
+            } }
         }
         .onChange(of: parentPaneVisible) { _, visible in
             updatePIIMatches(for: messageText)
@@ -1020,7 +1034,10 @@ struct ChatView: View {
             inFlightVisibleReceiptIds = []
             reportFinalVisibleMessages(latestVisibleMessageIds)
             deferredSocketConnectedEpoch += 1
-            Task { @MainActor in await retryDeferredComposerSendsAfterReconnect() }
+            Task { @MainActor in
+                await retryDeferredComposerSendsAfterReconnect()
+                await catchUpNotificationCompletion(renewAttempts: true)
+            }
         }
     }
 
@@ -1032,6 +1049,8 @@ struct ChatView: View {
             initialChat?.category ?? "",
             initialChat?.icon ?? "",
             initialChat?.chatSummary ?? "",
+            String(chatStore?.chat(for: chatId)?.messagesV ?? initialChat?.messagesV ?? 0),
+            String(chatStore?.contentRevision(for: chatId) ?? 0),
             String(initialMessages.count),
             initialMessages.last?.id ?? ""
         ].joined(separator: "|")
@@ -1072,6 +1091,15 @@ struct ChatView: View {
         applyCameraCaptureRequestIfNeeded()
     }
 
+    private func catchUpNotificationCompletion(renewAttempts: Bool = false) async {
+        let notifications = PushNotificationManager.shared
+        guard historyPresentationReady, let intent = notifications.completionCatchUpIntent(for: chatId),
+              intent.chatID == chatId, intent.isCurrent else { return }
+        if await viewModel.refreshNotificationCompletion(intent, renewAttempts: renewAttempts), intent.isCurrent {
+            notifications.finishCompletionCatchUp(intent.id)
+        }
+    }
+
     private func handleChatTask() async {
         if let loadedRouteID, loadedRouteID != chatId {
             // ChatView retains its identity across selection; overlays belong to
@@ -1092,6 +1120,7 @@ struct ChatView: View {
         isPIIRevealed = false
         viewModel.configure(wsManager: wsManager, chatStore: chatStore)
         await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
+        await catchUpNotificationCompletion()
         openInitialEmbedIfReady()
         await restoreEncryptedDraft()
         #if DEBUG
@@ -1116,7 +1145,7 @@ struct ChatView: View {
             chatId: chatId,
             chatTitle: viewModel.chat?.displayTitle
         )
-        PushNotificationManager.shared.clearBadge()
+        UnreadMessagesStore.shared.resynchronizeBadge()
     }
 
     #if DEBUG
@@ -2422,16 +2451,29 @@ struct ChatView: View {
         let navigationID = historyNavigationID
         let scope = OfflineStore.shared.scopeGeneration
         let attemptID = visibleReceiptAttemptID
+        let profile = ServerProfile.current()
+        let team = TeamWorkspaceContext.shared.snapshot
+        let accountID = authManager.currentUser?.id
+        let deletion = OfflineStore.shared.chatDeletionVersion(requestedChatID)
         Task { @MainActor in
             let confirmed = await onFinalMessagesVisible(toSend)
             let acknowledged = confirmed.intersection(toSend)
             guard chatId == requestedChatID, historyNavigationID == navigationID,
                   OfflineStore.shared.scopeGeneration == scope,
-                  visibleReceiptAttemptID == attemptID else { return }
+                  visibleReceiptAttemptID == attemptID, ServerProfile.current() == profile,
+                  authManager.currentUser?.id == accountID, TeamWorkspaceContext.shared.isCurrent(team),
+                  OfflineStore.shared.chatDeletionVersion(requestedChatID) == deletion else { return }
             inFlightVisibleReceiptIds.subtract(toSend)
             reportedVisibleReceiptIds.formUnion(acknowledged)
             pendingVisibleReceiptIds.formUnion(toSend.subtracting(acknowledged)
                 .subtracting(reportedVisibleReceiptIds))
+            if let accountID, viewModel.chat?.teamId == team.teamID, !acknowledged.isEmpty {
+                let aliases = viewModel.messages.filter { acknowledged.contains($0.id) }
+                    .compactMap(\.serverMessageId)
+                await PushNotificationManager.shared.removeAcknowledgedChatNotifications(
+                    chatID: requestedChatID, messageIDs: acknowledged.union(aliases),
+                    accountID: accountID, profile: profile, scope: scope, team: team, deletion: deletion)
+            }
         }
     }
 
@@ -3593,6 +3635,7 @@ struct ChatView: View {
     ) {
         let uploadChatID = chatId
         let uploadScope = AudioRecordingUploadScope.capture()
+        let localTranscription = realtimeSession?.usesLocalTranscription == true
         let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
         recordingTemporaryFiles[nodeID] = url
         do {
@@ -3609,7 +3652,8 @@ struct ChatView: View {
                 onRetry: { _ in
                     guard uploadScope.isCurrent, chatId == uploadChatID else { return }
                     recordingUploadTasks[nodeID] = Task { @MainActor in
-                        await retryRecordingUpload(nodeID: nodeID, url: url, duration: duration, waveform: waveform, realtimeResult: realtimeResult)
+                        await retryRecordingUpload(nodeID: nodeID, url: url, duration: duration, waveform: waveform, realtimeResult: realtimeResult,
+                            localTranscription: localTranscription)
                         recordingUploadTasks[nodeID] = nil
                     }
                 },
@@ -3653,6 +3697,7 @@ struct ChatView: View {
                 duration: duration,
                 waveform: waveform,
                 realtimeResult: realtimeResult,
+                localTranscription: localTranscription,
                 trackingId: nodeID
             )
             recordingUploadTasks[nodeID] = nil
@@ -3676,7 +3721,8 @@ struct ChatView: View {
 
     private func retryRecordingUpload(nodeID: String, url: URL, duration: TimeInterval,
                                       waveform: AudioRecordingWaveform? = nil,
-                                      realtimeResult: AudioRecordingRealtimeResultProvider? = nil) async {
+                                      realtimeResult: AudioRecordingRealtimeResultProvider? = nil,
+                                      localTranscription: Bool = false) async {
         let uploadChatID = chatId
         let uploadScope = AudioRecordingUploadScope.capture()
         guard let generation = retryComposerEmbed(nodeID: nodeID, to: .transcribing) else { return }
@@ -3685,6 +3731,7 @@ struct ChatView: View {
             duration: duration,
             waveform: waveform,
             realtimeResult: realtimeResult,
+            localTranscription: localTranscription,
             trackingId: nodeID
         ) else {
             _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)

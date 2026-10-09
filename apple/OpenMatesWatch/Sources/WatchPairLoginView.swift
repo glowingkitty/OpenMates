@@ -27,6 +27,7 @@ enum WatchPairLoginFixtureState: Equatable {
     case pairCodeEntry
     case initiationFailed
     case selfHostedInitiationFailed
+    case completionFailed
 }
 
 @MainActor
@@ -57,6 +58,16 @@ final class WatchPairLoginState: ObservableObject {
         initiationTask?.cancel()
         pollTask?.cancel()
         fallbackTask?.cancel()
+    }
+
+    func failCompletion(_ error: Error) {
+        NativeDiagnostics.error("phase=view.complete.failed errorType=\(type(of: error))",
+                                category: watchPairLoginDiagnosticsCategory)
+        errorMessage = WatchStrings.pairRestartRequired
+        pin = ""
+        phonePINAccepted = false
+        status = .failed
+        isSubmitting = false
     }
 
     @discardableResult
@@ -130,6 +141,12 @@ struct WatchPairLoginView: View {
             case .pairCodeEntry:
                 state.pairURLString = "https://openmates.org/#pair=WATCH42"
                 state.status = .ready
+            case .completionFailed:
+                state.activeTokenServerProfile = state.serverProfile
+                state.pin = "ABC346"
+                state.phonePINAccepted = true
+                state.isSubmitting = true
+                state.failCompletion(PairOpaqueError.invalidExchange)
             case .initiationFailed, .selfHostedInitiationFailed:
                 state.token = nil
                 state.pairURLString = nil
@@ -176,7 +193,13 @@ struct WatchPairLoginView: View {
                         // fails before the server provides a token or short URL.
                         serverSelectionView
                         Button {
-                            startPairing(force: true)
+                            if uiTestFixture == .completionFailed {
+                                // Exercise the production attempt reset without
+                                // making a server request in a synthetic UI run.
+                                _ = pairState.beginAttempt(serverProfile: pairState.serverProfile)
+                            } else {
+                                startPairing(force: true)
+                            }
                         } label: {
                             Text(WatchStrings.pairRefresh)
                                 .font(.omSmall)
@@ -843,10 +866,7 @@ struct WatchPairLoginView: View {
                       pairState.activeTokenServerProfile == serverProfile,
                       pairState.serverProfile == serverProfile else { return }
                 phoneBridge.clearPairingReceipts()
-                pairState.errorMessage = error.localizedDescription
-                pairState.pin = ""
-                pairState.status = .failed
-                pairState.isSubmitting = false
+                pairState.failCompletion(error)
             }
         }
     }

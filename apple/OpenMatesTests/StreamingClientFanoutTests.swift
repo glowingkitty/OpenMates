@@ -6,6 +6,24 @@ import XCTest
 
 @MainActor
 final class StreamingClientFanoutTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.message.identity-idempotent,chats.persistence.client-encrypted
+    func testMaterializedCanonicalReplayExcludesItsDatabaseAliasAndHonorsPendingAliases() async {
+        let row = Message(id: "canonical", chatId: "chat", role: .assistant, content: "Synthetic final",
+            encryptedContent: "saved-ciphertext", createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil, serverMessageId: "message")
+        let ids = ChatStreamReplayPolicy.materializedFinalMessageIDs(in: [row], chatID: "chat", pendingMessageIDs: [])
+        XCTAssertEqual(ids, ["canonical", "message"])
+        XCTAssertTrue(ChatStreamReplayPolicy.materializedFinalMessageIDs(in: [row], chatID: "chat",
+            pendingMessageIDs: ["message"]).isEmpty)
+        let client = StreamingClient()
+        await client.dispatch(task(), for: "chat")
+        await client.dispatch(chunk(1, content: "Synthetic final", final: true), for: "chat")
+        let reader = await client.streamForChat("chat", excludingMaterializedFinalMessageIDs: ids)
+        await client.removeAllStreams()
+        let events = await collect(reader)
+        XCTAssertTrue(events.isEmpty, "The buffered DB alias must not add a second plaintext answer")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.streaming.ordered-final,chats.streaming.progressive-presentation
     func testBufferedFinalIsConsumedOnceAcrossRepeatedMetadataRefreshRequests() async {
         let client = StreamingClient()

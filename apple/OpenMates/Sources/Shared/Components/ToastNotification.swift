@@ -3,9 +3,13 @@
 // Svelte: frontend/packages/ui/src/components/Notification.svelte
 //         frontend/packages/ui/src/components/NotificationStack.svelte
 // CSS: .notification, .notification-header, .notification-content,
-//      .notification-progress, .notification-activity, notificationSlideIn/Out
+//      .notification-progress, .notification-activity, .notification-action-row,
+//      .notification-action-btn-primary/secondary, notificationSlideIn/Out
+// Specification: specifications/features/apple-local-model-lab/specification.yml
+// Assertions: apple-local-model-lab.optional-downloads
 // ────────────────────────────────────────────────────────────────────
 
+import Combine
 import SwiftUI
 
 @MainActor
@@ -110,6 +114,12 @@ enum NotificationMotion {
     }
 }
 
+struct InAppNotificationAction: Identifiable {
+    let id: String
+    let label: String
+    let perform: () -> Void
+}
+
 struct InAppNotificationCard: View {
     let title: String
     let message: String
@@ -118,8 +128,21 @@ struct InAppNotificationCard: View {
     var isProcessing = false
     var compact = false
     var isInteractive = true
+    var primaryAction: InAppNotificationAction?
+    var secondaryAction: InAppNotificationAction?
+    var downloadFraction: Double?
     let onDismiss: () -> Void
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    #if DEBUG && targetEnvironment(simulator)
+    @Environment(\.embedProcessingFixtureReducedMotion) private var fixtureReduceMotion
+    #endif
+    private var reduceMotion: Bool {
+        #if DEBUG && targetEnvironment(simulator)
+        systemReduceMotion || fixtureReduceMotion
+        #else
+        systemReduceMotion
+        #endif
+    }
     @State private var progress: CGFloat = 0
     @State private var activity = false
     @State private var dragOffset: CGFloat = 0
@@ -148,17 +171,36 @@ struct InAppNotificationCard: View {
                     .background(type.color)
                     .clipShape(RoundedRectangle(cornerRadius: .radius4))
                     .accessibilityHidden(true)
-                Text(message).font(.omSmall).fontWeight(.medium).foregroundStyle(Color.grey90)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityIdentifier("notification-message")
+                VStack(alignment: .leading, spacing: .spacing3) {
+                    Text(message).font(.omSmall).fontWeight(.medium).foregroundStyle(Color.grey90)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("notification-message")
+                    if let primaryAction {
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: .spacing3) { actionButtons(primaryAction) }
+                            VStack(alignment: .leading, spacing: .spacing3) { actionButtons(primaryAction) }
+                        }
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("notification-action-row")
+                    }
+                }
             }
         }
         .padding(.horizontal, compact ? .spacing6 : .spacing8)
         .padding(.vertical, compact ? .spacing5 : .spacing6)
         .background(Color.grey30)
         .overlay(alignment: .bottomLeading) {
-            if duration > 0 {
+            if let downloadFraction {
+                GeometryReader { geometry in
+                    Color.buttonPrimary.frame(width: geometry.size.width * min(1, max(0, downloadFraction)))
+                }
+                .frame(height: .spacing2)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(AppStrings.offlineAIModelsTitle)
+                .accessibilityValue("\(Int(min(1, max(0, downloadFraction)) * 100))%")
+                .accessibilityIdentifier("offline-ai-download-progress")
+            } else if duration > 0 {
                 GeometryReader { geometry in
                     Color.grey50.frame(width: geometry.size.width * progress)
                 }
@@ -199,16 +241,78 @@ struct InAppNotificationCard: View {
             if isProcessing { withAnimation(.easeInOut(duration: reduceMotion ? 2.4 : 1.35).repeatForever(autoreverses: false)) { activity = true } }
         }
     }
+
+    @ViewBuilder private func actionButtons(_ primary: InAppNotificationAction) -> some View {
+        if let secondaryAction { actionButton(secondaryAction, primary: false) }
+        actionButton(primary, primary: true)
+    }
+
+    private func actionButton(_ action: InAppNotificationAction, primary: Bool) -> some View {
+        Button(action: action.perform) {
+            Text(action.label).font(.omXxs).fontWeight(.semibold)
+                .fixedSize(horizontal: true, vertical: false)
+                .foregroundStyle(primary ? Color.fontButton : Color.fontPrimary)
+                // Notification.svelte actions use measured 8px/18px padding.
+                .padding(.vertical, 8).padding(.horizontal, 18)
+                .background(primary ? Color.buttonPrimary : Color.grey40)
+                .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                .shadow(color: .black.opacity(primary ? 0.15 : 0), radius: 4, y: 2)
+        }
+        .buttonStyle(.plain)
+        .disabled(!isInteractive)
+        .accessibilityHidden(!isInteractive)
+        .accessibilityIdentifier(action.id)
+    }
+}
+
+@MainActor
+final class OfflineAIModelPackPresentation: ObservableObject {
+    static let shared = OfflineAIModelPackPresentation()
+    let settingsRequests = PassthroughSubject<Void, Never>()
+    func openSettings() { settingsRequests.send() }
+}
+
+/// Only the initial consent appears in chat. Transfer progress belongs to
+/// Settings > AI > Offline models and the system Live Activity.
+struct OfflineAIModelPackNotificationCard: View {
+    let snapshot: OfflineAIModelPackSnapshot
+    var compact = false
+    var isInteractive = true
+    let onDownload: () -> Void
+    let onLater: () -> Void
+
+    var body: some View {
+        if snapshot.phase == .offered {
+            InAppNotificationCard(title: AppStrings.offlineAIModelsTitle, message: AppStrings.offlineAIModelsOffer,
+                type: .info, compact: compact, isInteractive: isInteractive,
+                primaryAction: .init(id: "offline-ai-download", label: AppStrings.download, perform: onDownload),
+                secondaryAction: .init(id: "offline-ai-later", label: AppStrings.offlineAIModelsLater, perform: onLater),
+                onDismiss: onLater)
+                .accessibilityIdentifier("offline-ai-model-pack-notification")
+        }
+    }
 }
 
 struct ToastOverlay: View {
     @ObservedObject var manager = ToastManager.shared
+    var showsOfflinePack = true
+    @ObservedObject private var offlinePack = OfflineAIModelPack.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geometry in
             VStack {
                 ZStack(alignment: .top) {
+                    if showsOfflinePack && offlinePack.snapshot.phase == .offered {
+                        OfflineAIModelPackNotificationCard(snapshot: offlinePack.snapshot,
+                            compact: geometry.size.width <= 450, isInteractive: manager.notifications.isEmpty,
+                            onDownload: { offlinePack.download() },
+                            onLater: { offlinePack.deferDownload() })
+                            .frame(width: min(430, max(0, geometry.size.width - (geometry.size.width <= 450 ? 20 : 40))))
+                            .allowsHitTesting(manager.notifications.isEmpty)
+                            .accessibilityHidden(!manager.notifications.isEmpty)
+                            .transition(NotificationMotion.transition(reduceMotion: reduceMotion))
+                    }
                     // Covered cards are a separate view identity from the
                     // interactive foreground. Promoting a retained notice must
                     // create an enabled, untransformed dismiss control rather
@@ -229,7 +333,7 @@ struct ToastOverlay: View {
             .animation(reduceMotion ? .linear(duration: 0.001) : .timingCurve(0.32, 0, 0.2, 1,
                 duration: NotificationMotion.introDuration), value: manager.notifications)
         }
-        .allowsHitTesting(!manager.notifications.isEmpty)
+        .allowsHitTesting(!manager.notifications.isEmpty || (showsOfflinePack && offlinePack.snapshot.phase == .offered))
     }
 
     private func notificationCard(_ toast: ToastManager.Toast, depth: Int, width: CGFloat) -> some View {

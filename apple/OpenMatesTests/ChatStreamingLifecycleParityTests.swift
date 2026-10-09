@@ -10,6 +10,97 @@ import SwiftData
 
 @MainActor
 final class ChatStreamingLifecycleParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.message.identity-idempotent,chats.persistence.client-encrypted
+    func testNotificationCatchUpReadsCachedPartialAndKeepsExactSavedCanonicalRow() async throws {
+        var reads = 0
+        let fixture = try terminalSyncFixture(decrypt: { rows, _ in
+            rows.map { row in var row = row; row.content = "Synthetic completed response"; return row }
+        }, window: { id, _, query in
+            reads += 1
+            XCTAssertEqual(query.direction, .latest)
+            XCTAssertEqual(query.limit, 20)
+            return try self.terminalPage(chatID: id, messageID: "task")
+        })
+        fixture.model.seedIsolatedHistory(chat: fixture.chat,
+            messages: [terminalRow(id: "task", chatID: fixture.chat.id, cipher: nil, streaming: true)], embeds: [])
+        fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "task", userMessageId: "user"))
+        let finished = await fixture.model.refreshNotificationCompletion(chatID: fixture.chat.id, messageID: "task",
+            intentID: UUID(), isCurrent: { true })
+        XCTAssertTrue(finished)
+        XCTAssertEqual(reads, 1, "Nonempty cached history must still get a bounded authoritative read")
+        XCTAssertEqual(fixture.model.messages.map(\.id), ["task"])
+        XCTAssertEqual(fixture.model.messages.first?.encryptedContent, "synthetic-saved-ciphertext")
+        XCTAssertEqual(fixture.model.messages.first?.content, "Synthetic completed response")
+        XCTAssertFalse(fixture.model.isStreaming)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,apple-offline.interruption-isolation
+    func testNotificationCatchUpRejectsChangedIntentAndPreservesNewerTurnDuringRead() async throws {
+        weak var model: ChatViewModel?
+        var current = true
+        let fixture = try terminalSyncFixture(decrypt: { rows, _ in
+            rows.map { row in var row = row; row.content = "Synthetic completed response"; return row }
+        }, window: { id, _, _ in
+            model?.handleStreamEvent(.taskInitiated(chatId: id, taskId: "new-task", userMessageId: "new-user"))
+            return try self.terminalPage(chatID: id, messageID: "old-task")
+        })
+        model = fixture.model
+        fixture.model.seedIsolatedHistory(chat: fixture.chat,
+            messages: [terminalRow(id: "old-task", chatID: fixture.chat.id, cipher: nil, streaming: true)], embeds: [])
+        fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "old-task", userMessageId: "old-user"))
+        let finished = await fixture.model.refreshNotificationCompletion(chatID: fixture.chat.id, messageID: "old-task",
+            intentID: UUID(), isCurrent: { current })
+        XCTAssertTrue(finished)
+        XCTAssertTrue(fixture.model.isStreaming)
+        XCTAssertEqual(fixture.model.streamingLifecycle.taskId, "new-task")
+        current = false
+        let rejected = await fixture.model.refreshNotificationCompletion(chatID: fixture.chat.id, messageID: "old-task",
+            intentID: UUID(), isCurrent: { current })
+        XCTAssertFalse(rejected)
+        XCTAssertEqual(fixture.model.streamingLifecycle.taskId, "new-task")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,apple-offline.interruption-isolation
+    func testNotificationReadRejectsAccountScopeReplacementDuringRequest() async throws {
+        var scope = UUID()
+        let fixture = try terminalSyncFixture(decrypt: { rows, _ in
+            rows.map { row in var row = row; row.content = "Synthetic completed response"; return row }
+        }, scopeProvider: { scope }, window: { id, _, _ in
+            scope = UUID()
+            return try self.terminalPage(chatID: id, messageID: "task")
+        })
+        let partial = terminalRow(id: "task", chatID: fixture.chat.id, cipher: nil, streaming: true)
+        fixture.model.seedIsolatedHistory(chat: fixture.chat, messages: [partial], embeds: [])
+        fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "task", userMessageId: "user"))
+        let finished = await fixture.model.refreshNotificationCompletion(chatID: fixture.chat.id, messageID: "task",
+            intentID: UUID(), isCurrent: { true })
+        XCTAssertFalse(finished)
+        XCTAssertTrue(fixture.model.isStreaming)
+        XCTAssertNil(fixture.model.messages.first?.encryptedContent)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.message.identity-idempotent,chats.persistence.client-encrypted
+    func testCanonicalSavedAliasCollapsesOnReopenWithoutCollapsingRepeatedText() {
+        let alias = terminalRow(id: "database", chatID: "chat", cipher: nil, streaming: true)
+        let canonical = terminalRow(id: "canonical", chatID: "chat", alias: alias.id)
+        let repeatedTurn = terminalRow(id: "separate-turn", chatID: "chat")
+        let rows = ChatHistoryWindowPolicy.orderedUnique([alias, canonical, repeatedTurn])
+        XCTAssertEqual(Set(rows.map(\.id)), [canonical.id, repeatedTurn.id])
+        XCTAssertEqual(rows.first { $0.id == canonical.id }?.serverMessageId, alias.id)
+        XCTAssertEqual(rows.first { $0.id == canonical.id }?.encryptedContent, canonical.encryptedContent)
+        XCTAssertEqual(rows.count, 2, "Identical prose in distinct turns remains distinct")
+    }
+
+    private func terminalPage(chatID: String, messageID: String) throws -> ChatMessageWindowPage {
+        var row = terminalRow(id: messageID, chatID: chatID)
+        row.content = nil
+        let cursor = try ChatMessageWindowPage.cursor(for: row)
+        return ChatMessageWindowPage(chatId: chatID, messages: [row], hasMoreBefore: false, hasMoreAfter: false,
+            startCursor: cursor, endCursor: cursor, anchorFound: true, serverMessageCount: 1, messagesV: 2,
+            compressionBoundaryTimestamp: nil, compressionCheckpoints: [], respectCompressionBoundary: false,
+            oversizedMessage: nil, oversizedMessageCursor: nil, payloadBytes: nil)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.message.identity-idempotent
     func testSavedTerminalMatchesTaskBeforeTypingAndPrefersKnownAssistantIdentity() throws {
         var state = ChatStreamingLifecycleState()
@@ -236,7 +327,8 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
     }
 
     private func terminalSyncFixture(decrypt: @escaping @MainActor ([Message], String) async -> [Message] = { rows, _ in rows },
-                                     scopeProvider: (@MainActor () -> UUID)? = nil)
+                                     scopeProvider: (@MainActor () -> UUID)? = nil,
+                                     window: @escaping @MainActor (String, String?, ChatMessageWindowQuery) async throws -> ChatMessageWindowPage = { _, _, _ in throw CancellationError() })
         throws -> (model: ChatViewModel, chat: Chat, coordinator: ActiveChatsCoordinator) {
         let schema = Schema([PersistedChat.self, PersistedMessage.self, PersistedEmbed.self,
             PersistedEmbedKey.self, PersistedCodeRunOutput.self, PendingOfflineAction.self])
@@ -252,7 +344,7 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
             scope: scopeProvider?() ?? offline.scopeGeneration,
             team: .init(epoch: team.epoch, teamID: team.teamID), authenticated: true)
         let model = ChatViewModel(messageDecryptor: decrypt, accountScopeGeneration: { scopeProvider?() ?? offline.scopeGeneration },
-            offlineStore: offline, processingCoordinator: coordinator)
+            offlineStore: offline, processingCoordinator: coordinator, messageWindowFetcher: window)
         model.chat = chat
         return (model, chat, coordinator)
     }

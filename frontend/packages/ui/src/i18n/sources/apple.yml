@@ -116,3 +116,117 @@ controls.action:
   context: Parameter title for a system Control selecting an existing OpenMates quick action
   en: Action
   verified_by_human: []
+
+offline_ai_models.title:
+  context: Optional native offline model pack notification title
+  en: Offline AI models
+  de: Offline-KI-Modelle
+  verified_by_human: []
+offline_ai_models.offer:
+  context: Explicit consent prompt on composer focus; installing models does not change privacy settings
+  en: "Want to download offline AI models (2.3GB) for reducing your costs & even better privacy protection?"
+  de: "Möchtest du Offline-KI-Modelle (2,3 GB) herunterladen, um deine Kosten zu senken und deine Privatsphäre noch besser zu schützen?"
+  verified_by_human: []
+offline_ai_models.later:
+  context: Defer the optional model download offer for 24 hours
+  en: Later
+  de: Später
+  verified_by_human: []
+offline_ai_models.resume:
+  context: Explicitly resume a paused optional model download
+  en: Resume
+  de: Fortsetzen
+  verified_by_human: []
+offline_ai_models.paused:
+  context: Optional model download paused by the user
+  en: Download paused. Resume when you are ready.
+  de: Download pausiert. Setze ihn fort, wenn du bereit bist.
+  verified_by_human: []
+offline_ai_models.downloading:
+  context: Optional offline model file transfer phase
+  en: Downloading
+  de: Wird heruntergeladen
+  verified_by_human: []
+offline_ai_models.verifying:
+  context: Optional offline model checksum verification phase
+  en: Verifying files
+  de: Dateien werden überprüft
+  verified_by_human: []
+offline_ai_models.waiting:
+  context: Optional offline model transfer is waiting for connectivity
+  en: Waiting for connection
+  de: Warten auf Verbindung
+  verified_by_human: []
+offline_ai_models.retrying:
+  context: Optional offline model transfer retry phase
+  en: Retrying download
+  de: Download wird erneut versucht
+  verified_by_human: []
+offline_ai_models.progress:
+  context: Optional pack model name and actual transferred bytes; placeholders must remain unchanged
+  en: "{model}: {status}. {downloaded} of {total}"
+  de: "{model}: {status}. {downloaded} von {total}"
+  verified_by_human: []
+offline_ai_models.complete:
+  context: Asset completion does not imply privacy protection activation
+  en: Offline AI models downloaded.
+  de: Offline-KI-Modelle heruntergeladen.
+  verified_by_human: []
+offline_ai_models.online_speech:
+  context: Explicit user consent to provider speech after local speech fails
+  en: Use online speech
+  de: Online-Sprachausgabe verwenden
+  verified_by_human: []
+offline_ai_models.local_transcription_failed:
+  context: Local transcription failed; recording remains intact and user may retry explicitly
+  en: Local transcription failed. Your recording is kept so you can retry.
+  de: Lokale Transkription fehlgeschlagen. Deine Aufnahme bleibt für einen erneuten Versuch erhalten.
+  verified_by_human: []
+
+offline_ai_models.local_speech_failed:
+  context: Local speech failure; provider speech requires an explicit user choice
+  en: On-device speech failed. Retry or choose online speech.
+  de: Sprachausgabe auf dem Gerät fehlgeschlagen. Versuche es erneut oder wähle die Online-Sprachausgabe.
+  verified_by_human: []
+
+signed_out_inspiration.dreams:
+  context: Synchronous normal Daily Inspiration fallback before public API content arrives
+  en: Why does your brain create entire worlds while you sleep?
+  de: Warum erschafft dein Gehirn ganze Welten, während du schläfst?
+  verified_by_human: []
+signed_out_inspiration.history:
+  context: Synchronous normal Daily Inspiration fallback before public API content arrives
+  en: What forgotten event quietly changed how people live today?
+  de: Welches vergessene Ereignis hat unbemerkt verändert, wie Menschen heute leben?
+  verified_by_human: []
+signed_out_inspiration.activism:
+  context: Synchronous normal Daily Inspiration fallback before public API content arrives
+  en: Which everyday choice has a bigger social impact than it seems?
+  de: Welche alltägliche Entscheidung hat größere gesellschaftliche Auswirkungen, als es scheint?
+  verified_by_human: []
+
+offline_ai_models.settings_title:
+  context: Native Settings > AI destination for optional capability downloads
+  en: Offline models
+  de: Offline-Modelle
+  verified_by_human: []
+offline_ai_models.speech_to_text:
+  context: User-facing offline capability label; never expose the underlying model name
+  en: Speech to text
+  de: Sprache zu Text
+  verified_by_human: []
+offline_ai_models.text_to_speech:
+  context: User-facing offline capability label; never expose the underlying model name
+  en: Text to speech
+  de: Text zu Sprache
+  verified_by_human: []
+offline_ai_models.enhanced_anonymization:
+  context: User-facing optional offline anonymization asset label; downloading does not activate protection
+  en: Enhanced anonymization
+  de: Erweiterte Anonymisierung
+  verified_by_human: []
+offline_ai_models.ready:
+  context: Offline capability assets have completed verification
+  en: Downloaded
+  de: Heruntergeladen
+  verified_by_human: []

@@ -1393,6 +1393,7 @@ actor BackgroundChatSender {
 
         let uploadURL = ServerConfiguration.current.uploadBaseURL.appendingPathComponent("v1/upload/file")
         var request = URLRequest(url: uploadURL)
+        NativeClientIdentity.current.apply(to: &request)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue(ServerConfiguration.current.webAppURL.absoluteString, forHTTPHeaderField: "Origin")
@@ -1807,6 +1808,7 @@ actor BackgroundChatSender {
         }
 
         var request = URLRequest(url: url)
+        NativeClientIdentity.current.apply(to: &request)
         request.httpMethod = method.rawValue
         if path == "/v1/auth/session" { request.timeoutInterval = 10 }
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1993,6 +1995,7 @@ private final class BackgroundWebSocket: @unchecked Sendable {
         guard let url = components.url else { throw BackgroundChatSendError.network }
 
         var request = URLRequest(url: url)
+        NativeClientIdentity.current.apply(to: &request)
         request.timeoutInterval = 30
         request.setValue(profile.webBaseURL.absoluteString, forHTTPHeaderField: "Origin")
         request.setValue("OpenMates-Apple/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")", forHTTPHeaderField: "User-Agent")

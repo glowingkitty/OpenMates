@@ -3,6 +3,35 @@ import XCTest
 
 @MainActor
 final class PushCompletionNoticePolicyTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent,apple-notifications.delivery.idempotent-visible,chats.message.identity-idempotent
+    func testAcknowledgedCardCleanupRequiresExactRecipientWorkspaceChatAndMessage() {
+        let scope = PushReadCardPolicy.scopeID(accountID: "fixture-owner", profile: .development, teamID: "team-a")
+        func card(scope: String? = scope, chat: String = "chat", message: String? = "canonical") -> [AnyHashable: Any] {
+            var info: [AnyHashable: Any] = ["chat_id": chat]
+            info[PushReadCardPolicy.scopeKey] = scope
+            info["message_id"] = message
+            return info
+        }
+        let acknowledged: Set<String> = ["canonical", "database-alias"]
+        XCTAssertTrue(PushReadCardPolicy.matches(userInfo: card(), scopeID: scope, chatID: "chat", messageIDs: acknowledged))
+        XCTAssertTrue(PushReadCardPolicy.matches(userInfo: card(message: "database-alias"), scopeID: scope,
+            chatID: "chat", messageIDs: acknowledged))
+        for info in [card(chat: "other-chat"), card(message: "newer-unread"), card(message: nil), card(scope: nil)] {
+            XCTAssertFalse(PushReadCardPolicy.matches(userInfo: info, scopeID: scope, chatID: "chat", messageIDs: acknowledged))
+        }
+        for otherScope in [
+            PushReadCardPolicy.scopeID(accountID: "other-owner", profile: .development, teamID: "team-a"),
+            PushReadCardPolicy.scopeID(accountID: "fixture-owner", profile: .production, teamID: "team-a"),
+            PushReadCardPolicy.scopeID(accountID: "fixture-owner", profile: .development, teamID: "team-b"),
+            PushReadCardPolicy.scopeID(accountID: "fixture-owner", profile: .development, teamID: nil)] {
+            XCTAssertFalse(PushReadCardPolicy.matches(userInfo: card(scope: otherScope), scopeID: scope,
+                chatID: "chat", messageIDs: acknowledged))
+        }
+        XCTAssertFalse(PushReadCardPolicy.matches(userInfo: card(), scopeID: scope, chatID: "chat", messageIDs: []))
+        XCTAssertFalse(scope.contains("fixture"), "OS metadata carries an opaque recipient/workspace identity")
+        XCTAssertEqual(scope, PushReadCardPolicy.scopeID(accountID: "fixture-owner", profile: .development, teamID: "team-a"))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-notifications.registration.lifecycle
     func testCompletionNoticeRequiresOptInAndExactAccountServerGeneration() {
         let context = PushRegistrationContext(accountID: "fixture-account", profile: .development, scope: UUID())

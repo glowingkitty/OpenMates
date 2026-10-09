@@ -95,6 +95,7 @@ import UIKit
 struct LocalModelBackgroundDownloader: LocalModelFileDownloading {
     func discardTransfers(in staging: URL) { LocalModelBackgroundTransfers.shared.discard(in: staging) }
     func finishProcessing(in staging: URL) { LocalModelBackgroundTransfers.shared.finishProcessing(in: staging) }
+    func setSequentialPackActive(_ active: Bool) { LocalModelBackgroundTransfers.shared.setSequentialPackActive(active) }
     func download(_ file: LocalModelFile, to destination: URL,
                   progress: @escaping @Sendable (Int64) -> Void) async throws {
         try await download(file, to: destination, progress: progress, status: { _ in })
@@ -172,6 +173,8 @@ final class LocalModelBackgroundTransfers: NSObject, URLSessionDownloadDelegate,
     private var cancellationRequests: Set<UUID> = []
     private var completions: [Completion] = []
     private var finishedEventsPending = false
+    private var sequentialPackActive = false
+    private static let packProcessingKey = "offline-ai-pack-transition"
     private var session: URLSession!
     private var bootstrapped = false
     private var bootstrapWaiters: [CheckedContinuation<Void, Never>] = []
@@ -312,6 +315,7 @@ final class LocalModelBackgroundTransfers: NSObject, URLSessionDownloadDelegate,
                 record.receivedBytes = received; records[id] = record
                 try? save(record)
                 processing.settled(Self.staging(for: destination))
+                processing.settled(Self.packProcessingKey)
                 lock.unlock()
                 waiter.progress(max(0, received)); waiter.status(.transferring); return
             }
@@ -338,11 +342,24 @@ final class LocalModelBackgroundTransfers: NSObject, URLSessionDownloadDelegate,
         // completion must not reserve ownership and then have it cleared here.
         task.resume()
         processing.settled(Self.staging(for: destination))
+        processing.settled(Self.packProcessingKey)
         lock.unlock()
         waiter.progress(record.receivedBytes ?? 0)
     }
     private static func staging(for destination: String) -> String {
         String(destination.split(separator: "/").first ?? "")
+    }
+    func setSequentialPackActive(_ active: Bool) {
+        lock.lock()
+        sequentialPackActive = active
+        if active {
+            // Hold an OS completion across the model boundary until the next
+            // real URLSession task is enqueued, not merely a Swift Task created.
+            if !tasks.values.contains(where: { $0.state == .running || $0.state == .suspended }) {
+                processing.begin(Self.packProcessingKey)
+            }
+        } else { processing.settled(Self.packProcessingKey) }
+        lock.unlock()
     }
     func finishProcessing(in staging: URL) { processing.settled(staging.lastPathComponent) }
     func waitForPostprocessing() async { await processing.wait() }
@@ -451,6 +468,7 @@ final class LocalModelBackgroundTransfers: NSObject, URLSessionDownloadDelegate,
         guard var record = records[id] else { lock.unlock(); return }
         // Reserve before waking the detached installer or handing events to UIKit.
         processing.begin(Self.staging(for: record.destination))
+        if sequentialPackActive { processing.begin(Self.packProcessingKey) }
         let waiter = waiters.removeValue(forKey: id)
         let cancelled = cancellationRequests.remove(id) != nil || (error as NSError?)?.code == NSURLErrorCancelled
         var failure: Error? = error

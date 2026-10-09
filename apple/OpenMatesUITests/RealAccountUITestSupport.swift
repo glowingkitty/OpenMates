@@ -7,6 +7,9 @@
 
 import CryptoKit
 import XCTest
+#if os(iOS)
+import UIKit
+#endif
 
 @MainActor
 enum RealAccountUITestSupport {
@@ -36,6 +39,56 @@ enum RealAccountUITestSupport {
         app.launch()
         return app
     }
+
+    #if os(iOS)
+    // Normal field/edit-menu submission. Clipboard text is never passed to
+    // XCTest typeText(), activity names, assertions or attachments.
+    static func submitCurrentWatchPairTOTP(app: XCUIApplication,
+        credentials: RealAccountTestCredentials, field: XCUIElement,
+        submit: XCUIElement) throws {
+        let safeWindow = NSPredicate { _, _ in Int(Date().timeIntervalSince1970) % 30 < 25 }
+        guard XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: safeWindow, object: nil)], timeout: 8) == .completed else {
+            throw XCTSkip("No sufficient current TOTP window")
+        }
+        guard focusForTextEntry(field, in: app, identifier: "watch-pair-step-up-code") else {
+            throw XCTSkip("Normal Watch verification field could not receive focus")
+        }
+        clearOtpCode(in: field, app: app)
+        let priorClipboard = UIPasteboard.general.items
+        defer { UIPasteboard.general.items = priorClipboard }
+        UIPasteboard.general.setItems([[UIPasteboard.typeAutomatic: TOTP.generate(secret: credentials.otpKey)]],
+            options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(45)])
+        field.press(forDuration: 1.1)
+        let menuPaste = app.menuItems["Paste"]
+        let buttonPaste = app.buttons["Paste"]
+        let offersPaste = NSPredicate { _, _ in menuPaste.exists || buttonPaste.exists }
+        guard XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: offersPaste, object: nil)], timeout: 3) == .completed else {
+            throw XCTSkip("Normal text edit menu did not offer Paste")
+        }
+        (menuPaste.exists ? menuPaste : buttonPaste).tap()
+        let allowPaste = app.alerts.buttons["Allow Paste"]
+        if allowPaste.waitForExistence(timeout: 2) { allowPaste.tap() }
+        let canSubmit = NSPredicate { _, _ in submit.exists && submit.isEnabled && submit.isHittable }
+        if XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: canSubmit, object: nil)], timeout: 3) != .completed {
+            app.scrollViews["settings-watch-pair-page"].swipeUp()
+        }
+        guard XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: canSubmit, object: nil)], timeout: 3) == .completed else {
+            clearOtpCode(in: field, app: app)
+            throw XCTSkip("Normal Watch verification action is unavailable")
+        }
+        submit.tap()
+        // Production clears the OTP on both success and a handled server error.
+        // Clear it through the ordinary field if the response stalls, before
+        // allowing the runner to attach a failure screenshot.
+        let noVisibleCode = NSPredicate { _, _ in
+            !field.exists || !(field.value as? String ?? "").contains(where: \.isNumber)
+        }
+        guard XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: noVisibleCode, object: nil)], timeout: 10) == .completed else {
+            clearOtpCode(in: field, app: app)
+            throw XCTSkip("Watch verification did not clear its input after submission")
+        }
+    }
+    #endif
 
     static func installNotificationPermissionHandler(on testCase: XCTestCase) {
         testCase.addUIInterruptionMonitor(withDescription: "Notification Permission") { alert in

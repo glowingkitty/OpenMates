@@ -41,7 +41,7 @@ struct DevComponentPreviewView: View {
         .background(Color.grey0.ignoresSafeArea())
         // Production actions (for example Copy) keep their real user feedback
         // in the isolated host as well as in MainAppView.
-        .overlay(alignment: .top) { ToastOverlay() }
+        .overlay(alignment: .top) { ToastOverlay(showsOfflinePack: false) }
     }
 
     private var fixtureError: String? {
@@ -81,6 +81,12 @@ private struct DevComponentPreviewCanvas: View {
     @State private var lastAction = "ready"
     @StateObject private var notificationFixtureManager = ToastManager()
     @State private var notificationDismissed = false
+    @State private var offlinePackFixture = OfflineAIModelPackSnapshot(phase: .offered, totalBytes: 2_300_000_000)
+    @State private var offlinePackFixtureDownloads = 0
+    @State private var offlinePackFixtureDeferrals = 0
+    @State private var offlinePackFixtureSettingsRoute = ""
+    @State private var offlinePackFixtureActivity = LocalModelLiveActivityPolicy()
+    @State private var offlinePackFixtureOperation = UUID()
     @Environment(\.accessibilityReduceMotion) private var notificationReduceMotion
     @State private var embedRoute: [EmbedRecord] = []
     @State private var sourceQuoteTarget: SourceQuoteTarget?
@@ -290,6 +296,19 @@ private struct DevComponentPreviewCanvas: View {
                                     "lat": AnyCodable(100), "lon": AnyCodable(200)]),
                         parentEmbedId: nil, appId: "events", skillId: nil, embedIds: nil, createdAt: nil),
         ]
+    }
+
+    private func startOfflinePackFixture() {
+        offlinePackFixtureDownloads += 1
+        offlinePackFixture.phase = .downloading
+        offlinePackFixture.currentModel = .whisper
+        offlinePackFixture.transferredBytes = 575_000_000
+        offlinePackFixture.modelPhase = .transfer
+        _ = offlinePackFixtureActivity.consume(.started(model: .whisper,
+            operation: offlinePackFixtureOperation, totalBytes: offlinePackFixture.totalBytes))
+        _ = offlinePackFixtureActivity.consume(.progress(model: .whisper, operation: offlinePackFixtureOperation,
+            value: .init(phase: .transfer, transferredBytes: offlinePackFixture.transferredBytes,
+                verifiedBytes: 0, totalBytes: offlinePackFixture.totalBytes, sequence: UInt64(offlinePackFixtureDownloads), retryAttempt: 0)))
     }
 
     var body: some View {
@@ -525,8 +544,45 @@ private struct DevComponentPreviewCanvas: View {
                     }
             }
         case .notification:
-            if configuration.variant == "stack" {
-                ToastOverlay(manager: notificationFixtureManager)
+            if configuration.variant.hasPrefix("offline-") {
+                VStack(spacing: .spacing6) {
+                    if offlinePackFixture.phase == .offered {
+                        OfflineAIModelPackNotificationCard(snapshot: offlinePackFixture, compact: viewport.width <= 450,
+                            onDownload: startOfflinePackFixture, onLater: {
+                                offlinePackFixtureDeferrals += 1
+                                offlinePackFixture.phase = .deferred
+                            })
+                            .frame(width: min(430, max(0, viewport.width - (viewport.width <= 450 ? 20 : 40))))
+                    }
+                    if NativeHeaderStatusPolicy.showsDownload(phase: offlinePackFixture.phase,
+                        online: true, authenticated: true, checkingAuth: false) {
+                        HStack {
+                            Spacer()
+                            OfflineAIModelDownloadStatusButton(phase: offlinePackFixture.phase) {
+                                offlinePackFixtureSettingsRoute = "ai/localmodels"
+                            }
+                        }
+                    }
+                    if offlinePackFixtureSettingsRoute == "ai/localmodels" {
+                        OfflineAIModelsSettingsContent(snapshot: offlinePackFixture,
+                            onDownload: startOfflinePackFixture,
+                            onPause: { offlinePackFixture.phase = .paused },
+                            onCancel: {
+                                offlinePackFixture.phase = .cancelled
+                                _ = offlinePackFixtureActivity.consume(.finished(model: .whisper,
+                                    operation: offlinePackFixtureOperation, outcome: .cancelled))
+                            })
+                    }
+                    Text("downloads=\(offlinePackFixtureDownloads);later=\(offlinePackFixtureDeferrals);phase=\(offlinePackFixture.phase.rawValue)")
+                        .font(.omMicro).accessibilityIdentifier("offline-ai-fixture-actions")
+                    Text(offlinePackFixtureSettingsRoute)
+                        .font(.omMicro).accessibilityIdentifier("offline-ai-fixture-settings-route")
+                    Text(verbatim: "items=\(offlinePackFixtureActivity.items.count);bytes=\(offlinePackFixtureActivity.transferredBytes)/\(offlinePackFixtureActivity.totalBytes)")
+                        .font(.omMicro).accessibilityIdentifier("offline-ai-fixture-live-activity")
+                }
+                .embedProcessingReducedMotionFixture(configuration.variant == "offline-reduced")
+            } else if configuration.variant == "stack" {
+                ToastOverlay(manager: notificationFixtureManager, showsOfflinePack: false)
                     .task {
                         notificationFixtureManager.show("First retained notice", duration: 0, title: "First notice")
                         notificationFixtureManager.show("Reconnecting...", type: .connection, duration: 0,

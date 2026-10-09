@@ -306,10 +306,10 @@ specifications:
     required_applies_to:
     - gui.apple
   feature.apple-local-model-lab:
-    version: 7
+    version: 8
     status: draft
     path: features/apple-local-model-lab
-    fingerprint: 6ac6c23843357104e0629c7233de389df319b19bef1ee47005c0cfdcf41ee3f3
+    fingerprint: fcfa9d4d9746429a4c16bdeb28765d8a1df60d002964bc872c125afea82f6f90
     required_applies_to:
     - gui.apple
   feature.apple-notifications:
@@ -373,10 +373,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.assistant-response-speech:
-    version: 6
+    version: 7
     status: draft
     path: features/assistant-response-speech
-    fingerprint: 81a4a609193585daf25f70b835d68c7fcb3b3c6683f295c371618e85712f9cf5
+    fingerprint: 1769a5b65c9f839e95ac6e820d7b84b1e6dc033d5ce6d877fcb1f32417cd6a2a
     required_applies_to:
     - rest_api
     - cli
@@ -498,10 +498,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.landing-onboarding:
-    version: 4
+    version: 5
     status: draft
     path: features/landing-onboarding
-    fingerprint: 04ba8804767b48b77c19ce73eda37798b7db8bc2c24e1ca5a68bcd56f9caf6bb
+    fingerprint: 96117f8f3c7640e33c6e54148e83f973cd542799a774b6439bdbbeba28605c5e
     required_applies_to:
     - gui.web
     - gui.apple
@@ -4125,56 +4125,56 @@ assertions:
     required_applies_to:
     - gui.apple
   apple-local-model-lab.optional-downloads:
-    specification: feature.apple-local-model-lab@7
+    specification: feature.apple-local-model-lab@8
     specification_id: feature.apple-local-model-lab
     type: behavior
-    fingerprint: 501544ba9e6577433a208080a0871cdd9d9fe742e7388b80d6ace5daa164312c
+    fingerprint: a513eccd29a1ce7277f5e768a9b35c0e10e421d39d17abf48c225739eb10bcff
     required_applies_to:
     - gui.apple
   apple-local-model-lab.local-execution:
-    specification: feature.apple-local-model-lab@7
+    specification: feature.apple-local-model-lab@8
     specification_id: feature.apple-local-model-lab
     type: behavior
     fingerprint: c0ae50aea6ceca472529150fecd0da313633c27f17735b196d1814362ba5dc5e
     required_applies_to:
     - gui.apple
   apple-local-model-lab.pii-spans:
-    specification: feature.apple-local-model-lab@7
+    specification: feature.apple-local-model-lab@8
     specification_id: feature.apple-local-model-lab
     type: invariant
     fingerprint: ef9fd3dc52459c3f978abea3ef421c93ba94e50fd1c775af9557551119d9f1f0
     required_applies_to:
     - gui.apple
   apple-local-model-lab.isolated-scope:
-    specification: feature.apple-local-model-lab@7
+    specification: feature.apple-local-model-lab@8
     specification_id: feature.apple-local-model-lab
     type: invariant
-    fingerprint: 4ec74c439b5de1df841348eef3c7fe3779a1b8cec4b711129f1ea0891c45aae9
+    fingerprint: 75984486c3d93eb5486bb1307d2aa63e9a1374b8e98f8928c11e4ce765f860ff
     required_applies_to:
     - gui.apple
   apple-local-model-lab.serialized-cancellation:
-    specification: feature.apple-local-model-lab@7
+    specification: feature.apple-local-model-lab@8
     specification_id: feature.apple-local-model-lab
     type: invariant
     fingerprint: cd7881de3bc2dd1058acb83153fe786d4017ab593d48eada0ba948220e7c1707
     required_applies_to:
     - gui.apple
   apple-local-model-lab.ephemeral-state:
-    specification: feature.apple-local-model-lab@7
+    specification: feature.apple-local-model-lab@8
     specification_id: feature.apple-local-model-lab
     type: invariant
     fingerprint: bfd28d68c3aeadd3b46f2f8997ee08031cba5efe4a19a0f4acad1f2002dec071
     required_applies_to:
     - gui.apple
   apple-local-model-lab.availability:
-    specification: feature.apple-local-model-lab@7
+    specification: feature.apple-local-model-lab@8
     specification_id: feature.apple-local-model-lab
     type: behavior
-    fingerprint: 731172182cdaae17305d8c9164d2af4f9b20f22d6a356b24dd1f957c0e52875a
+    fingerprint: a2f11360c3e151e355c2b893e14fabbd4cf0a3b503e2e7765a0e21443ad7bec2
     required_applies_to:
     - gui.apple
   apple-local-model-lab.watch-tiny:
-    specification: feature.apple-local-model-lab@7
+    specification: feature.apple-local-model-lab@8
     specification_id: feature.apple-local-model-lab
     type: behavior
     fingerprint: c85dea29c95be39b9656677b8c0bc1fd6a5bf4c7ff4360ed83e2fe0551369ea8
@@ -4562,7 +4562,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.preference.chat-scoped-default-off:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 148542f594f9abc4c5fdc93f176d5ff8e8875176f47bb3a5e62eb7affbc69177
@@ -4572,7 +4572,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.preference.voice-recording-visible-activation:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 6f19e3f1b5a3915027e63bdaa4516a9f0e8398b9825c913a59d5be850526703a
@@ -4582,7 +4582,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.acknowledgement.deterministic-free:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: 9a640a03e14c0e59c64761261994d69a8d3ba1c25f7dd135e97be09d227f116b
@@ -4592,7 +4592,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 16aa02c297fa0af82ed409e0daf0d658590fc7e13fc8e975f9f655a6232705b3
@@ -4602,17 +4602,17 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.voice.fixed-versioned-mate-profile:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: security
-    fingerprint: 85a533efe1ac6680ab8b9be58107b6b36ef122521988355849673c8faf36d372
+    fingerprint: 70a2ebf0c5299d0ac594f48720b00e50e303c22b20428e715146b01152de7a05
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.segmentation.one-file-per-segment:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: 9c93671c1f653a7357a8e102b30b7c1d8cf10ae4ab544788ee4b8c6588962916
@@ -4622,7 +4622,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.segmentation.immutable-source:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: 9deebf417a1afd86903bd3d1fa6306110981281b3da3f69ffde4cb8e8accbd89
@@ -4632,7 +4632,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.projection.deterministic-semantic:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: dd71ca709413c96339aeb1d2c31d56915086f1dfd09c9dcb063bf8536f9ebd60
@@ -4642,7 +4642,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.projection.no-cleanup-inference:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: aa329031468d7d007a10ab1d8f2a35a7026df8635a54c339fcb5c02941399294
@@ -4652,7 +4652,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.execution.text-stream-independent:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: 398062221dc1ec6122c0c3b6667f2f9a6e7f6444172eb3c5fe7792b4f1d0f556
@@ -4662,7 +4662,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.execution.app-skill-progressive:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: 20928f112ebe227be696437319477a76c1f6b5b9b0fc4fa1fe9178c9517071bc
@@ -4672,7 +4672,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.execution.first-segment-progressive:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 32c5347e23f4ff3b88738122ed37ceb6f99205cdcba2746c984c55f64ad4d7e1
@@ -4682,7 +4682,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.execution.web-paragraph-demand:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: 2f055b9fe39a727488f6e7185d31cef7c97526f664ee9aeaf752a7818168a59f
@@ -4692,7 +4692,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.single-queue-segment-control:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: e61742ab271766484184514b6af7c1923c05095ce93494dbd8033d678958c7a2
@@ -4702,7 +4702,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.deterministic-chapter-labels:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: a38fcd3c410b8e252bab2f3b5a0b00b299d111015ca6ff8051479ae985eb94ab
@@ -4712,7 +4712,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.pinned-full-response-waveform:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 980eef7f8db90b95d6552d32b8ddb7d92307740802359a2d08a460f37bb577de
@@ -4722,7 +4722,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.two-second-idle-grace:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 33416a442e755490b64119207988fa3dfaeeeb403aea5a21c8593113651f7a5d
@@ -4732,17 +4732,17 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.os-controls-best-effort:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: parity
-    fingerprint: 5a250d487ca670e75608ecef53ad9db063800111fd182eb514b99f5aed49319a
+    fingerprint: 5f0cf27aa8c4b4ea3faa9d49ff6a1c105e1cfba47393cef1ae7a056fa46df55d
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.playback.autoplay-recovery-visible:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: failure
     fingerprint: 98c5c46b99c086fbcab13b00230b4426ce03137414faa1fb98aa87cdcb8904b5
@@ -4752,7 +4752,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.on-demand.generate-missing-only:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 03ba11efd4329a27153bdb13d85d9f082b840d4a685ffeaad86a92b26bf9334c
@@ -4762,7 +4762,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.cli.owner-generated-existing-messages:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 64448164c0a9786e31f9caadfd8d03d100ac7da08adcff31a31334fa11cde313
@@ -4772,7 +4772,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.public-example.reviewed-fixture-playback:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: 0517fe4418778250ca4c81cc6df9302c300b1f98c95e6046b9d696d1ce51b44f
@@ -4782,17 +4782,17 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.access.first-party-owner-scoped:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: security
-    fingerprint: 0baa0b4475181ee31deeebc1d81ef668b190e1da6e06de84988bfa4012f27035
+    fingerprint: 434b247f8d300af3a97c810ae657cf0e20e84b5f16dea6748914f96b8a7a97cf
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.safety.provider-after-approval:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: security
     fingerprint: c3d7a985f4e0e2eecd1b5215d4d93605bc6d0b6ca7c8604f090452ce207d58e0
@@ -4802,7 +4802,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.privacy.transient-plaintext-encrypted-audio:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: a18d43608876fd349b9730a75d7f34a917fd827c717adcf0e893eed07dcb3a3f
@@ -4812,7 +4812,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.billing.segment-success-once:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: e4a68d67d18928f6da4e82d21f413516ca16d81e400cc34c6ab8d2e41f3047ba
@@ -4822,7 +4822,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.failure.nonblocking-visible-resumable:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: failure
     fingerprint: ccf26403685c03b72b02cf81962d55f459790b3a5a44ff197aeb563ade55d7ba
@@ -4832,7 +4832,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.lifecycle.disable-delete-invalidate:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: e57a16adbc5d4fbd575a7982563b05eabb1148c71201452b13abcd0511802e26
@@ -4842,10 +4842,10 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.surface.semantic-parity:
-    specification: feature.assistant-response-speech@6
+    specification: feature.assistant-response-speech@7
     specification_id: feature.assistant-response-speech
     type: parity
-    fingerprint: 2c8e403c733ca6419ac7450e2252f5db86b2504e2d9dbf00a434208cc5d3aaa6
+    fingerprint: 81e8a815f09f7296a495c9e7bb0c1431a54b099109d66e022d3ae5ad5c870560
     required_applies_to:
     - rest_api
     - cli
@@ -6288,7 +6288,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.uses-real-chat-shell:
-    specification: feature.landing-onboarding@4
+    specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: 4fa3937496ad025473bd94fe23222d6dc45bed63a24cbaae412a09fb9662f67d
@@ -6296,7 +6296,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.guest-sequence:
-    specification: feature.landing-onboarding@4
+    specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: e8abbd972487ecc8a3f27199181f11e4857d69a7a75fa116b2031bfcc21de296
@@ -6304,7 +6304,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.intro-active-apps-only:
-    specification: feature.landing-onboarding@4
+    specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: invariant
     fingerprint: 71094aebac8ad350e1979f8ca3949205cdfef63f4a40918449886af74434ea3f
@@ -6312,7 +6312,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.coordinated-story-progress:
-    specification: feature.landing-onboarding@4
+    specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: 7d1cc1618622afee9d7f101b28e0b916f2a070448ead22501d6507fef4520bf5
@@ -6320,7 +6320,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.manual-navigation:
-    specification: feature.landing-onboarding@4
+    specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: 5101206cd8c42d9b9dccbb184be4ff733205f542b216b57552e34e8fc5cc329f
@@ -6328,7 +6328,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.actionable-demo-faithful:
-    specification: feature.landing-onboarding@4
+    specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: f1bf3e074a516016c2560aef6b86d8b11d36685db4fc98b0f2e998527978ba12
@@ -6336,7 +6336,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.privacy-mates-platform-stories:
-    specification: feature.landing-onboarding@4
+    specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: ef34d2a016aca3abda1d76393821820c4e797cb8e3216ab8332b73661f2980a1
@@ -6344,7 +6344,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.signup-cta:
-    specification: feature.landing-onboarding@4
+    specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: 097cc2e003abfad4b137aed426b0e1077aa55c4a0392245a3eb9721de9dfe263
@@ -6352,7 +6352,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.legacy-intros-retired:
-    specification: feature.landing-onboarding@4
+    specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: 65ba0a70d1b78ed5e4467bb0b030f8361d6cdc278751ed7db1d54337ab0a271e
@@ -6360,7 +6360,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.primary-slogan-consistent:
-    specification: feature.landing-onboarding@4
+    specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: invariant
     fingerprint: e3a120345244f9fe1ef95ef96f964b6109e202b4f8f9aa615cdb6e94a7fa37a9
@@ -6368,10 +6368,10 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.apple-web-parity:
-    specification: feature.landing-onboarding@4
+    specification: feature.landing-onboarding@5
     specification_id: feature.landing-onboarding
     type: parity
-    fingerprint: eb22ebcf74cb831c0045c8ce71257957b5920aff04b0891d43f4b1e590d90e28
+    fingerprint: 2fd9747b20688e3a3295d57effe984da86fa60f85244544a383ed1fa5f565bf3
     required_applies_to:
     - gui.web
     - gui.apple

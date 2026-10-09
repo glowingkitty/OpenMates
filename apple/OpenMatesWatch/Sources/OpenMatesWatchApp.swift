@@ -114,6 +114,8 @@ struct OpenMatesWatchApp: App {
                 WatchPairLoginView(authStore: WatchAuthStore(), uiTestFixture: .selfHostedShortURL)
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-pair-selfhost-entry") {
                 WatchPairLoginView(authStore: WatchAuthStore(), uiTestFixture: .selfHostedDomainEntry)
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-pair-completion-failed") {
+                WatchPairLoginView(authStore: WatchAuthStore(), uiTestFixture: .completionFailed)
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-pair-initiation-failed") {
                 WatchPairLoginView(authStore: WatchAuthStore(), uiTestFixture: .initiationFailed)
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-pair-selfhost-initiation-failed") {

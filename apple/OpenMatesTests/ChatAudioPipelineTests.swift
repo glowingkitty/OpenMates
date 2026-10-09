@@ -7,6 +7,41 @@ import XCTest
 
 @MainActor
 final class ChatAudioPipelineTests: XCTestCase {
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context
+    func testLocalTranscriptPreservesEncryptedAudioUploadWithoutBatchTranscription() async throws {
+        var uploads = 0, batches = 0
+        let local = AudioRecordingRealtimeResult(title: nil, transcript: "Local transcript", transcriptOriginal: "Local transcript",
+            transcriptCorrected: nil, useCorrected: false, model: "whisper-large-v3-local", correctionModel: nil)
+        let result = await AudioRecordingUploadPipeline.run(waveform: nil, realtimeResult: { local },
+            localTranscription: true, upload: { uploads += 1; return Self.uploadFixture(embedId: "local-audio") },
+            batchTranscription: { _ in batches += 1; XCTFail("Local capture must never request server transcription"); return nil })
+        XCTAssertEqual(uploads, 1)
+        XCTAssertEqual(batches, 0)
+        let value = try XCTUnwrap(result)
+        XCTAssertEqual(value.transcription.transcript, "Local transcript")
+        XCTAssertEqual(value.transcription.transcriptionSource, "local")
+        XCTAssertEqual(value.transcription.transcriptionStatus, "complete")
+        let embed = ComposerPendingEmbed.from(upload: value.upload, localData: Data([1]), transcription: value.transcription, duration: 1)
+        let content = try XCTUnwrap(embed.record.rawData)
+        XCTAssertEqual(content["transcription_source"]?.value as? String, "local")
+        XCTAssertEqual(content["transcription_status"]?.value as? String, "complete")
+        XCTAssertNotNil(content["files"], "Encrypted audio file descriptors remain available for playback")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context
+    func testFailedLocalTranscriptKeepsRecordingAndExplicitFailureWithoutProviderFallback() async throws {
+        var uploads = 0, batches = 0
+        let result = await AudioRecordingUploadPipeline.run(waveform: nil, realtimeResult: { nil },
+            localTranscription: true, upload: { uploads += 1; return Self.uploadFixture(embedId: "failed-local-audio") },
+            batchTranscription: { _ in batches += 1; return nil })
+        let value = try XCTUnwrap(result)
+        XCTAssertEqual(uploads, 1); XCTAssertEqual(batches, 0)
+        XCTAssertNil(value.transcription.transcript)
+        XCTAssertEqual(value.transcription.transcriptionSource, "local")
+        XCTAssertEqual(value.transcription.transcriptionStatus, "failed")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
     func testRecordingUploadStatusRemainsUploadingUntilFileIsAccepted() async throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("status-fixture-\(UUID().uuidString).m4a")

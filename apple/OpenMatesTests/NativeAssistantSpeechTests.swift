@@ -1,10 +1,173 @@
 import XCTest
+import Combine
 import CryptoKit
 import SwiftData
 @testable import OpenMates
 
 @MainActor
 final class NativeAssistantSpeechTests: XCTestCase {
+
+
+    // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity,message-input.recording.lifecycle
+    func testStoreChangesCannotWarmLocalSpeechDuringCaptureOrFinalDecode() async {
+        await assertRecordingSuppressesPreparation(terminal: .correctionDone(.init(
+            transcript: "Local transcript", language: nil, model: "whisper-large-v3-local",
+            title: nil, transcriptOriginal: "Local transcript", transcriptCorrected: nil,
+            useCorrected: false, correctionModel: nil)), failsDuringCapture: false)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity,message-input.recording.lifecycle
+    func testRealtimeFailureKeepsLocalSpeechSuppressedUntilCaptureStops() async {
+        await assertRecordingSuppressesPreparation(terminal: .status(.cancelled), failsDuringCapture: true)
+    }
+
+    private func assertRecordingSuppressesPreparation(
+        terminal: AudioRealtimeTranscriptionClient.Event, failsDuringCapture: Bool
+    ) async {
+        var deps = dependencies(); deps.readPreference = { _ in true }
+        let speech = NativeAssistantSpeech(dependencies: deps)
+        let prepared = expectation(description: "Preparation resumes only at recording terminal")
+        var preparationCount = 0
+        var considered: XCTestExpectation?
+        let runtime = AssistantSpeechAppRuntime(controllerFactory: { _ in speech },
+            localPreparationDependencies: .init(isAvailable: { true }, prepare: {
+                preparationCount += 1; prepared.fulfill()
+            }, waitUntilIdle: {}, didConsiderPreparation: {
+                considered?.fulfill(); considered = nil
+            }))
+        let store = ChatStore(), socket = WebSocketManager()
+        runtime.configure(store: store, socket: socket)
+        _ = await runtime.activate(chatID: scope.chatID, supported: false, ownerID: UUID())
+        let session = AudioRecordingRealtimeSession(speechRuntime: runtime)
+        session.beginLocalRecordingForTesting()
+        await speech.activate(scope)
+        store.setMessages(for: scope.chatID, messages: [Message(id: "source", chatId: scope.chatID,
+            role: .assistant, content: "Canonical answer.", encryptedContent: nil,
+            createdAt: "2026-10-08T00:00:00Z", updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)])
+        let duringCapture = expectation(description: "Store change considered while capturing")
+        considered = duringCapture
+        store.objectWillChange.send()
+        await fulfillment(of: [duringCapture], timeout: 1)
+        XCTAssertEqual(preparationCount, 0)
+        XCTAssertTrue(speech.enabled, "Recording preserves saved speech intent")
+        if failsDuringCapture {
+            await session.receiveForTesting(terminal)
+        } else {
+            session.finish()
+        }
+        let duringDecode = expectation(description: "Store change considered before terminal release")
+        considered = duringDecode
+        store.objectWillChange.send()
+        await fulfillment(of: [duringDecode], timeout: 1)
+        XCTAssertEqual(preparationCount, 0,
+            "Mic stop must retain suppression until the final local decode settles")
+        if failsDuringCapture { session.finish() }
+        else { await session.receiveForTesting(terminal) }
+        await fulfillment(of: [prepared], timeout: 1)
+        XCTAssertEqual(preparationCount, 1)
+        // Duplicate terminal/cancel callbacks cannot release a later recording.
+        let next = runtime.beginRecording()
+        await session.cancel()
+        XCTAssertEqual(preparationCount, 1)
+        runtime.reset()
+        runtime.endRecording(next)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity
+    func testLocalAutomaticSpeechWaitsForCompletedCanonicalParagraphs() async {
+        let first = expectation(description: "Completed streaming paragraph plays")
+        let second = expectation(description: "Final paragraph plays after finalization")
+        var spoken: [String] = []
+        var deps = dependencies()
+        deps.readPreference = { _ in true }; deps.localSpeechAvailable = { true }
+        deps.requestSpeech = { _, _, _, _ in XCTFail("Automatic local speech must suppress provider generation") }
+        deps.synthesizeLocal = { _, text in spoken.append(text); return Data(text.utf8) }
+        deps.play = { data in
+            if String(data: data, encoding: .utf8) == "First finished." { first.fulfill() }
+            else { second.fulfill() }
+        }
+        let speech = NativeAssistantSpeech(dependencies: deps)
+        await speech.activate(scope)
+        _ = speech.messageFields(for: scope)
+        speech.expectResponse("local-stream", in: scope)
+        speech.updateSource(from: [Message(id: "local-stream", chatId: scope.chatID, role: .assistant,
+            content: "First finished.\n\nUnfinished", encryptedContent: nil,
+            createdAt: "2026-10-08T00:00:00Z", updatedAt: nil, appId: nil, isStreaming: true, embedRefs: nil)])
+        await fulfillment(of: [first], timeout: 2)
+        XCTAssertEqual(spoken, ["First finished."])
+        speech.updateSource(from: [Message(id: "local-stream", chatId: scope.chatID, role: .assistant,
+            content: "First finished.\n\nSecond finished.", encryptedContent: nil,
+            createdAt: "2026-10-08T00:00:00Z", updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)])
+        await fulfillment(of: [second], timeout: 2)
+        XCTAssertEqual(spoken, ["First finished.", "Second finished."])
+        await speech.stop()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity
+    func testInstalledLocalSpeechUsesCanonicalSourceWithoutProviderGeneration() async {
+        let played = expectation(description: "Local audio played")
+        var spoken: [String] = [], providerCalls = 0
+        var deps = dependencies()
+        deps.readPreference = { _ in true }
+        deps.localSpeechAvailable = { true }
+        deps.synthesizeLocal = { _, text in spoken.append(text); return Data([1, 2]) }
+        deps.requestSpeech = { _, _, _, _ in providerCalls += 1 }
+        deps.resolveAudio = { _, _ in XCTFail("Local audio must not resolve provider media"); return Data() }
+        deps.play = { _ in played.fulfill() }
+        let speech = NativeAssistantSpeech(dependencies: deps)
+        await speech.activate(scope)
+        XCTAssertEqual(speech.messageFields(for: scope)["auto_speak_response"] as? Bool, false,
+            "Local playback must explicitly suppress server auto generation")
+        await speech.request(messageID: "local-response", markdown: "Hello local speech.")
+        await fulfillment(of: [played], timeout: 2)
+        XCTAssertEqual(spoken, ["Hello local speech."])
+        XCTAssertEqual(providerCalls, 0)
+        await speech.stop()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity
+    func testLocalSpeechFailureNeedsSeparateProviderAction() async {
+        let failed = expectation(description: "Local failure visible")
+        var providerCalls = 0
+        var deps = dependencies()
+        deps.localSpeechAvailable = { true }
+        deps.synthesizeLocal = { _, _ in throw LocalSpeechRuntimeError.invalidAssets }
+        deps.requestSpeech = { _, _, _, _ in providerCalls += 1 }
+        let speech = NativeAssistantSpeech(dependencies: deps)
+        let observation = speech.$playbackStatus.sink { if $0 == .failed { failed.fulfill() } }
+        await speech.activate(scope)
+        await speech.request(messageID: "failed-local", markdown: "Speak this locally.")
+        await fulfillment(of: [failed], timeout: 2)
+        XCTAssertEqual(providerCalls, 0)
+        XCTAssertTrue(speech.canUseProviderFallback)
+        XCTAssertNotNil(speech.error)
+        await speech.retryWithProvider()
+        XCTAssertEqual(providerCalls, 1, "Provider work begins only after its separate user action")
+        observation.cancel()
+        await speech.stop()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity
+    func testCancellingLocalSpeechCannotPlayLateNativeOutput() async {
+        let entered = expectation(description: "Local synthesis starts")
+        let stalePlayback = expectation(description: "Cancelled synthesis must not play")
+        stalePlayback.isInverted = true
+        var pending: CheckedContinuation<Data, Never>?
+        var deps = dependencies()
+        deps.localSpeechAvailable = { true }
+        deps.synthesizeLocal = { _, _ in await withCheckedContinuation { pending = $0; entered.fulfill() } }
+        deps.play = { _ in stalePlayback.fulfill() }
+        deps.cancelResponse = { _, _ in XCTFail("Local playback cancellation must not send a provider cancellation") }
+        let speech = NativeAssistantSpeech(dependencies: deps)
+        await speech.activate(scope)
+        await speech.request(messageID: "cancel-local", markdown: "A local response.")
+        await fulfillment(of: [entered], timeout: 2)
+        await speech.stop()
+        pending?.resume(returning: Data([3]))
+        await fulfillment(of: [stalePlayback], timeout: 0.1)
+        XCTAssertEqual(speech.playbackStatus, .stopped)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity
     func testDraftTransferReadsPreferenceWithoutMountedControllerAndKeepsEnabledIntent() async throws {
         let source = AssistantSpeechScope(accountID: "a", serverID: "dev", chatID: "draft")

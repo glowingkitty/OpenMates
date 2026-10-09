@@ -1,7 +1,9 @@
-// Experimental developer lab adapters. Assets must already be verified by LocalModelStore.
-// No system speech, chat route, network client, auto-download or provider fallback.
+// Optional local synthesis for the model lab and production response playback.
+// Assets must already be verified; adapters never download models or use OS speech.
 // Specification: specifications/features/apple-local-model-lab/specification.yml
 // Assertions: apple-local-model-lab.local-execution, apple-local-model-lab.serialized-cancellation, apple-local-model-lab.ephemeral-state
+// Specification: specifications/features/assistant-response-speech/specification.yml
+// Assertions: assistant-speech.surface.semantic-parity
 import Foundation
 #if canImport(OnnxRuntimeBindings) && !os(watchOS)
 @preconcurrency import OnnxRuntimeBindings
@@ -117,5 +119,77 @@ actor LocalNeuralTTSRuntime: LocalModelRuntime {
         // Native sessions live entirely inside the awaited worker. Unload never
         // declares idle while the model still retains its native sessions.
         if let drain { _ = try? await drain.value }
+    }
+}
+
+// Single production worker, separate from the laboratory. Native ORT state is
+// touched only by its serial queue, including cancellation/memory eviction.
+final class SupertonicComposerRuntime: @unchecked Sendable {
+    private let ownerID = UUID()
+    private let queue = DispatchQueue(label: "org.openmates.local-speech", qos: .userInitiated)
+    #if canImport(OnnxRuntimeBindings) && arch(arm64) && !os(watchOS)
+    private var engine: ST3TextToSpeech?
+    private var environment: ORTEnv?
+    private var directory: URL?
+    private var styles: [String: ST3Style] = [:]
+    #endif
+
+    func prepare(directory: URL) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            queue.async { [self] in
+                do { try load(directory); continuation.resume() }
+                catch { continuation.resume(throwing: error) }
+            }
+        }
+    }
+    func synthesize(_ input: LocalTTSSynthesisInput, directory: URL) async throws -> Data {
+        try input.validate(for: .supertonic3)
+        let bytes: Data = try await withCheckedThrowingContinuation { continuation in
+            queue.async { [self] in
+                do {
+                    try load(directory)
+                    #if canImport(OnnxRuntimeBindings) && arch(arm64) && !os(watchOS)
+                    guard let engine else { throw LocalSpeechRuntimeError.unavailableRuntime }
+                    let style: ST3Style
+                    if let cached = styles[input.voice] { style = cached }
+                    else {
+                        style = try ST3loadVoiceStyle([directory.appendingPathComponent("voice_styles/" + input.voice + ".json").path], verbose: false)
+                        styles[input.voice] = style
+                    }
+                    let (samples, _) = try engine.call(input.text, input.language, style, input.steps)
+                    continuation.resume(returning: try LocalTTSWAV.encode(samples: samples, sampleRate: engine.sampleRate))
+                    #else
+                    throw LocalSpeechRuntimeError.unavailableRuntime
+                    #endif
+                } catch { continuation.resume(throwing: error) }
+            }
+        }
+        try Task.checkCancellation()
+        return bytes
+    }
+    private func load(_ directory: URL) throws {
+        #if canImport(OnnxRuntimeBindings) && arch(arm64) && !os(watchOS)
+        if self.directory == directory, engine != nil { return }
+        engine = nil; environment = nil; styles = [:]
+        try LocalSpeechInferenceOwnership.shared.acquire(ownerID)
+        do {
+            let env = try ORTEnv(loggingLevel: .error)
+            let loaded = try ST3loadTextToSpeech(directory.appendingPathComponent("onnx").path, false, env)
+            environment = env; engine = loaded; self.directory = directory
+        } catch {
+            LocalSpeechInferenceOwnership.shared.release(ownerID)
+            throw error
+        }
+        #else
+        throw LocalSpeechRuntimeError.unavailableRuntime
+        #endif
+    }
+    func unload() {
+        queue.async { [self] in
+            #if canImport(OnnxRuntimeBindings) && arch(arm64) && !os(watchOS)
+            engine = nil; environment = nil; directory = nil; styles = [:]
+            LocalSpeechInferenceOwnership.shared.release(ownerID)
+            #endif
+        }
     }
 }

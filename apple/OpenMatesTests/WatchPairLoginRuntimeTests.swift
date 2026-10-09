@@ -11,6 +11,64 @@ import XCTest
 @MainActor
 final class WatchPairLoginRuntimeTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
+    func testWatchPairPersistenceUsesLocalContainerWhenAppGroupIsDenied() throws {
+        let suite = "watch-pair-persistence-\(UUID().uuidString)"
+        let local = try XCTUnwrap(PairDefaultsProbe(suiteName: suite))
+        defer { local.removePersistentDomain(forName: suite) }
+        var appGroupOpens = 0
+        let deniedGroup = try XCTUnwrap(PairDefaultsProbe(suiteName: "\(suite)-denied"))
+        deniedGroup.synchronizeResult = false
+        let watchDefaults = OpenMatesSharedEnvironment.preferences(
+            standaloneWatch: true, standard: local, appGroup: {
+                appGroupOpens += 1
+                return deniedGroup
+            })
+        XCTAssertTrue(watchDefaults === local)
+        PairPendingAckStore.mark(userID: "synthetic-watch-user", defaults: local)
+        // This is the production flush between encrypted completion/key storage
+        // and backend acknowledgement; the unentitled suite must never gate it.
+        try PairPendingAckStore.flushLocalPairState(standard: local, shared: watchDefaults)
+        XCTAssertEqual(appGroupOpens, 0)
+        XCTAssertEqual(deniedGroup.synchronizeCalls, 0)
+        XCTAssertEqual(local.synchronizeCalls, 1)
+        XCTAssertEqual(PairPendingAckStore.userID(defaults: local), "synthetic-watch-user",
+                       "Successful flush must retain the pending-ack marker until acknowledgement")
+        PairPendingAckStore.clear(defaults: local)
+        XCTAssertNil(PairPendingAckStore.userID(defaults: local))
+        #if os(watchOS)
+        XCTAssertTrue(OpenMatesSharedEnvironment.defaults === UserDefaults.standard)
+        #endif
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
+    func testPairPersistenceStillFailsClosedForRequiredStoreFailure() throws {
+        let suite = "pair-persistence-failure-\(UUID().uuidString)"
+        let local = try XCTUnwrap(PairDefaultsProbe(suiteName: suite))
+        let group = try XCTUnwrap(PairDefaultsProbe(suiteName: "\(suite)-group"))
+        defer {
+            local.removePersistentDomain(forName: suite)
+            group.removePersistentDomain(forName: "\(suite)-group")
+        }
+        PairPendingAckStore.mark(userID: "synthetic-pending-user", defaults: local)
+        local.synchronizeResult = false
+        XCTAssertThrowsError(try PairPendingAckStore.flushLocalPairState(standard: local, shared: local))
+        XCTAssertEqual(PairPendingAckStore.userID(defaults: local), "synthetic-pending-user")
+        local.synchronizeResult = true
+        group.synchronizeResult = false
+        var appGroupOpens = 0
+        let sharedDefaults = OpenMatesSharedEnvironment.preferences(
+            standaloneWatch: false, standard: local, appGroup: {
+                appGroupOpens += 1
+                return group
+            })
+        XCTAssertTrue(sharedDefaults === group)
+        XCTAssertThrowsError(try PairPendingAckStore.flushLocalPairState(standard: local, shared: sharedDefaults))
+        XCTAssertEqual(appGroupOpens, 1)
+        XCTAssertEqual(group.synchronizeCalls, 1)
+        XCTAssertEqual(PairPendingAckStore.userID(defaults: local), "synthetic-pending-user")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
     func testPairStepUpMethodSelectionKeepsPasskeyOnlyAccountsEligible() throws {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -744,5 +802,17 @@ final class WatchPairApprovalReceiptCacheTests: XCTestCase {
         XCTAssertTrue(cache.matches(original, profile: .development, now: 20))
         cache.prune(profile: .development, now: 20)
         XCTAssertEqual(cache.expiresAt, 100)
+    }
+}
+
+// A denied app-group database can be instantiated but fail to synchronize.
+// Only metadata in unique test suites is written; no app auth state is touched.
+private final class PairDefaultsProbe: UserDefaults, @unchecked Sendable {
+    var synchronizeResult = true
+    var synchronizeCalls = 0
+
+    override func synchronize() -> Bool {
+        synchronizeCalls += 1
+        return synchronizeResult
     }
 }

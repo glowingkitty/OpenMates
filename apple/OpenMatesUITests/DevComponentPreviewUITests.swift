@@ -22,6 +22,77 @@ final class DevComponentPreviewUITests: XCTestCase {
         try super.tearDownWithError()
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testOfflineModelOfferRequiresExplicitDownloadAndLaterDismissesWithoutTransfer() {
+        let app = launch(component: "notification", variant: "offline-offer")
+        let later = app.buttons["offline-ai-later"], download = app.buttons["offline-ai-download"]
+        XCTAssertTrue(later.waitForExistence(timeout: 10))
+        XCTAssertTrue(later.isHittable); XCTAssertTrue(download.isHittable)
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-actions"].label, "downloads=0;later=0;phase=offered")
+        attachScreenshot("Optional offline model consent before any download")
+        later.tap()
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-actions"].label, "downloads=0;later=1;phase=deferred")
+        XCTAssertFalse(download.exists)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testOfflineModelDownloadUsesOpacityHeaderAndOpensOfflineSettings() {
+        let app = launch(component: "notification", variant: "offline-offer")
+        let download = app.buttons["offline-ai-download"]
+        XCTAssertTrue(download.waitForExistence(timeout: 10)); XCTAssertTrue(download.isHittable)
+        download.tap()
+        let header = app.buttons["offline-ai-download-status"]
+        XCTAssertTrue(header.waitForExistence(timeout: 3)); XCTAssertTrue(header.isHittable)
+        XCTAssertEqual(header.value as? String, "downloading;motion=opacity")
+        XCTAssertFalse(element(app, "offline-ai-model-pack-notification").exists)
+        attachScreenshot("Active download uses the subtle opacity header indicator")
+        header.tap()
+        XCTAssertTrue(element(app, "settings-offline-models-page").waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["offline-ai-pause"].isHittable)
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-settings-route"].label, "ai/localmodels")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads,apple-live-activities.download.progress
+    func testOfflineModelDownloadShowsHeaderAndSettingsProgressPauseResumeAndCancelWithReducedMotion() {
+        let app = launch(component: "notification", variant: "offline-reduced")
+        let download = app.buttons["offline-ai-download"]
+        XCTAssertTrue(download.waitForExistence(timeout: 10)); XCTAssertTrue(download.isHittable)
+        download.tap()
+        let header = app.buttons["offline-ai-download-status"]
+        XCTAssertTrue(header.waitForExistence(timeout: 3)); XCTAssertTrue(header.isHittable)
+        XCTAssertFalse(element(app, "offline-ai-model-pack-notification").exists,
+                       "Download must dismiss the consent notification without replacing it with a progress banner")
+        XCTAssertFalse(app.buttons["offline-ai-pause"].exists, "Transfer controls live in settings")
+        XCTAssertEqual(header.value as? String, "downloading;motion=static")
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-live-activity"].label, "items=1;bytes=575000000/2300000000")
+        attachScreenshot("Download keeps only a subtle static header icon with reduced motion")
+        header.tap()
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-settings-route"].label, "ai/localmodels")
+        XCTAssertTrue(element(app, "settings-offline-models-page").waitForExistence(timeout: 3))
+        let pause = app.buttons["offline-ai-pause"]
+        XCTAssertTrue(pause.isHittable)
+        let progress = element(app, "offline-ai-download-progress")
+        XCTAssertTrue(progress.exists); XCTAssertEqual(progress.value as? String, "25%")
+        let summary = app.staticTexts["offline-ai-settings-progress-summary"].label
+        XCTAssertTrue(summary.hasPrefix("Speech to text: Downloading."))
+        XCTAssertFalse(summary.contains("Whisper")); XCTAssertFalse(summary.contains("Supertonic"))
+        XCTAssertTrue(app.staticTexts["Text to speech"].exists)
+        XCTAssertTrue(app.staticTexts["Enhanced anonymization"].exists)
+        attachScreenshot("Offline models settings shows capabilities byte progress and pause cancel controls")
+        pause.tap()
+        let resume = app.buttons["offline-ai-resume"]
+        XCTAssertTrue(resume.waitForExistence(timeout: 3)); XCTAssertTrue(resume.isHittable)
+        XCTAssertFalse(element(app, "offline-ai-model-pack-notification").exists)
+        resume.tap()
+        XCTAssertTrue(pause.waitForExistence(timeout: 3))
+        app.buttons["offline-ai-cancel"].tap()
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-actions"].label, "downloads=2;later=0;phase=cancelled")
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-live-activity"].label, "items=0;bytes=0/0")
+        XCTAssertFalse(header.exists)
+        XCTAssertFalse(pause.exists)
+        XCTAssertFalse(element(app, "offline-ai-model-pack-notification").exists)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
     func testNotificationStackShowsThreeCardsAndRevealsRetainedNoticeAfterDismiss() {
         let app = launch(component: "notification", variant: "stack")
@@ -1365,6 +1436,10 @@ final class DevComponentPreviewUITests: XCTestCase {
 
     private func launch(component: String, variant: String = "default", props: [String: String] = [:],
                         extraArguments: [String] = [], theme: String = "light") -> XCUIApplication {
+        let offlineOffer = component == "notification" && variant.hasPrefix("offline-")
+        #if os(iOS)
+        if offlineOffer { XCUIDevice.shared.orientation = .portrait }
+        #endif
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", component, "--dev-preview-variant", variant,
                                "--dev-preview-theme", theme, "--ui-test-embed-presentation", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"] + extraArguments
@@ -1374,6 +1449,14 @@ final class DevComponentPreviewUITests: XCTestCase {
             app.launchArguments += ["--dev-preview-props", json]
         }
         app.launch()
+        if offlineOffer {
+            let portrait = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let frame = app.windows.firstMatch.frame
+                return frame.width > 0 && frame.height > frame.width
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [portrait], timeout: 5), .completed,
+                           "Offline model consent must settle in its portrait test viewport before tapping")
+        }
         let root = element(app, "dev-preview-root")
         XCTAssertTrue(root.waitForExistence(timeout: 10))
         XCTAssertEqual(root.value as? String, "auth=not-started;store=detached;socket=disconnected",

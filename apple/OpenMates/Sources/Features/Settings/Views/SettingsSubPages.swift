@@ -1000,6 +1000,9 @@ struct SettingsRecoveryKeyView: View {
 // MARK: - Sessions
 
 struct SettingsSessionsView: View {
+    var onConnectAppleWatch: (() -> Void)? = nil
+    var isPreview = false
+    var showsHeader = true
     @EnvironmentObject private var authManager: AuthManager
     @State private var sessions: [AccountSession] = []
     @State private var isLoading = true
@@ -1011,7 +1014,14 @@ struct SettingsSessionsView: View {
     private enum Confirmation { case logoutOthers, logoutAll }
 
     var body: some View {
-        OMSettingsPage(title: AppStrings.activeSessions) {
+        OMSettingsPage(title: AppStrings.activeSessions, showsHeader: showsHeader) {
+            if let onConnectAppleWatch {
+                OMSettingsSection {
+                    OMSettingsRow(title: AppStrings.pairConnectAppleWatchTitle, icon: "devices",
+                                  accessibilityIdentifier: "settings-sessions-watch-pair-row",
+                                  action: onConnectAppleWatch)
+                }
+            }
             if isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -1084,7 +1094,10 @@ struct SettingsSessionsView: View {
                     .padding(.horizontal, .spacing6)
             }
         }
-        .task { await loadSessions() }
+        .task {
+            if isPreview { isLoading = false }
+            else { await loadSessions() }
+        }
         .overlay { confirmationOverlay }
     }
 

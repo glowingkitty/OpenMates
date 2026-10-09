@@ -74,25 +74,29 @@ struct EmailLookupForm: View {
     var body: some View {
         VStack(spacing: 0) {
             stayLoggedInControl
+                // EmailLookup.svelte .toggle-group has 15px vertical margins.
+                .padding(.vertical, 15)
 
             loginOption(
                 icon: "passkey",
-                title: LocalizationManager.shared.text("login.login_with_passkey"),
+                title: AppStrings.authPasskeyOption,
                 action: onPasskeyLogin
             )
             .accessibilityIdentifier("login-passkey-option")
-            .padding(.top, .spacing4)
+            .padding(.top, .spacing8)
+            .padding(.bottom, .spacing8)
 
             loginOption(
                 icon: "phone",
-                title: LocalizationManager.shared.text("login.login_with_phone_or_pc"),
+                title: AppStrings.authPairOption,
                 action: onPairLogin
             )
             .accessibilityIdentifier("login-pair-option")
-            .padding(.top, .spacing2)
+            .padding(.top, -CGFloat.spacing4)
+            .padding(.bottom, .spacing8)
 
             divider
-                .padding(.vertical, .spacing2)
+                .padding(.vertical, .spacing8)
 
             emailInput
 
@@ -111,17 +115,17 @@ struct EmailLookupForm: View {
                         ProgressView()
                             .tint(.fontButton)
                     } else {
-                        Text(LocalizationManager.shared.text("common.continue"))
+                        Text(AppStrings.authContinue)
                     }
                 }
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(OMPrimaryButtonStyle())
+            .buttonStyle(AuthPrimaryButtonStyle())
             .disabled(!hasValidEmail || isLoading)
-            .padding(.top, .spacing4)
+            .padding(.top, .spacing10)
             .accessibilityIdentifier("continue-button")
-            .help(Text(LocalizationManager.shared.text("common.continue")))
-            .accessibilityLabel(LocalizationManager.shared.text("common.continue"))
+            .help(Text(AppStrings.authContinue))
+            .accessibilityLabel(AppStrings.authContinue)
             .accessibilityHint(LocalizationManager.shared.text("auth.lookup_login_methods"))
         }
         .frame(maxWidth: .infinity)
@@ -142,7 +146,7 @@ struct EmailLookupForm: View {
         Button {
             stayLoggedIn.toggle()
         } label: {
-            HStack(spacing: .spacing2) {
+            HStack(spacing: .spacing6) {
                 ZStack(alignment: stayLoggedIn ? .trailing : .leading) {
                     Capsule()
                         .fill(stayLoggedIn ? AnyShapeStyle(LinearGradient.primary) : AnyShapeStyle(Color.grey30))
@@ -150,14 +154,14 @@ struct EmailLookupForm: View {
                         .shadow(color: .black.opacity(0.18), radius: 2, x: 0, y: 1)
 
                     Circle()
-                        .fill(Color.white)
+                        .fill(Color.grey0)
                         .frame(width: 24, height: 24)
                         .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
                         .padding(.horizontal, 4)
                 }
 
-                Text(LocalizationManager.shared.text("login.stay_logged_in"))
-                    .font(.omSmall)
+                Text(AppStrings.stayLoggedIn)
+                    .font(.omP)
                     .foregroundStyle(Color.fontSecondary)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -167,13 +171,13 @@ struct EmailLookupForm: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("stay-logged-in-toggle")
-        .accessibilityLabel(LocalizationManager.shared.text("login.stay_logged_in"))
-        .accessibleToggle(LocalizationManager.shared.text("login.stay_logged_in"), isOn: stayLoggedIn)
+        .accessibilityLabel(AppStrings.stayLoggedIn)
+        .accessibleToggle(AppStrings.stayLoggedIn, isOn: stayLoggedIn)
     }
 
     private func loginOption(icon: String, title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: .spacing2) {
+            HStack(spacing: .spacing4) {
                 Icon(icon, size: 20)
                     .foregroundStyle(LinearGradient.primary)
                 Text(title)
@@ -194,7 +198,7 @@ struct EmailLookupForm: View {
             Rectangle()
                 .fill(Color.grey30)
                 .frame(height: 1)
-            Text(LocalizationManager.shared.text("login.or"))
+            Text(AppStrings.authOr)
                 .font(.omSmall)
                 .foregroundStyle(Color.grey60)
             Rectangle()
@@ -223,14 +227,18 @@ struct EmailLookupForm: View {
                 .accessibilityIdentifier("email-input")
                 .accessibilityLabel(AppStrings.emailPlaceholder)
         }
-        .padding(.horizontal, .spacing6)
+        .padding(.horizontal, .spacing8)
         .frame(height: 48)
+        .frame(maxWidth: 350)
         .background(Color.grey0)
         .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
         .overlay(
             RoundedRectangle(cornerRadius: .radiusFull)
-                .stroke(errorMessage == nil ? (emailFocused ? Color.buttonPrimary : Color.grey30) : Color.error, lineWidth: 2)
+                .stroke(errorMessage == nil ? (emailFocused ? Color.buttonPrimary : Color.grey0) : Color.error, lineWidth: 2)
         )
+        .shadow(color: emailFocused ? Color.buttonPrimary.opacity(0.22) : .clear, radius: 3)
+        .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 4)
+        .tint(Color.buttonPrimary)
     }
 
     private func performLookup() {
