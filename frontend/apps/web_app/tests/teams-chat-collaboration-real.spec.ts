@@ -291,7 +291,11 @@ test('two Team members exchange encrypted messages and invoke OpenMates with the
     await ownerNameButton.click();
     await expect(memberPage.getByTestId('team-member-detail')).toBeVisible();
     await expect(memberPage.getByTestId('team-settings-header')).toContainText(ownerName);
-    await expect.poll(() => new URL(memberPage!.url()).hash).toMatch(/settings\/teams\/[^/]+\/members\//);
+    await expect.poll(() => new URLSearchParams(new URL(memberPage!.url()).hash.slice(1)).get('settings'))
+      .toMatch(new RegExp(`^teams/${teamId}/members/[^/]+$`));
+    const memberSettingsHash = new URLSearchParams(new URL(memberPage.url()).hash.slice(1));
+    expect(memberSettingsHash.get('team-id')).toBe(teamId);
+    expect(memberSettingsHash.get('chat-id')).toBe(chatId);
     await memberPage.getByTestId('icon-button-close').click();
     await expect(memberPage.getByTestId('settings-menu')).not.toBeVisible();
     // A member's draft is private to that account and uses the Team chat scope.

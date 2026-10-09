@@ -238,8 +238,14 @@ def test_dev_apps_workspace_credentialed_cors_precedes_public_api() -> None:
 
 
 @pytest.mark.parametrize("caddyfile", ALL_CADDYFILES)
-def test_embed_reference_availability_uses_credentialed_cors(caddyfile: Path, tmp_path: Path) -> None:
-    """Audio send's reference probe must reach FastAPI for OPTIONS and POST."""
+@pytest.mark.parametrize("probe_path", [
+    "/v1/embeds/chats/*/references/availability",
+    "/v1/embeds/chats/*",
+])
+def test_chat_embed_reads_and_references_use_credentialed_cors(
+    caddyfile: Path, tmp_path: Path, probe_path: str,
+) -> None:
+    """Chat embed/key reads and reference probes must preserve session CORS."""
     caddy = shutil.which("caddy")
     if caddy is None:
         pytest.skip("caddy is not installed")
@@ -262,7 +268,6 @@ def test_embed_reference_availability_uses_credentialed_cors(caddyfile: Path, tm
         pytest.skip("installed caddy lacks the Gandi DNS module")
     assert result.returncode == 0, result.stderr
 
-    probe_path = "/v1/embeds/chats/*/references/availability"
     for routes in _route_lists(json.loads(result.stdout)):
         public_routes = {
             "OPTIONS" if route.get("match", [{}])[0].get("method") == ["OPTIONS"] else "actual": index
