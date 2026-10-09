@@ -29,6 +29,8 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { createHash } = require('node:crypto');
+const { runCli } = require('./helpers/cli-test-helpers');
 const {
 	createSignupLogger,
 	createStepScreenshotter,
@@ -75,6 +77,50 @@ async function browserSessionUserId(page: any, apiUrl: string): Promise<string> 
 // Helpers
 // ---------------------------------------------------------------------------
 
+// Fixture keyring starts empty and accepts freshly paired keys. This exercises
+// recovery for the same account without using the runner's real credential store.
+function cliEnvironment(apiUrl: string, homeDir: string): Record<string, string | undefined> {
+	return {
+		...process.env,
+		HOME: homeDir,
+		OPENMATES_STATE_DIR: path.join(homeDir, '.openmates'),
+		OPENMATES_PROFILE: undefined,
+		OPENMATES_API_KEY: undefined,
+		OPENMATES_API_URL: apiUrl,
+		PATH: `${path.join(homeDir, 'bin')}:${process.env.PATH}`,
+		NODE_PATH: path.join(path.dirname(path.dirname(CLI_DIST)), 'node_modules'),
+		TERM: 'dumb'
+	};
+}
+
+function seedUnavailableKeyringSession(apiUrl: string, homeDir: string): string {
+	const stateDir = path.join(homeDir, '.openmates');
+	const bin = path.join(homeDir, 'bin');
+	const keyring = path.join(homeDir, 'keyring');
+	for (const dir of [stateDir, bin, keyring]) fs.mkdirSync(dir, {recursive: true, mode: 0o700});
+	const shim = `#!/usr/bin/env node
+const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
+const args = process.argv.slice(2), account = args[args.indexOf('account') + 1];
+const file = path.join(${JSON.stringify(keyring)}, crypto.createHash('sha256').update(account).digest('hex'));
+if (args[0] === 'store') fs.writeFileSync(file, fs.readFileSync(0), {mode: 0o600});
+else if (args[0] === 'lookup') { if (!fs.existsSync(file)) process.exit(1); process.stdout.write(fs.readFileSync(file)); }
+else if (args[0] === 'clear') fs.rmSync(file, {force: true});
+else process.exit(1);
+`;
+	fs.writeFileSync(path.join(bin, 'secret-tool'), shim, {mode: 0o700});
+	const session = JSON.stringify({
+		apiUrl, sessionId: 'unavailable-keyring-fixture', wsToken: null,
+		cookies: {auth_refresh_token: 'stale-fixture-cookie'},
+		hashedEmail: createHash('sha256').update(TEST_EMAIL).digest('base64'),
+		userEmailSalt: 'fixture-salt', createdAt: Date.now(),
+		authorizerDeviceName: null, autoLogoutMinutes: null,
+		masterKeyStorage: 'keychain', emailEncryptionKeyStorage: 'keychain'
+	});
+	fs.writeFileSync(path.join(stateDir, 'session.json'), session, {mode: 0o600});
+	return session;
+}
+
+
 /**
  * Derive the API URL from the Playwright base URL.
  * e.g. https://app.dev.openmates.org → https://api.dev.openmates.org
@@ -119,18 +165,8 @@ function spawnCliLogin(
 	const stdout: string[] = [];
 	const stderr: string[] = [];
 
-	// Resolve the CLI's node_modules so `ws` and `qrcode-terminal` are found.
-	const cliDir = path.dirname(path.dirname(CLI_DIST)); // …/cli
 	const child = spawn('node', [CLI_DIST, 'login'], {
-		env: {
-			...process.env,
-			HOME: homeDir,
-			OPENMATES_API_KEY: undefined,
-			OPENMATES_API_URL: apiUrl,
-			NODE_PATH: path.join(cliDir, 'node_modules'),
-			// Force non-TTY so stdin.setRawMode is skipped (the E key listener)
-			TERM: 'dumb'
-		},
+		env: cliEnvironment(apiUrl, homeDir),
 		stdio: ['pipe', 'pipe', 'pipe']
 	});
 
@@ -215,34 +251,9 @@ async function runCliCommand(
 	args: string[],
 	timeoutMs = 20_000
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
-	return new Promise((resolve) => {
-		const cliDir = path.dirname(path.dirname(CLI_DIST));
-		const child = spawn('node', [CLI_DIST, ...args], {
-			env: {
-				...process.env,
-				HOME: homeDir,
-				OPENMATES_API_KEY: undefined,
-				OPENMATES_API_URL: apiUrl,
-				NODE_PATH: path.join(cliDir, 'node_modules')
-			},
-			stdio: ['pipe', 'pipe', 'pipe']
-		});
-
-		const stdoutChunks: string[] = [];
-		const stderrChunks: string[] = [];
-
-		child.stdout.on('data', (d: Buffer) => stdoutChunks.push(d.toString()));
-		child.stderr.on('data', (d: Buffer) => stderrChunks.push(d.toString()));
-
-		const timeout = setTimeout(() => {
-			child.kill('SIGTERM');
-			resolve({ code: null, stdout: stdoutChunks.join(''), stderr: stderrChunks.join('') });
-		}, timeoutMs);
-
-		child.on('close', (code: number | null) => {
-			clearTimeout(timeout);
-			resolve({ code, stdout: stdoutChunks.join(''), stderr: stderrChunks.join('') });
-		});
+	return runCli(apiUrl, args, timeoutMs, {
+		useApiKey: false,
+		env: cliEnvironment(apiUrl, homeDir)
 	});
 }
 
@@ -253,8 +264,8 @@ async function runCliCommand(
 test.describe('CLI Pair Login', () => {
 	test.setTimeout(240_000); // Includes account login, encrypted draft sync, and PAKE exchange
 
-	// contract-test: direct surface=cli assertions=auth.pair-login.single-use-zk,auth.pair-login.session-grant,auth.session.isolation
-	test('full pair-auth flow: CLI login → web approve → PIN → whoami', async ({
+	// contract-test: direct surface=cli assertions=auth.pair-login.single-use-zk,auth.pair-login.session-grant,auth.session.isolation,cli.credentials.storage-mode
+	test('full pair-auth flow recovers an unavailable keyring session: CLI login → web approve → PIN → whoami', async ({
 		page
 	}: {
 		page: any;
@@ -278,6 +289,18 @@ test.describe('CLI Pair Login', () => {
 		logCheckpoint(`Using API URL: ${apiUrl} (derived from ${baseUrl})`);
 
 		try {
+			const preservedSession = seedUnavailableKeyringSession(apiUrl, cliHome);
+			const sessionFile = path.join(cliHome, '.openmates', 'session.json');
+			for (const args of [['version'], ['--help'], ['chats', '--help'], ['update', '--dry-run', '--version', '99.0.0', '--json']]) {
+				const result = await runCliCommand(apiUrl, cliHome, args);
+				expect(result.code, result.stderr + result.stdout).toBe(0);
+				expect(fs.readFileSync(sessionFile, 'utf8')).toBe(preservedSession);
+			}
+			const blocked = await runCliCommand(apiUrl, cliHome, ['whoami', '--json']);
+			expect(blocked.code).not.toBe(0);
+			expect(blocked.stderr + blocked.stdout).toContain('Existing OS keyring entry is unavailable');
+			expect(fs.readFileSync(sessionFile, 'utf8')).toBe(preservedSession);
+
 			// ---------------------------------------------------------------
 			// Step 1: Log in to the test account in the browser
 			// ---------------------------------------------------------------
@@ -330,6 +353,7 @@ test.describe('CLI Pair Login', () => {
 				throw err;
 			}
 			logCheckpoint('CLI received a pair token.');
+			expect(fs.readFileSync(sessionFile, 'utf8')).toBe(preservedSession);
 			await takeStepScreenshot(page, 'cli-token-received');
 
 			// ---------------------------------------------------------------
@@ -385,6 +409,11 @@ test.describe('CLI Pair Login', () => {
 
 			expect(loginOutput).toContain('Login successful');
 			expect(loginCode).toBe(0);
+			const recovered = JSON.parse(fs.readFileSync(sessionFile, 'utf8'));
+			expect(recovered.masterKeyStorage).toBe('keychain');
+			expect(recovered.emailEncryptionKeyStorage).toBe('keychain');
+			expect(recovered.masterKeyExportedB64).toBeUndefined();
+			expect(recovered.sessionId).not.toBe('unavailable-keyring-fixture');
 			logCheckpoint('CLI login completed successfully.');
 			await takeStepScreenshot(page, 'cli-login-done');
 

@@ -58,6 +58,7 @@ import {
   type SyncCache,
   type CachedChat,
   loadSession,
+  loadStoredSessionApiUrl,
   saveSession,
   persistSessionRefreshCookie,
   withSessionRefreshLock,
@@ -2845,6 +2846,8 @@ export interface DecryptedMemoryEntry {
 
 export interface OpenMatesClientOptions {
   apiUrl?: string;
+  /** Skip saved credentials for fresh pairing or session-free maintenance. */
+  loadStoredSession?: boolean;
   session?: OpenMatesSession;
 }
 
@@ -3283,11 +3286,12 @@ export class OpenMatesClient {
 
   constructor(options: OpenMatesClientOptions = {}) {
     this.explicitSession = options.session !== undefined;
-    const diskSession = options.session ?? this.getValidSessionFromDisk();
+    const diskSession = options.session ?? (options.loadStoredSession === false ? null : this.getValidSessionFromDisk());
     this.apiUrl = (
       options.apiUrl ??
       process.env.OPENMATES_API_URL ??
       diskSession?.apiUrl ??
+      (options.loadStoredSession === false ? loadStoredSessionApiUrl() : undefined) ??
       loadDefaultServerApiUrl() ??
       DEFAULT_API_URL
     ).replace(/\/$/, "");

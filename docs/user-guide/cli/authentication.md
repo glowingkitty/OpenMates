@@ -50,6 +50,16 @@ This initiates the pair-auth flow:
 
 After login, all subsequent commands use the stored session automatically.
 
+If a saved OS keyring entry becomes unavailable, unlock your OS keyring or run
+`openmates login` to start fresh pairing. Login uses the saved server address
+(unless overridden with `--api-url` or `OPENMATES_API_URL`) without reading the old
+keys or sending old session cookies. Pairing that fails or is canceled before
+storing newly authorized credentials preserves the saved session. An existing keyring-backed session is never silently downgraded
+to file storage if the keyring cannot store the new credentials.
+
+Help, version, and `update`/`upgrade` remain available while the keyring is
+unavailable. Authenticated commands still require access to the saved keys.
+
 ## Logout
 
 ```

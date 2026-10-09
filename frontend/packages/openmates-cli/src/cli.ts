@@ -300,7 +300,13 @@ async function main(): Promise<void> {
     }
     process.env.OPENMATES_PROFILE = profile;
   }
+  // Help, maintenance, and fresh pairing must remain reachable when a saved
+  // keyring entry is unavailable. Keep protected commands strict.
+  const sessionFree = parsed.flags.help === true
+    || ["help", "version", "update", "upgrade", "login"].includes(command ?? "")
+    || (!command && parsed.flags.version !== undefined);
   const client = OpenMatesClient.load({
+    loadStoredSession: !sessionFree,
     apiUrl:
       typeof parsed.flags["api-url"] === "string"
         ? parsed.flags["api-url"]

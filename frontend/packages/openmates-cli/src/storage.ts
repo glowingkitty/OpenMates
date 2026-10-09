@@ -362,7 +362,7 @@ export function loadSession(): OpenMatesSession | null {
   switch (onDisk.masterKeyStorage) {
     case "keychain":
       masterKey = retrieveMasterKey("keychain", resolveKeyStorageId(onDisk.hashedEmail));
-      if (!masterKey) throw new Error("Existing OS keyring entry is unavailable; local session was preserved.");
+      if (!masterKey) throw new Error("Existing OS keyring entry is unavailable; local session was preserved. Unlock your OS keyring or run `openmates login` to pair again.");
       break;
 
     case "encrypted":
@@ -387,6 +387,12 @@ export function loadSession(): OpenMatesSession | null {
   }
 
   return buildSession(onDisk, masterKey, getEmailEncryptionKeyFromDisk(onDisk));
+}
+
+/** Read only the saved server address without loading keys or changing session state. */
+export function loadStoredSessionApiUrl(): string | undefined {
+  const onDisk = readJsonFile<SessionOnDisk>(join(getStateDir(), "session.json"));
+  return typeof onDisk?.apiUrl === "string" && onDisk.apiUrl ? onDisk.apiUrl : undefined;
 }
 
 /** Truthful user-facing protection mode for the currently stored session. */
@@ -485,7 +491,7 @@ function getEmailEncryptionKeyFromDisk(onDisk: SessionOnDisk): string | null {
     case "keychain":
       {
         const key = retrieveMasterKey("keychain", resolveKeyStorageId(`${onDisk.hashedEmail}:email`));
-        if (!key) throw new Error("Existing email keyring entry is unavailable; local session was preserved.");
+        if (!key) throw new Error("Existing email keyring entry is unavailable; local session was preserved. Unlock your OS keyring or run `openmates login` to pair again.");
         return key;
       }
     case "encrypted":

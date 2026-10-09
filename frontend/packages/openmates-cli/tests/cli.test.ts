@@ -89,6 +89,103 @@ function runCliWithoutSessionResult(args: string[]): { status: number | null; st
   }
 }
 
+// specification: cli.credentials.storage-mode
+// assertion: unavailable-keyring-keeps-recovery-and-maintenance-reachable
+async function withUnavailableKeyring<T>(
+  apiUrl: string,
+  run: (fixture: { env: Record<string, string | undefined>; sessionPath: string; original: string; callsPath: string }) => Promise<T> | T,
+): Promise<T> {
+  const home = mkdtempSync(join(tmpdir(), "openmates-keyring-recovery-"));
+  const stateDir = join(home, ".openmates");
+  const bin = join(home, "bin");
+  mkdirSync(stateDir, { mode: 0o700 });
+  mkdirSync(bin);
+  const callsPath = join(home, "keyring-calls");
+  for (const executable of ["security", "secret-tool"]) {
+    const path = join(bin, executable);
+    writeFileSync(path, '#!/bin/sh\nprintf "%s\\n" "$*" >> "$KEYRING_CALLS"\nexit 1\n', { mode: 0o700 });
+  }
+  const sessionPath = join(stateDir, "session.json");
+  const original = JSON.stringify({
+    apiUrl, sessionId: "saved-keyring-session", wsToken: "old-ws-token",
+    cookies: { auth_refresh_token: "must-not-send-stale-cookie" },
+    masterKeyStorage: "keychain", emailEncryptionKeyStorage: "keychain",
+    hashedEmail: "synthetic-hash", userEmailSalt: "synthetic-salt", createdAt: Date.now(),
+    authorizerDeviceName: null, autoLogoutMinutes: null,
+  });
+  writeFileSync(sessionPath, original, { mode: 0o600 });
+  try {
+    return await run({ sessionPath, original, callsPath, env: {
+      HOME: home, USERPROFILE: home, OPENMATES_STATE_DIR: stateDir, OPENMATES_PROFILE: "",
+      OPENMATES_API_URL: undefined, OPENMATES_ACCOUNT_GUARD: "",
+      PATH: `${bin}:${process.env.PATH}`, KEYRING_CALLS: callsPath,
+      OPENMATES_CLI_LATEST_VERSION: CLI_PACKAGE_VERSION,
+    } });
+  } finally { rmSync(home, { recursive: true, force: true }); }
+}
+
+describe("unavailable-keyring recovery", () => {
+  it("preserves help, version, and update without reading keys; protected commands fail safely", async () => {
+    await withUnavailableKeyring("https://api.dev.openmates.org", ({ env, sessionPath, original, callsPath }) => {
+      for (const args of [
+        ["help"], ["--help"], ["tasks", "--help"], ["tasks", "list", "--help"],
+        ["version"], ["--version"], ["update", "--dry-run", "--json"],
+        ["upgrade", "--dry-run", "--json"],
+      ]) {
+        const result = spawnSync(process.execPath, ["dist/cli.js", ...args], {
+          cwd: PACKAGE_ROOT, encoding: "utf-8", env: { ...process.env, ...env }, timeout: 15_000,
+        });
+        assert.equal(result.status, 0, `${args.join(" ")}: ${result.stderr}`);
+        assert.equal(readFileSync(sessionPath, "utf-8"), original);
+        assert.equal(existsSync(callsPath), false, "maintenance must not access the keyring");
+      }
+      const protectedResult = spawnSync(process.execPath, ["dist/cli.js", "whoami", "--json"], {
+        cwd: PACKAGE_ROOT, encoding: "utf-8", env: { ...process.env, ...env }, timeout: 15_000,
+      });
+      assert.notEqual(protectedResult.status, 0);
+      assert.match(protectedResult.stderr, /Unlock your OS keyring.*openmates login/);
+      assert.equal(existsSync(callsPath), true, "protected commands must still load keys");
+      assert.equal(readFileSync(sessionPath, "utf-8"), original);
+    });
+  });
+
+  for (const outcome of ["failed", "cancelled"] as const) {
+    it(`starts fresh login on the saved API and preserves the session when pairing is ${outcome}`, async () => {
+      const requests: { path: string; cookie: string | undefined }[] = [];
+      const server = createServer((request, response) => {
+        requests.push({ path: request.url ?? "", cookie: request.headers.cookie });
+        response.setHeader("Content-Type", "application/json");
+        if (request.url === "/v1/auth/pair/v2/initiate") {
+          if (outcome === "failed") {
+            response.statusCode = 503;
+            response.end(JSON.stringify({ message: "synthetic initiate failure" }));
+          } else {
+            response.end(JSON.stringify({ protocol_version: 2, token: "ABC123", expires_at: Math.floor(Date.now() / 1000) + 60 }));
+          }
+        } else if (request.method === "DELETE") {
+          response.end(JSON.stringify({ success: true }));
+        } else {
+          response.end(JSON.stringify({ status: "cancelled" }));
+        }
+      });
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      try {
+        const address = server.address();
+        assert.ok(address && typeof address !== "string");
+        await withUnavailableKeyring(`http://127.0.0.1:${address.port}`, async ({ env, sessionPath, original, callsPath }) => {
+          await assert.rejects(execFileAsync(process.execPath, ["dist/cli.js", "login"], {
+            cwd: PACKAGE_ROOT, env: { ...process.env, ...env }, timeout: 15_000,
+          }), outcome === "failed" ? /synthetic initiate failure/ : /Pairing cancelled/);
+          assert.equal(requests[0]?.path, "/v1/auth/pair/v2/initiate");
+          assert.ok(requests.every((request) => !request.cookie), "fresh pairing must not send saved cookies");
+          assert.equal(existsSync(callsPath), false);
+          assert.equal(readFileSync(sessionPath, "utf-8"), original);
+        });
+      } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
+    });
+  }
+});
+
 describe("account-guard command policy", () => {
   it("guards authenticated commands while preserving recovery and maintenance commands", () => {
     assert.strictEqual(shouldRequireTrustedAccountGuard("tasks"), true);
