@@ -58,7 +58,8 @@ def test_prepare_publishes_validated_commit_artifact_and_reuses_it(monkeypatch, 
 
     monkeypatch.setattr(translations.subprocess, "run", run)
     overlay = translations.prepare_artifact(checkout, store)
-    assert overlay == store / commit / translations.OVERLAY_NAME
+    artifact_dir = translations._artifact_dir(store, commit)
+    assert overlay == artifact_dir / translations.OVERLAY_NAME
     assert calls == ["build-translations.js", "validate-locales.js"]
     assert translations.prepare_artifact(checkout, store) == overlay
     assert translations.selected_overlay(checkout, store) == overlay
@@ -67,10 +68,50 @@ def test_prepare_publishes_validated_commit_artifact_and_reuses_it(monkeypatch, 
     artifact = json.loads(overlay.read_text(encoding="utf-8"))
     assert set(artifact["services"]) == translations.TRANSLATION_SERVICES
     assert all(config["volumes"] == [{
-        "type": "bind", "source": str(store / commit / "locales"),
+        "type": "bind", "source": str(artifact_dir / "locales"),
         "target": "/translations", "read_only": True,
     }] for config in artifact["services"].values())
-    assert "stale" not in (store / commit / "locales/en.json").read_text(encoding="utf-8")
+    assert "stale" not in (artifact_dir / "locales/en.json").read_text(encoding="utf-8")
+
+
+def test_legacy_commit_artifact_is_preserved_and_new_layout_is_generated(monkeypatch, tmp_path):
+    checkout = _checkout(tmp_path)
+    store = tmp_path / "artifacts"
+    commit = "a" * 40
+    monkeypatch.setattr(translations, "source_commit", lambda _checkout: commit)
+    monkeypatch.setattr(translations, "_node24_executable", lambda: "node")
+    legacy = store / commit
+    legacy_locales = legacy / "locales"
+    legacy_locales.mkdir(parents=True)
+    for name in ("en.json", "de.json"):
+        (legacy_locales / name).write_text('{"old":{"text":"old"}}\n', encoding="utf-8")
+    (legacy / translations.MANIFEST_NAME).write_text(json.dumps({
+        "commit": commit,
+        "files": {name: translations._sha256(legacy_locales / name) for name in ("en.json", "de.json")},
+    }), encoding="utf-8")
+    old_overlay = translations._overlay_content(legacy_locales)
+    for service in ("core-worker", "reminder-worker", "user-init-worker", "user-tasks-worker"):
+        old_overlay["services"].pop(service)
+    (legacy / translations.OVERLAY_NAME).write_text(json.dumps(old_overlay), encoding="utf-8")
+    original = {path.name: path.read_bytes() for path in legacy.rglob("*") if path.is_file()}
+
+    assert translations.selected_overlay(checkout, store) is None
+
+    def run(command, *, cwd, capture_output, text):
+        if command[-1].endswith("build-translations.js"):
+            locales = Path(cwd) / "src/i18n/locales"
+            locales.mkdir()
+            for name in ("en.json", "de.json"):
+                (locales / name).write_text('{"new":{"text":"ready"}}\n', encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(translations.subprocess, "run", run)
+    overlay = translations.prepare_artifact(checkout, store)
+    assert overlay == store / f"{commit}-v2" / translations.OVERLAY_NAME
+    assert translations.selected_overlay(checkout, store) == overlay
+    assert json.loads((overlay.parent / translations.MANIFEST_NAME).read_text(encoding="utf-8"))["commit"] == commit
+    assert set(json.loads(overlay.read_text(encoding="utf-8"))["services"]) == translations.TRANSLATION_SERVICES
+    assert {path.name: path.read_bytes() for path in legacy.rglob("*") if path.is_file()} == original
 
 
 def test_generation_failure_preserves_previous_artifact(monkeypatch, tmp_path):
@@ -95,7 +136,7 @@ def test_generation_failure_preserves_previous_artifact(monkeypatch, tmp_path):
     with pytest.raises(RuntimeError, match="build-translations.js failed: bad yaml"):
         translations.prepare_artifact(checkout, store)
     assert original.is_file()
-    assert not (store / ("b" * 40)).exists()
+    assert not translations._artifact_dir(store, "b" * 40).exists()
     assert not any(path.name.startswith("." + "b" * 40) for path in store.iterdir())
 
 
@@ -117,7 +158,7 @@ def test_source_change_during_generation_is_not_published(monkeypatch, tmp_path)
     monkeypatch.setattr(translations.subprocess, "run", run)
     with pytest.raises(RuntimeError, match="source changed"):
         translations.prepare_artifact(checkout, store)
-    assert not (store / ("a" * 40)).exists()
+    assert not translations._artifact_dir(store, "a" * 40).exists()
     assert list(store.iterdir()) == []
 
 
@@ -126,7 +167,7 @@ def test_corrupt_artifact_fails_closed(monkeypatch, tmp_path):
     store = tmp_path / "artifacts"
     commit = "a" * 40
     monkeypatch.setattr(translations, "source_commit", lambda _checkout: commit)
-    artifact = store / commit
+    artifact = translations._artifact_dir(store, commit)
     (artifact / "locales").mkdir(parents=True)
     (artifact / "locales/en.json").write_text("{}", encoding="utf-8")
     (artifact / "locales/de.json").write_text("{}", encoding="utf-8")
@@ -142,7 +183,7 @@ def test_self_consistent_truncated_artifact_is_rejected_on_reuse(monkeypatch, tm
     store = tmp_path / "artifacts"
     commit = "a" * 40
     monkeypatch.setattr(translations, "source_commit", lambda _checkout: commit)
-    artifact = store / commit
+    artifact = translations._artifact_dir(store, commit)
     locales = artifact / "locales"
     locales.mkdir(parents=True)
     (locales / "en.json").write_text('{"ok":{"text":"yes"}}\n', encoding="utf-8")
@@ -163,7 +204,7 @@ def test_reuse_rejects_locale_with_non_string_text_even_when_hashes_match(monkey
     store = tmp_path / "artifacts"
     commit = "a" * 40
     monkeypatch.setattr(translations, "source_commit", lambda _checkout: commit)
-    artifact = store / commit
+    artifact = translations._artifact_dir(store, commit)
     locales = artifact / "locales"
     locales.mkdir(parents=True)
     (locales / "en.json").write_text('{"ok":{"text":{"invalid":true}}}\n', encoding="utf-8")

@@ -21,6 +21,7 @@ TRANSLATION_SERVICES = frozenset({
     "app-ai-worker", "app-images-worker", "app-music-worker", "app-videos-worker",
     "app-pdf-worker", "app-docs-worker", "app-code-worker", "app-social-media-worker",
 })
+ARTIFACT_FORMAT_VERSION = 2
 MANIFEST_NAME = "manifest.json"
 OVERLAY_NAME = "docker-compose.translations.json"
 
@@ -66,7 +67,7 @@ def _node24_executable() -> str:
 
 
 def _artifact_dir(store: Path, commit: str) -> Path:
-    return store / commit
+    return store / f"{commit}-v{ARTIFACT_FORMAT_VERSION}"
 
 
 def _required_locale_files(checkout: Path) -> set[str]:
