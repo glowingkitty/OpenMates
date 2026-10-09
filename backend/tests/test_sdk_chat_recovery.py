@@ -264,6 +264,53 @@ async def test_sdk_ordinary_team_message_commits_team_scope_before_notification_
     directus.team.require_team_role.assert_awaited_once()
 
 
+# contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,teams.chat-billing.team-credit-boundary
+@pytest.mark.asyncio
+async def test_sdk_configured_mate_dispatch_preserves_each_human_sender_name(monkeypatch):
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    request = _request()
+    request.app.state.directus_service = SimpleNamespace(team=SimpleNamespace(
+        require_team_role=AsyncMock(return_value={"role": "member"}),
+        list_active_member_hashes=AsyncMock(return_value={hash_id(USER_ID)}),
+    ))
+    registry = SimpleNamespace(dispatch_skill=AsyncMock(return_value={"task_id": TASK_ID}))
+    registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    registry_module.get_global_registry = lambda: registry
+    monkeypatch.setitem(sys.modules, registry_module.__name__, registry_module)
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    monkeypatch.setattr(sdk, "build_inference_commitment", lambda _request: "commitment")
+    monkeypatch.setattr(sdk.ChatRecoveryService, "execute", AsyncMock(
+        return_value={"preflight_id": "preflight-id"},
+    ))
+    monkeypatch.setattr(sdk, "enqueue_chat_turn", AsyncMock(
+        return_value={"inference_task_id": TASK_ID, "outbox_id": "outbox-id"},
+    ))
+    monkeypatch.setattr(sdk, "_execute_sdk_recovery", AsyncMock(return_value={"state": "DISPATCHED"}))
+    monkeypatch.setattr(sdk, "broadcast_team_event", AsyncMock())
+    monkeypatch.setattr(sdk, "notify_team_member_mentions", AsyncMock())
+    history = [
+        {"role": "user", "content": "Earlier venue idea", "sender_name": "Alice", "created_at": 100},
+        {"role": "user", "content": "@mate:software_development review", "sender_name": "Bob", "created_at": 200},
+    ]
+    result = await sdk.create_sdk_chat(request, sdk.SdkChatCreateRequest(
+        message=None, save_to_account=True, team_id="team-123", protocol_version=1,
+        chat_id="chat-id", turn_id="turn-id", message_id="message-id", chat_key_version=1,
+        encrypted_chat_key="wrapped-key", recovery_public_key="public-key", expected_messages_v=0,
+        encrypted_user_message={"chat_id": "chat-id", "client_message_id": "message-id", "encrypted_content": ciphertext},
+        inference_request={"team_id": "team-123", "model": "best", "messages": history},
+        team_ai_invocation={"history": history},
+    ))
+    assert result["task_id"] == TASK_ID
+    dispatch = registry.dispatch_skill.await_args.args[2]
+    assert [(item["sender_name"], item["content"], item["created_at"])
+            for item in dispatch["message_history"]] == [
+        ("Alice", "Earlier venue idea", 100),
+        ("Bob", "@mate:software_development review", 200),
+    ]
+    assert dispatch["team_id"] == "team-123"
+    assert dispatch["current_user_content"] == history[-1]["content"]
+
+
 # contract-test: supporting surface=rest_api assertions=teams.chat.encrypted-until-invoked
 @pytest.mark.asyncio
 async def test_sdk_team_notification_failure_keeps_committed_message(monkeypatch):

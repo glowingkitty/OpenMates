@@ -1773,8 +1773,8 @@ async def create_sdk_chat(
                 {
                     "role": message.get("role", "user"),
                     "content": message.get("content", ""),
-                    "sender_name": message.get("name") or message.get("role", "user"),
-                    "created_at": int(time.time()),
+                    "sender_name": message.get("sender_name") or message.get("name") or message.get("role", "user"),
+                    "created_at": message.get("created_at") if isinstance(message.get("created_at"), int) else int(time.time()),
                 }
                 for message in history_messages
             ],

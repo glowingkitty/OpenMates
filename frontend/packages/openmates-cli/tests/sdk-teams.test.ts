@@ -293,10 +293,13 @@ describe("OpenMates SDK Teams", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
-        const result = await client.chats.send("private team note", {
+        const note = "Private note to @Alice; email@openmates.org and @mate:unknown_person are not AI mentions";
+        const result = await client.chats.send(note, {
           teamId: "team-1",
           senderName: "Alice",
           teamMemberMentions: ["user-2"],
+          title: "Private Team title",
+          history: [{ role: "user", content: "Earlier private Team turn", sender_name: "Bob" }],
         });
         assert.equal(result.raw.ai_dispatched, false);
 
@@ -304,9 +307,56 @@ describe("OpenMates SDK Teams", () => {
         const encryptedMessage = payload.encrypted_user_message as Record<string, unknown>;
         const chatKey = await decryptBytesWithAesGcm(String(payload.encrypted_chat_key), teamKey);
         assert.ok(chatKey);
-        assert.equal(await decryptWithAesGcmCombined(String(encryptedMessage.encrypted_content), chatKey), "private team note");
+        assert.equal(await decryptWithAesGcmCombined(String(encryptedMessage.encrypted_content), chatKey), note);
         assert.equal(await decryptWithAesGcmCombined(String(encryptedMessage.encrypted_sender_name), chatKey), "Alice");
         assert.deepEqual((payload.inference_request as Record<string, unknown>).messages, []);
+        assert.deepEqual(payload.history, []);
+        assert.equal("title" in payload, false);
+        assert.equal(JSON.stringify(payload).includes("Earlier private Team turn"), false);
+        assert.equal(JSON.stringify(payload).includes("Private Team title"), false);
+      },
+      `Bearer ${splitApiKeyCredential(material.apiKey).bearer}`,
+    );
+  });
+
+  // contract-test: direct surface=sdks.npm assertions=teams.chat.encrypted-until-invoked,teams.chat-billing.team-credit-boundary
+  it("invokes a configured Mate with named Team history while keeping the encrypted message separate", async () => {
+    const masterKey = Buffer.alloc(32, 9);
+    const teamKey = Buffer.alloc(32, 7);
+    const material = await createApiKeyCryptoMaterial("sdk team mate", bytesToBase64(masterKey));
+    const encryptedTeamKey = await encryptBytesWithAesGcm(teamKey, masterKey);
+    await withServer(
+      (request, body) => {
+        if (request.method === "POST" && request.url === "/v1/sdk/session") {
+          return { user: { id: "user-1", username: "Bob" }, key_wrapper: {
+            encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv,
+          } };
+        }
+        if (request.method === "GET" && request.url === "/v1/teams/team-1") {
+          return { team: { team_id: "team-1", encrypted_team_key: encryptedTeamKey } };
+        }
+        if (request.method === "POST" && request.url === "/v1/sdk/chats") {
+          const payload = body as Record<string, unknown>;
+          assert.equal("message" in payload, false);
+          assert.deepEqual(payload.history, []);
+          assert.equal("title" in payload, false);
+          const invocation = payload.team_ai_invocation as Record<string, unknown>;
+          assert.ok(invocation);
+          assert.deepEqual(invocation.history, [
+            { role: "user", content: "Earlier venue idea", sender_name: "Alice", created_at: 100 },
+            { role: "user", content: "@mate:software_development review", sender_name: "Bob" },
+          ]);
+          assert.deepEqual((payload.inference_request as Record<string, unknown>).messages, invocation.history);
+          return { persistent: true, chat_id: payload.chat_id, task_id: null };
+        }
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl) => {
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
+        await assert.rejects(client.chats.send("@mate:software_development review", {
+          teamId: "team-1", title: "Private Team title", senderName: "Alias",
+          history: [{ role: "user", content: "Earlier venue idea", sender_name: "Alice", created_at: 100 }],
+        }), /Saved chat dispatch did not return a stable inference task id/);
       },
       `Bearer ${splitApiKeyCredential(material.apiKey).bearer}`,
     );

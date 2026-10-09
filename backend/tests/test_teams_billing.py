@@ -383,7 +383,13 @@ async def test_team_llm_receipt_uses_actor_key_and_existing_member_visibility() 
     await _approve_invited_member(methods, "invite-member", "bob", "cipher-team-key-for-bob")
     await billing.add_credits(team_id="team-1", actor_user_id="alice", event_id="fund", credits=100,
                               encrypted_balance="cipher-100", occurred_at=130)
-    directus.get_user_fields_direct = AsyncMock(return_value={"id": "bob", "vault_key_id": "bob-key"})
+    async def projected_actor_fields(user_id, fields, *, no_cache=False):
+        assert user_id == "bob"
+        assert no_cache is True
+        actor = {"id": "bob", "vault_key_id": "bob-key"}
+        return {field: actor[field] for field in fields}
+
+    directus.get_user_fields_direct = AsyncMock(side_effect=projected_actor_fields)
     directus.usage = SimpleNamespace(encryption_service=RoundTripEncryption())
     receipt = _llm_receipt()
     receipt["settlement_state"] = "pending"
@@ -394,6 +400,7 @@ async def test_team_llm_receipt_uses_actor_key_and_existing_member_visibility() 
         workspace_type="chat", usage_details={"llm_usage_breakdown": receipt}, occurred_at=140,
     )
     assert charged["usage_event"]["encrypted_llm_usage_breakdown"].startswith("enc:bob-key:")
+    directus.get_user_fields_direct.assert_awaited_once_with("bob", ["id", "vault_key_id"], no_cache=True)
     assert directus.rows["team_credit_accounts"][0]["balance_credits"] == 99
     member_rows = await billing.list_usage("team-1", "bob")
     admin_rows = await billing.list_usage("team-1", "alice", member_user_id="bob")

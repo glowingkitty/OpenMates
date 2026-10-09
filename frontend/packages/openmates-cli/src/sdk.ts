@@ -8,7 +8,7 @@ import type { BuyerAddress } from "./billingAddress.js";
  * Tests: frontend/packages/openmates-cli/tests/sdk.test.ts
  */
 
-import type { WikipediaLearningBundle } from "./client.js";
+import { shouldWaitForTeamAi, type WikipediaLearningBundle } from "./client.js";
 import { GeneratedAppSkills, type AppSkillRunOptions } from "./generated/appSkills.js";
 import { decode as toonDecode } from "@toon-format/toon";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
@@ -533,6 +533,7 @@ export type ProjectRecordPlain = {
 export interface SdkSessionResponse {
   user?: {
     id?: string;
+    username?: string | null;
   };
   key_wrapper?: {
     encrypted_key?: string;
@@ -2317,12 +2318,15 @@ export class OpenMatesChats {
       chatId,
       1,
     );
+    const teamSenderName = teamId
+      ? session.user.username?.trim() || options.senderName?.trim() || "Team member"
+      : null;
     const inferenceHistory = [...history, {
       role: "user",
       content: finalMessage,
-      ...(options.senderName ? { name: options.senderName } : {}),
+      ...(teamId ? { sender_name: teamSenderName } : options.senderName ? { name: options.senderName } : {}),
     }];
-    const teamAiInvocation = teamId && finalMessage.toLocaleLowerCase().includes("@openmates")
+    const teamAiInvocation = teamId && shouldWaitForTeamAi(finalMessage, teamId)
       ? { history: inferenceHistory }
       : undefined;
     const inferenceRequest = {
@@ -2339,9 +2343,9 @@ export class OpenMatesChats {
       task_id?: string;
     }>("/v1/sdk/chats", {
       message: teamId ? undefined : finalMessage,
-      history,
+      history: teamId ? [] : history,
       save_to_account: true,
-      title: options.title,
+      title: teamId ? undefined : options.title,
       memory_ids: options.memoryIds ?? [],
       model: options.model,
       focus_mode: inferenceRequest.focus_mode,
@@ -2357,7 +2361,7 @@ export class OpenMatesChats {
         client_message_id: messageId,
         chat_id: chatId,
         encrypted_content: await encryptWithAesGcmCombined(finalMessage, chatKey),
-        encrypted_sender_name: await encryptWithAesGcmCombined(options.senderName ?? "User", chatKey),
+        encrypted_sender_name: await encryptWithAesGcmCombined(teamSenderName ?? options.senderName ?? "User", chatKey),
         role: "user",
         created_at: createdAt,
         updated_at: createdAt,

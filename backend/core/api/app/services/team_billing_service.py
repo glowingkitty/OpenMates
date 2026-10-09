@@ -248,7 +248,7 @@ class TeamBillingService:
         if receipt is not None:
             receipt = settle_public_llm_usage_receipt(receipt, credits)
             actor_fields = await self.directus.get_user_fields_direct(
-                actor_user_id, ["vault_key_id"], no_cache=True
+                actor_user_id, ["id", "vault_key_id"], no_cache=True
             )
             if not actor_fields or actor_fields.get("id") != actor_user_id or not actor_fields.get("vault_key_id"):
                 raise ValueError("Actor vault key unavailable for team usage receipt")
