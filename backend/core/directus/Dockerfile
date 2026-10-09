@@ -279,10 +279,12 @@ workflow_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
         'workflow_triggers_due_claim_idx',
         'workflow_triggers_due_owner_idx',
         'workflow_runs_acceptance_identity_uq',
+        'workflow_completion_notifications_run_id_uq',
+        'workflow_completion_notifications_pending_idx',
         'workflow_event_receipts_trigger_event_uq',
         'workflow_template_projections_workflow_uq'
       );")"
-test "$workflow_index_count" = "5"
+test "$workflow_index_count" = "7"
 
 sub_chat_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
   --host "$DB_HOST" --port "$DB_PORT" --username "$DB_USER" --dbname "$DB_DATABASE" \

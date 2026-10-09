@@ -11,6 +11,10 @@ import Foundation
 import Security
 
 enum NotificationPreviewCrypto {
+    struct Display: Equatable {
+        let title: String?
+        let body: String
+    }
     static let encryptionVersion = "x25519-aesgcm-v1"
 
     static let maximumDisplayCharacters = 4096
@@ -49,18 +53,26 @@ enum NotificationPreviewCrypto {
     }
 
     static func decryptPreview(userInfo: [AnyHashable: Any]) -> String? {
+        decryptDisplay(userInfo: userInfo)?.body
+    }
+
+    static func decryptDisplay(userInfo: [AnyHashable: Any]) -> Display? {
         #if os(macOS)
         // Extensions never query the legacy keychain or create a replacement key.
         guard let privateKeyData = try? NotificationPreviewKeychain().loadShared() else { return nil }
         #else
         guard let privateKeyData = try? KeychainHelper.load(key: privateKeyKeychainKey) else { return nil }
         #endif
-        return decryptPreview(userInfo: userInfo, privateKeyData: privateKeyData)
+        return decryptDisplay(userInfo: userInfo, privateKeyData: privateKeyData)
     }
 
     // Explicit key input lets synthetic tests exercise the actual authenticated
     // ciphertext path without reading or replacing the device's Keychain key.
     static func decryptPreview(userInfo: [AnyHashable: Any], privateKeyData: Data) -> String? {
+        decryptDisplay(userInfo: userInfo, privateKeyData: privateKeyData)?.body
+    }
+
+    static func decryptDisplay(userInfo: [AnyHashable: Any], privateKeyData: Data) -> Display? {
         guard let encrypted = userInfo["encrypted_notification"] as? [String: Any],
               encrypted["version"] as? String == encryptionVersion,
               let ephemeralPublicKeyValue = encrypted["ephemeral_public_key"] as? String,
@@ -89,7 +101,7 @@ enum NotificationPreviewCrypto {
                 tag: encryptedData.suffix(16)
             )
             let plaintext = try AES.GCM.open(sealedBox, using: symmetricKey)
-            return previewFromDecryptedEnvelope(plaintext)
+            return displayFromDecryptedEnvelope(plaintext)
         } catch {
             return nil
         }
@@ -98,9 +110,15 @@ enum NotificationPreviewCrypto {
     // Treat decrypted content as display input, not trusted protocol-free prose.
     // Older servers bounded raw Markdown before encryption, including partial fences.
     static func previewFromDecryptedEnvelope(_ plaintext: Data) -> String? {
+        displayFromDecryptedEnvelope(plaintext)?.body
+    }
+
+    static func displayFromDecryptedEnvelope(_ plaintext: Data) -> Display? {
         guard let envelope = try? JSONSerialization.jsonObject(with: plaintext) as? [String: Any],
-              let preview = envelope["preview"] as? String else { return nil }
-        return safeDisplayPreview(preview)
+              let body = (envelope["body"] as? String) ?? (envelope["preview"] as? String),
+              let safeBody = safeDisplayPreview(body) else { return nil }
+        let title = (envelope["title"] as? String).flatMap(safeDisplayPreview)
+        return Display(title: title, body: safeBody)
     }
 
     static func safeDisplayPreview(_ raw: String) -> String? {

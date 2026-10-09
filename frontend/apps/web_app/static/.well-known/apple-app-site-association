@@ -9,7 +9,9 @@
         "components": [
           { "/": "/s" },
           { "/": "/s/*" },
-          { "/": "/share/workflow-template/*" }
+          { "/": "/share/workflow-template/*" },
+          { "/": "/", "#": "workflow-id=?*&workflow-tab=runs&run-id=?*&workflow-completion=1" },
+          { "/": "/", "#": "workflow-id=?*&workflow-tab=runs&run-id=?*&workflow-completion=1&chat-id=?*&message-id=?*&delivery-id=?*" }
         ]
       }
     ]

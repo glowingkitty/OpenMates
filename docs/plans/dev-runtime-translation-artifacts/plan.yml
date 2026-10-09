@@ -1,0 +1,36 @@
+schema_version: 2
+profile: concise
+id: dev-runtime-translation-artifacts
+title: Commit-matched translation artifacts for the managed dev runtime
+status: implementing
+goal: >
+  Activate backend changes with current translations while preserving the clean
+  protected product checkout and the existing dev-stack coordination contract.
+scope:
+  in:
+    - Generate and validate translations outside the protected checkout from its exact committed source.
+    - Retain immutable artifacts with source identity and content hashes, published atomically.
+    - Mount the selected artifact for translation consumers through managed Compose operations.
+    - Prepare and activate only within the existing admitted dev-stack runtime operation.
+    - Gate this schema-changing activation by stopping live backend consumers before source refresh, then completing setup before restarting them under the same lease.
+    - Focused failure, reuse, identity and mount tests plus authorized scoped dev activation.
+  out:
+    - Production activation, packaged CLI changes and unrelated deployment redesign.
+decisions:
+  - id: user-approved-runtime-prerequisite
+    decision: The user explicitly approved this focused runtime fix in this Codex chat on 2026-10-08.
+  - id: checkout-integrity
+    decision: Generated locale JSON is never committed or generated inside the protected runtime checkout.
+  - id: activation-integrity
+    decision: Failed generation or validation preserves the previous usable artifact and prevents stale activation.
+  - id: schema-before-consumers
+    decision: The notification collection must exist before refreshed backend consumers run; the optional managed setup gate retains stopped consumers on failure after source refresh.
+references:
+  - task:2fc40190-ea1c-4102-ba5d-eb93627abedb
+  - workflow-completion-notifications
+checks:
+  - Focused unit tests for exact source identity, validated content hashes and safe artifact reuse.
+  - Failure and atomic publication tests preserving the previous artifact and clean checkout.
+  - Compose overlay coverage for every translation consumer, with lease-scoped preparation and activation.
+  - Managed dev-stack setup/restart and health evidence using current notification email translations.
+  - Focused ordering and failure checks for the optional single-operation schema setup gate.

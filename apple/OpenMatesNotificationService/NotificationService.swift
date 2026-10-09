@@ -27,8 +27,9 @@ final class NotificationService: UNNotificationServiceExtension {
         }
 
         self.bestAttemptContent = bestAttemptContent
-        if let preview = NotificationPreviewCrypto.decryptPreview(userInfo: request.content.userInfo) {
-            bestAttemptContent.body = preview
+        if let preview = NotificationPreviewCrypto.decryptDisplay(userInfo: request.content.userInfo) {
+            if let title = preview.title { bestAttemptContent.title = title }
+            bestAttemptContent.body = preview.body
         } else if request.content.userInfo["encrypted_notification"] != nil {
             Self.logger.warning("Encrypted notification preview could not be decrypted; using safe fallback")
         }

@@ -1,0 +1,37 @@
+schema_version: 2
+profile: concise
+id: workflow-completion-notifications
+title: Scheduled Workflow completion notifications and targets
+status: implementing
+goal: >
+  Implement push and email notifications with clear information about the Workflow that completed.
+  Clicking opens the chat it created or responded to when it sent a message, otherwise its exact run page.
+scope:
+  in:
+    - Durable successful scheduled-run notification dispatch and independent enabled push/email channels.
+    - Readable completion details under existing privacy, verified-address and content-consent boundaries.
+    - Stable first executed Send message target, or exact no-message run target, across web and Apple.
+    - Owner-authenticated pending delivery hydration with existing client-side chat encryption and fencing.
+    - Focused local checks, isolated product CI and source-bound Apple verification where admitted.
+  out:
+    - New notification action nodes, failure notifications, production rollout and a TestFlight release.
+decisions:
+  - id: user-authorized-sequence
+    decision: The user explicitly requested updating the spec and then implementing and testing these semantics in this chat.
+  - id: privacy
+    decision: Apple workflow names stay device-encrypted; email names require existing explicit content consent, with run reference and time otherwise.
+  - id: target
+    decision: The first actual successful Send message in execution order owns the notification chat target; a skipped message branch opens the exact run.
+  - id: preserved-baseline
+    decision: Reuse the passing scheduler and daily-digest baseline; existing daily digest remains available.
+  - id: approved-runtime-prerequisite
+    decision: The user approved the focused managed dev translation-artifact repair needed for activation; it is tracked separately with a Task dependency.
+references:
+  - feature.notifications@2
+  - feature.workflows@10
+  - dev-runtime-translation-artifacts
+checks:
+  - Focused backend dispatch, recovery, authorization, consent and idempotency checks.
+  - Focused web deep-link parsing, hydration and unavailable-target checks.
+  - Isolated GitHub completion integration and web notification route tests, including captured SMTP and retained recordings.
+  - Native parsing, preview decryption and pending-delivery protocol tests; record actual Mac evidence or a concrete capability blocker.

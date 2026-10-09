@@ -36,6 +36,42 @@ push_delivery:
     input: {push_enabled: true, permission_state: denied, subscription_registered: false}
     expect: {push_delivery_attempted: false, retained_history_item: true, failure_visible_as_denied: true}
 
+workflow_completion_delivery:
+  - id: scheduled-run-completes-with-offline-apple
+    assertion_ids: [notifications.workflow-run.completed-delivery]
+    given: Alice has allowed Apple push and Workflow emails to her verified account address; her Apple app is closed.
+    when: Her noon scheduled Workflow finishes successfully while its encrypted chat output is still awaiting a device.
+    then: Both enabled channels promptly identify the completed run and its time. Apple privately decrypts the Workflow name on the device; email includes it only if Alice allowed content and otherwise identifies the run by reference. Neither channel waits for the daily digest or chat acknowledgement. Replaying completion or recovering an interrupted worker does not send either channel twice or rerun the Workflow.
+  - id: completion-email-independent-of-push-and-presence
+    assertion_ids: [notifications.workflow-run.completed-delivery]
+    given: Bob has enabled Workflow email and is using the app, but Apple push is denied or its provider is unavailable.
+    when: His scheduled Workflow completes and a worker retries its completion notification.
+    then: The enabled email channel still dispatches once without private output unless Bob explicitly opted in. An email opt-out or unsubscribe prevents that email. Failed, cancelled, manual and test runs never send this scheduled-success event; the existing daily digest remains available.
+
+workflow_completion_chat_route:
+  - id: completed-workflow-created-chat-opens-after-login
+    assertion_ids: [notifications.workflow-run.chat-target]
+    given: Alice's scheduled Berlin weather Workflow completed and queued a message into a new chat while every client was closed.
+    when: She opens its Apple push or email link and signs in if needed; another device reconnects at the same time.
+    then: The authorized clients complete the fenced encrypted delivery exactly once and open the new weather chat containing that message. The notification never opens an unrelated chat or leaves Alice at the Workflow library.
+  - id: completed-workflow-existing-chat-target
+    assertion_ids: [notifications.workflow-run.chat-target]
+    given: Bob's scheduled Workflow sent its first message to his existing Morning updates chat and later sent another message to a second chat.
+    when: Bob opens either completion notification more than once.
+    then: Both channels consistently open Morning updates without duplicating either message or executing the Workflow again.
+
+workflow_completion_run_route:
+  - id: completed-workflow-skipped-send-opens-exact-run
+    assertion_ids: [notifications.workflow-run.run-target]
+    given: Alice's scheduled rain check completed successfully, but its condition was false so no Send message step ran.
+    when: She opens the completion push or email after another run has already started.
+    then: The app opens the exact completed rain-check run, showing its completed state and skipped branch, without selecting the newer run or a chat.
+  - id: completion-target-access-revoked
+    assertion_ids: [notifications.workflow-run.run-target]
+    given: Bob has a completion notification whose chat or Workflow run was deleted, or he is now signed in to another account.
+    when: He opens the old notification or a link with mismatched run and chat identities.
+    then: The client rechecks ownership and shows the target as unavailable; no private content from Bob's old account or another chat appears, and the notification offers no inline Reply action.
+
 notification_history:
   - id: cli-lists-past-notifications
     surface: cli

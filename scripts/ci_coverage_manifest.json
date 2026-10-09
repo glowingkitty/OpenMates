@@ -412,6 +412,14 @@
         "workflows-composition.spec.ts"
       ]
     },
+    "workflow_core": {
+      "execution": "e2e",
+      "enabling_work": "Run static Workflow completion and encrypted-chat route assertions with the isolated workflow queue and canonical scanner. Keep the backend network internal; optional runner-local Mailpit serves email capture. No external provider proxy, weather egress, paid AI or shared dev service is used. Keep this capability in its own batch.",
+      "specs": [
+        "workflow-completion-notifications.spec.ts",
+        "workflow-completion-notification-route.spec.ts"
+      ]
+    },
     "upload_audio_services": {
       "execution": null,
       "enabling_work": "Add runner-local upload/object-storage/media or workflow/reminder/app services used by the spec; preserve its committed media and scheduled/CLI fixtures. Per-spec signals are in the dependency inventory.",
@@ -447,6 +455,7 @@
         "signup-flow-passkey.spec.ts",
         "signup-skip-2fa-flow.spec.ts",
         "workflow-email-digest.spec.ts",
+        "workflow-completion-notifications.spec.ts",
         "chat-response-email.spec.ts",
         "notification-email-migration.spec.ts",
         "teams-invite-acceptance.spec.ts",

@@ -185,6 +185,8 @@ WORKFLOW_RUNTIME_INDEXES = (
     'workflow_triggers_due_owner_idx',
     'workflow_versions_version_id_uq',
     'workflow_runs_acceptance_identity_uq',
+    'workflow_completion_notifications_run_id_uq',
+    'workflow_completion_notifications_pending_idx',
     'workflow_event_receipts_trigger_event_uq',
     'workflow_template_projections_workflow_uq',
     'workflow_input_events_session_event_uq',

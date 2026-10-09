@@ -825,19 +825,57 @@ notifications.email_saving:
 
   verified_by_human: []
 notifications.email_chat_how_it_works:
-  context: Explains availability for immediate chat email alerts, separate from the daily workflow digest
-  en: Chat emails are sent when you're away. Workflow runs are summarized in one daily email.
-  de: Chat-E-Mails werden gesendet, wenn Sie abwesend sind. Workflow-Ausführungen werden in einer täglichen E-Mail zusammengefasst.
+  context: Chat email alerts are away-only; successful scheduled Workflow completions also get prompt email and a daily summary
+  en: "Chat emails are sent when you're away. Successful scheduled Workflow runs get a completion email and a daily summary."
+  de: "Chat-E-Mails werden gesendet, wenn Sie abwesend sind. Für erfolgreiche geplante Workflow-Ausführungen erhalten Sie eine Abschluss-E-Mail und eine tägliche Zusammenfassung."
+  zh: "离开时才会发送聊天邮件。计划运行的工作流成功完成后，您会收到完成邮件和每日摘要。"
+  es: "Los correos de chat se envían cuando no estás. Las ejecuciones programadas de Workflows que se completan correctamente reciben un correo de finalización y un resumen diario."
+  fr: "Les e-mails de chat sont envoyés lorsque vous êtes absent. Les Workflows planifiés terminés avec succès donnent lieu à un e-mail de fin et à un récapitulatif quotidien."
+  pt: "Os e-mails de chat são enviados quando está ausente. As execuções agendadas de Workflows concluídas com sucesso geram um e-mail de conclusão e um resumo diário."
+  ru: "Письма о чатах отправляются, когда вас нет. После успешного завершения запланированного Workflow вы получите письмо и ежедневную сводку."
+  ja: "チャットのメールは離席中に送信されます。予定されたWorkflowが正常に完了すると、完了メールと日次のまとめが届きます。"
+  ko: "채팅 이메일은 자리를 비운 동안 전송됩니다. 예약된 Workflow 실행이 성공적으로 완료되면 완료 이메일과 일일 요약이 전송됩니다."
+  it: "Le email delle chat vengono inviate quando sei assente. Le esecuzioni pianificate dei Workflow completate correttamente ricevono un'email di completamento e un riepilogo giornaliero."
+  tr: "Sohbet e-postaları siz uzaktayken gönderilir. Başarıyla tamamlanan zamanlanmış Workflow çalışmaları için tamamlanma e-postası ve günlük özet gönderilir."
+  vi: "Email về cuộc trò chuyện được gửi khi bạn vắng mặt. Workflow theo lịch hoàn tất thành công sẽ có email thông báo hoàn tất và bản tóm tắt hằng ngày."
+  id: "Email obrolan dikirim saat Anda tidak aktif. Workflow terjadwal yang berhasil selesai mendapat email penyelesaian dan ringkasan harian."
+  pl: "E-maile o czatach są wysyłane, gdy Cię nie ma. Po pomyślnym zakończeniu zaplanowanego Workflow otrzymasz e-mail z powiadomieniem oraz codzienne podsumowanie."
+  nl: "Chatmails worden verzonden als je afwezig bent. Na een geslaagde geplande Workflow-run krijg je een voltooiingsmail en een dagelijks overzicht."
+  ar: "تُرسل رسائل البريد الخاصة بالمحادثات عندما تكون غائبًا. وتتلقى رسالة عند اكتمال تشغيل Workflow مجدول بنجاح، بالإضافة إلى ملخص يومي."
+  hi: "चैट ईमेल तब भेजे जाते हैं जब आप दूर हों। तय समय पर चला Workflow सफलतापूर्वक पूरा होने पर आपको एक ईमेल और दैनिक सारांश मिलता है।"
+  th: "อีเมลแชตจะส่งเมื่อคุณไม่อยู่ เมื่อ Workflow ที่ตั้งเวลาไว้ทำงานสำเร็จ คุณจะได้รับอีเมลแจ้งผลและสรุปรายวัน"
+  cs: "E-maily o chatech se posílají, když jste pryč. Po úspěšném dokončení naplánovaného Workflow dostanete e-mail a denní souhrn."
+  sv: "Chattmejl skickas när du är borta. När en schemalagd Workflow-körning lyckas får du ett mejl om slutförandet och en daglig sammanfattning."
+  he: "הודעות אימייל על צ'אטים נשלחות כשאינך זמין. כש-Workflow מתוזמן מסתיים בהצלחה, נשלחת הודעת השלמה וגם סיכום יומי."
   verified_by_human: []
 notifications.email_workflow_runs:
-  context: Toggle label for the daily workflow run email summary
+  context: Toggle label for successful scheduled Workflow completion emails and the daily run summary
   en: Workflow runs
   de: Workflow-Ausführungen
   verified_by_human: []
 notifications.email_workflow_runs_desc:
-  context: Description for the daily workflow run email summary
-  en: One daily email summarizing your workflow runs
-  de: Eine tägliche E-Mail mit einer Zusammenfassung Ihrer Workflow-Ausführungen
+  context: Describes prompt emails for successful scheduled Workflow completions plus the daily run summary
+  en: "Completion emails for successful scheduled Workflow runs, plus a daily summary"
+  de: "Abschluss-E-Mails für erfolgreiche geplante Workflow-Ausführungen sowie eine tägliche Zusammenfassung"
+  zh: "计划运行的工作流成功完成时发送邮件，另附每日摘要"
+  es: "Correos al completarse correctamente las ejecuciones programadas de Workflows, más un resumen diario"
+  fr: "E-mails de fin pour les Workflows planifiés terminés avec succès, avec un récapitulatif quotidien"
+  pt: "E-mails de conclusão para execuções agendadas de Workflows concluídas com sucesso, além de um resumo diário"
+  ru: "Письма после успешного завершения запланированных Workflow и ежедневная сводка"
+  ja: "予定されたWorkflowの正常完了を知らせるメールと日次のまとめ"
+  ko: "예약된 Workflow 실행의 성공적인 완료를 알리는 이메일과 일일 요약"
+  it: "Email al completamento delle esecuzioni pianificate dei Workflow, più un riepilogo giornaliero"
+  tr: "Başarıyla tamamlanan zamanlanmış Workflow çalışmaları için e-postalar ve günlük özet"
+  vi: "Email khi Workflow theo lịch hoàn tất thành công, cùng bản tóm tắt hằng ngày"
+  id: "Email saat Workflow terjadwal berhasil selesai, ditambah ringkasan harian"
+  pl: "E-maile po pomyślnym zakończeniu zaplanowanych Workflow oraz codzienne podsumowanie"
+  nl: "E-mails na geslaagde geplande Workflow-runs, plus een dagelijks overzicht"
+  ar: "رسائل بريد عند اكتمال تشغيل Workflow مجدول بنجاح، مع ملخص يومي"
+  hi: "तय समय पर चले Workflow के सफलतापूर्वक पूरा होने पर ईमेल, साथ में दैनिक सारांश"
+  th: "อีเมลเมื่อ Workflow ที่ตั้งเวลาไว้ทำงานสำเร็จ พร้อมสรุปรายวัน"
+  cs: "E-maily po úspěšném dokončení naplánovaných Workflow a denní souhrn"
+  sv: "Mejl när schemalagda Workflow-körningar slutförs och en daglig sammanfattning"
+  he: "הודעות אימייל לאחר השלמה מוצלחת של הרצות Workflow מתוזמנות, לצד סיכום יומי"
   verified_by_human: []
 notifications.email_include_content:
   context: Optional email content preview toggle

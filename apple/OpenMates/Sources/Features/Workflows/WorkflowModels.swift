@@ -436,6 +436,7 @@ struct WorkflowRunDetail: Codable, Identifiable, Sendable {
     let contentExpiresAt: Int?
     let nodeRuns: [WorkflowNodeRun]
     let outputSummary: [String: AnyCodable]
+    let completionNotification: WorkflowCompletionNotificationTarget?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -453,6 +454,7 @@ struct WorkflowRunDetail: Codable, Identifiable, Sendable {
         case contentExpiresAt = "content_expires_at"
         case nodeRuns = "node_runs"
         case outputSummary = "output_summary"
+        case completionNotification = "completion_notification"
     }
 }
 
@@ -474,6 +476,21 @@ extension WorkflowRunDetail {
         contentExpiresAt = try container.decodeIfPresent(Int.self, forKey: .contentExpiresAt)
         nodeRuns = try container.decodeIfPresent([WorkflowNodeRun].self, forKey: .nodeRuns) ?? []
         outputSummary = try container.decodeIfPresent([String: AnyCodable].self, forKey: .outputSummary) ?? [:]
+        completionNotification = try container.decodeIfPresent(WorkflowCompletionNotificationTarget.self, forKey: .completionNotification)
+    }
+}
+
+struct WorkflowCompletionNotificationTarget: Codable, Sendable {
+    let notificationID: String
+    let chatID: String?
+    let messageID: String?
+    let deliveryID: String?
+
+    enum CodingKeys: String, CodingKey {
+        case notificationID = "notification_id"
+        case chatID = "chat_id"
+        case messageID = "message_id"
+        case deliveryID = "delivery_id"
     }
 }
 

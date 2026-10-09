@@ -10,9 +10,11 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { derived, get } from 'svelte/store';
 	import { goto, pushState, replaceState } from '$app/navigation';
 	import {
 		Header,
+		Login,
 		Settings,
 		NotificationStack,
 		WorkspaceHomeShell,
@@ -20,6 +22,11 @@
 		WorkflowGraphRenderer,
 		WorkflowSidebar,
 		authStore,
+		setAuthenticatedState,
+		isInSignupProcess,
+		loginInterfaceOpen,
+		chatDB,
+		chatSyncService,
 		focusTrap,
 		initialize,
 		notificationStore,
@@ -46,11 +53,19 @@
 	import { downloadWorkflowFile, isWorkflowFileName, readWorkflowFile } from '@repo/ui/services/workflowFileService';
 	import { committedWorkflows, getWorkflowInstruction, stopWorkflowInstruction, streamWorkflowInstruction, undoWorkflowInstruction, workflowNodeChanges, type WorkflowAcceptedPreview, type WorkflowInputChange, type WorkflowInputSession, type WorkflowInputStreamEvent } from '@repo/ui/services/workflowInputService';
 	import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
+	import WorkflowCompletionStatus from '@repo/ui/components/workflows/WorkflowCompletionStatus.svelte';
 	import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
 	import { userProfile } from '@repo/ui/stores/userProfile.ts';
 	import { WorkflowApiError } from '@repo/ui/stores/workflowWorkspaceStore.ts';
-	import { activeTeamId } from '@repo/ui/stores/teamStore';
+	import { activeTeamId, setActiveTeamContext } from '@repo/ui/stores/teamStore';
+	import { advanceCompletionStartupContext, completionLinkAfterNavigation, decideCompletionPersonalContext, isWorkflowCompletionLink, preservesCompletionLinkOnTeamChange, readWorkflowCompletionLink, runConfirmsWorkflowChatTarget, type CompletionStartupContext, type HandledCompletionLink, type PersonalCompletionSwitch } from '$lib/workflowCompletionRoute';
+	import { completeWorkflowLogin, type WorkflowLoginSuccess } from '$lib/workflowCompletionAuth';
 	import type { WorkflowBindingRequirement, WorkflowDetail, WorkflowGraph, WorkflowRun, WorkflowSummary } from '@repo/ui';
+	const completionGeneration = derived(workflowWorkspaceStore, (workspace) => workspace.generation);
+	let completionStartupContext: CompletionStartupContext | null =
+		typeof window !== 'undefined' && isWorkflowCompletionLink(window.location.hash)
+			? { hash: window.location.hash, ownerId: get(userProfile).user_id }
+			: null;
 
 
 	type WorkflowContinueItem = {
@@ -83,12 +98,15 @@
 	const WORKFLOW_ID_HASH_PARAM = 'workflow-id';
 	const WORKFLOW_TAB_HASH_PARAM = 'workflow-tab';
 	const WORKFLOW_RUN_ID_HASH_PARAM = 'run-id';
+	const COMPLETION_CHAT_WAIT_MS = 30_000;
 
 	let workflows = $derived<WorkflowSummary[]>($workflowWorkspaceStore.workflows);
 	let selectedWorkflow = $derived<WorkflowDetail | null>($workflowWorkspaceStore.selectedWorkflow);
 	let runs = $derived<WorkflowRun[]>($workflowWorkspaceStore.runs);
 	let saving = $state(false);
 	let routeError = $state<string | null>(null);
+	let completionChatStatus = $state<'idle' | 'checking' | 'waiting' | 'unavailable'>('idle');
+	let completionRetry = $state(0);
 	let authoringReminder = $state<string | null>(null);
 	let error = $derived(routeError ?? $workflowWorkspaceStore.error);
 	let runContentRetention = $state<'last_5' | 'none'>('last_5');
@@ -154,6 +172,8 @@
 	let blankWorkflowTitle = $state('');
 	let projectWorkflowTarget = $state<ProjectCreationTarget | null>(null);
 	let observedTeamId: string | null | undefined;
+	let personalCompletionSwitch: PersonalCompletionSwitch | null = null;
+	let handledPersonalCompletionLink: HandledCompletionLink | null = null;
 	const pendingInputKey = (teamId: string | null) => teamId ? `workflow-ai-pending:${teamId}` : 'workflow-ai-pending';
 	const lastBatchKey = (teamId: string | null) => teamId ? `workflow-ai-last-batch:${teamId}` : 'workflow-ai-last-batch';
 	let lastStartedRunId = $state<string | null>(null);
@@ -195,8 +215,19 @@
 			($featureAvailabilityStore.disabledById?.['platform:workflows'] !== true &&
 				$featureAvailabilityStore.disabledById !== null)
 	);
-	let canLoadWorkflows = $derived(routeReady && $authStore.isAuthenticated && workflowsEnabled);
-	let canRenderWorkflowData = $derived(routeReady && $authStore.isAuthenticated);
+	let canLoadWorkflows = $derived(routeReady && $authStore.isAuthenticated && !$isInSignupProcess && workflowsEnabled);
+	let canRenderWorkflowData = $derived(routeReady && $authStore.isAuthenticated && !$isInSignupProcess);
+	let hasCompletionDestination = $derived.by(() =>
+		!!workflowHashState.workflowId && typeof window !== 'undefined' && isWorkflowCompletionLink(window.location.hash)
+	);
+	function handleWorkflowLoginSuccess(event: CustomEvent<WorkflowLoginSuccess>): void {
+		completeWorkflowLogin(event.detail, {
+			publishOwner: (userId) => userProfile.update((profile) => ({ ...profile, user_id: userId })),
+			setSignupFlow: (active) => isInSignupProcess.set(active),
+			publishSession: setAuthenticatedState,
+			closeLogin: () => loginInterfaceOpen.set(false)
+		});
+	}
 	let showManageView = $derived((canRenderWorkflowData && (isManageView || !!provisionalFullscreen)) || (!canRenderWorkflowData && !!guestTemplate));
 	let visibleWorkflowGreetingName = $derived(
 		canRenderWorkflowData ? workflowGreetingName : 'there'
@@ -387,6 +418,10 @@
 		params.delete(WORKFLOW_ID_HASH_PARAM);
 		params.delete(WORKFLOW_TAB_HASH_PARAM);
 		params.delete(WORKFLOW_RUN_ID_HASH_PARAM);
+		params.delete('chat-id');
+		params.delete('message-id');
+		params.delete('delivery-id');
+		params.delete('workflow-completion');
 
 		if (workflowId) {
 			const routeParams = new URLSearchParams();
@@ -536,12 +571,133 @@
 	}
 
 	$effect(() => {
+		const route = workflowHashState;
+		const ownerId = $userProfile.user_id;
+		const teamId = $activeTeamId;
+		const hash = window.location.hash;
+		handledPersonalCompletionLink = completionLinkAfterNavigation(handledPersonalCompletionLink, hash);
+		const params = parseHashParams(hash);
+		const routeMatches = !!route.workflowId && !!route.runId && route.tab === 'runs' &&
+			params.get('workflow-id') === route.workflowId && params.get('run-id') === route.runId;
+		const readyForTarget = canLoadWorkflows && !!ownerId && routeMatches && isWorkflowCompletionLink(hash);
+		completionStartupContext = advanceCompletionStartupContext(completionStartupContext, hash, ownerId, readyForTarget);
+		if (!readyForTarget || !ownerId) return;
+		// Scheduled runs belong to the Personal workspace. Switching through the
+		// Team store clears its decrypted caches before the owner-scoped request.
+		const decision = decideCompletionPersonalContext(ownerId, hash, teamId, handledPersonalCompletionLink);
+		handledPersonalCompletionLink = decision.handled;
+		if (decision.pending) {
+			personalCompletionSwitch = decision.pending;
+			setActiveTeamContext(null);
+		}
+	});
+
+	$effect(() => {
 		if (!canLoadWorkflows) return;
 		const generation = $workflowWorkspaceStore.generation;
 		void workflowWorkspaceStore.loadWorkflows().catch((loadError) => {
 			if (!workflowWorkspaceStore.isCurrentGeneration(generation)) return;
 			console.error('[WorkflowsRoute] Failed to warm workflow cache:', loadError);
 		});
+	});
+
+	$effect(() => {
+		// Reading the state makes hash changes invalidate this attempt, including
+		// navigation to a different run while delivery is still pending.
+		const currentRoute = workflowHashState;
+		void completionRetry;
+		const ownerId = $userProfile.user_id;
+		// Only an owner reset should invalidate this attempt. getWorkflowRun also
+		// writes to the workspace cache, so subscribing to the full store here
+		// would cancel verification before its response can be handled.
+		const observedGeneration = $completionGeneration;
+		const generation = workflowWorkspaceStore.getGeneration();
+		if (generation !== observedGeneration) return;
+		if (!canLoadWorkflows || !currentRoute.workflowId || !ownerId) {
+			completionChatStatus = 'idle';
+			return;
+		}
+		const link = readWorkflowCompletionLink(window.location.hash);
+		if (link.kind === 'invalid') {
+			completionChatStatus = 'unavailable';
+			return;
+		}
+		if ($activeTeamId) {
+			completionChatStatus = link.kind === 'chat' ? 'checking' : 'idle';
+			return;
+		}
+		if (link.kind === 'run') {
+			completionChatStatus = 'idle';
+			return;
+		}
+		const target = link.target;
+		let active = true;
+		let checking = false;
+		let recheck = false;
+		let verified = false;
+		let timer: ReturnType<typeof setTimeout> | null = null;
+		const stillCurrent = () => active && get(userProfile).user_id === ownerId && workflowWorkspaceStore.isCurrentGeneration(generation);
+		const stop = () => {
+			active = false;
+			if (timer) clearTimeout(timer);
+			chatSyncService.removeEventListener('chatUpdated', onChatUpdated);
+		};
+		const checkLocalTarget = async () => {
+			if (!stillCurrent() || !verified) return;
+			if (checking) { recheck = true; return; }
+			checking = true;
+			try {
+				const [chat, message] = await Promise.all([
+					chatDB.getChat(target.chatId),
+					chatDB.getMessage(target.messageId)
+				]);
+				if (!stillCurrent()) return;
+				if (message && message.chat_id !== target.chatId) {
+					completionChatStatus = 'unavailable';
+					stop();
+					return;
+				}
+				if (chat && message) {
+					stop();
+					if (get(userProfile).user_id === ownerId && workflowWorkspaceStore.isCurrentGeneration(generation)) {
+						void goto(`/#chat-id=${encodeURIComponent(target.chatId)}&message-id=${encodeURIComponent(target.messageId)}`, { replaceState: true });
+					}
+				}
+			} catch (error) {
+				if (stillCurrent()) console.error('[WorkflowsRoute] Failed to read Workflow delivery target:', error);
+			} finally {
+				checking = false;
+				if (recheck && stillCurrent()) { recheck = false; void checkLocalTarget(); }
+			}
+		};
+		const onChatUpdated = (event: Event) => {
+			const chatId = (event as CustomEvent<{ chat_id?: string }>).detail?.chat_id;
+			if (chatId === target.chatId) void checkLocalTarget();
+		};
+		completionChatStatus = 'checking';
+		timer = setTimeout(() => {
+			if (!stillCurrent()) return;
+			completionChatStatus = 'unavailable';
+			stop();
+		}, COMPLETION_CHAT_WAIT_MS);
+		chatSyncService.addEventListener('chatUpdated', onChatUpdated);
+		void workflowWorkspaceStore.getWorkflowRun(target.workflowId, target.runId).then((run) => {
+			if (!stillCurrent()) return;
+			if (!runConfirmsWorkflowChatTarget(run, target)) {
+				completionChatStatus = 'unavailable';
+				stop();
+				return;
+			}
+			verified = true;
+			completionChatStatus = 'waiting';
+			void checkLocalTarget();
+		}).catch((error) => {
+			if (!stillCurrent()) return;
+			console.error('[WorkflowsRoute] Could not verify Workflow delivery target:', error);
+			completionChatStatus = 'unavailable';
+			stop();
+		});
+		return stop;
 	});
 
 	$effect(() => {
@@ -611,7 +767,10 @@
 					const refreshed = await workflowWorkspaceStore.loadWorkflows({ force: true });
 					if (verifyingMissingWorkflow !== verification || !workflowWorkspaceStore.isCurrentGeneration(generation) || workflowHashState.workflowId !== requestedId) return;
 					if (!refreshed.some((workflow) => workflow.id === requestedId) &&
-						!$workflowWorkspaceStore.workflows.some((workflow) => workflow.id === requestedId)) openWorkflowHome(true);
+						!$workflowWorkspaceStore.workflows.some((workflow) => workflow.id === requestedId)) {
+						if (readWorkflowCompletionLink(window.location.hash).kind === 'chat') completionChatStatus = 'unavailable';
+						else openWorkflowHome(true);
+					}
 				} catch (loadError) {
 					if (verifyingMissingWorkflow === verification && workflowWorkspaceStore.isCurrentGeneration(generation) && workflowHashState.workflowId === requestedId) {
 						verifyingMissingWorkflow = null;
@@ -627,7 +786,8 @@
 		if (requestedId === $workflowWorkspaceStore.selectedWorkflowId) return;
 		void selectWorkflow(requestedId).catch((selectError) => {
 			if (selectError instanceof WorkflowApiError && selectError.status === 404 && workflowHashState.workflowId === requestedId) {
-				openWorkflowHome(true);
+				if (readWorkflowCompletionLink(window.location.hash).kind === 'chat') completionChatStatus = 'unavailable';
+				else openWorkflowHome(true);
 				return;
 			}
 			console.error('[WorkflowsRoute] Failed to select workflow:', selectError);
@@ -663,6 +823,11 @@
 		interruptedSubmission = null;
 		closeBlankWorkflowCreator();
 		routeError = null;
+		const preserveLink = preservesCompletionLinkOnTeamChange(
+			teamId, get(userProfile).user_id, window.location.hash, personalCompletionSwitch, completionStartupContext
+		);
+		if (teamId === null || !preserveLink) personalCompletionSwitch = null;
+		if (preserveLink) return;
 		openWorkflowHome(true);
 	});
 
@@ -1376,6 +1541,15 @@
 		<h1>Workflows unavailable</h1>
 		<p>Workflows are disabled on this server.</p>
 	</main>
+{:else if routeReady && ($isInSignupProcess || (!$authStore.isAuthenticated && hasCompletionDestination))}
+	<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
+	<main class="workflows-route-state" data-testid="workflows-auth-required">
+		{#if !$authStore.isAuthenticated}
+			<h1>Workflows</h1>
+			<p>Please log in to create, manage, and run server-side workflows.</p>
+		{/if}
+		<Login on:loginSuccess={handleWorkflowLoginSuccess} />
+	</main>
 {:else}
 	<div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
 		<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
@@ -1393,9 +1567,13 @@
 				class="active-chat-container workflows-start"
 				class:management-view={showManageView}
 				data-testid="workflows-page"
+				data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
 			>
 				{#if error}
 					<div class="error-banner" data-testid="workflows-error">{error}</div>
+				{/if}
+				{#if completionChatStatus !== 'idle'}
+					<WorkflowCompletionStatus status={completionChatStatus} onRetry={() => completionRetry += 1} />
 				{/if}
 
 				{#if !showManageView}

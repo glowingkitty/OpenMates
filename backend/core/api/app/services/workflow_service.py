@@ -2423,7 +2423,7 @@ class WorkflowService:
         retention = WorkflowRunContentRetention(workflow.get("run_content_retention") or WorkflowRunContentRetention.LAST_5.value)
         if run.trigger_type == "step_test":
             retention = WorkflowRunContentRetention.NONE
-        record = run.model_dump(mode="json", exclude={"node_runs", "output_summary"})
+        record = run.model_dump(mode="json", exclude={"node_runs", "output_summary", "completion_notification"})
         if previous and previous.get("encrypted_invocation_ref"):
             record["encrypted_invocation_ref"] = previous["encrypted_invocation_ref"]
         record["owner_hash"] = _hash_owner_id(user_id)

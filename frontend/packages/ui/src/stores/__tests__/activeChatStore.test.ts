@@ -26,6 +26,7 @@ const locationMock = vi.hoisted(() => {
 
 // Mock $app/environment and $app/navigation before importing the store
 vi.mock("$app/environment", () => ({ browser: true }));
+vi.mock("../../services/chatUrlService", () => ({ isOnSemanticChatPath: () => false }));
 vi.mock("$app/navigation", () => ({
   replaceState: vi.fn((url: string) => {
     const hashIndex = url.indexOf("#");
@@ -104,6 +105,35 @@ describe("activeChatStore", () => {
       expect(locationMock.hash).toContain("e2e-debug=run-1");
       expect(locationMock.hash).toContain("e2e-token=test-token");
       expect(locationMock.hash).toContain("settings=privacy/hide-personal-data");
+    });
+
+    // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
+    it("preserves an exact Workflow completion target during startup chat resets", () => {
+      const completionHash = "#workflow-id=workflow-1&workflow-tab=runs&run-id=run-1&chat-id=chat-1&message-id=message-1&delivery-id=delivery-1";
+      locationMock.hash = completionHash;
+      activeChatStore.clearActiveChat();
+      expect(activeChatStore.get()).toBeNull();
+      expect(locationMock.hash).toBe(completionHash);
+    });
+
+    // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
+    it("still clears ordinary chat targets and incomplete Workflow targets", () => {
+      locationMock.hash = "#chat-id=chat-1&message-id=message-1";
+      activeChatStore.clearActiveChat();
+      expect(locationMock.hash).toBe("");
+
+      locationMock.hash = "#workflow-id=workflow-1&workflow-tab=runs&run-id=run-1&chat-id=chat-1&message-id=message-1";
+      activeChatStore.clearActiveChat();
+      expect(locationMock.hash).toBe("workflow-id=workflow-1&workflow-tab=runs&run-id=run-1");
+    });
+
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
+    it("continues normal chat navigation after an ordinary chat clear", () => {
+      locationMock.hash = "#chat-id=chat-1&message-id=message-1";
+      activeChatStore.clearActiveChat();
+      activeChatStore.setActiveChat("chat-2");
+      expect(activeChatStore.get()).toBe("chat-2");
+      expect(locationMock.hash).toBe("chat-id=chat-2");
     });
   });
 

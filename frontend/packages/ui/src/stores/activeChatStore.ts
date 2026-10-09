@@ -43,6 +43,15 @@ const PROGRAMMATIC_UPDATE_WINDOW_MS = 100; // Window to ignore hashchange events
 function updateUrlHash(chatId: string | null) {
   if (!browser) return;
 
+  // Startup chat resets can overlap a Workflow completion deep link. Keep its
+  // exact delivery target until the Workflow route verifies and opens the chat.
+  if (!chatId && getHashParam(window.location.hash, "workflow-id") &&
+    getHashParam(window.location.hash, "workflow-tab") === "runs" &&
+    getHashParam(window.location.hash, "run-id") &&
+    getHashParam(window.location.hash, "chat-id") &&
+    getHashParam(window.location.hash, "message-id") &&
+    getHashParam(window.location.hash, "delivery-id")) return;
+
   if (chatId) {
     // Always use hash fragment for in-session navigation (public and private chats alike).
     // Using replaceState to a semantic path like /intro/who-develops-openmates risks triggering

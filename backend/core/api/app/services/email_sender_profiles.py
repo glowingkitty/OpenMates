@@ -36,6 +36,7 @@ NOTIFICATION_EMAIL_TEMPLATES = {
     "ai-response-notification",
     "chat-message-notification",
     "workflow-run-digest",
+    "workflow-run-completed",
     "community_share_notification",
     "referral-reward",
     "reminder-notification",

@@ -1,3 +1,99 @@
+workflow_completion.subject:
+  context: Subject of the immediate successful scheduled Workflow completion email
+  en: Your scheduled Workflow completed
+  de: Dein geplanter Workflow wurde abgeschlossen
+  zh: 你的定时工作流已完成
+  es: Tu flujo de trabajo programado ha finalizado
+  fr: Votre workflow planifié est terminé
+  pt: Seu fluxo de trabalho agendado foi concluído
+  ru: Ваш запланированный рабочий процесс завершён
+  ja: スケジュールされたワークフローが完了しました
+  ko: 예약된 워크플로가 완료되었습니다
+  it: Il tuo flusso di lavoro programmato è stato completato
+  tr: Zamanlanmış iş akışınız tamamlandı
+  vi: Quy trình làm việc đã lên lịch của bạn đã hoàn tất
+  id: Alur kerja terjadwal Anda telah selesai
+  pl: Twój zaplanowany przepływ pracy został ukończony
+  nl: Je geplande workflow is voltooid
+  ar: اكتمل سير العمل المجدول
+  hi: आपका निर्धारित वर्कफ़्लो पूरा हो गया
+  th: เวิร์กโฟลว์ที่ตั้งเวลาไว้ของคุณเสร็จสมบูรณ์แล้ว
+  cs: Váš naplánovaný pracovní postup byl dokončen
+  sv: Ditt schemalagda arbetsflöde är klart
+  he: תהליך העבודה המתוזמן שלך הושלם
+  verified_by_human: []
+workflow_completion.heading:
+  context: Heading of the immediate successful scheduled Workflow completion email
+  en: Your scheduled Workflow completed
+  de: Dein geplanter Workflow wurde abgeschlossen
+  zh: 你的定时工作流已完成
+  es: Tu flujo de trabajo programado ha finalizado
+  fr: Votre workflow planifié est terminé
+  pt: Seu fluxo de trabalho agendado foi concluído
+  ru: Ваш запланированный рабочий процесс завершён
+  ja: スケジュールされたワークフローが完了しました
+  ko: 예약된 워크플로가 완료되었습니다
+  it: Il tuo flusso di lavoro programmato è stato completato
+  tr: Zamanlanmış iş akışınız tamamlandı
+  vi: Quy trình làm việc đã lên lịch của bạn đã hoàn tất
+  id: Alur kerja terjadwal Anda telah selesai
+  pl: Twój zaplanowany przepływ pracy został ukończony
+  nl: Je geplande workflow is voltooid
+  ar: اكتمل سير العمل المجدول
+  hi: आपका निर्धारित वर्कफ़्लो पूरा हो गया
+  th: เวิร์กโฟลว์ที่ตั้งเวลาไว้ของคุณเสร็จสมบูรณ์แล้ว
+  cs: Váš naplánovaný pracovní postup byl dokončen
+  sv: Ditt schemalagda arbetsflöde är klart
+  he: תהליך העבודה המתוזמן שלך הושלם
+  verified_by_human: []
+workflow_completion.detail:
+  context: Completion details in the email; preserve the run_id and completed_time placeholders
+  en: 'Run {run_id} completed at {completed_time}.'
+  de: 'Ausführung {run_id} wurde am {completed_time} abgeschlossen.'
+  zh: '运行 {run_id} 已于 {completed_time} 完成。'
+  es: 'La ejecución {run_id} finalizó a las {completed_time}.'
+  fr: 'L’exécution {run_id} s’est terminée à {completed_time}.'
+  pt: 'A execução {run_id} foi concluída em {completed_time}.'
+  ru: 'Запуск {run_id} завершён в {completed_time}.'
+  ja: '実行 {run_id} は {completed_time} に完了しました。'
+  ko: '실행 {run_id}이(가) {completed_time}에 완료되었습니다.'
+  it: 'L’esecuzione {run_id} è stata completata alle {completed_time}.'
+  tr: '{run_id} çalıştırması {completed_time} tarihinde tamamlandı.'
+  vi: 'Lần chạy {run_id} đã hoàn tất lúc {completed_time}.'
+  id: 'Eksekusi {run_id} selesai pada {completed_time}.'
+  pl: 'Uruchomienie {run_id} ukończono o {completed_time}.'
+  nl: 'Uitvoering {run_id} is voltooid op {completed_time}.'
+  ar: 'اكتمل التشغيل {run_id} في {completed_time}.'
+  hi: 'रन {run_id}, {completed_time} पर पूरा हुआ।'
+  th: 'การเรียกใช้ {run_id} เสร็จสมบูรณ์เมื่อ {completed_time}'
+  cs: 'Běh {run_id} byl dokončen v {completed_time}.'
+  sv: 'Körningen {run_id} slutfördes {completed_time}.'
+  he: 'הריצה {run_id} הושלמה ב-{completed_time}.'
+  verified_by_human: []
+workflow_completion.view:
+  context: Button opening the completed Workflow result, linking to its chat or exact run
+  en: Open result
+  de: Ergebnis öffnen
+  zh: 查看结果
+  es: Abrir resultado
+  fr: Ouvrir le résultat
+  pt: Abrir resultado
+  ru: Открыть результат
+  ja: 結果を開く
+  ko: 결과 열기
+  it: Apri risultato
+  tr: Sonucu aç
+  vi: Mở kết quả
+  id: Buka hasil
+  pl: Otwórz wynik
+  nl: Resultaat openen
+  ar: فتح النتيجة
+  hi: परिणाम खोलें
+  th: เปิดผลลัพธ์
+  cs: Otevřít výsledek
+  sv: Öppna resultat
+  he: פתיחת התוצאה
+  verified_by_human: []
 account_created:
   context: Email subject & header for account created confirmation
   en: Account created

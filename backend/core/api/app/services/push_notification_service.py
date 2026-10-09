@@ -290,6 +290,9 @@ class PushNotificationService:
         icon: str = "/icons/icon-192x192.png",
         badge: str = "/icons/badge-72x72.png",
         on_expired_web_target: Optional[Callable[[], None]] = None,
+        workflow_routing: Optional[dict] = None,
+        encrypted_title: Optional[str] = None,
+        on_apns_result: Optional[Callable[[str], None]] = None,
     ) -> bool:
         """
         Send a Web Push notification to a stored subscription.
@@ -328,6 +331,9 @@ class PushNotificationService:
                 icon=icon,
                 badge=badge,
                 on_expired_web_target=on_expired_web_target,
+                workflow_routing=workflow_routing,
+                encrypted_title=encrypted_title,
+                on_apns_result=on_apns_result,
             )
         if subscription_type == "apns":
             return self._send_apns_notification(
@@ -337,6 +343,9 @@ class PushNotificationService:
                 chat_id=chat_id,
                 category=category,
                 tag=tag,
+                workflow_routing=workflow_routing,
+                encrypted_title=encrypted_title,
+                on_apns_result=on_apns_result,
             )
 
         if not self.is_ready():
@@ -401,6 +410,9 @@ class PushNotificationService:
         icon: str,
         badge: str,
         on_expired_web_target: Optional[Callable[[], None]],
+        workflow_routing: Optional[dict] = None,
+        encrypted_title: Optional[str] = None,
+        on_apns_result: Optional[Callable[[str], None]] = None,
     ) -> bool:
         """Fan out one notification to all stored browser/APNs targets."""
         targets = subscription_info.get("targets")
@@ -424,6 +436,9 @@ class PushNotificationService:
                     icon=icon,
                     badge=badge,
                     on_expired_web_target=on_expired_web_target,
+                    workflow_routing=workflow_routing,
+                    encrypted_title=encrypted_title,
+                    on_apns_result=on_apns_result,
                 )
                 any_success = any_success or target_success
             except Exception as exc:
@@ -438,6 +453,9 @@ class PushNotificationService:
         chat_id: Optional[str],
         category: str,
         tag: Optional[str],
+        workflow_routing: Optional[dict] = None,
+        encrypted_title: Optional[str] = None,
+        on_apns_result: Optional[Callable[[str], None]] = None,
     ) -> bool:
         """
         Send an APNs alert notification to a native Apple device token.
@@ -453,6 +471,8 @@ class PushNotificationService:
         token = (subscription_info.get("token") or "").strip()
         if not token:
             logger.error("[PushNotificationService] APNs subscription missing token")
+            if on_apns_result:
+                on_apns_result("permanent_reject")
             return False
 
         team_id = os.getenv("APNS_TEAM_ID")
@@ -462,6 +482,8 @@ class PushNotificationService:
             bundle_id = apns_topic_for_platform(platform)
         except ValueError:
             logger.error("[PushNotificationService] Unsupported APNs target topic")
+            if on_apns_result:
+                on_apns_result("permanent_reject")
             return False
         private_key = os.getenv("APNS_PRIVATE_KEY")
         private_key_path = os.getenv("APNS_PRIVATE_KEY_PATH")
@@ -476,6 +498,8 @@ class PushNotificationService:
 
         if not team_id or not key_id or not private_key:
             logger.error("[PushNotificationService] APNs credentials are not configured")
+            if on_apns_result:
+                on_apns_result("retryable_reject")
             return False
         private_key = private_key.replace("\\n", "\n")
 
@@ -498,9 +522,19 @@ class PushNotificationService:
             "chat_id": chat_id,
             "category": category,
         }
+        if workflow_routing:
+            payload.update({key: value for key, value in workflow_routing.items()
+                            if key in {"workflow_id", "run_id", "notification_id", "chat_id", "message_id", "delivery_id"}
+                            and isinstance(value, str) and value})
+            payload["type"] = "workflow.run_completed"
         # Watch has no notification service extension; always retain generic text.
-        encrypted_payload = None if platform == "watchos" else self._build_encrypted_apns_payload(subscription_info, body)
-        if category == APNS_CHAT_CATEGORY and encrypted_payload:
+        if category == "OPENMATES_WORKFLOW_COMPLETED" and encrypted_title and platform != "watchos":
+            encrypted_payload = self._build_encrypted_apns_payload(
+                subscription_info, body, title=encrypted_title,
+            )
+        else:
+            encrypted_payload = None if platform == "watchos" else self._build_encrypted_apns_payload(subscription_info, body)
+        if (category == APNS_CHAT_CATEGORY or category == "OPENMATES_WORKFLOW_COMPLETED") and encrypted_payload:
             payload["aps"]["mutable-content"] = 1
             payload["encrypted_notification"] = encrypted_payload
             # Apple caps the entire UTF-8 JSON payload at 4096 bytes. Ciphertext
@@ -511,7 +545,10 @@ class PushNotificationService:
                 best = None
                 while low <= high:
                     middle = (low + high) // 2
-                    candidate = self._build_encrypted_apns_payload(subscription_info, clean[:middle] + ("…" if middle < len(clean) else ""))
+                    candidate = self._build_encrypted_apns_payload(
+                        subscription_info, clean[:middle] + ("…" if middle < len(clean) else ""),
+                        title=encrypted_title if category == "OPENMATES_WORKFLOW_COMPLETED" else None,
+                    )
                     payload["encrypted_notification"] = candidate
                     size = len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
                     if candidate and size <= APNS_MAX_PAYLOAD_BYTES:
@@ -526,6 +563,8 @@ class PushNotificationService:
                     payload["encrypted_notification"] = best
         if len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")) > APNS_MAX_PAYLOAD_BYTES:
             logger.error("[PushNotificationService] APNs routing payload exceeds byte limit")
+            if on_apns_result:
+                on_apns_result("permanent_reject")
             return False
 
         try:
@@ -549,18 +588,24 @@ class PushNotificationService:
                 )
             if 200 <= response.status_code < 300:
                 logger.info("[PushNotificationService] APNs notification accepted")
+                if on_apns_result:
+                    on_apns_result("accepted")
                 return True
 
             logger.error(
                 "[PushNotificationService] APNs delivery failed "
                 f"status={response.status_code} body={response.text[:500]}"
             )
+            if on_apns_result:
+                on_apns_result("retryable_reject" if response.status_code == 429 or response.status_code >= 500 else "permanent_reject")
             return False
         except Exception as exc:
             logger.error(f"[PushNotificationService] APNs delivery failed: {exc}", exc_info=True)
+            if on_apns_result:
+                on_apns_result("uncertain")
             return False
 
-    def _build_encrypted_apns_payload(self, subscription_info: dict, preview_text: str) -> Optional[dict]:
+    def _build_encrypted_apns_payload(self, subscription_info: dict, preview_text: str, *, title: str | None = None) -> Optional[dict]:
         """Encrypt optional Apple notification preview text to the device public key."""
         preview_text = notification_preview_text(preview_text)
         public_key_b64 = (subscription_info.get("notification_public_key") or "").strip()
@@ -587,7 +632,7 @@ class PushNotificationService:
             ).derive(shared_secret)
             nonce = os.urandom(12)
             plaintext = json.dumps(
-                {"preview": preview_text},
+                {"title": title[:200], "body": preview_text} if title else {"preview": preview_text},
                 separators=(",", ":"), ensure_ascii=False,
             ).encode("utf-8")
             ciphertext = AESGCM(key).encrypt(nonce, plaintext, None)

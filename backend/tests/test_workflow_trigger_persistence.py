@@ -27,9 +27,10 @@ def schedule_graph(time_value: str = "07:00") -> dict[str, Any]:
                 "type": "schedule_trigger",
                 "config": {"schedule": {"type": "daily", "time": time_value, "timezone": "Europe/Berlin"}},
             },
+            {"id": "send", "type": "send_chat_message", "config": {"title": "Deploy check", "message": "Scheduled check complete"}},
             {"id": "end", "type": "end", "config": {}},
         ],
-        "edges": [{"from": "trigger", "to": "end"}],
+        "edges": [{"from": "trigger", "to": "send"}, {"from": "send", "to": "end"}],
     }
 
 
@@ -67,9 +68,10 @@ def one_time_schedule_graph(at_value: str) -> dict[str, Any]:
                 "type": "schedule_trigger",
                 "config": {"schedule": {"type": "once", "at": at_value}},
             },
+            {"id": "send", "type": "send_chat_message", "config": {"title": "One-time proof", "message": "Scheduled proof complete"}},
             {"id": "end", "type": "end", "config": {}},
         ],
-        "edges": [{"from": "trigger", "to": "end"}],
+        "edges": [{"from": "trigger", "to": "send"}, {"from": "send", "to": "end"}],
     }
 
 
@@ -142,7 +144,8 @@ def test_one_time_schedule_trigger_initially_indexes_the_due_timestamp() -> None
 def test_event_trigger_persists_only_hashed_routing_metadata_and_an_opaque_config_ref() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
-    workflow = service.create_workflow("alice", "Deploy watcher", event_graph(), enabled=True)
+    # Event triggers remain inspectable but cannot be activated in Workflows V1.
+    workflow = service.create_workflow("alice", "Deploy watcher", event_graph(), enabled=False)
 
     trigger = repository.get_trigger_for_workflow(workflow.id, "alice")
     assert trigger is not None
@@ -150,6 +153,8 @@ def test_event_trigger_persists_only_hashed_routing_metadata_and_an_opaque_confi
     assert trigger["version_id"] == workflow.current_version_id
     assert trigger["owner_hash"] == repository.workflow_owner_hash("alice")
     assert trigger["trigger_type"] == "event"
+    assert trigger["enabled"] is False
+    assert trigger["next_run_at"] is None
     assert trigger["source"] == "terminal"
     assert trigger["event_type"] == "command.completed"
     assert trigger["hashed_project_id"] == hashlib.sha256(b"project-private").hexdigest()

@@ -954,3 +954,28 @@ credits_depleted.buy_credits:
   sv: Köp Krediter
   he: קניית קרדיטים
   verified_by_human: []
+
+workflow_run.completed:
+  context: Privacy-safe notification history body for a successful scheduled Workflow run; contains no private title or output
+  en: Your scheduled Workflow completed
+  de: Dein geplanter Workflow wurde abgeschlossen
+  zh: 你的定时工作流已完成
+  es: Tu flujo de trabajo programado ha finalizado
+  fr: Votre workflow planifié est terminé
+  pt: Seu fluxo de trabalho agendado foi concluído
+  ru: Ваш запланированный рабочий процесс завершён
+  ja: スケジュールされたワークフローが完了しました
+  ko: 예약된 워크플로가 완료되었습니다
+  it: Il tuo flusso di lavoro programmato è stato completato
+  tr: Zamanlanmış iş akışınız tamamlandı
+  vi: Quy trình làm việc đã lên lịch của bạn đã hoàn tất
+  id: Alur kerja terjadwal Anda telah selesai
+  pl: Twój zaplanowany przepływ pracy został ukończony
+  nl: Je geplande workflow is voltooid
+  ar: اكتمل سير العمل المجدول
+  hi: आपका निर्धारित वर्कफ़्लो पूरा हो गया
+  th: เวิร์กโฟลว์ที่ตั้งเวลาไว้ของคุณเสร็จสมบูรณ์แล้ว
+  cs: Váš naplánovaný pracovní postup byl dokončen
+  sv: Ditt schemalagda arbetsflöde är klart
+  he: תהליך העבודה המתוזמן שלך הושלם
+  verified_by_human: []

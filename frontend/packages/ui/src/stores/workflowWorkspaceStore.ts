@@ -145,6 +145,12 @@ export type WorkflowRun = {
   cancelled_at?: number | null;
   node_runs?: WorkflowNodeRun[];
   output_summary?: Record<string, unknown>;
+  completion_notification?: {
+    notification_id: string;
+    chat_id?: string | null;
+    message_id?: string | null;
+    delivery_id?: string | null;
+  } | null;
 };
 
 export type WorkflowRunDetail = WorkflowRun;
@@ -313,7 +319,7 @@ function setSelectedFromCaches(workflowId: string | null): void {
       selectedWorkflow: state.detailsById[workflowId] ?? null,
       runs: state.runsByWorkflowId[workflowId] ?? [],
       detailStatus: state.detailsById[workflowId] ? "ready" : "idle",
-      runsStatus: Object.hasOwn(state.runsByWorkflowId, workflowId) ? "ready" : "idle",
+      runsStatus: Object.prototype.hasOwnProperty.call(state.runsByWorkflowId, workflowId) ? "ready" : "idle",
     };
   });
 }
@@ -403,7 +409,7 @@ export const workflowWorkspaceStore = {
     const current = get(store);
     const cachedDetail = current.detailsById[workflowId];
     const detailFresh = !!cachedDetail && isFresh(current.detailLoadedAtById[workflowId] ?? null);
-    const runsFresh = Object.hasOwn(current.runsByWorkflowId, workflowId)
+    const runsFresh = Object.prototype.hasOwnProperty.call(current.runsByWorkflowId, workflowId)
       && isFresh(current.runsLoadedAtById[workflowId] ?? null);
     if (!options.force && cachedDetail && !detailFresh) {
       void this.selectWorkflow(workflowId, { force: true }).catch(() => undefined);
@@ -415,7 +421,7 @@ export const workflowWorkspaceStore = {
       store.update((state) => ({
         ...state,
         runsStatus: state.selectedWorkflowId === workflowId
-          ? (Object.hasOwn(state.runsByWorkflowId, workflowId) ? "refreshing" : "loading")
+          ? (Object.prototype.hasOwnProperty.call(state.runsByWorkflowId, workflowId) ? "refreshing" : "loading")
           : state.runsStatus,
       }));
       let pending = runsInFlight.get(workflowId);

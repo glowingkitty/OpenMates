@@ -5,6 +5,31 @@ import XCTest
 @testable import OpenMates
 
 final class NotificationPreviewCryptoTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.completed-delivery
+    func testWorkflowCompletionEncryptedDisplaySeparatesTitleAndBody() throws {
+        let recipient = Curve25519.KeyAgreement.PrivateKey()
+        let ephemeral = Curve25519.KeyAgreement.PrivateKey()
+        let secret = try ephemeral.sharedSecretFromKeyAgreement(with: recipient.publicKey)
+        let key = secret.hkdfDerivedSymmetricKey(using: SHA256.self, salt: Data(),
+            sharedInfo: Data("openmates-apns-notification-v1".utf8), outputByteCount: 32)
+        let plaintext = try JSONSerialization.data(withJSONObject: [
+            "title": "# **Morning workflow**", "body": "Your scheduled workflow completed."])
+        let box = try AES.GCM.seal(plaintext, using: key)
+        func encode(_ data: Data) -> String {
+            data.base64EncodedString().replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+        }
+        let userInfo: [AnyHashable: Any] = ["encrypted_notification": [
+            "version": NotificationPreviewCrypto.encryptionVersion,
+            "ephemeral_public_key": encode(ephemeral.publicKey.rawRepresentation),
+            "nonce": encode(box.nonce.withUnsafeBytes { Data($0) }),
+            "ciphertext": encode(box.ciphertext + box.tag)]]
+        XCTAssertEqual(NotificationPreviewCrypto.decryptDisplay(userInfo: userInfo,
+            privateKeyData: recipient.rawRepresentation),
+            .init(title: "Morning workflow", body: "Your scheduled workflow completed."))
+        XCTAssertNil(NotificationPreviewCrypto.decryptDisplay(userInfo: userInfo,
+            privateKeyData: Curve25519.KeyAgreement.PrivateKey().rawRepresentation))
+    }
     // contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
     func testNotificationPreviewRemovesCompleteAndTruncatedProtocolFences() {
         let wire = "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"private-reference\"}\n```"

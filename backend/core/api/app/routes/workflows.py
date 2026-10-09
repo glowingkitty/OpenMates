@@ -2697,10 +2697,19 @@ async def get_workflow_run(
     team_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     try:
-        team_id = team_id if isinstance(team_id, str) else None
+        team_id = team_id if isinstance(team_id, str) and team_id else None
         if team_id:
             await _require_team_read_role(get_directus_service(request), team_id, current_user)
+        else:
+            # A deleted or revoked Personal Workflow cannot expose a retained outbox target.
+            await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
         run = await run_in_threadpool(service.get_run, workflow_id, run_id, current_user.id, current_user.vault_key_id, team_id)
+        if team_id is None:
+            from backend.core.api.app.services.workflow_completion_notification_service import owner_run_completion_projection
+            directus = getattr(request.app.state, "directus_service", None)
+            projection = await owner_run_completion_projection(directus, run, current_user.id) if directus else None
+            if projection is not None:
+                run = run.model_copy(update={"completion_notification": projection})
         return {"run": run.model_dump(mode="json")}
     except Exception as exc:
         _handle_workflow_error(exc)

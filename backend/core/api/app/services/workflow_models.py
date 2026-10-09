@@ -320,6 +320,7 @@ class WorkflowRunSummary(BaseModel):
 class WorkflowRunDetail(WorkflowRunSummary):
     node_runs: list[WorkflowNodeRun] = Field(default_factory=list)
     output_summary: dict[str, Any] = Field(default_factory=dict)
+    completion_notification: dict[str, str] | None = None
 
 
 class WorkflowCapability(BaseModel):

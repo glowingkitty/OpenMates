@@ -603,6 +603,7 @@ async function ensureStayLoggedInChecked(
  * Login to the test account with email, password, and 2FA OTP.
  * Checks "Stay logged in" so keys are persisted to IndexedDB.
  * Includes retry logic for OTP timing edge cases and 429 rate limits.
+ * preserveCurrentUrl uses an already-visible login form on a deep-link route.
  */
 async function loginToTestAccount(
 	page: any,
@@ -610,6 +611,7 @@ async function loginToTestAccount(
 	takeStepScreenshot: (page: any, label: string) => Promise<void> = noopScreenshot,
 	options: {
 		waitForEditor?: boolean;
+		preserveCurrentUrl?: boolean;
 		credentials?: { email?: string; password?: string; otpKey?: string };
 		rateLimitRetryCount?: number;
 	} = {}
@@ -636,7 +638,7 @@ async function loginToTestAccount(
 	};
 	page.on('response', on429);
 
-	await page.goto(getE2EDebugUrl('/'));
+	if (!options.preserveCurrentUrl) await page.goto(getE2EDebugUrl('/'));
 	// Wait for all resources (scripts + hydration) to load before checking buttons.
 	await page.waitForLoadState('load');
 
@@ -650,7 +652,11 @@ async function loginToTestAccount(
 	await takeStepScreenshot(page, 'home');
 
 	// The intro banner on the home page hides the header login button and shows its own.
-	await openSignupInterface(page, 30000);
+	if (options.preserveCurrentUrl) {
+		await expect(page.getByTestId('tab-login')).toBeVisible({ timeout: 30000 });
+	} else {
+		await openSignupInterface(page, 30000);
+	}
 	await takeStepScreenshot(page, 'signup-interface-opened');
 
 	// Click the "Login" tab in the login/signup tab bar to switch to the login form
@@ -690,9 +696,11 @@ async function loginToTestAccount(
 		});
 
 		// Reload the page to reset the EmailLookup component state
-		await page.goto(getE2EDebugUrl('/'));
+		if (options.preserveCurrentUrl) await page.reload();
+		else await page.goto(getE2EDebugUrl('/'));
 		await page.waitForLoadState('load');
-		await openSignupInterface(page, 30000);
+		if (options.preserveCurrentUrl) await expect(page.getByTestId('tab-login')).toBeVisible({ timeout: 30000 });
+		else await openSignupInterface(page, 30000);
 		const retryLoginTab = page.getByTestId('tab-login');
 		await expect(retryLoginTab).toBeVisible({ timeout: 10000 });
 		await retryLoginTab.click();

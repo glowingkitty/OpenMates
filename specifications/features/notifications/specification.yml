@@ -117,6 +117,42 @@ assertions:
     type: behavior
     must: Web and Apple push delivery is attempted only for granted, registered, non-revoked subscriptions whose user preferences allow the notification kind; unsupported or denied platforms degrade to retained history and any other enabled channels without fabricating push success.
     depends_on: [models.PushSubscription, models.NotificationEvent, examples.push_delivery]
+  - id: notifications.workflow-run.completed-delivery
+    type: behavior
+    must: >
+      A scheduled Workflow run that durably reaches completed produces one private completion event
+      identifying the Workflow, successful completion, run reference and completion time. Its enabled
+      Apple push and verified-account email channels dispatch independently and promptly, including
+      while clients are offline, without waiting for the daily digest, foreground inactivity, push
+      success or chat-output acknowledgement. Apple shows the private Workflow title through a
+      device-encrypted preview; email includes the title only under existing explicit content consent
+      and otherwise uses a clear run reference and time. Preferences, unsubscribes and privacy choices
+      remain authoritative. Durable recovery and retries preserve the run's notification identity
+      without executing the Workflow again or duplicating successful channel delivery. Failed,
+      cancelled, manual and test runs never emit this scheduled-success event. Provider acceptance
+      never claims device or mailbox receipt. The existing daily digest remains available.
+    depends_on: [models.NotificationEvent, examples.workflow_completion_delivery]
+  - id: notifications.workflow-run.chat-target
+    type: behavior
+    must: >
+      When a completed scheduled Workflow actually sent a chat message, its push and email notifications
+      open that exact created or existing owner chat. When a run sent multiple messages, both channels
+      consistently target the first successful Send message in execution order. Opening from a closed
+      or signed-out client preserves the run and delivery identity through authentication and normal
+      owner synchronization. Web and Apple claim and persist pending Workflow output with the existing
+      fenced, client-encrypted protocol before opening a newly created chat. Repeated taps or competing
+      devices create at most one chat/message; no server-side chat keys or plaintext chat rows are added.
+    depends_on: [models.NotificationHistoryItem.target_ref, examples.workflow_completion_chat_route]
+  - id: notifications.workflow-run.run-target
+    type: behavior
+    must: >
+      When a completed scheduled Workflow sent no chat message, including a Check branch that skipped
+      Send message, opening its push or email selects that exact Workflow run page rather than the
+      Workflow library or another run. Every chat and run target is reauthorized after authentication;
+      missing, deleted, revoked or mismatched targets show an unavailable state without exposing another
+      owner's data or silently choosing a different chat. Workflow notifications have no inline chat Reply
+      action before their authorized chat target is resolved.
+    depends_on: [models.NotificationHistoryItem.target_ref, examples.workflow_completion_run_route]
   - id: notifications.history.retained-listable
     type: behavior
     must: Notification history retains authorized notification events with stable ids, timestamps, read state, safe summaries, and target references so REST, CLI, npm SDK, pip SDK, web, and Apple clients can list past notifications consistently.

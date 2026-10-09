@@ -25,6 +25,27 @@ struct TaskDetailDeepLinkRequest: Equatable, Identifiable {
     let id = UUID()
 }
 
+struct WorkflowCompletionRoute: Equatable {
+    let workflowID: String
+    let runID: String
+    let chatID: String?
+    let messageID: String?
+    let deliveryID: String?
+
+    static func parse(_ fields: [String: String]) -> Self? {
+        guard let workflowID = fields["workflow_id"] ?? fields["workflow-id"],
+              let runID = fields["run_id"] ?? fields["run-id"],
+              UUID(uuidString: workflowID) != nil, UUID(uuidString: runID) != nil else { return nil }
+        let chatID = fields["chat_id"] ?? fields["chat-id"]
+        let messageID = fields["message_id"] ?? fields["message-id"]
+        let deliveryID = fields["delivery_id"] ?? fields["delivery-id"]
+        let targets = [chatID, messageID, deliveryID]
+        guard targets.allSatisfy({ $0 == nil }) || targets.allSatisfy({ $0.flatMap(UUID.init(uuidString:)) != nil }) else { return nil }
+        return Self(workflowID: workflowID, runID: runID, chatID: chatID,
+                    messageID: messageID, deliveryID: deliveryID)
+    }
+}
+
 struct ShortShareLink: Equatable {
     let token: String
     let fragmentKey: String
@@ -82,6 +103,7 @@ final class DeepLinkHandler: ObservableObject {
     @Published var pendingWorkflowWidgetRun: WidgetWorkflowRunRoute?
     @Published var pendingProjectID: String?
     @Published var pendingWorkflowID: String?
+    @Published var pendingWorkflowCompletion: WorkflowCompletionRoute?
     @Published var pendingWorkflowsWorkspace = false
     @Published var pendingTasksWorkspace = false
     @Published var pendingTaskID: String? {
@@ -109,6 +131,7 @@ final class DeepLinkHandler: ObservableObject {
         pendingProjectsWorkspace = false
         pendingProjectID = nil
         pendingWorkflowID = nil
+        pendingWorkflowCompletion = nil
         pendingActiveChatsWidgetLink = nil
         pendingTaskID = nil
         pendingTasksWorkspace = false
@@ -209,6 +232,16 @@ final class DeepLinkHandler: ObservableObject {
 
         // Parse hash parameters (web app format)
         let params = parseFragment(fragment)
+        if let route = WorkflowCompletionRoute.parse(params) {
+            pendingWorkflowCompletion = route
+            return
+        }
+        // A malformed completion link cannot fall through to ordinary chat
+        // routing and skip the owner delivery claim.
+        if params["workflow-id"] != nil || params["workflow_id"] != nil ||
+           params["run-id"] != nil || params["run_id"] != nil {
+            return
+        }
 
         let normalizedFragment = fragment.hasPrefix("/") ? String(fragment.dropFirst()) : fragment
         if normalizedFragment == "tasks" { pendingTasksWorkspace = true }
@@ -421,7 +454,7 @@ final class DeepLinkHandler: ObservableObject {
         let fragment = (url.fragment ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         if ["new-task", "newtask", "tasks", "apps"].contains(fragment) || fragment.hasPrefix("apps/") { return true }
         if fragment.isEmpty || fragment == "settings" || fragment.hasPrefix("settings/") { return true }
-        return ["task-id=", "chat-id=", "chat_id=", "chatid=", "share-chat-id=", "message=", "pair=", "pair-login=", "settings="]
+        return ["task-id=", "workflow-id=", "chat-id=", "chat_id=", "chatid=", "share-chat-id=", "message=", "pair=", "pair-login=", "settings="]
             .contains { fragment.hasPrefix($0) }
     }
 
@@ -472,6 +505,7 @@ final class DeepLinkHandler: ObservableObject {
         pendingWorkflowWidgetRun = nil
         pendingProjectID = nil
         pendingWorkflowID = nil
+        pendingWorkflowCompletion = nil
         pendingWorkflowsWorkspace = false
         pendingControlProject = nil
         pendingProjectsWorkspace = false

@@ -4,6 +4,30 @@ builder.remote_file_conflict:
   de: "Workflow im Projekt gespeichert. Die entfernte YAML-Datei wurde geändert. Importiere die Datei oder gleiche sie ab, bevor du erneut speicherst."
   verified_by_human: []
 
+completion.opening_message:
+  context: Status while a Workflow completion link waits for the exact encrypted chat message
+  en: "Opening the Workflow message…"
+  de: "Workflow-Nachricht wird geöffnet…"
+  verified_by_human: []
+
+completion.message_unavailable:
+  context: Error after a Workflow completion link cannot resolve its exact chat message
+  en: "This Workflow message is unavailable."
+  de: "Diese Workflow-Nachricht ist nicht verfügbar."
+  verified_by_human: []
+
+completion.review_run_or:
+  context: First part of the unavailable Workflow message hint before the retry button
+  en: "You can review the run or"
+  de: "Du kannst die Ausführung prüfen oder"
+  verified_by_human: []
+
+completion.retry_message:
+  context: Retry button for an unavailable Workflow completion message
+  en: "retry opening the message"
+  de: "erneut versuchen, die Nachricht zu öffnen"
+  verified_by_human: []
+
 builder.remote_file_pending:
   context: A Workflow is safely saved and linked but its selected remote file needs recovery
   en: "Workflow saved in the Project. Its YAML file is pending. Reconnect the source or resolve the write approval, then retry from the Project chat."
@@ -2183,6 +2207,12 @@ runs.delivery_pending:
 runs.content_unavailable:
   context: Workflow run history or workflow header control
   en: "Saved inputs and results are no longer available. Run and step statuses remain visible."
+  verified_by_human: []
+
+runs.target_unavailable:
+  context: Requested Workflow run ID is absent from the owner's run history
+  en: "This Workflow run is unavailable."
+  de: "Diese Workflow-Ausführung ist nicht verfügbar."
   verified_by_human: []
 
 runs.execution_failed:

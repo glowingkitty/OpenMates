@@ -235,6 +235,8 @@ struct MainAppView: View {
     @StateObject private var chatStore = AppSessionCoordinator.shared.chatStore
     @StateObject private var appsStore = AppsWorkspaceStore()
     @StateObject private var workflowStore = WorkflowStore()
+    @State private var workflowCompletionInFlight: WorkflowCompletionRoute?
+    @State private var workflowCompletionRetryCount = 0
     @ObservedObject private var sidebarActivity = NativeChatActivityStore.shared
     @State private var pendingSpotlightIdentifier: String?
     @State private var chatProjectLocation: ChatProjectLocation?
@@ -1060,6 +1062,14 @@ struct MainAppView: View {
             guard let id, isAuthenticated else { return }
             openWorkspaceWorkflow(id); deepLinkHandler.pendingWorkflowID = nil
         }
+        .onChange(of: deepLinkHandler.pendingWorkflowCompletion) { old, new in
+            if let new, old != new { workflowCompletionRetryCount = 0 }
+            openPendingWorkflowCompletion()
+        }
+        .onChange(of: pushManager.pendingWorkflowCompletion) { old, new in
+            if let new, old != new { workflowCompletionRetryCount = 0 }
+            openPendingWorkflowCompletion()
+        }
         .onChange(of: deepLinkHandler.pendingWorkflowsWorkspace) { _, requested in
             guard requested else { return }
             selectWorkspace(.workflows)
@@ -1629,7 +1639,10 @@ struct MainAppView: View {
             }
             // A successor can rotate only the socket credential while the
             // existing account grant and background-service budget stay stable.
-            if authManager.hasNetworkAuthority, didBootstrapAuthenticatedSession { connectWebSocket() }
+            if authManager.hasNetworkAuthority, didBootstrapAuthenticatedSession {
+                openPendingWorkflowCompletion()
+                connectWebSocket()
+            }
         default: break
         }
     }
@@ -1648,6 +1661,7 @@ struct MainAppView: View {
               didBootstrapAuthenticatedSession else { return }
         openPendingWorkflowWidgetRun()
         connectWebSocket()
+        openPendingWorkflowCompletion()
         maintainOfflineWorkspaces(force: true)
         pushManager.refreshRegistration()
         Task { await loadSelectedWorkspace(force: true) }
@@ -1718,6 +1732,7 @@ struct MainAppView: View {
                 }
                 #endif
                 await flushQueuedNotificationReplies()
+                openPendingWorkflowCompletion()
             }
         } else if newState == .unauthenticated {
             resetToUnauthenticatedSession()
@@ -1741,6 +1756,116 @@ struct MainAppView: View {
                 pushManager.pendingChatId = nil
             } catch {
                 NativeDiagnostics.warning("Notification chat open remains pending: \(type(of: error))", category: "push_notifications")
+            }
+        }
+    }
+
+    private func openPendingWorkflowCompletion() {
+        guard let route = pushManager.pendingWorkflowCompletion ?? deepLinkHandler.pendingWorkflowCompletion,
+              isAuthenticated, didBootstrapAuthenticatedSession, authManager.hasNetworkAuthority,
+              let accountID = authManager.currentUser?.id else { return }
+        let authorityGeneration = authManager.networkAuthority?.generation
+        if route.chatID == nil {
+            guard workflowCompletionInFlight != route else { return }
+            workflowCompletionInFlight = route
+            let scope = OfflineStore.shared.scopeGeneration
+            let profile = ServerProfile.current()
+            selectWorkspace(.workflows, loadContent: false)
+            Task {
+                defer { if workflowCompletionInFlight == route { workflowCompletionInFlight = nil } }
+                await workflowStore.load(accountId: accountID)
+                guard isAuthenticated, authManager.hasNetworkAuthority,
+                      authManager.networkAuthority?.generation == authorityGeneration,
+                      authManager.currentUser?.id == accountID,
+                      OfflineStore.shared.scopeGeneration == scope,
+                      ServerProfile.current() == profile,
+                      selectedWorkspace == .workflows else { return }
+                await workflowStore.select(id: route.workflowID)
+                guard isAuthenticated, authManager.hasNetworkAuthority,
+                      authManager.networkAuthority?.generation == authorityGeneration,
+                      authManager.currentUser?.id == accountID,
+                      OfflineStore.shared.scopeGeneration == scope,
+                      ServerProfile.current() == profile,
+                      selectedWorkspace == .workflows,
+                      workflowStore.selectedWorkflow?.id == route.workflowID else { return }
+                await workflowStore.selectRun(route.runID)
+                guard isAuthenticated, authManager.hasNetworkAuthority,
+                      authManager.networkAuthority?.generation == authorityGeneration,
+                      authManager.currentUser?.id == accountID,
+                      OfflineStore.shared.scopeGeneration == scope,
+                      ServerProfile.current() == profile,
+                      selectedWorkspace == .workflows,
+                      workflowStore.selectedRunDetail?.id == route.runID else { return }
+                workflowCompletionRetryCount = 0
+                if pushManager.pendingWorkflowCompletion == route { pushManager.pendingWorkflowCompletion = nil }
+                if deepLinkHandler.pendingWorkflowCompletion == route { deepLinkHandler.pendingWorkflowCompletion = nil }
+            }
+            return
+        }
+        guard wsManager.connectionState == .connected else { return }
+        guard workflowCompletionInFlight != route else { return }
+        workflowCompletionInFlight = route
+        let scope = OfflineStore.shared.scopeGeneration
+        let profile = ServerProfile.current()
+        Task {
+            defer { if workflowCompletionInFlight == route { workflowCompletionInFlight = nil } }
+            do {
+                try await WorkflowCompletionDelivery.persistIfNeeded(route, accountID: accountID, socket: wsManager)
+                guard isAuthenticated, authManager.hasNetworkAuthority,
+                      authManager.networkAuthority?.generation == authorityGeneration,
+                      authManager.currentUser?.id == accountID,
+                      OfflineStore.shared.scopeGeneration == scope,
+                      ServerProfile.current() == profile,
+                      pushManager.pendingWorkflowCompletion == route || deepLinkHandler.pendingWorkflowCompletion == route,
+                      let chatID = route.chatID, let messageID = route.messageID else { return }
+                _ = try await pushManager.workflowMessageForNotification(chatId: chatID, messageId: messageID)
+                guard isAuthenticated, authManager.hasNetworkAuthority,
+                      authManager.networkAuthority?.generation == authorityGeneration,
+                      authManager.currentUser?.id == accountID,
+                      OfflineStore.shared.scopeGeneration == scope,
+                      ServerProfile.current() == profile,
+                      pushManager.pendingWorkflowCompletion == route || deepLinkHandler.pendingWorkflowCompletion == route else { return }
+                selectedWorkspace = .chat
+                selectedChatId = chatID
+                showNewChat = false
+                workflowCompletionRetryCount = 0
+                if pushManager.pendingWorkflowCompletion == route { pushManager.pendingWorkflowCompletion = nil }
+                if deepLinkHandler.pendingWorkflowCompletion == route { deepLinkHandler.pendingWorkflowCompletion = nil }
+            } catch {
+                NativeDiagnostics.warning("Workflow completion destination remains pending: \(type(of: error))",
+                                          category: "push_notifications")
+                guard isAuthenticated, authManager.hasNetworkAuthority,
+                      authManager.networkAuthority?.generation == authorityGeneration,
+                      authManager.currentUser?.id == accountID,
+                      OfflineStore.shared.scopeGeneration == scope,
+                      ServerProfile.current() == profile,
+                      pushManager.pendingWorkflowCompletion == route || deepLinkHandler.pendingWorkflowCompletion == route else { return }
+                if let chatID = route.chatID, let messageID = route.messageID,
+                   await WorkflowCompletionDelivery.authorizesPersistedTarget(route, accountID: accountID),
+                   (try? await pushManager.workflowMessageForNotification(chatId: chatID, messageId: messageID)) != nil {
+                    guard isAuthenticated, authManager.hasNetworkAuthority,
+                          authManager.networkAuthority?.generation == authorityGeneration,
+                          authManager.currentUser?.id == accountID,
+                          OfflineStore.shared.scopeGeneration == scope,
+                          ServerProfile.current() == profile,
+                          pushManager.pendingWorkflowCompletion == route || deepLinkHandler.pendingWorkflowCompletion == route else { return }
+                    selectedWorkspace = .chat
+                    selectedChatId = chatID
+                    showNewChat = false
+                    workflowCompletionRetryCount = 0
+                    if pushManager.pendingWorkflowCompletion == route { pushManager.pendingWorkflowCompletion = nil }
+                    if deepLinkHandler.pendingWorkflowCompletion == route { deepLinkHandler.pendingWorkflowCompletion = nil }
+                    return
+                }
+                workflowCompletionRetryCount += 1
+                if workflowCompletionRetryCount >= 12 {
+                    ToastManager.shared.show(AppStrings.error, type: .error)
+                    openWorkspaceWorkflow(route.workflowID, runID: route.runID)
+                    return
+                }
+                try? await Task.sleep(for: .seconds(3))
+                if workflowCompletionInFlight == route { workflowCompletionInFlight = nil }
+                openPendingWorkflowCompletion()
             }
         }
     }
@@ -1889,6 +2014,9 @@ struct MainAppView: View {
     private func websocketConnectionStateDidChange(_ oldValue: WebSocketManager.ConnectionState, _ newValue: WebSocketManager.ConnectionState) {
         guard newValue == .connected else { return }
         maintainOfflineWorkspaces(force: true)
+        // Each visible app window owns its pending URL/tap; reconnect work
+        // coordination must not suppress that window's destination retry.
+        openPendingWorkflowCompletion()
         if appSession.claimSharedReconnectWork(windowRuntimeID) {
             pendingPushChatDidChange(nil, pushManager.pendingChatId)
             Task {
@@ -4612,6 +4740,8 @@ struct MainAppView: View {
         }
         scheduleInitialDataFallback()
         pendingPushChatDidChange(nil, pushManager.pendingChatId)
+        guard isCurrent() else { return }
+        openPendingWorkflowCompletion()
         Task {
             guard isCurrent() else { return }
             await syncInspirationToWidget()

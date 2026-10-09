@@ -7,6 +7,35 @@ import XCTest
 @testable import OpenMates
 
 final class WorkflowsParityTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.run-target
+    func testCompletionRouteSelectsExactOlderRunAndShowsUnknownRunUnavailable() throws {
+        var olderPayload = try jsonObject(runFixtureData())
+        olderPayload["id"] = "older-run"
+        olderPayload["started_at"] = 10
+        olderPayload["finished_at"] = 20
+        let older = try JSONDecoder().decode(WorkflowRunDetail.self,
+            from: JSONSerialization.data(withJSONObject: olderPayload))
+        var newerPayload = olderPayload
+        newerPayload["id"] = "newer-run"
+        newerPayload["started_at"] = 30
+        newerPayload["finished_at"] = 40
+        let newer = try JSONDecoder().decode(WorkflowRunDetail.self,
+            from: JSONSerialization.data(withJSONObject: newerPayload))
+        let recentPage = [WorkflowRunSummary(detail: newer)]
+        let available = WorkflowRunTimelineSelection.available(recentPage, detail: older,
+            requestedID: older.id)
+        XCTAssertEqual(available.map(\.id), [newer.id, older.id],
+                       "An exact older run outside the first history page needs its own marker")
+        XCTAssertEqual(WorkflowRunTimelineSelection.selected(available, requestedID: older.id)?.id,
+                       older.id)
+        XCTAssertNil(WorkflowRunTimelineSelection.selected(available, requestedID: "deleted-run"),
+                     "An unavailable exact run must never fall through to the newest run")
+        XCTAssertEqual(WorkflowRunTimelineSelection.selected(available, requestedID: nil)?.id,
+                       newer.id, "Normal history can still default to the newest run")
+        XCTAssertEqual(WorkflowRunTimelineSelection.available(recentPage, detail: older,
+            requestedID: "deleted-run").map(\.id), [newer.id])
+    }
+
     @MainActor
     // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity,message-input.recording.lifecycle,workflows.surface.semantic-parity
     func testWorkflowLocalVoiceHoldsSpeechReservationThroughFinalDecode() async {

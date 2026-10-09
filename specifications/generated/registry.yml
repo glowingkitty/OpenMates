@@ -540,7 +540,7 @@ specifications:
     version: 2
     status: draft
     path: features/notifications
-    fingerprint: fb31378179aa94e054fdceaba04e2b76be4c10d69d3fed37d8361b46abf4bc93
+    fingerprint: 7d9314ad74bd36af9c17d653b251f75f4ad9e1fa88c74d68352b8158d3735128
     required_applies_to:
     - rest_api
     - cli
@@ -6657,6 +6657,42 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  notifications.workflow-run.completed-delivery:
+    specification: feature.notifications@2
+    specification_id: feature.notifications
+    type: behavior
+    fingerprint: b9af4f00d5c7c3bacde244cb0a9eb97a8a2a58b012bb80bea1591c5a783e5fe2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.workflow-run.chat-target:
+    specification: feature.notifications@2
+    specification_id: feature.notifications
+    type: behavior
+    fingerprint: 5115fb4ca41d809c101e419b3e6c1b68d39cdebff04adcef8448429c2a11cb7f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.workflow-run.run-target:
+    specification: feature.notifications@2
+    specification_id: feature.notifications
+    type: behavior
+    fingerprint: 67e1641c7881a5c22d2fdaf627c73cf5a9d519f32d06fb96fc67d323b169043c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   notifications.history.retained-listable:
     specification: feature.notifications@2
     specification_id: feature.notifications
@@ -6697,7 +6733,7 @@ assertions:
     specification: feature.notifications@2
     specification_id: feature.notifications
     type: parity
-    fingerprint: 5daa612f8c2f26fd355b18841e6fdc6bfe96da32f2b6c209cbe81ecf9f38a72b
+    fingerprint: ddf12bf436fbe5e8e5011e8c05e21bbd8781140bd17819cd44b49f652b182594
     required_applies_to:
     - rest_api
     - cli

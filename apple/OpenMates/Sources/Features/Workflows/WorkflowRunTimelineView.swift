@@ -11,10 +11,25 @@
 
 import SwiftUI
 
+enum WorkflowRunTimelineSelection {
+    static func available(_ runs: [WorkflowRunSummary], detail: WorkflowRunDetail?,
+                          requestedID: String?) -> [WorkflowRunSummary] {
+        guard let requestedID, let detail, detail.id == requestedID,
+              !runs.contains(where: { $0.id == requestedID }) else { return runs }
+        return runs + [WorkflowRunSummary(detail: detail)]
+    }
+
+    static func selected(_ orderedRuns: [WorkflowRunSummary], requestedID: String?) -> WorkflowRunSummary? {
+        guard let requestedID else { return orderedRuns.first }
+        return orderedRuns.first { $0.id == requestedID }
+    }
+}
+
 struct WorkflowRunTimelineView: View {
     let workflow: WorkflowDetail
     let runs: [WorkflowRunSummary]
     let detail: WorkflowRunDetail?
+    let requestedRunId: String?
     let pinnedGraph: WorkflowGraph?
     let loadingDetail: Bool
     let onSelect: (String?) -> Void
@@ -29,15 +44,16 @@ struct WorkflowRunTimelineView: View {
     private let upcomingId = "__upcoming__"
 
     private var orderedRuns: [WorkflowRunSummary] {
-        runs.sorted { left, right in
-            let current: (WorkflowRunSummary) -> Bool = {
-                !WorkflowRunSummary.terminalStatuses.contains($0.status) || $0.deliveryState() == .pending
+        WorkflowRunTimelineSelection.available(runs, detail: detail, requestedID: requestedRunId)
+            .sorted { left, right in
+                let current: (WorkflowRunSummary) -> Bool = {
+                    !WorkflowRunSummary.terminalStatuses.contains($0.status) || $0.deliveryState() == .pending
+                }
+                let leftCurrent = current(left), rightCurrent = current(right)
+                if leftCurrent != rightCurrent { return leftCurrent }
+                return (leftCurrent ? left.startedAt ?? 0 : left.finishedAt ?? left.startedAt ?? 0)
+                    > (rightCurrent ? right.startedAt ?? 0 : right.finishedAt ?? right.startedAt ?? 0)
             }
-            let leftCurrent = current(left), rightCurrent = current(right)
-            if leftCurrent != rightCurrent { return leftCurrent }
-            return (leftCurrent ? left.startedAt ?? 0 : left.finishedAt ?? left.startedAt ?? 0)
-                > (rightCurrent ? right.startedAt ?? 0 : right.finishedAt ?? right.startedAt ?? 0)
-        }
     }
 
     private var nextRunAt: Int? {
@@ -47,15 +63,14 @@ struct WorkflowRunTimelineView: View {
     }
 
     private var selected: WorkflowRunSummary? {
-        guard selectedRunId != upcomingId else { return nil }
-        if let selectedRunId {
-            return orderedRuns.first { $0.id == selectedRunId } ?? orderedRuns.first
-        }
-        return orderedRuns.first
+        let exactID = selectedRunId ?? requestedRunId
+        guard exactID != upcomingId else { return nil }
+        return WorkflowRunTimelineSelection.selected(orderedRuns, requestedID: exactID)
     }
 
     private var isUpcoming: Bool {
-        nextRunAt != nil && (selectedRunId == upcomingId || orderedRuns.isEmpty)
+        nextRunAt != nil && ((selectedRunId ?? requestedRunId) == upcomingId
+            || (requestedRunId == nil && orderedRuns.isEmpty))
     }
 
     private var selectedStatus: String {
@@ -207,6 +222,12 @@ struct WorkflowRunTimelineView: View {
                         .foregroundStyle(Color.fontSecondary)
                         .padding(32)
                         .accessibilityIdentifier("workflow-run-loading")
+                } else if let requestedRunId, detail?.id != requestedRunId {
+                    Text(tr(.content_unavailable))
+                        .font(.omP)
+                        .foregroundStyle(Color.fontSecondary)
+                        .padding(16)
+                        .accessibilityIdentifier("workflow-run-unavailable")
                 } else if let detail {
                     if !detail.contentAvailable {
                         Text(tr(.content_unavailable))
@@ -235,6 +256,9 @@ struct WorkflowRunTimelineView: View {
         .background(Color.grey0)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflow-runs")
+        .onChange(of: requestedRunId) { _, id in
+            selectedRunId = id
+        }
     }
 
     private func marker(id: String, timestamp: Int?, status: String, selected: Bool, width: CGFloat) -> some View {

@@ -31,6 +31,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -44,6 +45,11 @@ try:
     from scripts import ci_impact
 except ModuleNotFoundError:
     import ci_impact
+
+try:
+    from scripts import product_runtime_translations
+except ModuleNotFoundError:
+    import product_runtime_translations
 
 try:
     from scripts.engineering_control_plane import (
@@ -109,6 +115,7 @@ DOCKER_RESOURCE_DEV_STACK = "dev-stack"
 DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS = 2 * 60 * 60
 DOCKER_OPERATION_TTL_SECONDS = 3 * 60 * 60
 DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS = 5 * 60
+DOCKER_SETUP_GATED_STOP_TIMEOUT_SECONDS = 35 * 60
 RECOVERY_BACKUP_REQUIRED_SERVICES = {"cache", "cms", "cms-database", "vault", "vault-setup"}
 RECOVERY_BACKUP_DATABASE_SERVICE = "cms-database"
 RECOVERY_BACKUP_SETUP_SERVICES = {"cms-setup", "vault-setup"}
@@ -120,6 +127,10 @@ RECOVERY_BACKUP_SOURCES = {
     "vault-setup-data": ("vault-setup", "/app/data"),
 }
 PRODUCT_RUNTIME_CHECKOUT = CONTROL_PLANE_ROOT.parent / ".openmates-runtime" / "product-stack"
+PRODUCT_RUNTIME_TRANSLATIONS_STORE = PRODUCT_RUNTIME_CHECKOUT.parent / "translations"
+_PRODUCT_TRANSLATION_SELECTION_ALLOWED: ContextVar[bool] = ContextVar(
+    "product_translation_selection_allowed", default=False
+)
 PRODUCT_RUNTIME_STATE_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.json"
 PRODUCT_RUNTIME_STATE_LOCK_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.lock"
 PRODUCT_RUNTIME_GENERATED_PATHS = frozenset(
@@ -8536,6 +8547,12 @@ def _docker_compose_command(*args: str, checkout_root: Path = CONTROL_PLANE_ROOT
     ]
     if compose_override.is_file():
         command.extend(["-f", str(compose_override)])
+    if _PRODUCT_TRANSLATION_SELECTION_ALLOWED.get() and checkout_root.resolve() == PRODUCT_RUNTIME_CHECKOUT.resolve():
+        translation_overlay = product_runtime_translations.selected_overlay(
+            checkout_root, PRODUCT_RUNTIME_TRANSLATIONS_STORE
+        )
+        if translation_overlay is not None:
+            command.extend(["-f", str(translation_overlay)])
     runtime_env = _read_env_values(ENV_FILE)
     if runtime_env.get("OPENMATES_DEPLOYMENT_MODE") == "official_cloud":
         configured_overlay_path = runtime_env.get("OPENMATES_CLOUD_OVERLAY_PATH")
@@ -8553,6 +8570,58 @@ def _docker_compose_command(*args: str, checkout_root: Path = CONTROL_PLANE_ROOT
             )
         command.extend(["-f", str(overlay_compose_file)])
     return [*command, *args]
+
+
+def _translation_mount_mismatches(checkout_root: Path, overlay: Path) -> set[str]:
+    """Find live consumers requiring recreation to adopt the selected artifact."""
+    expected = str((overlay.parent / "locales").resolve())
+    rc, stdout, stderr = _run_cmd(
+        _docker_compose_command("config", "--format", "json", checkout_root=checkout_root),
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not inspect translation mounts: {stderr or stdout}")
+    try:
+        configured = json.loads(stdout)["services"]
+    except (KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Could not inspect translation mounts: invalid Compose JSON") from exc
+    consumers = {
+        name for name, config in configured.items()
+        if isinstance(config, dict)
+        and isinstance(config.get("environment"), dict)
+        and config["environment"].get("TRANSLATIONS_DIR") == "/translations"
+    }
+    if consumers != product_runtime_translations.TRANSLATION_SERVICES:
+        raise RuntimeError("Translation overlay service list differs from Compose consumers")
+    for service in consumers:
+        volumes = configured[service].get("volumes") or []
+        mounted = [volume for volume in volumes if isinstance(volume, dict) and volume.get("target") == "/translations"]
+        if len(mounted) != 1 or mounted[0].get("source") != expected or not mounted[0].get("read_only"):
+            raise RuntimeError(f"Translation overlay did not replace /translations for {service}")
+    mismatches = set()
+    for service in sorted(consumers):
+        rc, container_id, stderr = _run_cmd(
+            _docker_compose_command("ps", "-q", service, checkout_root=checkout_root),
+            cwd=str(checkout_root),
+        )
+        if rc != 0:
+            raise RuntimeError(f"Could not inspect {service} translation container: {stderr}")
+        if not container_id.strip():
+            continue
+        rc, mounts_json, stderr = _run_cmd(
+            ["docker", "inspect", "--format", "{{json .Mounts}}", container_id.strip()],
+            cwd=str(checkout_root),
+        )
+        if rc != 0:
+            raise RuntimeError(f"Could not inspect {service} translation mount: {stderr}")
+        try:
+            mounts = json.loads(mounts_json)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Invalid Docker mount data for {service}") from exc
+        translation_mounts = [mount for mount in mounts if mount.get("Destination") == "/translations"]
+        if len(translation_mounts) != 1 or translation_mounts[0].get("Source") != expected:
+            mismatches.add(service)
+    return mismatches
 
 
 def available_docker_services(checkout_root: Path = CONTROL_PLANE_ROOT) -> set[str]:
@@ -8672,6 +8741,50 @@ def _running_backend_mounts(checkout_root: Path) -> dict[str, dict[str, str]]:
                 "source": str(backend_mount.get("Source") or ""),
             }
     return mounted
+
+
+def _strict_running_backend_consumers(checkout_root: Path) -> set[str]:
+    """Snapshot every live Compose consumer of the protected backend bind mount."""
+    configured = _configured_backend_mount_services(checkout_root)
+    rc, stdout, stderr = _run_cmd(
+        _docker_compose_command("ps", "--services", "--status", "running", checkout_root=checkout_root),
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not list live backend consumers: {stderr or stdout}")
+    expected_source = (checkout_root / "backend").resolve()
+    consumers: set[str] = set()
+    for service in sorted({line.strip() for line in stdout.splitlines() if line.strip()}):
+        rc, container_id, stderr = _run_cmd(
+            _docker_compose_command("ps", "-q", service, checkout_root=checkout_root),
+            cwd=str(checkout_root),
+        )
+        ids = container_id.split()
+        if rc != 0 or len(ids) != 1:
+            raise RuntimeError(f"Could not identify live container for {service}: {stderr or container_id}")
+        rc, mounts_json, stderr = _run_cmd(
+            ["docker", "inspect", "--format", "{{json .Mounts}}", ids[0]],
+            cwd=str(checkout_root),
+        )
+        if rc != 0:
+            raise RuntimeError(f"Could not inspect live mounts for {service}: {stderr}")
+        try:
+            mounts = json.loads(mounts_json)
+            backend_mounts = [
+                mount for mount in mounts
+                if isinstance(mount, dict) and mount.get("Destination") == "/app/backend"
+            ]
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"Invalid live mount data for {service}") from exc
+        if service in configured or backend_mounts:
+            if (
+                service not in configured
+                or len(backend_mounts) != 1
+                or Path(str(backend_mounts[0].get("Source") or "")).resolve() != expected_source
+            ):
+                raise RuntimeError(f"Unexpected live backend mount for {service}")
+            consumers.add(service)
+    return consumers
 
 
 def _configured_backend_mount_services(checkout_root: Path) -> set[str]:
@@ -9208,6 +9321,157 @@ def cmd_docker_backup(args: argparse.Namespace) -> None:
         raise failure
 
 
+def _run_setup_gated_docker_restart(
+    args: argparse.Namespace,
+    operation: dict,
+    checkout_root: Path,
+    services: list[str],
+    persistent_coordination: bool,
+) -> None:
+    """Keep all backend consumers stopped until schema and CMS are verified."""
+    operation_id = operation["id"]
+    old_commit = product_runtime_translations.source_commit(checkout_root)
+    rc, _stdout, stderr = _run_cmd(["git", "fetch", "origin", "dev"], cwd=str(CONTROL_PLANE_ROOT), timeout=60)
+    if rc != 0:
+        raise RuntimeError(f"Could not preflight product runtime source: {stderr}")
+    rc, target_commit, stderr = _run_cmd(["git", "rev-parse", "origin/dev"], cwd=str(checkout_root))
+    if rc != 0 or not target_commit.strip():
+        raise RuntimeError(f"Could not resolve product runtime target: {stderr}")
+    target_commit = target_commit.strip()
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "merge-base", "--is-ancestor", old_commit, target_commit], cwd=str(checkout_root)
+    )
+    if rc != 0:
+        raise RuntimeError(f"Product runtime target is not a fast-forward of {old_commit}: {stderr}")
+    def require_cms_healthy() -> None:
+        cms_state = _docker_service_state("cms", checkout_root)
+        if not cms_state.get("running") or cms_state.get("health") != "healthy":
+            raise RuntimeError("CMS must be running and healthy before schema setup")
+
+    require_cms_healthy()
+    prior_running = sorted(_strict_running_backend_consumers(checkout_root))
+    if "cms" in prior_running:
+        raise RuntimeError("CMS cannot be stopped as a backend source consumer")
+    consumer_services = sorted((set(services) - {"cms"}) | set(prior_running))
+    update_docker_operation(
+        operation_id, "restarting", action="setup-gated-restart",
+        pre_stop_commit=old_commit, target_commit=target_commit,
+        prior_running_services=prior_running, services=["cms", *consumer_services],
+        setup_service="cms-setup", phase="preflight",
+    )
+
+    def heartbeat(phase: str) -> None:
+        if not persistent_coordination:
+            _acquire_session_lock("docker_rebuild", args.session, phase=phase)
+        update_docker_operation(operation_id, phase, phase=phase)
+
+    def compose_run(*compose_args: str, timeout: int | None = None) -> None:
+        rc, stdout, stderr = _run_cmd_with_heartbeat(
+            _docker_compose_command(*compose_args, checkout_root=checkout_root),
+            cwd=str(checkout_root),
+            timeout=timeout or max(120, args.timeout),
+            heartbeat=lambda: heartbeat("restarting"),
+        )
+        if rc != 0:
+            raise RuntimeError((stderr or stdout or f"Docker Compose {' '.join(compose_args)} failed").strip())
+
+    stop_attempted = False
+    refresh_complete = False
+    try:
+        if prior_running:
+            stop_attempted = True
+            compose_run(
+                "stop", "--timeout", str(DOCKER_SETUP_GATED_STOP_TIMEOUT_SECONDS), *prior_running,
+                timeout=max(args.timeout, DOCKER_SETUP_GATED_STOP_TIMEOUT_SECONDS + 120),
+            )
+        remaining = _strict_running_backend_consumers(checkout_root)
+        if remaining:
+            raise RuntimeError("Backend consumers remained running after stop: " + ", ".join(sorted(remaining)))
+        require_cms_healthy()
+        update_docker_operation(operation_id, "restarting", phase="consumers-stopped", stopped_services=prior_running)
+
+        checkout_root = _ensure_product_runtime_checkout(refresh=True)
+        refresh_complete = True
+        source_commit = product_runtime_translations.source_commit(checkout_root)
+        if source_commit != target_commit:
+            raise RuntimeError("Product runtime source advanced beyond the preflighted target")
+        translation_overlay = product_runtime_translations.prepare_artifact(
+            checkout_root, PRODUCT_RUNTIME_TRANSLATIONS_STORE
+        )
+        _translation_mount_mismatches(checkout_root, translation_overlay)
+        rc, backend_tree, stderr = _run_cmd(["git", "rev-parse", "HEAD:backend"], cwd=str(checkout_root))
+        if rc != 0 or not backend_tree.strip():
+            raise RuntimeError(f"Could not resolve product backend source generation: {stderr}")
+        update_docker_operation(
+            operation_id, "restarting", source_commit=source_commit,
+            backend_tree=backend_tree.strip(), phase="setup",
+        )
+        require_cms_healthy()
+        compose_run("run", "--rm", "--no-deps", "--build", "cms-setup")
+        update_docker_operation(operation_id, "restarting", setup_completed=True, phase="cms")
+        compose_run("up", "-d", "--no-deps", "--build", "cms")
+        cms_health = wait_for_docker_services_healthy(
+            ["cms"], timeout=args.health_timeout, poll=args.poll, checkout_root=checkout_root,
+            heartbeat=lambda: heartbeat("restarting"),
+        )
+        if cms_health.get("cms", {}).get("health") != "healthy":
+            raise RuntimeError("CMS must report Docker health status healthy before backend consumers start")
+        require_cms_healthy()
+        update_docker_operation(operation_id, "restarting", cms_health=cms_health, phase="consumers")
+        if consumer_services:
+            compose_run("up", "-d", "--no-deps", "--build", *consumer_services)
+        consumer_health = wait_for_docker_services_healthy(
+            consumer_services, timeout=args.health_timeout, poll=args.poll, checkout_root=checkout_root,
+            heartbeat=lambda: heartbeat("restarting"),
+        ) if consumer_services else {}
+        _record_product_runtime_services(
+            ["cms", *consumer_services], checkout_root, source_commit, backend_tree.strip()
+        )
+        completed = update_docker_operation(
+            operation_id, "completed", health={**cms_health, **consumer_health},
+            setup_completed=True, services=["cms", *consumer_services],
+        )
+        print(
+            f"Setup-gated Docker restart {completed['id']} completed for "
+            f"cms and {len(consumer_services)} backend consumers; all are healthy."
+        )
+    except BaseException as primary:
+        if stop_attempted or refresh_complete:
+            try:
+                try:
+                    unchanged_old_source = not refresh_complete and (
+                        product_runtime_translations.source_commit(checkout_root) == old_commit
+                    )
+                except Exception:
+                    unchanged_old_source = False
+                if unchanged_old_source:
+                    if prior_running:
+                        compose_run("start", *prior_running)
+                        wait_for_docker_services_healthy(
+                            prior_running, timeout=args.health_timeout, poll=args.poll,
+                            checkout_root=checkout_root, heartbeat=lambda: heartbeat("restarting"),
+                        )
+                    update_docker_operation(operation_id, "restarting", recovery="old-source-resumed")
+                elif consumer_services:
+                    # Cleanup must still work when artifact selection itself failed.
+                    selection_token = _PRODUCT_TRANSLATION_SELECTION_ALLOWED.set(False)
+                    try:
+                        compose_run(
+                            "stop", "--timeout", str(DOCKER_SETUP_GATED_STOP_TIMEOUT_SECONDS),
+                            *consumer_services,
+                            timeout=max(args.timeout, DOCKER_SETUP_GATED_STOP_TIMEOUT_SECONDS + 120),
+                        )
+                        remaining = _strict_running_backend_consumers(checkout_root)
+                    finally:
+                        _PRODUCT_TRANSLATION_SELECTION_ALLOWED.reset(selection_token)
+                    if remaining:
+                        raise RuntimeError("Backend consumers remained running after failure: " + ", ".join(sorted(remaining)))
+                    update_docker_operation(operation_id, "restarting", recovery="new-source-consumers-stopped")
+            except BaseException as recovery_error:
+                primary.add_note(f"Setup-gated recovery also failed: {recovery_error}")
+        raise
+
+
 def cmd_docker_restart(args: argparse.Namespace) -> None:
     """Drain dependent tests, restart allowlisted services, and verify health."""
     services = sorted(set(args.service))
@@ -9219,9 +9483,19 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             f"Services are not restartable: {', '.join(invalid)}. "
             f"Available services: {', '.join(sorted(available))}"
         )
+    setup_service = getattr(args, "setup_service", None)
+    if setup_service:
+        if setup_service != "cms-setup" or "cms" not in services or not getattr(args, "build", False):
+            raise RuntimeError("Setup-gated restart requires --setup-service cms-setup, --service cms, and --build")
+        if setup_service not in available_docker_setup_services(checkout_root):
+            raise RuntimeError("cms-setup is not available in the product Compose configuration")
+        unsupported = sorted((set(services) - {"cms"}) - _configured_backend_mount_services(checkout_root))
+        if unsupported:
+            raise RuntimeError("Setup-gated restart only accepts backend consumers: " + ", ".join(unsupported))
 
     operation = request_docker_restart(args.session, services)
     lock_acquired = False
+    translation_selection_token = None
     persistent_coordination = _persistent_coordination_enabled()
     try:
         wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
@@ -9247,18 +9521,31 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             poll=args.poll,
             heartbeat=heartbeat,
         )
+        translation_selection_token = _PRODUCT_TRANSLATION_SELECTION_ALLOWED.set(True)
+        if setup_service:
+            _run_setup_gated_docker_restart(
+                args, operation, checkout_root, services, persistent_coordination
+            )
+            return
         checkout_root = _ensure_product_runtime_checkout(refresh=True)
         source_commit = _current_git_sha(checkout_root)
+        translation_overlay = None
+        if checkout_root.resolve() == PRODUCT_RUNTIME_CHECKOUT.resolve():
+            translation_overlay = product_runtime_translations.prepare_artifact(
+                checkout_root, PRODUCT_RUNTIME_TRANSLATIONS_STORE
+            )
         rc, backend_tree, stderr = _run_cmd(["git", "rev-parse", "HEAD:backend"], cwd=str(checkout_root))
         if rc != 0 or not backend_tree.strip():
             raise RuntimeError(f"Could not resolve product backend source generation: {stderr}")
         backend_tree = backend_tree.strip()
         incoherent_services = _incoherent_docker_services(checkout_root, backend_tree)
+        if translation_overlay is not None:
+            incoherent_services |= _translation_mount_mismatches(checkout_root, translation_overlay)
         coherent_services = sorted(set(services) | incoherent_services)
         added_services = sorted(set(coherent_services) - set(services))
         if added_services:
             print(
-                "Expanding Docker restart to restore one source generation: " + ", ".join(added_services),
+                "Expanding Docker restart to restore source and translation mounts: " + ", ".join(added_services),
                 flush=True,
             )
         services = coherent_services
@@ -9322,6 +9609,8 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             pass
         raise
     finally:
+        if translation_selection_token is not None:
+            _PRODUCT_TRANSLATION_SELECTION_ALLOWED.reset(translation_selection_token)
         if lock_acquired:
             _release_session_lock("docker_rebuild", released_by=args.session)
 
@@ -9348,6 +9637,7 @@ def cmd_docker_run_setup(args: argparse.Namespace) -> None:
 
     operation = request_docker_restart(args.session, services)
     lock_acquired = False
+    translation_selection_token = None
     persistent_coordination = _persistent_coordination_enabled()
     try:
         wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
@@ -9373,8 +9663,13 @@ def cmd_docker_run_setup(args: argparse.Namespace) -> None:
             poll=args.poll,
             heartbeat=heartbeat,
         )
+        translation_selection_token = _PRODUCT_TRANSLATION_SELECTION_ALLOWED.set(True)
         checkout_root = _ensure_product_runtime_checkout(refresh=True)
         source_commit = _current_git_sha(checkout_root)
+        if checkout_root.resolve() == PRODUCT_RUNTIME_CHECKOUT.resolve():
+            product_runtime_translations.prepare_artifact(
+                checkout_root, PRODUCT_RUNTIME_TRANSLATIONS_STORE
+            )
         rc, backend_tree, stderr = _run_cmd(["git", "rev-parse", "HEAD:backend"], cwd=str(checkout_root))
         if rc != 0 or not backend_tree.strip():
             raise RuntimeError(f"Could not resolve product backend source generation: {stderr}")
@@ -9427,6 +9722,8 @@ def cmd_docker_run_setup(args: argparse.Namespace) -> None:
             pass
         raise
     finally:
+        if translation_selection_token is not None:
+            _PRODUCT_TRANSLATION_SELECTION_ALLOWED.reset(translation_selection_token)
         if lock_acquired:
             _release_session_lock("docker_rebuild", released_by=args.session)
 
@@ -14070,6 +14367,11 @@ def main() -> None:
         "--build",
         action="store_true",
         help="Rebuild images and recreate services with Compose up -d --build",
+    )
+    p_docker_restart.add_argument(
+        "--setup-service",
+        choices=["cms-setup"],
+        help="Stop backend consumers before source refresh; run cms-setup before recreating them",
     )
     p_docker_restart.add_argument(
         "--timeout",

@@ -60,7 +60,7 @@ final class WorkflowStore: ObservableObject {
     private var generation = 0
     private var selectionGeneration = 0
     private var selectedWorkflowId: String?
-    private var selectedRunId: String?
+    @Published private(set) var selectedRunId: String?
 
     init(api: WorkflowAPI = WorkflowAPI(),
          createWorkflowRequest: (@MainActor (WorkflowCreateRequest, WorkflowAPIOperationScope) async throws -> WorkflowDetail)? = nil,

@@ -1196,6 +1196,8 @@ task_routes = {
     "workflows.run_scheduled_trigger": {'queue': 'workflow'},
     "workflows.scan_due_triggers": {'queue': 'workflow'},
     "workflows.reconcile_stale_state": {'queue': 'workflow'},
+    "workflows.dispatch_completion": {'queue': 'workflow'},
+    "workflows.reconcile_completions": {'queue': 'workflow'},
     # Workflow tasks use custom names like "workflows.run" instead of module paths.
     "workflows.*": {'queue': 'persistence'},
     # Add other explicitly named tasks here as needed
@@ -1619,6 +1621,11 @@ app.conf.beat_schedule = {
     },
     'reconcile-stale-workflow-state': {
         'task': 'workflows.reconcile_stale_state',
+        'schedule': timedelta(seconds=60),
+        'options': {'queue': 'workflow'},
+    },
+    'reconcile-workflow-completions': {
+        'task': 'workflows.reconcile_completions',
         'schedule': timedelta(seconds=60),
         'options': {'queue': 'workflow'},
     },

@@ -1,4 +1,5 @@
 import XCTest
+import UserNotifications
 #if os(iOS)
 import UIKit
 #endif
@@ -6,6 +7,108 @@ import UIKit
 
 @MainActor
 final class AppDeepLinkRoutingTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.run-target
+    func testWorkflowCompletionCategoryOpensWithoutInlineReply() throws {
+        let categories = PushNotificationManager.notificationCategories()
+        let workflow = try XCTUnwrap(categories.first { $0.identifier == "OPENMATES_WORKFLOW_COMPLETED" })
+        XCTAssertTrue(workflow.actions.isEmpty, "Workflow completion requires a destination tap, never an inline Reply")
+        let chat = try XCTUnwrap(categories.first { $0.identifier == "OPENMATES_CHAT_MESSAGE" })
+        XCTAssertEqual(chat.actions.map(\.identifier), ["OPENMATES_REPLY", "OPENMATES_OPEN_CHAT"])
+        XCTAssertTrue(chat.actions.first is UNTextInputNotificationAction)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.chat-target,notifications.workflow-run.run-target
+    func testWorkflowCompletionLinkKeepsExactRunAndOptionalChatDestination() throws {
+        let handler = DeepLinkHandler()
+        let host = ServerProfile.current().displayDomain
+        let workflow = "11111111-1111-4111-8111-111111111111"
+        let run = "22222222-2222-4222-8222-222222222222"
+        let chat = "33333333-3333-4333-8333-333333333333"
+        let message = "44444444-4444-4444-8444-444444444444"
+        let delivery = "55555555-5555-4555-8555-555555555555"
+        let base = "https://\(host)/#workflow-id=\(workflow)&workflow-tab=runs&run-id=\(run)"
+        let runURL = try XCTUnwrap(URL(string: base))
+        XCTAssertTrue(DeepLinkHandler.shouldInterceptAppURL(runURL, selectedDomain: host))
+        handler.handle(url: runURL)
+        XCTAssertEqual(handler.pendingWorkflowCompletion?.workflowID, workflow)
+        XCTAssertEqual(handler.pendingWorkflowCompletion?.runID, run)
+        XCTAssertNil(handler.pendingWorkflowCompletion?.chatID)
+        handler.handle(url: try XCTUnwrap(URL(string: base + "&chat-id=\(chat)&message-id=\(message)&delivery-id=\(delivery)")))
+        XCTAssertEqual(handler.pendingWorkflowCompletion?.chatID, chat)
+        XCTAssertEqual(handler.pendingWorkflowCompletion?.messageID, message)
+        XCTAssertEqual(handler.pendingWorkflowCompletion?.deliveryID, delivery)
+        XCTAssertNil(handler.pendingChatId, "Pending Vault delivery must be committed before chat navigation")
+        handler.clearPending()
+        XCTAssertNil(handler.pendingWorkflowCompletion)
+        handler.handle(url: try XCTUnwrap(URL(string: "https://foreign.example/#workflow-id=\(workflow)&run-id=\(run)")))
+        XCTAssertNil(handler.pendingWorkflowCompletion)
+        handler.handle(url: try XCTUnwrap(URL(string: base + "&chat-id=\(chat)")))
+        XCTAssertNil(handler.pendingWorkflowCompletion, "Incomplete chat routing cannot bypass delivery persistence")
+        XCTAssertNil(handler.pendingChatId, "Malformed completion links cannot become ordinary chat links")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.chat-target,notifications.workflow-run.run-target
+    func testWorkflowCompletionPushRoutingRequiresCompleteOwnerDestination() {
+        let workflow = "11111111-1111-4111-8111-111111111111"
+        let run = "22222222-2222-4222-8222-222222222222"
+        let chat = "33333333-3333-4333-8333-333333333333"
+        let message = "44444444-4444-4444-8444-444444444444"
+        let delivery = "55555555-5555-4555-8555-555555555555"
+        let base = ["workflow_id": workflow, "run_id": run]
+        XCTAssertEqual(WorkflowCompletionRoute.parse(base)?.runID, run)
+        XCTAssertNil(WorkflowCompletionRoute.parse(base.merging(["chat_id": chat]) { _, new in new }))
+        let complete = base.merging(["chat_id": chat, "message_id": message, "delivery_id": delivery]) { _, new in new }
+        XCTAssertEqual(WorkflowCompletionRoute.parse(complete)?.deliveryID, delivery)
+        XCTAssertNil(WorkflowCompletionRoute.parse(complete.merging(["run_id": "not-a-run"]) { _, new in new }))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.chat-target
+    func testCompetingDeviceFallbackRequiresRunOutputAssociation() throws {
+        let workflow = "11111111-1111-4111-8111-111111111111"
+        let run = "22222222-2222-4222-8222-222222222222"
+        let chat = "33333333-3333-4333-8333-333333333333"
+        let message = "44444444-4444-4444-8444-444444444444"
+        let delivery = "55555555-5555-4555-8555-555555555555"
+        let row: [String: Any] = ["id": run, "workflow_id": workflow, "version_id": "version",
+            "trigger_type": "schedule", "status": "completed", "node_runs": [[
+                "id": "node-run", "run_id": run, "workflow_id": workflow,
+                "node_id": "send", "node_type": "send_chat_message", "status": "completed",
+                "output_summary": ["delivery_id": delivery, "chat_id": chat, "message_id": message]
+            ], [
+                "id": "later-node-run", "run_id": run, "workflow_id": workflow,
+                "node_id": "send-later", "node_type": "send_chat_message", "status": "completed",
+                "output_summary": ["delivery_id": "66666666-6666-4666-8666-666666666666",
+                                   "chat_id": chat, "message_id": "77777777-7777-4777-8777-777777777777"]
+            ]]]
+        let detail = try JSONDecoder().decode(WorkflowRunDetail.self,
+            from: JSONSerialization.data(withJSONObject: row))
+        let route = WorkflowCompletionRoute(workflowID: workflow, runID: run,
+            chatID: chat, messageID: message, deliveryID: delivery)
+        XCTAssertTrue(WorkflowCompletionDelivery.matchesCompletedRun(detail, route: route))
+        XCTAssertFalse(WorkflowCompletionDelivery.matchesCompletedRun(detail,
+            route: WorkflowCompletionRoute(workflowID: workflow, runID: run,
+                chatID: chat, messageID: message, deliveryID: UUID().uuidString)))
+        XCTAssertFalse(WorkflowCompletionDelivery.matchesCompletedRun(detail,
+            route: WorkflowCompletionRoute(workflowID: workflow, runID: UUID().uuidString,
+                chatID: chat, messageID: message, deliveryID: delivery)))
+        XCTAssertFalse(WorkflowCompletionDelivery.matchesCompletedRun(detail,
+            route: WorkflowCompletionRoute(workflowID: workflow, runID: run, chatID: chat,
+                messageID: "77777777-7777-4777-8777-777777777777",
+                deliveryID: "66666666-6666-4666-8666-666666666666")))
+        var retained = row
+        retained["node_runs"] = []
+        retained["completion_notification"] = ["notification_id": UUID().uuidString,
+            "chat_id": chat, "message_id": message, "delivery_id": delivery]
+        let retainedDetail = try JSONDecoder().decode(WorkflowRunDetail.self,
+            from: JSONSerialization.data(withJSONObject: retained))
+        XCTAssertTrue(WorkflowCompletionDelivery.matchesCompletedRun(retainedDetail, route: route),
+                      "Pinned owner routing survives pruned run content")
+        retained["completion_notification"] = ["notification_id": UUID().uuidString,
+            "chat_id": chat, "message_id": message, "delivery_id": UUID().uuidString]
+        let mismatched = try JSONDecoder().decode(WorkflowRunDetail.self,
+            from: JSONSerialization.data(withJSONObject: retained))
+        XCTAssertFalse(WorkflowCompletionDelivery.matchesCompletedRun(mismatched, route: route))
+    }
     // contract-test: supporting surface=gui.apple assertions=storage.surface.semantic-parity,storage.cold.shared-team-authorized,settings-ui.shell.lifecycle-and-routing
     func testTeamStorageEmailDestinationRetainsExactTeamAndAuthenticationGate() throws {
         let handler = DeepLinkHandler()

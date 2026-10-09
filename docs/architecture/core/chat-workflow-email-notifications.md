@@ -1,4 +1,4 @@
-# Chat response email and daily Workflow digest
+# Chat response email and Workflow notifications
 
 Email sends use verified account contact ciphertext through the existing Vault
 key and freshly check the global block list. Client-only encrypted addresses
@@ -126,6 +126,42 @@ embeds and other node outputs have no safe preview field and are excluded.
 Cleared or expired payloads fall back to metadata-only rows. Up to fifty run
 rows are shown with complete totals and an omitted
 count for larger windows.
+
+## Scheduled completion notifications
+
+Successful scheduled runs also reserve a metadata-only
+`workflow_completion_notifications` row before executing effects. Completion
+pins the first successful Send message's delivery, chat and message identities;
+a run that never executes Send message keeps only its Workflow and run identity.
+Manual/test, failed and cancelled runs do not send completion notifications. The
+daily digest remains independent.
+
+The completion dispatcher keeps separate event, email and Apple device ledgers.
+It rechecks ownership, current notification preferences, verified contact and
+content consent before dispatch. A rotating paginated reconciler recovers queued
+or interrupted work without starving later rows. Redis reservations and provider
+idempotency use the stable run identity. Definite transient provider rejection
+may retry; ambiguous acceptance is retained as uncertain to avoid duplicate
+notifications. Email does not wait for a device to persist the chat message.
+
+Apple iOS/macOS pushes use `OPENMATES_WORKFLOW_COMPLETED` without an inline Reply
+action. The public payload contains routing metadata and generic completion
+text. A Workflow name, when available, uses the existing device-encrypted preview
+envelope. Email includes the name only with explicit content consent; otherwise
+the run reference and completion time identify the result.
+
+Both channels link to the pinned chat/message after an actual Send message, or
+the exact run page otherwise. The authenticated run detail exposes the durable
+completion target even after run content is pruned. Web and Apple reauthorize
+that target, finish the existing owner-device encrypted delivery protocol, and
+wait for persisted chat/message sync before navigation. Account, profile,
+workspace and transport changes invalidate pending work. Missing, deleted or
+mismatched targets show unavailable rather than opening another chat or run.
+
+Coverage includes dispatch recovery, privacy and idempotency unit tests, isolated
+scheduled SMTP integration, cold-open web routes, and Apple parsing/preview/
+delivery tests. Native execution and real APNs device receipt require an admitted
+Mac runner and device; Linux source checks do not establish those results.
 
 Isolated product tests use runner-private Directus/Redis/Vault and SMTP Mailpit,
 without real inference or public fixture endpoints. Captured mail is integration

@@ -252,6 +252,7 @@ private struct WorkflowEditorView: View {
                 } else {
                     WorkflowRunTimelineView(
                         workflow: workflow, runs: store.runs, detail: store.selectedRunDetail,
+                        requestedRunId: store.selectedRunId,
                         pinnedGraph: store.pinnedRunGraph, loadingDetail: store.isLoadingRun,
                         onSelect: { runId in
                             // The local fixture owns immutable retained detail; selection
@@ -329,6 +330,12 @@ private struct WorkflowEditorView: View {
         }
         .onChange(of: store.selectedRunDetail?.id) { _, runID in
             if runID != nil { tab = .runs }
+        }
+        .onChange(of: store.selectedRunId) { _, runID in
+            if runID != nil { tab = .runs }
+        }
+        .onAppear {
+            if store.selectedRunId != nil { tab = .runs }
         }
         .overlay(alignment: .top) {
             if showSharingSoon {
