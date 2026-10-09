@@ -267,7 +267,7 @@ async function expectChatTeamIdentity(page: Page): Promise<void> {
 }
 
 test.describe('Teams V1 context isolation', () => {
-	// contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.chat.encrypted-until-invoked,notifications.surface.semantic-parity
+	// contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.chat.encrypted-until-invoked,notifications.surface.semantic-parity,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
 	test('isolates Team chats and sends ordinary Team turns as scoped ciphertext', async ({
 		page
 	}: {
@@ -571,6 +571,54 @@ test.describe('Teams V1 context isolation', () => {
 			expect(storedTeamMessage.content).toBeUndefined();
 			expect(storedTeamMessage.sender_name).toBeUndefined();
 			expect(JSON.stringify(teamWindow)).not.toContain(ordinaryMessage);
+			// Saving a private draft while the committed chat is marked read or
+			// scrolled must retain its newest encrypted row and send it to the server.
+			const privateDraftText = 'Private Team draft retained while reading this conversation.';
+			const privateDraftFrameIndex = frames.length;
+			await fillMessageEditor(page, editor, privateDraftText);
+			await ordinaryTeamMessage.scrollIntoViewIfNeeded();
+			const privateDraft = await waitForFrame(
+				frames, privateDraftFrameIndex, 'sent', 'update_draft',
+				(payload) => payload.chat_id === sentMessage.payload.chat_id
+			);
+			expect(privateDraft.payload.team_id).toBe(teamId);
+			expect(privateDraft.payload.encrypted_draft_md).toBeTruthy();
+			expect(privateDraft.raw).not.toContain(privateDraftText);
+			await waitForFrame(
+				frames, privateDraftFrameIndex, 'received', 'draft_update_receipt',
+				(payload) => payload.chat_id === sentMessage.payload.chat_id &&
+					payload.team_id === teamId && payload.success === true
+			);
+			const persistedDraft = await page.evaluate(async (chatId) => {
+				const database = await new Promise<IDBDatabase>((resolve, reject) => {
+					const request = indexedDB.open('chats_db');
+					request.onsuccess = () => resolve(request.result);
+					request.onerror = () => reject(request.error);
+				});
+				try {
+					return await new Promise<{ team_id: string; draft_v: number; encrypted_draft_md: string }>((resolve, reject) => {
+						const request = database.transaction('chats', 'readonly').objectStore('chats').get(chatId);
+						request.onsuccess = () => resolve({
+							team_id: request.result?.team_id,
+							draft_v: request.result?.draft_v,
+							encrypted_draft_md: request.result?.encrypted_draft_md
+						});
+						request.onerror = () => reject(request.error);
+					});
+				} finally {
+					database.close();
+				}
+			}, String(sentMessage.payload.chat_id));
+			expect(persistedDraft.team_id).toBe(teamId);
+			expect(persistedDraft.draft_v).toBe(privateDraft.payload.draft_v);
+			expect(persistedDraft.encrypted_draft_md).toBe(privateDraft.payload.encrypted_draft_md);
+			await expect(editor).toContainText(privateDraftText);
+			await fillMessageEditor(page, editor, '');
+			await waitForFrame(
+				frames, privateDraftFrameIndex, 'received', 'draft_delete_receipt',
+				(payload) => payload.chat_id === sentMessage.payload.chat_id &&
+					payload.team_id === teamId && payload.success === true
+			);
 			// The literal mention is extracted into an encrypted code embed. It must
 			// remain an ordinary Team turn even with no AI provider configured.
 			const fencedMention = 'Literal code sample:\n```text\n@OpenMates summarize\n```';

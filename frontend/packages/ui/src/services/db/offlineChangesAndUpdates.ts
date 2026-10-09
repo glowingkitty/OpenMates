@@ -8,7 +8,10 @@
 // - Chat timestamp updates
 // - Chat scroll position and read status updates
 
-import type { OfflineChange, ChatComponentVersions } from "../../types/chat";
+import type { Chat, OfflineChange, ChatComponentVersions } from "../../types/chat";
+import { get } from "svelte/store";
+import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
+import { getWorkspaceCacheEpoch } from "../workspaceCacheLifecycle";
 import * as chatCrudOps from "./chatCrudOperations";
 
 // Type for ChatDatabase instance to avoid circular import
@@ -214,82 +217,79 @@ export async function updateChatLastEditedTimestamp(
 // CHAT SCROLL POSITION AND READ STATUS
 // ============================================================================
 
-/**
- * Update the scroll position (last visible message) for a chat.
- *
- * Reads the chat first (allowing async decryption to complete), mutates it,
- * then delegates to addChat which creates its own transaction internally.
- * We intentionally do NOT pre-create a transaction here because addChat
- * performs async encryption that would cause a pre-created transaction to
- * expire (IndexedDB auto-commits idle transactions).
- */
+type ChatViewField = "last_visible_message_id" | "unread_count";
+
+/** Keep a view-only write behind newer encrypted draft and metadata commits. */
+async function updateRawChatViewField(
+  dbInstance: ChatDatabaseInstance,
+  chatId: string,
+  field: ChatViewField,
+  value: string | number,
+): Promise<"updated" | "missing" | "cancelled"> {
+  const epoch = getWorkspaceCacheEpoch();
+  const contextChanged = () => epoch !== getWorkspaceCacheEpoch()
+    || get(forcedLogoutInProgress) || get(isLoggingOut);
+  if (contextChanged()) return "cancelled";
+  await dbInstance.init();
+  if (contextChanged()) return "cancelled";
+  const transaction = await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, "readwrite");
+  return new Promise((resolve, reject) => {
+    let result: "updated" | "missing" | "cancelled" = "cancelled";
+    transaction.oncomplete = () => resolve(result);
+    transaction.onerror = () => reject(transaction.error ?? new Error("Chat view update failed"));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Chat view update aborted"));
+    const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
+    const request = store.get(chatId);
+    request.onerror = () => reject(request.error ?? new Error("Chat view read failed"));
+    request.onsuccess = () => {
+      if (contextChanged()) return;
+      const chat = request.result as Chat | undefined;
+      if (!chat) {
+        result = "missing";
+        return;
+      }
+      // The read and put share one transaction; no decryption or other await
+      // can let an older chat snapshot overwrite a newer encrypted draft.
+      store.put({ ...chat, [field]: value });
+      result = "updated";
+    };
+  });
+}
+
+/** Update the scroll position without changing sort order or encrypted fields. */
 export async function updateChatScrollPosition(
   dbInstance: ChatDatabaseInstance,
   chat_id: string,
   message_id: string,
 ): Promise<void> {
-  await dbInstance.init();
-
-  // Get chat WITHOUT transaction first to allow async decryption
-  const chat = await chatCrudOps.getChat(dbInstance, chat_id);
-
-  if (!chat) {
+  const result = await updateRawChatViewField(dbInstance, chat_id, "last_visible_message_id", message_id);
+  if (result === "missing") {
     console.warn(
       `[ChatDatabase] Chat ${chat_id} not found when updating scroll position`,
     );
     return;
   }
 
-  chat.last_visible_message_id = message_id;
-  // INTENTIONALLY not updating updated_at here.
-  // updated_at is used as a tiebreaker in sortChats() — bumping it on every scroll
-  // would cause a chat to silently jump to the top of the list the next time any
-  // LOCAL_CHAT_LIST_CHANGED_EVENT fires (e.g. user types a draft in another chat),
-  // making it appear as if opening a chat moves it to the top. Scroll position is
-  // a view-tracking concern and must not affect sort order.
-
-  // Let addChat create and manage its own transaction.
-  // Previously we created a transaction here and passed it in, but addChat does
-  // async encryption internally which caused the pre-created transaction to expire.
-  // addChat would then silently create a replacement transaction, leaving the
-  // caller's tx.oncomplete Promise hanging forever (never resolving).
-  await chatCrudOps.addChat(dbInstance, chat);
-  console.debug(
+  if (result === "updated") console.debug(
     `[ChatDatabase] Updated scroll position for chat ${chat_id}: message ${message_id}`,
   );
 }
 
-/**
- * Update the read status (unread count) for a chat.
- *
- * Same pattern as updateChatScrollPosition — see its JSDoc for rationale.
- */
+/** Update read status without changing sort order or encrypted fields. */
 export async function updateChatReadStatus(
   dbInstance: ChatDatabaseInstance,
   chat_id: string,
   unread_count: number,
 ): Promise<void> {
-  await dbInstance.init();
-
-  // Get chat WITHOUT transaction first to allow async decryption
-  const chat = await chatCrudOps.getChat(dbInstance, chat_id);
-
-  if (!chat) {
+  const result = await updateRawChatViewField(dbInstance, chat_id, "unread_count", unread_count);
+  if (result === "missing") {
     console.warn(
       `[ChatDatabase] Chat ${chat_id} not found when updating read status`,
     );
     return;
   }
 
-  chat.unread_count = unread_count;
-  // INTENTIONALLY not updating updated_at here.
-  // Same reasoning as updateChatScrollPosition — read status is a view-tracking
-  // concern and must not affect sort order. See that function's comment for details.
-
-  // Let addChat create and manage its own transaction.
-  // Same fix as updateChatScrollPosition — see comment there for details.
-  await chatCrudOps.addChat(dbInstance, chat);
-  console.debug(
+  if (result === "updated") console.debug(
     `[ChatDatabase] Updated read status for chat ${chat_id}: unread_count = ${unread_count}`,
   );
 }
