@@ -14,7 +14,7 @@ ITEM = "22222222-2222-4222-8222-222222222222"
 PROMPT = "suggestions how to improve the readme of my OpenMates project?"
 
 
-def answers_for(questions, *, project=True, specialist=False):
+def answers_for(questions, *, project=True, specialist=False, project_confidence=.99):
     answers = {}
     for key, question in questions.items():
         if question["type"] == "noul":
@@ -23,7 +23,8 @@ def answers_for(questions, *, project=True, specialist=False):
             choice = (f"project-{PROJECT}" if key == "project_target" and project
                       else f"project-focus:{PROJECT}:{ITEM}" if specialist
                       else "default" if key == "project_specialist" else "none")
-            answers[key] = {"type": "choice", "choice": choice, "confidence": .99,
+            answers[key] = {"type": "choice", "choice": choice,
+                            "confidence": project_confidence if key == "project_target" else .99,
                             "probabilities": {value: float(value == choice) for value in question["criteria"]}}
     return DecisionResponse.model_validate({"model": "jev", "answers": answers, "usage": {}})
 
@@ -209,3 +210,104 @@ async def test_optional_focus_failure_preserves_selected_project_without_another
     assert result["pending_project_focus_id"] == f"project-{PROJECT}"
     assert "pending_project_specialist" not in result
     assert len(calls) == (1 if failure_stage == "catalog" else 2)
+
+
+# contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent,projects.focus.custom-catalog-privacy
+@pytest.mark.asyncio
+@pytest.mark.parametrize("confidence,focuses", [(.99, []), (.4, []), (.99, None)])
+async def test_named_readme_fallback_exits_before_detailed_preprocessing(
+    monkeypatch, caplog, confidence, focuses,
+):
+    from backend.core.api.app.services import project_focus_request_service, project_focus_routing
+    from backend.core.api.app.utils import server_mode
+
+    candidate = {"project_id": PROJECT, "name": "OpenMates", "auto_selection": True}
+    if focuses is not None:
+        candidate["focuses"] = focuses
+    request = AskSkillRequest(
+        chat_id="chat", message_id="turn", user_id="user", user_id_hash="hash",
+        message_history=[{"role": "user", "content": PROMPT, "created_at": 1}],
+        current_user_content=PROMPT, client_capabilities=["project_file_jobs"],
+        project_focus_candidates=[candidate],
+    )
+    monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: False)
+    monkeypatch.setattr(preprocessor, "load_skill_ledger", AsyncMock(return_value=preprocessor.RoutingLedgerSnapshot(available=True, prompt_rows=())))
+    monkeypatch.setattr(project_focus_request_service, "validated_project_candidates", AsyncMock(return_value=[candidate]))
+    private_catalog = AsyncMock(side_effect=AssertionError("Private Focus discovery before consent"))
+    monkeypatch.setattr(project_focus_routing, "validated_focus_candidates_for_project", private_catalog)
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions",
+                        AsyncMock(side_effect=lambda **kwargs: answers_for(kwargs["questions"], project=confidence < .65,
+                                                                           project_confidence=confidence)))
+    # Other backend tests install JSON handlers and may disable propagation at
+    # an ancestor. Capture directly on both loggers, restoring their handlers
+    # through monkeypatch after this case.
+    for logger in (preprocessor.logger, jev_preprocessing.logger):
+        monkeypatch.setattr(logger, "handlers", [*logger.handlers, caplog.handler])
+    mates = AsyncMock(side_effect=AssertionError("Detailed preprocessing ran before consent"))
+    with caplog.at_level("INFO"):
+        result = await preprocessor.handle_preprocessing(
+            request_data=request, base_instructions={"preprocess_request_tool": {}},
+            skill_config=SimpleNamespace(default_llms=SimpleNamespace(
+                decision_model="test/jev", main_processing_simple="test/main",
+                main_processing_simple_name="Main")),
+            cache_service=SimpleNamespace(get_user_by_id=AsyncMock(return_value={}), get_mates_configs=mates),
+            secrets_manager=None, directus_service=None, encryption_service=None,
+            discovered_apps_metadata={},
+        )
+    assert result.routing_only and result.pending_project_focus_id == f"project-{PROJECT}"
+    assert result.pending_project_catalog_id == (PROJECT if focuses is None else None)
+    assert result.selected_app_ids == ["projects"]
+    mates.assert_not_awaited()
+    private_catalog.assert_not_awaited()
+    assert "Compact Project named-file fallback outcome=selected" in caplog.text
+    assert "Compact Project target task=chat_turn outcome=" in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("text,candidates,capability", [
+    ("Write an email about OpenMates", [{"project_id": PROJECT, "name": "OpenMates"}], True),
+    ("Create a new OpenMates Project", [{"project_id": PROJECT, "name": "OpenMates"}], True),
+    ("Read the README of OpenMates and Garden notes", [
+        {"project_id": PROJECT, "name": "OpenMates"},
+        {"project_id": "33333333-3333-4333-8333-333333333333", "name": "Garden notes"},
+    ], True),
+    ("Read the README of OpenMates", [
+        {"project_id": PROJECT, "name": "OpenMates"},
+        {"project_id": "33333333-3333-4333-8333-333333333333", "name": "OpenMates"},
+    ], True),
+    (PROMPT, [{"project_id": PROJECT, "name": "OpenMates", "auto_selection": False}], True),
+    (PROMPT, [{"project_id": PROJECT, "name": "OpenMates"}], False),
+])
+# contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent,projects.focus.auto-selection-setting
+async def test_named_file_fallback_requires_intent_unique_eligible_project_and_capability(
+    monkeypatch, text, candidates, capability,
+):
+    from backend.core.api.app.services import project_focus_request_service
+    from backend.core.api.app.utils import server_mode
+
+    request = AskSkillRequest(
+        chat_id="chat", message_id="turn", user_id="user", user_id_hash="hash",
+        message_history=[{"role": "user", "content": text, "created_at": 1}],
+        current_user_content=text,
+        client_capabilities=["project_file_jobs"] if capability else [],
+        project_focus_candidates=candidates,
+    )
+    monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: False)
+    monkeypatch.setattr(preprocessor, "load_skill_ledger", AsyncMock(return_value=preprocessor.RoutingLedgerSnapshot(available=True, prompt_rows=())))
+    monkeypatch.setattr(project_focus_request_service, "validated_project_candidates", AsyncMock(return_value=candidates))
+    monkeypatch.setattr(preprocessor, "load_mates_config", lambda: [])
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions",
+                        AsyncMock(side_effect=lambda **kwargs: answers_for(kwargs["questions"], project=False)))
+    mates = AsyncMock(return_value=[])
+    result = await preprocessor.handle_preprocessing(
+        request_data=request, base_instructions={"preprocess_request_tool": {}},
+        skill_config=SimpleNamespace(default_llms=SimpleNamespace(
+            decision_model="test/jev", main_processing_simple="test/main",
+            main_processing_simple_name="Main")),
+        cache_service=SimpleNamespace(get_user_by_id=AsyncMock(return_value={}), get_mates_configs=mates),
+        secrets_manager=None, directus_service=None, encryption_service=None,
+        discovered_apps_metadata={},
+    )
+    assert not result.routing_only
+    assert result.pending_project_focus_id is None
+    mates.assert_awaited_once()

@@ -126,13 +126,23 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
           onAcceptProject: async () => {
             if (!projectId || activeChatStore.get() !== chatId) throw new Error("Project request is no longer current");
             const chat = await chatDB.getChat(chatId);
-            const activation = await activateProjectFocusAfterConsent({
-              projectId, chatId, requestId: attrs.id || "", teamId: chat?.team_id,
-              approved: pendingFocusActivationStore.getPolicy(attrs.id || "") === "approval",
-            });
+            let activation: Awaited<ReturnType<typeof activateProjectFocusAfterConsent>>;
+            try {
+              activation = await activateProjectFocusAfterConsent({
+                projectId, chatId, requestId: attrs.id || "", teamId: chat?.team_id,
+                approved: pendingFocusActivationStore.getPolicy(attrs.id || "") === "approval",
+              });
+            } catch (error) {
+              console.error(`[ProjectFocusActivation] failed stage=activate_project code=${
+                error instanceof Error && /^PROJECT_[A-Z_]+$/.test(error.message) ? error.message : "UNCLASSIFIED"
+              }`);
+              throw error;
+            }
             const { chatSyncService } = await import("../../../../services/chatSyncService");
+            let stage = "sync_metadata";
             try {
               await chatSyncService.applyConfirmedFocusActivation(chatId, activation.focus_id, activation.project_name);
+              stage = "load_specialist";
               const selected = pendingFocusActivationStore.getSelectedSpecialist(attrs.id || "");
               let specialistDocument: { focus_id: string; item_id: string; revision: string; document: string } | undefined;
               if (selected?.focus_id === `project-focus:${projectId}:${selected.item_id}`) {
@@ -145,11 +155,13 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
                   // A stale or invalid optional specialist must not block accepted Project access.
                 }
               }
+              stage = "send_decision";
               await webSocketService.sendMessage("project_focus_decision", {
                 chat_id: chatId, request_id: attrs.id, accepted: true,
                 ...(specialistDocument ? { specialist_document: specialistDocument } : {}),
               });
             } catch (error) {
+              console.error(`[ProjectFocusActivation] failed stage=${stage} code=UNCLASSIFIED`);
               await deactivateProjectFocus(chatId).catch(() => undefined);
               throw error;
             }

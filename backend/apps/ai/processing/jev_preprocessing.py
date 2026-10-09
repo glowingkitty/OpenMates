@@ -15,7 +15,7 @@ from backend.shared.providers.typesafe.client import DecisionRequestTooLarge
 from backend.shared.providers.typesafe.batching import (
     MAX_DECISION_BATCHES, DecisionRequest, evaluate_batches, question_batches,
 )
-from backend.shared.providers.typesafe.models import DecisionResponse
+from backend.shared.providers.typesafe.models import ChoiceAnswer, DecisionResponse
 
 logger = logging.getLogger(__name__)
 
@@ -182,6 +182,8 @@ async def _evaluate_preprocessing_questions(*, state: dict[str, Any], questions:
             else:
                 raise
 
+    logger.info("Jev preprocessing task=%s planned_batches=%d question_count=%d",
+                telemetry_task_id, len(batches), len(questions))
     async def evaluate(**kwargs):
         return await evaluate_jev_decisions(**kwargs, secrets_manager=secrets_manager, model_id=model_id,
                                             telemetry_task_id=telemetry_task_id,
@@ -243,12 +245,28 @@ async def decide_app_and_project_routing_with_jev(
                 if selected_app_ids is None else [app for app in selected_app_ids if app in valid_apps])
     selected.extend(app for app in (forced_app_ids or []) if app in valid_apps)
     result: dict[str, Any] = {"selected_app_ids": list(dict.fromkeys(selected))}
+    if not candidates:
+        logger.info("Compact Project target task=%s outcome=no_eligible_candidate eligible_candidates=0 confidence=n/a",
+                    telemetry_task_id)
     if candidates and (response is not None or project_routing_focus_id):
+        answer = response.answers.get("project_target") if response is not None else None
         try:
             target = project_routing_focus_id or choice_value(response, "project_target", min_confidence=.65)
         except ValueError:
             target = "none"
         candidate = next((row for row in candidates if target == f"project-{row['project_id']}"), None)
+        outcome = (
+            "staged" if project_routing_focus_id else
+            "missing" if not isinstance(answer, ChoiceAnswer) else
+            "low_confidence" if answer.confidence < .65 else
+            "selected" if candidate is not None else
+            "none" if target == "none" else "unmatched"
+        )
+        logger.info(
+            "Compact Project target task=%s outcome=%s eligible_candidates=%d confidence=%s",
+            telemetry_task_id, outcome, len(candidates),
+            f"{answer.confidence:.3f}" if isinstance(answer, ChoiceAnswer) else "n/a",
+        )
         if candidate is not None:
             result["pending_project_focus_id"] = target
             if "projects" in valid_apps and "projects" not in result["selected_app_ids"]:

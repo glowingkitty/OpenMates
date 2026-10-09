@@ -290,16 +290,20 @@ export class ChatSynchronizationService extends EventTarget {
     focusId: string,
     projectName?: string,
   ): Promise<void> {
+    let stage = "load_chat";
     activeChatFocusStore.setActiveFocus(chatId, focusId);
     try {
       const chat = await chatDB.getChat(chatId);
       if (!chat) throw new Error("Focus activation chat is unavailable");
+      stage = "load_key";
       const chatKey = await chatKeyManager.getKey(chatId);
       if (!chatKey) throw new Error("Focus activation chat key is unavailable");
+      stage = "verify_key";
       const { ensureChatKeySafeForWrite } = await import("./chatKeyWriteGuard");
       if (!(await ensureChatKeySafeForWrite(chatId, chatKey, "active focus id encryption"))) {
         throw new Error("Focus activation chat key is unsafe for write");
       }
+      stage = "encrypt_metadata";
       const { encryptWithChatKey, decryptWithChatKey } = await import("./encryption/MessageEncryptor");
       const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
       chat.encrypted_active_focus_id = encryptedFocusId;
@@ -310,16 +314,25 @@ export class ChatSynchronizationService extends EventTarget {
         if (!focusId.startsWith("project-") || focusId.startsWith("project-focus:")) delete states[focusId];
         chat.encrypted_focus_phase_state = await encryptWithChatKey(JSON.stringify(states), chatKey);
       }
+      stage = "persist_metadata";
       await chatDB.updateChat(chat);
       chatMetadataCache.invalidateChat(chatId);
+      stage = "send_metadata";
       await webSocketService.sendMessage("update_encrypted_active_focus_id", {
         chat_id: chatId,
         encrypted_active_focus_id: encryptedFocusId,
       });
+      stage = "dispatch_event";
       this.dispatchEvent(new CustomEvent("focusModeActivated", {
         detail: { chat_id: chatId, focus_id: focusId, project_name: projectName },
       }));
     } catch (error) {
+      console.error(`[ProjectFocusActivation] failed stage=${stage} code=${
+        error instanceof Error && error.message === "Focus activation chat is unavailable" ? "CHAT_UNAVAILABLE"
+          : error instanceof Error && error.message === "Focus activation chat key is unavailable" ? "KEY_UNAVAILABLE"
+          : error instanceof Error && error.message === "Focus activation chat key is unsafe for write" ? "KEY_UNSAFE"
+          : "UNCLASSIFIED"
+      }`);
       activeChatFocusStore.clearActiveFocus(chatId);
       throw error;
     }

@@ -2594,6 +2594,8 @@ async def _fit_personal_chat_output_token_limit(
     tools: Optional[List[Dict[str, Any]]],
     requested_output_token_limit: Optional[int],
     inference_host: str,
+    directus_service: Optional[DirectusService] = None,
+    encryption_service: Optional[EncryptionService] = None,
 ) -> int:
     """Bound one unreserved dispatch to the remaining personal-wallet capacity."""
     if not request_data.user_id or cache_service is None:
@@ -2604,11 +2606,27 @@ async def _fit_personal_chat_output_token_limit(
         raise AuthenticatedReservationError("Personal inference needs a bounded output limit")
     try:
         user = await cache_service.get_user_by_id(request_data.user_id)
-    except Exception as exc:
-        raise AuthenticatedReservationError("Personal inference balance is unavailable") from exc
+    except Exception:
+        user = None
     balance = user.get("credits") if isinstance(user, dict) else None
     if isinstance(balance, bool) or not isinstance(balance, int):
-        raise AuthenticatedReservationError("Personal inference balance is unavailable")
+        if not request_data.user_id_hash or directus_service is None or encryption_service is None:
+            raise AuthenticatedReservationError("Personal inference balance is unavailable")
+        from backend.core.api.app.services.billing_service import BillingService
+        try:
+            balance = await BillingService(
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+            ).get_authoritative_personal_balance(
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+            )
+        except Exception as exc:
+            raise AuthenticatedReservationError("Personal inference balance is unavailable") from exc
+        if isinstance(balance, bool) or not isinstance(balance, int):
+            raise AuthenticatedReservationError("Personal inference balance is unavailable")
+        logger.info("Personal inference balance recovered from durable wallet")
     try:
         observed_credits = (
             calculate_model_usage_credits(model_usage_tracker.usage_by_model, config_manager.get_model_pricing)
@@ -5835,6 +5853,8 @@ async def handle_main_processing(
                         return await _fit_personal_chat_output_token_limit(
                             request_data=request_data,
                             cache_service=cache_service,
+                            directus_service=directus_service,
+                            encryption_service=encryption_service,
                             model_usage_tracker=model_usage_tracker,
                             model_id=current_model_id,
                             system_prompt=reservation_system_prompt,

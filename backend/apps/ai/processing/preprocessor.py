@@ -1867,6 +1867,20 @@ async def handle_preprocessing(
     # The complete scoped safety/skill/memory decisions run after activation.
     project_candidates_validated = False
     decision_model = getattr(skill_config.default_llms, "decision_model", None)
+    logger.info(
+        "%s Compact Project routing gate candidates=%d capability=%s active=%s declined=%s "
+        "incognito=%s external=%s apps_enabled=%s explicit_skill_or_focus=%s "
+        "shortlist_reuse=%s staged=%s",
+        log_prefix,
+        len(request_data.project_focus_candidates or []),
+        "project_file_jobs" in (request_data.client_capabilities or []),
+        bool(request_data.active_project_focus), bool(request_data.project_access_declined),
+        bool(request_data.is_incognito), bool(request_data.is_external),
+        (request_data.user_preferences or {}).get("apps_enabled") is not False,
+        bool(user_overrides and (user_overrides.focus_modes or user_overrides.skills)),
+        selected_app_ids is not None,
+        bool(getattr(request_data, "project_routing_focus_id", None)),
+    )
     if (request_data.project_focus_candidates
             and "project_file_jobs" in (request_data.client_capabilities or [])
             and not request_data.active_project_focus
@@ -1875,6 +1889,8 @@ async def handle_preprocessing(
             and (request_data.user_preferences or {}).get("apps_enabled") is not False
             and not (user_overrides and (user_overrides.focus_modes or user_overrides.skills))
             and (selected_app_ids is None or getattr(request_data, "project_routing_focus_id", None))):
+        logger.info("%s Compact Project routing entered candidate_count=%d",
+                    log_prefix, len(request_data.project_focus_candidates))
         from backend.core.api.app.services.project_focus_request_service import validated_project_candidates
         from backend.core.api.app.services.project_focus_routing import validated_focus_candidates_for_project
         from backend.apps.ai.processing.jev_preprocessing import decide_app_and_project_routing_with_jev
@@ -1884,6 +1900,9 @@ async def handle_preprocessing(
                 user_id=request_data.user_id, team_id=request_data.team_id,
             )
             project_candidates_validated = True
+            logger.info("%s Compact Project routing validated eligible_count=%d",
+                        log_prefix, sum(row.get("auto_selection", True) is True
+                            for row in request_data.project_focus_candidates))
             if not decision_model:
                 raise RuntimeError("No compact decision model configured")
             async def focus_catalog(candidate: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -1915,6 +1934,28 @@ async def handle_preprocessing(
                 project_routing_focus_id=getattr(request_data, "project_routing_focus_id", None),
             )
             selected_app_ids = routing["selected_app_ids"]
+            if not routing.get("pending_project_focus_id"):
+                from backend.apps.ai.processing.project_file_tools import (
+                    requests_project_file_work, uniquely_named_project_focus_id,
+                )
+                current_text = request_data.current_user_content or ""
+                file_intent = requests_project_file_work(current_text)
+                named_id = uniquely_named_project_focus_id(
+                    current_text, request_data.project_focus_candidates,
+                    [f"project-{row['project_id']}" for row in request_data.project_focus_candidates
+                     if row.get("auto_selection", True) is True],
+                ) if file_intent else None
+                logger.info("%s Compact Project named-file fallback outcome=%s",
+                            log_prefix, "selected" if named_id else
+                            "no_unique_name" if file_intent else "no_file_intent")
+                if named_id:
+                    candidate = next(row for row in request_data.project_focus_candidates
+                                     if named_id == f"project-{row['project_id']}")
+                    routing["pending_project_focus_id"] = named_id
+                    if "focuses" not in candidate:
+                        routing["pending_project_catalog_id"] = candidate["project_id"]
+                    if selected_app_ids is not None and "projects" not in selected_app_ids:
+                        selected_app_ids.append("projects")
             if routing.get("pending_project_focus_id"):
                 logger.info("%s Project consent routed before detailed preprocessing and main setup", log_prefix)
                 return PreprocessingResult(
@@ -1943,7 +1984,8 @@ async def handle_preprocessing(
             # an optional discovery failure must not bypass its consent boundary.
             staged_id = getattr(request_data, "project_routing_focus_id", None)
             if staged_id and any(staged_id == f"project-{row['project_id']}"
-                                 for row in request_data.project_focus_candidates):
+                                 for row in request_data.project_focus_candidates
+                                 if row.get("auto_selection", True) is True):
                 named_id = staged_id
             if named_id and project_candidates_validated:
                 candidate = next(row for row in request_data.project_focus_candidates

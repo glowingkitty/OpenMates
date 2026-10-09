@@ -338,10 +338,62 @@ test.describe('Plain-language Project README access (real inference, dev only)',
     let firstAnswerAt: number | null = null;
     let trueFinalAt: number | null = null;
     const browserErrors: Array<{ source: 'console' | 'pageerror'; name: string | null; code: string | null }> = [];
+    const activationFailures: Array<{ stage: string; code: string }> = [];
+    const focusConsoleErrors: Array<{ source: string; name: string | null; message: string | null; frames: string[] }> = [];
+    const focusApiResponses: Array<{ endpoint: string; status: number }> = [];
+    const pendingFocusConsoleCaptures: Promise<void>[] = [];
     const safeErrorCode = (value: unknown) => typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,48}$/.test(value) ? value : null;
+    const safeFocusErrorMessage = (value: string) => {
+      const known = new Set([
+        'Focus activation chat is unavailable', 'Focus activation chat key is unavailable',
+        'Focus activation chat key is unsafe for write', 'WebSocket not connected',
+        'WebSocket not connected after reconnect attempt', 'WebSocket changed before message dispatch',
+        'Project focus activation returned an invalid response',
+      ]);
+      if (known.has(value)) return value;
+      const apiStatus = value.match(/^Projects API failed \((\d{3})\):/);
+      return apiStatus ? `Projects API failed (${apiStatus[1]})` : null;
+    };
+    page.on('response', response => {
+      if (acceptedTurnStartedAt === null || focusApiResponses.length >= 30) return;
+      const path = new URL(response.url()).pathname;
+      const endpoint = path.match(/\/focus\/(countdown|activate|current|deactivate)$/)?.[1];
+      if (endpoint) focusApiResponses.push({ endpoint, status: response.status() });
+    });
     page.on('console', message => {
-      if (message.type() !== 'error' || browserErrors.length >= 20) return;
+      if (message.type() !== 'error') return;
       const errorText = message.text();
+      const source = errorText.match(/^\[(FocusModeActivationRenderer|ChatKeyWriteGuard|ChatSyncService|WebSocketService|ProjectFocusActivation|FocusActivation)\]/)?.[1];
+      if (source && acceptedTurnStartedAt !== null && focusConsoleErrors.length < 20) {
+        const capture = Promise.all(message.args().map(arg => arg.evaluate((value: unknown) => {
+          if (!value || typeof value !== 'object') return null;
+          const candidate = value as { name?: unknown; message?: unknown; stack?: unknown };
+          return {
+            name: typeof candidate.name === 'string' ? candidate.name : null,
+            message: typeof candidate.message === 'string' ? candidate.message : null,
+            stack: typeof candidate.stack === 'string' ? candidate.stack : null,
+          };
+        }).catch(() => null))).then(args => {
+          const error = args.find(arg => arg?.message || arg?.stack);
+          const frames = (error?.stack ?? '').split('\n').slice(1, 4).map(line => {
+            const functionName = line.match(/\bat ([\w.$<>-]{1,80})/)?.[1] ?? '?';
+            const fileName = line.match(/\/([A-Za-z0-9_.-]+\.(?:js|ts|svelte))(?:[?:]|$)/)?.[1] ?? '?';
+            return `${functionName}@${fileName}`;
+          });
+          focusConsoleErrors.push({
+            source,
+            name: error?.name && /^(?:TypeError|ReferenceError|SyntaxError|RangeError|DOMException|Error)$/.test(error.name) ? error.name : null,
+            message: error?.message ? safeFocusErrorMessage(error.message) : null,
+            frames,
+          });
+        });
+        pendingFocusConsoleCaptures.push(capture);
+      }
+      const activationFailure = errorText.match(/^\[(?:Project)?FocusActivation\] failed stage=([a-z_]+) code=([A-Z_]+)$/);
+      if (activationFailure && activationFailures.length < 10) {
+        activationFailures.push({ stage: activationFailure[1], code: activationFailure[2] });
+      }
+      if (browserErrors.length >= 20) return;
       browserErrors.push({
         source: 'console',
         name: errorText.match(/\b(?:TypeError|ReferenceError|SyntaxError|RangeError|DOMException|Error)\b/)?.[0] ?? null,
@@ -360,7 +412,8 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       if (acceptedTurnStartedAt === null || !event.type || ![
         'chat_turn_preflight', 'project_file_operation_request', 'project_file_operation_result',
         'send_embed_data', 'ai_message_update', 'ai_background_response_completed',
-        'ai_typing_ended', 'post_processing_completed',
+        'ai_typing_ended', 'post_processing_completed', 'update_encrypted_active_focus_id',
+        'project_focus_decision',
       ].includes(event.type)) return;
       const at = Date.now();
       if (direction === 'received' && event.payload?.chat_id === acceptedChatId
@@ -398,6 +451,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
     let chatCleanupFailure: string | null = null;
     let fixtureCleanupFailure: string | null = null;
     const captureReferenceRenderState = async (stage: 'before-assertion' | 'before-cleanup') => {
+      await Promise.allSettled(pendingFocusConsoleCaptures);
       const finalAssistantFences = received.filter(event =>
         (event.type === 'ai_message_update' || event.type === 'ai_background_response_completed')
         && event.payload?.chat_id === acceptedChatId && event.payload.is_final_chunk === true)
@@ -442,6 +496,9 @@ test.describe('Plain-language Project README access (real inference, dev only)',
             && event.payload?.chat_id === acceptedChatId && event.payload.is_final_chunk === true)
             .map(event => Object.keys(event.payload ?? {}).sort()),
           browser_errors: browserErrors,
+          activation_failures: activationFailures,
+          focus_console_errors: focusConsoleErrors,
+          focus_api_responses: focusApiResponses,
         }, null, 2),
         contentType: 'application/json',
       });
