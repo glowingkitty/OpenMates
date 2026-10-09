@@ -24,6 +24,10 @@ from backend.apps.ai.llm_providers.native_cache_context import (
 )
 from backend.apps.ai.llm_providers.openai_responses import native_responses_input
 from backend.shared.python_utils.native_cache_history import canonical_content_sha256
+from backend.apps.ai.utils.app_skill_json_cleanup import canonicalize_app_skill_json_blocks
+from backend.apps.ai.utils.embeds_map_view import (
+    append_missing_embeds_map_view_block, extract_map_capable_source_refs,
+)
 
 
 def _tool(name, description="first"):
@@ -201,6 +205,117 @@ def test_server_app_skill_reference_is_presentation_only_and_resolved_followup_m
     edited = copy.deepcopy(followup)
     edited[1]["native_cache_canonical_content_sha256"] = canonical_content_sha256("edited original")
     assert matched_visible_prefix(final, edited) is None
+
+
+@pytest.mark.asyncio
+async def test_live_shape_canonical_reference_and_map_repair_keep_encrypted_multiturn_replay():
+    state, visible = _segment()
+    state["expected_visible_response"] = "The Berlin results are ready."
+    full = {"type": "app_skill_use", "embed_id": "embed-1", "app_id": "events",
+            "skill_id": "search", "query": "Berlin AI events", "provider": "fixture"}
+    canonical = {key: full[key] for key in ("type", "embed_id", "app_id", "skill_id")}
+    info = [{"app_id": "events", "skill_id": "search", "embed_id": "embed-1",
+             "embed_reference": json.dumps(full)}]
+    streamed = f"```json\n{json.dumps(full)}\n```\n\nThe Berlin results are ready."
+    auto_map, repaired = append_missing_embeds_map_view_block(streamed, source_refs=[])
+    assert repaired and extract_map_capable_source_refs(streamed) == ["embed-1"]
+    rendered = canonicalize_app_skill_json_blocks(auto_map)
+    assert f"```json\n{json.dumps(canonical, separators=(',', ':'))}\n```" in rendered
+    assert "sources: embed-1" in rendered and '"query"' not in rendered
+    assert finalize_native_cache_state(
+        state, raw_final_output=[{"type": "message"}], content_markdown=rendered,
+        assistant_message_id="a1", tool_calls_info=info,
+    ) is None
+    assert finalize_native_cache_state(
+        state, raw_final_output=[{"type": "message"}], content_markdown=rendered,
+        assistant_message_id="a1", tool_calls_info=info,
+        presentation_steps=[{"kind": "append_map_view", "refs": ["untrusted-id"]}],
+    ) is None
+    final = finalize_native_cache_state(
+        state, raw_final_output=[{"type": "message"}], content_markdown=rendered,
+        assistant_message_id="a1", tool_calls_info=info,
+        # Actual source_refs was empty; the stream records only the derived
+        # executed source identity, not a user-supplied map reference.
+        presentation_steps=[{"kind": "append_map_view", "refs": ["embed-1"]}],
+    )
+    assert final is not None
+    row = {"embed_id": "embed-1", "type": "app_skill_use", "status": "finished",
+           "hashed_user_id": "owner", "encrypted_content": "vault:result",
+           "version_number": 1, "updated_at": 123}
+    cache = SimpleNamespace(get_embed_from_cache=AsyncMock(return_value=row))
+    sealed = await seal_native_embed_fingerprints(final, info, cache, "owner")
+    assert sealed is not None and set(sealed["embed_fingerprints"]) == {"embed-1"}
+    retained = json.loads(json.dumps(sealed))  # encrypted-context plaintext after vault decrypt
+    followup = [*visible, _message("assistant", "a1", rendered), _message("user", "u2", "More?")]
+    resumed = resume_native_segment(
+        retained, model_id="openai/gpt-6-astra", server_model_id="gpt-6-astra",
+        provider_prefix="openai", cacheable_system_prefix="Stable policy",
+        visible_history=followup, new_user_message={"role": "user", "content": "More?"},
+    )
+    assert resumed is not None
+    resumed["expected_visible_response"] = "Here is another result."
+    second = finalize_native_cache_state(
+        resumed, raw_final_output=[{"type": "message", "content": "Here is another result."}],
+        content_markdown="Here is another result.", assistant_message_id="a2",
+    )
+    assert second is not None
+    second = await seal_native_embed_fingerprints(second, [], cache, "owner")
+    assert second is not None and second["embed_fingerprints"] == sealed["embed_fingerprints"]
+    cache.get_embed_from_cache.return_value = {**row, "hashed_user_id": "other"}
+    assert await seal_native_embed_fingerprints(final, info, cache, "owner") is None
+
+
+def test_canonical_app_reference_remains_cardinality_and_identity_bounded():
+    state, _ = _segment()
+    state["expected_visible_response"] = "Sunny."
+    full = {"type": "app_skill_use", "embed_id": "embed-1", "app_id": "weather",
+            "skill_id": "search", "query": "weather"}
+    canonical = {key: full[key] for key in ("type", "embed_id", "app_id", "skill_id")}
+    info = [{"app_id": "weather", "skill_id": "search", "embed_id": "embed-1",
+             "embed_reference": json.dumps(full)}]
+
+    def accepted(payloads, answer="Sunny."):
+        rendered = "\n\n".join(f"```json\n{json.dumps(payload)}\n```" for payload in payloads)
+        return finalize_native_cache_state(
+            state, raw_final_output=[{"type": "message"}],
+            content_markdown=f"{rendered}\n\n{answer}", assistant_message_id="a1",
+            tool_calls_info=info,
+        ) is not None
+
+    assert accepted([full])
+    assert accepted([canonical])
+    assert not accepted([full, canonical])
+    alternate_info = [{**info[0], "embed_references": [json.dumps({**full, "query": "changed"})]}]
+    duplicate = "\n\n".join(f"```json\n{json.dumps(canonical)}\n```" for _ in range(2))
+    assert finalize_native_cache_state(
+        state, raw_final_output=[{"type": "message"}],
+        content_markdown=f"{duplicate}\n\nSunny.", assistant_message_id="a1",
+        tool_calls_info=alternate_info,
+    ) is None
+    assert not accepted([{**canonical, "query": "changed"}])
+    assert not accepted([{**canonical, "embed_id": "other"}])
+    assert not accepted([canonical], answer="Rainy.")
+
+
+def test_invalid_inline_link_replay_requires_the_exact_trusted_rewrite():
+    state, _ = _segment()
+    state["expected_visible_response"] = "Read [the result](embed:missing-ref) next."
+    approved = [{"kind": "strip_invalid_links", "refs": ["trusted-ref"]}]
+    assert finalize_native_cache_state(
+        state, raw_final_output=[{"type": "message"}],
+        content_markdown="Read the result next.", assistant_message_id="a1",
+        presentation_steps=approved,
+    ) is not None
+    assert finalize_native_cache_state(
+        state, raw_final_output=[{"type": "message"}],
+        content_markdown="Read a different result next.", assistant_message_id="a1",
+        presentation_steps=approved,
+    ) is None
+    assert finalize_native_cache_state(
+        state, raw_final_output=[{"type": "message"}],
+        content_markdown="Read the result next.", assistant_message_id="a1",
+        presentation_steps=[{"kind": "strip_invalid_links", "refs": ["missing-ref"]}],
+    ) is None
 
 
 def test_finished_single_embed_keeps_same_id_placeholder_provenance_for_replay():

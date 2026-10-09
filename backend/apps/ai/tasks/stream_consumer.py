@@ -90,6 +90,7 @@ from backend.apps.ai.utils.mindmap_fences import is_mindmap_fence
 from backend.apps.ai.utils.embeds_map_view import (
     append_missing_embeds_map_view_block,
     content_has_map_capable_app_skill_use,
+    extract_map_capable_source_refs,
     is_embeds_map_view_fence_language,
     is_map_view_suppressed_request,
     normalize_embeds_map_view_blocks,
@@ -2258,6 +2259,7 @@ async def _strip_invalid_inline_embed_links(
     known_valid_refs: Optional[set[str]] = None,
     log_prefix: str = "",
     embed_graph: Optional[FinalizationEmbedGraph] = None,
+    validated_refs_out: Optional[set[str]] = None,
 ) -> str:
     """Downgrade non-quote inline embed links whose embed_ref is not real."""
     if not aggregated_response or not cache_service or not encryption_service or not user_vault_key_id:
@@ -2335,21 +2337,11 @@ async def _strip_invalid_inline_embed_links(
 
     if not valid_refs:
         return aggregated_response
+    from backend.apps.ai.processing.native_history_cache import strip_invalid_inline_embed_links
 
-    modified = aggregated_response
-    stripped = 0
-    for match in reversed(matches):
-        line_start = aggregated_response.rfind('\n', 0, match.start()) + 1
-        line_prefix = aggregated_response[line_start:match.start()].lstrip()
-        if line_prefix.startswith('>'):
-            continue
-        embed_ref_with_fragment = match.group(2)
-        clean_ref = embed_ref_with_fragment.split("#", 1)[0]
-        if clean_ref in valid_refs:
-            continue
-        display_text = match.group(1) or _derive_display_text_from_embed_ref(clean_ref)
-        modified = modified[:match.start()] + display_text + modified[match.end():]
-        stripped += 1
+    modified, stripped = strip_invalid_inline_embed_links(aggregated_response, valid_refs)
+    if validated_refs_out is not None:
+        validated_refs_out.update(valid_refs)
 
     if stripped:
         logger.warning(
@@ -9612,6 +9604,8 @@ async def _consume_main_processing_stream(
                     f"(length: {len(aggregated_response)})"
                 )
 
+    native_presentation_steps: List[Dict[str, Any]] = []
+
     # --- Embeds Map View Guard ---
     # Normalize virtual map/list blocks before persistence. This drops unsupported
     # fields such as filters/provider/enrichment and cannot dispatch paid skills.
@@ -9626,6 +9620,12 @@ async def _consume_main_processing_stream(
             source_refs=map_view_source_refs,
         )
         if map_view_changed:
+            native_presentation_steps.append({
+                "kind": "normalize_map_view",
+                "refs": list(dict.fromkeys([
+                    *extract_map_capable_source_refs(aggregated_response), *map_view_source_refs,
+                ])),
+            })
             aggregated_response = map_view_fixed_response
             final_response_chunks = [aggregated_response]
 
@@ -9764,6 +9764,7 @@ async def _consume_main_processing_stream(
     # by this response. Source quotes have their stricter verifier above.
     if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
         try:
+            validated_inline_refs: set[str] = set()
             ref_validated_response = await _strip_invalid_inline_embed_links(
                 aggregated_response=aggregated_response,
                 tool_calls_info=tool_calls_info,
@@ -9773,8 +9774,10 @@ async def _consume_main_processing_stream(
                 user_vault_key_id=user_vault_key_id,
                 log_prefix=log_prefix,
                 embed_graph=finalization_embed_graph,
+                validated_refs_out=validated_inline_refs,
             )
             if ref_validated_response != aggregated_response:
+                native_presentation_steps.append({"kind": "strip_invalid_links", "refs": sorted(validated_inline_refs)})
                 aggregated_response = ref_validated_response
                 final_response_chunks = [aggregated_response]
 
@@ -9819,6 +9822,12 @@ async def _consume_main_processing_stream(
                 source_refs=map_view_source_refs,
             )
             if map_view_repaired:
+                native_presentation_steps.append({
+                    "kind": "append_map_view",
+                    "refs": list(dict.fromkeys([
+                        *extract_map_capable_source_refs(aggregated_response), *map_view_source_refs,
+                    ])),
+                })
                 aggregated_response = map_view_repaired_response
                 normalized_map_view_response, _ = normalize_embeds_map_view_blocks(
                     aggregated_response,
@@ -10184,6 +10193,7 @@ async def _consume_main_processing_stream(
                 assistant_category=preprocessing_result.category or "general_knowledge",
                 assistant_created_at=canonical_assistant_created_at,
                 tool_calls_info=tool_calls_info,
+                presentation_steps=native_presentation_steps,
             )
             if final_native_cache_context is not None:
                 final_native_cache_context = await seal_native_embed_fingerprints(

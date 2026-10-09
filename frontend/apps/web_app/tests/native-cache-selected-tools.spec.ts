@@ -250,6 +250,15 @@ test('native cache keeps selected math tools and settled billing across five cha
 			fixtureAnswerMatches.push(fixtureAnswerMatch);
 			expect(standardErrorReply, `turn ${index + 1} returned a standard error reply`).toBe(false);
 			expect(fixtureAnswerMatch, `turn ${index + 1} did not return its signed fixture answer`).toBe(true);
+			if (index === 0 || index === 2) {
+				const canonicalMathEmbed = assistant.locator(
+					'[data-testid="embed-preview"][data-app-id="math"][data-skill-id="calculate"]'
+				);
+				await expect(canonicalMathEmbed, 'executed math reference must render as one saved app-skill embed')
+					.toHaveCount(1, { timeout: 15_000 });
+				expect(await canonicalMathEmbed.getAttribute('data-embed-id')).toBeTruthy();
+				expect(replyText).not.toContain('"type":"app_skill_use"');
+			}
 			successfulReplies = index + 1;
 			if (index === 0) {
 				// Send turn two as soon as the reply becomes visible. The unit

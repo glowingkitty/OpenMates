@@ -14,6 +14,10 @@ from collections import Counter
 from typing import Any, Mapping, Sequence
 
 from backend.shared.python_utils.native_cache_history import canonical_content_sha256
+from backend.apps.ai.utils.embed_display_text import derive_display_text_from_embed_ref
+from backend.apps.ai.utils.embeds_map_view import (
+    append_missing_embeds_map_view_block, normalize_embeds_map_view_blocks,
+)
 
 
 NATIVE_HISTORY_VERSION = 2
@@ -21,6 +25,7 @@ MAX_NATIVE_EMBED_FINGERPRINTS = 128
 _APP_SKILL_JSON_BLOCK = re.compile(
     r"(?m)^```json[ \t]*\r?\n(?P<body>\{[^\r\n]{1,16384}\})\r?\n```[ \t]*(?:\r?\n)?"
 )
+_INLINE_EMBED_LINK_PATTERN = re.compile(r'(?<!^>\s)\[([^\]]*)\]\(embed:([^)]+)\)')
 
 
 def _field(message: Any, name: str) -> Any:
@@ -265,9 +270,13 @@ def _server_app_skill_references(tool_calls_info: Sequence[dict[str, Any]] | Non
                     or payload.get("skill_id") != call["skill_id"]):
                 continue
             key = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-            if key not in recorded_for_call:
+            identity = json.dumps(
+                {field: payload[field] for field in ("type", "embed_id", "app_id", "skill_id")},
+                sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+            )
+            if identity not in recorded_for_call:
                 allowed[key] += 1
-                recorded_for_call.add(key)
+                recorded_for_call.add(identity)
     return allowed
 
 
@@ -419,6 +428,17 @@ def _without_server_app_skill_references(
     if not allowed:
         return rendered
 
+    # One executed reference permits either its exact server payload or the
+    # four-field identity persisted by app_skill_json_cleanup, never both.
+    identities: Counter[str] = Counter()
+    full_to_identity: dict[str, str] = {}
+    for full, count in allowed.items():
+        payload = json.loads(full)
+        canonical = {key: payload[key] for key in ("type", "embed_id", "app_id", "skill_id")}
+        identity = json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        full_to_identity[full] = identity
+        identities[identity] += count
+
     def remove(match: re.Match[str]) -> str:
         try:
             payload = json.loads(match.group("body"))
@@ -427,12 +447,69 @@ def _without_server_app_skill_references(
         if not isinstance(payload, dict) or payload.get("type") != "app_skill_use":
             return match.group(0)
         key = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-        if allowed[key] <= 0:
+        identity = full_to_identity.get(key)
+        if identity is None and set(payload) == {"type", "embed_id", "app_id", "skill_id"}:
+            identity = key
+        if identity is None or identities[identity] <= 0:
             return match.group(0)
-        allowed[key] -= 1
+        identities[identity] -= 1
         return ""
 
     return _APP_SKILL_JSON_BLOCK.sub(remove, rendered)
+
+
+def strip_invalid_inline_embed_links(text: str, valid_refs: set[str]) -> tuple[str, int]:
+    """Pure finalization rewrite; source-quote blockquotes remain untouched."""
+    modified = text
+    stripped = 0
+    for match in reversed(list(_INLINE_EMBED_LINK_PATTERN.finditer(text))):
+        line_start = text.rfind("\n", 0, match.start()) + 1
+        if text[line_start:match.start()].lstrip().startswith(">"):
+            continue
+        ref = match.group(2).split("#", 1)[0]
+        if ref in valid_refs:
+            continue
+        display = match.group(1) or derive_display_text_from_embed_ref(ref)
+        modified = modified[:match.start()] + display + modified[match.end():]
+        stripped += 1
+    return modified, stripped
+
+
+def _replay_presentation_steps(
+    expected: str, steps: Sequence[Mapping[str, Any]] | None,
+    tool_calls_info: Sequence[dict[str, Any]] | None,
+) -> str | None:
+    if not steps:
+        return expected
+    if len(steps) > 3:
+        return None
+    result = expected
+    order = {"normalize_map_view": 0, "strip_invalid_links": 1, "append_map_view": 2}
+    trusted_embed_ids = _server_app_skill_embed_ids(tool_calls_info)
+    previous = -1
+    for step in steps:
+        if not isinstance(step, Mapping) or set(step) != {"kind", "refs"}:
+            return None
+        kind, refs = step["kind"], step["refs"]
+        if not isinstance(kind, str) or kind not in order or order[kind] <= previous or not isinstance(refs, list):
+            return None
+        if (len(refs) > MAX_NATIVE_EMBED_FINGERPRINTS
+                or any(not isinstance(ref, str) or not ref for ref in refs)
+                or len(refs) != len(set(refs))):
+            return None
+        if kind == "strip_invalid_links" and not refs:
+            return None
+        if kind != "strip_invalid_links" and not set(refs).issubset(trusted_embed_ids):
+            return None
+        previous = order[kind]
+        if kind == "normalize_map_view":
+            result, _ = normalize_embeds_map_view_blocks(result, source_refs=refs)
+        elif kind == "strip_invalid_links":
+            result, _ = strip_invalid_inline_embed_links(result, set(refs))
+        else:
+            result, _ = append_missing_embeds_map_view_block(result, source_refs=refs)
+            result, _ = normalize_embeds_map_view_blocks(result, source_refs=refs)
+    return result
 
 
 def _presentation_text(text: str) -> str:
@@ -448,6 +525,7 @@ def finalize_native_cache_state(
     content_markdown: str, assistant_message_id: str,
     assistant_category: str | None = None, assistant_created_at: int | None = None,
     tool_calls_info: Sequence[dict[str, Any]] | None = None,
+    presentation_steps: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     """Seal only a completed transcript matching the canonical visible answer.
 
@@ -461,10 +539,13 @@ def finalize_native_cache_state(
     if not isinstance(expected, str):
         return None
     if expected != content_markdown:
+        projected = _replay_presentation_steps(expected, presentation_steps, tool_calls_info)
+        if projected is None:
+            return None
         rendered_provider_text = _without_server_app_skill_references(
             content_markdown, tool_calls_info,
         )
-        if _presentation_text(expected) != _presentation_text(rendered_provider_text):
+        if _presentation_text(projected) != _presentation_text(rendered_provider_text):
             return None
     finalized = copy.deepcopy(dict(state))
     try:
