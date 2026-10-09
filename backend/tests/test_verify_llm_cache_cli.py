@@ -142,6 +142,49 @@ def test_full_input_comparison_includes_anthropic_writes_and_paid_output():
 
 
 # contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
+def test_generic_cache_writes_reconcile_two_attempt_luna_receipt():
+    """OpenAI reports aggregate writes without Anthropic's 5m/1h split."""
+    rates = {"input": "3300", "cache_read": "33000", "cache_write": "2640",
+             "cache_write_1h": None, "output": "650"}
+    attempts = [
+        {"input_tokens": 16166, "billed_input_tokens": 8301,
+         "cache_read_input_tokens": 0, "cache_creation_input_tokens": 7865,
+         "output_tokens": 57},
+        {"input_tokens": 24776, "billed_input_tokens": 3,
+         "cache_read_input_tokens": 7865, "cache_creation_input_tokens": 16908,
+         "output_tokens": 620},
+    ]
+    entries = [{**attempt, "model_id": "test/luna", "pricing_version": "frozen-v1",
+                "inference_host": "test-host", "billing_mode": "cache_aware",
+                "write_billing": "separate", "cache_creation_5m_input_tokens": None,
+                "cache_creation_1h_input_tokens": None, "rates": rates}
+               for attempt in attempts]
+    receipt = {"settlement_state": "settled", "credits_charged": 13,
+               "usage_source": "provider_reported", "entries": entries,
+               "input_tokens": 40942, "output_tokens": 677,
+               "cache_read_input_tokens": 7865,
+               "cache_creation_input_tokens": 24773}
+    row = {**_chat("turn", 13), "created_at": "2026-10-09T00:00:00Z",
+           "llm_usage_breakdown": receipt}
+    turns = summarize_turns([row], require_receipts=True)
+    assert turns[0]["actual_credits"] == 13
+    assert turns[0]["cache_creation_input_tokens"] == 24773
+
+
+# contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
+def test_split_cache_writes_keep_one_hour_rate_and_floor_once():
+    receipt = _receipt(input_tokens=22, billed_input_tokens=7,
+                       cache_read_tokens=0, output_tokens=0, charged=5)
+    entry = receipt["entries"][0]
+    entry.update(write_billing="separate", cache_creation_input_tokens=15,
+                 cache_creation_5m_input_tokens=10, cache_creation_1h_input_tokens=5)
+    entry["rates"].update(input="10", cache_write="5", cache_write_1h="2")
+    receipt["cache_creation_input_tokens"] = 15
+    assert summarize_turns([{**_chat("turn", 5), "created_at": "2026-10-09T00:00:00Z",
+                             "llm_usage_breakdown": receipt}], require_receipts=True)[0]["actual_credits"] == 5
+
+
+# contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
 def test_per_turn_proof_rejects_unsettled_or_mismatched_charge():
     row = {**_chat("turn", 7), "created_at": "2026-10-08T00:00:00Z",
            "llm_usage_breakdown": _receipt()}

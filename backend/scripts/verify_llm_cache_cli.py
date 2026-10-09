@@ -63,8 +63,11 @@ def expected_receipt_credits(receipt: dict) -> int:
         if entry.get("billing_mode") == "cache_aware":
             counts["cache_read"] = entry.get("cache_read_input_tokens") or 0
             if entry.get("write_billing") == "separate":
-                counts["cache_write"] = entry.get("cache_creation_5m_input_tokens") or 0
-                counts["cache_write_1h"] = entry.get("cache_creation_1h_input_tokens") or 0
+                write_1h = entry.get("cache_creation_1h_input_tokens") or 0
+                write_total = entry.get("cache_creation_input_tokens")
+                counts["cache_write"] = (write_total - write_1h if write_total is not None
+                                         else entry.get("cache_creation_5m_input_tokens") or 0)
+                counts["cache_write_1h"] = write_1h
         for category, count in counts.items():
             if count:
                 raw += Fraction(count) / Fraction(entry["rates"][category])
